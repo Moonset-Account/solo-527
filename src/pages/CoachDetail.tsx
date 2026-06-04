@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Calendar, TrendingUp, Clock } from 'lucide-react';
 import { useCoachStore } from '@/stores/coachStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -7,11 +7,19 @@ import StatusBadge from '@/components/StatusBadge';
 
 export default function CoachDetail() {
   const { id } = useParams();
+  const location = useLocation();
   const { user } = useAuthStore();
   const { currentCoach, performance, schedule, fetchCoach, fetchPerformance, fetchSchedule } = useCoachStore();
   const [activeTab, setActiveTab] = useState<'schedule' | 'performance'>('schedule');
 
-  const coachId = Number(id);
+  const isMySchedule = location.pathname === '/coaches/my-schedule';
+  const isMyPerformance = location.pathname === '/coaches/my-performance';
+  const coachId = id ? Number(id) : user?.coach_id;
+
+  useEffect(() => {
+    if (isMySchedule) setActiveTab('schedule');
+    if (isMyPerformance) setActiveTab('performance');
+  }, [location.pathname]);
 
   useEffect(() => {
     if (coachId) {
@@ -21,7 +29,7 @@ export default function CoachDetail() {
         fetchPerformance(coachId);
       }
     }
-  }, [coachId]);
+  }, [coachId, fetchCoach, fetchSchedule, fetchPerformance, user]);
 
   if (!currentCoach) return <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-accent border-t-transparent rounded-full" /></div>;
 

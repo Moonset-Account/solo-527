@@ -136,6 +136,8 @@ export const freezeApi = {
     request<Freeze>('/api/freezes', { method: 'POST', body: JSON.stringify(data) }),
   approve: (id: number) =>
     request<Freeze>(`/api/freezes/${id}/approve`, { method: 'PUT' }),
+  reject: (id: number) =>
+    request<Freeze>(`/api/freezes/${id}/reject`, { method: 'PUT' }),
   getMemberFreezes: (memberId: number) =>
     request<Freeze[]>(`/api/freezes/members/${memberId}/freezes`),
 };

@@ -9,6 +9,7 @@ interface FreezeState {
   fetchFreezes: (filters?: { member_id?: number; status?: string }) => Promise<void>;
   createFreeze: (data: Partial<Freeze>) => Promise<Freeze>;
   approveFreeze: (id: number) => Promise<void>;
+  rejectFreeze: (id: number) => Promise<void>;
   fetchMemberFreezes: (memberId: number) => Promise<void>;
 }
 
@@ -32,6 +33,10 @@ export const useFreezeStore = create<FreezeState>((set) => ({
   },
   approveFreeze: async (id: number) => {
     const freeze = await freezeApi.approve(id);
+    set((s) => ({ freezes: s.freezes.map((f) => (f.id === id ? freeze : f)) }));
+  },
+  rejectFreeze: async (id: number) => {
+    const freeze = await freezeApi.reject(id);
     set((s) => ({ freezes: s.freezes.map((f) => (f.id === id ? freeze : f)) }));
   },
   fetchMemberFreezes: async (memberId: number) => {

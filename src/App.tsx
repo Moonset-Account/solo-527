@@ -7,6 +7,8 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Members from '@/pages/Members';
 import MemberDetail from '@/pages/MemberDetail';
+import MyPackages from '@/pages/MyPackages';
+import MyAppointments from '@/pages/MyAppointments';
 import Coaches from '@/pages/Coaches';
 import CoachDetail from '@/pages/CoachDetail';
 import Packages from '@/pages/Packages';
@@ -40,6 +42,8 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/members" element={<ProtectedRoute roles={['admin', 'receptionist']}><Members /></ProtectedRoute>} />
             <Route path="/members/:id" element={<ProtectedRoute roles={['admin', 'receptionist']}><MemberDetail /></ProtectedRoute>} />
+            <Route path="/members/my-packages" element={<ProtectedRoute roles={['member']}><MyPackages /></ProtectedRoute>} />
+            <Route path="/members/my-appointments" element={<ProtectedRoute roles={['member']}><MyAppointments /></ProtectedRoute>} />
             <Route path="/coaches" element={<ProtectedRoute roles={['admin']}><Coaches /></ProtectedRoute>} />
             <Route path="/coaches/my-schedule" element={<ProtectedRoute roles={['coach']}><CoachDetail /></ProtectedRoute>} />
             <Route path="/coaches/my-performance" element={<ProtectedRoute roles={['coach']}><CoachDetail /></ProtectedRoute>} />

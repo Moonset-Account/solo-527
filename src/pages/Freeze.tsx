@@ -6,7 +6,7 @@ import StatusBadge from '@/components/StatusBadge';
 import type { Member, MemberPackage } from '../../shared/types';
 
 export default function Freeze() {
-  const { freezes, loading, fetchFreezes, createFreeze, approveFreeze } = useFreezeStore();
+  const { freezes, loading, fetchFreezes, createFreeze, approveFreeze, rejectFreeze } = useFreezeStore();
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
@@ -42,6 +42,11 @@ export default function Freeze() {
     fetchFreezes();
   };
 
+  const handleReject = async (id: number) => {
+    await rejectFreeze(id);
+    fetchFreezes();
+  };
+
   return (
     <div className="space-y-6">
       {pendingFreezes.length > 0 && (
@@ -58,7 +63,7 @@ export default function Freeze() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleApprove(f.id)} className="btn-success text-sm flex items-center gap-1"><Check className="w-4 h-4" />批准</button>
-                  <button className="btn-danger text-sm flex items-center gap-1"><X className="w-4 h-4" />拒绝</button>
+                  <button onClick={() => handleReject(f.id)} className="btn-danger text-sm flex items-center gap-1"><X className="w-4 h-4" />拒绝</button>
                 </div>
               </div>
             ))}
