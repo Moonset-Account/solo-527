@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, maintenanceProcedure, protectedProcedure, adminProcedure } from '../trpc';
+import { router, maintenanceProcedure, protectedProcedure } from '../trpc';
 import { MaintenanceService } from '../services/maintenance.service';
 import { prisma } from '../db';
 import { MaintenanceStatus } from '@prisma/client';
@@ -21,10 +21,21 @@ export const maintenanceRouter = router({
       });
     }),
 
-  getImpact: maintenanceProcedure
+  getImpact: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       return MaintenanceService.getMaintenanceImpact(input.id);
+    }),
+
+  resolve: maintenanceProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        resolutionNotes: z.string().min(5),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return MaintenanceService.resolveMaintenance(input.id, input.resolutionNotes);
     }),
 
   updateStatus: maintenanceProcedure
@@ -39,7 +50,7 @@ export const maintenanceRouter = router({
       return MaintenanceService.updateMaintenanceStatus(input.id, input.status, input.resolutionNotes);
     }),
 
-  getAll: maintenanceProcedure
+  getAll: protectedProcedure
     .input(
       z.object({
         status: z.nativeEnum(MaintenanceStatus).optional(),
@@ -51,7 +62,7 @@ export const maintenanceRouter = router({
       return prisma.maintenanceRecord.findMany({
         where: { status: input.status },
         include: {
-          device: { select: { id: true, name: true } },
+          device: { select: { id: true, name: true, location: true } },
           reporter: { select: { id: true, name: true } },
           _count: {
             select: { affectedBookings: true },

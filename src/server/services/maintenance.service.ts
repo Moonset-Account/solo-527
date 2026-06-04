@@ -40,7 +40,7 @@ export class MaintenanceService {
     const affectedBookings = await prisma.booking.findMany({
       where: {
         deviceId: maintenance.deviceId,
-        status: { in: [BookingStatus.APPROVED, BookingStatus.PENDING_ADMIN] },
+        status: { in: [BookingStatus.APPROVED, BookingStatus.PENDING_ADMIN, BookingStatus.PENDING_MENTOR] },
         startTime: { lte: maintenance.estimatedEndTime || new Date('2100-01-01') },
         endTime: { gte: maintenance.startTime },
       },
@@ -99,6 +99,9 @@ export class MaintenanceService {
             user: {
               select: { id: true, name: true, email: true },
             },
+            project: {
+              select: { id: true, name: true, projectNumber: true },
+            },
           },
         },
       },
@@ -113,6 +116,72 @@ export class MaintenanceService {
       affectedBookingCount: maintenance.affectedBookings.length,
       affectedUsers: maintenance.affectedBookings.map((b) => b.user),
     };
+  }
+
+  static async resolveMaintenance(maintenanceId: string, resolutionNotes: string) {
+    const maintenance = await prisma.maintenanceRecord.findUnique({
+      where: { id: maintenanceId },
+      include: { device: true },
+    });
+
+    if (!maintenance) {
+      throw new Error('维护记录不存在');
+    }
+
+    if (maintenance.status === MaintenanceStatus.RESOLVED) {
+      throw new Error('该维护记录已解决');
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.maintenanceRecord.update({
+        where: { id: maintenanceId },
+        data: {
+          status: MaintenanceStatus.RESOLVED,
+          actualEndTime: new Date(),
+          resolutionNotes,
+        },
+      });
+
+      await tx.device.update({
+        where: { id: maintenance.deviceId },
+        data: { status: DeviceStatus.AVAILABLE },
+      });
+
+      const affectedNotifications = await tx.notification.findMany({
+        where: {
+          type: NotificationType.MAINTENANCE_ALERT,
+          relatedMaintenanceId: maintenanceId,
+        },
+        select: { userId: true },
+      });
+
+      const uniqueUserIds = [...new Set(affectedNotifications.map((n) => n.userId))];
+
+      await Promise.all(
+        uniqueUserIds.map((userId) =>
+          tx.notification.create({
+            data: {
+              userId,
+              title: '设备已恢复可用',
+              content: `${maintenance.device.name} 已完成维护并恢复正常使用，您可以重新预约了。`,
+              type: NotificationType.MAINTENANCE_ALERT,
+              relatedMaintenanceId: maintenanceId,
+            },
+          })
+        )
+      );
+
+      return tx.maintenanceRecord.findUnique({
+        where: { id: maintenanceId },
+        include: {
+          device: { select: { id: true, name: true, location: true } },
+          reporter: { select: { id: true, name: true } },
+          _count: { select: { affectedBookings: true } },
+        },
+      });
+    });
+
+    return updated;
   }
 
   static async updateMaintenanceStatus(
