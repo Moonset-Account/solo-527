@@ -49,11 +49,13 @@ export async function createAppointment(data: {
   if (!member) throw new Error('MEMBER_NOT_FOUND');
   if (member.status === 'frozen') throw new Error('MEMBER_FROZEN');
 
-  if (data.type === 'private' && data.member_package_id) {
+  if (data.type === 'private') {
+    if (!data.member_package_id) throw new Error('PACKAGE_REQUIRED');
     const pkg = db.prepare('SELECT * FROM member_packages WHERE id = ?').get(data.member_package_id) as MemberPackage | undefined;
     if (!pkg) throw new Error('PACKAGE_NOT_FOUND');
+    if (pkg.member_id !== data.member_id) throw new Error('PACKAGE_NOT_BELONG_TO_MEMBER');
+    if (pkg.status === 'frozen' || pkg.status === 'expired' || pkg.status === 'exhausted' || pkg.status === 'cancelled') throw new Error('PACKAGE_NOT_ACTIVE');
     if (pkg.remaining_sessions <= 0) throw new Error('NO_REMAINING_SESSIONS');
-    if (pkg.status !== 'active') throw new Error('PACKAGE_NOT_ACTIVE');
   }
 
   const conflict = db.prepare(`

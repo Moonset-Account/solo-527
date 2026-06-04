@@ -179,6 +179,63 @@ describe('Appointments API', () => {
     expect(data.error).toContain('conflict');
   });
 
+  it('should reject private appointment without member_package_id with PACKAGE_REQUIRED error', async () => {
+    const { memberId, coachId } = await getMemberWithPackage();
+    const tomorrow = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+    const res = await fetch(`${baseUrl}/api/appointments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        member_id: memberId,
+        coach_id: coachId,
+        start_time: `${tomorrow} 09:00:00`,
+        end_time: `${tomorrow} 10:00:00`,
+        type: 'private',
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('PACKAGE_REQUIRED');
+  });
+
+  it('should reject private appointment with package not belonging to member', async () => {
+    const { getDb } = await import('../api/db/database.js');
+    const db = getDb();
+
+    const member1 = db.prepare('SELECT * FROM members WHERE status = ? LIMIT 1').get('active') as any;
+    const member2 = db.prepare('SELECT * FROM members WHERE status = ? AND id != ? LIMIT 1').get('active', member1.id) as any;
+
+    if (!member2) return;
+
+    const coach = db.prepare('SELECT * FROM coaches WHERE status = ? LIMIT 1').get('active') as any;
+    const otherMemberPkg = db.prepare('SELECT * FROM member_packages WHERE member_id = ? AND status = ? AND remaining_sessions > 0 LIMIT 1').get(member2.id, 'active') as any;
+
+    if (!otherMemberPkg) return;
+
+    const tomorrow = new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10);
+
+    const res = await fetch(`${baseUrl}/api/appointments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        member_id: member1.id,
+        coach_id: coach.id,
+        member_package_id: otherMemberPkg.id,
+        start_time: `${tomorrow} 09:00:00`,
+        end_time: `${tomorrow} 10:00:00`,
+        type: 'private',
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('PACKAGE_NOT_BELONG_TO_MEMBER');
+  });
+
   it('should deduct session from member_package on check-in', async () => {
     const { memberId, packageId, coachId } = await getMemberWithPackage();
     const tomorrow = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);

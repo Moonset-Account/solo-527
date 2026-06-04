@@ -32,7 +32,7 @@ router.post('/', authMiddleware, roleCheck('admin', 'receptionist', 'coach'), as
       res.status(409).json({ success: false, error: 'Coach has a time conflict' });
       return;
     }
-    if (msg === 'MEMBER_NOT_FOUND' || msg === 'PACKAGE_NOT_FOUND' || msg === 'PACKAGE_NOT_ACTIVE') {
+    if (msg === 'MEMBER_NOT_FOUND' || msg === 'PACKAGE_NOT_FOUND' || msg === 'PACKAGE_NOT_ACTIVE' || msg === 'PACKAGE_NOT_BELONG_TO_MEMBER' || msg === 'PACKAGE_REQUIRED') {
       res.status(400).json({ success: false, error: msg });
       return;
     }
