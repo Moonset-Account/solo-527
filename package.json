@@ -1,0 +1,15 @@
+{
+  "name": "travel-quote-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "yarn workspace @travel/backend start:dev",
+    "dev:frontend": "yarn workspace @travel/frontend dev",
+    "build:backend": "yarn workspace @travel/backend build",
+    "build:frontend": "yarn workspace @travel/frontend build",
+    "start": "docker-compose up -d"
+  }
+}
