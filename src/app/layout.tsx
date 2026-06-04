@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_SC, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import { TRPCProvider } from '@/lib/trpc';
+import { TRPCProvider } from '@/lib/trpc-provider';
 import { AppSidebar } from '@/components/layout/Sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Header } from '@/components/layout/Header';

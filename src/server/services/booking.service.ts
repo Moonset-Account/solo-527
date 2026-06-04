@@ -75,7 +75,10 @@ export class BookingService {
       this.checkConflict(data.deviceId, data.startTime, data.endTime),
       this.checkMaintenanceConflict(data.deviceId, data.startTime, data.endTime),
       prisma.user.findUnique({ where: { id: data.userId } }),
-      prisma.device.findUnique({ where: { id: data.deviceId } }),
+      prisma.device.findUnique({
+        where: { id: data.deviceId },
+        include: { type: true },
+      }),
     ]);
 
     if (hasConflict) {

@@ -100,9 +100,9 @@ export const userRouter = router({
           department: input.department,
           OR: input.search
             ? [
-                { name: { contains: input.search, mode: 'insensitive' } },
-                { email: { contains: input.search, mode: 'insensitive' } },
-                { studentId: { contains: input.search, mode: 'insensitive' } },
+                { name: { contains: input.search } },
+                { email: { contains: input.search } },
+                { studentId: { contains: input.search } },
               ]
             : undefined,
         },

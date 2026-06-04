@@ -1,9 +1,9 @@
-import type { NextRequest } from 'next/server';
+import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
 import type { Context } from './trpc';
 import { prisma } from './db';
 import { UserRole } from '@prisma/client';
 
-export async function createTRPCContext(req: NextRequest): Promise<Context> {
+export async function createTRPCContext({ req }: FetchCreateContextFnOptions): Promise<Context> {
   const userId = req.headers.get('x-user-id');
   const userRole = req.headers.get('x-user-role') as UserRole | null;
   const userEmail = req.headers.get('x-user-email');

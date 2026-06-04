@@ -23,8 +23,8 @@ export const deviceRouter = router({
           location: input.location,
           OR: input.search
             ? [
-                { name: { contains: input.search, mode: 'insensitive' } },
-                { model: { contains: input.search, mode: 'insensitive' } },
+                { name: { contains: input.search } },
+                { model: { contains: input.search } },
               ]
             : undefined,
         },
@@ -46,10 +46,11 @@ export const deviceRouter = router({
       return prisma.device.findUnique({
         where: { id: input.id },
         include: {
-        type: true,
-        maintenanceRecords: {
-          take: 5,
-          orderBy: { createdAt: 'desc' },
+          type: true,
+          maintenanceRecords: {
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+          },
         },
       });
     }),

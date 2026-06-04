@@ -38,6 +38,7 @@ export const projectRouter = router({
             orderBy: { createdAt: 'desc' },
             include: {
               device: { select: { id: true, name: true } },
+            },
           },
         },
       });
