@@ -63,7 +63,8 @@ async function seed() {
 
   const mp1 = insertMemberPackage.run(member1.lastInsertRowid, pt1.lastInsertRowid, 7, 10, formatDate(now), formatDate(new Date(now.getTime() + 90 * 86400000)), 3000, 'active');
   const mp2 = insertMemberPackage.run(member2.lastInsertRowid, pt2.lastInsertRowid, 15, 20, formatDate(now), formatDate(new Date(now.getTime() + 180 * 86400000)), 5000, 'active');
-  const mp3 = insertMemberPackage.run(member4.lastInsertRowid, pt1.lastInsertRowid, 5, 10, formatDate(new Date(now.getTime() - 30 * 86400000)), formatDate(new Date(now.getTime() + 60 * 86400000)), 3000, 'frozen');
+  const mp3 = insertMemberPackage.run(member3.lastInsertRowid, pt1.lastInsertRowid, 8, 10, formatDate(now), formatDate(new Date(now.getTime() + 90 * 86400000)), 3000, 'active');
+  const mp4 = insertMemberPackage.run(member4.lastInsertRowid, pt1.lastInsertRowid, 5, 10, formatDate(new Date(now.getTime() - 30 * 86400000)), formatDate(new Date(now.getTime() + 60 * 86400000)), 3000, 'frozen');
 
   const insertGroupClass = db.prepare(`
     INSERT INTO group_classes (name, coach_id, start_time, end_time, max_capacity, current_bookings, status)
@@ -95,7 +96,7 @@ async function seed() {
 
   insertAppointment.run(member1.lastInsertRowid, coach1.lastInsertRowid, mp1.lastInsertRowid, today + ' 10:00:00', today + ' 11:00:00', 'private', null, 'booked', '增肌训练');
   insertAppointment.run(member2.lastInsertRowid, coach2.lastInsertRowid, mp2.lastInsertRowid, today + ' 14:00:00', today + ' 15:00:00', 'private', null, 'booked', '瑜伽私教');
-  insertAppointment.run(member3.lastInsertRowid, coach1.lastInsertRowid, null, tomorrow + ' 10:00:00', tomorrow + ' 11:00:00', 'private', null, 'booked', '康复训练');
+  insertAppointment.run(member3.lastInsertRowid, coach1.lastInsertRowid, mp3.lastInsertRowid, tomorrow + ' 10:00:00', tomorrow + ' 11:00:00', 'private', null, 'booked', '康复训练');
   insertAppointment.run(member1.lastInsertRowid, coach2.lastInsertRowid, null, tomorrow + ' 07:00:00', tomorrow + ' 08:00:00', 'group', gc1.lastInsertRowid, 'booked', null);
   insertAppointment.run(member2.lastInsertRowid, coach1.lastInsertRowid, null, tomorrow + ' 18:00:00', tomorrow + ' 19:00:00', 'group', gc2.lastInsertRowid, 'booked', null);
 
@@ -107,7 +108,7 @@ async function seed() {
   const adminUser = db.prepare('SELECT id FROM users WHERE role = ?').get('admin') as { id: number };
   insertFreeze.run(
     member4.lastInsertRowid,
-    mp3.lastInsertRowid,
+    mp4.lastInsertRowid,
     formatDate(new Date(now.getTime() - 10 * 86400000)),
     formatDate(new Date(now.getTime() + 20 * 86400000)),
     '出差暂停训练',

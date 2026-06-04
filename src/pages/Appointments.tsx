@@ -32,7 +32,8 @@ export default function Appointments() {
   useEffect(() => {
     if (form.member_id) {
       packageApi.getMemberPackages(form.member_id).then((pkgs) => {
-        setAvailablePkgs(pkgs.filter((p) => p.status === 'active' && p.remaining_sessions > 0));
+        const today = new Date().toISOString().slice(0, 10);
+        setAvailablePkgs(pkgs.filter((p) => p.status === 'active' && p.remaining_sessions > 0 && p.expiry_date >= today));
       });
       setForm((f) => ({ ...f, member_package_id: 0 }));
     } else {
@@ -193,7 +194,7 @@ export default function Appointments() {
                     ))}
                   </select>
                   {form.member_id && availablePkgs.length === 0 && (
-                    <p className="text-xs text-danger mt-1">该会员暂无可用课包，请先购买课包</p>
+                    <p className="text-xs text-danger mt-1">该会员暂无可用课包（已过期或无剩余次数），请先购买或续费</p>
                   )}
                 </div>
               )}

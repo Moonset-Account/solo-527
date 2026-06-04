@@ -32,7 +32,7 @@ router.post('/', authMiddleware, roleCheck('admin', 'receptionist', 'coach'), as
       res.status(409).json({ success: false, error: 'Coach has a time conflict' });
       return;
     }
-    if (msg === 'MEMBER_NOT_FOUND' || msg === 'PACKAGE_NOT_FOUND' || msg === 'PACKAGE_NOT_ACTIVE' || msg === 'PACKAGE_NOT_BELONG_TO_MEMBER' || msg === 'PACKAGE_REQUIRED') {
+    if (msg === 'MEMBER_NOT_FOUND' || msg === 'PACKAGE_NOT_FOUND' || msg === 'PACKAGE_NOT_ACTIVE' || msg === 'PACKAGE_NOT_BELONG_TO_MEMBER' || msg === 'PACKAGE_REQUIRED' || msg === 'PACKAGE_EXPIRED') {
       res.status(400).json({ success: false, error: msg });
       return;
     }
@@ -74,6 +74,14 @@ router.post('/:id/checkin', authMiddleware, roleCheck('admin', 'receptionist', '
     }
     if (msg === 'NO_REMAINING_SESSIONS') {
       res.status(400).json({ success: false, error: 'No remaining sessions in package' });
+      return;
+    }
+    if (msg === 'PACKAGE_REQUIRED_FOR_CHECKIN') {
+      res.status(400).json({ success: false, error: 'Private appointment must have a package for check-in' });
+      return;
+    }
+    if (msg === 'PACKAGE_NOT_FOUND') {
+      res.status(400).json({ success: false, error: 'Bound package not found' });
       return;
     }
     res.status(400).json({ success: false, error: msg });

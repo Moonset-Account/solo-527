@@ -282,4 +282,62 @@ describe('Appointments API', () => {
     expect(deduction.sessions_deducted).toBe(1);
     expect(deduction.remaining_after).toBeGreaterThanOrEqual(0);
   });
+
+  it('should reject appointment with expired package by expiry_date', async () => {
+    const { getDb } = await import('../api/db/database.js');
+    const db = getDb();
+
+    const member = db.prepare('SELECT * FROM members WHERE status = ? LIMIT 1').get('active') as any;
+    const coach = db.prepare('SELECT * FROM coaches WHERE status = ? LIMIT 1').get('active') as any;
+
+    const pastDate = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const result = db.prepare(`
+      INSERT INTO member_packages (member_id, package_type_id, remaining_sessions, total_sessions, start_date, expiry_date, paid_amount, status)
+      VALUES (?, 1, 5, 10, ?, ?, 3000, 'active')
+    `).run(member.id, pastDate, pastDate);
+
+    const tomorrow = new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10);
+
+    const res = await fetch(`${baseUrl}/api/appointments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        member_id: member.id,
+        coach_id: coach.id,
+        member_package_id: result.lastInsertRowid,
+        start_time: `${tomorrow} 09:00:00`,
+        end_time: `${tomorrow} 10:00:00`,
+        type: 'private',
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.error).toBe('PACKAGE_EXPIRED');
+  });
+
+  it('should reject check-in for private appointment without member_package_id', async () => {
+    const { getDb } = await import('../api/db/database.js');
+    const db = getDb();
+
+    const member = db.prepare('SELECT * FROM members WHERE status = ? LIMIT 1').get('active') as any;
+    const coach = db.prepare('SELECT * FROM coaches WHERE status = ? LIMIT 1').get('active') as any;
+
+    const tomorrow = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+    const aptResult = db.prepare(`
+      INSERT INTO appointments (member_id, coach_id, member_package_id, start_time, end_time, type, status)
+      VALUES (?, ?, NULL, ?, ?, 'private', 'booked')
+    `).run(member.id, coach.id, `${tomorrow} 09:00:00`, `${tomorrow} 10:00:00`);
+
+    const res = await fetch(`${baseUrl}/api/appointments/${aptResult.lastInsertRowid}/checkin`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    });
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.success).toBe(false);
+    expect(data.error).toContain('package');
+  });
 });

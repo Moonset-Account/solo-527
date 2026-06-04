@@ -55,6 +55,8 @@ export async function createAppointment(data: {
     if (!pkg) throw new Error('PACKAGE_NOT_FOUND');
     if (pkg.member_id !== data.member_id) throw new Error('PACKAGE_NOT_BELONG_TO_MEMBER');
     if (pkg.status === 'frozen' || pkg.status === 'expired' || pkg.status === 'exhausted' || pkg.status === 'cancelled') throw new Error('PACKAGE_NOT_ACTIVE');
+    const today = new Date().toISOString().slice(0, 10);
+    if (pkg.expiry_date < today) throw new Error('PACKAGE_EXPIRED');
     if (pkg.remaining_sessions <= 0) throw new Error('NO_REMAINING_SESSIONS');
   }
 
@@ -117,7 +119,8 @@ export async function checkInAppointment(id: number): Promise<Appointment> {
   if (!appointment) throw new Error('NOT_FOUND');
   if (appointment.status !== 'booked') throw new Error('INVALID_STATUS');
 
-  if (appointment.type === 'private' && appointment.member_package_id) {
+  if (appointment.type === 'private') {
+    if (!appointment.member_package_id) throw new Error('PACKAGE_REQUIRED_FOR_CHECKIN');
     const pkg = db.prepare('SELECT * FROM member_packages WHERE id = ?').get(appointment.member_package_id) as MemberPackage | undefined;
     if (!pkg) throw new Error('PACKAGE_NOT_FOUND');
     if (pkg.remaining_sessions <= 0) throw new Error('NO_REMAINING_SESSIONS');
