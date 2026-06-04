@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  realName  String
+  phone     String?
+  role      String   @default("EXTERNAL")
+  village   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations       Reservation[]
+  contracts          Contract[]
+  createdDispatches  Dispatch[]   @relation("CreatedBy")
+  internalReservations Reservation[] @relation("InternalHandler")
+  fuelRecords        FuelRecord[]
+  maintenanceRecords MaintenanceRecord[]
+  savedFilters       SavedFilter[]
+  settlements        Settlement[]
+  paidSettlements    Settlement[] @relation("PaidBy")
+
+  @@index([role])
+  @@index([username])
+}
+
+model Machinery {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String
+  plateNumber  String   @unique
+  brand        String
+  model        String
+  year         Int
+  status       String   @default("IDLE")
+  fuelCapacity Float
+  currentFuel  Float    @default(0)
+  efficiency   Float
+  purchaseDate DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  drivers         Driver[]
+  dispatches      Dispatch[]
+  fuelRecords     FuelRecord[]
+  maintenanceRecs MaintenanceRecord[]
+  reservations    Reservation[]
+  contracts       Contract[]
+
+  @@index([status])
+  @@index([type])
+  @@index([plateNumber])
+}
+
+model Driver {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  licenseNo   String   @unique
+  village     String
+  machineryId Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  machinery   Machinery? @relation(fields: [machineryId], references: [id])
+  dispatches  Dispatch[]
+
+  @@index([name])
+  @@index([machineryId])
+}
+
+model Field {
+  id          Int      @id @default(autoincrement())
+  village     String
+  location    String
+  area        Float
+  cropType    String
+  ownerName   String
+  ownerPhone  String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  contracts    Contract[]
+  reservations Reservation[]
+
+  @@index([village])
+  @@index([cropType])
+}
+
+model Contract {
+  id          Int      @id @default(autoincrement())
+  contractNo  String   @unique
+  fieldId     Int
+  userId      Int
+  machineryId Int?
+  area        Float
+  pricePerMu  Float
+  totalAmount Float
+  signedDate  DateTime
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("PENDING")
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  field        Field       @relation(fields: [fieldId], references: [id])
+  user         User        @relation(fields: [userId], references: [id])
+  machinery    Machinery?  @relation(fields: [machineryId], references: [id])
+  reservations Reservation[]
+  settlements  Settlement[]
+
+  @@index([contractNo])
+  @@index([fieldId])
+  @@index([userId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model Reservation {
+  id               Int      @id @default(autoincrement())
+  reservationNo    String   @unique
+  userId           Int
+  fieldId          Int
+  contractId       Int?
+  machineryId      Int?
+  operationType    String
+  scheduledDate    DateTime
+  area             Float
+  originalDate     DateTime?
+  originalOrder    Int?
+  pricePerMu       Float
+  totalAmount      Float
+  status           String   @default("PENDING")
+  village          String
+  contactName      String
+  contactPhone     String
+  remarks          String?
+  weatherCondition String?
+  rescheduleReason String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  field       Field       @relation(fields: [fieldId], references: [id])
+  contract    Contract?   @relation(fields: [contractId], references: [id])
+  machinery   Machinery?  @relation(fields: [machineryId], references: [id])
+  handledBy   User?       @relation("InternalHandler", fields: [handledById], references: [id])
+  handledById Int?
+  handledAt   DateTime?
+  dispatch    Dispatch?
+  settlement  Settlement?
+
+  @@index([reservationNo])
+  @@index([userId])
+  @@index([fieldId])
+  @@index([machineryId])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([village])
+  @@index([status, scheduledDate])
+}
+
+model Dispatch {
+  id            Int      @id @default(autoincrement())
+  dispatchNo    String   @unique
+  reservationId Int      @unique
+  machineryId   Int
+  driverId      Int
+  createdById   Int
+  status        String   @default("PENDING")
+  route         String?
+  departureTime DateTime?
+  arrivalTime   DateTime?
+  completeTime  DateTime?
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  machinery   Machinery   @relation(fields: [machineryId], references: [id])
+  driver      Driver      @relation(fields: [driverId], references: [id])
+  createdBy   User        @relation("CreatedBy", fields: [createdById], references: [id])
+  fuelRecords FuelRecord[]
+
+  @@index([dispatchNo])
+  @@index([machineryId])
+  @@index([driverId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model FuelRecord {
+  id          Int      @id @default(autoincrement())
+  dispatchId  Int?
+  machineryId Int
+  userId      Int
+  fuelAmount  Float
+  fuelPrice   Float
+  totalCost   Float
+  fillDate    DateTime
+  odometer    Float?
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dispatch  Dispatch? @relation(fields: [dispatchId], references: [id])
+  machinery Machinery @relation(fields: [machineryId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([machineryId])
+  @@index([fillDate])
+  @@index([userId])
+}
+
+model MaintenanceRecord {
+  id             Int      @id @default(autoincrement())
+  machineryId    Int
+  userId         Int
+  title          String
+  description    String
+  status         String   @default("REPORTED")
+  reportedDate   DateTime
+  startDate      DateTime?
+  completeDate   DateTime?
+  cost           Float    @default(0)
+  parts          String?
+  remarks        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  machinery Machinery @relation(fields: [machineryId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([machineryId])
+  @@index([status])
+  @@index([reportedDate])
+}
+
+model Settlement {
+  id              Int      @id @default(autoincrement())
+  settlementNo    String   @unique
+  reservationId   Int      @unique
+  userId          Int
+  contractId      Int?
+  actualArea      Float
+  pricePerMu      Float
+  totalAmount     Float
+  fuelCost        Float    @default(0)
+  maintenanceCost Float    @default(0)
+  otherCost       Float    @default(0)
+  netIncome       Float
+  status          String   @default("PENDING")
+  settledDate     DateTime?
+  paidDate        DateTime?
+  paidById        Int?
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  contract    Contract?   @relation(fields: [contractId], references: [id])
+  paidBy      User?       @relation("PaidBy", fields: [paidById], references: [id])
+
+  @@index([settlementNo])
+  @@index([reservationId])
+  @@index([userId])
+  @@index([status])
+}
+
+model SavedFilter {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  pageName   String
+  filterName String
+  filterData String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, pageName])
+  @@unique([userId, pageName, filterName])
+}
+
+model WeatherLog {
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  village    String
+  condition  String
+  rainfall   Float
+  windSpeed  Float
+  createdAt  DateTime @default(now())
+
+  @@index([date, village])
+}
