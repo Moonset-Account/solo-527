@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, ForeignKey, Text, DateTime, Boolean, func
+from sqlalchemy import Column, String, Float, ForeignKey, Text, DateTime, Boolean, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -15,6 +15,7 @@ class Delivery(Base):
     elder_id = Column(UUID(as_uuid=True), ForeignKey("elders.id", ondelete="CASCADE"), nullable=False)
     courier_id = Column(UUID(as_uuid=True), ForeignKey("couriers.id", ondelete="SET NULL"), nullable=True)
     order_id = Column(UUID(as_uuid=True), ForeignKey("meal_orders.id", ondelete="SET NULL"), nullable=True)
+    meal_price = Column(Float, nullable=True)
     status = Column(String(32), default="pending", nullable=False)
     signed_photo_url = Column(Text, nullable=True)
     signed_at = Column(DateTime(timezone=True), nullable=True)

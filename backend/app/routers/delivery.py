@@ -76,17 +76,28 @@ def sign_delivery(
     if not photo.filename:
         raise HTTPException(status_code=422, detail="签收照片为必填项")
 
+    order_amount = delivery.meal_price
+    if not order_amount and delivery.order_id:
+        meal_order = db.query(MealOrder).filter(MealOrder.id == delivery.order_id).first()
+        if meal_order:
+            order_amount = meal_order.total_price
+
     elder = db.query(Elder).filter(Elder.id == delivery.elder_id).first()
     if elder:
         pending_confirm = (
             db.query(SubsidyExceedConfirmation)
             .filter(
-                SubsidyExceedConfirmation.delivery_id == delivery_id,
+                SubsidyExceedConfirmation.elder_id == elder.id,
                 SubsidyExceedConfirmation.status == "pending",
             )
             .first()
         )
         if pending_confirm:
+            if pending_confirm.delivery_id is None:
+                pending_confirm.delivery_id = delivery_id
+                if not pending_confirm.order_amount and order_amount:
+                    pending_confirm.order_amount = order_amount
+                db.commit()
             raise HTTPException(
                 status_code=403,
                 detail="该配送单存在待确认的补贴超额记录，需家属或社工确认后方可签收配送。",
@@ -95,48 +106,40 @@ def sign_delivery(
         approved_confirm = (
             db.query(SubsidyExceedConfirmation)
             .filter(
-                SubsidyExceedConfirmation.delivery_id == delivery_id,
+                SubsidyExceedConfirmation.elder_id == elder.id,
                 SubsidyExceedConfirmation.status == "approved",
             )
             .first()
         )
         if approved_confirm:
+            if approved_confirm.delivery_id is None:
+                approved_confirm.delivery_id = delivery_id
+            if not approved_confirm.order_amount and order_amount:
+                approved_confirm.order_amount = order_amount
+            db.commit()
+
             photo_data = photo.file.read()
             photo_url = upload_photo(photo_data, photo.filename)
 
             updated = mark_delivery_signed(db, delivery_id, photo_url=photo_url)
 
-            order_amount = approved_confirm.order_amount or 0.0
-            if order_amount > 0 and delivery.order_id:
+            confirm_amount = approved_confirm.order_amount or order_amount or 0.0
+            if confirm_amount > 0:
                 try:
                     deduct_subsidy(
                         db,
                         elder_id=elder.id,
                         order_id=delivery.order_id,
-                        amount=order_amount,
+                        amount=confirm_amount,
                         force=True,
+                        delivery_id=delivery_id,
                     )
                 except (ValueError, PermissionError):
                     pass
 
-            if approved_confirm.subsidy_record_id is None:
-                latest_record = (
-                    db.query(SubsidyRecord)
-                    .filter(SubsidyRecord.elder_id == elder.id)
-                    .order_by(SubsidyRecord.created_at.desc())
-                    .first()
-                )
-                if latest_record:
-                    approved_confirm.subsidy_record_id = latest_record.id
-                    db.commit()
-
             return updated
 
-        order_amount = 0.0
-        meal_order = None
-        if delivery.order_id:
-            meal_order = db.query(MealOrder).filter(MealOrder.id == delivery.order_id).first()
-        if not meal_order:
+        if not order_amount:
             today_str = date.today().isoformat()
             meal_order = (
                 db.query(MealOrder)
@@ -146,11 +149,16 @@ def sign_delivery(
                 )
                 .first()
             )
-        if meal_order:
-            order_amount = meal_order.total_price
+            if meal_order:
+                order_amount = meal_order.total_price
+                if delivery.order_id is None and meal_order:
+                    delivery.order_id = meal_order.id
+                if delivery.meal_price is None:
+                    delivery.meal_price = order_amount
+                db.commit()
 
         current_balance = elder.subsidy_quota - elder.subsidy_used
-        if order_amount > 0 and order_amount > current_balance:
+        if order_amount and order_amount > current_balance:
             confirmation = SubsidyExceedConfirmation(
                 elder_id=elder.id,
                 delivery_id=delivery_id,
@@ -188,18 +196,18 @@ def sign_delivery(
 
     updated = mark_delivery_signed(db, delivery_id, photo_url=photo_url)
 
-    if elder and delivery.order_id:
-        meal_order = db.query(MealOrder).filter(MealOrder.id == delivery.order_id).first()
-        if meal_order and meal_order.total_price > 0:
-            try:
-                deduct_subsidy(
-                    db,
-                    elder_id=elder.id,
-                    order_id=delivery.order_id,
-                    amount=meal_order.total_price,
-                )
-            except (ValueError, PermissionError):
-                pass
+    deduct_amount = order_amount or delivery.meal_price or 0.0
+    if elder and deduct_amount > 0:
+        try:
+            deduct_subsidy(
+                db,
+                elder_id=elder.id,
+                order_id=delivery.order_id,
+                amount=deduct_amount,
+                delivery_id=delivery_id,
+            )
+        except (ValueError, PermissionError):
+            pass
 
     return updated
 

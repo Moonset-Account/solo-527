@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -31,9 +32,10 @@ def check_subsidy_balance(
 def deduct_subsidy(
     db: Session,
     elder_id: uuid.UUID,
-    order_id: uuid.UUID,
+    order_id: Optional[uuid.UUID],
     amount: float,
     force: bool = False,
+    delivery_id: Optional[uuid.UUID] = None,
 ) -> SubsidyRecord:
     elder = db.query(Elder).filter(Elder.id == elder_id).first()
     if not elder:
@@ -45,7 +47,9 @@ def deduct_subsidy(
     if is_exceed and not force:
         confirmation = SubsidyExceedConfirmation(
             elder_id=elder_id,
+            delivery_id=delivery_id,
             subsidy_record_id=None,
+            order_amount=amount,
             confirm_type="family",
             status="pending",
         )
@@ -75,15 +79,26 @@ def deduct_subsidy(
     db.add(record)
     db.flush()
 
-    pending_confirm = (
-        db.query(SubsidyExceedConfirmation)
-        .filter(
-            SubsidyExceedConfirmation.elder_id == elder_id,
-            SubsidyExceedConfirmation.subsidy_record_id.is_(None),
-            SubsidyExceedConfirmation.status == "approved",
+    if delivery_id:
+        pending_confirm = (
+            db.query(SubsidyExceedConfirmation)
+            .filter(
+                SubsidyExceedConfirmation.delivery_id == delivery_id,
+                SubsidyExceedConfirmation.subsidy_record_id.is_(None),
+                SubsidyExceedConfirmation.status == "approved",
+            )
+            .first()
         )
-        .first()
-    )
+    else:
+        pending_confirm = (
+            db.query(SubsidyExceedConfirmation)
+            .filter(
+                SubsidyExceedConfirmation.elder_id == elder_id,
+                SubsidyExceedConfirmation.subsidy_record_id.is_(None),
+                SubsidyExceedConfirmation.status == "approved",
+            )
+            .first()
+        )
     if pending_confirm:
         pending_confirm.subsidy_record_id = record.id
 

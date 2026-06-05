@@ -18,6 +18,7 @@ class DeliveryOut(BaseModel):
     route_id: uuid.UUID
     elder_id: uuid.UUID
     order_id: Optional[uuid.UUID] = None
+    meal_price: Optional[float] = None
     courier_id: Optional[uuid.UUID] = None
     status: str
     signed_photo_url: Optional[str] = None

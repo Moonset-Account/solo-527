@@ -312,6 +312,7 @@ def create_route(data: RouteCreate, db: Session = Depends(get_db)):
             elder_id=elder_id,
             courier_id=data.courier_id,
             order_id=meal_order.id if meal_order else None,
+            meal_price=meal_order.total_price if meal_order else None,
             status="pending",
         )
         db.add(delivery)

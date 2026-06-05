@@ -1,4 +1,4 @@
-"""add delivery order_id and confirmation delivery_id/order_amount
+"""add delivery order_id/meal_price and confirmation delivery_id/order_amount
 
 Revision ID: 001_delivery_confirmation
 Revises:
@@ -17,6 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column('deliveries', sa.Column('order_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('meal_orders.id', ondelete='SET NULL'), nullable=True))
+    op.add_column('deliveries', sa.Column('meal_price', sa.Float(), nullable=True))
 
     op.alter_column('subsidy_exceed_confirmations', 'subsidy_record_id',
                     existing_type=postgresql.UUID(as_uuid=True),
@@ -36,4 +37,5 @@ def downgrade() -> None:
                     existing_nullable=True,
                     nullable=False)
 
+    op.drop_column('deliveries', 'meal_price')
     op.drop_column('deliveries', 'order_id')
