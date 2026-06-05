@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, sanitizeProjectForClient } from '@/lib/middleware/auth';
+import { requireAuth, sanitizeProjectForClient, sanitizeTasksForClient } from '@/lib/middleware/auth';
 import * as projectService from '@/lib/services/projectService';
 import * as taskService from '@/lib/services/taskService';
 import * as timeEntryService from '@/lib/services/timeEntryService';
@@ -30,9 +30,13 @@ export const GET = requireAuth(async (request: NextRequest, user, params: { id: 
     ? sanitizeProjectForClient(project) 
     : project;
   
+  const sanitizedTasks = user.role === Role.CLIENT
+    ? sanitizeTasksForClient(tasks)
+    : tasks;
+  
   return NextResponse.json({
     ...result,
-    tasks,
+    tasks: sanitizedTasks,
     progress,
     timeEntries,
   });

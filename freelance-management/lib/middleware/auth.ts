@@ -64,3 +64,12 @@ export function sanitizeProjectForClient(project: any): any {
 export function sanitizeTimeEntriesForClient(entries: any[]): any[] {
   return [];
 }
+
+export function sanitizeTaskForClient(task: any): any {
+  const { estimated_hours, actual_hours, assignee_id, ...sanitized } = task;
+  return sanitized;
+}
+
+export function sanitizeTasksForClient(tasks: any[]): any[] {
+  return tasks.map(sanitizeTaskForClient);
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/middleware/auth';
+import { requireAuth, sanitizeTasksForClient } from '@/lib/middleware/auth';
 import * as taskService from '@/lib/services/taskService';
 import { Role } from '@/types';
 import { canAccessProject } from '@/lib/auth';
@@ -16,7 +16,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
         return NextResponse.json({ error: '权限不足' }, { status: 403 });
       }
       const tasks = taskService.getTasksByProject(pid);
-      return NextResponse.json(tasks);
+      return NextResponse.json(sanitizeTasksForClient(tasks));
     }
 
     const tasks = db.prepare(`
@@ -26,7 +26,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       WHERE c.user_id = ?
       ORDER BY t.created_at DESC
     `).all(user.userId);
-    return NextResponse.json(tasks);
+    return NextResponse.json(sanitizeTasksForClient(tasks));
   }
 
   if (assigneeId) {
