@@ -172,10 +172,34 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 {'detail': '只有已预约状态才能标记爽约'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        patient = appointment.patient
+        old_needs_confirmation = patient.needs_confirmation
+        old_no_show_count = patient.no_show_count
+
         appointment.mark_no_show()
-        from notifications.services import SMSService
-        SMSService.send_no_show_alert_to_nurse(appointment.patient)
-        return Response({'status': 'success', 'message': '已标记为爽约'})
+
+        patient.refresh_from_db()
+        from django.conf import settings
+        threshold = settings.APPOINTMENT_SETTINGS.get('NO_SHOW_THRESHOLD', 3)
+
+        should_alert = (
+            not old_needs_confirmation and
+            patient.needs_confirmation and
+            patient.no_show_count >= threshold
+        )
+
+        if should_alert:
+            from notifications.services import SMSService
+            SMSService.send_no_show_alert_to_nurse(patient)
+
+        return Response({
+            'status': 'success',
+            'message': '已标记为爽约',
+            'no_show_count': patient.no_show_count,
+            'threshold': threshold,
+            'needs_confirmation': patient.needs_confirmation,
+            'alert_sent': should_alert
+        })
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel(self, request, pk=None):
