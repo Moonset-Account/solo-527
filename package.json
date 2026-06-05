@@ -1,0 +1,20 @@
+{
+  "name": "community-tool-sharing",
+  "version": "1.0.0",
+  "description": "社区共享工具借还系统",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "seed": "cd server && npm run seed",
+    "test:e2e": "npx playwright test",
+    "lint": "cd server && npm run lint && cd ../client && npm run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
