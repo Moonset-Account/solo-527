@@ -3,6 +3,7 @@ package com.property.common.enums;
 import lombok.Getter;
 
 @Getter
+@Getter
 public enum WorkOrderPriorityEnum {
     LOW("LOW", "低"),
     NORMAL("NORMAL", "普通"),

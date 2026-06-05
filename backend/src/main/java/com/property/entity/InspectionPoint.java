@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+
 @Data
 @TableName("inspection_point")
 public class InspectionPoint {

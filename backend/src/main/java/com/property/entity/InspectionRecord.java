@@ -7,6 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+
 @Data
 @TableName("inspection_record")
 public class InspectionRecord {

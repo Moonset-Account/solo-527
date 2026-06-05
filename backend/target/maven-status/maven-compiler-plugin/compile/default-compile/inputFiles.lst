@@ -25,6 +25,7 @@
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/entity/SysMessage.java
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/entity/InspectionPoint.java
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/entity/SysUser.java
+/Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/utils/PasswordEncoderUtil.java
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/controller/MessageController.java
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/mapper/InspectionRecordMapper.java
 /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-018/backend/src/main/java/com/property/service/WorkOrderService.java

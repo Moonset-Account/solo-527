@@ -23,11 +23,37 @@ public class TestController {
     @GetMapping("/test-accounts")
     public Result<Map<String, Object>> getTestAccounts() {
         Map<String, Object> accounts = new HashMap<>();
-        accounts.put("物业主管", Map.of("username", "admin", "password", "123456", "role", "ADMIN"));
-        accounts.put("物业人员", Map.of("username", "property01", "password", "123456", "role", "PROPERTY"));
-        accounts.put("维修人员", Map.of("username", "maint01", "password", "123456", "role", "MAINTENANCE"));
-        accounts.put("巡检人员", Map.of("username", "inspector01", "password", "123456", "role", "INSPECTOR"));
-        accounts.put("业主账号", Map.of("username", "owner01", "password", "123456", "role", "OWNER"));
+        
+        Map<String, Object> admin = new HashMap<>();
+        admin.put("username", "admin");
+        admin.put("password", "123456");
+        admin.put("role", "ADMIN");
+        accounts.put("物业主管", admin);
+        
+        Map<String, Object> property = new HashMap<>();
+        property.put("username", "property01");
+        property.put("password", "123456");
+        property.put("role", "PROPERTY");
+        accounts.put("物业人员", property);
+        
+        Map<String, Object> maint = new HashMap<>();
+        maint.put("username", "maint01");
+        maint.put("password", "123456");
+        maint.put("role", "MAINTENANCE");
+        accounts.put("维修人员", maint);
+        
+        Map<String, Object> inspector = new HashMap<>();
+        inspector.put("username", "inspector01");
+        inspector.put("password", "123456");
+        inspector.put("role", "INSPECTOR");
+        accounts.put("巡检人员", inspector);
+        
+        Map<String, Object> owner = new HashMap<>();
+        owner.put("username", "owner01");
+        owner.put("password", "123456");
+        owner.put("role", "OWNER");
+        accounts.put("业主账号", owner);
+        
         return Result.success(accounts);
     }
 

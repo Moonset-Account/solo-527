@@ -3,6 +3,7 @@ package com.property.common.enums;
 import lombok.Getter;
 
 @Getter
+@Getter
 public enum MessageTypeEnum {
     ORDER_NEW("ORDER_NEW", "新工单"),
     ORDER_ASSIGN("ORDER_ASSIGN", "工单派单"),

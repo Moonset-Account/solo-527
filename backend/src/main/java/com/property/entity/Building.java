@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+
 @Data
 @TableName("building")
 public class Building {

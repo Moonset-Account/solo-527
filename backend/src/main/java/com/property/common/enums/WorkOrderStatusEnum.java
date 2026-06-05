@@ -3,6 +3,7 @@ package com.property.common.enums;
 import lombok.Getter;
 
 @Getter
+@Getter
 public enum WorkOrderStatusEnum {
     PENDING("PENDING", "待审核"),
     APPROVED("APPROVED", "已审核派单"),

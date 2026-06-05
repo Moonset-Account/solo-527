@@ -1,4 +1,6 @@
 package com.property.exception;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.property.common.Result;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
-@Slf4j
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

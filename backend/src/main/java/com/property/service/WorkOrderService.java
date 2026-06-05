@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -428,12 +429,11 @@ public class WorkOrderService {
                         .ne(WorkOrder::getStatus, WorkOrderStatusEnum.CLOSED.getCode())
         );
 
-        Map<String, Object> stats = Map.of(
-                "totalOrders", totalOrders,
-                "pendingOrders", pendingOrders,
-                "processingOrders", processingOrders,
-                "urgentOrders", urgentOrders
-        );
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalOrders", totalOrders);
+        stats.put("pendingOrders", pendingOrders);
+        stats.put("processingOrders", processingOrders);
+        stats.put("urgentOrders", urgentOrders);
         return Result.success(stats);
     }
 }

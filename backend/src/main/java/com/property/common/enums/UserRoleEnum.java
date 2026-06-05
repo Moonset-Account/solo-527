@@ -3,6 +3,7 @@ package com.property.common.enums;
 import lombok.Getter;
 
 @Getter
+@Getter
 public enum UserRoleEnum {
     ADMIN("ADMIN", "物业主管"),
     PROPERTY("PROPERTY", "物业人员"),

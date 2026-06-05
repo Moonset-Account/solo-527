@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+
 @Data
 @TableName("satisfaction")
 public class Satisfaction {

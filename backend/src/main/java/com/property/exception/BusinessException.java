@@ -3,6 +3,7 @@ package com.property.exception;
 import lombok.Getter;
 
 @Getter
+@Getter
 public class BusinessException extends RuntimeException {
 
     private final Integer code;
