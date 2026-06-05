@@ -17,6 +17,23 @@ from app.core.permissions import ROLE_PERMISSIONS
 from datetime import datetime, timedelta
 
 
+def safe_create_assignment(db, booth_id, event_date, **kwargs):
+    existing = db.query(BoothAssignment).filter(
+        BoothAssignment.booth_id == booth_id,
+        BoothAssignment.event_date == event_date
+    ).first()
+    if existing:
+        return existing
+    assignment = BoothAssignment(
+        booth_id=booth_id,
+        event_date=event_date,
+        **kwargs
+    )
+    db.add(assignment)
+    db.flush()
+    return assignment
+
+
 def seed_database():
     db = SessionLocal()
     
@@ -249,18 +266,17 @@ def seed_database():
             all_applications.append(app)
 
         for i, app in enumerate(past_apps):
-            assignment = BoothAssignment(
+            assignment = safe_create_assignment(
+                db,
                 booth_id=booths[i].id,
+                event_date=yesterday,
                 vendor_id=app.vendor_id,
                 application_id=app.id,
-                event_date=yesterday,
                 status=AssignmentStatus.CONFIRMED,
                 lottery_round=1,
                 assigned_at=yesterday - timedelta(days=2),
                 confirmed_at=yesterday - timedelta(days=1)
             )
-            db.add(assignment)
-            db.flush()
             all_assignments.append(assignment)
 
             deposit = Deposit(
@@ -314,18 +330,17 @@ def seed_database():
             all_applications.append(app)
 
         for i, app in enumerate(today_apps):
-            assignment = BoothAssignment(
+            assignment = safe_create_assignment(
+                db,
                 booth_id=booths[i + 5].id,
+                event_date=today,
                 vendor_id=app.vendor_id,
                 application_id=app.id,
-                event_date=today,
                 status=AssignmentStatus.CONFIRMED,
                 lottery_round=1,
                 assigned_at=today - timedelta(days=1),
                 confirmed_at=today - timedelta(hours=12)
             )
-            db.add(assignment)
-            db.flush()
             all_assignments.append(assignment)
 
             deposit = Deposit(
@@ -385,18 +400,17 @@ def seed_database():
         db.flush()
         all_applications.append(no_show_app)
 
-        no_show_assignment = BoothAssignment(
+        no_show_assignment = safe_create_assignment(
+            db,
             booth_id=booths[10].id,
+            event_date=today,
             vendor_id=no_show_vendor.id,
             application_id=no_show_app.id,
-            event_date=today,
             status=AssignmentStatus.CONFIRMED,
             lottery_round=1,
             assigned_at=today - timedelta(days=1),
             confirmed_at=today - timedelta(hours=12)
         )
-        db.add(no_show_assignment)
-        db.flush()
         all_assignments.append(no_show_assignment)
 
         no_show_deposit = Deposit(
@@ -484,17 +498,16 @@ def seed_database():
         # 已抽签待确认的
         drawn_apps = future_apps[1:3]
         for i, app in enumerate(drawn_apps):
-            assignment = BoothAssignment(
+            assignment = safe_create_assignment(
+                db,
                 booth_id=booths[i + 12].id,
+                event_date=next_week,
                 vendor_id=app.vendor_id,
                 application_id=app.id,
-                event_date=next_week,
                 status=AssignmentStatus.DRAWN,
                 lottery_round=1,
                 assigned_at=datetime.utcnow()
             )
-            db.add(assignment)
-            db.flush()
             all_assignments.append(assignment)
 
         # 待缴保证金的

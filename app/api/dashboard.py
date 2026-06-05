@@ -18,11 +18,7 @@ from app.models import (
 router = APIRouter(prefix="/dashboard", tags=["看板"])
 
 
-@router.get("/today", dependencies=[Depends(PermissionRequired("view_dashboard"))])
-async def get_today_tasks(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def _build_dashboard_data(db: Session):
     today = datetime.combine(date.today(), datetime.min.time())
 
     new_items = []
@@ -40,7 +36,7 @@ async def get_today_tasks(
             "type": "application",
             "id": app.id,
             "title": f"报名申请 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": app.created_at,
+            "created_at": app.created_at.isoformat() if app.created_at else None,
             "status": app.status.value
         })
 
@@ -53,7 +49,7 @@ async def get_today_tasks(
             "type": "application_confirm",
             "id": app.id,
             "title": f"待确认 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": app.updated_at,
+            "created_at": app.updated_at.isoformat() if app.updated_at else None,
             "status": app.status.value
         })
 
@@ -66,7 +62,7 @@ async def get_today_tasks(
             "type": "booth_confirm",
             "id": assignment.id,
             "title": f"摊位确认 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": assignment.assigned_at,
+            "created_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
             "status": assignment.status.value
         })
 
@@ -80,7 +76,7 @@ async def get_today_tasks(
             "type": "checkin",
             "id": checkin.id,
             "title": f"待签到 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": checkin.created_at,
+            "created_at": checkin.created_at.isoformat() if checkin.created_at else None,
             "status": checkin.status.value
         })
 
@@ -93,7 +89,7 @@ async def get_today_tasks(
             "type": "deposit_pending",
             "id": deposit.id,
             "title": f"待缴保证金 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": deposit.created_at,
+            "created_at": deposit.created_at.isoformat() if deposit.created_at else None,
             "status": deposit.status.value
         })
 
@@ -106,7 +102,7 @@ async def get_today_tasks(
             "type": "deposit_review",
             "id": deposit.id,
             "title": f"保证金复核 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": deposit.updated_at,
+            "created_at": deposit.updated_at.isoformat() if deposit.updated_at else None,
             "status": deposit.status.value
         })
 
@@ -119,7 +115,7 @@ async def get_today_tasks(
             "type": "no_show",
             "id": checkin.id,
             "title": f"未签到 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": checkin.updated_at,
+            "created_at": checkin.updated_at.isoformat() if checkin.updated_at else None,
             "status": checkin.status.value
         })
 
@@ -132,7 +128,7 @@ async def get_today_tasks(
             "type": "violation",
             "id": v.id,
             "title": f"违规处理 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": v.created_at,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
             "status": v.status.value
         })
 
@@ -145,7 +141,7 @@ async def get_today_tasks(
             "type": "application",
             "id": app.id,
             "title": f"已处理 - " + (vendor.name if vendor else "未知摊主"),
-            "created_at": app.updated_at,
+            "created_at": app.updated_at.isoformat() if app.updated_at else None,
             "status": app.status.value
         })
 
@@ -183,3 +179,16 @@ async def get_today_tasks(
             }
         ]
     }
+
+
+@router.get("/preview")
+async def get_dashboard_preview(db: Session = Depends(get_db)):
+    return _build_dashboard_data(db)
+
+
+@router.get("/today", dependencies=[Depends(PermissionRequired("view_dashboard"))])
+async def get_today_tasks(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return _build_dashboard_data(db)
