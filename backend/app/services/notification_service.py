@@ -17,8 +17,19 @@ class NotificationService:
         db.session.add(notification)
         db.session.commit()
         
-        from app.tasks import send_email_notification
-        send_email_notification.delay(user_id, title, content)
+        try:
+            from flask import current_app
+            if hasattr(current_app, 'celery') and current_app.celery:
+                send_email = current_app.celery.tasks.get('send_email_notification')
+                if send_email:
+                    send_email.delay(user_id, title, content)
+                else:
+                    NotificationService.send_email(user_id, title, content)
+            else:
+                NotificationService.send_email(user_id, title, content)
+        except Exception as e:
+            print(f"Notification email failed (fallback to sync): {e}")
+            NotificationService.send_email(user_id, title, content)
         
         return notification.to_dict()
     
