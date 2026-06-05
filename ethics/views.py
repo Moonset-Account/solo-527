@@ -151,6 +151,21 @@ def project_detail(request, pk):
         'clause', 'reviewer', 'material_version'
     ).all()
 
+    if user.is_committee():
+        assignment = ReviewAssignment.objects.filter(
+            project=project, committee_member=user
+        ).prefetch_related('material_types').first()
+        if assignment:
+            assigned_material_type_ids = assignment.material_types.values_list('id', flat=True)
+            materials = materials.filter(material_type_id__in=assigned_material_type_ids)
+            material_ids = materials.values_list('id', flat=True)
+            version_ids = MaterialVersion.objects.filter(
+                material_id__in=material_ids
+            ).values_list('id', flat=True)
+            comments = comments.filter(
+                Q(material_version_id__in=version_ids) | Q(reviewer=user)
+            )
+
     comments_by_clause = {}
     for comment in comments:
         clause_key = comment.clause.id if comment.clause else None
@@ -252,6 +267,9 @@ def project_submit(request, pk):
 @user_passes_test(is_secretary_or_admin)
 def project_start_pre_review(request, pk):
     project = get_object_or_404(Project, pk=pk)
+    if project.is_archived():
+        messages.error(request, '已归档的课题无法进行预审')
+        return redirect('project_detail', pk=pk)
     if project.status != Project.Status.SUBMITTED:
         messages.error(request, '只有已提交的课题可以开始预审')
         return redirect('project_detail', pk=pk)
@@ -267,6 +285,9 @@ def project_start_pre_review(request, pk):
 @user_passes_test(is_secretary_or_admin)
 def project_assign_review(request, pk):
     project = get_object_or_404(Project, pk=pk)
+    if project.is_archived():
+        messages.error(request, '已归档的课题无法分配评审')
+        return redirect('project_detail', pk=pk)
     if project.status not in [Project.Status.PRE_REVIEW, Project.Status.IN_REVIEW]:
         messages.error(request, '只有预审或评审中的课题可以分配评审')
         return redirect('project_detail', pk=pk)
@@ -334,11 +355,16 @@ def material_version_upload(request, material_pk):
 def review_comment_add(request, project_pk):
     project = get_object_or_404(Project, pk=project_pk)
     user = request.user
+    assignment = None
+
+    if project.is_archived():
+        messages.error(request, '已归档的课题无法添加评审意见')
+        return redirect('project_detail', pk=project_pk)
 
     if user.is_committee():
         assignment = ReviewAssignment.objects.filter(
             project=project, committee_member=user, completed_at__isnull=True
-        ).first()
+        ).prefetch_related('material_types').first()
         if not assignment:
             messages.error(request, '您没有被分配此课题的评审任务')
             return redirect('project_detail', pk=project_pk)
@@ -351,6 +377,12 @@ def review_comment_add(request, project_pk):
         if form.is_valid():
             material_version_pk = request.POST.get('material_version')
             material_version = get_object_or_404(MaterialVersion, pk=material_version_pk)
+
+            if assignment:
+                assigned_type_ids = assignment.material_types.values_list('id', flat=True)
+                if material_version.material.material_type_id not in assigned_type_ids:
+                    messages.error(request, '您只能对分配给您的材料类型提交意见')
+                    return redirect('project_detail', pk=project_pk)
 
             comment = form.save(commit=False)
             comment.project = project
@@ -367,6 +399,10 @@ def review_comment_add(request, project_pk):
         current_version__isnull=False
     )
 
+    if assignment:
+        assigned_type_ids = assignment.material_types.values_list('id', flat=True)
+        materials = materials.filter(material_type_id__in=assigned_type_ids)
+
     context = {
         'form': form,
         'project': project,
@@ -379,6 +415,9 @@ def review_comment_add(request, project_pk):
 @user_passes_test(is_secretary_or_admin)
 def project_request_revision(request, pk):
     project = get_object_or_404(Project, pk=pk)
+    if project.is_archived():
+        messages.error(request, '已归档的课题无法要求补件')
+        return redirect('project_detail', pk=pk)
     if project.status != Project.Status.IN_REVIEW:
         messages.error(request, '只有评审中的课题可以要求补件')
         return redirect('project_detail', pk=pk)
@@ -398,6 +437,10 @@ def project_request_revision(request, pk):
 def resubmission_create(request, project_pk):
     project = get_object_or_404(Project, pk=project_pk)
     user = request.user
+
+    if project.is_archived():
+        messages.error(request, '已归档的课题无法提交补件')
+        return redirect('project_detail', pk=project_pk)
 
     if project.status != Project.Status.NEED_REVISION:
         messages.error(request, '只有需补件状态的课题可以提交补件')
@@ -428,6 +471,10 @@ def resubmission_create(request, project_pk):
             resubmission.submitter = user
             resubmission.save()
             form.save_m2m()
+
+            for comment in resubmission.addressed_comments.all():
+                comment.status = ReviewComment.Status.ADDRESSED
+                comment.save(update_fields=['status', 'updated_at'])
 
             messages.success(request, '补件已提交')
             return redirect('project_detail', pk=project_pk)
@@ -461,11 +508,7 @@ def project_archive(request, pk):
         project.archived_at = timezone.now()
         project.save()
 
-        for assignment in project.review_assignments.filter(completed_at__isnull=True):
-            assignment.completed_at = timezone.now()
-            assignment.save()
-
-        messages.success(request, '课题已归档')
+        messages.success(request, '课题已归档，所有材料版本已标记为只读')
         return redirect('project_detail', pk=pk)
 
     context = {'project': project}
