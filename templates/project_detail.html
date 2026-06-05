@@ -255,17 +255,34 @@
                                 <div class="font-medium mb-1">回应说明:</div>
                                 {{ resub.response_note }}
                             </div>
-                            {% if resub.addressed_comments.count > 0 %}
-                                <div class="mt-3">
-                                    <div class="text-sm font-medium text-gray-700 mb-1">回应的意见 ({{ resub.addressed_comments.count }}):</div>
-                                    <ul class="text-sm text-gray-600 space-y-1">
-                                        {% for comment in resub.addressed_comments.all %}
-                                            <li class="ml-4">
-                                                • {% if comment.clause %}{{ comment.clause.clause_number }}: {% endif %}{{ comment.content|truncatechars:80 }}
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
+                            {% if is_committee %}
+                                {% with resub.visible_addressed_comments as visible_comments %}
+                                    {% if visible_comments|length > 0 %}
+                                        <div class="mt-3">
+                                            <div class="text-sm font-medium text-gray-700 mb-1">回应的意见 ({{ visible_comments|length }}):</div>
+                                            <ul class="text-sm text-gray-600 space-y-1">
+                                                {% for comment in visible_comments %}
+                                                    <li class="ml-4">
+                                                        • {% if comment.clause %}{{ comment.clause.clause_number }}: {% endif %}{{ comment.content|truncatechars:80 }}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}
+                                {% if resub.addressed_comments.count > 0 %}
+                                    <div class="mt-3">
+                                        <div class="text-sm font-medium text-gray-700 mb-1">回应的意见 ({{ resub.addressed_comments.count }}):</div>
+                                        <ul class="text-sm text-gray-600 space-y-1">
+                                            {% for comment in resub.addressed_comments.all %}
+                                                <li class="ml-4">
+                                                    • {% if comment.clause %}{{ comment.clause.clause_number }}: {% endif %}{{ comment.content|truncatechars:80 }}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
                             {% endif %}
                         </div>
                     {% endfor %}

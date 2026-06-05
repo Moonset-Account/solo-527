@@ -151,6 +151,10 @@ def project_detail(request, pk):
         'clause', 'reviewer', 'material_version'
     ).all()
 
+    resubmissions = project.resubmissions.select_related(
+        'submitter', 'material_version'
+    ).prefetch_related('addressed_comments').all()
+
     if user.is_committee():
         assignment = ReviewAssignment.objects.filter(
             project=project, committee_member=user
@@ -165,6 +169,14 @@ def project_detail(request, pk):
             comments = comments.filter(
                 Q(material_version_id__in=version_ids) | Q(reviewer=user)
             )
+            resubmissions = resubmissions.filter(material_version_id__in=version_ids)
+
+            visible_comment_ids = set(comments.values_list('id', flat=True))
+            for resub in resubmissions:
+                resub.visible_addressed_comments = [
+                    c for c in resub.addressed_comments.all()
+                    if c.id in visible_comment_ids
+                ]
 
     comments_by_clause = {}
     for comment in comments:
@@ -172,10 +184,6 @@ def project_detail(request, pk):
         if clause_key not in comments_by_clause:
             comments_by_clause[clause_key] = []
         comments_by_clause[clause_key].append(comment)
-
-    resubmissions = project.resubmissions.select_related(
-        'submitter', 'material_version'
-    ).prefetch_related('addressed_comments').all()
 
     assignments = project.review_assignments.select_related(
         'committee_member'

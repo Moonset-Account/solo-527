@@ -79,9 +79,7 @@ class ReviewCommentSerializer(serializers.ModelSerializer):
 
 class ResubmissionSerializer(serializers.ModelSerializer):
     submitter_name = serializers.SerializerMethodField()
-    addressed_comment_ids = serializers.PrimaryKeyRelatedField(
-        many=True, read_only=True, source='addressed_comments'
-    )
+    addressed_comment_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = Resubmission
@@ -94,3 +92,31 @@ class ResubmissionSerializer(serializers.ModelSerializer):
 
     def get_submitter_name(self, obj):
         return obj.submitter.get_full_name() or obj.submitter.username
+
+    def get_addressed_comment_ids(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_committee():
+            return list(obj.addressed_comments.values_list('id', flat=True))
+
+        from .models import ReviewAssignment, Material, MaterialVersion
+        from django.db.models import Q
+
+        assignment = ReviewAssignment.objects.filter(
+            project=obj.project, committee_member=request.user
+        ).prefetch_related('material_types').first()
+
+        if not assignment:
+            return []
+
+        assigned_type_ids = assignment.material_types.values_list('id', flat=True)
+        material_ids = Material.objects.filter(
+            project=obj.project, material_type_id__in=assigned_type_ids
+        ).values_list('id', flat=True)
+        version_ids = MaterialVersion.objects.filter(
+            material_id__in=material_ids
+        ).values_list('id', flat=True)
+
+        visible_comments = obj.addressed_comments.filter(
+            Q(material_version_id__in=version_ids) | Q(reviewer=request.user)
+        )
+        return list(visible_comments.values_list('id', flat=True))

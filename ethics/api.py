@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from .models import Project, MaterialVersion, ReviewComment, Material, Resubmission, ReviewAssignment
@@ -128,9 +129,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def resubmissions(self, request, pk=None):
         project = self.get_object()
+        user = request.user
         resubmissions = project.resubmissions.select_related(
             'submitter', 'material_version'
         ).prefetch_related('addressed_comments')
+
+        if user.is_committee():
+            assignment = ReviewAssignment.objects.filter(
+                project=project, committee_member=user
+            ).prefetch_related('material_types').first()
+            if assignment:
+                assigned_type_ids = assignment.material_types.values_list('id', flat=True)
+                material_ids = project.materials.filter(
+                    material_type_id__in=assigned_type_ids
+                ).values_list('id', flat=True)
+                version_ids = MaterialVersion.objects.filter(
+                    material_id__in=material_ids
+                ).values_list('id', flat=True)
+                resubmissions = resubmissions.filter(material_version_id__in=version_ids)
+
         serializer = ResubmissionSerializer(resubmissions, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -178,6 +195,27 @@ class MaterialVersionViewSet(viewsets.ModelViewSet):
                 )
 
         return queryset.distinct()
+
+    def create(self, request, *args, **kwargs):
+        material_id = request.data.get('material')
+        if material_id:
+            try:
+                material = Material.objects.get(id=material_id)
+                if material.project.is_archived():
+                    return Response(
+                        {'detail': '已归档的课题无法新增材料版本'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except Material.DoesNotExist:
+                pass
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        material = serializer.validated_data.get('material')
+        if material and material.project.is_archived():
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('已归档的课题无法新增材料版本')
+        serializer.save(uploader=self.request.user)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -282,3 +320,55 @@ class ReviewCommentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().destroy(request, *args, **kwargs)
+
+
+class ResubmissionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ResubmissionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['project', 'submitter']
+    ordering_fields = ['submitted_at']
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Resubmission.objects.all().select_related(
+            'project', 'submitter', 'material_version'
+        ).prefetch_related('addressed_comments')
+
+        if not (user.is_secretary() or user.is_admin()):
+            if user.is_committee():
+                assignments = ReviewAssignment.objects.filter(
+                    committee_member=user
+                ).prefetch_related('material_types')
+                project_type_map = {}
+                for a in assignments:
+                    type_ids = list(a.material_types.values_list('id', flat=True))
+                    if a.project_id not in project_type_map:
+                        project_type_map[a.project_id] = set()
+                    project_type_map[a.project_id].update(type_ids)
+
+                if project_type_map:
+                    q_objects = Q()
+                    for project_id, type_ids in project_type_map.items():
+                        material_ids = Material.objects.filter(
+                            project_id=project_id,
+                            material_type_id__in=type_ids
+                        ).values_list('id', flat=True)
+                        version_ids = MaterialVersion.objects.filter(
+                            material_id__in=material_ids
+                        ).values_list('id', flat=True)
+                        q_objects |= Q(
+                            project_id=project_id,
+                            material_version_id__in=version_ids
+                        )
+                    queryset = queryset.filter(q_objects)
+                else:
+                    queryset = queryset.none()
+            else:
+                queryset = queryset.filter(
+                    project__principal_investigator=user
+                ) | queryset.filter(
+                    project__researchers=user
+                )
+
+        return queryset.distinct()
