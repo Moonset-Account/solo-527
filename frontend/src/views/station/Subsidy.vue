@@ -1,15 +1,21 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { checkSubsidy, getSubsidyRecords } from '../../api'
+import { checkSubsidy, getSubsidyRecords, listElders } from '../../api'
 
 const records = ref([])
+const elders = ref([])
 const loading = ref(false)
 const searchId = ref('')
 
 async function loadRecords() {
   loading.value = true
   try {
-    records.value = await getSubsidyRecords({})
+    elders.value = await listElders({})
+    if (searchId.value) {
+      records.value = await getSubsidyRecords(searchId.value)
+    } else {
+      records.value = []
+    }
   } catch (e) {
     console.error(e)
   } finally {
@@ -23,8 +29,8 @@ async function handleCheck() {
   if (!searchId.value) return
   loading.value = true
   try {
-    await checkSubsidy(searchId.value)
-    await loadRecords()
+    await checkSubsidy(searchId.value, 0)
+    records.value = await getSubsidyRecords(searchId.value)
   } catch (e) {
     alert('核查失败: ' + e.message)
   } finally {

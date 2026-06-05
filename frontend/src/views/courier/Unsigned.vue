@@ -6,7 +6,11 @@ const deliveries = ref([])
 const loading = ref(false)
 const currentCourierId = ref(null)
 const currentRouteId = ref(null)
-const photoInput = ref(null)
+const photoRefs = ref({})
+
+function setPhotoRef(el, id) {
+  if (el) photoRefs.value[id] = el
+}
 
 onMounted(async () => {
   loading.value = true
@@ -26,11 +30,14 @@ onMounted(async () => {
 })
 
 async function handleSign(item) {
+  const input = photoRefs.value[item.id]
+  if (!input?.files?.[0]) {
+    alert('请先拍摄/选择签收照片')
+    return
+  }
   try {
     const formData = new FormData()
-    if (photoInput.value?.files?.[0]) {
-      formData.append('photo', photoInput.value.files[0])
-    }
+    formData.append('photo', input.files[0])
     await signDelivery(item.id, formData)
     deliveries.value = deliveries.value.filter(d => d.id !== item.id)
   } catch (e) {
@@ -55,8 +62,8 @@ async function handleSign(item) {
           <div class="delivery-info"><span class="info-label">电话：</span>{{ d.elder_phone_masked }}</div>
         </div>
         <div class="delivery-actions">
-          <input ref="photoInput" type="file" accept="image/*" class="photo-input" />
-          <button class="btn-sign" @click="handleSign(d)">确认签收</button>
+          <input :ref="(el) => setPhotoRef(el, d.id)" type="file" accept="image/*" capture="environment" class="photo-input" />
+          <button class="btn-sign" @click="handleSign(d)">确认签收(需拍照)</button>
         </div>
       </div>
     </div>

@@ -6,9 +6,9 @@ import {
   updateElder,
   tempSuspendElder,
   getFamilyContacts,
-  familyConfirm,
   getSubsidyRecords,
-  checkSubsidy
+  getPendingConfirmations,
+  approveConfirmation
 } from '../../api'
 
 const route = useRoute()
@@ -18,6 +18,7 @@ const elderId = computed(() => route.params.id)
 const elder = ref(null)
 const familyContacts = ref([])
 const subsidyRecords = ref([])
+const pendingConfirmations = ref([])
 const loading = ref(false)
 const suspendVisible = ref(false)
 const suspendForm = ref({ is_suspended: false, reason: '', suspend_until: '' })
@@ -29,7 +30,9 @@ async function loadData() {
   try {
     elder.value = await getElderDetail(elderId.value)
     familyContacts.value = await getFamilyContacts(elderId.value)
-    subsidyRecords.value = await getSubsidyRecords({ elder_id: elderId.value })
+    subsidyRecords.value = await getSubsidyRecords(elderId.value)
+    const allPending = await getPendingConfirmations()
+    pendingConfirmations.value = allPending.filter(c => c.elder_id === elderId.value)
   } catch (e) {
     console.error(e)
   } finally {
@@ -63,8 +66,8 @@ async function handleSuspend() {
   }
 }
 
-function openConfirm(record) {
-  confirmForm.value.confirmation_id = record.confirmation_id || ''
+function openConfirm(confirmation) {
+  confirmForm.value.confirmation_id = confirmation.id
   confirmForm.value.confirmer_name = ''
   confirmForm.value.status = 'approved'
   confirmForm.value.note = ''
@@ -73,7 +76,11 @@ function openConfirm(record) {
 
 async function handleConfirm() {
   try {
-    await familyConfirm(elderId.value, confirmForm.value)
+    await approveConfirmation(
+      confirmForm.value.confirmation_id,
+      confirmForm.value.confirmer_name,
+      confirmForm.value.note
+    )
     confirmVisible.value = false
     await loadData()
   } catch (e) {
@@ -172,6 +179,31 @@ function goBack() {
       </div>
 
       <div class="info-section">
+        <h3 class="section-title">待确认超额记录</h3>
+        <div v-if="!pendingConfirmations.length" class="empty-state">无待确认记录</div>
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>确认类型</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in pendingConfirmations" :key="c.id">
+              <td>{{ c.confirm_type === 'family' ? '家属确认' : '社工确认' }}</td>
+              <td><span class="status-tag pending">待确认</span></td>
+              <td>{{ c.created_at?.slice(0, 16)?.replace('T', ' ') }}</td>
+              <td>
+                <button class="btn-sm btn-primary" @click="openConfirm(c)">确认</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-section">
         <h3 class="section-title">补贴对账记录</h3>
         <div v-if="!subsidyRecords.length" class="empty-state">暂无对账记录</div>
         <table v-else class="data-table">
@@ -183,7 +215,6 @@ function goBack() {
               <th>变动后</th>
               <th>超额</th>
               <th>确认状态</th>
-              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -196,15 +227,6 @@ function goBack() {
               <td>
                 <span v-if="r.confirmed" class="status-tag approved">已确认</span>
                 <span v-else class="status-tag pending">待确认</span>
-              </td>
-              <td>
-                <button
-                  v-if="r.is_exceed && !r.confirmed"
-                  class="btn-sm btn-primary"
-                  @click="openConfirm(r)"
-                >
-                  确认
-                </button>
               </td>
             </tr>
           </tbody>

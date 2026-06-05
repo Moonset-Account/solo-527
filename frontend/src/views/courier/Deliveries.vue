@@ -11,7 +11,11 @@ const noteVisible = ref(null)
 const noteText = ref('')
 const failVisible = ref(null)
 const failNote = ref('')
-const photoInput = ref(null)
+const photoRefs = ref({})
+
+function setPhotoRef(el, id) {
+  if (el) photoRefs.value[id] = el
+}
 
 onMounted(async () => {
   loading.value = true
@@ -48,11 +52,14 @@ async function loadDeliveries() {
 }
 
 async function handleSign(item) {
+  const input = photoRefs.value[item.id]
+  if (!input?.files?.[0]) {
+    alert('请先拍摄/选择签收照片')
+    return
+  }
   try {
     const formData = new FormData()
-    if (photoInput.value?.files?.[0]) {
-      formData.append('photo', photoInput.value.files[0])
-    }
+    formData.append('photo', input.files[0])
     await signDelivery(item.id, formData)
     await loadDeliveries()
   } catch (e) {
@@ -135,8 +142,8 @@ async function saveNote(item) {
 
           <div v-if="!noteVisible && !failVisible" class="delivery-actions">
             <template v-if="d.status === 'pending'">
-              <input ref="photoInput" type="file" accept="image/*" class="photo-input" />
-              <button class="btn-sign" @click="handleSign(d)">签收</button>
+              <input :ref="(el) => setPhotoRef(el, d.id)" type="file" accept="image/*" capture="environment" class="photo-input" />
+              <button class="btn-sign" @click="handleSign(d)">签收(需拍照)</button>
               <button class="btn-fail" @click="openFail(d)">配送失败</button>
             </template>
             <button class="btn-note" @click="openNote(d)">异常备注</button>

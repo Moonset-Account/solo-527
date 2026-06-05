@@ -14,6 +14,7 @@ class Delivery(Base):
     route_id = Column(UUID(as_uuid=True), ForeignKey("routes.id", ondelete="CASCADE"), nullable=False)
     elder_id = Column(UUID(as_uuid=True), ForeignKey("elders.id", ondelete="CASCADE"), nullable=False)
     courier_id = Column(UUID(as_uuid=True), ForeignKey("couriers.id", ondelete="SET NULL"), nullable=True)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("meal_orders.id", ondelete="SET NULL"), nullable=True)
     status = Column(String(32), default="pending", nullable=False)
     signed_photo_url = Column(Text, nullable=True)
     signed_at = Column(DateTime(timezone=True), nullable=True)
@@ -25,3 +26,4 @@ class Delivery(Base):
     route = relationship("Route", back_populates="deliveries")
     elder = relationship("Elder", back_populates="deliveries")
     courier = relationship("Courier")
+    order = relationship("MealOrder")
