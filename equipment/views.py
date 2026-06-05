@@ -12,16 +12,17 @@ from core.permissions import has_permission
 @login_required
 def equipment_list(request):
     service = EquipmentService(request.user)
-    equipments = service.get_all()
     categories = EquipmentCategory.objects.all()
 
     category_id = request.GET.get('category')
     status = request.GET.get('status')
 
+    queryset = Equipment.objects.all()
     if category_id:
-        equipments = equipments.filter(category_id=category_id)
+        queryset = queryset.filter(category_id=category_id)
     if status:
-        equipments = equipments.filter(status=status)
+        queryset = queryset.filter(status=status)
+    equipments = list(queryset)
 
     context = {
         'equipments': equipments,

@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}耗材列表 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">仪表盘</a></li>
+                <li class="breadcrumb-item active" aria-current="page">耗材管理</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-box"></i> 耗材管理</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if perms.consumables.add_consumable %}
+        <a href="#" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新增耗材
+        </a>
+        {% endif %}
+        <a href="{% url 'consumables:usage_list' %}" class="btn btn-outline-secondary ms-2">
+            <i class="bi bi-clock-history"></i> 使用记录
+        </a>
+    </div>
+</div>
+
+{% if low_stock_count > 0 %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> 
+    <strong>库存预警：</strong>有 {{ low_stock_count }} 种耗材库存低于最低预警值，请及时补充
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="搜索耗材名称/SKU..." value="{{ search_query|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <select name="category" class="form-select">
+                    <option value="">全部分类</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="stock_status" class="form-select">
+                    <option value="">全部库存状态</option>
+                    <option value="low" {% if stock_status == 'low' %}selected{% endif %}>低库存</option>
+                    <option value="normal" {% if stock_status == 'normal' %}selected{% endif %}>正常</option>
+                    <option value="out" {% if stock_status == 'out' %}selected{% endif %}>缺货</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for consumable in consumables %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 {% if consumable.is_low_stock %}border-warning{% endif %}">
+            <div class="card-body">
+                <div class="d-flex align-items-start">
+                    <div class="flex-shrink-0">
+                        {% if consumable.image %}
+                        <img src="{{ consumable.image.url }}" alt="{{ consumable.name }}" class="rounded" style="width: 64px; height: 64px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                            <i class="bi bi-box fs-3 text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="card-title mb-1">{{ consumable.name }}</h5>
+                        <p class="card-text">
+                            <span class="badge bg-secondary">{{ consumable.category.name }}</span>
+                            <span class="badge bg-info">SKU: {{ consumable.sku }}</span>
+                        </p>
+                        {% if consumable.is_low_stock %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle"></i> 低库存预警
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <hr>
+                <div class="row g-2 text-center">
+                    <div class="col-4">
+                        <h6 class="text-muted small mb-1">当前库存</h6>
+                        <p class="h5 mb-0 {% if consumable.is_low_stock %}text-warning{% endif %}">
+                            {{ consumable.current_stock }}
+                            <small class="text-muted">{{ consumable.unit }}</small>
+                        </p>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted small mb-1">最低预警</h6>
+                        <p class="h5 mb-0">{{ consumable.min_stock }}</p>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted small mb-1">单价</h6>
+                        <p class="h5 mb-0">¥{{ consumable.unit_price }}</p>
+                    </div>
+                </div>
+                {% if consumable.location %}
+                <p class="card-text mt-3 small text-muted">
+                    <i class="bi bi-geo-alt"></i> 存放位置: {{ consumable.location }}
+                </p>
+                {% endif %}
+                {% if consumable.description %}
+                <p class="card-text small text-muted">{{ consumable.description|truncatechars:50 }}</p>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    {% if perms.consumables.add_consumableusage and consumable.current_stock > 0 %}
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#useModal{{ consumable.pk }}">
+                        <i class="bi bi-cart-check"></i> 领用
+                    </button>
+                    {% endif %}
+                    {% if perms.consumables.change_consumable %}
+                    <a href="#" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil"></i> 编辑
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if perms.consumables.add_consumableusage %}
+        <div class="modal fade" id="useModal{{ consumable.pk }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'consumables:add_usage' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="consumable" value="{{ consumable.pk }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-cart-check"></i> 领用耗材</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>{{ consumable.name }}</strong><br>
+                                当前库存: {{ consumable.current_stock }} {{ consumable.unit }}<br>
+                                单价: ¥{{ consumable.unit_price }} / {{ consumable.unit }}
+                            </div>
+                            <div class="mb-3">
+                                <label for="quantity{{ consumable.pk }}" class="form-label">领用数量 <span class="text-danger">*</span></label>
+                                <input type="number" name="quantity" id="quantity{{ consumable.pk }}" 
+                                       class="form-control" min="1" max="{{ consumable.current_stock }}" value="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="booking" class="form-label">关联预约（可选）</label>
+                                <select name="booking" class="form-select">
+                                    <option value="">无</option>
+                                    {% for booking in user_active_bookings %}
+                                    <option value="{{ booking.pk }}">
+                                        {{ booking.equipment.name }} - {{ booking.start_time|date:'Y-m-d' }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">备注</label>
+                                <textarea name="notes" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label">预估费用</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">¥</span>
+                                    <input type="text" id="total_cost{{ consumable.pk }}" class="form-control" readonly value="{{ consumable.unit_price }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">确认领用</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-box display-1 text-muted"></i>
+                <h4 class="mt-3 text-muted">暂无耗材</h4>
+                <p class="text-muted">未找到符合条件的耗材记录</p>
+                {% if perms.consumables.add_consumable %}
+                <a href="#" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> 新增耗材
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if consumables.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if consumables.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ consumables.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if stock_status %}&stock_status={{ stock_status }}{% endif %}">
+                <i class="bi bi-chevron-left"></i> 上一页
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in consumables.paginator.page_range %}
+            {% if consumables.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > consumables.number|add:'-3' and num < consumables.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if stock_status %}&stock_status={{ stock_status }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if consumables.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ consumables.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if stock_status %}&stock_status={{ stock_status }}{% endif %}">
+                下一页 <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% for consumable in consumables %}
+    const quantityInput{{ consumable.pk }} = document.getElementById('quantity{{ consumable.pk }}');
+    const totalCostDisplay{{ consumable.pk }} = document.getElementById('total_cost{{ consumable.pk }}');
+    
+    quantityInput{{ consumable.pk }}.addEventListener('input', function() {
+        const quantity = parseInt(this.value) || 0;
+        const price = parseFloat('{{ consumable.unit_price }}');
+        totalCostDisplay{{ consumable.pk }}.value = (quantity * price).toFixed(2);
+    });
+    {% endfor %}
+});
+</script>
+{% endblock %}

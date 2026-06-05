@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑预约 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'bookings:my_bookings' %}">我的预约</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'bookings:detail' booking.pk %}">预约详情</a></li>
+                <li class="breadcrumb-item active" aria-current="page">编辑预约</li>
+            </ol>
+        </nav>
+        <h1 class="h2">编辑预约</h1>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" id="bookingForm">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-exclamation-triangle"></i> 请修正以下错误：</h6>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                            {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="id_equipment" class="form-label">选择设备 <span class="text-danger">*</span></label>
+                        <select name="equipment" id="id_equipment" class="form-select" required>
+                            <option value="">请选择设备</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}" 
+                                    {% if booking.equipment_id == equipment.id %}selected{% endif %}
+                                    data-requires-training="{{ equipment.requires_training }}"
+                                    data-is-dangerous="{{ equipment.is_dangerous }}"
+                                    data-category="{{ equipment.category_id }}">
+                                {{ equipment.name }} ({{ equipment.category.name }})
+                                {% if equipment.is_dangerous %} ⚠️ 危险设备{% endif %}
+                                {% if equipment.requires_training %} [需培训]{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            标记为 <span class="badge bg-warning text-dark">需培训</span> 的设备需要先通过培训才能预约
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_start_time" class="form-label">开始时间 <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="start_time" id="id_start_time" 
+                                       class="form-control" required
+                                       value="{{ booking.start_time|date:'Y-m-d\TH:i' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_end_time" class="form-label">结束时间 <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="end_time" id="id_end_time" 
+                                       class="form-control" required
+                                       value="{{ booking.end_time|date:'Y-m-d\TH:i' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_purpose" class="form-label">使用目的</label>
+                        <textarea name="purpose" id="id_purpose" class="form-control" rows="3" 
+                                  placeholder="请描述您的使用目的...">{{ booking.purpose }}</textarea>
+                    </div>
+
+                    <div id="trainingWarning" class="alert alert-warning d-none">
+                        <h6><i class="bi bi-exclamation-triangle"></i> 培训资格提醒</h6>
+                        <p class="mb-0">您选择的设备需要先通过培训才能预约。请先申请相关培训。</p>
+                        <a href="{% url 'training:course_list' %}" class="btn btn-warning btn-sm mt-2">
+                            <i class="bi bi-mortarboard"></i> 查看培训课程
+                        </a>
+                    </div>
+
+                    <div id="dangerousWarning" class="alert alert-danger d-none">
+                        <h6><i class="bi bi-radioactive"></i> 危险设备提醒</h6>
+                        <p class="mb-0">此设备为危险设备，必须先通过专业培训才能使用。未通过培训的预约将被拒绝。</p>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 返回
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> 保存修改
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const equipmentSelect = document.getElementById('id_equipment');
+    const trainingWarning = document.getElementById('trainingWarning');
+    const dangerousWarning = document.getElementById('dangerousWarning');
+    const startTimeInput = document.getElementById('id_start_time');
+    const endTimeInput = document.getElementById('id_end_time');
+
+    const now = new Date();
+    now.setMinutes(Math.ceil(now.getMinutes() / 30) * 30);
+    startTimeInput.min = now.toISOString().slice(0, 16);
+
+    function checkEquipmentWarnings() {
+        const selectedOption = equipmentSelect.options[equipmentSelect.selectedIndex];
+        const requiresTraining = selectedOption.dataset.requiresTraining === 'True';
+        const isDangerous = selectedOption.dataset.isDangerous === 'True';
+
+        trainingWarning.classList.toggle('d-none', !requiresTraining);
+        dangerousWarning.classList.toggle('d-none', !isDangerous);
+    }
+
+    equipmentSelect.addEventListener('change', checkEquipmentWarnings);
+    checkEquipmentWarnings();
+
+    startTimeInput.addEventListener('change', function() {
+        endTimeInput.min = this.value;
+        if (endTimeInput.value && endTimeInput.value <= this.value) {
+            const start = new Date(this.value);
+            start.setHours(start.getHours() + 1);
+            endTimeInput.value = start.toISOString().slice(0, 16);
+        }
+    });
+
+    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+        const start = new Date(startTimeInput.value);
+        const end = new Date(endTimeInput.value);
+
+        if (end <= start) {
+            e.preventDefault();
+            alert('结束时间必须晚于开始时间');
+            return false;
+        }
+
+        const duration = (end - start) / (1000 * 60 * 60);
+        if (duration > 8) {
+            e.preventDefault();
+            if (!confirm('单次预约超过8小时，是否确认提交？')) {
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

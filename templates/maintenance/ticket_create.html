@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+
+{% block title %}上报故障 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'maintenance:ticket_list' %}">故障报修</a></li>
+                <li class="breadcrumb-item active" aria-current="page">上报故障</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-exclamation-triangle"></i> 上报故障</h1>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" id="ticketForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-exclamation-triangle"></i> 请修正以下错误：</h6>
+                        <ul class="mb-0">
+                            {% for field in form %}
+                            {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="id_equipment" class="form-label">选择设备 <span class="text-danger">*</span></label>
+                        <select name="equipment" id="id_equipment" class="form-select" required>
+                            <option value="">请选择故障设备</option>
+                            {% for equipment in equipments %}
+                            <option value="{{ equipment.id }}">
+                                {{ equipment.name }} ({{ equipment.category.name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">故障标题 <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="id_title" class="form-control" required 
+                               placeholder="简要描述故障问题" maxlength="200">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">故障描述 <span class="text-danger">*</span></label>
+                        <textarea name="description" id="id_description" class="form-control" rows="5" required
+                                  placeholder="请详细描述故障现象、发生时间、操作步骤等信息..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_priority" class="form-label">优先级 <span class="text-danger">*</span></label>
+                                <select name="priority" id="id_priority" class="form-select" required>
+                                    <option value="low">低 - 不影响使用</option>
+                                    <option value="medium" selected>中 - 部分功能受影响</option>
+                                    <option value="high">高 - 无法正常使用</option>
+                                    <option value="critical">紧急 - 存在安全隐患</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="id_fault_type" class="form-label">故障类型</label>
+                                <select name="fault_type" id="id_fault_type" class="form-select">
+                                    <option value="">请选择故障类型</option>
+                                    <option value="hardware">硬件故障</option>
+                                    <option value="software">软件故障</option>
+                                    <option value="network">网络故障</option>
+                                    <option value="power">电源故障</option>
+                                    <option value="mechanical">机械故障</option>
+                                    <option value="other">其他问题</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">上传照片/附件</label>
+                        <div class="border rounded p-4 text-center bg-light">
+                            <i class="bi bi-cloud-arrow-up display-4 text-muted"></i>
+                            <p class="mt-2 mb-3">拖拽文件到此处，或点击选择</p>
+                            <input type="file" name="attachments" id="attachments" class="d-none" multiple accept="image/*,.pdf,.doc,.docx">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('attachments').click()">
+                                    <i class="bi bi-file-earmark"></i> 选择文件
+                                </button>
+                                <button type="button" class="btn btn-primary" id="cameraBtn">
+                                    <i class="bi bi-camera"></i> 拍照
+                                </button>
+                            </div>
+                            <div class="form-text mt-2">支持图片、PDF、Word文档，单个文件不超过10MB，最多上传5个</div>
+                        </div>
+                        <div id="previewArea" class="row g-2 mt-3"></div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle"></i> 温馨提示</h6>
+                        <ul class="mb-0 small">
+                            <li>请尽可能详细地描述故障情况，以便维修人员快速定位问题</li>
+                            <li>上传清晰的故障照片可以帮助更快解决问题</li>
+                            <li>紧急故障请同时联系管理员：xxx-xxxxxxx</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'maintenance:ticket_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 取消
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> 提交故障单
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cameraModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-camera"></i> 拍照上传</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <video id="cameraVideo" autoplay playsinline class="img-fluid rounded" style="max-height: 400px;"></video>
+                    <canvas id="cameraCanvas" class="d-none"></canvas>
+                </div>
+                <div class="text-center">
+                    <button type="button" id="captureBtn" class="btn btn-primary">
+                        <i class="bi bi-camera"></i> 拍照
+                    </button>
+                    <button type="button" id="switchCameraBtn" class="btn btn-outline-secondary ms-2">
+                        <i class="bi bi-arrow-repeat"></i> 切换摄像头
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" id="usePhotoBtn" class="btn btn-primary" disabled>
+                    <i class="bi bi-check"></i> 使用照片
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('attachments');
+    const previewArea = document.getElementById('previewArea');
+    const cameraBtn = document.getElementById('cameraBtn');
+    const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
+    const captureBtn = document.getElementById('captureBtn');
+    const switchCameraBtn = document.getElementById('switchCameraBtn');
+    const usePhotoBtn = document.getElementById('usePhotoBtn');
+    
+    let mediaStream = null;
+    let currentFacingMode = 'environment';
+    let capturedImage = null;
+
+    function updatePreview() {
+        previewArea.innerHTML = '';
+        const files = fileInput.files;
+        
+        for (let i = 0; i < files.length && i < 5; i++) {
+            const file = files[i];
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-4';
+            
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    col.innerHTML = `
+                        <div class="card position-relative">
+                            <img src="${e.target.result}" class="card-img-top" style="height: 100px; object-fit: cover;">
+                            <button type="button" class="btn-close position-absolute top-0 end-0 m-1" onclick="removeFile(${i})"></button>
+                        </div>
+                    `;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                col.innerHTML = `
+                    <div class="card p-2 position-relative">
+                        <div class="text-center">
+                            <i class="bi bi-file-earmark fs-2 text-muted"></i>
+                            <p class="small text-truncate mb-0">${file.name}</p>
+                        </div>
+                        <button type="button" class="btn-close position-absolute top-0 end-0 m-1" onclick="removeFile(${i})"></button>
+                    </div>
+                `;
+            }
+            previewArea.appendChild(col);
+        }
+    }
+
+    window.removeFile = function(index) {
+        const dt = new DataTransfer();
+        const files = fileInput.files;
+        for (let i = 0; i < files.length; i++) {
+            if (i !== index) {
+                dt.items.add(files[i]);
+            }
+        }
+        fileInput.files = dt.files;
+        updatePreview();
+    };
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 5) {
+            alert('最多只能上传5个文件');
+            const dt = new DataTransfer();
+            for (let i = 0; i < 5; i++) {
+                dt.items.add(this.files[i]);
+            }
+            this.files = dt.files;
+        }
+        updatePreview();
+    });
+
+    async function startCamera() {
+        try {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: currentFacingMode }
+            });
+            cameraVideo.srcObject = mediaStream;
+        } catch (err) {
+            alert('无法访问摄像头：' + err.message);
+        }
+    }
+
+    cameraBtn.addEventListener('click', function() {
+        cameraModal.show();
+        startCamera();
+    });
+
+    switchCameraBtn.addEventListener('click', function() {
+        currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+        startCamera();
+    });
+
+    captureBtn.addEventListener('click', function() {
+        const ctx = cameraCanvas.getContext('2d');
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        ctx.drawImage(cameraVideo, 0, 0);
+        
+        capturedImage = cameraCanvas.toDataURL('image/jpeg', 0.8);
+        usePhotoBtn.disabled = false;
+        
+        const preview = document.createElement('img');
+        preview.src = capturedImage;
+        preview.className = 'img-fluid rounded';
+        preview.style.maxHeight = '200px';
+        
+        const container = document.createElement('div');
+        container.className = 'text-center mt-3';
+        container.id = 'capturedPreview';
+        container.innerHTML = '<h6>已拍摄照片</h6>';
+        container.appendChild(preview);
+        
+        document.getElementById('capturedPreview')?.remove();
+        cameraVideo.parentElement.appendChild(container);
+    });
+
+    usePhotoBtn.addEventListener('click', function() {
+        if (!capturedImage) return;
+        
+        fetch(capturedImage)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], 'photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                const dt = new DataTransfer();
+                
+                for (let f of fileInput.files) {
+                    dt.items.add(f);
+                }
+                dt.items.add(file);
+                fileInput.files = dt.files;
+                
+                updatePreview();
+                cameraModal.hide();
+                
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+            });
+    });
+
+    cameraModal._element.addEventListener('hidden.bs.modal', function() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+        }
+        document.getElementById('capturedPreview')?.remove();
+        capturedImage = null;
+        usePhotoBtn.disabled = true;
+    });
+
+    document.getElementById('ticketForm').addEventListener('submit', function(e) {
+        const title = document.getElementById('id_title').value.trim();
+        const description = document.getElementById('id_description').value.trim();
+        
+        if (title.length < 5) {
+            e.preventDefault();
+            alert('故障标题至少需要5个字符');
+            return false;
+        }
+        
+        if (description.length < 10) {
+            e.preventDefault();
+            alert('故障描述至少需要10个字符');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

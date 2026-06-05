@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional, List
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, models
 from django.utils import timezone
 from core.services import BaseService
 from core.validators import BaseValidator
@@ -31,12 +31,15 @@ class ConsumableService(BaseService[Consumable]):
             queryset = queryset.filter(category_id=category_id)
         return list(queryset.select_related('category'))
 
-    def get_low_stock_consumables(self) -> List[Consumable]:
+    def get_low_stock(self) -> List[Consumable]:
         return list(
             self.get_queryset()
             .filter(is_active=True, current_stock__lte=models.F('min_stock'))
             .select_related('category')
         )
+
+    def get_low_stock_consumables(self) -> List[Consumable]:
+        return self.get_low_stock()
 
     def search_consumables(self, query: str) -> List[Consumable]:
         return list(
@@ -66,6 +69,46 @@ class ConsumableService(BaseService[Consumable]):
             notification_service.send_consumable_low_stock(consumable, list(admin_users))
 
         return consumable
+
+    @transaction.atomic
+    def record_usage(
+        self,
+        consumable: Consumable,
+        user: User,
+        quantity: int,
+        booking=None,
+        equipment=None,
+        notes: str = ''
+    ) -> ConsumableUsage:
+        usage_service = ConsumableUsageService(user)
+        return usage_service.record_usage(
+            consumable=consumable,
+            user=user,
+            quantity=quantity,
+            booking=booking,
+            equipment=equipment,
+            notes=notes
+        )
+
+    @transaction.atomic
+    def restock(
+        self,
+        consumable: Consumable,
+        quantity: int,
+        user: User,
+        supplier: str = '',
+        batch_number: str = '',
+        unit_cost: float = 0
+    ) -> ConsumableRestock:
+        restock_service = ConsumableRestockService(user)
+        return restock_service.create({
+            'consumable': consumable,
+            'quantity': quantity,
+            'supplier': supplier,
+            'batch_number': batch_number,
+            'unit_cost': unit_cost,
+            'stocked_by': user,
+        }, user=user)
 
 
 class ConsumableUsageService(BaseService[ConsumableUsage]):

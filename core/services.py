@@ -24,6 +24,15 @@ class BaseService(Generic[T]):
     def list_all(self) -> List[T]:
         return list(self.get_queryset())
 
+    def get_all(self) -> List[T]:
+        return self.list_all()
+
+    def filter(self, **kwargs) -> List[T]:
+        return list(self.get_queryset().filter(**kwargs))
+
+    def get_first(self, **kwargs) -> Optional[T]:
+        return self.get_queryset().filter(**kwargs).first()
+
     def create(self, data: Dict[str, Any], **kwargs) -> T:
         if hasattr(self, 'validator'):
             self.validator.validate_create(data, user=self.user, **kwargs)

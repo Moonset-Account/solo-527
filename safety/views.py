@@ -10,8 +10,7 @@ from .services import SafetyIncidentService, SafetyInspectionService, SafetyTrai
 
 @login_required
 def incident_list(request):
-    service = SafetyIncidentService(request.user)
-    incidents = service.get_all().order_by('-incident_time')
+    incidents = SafetyIncident.objects.all().order_by('-incident_time')
 
     severity = request.GET.get('severity')
     status = request.GET.get('status')
@@ -119,8 +118,7 @@ def incident_add_attachment(request, pk):
 
 @login_required
 def inspection_list(request):
-    service = SafetyInspectionService(request.user)
-    inspections = service.get_all().order_by('-scheduled_date')
+    inspections = SafetyInspection.objects.all().order_by('-scheduled_date')
 
     status = request.GET.get('status')
     if status:
@@ -160,8 +158,7 @@ def inspection_complete(request, pk):
 
 @login_required
 def training_record_list(request):
-    service = SafetyTrainingRecordService(request.user)
-    records = service.get_all().order_by('-training_date')
+    records = SafetyTrainingRecord.objects.all().order_by('-training_date')
 
     if not request.user.is_staff:
         records = records.filter(user=request.user)

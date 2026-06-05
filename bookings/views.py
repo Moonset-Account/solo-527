@@ -12,8 +12,7 @@ from equipment.models import Equipment
 
 @login_required
 def booking_list(request):
-    service = BookingService(request.user)
-    bookings = service.get_all().order_by('-start_time')
+    bookings = Booking.objects.all().order_by('-start_time')
 
     if not request.user.is_staff:
         bookings = bookings.filter(user=request.user)
@@ -38,15 +37,39 @@ def booking_list(request):
 
 @login_required
 def booking_calendar(request):
-    service = BookingService(request.user)
-    bookings = service.get_all().filter(
-        status__in=['pending', 'approved', 'checked_in']
+    from datetime import datetime, timedelta
+    
+    today = timezone.now().date()
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    equipment_id = request.GET.get('equipment')
+
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    else:
+        start_date = today - timedelta(days=7)
+    
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    else:
+        end_date = today + timedelta(days=30)
+
+    bookings = Booking.objects.filter(
+        status__in=['pending', 'approved', 'checked_in'],
+        start_time__date__gte=start_date,
+        end_time__date__lte=end_date
     )
+
+    if equipment_id:
+        bookings = bookings.filter(equipment_id=equipment_id)
 
     equipments = Equipment.objects.filter(status='available')
     context = {
         'bookings': bookings,
         'equipments': equipments,
+        'start_date': start_date,
+        'end_date': end_date,
+        'selected_equipment': equipment_id,
     }
     return render(request, 'bookings/calendar.html', context)
 
@@ -203,7 +226,14 @@ def booking_complete(request, pk):
 
 @login_required
 def my_bookings(request):
-    service = BookingService(request.user)
-    bookings = service.get_user_bookings(request.user).order_by('-start_time')
-    context = {'bookings': bookings}
+    status = request.GET.get('status')
+    bookings = Booking.objects.filter(user=request.user).order_by('-start_time')
+    
+    if status:
+        bookings = bookings.filter(status=status)
+    
+    context = {
+        'bookings': bookings,
+        'selected_status': status,
+    }
     return render(request, 'bookings/my_bookings.html', context)

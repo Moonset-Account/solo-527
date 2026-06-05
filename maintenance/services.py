@@ -57,10 +57,15 @@ class FaultTicketService(BaseService[FaultTicket]):
 
         ticket = super().create(data, **kwargs)
 
-        ticket.equipment.status = 'broken'
-        ticket.equipment.save()
+        if ticket.equipment:
+            ticket.equipment.status = 'broken'
+            ticket.equipment.save()
 
         return ticket
+
+    @transaction.atomic
+    def create_ticket(self, data: Dict[str, Any], **kwargs) -> FaultTicket:
+        return self.create(data, **kwargs)
 
     @transaction.atomic
     def update_status(self, ticket: FaultTicket, status: str, user: User,
@@ -77,7 +82,7 @@ class FaultTicketService(BaseService[FaultTicket]):
             ticket.resolved_by = user
         ticket.save()
 
-        if status == FaultTicket.Status.RESOLVED:
+        if ticket.equipment and status == FaultTicket.Status.RESOLVED:
             ticket.equipment.status = 'available'
             ticket.equipment.save()
 
@@ -96,8 +101,28 @@ class FaultTicketService(BaseService[FaultTicket]):
         return ticket
 
     @transaction.atomic
+    def assign_ticket(self, ticket: FaultTicket, assignee: User, assigner: User) -> FaultTicket:
+        return self.assign(ticket, assignee, assigner)
+
+    @transaction.atomic
+    def resolve_ticket(self, ticket: FaultTicket, user: User, resolution: str = '') -> FaultTicket:
+        if ticket.status in [FaultTicket.Status.RESOLVED, FaultTicket.Status.CLOSED]:
+            raise ValidationError('该工单已解决或已关闭')
+        return self.update_status(ticket, FaultTicket.Status.RESOLVED, user, resolution)
+
+    @transaction.atomic
+    def close_ticket(self, ticket: FaultTicket, user: User, resolution: str = '') -> FaultTicket:
+        if ticket.status == FaultTicket.Status.CLOSED:
+            raise ValidationError('该工单已关闭')
+        if ticket.status != FaultTicket.Status.RESOLVED:
+            raise ValidationError('只有已解决的工单可以关闭')
+        return self.update_status(ticket, FaultTicket.Status.CLOSED, user, resolution)
+
+    @transaction.atomic
     def add_comment(self, ticket: FaultTicket, user: User, content: str,
                     is_internal: bool = False) -> FaultComment:
+        if not content.strip():
+            raise ValidationError('评论内容不能为空')
         return FaultComment.objects.create(
             ticket=ticket,
             user=user,

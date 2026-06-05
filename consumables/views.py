@@ -9,8 +9,7 @@ from .services import ConsumableService, ConsumableUsageService, ConsumableResto
 
 @login_required
 def consumable_list(request):
-    service = ConsumableService(request.user)
-    consumables = service.get_all()
+    consumables = Consumable.objects.all()
 
     category_id = request.GET.get('category')
     low_stock = request.GET.get('low_stock')
@@ -18,13 +17,15 @@ def consumable_list(request):
     if category_id:
         consumables = consumables.filter(category_id=category_id)
     if low_stock:
-        consumables = [c for c in consumables if c.is_low_stock]
+        from django.db.models import F
+        consumables = consumables.filter(current_stock__lte=F('min_stock'))
 
     categories = ConsumableCategory.objects.all()
     context = {
         'consumables': consumables,
         'categories': categories,
         'selected_category': category_id,
+        'low_stock': low_stock,
     }
     return render(request, 'consumables/list.html', context)
 
@@ -104,8 +105,7 @@ def restock_consumable(request, pk):
 
 @login_required
 def usage_list(request):
-    service = ConsumableUsageService(request.user)
-    usage_records = service.get_all().order_by('-created_at')
+    usage_records = ConsumableUsage.objects.all().order_by('-created_at')
 
     billed = request.GET.get('billed')
     if billed is not None:

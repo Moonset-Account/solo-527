@@ -9,10 +9,9 @@ from .services import NotificationService
 
 @login_required
 def notification_list(request):
-    service = NotificationService(request.user)
-    notifications = service.get_user_notifications(request.user).order_by('-created_at')
+    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
 
-    unread_count = notifications.filter(is_read=False).count()
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
 
     read = request.GET.get('read')
     if read is not None:

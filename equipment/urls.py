@@ -10,5 +10,5 @@ urlpatterns = [
     path('<uuid:pk>/usage/start/', views.start_usage, name='start_usage'),
     path('<uuid:pk>/usage/end/<uuid:usage_id>/', views.end_usage, name='end_usage'),
     path('categories/', views.category_list, name='category_list'),
-    path('categories/<uuid:pk>/', views.category_detail, name='category_detail'),
+    path('categories/<int:pk>/', views.category_detail, name='category_detail'),
 ]

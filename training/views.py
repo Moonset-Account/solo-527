@@ -31,8 +31,7 @@ def course_detail(request, pk):
 
 @login_required
 def session_list(request):
-    service = TrainingSessionService(request.user)
-    sessions = service.get_all().order_by('-start_time')
+    sessions = TrainingSession.objects.all().order_by('-start_time')
 
     status = request.GET.get('status')
     if status:
@@ -73,8 +72,7 @@ def apply_session(request, pk):
 
 @login_required
 def application_list(request):
-    service = TrainingApplicationService(request.user)
-    applications = service.get_all().order_by('-created_at')
+    applications = TrainingApplication.objects.all().order_by('-created_at')
 
     if not request.user.is_staff:
         applications = applications.filter(user=request.user)
@@ -146,8 +144,7 @@ def cancel_application(request, pk):
 
 @login_required
 def certification_list(request):
-    service = TrainingCertificationService(request.user)
-    certifications = service.get_all().order_by('-issued_date')
+    certifications = TrainingCertification.objects.all().order_by('-issued_date')
 
     if not request.user.is_staff:
         certifications = certifications.filter(user=request.user)

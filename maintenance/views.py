@@ -9,8 +9,7 @@ from .services import FaultTicketService, MaintenanceScheduleService
 
 @login_required
 def ticket_list(request):
-    service = FaultTicketService(request.user)
-    tickets = service.get_all().order_by('-created_at')
+    tickets = FaultTicket.objects.all().order_by('-created_at')
 
     status = request.GET.get('status')
     priority = request.GET.get('priority')
@@ -23,10 +22,14 @@ def ticket_list(request):
     if equipment_id:
         tickets = tickets.filter(equipment_id=equipment_id)
 
+    from equipment.models import Equipment
+    equipments = Equipment.objects.all()
     context = {
         'tickets': tickets,
+        'equipments': equipments,
         'selected_status': status,
         'selected_priority': priority,
+        'selected_equipment': equipment_id,
     }
     return render(request, 'maintenance/ticket_list.html', context)
 
@@ -160,8 +163,7 @@ def ticket_add_attachment(request, pk):
 
 @login_required
 def schedule_list(request):
-    service = MaintenanceScheduleService(request.user)
-    schedules = service.get_all().order_by('-scheduled_date')
+    schedules = MaintenanceSchedule.objects.all().order_by('-scheduled_date')
     context = {'schedules': schedules}
     return render(request, 'maintenance/schedule_list.html', context)
 

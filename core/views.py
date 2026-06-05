@@ -94,7 +94,67 @@ def profile_edit(request):
 
 @login_required
 def scan_qr(request):
-    return render(request, 'core/scan.html')
+    return render(request, 'core/scan_qr.html')
+
+
+@login_required
+def scan_qr_result(request):
+    code = request.GET.get('code', '')
+    result = {'found': False, 'type': None, 'id': None, 'url': None}
+
+    if code.startswith('equipment:'):
+        equipment_id = code.split(':')[1]
+        from equipment.models import Equipment
+        if Equipment.objects.filter(pk=equipment_id).exists():
+            result = {
+                'found': True,
+                'type': 'equipment',
+                'id': equipment_id,
+                'url': f'/equipment/{equipment_id}/',
+            }
+    elif code.startswith('booking:'):
+        booking_id = code.split(':')[1]
+        from bookings.models import Booking
+        if Booking.objects.filter(pk=booking_id).exists():
+            result = {
+                'found': True,
+                'type': 'booking',
+                'id': booking_id,
+                'url': f'/bookings/{booking_id}/',
+            }
+
+    return JsonResponse(result)
+
+
+@login_required
+def history(request):
+    from auditlog.models import LogEntry
+    from django.contrib.contenttypes.models import ContentType
+
+    content_type = request.GET.get('content_type')
+    object_id = request.GET.get('object_id')
+    action = request.GET.get('action')
+
+    queryset = LogEntry.objects.select_related('content_type', 'actor').order_by('-timestamp')
+
+    if content_type:
+        queryset = queryset.filter(content_type__model=content_type)
+    if object_id:
+        queryset = queryset.filter(object_pk=object_id)
+    if action:
+        queryset = queryset.filter(action=action)
+
+    logs = queryset[:100]
+
+    context = {
+        'logs': logs,
+        'selected_content_type': content_type,
+        'selected_action': action,
+        'content_types': ContentType.objects.filter(
+            app_label__in=['equipment', 'training', 'bookings', 'consumables', 'maintenance', 'safety']
+        ).distinct(),
+    }
+    return render(request, 'core/history.html', context)
 
 
 @login_required

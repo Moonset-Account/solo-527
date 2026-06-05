@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block title %}预约详情 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'bookings:my_bookings' %}">我的预约</a></li>
+                <li class="breadcrumb-item active" aria-current="page">预约详情</li>
+            </ol>
+        </nav>
+        <h1 class="h2">预约详情</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if booking.status == 'pending' %}
+            {% if perms.bookings.can_approve_booking %}
+            <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#approveModal">
+                <i class="bi bi-check-circle"></i> 审批通过
+            </button>
+            <button type="button" class="btn btn-danger me-2" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                <i class="bi bi-x-circle"></i> 拒绝
+            </button>
+            {% endif %}
+            {% if booking.user == request.user %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                <i class="bi bi-x-circle"></i> 取消预约
+            </button>
+            {% endif %}
+        {% elif booking.status == 'approved' and not booking.is_checked_in %}
+            {% if booking.user == request.user %}
+            <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#checkinModal">
+                <i class="bi bi-check2-square"></i> 签到
+            </button>
+            {% endif %}
+            {% if perms.bookings.can_check_in %}
+            <a href="{% url 'core:scan_qr' %}?booking={{ booking.pk }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-qr-code-scan"></i> 扫码签到
+            </a>
+            {% endif %}
+            {% if booking.user == request.user %}
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                <i class="bi bi-x-circle"></i> 取消预约
+            </button>
+            {% endif %}
+        {% elif booking.status == 'in_progress' %}
+            {% if booking.user == request.user or perms.bookings.can_complete_booking %}
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#completeModal">
+                <i class="bi bi-flag"></i> 完成使用
+            </button>
+            {% endif %}
+        {% endif %}
+        {% if booking.user == request.user and booking.status == 'pending' %}
+        <a href="{% url 'bookings:edit' booking.pk %}" class="btn btn-outline-primary ms-2">
+            <i class="bi bi-pencil"></i> 编辑
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 预约信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">状态</div>
+                    <div class="col-md-8">
+                        <span class="status-badge status-{{ booking.status }}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">预约设备</div>
+                    <div class="col-md-8">
+                        <a href="{% url 'equipment:detail' booking.equipment.pk %}">
+                            {{ booking.equipment.name }}
+                        </a>
+                        <small class="text-muted d-block">{{ booking.equipment.category.name }}</small>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">预约人</div>
+                    <div class="col-md-8">{{ booking.user.real_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">预约时间</div>
+                    <div class="col-md-8">
+                        <i class="bi bi-calendar3"></i> {{ booking.start_time|date:'Y-m-d H:i' }}
+                        <i class="bi bi-arrow-right mx-2"></i>
+                        {{ booking.end_time|date:'Y-m-d H:i' }}
+                        <span class="badge bg-secondary ms-2">{{ booking.duration_hours|floatformat:1 }} 小时</span>
+                    </div>
+                </div>
+                {% if booking.actual_start_time %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">实际开始时间</div>
+                    <div class="col-md-8">{{ booking.actual_start_time|date:'Y-m-d H:i' }}</div>
+                </div>
+                {% endif %}
+                {% if booking.actual_end_time %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">实际结束时间</div>
+                    <div class="col-md-8">{{ booking.actual_end_time|date:'Y-m-d H:i' }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">使用目的</div>
+                    <div class="col-md-8">{{ booking.purpose|default:'-' }}</div>
+                </div>
+                {% if booking.approval_notes %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">审批备注</div>
+                    <div class="col-md-8">{{ booking.approval_notes }}</div>
+                </div>
+                {% endif %}
+                {% if booking.approved_by %}
+                <div class="row">
+                    <div class="col-md-4 fw-medium">审批人</div>
+                    <div class="col-md-8">
+                        {{ booking.approved_by.real_name }}
+                        <small class="text-muted">于 {{ booking.approved_at|date:'Y-m-d H:i' }}</small>
+                    </div>
+                </div>
+                {% endif %}
+                {% if booking.is_checked_in %}
+                <div class="row mt-3">
+                    <div class="col-md-4 fw-medium">签到信息</div>
+                    <div class="col-md-8">
+                        <span class="badge bg-success"><i class="bi bi-check2"></i> 已签到</span>
+                        <small class="text-muted ms-2">{{ booking.checked_in_at|date:'Y-m-d H:i' }}</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> 状态变更历史</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for log in status_history %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                <span class="status-badge status-{{ log.new_status }} me-2">
+                                    {{ log.get_new_status_display }}
+                                </span>
+                            </h6>
+                            <small class="text-muted">{{ log.created_at|date:'Y-m-d H:i' }}</small>
+                        </div>
+                        <p class="mb-1">
+                            <small>
+                                <i class="bi bi-person"></i> {{ log.actor.real_name|default:'系统' }}
+                            </small>
+                        </p>
+                        {% if log.notes %}
+                        <small class="text-muted">{{ log.notes }}</small>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-clock-history"></i> 暂无状态变更记录
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-box"></i> 关联耗材使用记录</h5>
+                {% if booking.status == 'in_progress' %}
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addConsumableModal">
+                    <i class="bi bi-plus"></i> 添加耗材
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>耗材名称</th>
+                                <th>数量</th>
+                                <th>单价</th>
+                                <th>小计</th>
+                                <th>使用人</th>
+                                <th>时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in booking.consumable_usages.all %}
+                            <tr>
+                                <td>{{ usage.consumable.name }}</td>
+                                <td>{{ usage.quantity }} {{ usage.consumable.unit }}</td>
+                                <td>¥{{ usage.unit_price_at_usage }}</td>
+                                <td>¥{{ usage.total_cost }}</td>
+                                <td>{{ usage.user.real_name }}</td>
+                                <td>{{ usage.created_at|date:'Y-m-d H:i' }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-box"></i> 暂无耗材使用记录
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> 设备信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if booking.equipment.image %}
+                    <img src="{{ booking.equipment.image.url }}" alt="{{ booking.equipment.name }}" class="img-fluid rounded" style="max-height: 150px;">
+                    {% else %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 150px;">
+                        <i class="bi bi-gear display-4 text-muted"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <h6 class="text-center">{{ booking.equipment.name }}</h6>
+                <p class="text-muted text-center small">{{ booking.equipment.category.name }}</p>
+                <hr>
+                <div class="d-grid">
+                    <a href="{% url 'equipment:detail' booking.equipment.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-right-circle"></i> 查看设备详情
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if booking.status == 'pending' and perms.bookings.can_approve_booking %}
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bookings:approve' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check-circle"></i> 审批通过</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要通过此预约吗？</p>
+                    <div class="mb-3">
+                        <label for="approval_notes" class="form-label">审批备注</label>
+                        <textarea name="approval_notes" id="approval_notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">确认通过</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bookings:reject' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle"></i> 拒绝预约</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要拒绝此预约吗？</p>
+                    <div class="mb-3">
+                        <label for="reject_notes" class="form-label">拒绝原因 <span class="text-danger">*</span></label>
+                        <textarea name="reject_notes" id="reject_notes" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger">确认拒绝</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if booking.user == request.user and booking.status in 'pending,approved' %}
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bookings:cancel' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle"></i> 取消预约</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要取消此预约吗？</p>
+                    <div class="mb-3">
+                        <label for="cancel_reason" class="form-label">取消原因</label>
+                        <textarea name="cancel_reason" id="cancel_reason" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回</button>
+                    <button type="submit" class="btn btn-danger">确认取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if booking.status == 'approved' and booking.user == request.user and not booking.is_checked_in %}
+<div class="modal fade" id="checkinModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bookings:check_in' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check2-square"></i> 签到确认</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定现在开始使用设备吗？</p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 签到后将开始计时，实际使用时间将从现在开始计算。
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认签到</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if booking.status == 'in_progress' %}
+<div class="modal fade" id="completeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bookings:complete' booking.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-flag"></i> 完成使用</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定已完成设备使用吗？</p>
+                    <div class="mb-3">
+                        <label for="completion_notes" class="form-label">使用备注</label>
+                        <textarea name="completion_notes" id="completion_notes" class="form-control" rows="3" placeholder="请描述使用情况、设备状态等..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">确认完成</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addConsumableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'consumables:add_usage' %}">
+                {% csrf_token %}
+                <input type="hidden" name="booking" value="{{ booking.pk }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 添加耗材使用</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="consumable" class="form-label">选择耗材 <span class="text-danger">*</span></label>
+                        <select name="consumable" id="consumable" class="form-select" required>
+                            <option value="">请选择耗材</option>
+                            {% for consumable in consumables %}
+                            <option value="{{ consumable.pk }}" data-price="{{ consumable.unit_price }}" data-stock="{{ consumable.current_stock }}">
+                                {{ consumable.name }} (库存: {{ consumable.current_stock }} {{ consumable.unit }}, 单价: ¥{{ consumable.unit_price }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">使用数量 <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" id="quantity" class="form-control" min="1" value="1" required>
+                        <div class="form-text" id="stockInfo"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="total_cost_display" class="form-label">预估费用</label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="text" id="total_cost_display" class="form-control" readonly value="0.00">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const consumableSelect = document.getElementById('consumable');
+    const quantityInput = document.getElementById('quantity');
+    const totalCostDisplay = document.getElementById('total_cost_display');
+    const stockInfo = document.getElementById('stockInfo');
+
+    function updateTotal() {
+        const selectedOption = consumableSelect.options[consumableSelect.selectedIndex];
+        const price = parseFloat(selectedOption.dataset.price) || 0;
+        const stock = parseInt(selectedOption.dataset.stock) || 0;
+        const quantity = parseInt(quantityInput.value) || 0;
+
+        totalCostDisplay.value = (price * quantity).toFixed(2);
+
+        if (stock > 0) {
+            if (quantity > stock) {
+                stockInfo.textContent = `库存不足！当前库存: ${stock}`;
+                stockInfo.className = 'form-text text-danger';
+            } else {
+                stockInfo.textContent = `当前库存: ${stock}`;
+                stockInfo.className = 'form-text text-success';
+            }
+        } else {
+            stockInfo.textContent = '';
+        }
+    }
+
+    consumableSelect.addEventListener('change', updateTotal);
+    quantityInput.addEventListener('input', updateTotal);
+});
+</script>
+{% endblock %}

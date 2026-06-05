@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}操作历史 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">仪表盘</a></li>
+                <li class="breadcrumb-item active" aria-current="page">操作历史</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-clock-history"></i> 操作历史</h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="搜索操作内容..." value="{{ search_query|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <select name="content_type" class="form-select">
+                    <option value="">所有类型</option>
+                    {% for ct in content_types %}
+                    <option value="{{ ct.pk }}" {% if selected_content_type == ct.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ ct.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="action" class="form-select">
+                    <option value="">所有操作</option>
+                    <option value="create" {% if action == 'create' %}selected{% endif %}>创建</option>
+                    <option value="update" {% if action == 'update' %}selected{% endif %}>修改</option>
+                    <option value="delete" {% if action == 'delete' %}selected{% endif %}>删除</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="end_date" class="form-control" value="{{ end_date|default:'' }}">
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>时间</th>
+                        <th>操作人</th>
+                        <th>操作类型</th>
+                        <th>对象类型</th>
+                        <th>对象名称</th>
+                        <th>变更内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in history %}
+                    <tr>
+                        <td style="white-space: nowrap;">
+                            {{ entry.timestamp|date:'Y-m-d H:i:s' }}
+                        </td>
+                        <td>
+                            {% if entry.actor %}
+                            {{ entry.actor.real_name|default:entry.actor.username }}
+                            {% else %}
+                            <span class="text-muted">系统</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.action == 0 %}
+                            <span class="badge bg-info">创建</span>
+                            {% elif entry.action == 1 %}
+                            <span class="badge bg-warning">修改</span>
+                            {% elif entry.action == 2 %}
+                            <span class="badge bg-danger">删除</span>
+                            {% else %}
+                            <span class="badge bg-secondary">其他</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.content_type %}
+                            {{ entry.content_type.name }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.object_repr %}
+                            {{ entry.object_repr|truncatechars:30 }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.changes %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#changes{{ entry.pk }}">
+                                <i class="bi bi-eye"></i> 查看变更
+                            </button>
+                            <div class="collapse mt-2" id="changes{{ entry.pk }}">
+                                <div class="card card-body bg-light small">
+                                    {% for field, values in entry.changes.items %}
+                                    <div class="mb-1">
+                                        <strong>{{ field }}:</strong>
+                                        {% if values.0 %}
+                                        <span class="text-danger"><del>{{ values.0 }}</del></span>
+                                        <i class="bi bi-arrow-right mx-1"></i>
+                                        {% endif %}
+                                        <span class="text-success">{{ values.1 }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-clock-history display-1"></i>
+                            <p class="mt-3">暂无操作历史记录</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if history.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if history.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ history.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_content_type %}&content_type={{ selected_content_type }}{% endif %}{% if action %}&action={{ action }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                <i class="bi bi-chevron-left"></i> 上一页
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in history.paginator.page_range %}
+            {% if history.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > history.number|add:'-3' and num < history.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_content_type %}&content_type={{ selected_content_type }}{% endif %}{% if action %}&action={{ action }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if history.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ history.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if selected_content_type %}&content_type={{ selected_content_type }}{% endif %}{% if action %}&action={{ action }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                下一页 <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,486 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ ticket.title }} - 故障单详情{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'maintenance:ticket_list' %}">故障报修</a></li>
+                <li class="breadcrumb-item active" aria-current="page">故障单详情</li>
+            </ol>
+        </nav>
+        <h1 class="h2">{{ ticket.title }}</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if perms.maintenance.change_faultticket %}
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-gear"></i> 状态变更
+            </button>
+            <ul class="dropdown-menu">
+                {% if ticket.status == 'open' %}
+                <li>
+                    <form method="post" action="{% url 'maintenance:update_status' ticket.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="in_progress">
+                        <button type="submit" class="dropdown-item">
+                            <i class="bi bi-play-circle"></i> 开始处理
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+                {% if ticket.status == 'in_progress' %}
+                <li>
+                    <form method="post" action="{% url 'maintenance:update_status' ticket.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="waiting_parts">
+                        <button type="submit" class="dropdown-item">
+                            <i class="bi bi-clock"></i> 等待配件
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#resolveModal">
+                        <i class="bi bi-check-circle"></i> 标记解决
+                    </button>
+                </li>
+                {% endif %}
+                {% if ticket.status == 'waiting_parts' %}
+                <li>
+                    <form method="post" action="{% url 'maintenance:update_status' ticket.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="in_progress">
+                        <button type="submit" class="dropdown-item">
+                            <i class="bi bi-play-circle"></i> 继续处理
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+                {% if ticket.status == 'resolved' %}
+                <li>
+                    <form method="post" action="{% url 'maintenance:update_status' ticket.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="closed">
+                        <button type="submit" class="dropdown-item">
+                            <i class="bi bi-x-circle"></i> 关闭工单
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        <a href="{% url 'maintenance:ticket_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 故障信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">状态</div>
+                    <div class="col-md-9">
+                        <span class="status-badge status-{{ ticket.status }}">
+                            {{ ticket.get_status_display }}
+                        </span>
+                        <span class="badge bg-{{ ticket.priority }} ms-2">
+                            {{ ticket.get_priority_display }}优先级
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">关联设备</div>
+                    <div class="col-md-9">
+                        <a href="{% url 'equipment:detail' ticket.equipment.pk %}">
+                            {{ ticket.equipment.name }}
+                        </a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">上报人</div>
+                    <div class="col-md-9">
+                        {{ ticket.reporter.real_name }}
+                        <small class="text-muted">于 {{ ticket.created_at|date:'Y-m-d H:i' }}</small>
+                    </div>
+                </div>
+                {% if ticket.assignee %}
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">处理人</div>
+                    <div class="col-md-9">{{ ticket.assignee.real_name }}</div>
+                </div>
+                {% endif %}
+                {% if ticket.fault_type %}
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">故障类型</div>
+                    <div class="col-md-9">{{ ticket.fault_type }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-md-3 fw-medium">故障描述</div>
+                    <div class="col-md-9">{{ ticket.description|linebreaks }}</div>
+                </div>
+                {% if ticket.resolution %}
+                <div class="row">
+                    <div class="col-md-3 fw-medium">解决方案</div>
+                    <div class="col-md-9">
+                        <div class="alert alert-success mb-0">
+                            {{ ticket.resolution|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if ticket.resolved_at %}
+                <div class="row mt-3">
+                    <div class="col-md-3 fw-medium">解决时间</div>
+                    <div class="col-md-9">
+                        {{ ticket.resolved_at|date:'Y-m-d H:i' }}
+                        {% if ticket.resolved_by %}
+                        by {{ ticket.resolved_by.real_name }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if ticket.actual_cost %}
+                <div class="row mt-3">
+                    <div class="col-md-3 fw-medium">实际费用</div>
+                    <div class="col-md-9">¥{{ ticket.actual_cost }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-image"></i> 附件照片</h5>
+                {% if perms.maintenance.add_faultattachment %}
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-cloud-upload"></i> 上传附件
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if ticket.attachments.all %}
+                <div class="row g-3">
+                    {% for attachment in ticket.attachments.all %}
+                    <div class="col-6 col-md-4">
+                        <div class="card">
+                            {% if attachment.file.name|lower|slice:'-4:' in '.jpg,.jpeg,.png,.gif,.webp' %}
+                            <img src="{{ attachment.file.url }}" class="card-img-top" alt="{{ attachment.file_name }}" style="height: 150px; object-fit: cover;">
+                            {% else %}
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-earmark display-4 text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <div class="card-footer p-2">
+                                <small class="text-truncate d-block" title="{{ attachment.file_name }}">
+                                    {{ attachment.file_name }}
+                                </small>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <small class="text-muted">{{ attachment.uploaded_at|date:'Y-m-d' }}</small>
+                                    <a href="{{ attachment.file.url }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-image display-4"></i>
+                    <p class="mt-2">暂无附件</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-chat-dots"></i> 评论区</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for comment in ticket.comments.all %}
+                    <div class="list-group-item">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-person-circle display-6 text-muted"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1">
+                                        {{ comment.user.real_name }}
+                                        {% if comment.is_internal %}
+                                        <span class="badge bg-secondary ms-1">内部</span>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ comment.created_at|date:'Y-m-d H:i' }}</small>
+                                </div>
+                                <p class="mb-0">{{ comment.content|linebreaks }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-chat-dots"></i> 暂无评论
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if user.is_authenticated %}
+                <div class="card-footer">
+                    <form method="post" action="{% url 'maintenance:add_comment' ticket.pk %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <textarea name="content" class="form-control" rows="2" placeholder="添加评论..." required></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            {% if perms.maintenance.can_view_internal %}
+                            <div class="form-check">
+                                <input type="checkbox" name="is_internal" id="is_internal" class="form-check-input">
+                                <label for="is_internal" class="form-check-label">内部评论</label>
+                            </div>
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> 发表
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> 处理进度</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">故障上报</h6>
+                            <p class="mb-0 small text-muted">{{ ticket.created_at|date:'Y-m-d H:i' }}</p>
+                            <p class="mb-0 small">{{ ticket.reporter.real_name }}</p>
+                        </div>
+                    </div>
+                    {% if ticket.status != 'open' %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">开始处理</h6>
+                            {% if ticket.assignee %}
+                            <p class="mb-0 small">{{ ticket.assignee.real_name }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if ticket.status == 'waiting_parts' %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">等待配件</h6>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if ticket.resolved_at %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">已解决</h6>
+                            <p class="mb-0 small text-muted">{{ ticket.resolved_at|date:'Y-m-d H:i' }}</p>
+                            {% if ticket.resolved_by %}
+                            <p class="mb-0 small">{{ ticket.resolved_by.real_name }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if ticket.status == 'closed' %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-secondary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">已关闭</h6>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> 设备信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if ticket.equipment.image %}
+                    <img src="{{ ticket.equipment.image.url }}" alt="{{ ticket.equipment.name }}" class="img-fluid rounded" style="max-height: 120px;">
+                    {% else %}
+                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 120px;">
+                        <i class="bi bi-gear display-4 text-muted"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <h6 class="text-center">{{ ticket.equipment.name }}</h6>
+                <p class="text-muted text-center small">{{ ticket.equipment.category.name }}</p>
+                <hr>
+                <div class="d-grid">
+                    <a href="{% url 'equipment:detail' ticket.equipment.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-right-circle"></i> 查看设备详情
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if perms.maintenance.change_faultticket and ticket.status == 'in_progress' %}
+<div class="modal fade" id="resolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'maintenance:resolve' ticket.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check-circle"></i> 标记解决</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="resolution" class="form-label">解决方案 <span class="text-danger">*</span></label>
+                        <textarea name="resolution" id="resolution" class="form-control" rows="4" required placeholder="请描述解决方案..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="actual_cost" class="form-label">实际费用（可选）</label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" name="actual_cost" id="actual_cost" class="form-control" step="0.01" min="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">确认解决</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if perms.maintenance.add_faultattachment %}
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'maintenance:upload_attachment' ticket.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cloud-upload"></i> 上传附件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">选择文件 <span class="text-danger">*</span></label>
+                        <input type="file" name="file" id="file" class="form-control" required accept="image/*,.pdf,.doc,.docx">
+                        <div class="form-text">支持图片、PDF、Word文档，单个文件不超过10MB</div>
+                    </div>
+                    <div class="mb-3">
+                        <div id="previewContainer" class="d-none">
+                            <img id="imagePreview" class="img-fluid rounded" alt="预览">
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <button type="button" id="cameraBtn" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-camera"></i> 拍照上传
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">上传</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+.timeline-item {
+    position: relative;
+    padding-left: 35px;
+    padding-bottom: 20px;
+}
+.timeline-marker {
+    position: absolute;
+    left: 4px;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const cameraBtn = document.getElementById('cameraBtn');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.maxHeight = '200px';
+                    previewContainer.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.add('d-none');
+            }
+        });
+    }
+
+    if (cameraBtn) {
+        cameraBtn.addEventListener('click', function() {
+            if (fileInput) {
+                fileInput.accept = 'image/*';
+                fileInput.capture = 'environment';
+                fileInput.click();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

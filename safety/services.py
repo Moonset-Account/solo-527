@@ -49,7 +49,16 @@ class SafetyIncidentService(BaseService[SafetyIncident]):
         if 'status' not in data:
             data['status'] = SafetyIncident.Status.REPORTED
 
+        if not data.get('title'):
+            raise ValidationError('事件标题不能为空')
+        if not data.get('description'):
+            raise ValidationError('事件描述不能为空')
+
         return super().create(data, **kwargs)
+
+    @transaction.atomic
+    def report_incident(self, data: Dict[str, Any], **kwargs) -> SafetyIncident:
+        return self.create(data, **kwargs)
 
     @transaction.atomic
     def update_status(self, incident: SafetyIncident, status: str, user: User,
@@ -105,6 +114,21 @@ class SafetyInspectionService(BaseService[SafetyInspection]):
             .select_related('performed_by')
             .order_by('scheduled_date')
         )
+
+    @transaction.atomic
+    def record_inspection(self, data: Dict[str, Any], **kwargs) -> SafetyInspection:
+        user = kwargs.get('user')
+        if user and 'performed_by' not in data:
+            data['performed_by'] = user
+        if 'status' not in data:
+            data['status'] = SafetyInspection.Status.COMPLETED
+        if 'performed_date' not in data:
+            data['performed_date'] = timezone.now().date()
+
+        if not data.get('title'):
+            raise ValidationError('检查标题不能为空')
+
+        return super().create(data, **kwargs)
 
     @transaction.atomic
     def complete(self, inspection: SafetyInspection, user: User, findings: str = '',

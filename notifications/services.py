@@ -170,6 +170,26 @@ class NotificationService(BaseService[Notification]):
                 action_url=f'/safety/incidents/{incident.id}/',
             )
 
+    def send_notification(
+        self,
+        recipient: User,
+        title: str,
+        content: str,
+        type: str = Notification.Type.SYSTEM,
+        priority: str = Notification.Priority.MEDIUM,
+        related_object=None,
+        action_url: str = '',
+    ) -> Notification:
+        return self._create_notification(
+            recipient=recipient,
+            type=type,
+            priority=priority,
+            title=title,
+            content=content,
+            related_object=related_object,
+            action_url=action_url,
+        )
+
     def send_system_notification(self, recipient: User, title: str, content: str,
                                  priority: str = Notification.Priority.MEDIUM):
         self._create_notification(

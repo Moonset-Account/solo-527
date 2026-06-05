@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}我的培训申请 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'training:course_list' %}">培训课程</a></li>
+                <li class="breadcrumb-item active" aria-current="page">我的申请</li>
+            </ol>
+        </nav>
+        <h1 class="h2">我的培训申请</h1>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if not status %}active{% endif %}" href="{% url 'training:application_list' %}">全部</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'pending' %}active{% endif %}" href="?status=pending">待审核</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'approved' %}active{% endif %}" href="?status=approved">已通过</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'rejected' %}active{% endif %}" href="?status=rejected">已拒绝</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'completed' %}active{% endif %}" href="?status=completed">已完成</a>
+    </li>
+</ul>
+
+<div class="list-group">
+    {% for application in applications %}
+    <div class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <h5 class="mb-1">
+                    <span class="status-badge status-{{ application.status }} me-2">
+                        {{ application.get_status_display }}
+                    </span>
+                    {{ application.session.course.name }}
+                </h5>
+                <p class="mb-1">
+                    <i class="bi bi-calendar3"></i> 
+                    {{ application.session.start_time|date:'Y-m-d H:i' }} - {{ application.session.end_time|date:'H:i' }}
+                </p>
+                <p class="mb-1">
+                    <i class="bi bi-geo-alt"></i> {{ application.session.location }}
+                </p>
+                <p class="mb-1">
+                    <i class="bi bi-person"></i> 培训师: {{ application.session.trainer.real_name }}
+                </p>
+                {% if application.review_notes %}
+                <p class="mb-1 text-muted">
+                    <i class="bi bi-chat-text"></i> 审核意见: {{ application.review_notes }}
+                </p>
+                {% endif %}
+                {% if application.reviewed_by %}
+                <small class="text-muted">
+                    审核人: {{ application.reviewed_by.real_name }} 
+                    于 {{ application.reviewed_at|date:'Y-m-d H:i' }}
+                </small>
+                {% endif %}
+            </div>
+            <div class="ms-3 flex-shrink-0">
+                {% if application.status == 'pending' %}
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal{{ application.pk }}">
+                    <i class="bi bi-x-circle"></i> 取消申请
+                </button>
+                {% elif application.status == 'approved' %}
+                <a href="#" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calendar-check"></i> 查看详情
+                </a>
+                {% elif application.status == 'completed' %}
+                <a href="{% url 'training:certification_list' %}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-award"></i> 查看证书
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if application.status == 'pending' %}
+        <div class="modal fade" id="cancelModal{{ application.pk }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" action="{% url 'training:cancel_application' application.pk %}">
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-x-circle"></i> 取消申请</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>确定要取消此培训申请吗？</p>
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i> 
+                                课程: {{ application.session.course.name }}<br>
+                                时间: {{ application.session.start_time|date:'Y-m-d H:i' }}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回</button>
+                            <button type="submit" class="btn btn-danger">确认取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-file-earmark-text display-1"></i>
+        <p class="mt-3">暂无培训申请记录</p>
+        <a href="{% url 'training:course_list' %}" class="btn btn-primary">
+            <i class="bi bi-search"></i> 浏览培训课程
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+{% if applications.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if applications.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ applications.previous_page_number }}{% if status %}&status={{ status }}{% endif %}">
+                <i class="bi bi-chevron-left"></i> 上一页
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in applications.paginator.page_range %}
+            {% if applications.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > applications.number|add:'-3' and num < applications.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if applications.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ applications.next_page_number }}{% if status %}&status={{ status }}{% endif %}">
+                下一页 <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

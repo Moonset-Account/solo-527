@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block title %}耗材使用记录 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'consumables:list' %}">耗材管理</a></li>
+                <li class="breadcrumb-item active" aria-current="page">使用记录</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-clock-history"></i> 耗材使用记录</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'consumables:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> 返回耗材列表
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="搜索耗材名称..." value="{{ search_query|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <select name="billed" class="form-select">
+                    <option value="">计费状态</option>
+                    <option value="0" {% if billed == '0' %}selected{% endif %}>未计费</option>
+                    <option value="1" {% if billed == '1' %}selected{% endif %}>已计费</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date|default:'' }}" placeholder="开始日期">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="end_date" class="form-control" value="{{ end_date|default:'' }}" placeholder="结束日期">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if total_unbilled > 0 %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="bi bi-info-circle"></i> 
+        <strong>待计费汇总：</strong>共 {{ total_unbilled_count }} 条记录，合计 ¥{{ total_unbilled }}
+    </div>
+    {% if perms.consumables.can_bill %}
+    <form method="post" action="{% url 'consumables:batch_bill' %}" class="mb-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-cash"></i> 批量计费
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>耗材名称</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>小计</th>
+                        <th>使用人</th>
+                        <th>关联预约</th>
+                        <th>使用时间</th>
+                        <th>计费状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usage in usages %}
+                    <tr>
+                        <td>
+                            <strong>{{ usage.consumable.name }}</strong>
+                            <br><small class="text-muted">SKU: {{ usage.consumable.sku }}</small>
+                        </td>
+                        <td>{{ usage.quantity }} {{ usage.consumable.unit }}</td>
+                        <td>¥{{ usage.unit_price_at_usage }}</td>
+                        <td><strong>¥{{ usage.total_cost }}</strong></td>
+                        <td>{{ usage.user.real_name }}</td>
+                        <td>
+                            {% if usage.booking %}
+                            <a href="{% url 'bookings:detail' usage.booking.pk %}">
+                                {{ usage.booking.equipment.name|truncatechars:15 }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ usage.created_at|date:'Y-m-d H:i' }}</td>
+                        <td>
+                            {% if usage.is_billed %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> 已计费
+                            </span>
+                            <br><small class="text-muted">{{ usage.billed_at|date:'Y-m-d' }}</small>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock"></i> 未计费
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not usage.is_billed and perms.consumables.can_bill %}
+                            <form method="post" action="{% url 'consumables:bill' usage.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-primary" onclick="return confirm('确定要对此记录计费吗？')">
+                                    <i class="bi bi-cash"></i> 计费
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if perms.consumables.change_consumableusage %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ usage.pk }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    {% if perms.consumables.change_consumableusage %}
+                    <div class="modal fade" id="editModal{{ usage.pk }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'consumables:edit_usage' usage.pk %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"><i class="bi bi-pencil"></i> 编辑使用记录</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">耗材</label>
+                                            <input type="text" class="form-control" value="{{ usage.consumable.name }}" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="quantity_edit_{{ usage.pk }}" class="form-label">数量</label>
+                                            <input type="number" name="quantity" id="quantity_edit_{{ usage.pk }}" 
+                                                   class="form-control" value="{{ usage.quantity }}" min="1" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="notes_edit_{{ usage.pk }}" class="form-label">备注</label>
+                                            <textarea name="notes" id="notes_edit_{{ usage.pk }}" class="form-control" rows="2">{{ usage.notes }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                        <button type="submit" class="btn btn-primary">保存</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-file-earmark-text display-1"></i>
+                            <p class="mt-3">暂无耗材使用记录</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if usages.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if usages.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ usages.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if billed %}&billed={{ billed }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                <i class="bi bi-chevron-left"></i> 上一页
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in usages.paginator.page_range %}
+            {% if usages.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > usages.number|add:'-3' and num < usages.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if billed %}&billed={{ billed }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if usages.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ usages.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if billed %}&billed={{ billed }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">
+                下一页 <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

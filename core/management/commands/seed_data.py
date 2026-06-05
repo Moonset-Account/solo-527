@@ -181,38 +181,62 @@ class Command(BaseCommand):
 
         Consumable.objects.create(
             name='PLA耗材-白色',
+            sku='PLA-WHITE-001',
             category=pla_cat,
             unit='卷',
             unit_price=50.00,
-            stock_quantity=20,
+            current_stock=20,
             min_stock=5,
+            max_stock=50,
+            location='耗材柜-A1',
             created_by=admin
         )
         Consumable.objects.create(
             name='PLA耗材-黑色',
+            sku='PLA-BLACK-001',
             category=pla_cat,
             unit='卷',
             unit_price=50.00,
-            stock_quantity=15,
+            current_stock=15,
             min_stock=5,
+            max_stock=50,
+            location='耗材柜-A2',
             created_by=admin
         )
         Consumable.objects.create(
             name='焊锡丝-0.8mm',
+            sku='SOLDER-08MM-001',
             category=solder_material_cat,
             unit='卷',
             unit_price=25.00,
-            stock_quantity=30,
+            current_stock=30,
             min_stock=10,
+            max_stock=100,
+            location='耗材柜-B1',
             created_by=admin
         )
         Consumable.objects.create(
             name='亚克力板-3mm',
+            sku='ACRYLIC-3MM-001',
             category=laser_mat_cat,
             unit='张',
             unit_price=35.00,
-            stock_quantity=10,
+            current_stock=10,
             min_stock=3,
+            max_stock=20,
+            location='材料架-C1',
+            created_by=admin
+        )
+        Consumable.objects.create(
+            name='ABS耗材-自然色',
+            sku='ABS-NATURAL-001',
+            category=pla_cat,
+            unit='卷',
+            unit_price=80.00,
+            current_stock=8,
+            min_stock=3,
+            max_stock=30,
+            location='耗材柜-A3',
             created_by=admin
         )
         self.stdout.write(self.style.SUCCESS('创建耗材数据'))

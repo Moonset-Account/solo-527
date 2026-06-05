@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block title %}扫码 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">仪表盘</a></li>
+                <li class="breadcrumb-item active" aria-current="page">扫码</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-qr-code-scan"></i> 扫码</h1>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="scanTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera" type="button" role="tab">
+                            <i class="bi bi-camera"></i> 摄像头扫码
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual" type="button" role="tab">
+                            <i class="bi bi-keyboard"></i> 手动输入
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="scanTabsContent">
+                    <div class="tab-pane fade show active" id="camera" role="tabpanel">
+                        <div class="text-center">
+                            <div id="scannerContainer" class="mb-3">
+                                <div class="border rounded bg-dark d-flex align-items-center justify-content-center" style="height: 300px;">
+                                    <video id="scannerVideo" class="w-100 h-100" style="object-fit: cover;"></video>
+                                    <canvas id="scannerCanvas" class="d-none"></canvas>
+                                    <div id="scanOverlay" class="position-absolute" style="width: 200px; height: 200px; border: 3px solid #00ff00; border-radius: 10px;">
+                                        <div class="position-absolute top-0 start-0" style="width: 30px; height: 30px; border-top: 4px solid #00ff00; border-left: 4px solid #00ff00; border-radius: 10px 0 0 0;"></div>
+                                        <div class="position-absolute top-0 end-0" style="width: 30px; height: 30px; border-top: 4px solid #00ff00; border-right: 4px solid #00ff00; border-radius: 0 10px 0 0;"></div>
+                                        <div class="position-absolute bottom-0 start-0" style="width: 30px; height: 30px; border-bottom: 4px solid #00ff00; border-left: 4px solid #00ff00; border-radius: 0 0 0 10px;"></div>
+                                        <div class="position-absolute bottom-0 end-0" style="width: 30px; height: 30px; border-bottom: 4px solid #00ff00; border-right: 4px solid #00ff00; border-radius: 0 0 10px 0;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="scanStatus" class="mb-3">
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-camera-video-off"></i> 摄像头未启动
+                                </span>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <button type="button" id="startScanBtn" class="btn btn-primary">
+                                    <i class="bi bi-play-circle"></i> 开始扫码
+                                </button>
+                                <button type="button" id="stopScanBtn" class="btn btn-secondary d-none">
+                                    <i class="bi bi-stop-circle"></i> 停止扫码
+                                </button>
+                                <button type="button" id="switchCameraBtn" class="btn btn-outline-secondary d-none">
+                                    <i class="bi bi-arrow-repeat"></i> 切换摄像头
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="scanResult" class="d-none mt-4">
+                            <div class="alert alert-success">
+                                <h6><i class="bi bi-check-circle"></i> 扫描成功！</h6>
+                                <p id="scanResultText" class="mb-0"></p>
+                            </div>
+                            <div class="d-grid">
+                                <button type="button" id="processBtn" class="btn btn-success">
+                                    <i class="bi bi-arrow-right"></i> 处理扫描结果
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="manual" role="tabpanel">
+                        <form id="manualForm">
+                            <div class="mb-3">
+                                <label for="manualCode" class="form-label">输入编码 <span class="text-danger">*</span></label>
+                                <input type="text" name="code" id="manualCode" class="form-control" required 
+                                       placeholder="请输入设备编码或预约编号" autocomplete="off">
+                                <div class="form-text">
+                                    支持输入设备编号、预约编号等
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> 查询
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightbulb"></i> 使用说明</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        将二维码对准扫描框内，保持稳定
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        确保光线充足，避免反光和阴影
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        支持设备二维码、预约签到码等
+                    </li>
+                    <li>
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        如无法扫码，可切换到手动输入模式
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('scannerVideo');
+    const canvas = document.getElementById('scannerCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startScanBtn');
+    const stopBtn = document.getElementById('stopScanBtn');
+    const switchBtn = document.getElementById('switchCameraBtn');
+    const scanStatus = document.getElementById('scanStatus');
+    const scanResult = document.getElementById('scanResult');
+    const scanResultText = document.getElementById('scanResultText');
+    const processBtn = document.getElementById('processBtn');
+    const manualForm = document.getElementById('manualForm');
+    const manualCode = document.getElementById('manualCode');
+    
+    let mediaStream = null;
+    let scanning = false;
+    let animationId = null;
+    let currentFacingMode = 'environment';
+    let lastResult = null;
+
+    async function startScanner() {
+        try {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
+            video.srcObject = mediaStream;
+            video.setAttribute('playsinline', true);
+            await video.play();
+
+            scanning = true;
+            startBtn.classList.add('d-none');
+            stopBtn.classList.remove('d-none');
+            switchBtn.classList.remove('d-none');
+            scanStatus.innerHTML = '<span class="badge bg-success"><i class="bi bi-camera-video"></i> 扫描中...</span>';
+            
+            scanLoop();
+        } catch (err) {
+            console.error('Camera error:', err);
+            scanStatus.innerHTML = '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> 无法访问摄像头: ' + err.message + '</span>';
+        }
+    }
+
+    function stopScanner() {
+        scanning = false;
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+        startBtn.classList.remove('d-none');
+        stopBtn.classList.add('d-none');
+        switchBtn.classList.add('d-none');
+        scanStatus.innerHTML = '<span class="badge bg-secondary"><i class="bi bi-camera-video-off"></i> 摄像头未启动</span>';
+    }
+
+    function scanLoop() {
+        if (!scanning) return;
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+
+            if (code) {
+                if (code.data !== lastResult) {
+                    lastResult = code.data;
+                    handleScanResult(code.data);
+                }
+            }
+        }
+
+        animationId = requestAnimationFrame(scanLoop);
+    }
+
+    function handleScanResult(data) {
+        stopScanner();
+        scanResult.classList.remove('d-none');
+        scanResultText.textContent = data;
+        processBtn.dataset.code = data;
+        
+        if (navigator.vibrate) {
+            navigator.vibrate(200);
+        }
+    }
+
+    startBtn.addEventListener('click', startScanner);
+    stopBtn.addEventListener('click', stopScanner);
+    
+    switchBtn.addEventListener('click', function() {
+        currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+        if (scanning) {
+            startScanner();
+        }
+    });
+
+    processBtn.addEventListener('click', function() {
+        const code = this.dataset.code;
+        if (code) {
+            processCode(code);
+        }
+    });
+
+    manualForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const code = manualCode.value.trim();
+        if (code) {
+            processCode(code);
+        }
+    });
+
+    function processCode(code) {
+        fetch('{% url "core:process_qr" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ code: code })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    showToast(data.message, 'success');
+                }
+            } else {
+                showToast(data.message || '处理失败', 'danger');
+            }
+        })
+        .catch(() => {
+            showToast('网络错误，请稍后重试', 'danger');
+        });
+    }
+});
+</script>
+{% endblock %}

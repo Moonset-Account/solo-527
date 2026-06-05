@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}安全事件 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">仪表盘</a></li>
+                <li class="breadcrumb-item active" aria-current="page">安全事件</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="bi bi-shield-exclamation"></i> 安全事件记录</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if perms.safety.add_safetyincident %}
+        <a href="#" class="btn btn-danger">
+            <i class="bi bi-plus-circle"></i> 上报事件
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if not status %}active{% endif %}" href="{% url 'safety:incident_list' %}">全部</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'reported' %}active{% endif %}" href="?status=reported">已上报</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'investigating' %}active{% endif %}" href="?status=investigating">调查中</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'resolved' %}active{% endif %}" href="?status=resolved">已处理</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'closed' %}active{% endif %}" href="?status=closed">已归档</a>
+    </li>
+</ul>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <input type="text" name="search" class="form-control" placeholder="搜索事件标题或描述..." value="{{ search_query|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <select name="severity" class="form-select">
+                    <option value="">所有严重程度</option>
+                    <option value="minor" {% if severity == 'minor' %}selected{% endif %}>轻微</option>
+                    <option value="moderate" {% if severity == 'moderate' %}selected{% endif %}>一般</option>
+                    <option value="serious" {% if severity == 'serious' %}selected{% endif %}>严重</option>
+                    <option value="critical" {% if severity == 'critical' %}selected{% endif %}>重大</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="start_date" class="form-control" value="{{ start_date|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 搜索
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="list-group">
+    {% for incident in incidents %}
+    <a href="{% url 'safety:incident_detail' incident.pk %}" class="list-group-item list-group-item-action">
+        <div class="d-flex w-100 justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <h5 class="mb-1">
+                    <span class="badge bg-{% if incident.severity == 'critical' %}danger{% elif incident.severity == 'serious' %}warning{% elif incident.severity == 'moderate' %}info{% else %}secondary{% endif %} me-2">
+                        {{ incident.get_severity_display }}
+                    </span>
+                    {{ incident.title }}
+                </h5>
+                <p class="mb-1">
+                    <i class="bi bi-geo-alt"></i> {{ incident.location }}
+                    <span class="ms-3">
+                        <i class="bi bi-calendar3"></i> {{ incident.incident_time|date:'Y-m-d H:i' }}
+                    </span>
+                </p>
+                <p class="mb-1 text-muted">{{ incident.description|truncatechars:100 }}</p>
+                {% if incident.equipment %}
+                <p class="mb-1">
+                    <i class="bi bi-gear"></i> 关联设备: {{ incident.equipment.name }}
+                </p>
+                {% endif %}
+                <small class="text-muted">
+                    <span class="status-badge status-{{ incident.status }}">
+                        {{ incident.get_status_display }}
+                    </span>
+                    <span class="ms-2">
+                        <i class="bi bi-person"></i> 上报人: {{ incident.reporter.real_name }}
+                    </span>
+                </small>
+            </div>
+            <div class="ms-3 flex-shrink-0">
+                {% if incident.attachments.count > 0 %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-image"></i> {{ incident.attachments.count }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-shield-check display-1"></i>
+        <p class="mt-3">暂无安全事件记录</p>
+        <p class="text-muted small">保持安全，防患于未然</p>
+        {% if perms.safety.add_safetyincident %}
+        <a href="#" class="btn btn-danger">
+            <i class="bi bi-plus-circle"></i> 上报事件
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if incidents.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if incidents.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ incidents.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if severity %}&severity={{ severity }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}">
+                <i class="bi bi-chevron-left"></i> 上一页
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in incidents.paginator.page_range %}
+            {% if incidents.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > incidents.number|add:'-3' and num < incidents.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if severity %}&severity={{ severity }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if incidents.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ incidents.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if severity %}&severity={{ severity }}{% endif %}{% if status %}&status={{ status }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}">
+                下一页 <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

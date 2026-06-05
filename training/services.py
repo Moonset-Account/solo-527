@@ -102,6 +102,10 @@ class TrainingApplicationService(BaseService[TrainingApplication]):
         return application
 
     @transaction.atomic
+    def apply_for_course(self, session: TrainingSession, user: User, notes: str = '') -> TrainingApplication:
+        return self.apply(session, user, notes)
+
+    @transaction.atomic
     def approve(self, application: TrainingApplication, reviewer: User, notes: str = '') -> TrainingApplication:
         if application.status != TrainingApplication.Status.PENDING:
             raise ValidationError('只有待审核的申请可以审批')
@@ -122,6 +126,10 @@ class TrainingApplicationService(BaseService[TrainingApplication]):
         return application
 
     @transaction.atomic
+    def approve_application(self, application: TrainingApplication, reviewer: User, notes: str = '') -> TrainingApplication:
+        return self.approve(application, reviewer, notes)
+
+    @transaction.atomic
     def reject(self, application: TrainingApplication, reviewer: User, notes: str = '') -> TrainingApplication:
         if application.status != TrainingApplication.Status.PENDING:
             raise ValidationError('只有待审核的申请可以拒绝')
@@ -137,6 +145,10 @@ class TrainingApplicationService(BaseService[TrainingApplication]):
         notification_service.send_training_rejected(application)
 
         return application
+
+    @transaction.atomic
+    def reject_application(self, application: TrainingApplication, reviewer: User, notes: str = '') -> TrainingApplication:
+        return self.reject(application, reviewer, notes)
 
     @transaction.atomic
     def cancel(self, application: TrainingApplication, user: User) -> TrainingApplication:
