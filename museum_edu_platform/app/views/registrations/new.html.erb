@@ -20,6 +20,7 @@
 
       <%= form_with model: @registration, local: true do |f| %>
         <%= f.hidden_field :session_id %>
+        <%= f.hidden_field :student_count, id: 'student_count_hidden' %>
 
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">报名类型</label>
@@ -48,10 +49,21 @@
         </div>
 
         <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">学生人数</label>
-          <%= f.number_field :student_count, min: 1, max: @session.available_spots, 
-            class: "w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
-            placeholder: "请输入学生人数（剩余 #{@session.available_spots} 个名额）" %>
+          <div class="flex items-center justify-between mb-3">
+            <label class="block text-sm font-medium text-gray-700">学生名单</label>
+            <span class="text-sm text-gray-500">已添加 <span id="student-count">0</span> 人（剩余 <%= @session.available_spots %> 个名额）</span>
+          </div>
+          
+          <div id="students-list" class="space-y-3">
+            <%= f.fields_for :students do |student_form| %>
+              <%= render 'student_fields', f: student_form %>
+            <% end %>
+          </div>
+
+          <button type="button" id="add-student-btn"
+            class="mt-3 w-full border-2 border-dashed border-gray-300 rounded-lg py-3 text-gray-500 hover:border-blue-500 hover:text-blue-600 transition-colors">
+            + 添加学生
+          </button>
         </div>
 
         <div class="border-t border-b py-4 my-6">
@@ -89,15 +101,100 @@
 
         <div class="flex items-center justify-between">
           <%= link_to '取消', course_path(@session.course), class: "text-gray-600 hover:text-gray-800" %>
-          <%= f.submit '提交报名', class: "bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer" %>
+          <%= f.submit '提交报名', class: "bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer", onclick: "return validateForm()" %>
         </div>
       <% end %>
     </div>
   </div>
 </div>
 
+<template id="student-template">
+  <div class="student-item bg-gray-50 rounded-lg p-4 relative">
+    <button type="button" class="remove-student absolute top-2 right-2 text-gray-400 hover:text-red-500">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <div class="grid grid-cols-3 gap-3">
+      <div class="col-span-3 md:col-span-1">
+        <label class="block text-xs font-medium text-gray-600 mb-1">姓名</label>
+        <input type="text" name="registration[students_attributes][NEW_ID][name]" 
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="请输入姓名" required>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">性别</label>
+        <select name="registration[students_attributes][NEW_ID][gender]" 
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="">请选择</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">年龄段</label>
+        <select name="registration[students_attributes][NEW_ID][age_group]" 
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="">请选择</option>
+          <option value="preschool">学龄前</option>
+          <option value="primary_1_2">小学1-2年级</option>
+          <option value="primary_3_4">小学3-4年级</option>
+          <option value="primary_5_6">小学5-6年级</option>
+          <option value="junior_high">初中</option>
+          <option value="senior_high">高中</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script>
+let studentIndex = <%= @registration.students.size %>;
+const maxStudents = <%= @session.available_spots %>;
+
+function updateStudentCount() {
+  const count = document.querySelectorAll('.student-item').length;
+  document.getElementById('student-count').textContent = count;
+  document.getElementById('student_count_hidden').value = count;
+}
+
+function addStudent() {
+  if (document.querySelectorAll('.student-item').length >= maxStudents) {
+    alert('已达到场次最大容量限制');
+    return;
+  }
+  
+  const template = document.getElementById('student-template');
+  const clone = template.content.cloneNode(true);
+  const newId = Date.now();
+  
+  clone.querySelectorAll('input, select').forEach(el => {
+    el.name = el.name.replace('NEW_ID', newId);
+  });
+  
+  clone.querySelector('.remove-student').addEventListener('click', function() {
+    this.closest('.student-item').remove();
+    updateStudentCount();
+  });
+  
+  document.getElementById('students-list').appendChild(clone);
+  studentIndex++;
+  updateStudentCount();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('add-student-btn').addEventListener('click', addStudent);
+  
+  document.querySelectorAll('.remove-student').forEach(btn => {
+    btn.addEventListener('click', function() {
+      this.closest('.student-item').remove();
+      updateStudentCount();
+    });
+  });
+  
+  updateStudentCount();
+
   const schoolGroupFields = document.getElementById('school-group-fields');
   const registrationTypeInputs = document.querySelectorAll('input[name="registration[registration_type]"]');
   
@@ -117,4 +214,17 @@ document.addEventListener('DOMContentLoaded', function() {
   
   toggleSchoolFields();
 });
+
+function validateForm() {
+  const count = document.querySelectorAll('.student-item').length;
+  if (count === 0) {
+    alert('请至少添加一名学生');
+    return false;
+  }
+  if (count > maxStudents) {
+    alert('学生人数超过场次容量限制');
+    return false;
+  }
+  return true;
+}
 </script>

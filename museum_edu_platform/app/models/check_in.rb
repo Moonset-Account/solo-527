@@ -10,7 +10,7 @@ class CheckIn < ApplicationRecord
   belongs_to :registration
   belongs_to :student
   belongs_to :session
-  belongs_to :checked_in_by, class_name: 'User'
+  belongs_to :checked_in_by, class_name: 'User', optional: true
 
   has_one_attached :photo
 

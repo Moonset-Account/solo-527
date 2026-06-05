@@ -20,6 +20,7 @@ class RegistrationsController < ApplicationController
     @session = Session.find(params[:session_id])
     @registration = Registration.new(session: @session)
     @schools = School.active_schools.order(:name)
+    @registration.students.build
     skip_authorization
   end
 
@@ -28,6 +29,7 @@ class RegistrationsController < ApplicationController
     @registration.user = current_user if user_signed_in?
     @registration.status = :pending
     @registration.submitted_at = Time.current
+    @registration.student_count = @registration.students.size if @registration.students.any?
     skip_authorization
 
     if @registration.save
@@ -68,6 +70,7 @@ class RegistrationsController < ApplicationController
   def registration_params
     params.require(:registration).permit(:session_id, :school_id, :registration_type,
                                           :student_count, :contact_name, :contact_phone,
-                                          :contact_email, :notes)
+                                          :contact_email, :notes,
+                                          students_attributes: [:id, :name, :gender, :age_group, :_destroy])
   end
 end

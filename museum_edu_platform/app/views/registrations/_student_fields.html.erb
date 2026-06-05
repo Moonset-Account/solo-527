@@ -1,0 +1,36 @@
+
+<div class="student-item bg-gray-50 rounded-lg p-4 relative">
+  <% if f.object.persisted? %>
+    <%= f.hidden_field :id %>
+  <% end %>
+  <button type="button" class="remove-student absolute top-2 right-2 text-gray-400 hover:text-red-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+  <div class="grid grid-cols-3 gap-3">
+    <div class="col-span-3 md:col-span-1">
+      <label class="block text-xs font-medium text-gray-600 mb-1">姓名</label>
+      <%= f.text_field :name, 
+        class: "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+        placeholder: "请输入姓名", required: true %>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">性别</label>
+      <%= f.select :gender, [['请选择', ''], ['男', 'male'], ['女', 'female'], ['其他', 'other']], 
+        {}, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true %>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">年龄段</label>
+      <%= f.select :age_group, [
+        ['请选择', ''],
+        ['学龄前', 'preschool'],
+        ['小学1-2年级', 'primary_1_2'],
+        ['小学3-4年级', 'primary_3_4'],
+        ['小学5-6年级', 'primary_5_6'],
+        ['初中', 'junior_high'],
+        ['高中', 'senior_high']
+      ], {}, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true %>
+    </div>
+  </div>
+</div>

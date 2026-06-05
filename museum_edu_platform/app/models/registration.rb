@@ -23,6 +23,8 @@ class Registration < ApplicationRecord
   has_many :check_ins, dependent: :destroy
   has_many :feedbacks, dependent: :destroy
 
+  accepts_nested_attributes_for :students, allow_destroy: true, reject_if: :all_blank
+
   validates :session, presence: true
   validates :student_count, presence: true, numericality: { only_integer: true, greater_than: 0 }
   validates :contact_name, presence: true
