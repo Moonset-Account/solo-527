@@ -10,6 +10,7 @@ from .serializers import (
     SaleOrderSerializer, DailySalesReportSerializer,
     BookSalesRankSerializer, SalesSummarySerializer
 )
+from apps.books.serializers import BookListSerializer
 from apps.core.permissions import IsAdminOrManager
 from apps.books.models import Book
 from apps.members.models import Member, PointsRecord

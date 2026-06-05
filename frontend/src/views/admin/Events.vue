@@ -27,7 +27,7 @@
       <el-table :data="events" v-loading="loading" stripe border>
         <el-table-column label="封面" width="100" align="center">
           <template #default="{ row }">
-            <el-image v-if="row.cover" :src="row.cover" fit="cover" style="width: 60px; height: 80px; border-radius: 4px;" />
+            <el-image v-if="row.cover_image" :src="row.cover_image" fit="cover" style="width: 60px; height: 80px; border-radius: 4px;" />
             <span v-else style="color: #ccc;">无封面</span>
           </template>
         </el-table-column>
@@ -39,8 +39,12 @@
         </el-table-column>
         <el-table-column label="时间" width="220">
           <template #default="{ row }">
-            <div>{{ row.start_date }}</div>
-            <div style="color: #999; font-size: 12px;">{{ row.start_time }} - {{ row.end_time }}</div>
+            <div>{{ row.start_date || (row.start_time ? row.start_time.slice(0, 10) : '') }}</div>
+            <div style="color: #999; font-size: 12px;">
+              {{ row.start_time_only || (row.start_time ? row.start_time.slice(11, 16) : '') }} 
+              - 
+              {{ row.end_time_only || (row.end_time ? row.end_time.slice(11, 16) : '') }}
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="location" label="地点" width="120" />

@@ -23,7 +23,7 @@ class Reservation(BaseModel):
     ]
     
     reservation_no = models.CharField(max_length=30, unique=True, verbose_name='预留单号')
-    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='reservations', verbose_name='会员')
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='reservations', null=True, blank=True, verbose_name='会员')
     contact_name = models.CharField(max_length=100, verbose_name='联系人姓名')
     contact_phone = models.CharField(max_length=20, verbose_name='联系电话')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='状态')

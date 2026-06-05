@@ -108,12 +108,12 @@ class EventViewSet(viewsets.ModelViewSet):
             'registered_count': event.registered_count
         })
     
-    @action(detail=True, methods=['post'], serializer_class=CheckInSerializer)
+    @action(detail=True, methods=['post'])
     def check_in(self, request, pk=None):
         if not request.user.is_authenticated:
             return Response({'error': '请先登录'}, status=401)
         
-        serializer = self.get_serializer(data=request.data)
+        serializer = CheckInSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         
@@ -133,7 +133,7 @@ class EventViewSet(viewsets.ModelViewSet):
         if not registration:
             return Response({'error': '请提供票号或报名ID'}, status=400)
         
-        if registration.event_id != pk:
+        if registration.event_id != int(pk):
             return Response({'error': '票号与活动不匹配'}, status=400)
         
         if registration.status == EventRegistration.STATUS_CHECKED_IN:

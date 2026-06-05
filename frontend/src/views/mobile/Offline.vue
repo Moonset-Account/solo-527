@@ -71,7 +71,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
-import { getOfflineQueue, clearCompletedQueue, processOfflineQueue, removeFromOfflineQueue } from '@/utils/offline'
+import { getOfflineQueue, clearCompletedQueue, processOfflineQueue, removeFromOfflineQueue, submitSingleOfflineItem, retrySingleOfflineItem } from '@/utils/offline'
 
 const isOnline = ref(navigator.onLine)
 const queue = ref([])
@@ -113,13 +113,27 @@ const submitAll = async () => {
 }
 
 const submitItem = async (idx) => {
+  const item = queue.value[idx]
   showToast('提交中...')
+  const result = await submitSingleOfflineItem(item.id)
+  if (result.success) {
+    showToast('提交成功')
+  } else {
+    showToast(result.error || '提交失败')
+  }
   loadQueue()
 }
 
 const retryItem = async (idx) => {
-  queue.value[idx].status = 'pending'
-  showToast('已标记为重试')
+  const item = queue.value[idx]
+  showToast('重试中...')
+  const result = await retrySingleOfflineItem(item.id)
+  if (result.success) {
+    showToast('提交成功')
+  } else {
+    showToast(result.error || '提交失败')
+  }
+  loadQueue()
 }
 
 const removeItem = async (idx) => {

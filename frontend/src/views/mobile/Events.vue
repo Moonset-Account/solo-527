@@ -16,7 +16,7 @@
       >
         <div v-for="event in events" :key="event.id" class="event-card" @click="goToDetail(event.id)">
           <div class="cover">
-            <img v-if="event.cover" :src="event.cover" alt="" />
+            <img v-if="event.cover_image" :src="event.cover_image" alt="" />
             <div v-else class="no-cover">
               <van-icon name="friends-o" size="32" />
             </div>
@@ -25,7 +25,10 @@
             <h3 class="title">{{ event.title }}</h3>
             <div class="meta">
               <van-tag size="small" type="primary">{{ event.event_type?.name || '-' }}</van-tag>
-              <span class="date">{{ event.start_date }} {{ event.start_time }}</span>
+              <span class="date">
+                {{ event.start_date || (event.start_time ? event.start_time.slice(0, 10) : '') }}
+                {{ event.start_time_only || (event.start_time ? event.start_time.slice(11, 16) : '') }}
+              </span>
             </div>
             <div class="location">
               <van-icon name="location-o" /> {{ event.location }}

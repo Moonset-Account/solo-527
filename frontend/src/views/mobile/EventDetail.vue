@@ -1,7 +1,7 @@
 <template>
   <div class="mobile-event-detail" v-if="event">
     <div class="event-cover">
-      <img v-if="event.cover" :src="event.cover" alt="" />
+      <img v-if="event.cover_image" :src="event.cover_image" alt="" />
       <div v-else class="no-cover">
         <van-icon name="friends-o" size="60" />
       </div>
@@ -17,11 +17,10 @@
     </div>
     
     <van-cell-group inset style="margin-top: -20px; position: relative; z-index: 2; border-radius: 8px;">
-      <van-cell title="活动时间" :value="`${event.start_date} ${event.start_time}-${event.end_time}`" />
+      <van-cell title="活动时间" :value="`${event.start_date || event.start_time?.slice(0,10)} ${event.start_time_only || event.start_time?.slice(11,16)}-${event.end_time_only || event.end_time?.slice(11,16)}`" />
       <van-cell title="活动地点" :value="event.location" />
-      <van-cell title="报名人数" :value="`${event.current_participants || 0}/${event.max_participants} 人`" />
+      <van-cell title="报名人数" :value="`${event.current_participants || event.registered_count || 0}/${event.max_participants} 人`" />
       <van-cell title="活动费用" :value="event.fee > 0 ? `¥${event.fee}` : '免费'" />
-      <van-cell title="需要签到" :value="event.need_checkin ? '是' : '否'" />
     </van-cell-group>
     
     <van-divider>活动简介</van-divider>
@@ -48,7 +47,7 @@
         已报名
       </van-button>
       <van-button
-        v-if="event.need_checkin && isRegistered"
+        v-if="isRegistered"
         type="warning"
         block
         style="margin-top: 8px;"

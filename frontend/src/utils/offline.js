@@ -55,7 +55,8 @@ export const getPendingQueue = () => {
 export const processOfflineQueue = async () => {
   if (!navigator.onLine) return { success: 0, failed: 0, total: 0 }
 
-  const pending = getPendingQueue()
+  const queue = await getOfflineQueue()
+  const pending = queue.filter(i => i.status === 'pending' || i.status === 'failed')
   let success = 0
   let failed = 0
 
@@ -84,6 +85,55 @@ export const processOfflineQueue = async () => {
   }
 
   return { success, failed, total: pending.length }
+}
+
+export const submitSingleOfflineItem = async (itemId) => {
+  if (!navigator.onLine) {
+    return { success: false, error: '网络不可用' }
+  }
+
+  const queue = await getOfflineQueue()
+  const itemIndex = queue.findIndex(i => i.id === itemId)
+  
+  if (itemIndex === -1) {
+    return { success: false, error: '记录不存在' }
+  }
+
+  const item = queue[itemIndex]
+  
+  try {
+    item.status = 'processing'
+    await saveQueue()
+
+    await api({
+      method: item.method,
+      url: item.url,
+      data: item.data,
+      params: item.params
+    })
+
+    item.status = 'success'
+    item.completed_at = Date.now()
+    await saveQueue()
+    return { success: true }
+  } catch (e) {
+    item.status = 'failed'
+    item.error = e.message
+    item.retry_count = (item.retry_count || 0) + 1
+    await saveQueue()
+    return { success: false, error: e.message }
+  }
+}
+
+export const retrySingleOfflineItem = async (itemId) => {
+  const queue = await getOfflineQueue()
+  const item = queue.find(i => i.id === itemId)
+  if (item) {
+    item.status = 'pending'
+    item.error = null
+    await saveQueue()
+  }
+  return submitSingleOfflineItem(itemId)
 }
 
 export const saveOfflineData = async (key, data) => {
