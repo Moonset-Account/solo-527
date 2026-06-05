@@ -24,7 +24,9 @@ class SubsidyRecordOut(BaseModel):
 class SubsidyExceedConfirmOut(BaseModel):
     id: uuid.UUID
     elder_id: uuid.UUID
+    delivery_id: Optional[uuid.UUID] = None
     subsidy_record_id: Optional[uuid.UUID] = None
+    order_amount: Optional[float] = None
     confirm_type: str
     confirmer_name: Optional[str] = None
     status: str

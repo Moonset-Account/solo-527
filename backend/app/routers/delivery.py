@@ -10,7 +10,7 @@ from app.models.delivery import Delivery
 from app.models.elder import Elder
 from app.models.meal import MealOrder
 from app.models.notification import Notification
-from app.models.subsidy import SubsidyExceedConfirmation
+from app.models.subsidy import SubsidyExceedConfirmation, SubsidyRecord
 from app.schemas.delivery import (
     DeliveryOut,
     DeliveryCourierView,
@@ -19,6 +19,7 @@ from app.schemas.delivery import (
 )
 from app.services.redispatch import mark_delivery_failed, mark_delivery_signed, redispatch_delivery, get_redispatch_candidates
 from app.services.photo_storage import upload_photo
+from app.services.subsidy_check import deduct_subsidy
 from app.utils.phone_mask import mask_phone
 
 router = APIRouter(prefix="/api/deliveries", tags=["deliveries"])
@@ -80,7 +81,7 @@ def sign_delivery(
         pending_confirm = (
             db.query(SubsidyExceedConfirmation)
             .filter(
-                SubsidyExceedConfirmation.elder_id == elder.id,
+                SubsidyExceedConfirmation.delivery_id == delivery_id,
                 SubsidyExceedConfirmation.status == "pending",
             )
             .first()
@@ -88,15 +89,54 @@ def sign_delivery(
         if pending_confirm:
             raise HTTPException(
                 status_code=403,
-                detail="该长者存在待确认的补贴超额记录，需家属或社工确认后方可签收配送。",
+                detail="该配送单存在待确认的补贴超额记录，需家属或社工确认后方可签收配送。",
             )
 
+        approved_confirm = (
+            db.query(SubsidyExceedConfirmation)
+            .filter(
+                SubsidyExceedConfirmation.delivery_id == delivery_id,
+                SubsidyExceedConfirmation.status == "approved",
+            )
+            .first()
+        )
+        if approved_confirm:
+            photo_data = photo.file.read()
+            photo_url = upload_photo(photo_data, photo.filename)
+
+            updated = mark_delivery_signed(db, delivery_id, photo_url=photo_url)
+
+            order_amount = approved_confirm.order_amount or 0.0
+            if order_amount > 0 and delivery.order_id:
+                try:
+                    deduct_subsidy(
+                        db,
+                        elder_id=elder.id,
+                        order_id=delivery.order_id,
+                        amount=order_amount,
+                        force=True,
+                    )
+                except (ValueError, PermissionError):
+                    pass
+
+            if approved_confirm.subsidy_record_id is None:
+                latest_record = (
+                    db.query(SubsidyRecord)
+                    .filter(SubsidyRecord.elder_id == elder.id)
+                    .order_by(SubsidyRecord.created_at.desc())
+                    .first()
+                )
+                if latest_record:
+                    approved_confirm.subsidy_record_id = latest_record.id
+                    db.commit()
+
+            return updated
+
         order_amount = 0.0
+        meal_order = None
         if delivery.order_id:
             meal_order = db.query(MealOrder).filter(MealOrder.id == delivery.order_id).first()
-            if meal_order:
-                order_amount = meal_order.total_price
-        else:
+        if not meal_order:
             today_str = date.today().isoformat()
             meal_order = (
                 db.query(MealOrder)
@@ -106,18 +146,21 @@ def sign_delivery(
                 )
                 .first()
             )
-            if meal_order:
-                order_amount = meal_order.total_price
+        if meal_order:
+            order_amount = meal_order.total_price
 
         current_balance = elder.subsidy_quota - elder.subsidy_used
         if order_amount > 0 and order_amount > current_balance:
             confirmation = SubsidyExceedConfirmation(
                 elder_id=elder.id,
+                delivery_id=delivery_id,
                 subsidy_record_id=None,
+                order_amount=order_amount,
                 confirm_type="family",
                 status="pending",
             )
             db.add(confirmation)
+            db.flush()
             for contact in elder.family_contacts:
                 notification = Notification(
                     notify_type="subsidy_exceed",
@@ -144,6 +187,20 @@ def sign_delivery(
     photo_url = upload_photo(photo_data, photo.filename)
 
     updated = mark_delivery_signed(db, delivery_id, photo_url=photo_url)
+
+    if elder and delivery.order_id:
+        meal_order = db.query(MealOrder).filter(MealOrder.id == delivery.order_id).first()
+        if meal_order and meal_order.total_price > 0:
+            try:
+                deduct_subsidy(
+                    db,
+                    elder_id=elder.id,
+                    order_id=delivery.order_id,
+                    amount=meal_order.total_price,
+                )
+            except (ValueError, PermissionError):
+                pass
+
     return updated
 
 

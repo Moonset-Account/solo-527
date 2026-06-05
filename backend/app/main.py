@@ -12,6 +12,15 @@ from app.services.photo_storage import ensure_bucket
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     try:
+        from alembic.config import Config as AlembicConfig
+        from alembic import command
+        alembic_cfg = AlembicConfig()
+        alembic_cfg.set_main_option("script_location", "alembic")
+        alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
+        command.upgrade(alembic_cfg, "head")
+    except Exception:
+        pass
+    try:
         ensure_bucket()
     except Exception:
         pass

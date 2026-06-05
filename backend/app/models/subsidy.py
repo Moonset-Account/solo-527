@@ -29,7 +29,9 @@ class SubsidyExceedConfirmation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     elder_id = Column(UUID(as_uuid=True), ForeignKey("elders.id", ondelete="CASCADE"), nullable=False)
+    delivery_id = Column(UUID(as_uuid=True), ForeignKey("deliveries.id", ondelete="CASCADE"), nullable=True)
     subsidy_record_id = Column(UUID(as_uuid=True), ForeignKey("subsidy_records.id", ondelete="SET NULL"), nullable=True)
+    order_amount = Column(Float, nullable=True)
     confirm_type = Column(String(32), nullable=False)
     confirmer_name = Column(String(64), nullable=True)
     confirmer_phone = Column(String(20), nullable=True)
@@ -40,3 +42,4 @@ class SubsidyExceedConfirmation(Base):
 
     elder = relationship("Elder")
     subsidy_record = relationship("SubsidyRecord")
+    delivery = relationship("Delivery")

@@ -299,6 +299,23 @@ def create_route(data: RouteCreate, db: Session = Depends(get_db)):
         )
         db.add(stop)
 
+        meal_order = (
+            db.query(MealOrder)
+            .filter(
+                MealOrder.elder_id == elder_id,
+                MealOrder.order_date == str(data.date),
+            )
+            .first()
+        )
+        delivery = Delivery(
+            route_id=route.id,
+            elder_id=elder_id,
+            courier_id=data.courier_id,
+            order_id=meal_order.id if meal_order else None,
+            status="pending",
+        )
+        db.add(delivery)
+
     db.commit()
     db.refresh(route)
     return route
