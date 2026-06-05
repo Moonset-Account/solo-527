@@ -1,8 +1,5 @@
 package com.gym.common.enums;
 
-import lombok.Getter;
-
-@Getter
 public enum RoleEnum {
     ADMIN("ADMIN", "系统管理员"),
     MANAGER("MANAGER", "店长/合伙人"),
@@ -16,5 +13,13 @@ public enum RoleEnum {
     RoleEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 }

@@ -11,7 +11,6 @@ import {
   message,
 } from 'antd'
 import {
-  CalendarOutlined,
   DollarOutlined,
   CheckCircleOutlined,
   RiseOutlined,
@@ -130,8 +129,8 @@ export default function CoachPerformance() {
                   title="课时收入"
                   value={stats.sessionIncome || 0}
                   precision={2}
-                  prefix="¥"
                   valueStyle={{ color: '#1890ff' }}
+                  suffix="元"
                 />
               </Card>
             </Col>
@@ -141,9 +140,9 @@ export default function CoachPerformance() {
                   title="提成金额"
                   value={stats.commission || 0}
                   precision={2}
-                  prefix="¥"
                   prefix={<RiseOutlined style={{ color: '#fa8c16' }} />}
                   valueStyle={{ color: '#fa8c16' }}
+                  suffix="元"
                 />
               </Card>
             </Col>
@@ -153,9 +152,9 @@ export default function CoachPerformance() {
                   title="本月预计收入"
                   value={stats.totalIncome || 0}
                   precision={2}
-                  prefix="¥"
                   prefix={<DollarOutlined style={{ color: '#722ed1' }} />}
                   valueStyle={{ color: '#722ed1' }}
+                  suffix="元"
                 />
               </Card>
             </Col>

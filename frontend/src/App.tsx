@@ -39,7 +39,14 @@ function App() {
         <Route path="group-classes" element={<GroupClassList />} />
         <Route path="my-performance" element={<CoachPerformance />} />
       </Route>
-      <Route path="/m/booking" element={<MobileBooking />} />
+      <Route
+        path="/m/booking"
+        element={
+          <ProtectedRoute>
+            <MobileBooking />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   )
 }

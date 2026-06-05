@@ -3,35 +3,80 @@ package com.gym.controller;
 import com.gym.common.response.Result;
 import com.gym.entity.Coach;
 import com.gym.repository.CoachRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/coaches")
-@RequiredArgsConstructor
 public class CoachController {
 
     private final CoachRepository coachRepository;
 
+    public CoachController(CoachRepository coachRepository) {
+        this.coachRepository = coachRepository;
+    }
+
+    private boolean isAdminOrManager() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ADMIN") || a.equals("ROLE_MANAGER"));
+    }
+
+    private Long getCurrentUserId() {
+        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private Coach maskSensitiveData(Coach coach) {
+        if (coach == null) return null;
+        if (isAdminOrManager()) {
+            return coach;
+        }
+        Coach currentCoach = coachRepository.findByUserId(getCurrentUserId());
+        if (currentCoach != null && coach.getId().equals(currentCoach.getId())) {
+            return coach;
+        }
+        Coach masked = new Coach();
+        masked.setId(coach.getId());
+        masked.setName(coach.getName());
+        masked.setPhone(coach.getPhone());
+        masked.setGender(coach.getGender());
+        masked.setSpecialty(coach.getSpecialty());
+        masked.setIntroduction(coach.getIntroduction());
+        masked.setLevel(coach.getLevel());
+        masked.setActive(coach.getActive());
+        masked.setHireDate(coach.getHireDate());
+        masked.setAvatar(coach.getAvatar());
+        return masked;
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTION', 'COACH')")
     public Result<List<Coach>> list() {
-        return Result.success(coachRepository.findAll());
+        List<Coach> coaches = coachRepository.findAll().stream()
+                .map(this::maskSensitiveData)
+                .collect(Collectors.toList());
+        return Result.success(coaches);
     }
 
     @GetMapping("/active")
     @PreAuthorize("isAuthenticated()")
     public Result<List<Coach>> listActive() {
-        return Result.success(coachRepository.findByActiveTrue());
+        List<Coach> coaches = coachRepository.findByActiveTrue().stream()
+                .map(this::maskSensitiveData)
+                .collect(Collectors.toList());
+        return Result.success(coaches);
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTION', 'COACH')")
     public Result<Coach> getById(@PathVariable Long id) {
         return coachRepository.findById(id)
+                .map(this::maskSensitiveData)
                 .map(Result::success)
                 .orElse(Result.error("教练不存在"));
     }

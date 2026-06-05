@@ -1,8 +1,5 @@
 package com.gym.common.response;
 
-import lombok.Data;
-
-@Data
 public class Result<T> {
 
     private Integer code;
@@ -10,6 +7,30 @@ public class Result<T> {
     private T data;
 
     private Result() {}
+
+    public Integer getCode() {
+        return code;
+    }
+
+    public void setCode(Integer code) {
+        this.code = code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
+    }
 
     public static <T> Result<T> success() {
         Result<T> result = new Result<>();

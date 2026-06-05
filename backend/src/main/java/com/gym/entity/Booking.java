@@ -4,13 +4,9 @@ import com.gym.common.entity.BaseEntity;
 import com.gym.common.enums.BookingStatusEnum;
 import com.gym.common.enums.CourseTypeEnum;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "booking")
 public class Booking extends BaseEntity {
@@ -54,4 +50,108 @@ public class Booking extends BaseEntity {
     private String checkInBy;
 
     private Boolean deducted = false;
+
+    public Member getMember() {
+        return member;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
+    }
+
+    public CourseTypeEnum getCourseType() {
+        return courseType;
+    }
+
+    public void setCourseType(CourseTypeEnum courseType) {
+        this.courseType = courseType;
+    }
+
+    public Coach getCoach() {
+        return coach;
+    }
+
+    public void setCoach(Coach coach) {
+        this.coach = coach;
+    }
+
+    public MemberPackage getMemberPackage() {
+        return memberPackage;
+    }
+
+    public void setMemberPackage(MemberPackage memberPackage) {
+        this.memberPackage = memberPackage;
+    }
+
+    public GroupClass getGroupClass() {
+        return groupClass;
+    }
+
+    public void setGroupClass(GroupClass groupClass) {
+        this.groupClass = groupClass;
+    }
+
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public LocalDateTime getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(LocalDateTime endTime) {
+        this.endTime = endTime;
+    }
+
+    public BookingStatusEnum getStatus() {
+        return status;
+    }
+
+    public void setStatus(BookingStatusEnum status) {
+        this.status = status;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public LocalDateTime getCheckInTime() {
+        return checkInTime;
+    }
+
+    public void setCheckInTime(LocalDateTime checkInTime) {
+        this.checkInTime = checkInTime;
+    }
+
+    public String getCheckInBy() {
+        return checkInBy;
+    }
+
+    public void setCheckInBy(String checkInBy) {
+        this.checkInBy = checkInBy;
+    }
+
+    public Boolean getDeducted() {
+        return deducted;
+    }
+
+    public void setDeducted(Boolean deducted) {
+        this.deducted = deducted;
+    }
 }

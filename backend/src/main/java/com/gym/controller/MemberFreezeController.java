@@ -6,7 +6,6 @@ import com.gym.entity.Member;
 import com.gym.entity.MemberFreeze;
 import com.gym.repository.MemberFreezeRepository;
 import com.gym.repository.MemberRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +16,15 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/member-freezes")
-@RequiredArgsConstructor
 public class MemberFreezeController {
 
     private final MemberFreezeRepository memberFreezeRepository;
     private final MemberRepository memberRepository;
+
+    public MemberFreezeController(MemberFreezeRepository memberFreezeRepository, MemberRepository memberRepository) {
+        this.memberFreezeRepository = memberFreezeRepository;
+        this.memberRepository = memberRepository;
+    }
 
     @GetMapping("/member/{memberId}")
     @PreAuthorize("isAuthenticated()")

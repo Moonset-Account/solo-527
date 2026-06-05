@@ -9,12 +9,11 @@ import {
   Select,
   InputNumber,
   Tag,
-  Space,
   Typography,
   message,
   Popconfirm,
 } from 'antd'
-import { PlusOutlined, CalendarOutlined, CloseOutlined } from '@ant-design/icons'
+import { PlusOutlined, CloseOutlined } from '@ant-design/icons'
 import { groupClassApi, coachApi } from '../api'
 import dayjs from 'dayjs'
 

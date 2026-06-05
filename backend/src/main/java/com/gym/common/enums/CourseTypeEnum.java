@@ -1,8 +1,5 @@
 package com.gym.common.enums;
 
-import lombok.Getter;
-
-@Getter
 public enum CourseTypeEnum {
     PERSONAL("PERSONAL", "私教课"),
     GROUP("GROUP", "团课");
@@ -13,5 +10,13 @@ public enum CourseTypeEnum {
     CourseTypeEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 }

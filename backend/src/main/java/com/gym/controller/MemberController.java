@@ -5,8 +5,6 @@ import com.gym.common.response.Result;
 import com.gym.entity.Member;
 import com.gym.repository.MemberRepository;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +13,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/members")
-@RequiredArgsConstructor
 public class MemberController {
 
     private final MemberRepository memberRepository;
+
+    public MemberController(MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTION', 'COACH')")
@@ -75,16 +76,46 @@ public class MemberController {
         return Result.success(member);
     }
 
-    @Data
     public static class MemberCreateRequest {
         @NotBlank(message = "姓名不能为空")
         private String name;
         private String phone;
         private String gender;
         private LocalDate birthday;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
+        }
+
+        public String getGender() {
+            return gender;
+        }
+
+        public void setGender(String gender) {
+            this.gender = gender;
+        }
+
+        public LocalDate getBirthday() {
+            return birthday;
+        }
+
+        public void setBirthday(LocalDate birthday) {
+            this.birthday = birthday;
+        }
     }
 
-    @Data
     public static class MemberUpdateRequest {
         private String name;
         private String phone;
@@ -93,5 +124,61 @@ public class MemberController {
         private MemberStatusEnum status;
         private LocalDate expireDate;
         private String remark;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
+        }
+
+        public String getGender() {
+            return gender;
+        }
+
+        public void setGender(String gender) {
+            this.gender = gender;
+        }
+
+        public LocalDate getBirthday() {
+            return birthday;
+        }
+
+        public void setBirthday(LocalDate birthday) {
+            this.birthday = birthday;
+        }
+
+        public MemberStatusEnum getStatus() {
+            return status;
+        }
+
+        public void setStatus(MemberStatusEnum status) {
+            this.status = status;
+        }
+
+        public LocalDate getExpireDate() {
+            return expireDate;
+        }
+
+        public void setExpireDate(LocalDate expireDate) {
+            this.expireDate = expireDate;
+        }
+
+        public String getRemark() {
+            return remark;
+        }
+
+        public void setRemark(String remark) {
+            this.remark = remark;
+        }
     }
 }

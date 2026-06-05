@@ -8,7 +8,6 @@ import com.gym.repository.BookingRepository;
 import com.gym.repository.MemberFreezeRepository;
 import com.gym.repository.MemberRepository;
 import com.gym.service.NotificationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,13 +17,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class ScheduledTasks {
 
     private final BookingRepository bookingRepository;
     private final MemberRepository memberRepository;
     private final MemberFreezeRepository memberFreezeRepository;
     private final NotificationService notificationService;
+
+    public ScheduledTasks(BookingRepository bookingRepository, MemberRepository memberRepository,
+                          MemberFreezeRepository memberFreezeRepository, NotificationService notificationService) {
+        this.bookingRepository = bookingRepository;
+        this.memberRepository = memberRepository;
+        this.memberFreezeRepository = memberFreezeRepository;
+        this.notificationService = notificationService;
+    }
 
     @Value("${app.reminder.before-hours:2}")
     private int reminderBeforeHours;

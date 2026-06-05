@@ -5,7 +5,6 @@ import com.gym.entity.Member;
 import com.gym.entity.MemberPackage;
 import com.gym.repository.MemberPackageRepository;
 import com.gym.repository.MemberRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -14,11 +13,15 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/member-packages")
-@RequiredArgsConstructor
 public class MemberPackageController {
 
     private final MemberPackageRepository memberPackageRepository;
     private final MemberRepository memberRepository;
+
+    public MemberPackageController(MemberPackageRepository memberPackageRepository, MemberRepository memberRepository) {
+        this.memberPackageRepository = memberPackageRepository;
+        this.memberRepository = memberRepository;
+    }
 
     @GetMapping("/member/{memberId}")
     @PreAuthorize("isAuthenticated()")

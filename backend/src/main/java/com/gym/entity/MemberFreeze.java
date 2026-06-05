@@ -2,13 +2,9 @@ package com.gym.entity;
 
 import com.gym.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDate;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "member_freeze")
 public class MemberFreeze extends BaseEntity {
@@ -37,4 +33,76 @@ public class MemberFreeze extends BaseEntity {
     private LocalDate approveDate;
 
     private String remark;
+
+    public Member getMember() {
+        return member;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
+
+    public Integer getFreezeDays() {
+        return freezeDays;
+    }
+
+    public void setFreezeDays(Integer freezeDays) {
+        this.freezeDays = freezeDays;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public String getApproveBy() {
+        return approveBy;
+    }
+
+    public void setApproveBy(String approveBy) {
+        this.approveBy = approveBy;
+    }
+
+    public LocalDate getApproveDate() {
+        return approveDate;
+    }
+
+    public void setApproveDate(LocalDate approveDate) {
+        this.approveDate = approveDate;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
 }

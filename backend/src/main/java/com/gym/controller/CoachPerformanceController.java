@@ -5,7 +5,6 @@ import com.gym.entity.Booking;
 import com.gym.entity.Coach;
 import com.gym.repository.BookingRepository;
 import com.gym.repository.CoachRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -19,11 +18,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/coach-performance")
-@RequiredArgsConstructor
 public class CoachPerformanceController {
 
     private final BookingRepository bookingRepository;
     private final CoachRepository coachRepository;
+
+    public CoachPerformanceController(BookingRepository bookingRepository, CoachRepository coachRepository) {
+        this.bookingRepository = bookingRepository;
+        this.coachRepository = coachRepository;
+    }
 
     private Long getCurrentCoachId() {
         Long currentUserId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

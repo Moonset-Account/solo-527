@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.response.Result;
 import com.gym.entity.CoursePackage;
 import com.gym.repository.CoursePackageRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,10 +10,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/course-packages")
-@RequiredArgsConstructor
 public class CoursePackageController {
 
     private final CoursePackageRepository coursePackageRepository;
+
+    public CoursePackageController(CoursePackageRepository coursePackageRepository) {
+        this.coursePackageRepository = coursePackageRepository;
+    }
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")

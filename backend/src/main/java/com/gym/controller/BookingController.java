@@ -5,8 +5,6 @@ import com.gym.common.response.Result;
 import com.gym.entity.Booking;
 import com.gym.service.BookingService;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +15,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
-@RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
+
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'RECEPTION', 'COACH')")
@@ -75,7 +76,6 @@ public class BookingController {
         return Result.success(bookingService.getCoachBookings(coachId, date));
     }
 
-    @Data
     public static class BookingCreateRequest {
         @NotNull(message = "会员ID不能为空")
         private Long memberId;
@@ -89,5 +89,61 @@ public class BookingController {
         private LocalDateTime endTime;
         @NotNull(message = "课程类型不能为空")
         private CourseTypeEnum courseType;
+
+        public Long getMemberId() {
+            return memberId;
+        }
+
+        public void setMemberId(Long memberId) {
+            this.memberId = memberId;
+        }
+
+        public Long getCoachId() {
+            return coachId;
+        }
+
+        public void setCoachId(Long coachId) {
+            this.coachId = coachId;
+        }
+
+        public Long getMemberPackageId() {
+            return memberPackageId;
+        }
+
+        public void setMemberPackageId(Long memberPackageId) {
+            this.memberPackageId = memberPackageId;
+        }
+
+        public Long getGroupClassId() {
+            return groupClassId;
+        }
+
+        public void setGroupClassId(Long groupClassId) {
+            this.groupClassId = groupClassId;
+        }
+
+        public LocalDateTime getStartTime() {
+            return startTime;
+        }
+
+        public void setStartTime(LocalDateTime startTime) {
+            this.startTime = startTime;
+        }
+
+        public LocalDateTime getEndTime() {
+            return endTime;
+        }
+
+        public void setEndTime(LocalDateTime endTime) {
+            this.endTime = endTime;
+        }
+
+        public CourseTypeEnum getCourseType() {
+            return courseType;
+        }
+
+        public void setCourseType(CourseTypeEnum courseType) {
+            this.courseType = courseType;
+        }
     }
 }

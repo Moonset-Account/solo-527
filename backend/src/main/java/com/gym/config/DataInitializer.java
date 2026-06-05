@@ -4,7 +4,6 @@ import com.gym.common.enums.CourseTypeEnum;
 import com.gym.common.enums.RoleEnum;
 import com.gym.entity.*;
 import com.gym.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -14,7 +13,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -24,6 +22,18 @@ public class DataInitializer implements CommandLineRunner {
     private final MemberPackageRepository memberPackageRepository;
     private final GroupClassRepository groupClassRepository;
     private final PasswordEncoder passwordEncoder;
+
+    public DataInitializer(UserRepository userRepository, CoachRepository coachRepository, CoursePackageRepository coursePackageRepository,
+                           MemberRepository memberRepository, MemberPackageRepository memberPackageRepository,
+                           GroupClassRepository groupClassRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.coachRepository = coachRepository;
+        this.coursePackageRepository = coursePackageRepository;
+        this.memberRepository = memberRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.groupClassRepository = groupClassRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
     public void run(String... args) {

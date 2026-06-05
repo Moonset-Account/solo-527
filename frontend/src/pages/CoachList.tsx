@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Table, Tag, Typography, Card, Avatar, Rate } from 'antd'
+import { Table, Tag, Typography, Card, Avatar } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 
 const { Title } = Typography
 
 export default function CoachList() {
   const [coaches, setCoaches] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading] = useState(false)
 
   useEffect(() => {
     setCoaches([

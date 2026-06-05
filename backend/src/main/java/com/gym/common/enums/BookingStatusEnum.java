@@ -1,8 +1,5 @@
 package com.gym.common.enums;
 
-import lombok.Getter;
-
-@Getter
 public enum BookingStatusEnum {
     PENDING("PENDING", "待确认"),
     CONFIRMED("CONFIRMED", "已确认"),
@@ -16,5 +13,13 @@ public enum BookingStatusEnum {
     BookingStatusEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 }

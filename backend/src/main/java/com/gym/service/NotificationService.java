@@ -2,17 +2,19 @@ package com.gym.service;
 
 import com.gym.entity.Notification;
 import com.gym.repository.NotificationRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+
+    public NotificationService(NotificationRepository notificationRepository) {
+        this.notificationRepository = notificationRepository;
+    }
 
     @Async
     public void createNotification(String type, String title, String content,

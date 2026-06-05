@@ -3,7 +3,6 @@ package com.gym.service;
 import com.gym.common.enums.BookingStatusEnum;
 import com.gym.common.enums.MemberStatusEnum;
 import com.gym.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -12,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
     private final MemberRepository memberRepository;
@@ -20,6 +18,15 @@ public class DashboardService {
     private final BookingRepository bookingRepository;
     private final MemberPackageRepository memberPackageRepository;
     private final GroupClassRepository groupClassRepository;
+
+    public DashboardService(MemberRepository memberRepository, CoachRepository coachRepository, BookingRepository bookingRepository,
+                            MemberPackageRepository memberPackageRepository, GroupClassRepository groupClassRepository) {
+        this.memberRepository = memberRepository;
+        this.coachRepository = coachRepository;
+        this.bookingRepository = bookingRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.groupClassRepository = groupClassRepository;
+    }
 
     public Map<String, Object> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();

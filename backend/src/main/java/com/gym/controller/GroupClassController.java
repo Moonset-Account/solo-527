@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.response.Result;
 import com.gym.entity.GroupClass;
 import com.gym.repository.GroupClassRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +13,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/group-classes")
-@RequiredArgsConstructor
 public class GroupClassController {
 
     private final GroupClassRepository groupClassRepository;
+
+    public GroupClassController(GroupClassRepository groupClassRepository) {
+        this.groupClassRepository = groupClassRepository;
+    }
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")

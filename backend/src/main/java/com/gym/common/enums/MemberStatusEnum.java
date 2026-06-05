@@ -1,8 +1,5 @@
 package com.gym.common.enums;
 
-import lombok.Getter;
-
-@Getter
 public enum MemberStatusEnum {
     ACTIVE("ACTIVE", "正常"),
     FROZEN("FROZEN", "已冻结"),
@@ -15,5 +12,13 @@ public enum MemberStatusEnum {
     MemberStatusEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 }

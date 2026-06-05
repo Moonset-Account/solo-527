@@ -2,7 +2,6 @@ package com.gym.controller;
 
 import com.gym.common.response.Result;
 import com.gym.service.FileStorageService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,10 +20,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/files")
-@RequiredArgsConstructor
 public class FileController {
 
     private final FileStorageService fileStorageService;
+
+    public FileController(FileStorageService fileStorageService) {
+        this.fileStorageService = fileStorageService;
+    }
 
     @Value("${app.upload.path:/var/gym/uploads}")
     private String uploadPath;

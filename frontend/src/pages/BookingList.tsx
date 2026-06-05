@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Table, Button, Tag, Space, Typography, DatePicker, Select, message } from 'antd'
+import { Table, Button, Tag, Space, Typography, DatePicker, message } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { bookingApi } from '../api'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
-const { Option } = Select
 
 export default function BookingList() {
   const [bookings, setBookings] = useState<any[]>([])

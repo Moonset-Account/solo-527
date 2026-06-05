@@ -10,9 +10,7 @@ import {
   Tag,
   Space,
   Typography,
-  InputNumber,
   message,
-  Popconfirm,
 } from 'antd'
 import { PlusOutlined, SearchOutlined, EditOutlined, QrcodeOutlined, PauseCircleOutlined } from '@ant-design/icons'
 import { memberApi, memberFreezeApi } from '../api'

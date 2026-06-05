@@ -5,7 +5,6 @@ import com.gym.common.enums.CourseTypeEnum;
 import com.gym.common.enums.MemberStatusEnum;
 import com.gym.entity.*;
 import com.gym.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class BookingService {
 
     private final BookingRepository bookingRepository;
@@ -25,24 +23,33 @@ public class BookingService {
     private final MemberFreezeRepository memberFreezeRepository;
     private final NotificationService notificationService;
 
+    public BookingService(BookingRepository bookingRepository, MemberRepository memberRepository, CoachRepository coachRepository,
+                          MemberPackageRepository memberPackageRepository, GroupClassRepository groupClassRepository,
+                          MemberFreezeRepository memberFreezeRepository, NotificationService notificationService) {
+        this.bookingRepository = bookingRepository;
+        this.memberRepository = memberRepository;
+        this.coachRepository = coachRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.groupClassRepository = groupClassRepository;
+        this.memberFreezeRepository = memberFreezeRepository;
+        this.notificationService = notificationService;
+    }
+
     @Transactional
     public Booking createBooking(Long memberId, Long coachId, Long memberPackageId, Long groupClassId,
                                  LocalDateTime startTime, LocalDateTime endTime, CourseTypeEnum courseType) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new RuntimeException("会员不存在"));
 
-        if (member.getStatus() == MemberStatusEnum.FROZEN) {
-            throw new RuntimeException("会员处于冻结状态，无法预约课程");
-        }
-
         if (member.getStatus() == MemberStatusEnum.EXPIRED || member.getStatus() == MemberStatusEnum.CANCELLED) {
             throw new RuntimeException("会员状态异常，无法预约课程");
         }
 
-        LocalDate today = LocalDate.now();
-        List<MemberFreeze> activeFreezes = memberFreezeRepository.findActiveFreezesForMemberAndDate(memberId, today);
+        LocalDate bookingDate = startTime.toLocalDate();
+        List<MemberFreeze> activeFreezes = memberFreezeRepository.findActiveFreezesForMemberAndDate(memberId, bookingDate);
         if (!activeFreezes.isEmpty()) {
-            throw new RuntimeException("会员处于冻结期内，无法预约课程");
+            MemberFreeze freeze = activeFreezes.get(0);
+            throw new RuntimeException("预约日期(" + bookingDate + ")处于冻结期内(" + freeze.getStartDate() + "至" + freeze.getEndDate() + ")，无法预约课程");
         }
 
         Coach coach = coachRepository.findById(coachId)
