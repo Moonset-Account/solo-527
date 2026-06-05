@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from extensions import db
 from models import Notification, Member, User
 
 def create_notification(type, recipient_type, recipient_id, subject, content, related_type=None, related_id=None):

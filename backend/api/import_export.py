@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import ImportExportTask, Member, Film, Screening, Booking, Guest
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime
 import pandas as pd
@@ -36,7 +36,7 @@ def list_tasks():
 @jwt_required()
 def export_data(entity_type):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'finance')()
+    role_required('admin', 'curator', 'finance').check()
     
     if entity_type not in ImportExportTask.ENTITY_TYPES:
         raise ValidationError(f'不支持的导出类型: {entity_type}')
@@ -158,7 +158,7 @@ def export_data(entity_type):
 @jwt_required()
 def import_data(entity_type):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     if entity_type not in ImportExportTask.ENTITY_TYPES:
         raise ValidationError(f'不支持的导入类型: {entity_type}')

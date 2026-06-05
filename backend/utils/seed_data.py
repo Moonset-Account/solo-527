@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, date
-from app import db
+from extensions import db
 from models import User, MemberLevel, Member, Film, Hall
 
 def seed_database():
@@ -57,12 +57,13 @@ def seed_database():
         levels = MemberLevel.query.all()
         level_map = {l.name: l for l in levels}
         
+        today = date.today()
         members = [
-            Member(member_no='M000001', name='张三', phone='13800138001', email='zhang@example.com', level_id=level_map['基础会员'].id, join_date=date(2024, 1, 1), expiry_date=date(2025, 12, 31)),
-            Member(member_no='M000002', name='李四', phone='13800138002', email='li@example.com', level_id=level_map['高级会员'].id, join_date=date(2024, 3, 15), expiry_date=date(2025, 3, 14)),
-            Member(member_no='M000003', name='王五', phone='13800138003', email='wang@example.com', level_id=level_map['VIP会员'].id, join_date=date(2024, 2, 1), expiry_date=date(2025, 1, 31)),
-            Member(member_no='M000004', name='赵六', phone='13800138004', email='zhao@example.com', level_id=level_map['基础会员'].id, join_date=date(2024, 4, 1), expiry_date=date(2025, 3, 31)),
-            Member(member_no='M000005', name='钱七', phone='13800138005', email='qian@example.com', level_id=level_map['高级会员'].id, join_date=date(2024, 5, 10), expiry_date=date(2025, 5, 9)),
+            Member(member_no='M000001', name='张三', phone='13800138001', email='zhang@example.com', level_id=level_map['基础会员'].id, join_date=today, expiry_date=today + timedelta(days=365)),
+            Member(member_no='M000002', name='李四', phone='13800138002', email='li@example.com', level_id=level_map['高级会员'].id, join_date=today, expiry_date=today + timedelta(days=365)),
+            Member(member_no='M000003', name='王五', phone='13800138003', email='wang@example.com', level_id=level_map['VIP会员'].id, join_date=today, expiry_date=today + timedelta(days=365)),
+            Member(member_no='M000004', name='赵六', phone='13800138004', email='zhao@example.com', level_id=level_map['基础会员'].id, join_date=today, expiry_date=today + timedelta(days=365)),
+            Member(member_no='M000005', name='钱七', phone='13800138005', email='qian@example.com', level_id=level_map['高级会员'].id, join_date=today, expiry_date=today + timedelta(days=365)),
         ]
         
         db.session.add_all(members)

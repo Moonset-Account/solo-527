@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import Film
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime
 
@@ -31,7 +31,7 @@ def get_film(film_id):
 @jwt_required()
 def create_film():
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     data = request.get_json()
     
@@ -75,7 +75,7 @@ def create_film():
 @jwt_required()
 def update_film(film_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     film = Film.query.get(film_id)
     if not film:
@@ -130,7 +130,7 @@ def update_film(film_id):
 @jwt_required()
 def delete_film(film_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     film = Film.query.get(film_id)
     if not film:

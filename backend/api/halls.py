@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import Hall
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 
 halls_bp = Blueprint('halls', __name__)
@@ -29,7 +29,7 @@ def get_hall(hall_id):
 @jwt_required()
 def create_hall():
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     data = request.get_json()
     
@@ -54,7 +54,7 @@ def create_hall():
 @jwt_required()
 def update_hall(hall_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     hall = Hall.query.get(hall_id)
     if not hall:
@@ -82,7 +82,7 @@ def update_hall(hall_id):
 @jwt_required()
 def delete_hall(hall_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     hall = Hall.query.get(hall_id)
     if not hall:

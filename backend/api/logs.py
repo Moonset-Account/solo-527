@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import ErrorLog, Notification
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime, timedelta
 
@@ -11,7 +11,7 @@ logs_bp = Blueprint('logs', __name__)
 @jwt_required()
 def list_error_logs():
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     level = request.args.get('level')
     days = request.args.get('days', 30, type=int)
@@ -42,7 +42,7 @@ def list_error_logs():
 @jwt_required()
 def get_error_log(log_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     log = ErrorLog.query.get(log_id)
     if not log:
@@ -65,7 +65,7 @@ def get_error_log(log_id):
 @jwt_required()
 def clear_error_logs():
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     days = request.args.get('days', 90, type=int)
     cutoff_date = datetime.now() - timedelta(days=days)
@@ -109,7 +109,7 @@ def list_notifications():
 @jwt_required()
 def retry_notification(notif_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     notif = Notification.query.get(notif_id)
     if not notif:

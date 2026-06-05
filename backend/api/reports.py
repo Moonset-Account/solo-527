@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import Screening, Booking, Guest, Member, MonthlyReconciliation, CheckInRecord
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
@@ -143,7 +143,7 @@ def get_members_stats():
 @jwt_required()
 def list_reconciliations():
     from utils.auth import role_required
-    role_required('admin', 'finance', 'curator')()
+    role_required('admin', 'finance', 'curator').check()
     
     reconciliations = MonthlyReconciliation.query.order_by(MonthlyReconciliation.month.desc()).all()
     return jsonify([{
@@ -165,7 +165,7 @@ def list_reconciliations():
 def generate_reconciliation():
     from utils.auth import role_required
     from flask_jwt_extended import get_jwt_identity
-    role_required('admin', 'finance')()
+    role_required('admin', 'finance').check()
     
     data = request.get_json()
     month = data.get('month')
@@ -245,7 +245,7 @@ def generate_reconciliation():
 def confirm_reconciliation(recon_id):
     from utils.auth import role_required
     from flask_jwt_extended import get_jwt_identity
-    role_required('admin', 'finance')()
+    role_required('admin', 'finance').check()
     
     recon = MonthlyReconciliation.query.get(recon_id)
     if not recon:

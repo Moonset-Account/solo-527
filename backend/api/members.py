@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import Member, MemberLevel
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime
 import uuid
@@ -18,7 +18,7 @@ def list_member_levels():
 @jwt_required()
 def create_member_level():
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     data = request.get_json()
     
@@ -44,7 +44,7 @@ def create_member_level():
 @jwt_required()
 def update_member_level(level_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     level = MemberLevel.query.get(level_id)
     if not level:
@@ -114,7 +114,7 @@ def generate_member_no():
 @jwt_required()
 def create_member():
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     data = request.get_json()
     
@@ -165,7 +165,7 @@ def create_member():
 @jwt_required()
 def update_member(member_id):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     member = Member.query.get(member_id)
     if not member:
@@ -204,7 +204,7 @@ def update_member(member_id):
 @jwt_required()
 def delete_member(member_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     member = Member.query.get(member_id)
     if not member:

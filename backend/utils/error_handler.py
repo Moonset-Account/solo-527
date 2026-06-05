@@ -1,11 +1,15 @@
 from flask import jsonify
 from werkzeug.exceptions import HTTPException
-from app import db
+from extensions import db
 from models import ErrorLog
 import traceback
 import sys
 
 def register_error_handlers(app):
+    
+    @app.errorhandler(ApiError)
+    def handle_api_error(e):
+        return jsonify(e.to_dict()), e.status_code
     
     @app.errorhandler(HTTPException)
     def handle_http_exception(e):
@@ -18,6 +22,8 @@ def register_error_handlers(app):
     
     @app.errorhandler(Exception)
     def handle_exception(e):
+        if isinstance(e, ApiError):
+            return handle_api_error(e)
         if isinstance(e, HTTPException):
             return handle_http_exception(e)
         

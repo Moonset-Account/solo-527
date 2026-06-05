@@ -1,12 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_sqlalchemy import SQLAlchemy
 from config import Config
 import os
-
-db = SQLAlchemy()
-jwt = JWTManager()
+from extensions import db, jwt
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -27,7 +23,7 @@ def create_app(config_class=Config):
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
         identity = jwt_data["sub"]
-        return User.query.get(identity)
+        return User.query.get(int(identity))
     
     from api.auth import auth_bp
     from api.films import films_bp

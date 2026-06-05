@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Screening, Film, Hall, User
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from datetime import datetime, timedelta
 
@@ -75,7 +75,7 @@ def get_screening(screening_id):
 @jwt_required()
 def create_screening():
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     data = request.get_json()
     
@@ -153,7 +153,7 @@ def create_screening():
 @jwt_required()
 def update_screening(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     screening = Screening.query.get(screening_id)
     if not screening:
@@ -213,7 +213,7 @@ def update_screening(screening_id):
 @jwt_required()
 def delete_screening(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     screening = Screening.query.get(screening_id)
     if not screening:
@@ -233,7 +233,7 @@ def delete_screening(screening_id):
 @jwt_required()
 def confirm_screening(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     screening = Screening.query.get(screening_id)
     if not screening:
@@ -257,7 +257,7 @@ def confirm_screening(screening_id):
 @jwt_required()
 def cancel_screening(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     screening = Screening.query.get(screening_id)
     if not screening:
@@ -289,7 +289,7 @@ def cancel_screening(screening_id):
 @jwt_required()
 def complete_screening(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     screening = Screening.query.get(screening_id)
     if not screening:

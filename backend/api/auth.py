@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from models import User
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError, AuthorizationError
 
 auth_bp = Blueprint('auth', __name__)
@@ -21,7 +21,7 @@ def login():
     if not user.is_active:
         raise AuthorizationError('账户已被禁用')
     
-    access_token = create_access_token(identity=user)
+    access_token = create_access_token(identity=str(user.id))
     
     return jsonify({
         'access_token': access_token,
@@ -67,7 +67,7 @@ def change_password():
 @jwt_required()
 def list_users():
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     users = User.query.all()
     return jsonify([u.to_dict() for u in users]), 200
@@ -76,7 +76,7 @@ def list_users():
 @jwt_required()
 def create_user():
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     data = request.get_json()
     
@@ -107,7 +107,7 @@ def create_user():
 @jwt_required()
 def update_user(user_id):
     from utils.auth import role_required
-    role_required('admin')()
+    role_required('admin').check()
     
     user = User.query.get(user_id)
     if not user:

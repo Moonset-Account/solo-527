@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Booking, Screening, Member
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from utils.booking_service import create_booking, cancel_booking, check_in_booking, process_waitlist
 from datetime import datetime
@@ -39,7 +39,7 @@ def get_booking(booking_id):
 @jwt_required()
 def create_booking_route():
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     data = request.get_json()
     
@@ -62,7 +62,7 @@ def create_booking_route():
 @jwt_required()
 def confirm_booking(booking_id):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     booking = Booking.query.get(booking_id)
     if not booking:
@@ -94,7 +94,7 @@ def confirm_booking(booking_id):
 @jwt_required()
 def cancel_booking_route(booking_id):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     data = request.get_json() or {}
     booking = cancel_booking(booking_id, data.get('reason'))
@@ -105,7 +105,7 @@ def cancel_booking_route(booking_id):
 @jwt_required()
 def check_in(booking_id):
     from utils.auth import role_required
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     user_id = get_jwt_identity()
     data = request.get_json() or {}
@@ -140,7 +140,7 @@ def get_waitlist(screening_id):
 @jwt_required()
 def process_waitlist_route(screening_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     process_waitlist(screening_id)
     

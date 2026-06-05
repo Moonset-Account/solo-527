@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from models import Guest, Screening
-from app import db
+from extensions import db
 from utils.error_handler import ValidationError
 from utils.booking_service import check_in_guest
 from datetime import datetime
@@ -36,7 +36,7 @@ def get_guest(guest_id):
 @jwt_required()
 def create_guest():
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     data = request.get_json()
     
@@ -74,7 +74,7 @@ def create_guest():
 @jwt_required()
 def update_guest(guest_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     guest = Guest.query.get(guest_id)
     if not guest:
@@ -112,7 +112,7 @@ def update_guest(guest_id):
 @jwt_required()
 def delete_guest(guest_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     guest = Guest.query.get(guest_id)
     if not guest:
@@ -163,7 +163,7 @@ def decline_guest(guest_id):
 def check_in_guest_route(guest_id):
     from utils.auth import role_required
     from flask_jwt_extended import get_jwt_identity
-    role_required('admin', 'curator', 'frontdesk')()
+    role_required('admin', 'curator', 'frontdesk').check()
     
     user_id = get_jwt_identity()
     data = request.get_json() or {}
@@ -176,7 +176,7 @@ def check_in_guest_route(guest_id):
 @jwt_required()
 def send_invitation(guest_id):
     from utils.auth import role_required
-    role_required('admin', 'curator')()
+    role_required('admin', 'curator').check()
     
     guest = Guest.query.get(guest_id)
     if not guest:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from extensions import db
 from models import Booking, Screening, Member, WaitlistEntry, CheckInRecord
 from utils.error_handler import ValidationError, ConflictError
 from utils.notifications import send_booking_confirmation, send_waitlist_promoted, send_booking_cancellation
