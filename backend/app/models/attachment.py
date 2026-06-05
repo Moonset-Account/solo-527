@@ -7,6 +7,7 @@ from ..database import Base
 class AttachmentType(PyEnum):
     REQUISITION = "requisition"
     REAGENT = "reagent"
+    REAGENT_BATCH = "reagent_batch"
     INVENTORY_CHECK = "inventory_check"
     AUDIT = "audit"
     OTHER = "other"

@@ -8,7 +8,6 @@
             v-model="form.reagent_id"
             placeholder="选择试剂"
             filterable
-            @change="onReagentChange"
           >
             <el-option
               v-for="item in reagents"
@@ -70,12 +69,9 @@
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
-          <div v-if="uploading" class="text-sm text-blue-600 mt-1">
-            正在上传附件...
-          </div>
         </el-form-item>
         
-        <el-button type="primary" class="w-full" :loading="submitting || uploading" @click="submit">
+        <el-button type="primary" class="w-full" :loading="submitting" @click="submit">
           {{ offlineMode ? '离线保存，稍后同步' : '提交入库' }}
         </el-button>
         
@@ -101,13 +97,11 @@ const router = useRouter()
 const reagents = ref<any[]>([])
 const cabinets = ref<any[]>([])
 const submitting = ref(false)
-const uploading = ref(false)
 const syncing = ref(false)
 const offlineMode = ref(false)
 const pendingSyncCount = ref(0)
 
 const fileList = ref<any[]>([])
-const uploadedAttachmentIds = ref<number[]>([])
 
 const form = reactive({
   reagent_id: null as number | null,
@@ -131,43 +125,14 @@ async function loadData() {
   }
 }
 
-function onReagentChange() {
-  const reagent = reagents.value.find(r => r.id === form.reagent_id)
-  if (reagent?.unit) {
-    form.unit = reagent.unit
+function handleFileChange(file: any) {
+  if (file.raw) {
+    fileList.value.push(file)
   }
 }
 
-async function handleFileChange(file: any) {
-  if (!file.raw) return
-  
-  if (offlineMode.value || !navigator.onLine) {
-    fileList.value.push(file)
-    return
-  }
-  
-  uploading.value = true
-  try {
-    const formData = new FormData()
-    formData.append('file', file.raw)
-    
-    const result = await api.post('/attachments/pre-upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }) as any
-    
-    uploadedAttachmentIds.value.push(result.id)
-    fileList.value.push(file)
-    ElMessage.success(`附件 ${file.name} 上传成功`)
-  } catch (e) {
-    console.error('Upload failed:', e)
-    ElMessage.error(`附件 ${file.name} 上传失败`)
-  } finally {
-    uploading.value = false
-  }
-}
-
-function handleFileRemove(file: any, index: number) {
-  uploadedAttachmentIds.value.splice(index, 1)
+function handleFileRemove(_file: any, index: number) {
+  fileList.value.splice(index, 1)
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -177,6 +142,30 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = reject
     reader.readAsDataURL(file)
   })
+}
+
+function base64ToFile(base64: string, filename: string): File {
+  const arr = base64.split(',')
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg'
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
+async function uploadAttachmentsForBatch(batchId: number, files: File[]) {
+  for (const file of files) {
+    const formData = new FormData()
+    formData.append('related_type', 'reagent_batch')
+    formData.append('related_id', String(batchId))
+    formData.append('file', file)
+    await api.post('/attachments/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
 }
 
 async function submit() {
@@ -196,10 +185,6 @@ async function submit() {
     ElMessage.warning('请选择存放柜位')
     return
   }
-  if (uploading.value) {
-    ElMessage.warning('请等待附件上传完成')
-    return
-  }
   
   if (offlineMode.value || !navigator.onLine) {
     await saveOffline()
@@ -214,11 +199,15 @@ async function submit() {
       quantity: form.quantity,
       expiry_date: form.expiry_date,
       storage_cabinet_id: form.storage_cabinet_id,
-      remarks: form.notes || '',
-      attachment_ids: uploadedAttachmentIds.value
+      remarks: form.notes || ''
     }
     
-    await api.post(`/reagents/${form.reagent_id}/batches`, submitData)
+    const batch = await api.post(`/reagents/${form.reagent_id}/batches`, submitData) as any
+    
+    if (fileList.value.length > 0) {
+      const rawFiles = fileList.value.map(f => f.raw).filter(Boolean)
+      await uploadAttachmentsForBatch(batch.id, rawFiles)
+    }
     
     ElMessage.success('入库成功')
     router.back()
@@ -279,18 +268,6 @@ async function updatePendingCount() {
   pendingSyncCount.value = pending.length
 }
 
-function base64ToFile(base64: string, filename: string): File {
-  const arr = base64.split(',')
-  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg'
-  const bstr = atob(arr[1])
-  let n = bstr.length
-  const u8arr = new Uint8Array(n)
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n)
-  }
-  return new File([u8arr], filename, { type: mime })
-}
-
 async function syncOfflineData() {
   if (!navigator.onLine) {
     ElMessage.warning('请先连接网络')
@@ -307,22 +284,20 @@ async function syncOfflineData() {
     for (const record of pending) {
       try {
         if (record.type === 'stock_in') {
-          const attachmentIds: number[] = []
+          const batch = await api.post(`/reagents/${record.data.reagent_id}/batches`, record.data) as any
           
           if (record.files && record.files.length > 0) {
             for (let i = 0; i < record.files.length; i++) {
               const file = base64ToFile(record.files[i], `offline_${Date.now()}_${i}.jpg`)
               const formData = new FormData()
+              formData.append('related_type', 'reagent_batch')
+              formData.append('related_id', String(batch.id))
               formData.append('file', file)
-              const result = await api.post('/attachments/pre-upload', formData, {
+              await api.post('/attachments/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
-              }) as any
-              attachmentIds.push(result.id)
+              })
             }
           }
-          
-          const data = { ...record.data, attachment_ids: attachmentIds }
-          await api.post(`/reagents/${data.reagent_id}/batches`, data)
         }
         successCount++
       } catch (e) {
