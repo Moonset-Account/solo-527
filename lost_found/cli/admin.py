@@ -2,54 +2,67 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Prompt
 from typing import Optional
 from lost_found.services.system_service import (
     AuthService, LocationService, LockerService, ExportService, LogService
 )
 from lost_found.dao.user_dao import UserDAO
+from lost_found.services import auth_session
 
 app = typer.Typer(help="管理员入口 - 系统管理")
 console = Console()
 
-_current_user = None
-
 
 def get_current_user():
-    global _current_user
-    if _current_user is None:
+    user = auth_session.get_current_user()
+    if not user:
         console.print("[yellow]请先使用 admin login 命令登录[/yellow]")
         raise typer.Exit(1)
-    return _current_user
+    return user
 
 
 def require_admin():
     user = get_current_user()
-    ok, msg = AuthService.require_role(user, ['admin'])
+    ok, msg_or_user = auth_session.require_role(['admin'])
     if not ok:
-        console.print(f"[red]{msg}[/red]")
+        console.print(f"[red]{msg_or_user}[/red]")
         raise typer.Exit(1)
     return user
+
+
+@app.callback()
+def callback():
+    """管理员入口 - 系统管理"""
+    user = auth_session.get_current_user()
+    if user and user['role'] == 'admin':
+        console.print(f"[dim]管理员已登录: {user['name']}[/dim]")
 
 
 @app.command()
 def login(username: str = typer.Option(..., "--username", "-u"),
           password: str = typer.Option(..., "--password", "-p")):
-    """管理员登录"""
-    global _current_user
+    """管理员登录（状态将保持8小时）"""
     success, msg, user = AuthService.login(username, password)
     if success and user['role'] == 'admin':
-        _current_user = user
-        console.print(f"[green]✓ {msg}，欢迎 {user['name']} ({user['role']})[/green]")
+        auth_session.save_session(user)
+        console.print(f"[green]✓ {msg}，欢迎管理员 {user['name']}[/green]")
+        console.print("[dim]登录状态已保存，下次执行命令无需重新登录[/dim]")
     else:
-        _current_user = None
+        auth_session.clear_session()
         console.print(f"[red]✗ 管理员登录失败: {msg if not success else '权限不足'}[/red]")
+
+
+@app.command()
+def logout():
+    """退出登录"""
+    auth_session.clear_session()
+    console.print("[green]✓ 已退出登录[/green]")
 
 
 @app.command()
 def add_user(username: str = typer.Option(..., "--username", "-u"),
              password: str = typer.Option(..., "--password", "-p"),
-             role: str = typer.Option("internal", "--role", "-r"),
+             role: str = typer.Option("internal", "--role", "-r", help="external/internal/admin"),
              name: Optional[str] = typer.Option(None, "--name", "-n"),
              phone: Optional[str] = typer.Option(None, "--phone")):
     """添加用户"""
@@ -68,7 +81,7 @@ def add_user(username: str = typer.Option(..., "--username", "-u"),
 
 
 @app.command("list-users")
-def list_users(role: Optional[str] = typer.Option(None, "--role", "-r")):
+def list_users(role: Optional[str] = typer.Option(None, "--role", "-r", help="external/internal/admin")):
     """查看用户列表"""
     require_admin()
     

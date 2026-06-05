@@ -1,0 +1,10 @@
+﻿id,item_name,category,description,status,location_name,locker_code,is_valuable,is_sensitive,pickup_time,pickup_person,submitter_name,submitter_phone,remark,created_at
+9,AirPods Pro 耳机,电子设备,白色无线耳机，充电盒有划痕,returned,,LIB-A01,1,0,,,同学A,13800138001,,2026-06-05 22:41:46
+8,钥匙,钥匙,一串钥匙,returned,,,0,0,,,测试,13800138008,,2026-06-05 22:34:25
+7,雨伞,生活用品,黑色长柄伞,storing,,,0,0,,,测试,13800138007,,2026-06-05 22:34:25
+6,笔记本电脑,电子设备,MacBook Pro,returned,,,1,0,,,测试,13800138006,,2026-06-05 22:34:25
+5,眼镜,配饰,黑色框架眼镜,storing,,,0,0,,,测试,13800138005,,2026-06-05 22:34:25
+4,红色钱包,钱包,红色皮质钱包,claimed,,,1,0,,,测试,13800138004,,2026-06-05 22:34:25
+3,蓝色水杯,生活用品,蓝色保温杯，有Hello Kitty贴纸,claiming,,,0,0,,,王五,13800138003,,2026-06-05 22:34:25
+2,身份证,证件,内含个人身份信息,registered,,,0,1,,,李四,13800138002,,2026-06-05 22:34:25
+1,黑色苹果手机,电子设备,iPhone 14 Pro，黑色，有划痕,registered,,,1,0,,,张三,13800138001,,2026-06-05 22:34:25
