@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PLANNER
+  SUPPLIER
+  COUPLE
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+enum BudgetCategory {
+  VENUE
+  FLORISTRY
+  PHOTOGRAPHY
+  CATERING
+  DRESS
+  MUSIC
+  DECORATION
+  OTHER
+}
+
+enum FileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ConfirmationStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          Role      @default(PLANNER)
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  assignedTasks Task[]    @relation("TaskAssignee")
+  createdTasks  Task[]    @relation("TaskCreator")
+  comments      Comment[]
+  uploadedFiles ProjectFile[]
+  managedProjects Project[] @relation("ProjectManager")
+  coupleProjects Project[]  @relation("ProjectCouple")
+  supplier      Supplier?
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  rating      Decimal? @db.Decimal(3, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String?  @unique
+  user        User?    @relation(fields: [userId], references: [id])
+  services    SupplierService[]
+  budgetItems BudgetItem[]
+
+  @@map("suppliers")
+}
+
+model SupplierService {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  basePrice   Decimal  @db.Decimal(12, 2)
+  unit        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  budgetItems BudgetItem[]
+
+  @@map("supplier_services")
+}
+
+model Project {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  weddingDate     DateTime?
+  venue           String?
+  status          ProjectStatus @default(DRAFT)
+  totalBudget     Decimal  @db.Decimal(12, 2) @default(0)
+  totalSpent      Decimal  @db.Decimal(12, 2) @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  managerId       String
+  manager         User     @relation("ProjectManager", fields: [managerId], references: [id])
+  coupleId        String?
+  couple          User?    @relation("ProjectCouple", fields: [coupleId], references: [id])
+
+  tasks           Task[]
+  budgetItems     BudgetItem[]
+  files           ProjectFile[]
+  confirmations   Confirmation[]
+  comments        Comment[]
+  reminders       Reminder[]
+
+  @@map("projects")
+}
+
+model Task {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus    @default(TODO)
+  priority    TaskPriority  @default(MEDIUM)
+  dueDate     DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creatorId   String
+  creator     User          @relation("TaskCreator", fields: [creatorId], references: [id])
+
+  comments    Comment[]
+  files       ProjectFile[]
+
+  @@map("tasks")
+}
+
+model BudgetItem {
+  id          String        @id @default(cuid())
+  category    BudgetCategory
+  description String
+  estimated   Decimal       @db.Decimal(12, 2)
+  actual      Decimal       @db.Decimal(12, 2) @default(0)
+  isInternal  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplierId  String?
+  supplier    Supplier?     @relation(fields: [supplierId], references: [id])
+  serviceId   String?
+  service     SupplierService? @relation(fields: [serviceId], references: [id])
+
+  @@map("budget_items")
+}
+
+model ProjectFile {
+  id          String     @id @default(cuid())
+  name        String
+  url         String
+  size        Int?
+  type        String?
+  status      FileStatus @default(PENDING)
+  category    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy  User       @relation(fields: [uploadedById], references: [id])
+  taskId      String?
+  task        Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  comments    Comment[]
+
+  @@map("project_files")
+}
+
+model Confirmation {
+  id        String             @id @default(cuid())
+  title     String
+  content   String?
+  status    ConfirmationStatus @default(PENDING)
+  confirmedAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  projectId String
+  project   Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files     ProjectFile[]
+
+  @@map("confirmations")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileId    String?
+  file      ProjectFile? @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  title     String
+  message   String?
+  remindAt  DateTime
+  isSent    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+}
+
+model OfflineSyncQueue {
+  id          String   @id @default(cuid())
+  userId      String
+  operation   String
+  entityType  String
+  entityData  Json
+  synced      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  syncedAt    DateTime?
+
+  @@index([userId, synced])
+  @@map("offline_sync_queues")
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  message   String
+  stack     String?
+  userId    String?
+  path      String?
+  method    String?
+  status    Int?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("error_logs")
+}
