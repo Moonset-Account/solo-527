@@ -23,6 +23,19 @@ module Mobile
         return
       end
 
+      if params[:offline_uuid].present?
+        existing = CheckIn.find_by(offline_uuid: params[:offline_uuid])
+        if existing
+          if existing.synced?
+            render json: { success: true, check_in_id: existing.id, message: '已同步过' }
+          else
+            existing.update(synced_at: Time.current, checked_in_by: current_user)
+            render json: { success: true, check_in_id: existing.id }
+          end
+          return
+        end
+      end
+
       if @session.student_already_checked_in?(student)
         render json: { error: '该学生已签到' }, status: :unprocessable_entity
         return
@@ -32,7 +45,7 @@ module Mobile
         registration: registration,
         student: student,
         checked_in_by: current_user,
-        checked_in_at: Time.current,
+        checked_in_at: params[:checked_in_at] || Time.current,
         check_in_method: params[:check_in_method] || 'qr',
         status: :confirmed,
         offline_uuid: params[:offline_uuid]
@@ -43,10 +56,16 @@ module Mobile
       end
 
       if check_in.save
-        check_in.update(synced_at: Time.current) if user_signed_in? && params[:offline_uuid].blank?
+        check_in.update(synced_at: Time.current) if user_signed_in?
         render json: { success: true, check_in_id: check_in.id }
       else
-        render json: { error: check_in.errors.full_messages.join(', ') }, status: :unprocessable_entity
+        if check_in.errors.of_kind?(:offline_uuid, :taken)
+          existing = CheckIn.find_by(offline_uuid: params[:offline_uuid])
+          existing&.update(synced_at: Time.current, checked_in_by: current_user)
+          render json: { success: true, check_in_id: existing&.id, message: '已存在，已同步' }
+        else
+          render json: { error: check_in.errors.full_messages.join(', ') }, status: :unprocessable_entity
+        end
       end
     end
 

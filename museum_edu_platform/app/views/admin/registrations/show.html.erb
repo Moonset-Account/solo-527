@@ -180,28 +180,49 @@
         </div>
         <div class="px-6 py-4">
           <div class="space-y-3">
-            <% @registration.versions.recent.each do |version| %>
+            <% @registration.versions.order(created_at: :desc).each do |version| %>
               <div class="flex items-start gap-3 text-sm">
-                <div class="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                <div class="flex-shrink-0 w-2 h-2 mt-2 rounded-full 
+                  <%= case version.event
+                        when 'create' then 'bg-green-500'
+                        when 'update' then 'bg-blue-500'
+                        else 'bg-gray-500'
+                      end %>"></div>
                 <div class="flex-1">
                   <div class="text-gray-900">
                     <% if version.event == 'create' %>
-                      创建报名
+                      <span class="font-medium text-green-700">创建报名</span>
                     <% elsif version.event == 'update' %>
-                      更新报名
+                      <span class="font-medium text-blue-700">更新报名</span>
+                      <% if version.changeset&.key?('status') %>
+                        <% old_status, new_status = version.changeset['status'] %>
+                        <% status_label = case new_status
+                                           when 'pending' then ['待审核', 'text-yellow-700']
+                                           when 'approved' then ['已通过', 'text-green-700']
+                                           when 'rejected' then ['已拒绝', 'text-red-700']
+                                           when 'cancelled' then ['已取消', 'text-gray-700']
+                                           else [new_status, 'text-gray-700']
+                                         end %>
+                        <span class="ml-1 font-medium <%= status_label[1] %>">→ <%= status_label[0] %></span>
+                      <% end %>
                     <% else %>
-                      <%= version.event %>
+                      <span class="font-medium"><%= version.event %></span>
                     <% end %>
                     <% if version.whodunnit.present? %>
-                      <span class="text-gray-500">by <%= User.find_by(id: version.whodunnit)&.name || '系统' %></span>
+                      <span class="text-gray-500 ml-2">操作人: <%= User.find_by(id: version.whodunnit)&.name || '系统' %></span>
                     <% end %>
                   </div>
-                  <div class="text-gray-500 text-xs"><%= version.created_at.strftime('%Y-%m-%d %H:%M:%S') %></div>
+                  <div class="text-gray-500 text-xs mt-1"><%= version.created_at.strftime('%Y-%m-%d %H:%M:%S') %></div>
                   <% if version.changeset.present? %>
-                    <div class="mt-1 text-xs text-gray-600 bg-gray-50 rounded p-2">
+                    <div class="mt-2 text-xs bg-gray-50 rounded p-3 border border-gray-100">
                       <% version.changeset.each do |field, (old_val, new_val)| %>
                         <% next if %w[updated_at created_at].include?(field) %>
-                        <div><%= field.humanize %>: <%= old_val %> → <%= new_val %></div>
+                        <div class="flex items-start gap-2 py-1">
+                          <span class="text-gray-500 flex-shrink-0 w-20"><%= field.humanize %>:</span>
+                          <span class="text-gray-400 line-through"><%= format_version_value(field, old_val) %></span>
+                          <span class="text-gray-400">→</span>
+                          <span class="text-gray-800 font-medium"><%= format_version_value(field, new_val) %></span>
+                        </div>
                       <% end %>
                     </div>
                   <% end %>
