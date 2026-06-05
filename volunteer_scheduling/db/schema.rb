@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2024_01_01_000018) do
+ActiveRecord::Schema[8.0].define(version: 2024_01_01_000019) do
   create_table "activities", force: :cascade do |t|
     t.string "title", null: false
     t.text "description"
@@ -160,7 +160,9 @@ ActiveRecord::Schema[8.0].define(version: 2024_01_01_000018) do
     t.text "instructions"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "qr_token"
     t.index ["activity_id"], name: "index_locations_on_activity_id"
+    t.index ["qr_token"], name: "index_locations_on_qr_token", unique: true
   end
 
   create_table "notifications", force: :cascade do |t|

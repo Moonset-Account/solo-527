@@ -9,8 +9,14 @@ class Location < ApplicationRecord
   validates :name, presence: true
   validates :address, presence: true
 
+  before_create :generate_qr_token
+
+  def generate_qr_token
+    self.qr_token ||= SecureRandom.urlsafe_base64(16)
+  end
+
   def generate_qr_code
-    qr_code_data = "volunteer-checkin:#{id}:#{Time.current.to_i}"
+    qr_code_data = "volunteer-checkin:#{id}:#{qr_token}"
     qrcode = RQRCode::QRCode.new(qr_code_data)
     qrcode.as_png(
       bit_depth: 1,
