@@ -4,9 +4,24 @@
 
 {% block content %}
 <div x-data="{
-    propQuantities: {},
+    propQuantities: {
+        {% if selected_props %}
+            {% for usage in selected_props %}
+                '{{ usage.prop.id }}': {{ usage.quantity }}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        {% endif %}
+    },
     conflicts: [],
     checking: false,
+    init() {
+        {% if selected_props %}
+            document.querySelectorAll('.prop-checkbox').forEach(cb => {
+                if (this.propQuantities[cb.value]) {
+                    cb.checked = true;
+                }
+            });
+        {% endif %}
+    },
     checkConflict() {
         const roomId = document.querySelector('#id_room').value;
         const date = document.querySelector('#id_date').value;
@@ -27,7 +42,7 @@
                 this.checking = false;
             });
     }
-}">
+}" x-init="init()">
     <div class="mb-6">
         <a href="{% if rehearsal %}{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}{% else %}{% url 'rehearsal:rehearsal_list' %}{% endif %}" class="text-indigo-600 hover:text-indigo-800">
             ← 返回

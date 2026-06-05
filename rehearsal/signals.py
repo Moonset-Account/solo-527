@@ -87,6 +87,13 @@ def handle_rehearsal_update(sender, instance, **kwargs):
             )
 
         if status_changed and instance.status == 'cancelled' and old_instance.status != 'cancelled':
+            existing_cancel = CancelRecord.objects.filter(rehearsal=instance).exists()
+            if not existing_cancel:
+                CancelRecord.objects.create(
+                    rehearsal=instance,
+                    cancelled_by=None,
+                    reason='系统自动取消（后台操作）'
+                )
             send_rehearsal_notification.delay(instance.id, 'cancel')
             PropUsage.objects.filter(rehearsal=instance).update(returned=True)
 

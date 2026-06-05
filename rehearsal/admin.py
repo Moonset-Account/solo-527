@@ -124,7 +124,12 @@ class RehearsalAdmin(ImportExportModelAdmin):
     filter_horizontal = ('members',)
     inlines = [PropUsageInline, AttendanceInline]
     actions = ['approve_rehearsal', 'cancel_rehearsal_action']
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at', 'status')
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.pk:
+            return self.readonly_fields + ('status',)
+        return self.readonly_fields
 
     def get_urls(self):
         urls = super().get_urls()

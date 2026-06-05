@@ -12,7 +12,7 @@ from .models import (
     Message, RoomMaintenance, CancelRecord, PropUsage
 )
 from .forms import RehearsalForm, CancelRehearsalForm
-from .tasks import check_and_update_rehearsal_status
+from .tasks import check_and_update_rehearsal_status, send_rehearsal_notification
 
 
 def get_current_member(request):
@@ -223,14 +223,48 @@ def rehearsal_edit(request, pk):
         form = RehearsalForm(request.POST, instance=rehearsal, user=request.user)
         if form.is_valid():
             form.save()
+
+            prop_quantities_str = request.POST.get('prop_quantities', '{}')
+            try:
+                prop_quantities = json.loads(prop_quantities_str) if prop_quantities_str else {}
+            except (json.JSONDecodeError, Exception):
+                prop_quantities = {}
+
+            existing_props = set(PropUsage.objects.filter(rehearsal=rehearsal).values_list('prop_id', flat=True))
+            new_props = set(int(pid) for pid in prop_quantities.keys() if pid.isdigit())
+
+            to_remove = existing_props - new_props
+            PropUsage.objects.filter(rehearsal=rehearsal, prop_id__in=to_remove).delete()
+
+            for prop_id, qty in prop_quantities.items():
+                try:
+                    prop_id = int(prop_id)
+                    qty = int(qty)
+                    prop = Prop.objects.get(id=prop_id)
+                    usage, created = PropUsage.objects.get_or_create(
+                        rehearsal=rehearsal,
+                        prop=prop,
+                        defaults={'quantity': qty}
+                    )
+                    if not created:
+                        usage.quantity = qty
+                        usage.save()
+                except (Prop.DoesNotExist, ValueError):
+                    pass
+
             messages.success(request, '排练信息已更新')
             return redirect('rehearsal_detail', pk=rehearsal.pk)
     else:
         form = RehearsalForm(instance=rehearsal, user=request.user)
 
+    props = Prop.objects.all()
+    selected_props = PropUsage.objects.filter(rehearsal=rehearsal)
+
     context = {
         'form': form,
         'rehearsal': rehearsal,
+        'props': props,
+        'selected_props': selected_props,
         'current_member': current_member,
     }
     return render(request, 'rehearsal/rehearsal_form.html', context)
@@ -281,9 +315,47 @@ def rehearsal_approve(request, pk):
         return redirect('rehearsal_list')
 
     rehearsal = get_object_or_404(Rehearsal, pk=pk)
+
+    if rehearsal.status != 'pending':
+        messages.warning(request, '该排练状态不是待审批，无法审批')
+        return redirect('rehearsal_detail', pk=pk)
+
+    member_count = rehearsal.members.count()
+    if member_count > rehearsal.room.capacity:
+        messages.error(
+            request,
+            f'审批失败：参与人数({member_count})超过排练室容量({rehearsal.room.capacity})'
+        )
+        return redirect('rehearsal_detail', pk=pk)
+
+    if rehearsal.need_lighting and not rehearsal.room.has_lighting:
+        messages.error(
+            request,
+            f'审批失败：{rehearsal.room.name} 没有灯光设备'
+        )
+        return redirect('rehearsal_detail', pk=pk)
+
+    conflicts = rehearsal.get_conflicts()
+    if conflicts:
+        conflict_info = '; '.join([f'{c.play.title} ({c.start_time}-{c.end_time})' for c in conflicts])
+        messages.error(
+            request,
+            f'审批失败：时间冲突 - {conflict_info}'
+        )
+        return redirect('rehearsal_detail', pk=pk)
+
     rehearsal.status = 'approved'
     rehearsal.save()
-    messages.success(request, '排练已通过审批')
+
+    for member in rehearsal.members.all():
+        Attendance.objects.get_or_create(
+            rehearsal=rehearsal,
+            member=member,
+            defaults={'status': 'absent'}
+        )
+
+    send_rehearsal_notification.delay(rehearsal.id, 'info')
+    messages.success(request, '排练已通过审批，通知已发送')
     return redirect('rehearsal_detail', pk=pk)
 
 
@@ -313,19 +385,37 @@ def check_in(request, rehearsal_id):
         return JsonResponse({'success': False, 'message': '请先登录'})
 
     rehearsal = get_object_or_404(Rehearsal, id=rehearsal_id)
+
     attendance, created = Attendance.objects.get_or_create(
         rehearsal=rehearsal,
         member=current_member,
-        defaults={'status': 'present'}
+        defaults={'status': 'absent'}
     )
 
     if not attendance.check_in_time:
-        attendance.check_in_time = timezone.now()
+        now = timezone.now()
+        attendance.check_in_time = now
+        attendance.status = 'present'
+
+        try:
+            from datetime import datetime
+            from django.conf import settings
+            rehearsal_start = datetime.combine(rehearsal.date, rehearsal.start_time)
+            check_in = now.replace(tzinfo=None)
+            delta = check_in - rehearsal_start
+            late_minutes = int(delta.total_seconds() / 60)
+            if late_minutes > settings.LATE_THRESHOLD_MINUTES:
+                attendance.status = 'late'
+                attendance.late_minutes = late_minutes
+        except Exception:
+            pass
+
         attendance.save()
 
     return JsonResponse({
         'success': True,
-        'status': attendance.status,
+        'status': attendance.get_status_display(),
+        'status_code': attendance.status,
         'check_in_time': attendance.check_in_time.strftime('%H:%M:%S'),
         'late_minutes': attendance.late_minutes,
     })
