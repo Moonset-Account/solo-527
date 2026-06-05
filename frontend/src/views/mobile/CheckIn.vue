@@ -71,12 +71,14 @@ const doCheckIn = async () => {
     return
   }
   try {
-    await api.post('/events/tickets/check_in/', { ticket_code: ticketCode.value })
+    const eventId = selectedEvent.value || 1
+    await api.post(`/events/events/${eventId}/check_in/`, { ticket_no: ticketCode.value })
     showToast('签到成功')
     ticketCode.value = ''
     loadRecords(true)
   } catch (e) {
-    showToast('签到失败')
+    const msg = e.response?.data?.error || '签到失败'
+    showToast(msg)
   }
 }
 

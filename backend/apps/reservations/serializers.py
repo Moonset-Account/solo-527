@@ -67,9 +67,11 @@ class ReservationSerializer(serializers.ModelSerializer):
 
 
 class ReservationCreateSerializer(serializers.Serializer):
-    member_id = serializers.IntegerField(required=True)
-    contact_name = serializers.CharField(required=True, max_length=100)
-    contact_phone = serializers.CharField(required=True, max_length=20)
+    member_id = serializers.IntegerField(required=False, allow_null=True)
+    customer_name = serializers.CharField(required=False, max_length=100, allow_blank=True)
+    customer_phone = serializers.CharField(required=False, max_length=20, allow_blank=True)
+    contact_name = serializers.CharField(required=False, max_length=100, allow_blank=True)
+    contact_phone = serializers.CharField(required=False, max_length=20, allow_blank=True)
     items = serializers.ListField(
         child=serializers.DictField(
             child=serializers.IntegerField()
@@ -78,6 +80,16 @@ class ReservationCreateSerializer(serializers.Serializer):
     )
     remark = serializers.CharField(required=False, allow_blank=True)
     expire_hours = serializers.IntegerField(required=False, default=48)
+    
+    def validate(self, data):
+        member_id = data.get('member_id')
+        customer_name = data.get('customer_name') or data.get('contact_name')
+        customer_phone = data.get('customer_phone') or data.get('contact_phone')
+        
+        if not member_id and not (customer_name and customer_phone):
+            raise serializers.ValidationError('请选择会员或填写客户姓名和电话')
+        
+        return data
 
 
 class ReservationCancelSerializer(serializers.Serializer):

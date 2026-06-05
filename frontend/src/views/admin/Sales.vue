@@ -268,11 +268,29 @@ const orderForm = reactive({
 const loadDashboard = async () => {
   try {
     const { data } = await api.get('/sales/dashboard/summary/')
-    salesSummary.value = data
+    salesSummary.value = {
+      today_amount: data.today_sales || 0,
+      today_orders: data.today_orders || 0,
+      week_amount: data.week_sales || 0,
+      week_orders: 0,
+      month_amount: data.month_sales || 0,
+      month_orders: 0,
+      total_amount: 0,
+      total_orders: 0,
+      total_members: data.total_members || 0,
+      active_members: data.active_members || 0,
+      ...data
+    }
   } catch (e) {}
   try {
     const { data } = await api.get('/sales/dashboard/top_books/')
-    topBooks.value = data.results || data
+    const rawList = data.results || data
+    topBooks.value = rawList.map(item => ({
+      title: item.book?.title || item.title || '未知图书',
+      isbn: item.book?.isbn || '',
+      sold_quantity: item.total_quantity || item.sold_quantity || 0,
+      total_amount: item.total_amount || 0
+    }))
   } catch (e) {}
 }
 

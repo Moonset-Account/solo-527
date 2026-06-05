@@ -125,7 +125,7 @@ const retryItem = async (idx) => {
 const removeItem = async (idx) => {
   try {
     await showConfirmDialog({ title: '提示', message: '确定删除这条记录吗？' })
-    await removeFromOfflineQueue(idx)
+    await removeFromOfflineQueue(queue.value[idx].id)
     loadQueue()
     showToast('已删除')
   } catch (e) {}

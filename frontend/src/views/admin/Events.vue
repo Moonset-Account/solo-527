@@ -314,7 +314,7 @@ const viewRegistrations = async (row) => {
   currentEvent.value = row
   regLoading.value = true
   try {
-    const { data } = await api.get(`/events/events/${row.id}/registrations/`)
+    const { data } = await api.get(`/events/registrations/`, { params: { event: row.id, page_size: 100 } })
     registrations.value = data.results || data
     registDialogVisible.value = true
   } finally {
@@ -324,11 +324,14 @@ const viewRegistrations = async (row) => {
 
 const checkIn = async (row) => {
   try {
-    await api.post(`/events/registrations/${row.id}/check_in/`)
+    await api.post(`/events/events/${currentEvent.value.id}/check_in/`, {
+      registration_id: row.id
+    })
     ElMessage.success('签到成功')
     viewRegistrations(currentEvent.value)
   } catch (e) {
-    ElMessage.error('签到失败')
+    const msg = e.response?.data?.error || '签到失败'
+    ElMessage.error(msg)
   }
 }
 

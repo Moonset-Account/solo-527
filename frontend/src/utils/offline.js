@@ -71,7 +71,7 @@ export const processOfflineQueue = async () => {
         params: item.params
       })
 
-      item.status = 'completed'
+      item.status = 'success'
       item.completed_at = Date.now()
       success++
     } catch (e) {

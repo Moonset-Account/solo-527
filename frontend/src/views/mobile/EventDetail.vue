@@ -96,12 +96,24 @@ const loadEvent = async () => {
 const registerEvent = async () => {
   try {
     await showConfirmDialog({ title: '确认报名', message: `确定要报名「${event.value.title}」吗？` })
-    await api.post(`/events/events/${event.value.id}/register/`)
+    
+    const { data: members } = await api.get('/members/members/', { params: { page_size: 1 } })
+    if (!members.results || members.results.length === 0) {
+      showToast('请先创建会员档案')
+      return
+    }
+    
+    await api.post(`/events/events/${event.value.id}/register/`, {
+      member_id: members.results[0].id
+    })
     showToast('报名成功')
     isRegistered.value = true
     loadEvent()
   } catch (e) {
-    if (e !== 'cancel') showToast('报名失败')
+    if (e !== 'cancel') {
+      const msg = e.response?.data?.error || '报名失败'
+      showToast(msg)
+    }
   }
 }
 

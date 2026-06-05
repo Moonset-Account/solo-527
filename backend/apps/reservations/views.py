@@ -51,12 +51,27 @@ class ReservationViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         
+        member_id = data.get('member_id')
+        customer_name = data.get('customer_name') or data.get('contact_name')
+        customer_phone = data.get('customer_phone') or data.get('contact_phone')
+        
+        if member_id:
+            from apps.members.models import Member
+            try:
+                member = Member.objects.get(id=member_id)
+                if not customer_name:
+                    customer_name = member.name
+                if not customer_phone:
+                    customer_phone = member.phone
+            except Member.DoesNotExist:
+                return Response({'error': '会员不存在'}, status=400)
+        
         with transaction.atomic():
             expire_hours = data.get('expire_hours', getattr(settings, 'RESERVATION_EXPIRE_HOURS', 48))
             reservation = Reservation.objects.create(
-                member_id=data['member_id'],
-                contact_name=data['contact_name'],
-                contact_phone=data['contact_phone'],
+                member_id=member_id,
+                contact_name=customer_name,
+                contact_phone=customer_phone,
                 remark=data.get('remark', ''),
                 expire_at=timezone.now() + timedelta(hours=expire_hours)
             )
