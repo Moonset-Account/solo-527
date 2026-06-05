@@ -80,11 +80,12 @@ class ReviewCommentSerializer(serializers.ModelSerializer):
 class ResubmissionSerializer(serializers.ModelSerializer):
     submitter_name = serializers.SerializerMethodField()
     addressed_comment_ids = serializers.SerializerMethodField()
+    material_type_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Resubmission
         fields = [
-            'id', 'project', 'material_version', 'submitter',
+            'id', 'project', 'material_version', 'material_type_name', 'submitter',
             'submitter_name', 'addressed_comment_ids', 'response_note',
             'submitted_at'
         ]
@@ -92,6 +93,9 @@ class ResubmissionSerializer(serializers.ModelSerializer):
 
     def get_submitter_name(self, obj):
         return obj.submitter.get_full_name() or obj.submitter.username
+
+    def get_material_type_name(self, obj):
+        return obj.material_version.material.material_type.name
 
     def get_addressed_comment_ids(self, obj):
         request = self.context.get('request')
