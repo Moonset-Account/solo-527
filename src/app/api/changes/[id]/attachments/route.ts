@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { writeFile } from "fs/promises";
+import path from "path";
 
 export async function POST(
   request: Request,
@@ -27,8 +29,13 @@ export async function POST(
     const buffer = Buffer.from(bytes);
     const fileSize = buffer.length;
 
-    const fileName = `${Date.now()}-${file.name}`;
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const fileName = `${Date.now()}-${safeFileName}`;
     const fileUrl = `/uploads/${fileName}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const filePath = path.join(uploadDir, fileName);
+
+    await writeFile(filePath, buffer);
 
     const attachment = await prisma.attachment.create({
       data: {
