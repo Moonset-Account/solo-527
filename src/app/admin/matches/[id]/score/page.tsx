@@ -161,7 +161,7 @@ export default function MatchScorePage() {
       const awayTotal = calculateTotalFromQuarters(awayScore);
 
       await fetch(`/api/matches/${matchId}/score`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           homeScore: homeTotal,
@@ -176,13 +176,23 @@ export default function MatchScorePage() {
         }),
       });
 
+      const allStats = [...homePlayers, ...awayPlayers].map(p => ({
+        playerId: p.playerId,
+        points: p.points,
+        rebounds: p.rebounds,
+        assists: p.assists,
+        steals: p.steals,
+        blocks: p.blocks,
+        fouls: p.fouls,
+        turnovers: p.turnovers,
+        minutesPlayed: p.minutesPlayed,
+        isStarter: p.isStarter,
+      }));
+
       await fetch(`/api/matches/${matchId}/stats`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          homeStats: homePlayers,
-          awayStats: awayPlayers,
-        }),
+        body: JSON.stringify(allStats),
       });
 
       router.push('/admin');

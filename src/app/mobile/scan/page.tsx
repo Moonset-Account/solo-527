@@ -1,63 +1,154 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Camera, QrCode, Upload, X, Check, Image as ImageIcon, Wifi, WifiOff } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Camera, QrCode, Upload, X, Check, Image as ImageIcon, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { useOfflineStore } from '@/store/offline';
+import jsQR from 'jsqr';
+
+type CheckinStatus = 'idle' | 'checking' | 'success' | 'error';
 
 export default function MobileScanPage() {
   const [mode, setMode] = useState<'scan' | 'photo'>('scan');
-  const [scanned, setScanned] = useState<string | null>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [matchId, setMatchId] = useState('');
   const [photoType, setPhotoType] = useState<'EVIDENCE' | 'CHECKIN' | 'OTHER'>('EVIDENCE');
   const [isUploading, setIsUploading] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<CheckinStatus>('idle');
+  const [checkinMessage, setCheckinMessage] = useState('');
+  const [scannedMatchId, setScannedMatchId] = useState<string | null>(null);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  
   const { isOnline, addOfflineAction } = useOfflineStore();
 
-  useEffect(() => {
-    if (mode === 'scan' && videoRef.current) {
-      startCamera();
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
     }
-    return () => {
-      stopCamera();
-    };
-  }, [mode]);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'environment' } 
       });
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
       console.error('Camera access denied:', error);
     }
-  };
+  }, []);
 
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
+  const captureAndDecode = useCallback(() => {
+    if (!canvasRef.current || !videoRef.current || checkinStatus === 'checking' || checkinStatus === 'success') {
+      return;
     }
-  };
-
-  const handleScan = () => {
-    if (canvasRef.current && videoRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0);
-        setScanned('QR_CODE_' + Date.now());
-        setMatchId('match_' + Math.random().toString(36).substr(2, 9));
+    
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return;
+    }
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (code) {
+      const decodedMatchId = code.data.trim();
+      if (decodedMatchId && decodedMatchId !== scannedMatchId) {
+        setScannedMatchId(decodedMatchId);
+        setMatchId(decodedMatchId);
+        handleCheckin(decodedMatchId);
       }
     }
+  }, [checkinStatus, scannedMatchId]);
+
+  const handleCheckin = async (decodedMatchId: string) => {
+    if (checkinStatus === 'checking' || checkinStatus === 'success') return;
+    
+    setCheckinStatus('checking');
+    setCheckinMessage('');
+    
+    const checkinData = {
+      matchId: decodedMatchId,
+      userId: 'current-user',
+      type: 'FIELD_STAFF' as const,
+    };
+
+    try {
+      if (isOnline) {
+        const response = await fetch('/api/mobile/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(checkinData),
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+          setCheckinStatus('success');
+          setCheckinMessage('签到成功！');
+        } else {
+          setCheckinStatus('error');
+          setCheckinMessage(result.message || '签到失败');
+        }
+      } else {
+        await addOfflineAction({
+          type: 'CHECKIN',
+          payload: checkinData,
+        });
+        setCheckinStatus('success');
+        setCheckinMessage('离线签到已保存，将在恢复网络后同步');
+      }
+    } catch (error) {
+      setCheckinStatus('error');
+      setCheckinMessage('签到失败，请重试');
+      console.error('Checkin error:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'scan') {
+      startCamera();
+      if (videoRef.current) {
+        videoRef.current.onloadedmetadata = () => {
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+          }
+          scanIntervalRef.current = setInterval(captureAndDecode, 500);
+        };
+      }
+    } else {
+      stopCamera();
+    }
+    
+    return () => {
+      stopCamera();
+    };
+  }, [mode, startCamera, stopCamera, captureAndDecode]);
+
+  const resetScan = () => {
+    setCheckinStatus('idle');
+    setCheckinMessage('');
+    setScannedMatchId(null);
   };
 
   const handlePhotoCapture = () => {
@@ -94,6 +185,11 @@ export default function MobileScanPage() {
     setCapturedPhotos(capturedPhotos.filter((_, i) => i !== index));
   };
 
+  const base64ToBlob = async (base64: string): Promise<Blob> => {
+    const response = await fetch(base64);
+    return response.blob();
+  };
+
   const uploadPhotos = async () => {
     if (capturedPhotos.length === 0 || !matchId) return;
     
@@ -101,8 +197,8 @@ export default function MobileScanPage() {
     
     try {
       for (const photo of capturedPhotos) {
+        const blob = await base64ToBlob(photo);
         const formData = new FormData();
-        const blob = await (await fetch(photo)).blob();
         formData.append('file', blob, `photo_${Date.now()}.jpg`);
         formData.append('matchId', matchId);
         formData.append('type', photoType);
@@ -150,7 +246,7 @@ export default function MobileScanPage() {
 
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setMode('scan')}
+          onClick={() => { setMode('scan'); resetScan(); }}
           className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
             mode === 'scan' 
               ? 'bg-primary text-white' 
@@ -197,19 +293,53 @@ export default function MobileScanPage() {
         <div className="p-4">
           {mode === 'scan' ? (
             <div className="space-y-4">
-              <button
-                onClick={handleScan}
-                className="w-full py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-all"
-              >
-                <QrCode className="w-5 h-5 inline mr-2" />
-                扫描二维码
-              </button>
-              {scanned && (
+              {checkinStatus === 'idle' && (
+                <div className="text-center text-text-secondary text-sm">
+                  对准比赛场地二维码，系统将自动识别
+                </div>
+              )}
+              
+              {checkinStatus === 'checking' && (
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-primary text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    正在签到...
+                  </div>
+                </div>
+              )}
+              
+              {checkinStatus === 'success' && (
                 <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
                   <div className="flex items-center gap-2 text-success text-sm">
                     <Check className="w-4 h-4" />
-                    扫描成功！比赛ID: {matchId}
+                    {checkinMessage}
                   </div>
+                  {scannedMatchId && (
+                    <div className="mt-2 text-xs text-text-secondary">
+                      比赛ID: {scannedMatchId}
+                    </div>
+                  )}
+                  <button
+                    onClick={resetScan}
+                    className="mt-3 text-xs text-primary hover:underline"
+                  >
+                    继续扫码
+                  </button>
+                </div>
+              )}
+              
+              {checkinStatus === 'error' && (
+                <div className="p-3 bg-danger/10 border border-danger/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-danger text-sm">
+                    <X className="w-4 h-4" />
+                    {checkinMessage || '签到失败'}
+                  </div>
+                  <button
+                    onClick={resetScan}
+                    className="mt-3 text-xs text-primary hover:underline"
+                  >
+                    重新扫码
+                  </button>
                 </div>
               )}
             </div>

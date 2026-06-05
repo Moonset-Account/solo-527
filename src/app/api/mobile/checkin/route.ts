@@ -8,8 +8,8 @@ import { z } from 'zod';
 const CheckinSchema = z.object({
   matchId: z.string().min(1, '比赛ID不能为空'),
   userId: z.string().min(1, '用户ID不能为空'),
-  type: z.enum(['REFEREE', 'TEAM_STAFF', 'PLAYER'], {
-    errorMap: () => ({ message: '签到类型必须是 REFEREE、TEAM_STAFF 或 PLAYER' }),
+  type: z.enum(['REFEREE', 'TEAM_STAFF', 'PLAYER', 'FIELD_STAFF'], {
+    errorMap: () => ({ message: '签到类型必须是 REFEREE、TEAM_STAFF、PLAYER 或 FIELD_STAFF' }),
   }),
 });
 

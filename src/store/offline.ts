@@ -121,6 +121,11 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
   },
 }));
 
+async function base64ToBlob(base64: string): Promise<Blob> {
+  const response = await fetch(base64);
+  return response.blob();
+}
+
 async function executeAction(action: OfflineAction): Promise<void> {
   switch (action.type) {
     case 'SCORE_UPDATE':
@@ -138,10 +143,12 @@ async function executeAction(action: OfflineAction): Promise<void> {
       });
       break;
     case 'PHOTO_UPLOAD':
+      const { matchId, type, photoData } = action.payload;
+      const blob = await base64ToBlob(photoData);
       const formData = new FormData();
-      Object.entries(action.payload).forEach(([key, value]) => {
-        formData.append(key, value as any);
-      });
+      formData.append('file', blob, `photo_${Date.now()}.jpg`);
+      formData.append('matchId', matchId);
+      formData.append('type', type);
       await fetch('/api/mobile/upload', {
         method: 'POST',
         body: formData,

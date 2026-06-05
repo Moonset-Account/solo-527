@@ -191,6 +191,42 @@ export const apiPermissions: PermissionConfig[] = [
     allowedRoles: ['REFEREE', 'LEAGUE_ADMIN', 'SUPER_ADMIN'],
     sensitiveFields: [],
     preValidation: 'validateRosterLock'
+  },
+  {
+    endpoint: '/api/teams/:id',
+    method: 'GET',
+    allowedRoles: ['LEAGUE_ADMIN', 'SUPER_ADMIN', 'TEAM_MANAGER'],
+    sensitiveFields: ['contactPhone', 'contactName']
+  },
+  {
+    endpoint: '/api/teams/:id',
+    method: 'PATCH',
+    allowedRoles: ['LEAGUE_ADMIN', 'SUPER_ADMIN'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/matches/:id',
+    method: 'GET',
+    allowedRoles: ['*'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/matches/:id',
+    method: 'PATCH',
+    allowedRoles: ['LEAGUE_ADMIN', 'SUPER_ADMIN'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/appeals/:id',
+    method: 'GET',
+    allowedRoles: ['LEAGUE_ADMIN', 'SUPER_ADMIN', 'TEAM_MANAGER'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/appeals/:id',
+    method: 'PATCH',
+    allowedRoles: ['LEAGUE_ADMIN', 'SUPER_ADMIN'],
+    sensitiveFields: []
   }
 ];
 
