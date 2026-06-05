@@ -50,4 +50,8 @@ class ImportExportJob < ApplicationRecord
   def fail!(error_messages)
     update!(status: 'failed', completed_at: Time.current, error_messages: error_messages)
   end
+
+  def completed?
+    status == 'completed'
+  end
 end

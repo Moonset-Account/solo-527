@@ -18,6 +18,10 @@ class ExportJob < ApplicationJob
                  raise "不支持的导出类型: #{job.job_type}"
                end
 
+      job.update!(
+        file_url: result[:file_path],
+        file_name: File.basename(result[:file_path])
+      )
       job.complete!(success_count: result[:count], error_messages: nil)
     rescue => e
       job.fail!(e.message)

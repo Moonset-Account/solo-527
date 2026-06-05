@@ -30,10 +30,19 @@
         <el-table-column prop="name" label="区域名称" width="150" />
         <el-table-column prop="code" label="区域编码" width="120" />
         <el-table-column prop="location" label="位置" show-overflow-tooltip />
-        <el-table-column label="危险区域" width="100">
+        <el-table-column label="区域类型" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.requires_second_approval ? 'danger' : 'success'" size="small">
-              {{ row.requires_second_approval ? '是' : '否' }}
+            <el-tag :type="row.zone_type === 'dangerous' ? 'danger' : 'success'" size="small">
+              {{ row.zone_type === 'dangerous' ? '危险' : '普通' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="max_capacity" label="最大容量" width="100" />
+        <el-table-column prop="time_restrictions" label="时段限制" width="120" show-overflow-tooltip />
+        <el-table-column label="二级审批" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.requires_second_approval ? 'warning' : 'info'" size="small">
+              {{ row.requires_second_approval ? '需要' : '不需要' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -68,9 +77,24 @@
         <el-form-item label="位置" prop="location">
           <el-input v-model="form.location" placeholder="请输入位置" />
         </el-form-item>
-        <el-form-item label="危险区域" prop="requires_second_approval">
+        <el-form-item label="区域类型" prop="zone_type">
+          <el-select v-model="form.zone_type" placeholder="请选择区域类型" @change="handleZoneTypeChange">
+            <el-option label="普通区域" value="normal" />
+            <el-option label="危险区域" value="dangerous" />
+            <el-option label="限制区域" value="restricted" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="最大容量" prop="max_capacity">
+          <el-input-number v-model="form.max_capacity" :min="0" :max="10000" style="width: 100%" placeholder="0表示不限制" />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">同时在该区域的最大人数</div>
+        </el-form-item>
+        <el-form-item label="时段限制" prop="time_restrictions">
+          <el-input v-model="form.time_restrictions" placeholder="如：08:00-18:00，留空表示不限制" />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">允许作业的时段，多个时段用逗号分隔</div>
+        </el-form-item>
+        <el-form-item label="需要二级审批" prop="requires_second_approval">
           <el-switch v-model="form.requires_second_approval" active-text="是" inactive-text="否" />
-          <div style="color: #909399; font-size: 12px; margin-top: 4px">危险区域需要二级审批</div>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">危险区域默认开启</div>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
@@ -108,9 +132,18 @@ const form = reactive({
   name: '',
   code: '',
   location: '',
+  zone_type: 'normal',
+  max_capacity: 0,
+  time_restrictions: '',
   requires_second_approval: false,
   description: ''
 })
+
+const handleZoneTypeChange = (val) => {
+  if (val === 'dangerous') {
+    form.requires_second_approval = true
+  }
+}
 
 const rules = {
   name: [{ required: true, message: '请输入区域名称', trigger: 'blur' }],
@@ -149,6 +182,9 @@ const openDialog = (row = null) => {
       name: row.name,
       code: row.code,
       location: row.location,
+      zone_type: row.zone_type || 'normal',
+      max_capacity: row.max_capacity || 0,
+      time_restrictions: row.time_restrictions || '',
       requires_second_approval: row.requires_second_approval,
       description: row.description
     })
@@ -157,6 +193,9 @@ const openDialog = (row = null) => {
       name: '',
       code: '',
       location: '',
+      zone_type: 'normal',
+      max_capacity: 0,
+      time_restrictions: '',
       requires_second_approval: false,
       description: ''
     })

@@ -23,14 +23,14 @@
       <el-table :data="list" v-loading="loading" stripe>
         <el-table-column prop="job_type" label="类型" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.job_type === 'export' ? 'primary' : 'success'" size="small">
-              {{ row.job_type === 'export' ? '导出' : '导入' }}
+            <el-tag :type="isExport(row.job_type) ? 'primary' : 'success'" size="small">
+              {{ isExport(row.job_type) ? '导出' : '导入' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="model_type" label="数据类型" width="120">
+        <el-table-column prop="job_type" label="数据类型" width="120">
           <template #default="{ row }">
-            {{ getModelName(row.model_type) }}
+            {{ getJobTypeName(row.job_type) }}
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
@@ -61,7 +61,7 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.job_type === 'export' && row.status === 'completed'"
+              v-if="isExport(row.job_type) && row.status === 'completed'"
               type="primary"
               size="small"
               @click="handleDownload(row)"
@@ -112,8 +112,8 @@
     <el-dialog v-model="detailVisible" title="任务详情" width="600px">
       <div v-if="currentJob">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="任务类型">{{ currentJob.job_type === 'export' ? '导出' : '导入' }}</el-descriptions-item>
-          <el-descriptions-item label="数据类型">{{ getModelName(currentJob.model_type) }}</el-descriptions-item>
+          <el-descriptions-item label="任务类型">{{ isExport(currentJob.job_type) ? '导出' : '导入' }}</el-descriptions-item>
+          <el-descriptions-item label="数据类型">{{ getJobTypeName(currentJob.job_type) }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="getStatusType(currentJob.status)">{{ getStatusName(currentJob.status) }}</el-tag>
           </el-descriptions-item>
@@ -175,9 +175,20 @@ const fetchList = async () => {
   }
 }
 
-const getModelName = (type) => {
-  const map = { Person: '人员', Vehicle: '车辆', Pass: '通行证', Violation: '违规记录', GateLog: '门岗记录' }
-  return map[type] || type
+const isExport = (jobType) => {
+  return jobType && jobType.startsWith('export_')
+}
+
+const getJobTypeName = (jobType) => {
+  const map = {
+    'export_people': '人员',
+    'export_passes': '通行证',
+    'export_violations': '违规记录',
+    'export_gate_logs': '门岗记录',
+    'import_people': '人员',
+    'import_passes': '通行证'
+  }
+  return map[jobType] || jobType
 }
 
 const getStatusType = (status) => {
