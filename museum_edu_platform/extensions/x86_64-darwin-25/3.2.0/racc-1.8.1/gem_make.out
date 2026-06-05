@@ -1,0 +1,19 @@
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-044/museum_edu_platform/gems/racc-1.8.1/ext/racc/cparse
+/Users/xingyaolei/.rbenv/versions/3.2.11/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-044/museum_edu_platform/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20260606-33198-rr25qz sitelibdir\=./.gem.20260606-33198-rr25qz clean
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-044/museum_edu_platform/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20260606-33198-rr25qz sitelibdir\=./.gem.20260606-33198-rr25qz
+compiling cparse.c
+linking shared-object racc/cparse.bundle
+ld: warning: ignoring duplicate libraries: '-lruby.3.2'
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-044/museum_edu_platform/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20260606-33198-rr25qz sitelibdir\=./.gem.20260606-33198-rr25qz install
+/usr/local/bin/ginstall -c -m 0755 cparse.bundle ./.gem.20260606-33198-rr25qz/racc
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-044/museum_edu_platform/gems/racc-1.8.1/ext/racc/cparse
+make DESTDIR\= sitearchdir\=./.gem.20260606-33198-rr25qz sitelibdir\=./.gem.20260606-33198-rr25qz clean

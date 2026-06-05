@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "管理后台 - 博物馆研学平台" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <div class="flex min-h-screen">
+      <aside class="w-64 bg-white shadow-md hidden md:block">
+        <div class="p-4 border-b">
+          <h1 class="text-xl font-bold text-blue-600">管理后台</h1>
+        </div>
+        <nav class="p-4">
+          <ul class="space-y-2">
+            <li>
+              <%= link_to admin_dashboard_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path == admin_dashboard_path ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>仪表盘</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_courses_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/courses') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>课程管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_sessions_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/sessions') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>场次管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_registrations_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/registrations') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>报名管理</span>
+                <% if Registration.pending_approval.count > 0 %>
+                  <span class="ml-2 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full"><%= Registration.pending_approval.count %></span>
+                <% end %>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_schools_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/schools') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>学校管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_students_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/students') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>学生管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_users_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/users') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>用户管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_equipment_index_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/equipment') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>教具管理</span>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to admin_audits_path, class: "block px-4 py-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600 #{request.path.include?('/admin/audits') ? 'bg-blue-50 text-blue-600' : ''}" do %>
+                <span>审计记录</span>
+              <% end %>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <div class="flex-1">
+        <header class="bg-white shadow-sm border-b">
+          <div class="px-6 py-4 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800"><%= yield :page_title || '管理后台' %></h2>
+            <div class="flex items-center space-x-4">
+              <span class="text-sm text-gray-600"><%= current_user.name %> (<%= current_user.role %>)</span>
+              <%= link_to "返回前台", root_path, class: "text-gray-600 hover:text-blue-600" %>
+              <%= link_to "退出", destroy_user_session_path, data: { turbo_method: :delete }, class: "text-red-600 hover:text-red-800" %>
+            </div>
+          </div>
+        </header>
+
+        <main class="p-6">
+          <% if notice.present? %>
+            <div class="mb-4 p-4 bg-green-100 border border-green-200 text-green-700 rounded">
+              <%= notice %>
+            </div>
+          <% end %>
+          <% if alert.present? %>
+            <div class="mb-4 p-4 bg-red-100 border border-red-200 text-red-700 rounded">
+              <%= alert %>
+            </div>
+          <% end %>
+
+          <%= yield %>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
