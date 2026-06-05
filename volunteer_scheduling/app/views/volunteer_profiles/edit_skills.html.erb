@@ -1,0 +1,28 @@
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="mb-6">
+    <%= link_to "返回档案", volunteer_profile_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">管理技能标签</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with url: update_skills_volunteer_profile_path, method: :patch do |form| %>
+      <div class="space-y-3">
+        <% @all_skills.each do |skill| %>
+          <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <%= check_box_tag "skill_ids[]", skill.id, @volunteer_profile.skills.include?(skill), class: "rounded border-gray-300" %>
+            <div class="ml-3">
+              <span class="font-medium"><%= skill.name %></span>
+              <span class="ml-2 text-sm text-gray-500">(<%= skill.category&.humanize %>)</span>
+            </div>
+          </label>
+        <% end %>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <%= link_to "取消", volunteer_profile_path, class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" %>
+        <%= form.submit "保存技能", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

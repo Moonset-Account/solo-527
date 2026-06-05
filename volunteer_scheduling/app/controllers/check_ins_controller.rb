@@ -2,7 +2,7 @@ class CheckInsController < ApplicationController
   before_action :set_check_in, only: [:show, :check_out, :approve, :reject]
 
   def index
-    @check_ins = policy_scope(CheckIn).includes(:assignment, :activity).order(created_at: :desc)
+    @check_ins = policy_scope(CheckIn).includes(assignment: [:activity, :volunteer_profile]).order(created_at: :desc)
     authorize @check_ins
   end
 
@@ -52,16 +52,20 @@ class CheckInsController < ApplicationController
 
   def approve
     authorize @check_in, :approve?
-    if @check_in.requires_two_admins?
-      @check_in.approve_by_admin!(current_user, params[:notes])
-      if @check_in.approved?
-        redirect_to @check_in, notice: "已通过审核，服务时长已计入。"
+    begin
+      if @check_in.requires_two_admins?
+        @check_in.approve_by_admin!(current_user, params[:notes])
+        if @check_in.approved?
+          redirect_to @check_in, notice: "已通过审核，服务时长已计入。"
+        else
+          redirect_to @check_in, notice: "已确认，还需要另一名管理员确认。"
+        end
       else
-        redirect_to @check_in, notice: "已确认，还需要另一名管理员确认。"
+        @check_in.approve_by_admin!(current_user, params[:notes])
+        redirect_to @check_in, notice: "已通过审核，服务时长已计入。"
       end
-    else
-      @check_in.approve_by_admin!(current_user, params[:notes])
-      redirect_to @check_in, notice: "已通过审核，服务时长已计入。"
+    rescue => e
+      redirect_to @check_in, alert: e.message
     end
   end
 

@@ -1,0 +1,63 @@
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="mb-6">
+    <%= link_to "返回活动", activity_path(@activity), class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">添加活动点位</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: [@activity, @location] do |form| %>
+      <% if @location.errors.any? %>
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <ul>
+            <% @location.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div class="space-y-4">
+        <div>
+          <%= form.label :name, "点位名称", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :name, class: "w-full rounded-md border-gray-300" %>
+        </div>
+        <div>
+          <%= form.label :address, "详细地址", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :address, class: "w-full rounded-md border-gray-300" %>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= form.label :latitude, "纬度", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.number_field :latitude, step: "any", class: "w-full rounded-md border-gray-300" %>
+          </div>
+          <div>
+            <%= form.label :longitude, "经度", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.number_field :longitude, step: "any", class: "w-full rounded-md border-gray-300" %>
+          </div>
+        </div>
+        <div>
+          <%= form.label :description, "点位说明", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_area :description, rows: 2, class: "w-full rounded-md border-gray-300" %>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">需要的技能</label>
+          <div class="space-y-2">
+            <% Skill.all.each do |skill| %>
+              <label class="flex items-center">
+                <%= check_box_tag "skill_ids[]", skill.id, false, class: "rounded border-gray-300" %>
+                <span class="ml-2"><%= skill.name %></span>
+                <span class="ml-1 text-xs text-gray-500">(<%= skill.category&.humanize %>)</span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <%= link_to "取消", activity_path(@activity), class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" %>
+        <%= form.submit "创建点位", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

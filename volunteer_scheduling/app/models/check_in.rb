@@ -100,6 +100,10 @@ class CheckIn < ApplicationRecord
   end
 
   def approve_by_admin!(admin, notes = nil)
+    if admin_confirmations.exists?(admin: admin)
+      raise "您已经确认过此签到，需要两名不同的管理员确认"
+    end
+
     AdminConfirmation.create!(
       confirmable: self,
       admin: admin,

@@ -1,0 +1,37 @@
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="mb-6">
+    <%= link_to "返回档案", volunteer_profile_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">管理紧急联系人</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with url: update_emergency_contacts_volunteer_profile_path, method: :patch do |form| %>
+      <div id="emergency-contacts-container" class="space-y-4">
+        <% current_contacts = @volunteer_profile.emergency_contacts.to_a %>
+        <% 2.times do |i| %>
+          <% ec = current_contacts[i] || EmergencyContact.new %>
+          <div class="p-4 border rounded-lg">
+            <h3 class="font-medium mb-3">紧急联系人 <%= i + 1 %></h3>
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <%= text_field_tag "emergency_contacts[#{i}][name]", ec.name, placeholder: "姓名", class: "w-full rounded-md border-gray-300" %>
+              </div>
+              <div>
+                <%= text_field_tag "emergency_contacts[#{i}][relationship]", ec.relationship, placeholder: "关系（如：父母）", class: "w-full rounded-md border-gray-300" %>
+              </div>
+              <div>
+                <%= text_field_tag "emergency_contacts[#{i}][phone]", ec.phone, placeholder: "联系电话", class: "w-full rounded-md border-gray-300" %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <%= link_to "取消", volunteer_profile_path, class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" %>
+        <%= form.submit "保存联系人", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>

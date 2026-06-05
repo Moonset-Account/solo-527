@@ -6,10 +6,14 @@ Rails.application.routes.draw do
   root "dashboard#index"
 
   resource :volunteer_profile, only: [:show, :edit, :update] do
-    resources :skills, only: [:index, :create, :destroy], controller: "volunteer_skills"
-    resources :availabilities, only: [:index, :create, :destroy]
-    resources :emergency_contacts, only: [:index, :create, :destroy]
-    resources :guardians, only: [:index, :create, :destroy]
+    get :edit_skills, on: :collection
+    patch :update_skills, on: :collection
+    get :edit_availabilities, on: :collection
+    patch :update_availabilities, on: :collection
+    get :edit_emergency_contacts, on: :collection
+    patch :update_emergency_contacts, on: :collection
+    get :edit_guardians, on: :collection
+    patch :update_guardians, on: :collection
   end
 
   resources :activities do

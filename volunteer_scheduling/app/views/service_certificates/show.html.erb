@@ -29,7 +29,7 @@
                                               .where("checked_in_at >= ? AND checked_in_at <= ?",
                                                      @service_certificate.start_date.beginning_of_day,
                                                      @service_certificate.end_date.end_of_day)
-                                              .includes(:activity) %>
+                                              .includes(assignment: :activity) %>
           <% check_ins.each do |ci| %>
             <div class="flex justify-between">
               <span><%= ci.checked_in_at.strftime("%Y-%m-%d") %> | <%= ci.assignment.activity.title %></span>

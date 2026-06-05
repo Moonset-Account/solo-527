@@ -72,7 +72,7 @@ class ServiceCertificate < ApplicationRecord
     pdf.text "开具日期: #{issued_at.strftime('%Y年%m月%d日')}"
     pdf.move_down 15
 
-    pdf.text "兹证明 #{volunteer.name}（身份证号: ************），自 #{start_date.strftime('%Y年%m月%d日')} 至 #{end_date.strftime('%Y年%m月%d日')} 期间，累计参与志愿服务 #{total_hours} 小时。"
+    pdf.text "兹证明 #{volunteer_profile.user.name}（身份证号: ************），自 #{start_date.strftime('%Y年%m月%d日')} 至 #{end_date.strftime('%Y年%m月%d日')} 期间，累计参与志愿服务 #{total_hours} 小时。"
     pdf.move_down 15
 
     pdf.text "服务记录详情："
@@ -80,7 +80,7 @@ class ServiceCertificate < ApplicationRecord
 
     check_ins = volunteer_profile.check_ins.approved
                                  .where("checked_in_at >= ? AND checked_in_at <= ?", start_date.beginning_of_day, end_date.end_of_day)
-                                 .includes(:activity)
+                                 .includes(assignment: :activity)
 
     check_ins.each do |ci|
       pdf.text "#{ci.checked_in_at.strftime('%Y-%m-%d')} | #{ci.assignment.activity.title} | #{ci.service_hours} 小时"
