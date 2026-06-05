@@ -44,6 +44,44 @@ export const bookingApi = {
     request.get(`/bookings/coach/${coachId}?date=${date}`),
 }
 
+export const groupClassApi = {
+  list: (startDate?: string, endDate?: string) => {
+    let url = '/group-classes'
+    if (startDate && endDate) {
+      url += `?startDate=${startDate}&endDate=${endDate}`
+    }
+    return request.get(url)
+  },
+  get: (id: number) => request.get(`/group-classes/${id}`),
+  create: (data: any) => request.post('/group-classes', data),
+  update: (id: number, data: any) => request.put(`/group-classes/${id}`, data),
+  cancel: (id: number, reason?: string) =>
+    request.put(`/group-classes/${id}/cancel`, null, { params: { reason } }),
+}
+
+export const memberFreezeApi = {
+  getByMember: (memberId: number) => request.get(`/member-freezes/member/${memberId}`),
+  create: (data: any) => request.post('/member-freezes', data),
+  deactivate: (id: number) => request.put(`/member-freezes/${id}/deactivate`),
+}
+
+export const coachPerformanceApi = {
+  getMyStats: (year?: number, month?: number) => {
+    let url = '/coach-performance/my-stats'
+    if (year && month) {
+      url += `?year=${year}&month=${month}`
+    }
+    return request.get(url)
+  },
+  getMyBookings: (date?: string) => {
+    let url = '/coach-performance/my-bookings'
+    if (date) {
+      url += `?date=${date}`
+    }
+    return request.get(url)
+  },
+}
+
 export const fileApi = {
   upload: (file: File, category = 'general') => {
     const formData = new FormData()

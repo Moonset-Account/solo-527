@@ -14,19 +14,23 @@ import {
   message,
   Popconfirm,
 } from 'antd'
-import { PlusOutlined, SearchOutlined, EditOutlined, QrcodeOutlined } from '@ant-design/icons'
-import { memberApi } from '../api'
+import { PlusOutlined, SearchOutlined, EditOutlined, QrcodeOutlined, PauseCircleOutlined } from '@ant-design/icons'
+import { memberApi, memberFreezeApi } from '../api'
 import dayjs from 'dayjs'
 
 const { Title } = Typography
 const { Option } = Select
+const { RangePicker } = DatePicker
 
 export default function MemberList() {
   const [members, setMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
+  const [freezeModalVisible, setFreezeModalVisible] = useState(false)
   const [editingMember, setEditingMember] = useState<any>(null)
+  const [freezingMember, setFreezingMember] = useState<any>(null)
   const [form] = Form.useForm()
+  const [freezeForm] = Form.useForm()
   const [searchKeyword, setSearchKeyword] = useState('')
 
   useEffect(() => {
@@ -79,6 +83,31 @@ export default function MemberList() {
       remark: record.remark,
     })
     setModalVisible(true)
+  }
+
+  const handleFreeze = (record: any) => {
+    setFreezingMember(record)
+    freezeForm.resetFields()
+    setFreezeModalVisible(true)
+  }
+
+  const handleFreezeSubmit = async () => {
+    try {
+      const values = await freezeForm.validateFields()
+      const [startDate, endDate] = values.dateRange
+      const submitData = {
+        member: { id: freezingMember.id },
+        startDate: startDate.format('YYYY-MM-DD'),
+        endDate: endDate.format('YYYY-MM-DD'),
+        reason: values.reason,
+      }
+      await memberFreezeApi.create(submitData)
+      message.success('会员冻结成功，冻结期间无法预约课程')
+      setFreezeModalVisible(false)
+      loadMembers()
+    } catch (error) {
+      console.error(error)
+    }
   }
 
   const handleSubmit = async () => {
@@ -168,6 +197,17 @@ export default function MemberList() {
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
+          {record.status === 'ACTIVE' && (
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<PauseCircleOutlined />}
+              onClick={() => handleFreeze(record)}
+            >
+              冻结
+            </Button>
+          )}
           <Button type="link" size="small" icon={<QrcodeOutlined />}>
             二维码
           </Button>
@@ -250,6 +290,34 @@ export default function MemberList() {
               </Form.Item>
             </>
           )}
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`冻结会员 - ${freezingMember?.name || ''}`}
+        open={freezeModalVisible}
+        onOk={handleFreezeSubmit}
+        onCancel={() => setFreezeModalVisible(false)}
+        destroyOnClose
+      >
+        <Form form={freezeForm} layout="vertical">
+          <Form.Item
+            name="dateRange"
+            label="冻结日期范围"
+            rules={[{ required: true, message: '请选择冻结日期范围' }]}
+          >
+            <RangePicker
+              style={{ width: '100%' }}
+              disabledDate={(d) => d && d < dayjs().startOf('day')}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reason"
+            label="冻结原因"
+            rules={[{ required: true, message: '请输入冻结原因' }]}
+          >
+            <Input.TextArea rows={3} placeholder="请输入冻结原因，如：受伤、出差等" />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

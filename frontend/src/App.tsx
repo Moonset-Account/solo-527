@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import MemberList from './pages/MemberList'
 import BookingList from './pages/BookingList'
 import CoachList from './pages/CoachList'
+import GroupClassList from './pages/GroupClassList'
+import CoachPerformance from './pages/CoachPerformance'
 import MobileBooking from './pages/mobile/MobileBooking'
 
 function App() {
@@ -34,6 +36,8 @@ function App() {
         <Route path="members" element={<MemberList />} />
         <Route path="bookings" element={<BookingList />} />
         <Route path="coaches" element={<CoachList />} />
+        <Route path="group-classes" element={<GroupClassList />} />
+        <Route path="my-performance" element={<CoachPerformance />} />
       </Route>
       <Route path="/m/booking" element={<MobileBooking />} />
     </Routes>

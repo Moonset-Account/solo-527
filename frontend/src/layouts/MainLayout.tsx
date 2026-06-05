@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Layout, Menu, Avatar, Dropdown, Button } from 'antd'
 import {
   DashboardOutlined,
@@ -7,6 +7,8 @@ import {
   UserOutlined,
   MenuOutlined,
   LogoutOutlined,
+  RiseOutlined,
+  TeamOutlined as GroupOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
@@ -20,28 +22,60 @@ export default function MainLayout() {
   const location = useLocation()
   const { userInfo, logout } = useUserStore()
 
-  const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: '数据看板',
-    },
-    {
+  const menuItems = useMemo(() => {
+    const role = userInfo?.role
+    const items: any[] = []
+
+    if (role === 'COACH') {
+      items.push({
+        key: '/my-performance',
+        icon: <RiseOutlined />,
+        label: '我的业绩',
+      })
+      items.push({
+        key: '/bookings',
+        icon: <CalendarOutlined />,
+        label: '我的课程',
+      })
+      return items
+    }
+
+    if (role === 'ADMIN' || role === 'MANAGER') {
+      items.push({
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: '数据看板',
+      })
+    }
+
+    items.push({
       key: '/members',
       icon: <TeamOutlined />,
       label: '会员管理',
-    },
-    {
+    })
+
+    items.push({
       key: '/bookings',
       icon: <CalendarOutlined />,
       label: '预约管理',
-    },
-    {
-      key: '/coaches',
-      icon: <UserOutlined />,
-      label: '教练管理',
-    },
-  ]
+    })
+
+    items.push({
+      key: '/group-classes',
+      icon: <GroupOutlined />,
+      label: '团课管理',
+    })
+
+    if (role === 'ADMIN' || role === 'MANAGER') {
+      items.push({
+        key: '/coaches',
+        icon: <UserOutlined />,
+        label: '教练管理',
+      })
+    }
+
+    return items
+  }, [userInfo?.role])
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key)

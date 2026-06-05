@@ -11,7 +11,6 @@ import {
   Space,
   Typography,
   Upload,
-  Spin,
 } from 'antd'
 import {
   ScanOutlined,
