@@ -33,7 +33,11 @@ api.interceptors.response.use(
       }
     } else if (error.request) {
       const originalRequest = error.config;
-      if (!originalRequest._retry && !navigator.onLine && originalRequest.offlineCache !== false) {
+      const shouldCache = originalRequest.offlineCache !== false && 
+                          ['post', 'put', 'patch', 'delete'].includes(originalRequest.method?.toLowerCase()) &&
+                          !navigator.onLine;
+      
+      if (!originalRequest._retry && shouldCache) {
         const data = originalRequest.data;
         let parsedData = data;
         if (typeof data === 'string') {
@@ -50,6 +54,8 @@ api.interceptors.response.use(
           originalRequest.params
         );
         showToast('网络离线，请求已缓存，将在恢复后重试');
+      } else if (!originalRequest._retry && !navigator.onLine) {
+        showToast('网络离线');
       } else if (!originalRequest._retry) {
         showToast('网络连接失败');
       }

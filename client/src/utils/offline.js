@@ -172,12 +172,13 @@ export const syncOfflineMaintenance = async () => {
         maint.photos.forEach((p, idx) => {
           formData.append('photos', dataURLtoBlob(p), `photo_${idx}.jpg`);
         });
-        await api.post(`/tools/${maint.toolId}/maintenance`, formData, {
+        await api.post('/maintenances', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
-        await api.post(`/tools/${maint.toolId}/maintenance`, maint.data);
+        await api.post('/maintenances', maint.data);
       }
+      console.log('维修申报同步成功:', maint.id);
     } catch (error) {
       console.error('维修申报同步失败:', maint.id, error);
       remaining.push(maint);

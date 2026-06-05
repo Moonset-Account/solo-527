@@ -27,7 +27,7 @@
           :max-count="5" 
           :after-read="afterRead"
         />
-        <div v-if="!navigator.onLine" class="offline-tip">
+        <div v-if="!isOnline" class="offline-tip">
           <van-icon name="info-o" />
           <span>离线状态下照片将在联网后自动上传</span>
         </div>
@@ -43,11 +43,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toolAPI, maintenanceAPI } from '@/api';
 import { showToast } from 'vant';
-import { saveOfflineMaintenance, isOnline } from '@/utils/offline';
+import { saveOfflineMaintenance } from '@/utils/offline';
 
 const route = useRoute();
 const router = useRouter();
@@ -56,10 +56,22 @@ const tool = ref(null);
 const loading = ref(true);
 const submitting = ref(false);
 const fileList = ref([]);
-const navigatorOnline = ref(navigator.onLine);
+const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
-window.addEventListener('online', () => { navigatorOnline.value = true; });
-window.addEventListener('offline', () => { navigatorOnline.value = false; });
+const handleOnline = () => { online.value = true; };
+const handleOffline = () => { online.value = false; };
+
+onMounted(() => {
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('online', handleOnline);
+  window.removeEventListener('offline', handleOffline);
+});
+
+const isOnline = computed(() => online.value);
 
 const formData = reactive({
   description: ''
@@ -91,7 +103,7 @@ const submitReport = async () => {
       description: formData.description.trim()
     };
 
-    if (!navigator.onLine) {
+    if (!online.value) {
       const photoDataURLs = [];
       for (const f of fileList.value) {
         if (f.content) {

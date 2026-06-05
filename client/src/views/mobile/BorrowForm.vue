@@ -45,14 +45,19 @@
           />
         </van-cell-group>
 
-        <div v-if="conflictError" class="conflict-warning">
-          <van-icon name="warning-o" size="16" />
+        <div v-if="conflictError" :class="['conflict-warning', { 'is-offline': isOffline }]">
+          <van-icon :name="isOffline ? 'info-o' : 'warning-o'" size="16" />
           <span>{{ conflictError }}</span>
         </div>
 
         <div v-if="tool?.isValuable" class="review-notice">
           <van-icon name="info-o" size="16" color="#1989fa" />
           <span>该工具为贵重工具，提交后需管理员审核通过才能借用</span>
+        </div>
+
+        <div v-if="isOffline" class="offline-notice">
+          <van-icon name="cloud-offline-o" size="16" />
+          <span>当前离线，申请将在联网后自动提交</span>
         </div>
 
         <div class="form-tips">
@@ -69,7 +74,7 @@
             :loading="submitting"
             :disabled="!canSubmit"
           >
-            {{ submitting ? '提交中...' : (tool?.isValuable ? '提交审核' : '立即借用') }}
+            {{ buttonText }}
           </van-button>
         </div>
       </van-form>
@@ -91,12 +96,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toolAPI, borrowAPI } from '@/api';
-import { showToast, showConfirmDialog } from 'vant';
+import { showToast } from 'vant';
 import dayjs from 'dayjs';
-import { addPendingRequest, isOnline } from '@/utils/offline';
+import { addPendingRequest } from '@/utils/offline';
 
 const route = useRoute();
 const router = useRouter();
@@ -107,6 +112,27 @@ const submitting = ref(false);
 const showBorrowDate = ref(false);
 const showReturnDate = ref(false);
 const conflictError = ref('');
+const online = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+const handleOnline = () => { 
+  online.value = true; 
+  if (formData.borrowDate && formData.expectedReturnDate) {
+    checkAvailability();
+  }
+};
+const handleOffline = () => { online.value = false; };
+
+onMounted(() => {
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('online', handleOnline);
+  window.removeEventListener('offline', handleOffline);
+});
+
+const isOffline = computed(() => !online.value);
 
 const minDate = new Date();
 const maxDate = new Date();
@@ -119,8 +145,22 @@ const returnMinDate = computed(() => {
   return new Date();
 });
 
+const hasRealConflict = computed(() => {
+  return conflictError.value && !conflictError.value.includes('离线');
+});
+
 const canSubmit = computed(() => {
-  return formData.borrowDate && formData.expectedReturnDate && !conflictError.value && !submitting.value;
+  return formData.borrowDate && 
+         formData.expectedReturnDate && 
+         !hasRealConflict.value && 
+         !submitting.value;
+});
+
+const buttonText = computed(() => {
+  if (submitting.value) return '提交中...';
+  if (isOffline.value) return '离线提交';
+  if (tool.value?.isValuable) return '提交审核';
+  return '立即借用';
 });
 
 const formData = reactive({
@@ -148,6 +188,11 @@ const onReturnDateConfirm = (value) => {
 const checkAvailability = async () => {
   if (!formData.borrowDate || !formData.expectedReturnDate) return;
   
+  if (!online.value) {
+    conflictError.value = '离线状态下无法检查可用性，联网后将自动验证';
+    return;
+  }
+  
   try {
     const res = await toolAPI.checkAvailability({
       toolId: route.params.toolId,
@@ -160,14 +205,16 @@ const checkAvailability = async () => {
       conflictError.value = '';
     }
   } catch (e) {
-    if (!navigator.onLine) {
+    if (!online.value) {
       conflictError.value = '离线状态下无法检查可用性，联网后将自动验证';
+    } else {
+      conflictError.value = '';
     }
   }
 };
 
 const onSubmit = async () => {
-  if (conflictError.value && navigator.onLine) {
+  if (hasRealConflict.value) {
     showToast(conflictError.value);
     return;
   }
@@ -186,9 +233,13 @@ const onSubmit = async () => {
       purpose: formData.purpose || ''
     };
     
-    if (!navigator.onLine) {
-      addPendingRequest('/borrows', 'post', data);
-      showToast('离线状态，申请已缓存，将在联网后提交');
+    if (!online.value) {
+      const added = addPendingRequest('/borrows', 'post', data);
+      if (added) {
+        showToast('离线状态，申请已缓存，将在联网后提交');
+      } else {
+        showToast('申请已在队列中，无需重复提交');
+      }
       setTimeout(() => router.push('/my-borrows'), 1500);
       return;
     }
@@ -206,6 +257,9 @@ const onSubmit = async () => {
     router.push('/my-borrows');
   } catch (e) {
     console.error('提交失败:', e);
+    if (e.response?.data?.error) {
+      showToast(e.response.data.error);
+    }
   } finally {
     submitting.value = false;
   }
@@ -235,7 +289,7 @@ onMounted(() => {
   padding: 60px 0;
 }
 .borrow-form {
-  padding: 12px 0 80px;
+  padding: 12px 0 100px;
 }
 .conflict-warning {
   display: flex;
@@ -249,6 +303,11 @@ onMounted(() => {
   color: #fa8c16;
   font-size: 14px;
 }
+.conflict-warning.is-offline {
+  background: #f0f5ff;
+  border-color: #adc6ff;
+  color: #2f54eb;
+}
 .review-notice {
   display: flex;
   align-items: center;
@@ -259,6 +318,18 @@ onMounted(() => {
   border: 1px solid #91d5ff;
   border-radius: 8px;
   color: #1890ff;
+  font-size: 14px;
+}
+.offline-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  color: #52c41a;
   font-size: 14px;
 }
 .form-tips {
