@@ -208,6 +208,21 @@ export interface OfflineAction {
   errorMessage?: string;
 }
 
+export type CheckInType = 'REFEREE' | 'TEAM_MANAGER' | 'PLAYER' | 'FIELD_STAFF' | 'GUEST';
+
+export interface CheckIn {
+  _id: string;
+  matchId: string;
+  userId: string;
+  type: CheckInType;
+  checkinTime: Date;
+  location?: { lat: number; lng: number };
+  photoUrl?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;

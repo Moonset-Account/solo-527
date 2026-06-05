@@ -10,7 +10,8 @@ import type {
   Standing as StandingType, 
   User as UserType, 
   Notification as NotificationType, 
-  ImportExportTask as ImportExportTaskType 
+  ImportExportTask as ImportExportTaskType,
+  CheckIn as CheckInType
 } from '@/lib/types';
 
 export interface ISeason extends Omit<SeasonType, '_id'>, Document {}
@@ -24,6 +25,7 @@ export interface IStanding extends Omit<StandingType, '_id'>, Document {}
 export interface IUser extends Omit<UserType, '_id'>, Document {}
 export interface INotification extends Omit<NotificationType, '_id'>, Document {}
 export interface IImportExportTask extends Omit<ImportExportTaskType, '_id'>, Document {}
+export interface ICheckIn extends Omit<CheckInType, '_id'>, Document {}
 
 const SeasonSchema = new Schema({
   name: { type: String, required: true, index: true },
@@ -271,6 +273,27 @@ const ImportExportTaskSchema = new Schema({
   timestamps: true
 });
 
+const CheckInSchema = new Schema({
+  matchId: { type: Schema.Types.ObjectId, ref: 'Match', required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  type: {
+    type: String,
+    required: true,
+    enum: ['REFEREE', 'TEAM_MANAGER', 'PLAYER', 'FIELD_STAFF', 'GUEST']
+  },
+  checkinTime: { type: Date, required: true, default: Date.now },
+  location: {
+    lat: { type: Number },
+    lng: { type: Number }
+  },
+  photoUrl: { type: String },
+  notes: { type: String },
+}, {
+  timestamps: true
+});
+
+CheckInSchema.index({ matchId: 1, userId: 1 }, { unique: true });
+
 export const Season = (mongoose.models.Season as Model<ISeason>) || mongoose.model<ISeason>('Season', SeasonSchema);
 export const Team = (mongoose.models.Team as Model<ITeam>) || mongoose.model<ITeam>('Team', TeamSchema);
 export const Player = (mongoose.models.Player as Model<IPlayer>) || mongoose.model<IPlayer>('Player', PlayerSchema);
@@ -282,3 +305,4 @@ export const Standing = (mongoose.models.Standing as Model<IStanding>) || mongoo
 export const User = (mongoose.models.User as Model<IUser>) || mongoose.model<IUser>('User', UserSchema);
 export const Notification = (mongoose.models.Notification as Model<INotification>) || mongoose.model<INotification>('Notification', NotificationSchema);
 export const ImportExportTask = (mongoose.models.ImportExportTask as Model<IImportExportTask>) || mongoose.model<IImportExportTask>('ImportExportTask', ImportExportTaskSchema);
+export const CheckIn = (mongoose.models.CheckIn as Model<ICheckIn>) || mongoose.model<ICheckIn>('CheckIn', CheckInSchema);

@@ -218,10 +218,15 @@ export default function MobileScanPage() {
         formData.append('type', photoType);
 
         if (isOnline) {
-          await fetch('/api/mobile/upload', {
+          const response = await fetch('/api/mobile/upload', {
             method: 'POST',
             body: formData,
           });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `上传失败 (${response.status})`);
+          }
         } else {
           await addOfflineAction({
             type: 'PHOTO_UPLOAD',
@@ -237,7 +242,8 @@ export default function MobileScanPage() {
       alert('上传成功！');
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('上传失败');
+      const errorMessage = error instanceof Error ? error.message : '上传失败，请重试';
+      alert(`上传失败：${errorMessage}`);
     } finally {
       setIsUploading(false);
     }

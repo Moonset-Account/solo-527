@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "validate": "tsx scripts/validate-data.ts",
-    "seed": "tsx scripts/validate-data.ts"
+    "seed": "tsx scripts/seed-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
