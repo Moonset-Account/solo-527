@@ -86,21 +86,24 @@ export function useOfflineSync() {
       const data = entityData as any;
 
       let url = '';
-      let method = operation.toUpperCase();
+      let method: 'POST' | 'PATCH' | 'DELETE' = 'POST';
       let body: any = null;
 
       switch (entityType) {
         case 'task':
           if (operation === 'create') {
             url = `/api/projects/${data.projectId}/tasks`;
+            method = 'POST';
             const { projectId, ...taskData } = data;
             body = taskData;
           } else if (operation === 'update') {
             if (data.status) {
               url = `/api/tasks/${data.taskId}`;
+              method = 'PATCH';
               body = { status: data.status };
             } else {
               url = `/api/tasks/${data.taskId}`;
+              method = 'PATCH';
               const { taskId, ...updateData } = data;
               body = updateData;
             }
@@ -110,10 +113,12 @@ export function useOfflineSync() {
         case 'budget':
           if (operation === 'create') {
             url = `/api/projects/${data.projectId}/budget`;
+            method = 'POST';
             const { projectId, ...budgetData } = data;
             body = budgetData;
           } else if (operation === 'update') {
             url = `/api/budget/${data.budgetId}`;
+            method = 'PATCH';
             const { budgetId, ...updateData } = data;
             body = updateData;
           }
@@ -122,6 +127,7 @@ export function useOfflineSync() {
         case 'comment':
           if (operation === 'create') {
             url = `/api/projects/${data.projectId}/comments`;
+            method = 'POST';
             body = { content: data.content };
           }
           break;
@@ -129,10 +135,12 @@ export function useOfflineSync() {
         case 'confirmation':
           if (operation === 'create') {
             url = `/api/projects/${data.projectId}/confirmations`;
+            method = 'POST';
             const { projectId, ...confData } = data;
             body = confData;
           } else if (operation === 'update') {
             url = `/api/confirmations/${data.confirmationId}`;
+            method = 'PATCH';
             body = { status: data.status };
           }
           break;
@@ -144,6 +152,8 @@ export function useOfflineSync() {
 
       if (!url) return false;
 
+      console.log(`🔄 离线同步执行: ${method} ${url}`, body);
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -153,15 +163,15 @@ export function useOfflineSync() {
       const result = await response.json();
       
       if (result.success) {
-        console.log(`✅ 离线同步成功: ${entityType} ${operation}`);
+        console.log(`✅ 离线同步成功: ${entityType} ${operation} → ${method} ${url}`);
         return true;
       } else {
-        console.error(`❌ 离线同步失败: ${entityType} ${operation}`, result.message);
-        return false;
+        console.error(`❌ 离线同步失败: ${entityType} ${operation} → ${method} ${url}`, result.message);
+        throw new Error(result.message || 'API 返回失败');
       }
-    } catch (error) {
-      console.error(`❌ 离线同步异常:`, error);
-      return false;
+    } catch (error: any) {
+      console.error(`❌ 离线同步异常:`, error.message);
+      throw error;
     }
   }, []);
 
@@ -173,29 +183,44 @@ export function useOfflineSync() {
 
     setIsSyncing(true);
     let syncedCount = 0;
-    const failedIds: string[] = [];
+    const remainingQueue: SyncOperation[] = [];
+    const projectIdsToRefresh = new Set<string>();
 
     try {
       for (const op of queue) {
-        const success = await executeOperation(op);
-        if (success) {
-          syncedCount++;
-        } else {
-          failedIds.push(op.id!);
-          updateOperationError(op.id!, '同步失败');
+        try {
+          const success = await executeOperation(op);
+          if (success) {
+            syncedCount++;
+            if (op.entityData.projectId) {
+              projectIdsToRefresh.add(op.entityData.projectId);
+            }
+          } else {
+            remainingQueue.push({ ...op, error: '同步失败' });
+          }
+        } catch (error: any) {
+          console.error(`操作 ${op.id} 同步失败:`, error);
+          remainingQueue.push({ ...op, error: error.message || '同步失败' });
         }
       }
 
-      const remainingQueue = queue.filter(op => failedIds.includes(op.id!));
       saveOfflineQueue(remainingQueue);
 
-      return { success: failedIds.length === 0, synced: syncedCount, failed: failedIds.length };
+      projectIdsToRefresh.forEach((projectId) => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('offline-synced', { detail: { projectId } }));
+        }
+      });
+
+      console.log(`📊 同步完成: 成功 ${syncedCount} 项, 失败 ${remainingQueue.length} 项`);
+      return { success: remainingQueue.length === 0, synced: syncedCount, failed: remainingQueue.length };
     } catch (error) {
+      saveOfflineQueue([...queue, ...remainingQueue].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i));
       return { success: false, synced: syncedCount, error };
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isSyncing, getOfflineQueue, saveOfflineQueue, executeOperation, updateOperationError]);
+  }, [isOnline, isSyncing, getOfflineQueue, saveOfflineQueue, executeOperation]);
 
   useEffect(() => {
     if (isOnline && pendingCount > 0 && !isSyncing) {

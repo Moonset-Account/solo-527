@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import useSWR, { mutate } from 'swr';
@@ -75,6 +75,21 @@ export default function ProjectDetailPage() {
   const { data: tasksData } = useSWR(
     projectId ? `/api/projects/${projectId}/tasks` : null
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !projectId) return;
+    
+    const handleSynced = (e: any) => {
+      if (e.detail?.projectId === projectId) {
+        console.log(`📡 检测到离线同步完成，刷新项目 ${projectId} 数据`);
+        mutate(`/api/projects/${projectId}`);
+        mutate(`/api/projects/${projectId}/tasks`);
+      }
+    };
+
+    window.addEventListener('offline-synced', handleSynced);
+    return () => window.removeEventListener('offline-synced', handleSynced);
+  }, [projectId, mutate]);
 
   const project = projectData?.data;
   const tasks = tasksData?.data?.items || project?.tasks || [];
