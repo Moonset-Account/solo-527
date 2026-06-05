@@ -16,7 +16,7 @@ export interface Medicine {
 export interface Batch {
 	id: number;
 	batch_no: string;
-	quantity: number;
+	stock: number;
 	expiry_date: string;
 	medicine_name: string;
 	medicine_code?: string;
@@ -28,18 +28,28 @@ export interface PrescriptionItem {
 	medicine_code: string;
 	batch_no: string;
 	quantity: number;
+	is_stock_out?: boolean;
+	current_stock?: number;
 	accept_alternative: boolean;
 	alternative_batch_no?: string;
+	alternative_confirmed?: boolean;
+	alternative_batches?: Array<{
+		id: number;
+		batch_no: string;
+		stock: number;
+		expiry_date: string;
+	}>;
 }
 
 export interface Prescription {
 	id: number;
 	prescription_no: string;
 	patient_name: string;
-	patient_phone: string;
+	patient_phone?: string;
 	status: string;
 	pick_up_time: string;
 	expiry_date: string;
+	is_expired?: boolean;
 	queue_no?: number;
 	window_id?: number;
 	created_at: string;
@@ -55,6 +65,7 @@ export interface QueueItem {
 	status: string;
 	prescription_no: string;
 	patient_name: string;
+	window_name?: string;
 	window_no?: string;
 	called_at?: string;
 }
@@ -79,16 +90,36 @@ export interface RestockTodo {
 	completed_by?: string;
 }
 
+export interface RescheduleRecord {
+	old_time: string;
+	new_time: string;
+	reason: string;
+	created_at: string;
+	user_name: string;
+}
+
 function getHeaders(): HeadersInit {
-	const token = localStorage.getItem('token');
+	const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 	return {
 		'Content-Type': 'application/json',
 		...(token ? { Authorization: `Bearer ${token}` } : {})
 	};
 }
 
+function buildUrl(path: string, params?: Record<string, string>): string {
+	let url = `${API_BASE}${path}`;
+	if (params) {
+		const searchParams = new URLSearchParams(params);
+		const queryString = searchParams.toString();
+		if (queryString) {
+			url += `?${queryString}`;
+		}
+	}
+	return url;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
-	if (res.status === 401) {
+	if (res.status === 401 && typeof window !== 'undefined') {
 		localStorage.removeItem('token');
 		localStorage.removeItem('user');
 		window.location.href = '/login';
@@ -99,6 +130,54 @@ async function handleResponse<T>(res: Response): Promise<T> {
 	}
 	return res.json();
 }
+
+export const publicApi = {
+	getPrescription: async (no: string): Promise<{
+		prescription: Prescription;
+		items: PrescriptionItem[];
+		ahead_count: number;
+		reschedule_records: RescheduleRecord[];
+	}> => {
+		const res = await fetch(`${API_BASE}/public/prescriptions/${no}`);
+		return handleResponse(res);
+	},
+
+	getQueueStatus: async (): Promise<{
+		date: string;
+		waiting_count: number;
+		called_count: number;
+		completed_count: number;
+		queue: QueueItem[];
+	}> => {
+		const res = await fetch(`${API_BASE}/public/queue/status`);
+		return handleResponse(res);
+	},
+
+	getWindows: async (): Promise<{ windows: Window[] }> => {
+		const res = await fetch(`${API_BASE}/public/windows`);
+		return handleResponse(res);
+	},
+
+	confirmAlternative: async (
+		itemId: number,
+		alternativeBatchId: number,
+		acceptAlternative: boolean,
+		patientName: string,
+		patientPhone: string
+	): Promise<any> => {
+		const res = await fetch(`${API_BASE}/public/prescription-items/${itemId}/confirm-alternative`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				alternative_batch_id: alternativeBatchId,
+				accept_alternative: acceptAlternative,
+				patient_name: patientName,
+				patient_phone: patientPhone
+			})
+		});
+		return handleResponse(res);
+	}
+};
 
 export const api = {
 	login: async (username: string, password: string): Promise<{ token: string; user: User }> => {
@@ -116,13 +195,17 @@ export const api = {
 	},
 
 	getPrescriptions: async (status?: string): Promise<{ prescriptions: Prescription[] }> => {
-		const url = new URL(`${API_BASE}/prescriptions`);
-		if (status) url.searchParams.set('status', status);
-		const res = await fetch(url.toString(), { headers: getHeaders() });
+		const params: Record<string, string> = {};
+		if (status) params.status = status;
+		const res = await fetch(buildUrl('/prescriptions', params), { headers: getHeaders() });
 		return handleResponse(res);
 	},
 
-	getPrescription: async (no: string): Promise<{ prescription: Prescription; items: PrescriptionItem[]; ahead_count: number }> => {
+	getPrescription: async (no: string): Promise<{
+		prescription: Prescription;
+		items: PrescriptionItem[];
+		ahead_count: number;
+	}> => {
 		const res = await fetch(`${API_BASE}/prescriptions/${no}`, { headers: getHeaders() });
 		return handleResponse(res);
 	},
@@ -176,7 +259,13 @@ export const api = {
 		return handleResponse(res);
 	},
 
-	getQueueStatus: async (): Promise<{ date: string; waiting_count: number; called_count: number; completed_count: number; queue: QueueItem[] }> => {
+	getQueueStatus: async (): Promise<{
+		date: string;
+		waiting_count: number;
+		called_count: number;
+		completed_count: number;
+		queue: QueueItem[];
+	}> => {
 		const res = await fetch(`${API_BASE}/queue/status`, { headers: getHeaders() });
 		return handleResponse(res);
 	},
@@ -204,19 +293,26 @@ export const api = {
 		return handleResponse(res);
 	},
 
-	confirmAlternative: async (itemId: number, alternativeBatchId: number, acceptAlternative: boolean): Promise<any> => {
+	confirmAlternative: async (
+		itemId: number,
+		alternativeBatchId: number,
+		acceptAlternative: boolean
+	): Promise<any> => {
 		const res = await fetch(`${API_BASE}/prescription-items/${itemId}/confirm-alternative`, {
 			method: 'POST',
 			headers: getHeaders(),
-			body: JSON.stringify({ alternative_batch_id: alternativeBatchId, accept_alternative: acceptAlternative })
+			body: JSON.stringify({
+				alternative_batch_id: alternativeBatchId,
+				accept_alternative: acceptAlternative
+			})
 		});
 		return handleResponse(res);
 	},
 
 	getRestockTodos: async (status?: string): Promise<{ restock_todos: RestockTodo[] }> => {
-		const url = new URL(`${API_BASE}/restock-todos`);
-		if (status) url.searchParams.set('status', status);
-		const res = await fetch(url.toString(), { headers: getHeaders() });
+		const params: Record<string, string> = {};
+		if (status) params.status = status;
+		const res = await fetch(buildUrl('/restock-todos', params), { headers: getHeaders() });
 		return handleResponse(res);
 	},
 

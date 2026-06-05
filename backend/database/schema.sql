@@ -125,13 +125,25 @@ CREATE TABLE IF NOT EXISTS backup_records (
 CREATE TABLE IF NOT EXISTS reschedule_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     prescription_id INTEGER NOT NULL,
-    old_pick_up_time DATETIME NOT NULL,
-    new_pick_up_time DATETIME NOT NULL,
-    reason TEXT NOT NULL,
-    created_by INTEGER NOT NULL,
+    old_time DATETIME NOT NULL,
+    new_time DATETIME NOT NULL,
+    reason TEXT,
+    created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (prescription_id) REFERENCES prescriptions(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS alternative_confirmations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prescription_item_id INTEGER NOT NULL,
+    patient_name TEXT NOT NULL,
+    patient_phone TEXT,
+    accept_alternative INTEGER NOT NULL DEFAULT 0,
+    alternative_batch_id INTEGER,
+    confirmed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (prescription_item_id) REFERENCES prescription_items(id),
+    FOREIGN KEY (alternative_batch_id) REFERENCES medicine_batches(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_prescriptions_status ON prescriptions(status);

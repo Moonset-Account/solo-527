@@ -34,6 +34,11 @@ func main() {
 
 	api.Post("/auth/login", handlers.Login)
 
+	api.Get("/public/prescriptions/:no", handlers.GetPrescriptionPublic)
+	api.Get("/public/queue/status", handlers.GetQueueStatusPublic)
+	api.Get("/public/windows", handlers.GetWindows)
+	api.Post("/public/prescription-items/:item_id/confirm-alternative", handlers.ConfirmAlternativePublic)
+
 	auth := api.Group("")
 	auth.Use(middleware.AuthRequired())
 

@@ -1,405 +1,339 @@
 <script lang="ts">
-	import { api } from '$lib/api';
+	import { publicApi, type Prescription, type PrescriptionItem, type RescheduleRecord } from '$lib/api';
 
 	let prescriptionNo = '';
 	let loading = false;
 	let error = '';
-	let result: any = null;
+	let prescription: Prescription | null = null;
+	let items: PrescriptionItem[] = [];
+	let aheadCount = 0;
+	let rescheduleRecords: RescheduleRecord[] = [];
 
-	async function handleSearch(e: Event) {
-		e.preventDefault();
-		if (!prescriptionNo.trim()) return;
+	let showAlternativeModal = false;
+	let selectedItem: PrescriptionItem | null = null;
+	let selectedAlternativeBatchId = 0;
+	let patientPhone = '';
+	let confirmLoading = false;
+	let confirmSuccess = false;
 
+	async function searchPrescription() {
+		if (!prescriptionNo.trim()) {
+			error = '请输入处方号';
+			return;
+		}
 		loading = true;
 		error = '';
-		result = null;
-
+		prescription = null;
+		items = [];
+		rescheduleRecords = [];
 		try {
-			const token = localStorage.getItem('token') || 'patient-mode';
-			const res = await fetch(`/api/prescriptions/${prescriptionNo}`, {
-				headers: {
-					'Content-Type': 'application/json',
-					...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {})
-				}
-			});
-			if (!res.ok) {
-				throw new Error('未找到该处方号，请检查后重试');
-			}
-			result = await res.json();
-		} catch (err: any) {
-			error = err.message || '查询失败';
+			const result = await publicApi.getPrescription(prescriptionNo.trim());
+			prescription = result.prescription;
+			items = result.items;
+			aheadCount = result.ahead_count;
+			rescheduleRecords = result.reschedule_records || [];
+		} catch (e: any) {
+			error = e.message || '查询失败';
 		} finally {
 			loading = false;
 		}
 	}
 
-	const statusColors: Record<string, string> = {
-		pending: '#faad14',
-		queued: '#1890ff',
-		called: '#722ed1',
-		dispensed: '#52c41a',
-		cancelled: '#ff4d4f',
-		expired: '#8c8c8c',
-		lack_drug: '#fa8c16'
-	};
+	function openAlternativeModal(item: PrescriptionItem) {
+		selectedItem = item;
+		selectedAlternativeBatchId = item.alternative_batches && item.alternative_batches.length > 0
+			? item.alternative_batches[0].id
+			: 0;
+		patientPhone = '';
+		confirmSuccess = false;
+		showAlternativeModal = true;
+	}
 
-	const statusLabels: Record<string, string> = {
-		pending: '待处理',
-		queued: '排队中',
-		called: '已叫号',
-		dispensed: '已发药',
-		cancelled: '已取消',
-		expired: '已过期',
-		lack_drug: '缺药'
-	};
+	async function confirmAlternative(accept: boolean) {
+		if (!selectedItem) return;
+		if (!patientPhone.trim()) {
+			alert('请输入联系电话');
+			return;
+		}
+		if (accept && !selectedAlternativeBatchId) {
+			alert('请选择替代批次');
+			return;
+		}
+		confirmLoading = true;
+		try {
+			await publicApi.confirmAlternative(
+				selectedItem.id,
+				accept ? selectedAlternativeBatchId : 0,
+				accept,
+				prescription?.patient_name || '',
+				patientPhone
+			);
+			confirmSuccess = true;
+			setTimeout(() => {
+				showAlternativeModal = false;
+				searchPrescription();
+			}, 1500);
+		} catch (e: any) {
+			alert(e.message || '确认失败');
+		} finally {
+			confirmLoading = false;
+		}
+	}
 
-	function backToLogin() {
-		window.location.href = '/login';
+	function getStatusText(status: string): string {
+		const map: Record<string, string> = {
+			pending: '待排队',
+			queued: '排队中',
+			called: '叫号中',
+			dispensed: '已发药',
+			cancelled: '已取消',
+			expired: '已过期'
+		};
+		return map[status] || status;
+	}
+
+	function getStatusClass(status: string): string {
+		const map: Record<string, string> = {
+			pending: 'bg-gray-100 text-gray-800',
+			queued: 'bg-blue-100 text-blue-800',
+			called: 'bg-yellow-100 text-yellow-800',
+			dispensed: 'bg-green-100 text-green-800',
+			cancelled: 'bg-red-100 text-red-800',
+			expired: 'bg-red-100 text-red-800'
+		};
+		return map[status] || 'bg-gray-100 text-gray-800';
 	}
 </script>
 
-<div class="patient-page">
-	<header class="patient-header">
-		<div class="header-content">
-			<span class="logo">💊</span>
-			<h1>社区药房处方取药查询</h1>
-		</div>
-		<button on:click={backToLogin} class="back-btn">← 工作人员登录</button>
-	</header>
+<div class="max-w-3xl mx-auto">
+	<h1 class="text-2xl font-bold text-gray-800 mb-6">处方查询</h1>
 
-	<main class="patient-main">
-		<div class="search-card">
-			<h2>🔍 查询处方排队状态</h2>
-			<form class="search-form" on:submit={handleSearch}>
-				<input
-					type="text"
-					bind:value={prescriptionNo}
-					placeholder="请输入处方号"
-					required
-				/>
-				<button type="submit" disabled={loading}>
-					{loading ? '查询中...' : '立即查询'}
-				</button>
-			</form>
-			{#if error}
-				<div class="error-message">{error}</div>
-			{/if}
+	<div class="bg-white rounded-lg shadow p-6 mb-6">
+		<div class="flex gap-4">
+			<input
+				type="text"
+				bind:value={prescriptionNo}
+				placeholder="请输入处方号"
+				class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+				on:keydown={(e) => e.key === 'Enter' && searchPrescription()}
+			/>
+			<button
+				on:click={searchPrescription}
+				disabled={loading}
+				class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+			>
+				{loading ? '查询中...' : '查询'}
+			</button>
 		</div>
+		{#if error}
+			<p class="mt-3 text-red-600 text-sm">{error}</p>
+		{/if}
+	</div>
 
-		{#if result}
-			<div class="result-card">
-				<h3>📋 处方信息</h3>
-				<div class="info-grid">
-					<div class="info-item">
-						<span class="label">处方号</span>
-						<span class="value">{result.prescription.prescription_no}</span>
-					</div>
-					<div class="info-item">
-						<span class="label">患者姓名</span>
-						<span class="value">{result.prescription.patient_name}</span>
-					</div>
-					<div class="info-item">
-						<span class="label">当前状态</span>
-						<span class="status-badge" style="background: {statusColors[result.prescription.status]}20; color: {statusColors[result.prescription.status]}">
-							{statusLabels[result.prescription.status]}
-						</span>
-					</div>
-					{#if result.prescription.queue_no}
-						<div class="info-item">
-							<span class="label">排队号</span>
-							<span class="value highlight">#{result.prescription.queue_no}</span>
-						</div>
-					{/if}
-					<div class="info-item">
-						<span class="label">取药时间</span>
-						<span class="value">{result.prescription.pick_up_time}</span>
-					</div>
+	{#if prescription}
+		<div class="bg-white rounded-lg shadow p-6 mb-6">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold text-gray-800">处方信息</h2>
+				<span class="px-3 py-1 rounded-full text-sm font-medium {getStatusClass(prescription.status)}">
+					{getStatusText(prescription.status)}
+				</span>
+			</div>
+
+			{#if prescription.is_expired}
+				<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+					⚠️ 该处方已过期，无法取药
 				</div>
+			{/if}
 
-				{#if result.ahead_count !== undefined && result.prescription.status === 'queued'}
-					<div class="queue-info">
-						<span class="queue-icon">⏳</span>
-						<strong>前方还有 {result.ahead_count} 人等待</strong>
-						<p>请耐心等候叫号</p>
+			<div class="grid grid-cols-2 gap-4 mb-4">
+				<div>
+					<p class="text-gray-500 text-sm">处方号</p>
+					<p class="font-medium">{prescription.prescription_no}</p>
+				</div>
+				<div>
+					<p class="text-gray-500 text-sm">患者姓名</p>
+					<p class="font-medium">{prescription.patient_name}</p>
+				</div>
+				<div>
+					<p class="text-gray-500 text-sm">取药时段</p>
+					<p class="font-medium">{prescription.pick_up_time}</p>
+				</div>
+				<div>
+					<p class="text-gray-500 text-sm">有效期至</p>
+					<p class="font-medium">{prescription.expiry_date}</p>
+				</div>
+				{#if prescription.queue_no}
+					<div>
+						<p class="text-gray-500 text-sm">排队号</p>
+						<p class="font-medium text-2xl text-blue-600">#{prescription.queue_no}</p>
 					</div>
-				{/if}
-
-				{#if result.items && result.items.length > 0}
-					<div class="medicines-section">
-						<h4>💊 药品清单</h4>
-						<table class="med-table">
-							<thead>
-								<tr>
-									<th>药品名称</th>
-									<th>批次号</th>
-									<th>数量</th>
-									<th>状态</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each result.items as item}
-									<tr>
-										<td>{item.medicine_name}</td>
-										<td>{item.batch_no}</td>
-										<td>{item.quantity}</td>
-										<td>
-											{#if item.alternative_batch_no}
-												<span class="alt-badge">有替代批次</span>
-											{:else}
-												-
-											{/if}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/if}
-
-				{#if result.prescription.is_manual_entry}
-					<div class="manual-entry-info">
-						<strong>📝 补录记录：</strong>
-						<p>补录人：{result.prescription.manual_entry_by || '未知'}</p>
-						<p>补录时间：{result.prescription.manual_entry_at || '未知'}</p>
-						{#if result.prescription.manual_entry_reason}
-							<p>补录原因：{result.prescription.manual_entry_reason}</p>
-						{/if}
+					<div>
+						<p class="text-gray-500 text-sm">前方等待</p>
+						<p class="font-medium text-xl">{aheadCount} 人</p>
 					</div>
 				{/if}
 			</div>
+
+			{#if prescription.is_manual_entry}
+				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+					<p class="text-yellow-800 font-medium mb-2">📝 人工补录记录</p>
+					<div class="text-sm text-yellow-700 space-y-1">
+						<p>补录人：{prescription.manual_entry_by || '-'}</p>
+						<p>补录时间：{prescription.manual_entry_at || '-'}</p>
+						<p>补录原因：{prescription.manual_entry_reason || '-'}</p>
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<div class="bg-white rounded-lg shadow p-6 mb-6">
+			<h2 class="text-xl font-semibold text-gray-800 mb-4">药品清单</h2>
+			<div class="space-y-4">
+				{#each items as item}
+					<div class="border border-gray-200 rounded-lg p-4 {item.is_stock_out ? 'border-orange-300 bg-orange-50' : ''}">
+						<div class="flex items-start justify-between">
+							<div>
+								<p class="font-medium text-gray-800">{item.medicine_name}</p>
+								<p class="text-sm text-gray-500">规格：{item.medicine_code} | 批次：{item.batch_no}</p>
+								<p class="text-sm text-gray-500">数量：{item.quantity}</p>
+								<p class="text-sm text-gray-500">当前库存：{item.current_stock ?? '-'}</p>
+							</div>
+							{#if item.is_stock_out}
+								<span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">库存不足</span>
+							{/if}
+						</div>
+
+						{#if item.is_stock_out}
+							<div class="mt-3 pt-3 border-t border-orange-200">
+								<p class="text-sm text-orange-700 mb-2">
+									⚠️ 该药品批次库存不足
+									{#if item.alternative_confirmed}
+										<span class="ml-2 text-green-600">（已确认替代方案）</span>
+									{/if}
+								</p>
+								{#if item.alternative_batches && item.alternative_batches.length > 0 && !item.alternative_confirmed}
+									<p class="text-sm text-gray-600 mb-2">有以下替代批次可选：</p>
+									<button
+										on:click={() => openAlternativeModal(item)}
+										class="text-sm text-blue-600 hover:text-blue-800 underline"
+									>
+										确认是否接受替代批次 →
+									</button>
+								{:else if !item.alternative_confirmed}
+									<p class="text-sm text-gray-500">暂无替代批次，请等待补货</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		{#if rescheduleRecords.length > 0}
+			<div class="bg-white rounded-lg shadow p-6">
+				<h2 class="text-xl font-semibold text-gray-800 mb-4">改期记录</h2>
+				<div class="space-y-3">
+					{#each rescheduleRecords as record}
+						<div class="bg-gray-50 rounded-lg p-3">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-sm text-gray-600">
+										从 <span class="font-medium">{record.old_time}</span> 改期为
+										<span class="font-medium">{record.new_time}</span>
+									</p>
+									{#if record.reason}
+										<p class="text-sm text-gray-500 mt-1">原因：{record.reason}</p>
+									{/if}
+								</div>
+								<div class="text-right">
+									<p class="text-xs text-gray-500">{record.created_at}</p>
+									<p class="text-xs text-gray-500">操作人：{record.user_name || '-'}</p>
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
 		{/if}
-	</main>
+	{/if}
+
+	{#if showAlternativeModal && selectedItem}
+		<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+			<div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+				<h3 class="text-lg font-semibold text-gray-800 mb-4">替代批次确认</h3>
+
+				{#if confirmSuccess}
+					<div class="text-center py-8">
+						<div class="text-5xl mb-4">✅</div>
+						<p class="text-green-600 font-medium">确认成功！</p>
+					</div>
+				{:else}
+					<div class="mb-4">
+						<p class="text-gray-600 mb-2">
+							药品：<span class="font-medium">{selectedItem.medicine_name}</span>
+						</p>
+						<p class="text-gray-600 mb-4">
+							原批次：<span class="font-medium">{selectedItem.batch_no}</span>（库存不足）
+						</p>
+
+						{#if selectedItem.alternative_batches && selectedItem.alternative_batches.length > 0}
+							<p class="text-sm text-gray-500 mb-2">请选择替代批次：</p>
+							<div class="space-y-2 mb-4">
+								{#each selectedItem.alternative_batches as batch}
+									<label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+										<input
+											type="radio"
+											name="alternative"
+											bind:group={selectedAlternativeBatchId}
+											value={batch.id}
+											class="mr-3"
+										/>
+										<div>
+											<p class="font-medium">批次号：{batch.batch_no}</p>
+											<p class="text-sm text-gray-500">库存：{batch.stock} | 有效期：{batch.expiry_date}</p>
+										</div>
+									</label>
+								{/each}
+							</div>
+						{/if}
+
+						<div class="mb-4">
+							<label class="block text-sm text-gray-600 mb-1">联系电话 *</label>
+							<input
+								type="tel"
+								bind:value={patientPhone}
+								placeholder="请输入您的联系电话"
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+							/>
+						</div>
+
+						<div class="flex gap-3">
+							<button
+								on:click={() => confirmAlternative(false)}
+								disabled={confirmLoading}
+								class="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+							>
+								拒绝替代
+							</button>
+							<button
+								on:click={() => confirmAlternative(true)}
+								disabled={confirmLoading || !selectedAlternativeBatchId}
+								class="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+							>
+								接受替代
+							</button>
+						</div>
+
+						<button
+							on:click={() => (showAlternativeModal = false)}
+							disabled={confirmLoading}
+							class="w-full mt-3 py-2 text-gray-500 hover:text-gray-700 text-sm"
+						>
+							取消
+						</button>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>
-
-<style>
-	.patient-page {
-		min-height: 100vh;
-		background: linear-gradient(180deg, #e6f7ff 0%, #f0f5ff 100%);
-	}
-
-	.patient-header {
-		background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-		color: white;
-		padding: 20px 24px;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.header-content {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-
-	.logo {
-		font-size: 32px;
-	}
-
-	.patient-header h1 {
-		font-size: 20px;
-		font-weight: 600;
-	}
-
-	.back-btn {
-		background: rgba(255, 255, 255, 0.2);
-		border: 1px solid rgba(255, 255, 255, 0.3);
-		color: white;
-		padding: 8px 16px;
-		border-radius: 6px;
-		cursor: pointer;
-		font-size: 14px;
-	}
-
-	.patient-main {
-		max-width: 600px;
-		margin: 0 auto;
-		padding: 32px 20px;
-	}
-
-	.search-card,
-	.result-card {
-		background: white;
-		border-radius: 12px;
-		padding: 24px;
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-		margin-bottom: 20px;
-	}
-
-	.search-card h2 {
-		font-size: 18px;
-		margin-bottom: 20px;
-		color: #262626;
-	}
-
-	.search-form {
-		display: flex;
-		gap: 12px;
-	}
-
-	.search-form input {
-		flex: 1;
-		padding: 14px 16px;
-		border: 2px solid #d9d9d9;
-		border-radius: 8px;
-		font-size: 16px;
-		transition: all 0.3s;
-	}
-
-	.search-form input:focus {
-		outline: none;
-		border-color: #1890ff;
-	}
-
-	.search-form button {
-		padding: 14px 32px;
-		background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-		color: white;
-		border: none;
-		border-radius: 8px;
-		font-size: 16px;
-		font-weight: 600;
-		cursor: pointer;
-		white-space: nowrap;
-	}
-
-	.search-form button:disabled {
-		opacity: 0.7;
-		cursor: not-allowed;
-	}
-
-	.error-message {
-		background: #fff2f0;
-		border: 1px solid #ffccc7;
-		color: #ff4d4f;
-		padding: 12px;
-		border-radius: 6px;
-		margin-top: 16px;
-		font-size: 14px;
-	}
-
-	.result-card h3 {
-		font-size: 18px;
-		margin-bottom: 20px;
-		color: #262626;
-		padding-bottom: 12px;
-		border-bottom: 2px solid #f0f0f0;
-	}
-
-	.info-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 16px;
-		margin-bottom: 20px;
-	}
-
-	.info-item {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
-	.label {
-		font-size: 13px;
-		color: #8c8c8c;
-	}
-
-	.value {
-		font-size: 15px;
-		color: #262626;
-		font-weight: 500;
-	}
-
-	.value.highlight {
-		font-size: 24px;
-		color: #1890ff;
-		font-weight: 700;
-	}
-
-	.status-badge {
-		display: inline-block;
-		padding: 4px 12px;
-		border-radius: 4px;
-		font-size: 13px;
-		font-weight: 500;
-		width: fit-content;
-	}
-
-	.queue-info {
-		background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
-		border: 1px solid #ffd591;
-		border-radius: 8px;
-		padding: 16px;
-		text-align: center;
-		margin-bottom: 20px;
-	}
-
-	.queue-icon {
-		font-size: 32px;
-		display: block;
-		margin-bottom: 8px;
-	}
-
-	.queue-info strong {
-		font-size: 18px;
-		color: #d46b08;
-		display: block;
-		margin-bottom: 4px;
-	}
-
-	.queue-info p {
-		font-size: 14px;
-		color: #d46b08;
-	}
-
-	.medicines-section {
-		margin-top: 20px;
-	}
-
-	.medicines-section h4 {
-		font-size: 16px;
-		margin-bottom: 12px;
-		color: #262626;
-	}
-
-	.med-table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	.med-table th,
-	.med-table td {
-		padding: 10px 12px;
-		text-align: left;
-		border-bottom: 1px solid #f0f0f0;
-		font-size: 14px;
-	}
-
-	.med-table th {
-		background: #fafafa;
-		font-weight: 600;
-		color: #595959;
-	}
-
-	.alt-badge {
-		background: #f6ffed;
-		color: #52c41a;
-		padding: 2px 8px;
-		border-radius: 4px;
-		font-size: 12px;
-	}
-
-	.manual-entry-info {
-		margin-top: 20px;
-		padding: 16px;
-		background: #fffbe6;
-		border: 1px solid #ffe58f;
-		border-radius: 8px;
-		font-size: 13px;
-		color: #873800;
-	}
-
-	.manual-entry-info p {
-		margin-top: 4px;
-	}
-</style>

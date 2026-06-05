@@ -363,3 +363,129 @@ func ConfirmAlternative(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "alternative batch confirmation recorded"})
 }
+
+func GetQueueStatusPublic(c *fiber.Ctx) error {
+	queueDate := time.Now().Format("2006-01-02")
+
+	rows, err := database.DB.Query(`
+		SELECT q.id, q.queue_no, p.prescription_no, p.patient_name, q.status, w.name as window_name
+		FROM queue_records q
+		JOIN prescriptions p ON q.prescription_id = p.id
+		LEFT JOIN windows w ON q.window_id = w.id
+		WHERE q.queue_date = ?
+		ORDER BY q.queue_no ASC
+	`, queueDate)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	defer rows.Close()
+
+	type QueueItem struct {
+		ID             int    `json:"id"`
+		QueueNo        int    `json:"queue_no"`
+		PrescriptionNo string `json:"prescription_no"`
+		PatientName    string `json:"patient_name"`
+		Status         string `json:"status"`
+		WindowName     string `json:"window_name,omitempty"`
+	}
+
+	var queue []QueueItem
+	for rows.Next() {
+		var item QueueItem
+		var windowName sql.NullString
+		err := rows.Scan(&item.ID, &item.QueueNo, &item.PrescriptionNo, &item.PatientName, &item.Status, &windowName)
+		if err != nil {
+			continue
+		}
+		if windowName.Valid {
+			item.WindowName = windowName.String
+		}
+		queue = append(queue, item)
+	}
+
+	var waitingCount, calledCount, completedCount int
+	database.DB.QueryRow(`
+		SELECT COUNT(CASE WHEN status = 'waiting' THEN 1 END),
+		       COUNT(CASE WHEN status = 'called' THEN 1 END),
+		       COUNT(CASE WHEN status = 'completed' THEN 1 END)
+		FROM queue_records WHERE queue_date = ?
+	`, queueDate).Scan(&waitingCount, &calledCount, &completedCount)
+
+	return c.JSON(fiber.Map{
+		"queue":           queue,
+		"waiting_count":   waitingCount,
+		"called_count":    calledCount,
+		"completed_count": completedCount,
+		"date":            queueDate,
+	})
+}
+
+func ConfirmAlternativePublic(c *fiber.Ctx) error {
+	itemID := c.Params("item_id")
+
+	var req struct {
+		AlternativeBatchID int    `json:"alternative_batch_id"`
+		AcceptAlternative  bool   `json:"accept_alternative"`
+		PatientName        string `json:"patient_name"`
+		PatientPhone       string `json:"patient_phone"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var prescriptionID int
+	var patientName string
+	err := database.DB.QueryRow(`
+		SELECT p.id, p.patient_name FROM prescriptions p
+		JOIN prescription_items pi ON pi.prescription_id = p.id
+		WHERE pi.id = ?
+	`, itemID).Scan(&prescriptionID, &patientName)
+	if err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "prescription item not found"})
+	}
+
+	if req.PatientName != patientName {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "patient name does not match"})
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to begin transaction"})
+	}
+	defer tx.Rollback()
+
+	acceptAlt := 0
+	if req.AcceptAlternative {
+		acceptAlt = 1
+	}
+
+	var alternativeBatchID interface{}
+	if req.AlternativeBatchID > 0 {
+		alternativeBatchID = req.AlternativeBatchID
+	}
+
+	_, err = tx.Exec(`
+		UPDATE prescription_items 
+		SET alternative_batch_id = ?, accept_alternative = ?, 
+		    alternative_confirmed_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, alternativeBatchID, acceptAlt, itemID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update item"})
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO alternative_confirmations (prescription_item_id, patient_name, patient_phone, 
+			accept_alternative, alternative_batch_id, confirmed_at)
+		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, itemID, req.PatientName, req.PatientPhone, acceptAlt, alternativeBatchID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to record confirmation"})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to commit transaction"})
+	}
+
+	return c.JSON(fiber.Map{"message": "alternative batch confirmation recorded"})
+}

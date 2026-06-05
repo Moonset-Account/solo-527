@@ -461,3 +461,182 @@ func ReschedulePrescription(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "prescription rescheduled successfully"})
 }
+
+func GetPrescriptionPublic(c *fiber.Ctx) error {
+	prescriptionNo := c.Params("no")
+
+	type PrescriptionDetail struct {
+		ID               int       `json:"id"`
+		PrescriptionNo   string    `json:"prescription_no"`
+		PatientName      string    `json:"patient_name"`
+		Status           string    `json:"status"`
+		PickUpTime       string    `json:"pick_up_time"`
+		ExpiryDate       string    `json:"expiry_date"`
+		IsExpired        bool      `json:"is_expired"`
+		QueueNo          *int      `json:"queue_no"`
+		WindowID         *int      `json:"window_id"`
+		IsManualEntry    bool      `json:"is_manual_entry"`
+		ManualEntryBy    *string   `json:"manual_entry_by"`
+		ManualEntryAt    *string   `json:"manual_entry_at"`
+		ManualEntryReason *string  `json:"manual_entry_reason"`
+	}
+
+	var p PrescriptionDetail
+	var manualEntryBy, manualEntryAt, manualEntryReason sql.NullString
+	var queueNo, windowID sql.NullInt64
+
+	err := database.DB.QueryRow(`
+		SELECT p.id, p.prescription_no, p.patient_name, p.status,
+		       p.pick_up_time, p.expiry_date, p.queue_no, p.window_id,
+		       p.is_manual_entry, u.name, p.manual_entry_at, p.manual_entry_reason
+		FROM prescriptions p
+		LEFT JOIN users u ON p.manual_entry_by = u.id
+		WHERE p.prescription_no = ?
+	`, prescriptionNo).Scan(
+		&p.ID, &p.PrescriptionNo, &p.PatientName, &p.Status,
+		&p.PickUpTime, &p.ExpiryDate, &queueNo, &windowID,
+		&p.IsManualEntry, &manualEntryBy, &manualEntryAt, &manualEntryReason,
+	)
+	if err == sql.ErrNoRows {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "prescription not found"})
+	}
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	expiryDate, _ := time.Parse("2006-01-02", p.ExpiryDate)
+	p.IsExpired = time.Now().After(expiryDate)
+
+	if queueNo.Valid {
+		q := int(queueNo.Int64)
+		p.QueueNo = &q
+	}
+	if windowID.Valid {
+		w := int(windowID.Int64)
+		p.WindowID = &w
+	}
+	if manualEntryBy.Valid {
+		p.ManualEntryBy = &manualEntryBy.String
+	}
+	if manualEntryAt.Valid {
+		p.ManualEntryAt = &manualEntryAt.String
+	}
+	if manualEntryReason.Valid {
+		p.ManualEntryReason = &manualEntryReason.String
+	}
+
+	type ItemDetail struct {
+		ID                 int      `json:"id"`
+		MedicineName       string   `json:"medicine_name"`
+		MedicineCode       string   `json:"medicine_code"`
+		BatchNo            string   `json:"batch_no"`
+		Quantity           int      `json:"quantity"`
+		IsStockOut         bool     `json:"is_stock_out"`
+		CurrentStock       int      `json:"current_stock"`
+		AcceptAlternative  bool     `json:"accept_alternative"`
+		AlternativeBatchNo *string  `json:"alternative_batch_no"`
+		AlternativeConfirmed bool   `json:"alternative_confirmed"`
+		AlternativeBatches []map[string]interface{} `json:"alternative_batches,omitempty"`
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT pi.id, m.name, m.code, mb.batch_no, pi.quantity,
+		       COALESCE(mb.stock, 0) as current_stock,
+		       pi.accept_alternative, alt_mb.batch_no,
+		       pi.alternative_confirmed_at IS NOT NULL
+		FROM prescription_items pi
+		JOIN medicines m ON pi.medicine_id = m.id
+		LEFT JOIN medicine_batches mb ON pi.batch_id = mb.id
+		LEFT JOIN medicine_batches alt_mb ON pi.alternative_batch_id = alt_mb.id
+		WHERE pi.prescription_id = ?
+	`, p.ID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	defer rows.Close()
+
+	var items []ItemDetail
+	for rows.Next() {
+		var item ItemDetail
+		var altBatch sql.NullString
+		var altConfirmed bool
+		err := rows.Scan(&item.ID, &item.MedicineName, &item.MedicineCode,
+			&item.BatchNo, &item.Quantity, &item.CurrentStock,
+			&item.AcceptAlternative, &altBatch, &altConfirmed)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		item.IsStockOut = item.CurrentStock < item.Quantity
+		item.AlternativeConfirmed = altConfirmed
+		if altBatch.Valid {
+			item.AlternativeBatchNo = &altBatch.String
+		}
+		items = append(items, item)
+	}
+
+	for i, item := range items {
+		if item.IsStockOut {
+			altRows, _ := database.DB.Query(`
+				SELECT id, batch_no, stock, expiry_date
+				FROM medicine_batches
+				WHERE medicine_id = (
+					SELECT medicine_id FROM medicine_batches WHERE id = (
+						SELECT batch_id FROM prescription_items WHERE id = ?
+					)
+				) AND stock > 0 AND id != (SELECT batch_id FROM prescription_items WHERE id = ?)
+				ORDER BY expiry_date ASC
+			`, item.ID, item.ID)
+			var alternatives []map[string]interface{}
+			for altRows.Next() {
+				var altID, altStock int
+				var altBatchNo, altExpiry string
+				altRows.Scan(&altID, &altBatchNo, &altStock, &altExpiry)
+				alternatives = append(alternatives, map[string]interface{}{
+					"id":          altID,
+					"batch_no":    altBatchNo,
+					"stock":       altStock,
+					"expiry_date": altExpiry,
+				})
+			}
+			altRows.Close()
+			items[i].AlternativeBatches = alternatives
+		}
+	}
+
+	var aheadCount int
+	if p.QueueNo != nil {
+		queueDate := time.Now().Format("2006-01-02")
+		database.DB.QueryRow(`
+			SELECT COUNT(*) FROM queue_records
+			WHERE queue_date = ? AND queue_no < ? AND status IN ('waiting', 'called')
+		`, queueDate, *p.QueueNo).Scan(&aheadCount)
+	}
+
+	var rescheduleRecords []map[string]interface{}
+	rsRows, _ := database.DB.Query(`
+		SELECT r.old_time, r.new_time, r.reason, r.created_at, u.name
+		FROM reschedule_records r
+		LEFT JOIN users u ON r.created_by = u.id
+		WHERE r.prescription_id = ?
+		ORDER BY r.created_at DESC
+	`, p.ID)
+	for rsRows.Next() {
+		var oldTime, newTime, reason, createdAt, userName sql.NullString
+		rsRows.Scan(&oldTime, &newTime, &reason, &createdAt, &userName)
+		rescheduleRecords = append(rescheduleRecords, map[string]interface{}{
+			"old_time":   oldTime.String,
+			"new_time":   newTime.String,
+			"reason":     reason.String,
+			"created_at": createdAt.String,
+			"user_name":  userName.String,
+		})
+	}
+	rsRows.Close()
+
+	return c.JSON(fiber.Map{
+		"prescription":        p,
+		"items":               items,
+		"ahead_count":         aheadCount,
+		"reschedule_records":  rescheduleRecords,
+	})
+}

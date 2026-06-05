@@ -94,6 +94,11 @@
 
 	async function handleCreate() {
 		try {
+			if (formData.is_manual_entry && !formData.manual_reason.trim()) {
+				showMessage('人工补录必须填写补录原因', 'error');
+				return;
+			}
+
 			const validItems = formData.items.filter(i => i.medicine_id > 0 && i.batch_id > 0);
 			if (validItems.length === 0) {
 				showMessage('请至少添加一种药品', 'error');
