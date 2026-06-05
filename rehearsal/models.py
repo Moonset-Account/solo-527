@@ -129,14 +129,20 @@ class Prop(models.Model):
     def __str__(self):
         return f'{self.name} ({self.quantity}件)'
 
-    def available_quantity(self, date=None):
+    def available_quantity(self, date=None, exclude_rehearsal=None):
         if date is None:
             date = timezone.localdate()
-        used = PropUsage.objects.filter(
+        qs = PropUsage.objects.filter(
             prop=self,
             rehearsal__date=date,
             rehearsal__status__in=['pending', 'approved', 'ongoing']
-        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+        )
+        if exclude_rehearsal:
+            if isinstance(exclude_rehearsal, int):
+                qs = qs.exclude(rehearsal_id=exclude_rehearsal)
+            else:
+                qs = qs.exclude(rehearsal=exclude_rehearsal)
+        used = qs.aggregate(total=models.Sum('quantity'))['total'] or 0
         return self.quantity - used
 
 

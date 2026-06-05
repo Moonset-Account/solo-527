@@ -201,7 +201,8 @@ class RehearsalAdmin(ImportExportModelAdmin):
     def cancel_rehearsal_action(self, request, queryset):
         selected = queryset.values_list('pk', flat=True)
         if queryset.count() == 1:
-            return redirect(f'cancel/{list(selected)[0]}/')
+            return redirect(f'{list(selected)[0]}/cancel/')
+        messages.warning(request, '请选择单个排练进行取消操作')
         return HttpResponseRedirect(reverse('admin:rehearsal_rehearsal_changelist'))
 
     cancel_rehearsal_action.short_description = '❌ 取消选中的排练（需填写理由）'

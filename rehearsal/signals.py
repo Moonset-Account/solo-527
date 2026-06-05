@@ -109,12 +109,14 @@ def handle_rehearsal_update(sender, instance, **kwargs):
 
 @receiver(pre_save, sender=PropUsage)
 def validate_prop_usage(sender, instance, **kwargs):
-    if not instance.pk:
-        available = instance.prop.available_quantity(instance.rehearsal.date)
-        if instance.quantity > available:
-            raise ValidationError(
-                f'道具 {instance.prop.name} 库存不足，可用: {available}，需要: {instance.quantity}'
-            )
+    available = instance.prop.available_quantity(
+        instance.rehearsal.date,
+        exclude_rehearsal=instance.rehearsal
+    )
+    if instance.quantity > available:
+        raise ValidationError(
+            f'道具 {instance.prop.name} 库存不足，可用: {available}，需要: {instance.quantity}'
+        )
 
 
 @receiver(post_save, sender=RoomMaintenance)

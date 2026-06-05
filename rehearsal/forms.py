@@ -78,11 +78,12 @@ class RehearsalForm(forms.ModelForm):
             prop_quantities = {}
 
         if date and prop_quantities:
+            exclude_id = self.instance.pk if self.instance and self.instance.pk else None
             for prop_id, qty in prop_quantities.items():
                 try:
                     prop = Prop.objects.get(id=prop_id)
                     qty = int(qty)
-                    available = prop.available_quantity(date)
+                    available = prop.available_quantity(date, exclude_rehearsal=exclude_id)
                     if qty > available:
                         raise ValidationError(
                             f'道具库存不足：{prop.name}，可用 {available} 件，需要 {qty} 件'
