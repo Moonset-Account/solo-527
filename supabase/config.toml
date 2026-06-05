@@ -1,0 +1,16 @@
+/**
+ * Supabase 项目配置
+ * 使用 `supabase init` 初始化项目后生成
+ */
+
+const { defineConfig } = require('@supabase/supabase-js')
+
+module.exports = defineConfig({
+  projectId: 'your-project-id',
+  publicKey: 'your-anon-key',
+  functions: {
+    'send-reminders': {
+      url: 'send-reminders',
+    },
+  },
+})
