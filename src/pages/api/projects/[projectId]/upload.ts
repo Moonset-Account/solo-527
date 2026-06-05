@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createApiHandler, ApiResponse } from '@/lib/api-utils';
 import prisma from '@/lib/prisma';
-import { uploadBase64Image, uploadFile } from '@/lib/storage';
+import { uploadBase64File } from '@/lib/storage';
 
 export const config = {
   api: {
@@ -28,12 +28,7 @@ export default createApiHandler(
 
       let uploadResult;
       try {
-        if (fileBase64.startsWith('data:image/')) {
-          uploadResult = await uploadBase64Image(fileBase64, fileName, `projects/${projectId}`);
-        } else {
-          const buffer = Buffer.from(fileBase64, 'base64');
-          uploadResult = await uploadFile(buffer, fileName, fileType || 'application/octet-stream', `projects/${projectId}`);
-        }
+        uploadResult = await uploadBase64File(fileBase64, fileName, `projects/${projectId}`);
       } catch (uploadError) {
         return res.status(500).json({
           success: false,

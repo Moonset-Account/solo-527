@@ -63,9 +63,18 @@ export async function uploadBase64Image(
   fileName: string,
   folder: string = 'photos'
 ): Promise<UploadResult> {
-  const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  return uploadBase64File(base64Data, fileName, folder);
+}
+
+export async function uploadBase64File(
+  base64Data: string,
+  fileName: string,
+  folder: string = 'uploads'
+): Promise<UploadResult> {
+  const contentTypeMatch = base64Data.match(/^data:([^;]+);base64,/);
+  const contentType = contentTypeMatch?.[1] || 'application/octet-stream';
+  const base64Content = base64Data.replace(/^data:[^;]+;base64,/, '');
   const buffer = Buffer.from(base64Content, 'base64');
-  const contentType = base64Data.match(/^data:([^;]+);/)?.[1] || 'image/jpeg';
   
   return uploadFile(buffer, fileName, contentType, folder);
 }
