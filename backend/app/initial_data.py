@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
-from . import crud, models
+from . import crud, models, schemas
 from .models.user import UserRole
 from .models.reagent import HazardLevel, ReagentCategory
 from .models.storage import CabinetType
@@ -15,7 +15,7 @@ def init_db(db: Session) -> None:
     
     logger.info("开始初始化测试数据...")
     
-    admin1 = crud.user.create(db, obj_in=models.schemas.UserCreate(
+    admin1 = crud.user.create(db, obj_in=schemas.UserCreate(
         username="admin",
         email="admin@lab.com",
         full_name="系统管理员",
@@ -25,7 +25,7 @@ def init_db(db: Session) -> None:
         department="实验室管理处"
     ))
     
-    admin2 = crud.user.create(db, obj_in=models.schemas.UserCreate(
+    admin2 = crud.user.create(db, obj_in=schemas.UserCreate(
         username="manager",
         email="manager@lab.com",
         full_name="张经理",
@@ -35,7 +35,7 @@ def init_db(db: Session) -> None:
         department="化学实验室"
     ))
     
-    member1 = crud.user.create(db, obj_in=models.schemas.UserCreate(
+    member1 = crud.user.create(db, obj_in=schemas.UserCreate(
         username="researcher1",
         email="researcher1@lab.com",
         full_name="李研究员",
@@ -45,7 +45,7 @@ def init_db(db: Session) -> None:
         department="材料科学实验室"
     ))
     
-    member2 = crud.user.create(db, obj_in=models.schemas.UserCreate(
+    member2 = crud.user.create(db, obj_in=schemas.UserCreate(
         username="researcher2",
         email="researcher2@lab.com",
         full_name="王博士",
@@ -55,7 +55,7 @@ def init_db(db: Session) -> None:
         department="生物实验室"
     ))
     
-    external = crud.user.create(db, obj_in=models.schemas.UserCreate(
+    external = crud.user.create(db, obj_in=schemas.UserCreate(
         username="supplier",
         email="supplier@company.com",
         full_name="供应商联系人",
@@ -78,7 +78,7 @@ def init_db(db: Session) -> None:
     
     cabinet_objs = []
     for cab in cabinets:
-        cabinet = crud.storage_cabinet.create(db, obj_in=models.schemas.StorageCabinetCreate(**cab), created_by=admin1.id)
+        cabinet = crud.storage_cabinet.create(db, obj_in=schemas.StorageCabinetCreate(**cab), created_by=admin1.id)
         cabinet_objs.append(cabinet)
     
     logger.info("柜位数据初始化完成")
@@ -151,7 +151,7 @@ def init_db(db: Session) -> None:
     
     reagent_objs = []
     for r_data in reagents_data:
-        reagent = crud.reagent.create(db, obj_in=models.schemas.ReagentCreate(**r_data), created_by=admin1.id)
+        reagent = crud.reagent.create(db, obj_in=schemas.ReagentCreate(**r_data), created_by=admin1.id)
         reagent_objs.append(reagent)
     
     logger.info("试剂数据初始化完成")
@@ -197,16 +197,16 @@ def init_db(db: Session) -> None:
     for b_data in batches_data:
         b_data["reagent_id"] = reagent_objs[b_data.pop("reagent_idx")].id
         b_data["storage_cabinet_id"] = cabinet_objs[b_data.pop("storage_cabinet_idx")].id
-        batch_in = models.schemas.ReagentBatchCreate(**b_data)
+        batch_in = schemas.ReagentBatchCreate(**b_data)
         crud.reagent_batch.create(db, obj_in=batch_in, created_by=admin1.id)
     
     logger.info("试剂批次数据初始化完成")
     
     req_items1 = [
-        models.schemas.RequisitionItemCreate(reagent_batch_id=1, quantity=2, purpose="合成实验", remarks="需要无水乙醇"),
-        models.schemas.RequisitionItemCreate(reagent_batch_id=5, quantity=1, purpose="缓冲液配置", remarks=""),
+        schemas.RequisitionItemCreate(reagent_batch_id=1, quantity=2, purpose="合成实验", remarks="需要无水乙醇"),
+        schemas.RequisitionItemCreate(reagent_batch_id=5, quantity=1, purpose="缓冲液配置", remarks=""),
     ]
-    req1 = crud.requisition.create(db, obj_in=models.schemas.RequisitionCreate(
+    req1 = crud.requisition.create(db, obj_in=schemas.RequisitionCreate(
         title="有机合成实验领用",
         purpose="化合物合成项目",
         priority="normal",
@@ -214,9 +214,9 @@ def init_db(db: Session) -> None:
     ), created_by=member1.id)
     
     req_items2 = [
-        models.schemas.RequisitionItemCreate(reagent_batch_id=2, quantity=1, purpose="HPLC分析", remarks="色谱纯"),
+        schemas.RequisitionItemCreate(reagent_batch_id=2, quantity=1, purpose="HPLC分析", remarks="色谱纯"),
     ]
-    req2 = crud.requisition.create(db, obj_in=models.schemas.RequisitionCreate(
+    req2 = crud.requisition.create(db, obj_in=schemas.RequisitionCreate(
         title="色谱分析领用",
         purpose="样品纯度检测",
         priority="high",
@@ -229,7 +229,7 @@ def init_db(db: Session) -> None:
     
     logger.info("领用申请数据初始化完成")
     
-    check1 = crud.inventory_check.create(db, obj_in=models.schemas.InventoryCheckCreate(
+    check1 = crud.inventory_check.create(db, obj_in=schemas.InventoryCheckCreate(
         title="2024年第一季度盘点",
         type="full",
         remarks="季度例行盘点"

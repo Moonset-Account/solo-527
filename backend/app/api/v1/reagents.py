@@ -179,6 +179,30 @@ def create_batch(
     return batch
 
 
+@router.get("/batches")
+def read_batches(
+    skip: int = 0,
+    limit: int = 100,
+    in_stock_only: bool = False,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    filters = {}
+    if in_stock_only:
+        filters["remaining_quantity_gt"] = 0
+    batches, total = crud.reagent_batch.get_multi_with_total(db, filters=filters, skip=skip, limit=limit)
+    page = (skip // limit) + 1
+    total_pages = (total + limit - 1) // limit
+    return {
+        "items": batches,
+        "total": total,
+        "page": page,
+        "page_size": limit,
+        "total_pages": total_pages
+    }
+
+
 @router.get("/batches/expiring-soon", response_model=List[schemas.ReagentBatch])
 def get_expiring_soon(
     days: int = 30,

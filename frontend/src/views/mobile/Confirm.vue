@@ -53,7 +53,7 @@ async function handleConfirm(req: any) {
       type: 'warning',
       confirmButtonText: '确认'
     })
-    await api.post(`/requisitions/${req.id}/confirm`)
+    await api.put(`/requisitions/${req.id}/confirm`, { confirm: true, remarks: '' })
     ElMessage.success('确认成功')
     loadPending()
   } catch (e) {

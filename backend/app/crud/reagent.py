@@ -124,6 +124,15 @@ class CRUDReagentBatch(CRUDBase[ReagentBatch, ReagentBatchCreate, ReagentBatchUp
             ReagentBatch.is_active == True
         ).offset(skip).limit(limit).all()
 
+    def get_multi_with_total(self, db: Session, *, filters: dict = None, skip: int = 0, limit: int = 100):
+        query = db.query(ReagentBatch).filter(ReagentBatch.is_active == True)
+        if filters:
+            if filters.get("remaining_quantity_gt") is not None:
+                query = query.filter(ReagentBatch.remaining_quantity > filters["remaining_quantity_gt"])
+        total = query.count()
+        items = query.offset(skip).limit(limit).all()
+        return items, total
+
 
 reagent = CRUDReagent(Reagent)
 reagent_batch = CRUDReagentBatch(ReagentBatch)

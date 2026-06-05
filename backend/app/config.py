@@ -1,11 +1,13 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 
 class Settings(BaseSettings):
     APP_NAME: str = "实验室试剂库存管理系统"
     DEBUG: bool = True
 
+    DB_ENGINE: str = os.getenv("DB_ENGINE", "sqlite")
     DB_USER: str = "reagent"
     DB_PASSWORD: str = "reagent123"
     DB_NAME: str = "reagent_inventory"
@@ -37,6 +39,8 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DB_ENGINE == "sqlite":
+            return "sqlite:///./reagent_inventory.db"
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property

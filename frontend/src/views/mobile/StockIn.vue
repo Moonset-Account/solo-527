@@ -176,7 +176,7 @@ async function submit() {
       formData.append(`files[${index}]`, file)
     })
     
-    await api.post('/reagents/batches', formData, {
+    await api.post(`/reagents/${form.reagent_id}/batches`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     
@@ -237,7 +237,8 @@ async function syncOfflineData() {
     for (const record of pending) {
       try {
         if (record.type === 'stock_in') {
-          await api.post('/reagents/batches', record.data)
+          const data = record.data
+          await api.post(`/reagents/${data.reagent_id}/batches`, data)
         }
         successCount++
       } catch (e) {
