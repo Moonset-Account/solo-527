@@ -273,6 +273,12 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_booth_assignments_application_id'), table_name='booth_assignments')
     op.drop_table('booth_assignments')
 
+    op.drop_index(op.f('ix_deposits_vendor_id'), table_name='deposits')
+    op.drop_index(op.f('ix_deposits_status'), table_name='deposits')
+    op.drop_index(op.f('ix_deposits_id'), table_name='deposits')
+    op.drop_index(op.f('ix_deposits_application_id'), table_name='deposits')
+    op.drop_table('deposits')
+
     op.drop_index(op.f('ix_violation_notes_vendor_id'), table_name='violation_notes')
     op.drop_index(op.f('ix_violation_notes_status'), table_name='violation_notes')
     op.drop_index(op.f('ix_violation_notes_id'), table_name='violation_notes')
@@ -285,12 +291,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_vendor_applications_event_date'), table_name='vendor_applications')
     op.drop_index(op.f('ix_vendor_applications_category_id'), table_name='vendor_applications')
     op.drop_table('vendor_applications')
-
-    op.drop_index(op.f('ix_deposits_vendor_id'), table_name='deposits')
-    op.drop_index(op.f('ix_deposits_status'), table_name='deposits')
-    op.drop_index(op.f('ix_deposits_id'), table_name='deposits')
-    op.drop_index(op.f('ix_deposits_application_id'), table_name='deposits')
-    op.drop_table('deposits')
 
     op.drop_index(op.f('ix_booths_zone'), table_name='booths')
     op.drop_index(op.f('ix_booths_status'), table_name='booths')

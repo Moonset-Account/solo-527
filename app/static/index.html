@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手作市集摊位抽签和结算平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .container {
+            padding: 24px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            min-height: calc(100vh - 140px);
+        }
+
+        .column {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            border-bottom: 2px solid;
+            margin-bottom: 12px;
+        }
+
+        .column-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .count-badge {
+            background: #f0f2f5;
+            color: #666;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .column-new .column-header { border-color: #3b82f6; }
+        .column-new .column-title { color: #3b82f6; }
+
+        .column-pending .column-header { border-color: #f59e0b; }
+        .column-pending .column-title { color: #f59e0b; }
+
+        .column-progress .column-header { border-color: #8b5cf6; }
+        .column-progress .column-title { color: #8b5cf6; }
+
+        .column-exception .column-header { border-color: #ef4444; }
+        .column-exception .column-title { color: #ef4444; }
+
+        .column-archived .column-header { border-color: #10b981; }
+        .column-archived .column-title { color: #10b981; }
+
+        .card-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: #fafbfc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+
+        .card-type {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .type-application { background: #dbeafe; color: #1d4ed8; }
+        .type-confirm { background: #fef3c7; color: #b45309; }
+        .type-checkin { background: #ede9fe; color: #7c3aed; }
+        .type-deposit { background: #dcfce7; color: #15803d; }
+        .type-violation { background: #fee2e2; color: #b91c1c; }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .status-tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: #f3f4f6;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #d1d5db;
+            font-size: 13px;
+        }
+
+        .login-hint {
+            margin-top: 16px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .login-hint a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .login-hint a:hover {
+            text-decoration: underline;
+        }
+
+        .mock-banner {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 12px 16px;
+            margin: 16px 24px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mock-banner::before {
+            content: "💡";
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎪 手作市集摊位抽签和结算平台</h1>
+        <p>今日待办事项看板</p>
+    </div>
+
+    <div class="mock-banner">
+        当前为模拟数据展示。登录后可查看真实数据并进行操作。<a href="/docs" style="color: #92400e; margin-left: 8px;">查看 API 文档 →</a>
+    </div>
+
+    <div class="container">
+        <div class="board">
+            <div class="column column-new">
+                <div class="column-header">
+                    <span class="column-title">📝 新建</span>
+                    <span class="count-badge" id="count-new">0</span>
+                </div>
+                <div class="card-list" id="list-new"></div>
+            </div>
+
+            <div class="column column-pending">
+                <div class="column-header">
+                    <span class="column-title">⏳ 待确认</span>
+                    <span class="count-badge" id="count-pending">0</span>
+                </div>
+                <div class="card-list" id="list-pending"></div>
+            </div>
+
+            <div class="column column-progress">
+                <div class="column-header">
+                    <span class="column-title">🔄 执行中</span>
+                    <span class="count-badge" id="count-progress">0</span>
+                </div>
+                <div class="card-list" id="list-progress"></div>
+            </div>
+
+            <div class="column column-exception">
+                <div class="column-header">
+                    <span class="column-title">⚠️ 异常复核</span>
+                    <span class="count-badge" id="count-exception">0</span>
+                </div>
+                <div class="card-list" id="list-exception"></div>
+            </div>
+
+            <div class="column column-archived">
+                <div class="column-header">
+                    <span class="column-title">✅ 已归档</span>
+                    <span class="count-badge" id="count-archived">0</span>
+                </div>
+                <div class="card-list" id="list-archived"></div>
+            </div>
+        </div>
+
+        <div class="login-hint">
+            登录后可操作完整功能 | <a href="/docs">API 文档</a> | 默认账号: admin / admin123
+        </div>
+    </div>
+
+    <script>
+        const mockData = {
+            columns: [
+                {
+                    key: "new",
+                    title: "新建",
+                    items: [
+                        { type: "报名申请", typeClass: "type-application", title: "报名申请 - 香韵小筑", time: "10分钟前", status: "NEW" },
+                        { type: "报名申请", typeClass: "type-application", title: "报名申请 - 青釉工坊", time: "30分钟前", status: "NEW" },
+                        { type: "保证金", typeClass: "type-deposit", title: "待缴保证金 - 画堂春插画", time: "1小时前", status: "PENDING" }
+                    ]
+                },
+                {
+                    key: "pending",
+                    title: "待确认",
+                    items: [
+                        { type: "摊位确认", typeClass: "type-confirm", title: "摊位确认 - 银月首饰", time: "2小时前", status: "DRAWN" },
+                        { type: "摊位确认", typeClass: "type-confirm", title: "摊位确认 - 木语工坊", time: "3小时前", status: "DRAWN" },
+                        { type: "待确认", typeClass: "type-confirm", title: "待确认 - 慢时光咖啡", time: "昨天", status: "APPROVED" }
+                    ]
+                },
+                {
+                    key: "progress",
+                    title: "执行中",
+                    items: [
+                        { type: "待签到", typeClass: "type-checkin", title: "待签到 - 绣娘坊", time: "今日", status: "PENDING" },
+                        { type: "待签到", typeClass: "type-checkin", title: "待签到 - 画堂春插画", time: "今日", status: "PENDING" },
+                        { type: "待签到", typeClass: "type-checkin", title: "待签到 - 慢时光咖啡", time: "今日", status: "PENDING" }
+                    ]
+                },
+                {
+                    key: "exception",
+                    title: "异常复核",
+                    items: [
+                        { type: "保证金复核", typeClass: "type-violation", title: "保证金复核 - 银月首饰", time: "30分钟前", status: "UNDER_REVIEW" },
+                        { type: "未签到", typeClass: "type-violation", title: "未签到 - 银月首饰", time: "1小时前", status: "NO_SHOW" },
+                        { type: "违规处理", typeClass: "type-violation", title: "违规处理 - 绣娘坊", time: "2小时前", status: "REVIEWING" }
+                    ]
+                },
+                {
+                    key: "archived",
+                    title: "已归档",
+                    items: [
+                        { type: "已处理", typeClass: "type-application", title: "已处理 - 陶然居工坊", time: "昨天", status: "CONFIRMED" },
+                        { type: "已处理", typeClass: "type-application", title: "已处理 - 匠心皮具", time: "昨天", status: "CONFIRMED" },
+                        { type: "已处理", typeClass: "type-application", title: "已处理 - 木语工坊", time: "昨天", status: "CONFIRMED" }
+                    ]
+                }
+            ]
+        };
+
+        function formatTime(dateStr) {
+            return dateStr;
+        }
+
+        function renderCard(item) {
+            return `
+                <div class="card">
+                    <span class="card-type ${item.typeClass}">${item.type}</span>
+                    <div class="card-title">${item.title}</div>
+                    <div class="card-meta">${item.time}</div>
+                    <span class="status-tag">${item.status}</span>
+                </div>
+            `;
+        }
+
+        function renderColumn(col) {
+            const countEl = document.getElementById(`count-${col.key}`);
+            const listEl = document.getElementById(`list-${col.key}`);
+            
+            countEl.textContent = col.items.length;
+            
+            if (col.items.length === 0) {
+                listEl.innerHTML = '<div class="empty">暂无事项</div>';
+            } else {
+                listEl.innerHTML = col.items.map(renderCard).join('');
+            }
+        }
+
+        async function loadRealData() {
+            try {
+                const response = await fetch('/api/dashboard/today');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.columns;
+                }
+            } catch (e) {
+            }
+            return null;
+        }
+
+        async function init() {
+            const realData = await loadRealData();
+            const columns = realData || mockData.columns;
+
+            columns.forEach(col => {
+                const items = col.items.map(item => {
+                    let typeClass = 'type-application';
+                    let type = '其他';
+                    
+                    if (item.type === 'application' || item.type.includes('申请')) {
+                        type = '报名申请';
+                        typeClass = 'type-application';
+                    } else if (item.type === 'application_confirm' || item.type === 'booth_confirm' || item.type.includes('确认')) {
+                        type = item.type.includes('摊位') ? '摊位确认' : '待确认';
+                        typeClass = 'type-confirm';
+                    } else if (item.type === 'checkin' || item.type.includes('签到')) {
+                        type = item.type.includes('未签到') ? '未签到' : '待签到';
+                        typeClass = 'type-checkin';
+                    } else if (item.type === 'deposit_pending' || item.type.includes('保证金')) {
+                        type = item.type.includes('复核') ? '保证金复核' : '待缴保证金';
+                        typeClass = item.type.includes('复核') ? 'type-violation' : 'type-deposit';
+                    } else if (item.type === 'violation' || item.type.includes('违规')) {
+                        type = '违规处理';
+                        typeClass = 'type-violation';
+                    } else if (item.type === 'no_show') {
+                        type = '未签到';
+                        typeClass = 'type-violation';
+                    }
+
+                    const time = item.created_at ? new Date(item.created_at).toLocaleString('zh-CN', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : '刚刚';
+
+                    return {
+                        type: type,
+                        typeClass: typeClass,
+                        title: item.title,
+                        time: time,
+                        status: item.status
+                    };
+                });
+
+                const colMap = {
+                    'new': 'new',
+                    'pending_confirm': 'pending',
+                    'in_progress': 'progress',
+                    'exception_review': 'exception',
+                    'archived': 'archived'
+                };
+
+                const targetCol = colMap[col.key] || col.key;
+                col.key = targetCol;
+                col.items = items;
+            });
+
+            columns.forEach(renderColumn);
+        }
+
+        init();
+    </script>
+</body>
+</html>
