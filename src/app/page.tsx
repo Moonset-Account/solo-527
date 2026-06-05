@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Mask, Calendar, Ticket, Users } from 'lucide-react';
+import { Theater, Calendar, Ticket, Users } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -9,7 +9,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
           <nav className="flex items-center justify-between mb-12">
             <div className="flex items-center space-x-3">
-              <Mask className="h-10 w-10 text-secondary" />
+              <Theater className="h-10 w-10 text-secondary" />
               <span className="text-2xl font-display font-bold text-white">
                 梨园剧社
               </span>
@@ -78,7 +78,7 @@ export default function HomePage() {
                 desc: '可视化座位图，轻松选座购票，支持候补排队',
               },
               {
-                icon: <Mask className="h-8 w-8" />,
+                icon: <Theater className="h-8 w-8" />,
                 title: '扫码验票',
                 desc: '现场快速验票，支持换座并留存完整记录',
               },
@@ -103,7 +103,7 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white/60 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Mask className="h-6 w-6 text-secondary" />
+            <Theater className="h-6 w-6 text-secondary" />
             <span className="font-display font-semibold text-white">
               校园戏剧社管理系统
             </span>

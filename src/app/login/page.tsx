@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Mask, Loader2 } from 'lucide-react';
+import { Theater, Loader2 } from 'lucide-react';
 import { loginSchema, type LoginInput } from '@/lib/validations';
 import { signIn } from 'next-auth/react';
 
@@ -52,7 +52,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8 animate-fade-in">
           <Link href="/" className="inline-flex items-center space-x-2 mb-6">
-            <Mask className="h-12 w-12 text-secondary" />
+            <Theater className="h-12 w-12 text-secondary" />
             <span className="text-3xl font-display font-bold text-white">
               梨园剧社
             </span>

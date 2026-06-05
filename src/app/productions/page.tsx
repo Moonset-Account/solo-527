@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Plus, Mask, Calendar, Users } from 'lucide-react';
+import { Plus, Theater, Calendar, Users } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { hasPermission } from '@/lib/utils';
 
@@ -56,7 +56,7 @@ export default async function ProductionsPage() {
             className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 card-hover"
           >
             <div className="h-40 theater-gradient flex items-center justify-center">
-              <Mask className="h-16 w-16 text-white/80" />
+              <Theater className="h-16 w-16 text-white/80" />
             </div>
             <div className="p-6">
               <div className="flex items-start justify-between mb-3">
@@ -98,7 +98,7 @@ export default async function ProductionsPage() {
 
         {productions.length === 0 && (
           <div className="col-span-full text-center py-16 bg-white rounded-xl">
-            <Mask className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <Theater className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               暂无剧目
             </h3>

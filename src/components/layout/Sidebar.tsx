@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Mask,
+  Theater,
   Calendar,
   MapPin,
   Ticket,
   QrCode,
   Wallet,
+  ListOrdered,
   Users,
   Bell,
   Settings,
@@ -30,7 +31,7 @@ const menuItems = [
   {
     title: '剧目管理',
     href: '/productions',
-    icon: Mask,
+    icon: Theater,
     roles: ['SUPER_ADMIN', 'COMMITTEE', 'DIRECTOR', 'ACTOR'],
   },
   {
@@ -67,6 +68,12 @@ const menuItems = [
     title: '我的订单',
     href: '/tickets/orders',
     icon: Ticket,
+    roles: ['SUPER_ADMIN', 'COMMITTEE', 'DIRECTOR', 'ACTOR', 'TICKET_STAFF', 'USER'],
+  },
+  {
+    title: '候补名单',
+    href: '/tickets/waitlist',
+    icon: ListOrdered,
     roles: ['SUPER_ADMIN', 'COMMITTEE', 'DIRECTOR', 'ACTOR', 'TICKET_STAFF', 'USER'],
   },
   {
@@ -108,7 +115,7 @@ export function Sidebar() {
     <div className="flex flex-col h-full bg-gray-900 text-white">
       <div className="p-6 border-b border-gray-800">
         <Link href="/dashboard" className="flex items-center space-x-3">
-          <Mask className="h-8 w-8 text-secondary" />
+          <Theater className="h-8 w-8 text-secondary" />
           <span className="text-xl font-display font-bold">梨园剧社</span>
         </Link>
       </div>

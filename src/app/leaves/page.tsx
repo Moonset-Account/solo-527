@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Clock, Plus, Check, X, User, Calendar } from 'lucide-react';
+import { Clock, Plus, Check, X, User, Calendar, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate, hasPermission } from '@/lib/utils';
 
@@ -29,7 +29,7 @@ export default async function LeavesPage() {
     orderBy: { createdAt: 'desc' },
   });
 
-  const statusConfig: Record<string, { label: string; className: string; icon: any }> = {
+  const statusConfig: Record<string, { label: string; className: string; icon: LucideIcon }> = {
     PENDING: {
       label: '待审批',
       className: 'bg-yellow-100 text-yellow-700',

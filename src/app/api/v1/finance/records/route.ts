@@ -35,16 +35,13 @@ export async function GET(request: Request) {
       where,
       include: {
         recordedBy: { select: { id: true, name: true } },
+        relatedOrder: { select: { id: true, orderNo: true } },
       },
       orderBy: { recordedAt: 'desc' },
+      take: 200,
     });
 
-    const summary = await prisma.financeRecord.aggregate({
-      _sum: { amount: true },
-      where,
-    });
-
-    return NextResponse.json({ records, totalAmount: summary._sum.amount });
+    return NextResponse.json(records);
   } catch (error) {
     console.error('Get finance records error:', error);
     return NextResponse.json(

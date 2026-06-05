@@ -95,15 +95,17 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  productions    Production[]    @relation("CreatedProductions")
-  characters     Character[]
-  rehearsals    Rehearsal[]     @relation("CreatedRehearsals")
-  leaveRequests  LeaveRequest[]  @relation("LeaveRequests")
-  approvedLeaves LeaveRequest[] @relation("ApprovedLeaves")
-  orders         Order[]
-  financeRecords FinanceRecord[] @relation("RecordedFinance")
-  notifications  Notification[]
+  productions     Production[]     @relation("CreatedProductions")
+  characters      Character[]
+  rehearsals     Rehearsal[]      @relation("CreatedRehearsals")
+  leaveRequests   LeaveRequest[]   @relation("LeaveRequests")
+  approvedLeaves  LeaveRequest[]   @relation("ApprovedLeaves")
+  orders          Order[]
+  financeRecords  FinanceRecord[]  @relation("RecordedFinance")
+  notifications   Notification[]
   courseSchedules CourseSchedule[]
+  waitlistEntries WaitlistEntry[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }

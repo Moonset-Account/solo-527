@@ -132,7 +132,7 @@ export default function SeatSelectionPage() {
     }
   };
 
-  const rows = [...new Set(seats.map((s) => s.rowLabel))].sort();
+  const rows = Array.from(new Set(seats.map((s) => s.rowLabel))).sort();
 
   if (loading) {
     return (
