@@ -3,6 +3,13 @@
     <div class="bg-white rounded-xl p-4 shadow-sm">
       <div class="font-medium text-gray-800 mb-4">领用申请</div>
       <el-form :model="form" label-position="top">
+        <el-form-item label="申请标题">
+          <el-input
+            v-model="form.title"
+            placeholder="请输入申请标题"
+          />
+        </el-form-item>
+        
         <el-form-item label="领用用途">
           <el-input
             v-model="form.purpose"
@@ -74,6 +81,7 @@ const submitting = ref(false)
 const availableBatches = ref<any[]>([])
 
 const form = reactive({
+  title: '',
   purpose: '',
   items: [] as any[]
 })
@@ -106,6 +114,10 @@ function removeItem(index: number) {
 }
 
 async function submit() {
+  if (!form.title.trim()) {
+    ElMessage.warning('请填写申请标题')
+    return
+  }
   if (!form.purpose.trim()) {
     ElMessage.warning('请填写领用用途')
     return

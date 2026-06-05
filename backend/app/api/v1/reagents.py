@@ -64,6 +64,75 @@ def get_low_stock_reagents(
     return crud.reagent.get_low_stock(db)
 
 
+@router.get("/batches")
+def read_batches(
+    skip: int = 0,
+    limit: int = 100,
+    in_stock_only: bool = False,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    filters = {}
+    if in_stock_only:
+        filters["remaining_quantity_gt"] = 0
+    batches, total = crud.reagent_batch.get_multi_with_total(db, filters=filters, skip=skip, limit=limit)
+    page = (skip // limit) + 1
+    total_pages = (total + limit - 1) // limit
+    return {
+        "items": batches,
+        "total": total,
+        "page": page,
+        "page_size": limit,
+        "total_pages": total_pages
+    }
+
+
+@router.get("/batches/expiring-soon", response_model=List[schemas.ReagentBatch])
+def get_expiring_soon(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    return crud.reagent_batch.get_expiring_soon(db, days=days)
+
+
+@router.get("/batches/by-barcode/{barcode}", response_model=schemas.ReagentBatch)
+def get_batch_by_barcode(
+    barcode: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    batch = crud.reagent_batch.get_by_barcode(db, barcode=barcode)
+    if not batch:
+        raise HTTPException(status_code=404, detail="批次不存在")
+    return batch
+
+
+@router.put("/batches/{batch_id}", response_model=schemas.ReagentBatch, dependencies=[Depends(allow_admin_member)])
+def update_batch(
+    request: Request,
+    batch_id: int,
+    batch_in: schemas.ReagentBatchUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    batch = crud.reagent_batch.get(db, id=batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="批次不存在")
+    batch = crud.reagent_batch.update(db, db_obj=batch, obj_in=batch_in)
+    
+    crud.audit_log.create_log(
+        db, user_id=current_user.id, username=current_user.username,
+        action=models.AuditAction.UPDATE,
+        resource_type="reagent_batch",
+        resource_id=batch.id,
+        details=f"更新批次 {batch.batch_number}",
+        ip_address=request.client.host if request.client else None
+    )
+    return batch
+
+
 @router.get("/by-barcode/{barcode}", response_model=schemas.Reagent)
 def get_reagent_by_barcode(
     barcode: str,
@@ -165,8 +234,11 @@ def create_batch(
     batch_in.reagent_id = reagent_id
     batch = crud.reagent_batch.create(db, obj_in=batch_in, created_by=current_user.id)
     
-    notification_service.check_low_stock(db)
-    notification_service.check_expiry(db)
+    try:
+        notification_service.check_low_stock(db)
+        notification_service.check_expiry(db)
+    except Exception:
+        pass
     
     crud.audit_log.create_log(
         db, user_id=current_user.id, username=current_user.username,
@@ -174,75 +246,6 @@ def create_batch(
         resource_type="reagent_batch",
         resource_id=batch.id,
         details=f"入库批次 {batch.batch_number} for {reagent.name}",
-        ip_address=request.client.host if request.client else None
-    )
-    return batch
-
-
-@router.get("/batches")
-def read_batches(
-    skip: int = 0,
-    limit: int = 100,
-    in_stock_only: bool = False,
-    keyword: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    filters = {}
-    if in_stock_only:
-        filters["remaining_quantity_gt"] = 0
-    batches, total = crud.reagent_batch.get_multi_with_total(db, filters=filters, skip=skip, limit=limit)
-    page = (skip // limit) + 1
-    total_pages = (total + limit - 1) // limit
-    return {
-        "items": batches,
-        "total": total,
-        "page": page,
-        "page_size": limit,
-        "total_pages": total_pages
-    }
-
-
-@router.get("/batches/expiring-soon", response_model=List[schemas.ReagentBatch])
-def get_expiring_soon(
-    days: int = 30,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    return crud.reagent_batch.get_expiring_soon(db, days=days)
-
-
-@router.get("/batches/by-barcode/{barcode}", response_model=schemas.ReagentBatch)
-def get_batch_by_barcode(
-    barcode: str,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    batch = crud.reagent_batch.get_by_barcode(db, barcode=barcode)
-    if not batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    return batch
-
-
-@router.put("/batches/{batch_id}", response_model=schemas.ReagentBatch, dependencies=[Depends(allow_admin_member)])
-def update_batch(
-    request: Request,
-    batch_id: int,
-    batch_in: schemas.ReagentBatchUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    batch = crud.reagent_batch.get(db, id=batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    batch = crud.reagent_batch.update(db, db_obj=batch, obj_in=batch_in)
-    
-    crud.audit_log.create_log(
-        db, user_id=current_user.id, username=current_user.username,
-        action=models.AuditAction.UPDATE,
-        resource_type="reagent_batch",
-        resource_id=batch.id,
-        details=f"更新批次 {batch.batch_number}",
         ip_address=request.client.host if request.client else None
     )
     return batch

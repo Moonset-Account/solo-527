@@ -165,20 +165,16 @@ async function submit() {
   
   submitting.value = true
   try {
-    const formData = new FormData()
-    Object.entries(form).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        formData.append(key, String(value))
-      }
-    })
+    const submitData = {
+      reagent_id: form.reagent_id,
+      batch_number: form.batch_number,
+      quantity: form.quantity,
+      expiry_date: form.expiry_date,
+      storage_cabinet_id: form.storage_cabinet_id,
+      remarks: form.notes || ''
+    }
     
-    files.value.forEach((file, index) => {
-      formData.append(`files[${index}]`, file)
-    })
-    
-    await api.post(`/reagents/${form.reagent_id}/batches`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    await api.post(`/reagents/${form.reagent_id}/batches`, submitData)
     
     ElMessage.success('入库成功')
     router.back()
@@ -199,7 +195,14 @@ async function saveOffline() {
   try {
     const offlineRecord = {
       type: 'stock_in',
-      data: { ...form, files: files.value.map(f => f.name) },
+      data: {
+        reagent_id: form.reagent_id,
+        batch_number: form.batch_number,
+        quantity: form.quantity,
+        expiry_date: form.expiry_date,
+        storage_cabinet_id: form.storage_cabinet_id,
+        remarks: form.notes || ''
+      },
       timestamp: Date.now(),
       id: Date.now().toString()
     }
