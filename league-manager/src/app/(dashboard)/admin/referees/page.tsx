@@ -58,7 +58,7 @@ export default function AdminRefereesPage() {
     setSubmitting(true);
     try {
       const res = await fetch(`/api/schedules/${selectedMatch}/referee`, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders(),

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Eye, Check, X } from 'lucide-react';
+import { Search, Eye, Check, X, Lock } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Table } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -31,6 +31,8 @@ export default function AdminTeamsPage() {
   const [reviewModal, setReviewModal] = useState<{ team: ITeam; action: 'approved' | 'rejected' } | null>(null);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [lockModal, setLockModal] = useState<ITeam | null>(null);
+  const [locking, setLocking] = useState(false);
   const pageSize = 10;
 
   const fetchTeams = async () => {
@@ -87,6 +89,27 @@ export default function AdminTeamsPage() {
     }
   };
 
+  const handleLock = async () => {
+    if (!lockModal) return;
+    setLocking(true);
+    try {
+      const res = await fetch(`/api/teams/${lockModal._id}/lock-roster`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(),
+        },
+      });
+      if (res.ok) {
+        setLockModal(null);
+        fetchTeams();
+      }
+    } catch {
+    } finally {
+      setLocking(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
 
   const columns = [
@@ -131,6 +154,19 @@ export default function AdminTeamsPage() {
                 <X size={14} />
               </Button>
             </>
+          )}
+          {row.status === 'approved' && !row.rosterLockedAt && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setLockModal(row)}
+              title="锁定名单"
+            >
+              <Lock size={14} />
+            </Button>
+          )}
+          {row.rosterLockedAt && (
+            <Badge variant="default">名单已锁</Badge>
           )}
         </div>
       ),
@@ -212,6 +248,27 @@ export default function AdminTeamsPage() {
               onClick={handleReview}
             >
               确认{reviewModal?.action === 'approved' ? '通过' : '拒绝'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!lockModal}
+        onClose={() => setLockModal(null)}
+        title="锁定参赛名单"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            确定要锁定球队「<span className="font-medium">{lockModal?.name}</span>」的参赛名单吗？
+          </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+            <p>⚠️ 锁定后球员名单将不能再修改，此操作不可逆。</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setLockModal(null)}>取消</Button>
+            <Button variant="primary" loading={locking} onClick={handleLock}>
+              确认锁定
             </Button>
           </div>
         </div>
