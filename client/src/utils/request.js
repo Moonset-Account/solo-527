@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useUserStore } from '@/store/user';
 import { showToast } from 'vant';
+import { addPendingRequest } from './offline';
 
 const api = axios.create({
   baseURL: '/api',
@@ -27,21 +28,29 @@ api.interceptors.response.use(
         userStore.logout();
         window.location.href = '/login';
       }
-      showToast(error.response.data.error || '请求失败');
+      if (!error.config?.silent) {
+        showToast(error.response.data.error || '请求失败');
+      }
     } else if (error.request) {
       const originalRequest = error.config;
-      if (!originalRequest._retry && !navigator.onLine) {
-        const pendingQueue = JSON.parse(localStorage.getItem('pendingRequests') || '[]');
-        pendingQueue.push({
-          url: originalRequest.url,
-          method: originalRequest.method,
-          data: originalRequest.data,
-          params: originalRequest.params,
-          timestamp: Date.now()
-        });
-        localStorage.setItem('pendingRequests', JSON.stringify(pendingQueue));
+      if (!originalRequest._retry && !navigator.onLine && originalRequest.offlineCache !== false) {
+        const data = originalRequest.data;
+        let parsedData = data;
+        if (typeof data === 'string') {
+          try {
+            parsedData = JSON.parse(data);
+          } catch (e) {
+            parsedData = data;
+          }
+        }
+        addPendingRequest(
+          originalRequest.url,
+          originalRequest.method,
+          parsedData,
+          originalRequest.params
+        );
         showToast('网络离线，请求已缓存，将在恢复后重试');
-      } else {
+      } else if (!originalRequest._retry) {
         showToast('网络连接失败');
       }
     }
