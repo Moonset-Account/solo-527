@@ -105,7 +105,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { api } from '@/utils/request'
-import { formatDate, getPendingQueue } from '@/utils/device'
+import { formatDate } from '@/utils/device'
+import { getPendingQueue } from '@/utils/offline'
 
 const userStore = useUserStore()
 const user = computed(() => userStore.user)

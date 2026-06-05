@@ -4,6 +4,8 @@ django-filter==23.5
 django-cors-headers==4.3.1
 django-redis==5.4.0
 django-storages==1.14.2
+django-celery-results==2.6.0
+django-celery-beat==2.9.0
 Pillow==10.1.0
 celery==5.3.4
 redis==5.0.1
@@ -15,3 +17,5 @@ drf-yasg==1.21.7
 openpyxl==3.1.2
 qrcode==7.4.2
 pytz==2023.3
+django-timezone-field==7.2.1
+python-crontab==3.3.0
