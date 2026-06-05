@@ -24,7 +24,7 @@ const navigation = [
   { name: '报价单', href: '/quotes', icon: FileText },
   { name: '发票', href: '/invoices', icon: Receipt },
   { name: '收款', href: '/payments', icon: DollarSign },
-  { name: '统计报表', href: '/reports', icon: BarChart3 },
+  { name: '统计报表', href: '/statistics', icon: BarChart3 },
   { name: '客户', href: '/clients', icon: Users },
 ];
 

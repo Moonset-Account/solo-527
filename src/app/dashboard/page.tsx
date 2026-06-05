@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Plus,
+  FileText,
+  Receipt,
+  Users,
 } from 'lucide-react';
 import { formatCurrency, formatDuration } from '@/lib/utils';
 import Link from 'next/link';

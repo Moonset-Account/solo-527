@@ -22,7 +22,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -32,6 +32,7 @@ export default function LoginPage() {
         const data = await res.json();
         setUser(data.user);
         router.push('/dashboard');
+        router.refresh();
       } else {
         const data = await res.json();
         setError(data.error || '登录失败，请检查邮箱和密码');
