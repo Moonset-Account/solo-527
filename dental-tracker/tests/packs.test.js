@@ -8,6 +8,7 @@ const db = require('../src/db/pool');
 const request = supertest(app);
 
 let nurseToken = '';
+let deptNurseToken = '';
 let testPackId = null;
 let testBatchId = null;
 
@@ -17,6 +18,11 @@ describe('器械包全流程测试', () => {
       .post('/api/auth/login')
       .send({ username: 'lixd', password: 'sn123' });
     nurseToken = res.body.token;
+
+    const deptRes = await request
+      .post('/api/auth/login')
+      .send({ username: 'wangks', password: 'dn123' });
+    deptNurseToken = deptRes.body.token;
   });
 
   after(async () => {
@@ -29,7 +35,6 @@ describe('器械包全流程测试', () => {
       await db.query('DELETE FROM pack_logs WHERE pack_id = $1', [testPackId]);
       await db.query('DELETE FROM instrument_packs WHERE id = $1', [testPackId]);
     }
-    await db.pool.end();
   });
 
   describe('POST /api/packs - 创建器械包', () => {
@@ -135,7 +140,7 @@ describe('器械包全流程测试', () => {
     it('已灭菌器械包可以科室领用', async () => {
       const res = await request
         .post(`/api/packs/${testPackId}/dispatch`)
-        .set('Authorization', `Bearer ${nurseToken}`)
+        .set('Authorization', `Bearer ${deptNurseToken}`)
         .send({ department_id: 1 });
 
       expect(res.status).to.equal(200);

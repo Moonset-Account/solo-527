@@ -3,7 +3,6 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const { expect } = require('chai');
 const supertest = require('supertest');
 const app = require('../src/app');
-const db = require('../src/db/pool');
 
 const request = supertest(app);
 
@@ -33,9 +32,7 @@ describe('认证与权限测试', () => {
     }
   });
 
-  after(async () => {
-    await db.pool.end();
-  });
+
 
   describe('POST /api/auth/login', () => {
     it('管理员登录成功', async () => {

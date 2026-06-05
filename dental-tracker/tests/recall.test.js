@@ -84,7 +84,6 @@ describe('异常召回测试', () => {
       await db.query('DELETE FROM notifications WHERE title LIKE $1', ['%召回%']);
       await db.query('DELETE FROM sterilization_batches WHERE id = $1', [recallBatchId]);
     }
-    await db.pool.end();
   });
 
   describe('POST /api/batches/:id/abnormal - 批次异常标记', () => {

@@ -37,6 +37,8 @@
   <main id="mainContent" class="main-content" style="display:none;">
     <div class="toolbar">
       <button class="btn btn-primary" onclick="showNewPackDialog()">+ 新建器械包</button>
+      <button class="btn btn-success" onclick="showNewBatchDialog()">+ 新建灭菌批次</button>
+      <button class="btn btn-warning" onclick="showBatchPanel()">📋 批次管理 / 召回</button>
       <input type="text" id="scanInput" placeholder="扫码输入器械包编码" class="scan-input" onkeydown="handleScan(event)">
       <button class="btn btn-accent" onclick="handleScanAction()">扫码回收</button>
     </div>
@@ -112,9 +114,111 @@
       </div>
       <div class="dialog-actions">
         <button class="btn btn-primary" onclick="createNewPack()">确认创建</button>
-        <button class="btn" onclick="hideNewPackDialog()">取消</button>
+        <button class="btn" onclick="hideDialog('newPackDialog')">取消</button>
       </div>
       <div id="newPackError" class="error-msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="newBatchDialog" class="overlay" style="display:none;">
+    <div class="dialog-card" style="width:460px;">
+      <h2>新建灭菌批次</h2>
+      <div class="form-group">
+        <label>消毒锅</label>
+        <select id="batchAutoclave"></select>
+      </div>
+      <div class="form-group">
+        <label>待入批器械包（执行中状态）</label>
+        <div id="batchPackCheckboxes" class="checkbox-list"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label>温度 (°C)</label>
+          <input type="number" id="batchTemp" value="134.0" step="0.1">
+        </div>
+        <div class="form-group" style="flex:1;margin-left:12px;">
+          <label>压力 (MPa)</label>
+          <input type="number" id="batchPressure" value="0.21" step="0.01">
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-success" onclick="createNewBatch()">确认创建批次</button>
+        <button class="btn" onclick="hideDialog('newBatchDialog')">取消</button>
+      </div>
+      <div id="newBatchError" class="error-msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="sterilizeDialog" class="overlay" style="display:none;">
+    <div class="dialog-card" style="width:460px;">
+      <h2>灭菌放行</h2>
+      <div class="form-group">
+        <label>选择灭菌批次</label>
+        <select id="sterilizeBatchSelect"></select>
+      </div>
+      <div class="form-group">
+        <label>灭菌指示卡编码</label>
+        <input type="text" id="sterilizeCardCode" placeholder="如 CARD-001">
+      </div>
+      <div class="form-group">
+        <label>变色情况</label>
+        <input type="text" id="sterilizeColorChange" placeholder="如 由蓝变黑" value="由蓝变黑">
+      </div>
+      <div class="form-group">
+        <label>指示卡结果</label>
+        <div class="radio-group">
+          <label class="radio-label"><input type="radio" name="cardResult" value="true" checked> 合格</label>
+          <label class="radio-label"><input type="radio" name="cardResult" value="false"> 不合格</label>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-primary" onclick="submitSterilize()">确认放行</button>
+        <button class="btn" onclick="hideDialog('sterilizeDialog')">取消</button>
+      </div>
+      <div id="sterilizeError" class="error-msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="dispatchDialog" class="overlay" style="display:none;">
+    <div class="dialog-card">
+      <h2>科室领用</h2>
+      <div class="form-group">
+        <label>选择领用科室</label>
+        <select id="dispatchDeptSelect"></select>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-primary" onclick="submitDispatch()">确认领用</button>
+        <button class="btn" onclick="hideDialog('dispatchDialog')">取消</button>
+      </div>
+      <div id="dispatchError" class="error-msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="batchPanel" class="side-panel" style="display:none;">
+    <div class="detail-header">
+      <h3>📋 批次管理 / 异常召回</h3>
+      <button class="btn btn-sm" onclick="closeBatchPanel()">✕ 关闭</button>
+    </div>
+    <div id="batchListBody" class="detail-body"></div>
+  </div>
+
+  <div id="recallDialog" class="overlay" style="display:none;">
+    <div class="dialog-card">
+      <h2>⚠ 标记批次异常 & 召回</h2>
+      <div class="form-group">
+        <label>批次编码</label>
+        <input type="text" id="recallBatchCode" readonly>
+      </div>
+      <input type="hidden" id="recallBatchId">
+      <div class="form-group">
+        <label>异常原因</label>
+        <textarea id="recallReason" rows="3" placeholder="请详细描述异常原因，如：灭菌温度未达标、生物监测阳性等" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;"></textarea>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-danger" onclick="submitRecall()">确认标记异常并召回</button>
+        <button class="btn" onclick="hideDialog('recallDialog')">取消</button>
+      </div>
+      <div id="recallError" class="error-msg" style="display:none;"></div>
     </div>
   </div>
 

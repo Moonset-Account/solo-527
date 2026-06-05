@@ -7,9 +7,7 @@ const API = '/api';
 async function api(method, path, body) {
   const opts = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
   };
   if (authToken) opts.headers['Authorization'] = `Bearer ${authToken}`;
   if (body) opts.body = JSON.stringify(body);
@@ -61,6 +59,10 @@ async function login() {
 
 function logout() {
   showLogin();
+}
+
+function hideDialog(id) {
+  document.getElementById(id).style.display = 'none';
 }
 
 async function loadKanban() {
@@ -185,31 +187,6 @@ async function cleanPack(packId) {
   }
 }
 
-async function sterilizePack(packId, batchId, cardCode, colorChange, isPassed) {
-  try {
-    await api('POST', `/packs/${packId}/sterilize`, {
-      batch_id: batchId,
-      card_code: cardCode,
-      color_change: colorChange,
-      is_passed: isPassed,
-    });
-    await loadKanban();
-    showPackDetail(packId);
-  } catch (e) {
-    alert('灭菌放行失败: ' + e.message);
-  }
-}
-
-async function dispatchPack(packId, deptId) {
-  try {
-    await api('POST', `/packs/${packId}/dispatch`, { department_id: deptId });
-    await loadKanban();
-    closeDetail();
-  } catch (e) {
-    alert('科室领用失败: ' + e.message);
-  }
-}
-
 async function unfreezePack(packId) {
   try {
     await api('POST', `/recall/unfreeze/${packId}`);
@@ -250,10 +227,6 @@ function showNewPackDialog() {
   document.getElementById('newPackDialog').style.display = 'flex';
 }
 
-function hideNewPackDialog() {
-  document.getElementById('newPackDialog').style.display = 'none';
-}
-
 async function createNewPack() {
   const code = document.getElementById('newPackCode').value.trim();
   const name = document.getElementById('newPackName').value.trim();
@@ -261,7 +234,9 @@ async function createNewPack() {
 
   try {
     await api('POST', '/packs', { code, name, category });
-    hideNewPackDialog();
+    hideDialog('newPackDialog');
+    document.getElementById('newPackCode').value = '';
+    document.getElementById('newPackName').value = '';
     await loadKanban();
   } catch (e) {
     document.getElementById('newPackError').textContent = e.message;
@@ -269,20 +244,237 @@ async function createNewPack() {
   }
 }
 
-function showSterilizeDialog(packId) {
-  const batchId = prompt('请输入灭菌批次ID (需先创建批次):');
-  if (!batchId) return;
-  const cardCode = prompt('灭菌指示卡编码:');
-  if (!cardCode) return;
-  const colorChange = prompt('变色情况 (如: 由蓝变黑):');
-  const isPassed = confirm('灭菌指示卡是否合格？\n确定=合格，取消=不合格');
-  sterilizePack(packId, parseInt(batchId), cardCode, colorChange, isPassed);
+async function showNewBatchDialog() {
+  try {
+    const autoclaves = await api('GET', '/autoclaves');
+    const sel = document.getElementById('batchAutoclave');
+    sel.innerHTML = autoclaves.map(a => `<option value="${a.id}">${a.name} (${a.code})</option>`).join('');
+
+    const packs = await api('GET', '/packs?status=in_progress');
+    const cbDiv = document.getElementById('batchPackCheckboxes');
+    if (packs.length === 0) {
+      cbDiv.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px;">暂无执行中状态的器械包</div>';
+    } else {
+      cbDiv.innerHTML = packs.map(p => `
+        <label class="checkbox-label">
+          <input type="checkbox" value="${p.id}" class="batch-pack-cb"> ${p.code} - ${p.name}
+        </label>
+      `).join('');
+    }
+
+    document.getElementById('newBatchError').style.display = 'none';
+    document.getElementById('newBatchDialog').style.display = 'flex';
+  } catch (e) {
+    alert('加载批次创建数据失败: ' + e.message);
+  }
 }
 
-function showDispatchDialog(packId) {
-  const deptId = prompt('请输入领用科室ID:\n1=口腔内科\n2=口腔外科\n3=正畸科\n4=修复科\n5=儿童口腔科');
-  if (!deptId) return;
-  dispatchPack(packId, parseInt(deptId));
+async function createNewBatch() {
+  const autoclaveId = parseInt(document.getElementById('batchAutoclave').value);
+  const temperature = parseFloat(document.getElementById('batchTemp').value);
+  const pressure = parseFloat(document.getElementById('batchPressure').value);
+  const packIds = Array.from(document.querySelectorAll('.batch-pack-cb:checked')).map(cb => parseInt(cb.value));
+
+  if (packIds.length === 0) {
+    document.getElementById('newBatchError').textContent = '请至少选择一个器械包';
+    document.getElementById('newBatchError').style.display = 'block';
+    return;
+  }
+
+  try {
+    await api('POST', '/batches', { autoclave_id: autoclaveId, pack_ids: packIds, temperature, pressure });
+    hideDialog('newBatchDialog');
+    await loadKanban();
+  } catch (e) {
+    document.getElementById('newBatchError').textContent = e.message;
+    document.getElementById('newBatchError').style.display = 'block';
+  }
+}
+
+async function showSterilizeDialog(packId) {
+  try {
+    const batches = await api('GET', '/batches?status=pending');
+    const sel = document.getElementById('sterilizeBatchSelect');
+
+    if (batches.length === 0) {
+      sel.innerHTML = '<option value="">暂无待确认批次，请先创建批次</option>';
+    } else {
+      sel.innerHTML = batches.map(b => `<option value="${b.id}">${b.batch_code} — ${b.autoclave_name || ''}</option>`).join('');
+    }
+
+    document.getElementById('sterilizeCardCode').value = `CARD-${packId}-${Date.now()}`;
+    document.getElementById('sterilizeColorChange').value = '由蓝变黑';
+    document.querySelector('input[name="cardResult"][value="true"]').checked = true;
+    document.getElementById('sterilizeError').style.display = 'none';
+    document.getElementById('sterilizeDialog').dataset.packId = packId;
+    document.getElementById('sterilizeDialog').style.display = 'flex';
+  } catch (e) {
+    alert('加载批次数据失败: ' + e.message);
+  }
+}
+
+async function submitSterilize() {
+  const packId = parseInt(document.getElementById('sterilizeDialog').dataset.packId);
+  const batchId = parseInt(document.getElementById('sterilizeBatchSelect').value);
+  const cardCode = document.getElementById('sterilizeCardCode').value.trim();
+  const colorChange = document.getElementById('sterilizeColorChange').value.trim();
+  const isPassed = document.querySelector('input[name="cardResult"]:checked').value === 'true';
+
+  if (!batchId) {
+    document.getElementById('sterilizeError').textContent = '请选择灭菌批次';
+    document.getElementById('sterilizeError').style.display = 'block';
+    return;
+  }
+
+  if (!cardCode) {
+    document.getElementById('sterilizeError').textContent = '请输入灭菌指示卡编码';
+    document.getElementById('sterilizeError').style.display = 'block';
+    return;
+  }
+
+  try {
+    await api('POST', `/packs/${packId}/sterilize`, {
+      batch_id: batchId,
+      card_code: cardCode,
+      color_change: colorChange,
+      is_passed: isPassed,
+    });
+    hideDialog('sterilizeDialog');
+    await loadKanban();
+    showPackDetail(packId);
+  } catch (e) {
+    document.getElementById('sterilizeError').textContent = e.message;
+    document.getElementById('sterilizeError').style.display = 'block';
+  }
+}
+
+async function showDispatchDialog(packId) {
+  try {
+    const depts = await api('GET', '/departments');
+    const sel = document.getElementById('dispatchDeptSelect');
+    sel.innerHTML = depts.map(d => `<option value="${d.id}">${d.name} (${d.code})</option>`).join('');
+
+    document.getElementById('dispatchError').style.display = 'none';
+    document.getElementById('dispatchDialog').dataset.packId = packId;
+    document.getElementById('dispatchDialog').style.display = 'flex';
+  } catch (e) {
+    alert('加载科室数据失败: ' + e.message);
+  }
+}
+
+async function submitDispatch() {
+  const packId = parseInt(document.getElementById('dispatchDialog').dataset.packId);
+  const deptId = parseInt(document.getElementById('dispatchDeptSelect').value);
+
+  try {
+    await api('POST', `/packs/${packId}/dispatch`, { department_id: deptId });
+    hideDialog('dispatchDialog');
+    await loadKanban();
+    closeDetail();
+  } catch (e) {
+    document.getElementById('dispatchError').textContent = e.message;
+    document.getElementById('dispatchError').style.display = 'block';
+  }
+}
+
+async function showBatchPanel() {
+  try {
+    const batches = await api('GET', '/batches');
+    const body = document.getElementById('batchListBody');
+
+    if (batches.length === 0) {
+      body.innerHTML = '<div style="color:var(--text-secondary);padding:20px;text-align:center;">暂无灭菌批次</div>';
+    } else {
+      body.innerHTML = batches.map(b => `
+        <div class="batch-card ${b.is_abnormal ? 'batch-abnormal' : ''}">
+          <div class="batch-header-row">
+            <span class="batch-code">${b.batch_code}</span>
+            <span class="batch-status-badge ${b.status}">${batchStatusLabel(b)}</span>
+          </div>
+          <div class="batch-info">
+            <div>消毒锅: ${b.autoclave_name || '-'}</div>
+            <div>操作人: ${b.operator_name || '-'}</div>
+            <div>温度: ${b.temperature || '-'}°C | 压力: ${b.pressure || '-'}MPa</div>
+            <div>开始: ${formatTime(b.start_time)}</div>
+            ${b.is_abnormal ? '<div style="color:#ef4444;font-weight:600;">⚠ 已标记异常</div>' : ''}
+          </div>
+          <div class="batch-actions">
+            ${!b.is_abnormal && b.status !== 'abnormal' ? `<button class="btn btn-danger btn-sm" onclick="showRecallDialog(${b.id}, '${b.batch_code}')">标记异常 & 召回</button>` : ''}
+            <button class="btn btn-sm" onclick="showBatchPacks(${b.id})">查看器械包</button>
+          </div>
+          <div id="batch-packs-${b.id}" class="batch-packs-list" style="display:none;"></div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('batchPanel').style.display = 'flex';
+  } catch (e) {
+    alert('加载批次列表失败: ' + e.message);
+  }
+}
+
+function closeBatchPanel() {
+  document.getElementById('batchPanel').style.display = 'none';
+}
+
+function batchStatusLabel(b) {
+  if (b.is_abnormal) return '异常';
+  const map = { pending: '待确认', confirmed: '已确认', abnormal: '异常' };
+  return map[b.status] || b.status;
+}
+
+function showRecallDialog(batchId, batchCode) {
+  document.getElementById('recallBatchId').value = batchId;
+  document.getElementById('recallBatchCode').value = batchCode;
+  document.getElementById('recallReason').value = '';
+  document.getElementById('recallError').style.display = 'none';
+  document.getElementById('recallDialog').style.display = 'flex';
+}
+
+async function submitRecall() {
+  const batchId = parseInt(document.getElementById('recallBatchId').value);
+  const reason = document.getElementById('recallReason').value.trim();
+
+  if (!reason) {
+    document.getElementById('recallError').textContent = '请填写异常原因';
+    document.getElementById('recallError').style.display = 'block';
+    return;
+  }
+
+  try {
+    const result = await api('POST', `/batches/${batchId}/abnormal`, { reason });
+    hideDialog('recallDialog');
+    alert(`批次异常标记成功！已冻结 ${result.recalled_packs} 个器械包`);
+    showBatchPanel();
+    await loadKanban();
+  } catch (e) {
+    document.getElementById('recallError').textContent = e.message;
+    document.getElementById('recallError').style.display = 'block';
+  }
+}
+
+async function showBatchPacks(batchId) {
+  const container = document.getElementById(`batch-packs-${batchId}`);
+  if (container.style.display !== 'none') {
+    container.style.display = 'none';
+    return;
+  }
+
+  try {
+    const packs = await api('GET', `/batches/${batchId}/packs`);
+    container.innerHTML = packs.map(p => `
+      <div class="batch-pack-item">
+        <span>${p.code}</span>
+        <span style="margin-left:8px;color:var(--text-secondary);">${p.name}</span>
+        <span class="pack-status-tag ${p.status}">${statusLabel(p.status)}</span>
+        ${p.is_frozen ? '<span style="color:#ef4444;font-size:11px;">⚠冻结</span>' : ''}
+      </div>
+    `).join('');
+    container.style.display = 'block';
+  } catch (e) {
+    container.innerHTML = `<div style="color:#ef4444;padding:8px;">加载失败: ${e.message}</div>`;
+    container.style.display = 'block';
+  }
 }
 
 function closeDetail() {
@@ -303,7 +495,7 @@ function statusLabel(status) {
 }
 
 function formatTime(ts) {
-  if (!ts) return '';
+  if (!ts) return '-';
   const d = new Date(ts);
   return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
