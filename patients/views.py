@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import PatientProfile, ChronicDisease
 from .serializers import (
-    PatientProfileSerializer, ChronicDiseaseSerializer,
+    PatientProfileSerializer, PatientProfileCreateSerializer,
+    PatientProfileUpdateSerializer, ChronicDiseaseSerializer,
     PatientProfileSimpleSerializer
 )
 from core.permissions import IsAdminOrNurse, IsAdminOrNurseOrDoctor, IsOwnerOrStaff
@@ -36,12 +37,22 @@ class PatientProfileViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return PatientProfileCreateSerializer
+        if self.action in ['update', 'partial_update']:
+            if self.request.user.role == 'PATIENT':
+                return PatientProfileUpdateSerializer
         if self.action == 'list' and self.request.user.role in ['DOCTOR', 'NURSE']:
             return PatientProfileSimpleSerializer
         return PatientProfileSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['created_by'] = self.request.user
+        return context
+
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        serializer.save()
 
     @action(detail=False, methods=['get'], url_path='me')
     def get_my_profile(self, request):

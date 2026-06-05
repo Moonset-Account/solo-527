@@ -149,18 +149,37 @@ class DailySlotViewSet(viewsets.ModelViewSet):
         slot.cancel_reason = request.data.get('reason', '')
         slot.save()
 
-        from appointments.models import Appointment
+        from appointments.models import Appointment, RescheduleReason
         appointments = Appointment.objects.filter(
             daily_slot=slot,
             status='BOOKED'
         )
+
+        reschedule_reason = None
+        reason_id = request.data.get('reschedule_reason_id')
+        if reason_id:
+            try:
+                reschedule_reason = RescheduleReason.objects.get(id=reason_id)
+            except RescheduleReason.DoesNotExist:
+                pass
+
+        if not reschedule_reason:
+            reschedule_reason = RescheduleReason.objects.filter(
+                category='DOCTOR_ABSENT',
+                is_active=True
+            ).first()
+
+        cancelled_count = 0
         for apt in appointments:
             apt.cancel(
-                reason=request.data.get('reschedule_reason_id'),
+                reason=reschedule_reason,
                 note=slot.cancel_reason
             )
+            cancelled_count += 1
 
         return Response({
             'status': 'success',
-            'message': f'号源已停诊，已取消 {appointments.count()} 个预约'
+            'message': f'号源已停诊，已取消 {cancelled_count} 个预约',
+            'reschedule_reason_used': str(reschedule_reason) if reschedule_reason else None,
+            'reschedule_category': reschedule_reason.category if reschedule_reason else None
         })

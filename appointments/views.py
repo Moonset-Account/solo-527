@@ -246,6 +246,47 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         sms = SMSService.send_appointment_reminder(appointment)
         return Response({'status': 'success', 'message': '提醒已发送', 'sms_id': sms.id if sms else None})
 
+    @action(detail=True, methods=['post'], url_path='patient-cancel')
+    def patient_cancel(self, request, pk=None):
+        appointment = self.get_object()
+        if request.user.role == 'PATIENT' and appointment.patient.user != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        if appointment.status != 'BOOKED':
+            return Response(
+                {'detail': '只有已预约状态才能取消'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        from .models import RescheduleReason
+        reason = RescheduleReason.objects.filter(
+            category='PATIENT_REQUEST',
+            is_active=True
+        ).first()
+        note = request.data.get('note', '患者主动取消')
+        appointment.cancel(reason=reason, note=note)
+        from notifications.services import SMSService
+        SMSService.send_cancellation(appointment, note)
+        return Response({'status': 'success', 'message': '预约已取消'})
+
+    @action(detail=True, methods=['post'], url_path='update-payment')
+    def update_payment(self, request, pk=None):
+        if request.user.role not in ['ADMIN', 'NURSE']:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        appointment = self.get_object()
+        payment_status = request.data.get('payment_status')
+        if payment_status not in ['UNPAID', 'PAID', 'REFUNDED']:
+            return Response(
+                {'detail': '无效的缴费状态'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        appointment.payment_status = payment_status
+        appointment.save()
+        return Response({
+            'status': 'success',
+            'message': '缴费状态已更新',
+            'payment_status': payment_status,
+            'payment_status_display': appointment.get_payment_status_display()
+        })
+
 
 class WaitingQueueViewSet(viewsets.ModelViewSet):
     queryset = WaitingQueue.objects.all()
