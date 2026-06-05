@@ -11,7 +11,8 @@ from app.database import Base, get_db
 from app.config import settings
 from app.main import app
 from app.core.security import get_password_hash
-from app.models import User, Role, Permission, ROLE_PERMISSIONS
+from app.core.permissions import ROLE_PERMISSIONS
+from app.models import User, Role, Permission
 
 TEST_DATABASE_URL = settings.TEST_DATABASE_URL
 
