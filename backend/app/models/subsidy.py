@@ -29,7 +29,7 @@ class SubsidyExceedConfirmation(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     elder_id = Column(UUID(as_uuid=True), ForeignKey("elders.id", ondelete="CASCADE"), nullable=False)
-    subsidy_record_id = Column(UUID(as_uuid=True), ForeignKey("subsidy_records.id", ondelete="CASCADE"), nullable=False)
+    subsidy_record_id = Column(UUID(as_uuid=True), ForeignKey("subsidy_records.id", ondelete="SET NULL"), nullable=True)
     confirm_type = Column(String(32), nullable=False)
     confirmer_name = Column(String(64), nullable=True)
     confirmer_phone = Column(String(20), nullable=True)

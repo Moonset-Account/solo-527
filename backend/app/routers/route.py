@@ -21,6 +21,7 @@ from app.schemas.route import (
     RouteAssignCourier,
     RouteStopOut,
     CourierOut,
+    TodayDashboard,
 )
 
 router = APIRouter(prefix="/api/routes", tags=["routes"])
@@ -110,6 +111,129 @@ def get_route_overview(route_id: uuid.UUID, db: Session = Depends(get_db)):
         total_meals=total_meals,
         total_conflicts=total_conflicts,
         cold_box=cold_box_out,
+        unsigned_list=unsigned_list,
+    )
+
+
+@router.get("/today/dashboard", response_model=TodayDashboard)
+def get_today_dashboard(db: Session = Depends(get_db)):
+    today = date.today()
+    routes = db.query(Route).filter(Route.date == today).all()
+
+    route_outs = []
+    for route in routes:
+        stops_out = []
+        for stop in route.stops:
+            elder = db.query(Elder).filter(Elder.id == stop.elder_id).first()
+            stops_out.append(
+                RouteStopOut(
+                    id=stop.id,
+                    elder_id=stop.elder_id,
+                    stop_order=stop.stop_order,
+                    building=stop.building,
+                    meal_count=stop.meal_count,
+                    elder_name=elder.name if elder else None,
+                )
+            )
+        courier_name = route.courier.name if route.courier else None
+        route_outs.append(
+            RouteOut(
+                id=route.id,
+                name=route.name,
+                date=route.date,
+                courier_id=route.courier_id,
+                status=route.status,
+                total_stops=route.total_stops,
+                created_at=route.created_at,
+                stops=stops_out,
+                courier_name=courier_name,
+            )
+        )
+
+    building_map: dict[str, dict] = {}
+    total_conflicts = 0
+    for route in routes:
+        stops = db.query(RouteStop).filter(RouteStop.route_id == route.id).all()
+        for stop in stops:
+            b = stop.building
+            if b not in building_map:
+                building_map[b] = {
+                    "building": b,
+                    "elder_count": 0,
+                    "meal_count": 0,
+                    "dietary_conflicts": 0,
+                    "unsigned_count": 0,
+                }
+            building_map[b]["elder_count"] += 1
+            building_map[b]["meal_count"] += stop.meal_count
+
+            conflicts = (
+                db.query(MealOrder)
+                .filter(
+                    MealOrder.elder_id == stop.elder_id,
+                    MealOrder.order_date == str(today),
+                    MealOrder.has_dietary_conflict == True,
+                )
+                .count()
+            )
+            building_map[b]["dietary_conflicts"] += conflicts
+            total_conflicts += conflicts
+
+            unsigned = (
+                db.query(Delivery)
+                .filter(
+                    Delivery.route_id == route.id,
+                    Delivery.elder_id == stop.elder_id,
+                    Delivery.status == "pending",
+                )
+                .count()
+            )
+            building_map[b]["unsigned_count"] += unsigned
+
+    total_meals = sum(b["meal_count"] for b in building_map.values())
+
+    abnormal_boxes = db.query(ColdBox).filter(
+        ColdBox.is_abnormal == True,
+        ColdBox.route_id.in_([r.id for r in routes]),
+    ).all() if routes else []
+    cold_box_abnormal_list = [
+        RouteOverviewColdBox(
+            id=cb.id,
+            serial_number=cb.serial_number,
+            current_temp=cb.current_temp,
+            is_abnormal=cb.is_abnormal,
+        )
+        for cb in abnormal_boxes
+    ]
+
+    unsigned_deliveries = []
+    if routes:
+        unsigned_deliveries = (
+            db.query(Delivery)
+            .filter(
+                Delivery.route_id.in_([r.id for r in routes]),
+                Delivery.status == "pending",
+            )
+            .all()
+        )
+    unsigned_list = []
+    for d in unsigned_deliveries:
+        elder = db.query(Elder).filter(Elder.id == d.elder_id).first()
+        unsigned_list.append({
+            "delivery_id": str(d.id),
+            "elder_id": str(d.elder_id),
+            "elder_name": elder.name if elder else "Unknown",
+            "building": elder.building if elder else "",
+            "room": elder.room if elder else "",
+        })
+
+    return TodayDashboard(
+        routes=route_outs,
+        buildings=list(building_map.values()),
+        total_meals=total_meals,
+        total_conflicts=total_conflicts,
+        cold_box_abnormal_count=len(cold_box_abnormal_list),
+        cold_box_abnormal_list=cold_box_abnormal_list,
         unsigned_list=unsigned_list,
     )
 

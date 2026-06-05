@@ -1,21 +1,21 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.delivery import Delivery
 from app.models.elder import Elder
+from app.models.subsidy import SubsidyExceedConfirmation
 from app.schemas.delivery import (
     DeliveryOut,
     DeliveryCourierView,
-    DeliverySignRequest,
     DeliveryFailRequest,
+    DeliverySignRequest,
 )
 from app.services.redispatch import mark_delivery_failed, mark_delivery_signed, redispatch_delivery, get_redispatch_candidates
 from app.services.photo_storage import upload_photo
-from app.services.subsidy_check import check_subsidy_balance
 from app.utils.phone_mask import mask_phone
 
 router = APIRouter(prefix="/api/deliveries", tags=["deliveries"])
@@ -62,7 +62,7 @@ def get_courier_route_deliveries(
 @router.post("/{delivery_id}/sign", response_model=DeliveryOut)
 def sign_delivery(
     delivery_id: uuid.UUID,
-    photo: UploadFile = File(...),
+    photo: UploadFile = File(default=None),
     db: Session = Depends(get_db),
 ):
     delivery = db.query(Delivery).filter(Delivery.id == delivery_id).first()
@@ -71,15 +71,24 @@ def sign_delivery(
 
     elder = db.query(Elder).filter(Elder.id == delivery.elder_id).first()
     if elder:
-        balance_check = check_subsidy_balance(db, elder.id, 0)
-        if balance_check.is_exceed:
+        pending_confirm = (
+            db.query(SubsidyExceedConfirmation)
+            .filter(
+                SubsidyExceedConfirmation.elder_id == elder.id,
+                SubsidyExceedConfirmation.status == "pending",
+            )
+            .first()
+        )
+        if pending_confirm:
             raise HTTPException(
                 status_code=403,
-                detail="Subsidy exceeded. Delivery requires family or social worker confirmation before signing.",
+                detail="该长者存在待确认的补贴超额记录，需家属或社工确认后方可签收配送。",
             )
 
-    photo_data = photo.file.read()
-    photo_url = upload_photo(photo_data, photo.filename or "sign_photo.jpg")
+    photo_url = None
+    if photo:
+        photo_data = photo.file.read()
+        photo_url = upload_photo(photo_data, photo.filename or "sign_photo.jpg")
 
     updated = mark_delivery_signed(db, delivery_id, photo_url=photo_url)
     return updated

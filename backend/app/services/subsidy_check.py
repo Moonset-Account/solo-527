@@ -45,7 +45,7 @@ def deduct_subsidy(
     if is_exceed and not force:
         confirmation = SubsidyExceedConfirmation(
             elder_id=elder_id,
-            subsidy_record_id=uuid.uuid4(),
+            subsidy_record_id=None,
             confirm_type="family",
             status="pending",
         )
@@ -73,6 +73,20 @@ def deduct_subsidy(
         confirmed_by="system" if force else None,
     )
     db.add(record)
+    db.flush()
+
+    pending_confirm = (
+        db.query(SubsidyExceedConfirmation)
+        .filter(
+            SubsidyExceedConfirmation.elder_id == elder_id,
+            SubsidyExceedConfirmation.subsidy_record_id.is_(None),
+            SubsidyExceedConfirmation.status == "approved",
+        )
+        .first()
+    )
+    if pending_confirm:
+        pending_confirm.subsidy_record_id = record.id
+
     db.commit()
     db.refresh(record)
     return record
@@ -98,9 +112,11 @@ def confirm_subsidy_exceed(
     confirmation.note = note
     confirmation.confirmed_at = datetime.now()
 
-    if status == "approved":
-        confirmation.subsidy_record.confirmed = True
-        confirmation.subsidy_record.confirmed_by = confirmer_name
+    if status == "approved" and confirmation.subsidy_record_id:
+        record = db.query(SubsidyRecord).filter(SubsidyRecord.id == confirmation.subsidy_record_id).first()
+        if record:
+            record.confirmed = True
+            record.confirmed_by = confirmer_name
 
     db.commit()
     db.refresh(confirmation)

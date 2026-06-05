@@ -72,6 +72,16 @@ class RouteOverview(BaseModel):
     unsigned_list: list[dict]
 
 
+class TodayDashboard(BaseModel):
+    routes: list[RouteOut]
+    buildings: list[RouteOverviewBuilding]
+    total_meals: int
+    total_conflicts: int
+    cold_box_abnormal_count: int
+    cold_box_abnormal_list: list[RouteOverviewColdBox]
+    unsigned_list: list[dict]
+
+
 class CourierOut(BaseModel):
     id: uuid.UUID
     name: str

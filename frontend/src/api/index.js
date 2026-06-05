@@ -16,7 +16,9 @@ client.interceptors.response.use(
 
 export const getTodayRoutes = () => client.get('/routes/today')
 
-export const getRouteOverview = (routeId) => client.get(`/routes/${routeId}/overview`)
+export const getTodayDashboard = () => client.get('/routes/today/dashboard')
+
+export const getRouteOverview = (routeId) => client.get(`/routes/overview/${routeId}`)
 
 export const createRoute = (data) => client.post('/routes/', data)
 
