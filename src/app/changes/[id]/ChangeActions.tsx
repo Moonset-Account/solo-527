@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ChangeStatus, Role } from "@/generated/prisma";
 
@@ -50,6 +50,8 @@ export default function ChangeActions({
   const [poItems, setPoItems] = useState([
     { name: "", quantity: 1, unitPrice: 0 },
   ]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const handleAction = async (action: string, actionComment?: string) => {
@@ -162,6 +164,38 @@ export default function ChangeActions({
   const removePOItem = (index: number) => {
     if (poItems.length > 1) {
       setPoItems(poItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/changes/${changeId}/attachments`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "上传失败");
+      }
+
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "上传失败");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -546,6 +580,31 @@ export default function ChangeActions({
           </div>
         </div>
       )}
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">附件留痕</h3>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            上传相关文件作为变更的附件留痕
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileUpload}
+            disabled={uploadingFile}
+            className="block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-medium
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100
+              disabled:opacity-50"
+          />
+          {uploadingFile && (
+            <p className="text-sm text-blue-600">正在上传...</p>
+          )}
+        </div>
+      </div>
 
       {isLocked && status === ChangeStatus.PENDING_CONFIRMATION && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
