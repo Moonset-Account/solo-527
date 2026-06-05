@@ -6,7 +6,7 @@ module Api
         scope = scope.active if params[:active].present? && params[:active] == 'true'
         scope = scope.dangerous if params[:dangerous].present? && params[:dangerous] == 'true'
         scope = scope.order(:code)
-        render json: scope
+        render_paginated(scope)
       end
 
       def show

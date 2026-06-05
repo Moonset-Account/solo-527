@@ -62,12 +62,12 @@
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="viewDetail(row)">详情</el-button>
-            <template v-if="row.status === 'approved' && !row.frozen">
+            <template v-if="row.status === 'approved' && !row.is_frozen">
               <el-button type="danger" size="small" @click="handleFreeze(row)">
                 冻结
               </el-button>
             </template>
-            <template v-if="row.frozen">
+            <template v-if="row.is_frozen">
               <el-button type="success" size="small" @click="handleUnfreeze(row)">
                 解冻
               </el-button>

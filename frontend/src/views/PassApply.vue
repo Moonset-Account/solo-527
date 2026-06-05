@@ -179,7 +179,8 @@ const rules = {
 
 const fetchWorkZones = async () => {
   try {
-    workZones.value = await workZonesApi.list({ active: 'true' })
+    const res = await workZonesApi.list({ active: 'true' })
+    workZones.value = res.data || res
   } catch (e) {}
 }
 
