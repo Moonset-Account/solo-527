@@ -92,3 +92,21 @@ export const fileApi = {
     })
   },
 }
+
+export const bodyMeasurementApi = {
+  list: () => request.get('/body-measurements'),
+  getByMember: (memberId: number) => request.get(`/body-measurements/member/${memberId}`),
+  getMy: () => request.get('/body-measurements/my'),
+  get: (id: number) => request.get(`/body-measurements/${id}`),
+  create: (data: any) => request.post('/body-measurements', data),
+  update: (id: number, data: any) => request.put(`/body-measurements/${id}`, data),
+  delete: (id: number) => request.delete(`/body-measurements/${id}`),
+}
+
+export const attachmentApi = {
+  listByRelated: (relatedType: string, relatedId: number) =>
+    request.get(`/attachments?relatedType=${relatedType}&relatedId=${relatedId}`),
+  create: (data: any) => request.post('/attachments', data),
+  updateStatus: (id: number, status: string, errorMessage?: string) =>
+    request.put(`/attachments/${id}/status`, { status, errorMessage }),
+}

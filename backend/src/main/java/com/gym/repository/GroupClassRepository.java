@@ -16,4 +16,6 @@ public interface GroupClassRepository extends JpaRepository<GroupClass, Long> {
     List<GroupClass> findClassesInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     List<GroupClass> findByCoachIdOrderByStartTimeDesc(Long coachId);
+
+    List<GroupClass> findByCancelledFalse();
 }

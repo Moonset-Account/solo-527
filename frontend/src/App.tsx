@@ -9,6 +9,8 @@ import CoachList from './pages/CoachList'
 import GroupClassList from './pages/GroupClassList'
 import CoachPerformance from './pages/CoachPerformance'
 import MobileBooking from './pages/mobile/MobileBooking'
+import MobileBodyMeasurement from './pages/mobile/MobileBodyMeasurement'
+import BodyMeasurementList from './pages/BodyMeasurementList'
 
 function App() {
   const { token } = useUserStore()
@@ -37,6 +39,7 @@ function App() {
         <Route path="bookings" element={<BookingList />} />
         <Route path="coaches" element={<CoachList />} />
         <Route path="group-classes" element={<GroupClassList />} />
+        <Route path="body-measurements" element={<BodyMeasurementList />} />
         <Route path="my-performance" element={<CoachPerformance />} />
       </Route>
       <Route
@@ -44,6 +47,14 @@ function App() {
         element={
           <ProtectedRoute>
             <MobileBooking />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/m/body-measurement"
+        element={
+          <ProtectedRoute>
+            <MobileBodyMeasurement />
           </ProtectedRoute>
         }
       />

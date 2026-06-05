@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   RiseOutlined,
   TeamOutlined as GroupOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useUserStore } from '../store/useUserStore'
@@ -64,6 +65,12 @@ export default function MainLayout() {
       key: '/group-classes',
       icon: <GroupOutlined />,
       label: '团课管理',
+    })
+
+    items.push({
+      key: '/body-measurements',
+      icon: <FileTextOutlined />,
+      label: '体测记录',
     })
 
     if (role === 'ADMIN' || role === 'MANAGER') {

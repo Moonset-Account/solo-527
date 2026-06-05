@@ -40,8 +40,8 @@ public class DashboardService {
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(23, 59, 59);
 
-        long todayBookings = 0;
-        long todayCompleted = 0;
+        long todayBookings = bookingRepository.countByStartTimeBetween(startOfDay, endOfDay);
+        long todayCompleted = bookingRepository.countCompletedByStartTimeBetween(startOfDay, endOfDay);
         long pendingBookings = bookingRepository.countByStatus(BookingStatusEnum.PENDING);
         long confirmedBookings = bookingRepository.countByStatus(BookingStatusEnum.CONFIRMED);
 
@@ -65,6 +65,25 @@ public class DashboardService {
 
         stats.put("membersLowOnSessions", memberRepository.findMembersLowOnSessions(3));
         stats.put("expiringMembers", memberRepository.findMembersLowOnSessions(0));
+
+        stats.put("overdueBookings", bookingRepository.findOverdueBookings(LocalDateTime.now()));
+
+        Map<String, Object> renewalFunnel = new HashMap<>();
+        renewalFunnel.put("totalMembers", memberRepository.count());
+        renewalFunnel.put("activeMembers", memberRepository.countActiveMembers());
+        renewalFunnel.put("lowSessionMembers", memberRepository.findMembersLowOnSessions(3).size());
+        renewalFunnel.put("zeroSessionMembers", memberRepository.findMembersLowOnSessions(0).size());
+        renewalFunnel.put("expiredMembers", memberRepository.countExpiredMembers());
+        stats.put("renewalFunnel", renewalFunnel);
+
+        Map<String, Object> resourceStatus = new HashMap<>();
+        resourceStatus.put("activeCoaches", coachRepository.findByActiveTrue().size());
+        resourceStatus.put("totalCoaches", coachRepository.count());
+        resourceStatus.put("availableCoachesNow", coachRepository.findByActiveTrue().size() - 
+            bookingRepository.findByStatusAndStartTimeBefore(BookingStatusEnum.CONFIRMED, LocalDateTime.now()).size());
+        resourceStatus.put("activeGroupClasses", groupClassRepository.findByCancelledFalse().size());
+        resourceStatus.put("totalGroupClasses", groupClassRepository.findAll().size());
+        stats.put("resourceStatus", resourceStatus);
 
         return stats;
     }

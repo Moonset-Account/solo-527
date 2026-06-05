@@ -26,4 +26,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("SELECT m FROM Member m WHERE m.totalRemainingSessions <= ?1 AND m.status = 'ACTIVE'")
     List<Member> findMembersLowOnSessions(Integer threshold);
+
+    @Query("SELECT COUNT(m) FROM Member m WHERE m.status = 'EXPIRED'")
+    long countExpiredMembers();
 }
