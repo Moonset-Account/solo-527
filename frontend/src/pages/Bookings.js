@@ -10,7 +10,9 @@ const { TextArea } = Input;
 function Bookings() {
   const [bookings, setBookings] = useState([]);
   const [screenings, setScreenings] = useState([]);
+  const [memberOptions, setMemberOptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -88,15 +90,25 @@ function Bookings() {
   };
 
   const handleMemberSearch = async (value) => {
-    if (value) {
-      const response = await membersAPI.search(value);
-      return response.data.map(m => ({
-        value: m.id,
-        label: `${m.member_no} - ${m.name} (${m.level_name})`,
-        disabled: !m.is_active,
-      }));
+    if (value && value.length >= 1) {
+      setSearching(true);
+      try {
+        const response = await membersAPI.search(value);
+        const options = response.data.map(m => ({
+          value: m.id,
+          label: `${m.member_no} - ${m.name} (${m.level_name})`,
+          disabled: !m.is_active_member,
+        }));
+        setMemberOptions(options);
+      } catch (error) {
+        message.error('搜索会员失败');
+        setMemberOptions([]);
+      } finally {
+        setSearching(false);
+      }
+    } else {
+      setMemberOptions([]);
     }
-    return [];
   };
 
   const statusConfig = {
@@ -290,8 +302,9 @@ function Bookings() {
               defaultActiveFirstOption={false}
               filterOption={false}
               onSearch={handleMemberSearch}
-              notFoundContent={null}
-              options={[]}
+              notFoundContent={searching ? '搜索中...' : '无匹配结果'}
+              options={memberOptions}
+              loading={searching}
             />
           </Form.Item>
 

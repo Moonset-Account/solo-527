@@ -240,5 +240,5 @@ def search_member():
         'name': m.name,
         'level_name': m.level.name if m.level else None,
         'status': m.status,
-        'is_active': m.is_active_member()
+        'is_active_member': m.is_active_member()
     } for m in members]), 200
