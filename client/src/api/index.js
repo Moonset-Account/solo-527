@@ -1,4 +1,4 @@
-import api from './request';
+import api from '@/utils/request';
 
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
@@ -13,7 +13,7 @@ export const toolAPI = {
   getTools: (params) => api.get('/tools', { params }),
   getTool: (id) => api.get(`/tools/${id}`),
   getToolByQr: (qrCode) => api.get(`/tools/qr/${qrCode}`),
-  createTool: (data) => api.post('/tools', data, { headers: { 'Content-Type': 'multipart/form-data' }),
+  createTool: (data) => api.post('/tools', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   updateTool: (id, data) => api.put(`/tools/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
   deleteTool: (id) => api.delete(`/tools/${id}`),
   getCalendar: (params) => api.get('/tools/calendar', { params }),
