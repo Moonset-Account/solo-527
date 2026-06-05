@@ -39,6 +39,9 @@ public class WorkOrderService {
     private RoomMapper roomMapper;
 
     @Autowired
+    private BuildingMapper buildingMapper;
+
+    @Autowired
     private SysUserMapper sysUserMapper;
 
     @Autowired
@@ -349,13 +352,7 @@ public class WorkOrderService {
         if (order.getRoomId() != null) {
             Room room = roomMapper.selectById(order.getRoomId());
             if (room != null) {
-                Building building = null;
-                try {
-                    BuildingMapper buildingMapper = SpringContextUtil.getBean(BuildingMapper.class);
-                    building = buildingMapper.selectById(room.getBuildingId());
-                } catch (Exception e) {
-                    // ignore
-                }
+                Building building = buildingMapper.selectById(room.getBuildingId());
                 if (building != null) {
                     order.setRoomInfo(building.getBuildingName() + " " + room.getRoomNo());
                 } else {

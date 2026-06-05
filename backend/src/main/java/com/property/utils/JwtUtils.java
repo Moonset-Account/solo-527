@@ -44,21 +44,21 @@ public class JwtUtils {
         Date expireDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .claims(claims)
-                .subject(subject)
-                .issuedAt(now)
-                .expiration(expireDate)
-                .signWith(getSignKey())
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(now)
+                .setExpiration(expireDate)
+                .signWith(getSignKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public Claims parseToken(String token) {
         try {
-            return Jwts.parser()
-                    .verifyWith(getSignKey())
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSignKey())
                     .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+                    .parseClaimsJws(token)
+                    .getBody();
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
@@ -77,7 +77,11 @@ public class JwtUtils {
         if (claims == null) {
             return null;
         }
-        return claims.get("userId", Long.class);
+        Object userId = claims.get("userId");
+        if (userId instanceof Integer) {
+            return ((Integer) userId).longValue();
+        }
+        return (Long) userId;
     }
 
     public String getUsernameFromToken(String token) {
@@ -93,7 +97,7 @@ public class JwtUtils {
         if (claims == null) {
             return null;
         }
-        return claims.get("role", String.class);
+        return (String) claims.get("role");
     }
 
     public String getHeader() {

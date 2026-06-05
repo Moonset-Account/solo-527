@@ -114,7 +114,6 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getOrderPage, approveOrder, startProcess, completeOrder, closeOrder } from '@/api/order'
-import { complete } from 'echarts/types/src/echarts'
 
 const router = useRouter()
 const userStore = useUserStore()
