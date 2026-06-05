@@ -75,7 +75,7 @@ function CheckIn() {
           <Card>
             <Statistic
               title="签到率"
-              value={todayStats.total > 0 ? `${Math.round(todayStats.checked / todayStats.total * 100}%` : '0%'}
+              value={todayStats.total > 0 ? `${Math.round(todayStats.checked / todayStats.total * 100)}%` : '0%'}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
