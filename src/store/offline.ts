@@ -127,16 +127,18 @@ async function base64ToBlob(base64: string): Promise<Blob> {
 }
 
 async function executeAction(action: OfflineAction): Promise<void> {
+  let response: Response;
+  
   switch (action.type) {
     case 'SCORE_UPDATE':
-      await fetch(`/api/matches/${action.payload.matchId}/score`, {
+      response = await fetch(`/api/matches/${action.payload.matchId}/score`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(action.payload.score),
       });
       break;
     case 'CHECKIN':
-      await fetch('/api/mobile/checkin', {
+      response = await fetch('/api/mobile/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(action.payload),
@@ -149,17 +151,30 @@ async function executeAction(action: OfflineAction): Promise<void> {
       formData.append('file', blob, `photo_${Date.now()}.jpg`);
       formData.append('matchId', matchId);
       formData.append('type', type);
-      await fetch('/api/mobile/upload', {
+      response = await fetch('/api/mobile/upload', {
         method: 'POST',
         body: formData,
       });
       break;
     case 'PLAYER_STAT':
-      await fetch(`/api/matches/${action.payload.matchId}/stats`, {
+      response = await fetch(`/api/matches/${action.payload.matchId}/stats`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(action.payload.stats),
       });
       break;
+    default:
+      throw new Error(`Unknown action type: ${action.type}`);
+  }
+
+  if (!response.ok) {
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {}
+    throw new Error(errorMessage);
   }
 }

@@ -17,6 +17,7 @@ import Link from 'next/link';
 
 interface PlayerStat {
   playerId: string;
+  teamId: string;
   name: string;
   jerseyNumber: number;
   points: number;
@@ -49,22 +50,22 @@ const mockMatch: MatchInfo = {
 };
 
 const mockHomePlayers: PlayerStat[] = [
-  { playerId: 'hp1', name: '张小明', jerseyNumber: 1, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'hp2', name: '李大伟', jerseyNumber: 3, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'hp3', name: '王强', jerseyNumber: 5, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'hp4', name: '赵磊', jerseyNumber: 7, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'hp5', name: '孙浩', jerseyNumber: 11, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'hp6', name: '周杰', jerseyNumber: 9, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
-  { playerId: 'hp7', name: '吴涛', jerseyNumber: 13, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
+  { playerId: 'hp1', teamId: 'home_team_id', name: '张小明', jerseyNumber: 1, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'hp2', teamId: 'home_team_id', name: '李大伟', jerseyNumber: 3, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'hp3', teamId: 'home_team_id', name: '王强', jerseyNumber: 5, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'hp4', teamId: 'home_team_id', name: '赵磊', jerseyNumber: 7, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'hp5', teamId: 'home_team_id', name: '孙浩', jerseyNumber: 11, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'hp6', teamId: 'home_team_id', name: '周杰', jerseyNumber: 9, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
+  { playerId: 'hp7', teamId: 'home_team_id', name: '吴涛', jerseyNumber: 13, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
 ];
 
 const mockAwayPlayers: PlayerStat[] = [
-  { playerId: 'ap1', name: '陈华', jerseyNumber: 2, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'ap2', name: '林峰', jerseyNumber: 4, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'ap3', name: '黄强', jerseyNumber: 6, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'ap4', name: '杨勇', jerseyNumber: 8, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'ap5', name: '周明', jerseyNumber: 10, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
-  { playerId: 'ap6', name: '吴亮', jerseyNumber: 12, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
+  { playerId: 'ap1', teamId: 'away_team_id', name: '陈华', jerseyNumber: 2, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'ap2', teamId: 'away_team_id', name: '林峰', jerseyNumber: 4, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'ap3', teamId: 'away_team_id', name: '黄强', jerseyNumber: 6, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'ap4', teamId: 'away_team_id', name: '杨勇', jerseyNumber: 8, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'ap5', teamId: 'away_team_id', name: '周明', jerseyNumber: 10, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: true },
+  { playerId: 'ap6', teamId: 'away_team_id', name: '吴亮', jerseyNumber: 12, points: 0, rebounds: 0, assists: 0, steals: 0, blocks: 0, fouls: 0, turnovers: 0, minutesPlayed: 0, isStarter: false },
 ];
 
 const statFields = [
@@ -178,6 +179,7 @@ export default function MatchScorePage() {
 
       const allStats = [...homePlayers, ...awayPlayers].map(p => ({
         playerId: p.playerId,
+        teamId: p.teamId,
         points: p.points,
         rebounds: p.rebounds,
         assists: p.assists,

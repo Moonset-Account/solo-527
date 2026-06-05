@@ -7,7 +7,7 @@ import { validateRosterLock } from '@/lib/utils/business-rules';
 import { PlayerStatSchema } from '@/lib/validations/schemas';
 import { z } from 'zod';
 
-const PlayerStatBatchSchema = z.array(PlayerStatSchema.omit({ matchId: true }));
+const PlayerStatBatchSchema = z.array(PlayerStatSchema.omit({ matchId: true, teamId: true }).extend({ teamId: z.string().optional() }));
 
 export async function GET(
   request: NextRequest,
@@ -82,6 +82,8 @@ export async function POST(
         return errorResponse(`球员 ${stat.playerId} 不存在`, undefined, 404);
       }
 
+      const teamId = stat.teamId || player.teamId;
+
       const existingStat = await PlayerStat.findOne({
         matchId: id,
         playerId: stat.playerId,
@@ -93,6 +95,7 @@ export async function POST(
           {
             ...stat,
             matchId: id,
+            teamId,
             updatedAt: new Date(),
           },
           { new: true }
@@ -102,6 +105,7 @@ export async function POST(
         const newStat = await PlayerStat.create({
           ...stat,
           matchId: id,
+          teamId,
         });
         savedStats.push(newStat);
       }

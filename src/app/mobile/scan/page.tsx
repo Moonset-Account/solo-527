@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, QrCode, Upload, X, Check, Image as ImageIcon, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { useOfflineStore } from '@/store/offline';
+import { useAuthStore } from '@/store/auth';
 import jsQR from 'jsqr';
 
 type CheckinStatus = 'idle' | 'checking' | 'success' | 'error';
@@ -23,7 +24,20 @@ export default function MobileScanPage() {
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
+  const { user } = useAuthStore();
   const { isOnline, addOfflineAction } = useOfflineStore();
+
+  const getUserId = useCallback(() => {
+    if (user?._id) {
+      return user._id;
+    }
+    let guestId = localStorage.getItem('guest_user_id');
+    if (!guestId) {
+      guestId = 'guest_' + Date.now().toString() + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('guest_user_id', guestId);
+    }
+    return guestId;
+  }, [user]);
 
   const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) {
@@ -50,38 +64,7 @@ export default function MobileScanPage() {
     }
   }, []);
 
-  const captureAndDecode = useCallback(() => {
-    if (!canvasRef.current || !videoRef.current || checkinStatus === 'checking' || checkinStatus === 'success') {
-      return;
-    }
-    
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-      return;
-    }
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.drawImage(video, 0, 0);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
-    
-    if (code) {
-      const decodedMatchId = code.data.trim();
-      if (decodedMatchId && decodedMatchId !== scannedMatchId) {
-        setScannedMatchId(decodedMatchId);
-        setMatchId(decodedMatchId);
-        handleCheckin(decodedMatchId);
-      }
-    }
-  }, [checkinStatus, scannedMatchId]);
-
-  const handleCheckin = async (decodedMatchId: string) => {
+  const handleCheckin = useCallback(async (decodedMatchId: string) => {
     if (checkinStatus === 'checking' || checkinStatus === 'success') return;
     
     setCheckinStatus('checking');
@@ -89,7 +72,7 @@ export default function MobileScanPage() {
     
     const checkinData = {
       matchId: decodedMatchId,
-      userId: 'current-user',
+      userId: getUserId(),
       type: 'FIELD_STAFF' as const,
     };
 
@@ -123,7 +106,38 @@ export default function MobileScanPage() {
       setCheckinMessage('签到失败，请重试');
       console.error('Checkin error:', error);
     }
-  };
+  }, [checkinStatus, getUserId, isOnline, addOfflineAction]);
+
+  const captureAndDecode = useCallback(() => {
+    if (!canvasRef.current || !videoRef.current || checkinStatus === 'checking' || checkinStatus === 'success') {
+      return;
+    }
+    
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return;
+    }
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    
+    if (code) {
+      const decodedMatchId = code.data.trim();
+      if (decodedMatchId && decodedMatchId !== scannedMatchId) {
+        setScannedMatchId(decodedMatchId);
+        setMatchId(decodedMatchId);
+        handleCheckin(decodedMatchId);
+      }
+    }
+  }, [checkinStatus, scannedMatchId, handleCheckin]);
 
   useEffect(() => {
     if (mode === 'scan') {
