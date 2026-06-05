@@ -35,6 +35,6 @@ export async function POST(request: Request) {
 
   return successResponse({
     token,
-    user: { id: user._id, email: user.email, name: user.name, role: user.role },
+    user: { _id: user._id, email: user.email, name: user.name, role: user.role },
   });
 }

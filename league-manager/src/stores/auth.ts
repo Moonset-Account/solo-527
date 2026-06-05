@@ -49,6 +49,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr) as IUser;
+        if (!user._id && (user as unknown as { id: string }).id) {
+          user._id = (user as unknown as { id: string }).id;
+        }
         set({ user, token });
       } catch {
         localStorage.removeItem('auth_token');

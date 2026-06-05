@@ -2,6 +2,7 @@ import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/response';
 import { createAuditLog } from '@/lib/audit';
+import { notifyRefereeAssigned } from '@/services/notification.service';
 import { Types } from 'mongoose';
 import Match from '@/models/Match';
 import User from '@/models/User';
@@ -38,6 +39,10 @@ export async function PUT(
   await match.save();
 
   await createAuditLog('referee', 'assign', payload.userId, id, { refereeId });
+
+  try {
+    await notifyRefereeAssigned(id, refereeId);
+  } catch {}
 
   return successResponse(match);
 }

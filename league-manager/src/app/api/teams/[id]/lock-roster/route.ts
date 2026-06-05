@@ -2,6 +2,7 @@ import dbConnect from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/response';
 import { createAuditLog } from '@/lib/audit';
+import { notifyRosterLock } from '@/services/notification.service';
 import Team from '@/models/Team';
 
 export async function PUT(
@@ -29,6 +30,10 @@ export async function PUT(
   await team.save();
 
   await createAuditLog('team', 'lock_roster', payload.userId, id);
+
+  try {
+    await notifyRosterLock(id);
+  } catch {}
 
   return successResponse(team);
 }

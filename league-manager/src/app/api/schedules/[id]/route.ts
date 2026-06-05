@@ -40,9 +40,7 @@ export async function PUT(
   const body = await request.json();
   const { matchDate, venueId, refereeId, adjustmentReason } = body;
 
-  if (!adjustmentReason) {
-    return errorResponse('调整赛程必须提供原因');
-  }
+  const reason = adjustmentReason || '管理员调整赛程';
 
   const match = await Match.findById(id);
   if (!match) return errorResponse('比赛不存在', 404);
@@ -50,7 +48,7 @@ export async function PUT(
   if (matchDate) match.matchDate = new Date(matchDate);
   if (venueId) match.venueId = new Types.ObjectId(venueId);
   if (refereeId) match.refereeId = new Types.ObjectId(refereeId);
-  match.adjustmentReason = adjustmentReason;
+  match.adjustmentReason = reason;
   match.adjustedBy = new Types.ObjectId(payload.userId);
   await match.save();
 
@@ -58,7 +56,7 @@ export async function PUT(
     matchDate,
     venueId,
     refereeId,
-    adjustmentReason,
+    adjustmentReason: reason,
   });
 
   try {

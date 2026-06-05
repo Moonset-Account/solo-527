@@ -179,3 +179,21 @@ export async function notifyNewTeamRegistration(adminId: string, teamName: strin
   const content = `新球队「${teamName}」已提交报名申请，请及时审核。`;
   return sendNotificationWithEmail(adminId, title, content, 'review');
 }
+
+export async function notifyRefereeAssigned(matchId: string, refereeId: string) {
+  await dbConnect();
+  const match = await Match.findById(matchId)
+    .populate('homeTeamId')
+    .populate('awayTeamId')
+    .populate('venueId');
+  if (!match) return;
+
+  const homeTeam = match.homeTeamId as unknown as { name: string };
+  const awayTeam = match.awayTeamId as unknown as { name: string };
+  const venue = match.venueId as unknown as { name: string } | null;
+
+  const title = '新比赛指派';
+  const matchDateStr = new Date(match.matchDate).toLocaleString('zh-CN');
+  const content = `您被指派为「${homeTeam.name} vs ${awayTeam.name}」的主裁判，比赛时间：${matchDateStr}${venue ? '，场地：' + venue.name : ''}。请准时到场。`;
+  return sendNotificationWithEmail(refereeId, title, content, 'schedule', matchId);
+}

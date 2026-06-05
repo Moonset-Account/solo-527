@@ -14,10 +14,12 @@ export async function GET(request: Request) {
   const status = searchParams.get('status');
   const search = searchParams.get('search');
   const seasonId = searchParams.get('seasonId');
+  const captainId = searchParams.get('captainId');
 
   const filter: Record<string, unknown> = {};
   if (status) filter.status = status;
   if (seasonId) filter.seasonId = seasonId;
+  if (captainId) filter.captainId = captainId;
   if (search) filter.name = { $regex: search, $options: 'i' };
 
   const total = await Team.countDocuments(filter);
