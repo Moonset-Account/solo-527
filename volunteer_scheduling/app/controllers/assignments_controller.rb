@@ -7,7 +7,8 @@ class AssignmentsController < ApplicationController
       @assignments = @activity.assignments
       authorize @assignments
     else
-      @assignments = policy_scope(Assignment)
+      @assignments = policy_scope(Assignment).includes(:activity, :volunteer_profile, :location).order(created_at: :desc)
+      authorize @assignments
     end
   end
 

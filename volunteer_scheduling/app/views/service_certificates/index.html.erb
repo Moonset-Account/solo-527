@@ -1,0 +1,52 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">服务证明</h1>
+    <%= link_to "申请开具证明", new_service_certificate_path, class: "bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">证书编号</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间段</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">服务时长</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">开具时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @service_certificates.each do |cert| %>
+          <tr>
+            <td class="px-6 py-4 font-mono text-sm"><%= cert.certificate_number %></td>
+            <td class="px-6 py-4 text-sm">
+              <%= cert.start_date.strftime("%Y-%m-%d") %> 至 <%= cert.end_date.strftime("%Y-%m-%d") %>
+            </td>
+            <td class="px-6 py-4 text-sm"><%= cert.total_hours %> 小时</td>
+            <td class="px-6 py-4">
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                <%= case cert.status
+                     when 'issued' then 'bg-green-100 text-green-800'
+                     when 'revoked' then 'bg-red-100 text-red-800'
+                     else 'bg-gray-100 text-gray-800'
+                     end %>">
+                <%= cert.status.humanize %>
+              </span>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500"><%= cert.issued_at&.strftime("%Y-%m-%d") %></td>
+            <td class="px-6 py-4 text-sm space-x-2">
+              <%= link_to "查看", service_certificate_path(cert), class: "text-blue-600 hover:text-blue-800" %>
+              <% if policy(cert).download? && cert.issued? %>
+                <%= link_to "下载", download_service_certificate_path(cert), class: "text-green-600 hover:text-green-800" %>
+              <% end %>
+              <% if policy(cert).revoke? && cert.issued? %>
+                <%= button_to "撤销", revoke_service_certificate_path(cert), method: :post, class: "text-red-600 hover:text-red-800 bg-transparent border-none p-0 cursor-pointer" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

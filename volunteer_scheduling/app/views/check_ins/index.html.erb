@@ -1,0 +1,55 @@
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">签到记录</h1>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">活动</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">志愿者</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">签到时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">签退时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">服务时长</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <% @check_ins.each do |check_in| %>
+          <tr>
+            <td class="px-6 py-4">
+              <div class="text-sm font-medium"><%= check_in.assignment.activity.title %></div>
+              <div class="text-sm text-gray-500"><%= check_in.assignment.location&.name %></div>
+            </td>
+            <td class="px-6 py-4 text-sm"><%= check_in.assignment.volunteer_profile.user.name %></td>
+            <td class="px-6 py-4 text-sm text-gray-500"><%= check_in.checked_in_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="px-6 py-4 text-sm text-gray-500"><%= check_in.checked_out_at&.strftime("%Y-%m-%d %H:%M") %></td>
+            <td class="px-6 py-4 text-sm"><%= check_in.service_hours&.round(1) %> 小时</td>
+            <td class="px-6 py-4">
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                <%= case check_in.status
+                     when 'checked_in' then 'bg-blue-100 text-blue-800'
+                     when 'checked_out' then 'bg-yellow-100 text-yellow-800'
+                     when 'approved' then 'bg-green-100 text-green-800'
+                     when 'rejected' then 'bg-red-100 text-red-800'
+                     when 'needs_review' then 'bg-orange-100 text-orange-800'
+                     else 'bg-gray-100 text-gray-800'
+                     end %>">
+                <%= check_in.status.humanize %>
+              </span>
+              <% if check_in.needs_review? %>
+                <span class="ml-1 text-xs text-red-600"><%= check_in.review_reason %></span>
+              <% end %>
+            </td>
+            <td class="px-6 py-4 text-sm space-x-2">
+              <%= link_to "详情", check_in_path(check_in), class: "text-blue-600 hover:text-blue-800" %>
+              <% if policy(check_in).check_out? && check_in.checked_in? %>
+                <%= button_to "签退", check_out_check_in_path(check_in), method: :post, class: "text-green-600 hover:text-green-800 bg-transparent border-none p-0 cursor-pointer" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

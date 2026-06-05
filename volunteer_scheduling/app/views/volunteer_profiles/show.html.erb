@@ -1,0 +1,139 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">我的档案</h1>
+    <%= link_to "编辑", edit_volunteer_profile_path, class: "bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" %>
+  </div>
+
+  <% if @volunteer_profile.errors.any? %>
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      <ul>
+        <% @volunteer_profile.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">基本信息</h2>
+        <div class="grid grid-cols-2 gap-4 text-gray-600">
+          <div>
+            <strong>姓名：</strong><%= current_user.name %>
+          </div>
+          <div>
+            <strong>邮箱：</strong><%= current_user.email %>
+          </div>
+          <div>
+            <strong>电话：</strong><%= current_user.phone %>
+          </div>
+          <div>
+            <strong>性别：</strong><%= @volunteer_profile.gender == 'male' ? '男' : @volunteer_profile.gender == 'female' ? '女' : '未设置' %>
+          </div>
+          <div>
+            <strong>出生日期：</strong><%= @volunteer_profile.birth_date&.strftime("%Y年%m月%d日") %>
+          </div>
+          <div>
+            <strong>年龄：</strong>
+            <%= @volunteer_profile.age %> 岁
+            <% if @volunteer_profile.is_minor? %>
+              <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">未成年人</span>
+            <% end %>
+          </div>
+          <div class="col-span-2">
+            <strong>居住地址：</strong><%= @volunteer_profile.address %>
+          </div>
+          <div class="col-span-2">
+            <strong>个人简介：</strong>
+            <p class="mt-1"><%= @volunteer_profile.bio %></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">技能标签</h2>
+        </div>
+        <% if @volunteer_profile.skills.any? %>
+          <div class="flex flex-wrap gap-2">
+            <% @volunteer_profile.skills.each do |skill| %>
+              <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                <%= skill.name %>
+                <span class="text-xs text-gray-500 ml-1"><%= skill.category %></span>
+              </span>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-gray-500">暂无技能标签</p>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">服务统计</h2>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-center p-4 bg-blue-50 rounded-lg">
+            <div class="text-3xl font-bold text-blue-600"><%= @volunteer_profile.total_service_hours.round(1) %></div>
+            <div class="text-sm text-gray-600">总服务时长（小时）</div>
+          </div>
+          <div class="text-center p-4 bg-green-50 rounded-lg">
+            <div class="text-3xl font-bold text-green-600"><%= @volunteer_profile.check_ins.approved.count %></div>
+            <div class="text-sm text-gray-600">已完成服务</div>
+          </div>
+          <div class="text-center p-4 bg-purple-50 rounded-lg">
+            <div class="text-3xl font-bold text-purple-600"><%= @volunteer_profile.service_certificates.issued.count %></div>
+            <div class="text-sm text-gray-600">服务证明</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <% if @volunteer_profile.is_minor? %>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+          <h3 class="font-bold text-yellow-800 mb-3">⚠️ 监护人信息</h3>
+          <% if @volunteer_profile.guardians.any? %>
+            <% @volunteer_profile.guardians.each do |g| %>
+              <div class="space-y-1 text-sm">
+                <p><strong>姓名：</strong><%= g.name %></p>
+                <p><strong>关系：</strong><%= g.relationship %></p>
+                <p><strong>电话：</strong><%= g.phone %></p>
+              </div>
+            <% end %>
+          <% else %>
+            <p class="text-yellow-700 text-sm">您是未成年人，请填写监护人信息以完成档案。</p>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="font-bold mb-3">紧急联系人</h3>
+        <% if @volunteer_profile.emergency_contacts.any? %>
+          <% @volunteer_profile.emergency_contacts.each do |ec| %>
+            <div class="space-y-1 text-sm mb-3">
+              <p><strong>姓名：</strong><%= ec.name %></p>
+              <p><strong>关系：</strong><%= ec.relationship %></p>
+              <p><strong>电话：</strong><%= ec.phone %></p>
+            </div>
+          <% end %>
+        <% else %>
+          <p class="text-gray-500 text-sm">暂无紧急联系人</p>
+        <% end %>
+      </div>
+
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-bold mb-3">可服务时段</h3>
+        <% if @volunteer_profile.availabilities.any? %>
+          <div class="space-y-1 text-sm">
+            <% day_names = %w[周日 周一 周二 周三 周四 周五 周六] %>
+            <% @volunteer_profile.availabilities.each do |a| %>
+              <p><%= day_names[a.day_of_week] %>：<%= a.start_time.strftime("%H:%M") %> - <%= a.end_time.strftime("%H:%M") %></p>
+            <% end %>
+          </div>
+        <% else %>
+          <p class="text-gray-500 text-sm">暂无设置可服务时段</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

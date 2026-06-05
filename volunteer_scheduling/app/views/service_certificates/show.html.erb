@@ -1,0 +1,57 @@
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+  <div class="mb-6">
+    <%= link_to "返回证明列表", service_certificates_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-8">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold mb-2">志愿服务证明</h1>
+      <div class="text-gray-500">
+        证书编号：<%= @service_certificate.certificate_number %>
+      </div>
+      <div class="text-gray-500">
+        开具日期：<%= @service_certificate.issued_at&.strftime("%Y年%m月%d日") %>
+      </div>
+    </div>
+
+    <div class="border-t border-b py-6 mb-6">
+      <p class="text-lg leading-relaxed mb-4">
+        兹证明 <strong><%= @service_certificate.volunteer_profile.user.name %></strong>
+        （身份证号：************），自 <%= @service_certificate.start_date.strftime("%Y年%m月%d日") %> 至
+        <%= @service_certificate.end_date.strftime("%Y年%m月%d日") %> 期间，累计参与志愿服务
+        <strong class="text-blue-600 text-xl"><%= @service_certificate.total_hours %></strong> 小时。
+      </p>
+
+      <div class="mt-6">
+        <h3 class="font-semibold mb-2">服务记录详情：</h3>
+        <div class="space-y-1 text-sm text-gray-600">
+          <% check_ins = @service_certificate.volunteer_profile.check_ins.approved
+                                              .where("checked_in_at >= ? AND checked_in_at <= ?",
+                                                     @service_certificate.start_date.beginning_of_day,
+                                                     @service_certificate.end_date.end_of_day)
+                                              .includes(:activity) %>
+          <% check_ins.each do |ci| %>
+            <div class="flex justify-between">
+              <span><%= ci.checked_in_at.strftime("%Y-%m-%d") %> | <%= ci.assignment.activity.title %></span>
+              <span><%= ci.service_hours %> 小时</span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-right">
+      <p>特此证明</p>
+      <p class="mt-4">发证机构：非营利机构志愿者管理中心</p>
+    </div>
+
+    <div class="mt-8 flex justify-center space-x-4">
+      <% if policy(@service_certificate).download? && @service_certificate.issued? %>
+        <%= link_to "下载 PDF 证明", download_service_certificate_path(@service_certificate), class: "bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700" %>
+      <% end %>
+      <% if policy(@service_certificate).revoke? && @service_certificate.issued? %>
+        <%= button_to "撤销证明", revoke_service_certificate_path(@service_certificate), method: :post, class: "bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700", data: { confirm: "确定要撤销此证明吗？" } %>
+      <% end %>
+    </div>
+  </div>
+</div>

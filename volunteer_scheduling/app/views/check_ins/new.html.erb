@@ -1,0 +1,53 @@
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="mb-6">
+    <%= link_to "返回排班详情", assignment_path(@assignment), class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">扫码签到</h1>
+
+  <div class="bg-white rounded-lg shadow p-6 text-center">
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold mb-2"><%= @assignment.activity.title %></h2>
+      <p class="text-gray-600">点位：<%= @assignment.location&.name %></p>
+      <p class="text-gray-600">志愿者：<%= @assignment.volunteer_profile.user.name %></p>
+    </div>
+
+    <div class="bg-gray-100 rounded-lg p-8 mb-6">
+      <div class="w-48 h-48 mx-auto bg-white border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+        <div class="text-center text-gray-500">
+          <p class="text-4xl mb-2">📱</p>
+          <p class="text-sm">扫码区域</p>
+        </div>
+      </div>
+      <p class="text-sm text-gray-500 mt-4">请使用微信扫描活动现场二维码完成签到</p>
+    </div>
+
+    <div class="space-y-3">
+      <%= form_with url: assignment_check_ins_path(@assignment), method: :post do |form| %>
+        <%= form.hidden_field :check_in_method, value: "qr_code" %>
+        <%= form.hidden_field :latitude, value: "39.9042" %>
+        <%= form.hidden_field :longitude, value: "116.4074" %>
+        <%= form.submit "模拟扫码签到", class: "w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 font-medium" %>
+      <% end %>
+
+      <% if current_user.admin? %>
+        <div class="border-t pt-4 mt-4">
+          <p class="text-sm text-gray-500 mb-3">管理员操作：</p>
+          <%= form_with url: assignment_check_ins_path(@assignment), method: :post do |form| %>
+            <%= form.hidden_field :check_in_method, value: "manual" %>
+            <%= form.submit "人工补签到（需双管理员确认）", class: "w-full bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 font-medium" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="mt-6 p-4 bg-yellow-50 rounded-lg text-left">
+      <h4 class="font-medium text-yellow-800 mb-2">签到规则说明</h4>
+      <ul class="text-sm text-yellow-700 space-y-1">
+        <li>• 迟到超过 15 分钟将自动标记为待复核</li>
+        <li>• 签到位置距离点位超过 200 米将标记疑似代签</li>
+        <li>• 人工补签到需要两名管理员确认</li>
+      </ul>
+    </div>
+  </div>
+</div>

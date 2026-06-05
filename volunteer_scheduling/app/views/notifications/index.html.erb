@@ -1,0 +1,38 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">通知中心</h1>
+    <%= button_to "全部已读", mark_all_as_read_notifications_path, method: :post, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <% if @notifications.any? %>
+      <div class="divide-y">
+        <% @notifications.each do |notification| %>
+          <div class="p-4 <%= notification.read? ? 'bg-white' : 'bg-blue-50' %>">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center space-x-2">
+                  <% unless notification.read? %>
+                    <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
+                  <% end %>
+                  <h3 class="font-medium"><%= notification.title %></h3>
+                </div>
+                <p class="text-gray-600 mt-1"><%= notification.body %></p>
+                <p class="text-xs text-gray-400 mt-2"><%= notification.created_at.strftime("%Y年%m月%d日 %H:%M") %></p>
+              </div>
+              <div>
+                <% unless notification.read? %>
+                  <%= button_to "标记已读", mark_as_read_notification_path(notification), method: :post, class: "text-sm text-blue-600 hover:text-blue-800" %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="p-8 text-center text-gray-500">
+        暂无通知
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,116 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "返回签到列表", check_ins_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <h1 class="text-3xl font-bold mb-2">签到详情</h1>
+        <div class="flex items-center space-x-4">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            <%= case @check_in.status
+                 when 'checked_in' then 'bg-blue-100 text-blue-800'
+                 when 'checked_out' then 'bg-yellow-100 text-yellow-800'
+                 when 'approved' then 'bg-green-100 text-green-800'
+                 when 'rejected' then 'bg-red-100 text-red-800'
+                 when 'needs_review' then 'bg-orange-100 text-orange-800'
+                 else 'bg-gray-100 text-gray-800'
+                 end %>">
+            <%= @check_in.status.humanize %>
+          </span>
+          <span class="text-sm text-gray-500">签到方式：<%= @check_in.check_in_method.humanize %></span>
+        </div>
+      </div>
+    </div>
+
+    <% if @check_in.needs_review? %>
+      <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold text-orange-800 mb-2">需要人工复核</h3>
+        <p class="text-orange-700"><%= @check_in.review_reason %></p>
+      </div>
+    <% end %>
+
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">活动信息</h3>
+        <div class="space-y-1 text-gray-600">
+          <p>活动名称：<%= @check_in.assignment.activity.title %></p>
+          <p>服务点位：<%= @check_in.assignment.location&.name %></p>
+        </div>
+      </div>
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">志愿者信息</h3>
+        <div class="space-y-1 text-gray-600">
+          <p>姓名：<%= @check_in.assignment.volunteer_profile.user.name %></p>
+          <p>联系电话：<%= @check_in.assignment.volunteer_profile.user.phone %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">签到时间</h3>
+        <p class="text-gray-600"><%= @check_in.checked_in_at&.strftime("%Y年%m月%d日 %H:%M:%S") %></p>
+        <% if @check_in.is_late? %>
+          <span class="text-xs text-red-600">迟到</span>
+        <% end %>
+      </div>
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">签退时间</h3>
+        <p class="text-gray-600"><%= @check_in.checked_out_at&.strftime("%Y年%m月%d日 %H:%M:%S") || "未签退" %></p>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <h3 class="font-semibold mb-2 text-gray-700">服务时长</h3>
+      <p class="text-2xl font-bold text-blue-600"><%= @check_in.service_hours&.round(1) %> 小时</p>
+    </div>
+
+    <% if @check_in.requires_two_admins? %>
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold mb-3">管理员确认</h3>
+        <p class="text-sm text-gray-600 mb-3">
+          当前确认进度：<%= @check_in.admin_confirmations.count %> / 2
+        </p>
+        <% if @check_in.admin_confirmations.any? %>
+          <div class="space-y-2">
+            <% @check_in.admin_confirmations.each do |conf| %>
+              <div class="p-2 bg-white rounded text-sm">
+                <span class="font-medium"><%= conf.admin.name %></span>
+                <span class="text-gray-500">确认于 <%= conf.confirmed_at.strftime("%Y-%m-%d %H:%M") %></span>
+                <% if conf.confirmation_notes.present? %>
+                  <p class="text-gray-500 mt-1">备注：<%= conf.confirmation_notes %></p>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <div class="flex space-x-3">
+      <% if policy(@check_in).approve? && @check_in.needs_review? %>
+        <%= form_with url: approve_check_in_path(@check_in), method: :post do |form| %>
+          <div class="flex items-center space-x-3">
+            <%= form.text_area :notes, placeholder: "审核备注（可选）", rows: 1, class: "rounded-md border-gray-300" %>
+            <%= form.submit "审核通过", class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+          </div>
+        <% end %>
+      <% end %>
+
+      <% if policy(@check_in).reject? && @check_in.needs_review? %>
+        <%= form_with url: reject_check_in_path(@check_in), method: :post do |form| %>
+          <div class="flex items-center space-x-3">
+            <%= form.text_field :reason, placeholder: "拒绝原因", required: true, class: "rounded-md border-gray-300" %>
+            <%= form.submit "拒绝", class: "bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" %>
+          </div>
+        <% end %>
+      <% end %>
+
+      <% if policy(@check_in).check_out? && @check_in.checked_in? %>
+        <%= button_to "签退", check_out_check_in_path(@check_in), method: :post, class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+      <% end %>
+    </div>
+  </div>
+</div>

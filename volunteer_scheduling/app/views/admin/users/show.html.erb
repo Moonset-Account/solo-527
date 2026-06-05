@@ -1,0 +1,62 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "返回用户列表", admin_users_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">用户详情</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div>
+        <p class="text-gray-500">姓名</p>
+        <p class="text-xl font-semibold"><%= @user.name %></p>
+      </div>
+      <div>
+        <p class="text-gray-500">角色</p>
+        <p><span class="px-2 py-1 text-sm font-semibold rounded-full 
+          <%= case @user.role
+               when 'admin' then 'bg-purple-100 text-purple-800'
+               when 'project_manager' then 'bg-blue-100 text-blue-800'
+               else 'bg-green-100 text-green-800'
+               end %>">
+          <%= @user.role.humanize %>
+        </span></p>
+      </div>
+      <div>
+        <p class="text-gray-500">邮箱</p>
+        <p><%= @user.email %></p>
+      </div>
+      <div>
+        <p class="text-gray-500">电话</p>
+        <p><%= @user.phone %></p>
+      </div>
+      <div>
+        <p class="text-gray-500">注册时间</p>
+        <p><%= @user.created_at.strftime("%Y年%m月%d日 %H:%M") %></p>
+      </div>
+    </div>
+
+    <% if @user.volunteer? && @user.volunteer_profile %>
+      <div class="border-t pt-6">
+        <h3 class="font-semibold mb-4">志愿者档案</h3>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-gray-500">年龄：</span><%= @user.volunteer_profile.age %> 岁
+            <% if @user.volunteer_profile.is_minor? %>
+              <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">未成年人</span>
+            <% end %>
+          </div>
+          <div>
+            <span class="text-gray-500">总服务时长：</span><%= @user.volunteer_profile.total_service_hours.round(1) %> 小时
+          </div>
+          <div>
+            <span class="text-gray-500">已完成签到：</span><%= @user.volunteer_profile.check_ins.approved.count %> 次
+          </div>
+          <div>
+            <span class="text-gray-500">已开具证明：</span><%= @user.volunteer_profile.service_certificates.issued.count %> 份
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

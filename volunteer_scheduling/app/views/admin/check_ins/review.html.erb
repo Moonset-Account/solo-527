@@ -1,0 +1,51 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">签到审核</h1>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <% if @check_ins.any? %>
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">活动</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">志愿者</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">签到时间</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时长</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">异常原因</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">确认进度</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <% @check_ins.each do |check_in| %>
+            <tr>
+              <td class="px-6 py-4">
+                <div class="text-sm font-medium"><%= check_in.assignment.activity.title %></div>
+                <div class="text-xs text-gray-500"><%= check_in.assignment.location&.name %></div>
+              </td>
+              <td class="px-6 py-4 text-sm"><%= check_in.assignment.volunteer_profile.user.name %></td>
+              <td class="px-6 py-4 text-sm text-gray-500"><%= check_in.checked_in_at&.strftime("%m-%d %H:%M") %></td>
+              <td class="px-6 py-4 text-sm"><%= check_in.service_hours&.round(1) %>h</td>
+              <td class="px-6 py-4 text-sm text-red-600"><%= check_in.review_reason %></td>
+              <td class="px-6 py-4 text-sm">
+                <% if check_in.requires_two_admins? %>
+                  <%= check_in.admin_confirmations.count %> / 2
+                <% else %>
+                  无需确认
+                <% end %>
+              </td>
+              <td class="px-6 py-4 text-sm space-x-2">
+                <%= link_to "处理", check_in_path(check_in), class: "text-blue-600 hover:text-blue-800" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="p-8 text-center text-gray-500">
+        暂无待审核的签到记录
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -38,7 +38,9 @@
                   <%= link_to "活动管理", activities_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
                 <% end %>
                 <% if current_user.admin? %>
-                  <%= link_to "管理员面板", admin_users_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                  <%= link_to "用户管理", admin_users_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                  <%= link_to "技能管理", admin_skills_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                  <%= link_to "签到审核", review_admin_check_ins_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
                 <% end %>
                 <%= link_to "通知", notifications_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
               </div>

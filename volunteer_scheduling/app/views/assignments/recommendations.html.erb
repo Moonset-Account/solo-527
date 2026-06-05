@@ -1,0 +1,65 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "返回活动", activity_path(@activity), class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">智能排班推荐 - <%= @activity.title %></h1>
+
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <p class="text-gray-600 mb-4">系统根据技能匹配度、距离和可用时段智能推荐志愿者。</p>
+  </div>
+
+  <% if @recommended_volunteers.any? %>
+    <div class="space-y-4">
+      <% @recommended_volunteers.each do |vp| %>
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold mb-2"><%= vp.user.name %></h3>
+              <div class="grid grid-cols-3 gap-4 text-sm mb-3">
+                <div>
+                  <span class="text-gray-500">年龄：</span>
+                  <span><%= vp.age %> 岁</span>
+                  <% if vp.is_minor? %>
+                    <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">未成年人</span>
+                  <% end %>
+                </div>
+                <div>
+                  <span class="text-gray-500">性别：</span>
+                  <span><%= vp.gender == 'male' ? '男' : vp.gender == 'female' ? '女' : '未设置' %></span>
+                </div>
+                <div>
+                  <span class="text-gray-500">总服务时长：</span>
+                  <span><%= vp.total_service_hours.round(1) %> 小时</span>
+                </div>
+              </div>
+              <div class="mb-3">
+                <span class="text-gray-500 text-sm">技能：</span>
+                <% vp.skills.each do |skill| %>
+                  <span class="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded"><%= skill.name %></span>
+                <% end %>
+              </div>
+              <% if vp.distance_to(@activity.locations.first) < Float::INFINITY %>
+                <div class="text-sm">
+                  <span class="text-gray-500">距离最近点位：</span>
+                  <span class="text-green-600"><%= vp.distance_to(@activity.locations.first).round(2) %> 公里</span>
+                </div>
+              <% end %>
+            </div>
+            <div class="ml-4">
+              <%= form_with model: Assignment.new, url: activity_assignments_path(@activity) do |form| %>
+                <%= form.hidden_field :volunteer_profile_id, value: vp.id %>
+                <%= form.hidden_field :location_id, value: @activity.locations.first&.id %>
+                <%= form.submit "安排排班", class: "bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      暂无匹配的志愿者推荐
+    </div>
+  <% end %>
+</div>

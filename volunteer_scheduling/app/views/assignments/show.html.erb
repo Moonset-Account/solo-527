@@ -1,0 +1,110 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "返回排班列表", assignments_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <h1 class="text-3xl font-bold mb-2">排班详情</h1>
+        <div class="flex items-center space-x-4">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            <%= case @assignment.status
+                 when 'pending' then 'bg-yellow-100 text-yellow-800'
+                 when 'accepted' then 'bg-green-100 text-green-800'
+                 when 'declined' then 'bg-red-100 text-red-800'
+                 when 'swapped' then 'bg-purple-100 text-purple-800'
+                 else 'bg-gray-100 text-gray-800'
+                 end %>">
+            <%= @assignment.status.humanize %>
+          </span>
+        </div>
+      </div>
+      <div class="space-x-2">
+        <% if policy(@assignment).accept? && @assignment.pending? %>
+          <%= button_to "确认参加", accept_assignment_path(@assignment), method: :post, class: "bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" %>
+          <%= button_to "拒绝", decline_assignment_path(@assignment), method: :post, class: "bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" %>
+        <% end %>
+        <% if policy(@assignment).swap? %>
+          <button onclick="document.getElementById('swap-form').classList.toggle('hidden')" class="bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700">
+            调换志愿者
+          </button>
+        <% end %>
+      </div>
+    </div>
+
+    <div id="swap-form" class="hidden mb-6 p-4 bg-gray-50 rounded-lg">
+      <h3 class="font-semibold mb-3">调换志愿者</h3>
+      <%= form_with url: swap_assignment_path(@assignment), method: :post do |form| %>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <%= form.label :new_volunteer_id, "新志愿者", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.select :new_volunteer_id, VolunteerProfile.all.map { |vp| [vp.user.name, vp.id] }, {}, class: "w-full rounded-md border-gray-300" %>
+          </div>
+          <div>
+            <%= form.label :change_reason, "调换原因", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.text_field :change_reason, class: "w-full rounded-md border-gray-300" %>
+          </div>
+        </div>
+        <%= form.submit "确认调换", class: "bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700" %>
+      <% end %>
+    </div>
+
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">志愿者信息</h3>
+        <div class="space-y-1 text-gray-600">
+          <p>姓名：<%= @assignment.volunteer_profile.user.name %></p>
+          <p>电话：<%= @assignment.volunteer_profile.user.phone %></p>
+          <p>年龄：<%= @assignment.volunteer_profile.age %> 岁</p>
+        </div>
+      </div>
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">活动信息</h3>
+        <div class="space-y-1 text-gray-600">
+          <p>活动：<%= @assignment.activity.title %></p>
+          <p>点位：<%= @assignment.location&.name %></p>
+          <p>时间：<%= @assignment.activity.start_time&.strftime("%Y-%m-%d %H:%M") %></p>
+        </div>
+      </div>
+    </div>
+
+    <% if @assignment.match_reason.present? %>
+      <div class="mb-6">
+        <h3 class="font-semibold mb-2 text-gray-700">匹配原因</h3>
+        <p class="text-gray-600 bg-gray-50 p-3 rounded"><%= @assignment.match_reason %></p>
+      </div>
+    <% end %>
+
+    <% if @assignment.assignment_changes.any? %>
+      <div>
+        <h3 class="font-semibold mb-2 text-gray-700">变更历史</h3>
+        <div class="space-y-2">
+          <% @assignment.assignment_changes.each do |change| %>
+            <div class="p-3 bg-gray-50 rounded">
+              <p class="text-sm">
+                <span class="font-medium"><%= change.changed_by&.name %></span>
+                将志愿者从
+                <span class="font-medium"><%= change.old_volunteer_profile&.user&.name %></span>
+                调换为
+                <span class="font-medium"><%= change.new_volunteer_profile&.user&.name %></span>
+              </p>
+              <p class="text-sm text-gray-500">原因：<%= change.change_reason %></p>
+              <% if change.original_match_reason.present? %>
+                <p class="text-sm text-gray-500">原匹配原因：<%= change.original_match_reason %></p>
+              <% end %>
+              <p class="text-xs text-gray-400 mt-1"><%= change.created_at.strftime("%Y-%m-%d %H:%M") %></p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="mt-6 pt-6 border-t">
+      <% if @assignment.accepted? %>
+        <%= link_to "扫码签到", new_assignment_check_in_path(@assignment), class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
+      <% end %>
+      <%= link_to "查看签到记录", check_ins_path(assignment_id: @assignment.id), class: "ml-2 text-blue-600 hover:text-blue-800" %>
+    </div>
+  </div>
+</div>

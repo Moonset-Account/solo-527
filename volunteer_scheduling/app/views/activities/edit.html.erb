@@ -1,0 +1,60 @@
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+  <div class="mb-6">
+    <%= link_to "返回活动列表", activities_path, class: "text-blue-600 hover:text-blue-800" %>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-6">编辑活动</h1>
+
+  <div class="bg-white rounded-lg shadow p-6">
+    <%= form_with model: @activity do |form| %>
+      <% if @activity.errors.any? %>
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <ul>
+            <% @activity.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div class="space-y-4">
+        <div>
+          <%= form.label :title, "活动名称", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_field :title, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+        </div>
+
+        <div>
+          <%= form.label :description, "活动描述", class: "block text-sm font-medium text-gray-700 mb-1" %>
+          <%= form.text_area :description, rows: 4, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= form.label :start_time, "开始时间", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.datetime_field :start_time, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+          </div>
+          <div>
+            <%= form.label :end_time, "结束时间", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.datetime_field :end_time, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <%= form.label :category, "活动分类", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.select :category, [["社区服务", "community"], ["医疗健康", "medical"], ["教育培训", "education"], ["环境保护", "environment"], ["应急救援", "emergency"], ["其他", "other"]], {}, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+          </div>
+          <div>
+            <%= form.label :volunteers_needed, "需要志愿者人数", class: "block text-sm font-medium text-gray-700 mb-1" %>
+            <%= form.number_field :volunteers_needed, min: 1, class: "w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" %>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <%= link_to "取消", activities_path, class: "px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" %>
+        <%= form.submit "保存", class: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" %>
+      </div>
+    <% end %>
+  </div>
+</div>
