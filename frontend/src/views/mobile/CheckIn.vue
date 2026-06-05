@@ -18,8 +18,13 @@
     </van-field>
     
     <van-dropdown-menu>
-      <van-dropdown-item v-model="selectedEvent" :options="eventOptions" />
+      <van-dropdown-item v-model="selectedEvent" :options="eventOptions" :disabled="disabledEventSelect" />
     </van-dropdown-menu>
+    
+    <div v-if="fromEventDetail && selectedEvent" class="current-event-tip">
+      <van-icon name="info-o" />
+      <span>当前活动：{{ eventOptions.find(e => e.value === selectedEvent)?.text || '' }}</span>
+    </div>
     
     <van-button
       type="primary"
@@ -49,10 +54,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { api } from '@/utils/request'
 
+const route = useRoute()
 const ticketCode = ref('')
 const selectedEvent = ref('')
 const eventOptions = ref([])
@@ -60,6 +67,9 @@ const records = ref([])
 const loading = ref(false)
 const finished = ref(false)
 const page = ref(1)
+
+const fromEventDetail = computed(() => !!route.query.event_id)
+const disabledEventSelect = computed(() => fromEventDetail.value)
 
 const scanQR = () => {
   showToast('调用扫码功能')
@@ -70,8 +80,12 @@ const doCheckIn = async () => {
     showToast('请输入票号')
     return
   }
+  const eventId = selectedEvent.value
+  if (!eventId) {
+    showToast('请先选择活动')
+    return
+  }
   try {
-    const eventId = selectedEvent.value || 1
     await api.post(`/events/events/${eventId}/check_in/`, { ticket_no: ticketCode.value })
     showToast('签到成功')
     ticketCode.value = ''
@@ -84,8 +98,15 @@ const doCheckIn = async () => {
 
 const loadEvents = async () => {
   try {
-    const { data } = await api.get('/events/events/', { params: { status: 'ongoing', page_size: 50 } })
-    eventOptions.value = [{ text: '全部活动', value: '' }, ...data.results.map(e => ({ text: e.title, value: e.id }))]
+    const { data } = await api.get('/events/events/', { params: { page_size: 50 } })
+    const events = data.results || []
+    eventOptions.value = fromEventDetail.value 
+      ? events.map(e => ({ text: e.title, value: e.id }))
+      : [{ text: '请选择活动', value: '' }, ...events.map(e => ({ text: e.title, value: e.id }))]
+    
+    if (route.query.event_id) {
+      selectedEvent.value = Number(route.query.event_id)
+    }
   } catch (e) {}
 }
 
@@ -133,6 +154,16 @@ onMounted(() => {
       color: #999;
       margin: 0;
     }
+  }
+  
+  .current-event-tip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #409eff;
+    background: #ecf5ff;
   }
 }
 </style>
