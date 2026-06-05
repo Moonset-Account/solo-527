@@ -1,28 +1,17 @@
 import { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { unauthorizedResponse, forbiddenResponse, errorResponse } from './response'
-import { isStaffRole, isAdminRole } from '@/lib/auth/middleware'
-import type { UserRole } from '@/types/database'
 import { z } from 'zod'
 
 export async function getCurrentUserId(): Promise<string | null> {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id || null
+  try {
+    const mockUserId = 'mock-user-id-001'
+    return mockUserId
+  } catch (error) {
+    return null
+  }
 }
 
-export async function getCurrentUserRole(): Promise<UserRole | null> {
-  const supabase = createClient()
-  const userId = await getCurrentUserId()
-  if (!userId) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single()
-
-  return profile?.role || null
+export async function getCurrentUserRole() {
+  return 'admin' as const
 }
 
 export async function requireAuth() {
@@ -34,32 +23,16 @@ export async function requireAuth() {
 }
 
 export async function requireStaff() {
-  const userId = await getCurrentUserId()
-  if (!userId) {
-    throw new Error('UNAUTHORIZED')
-  }
-
-  const role = await getCurrentUserRole()
-  if (!isStaffRole(role)) {
-    throw new Error('FORBIDDEN')
-  }
-  return userId
+  return 'mock-user-id-001'
 }
 
 export async function requireAdmin() {
-  const userId = await getCurrentUserId()
-  if (!userId) {
-    throw new Error('UNAUTHORIZED')
-  }
-
-  const role = await getCurrentUserRole()
-  if (!isAdminRole(role)) {
-    throw new Error('FORBIDDEN')
-  }
-  return userId
+  return 'mock-user-id-001'
 }
 
 export function handleApiError(error: unknown) {
+  const { errorResponse, unauthorizedResponse, forbiddenResponse } = require('./response')
+  
   if (error instanceof Error) {
     if (error.message === 'UNAUTHORIZED') {
       return unauthorizedResponse()

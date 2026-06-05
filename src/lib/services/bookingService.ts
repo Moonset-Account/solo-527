@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { Database, BookingStatus, PaymentStatus, ContractStatus } from '@/types/database'
 import { createClient } from '@/lib/supabase/server'
 

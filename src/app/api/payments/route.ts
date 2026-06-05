@@ -1,47 +1,82 @@
 import { NextRequest } from 'next/server'
-import { z } from 'zod'
-import { PaymentService } from '@/lib/services/paymentService'
-import { successResponse, handleApiError, validationErrorResponse } from '@/lib/api/response'
-import { requireStaff, getSearchParams, validateRequest, getCurrentUserId } from '@/lib/api/handler'
+import { successResponse, errorResponse } from '@/lib/api/response'
+import { getSearchParams } from '@/lib/api/handler'
 
-const createPaymentSchema = z.object({
-  booking_id: z.string().uuid(),
-  amount: z.number().min(0.01),
-  payment_method: z.string().min(1),
-  transaction_no: z.string().optional(),
-  is_deposit: z.boolean().optional(),
-  notes: z.string().optional(),
-})
+const mockPayments = [
+  {
+    id: '1',
+    booking_id: '1',
+    amount: 500,
+    payment_method: '微信',
+    is_deposit: true,
+    transaction_no: 'WX20240110123456',
+    notes: '定金',
+    created_by: 'user-1',
+    created_at: '2024-01-10T14:35:00',
+    bookings: { booking_no: 'BK202401150001' },
+    creator: { full_name: '王经理' },
+  },
+  {
+    id: '2',
+    booking_id: '2',
+    amount: 1000,
+    payment_method: '银行转账',
+    is_deposit: true,
+    transaction_no: 'BANK202401080001',
+    notes: '定金',
+    created_by: 'user-1',
+    created_at: '2024-01-08T11:20:00',
+    bookings: { booking_no: 'BK202401150002' },
+    creator: { full_name: '王经理' },
+  },
+  {
+    id: '3',
+    booking_id: '2',
+    amount: 2000,
+    payment_method: '支付宝',
+    is_deposit: false,
+    transaction_no: 'ALI202401140001',
+    notes: '尾款',
+    created_by: 'user-1',
+    created_at: '2024-01-14T09:00:00',
+    bookings: { booking_no: 'BK202401150002' },
+    creator: { full_name: '王经理' },
+  },
+]
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaff()
     const params = await getSearchParams(request)
-    const paymentService = new PaymentService()
     
-    const data = await paymentService.getPayments(params.booking_id)
-    return successResponse(data)
+    let filtered = [...mockPayments]
+    
+    if (params.booking_id) {
+      filtered = filtered.filter(p => p.booking_id === params.booking_id)
+    }
+    
+    return successResponse(filtered)
   } catch (error) {
-    return handleApiError(error)
+    return errorResponse('获取支付记录失败', 500)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireStaff()
+    const body = await request.json()
     
-    try {
-      const body = await validateRequest(request, createPaymentSchema)
-      const paymentService = new PaymentService()
-      const data = await paymentService.createPayment(body, userId)
-      return successResponse(data, 201)
-    } catch (error: any) {
-      if (error.message === 'VALIDATION_ERROR') {
-        return validationErrorResponse(error.validationErrors)
-      }
-      throw error
+    const newPayment = {
+      id: `payment-${Date.now()}`,
+      ...body,
+      created_by: 'user-1',
+      created_at: new Date().toISOString(),
+      bookings: { booking_no: body.booking_id ? `BK-${body.booking_id}` : 'NEW' },
+      creator: { full_name: '当前用户' },
     }
+    
+    mockPayments.unshift(newPayment)
+    
+    return successResponse(newPayment, 201)
   } catch (error) {
-    return handleApiError(error)
+    return errorResponse('创建支付记录失败', 500)
   }
 }

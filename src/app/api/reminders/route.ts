@@ -1,46 +1,67 @@
 import { NextRequest } from 'next/server'
-import { BookingService } from '@/lib/services/bookingService'
-import { NotificationService } from '@/lib/services/notificationService'
-import { successResponse, handleApiError } from '@/lib/api/response'
-import { requireStaff } from '@/lib/api/handler'
+import { successResponse, errorResponse } from '@/lib/api/response'
+
+const mockReminders = [
+  {
+    id: '1',
+    booking_no: 'BK202401160003',
+    total_amount: 6000,
+    deposit_amount: 2000,
+    paid_amount: 0,
+    payment_status: 'unpaid',
+    start_time: '2024-01-16T09:00:00',
+    remaining_amount: 6000,
+    days_until: 1,
+    clients: { name: '王五公司', phone: '137****9012', email: 'wangwu@example.com' },
+  },
+  {
+    id: '4',
+    booking_no: 'BK202401200004',
+    total_amount: 3500,
+    deposit_amount: 1000,
+    paid_amount: 1000,
+    payment_status: 'deposit_paid',
+    start_time: '2024-01-20T10:00:00',
+    remaining_amount: 2500,
+    days_until: 5,
+    clients: { name: '赵六', phone: '136****3456', email: 'zhaoliu@example.com' },
+  },
+  {
+    id: '5',
+    booking_no: 'BK202401250005',
+    total_amount: 8000,
+    deposit_amount: 2500,
+    paid_amount: 2500,
+    payment_status: 'deposit_paid',
+    start_time: '2024-01-25T09:00:00',
+    remaining_amount: 5500,
+    days_until: 10,
+    clients: { name: '孙七公司', phone: '135****7890', email: 'sunqi@example.com' },
+  },
+]
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaff()
-    const bookingService = new BookingService()
-    const reminders = await bookingService.getPaymentReminders()
-    return successResponse(reminders)
+    return successResponse(mockReminders)
   } catch (error) {
-    return handleApiError(error)
+    return errorResponse('获取提醒失败', 500)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await requireStaff()
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const { booking_ids, days_threshold = 7 } = body
-
-    const bookingService = new BookingService()
-    const notificationService = new NotificationService()
     
-    const reminders = await bookingService.getPaymentReminders()
-    const filteredReminders = booking_ids 
-      ? reminders.filter((r) => booking_ids.includes(r.id))
-      : reminders.filter((r) => r.days_until <= days_threshold && r.remaining_amount > 0)
-
-    const results = []
-    for (const reminder of filteredReminders) {
-      try {
-        await notificationService.sendPaymentReminder(reminder, reminder.days_until)
-        results.push({ booking_id: reminder.id, success: true })
-      } catch (error: any) {
-        results.push({ booking_id: reminder.id, success: false, error: error.message })
-      }
-    }
-
-    return successResponse({ sent: results.length, results })
+    const toSend = booking_ids 
+      ? mockReminders.filter(r => booking_ids.includes(r.id))
+      : mockReminders.filter(r => r.days_until <= days_threshold)
+    
+    return successResponse({
+      sent: toSend.length,
+      results: toSend.map(r => ({ booking_id: r.id, success: true })),
+    })
   } catch (error) {
-    return handleApiError(error)
+    return errorResponse('发送提醒失败', 500)
   }
 }

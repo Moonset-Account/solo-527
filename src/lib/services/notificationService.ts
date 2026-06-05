@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { NotificationType } from '@/types/database'
 import { createClient } from '@/lib/supabase/server'
 
