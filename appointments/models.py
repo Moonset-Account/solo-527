@@ -267,6 +267,10 @@ class Appointment(models.Model):
     def reschedule(self, new_daily_slot, reason, note=''):
         from django.utils import timezone
         self.status = self.Status.RESCHEDULED
+        self.reschedule_reason = reason
+        self.reschedule_note = note
+        self.cancelled_at = timezone.now()
+        self.original_reason = self.reason
         self.save()
         self.daily_slot.update_booked_count()
 
@@ -279,8 +283,6 @@ class Appointment(models.Model):
             original_reason=self.reason,
             fee=self.fee,
             original_appointment=self,
-            reschedule_reason=reason,
-            reschedule_note=note,
             created_by=self.created_by
         )
         new_daily_slot.update_booked_count()

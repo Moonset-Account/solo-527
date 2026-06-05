@@ -1,3 +1,4 @@
+from django.db import models
 from django.db.models import Count, Q, F
 from django.utils import timezone
 from datetime import date, timedelta
@@ -34,39 +35,60 @@ class AppointmentReportService:
     @staticmethod
     def get_cancellation_reason_stats(start_date, end_date):
         from appointments.models import Appointment
+        from django.db.models import Count
 
-        cancelled_appointments = Appointment.objects.filter(
-            cancelled_at__date__gte=start_date,
-            cancelled_at__date__lte=end_date,
-            status__in=['CANCELLED', 'RESCHEDULED']
-        ).select_related('reschedule_reason')
-
-        stats = {}
-        for category, _ in RescheduleReason.Category.choices:
-            count = cancelled_appointments.filter(
-                reschedule_reason__category=category
-            ).count()
-            stats[category] = {
-                'label': dict(RescheduleReason.Category.choices)[category],
-                'count': count
-            }
-
-        no_category_count = cancelled_appointments.filter(
-            reschedule_reason__isnull=True
-        ).count()
-
-        stats['PATIENT_NO_SHOW'] = {
-            'label': '患者爽约',
-            'count': Appointment.objects.filter(
+        all_records = Appointment.objects.filter(
+            models.Q(
+                cancelled_at__date__gte=start_date,
+                cancelled_at__date__lte=end_date,
+                status__in=['CANCELLED', 'RESCHEDULED']
+            ) | models.Q(
                 status='NO_SHOW',
                 updated_at__date__gte=start_date,
                 updated_at__date__lte=end_date
+            )
+        ).select_related('reschedule_reason')
+
+        stats = {}
+        for category, label in RescheduleReason.Category.choices:
+            cancelled_count = all_records.filter(
+                status__in=['CANCELLED', 'RESCHEDULED'],
+                reschedule_reason__category=category
             ).count()
+            stats[f'CANCEL_{category}'] = {
+                'type': 'cancellation',
+                'category_code': category,
+                'category_label': label,
+                'label': f'{label}（取消/改期）',
+                'count': cancelled_count,
+                'is_patient_fault': category == 'PATIENT_REQUEST',
+                'note': '患者主动申请算患者责任，其他不算' if category == 'PATIENT_REQUEST' else '不算患者责任'
+            }
+
+        no_category_count = all_records.filter(
+            status__in=['CANCELLED', 'RESCHEDULED'],
+            reschedule_reason__isnull=True
+        ).count()
+
+        stats['CANCEL_UNKNOWN'] = {
+            'type': 'cancellation',
+            'category_code': 'UNKNOWN',
+            'category_label': '未分类',
+            'label': '未分类（取消/改期）',
+            'count': no_category_count,
+            'is_patient_fault': False,
+            'note': '不算患者责任'
         }
 
-        stats['UNKNOWN'] = {
-            'label': '未分类',
-            'count': no_category_count
+        no_show_count = all_records.filter(status='NO_SHOW').count()
+        stats['NO_SHOW'] = {
+            'type': 'no_show',
+            'category_code': 'NO_SHOW',
+            'category_label': '患者爽约',
+            'label': '患者爽约（未到诊）',
+            'count': no_show_count,
+            'is_patient_fault': True,
+            'note': '算患者责任'
         }
 
         return stats
