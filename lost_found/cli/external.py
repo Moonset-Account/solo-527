@@ -135,12 +135,16 @@ def list_items(page: int = typer.Option(1, "--page", "-p", help="页码"),
 
 @app.command("submit-claim")
 def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失物编号"),
+                 name: Optional[str] = typer.Option(None, "--name", "-n", help="认领人姓名"),
+                 phone: Optional[str] = typer.Option(None, "--phone", "-h", help="认领人电话"),
+                 student_id: Optional[str] = typer.Option(None, "--student-id", "-s", help="学号"),
+                 desc: Optional[str] = typer.Option(None, "--desc", "-d", help="物品特征描述"),
+                 loss_time: Optional[str] = typer.Option(None, "--loss-time", help="丢失时间"),
+                 loss_location: Optional[str] = typer.Option(None, "--loss-location", help="丢失地点"),
                  proof_type: Optional[str] = typer.Option(None, "--proof-type", "-t", 
                      help="证明材料类型: id_card/student_card/purchase_proof/photo/other"),
-                 proof_desc: Optional[str] = typer.Option(None, "--proof-desc", "-d", 
-                     help="证明材料描述"),
-                 proof_path: Optional[str] = typer.Option(None, "--proof-path", "-p", 
-                     help="证明材料文件路径")):
+                 proof_desc: Optional[str] = typer.Option(None, "--proof-desc", help="证明材料描述"),
+                 proof_path: Optional[str] = typer.Option(None, "--proof-path", help="证明材料文件路径")):
     """提交认领申请（可附带证明材料）"""
     item = LostItemService.get_item(item_id, include_sensitive=False)
     if not item:
@@ -154,12 +158,22 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
         border_style="cyan"
     ))
     
-    claimant_name = Prompt.ask("您的姓名 *")
-    claimant_phone = Prompt.ask("联系电话 *")
-    student_id = Prompt.ask("学号（可选）", default="")
-    description = Prompt.ask("物品特征描述 *")
-    loss_time = Prompt.ask("丢失时间（可选）", default="")
-    loss_location = Prompt.ask("丢失地点（可选）", default="")
+    has_all_args = name is not None and phone is not None and desc is not None
+    
+    if has_all_args:
+        claimant_name = name
+        claimant_phone = phone
+        student_id_val = student_id
+        description = desc
+        loss_time_val = loss_time
+        loss_location_val = loss_location
+    else:
+        claimant_name = name if name else Prompt.ask("您的姓名 *")
+        claimant_phone = phone if phone else Prompt.ask("联系电话 *")
+        student_id_val = student_id if student_id else Prompt.ask("学号（可选）", default="")
+        description = desc if desc else Prompt.ask("物品特征描述 *")
+        loss_time_val = loss_time if loss_time else Prompt.ask("丢失时间（可选）", default="")
+        loss_location_val = loss_location if loss_location else Prompt.ask("丢失地点（可选）", default="")
     
     if not description:
         console.print("[red]✗ 请提供物品特征描述[/red]")
@@ -198,9 +212,9 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
             claimant_name=claimant_name,
             claimant_phone=claimant_phone,
             description=description,
-            loss_time=loss_time or None,
-            loss_location=loss_location or None,
-            student_id=student_id or None
+            loss_time=loss_time_val or None,
+            loss_location=loss_location_val or None,
+            student_id=student_id_val or None
         )
     
     if not success:
@@ -220,6 +234,7 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
         
         if success_proof:
             console.print(f"[green]✓ 证明材料已上传，材料ID: {proof_id}[/green]")
+            console.print(f"[dim]  类型: {actual_proof_type}, 描述: {actual_proof_desc or '-'}, 路径: {actual_proof_path or '-'}[/dim]")
         else:
             console.print(f"[yellow]⚠ 证明材料上传失败: {msg_proof}[/yellow]")
             console.print("[yellow]  您可以稍后使用 external add-proof 命令补充上传[/yellow]")
