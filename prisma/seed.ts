@@ -1,11 +1,11 @@
-import { PrismaClient, Role } from '../src/generated/prisma';
+import { PrismaClient, Role } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
 
 const adapter = process.env.DATABASE_URL 
   ? new PrismaPg({ connectionString: process.env.DATABASE_URL })
   : undefined;
-const prisma = new PrismaClient(adapter ? { adapter } : {});
+const prisma = new PrismaClient((adapter ? { adapter } : {}) as any);
 
 async function main() {
   const password = await bcrypt.hash('password', 10);

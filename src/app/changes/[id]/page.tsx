@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { ChangeService } from "@/lib/services/changeService";
-import { ChangeStatus, Role, ConfirmationType } from "@/generated/prisma";
+import { ChangeStatus, Role, ConfirmationType } from "@/generated/prisma/client";
 import ChangeActions from "./ChangeActions";
 
 export default async function ChangeDetailPage({

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { ChangeService, updateChangeSchema } from "@/lib/services/changeService";
 import { z } from "zod";
-import { Role } from "@/generated/prisma";
+import { Role } from "@/generated/prisma/client";
 
 export async function GET(
   request: Request,

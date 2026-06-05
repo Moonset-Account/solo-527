@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { ChangeStatus, ConfirmationType, Role } from "@/generated/prisma";
+import { ChangeStatus, ConfirmationType, Role } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export const createChangeSchema = z.object({

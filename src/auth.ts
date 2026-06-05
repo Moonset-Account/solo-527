@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "./lib/prisma";
 import bcrypt from "bcryptjs";
-import type { Role } from "@/generated/prisma";
+import type { Role } from "@/generated/prisma/client";
 
 declare module "next-auth" {
   interface User {

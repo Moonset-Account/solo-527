@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { ChangeService } from "@/lib/services/changeService";
 import Link from "next/link";
-import { ChangeStatus } from "@/generated/prisma";
+import { ChangeStatus } from "@/generated/prisma/client";
 
 export default async function HomePage() {
   const session = await auth();

@@ -4,7 +4,7 @@
 
 import { ChangeService } from "@/lib/services/changeService";
 import { PurchaseService } from "@/lib/services/purchaseService";
-import { ChangeStatus, ConfirmationType, Role } from "@/generated/prisma";
+import { ChangeStatus, ConfirmationType, Role } from "@/generated/prisma/client";
 
 const mockTx = {
   confirmationRecord: { create: jest.fn() },

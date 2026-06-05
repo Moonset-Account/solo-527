@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChangeStatus, Role } from "@/generated/prisma";
+import { ChangeStatus, Role } from "@/generated/prisma/client";
 
 interface ChangeActionsProps {
   changeId: string;
