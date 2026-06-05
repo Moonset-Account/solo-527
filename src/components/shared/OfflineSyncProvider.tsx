@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect, useState, createContext, useContext, useCallback } from 'react';
-import { offlineStorage } from '@/lib/offline-storage';
-import { Wifi, WifiOff, RefreshCw, CheckCircle } from 'lucide-react';
+import { offlineStorage, formQueue } from '@/lib/offline-storage';
+import { Wifi, WifiOff, RefreshCw, CheckCircle, Bell } from 'lucide-react';
+
+interface SyncedFormNotification {
+  id: string;
+  formType: string;
+  result: any;
+  timestamp: Date;
+}
 
 interface OfflineSyncContextType {
   isOnline: boolean;
@@ -10,6 +17,9 @@ interface OfflineSyncContextType {
   isSyncing: boolean;
   sync: () => Promise<void>;
   lastSyncTime: Date | null;
+  notifications: SyncedFormNotification[];
+  dismissNotification: (id: string) => void;
+  onFormSynced: (callback: (formType: string, result: any) => void) => () => void;
 }
 
 const OfflineSyncContext = createContext<OfflineSyncContextType>({
@@ -18,6 +28,9 @@ const OfflineSyncContext = createContext<OfflineSyncContextType>({
   isSyncing: false,
   sync: async () => {},
   lastSyncTime: null,
+  notifications: [],
+  dismissNotification: () => {},
+  onFormSynced: () => () => {},
 });
 
 export const useOfflineSync = () => useContext(OfflineSyncContext);
@@ -26,52 +39,27 @@ interface OfflineSyncProviderProps {
   children: React.ReactNode;
 }
 
+const syncEventTarget =
+  typeof window !== 'undefined'
+    ? new (window as any).EventTarget()
+    : null;
+
 export function OfflineSyncProvider({ children }: OfflineSyncProviderProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [notifications, setNotifications] = useState<SyncedFormNotification[]>([]);
 
-  const syncOfflinePhotos = useCallback(async () => {
-    if (typeof localStorage === 'undefined') return;
-
-    const photoKeys = Object.keys(localStorage).filter((k) =>
-      k.startsWith('drama_club_photo_')
+  const getTotalPending = useCallback(() => {
+    if (typeof localStorage === 'undefined') return 0;
+    return (
+      offlineStorage.getQueueCount() +
+      formQueue.getCount() +
+      Object.keys(localStorage).filter((k) =>
+        k.startsWith('drama_club_photo_')
+      ).length
     );
-
-    for (const key of photoKeys) {
-      try {
-        const base64Data = localStorage.getItem(key);
-        if (!base64Data) continue;
-
-        const base64Parts = base64Data.split(',');
-        const mimeType = base64Parts[0].match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
-        const binaryString = atob(base64Parts[1]);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: mimeType });
-        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: mimeType });
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('type', 'receipts');
-
-        const res = await fetch('/api/v1/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          localStorage.setItem(`${key}_uploaded`, data.url);
-          localStorage.removeItem(key);
-        }
-      } catch (error) {
-        console.error('Failed to sync photo:', key, error);
-      }
-    }
   }, []);
 
   const sync = useCallback(async () => {
@@ -80,18 +68,44 @@ export function OfflineSyncProvider({ children }: OfflineSyncProviderProps) {
     setIsSyncing(true);
     try {
       await offlineStorage.processQueue();
-      await syncOfflinePhotos();
+
+      const beforeQueue = formQueue.getQueue().filter((f: any) => f.status === 'pending');
+      const result = await formQueue.processAll();
+      const afterQueue = formQueue.getQueue();
+
+      for (const submission of beforeQueue) {
+        const synced = afterQueue.find(
+          (s: any) => s.id === submission.id && s.status === 'synced'
+        );
+        if (synced) {
+          const notification: SyncedFormNotification = {
+            id: submission.id,
+            formType: submission.formType,
+            result: synced.syncResult,
+            timestamp: new Date(),
+          };
+          setNotifications((prev) => [...prev, notification]);
+
+          if (syncEventTarget) {
+            syncEventTarget.dispatchEvent(
+              new CustomEvent('formSynced', {
+                detail: {
+                  formType: submission.formType,
+                  result: synced.syncResult,
+                  submissionId: submission.id,
+                },
+              })
+            );
+          }
+        }
+      }
+
       setLastSyncTime(new Date());
     } finally {
-      setPendingCount(
-        offlineStorage.getQueueCount() +
-          Object.keys(localStorage || {}).filter((k) =>
-            k.startsWith('drama_club_photo_')
-          ).length
-      );
+      setPendingCount(getTotalPending());
       setIsSyncing(false);
     }
-  }, [isSyncing, syncOfflinePhotos]);
+  }, [isSyncing, getTotalPending]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -105,12 +119,7 @@ export function OfflineSyncProvider({ children }: OfflineSyncProviderProps) {
 
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine);
-      setPendingCount(
-        offlineStorage.getQueueCount() +
-          Object.keys(localStorage || {}).filter((k) =>
-            k.startsWith('drama_club_photo_')
-          ).length
-      );
+      setPendingCount(getTotalPending());
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
@@ -122,29 +131,52 @@ export function OfflineSyncProvider({ children }: OfflineSyncProviderProps) {
         window.removeEventListener('offline', handleOffline);
       }
     };
-  }, [sync]);
+  }, [sync, getTotalPending]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (navigator.onLine) {
-        setPendingCount(
-          offlineStorage.getQueueCount() +
-            Object.keys(localStorage || {}).filter((k) =>
-              k.startsWith('drama_club_photo_')
-            ).length
-        );
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        setPendingCount(getTotalPending());
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
+  }, [getTotalPending]);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
+
+  const onFormSynced = useCallback(
+    (callback: (formType: string, result: any) => void) => {
+      if (!syncEventTarget) return () => {};
+
+      const handler = (e: any) => {
+        callback(e.detail.formType, e.detail.result);
+      };
+
+      syncEventTarget.addEventListener('formSynced', handler);
+      return () => syncEventTarget.removeEventListener('formSynced', handler);
+    },
+    []
+  );
 
   return (
     <OfflineSyncContext.Provider
-      value={{ isOnline, pendingCount, isSyncing, sync, lastSyncTime }}
+      value={{
+        isOnline,
+        pendingCount,
+        isSyncing,
+        sync,
+        lastSyncTime,
+        notifications,
+        dismissNotification,
+        onFormSynced,
+      }}
     >
       {children}
       <OfflineStatusBar />
+      <SyncNotifications />
     </OfflineSyncContext.Provider>
   );
 }
@@ -189,6 +221,54 @@ function OfflineStatusBar() {
           </span>
         </>
       )}
+    </div>
+  );
+}
+
+function SyncNotifications() {
+  const { notifications, dismissNotification } = useOfflineSync();
+
+  if (notifications.length === 0) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {notifications.map((notification) => (
+        <div
+          key={notification.id}
+          className="bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-3 max-w-sm"
+        >
+          <Bell className="h-5 w-5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">
+              {notification.formType === 'production' && '剧目创建成功'}
+              {notification.formType === 'finance' && '财务记录创建成功'}
+              {!['production', 'finance'].includes(notification.formType) &&
+                '同步完成'}
+            </p>
+            <p className="text-xs text-green-100">
+              离线数据已同步到服务器
+            </p>
+          </div>
+          <button
+            onClick={() => dismissNotification(notification.id)}
+            className="text-white/80 hover:text-white"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
