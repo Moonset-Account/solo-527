@@ -12,11 +12,6 @@ export async function GET(
 ) {
   await dbConnect();
 
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return errorResponse('未授权', 401);
-  const payload = verifyToken(authHeader.substring(7));
-  if (!payload) return errorResponse('未授权', 401);
-
   const { id } = await params;
   const match = await Match.findById(id)
     .populate('homeTeamId', 'name')

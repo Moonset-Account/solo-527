@@ -1,15 +1,9 @@
 import dbConnect from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/lib/response';
 import Standing from '@/models/Standing';
 
 export async function GET(request: Request) {
   await dbConnect();
-
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return errorResponse('未授权', 401);
-  const payload = verifyToken(authHeader.substring(7));
-  if (!payload) return errorResponse('未授权', 401);
 
   const { searchParams } = new URL(request.url);
   const seasonId = searchParams.get('seasonId');

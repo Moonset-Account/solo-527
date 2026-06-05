@@ -33,8 +33,8 @@ interface NavItem {
 const adminNav: NavItem[] = [
   { label: "首页", href: "/admin", icon: Home },
   { label: "球队管理", href: "/admin/teams", icon: Shield },
-  { label: "报名审核", href: "/admin/reviews", icon: ClipboardCheck },
-  { label: "赛程管理", href: "/admin/schedules", icon: Calendar },
+  { label: "报名审核", href: "/admin/teams/review", icon: ClipboardCheck },
+  { label: "赛程管理", href: "/admin/schedule", icon: Calendar },
   { label: "裁判管理", href: "/admin/referees", icon: Trophy },
   { label: "申诉管理", href: "/admin/appeals", icon: AlertTriangle },
   { label: "场馆管理", href: "/admin/venues", icon: Building2 },
@@ -44,21 +44,21 @@ const adminNav: NavItem[] = [
 const captainNav: NavItem[] = [
   { label: "首页", href: "/captain", icon: Home },
   { label: "我的球队", href: "/captain/team", icon: Shield },
-  { label: "球队报名", href: "/captain/registration", icon: UserPlus },
-  { label: "队员管理", href: "/captain/roster", icon: Users },
-  { label: "赛程查看", href: "/captain/schedules", icon: Calendar },
+  { label: "球队报名", href: "/captain/team/register", icon: UserPlus },
+  { label: "队员管理", href: "/captain/team/roster", icon: Users },
+  { label: "赛程查看", href: "/captain/schedule", icon: Calendar },
   { label: "比分确认", href: "/captain/scores", icon: CheckCircle },
   { label: "我的申诉", href: "/captain/appeals", icon: MessageSquareWarning },
 ];
 
 const refereeNav: NavItem[] = [
   { label: "首页", href: "/referee", icon: Home },
-  { label: "我的赛程", href: "/referee/schedules", icon: Calendar },
+  { label: "我的赛程", href: "/referee/schedule", icon: Calendar },
   { label: "比分录入", href: "/referee/scores", icon: ClipboardCheck },
 ];
 
 const publicNav: NavItem[] = [
-  { label: "赛程", href: "/schedules", icon: Calendar },
+  { label: "赛程", href: "/schedule", icon: Calendar },
   { label: "积分榜", href: "/standings", icon: BarChart3 },
   { label: "消息中心", href: "/messages", icon: Bell },
 ];
@@ -109,7 +109,7 @@ export default function Sidebar({ role }: SidebarProps) {
         <ul className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = item.href === '/' + pathname.split('/').slice(1, item.href.split('/').length).join('/');
             return (
               <li key={item.href}>
                 <Link
