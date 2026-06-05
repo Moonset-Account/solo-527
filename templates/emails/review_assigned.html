@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>新评审任务分配通知</h2>
+    <p>您好，您被分配了新的评审任务：</p>
+    <ul>
+        <li><strong>课题编号：</strong>{{ assignment.project.project_code }}</li>
+        <li><strong>课题名称：</strong>{{ assignment.project.title }}</li>
+        <li><strong>负责人：</strong>{{ assignment.project.principal_investigator.get_full_name }}</li>
+        <li><strong>负责材料：</strong>
+            {% for mt in assignment.material_types.all %}
+                {{ mt.name }}{% if not forloop.last %}、{% endif %}
+            {% endfor %}
+        </li>
+        <li><strong>分配时间：</strong>{{ assignment.assigned_at|date:"Y-m-d H:i" }}</li>
+    </ul>
+    <p>请登录系统进行评审。</p>
+</body>
+</html>

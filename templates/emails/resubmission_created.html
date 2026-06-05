@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>补件提交通知</h2>
+    <p>您好，课题 {{ project.project_code }} 已提交补件：</p>
+    <ul>
+        <li><strong>课题编号：</strong>{{ project.project_code }}</li>
+        <li><strong>课题名称：</strong>{{ project.title }}</li>
+        <li><strong>提交者：</strong>{{ resubmission.submitter.get_full_name }}</li>
+        <li><strong>补件时间：</strong>{{ resubmission.submitted_at|date:"Y-m-d H:i" }}</li>
+        <li><strong>回应意见数：</strong>{{ resubmission.addressed_comments.count }} 条</li>
+    </ul>
+    <p><strong>回应说明：</strong></p>
+    <blockquote style="border-left: 4px solid #e5e7eb; padding-left: 1em; margin: 1em 0;">
+        {{ resubmission.response_note|linebreaks }}
+    </blockquote>
+    <p>请登录系统查看。</p>
+</body>
+</html>

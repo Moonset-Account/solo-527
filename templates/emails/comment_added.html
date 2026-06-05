@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>新评审意见通知</h2>
+    <p>您好，您的课题收到了新的评审意见：</p>
+    <ul>
+        <li><strong>课题编号：</strong>{{ project.project_code }}</li>
+        <li><strong>课题名称：</strong>{{ project.title }}</li>
+        <li><strong>评审人：</strong>{{ comment.reviewer.get_full_name }}</li>
+        {% if comment.clause %}
+        <li><strong>对应条款：</strong>{{ comment.clause.clause_number }} {{ comment.clause.title }}</li>
+        {% endif %}
+        <li><strong>评审意见：</strong></li>
+    </ul>
+    <blockquote style="border-left: 4px solid #e5e7eb; padding-left: 1em; margin: 1em 0;">
+        {{ comment.content|linebreaks }}
+    </blockquote>
+    <p>请登录系统查看详情并及时处理。</p>
+</body>
+</html>

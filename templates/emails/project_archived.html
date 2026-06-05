@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>课题已归档通知</h2>
+    <p>您好，您的课题已完成审查并归档：</p>
+    <ul>
+        <li><strong>课题编号：</strong>{{ project.project_code }}</li>
+        <li><strong>课题名称：</strong>{{ project.title }}</li>
+        <li><strong>归档时间：</strong>{{ project.archived_at|date:"Y-m-d H:i" }}</li>
+    </ul>
+    <p>归档后的课题仅支持查看，无法再进行修改。如需查看详情，请登录系统。</p>
+</body>
+</html>

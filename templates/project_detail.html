@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.title }} - 科研伦理材料流转系统{% endblock %}
+
+{% block content %}
+<div x-data="{ activeTab: 'materials' }">
+    <div class="mb-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {{ project.project_code }} - {{ project.title }}
+                </h1>
+                <div class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                    <span>负责人: {{ project.principal_investigator.get_full_name }}</span>
+                    <span>部门: {{ project.department }}</span>
+                    <span class="px-2 py-1 text-xs rounded-full
+                        {% if project.status == 'draft' %}bg-gray-100 text-gray-800
+                        {% elif project.status == 'submitted' %}bg-yellow-100 text-yellow-800
+                        {% elif project.status == 'pre_review' %}bg-blue-100 text-blue-800
+                        {% elif project.status == 'in_review' %}bg-indigo-100 text-indigo-800
+                        {% elif project.status == 'need_revision' %}bg-orange-100 text-orange-800
+                        {% elif project.status == 'archived' %}bg-green-100 text-green-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ project.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{% url 'ethics:export_project' project.pk %}" class="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50">
+                    导出详情
+                </a>
+                {% if is_archived %}
+                    <span class="bg-gray-100 text-gray-500 px-4 py-2 rounded-md text-sm">
+                        已归档，不可编辑
+                    </span>
+                {% else %}
+                    {% if can_edit %}
+                        <a href="{% url 'ethics:project_edit' project.pk %}" class="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50">
+                            编辑课题
+                        </a>
+                    {% endif %}
+                    {% if project.status == 'draft' and can_edit %}
+                        <a href="{% url 'ethics:project_submit' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                            提交预审
+                        </a>
+                    {% endif %}
+                    {% if project.status == 'submitted' and is_secretary %}
+                        <a href="{% url 'ethics:project_start_pre_review' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                            开始预审
+                        </a>
+                    {% endif %}
+                    {% if project.status == 'pre_review' and is_secretary %}
+                        <a href="{% url 'ethics:project_assign_review' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                            分配评审
+                        </a>
+                    {% endif %}
+                    {% if project.status == 'in_review' and is_secretary %}
+                        <div class="flex space-x-2">
+                            <a href="{% url 'ethics:project_request_revision' project.pk %}" class="bg-orange-600 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-700">
+                                要求补件
+                            </a>
+                            <a href="{% url 'ethics:project_archive' project.pk %}" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">
+                                归档
+                            </a>
+                        </div>
+                    {% endif %}
+                    {% if project.status == 'need_revision' and can_edit %}
+                        <a href="{% url 'ethics:resubmission_create' project.pk %}" class="bg-orange-600 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-700">
+                            提交补件
+                        </a>
+                    {% endif %}
+                    {% if project.status == 'need_revision' and is_secretary %}
+                        <a href="{% url 'ethics:project_archive' project.pk %}" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">
+                            归档
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if project.description %}
+            <div class="mt-4 bg-gray-50 rounded-lg p-4">
+                <div class="text-sm text-gray-500 mb-1">课题简介</div>
+                <p class="text-gray-700">{{ project.description }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex space-x-8">
+            <button @click="activeTab = 'materials'" :class="{ 'border-blue-500 text-blue-600': activeTab === 'materials', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'materials' }" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                材料清单
+            </button>
+            <button @click="activeTab = 'comments'" :class="{ 'border-blue-500 text-blue-600': activeTab === 'comments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'comments' }" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                评审意见
+            </button>
+            <button @click="activeTab = 'resubmissions'" :class="{ 'border-blue-500 text-blue-600': activeTab === 'resubmissions', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'resubmissions' }" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                补件记录
+            </button>
+            {% if is_secretary %}
+                <button @click="activeTab = 'assignments'" :class="{ 'border-blue-500 text-blue-600': activeTab === 'assignments', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'assignments' }" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    评审分配
+                </button>
+            {% endif %}
+        </nav>
+    </div>
+
+    <div x-show="activeTab === 'materials'">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">材料清单</h2>
+            </div>
+            <div class="divide-y">
+                {% for material in materials %}
+                    <div class="px-6 py-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-gray-900">{{ material.material_type.name }}</div>
+                                {% if material.current_version %}
+                                    <div class="text-sm text-gray-500 mt-1">
+                                        当前版本: v{{ material.current_version.version_number }} - {{ material.current_version.title }}
+                                        <span class="ml-2">上传于 {{ material.current_version.created_at|date:"Y-m-d H:i" }}</span>
+                                    </div>
+                                    {% if material.versions.count > 1 %}
+                                        <div class="mt-2">
+                                            <button @click="document.getElementById('versions-{{ material.pk }}').classList.toggle('hidden')" class="text-sm text-blue-600 hover:text-blue-800">
+                                                查看历史版本 ({{ material.versions.count }})
+                                            </button>
+                                            <div id="versions-{{ material.pk }}" class="hidden mt-2 ml-4 border-l-2 border-gray-200 pl-4 space-y-2">
+                                                {% for version in material.versions.all %}
+                                                    <div class="text-sm">
+                                                        <a href="{{ version.file.url }}" class="text-blue-600 hover:text-blue-800">
+                                                            v{{ version.version_number }} - {{ version.title }}
+                                                        </a>
+                                                        <span class="text-gray-500 ml-2">
+                                                            {{ version.created_at|date:"Y-m-d H:i" }} by {{ version.uploader.get_full_name }}
+                                                        </span>
+                                                        {% if version.is_archived %}
+                                                            <span class="ml-2 px-2 py-0.5 text-xs rounded bg-green-100 text-green-800">已归档</span>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div class="text-sm text-gray-500 mt-1">暂无上传版本</div>
+                                {% endif %}
+                            </div>
+                            <div class="flex space-x-2">
+                                {% if material.current_version %}
+                                    <a href="{{ material.current_version.file.url }}" target="_blank" class="border border-gray-300 px-3 py-1 rounded text-sm hover:bg-gray-50">
+                                        下载
+                                    </a>
+                                {% endif %}
+                                {% if can_edit and not is_archived %}
+                                    <a href="{% url 'ethics:material_version_upload' material.pk %}" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                        上传新版本
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="px-6 py-8 text-center text-gray-500">
+                        暂无材料
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if is_committee or is_secretary %}
+            {% if not is_archived %}
+                <div class="mt-6">
+                    <a href="{% url 'ethics:review_comment_add' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                        添加评审意见
+                    </a>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div x-show="activeTab === 'comments'">
+        <div class="space-y-6">
+            {% for clause_id, clause_comments in comments_by_clause.items %}
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b bg-gray-50">
+                        {% with clause_comments|first as first_comment %}
+                            {% if first_comment.clause %}
+                                <h3 class="font-semibold text-gray-900">
+                                    {{ first_comment.clause.clause_number }} {{ first_comment.clause.title }}
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1">{{ first_comment.clause.content }}</p>
+                            {% else %}
+                                <h3 class="font-semibold text-gray-900">其他意见</h3>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="divide-y">
+                        {% for comment in clause_comments %}
+                            <div class="px-6 py-4">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex-1">
+                                        <div class="text-sm text-gray-500 mb-2">
+                                            {{ comment.reviewer.get_full_name }}
+                                            <span class="mx-2">·</span>
+                                            {{ comment.created_at|date:"Y-m-d H:i" }}
+                                            <span class="mx-2">·</span>
+                                            {{ comment.material_version.material.material_type.name }} v{{ comment.material_version.version_number }}
+                                        </div>
+                                        <p class="text-gray-700">{{ comment.content }}</p>
+                                    </div>
+                                    <span class="ml-4 px-2 py-1 text-xs rounded-full
+                                        {% if comment.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                        {% elif comment.status == 'addressed' %}bg-green-100 text-green-800
+                                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ comment.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                    暂无评审意见
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div x-show="activeTab === 'resubmissions'">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-900">补件记录</h2>
+            </div>
+            {% if resubmissions %}
+                <div class="divide-y">
+                    {% for resub in resubmissions %}
+                        <div class="px-6 py-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-medium text-gray-900">
+                                    补件 #{{ forloop.counter }}
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    {{ resub.submitted_at|date:"Y-m-d H:i" }}
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 mb-2">
+                                提交者: {{ resub.submitter.get_full_name }}
+                                <span class="mx-2">·</span>
+                                材料: {{ resub.material_version.material.material_type.name }} v{{ resub.material_version.version_number }}
+                            </div>
+                            <div class="bg-gray-50 rounded p-3 text-sm text-gray-700">
+                                <div class="font-medium mb-1">回应说明:</div>
+                                {{ resub.response_note }}
+                            </div>
+                            {% if resub.addressed_comments.count > 0 %}
+                                <div class="mt-3">
+                                    <div class="text-sm font-medium text-gray-700 mb-1">回应的意见 ({{ resub.addressed_comments.count }}):</div>
+                                    <ul class="text-sm text-gray-600 space-y-1">
+                                        {% for comment in resub.addressed_comments.all %}
+                                            <li class="ml-4">
+                                                • {% if comment.clause %}{{ comment.clause.clause_number }}: {% endif %}{{ comment.content|truncatechars:80 }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="px-6 py-8 text-center text-gray-500">
+                    暂无补件记录
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if is_secretary %}
+        <div x-show="activeTab === 'assignments'">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">评审分配</h2>
+                    {% if not is_archived %}
+                        <a href="{% url 'ethics:project_assign_review' project.pk %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                            分配评审
+                        </a>
+                    {% endif %}
+                </div>
+                {% if assignments %}
+                    <div class="divide-y">
+                        {% for assignment in assignments %}
+                            <div class="px-6 py-4">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="font-medium text-gray-900">
+                                            {{ assignment.committee_member.get_full_name }}
+                                        </div>
+                                        <div class="text-sm text-gray-500 mt-1">
+                                            分配时间: {{ assignment.assigned_at|date:"Y-m-d H:i" }}
+                                            {% if assignment.completed_at %}
+                                                <span class="mx-2">·</span>
+                                                完成时间: {{ assignment.completed_at|date:"Y-m-d H:i" }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="mt-2">
+                                            {% for mt in assignment.material_types.all %}
+                                                <span class="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs mr-1">{{ mt.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <span class="px-2 py-1 text-xs rounded-full
+                                        {% if assignment.completed_at %}bg-green-100 text-green-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {% if assignment.completed_at %}已完成{% else %}进行中{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="px-6 py-8 text-center text-gray-500">
+                        暂无评审分配
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

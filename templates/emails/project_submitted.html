@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>新课题提交通知</h2>
+    <p>您好，有新的课题已提交，需要您进行预审：</p>
+    <ul>
+        <li><strong>课题编号：</strong>{{ project.project_code }}</li>
+        <li><strong>课题名称：</strong>{{ project.title }}</li>
+        <li><strong>负责人：</strong>{{ project.principal_investigator.get_full_name }}</li>
+        <li><strong>部门：</strong>{{ project.department }}</li>
+        <li><strong>提交时间：</strong>{{ project.submitted_at|date:"Y-m-d H:i" }}</li>
+    </ul>
+    <p>请登录系统进行处理。</p>
+</body>
+</html>

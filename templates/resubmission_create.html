@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}提交补件 - 科研伦理材料流转系统{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">提交补件</h1>
+    <p class="text-gray-500 mb-6">课题: {{ project.project_code }} - {{ project.title }}</p>
+
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="font-medium text-yellow-800 mb-2">待处理的评审意见</h3>
+        <ul class="space-y-2 text-sm text-yellow-700">
+            {% for comment in pending_comments %}
+                <li class="flex items-start">
+                    <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                    <div>
+                        {% if comment.clause %}
+                            <span class="font-medium">{{ comment.clause.clause_number }}:</span>
+                        {% endif %}
+                        {{ comment.content }}
+                        <span class="text-yellow-500 ml-2">- {{ comment.reviewer.get_full_name }}</span>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">补件版本 *</label>
+                    <select name="material_version" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                        <option value="">请选择</option>
+                        {% for material in materials %}
+                            {% if material.current_version %}
+                                <option value="{{ material.current_version.pk }}">
+                                    {{ material.material_type.name }} - v{{ material.current_version.version_number }} - {{ material.current_version.title }}
+                                </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">回应的意见 *</label>
+                    <div class="border border-gray-300 rounded-md p-3 max-h-64 overflow-y-auto">
+                        {% for comment in form.addressed_comments %}
+                            <label class="flex items-start py-1">
+                                {{ comment.tag }}
+                                <span class="ml-2 text-sm text-gray-700">{{ comment.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">请选择本次补件回应了哪些评审意见</p>
+                    {% if form.addressed_comments.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ form.addressed_comments.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">回应说明 *</label>
+                    {{ form.response_note }}
+                    {% if form.response_note.errors %}
+                        <p class="text-red-600 text-sm mt-1">{{ form.response_note.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-8 flex space-x-4">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+                    提交补件
+                </button>
+                <a href="{% url 'ethics:project_detail' project.pk %}" class="border border-gray-300 px-6 py-2 rounded-md hover:bg-gray-50">
+                    取消
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selects = document.querySelectorAll('select');
+        selects.forEach(select => {
+            select.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500';
+        });
+        const textarea = document.querySelector('textarea');
+        if (textarea) {
+            textarea.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}确认要求补件 - 科研伦理材料流转系统{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-4">确认要求补件</h1>
+        <p class="text-gray-600 mb-6">
+            您确定要要求课题 <strong>{{ project.project_code }} - {{ project.title }}</strong> 的研究者补件吗？
+        </p>
+        <p class="text-sm text-gray-500 mb-6">
+            系统将通知课题负责人和参与研究者提交补件材料。
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex space-x-4">
+                <button type="submit" class="bg-orange-600 text-white px-6 py-2 rounded-md hover:bg-orange-700">
+                    确认要求补件
+                </button>
+                <a href="{% url 'ethics:project_detail' project.pk %}" class="border border-gray-300 px-6 py-2 rounded-md hover:bg-gray-50">
+                    取消
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

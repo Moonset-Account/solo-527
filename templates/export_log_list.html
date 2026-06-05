@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}导出日志 - 科研伦理材料流转系统{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">导出日志</h1>
+    <p class="text-gray-500 mt-1">记录所有导出操作及当时的筛选条件，方便复盘时还原操作现场</p>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">文件名</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">导出类型</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">导出人</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">导出时间</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">筛选条件</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for export in exports %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {{ export.file_name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ export.export_type }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ export.user.get_full_name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ export.exported_at|date:"Y-m-d H:i:s" }}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        {% if export.filter_params %}
+                            <div x-data="{ show: false }">
+                                <button @click="show = !show" class="text-blue-600 hover:text-blue-800">
+                                    查看筛选条件
+                                </button>
+                                <div x-show="show" class="mt-2 bg-gray-50 rounded p-3 font-mono text-xs">
+                                    {% for key, value in export.filter_params.items %}
+                                        <div><span class="text-gray-700">{{ key }}:</span> {{ value }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400">无</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        暂无导出记录
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+
+{% block title %}首页 - 科研伦理材料流转系统{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">
+        欢迎回来，{{ user.get_full_name|default:user.username }}
+    </h1>
+</div>
+
+{% if user.is_secretary or user.is_admin %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-gray-900">{{ total_projects }}</div>
+            <div class="text-sm text-gray-500 mt-1">课题总数</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-yellow-600">{{ pending_pre_review }}</div>
+            <div class="text-sm text-gray-500 mt-1">待预审</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-blue-600">{{ in_review }}</div>
+            <div class="text-sm text-gray-500 mt-1">评审中</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-orange-600">{{ need_revision }}</div>
+            <div class="text-sm text-gray-500 mt-1">需补件</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-900">最近课题</h2>
+            </div>
+            <div class="divide-y">
+                {% for project in recent_projects %}
+                    <div class="px-6 py-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <a href="{% url 'ethics:project_detail' project.pk %}" class="font-medium text-blue-600 hover:text-blue-800">
+                                    {{ project.project_code }} - {{ project.title }}
+                                </a>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    {{ project.principal_investigator.get_full_name }} · {{ project.department }}
+                                </div>
+                            </div>
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if project.status == 'draft' %}bg-gray-100 text-gray-800
+                                {% elif project.status == 'submitted' %}bg-yellow-100 text-yellow-800
+                                {% elif project.status == 'pre_review' %}bg-blue-100 text-blue-800
+                                {% elif project.status == 'in_review' %}bg-indigo-100 text-indigo-800
+                                {% elif project.status == 'need_revision' %}bg-orange-100 text-orange-800
+                                {% elif project.status == 'archived' %}bg-green-100 text-green-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ project.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="px-6 py-8 text-center text-gray-500">
+                        暂无课题
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">导出记录</h2>
+                <a href="{% url 'ethics:export_log_list' %}" class="text-sm text-blue-600 hover:text-blue-800">
+                    查看全部
+                </a>
+            </div>
+            <div class="divide-y">
+                {% for export in exports %}
+                    <div class="px-6 py-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-gray-900">{{ export.file_name }}</div>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    {{ export.user.get_full_name }} · {{ export.exported_at|date:"Y-m-d H:i" }}
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-500">{{ export.export_type }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="px-6 py-8 text-center text-gray-500">
+                        暂无导出记录
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+{% elif user.is_committee %}
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b">
+            <h2 class="text-lg font-semibold text-gray-900">
+                待评审任务 ({{ pending_count }})
+            </h2>
+        </div>
+        <div class="divide-y">
+            {% for assignment in my_assignments %}
+                <div class="px-6 py-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <a href="{% url 'ethics:project_detail' assignment.project.pk %}" class="font-medium text-blue-600 hover:text-blue-800">
+                                {{ assignment.project.project_code }} - {{ assignment.project.title }}
+                            </a>
+                            <div class="text-sm text-gray-500 mt-1">
+                                分配时间: {{ assignment.assigned_at|date:"Y-m-d H:i" }}
+                            </div>
+                            <div class="text-sm text-gray-500 mt-1">
+                                负责材料:
+                                {% for mt in assignment.material_types.all %}
+                                    <span class="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs mr-1">{{ mt.name }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                            待评审
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="px-6 py-8 text-center text-gray-500">
+                    暂无待评审任务
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+{% else %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-gray-900">{{ my_projects|length }}</div>
+            <div class="text-sm text-gray-500 mt-1">我的课题</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-gray-600">{{ drafts }}</div>
+            <div class="text-sm text-gray-500 mt-1">草稿</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-blue-600">{{ submitted }}</div>
+            <div class="text-sm text-gray-500 mt-1">评审中</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-3xl font-bold text-green-600">{{ archived }}</div>
+            <div class="text-sm text-gray-500 mt-1">已归档</div>
+        </div>
+    </div>
+
+    {% if need_revision > 0 %}
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-orange-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-orange-800 font-medium">
+                    您有 {{ need_revision }} 个课题需要补件，请及时处理
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900">我的课题</h2>
+            <a href="{% url 'ethics:project_create' %}" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700">
+                新建课题
+            </a>
+        </div>
+        <div class="divide-y">
+            {% for project in my_projects %}
+                <div class="px-6 py-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <a href="{% url 'ethics:project_detail' project.pk %}" class="font-medium text-blue-600 hover:text-blue-800">
+                                {{ project.project_code }} - {{ project.title }}
+                            </a>
+                            <div class="text-sm text-gray-500 mt-1">
+                                {{ project.department }} · 创建于 {{ project.created_at|date:"Y-m-d" }}
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full
+                            {% if project.status == 'draft' %}bg-gray-100 text-gray-800
+                            {% elif project.status == 'submitted' %}bg-yellow-100 text-yellow-800
+                            {% elif project.status == 'pre_review' %}bg-blue-100 text-blue-800
+                            {% elif project.status == 'in_review' %}bg-indigo-100 text-indigo-800
+                            {% elif project.status == 'need_revision' %}bg-orange-100 text-orange-800
+                            {% elif project.status == 'archived' %}bg-green-100 text-green-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ project.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="px-6 py-8 text-center text-gray-500">
+                    暂无课题
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
