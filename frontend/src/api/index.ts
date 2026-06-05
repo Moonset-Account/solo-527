@@ -17,6 +17,23 @@ export const memberApi = {
   search: (keyword: string) => request.get(`/members/search?keyword=${keyword}`),
 }
 
+export const coachApi = {
+  list: () => request.get('/coaches'),
+  listActive: () => request.get('/coaches/active'),
+  get: (id: number) => request.get(`/coaches/${id}`),
+}
+
+export const coursePackageApi = {
+  list: () => request.get('/course-packages'),
+  listActive: () => request.get('/course-packages/active'),
+  get: (id: number) => request.get(`/course-packages/${id}`),
+}
+
+export const memberPackageApi = {
+  getByMember: (memberId: number) => request.get(`/member-packages/member/${memberId}`),
+  create: (data: any) => request.post('/member-packages', data),
+}
+
 export const bookingApi = {
   create: (data: any) => request.post('/bookings', data),
   complete: (id: number) => request.put(`/bookings/${id}/complete`),

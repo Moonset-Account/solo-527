@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { message } from 'antd'
+import { useUserStore } from '../store/useUserStore'
 
 const request = axios.create({
   baseURL: '/api',
@@ -8,7 +9,7 @@ const request = axios.create({
 
 request.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = useUserStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

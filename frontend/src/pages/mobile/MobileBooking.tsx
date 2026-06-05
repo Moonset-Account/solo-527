@@ -11,15 +11,15 @@ import {
   Space,
   Typography,
   Upload,
+  Spin,
 } from 'antd'
 import {
   ScanOutlined,
   CameraOutlined,
-  UploadOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
-import { memberApi, bookingApi, fileApi } from '../../api'
+import { memberApi, coachApi, memberPackageApi, bookingApi, fileApi } from '../../api'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -31,8 +31,15 @@ export default function MobileBooking() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [offlineQueue, setOfflineQueue] = useState<any[]>([])
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [coaches, setCoaches] = useState<any[]>([])
+  const [memberPackages, setMemberPackages] = useState<any[]>([])
+  const [loadingCoaches, setLoadingCoaches] = useState(false)
+  const [loadingPackages, setLoadingPackages] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    loadCoaches()
+
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
 
@@ -56,6 +63,34 @@ export default function MobileBooking() {
     }
   }, [isOnline, offlineQueue])
 
+  const loadCoaches = async () => {
+    try {
+      setLoadingCoaches(true)
+      const data: any = await coachApi.listActive()
+      setCoaches(data)
+    } catch (error) {
+      console.error('加载教练列表失败', error)
+    } finally {
+      setLoadingCoaches(false)
+    }
+  }
+
+  const loadMemberPackages = async (memberId: number) => {
+    try {
+      setLoadingPackages(true)
+      const data: any = await memberPackageApi.getByMember(memberId)
+      setMemberPackages(data)
+      if (data.length > 0) {
+        form.setFieldsValue({ memberPackageId: data[0].id })
+      }
+    } catch (error) {
+      console.error('加载会员课包失败', error)
+      setMemberPackages([])
+    } finally {
+      setLoadingPackages(false)
+    }
+  }
+
   const syncOfflineData = async () => {
     message.loading({ content: '正在同步离线数据...', key: 'sync' })
     try {
@@ -76,9 +111,12 @@ export default function MobileBooking() {
       const data: any = await memberApi.search(searchKeyword)
       setMemberInfo(data)
       form.setFieldsValue({ memberId: data.id })
+      await loadMemberPackages(data.id)
       message.success('会员信息已加载')
     } catch (error) {
       message.error('未找到该会员')
+      setMemberInfo(null)
+      setMemberPackages([])
     }
   }
 
@@ -97,10 +135,18 @@ export default function MobileBooking() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
+      setSubmitting(true)
+
+      const selectedPkg = memberPackages.find((p: any) => p.id === values.memberPackageId)
+      if (!selectedPkg) {
+        message.error('请选择有效的课包')
+        return
+      }
+
       const submitData = {
         memberId: values.memberId,
-        coachId: 1,
-        memberPackageId: 1,
+        coachId: values.coachId,
+        memberPackageId: values.memberPackageId,
         courseType: 'PERSONAL',
         startTime: dayjs(values.date)
           .hour(values.time.hour())
@@ -110,6 +156,7 @@ export default function MobileBooking() {
           .hour(values.time.hour() + 1)
           .minute(values.time.minute())
           .toISOString(),
+        remark: values.remark,
       }
 
       if (!navigator.onLine) {
@@ -119,7 +166,9 @@ export default function MobileBooking() {
         message.success('已保存到离线队列，联网后自动同步')
         form.resetFields()
         setMemberInfo(null)
+        setMemberPackages([])
         setSearchKeyword('')
+        setSubmitting(false)
         return
       }
 
@@ -127,9 +176,12 @@ export default function MobileBooking() {
       message.success('预约成功')
       form.resetFields()
       setMemberInfo(null)
+      setMemberPackages([])
       setSearchKeyword('')
-    } catch (error) {
-      console.error(error)
+    } catch (error: any) {
+      message.error(error.message || '预约失败')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -171,6 +223,9 @@ export default function MobileBooking() {
                 <div style={{ fontSize: 12, color: '#666' }}>
                   {memberInfo.memberNo} | 剩余 {memberInfo.totalRemainingSessions || 0} 节课
                 </div>
+                <div style={{ fontSize: 12, color: '#666' }}>
+                  状态：{memberInfo.status === 'ACTIVE' ? '正常' : memberInfo.status === 'FROZEN' ? '已冻结' : memberInfo.status}
+                </div>
               </div>
             </Space>
           </Card>
@@ -203,10 +258,35 @@ export default function MobileBooking() {
             />
           </Form.Item>
 
-          <Form.Item name="coachId" label="选择教练" rules={[{ required: true, message: '请选择教练' }]}>
-            <Select placeholder="请选择教练">
-              <Option value={1}>张教练</Option>
-              <Option value={2}>李教练</Option>
+          <Form.Item
+            name="coachId"
+            label="选择教练"
+            rules={[{ required: true, message: '请选择教练' }]}
+          >
+            <Select placeholder="请选择教练" loading={loadingCoaches}>
+              {coaches.map((coach) => (
+                <Option key={coach.id} value={coach.id}>
+                  {coach.name} - {coach.level || '教练'}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="memberPackageId"
+            label="选择课包"
+            rules={[{ required: true, message: '请选择课包' }]}
+          >
+            <Select
+              placeholder={memberInfo ? '请选择课包' : '请先查询会员'}
+              loading={loadingPackages}
+              disabled={!memberInfo}
+            >
+              {memberPackages.map((pkg: any) => (
+                <Option key={pkg.id} value={pkg.id}>
+                  {pkg.coursePackage?.name || '课包'} - 剩余 {pkg.remainingSessions} 节
+                </Option>
+              ))}
             </Select>
           </Form.Item>
 
@@ -223,7 +303,7 @@ export default function MobileBooking() {
             </Upload>
           </Form.Item>
 
-          <Button type="primary" block size="large" onClick={handleSubmit}>
+          <Button type="primary" block size="large" onClick={handleSubmit} loading={submitting}>
             确认预约
           </Button>
         </Form>
