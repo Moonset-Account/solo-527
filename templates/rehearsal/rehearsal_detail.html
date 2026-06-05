@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ rehearsal.play.title }} - 排练详情{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'rehearsal:rehearsal_list' %}" class="text-indigo-600 hover:text-indigo-800">← 返回列表</a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">{{ rehearsal.play.title }}</h1>
+                    <p class="text-gray-500 mt-1">{{ rehearsal.date|date:"Y年m月d日 l" }} · {{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</p>
+                </div>
+                <span class="px-3 py-1 text-sm rounded-full
+                    {% if rehearsal.status == 'approved' %}bg-green-100 text-green-700
+                    {% elif rehearsal.status == 'pending' %}bg-yellow-100 text-yellow-700
+                    {% elif rehearsal.status == 'ongoing' %}bg-blue-100 text-blue-700
+                    {% elif rehearsal.status == 'completed' %}bg-gray-100 text-gray-700
+                    {% elif rehearsal.status == 'cancelled' %}bg-red-100 text-red-700
+                    {% elif rehearsal.status == 'rejected' %}bg-orange-100 text-orange-700
+                    {% endif %}">
+                    {{ rehearsal.get_status_display }}
+                </span>
+            </div>
+
+            {% if is_in_performance_week %}
+            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p class="text-yellow-700 text-sm"><strong>⚠️ 演出周排练</strong> - 此排练处于演出周期间，普通成员不可取消</p>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-gray-500">排练室</p>
+                    <p class="font-medium">{{ rehearsal.room.name }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">导演</p>
+                    <p class="font-medium">{{ rehearsal.director.name }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">人数限制</p>
+                    <p class="font-medium">{{ rehearsal.room.capacity }} 人</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">需要灯光</p>
+                    <p class="font-medium">{% if rehearsal.need_lighting %}是{% else %}否{% endif %}</p>
+                </div>
+            </div>
+
+            {% if rehearsal.notes %}
+            <div class="mt-4 pt-4 border-t">
+                <p class="text-gray-500 text-sm">备注</p>
+                <p class="mt-1">{{ rehearsal.notes|linebreaks }}</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-6 flex space-x-3">
+                {% if can_edit and rehearsal.status not in 'cancelled,rejected,completed' %}
+                <a href="{% url 'rehearsal:rehearsal_edit' rehearsal.pk %}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    编辑
+                </a>
+                {% endif %}
+                {% if can_cancel and rehearsal.status in 'pending,approved,ongoing' %}
+                <a href="{% url 'rehearsal:rehearsal_cancel' rehearsal.pk %}" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    取消排练
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">参与成员</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {% for member in rehearsal.members.all %}
+                <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <span class="text-indigo-600 font-medium">{{ member.name|first }}</span>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-800">{{ member.name }}</p>
+                        <p class="text-xs text-gray-500">{{ member.get_role_display }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">道具使用</h2>
+            {% if prop_usages %}
+            <div class="space-y-2">
+                {% for usage in prop_usages %}
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium">{{ usage.prop.name }}</p>
+                        <p class="text-sm text-gray-500">{{ usage.prop.get_category_display }}</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm">数量: {{ usage.quantity }}</span>
+                        <span class="px-2 py-1 text-xs rounded-full {% if usage.returned %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                            {% if usage.returned %}已归还{% else %}使用中{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500">暂无道具使用记录</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="space-y-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">出勤情况</h2>
+            {% if attendances %}
+            <div class="space-y-2">
+                {% for att in attendances %}
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-medium">{{ att.member.name }}</span>
+                    <span class="px-2 py-1 text-xs rounded-full
+                        {% if att.status == 'present' %}bg-green-100 text-green-700
+                        {% elif att.status == 'late' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-red-100 text-red-700{% endif %}">
+                        {{ att.get_status_display }}
+                        {% if att.late_minutes > 0 %}({{ att.late_minutes }}分钟){% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500">暂无出勤记录</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">相关消息</h2>
+            {% if messages %}
+            <div class="space-y-3">
+                {% for msg in messages %}
+                <div class="p-3 border border-gray-200 rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <span class="px-2 py-0.5 text-xs rounded-full
+                            {% if msg.type == 'info' %}bg-blue-100 text-blue-700
+                            {% elif msg.type == 'warning' %}bg-yellow-100 text-yellow-700
+                            {% elif msg.type == 'change' %}bg-purple-100 text-purple-700
+                            {% elif msg.type == 'cancel' %}bg-red-100 text-red-700{% endif %}">
+                            {{ msg.get_type_display }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{ msg.created_at|date:"m-d H:i" }}</span>
+                    </div>
+                    <p class="font-medium mt-2 text-sm">{{ msg.title }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">暂无相关消息</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

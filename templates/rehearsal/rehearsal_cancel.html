@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}取消排练{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}" class="text-indigo-600 hover:text-indigo-800">
+            ← 返回详情
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">取消排练</h1>
+
+        <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="text-yellow-700">
+                您确定要取消以下排练吗？此操作将通知所有参与成员。
+            </p>
+            <div class="mt-3">
+                <p><strong>剧目:</strong> {{ rehearsal.play.title }}</p>
+                <p><strong>时间:</strong> {{ rehearsal.date|date:"Y-m-d" }} {{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</p>
+                <p><strong>排练室:</strong> {{ rehearsal.room.name }}</p>
+            </div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">取消理由</label>
+                {{ form.reason }}
+                {% if form.reason.errors %}<p class="text-red-500 text-sm mt-1">{{ form.reason.errors.0 }}</p>{% endif %}
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    返回
+                </a>
+                <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    确认取消
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+    }
+</style>
+{% endblock %}

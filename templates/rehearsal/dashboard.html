@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}首页 - 剧场排练室排期系统{% endblock %}
+
+{% block content %}
+<div x-data="{ showCheckIn: false, checkInResult: null }">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">欢迎回来，{{ current_member.name }}</h1>
+        <p class="text-gray-600">今天是 {{ today|date:"Y年m月d日 l" }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-500 text-sm">今日排练</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ today_rehearsals|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-full">
+                    <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-500 text-sm">待审批</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ pending_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-full">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-500 text-sm">即将到来</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ upcoming_rehearsals|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-indigo-100 rounded-full">
+                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-500 text-sm">我的角色</p>
+                    <p class="text-xl font-bold text-gray-800">{{ current_member.get_role_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if current_member.is_director %}
+    <div class="mb-8">
+        <a href="{% url 'rehearsal:rehearsal_create' %}" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            提交排练需求
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">今日排练</h2>
+            {% if today_rehearsals %}
+                <div class="space-y-4">
+                    {% for rehearsal in today_rehearsals %}
+                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold text-gray-800">{{ rehearsal.play.title }}</h3>
+                                    <p class="text-gray-600 text-sm">{{ rehearsal.room.name }} · {{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</p>
+                                    <p class="text-gray-500 text-sm">导演: {{ rehearsal.director.name }}</p>
+                                </div>
+                                <div class="flex flex-col items-end space-y-2">
+                                    <span class="px-2 py-1 text-xs rounded-full {% if rehearsal.status == 'ongoing' %}bg-blue-100 text-blue-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                        {{ rehearsal.get_status_display }}
+                                    </span>
+                                    <button @click="checkIn({{ rehearsal.id }})" class="text-sm bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">
+                                        签到
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">今天没有排练安排</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">即将到来的排练</h2>
+            {% if upcoming_rehearsals %}
+                <div class="space-y-3">
+                    {% for rehearsal in upcoming_rehearsals %}
+                        <a href="{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-semibold text-gray-800">{{ rehearsal.play.title }}</h3>
+                                    <p class="text-gray-600 text-sm">{{ rehearsal.date|date:"m月d日" }} · {{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</p>
+                                    <p class="text-gray-500 text-sm">{{ rehearsal.room.name }}</p>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+                <div class="mt-4 text-center">
+                    <a href="{% url 'rehearsal:rehearsal_list' %}" class="text-indigo-600 hover:text-indigo-800 text-sm">查看全部 →</a>
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">暂无即将到来的排练</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div x-show="showCheckIn" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4">签到结果</h3>
+            <div x-html="checkInResult" class="mb-4"></div>
+            <button @click="showCheckIn = false" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700">
+                关闭
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function checkIn(rehearsalId) {
+    fetch(`/rehearsals/${rehearsalId}/check-in/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let statusText = '';
+            if (data.status === 'late') {
+                statusText = `<div class="text-yellow-600"><p>签到成功！您迟到了 ${data.late_minutes} 分钟</p><p class="text-sm text-gray-500">签到时间: ${data.check_in_time}</p></div>`;
+            } else {
+                statusText = `<div class="text-green-600"><p>签到成功！准时出席</p><p class="text-sm text-gray-500">签到时间: ${data.check_in_time}</p></div>`;
+            }
+            document.querySelector('[x-data]').__x.$data.checkInResult = statusText;
+            document.querySelector('[x-data]').__x.$data.showCheckIn = true;
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

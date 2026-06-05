@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}道具管理{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800">道具管理</h1>
+    <div class="flex space-x-2">
+        <a href="?category=" class="px-3 py-1 rounded {% if not current_category %}bg-indigo-600 text-white{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+            全部
+        </a>
+        <a href="?category=furniture" class="px-3 py-1 rounded {% if current_category == 'furniture' %}bg-indigo-600 text-white{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+            家具
+        </a>
+        <a href="?category=weapon" class="px-3 py-1 rounded {% if current_category == 'weapon' %}bg-indigo-600 text-white{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+            兵器
+        </a>
+        <a href="?category=clothing" class="px-3 py-1 rounded {% if current_category == 'clothing' %}bg-indigo-600 text-white{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+            服装
+        </a>
+        <a href="?category=daily" class="px-3 py-1 rounded {% if current_category == 'daily' %}bg-indigo-600 text-white{% else %}bg-gray-100 hover:bg-gray-200{% endif %}">
+            日常用品
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for prop in props %}
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h3 class="font-bold text-gray-800">{{ prop.name }}</h3>
+                <p class="text-sm text-gray-500">{{ prop.get_category_display }}</p>
+            </div>
+            <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">
+                库存: {{ prop.quantity }}
+            </span>
+        </div>
+        {% if prop.description %}
+        <p class="text-sm text-gray-600 mt-3">{{ prop.description }}</p>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="col-span-full text-center py-8 text-gray-500">
+        暂无道具记录
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

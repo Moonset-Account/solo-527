@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}排练列表 - 剧场排练室排期系统{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800">排练列表</h1>
+    {% if current_member.is_director %}
+    <a href="{% url 'rehearsal:rehearsal_create' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+        + 提交排练需求
+    </a>
+    {% endif %}
+</div>
+
+<div class="bg-white rounded-lg shadow mb-6 p-4">
+    <form method="get" class="flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+            <select name="status" class="border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">全部状态</option>
+                <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>待审批</option>
+                <option value="approved" {% if current_status == 'approved' %}selected{% endif %}>已通过</option>
+                <option value="ongoing" {% if current_status == 'ongoing' %}selected{% endif %}>进行中</option>
+                <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>已完成</option>
+                <option value="cancelled" {% if current_status == 'cancelled' %}selected{% endif %}>已取消</option>
+                <option value="rejected" {% if current_status == 'rejected' %}selected{% endif %}>已拒绝</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">剧目</label>
+            <select name="play" class="border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">全部剧目</option>
+                {% for play in plays %}
+                <option value="{{ play.id }}">{{ play.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
+            筛选
+        </button>
+    </form>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">剧目</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排练室</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期时间</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">导演</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for rehearsal in rehearsals %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="font-medium text-gray-900">{{ rehearsal.play.title }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {{ rehearsal.room.name }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {{ rehearsal.date|date:"Y-m-d" }}<br>
+                    <span class="text-sm">{{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {{ rehearsal.director.name }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full
+                        {% if rehearsal.status == 'approved' %}bg-green-100 text-green-700
+                        {% elif rehearsal.status == 'pending' %}bg-yellow-100 text-yellow-700
+                        {% elif rehearsal.status == 'ongoing' %}bg-blue-100 text-blue-700
+                        {% elif rehearsal.status == 'completed' %}bg-gray-100 text-gray-700
+                        {% elif rehearsal.status == 'cancelled' %}bg-red-100 text-red-700
+                        {% elif rehearsal.status == 'rejected' %}bg-orange-100 text-orange-700
+                        {% endif %}">
+                        {{ rehearsal.get_status_display }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <a href="{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}" class="text-indigo-600 hover:text-indigo-900 mr-3">查看</a>
+                    {% if rehearsal.status == 'pending' and current_member.is_admin %}
+                    <a href="{% url 'rehearsal:rehearsal_approve' rehearsal.pk %}" class="text-green-600 hover:text-green-900 mr-3">通过</a>
+                    <a href="{% url 'rehearsal:rehearsal_reject' rehearsal.pk %}" class="text-red-600 hover:text-red-900">拒绝</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    暂无排练记录
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

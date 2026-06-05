@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}日历排期 - 剧场排练室排期系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+{% endblock %}
+
+{% block content %}
+<div x-data="{ selectedRoom: 'all', eventDetail: null }">
+    <div class="mb-6 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-800">日历排期</h1>
+        <div class="flex items-center space-x-4">
+            <select x-model="selectedRoom" @change="loadEvents()" class="border border-gray-300 rounded-lg px-4 py-2">
+                <option value="all">全部排练室</option>
+                {% for room in rooms %}
+                <option value="{{ room.id }}">{{ room.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <div id="calendar"></div>
+    </div>
+
+    <div x-show="eventDetail" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="eventDetail = null">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4" x-text="eventDetail.title"></h3>
+            <div class="space-y-2 text-gray-600">
+                <p><strong>剧目:</strong> <span x-text="eventDetail.extendedProps.play"></span></p>
+                <p><strong>排练室:</strong> <span x-text="eventDetail.extendedProps.room"></span></p>
+                <p><strong>导演:</strong> <span x-text="eventDetail.extendedProps.director"></span></p>
+                <p><strong>状态:</strong> <span x-text="eventDetail.extendedProps.status"></span></p>
+                <p><strong>参与成员:</strong> <span x-text="eventDetail.extendedProps.members.join(', ')"></span></p>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button @click="eventDetail = null" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    关闭
+                </button>
+                <a :href="`/rehearsals/${eventDetail.id}/`" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    查看详情
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/zh-cn.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'zh-cn',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '08:00:00',
+        slotMaxTime: '22:00:00',
+        allDaySlot: false,
+        eventClick: function(info) {
+            document.querySelector('[x-data]').__x.$data.eventDetail = info.event;
+        },
+        events: function(info, successCallback, failureCallback) {
+            const room = document.querySelector('[x-data]').__x.$data.selectedRoom;
+            fetch(`/api/calendar/events/?start=${info.startStr}&end=${info.endStr}&room=${room}`)
+                .then(response => response.json())
+                .then(data => successCallback(data))
+                .catch(error => failureCallback(error));
+        }
+    });
+    calendar.render();
+
+    window.loadEvents = function() {
+        calendar.refetchEvents();
+    };
+});
+</script>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if rehearsal %}编辑排练{% else %}提交排练需求{% endif %}{% endblock %}
+
+{% block content %}
+<div x-data="{
+    propQuantities: {},
+    conflicts: [],
+    checking: false,
+    checkConflict() {
+        const roomId = document.querySelector('#id_room').value;
+        const date = document.querySelector('#id_date').value;
+        const startTime = document.querySelector('#id_start_time').value;
+        const endTime = document.querySelector('#id_end_time').value;
+        
+        if (!roomId || !date || !startTime || !endTime) {
+            this.conflicts = [];
+            return;
+        }
+        
+        this.checking = true;
+        const excludeId = {{ rehearsal.id|default:0 }} || '';
+        fetch(`/api/check-conflict/?room_id=${roomId}&date=${date}&start_time=${startTime}&end_time=${endTime}&exclude_id=${excludeId}`)
+            .then(res => res.json())
+            .then(data => {
+                this.conflicts = data.conflicts;
+                this.checking = false;
+            });
+    }
+}">
+    <div class="mb-6">
+        <a href="{% if rehearsal %}{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}{% else %}{% url 'rehearsal:rehearsal_list' %}{% endif %}" class="text-indigo-600 hover:text-indigo-800">
+            ← 返回
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 max-w-3xl mx-auto">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">
+            {% if rehearsal %}编辑排练{% else %}提交排练需求{% endif %}
+        </h1>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                {% for error in form.non_field_errors %}
+                <p class="text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.play.label }}</label>
+                    {{ form.play }}
+                    {% if form.play.errors %}<p class="text-red-500 text-sm mt-1">{{ form.play.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.director.label }}</label>
+                    {{ form.director }}
+                    {% if form.director.errors %}<p class="text-red-500 text-sm mt-1">{{ form.director.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.room.label }}</label>
+                    {{ form.room }}
+                    {% if form.room.errors %}<p class="text-red-500 text-sm mt-1">{{ form.room.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.date.label }}</label>
+                    {{ form.date }}
+                    {% if form.date.errors %}<p class="text-red-500 text-sm mt-1">{{ form.date.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.start_time.label }}</label>
+                    {{ form.start_time }}
+                    {% if form.start_time.errors %}<p class="text-red-500 text-sm mt-1">{{ form.start_time.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.end_time.label }}</label>
+                    {{ form.end_time }}
+                    {% if form.end_time.errors %}<p class="text-red-500 text-sm mt-1">{{ form.end_time.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-medium mb-3">冲突检测</h3>
+                <button type="button" @click="checkConflict" class="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                    检查冲突
+                </button>
+                <div x-show="checking" class="mt-2 text-sm text-gray-500">正在检测...</div>
+                <div x-show="conflicts.length > 0" class="mt-3">
+                    <p class="text-red-600 text-sm font-medium">发现时间冲突：</p>
+                    <ul class="mt-2 space-y-1">
+                        <template x-for="conflict in conflicts" :key="conflict.id">
+                            <li class="text-sm text-red-600">
+                                <span x-text="conflict.play"></span> - 
+                                <span x-text="conflict.start_time + ' - ' + conflict.end_time"></span>
+                                (导演: <span x-text="conflict.director"></span>)
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+                <div x-show="conflicts.length === 0 && !checking" class="mt-2 text-sm text-green-600">
+                    该时段暂无冲突
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.members.label }}</label>
+                <div class="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto">
+                    {{ form.members }}
+                </div>
+                {% if form.members.errors %}<p class="text-red-500 text-sm mt-1">{{ form.members.errors.0 }}</p>{% endif %}
+            </div>
+
+            <div class="flex items-center">
+                {{ form.need_lighting }}
+                <label for="{{ form.need_lighting.id_for_label }}" class="ml-2 text-sm text-gray-700">需要灯光设备</label>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">选择道具</label>
+                <div class="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {% for prop in props %}
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" name="props" value="{{ prop.id }}" class="prop-checkbox" @change="
+                                $event.target.checked ? propQuantities['{{ prop.id }}'] = 1 : delete propQuantities['{{ prop.id }}'];
+                            ">
+                            <span class="text-sm">{{ prop.name }} ({{ prop.quantity }}件)</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.notes.label }}</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<p class="text-red-500 text-sm mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
+            </div>
+
+            <input type="hidden" name="prop_quantities" :value="JSON.stringify(propQuantities)">
+
+            <div class="flex justify-end space-x-4">
+                <a href="{% if rehearsal %}{% url 'rehearsal:rehearsal_detail' rehearsal.pk %}{% else %}{% url 'rehearsal:rehearsal_list' %}{% endif %}" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    取消
+                </a>
+                <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    {% if rehearsal %}保存修改{% else %}提交申请{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    select, input[type="date"], input[type="time"], textarea {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+    }
+    select:focus, input:focus, textarea:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+</style>
+{% endblock %}
