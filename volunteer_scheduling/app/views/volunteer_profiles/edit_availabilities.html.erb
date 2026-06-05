@@ -7,19 +7,31 @@
 
   <div class="bg-white rounded-lg shadow p-6">
     <%= form_with url: update_availabilities_volunteer_profile_path, method: :patch do |form| %>
-      <div id="availabilities-container" class="space-y-4">
+      <div class="space-y-4">
         <% day_names = %w[周日 周一 周二 周三 周四 周五 周六] %>
-        <% current_avails = @volunteer_profile.availabilities.to_a %>
-        <% (0..6).each do |i| %>
-          <% avail = current_avails.find { |a| a.day_of_week == i } %>
-          <div class="flex items-center space-x-4 p-3 border rounded-lg">
-            <div class="w-20">
-              <%= select_tag "availabilities[#{i}][day_of_week]", options_for_select(day_names.each_with_index.to_a, i), class: "w-full rounded-md border-gray-300" %>
+        <% current_avails = @volunteer_profile.availabilities.index_by(&:day_of_week) %>
+        
+        <% (0..6).each do |day| %>
+          <% avail = current_avails[day] %>
+          <div class="flex items-center space-x-4 p-4 border rounded-lg bg-gray-50">
+            <div class="w-24 font-medium">
+              <%= day_names[day] %>
             </div>
-            <div class="flex items-center space-x-2">
-              <%= time_field_tag "availabilities[#{i}][start_time]", avail&.start_time&.strftime("%H:%M"), class: "rounded-md border-gray-300" %>
-              <span class="text-gray-500">至</span>
-              <%= time_field_tag "availabilities[#{i}][end_time]", avail&.end_time&.strftime("%H:%M"), class: "rounded-md border-gray-300" %>
+            <div class="flex items-center space-x-3 flex-1">
+              <% if avail %>
+                <%= time_field_tag "availabilities[#{day}][start_time]", avail.start_time.strftime("%H:%M"), class: "rounded-md border-gray-300" %>
+                <span class="text-gray-500">至</span>
+                <%= time_field_tag "availabilities[#{day}][end_time]", avail.end_time.strftime("%H:%M"), class: "rounded-md border-gray-300" %>
+                <%= hidden_field_tag "availabilities[#{day}][day_of_week]", day %>
+                <%= check_box_tag "availabilities[#{day}][_destroy]", "1", false, class: "ml-4" %>
+                <span class="text-sm text-gray-500">删除</span>
+              <% else %>
+                <%= time_field_tag "availabilities[#{day}][start_time]", "", class: "rounded-md border-gray-300" %>
+                <span class="text-gray-500">至</span>
+                <%= time_field_tag "availabilities[#{day}][end_time]", "", class: "rounded-md border-gray-300" %>
+                <%= hidden_field_tag "availabilities[#{day}][day_of_week]", day %>
+                <span class="text-sm text-gray-400 ml-4">（留空则不设置）</span>
+              <% end %>
             </div>
           </div>
         <% end %>

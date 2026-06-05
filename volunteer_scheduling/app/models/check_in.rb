@@ -45,8 +45,9 @@ class CheckIn < ApplicationRecord
   def detect_anomalies
     detect_late
     detect_proximity_issue
-    self.needs_review = is_late? || is_early_leave? || is_proxy_suspected?
-    self.review_reason = generate_review_reason if needs_review?
+    needs_review_flag = is_late? || is_early_leave? || is_proxy_suspected || check_in_method == "manual"
+    self.needs_review = needs_review_flag
+    self.review_reason = generate_review_reason if needs_review_flag
   end
 
   def detect_late
@@ -61,12 +62,12 @@ class CheckIn < ApplicationRecord
     return unless check_in_latitude && check_in_longitude
     return unless assignment&.location&.latitude && assignment&.location&.longitude
     begin
-      distance = Geocoder::Calculations.distance_between(
+      distance_km = Geocoder::Calculations.distance_between(
         [check_in_latitude.to_f, check_in_longitude.to_f],
         [assignment.location.latitude.to_f, assignment.location.longitude.to_f],
-        units: :m
+        units: :km
       )
-      if distance > PROXIMITY_THRESHOLD_METERS
+      if distance_km > 0.2 # 200米 = 0.2公里
         self.is_proxy_suspected = true
       end
     rescue
@@ -75,13 +76,14 @@ class CheckIn < ApplicationRecord
   end
 
   def is_proxy_suspected?
-    check_in_method == "manual" || is_late?
+    is_proxy_suspected == true || check_in_method == "manual"
   end
 
   def generate_review_reason
     reasons = []
     reasons << "迟到 #{((checked_in_at - assignment.activity.start_time) / 60).to_i} 分钟" if is_late?
-    reasons << "疑似代签" if is_proxy_suspected?
+    reasons << "签到距离异常，疑似代签" if self.is_proxy_suspected == true
+    reasons << "人工补签到" if check_in_method == "manual"
     reasons << "早退" if is_early_leave?
     reasons.join("; ")
   end

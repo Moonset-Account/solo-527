@@ -11,21 +11,40 @@ class Api::V1::CheckInsController < ApplicationController
     longitude = params[:longitude]
 
     begin
-      check_in = CheckIn.check_in(assignment, method, latitude, longitude)
-      render json: {
-        success: true,
-        check_in: {
-          id: check_in.id,
-          status: check_in.status,
-          needs_review: check_in.needs_review?,
-          review_reason: check_in.review_reason,
-          checked_in_at: check_in.checked_in_at,
-          service_hours: check_in.service_hours,
-          is_late: check_in.is_late?,
-          is_proxy_suspected: check_in.is_proxy_suspected,
-          requires_two_admins: check_in.requires_two_admins?
-        }
-      }, status: :created
+      existing_check_in = assignment.check_ins.where(status: [:checked_in, :needs_review]).order(created_at: :desc).first
+      if existing_check_in && existing_check_in.checked_in? && !existing_check_in.checked_out_at.present?
+        existing_check_in.check_out!
+        render json: {
+          success: true,
+          action: "check_out",
+          check_in: {
+            id: existing_check_in.id,
+            status: existing_check_in.status,
+            checked_in_at: existing_check_in.checked_in_at,
+            checked_out_at: existing_check_in.checked_out_at,
+            service_hours: existing_check_in.service_hours,
+            needs_review: existing_check_in.needs_review?,
+            review_reason: existing_check_in.review_reason
+          }
+        }, status: :ok
+      else
+        check_in = CheckIn.check_in(assignment, method, latitude, longitude)
+        render json: {
+          success: true,
+          action: "check_in",
+          check_in: {
+            id: check_in.id,
+            status: check_in.status,
+            needs_review: check_in.needs_review?,
+            review_reason: check_in.review_reason,
+            checked_in_at: check_in.checked_in_at,
+            service_hours: check_in.service_hours,
+            is_late: check_in.is_late?,
+            is_proxy_suspected: check_in.is_proxy_suspected,
+            requires_two_admins: check_in.requires_two_admins?
+          }
+        }, status: :created
+      end
     rescue => e
       render json: { success: false, error: e.message }, status: :unprocessable_entity
     end

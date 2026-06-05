@@ -41,16 +41,24 @@ class VolunteerProfilesController < ApplicationController
   def update_availabilities
     authorize @volunteer_profile
     @volunteer_profile.availabilities.destroy_all
-    if params[:availabilities].present?
-      params[:availabilities].each do |avail|
-        next if avail[:day_of_week].blank?
+    
+    if params[:availabilities].is_a?(ActionController::Parameters)
+      params[:availabilities].each_value do |avail_params|
+        day = avail_params[:day_of_week]
+        start_time = avail_params[:start_time]
+        end_time = avail_params[:end_time]
+        destroy_flag = avail_params[:_destroy] == "1"
+        
+        next if destroy_flag || start_time.blank? || end_time.blank? || day.blank?
+        
         @volunteer_profile.availabilities.create!(
-          day_of_week: avail[:day_of_week],
-          start_time: avail[:start_time],
-          end_time: avail[:end_time]
+          day_of_week: day.to_i,
+          start_time: start_time,
+          end_time: end_time
         )
       end
     end
+    
     redirect_to volunteer_profile_path, notice: "可服务时段更新成功。"
   end
 
@@ -61,16 +69,23 @@ class VolunteerProfilesController < ApplicationController
   def update_emergency_contacts
     authorize @volunteer_profile
     @volunteer_profile.emergency_contacts.destroy_all
-    if params[:emergency_contacts].present?
-      params[:emergency_contacts].each do |ec|
-        next if ec[:name].blank?
+    
+    if params[:emergency_contacts].is_a?(ActionController::Parameters)
+      params[:emergency_contacts].each_value do |ec_params|
+        name = ec_params[:name]
+        relationship = ec_params[:relationship]
+        phone = ec_params[:phone]
+        
+        next if name.blank?
+        
         @volunteer_profile.emergency_contacts.create!(
-          name: ec[:name],
-          relationship: ec[:relationship],
-          phone: ec[:phone]
+          name: name,
+          relationship: relationship,
+          phone: phone
         )
       end
     end
+    
     redirect_to volunteer_profile_path, notice: "紧急联系人更新成功。"
   end
 
@@ -81,20 +96,30 @@ class VolunteerProfilesController < ApplicationController
   def update_guardians
     authorize @volunteer_profile
     @volunteer_profile.guardians.destroy_all
-    if params[:guardians].present?
-      params[:guardians].each do |g|
-        next if g[:name].blank?
+    
+    valid_count = 0
+    if params[:guardians].is_a?(ActionController::Parameters)
+      params[:guardians].each_value do |g_params|
+        name = g_params[:name]
+        relationship = g_params[:relationship]
+        phone = g_params[:phone]
+        
+        next if name.blank?
+        
         @volunteer_profile.guardians.create!(
-          name: g[:name],
-          relationship: g[:relationship],
-          phone: g[:phone]
+          name: name,
+          relationship: relationship,
+          phone: phone
         )
+        valid_count += 1
       end
     end
-    if @volunteer_profile.is_minor? && @volunteer_profile.guardians.empty?
+    
+    if @volunteer_profile.is_minor? && valid_count == 0
       redirect_to edit_guardians_volunteer_profile_path, alert: "未成年人必须填写至少一位监护人信息。"
       return
     end
+    
     redirect_to volunteer_profile_path, notice: "监护人信息更新成功。"
   end
 

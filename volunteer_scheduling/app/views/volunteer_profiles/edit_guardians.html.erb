@@ -17,19 +17,23 @@
     <%= form_with url: update_guardians_volunteer_profile_path, method: :patch do |form| %>
       <div id="guardians-container" class="space-y-4">
         <% current_guardians = @volunteer_profile.guardians.to_a %>
+        
         <% 2.times do |i| %>
-          <% g = current_guardians[i] || Guardian.new %>
-          <div class="p-4 border rounded-lg">
+          <% g = current_guardians[i] %>
+          <div class="p-4 border rounded-lg bg-gray-50">
             <h3 class="font-medium mb-3">监护人 <%= i + 1 %></h3>
             <div class="grid grid-cols-3 gap-3">
               <div>
-                <%= text_field_tag "guardians[#{i}][name]", g.name, placeholder: "姓名", class: "w-full rounded-md border-gray-300" %>
+                <%= label_tag "guardians_#{i}_name", "姓名", class: "block text-sm text-gray-600 mb-1" %>
+                <%= text_field_tag "guardians[#{i}][name]", g&.name, placeholder: "请输入姓名", class: "w-full rounded-md border-gray-300" %>
               </div>
               <div>
-                <%= text_field_tag "guardians[#{i}][relationship]", g.relationship, placeholder: "关系（如：父亲）", class: "w-full rounded-md border-gray-300" %>
+                <%= label_tag "guardians_#{i}_relationship", "关系", class: "block text-sm text-gray-600 mb-1" %>
+                <%= text_field_tag "guardians[#{i}][relationship]", g&.relationship, placeholder: "如：父亲、母亲", class: "w-full rounded-md border-gray-300" %>
               </div>
               <div>
-                <%= text_field_tag "guardians[#{i}][phone]", g.phone, placeholder: "联系电话", class: "w-full rounded-md border-gray-300" %>
+                <%= label_tag "guardians_#{i}_phone", "电话", class: "block text-sm text-gray-600 mb-1" %>
+                <%= text_field_tag "guardians[#{i}][phone]", g&.phone, placeholder: "联系电话", class: "w-full rounded-md border-gray-300" %>
               </div>
             </div>
           </div>
