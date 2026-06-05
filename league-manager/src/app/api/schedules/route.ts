@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   const status = searchParams.get('status');
   const dateFrom = searchParams.get('dateFrom');
   const dateTo = searchParams.get('dateTo');
+  const date = searchParams.get('date');
 
   const filter: Record<string, unknown> = {};
   if (seasonId) filter.seasonId = seasonId;
@@ -22,7 +23,13 @@ export async function GET(request: Request) {
   if (venueId) filter.venueId = venueId;
   if (refereeId) filter.refereeId = refereeId;
   if (teamId) filter.$or = [{ homeTeamId: teamId }, { awayTeamId: teamId }];
-  if (dateFrom || dateTo) {
+
+  if (date) {
+    const d = new Date(date);
+    const nextDay = new Date(d);
+    nextDay.setDate(nextDay.getDate() + 1);
+    filter.matchDate = { $gte: d, $lt: nextDay };
+  } else if (dateFrom || dateTo) {
     const dateFilter: Record<string, Date> = {};
     if (dateFrom) dateFilter.$gte = new Date(dateFrom);
     if (dateTo) dateFilter.$lte = new Date(dateTo);

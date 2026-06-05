@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthStore } from '@/stores/auth';
-import type { IMatch, MatchStatus, IVenue, ITeam } from '@/types';
+import type { IMatch, MatchStatus, IVenue } from '@/types';
+import { extractName } from '@/lib/utils';
 
 const statusMap: Record<MatchStatus, { label: string; variant: 'default' | 'success' | 'warning' | 'danger' | 'info' }> = {
   scheduled: { label: '已排期', variant: 'info' },
@@ -26,7 +27,7 @@ const statusMap: Record<MatchStatus, { label: string; variant: 'default' | 'succ
 export default function AdminSchedulePage() {
   const { authHeaders } = useAuthStore();
   const [matches, setMatches] = useState<IMatch[]>([]);
-  const [teams, setTeams] = useState<ITeam[]>([]);
+  const [teams, setTeams] = useState<{ _id: string; name: string }[]>([]);
   const [venues, setVenues] = useState<IVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -53,7 +54,7 @@ export default function AdminSchedulePage() {
 
       const [matchesRes, teamsRes, venuesRes] = await Promise.all([
         fetch(`/api/schedules?${params}`, { headers }),
-        fetch('/api/teams?status=approved', { headers }),
+        fetch('/api/teams?status=approved&limit=100', { headers }),
         fetch('/api/venues', { headers }),
       ]);
 
@@ -81,13 +82,13 @@ export default function AdminSchedulePage() {
 
   const handleFilter = () => fetchData();
 
-  const teamName = (id: string) => teams.find((t) => t._id === id)?.name || id;
-  const venueName = (id?: string) => id ? venues.find((v) => v._id === id)?.name || id : '-';
-
   const openEdit = (match: IMatch) => {
     setEditModal(match);
     setEditDate(match.matchDate?.slice(0, 10) || '');
-    setEditVenue(match.venueId || '');
+    const vid = typeof match.venueId === 'object' && match.venueId && '_id' in match.venueId
+      ? (match.venueId as { _id: string })._id
+      : String(match.venueId || '');
+    setEditVenue(vid);
     setEditStatus(match.status);
   };
 
@@ -187,15 +188,15 @@ export default function AdminSchedulePage() {
                   </div>
                   <div className="text-center mb-3">
                     <div className="flex items-center justify-center gap-3">
-                      <span className="font-semibold text-gray-900">{teamName(match.homeTeamId)}</span>
+                      <span className="font-semibold text-gray-900">{extractName(match.homeTeamId, '主队')}</span>
                       <span className="text-gray-400 text-sm">VS</span>
-                      <span className="font-semibold text-gray-900">{teamName(match.awayTeamId)}</span>
+                      <span className="font-semibold text-gray-900">{extractName(match.awayTeamId, '客队')}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(match.matchDate).toLocaleDateString('zh-CN')}</span>
-                    <span className="flex items-center gap-1"><MapPin size={12} /> {venueName(match.venueId)}</span>
-                    <span className="flex items-center gap-1"><User size={12} /> {match.refereeId || '未指派'}</span>
+                    <span className="flex items-center gap-1"><MapPin size={12} /> {extractName(match.venueId, '未指派')}</span>
+                    <span className="flex items-center gap-1"><User size={12} /> {extractName(match.refereeId, '未指派')}</span>
                   </div>
                   <div className="mt-3 pt-3 border-t flex justify-end">
                     <Button size="sm" variant="ghost" onClick={() => openEdit(match)}>

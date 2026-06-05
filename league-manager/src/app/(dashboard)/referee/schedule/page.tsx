@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuthStore } from '@/stores/auth';
 import type { IMatch, MatchStatus } from '@/types';
+import { extractName } from '@/lib/utils';
 
 const statusMap: Record<MatchStatus, { label: string; variant: 'default' | 'success' | 'warning' | 'danger' | 'info' }> = {
   scheduled: { label: '已排期', variant: 'info' },
@@ -68,9 +69,9 @@ export default function RefereeSchedulePage() {
                   </div>
                   <div className="text-center mb-3">
                     <div className="flex items-center justify-center gap-3">
-                      <span className="font-semibold text-gray-900">{match.homeTeamId}</span>
+                      <span className="font-semibold text-gray-900">{extractName(match.homeTeamId, '主队')}</span>
                       <span className="text-gray-400 text-sm">VS</span>
-                      <span className="font-semibold text-gray-900">{match.awayTeamId}</span>
+                      <span className="font-semibold text-gray-900">{extractName(match.awayTeamId, '客队')}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -79,7 +80,7 @@ export default function RefereeSchedulePage() {
                     </span>
                     {match.venueId && (
                       <span className="flex items-center gap-1">
-                        <MapPin size={12} /> {match.venueId}
+                        <MapPin size={12} /> {extractName(match.venueId, '待定')}
                       </span>
                     )}
                   </div>
