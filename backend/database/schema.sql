@@ -68,13 +68,12 @@ CREATE TABLE IF NOT EXISTS queue_records (
     prescription_id INTEGER NOT NULL,
     queue_date DATE NOT NULL,
     queue_no INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'waiting' CHECK(status IN ('waiting', 'called', 'completed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'waiting' CHECK(status IN ('waiting', 'called', 'completed')),
     called_at DATETIME,
     completed_at DATETIME,
     window_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (prescription_id) REFERENCES prescriptions(id),
-    UNIQUE(queue_date, queue_no)
+    FOREIGN KEY (prescription_id) REFERENCES prescriptions(id)
 );
 
 CREATE TABLE IF NOT EXISTS windows (

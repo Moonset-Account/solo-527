@@ -139,14 +139,22 @@ func EnqueuePrescription(c *fiber.Ctx) error {
 	}
 
 	queueDate := time.Now().Format("2006-01-02")
-	var maxQueueNo int
+	var queueNo int
 	err = tx.QueryRow(`
-		SELECT COALESCE(MAX(queue_no), 0) FROM queue_records WHERE queue_date = ?
-	`, queueDate).Scan(&maxQueueNo)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		SELECT MIN(num) AS next_available FROM (
+			SELECT 1 AS num
+			UNION ALL
+			SELECT queue_no + 1 FROM queue_records WHERE queue_date = ?
+		) t
+		WHERE num NOT IN (SELECT queue_no FROM queue_records WHERE queue_date = ?)
+	`, queueDate, queueDate).Scan(&queueNo)
+	if err != nil || queueNo == 0 {
+		var maxQueueNo int
+		tx.QueryRow(`
+			SELECT COALESCE(MAX(queue_no), 0) FROM queue_records WHERE queue_date = ?
+		`, queueDate).Scan(&maxQueueNo)
+		queueNo = maxQueueNo + 1
 	}
-	queueNo := maxQueueNo + 1
 
 	_, err = tx.Exec(`
 		INSERT INTO queue_records (prescription_id, queue_date, queue_no, status)
@@ -401,11 +409,11 @@ func CancelPrescription(c *fiber.Ctx) error {
 	if queueNo.Valid {
 		queueDate := time.Now().Format("2006-01-02")
 		_, err = tx.Exec(`
-			UPDATE queue_records SET status = 'cancelled' 
+			DELETE FROM queue_records 
 			WHERE prescription_id = ? AND queue_date = ?
 		`, prescriptionID, queueDate)
 		if err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to cancel queue record"})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete queue record"})
 		}
 	}
 
@@ -707,11 +715,11 @@ func CancelPrescriptionPublic(c *fiber.Ctx) error {
 	if queueNo.Valid {
 		queueDate := time.Now().Format("2006-01-02")
 		_, err = tx.Exec(`
-			UPDATE queue_records SET status = 'cancelled' 
+			DELETE FROM queue_records 
 			WHERE prescription_id = ? AND queue_date = ?
 		`, prescriptionID, queueDate)
 		if err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to cancel queue record"})
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete queue record"})
 		}
 	}
 
