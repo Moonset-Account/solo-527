@@ -1,6 +1,4 @@
 package com.property.service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
@@ -9,7 +7,8 @@ import com.property.common.Result;
 import com.property.common.UserContext;
 import com.property.entity.Attachment;
 import com.property.mapper.AttachmentMapper;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,9 +24,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 
-@Slf4j
 @Service
 public class FileService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
 
     @Value("${file.upload.path}")
     private String uploadPath;

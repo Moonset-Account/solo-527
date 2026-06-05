@@ -1,9 +1,5 @@
 package com.property.common.enums;
 
-import lombok.Getter;
-
-@Getter
-@Getter
 public enum WorkOrderPriorityEnum {
     LOW("LOW", "低"),
     NORMAL("NORMAL", "普通"),
@@ -18,16 +14,11 @@ public enum WorkOrderPriorityEnum {
         this.desc = desc;
     }
 
-    public static WorkOrderPriorityEnum getByCode(String code) {
-        for (WorkOrderPriorityEnum priority : values()) {
-            if (priority.code.equals(code)) {
-                return priority;
-            }
-        }
-        return null;
+    public String getCode() {
+        return code;
     }
 
-    public static boolean isUrgent(String code) {
-        return URGENT.code.equals(code);
+    public String getDesc() {
+        return desc;
     }
 }

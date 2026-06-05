@@ -1,9 +1,5 @@
 package com.property.common.enums;
 
-import lombok.Getter;
-
-@Getter
-@Getter
 public enum WorkOrderStatusEnum {
     PENDING("PENDING", "待审核"),
     APPROVED("APPROVED", "已审核派单"),
@@ -18,6 +14,14 @@ public enum WorkOrderStatusEnum {
     WorkOrderStatusEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 
     public static WorkOrderStatusEnum getByCode(String code) {

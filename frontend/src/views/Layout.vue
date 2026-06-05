@@ -80,7 +80,7 @@ const allMenuItems = [
   { path: '/orders/create', title: '提交报修', icon: 'Edit', roles: ['OWNER', 'PROPERTY', 'ADMIN'] },
   { path: '/inspection', title: '巡检管理', icon: 'Location', roles: ['ADMIN', 'PROPERTY', 'INSPECTOR'] },
   { path: '/expenses', title: '费用管理', icon: 'Money', roles: ['ADMIN', 'PROPERTY', 'OWNER'] },
-  { path: '/satisfaction', title: '满意度管理', icon: 'Star', roles: ['ADMIN', 'PROPERTY'] },
+  { path: '/satisfaction', title: '回访评价', icon: 'Star', roles: ['ADMIN', 'PROPERTY', 'OWNER'] },
   { path: '/messages', title: '消息中心', icon: 'Bell', roles: ['ADMIN', 'PROPERTY', 'MAINTENANCE', 'INSPECTOR', 'OWNER'] }
 ]
 

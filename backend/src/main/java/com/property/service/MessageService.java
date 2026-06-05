@@ -1,6 +1,4 @@
 package com.property.service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -11,7 +9,8 @@ import com.property.entity.SysMessage;
 import com.property.entity.SysUser;
 import com.property.mapper.SysMessageMapper;
 import com.property.mapper.SysUserMapper;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -22,9 +21,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 
-@Slf4j
 @Service
 public class MessageService {
+
+    private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
     @Autowired
     private SysMessageMapper sysMessageMapper;

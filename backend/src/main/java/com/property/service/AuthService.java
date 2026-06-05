@@ -5,17 +5,20 @@ import com.property.common.Result;
 import com.property.entity.SysUser;
 import com.property.mapper.SysUserMapper;
 import com.property.utils.JwtUtils;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 
-@Slf4j
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     @Autowired
     private SysUserMapper sysUserMapper;

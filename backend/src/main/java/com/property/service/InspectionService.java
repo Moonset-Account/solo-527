@@ -1,6 +1,4 @@
 package com.property.service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
@@ -12,7 +10,8 @@ import com.property.common.UserContext;
 import com.property.common.enums.UserRoleEnum;
 import com.property.entity.*;
 import com.property.mapper.*;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 
-@Slf4j
 @Service
 public class InspectionService {
+
+    private static final Logger log = LoggerFactory.getLogger(InspectionService.class);
 
     @Autowired
     private InspectionRecordMapper inspectionRecordMapper;
@@ -164,7 +164,7 @@ public class InspectionService {
             order.setIsPaid(0);
 
             workOrderMapper.insert(order);
-            record.setRelatedOrderId(order.getId());
+            record.setAbnormalOrderId(order.getId());
             inspectionRecordMapper.updateById(record);
 
             messageService.sendMessageToAdmins(
@@ -184,7 +184,6 @@ public class InspectionService {
         if (record.getPointId() != null) {
             InspectionPoint point = inspectionPointMapper.selectById(record.getPointId());
             if (point != null) {
-                record.setPointName(point.getPointName());
                 record.setPointLocation(point.getLocation());
             }
         }

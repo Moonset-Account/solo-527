@@ -1,9 +1,5 @@
 package com.property.common.enums;
 
-import lombok.Getter;
-
-@Getter
-@Getter
 public enum UserRoleEnum {
     ADMIN("ADMIN", "物业主管"),
     PROPERTY("PROPERTY", "物业人员"),
@@ -17,6 +13,14 @@ public enum UserRoleEnum {
     UserRoleEnum(String code, String desc) {
         this.code = code;
         this.desc = desc;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDesc() {
+        return desc;
     }
 
     public static UserRoleEnum getByCode(String code) {
