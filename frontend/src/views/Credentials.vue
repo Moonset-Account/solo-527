@@ -12,13 +12,14 @@
 
       <el-form :inline="true" :model="searchForm" style="margin-bottom: 20px">
         <el-form-item label="证件号">
-          <el-input v-model="searchForm.number" placeholder="请输入" clearable style="width: 150px" />
+          <el-input v-model="searchForm.credential_number" placeholder="请输入" clearable style="width: 150px" />
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="searchForm.credential_type" placeholder="全部" clearable style="width: 120px">
             <el-option label="身份证" value="id_card" />
             <el-option label="驾驶证" value="driver_license" />
-            <el-option label="操作证" value="operation_cert" />
+            <el-option label="特种作业证" value="special_operation" />
+            <el-option label="安全员证" value="safety_certificate" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
@@ -45,11 +46,11 @@
             {{ getTypeName(row.credential_type) }}
           </template>
         </el-table-column>
-        <el-table-column prop="number" label="证件号码" width="180" />
-        <el-table-column prop="issued_by" label="签发机关" show-overflow-tooltip />
-        <el-table-column prop="valid_until" label="有效期至" width="120">
+        <el-table-column prop="credential_number" label="证件号码" width="180" />
+        <el-table-column prop="issuing_authority" label="签发机关" show-overflow-tooltip />
+        <el-table-column prop="expiry_date" label="有效期至" width="120">
           <template #default="{ row }">
-            {{ formatDate(row.valid_until) }}
+            {{ formatDate(row.expiry_date) }}
           </template>
         </el-table-column>
         <el-table-column prop="verified" label="核验状态" width="100">
@@ -92,7 +93,9 @@
           <el-select v-model="form.credential_type" placeholder="请选择类型">
             <el-option label="身份证" value="id_card" />
             <el-option label="驾驶证" value="driver_license" />
-            <el-option label="操作证" value="operation_cert" />
+            <el-option label="特种作业证" value="special_operation" />
+            <el-option label="安全员证" value="safety_certificate" />
+            <el-option label="工作许可证" value="work_permit" />
             <el-option label="其他" value="other" />
           </el-select>
         </el-form-item>
@@ -131,7 +134,7 @@ const total = ref(0)
 const peopleList = ref([])
 
 const searchForm = reactive({
-  number: '',
+  credential_number: '',
   credential_type: '',
   verified: ''
 })
@@ -180,7 +183,7 @@ const fetchPeople = async () => {
 }
 
 const resetSearch = () => {
-  searchForm.number = ''
+  searchForm.credential_number = ''
   searchForm.credential_type = ''
   searchForm.verified = ''
   page.value = 1
@@ -188,7 +191,14 @@ const resetSearch = () => {
 }
 
 const getTypeName = (type) => {
-  const map = { id_card: '身份证', driver_license: '驾驶证', operation_cert: '操作证', other: '其他' }
+  const map = {
+    id_card: '身份证',
+    driver_license: '驾驶证',
+    special_operation: '特种作业证',
+    safety_certificate: '安全员证',
+    work_permit: '工作许可证',
+    other: '其他'
+  }
   return map[type] || type
 }
 
@@ -201,10 +211,10 @@ const openDialog = (row = null) => {
     Object.assign(form, {
       person_id: row.person_id,
       credential_type: row.credential_type,
-      number: row.number,
-      issued_by: row.issued_by,
-      issued_at: row.issued_at,
-      valid_until: row.valid_until
+      number: row.credential_number || row.number,
+      issued_by: row.issuing_authority || row.issued_by,
+      issued_at: row.issue_date || row.issued_at,
+      valid_until: row.expiry_date || row.valid_until
     })
   } else {
     Object.assign(form, {

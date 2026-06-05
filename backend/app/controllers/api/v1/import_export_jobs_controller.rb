@@ -12,7 +12,7 @@ module Api
       end
 
       def create_export
-        job_type = params[:job_type]
+        job_type = map_model_type_to_job_type(params[:model_type], 'export') || params[:job_type]
         allowed_types = %w[export_people export_passes export_violations export_gate_logs]
 
         unless allowed_types.include?(job_type)
@@ -25,13 +25,17 @@ module Api
           params: params[:filters]&.to_json
         )
 
-        ExportJob.perform_later(job)
+        begin
+          ExportJob.perform_later(job)
+        rescue => e
+          Rails.logger.warn "Failed to enqueue export job: #{e.message}"
+        end
 
         render json: { message: '导出任务已创建', job: job }, status: :created
       end
 
       def create_import
-        job_type = params[:job_type]
+        job_type = map_model_type_to_job_type(params[:model_type], 'import') || params[:job_type]
         allowed_types = %w[import_people import_passes]
 
         unless allowed_types.include?(job_type)
@@ -71,6 +75,17 @@ module Api
       end
 
       private
+
+      def map_model_type_to_job_type(model_type, action)
+        mapping = {
+          'Person' => { export: 'export_people', import: 'import_people' },
+          'Pass' => { export: 'export_passes', import: 'import_passes' },
+          'Violation' => { export: 'export_violations', import: nil },
+          'GateLog' => { export: 'export_gate_logs', import: nil },
+          'Vehicle' => { export: nil, import: nil }
+        }
+        mapping.dig(model_type, action.to_sym) if mapping.key?(model_type)
+      end
 
       def save_uploaded_file(file)
         dir = Rails.root.join('storage', 'imports')

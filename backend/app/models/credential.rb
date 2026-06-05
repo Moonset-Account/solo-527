@@ -23,6 +23,12 @@ class Credential < ApplicationRecord
     'other' => '其他'
   }.freeze
 
+  CREDENTIAL_TYPE_ALIASES = {
+    'operation_cert' => 'special_operation',
+    'safety_officer' => 'safety_certificate',
+    'safety_cert' => 'safety_certificate'
+  }.freeze
+
   def credential_type_name
     CREDENTIAL_TYPE_NAMES[credential_type] || credential_type
   end
@@ -46,5 +52,6 @@ class Credential < ApplicationRecord
     self.issuing_authority ||= issued_by if issued_by.present?
     self.issue_date ||= issued_at if issued_at.present?
     self.expiry_date ||= valid_until if valid_until.present?
+    self.credential_type = CREDENTIAL_TYPE_ALIASES[credential_type] || credential_type if credential_type.present?
   end
 end
