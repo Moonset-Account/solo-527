@@ -8,6 +8,10 @@ import { Role } from '@/types';
 export const GET = requireAuth(async (request: NextRequest, user) => {
   const type = request.nextUrl.searchParams.get('type');
   
+  if (user.role === Role.CLIENT) {
+    return NextResponse.json({ error: '权限不足' }, { status: 403 });
+  }
+  
   if (type === 'revenue') {
     const stats = statsService.getRevenueStats(user.userId, user.role);
     return NextResponse.json(stats);
