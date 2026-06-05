@@ -80,8 +80,10 @@
                         <div class="d-flex w-100 justify-content-between align-items-start">
                             <div>
                                 <h6 class="mb-1">
-                                    <i class="bi bi-calendar3"></i> 
-                                    {{ session.start_time|date:'Y-m-d H:i' }} - {{ session.end_time|date:'H:i' }}
+                                    <a href="{% url 'training:session_detail' session.pk %}" class="text-decoration-none">
+                                        <i class="bi bi-calendar3"></i> 
+                                        {{ session.start_time|date:'Y-m-d H:i' }} - {{ session.end_time|date:'H:i' }}
+                                    </a>
                                 </h6>
                                 <p class="mb-1">
                                     <i class="bi bi-geo-alt"></i> {{ session.location }}
@@ -118,7 +120,7 @@
                         <div class="modal fade" id="applyModal{{ session.pk }}" tabindex="-1">
                             <div class="modal-dialog">
                                 <div class="modal-content">
-                                    <form method="post" action="{% url 'training:apply' session.pk %}">
+                                    <form method="post" action="{% url 'training:apply_session' session.pk %}">
                                         {% csrf_token %}
                                         <div class="modal-header">
                                             <h5 class="modal-title"><i class="bi bi-check2-circle"></i> 培训报名</h5>

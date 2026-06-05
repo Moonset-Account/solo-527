@@ -140,7 +140,7 @@
         <div class="modal fade" id="useModal{{ consumable.pk }}" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <form method="post" action="{% url 'consumables:add_usage' %}">
+                    <form method="post" action="{% url 'consumables:use' consumable.pk %}">
                         {% csrf_token %}
                         <input type="hidden" name="consumable" value="{{ consumable.pk }}">
                         <div class="modal-header">

@@ -157,6 +157,14 @@
                 </div>
             </nav>
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content pt-3 pt-md-4">
+                <div id="offlineBanner" class="alert alert-warning d-none alert-dismissible fade show" role="alert">
+                    <i class="bi bi-wifi-off me-2"></i>
+                    <span>您有 <strong id="pendingCount">0</strong> 条离线操作待同步</span>
+                    <button type="button" class="btn btn-sm btn-outline-warning ms-3" onclick="syncOfflineData()">
+                        <i class="bi bi-arrow-repeat"></i> 立即同步
+                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="document.getElementById('offlineBanner').classList.add('d-none')"></button>
+                </div>
                 {% if messages %}
                     {% for message in messages %}
                     <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -198,18 +206,46 @@
             new bootstrap.Toast(toast).show();
         }
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const pendingOperations = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
-                if (pendingOperations.length > 0 && navigator.onLine) {
-                    syncOfflineData();
-                }
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
             });
+        }
+
+        function saveOfflineOperation(type, data) {
+            const operation = {
+                type: type,
+                data: data,
+                client_id: generateUUID(),
+                timestamp: Date.now()
+            };
+            const pending = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+            pending.push(operation);
+            localStorage.setItem('pendingOperations', JSON.stringify(pending));
+            updateOfflineBanner();
+            return operation;
+        }
+
+        function updateOfflineBanner() {
+            const pending = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+            const banner = document.getElementById('offlineBanner');
+            if (banner) {
+                if (pending.length > 0) {
+                    banner.classList.remove('d-none');
+                    document.getElementById('pendingCount').textContent = pending.length;
+                } else {
+                    banner.classList.add('d-none');
+                }
+            }
         }
 
         function syncOfflineData() {
             const pending = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
             if (pending.length === 0) return;
+
+            showToast(`正在同步 ${pending.length} 条离线数据...`, 'info');
 
             fetch('/api/offline/sync/', {
                 method: 'POST',
@@ -223,17 +259,38 @@
             .then(data => {
                 if (data.success) {
                     const successIds = data.results.filter(r => r.success).map(r => r.client_id);
+                    const failedIds = data.results.filter(r => !r.success).map(r => r.client_id);
                     const remaining = pending.filter(op => !successIds.includes(op.client_id));
                     localStorage.setItem('pendingOperations', JSON.stringify(remaining));
+                    
                     if (successIds.length > 0) {
-                        showToast(`已同步 ${successIds.length} 条离线数据`);
+                        showToast(`已成功同步 ${successIds.length} 条离线数据`, 'success');
                     }
+                    if (failedIds.length > 0) {
+                        showToast(`${failedIds.length} 条数据同步失败，将在下次联网时重试`, 'warning');
+                    }
+                } else {
+                    showToast('同步失败，将在下次联网时重试', 'danger');
                 }
+                updateOfflineBanner();
             })
-            .catch(() => {});
+            .catch(() => {
+                showToast('同步失败，将在下次联网时重试', 'danger');
+            });
         }
 
-        window.addEventListener('online', syncOfflineData);
+        window.addEventListener('load', () => {
+            updateOfflineBanner();
+            const pendingOperations = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+            if (pendingOperations.length > 0 && navigator.onLine) {
+                setTimeout(syncOfflineData, 1000);
+            }
+        });
+
+        window.addEventListener('online', () => {
+            showToast('网络已恢复，正在同步离线数据...', 'info');
+            setTimeout(syncOfflineData, 500);
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

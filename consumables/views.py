@@ -52,24 +52,27 @@ def use_consumable(request, pk):
     if request.method == 'POST':
         try:
             quantity = int(request.POST.get('quantity', 1))
-            booking_id = request.POST.get('booking_id')
+            booking_id = request.POST.get('booking')
             booking = None
             if booking_id:
                 from bookings.models import Booking
                 booking = get_object_or_404(Booking, pk=booking_id)
+            notes = request.POST.get('notes', '')
 
             usage_record = service.record_usage(
                 consumable=consumable,
                 user=request.user,
                 quantity=quantity,
                 booking=booking,
+                notes=notes,
             )
-            messages.success(request, f'已使用 {quantity} 个耗材')
-            return redirect('consumables:detail', pk=pk)
+            messages.success(request, f'已成功领用 {quantity} {consumable.unit} {consumable.name}')
+            return redirect('consumables:list')
         except Exception as e:
             messages.error(request, str(e))
+            return redirect('consumables:list')
 
-    return redirect('consumables:detail', pk=pk)
+    return redirect('consumables:list')
 
 
 @login_required

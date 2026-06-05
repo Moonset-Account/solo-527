@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}培训场次 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">培训场次</h1>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 g-4">
+    {% for session in sessions %}
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ session.course.name }}</h5>
+                <span class="badge bg-secondary">
+                    {{ session.get_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    <i class="bi bi-calendar3"></i> {{ session.start_time|date:'Y-m-d H:i' }} - {{ session.end_time|date:'H:i' }}<br>
+                    <i class="bi bi-person"></i> 培训师: {{ session.trainer.real_name|default:'待定' }}<br>
+                    <i class="bi bi-geo-alt"></i> {{ session.location|default:'待定' }}<br>
+                    <i class="bi bi-people"></i> 报名人数: {{ session.application_count|default:0 }} / {{ session.max_participants }}
+                </p>
+                {% if session.course.is_dangerous %}
+                <span class="badge bg-danger">
+                    <i class="bi bi-radioactive"></i> 危险设备培训
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid">
+                    <a href="{% url 'training:session_detail' session.pk %}" class="btn btn-outline-primary">
+                        查看详情
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-calendar-event display-1 text-muted"></i>
+            <p class="mt-3 text-muted">暂无培训场次</p>
+            <a href="{% url 'training:course_list' %}" class="btn btn-primary mt-2">
+                查看培训课程
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 
-{% block title %}上报故障 - 创客空间设备预约平台{% endblock %}
+{% block title %}上报安全事件 - 创客空间设备预约平台{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{% url 'maintenance:ticket_list' %}">故障报修</a></li>
-                <li class="breadcrumb-item active" aria-current="page">上报故障</li>
+                <li class="breadcrumb-item"><a href="{% url 'safety:incident_list' %}">安全记录</a></li>
+                <li class="breadcrumb-item active" aria-current="page">上报安全事件</li>
             </ol>
         </nav>
-        <h1 class="h2"><i class="bi bi-exclamation-triangle"></i> 上报故障</h1>
+        <h1 class="h2"><i class="bi bi-shield-exclamation"></i> 上报安全事件</h1>
     </div>
 </div>
 
@@ -19,79 +19,77 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-body">
-                <form method="post" id="ticketForm" enctype="multipart/form-data">
+                <form method="post" id="incidentForm" enctype="multipart/form-data">
                     {% csrf_token %}
 
-                    {% if form.errors %}
-                    <div class="alert alert-danger">
-                        <h6><i class="bi bi-exclamation-triangle"></i> 请修正以下错误：</h6>
-                        <ul class="mb-0">
-                            {% for field in form %}
-                            {% for error in field.errors %}
-                            <li>{{ field.label }}: {{ error }}</li>
-                            {% endfor %}
-                            {% endfor %}
-                            {% for error in form.non_field_errors %}
-                            <li>{{ error }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-
                     <div class="mb-3">
-                        <label for="id_equipment" class="form-label">选择设备 <span class="text-danger">*</span></label>
-                        <select name="equipment" id="id_equipment" class="form-select" required>
-                            <option value="">请选择故障设备</option>
-                            {% for equipment in equipments %}
-                            <option value="{{ equipment.id }}">
-                                {{ equipment.name }} ({{ equipment.category.name }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <label for="id_title" class="form-label">事件标题 <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="id_title" class="form-control" required
+                               placeholder="简要描述安全事件" maxlength="200">
                     </div>
 
                     <div class="mb-3">
-                        <label for="id_title" class="form-label">故障标题 <span class="text-danger">*</span></label>
-                        <input type="text" name="title" id="id_title" class="form-control" required 
-                               placeholder="简要描述故障问题" maxlength="200">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_description" class="form-label">故障描述 <span class="text-danger">*</span></label>
-                        <textarea name="description" id="id_description" class="form-control" rows="5" required
-                                  placeholder="请详细描述故障现象、发生时间、操作步骤等信息..."></textarea>
+                        <label class="form-label">严重程度 <span class="text-danger">*</span></label>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3">
+                                <div class="form-check card p-2">
+                                    <input class="form-check-input" type="radio" name="severity" id="severity_minor" value="minor">
+                                    <label class="form-check-label w-100" for="severity_minor">
+                                        <i class="bi bi-info-circle text-info"></i> 轻微
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check card p-2">
+                                    <input class="form-check-input" type="radio" name="severity" id="severity_moderate" value="moderate" checked>
+                                    <label class="form-check-label w-100" for="severity_moderate">
+                                        <i class="bi bi-exclamation-triangle text-warning"></i> 一般
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check card p-2">
+                                    <input class="form-check-input" type="radio" name="severity" id="severity_serious" value="serious">
+                                    <label class="form-check-label w-100" for="severity_serious">
+                                        <i class="bi bi-exclamation-octagon text-danger"></i> 严重
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="form-check card p-2">
+                                    <input class="form-check-input" type="radio" name="severity" id="severity_critical" value="critical">
+                                    <label class="form-check-label w-100" for="severity_critical">
+                                        <i class="bi bi-lightning-fill text-danger"></i> 紧急
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="id_priority" class="form-label">优先级 <span class="text-danger">*</span></label>
-                                <select name="priority" id="id_priority" class="form-select" required>
-                                    <option value="low">低 - 不影响使用</option>
-                                    <option value="medium" selected>中 - 部分功能受影响</option>
-                                    <option value="high">高 - 无法正常使用</option>
-                                    <option value="critical">紧急 - 存在安全隐患</option>
-                                </select>
+                                <label for="id_incident_time" class="form-label">发生时间 <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="incident_time" id="id_incident_time" class="form-control" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="id_fault_type" class="form-label">故障类型</label>
-                                <select name="fault_type" id="id_fault_type" class="form-select">
-                                    <option value="">请选择故障类型</option>
-                                    <option value="hardware">硬件故障</option>
-                                    <option value="software">软件故障</option>
-                                    <option value="network">网络故障</option>
-                                    <option value="power">电源故障</option>
-                                    <option value="mechanical">机械故障</option>
-                                    <option value="other">其他问题</option>
-                                </select>
+                                <label for="id_location" class="form-label">发生地点 <span class="text-danger">*</span></label>
+                                <input type="text" name="location" id="id_location" class="form-control" required
+                                       placeholder="例如：3D打印室、电子车间等">
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">上传照片/附件</label>
+                        <label for="id_description" class="form-label">事件描述 <span class="text-danger">*</span></label>
+                        <textarea name="description" id="id_description" class="form-control" rows="5" required
+                                  placeholder="请详细描述事件经过、涉及人员、造成的影响等..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">现场照片</label>
                         <div class="border rounded p-4 text-center bg-light">
                             <i class="bi bi-cloud-arrow-up display-4 text-muted"></i>
                             <p class="mt-2 mb-3">拖拽文件到此处，或点击选择</p>
@@ -112,18 +110,18 @@
                     <div class="alert alert-info">
                         <h6><i class="bi bi-info-circle"></i> 温馨提示</h6>
                         <ul class="mb-0 small">
-                            <li>请尽可能详细地描述故障情况，以便维修人员快速定位问题</li>
-                            <li>上传清晰的故障照片可以帮助更快解决问题</li>
-                            <li>紧急故障请同时联系管理员：xxx-xxxxxxx</li>
+                            <li>请如实上报安全事件，不得隐瞒或谎报</li>
+                            <li>紧急情况请先拨打应急电话，再进行线上上报</li>
+                            <li>上传清晰的现场照片可以帮助更快处理</li>
                         </ul>
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'maintenance:ticket_list' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'safety:incident_list' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> 取消
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send"></i> 提交故障单
+                            <i class="bi bi-send"></i> 提交上报
                         </button>
                     </div>
                 </form>
@@ -167,6 +165,10 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('id_incident_time').value = now.toISOString().slice(0, 16);
+
     const fileInput = document.getElementById('attachments');
     const previewArea = document.getElementById('previewArea');
     const cameraBtn = document.getElementById('cameraBtn');
@@ -321,27 +323,19 @@ document.addEventListener('DOMContentLoaded', function() {
         usePhotoBtn.disabled = true;
     });
 
-    function generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    document.getElementById('ticketForm').addEventListener('submit', function(e) {
+    document.getElementById('incidentForm').addEventListener('submit', function(e) {
         const title = document.getElementById('id_title').value.trim();
         const description = document.getElementById('id_description').value.trim();
         
         if (title.length < 5) {
             e.preventDefault();
-            alert('故障标题至少需要5个字符');
+            alert('事件标题至少需要5个字符');
             return false;
         }
         
         if (description.length < 10) {
             e.preventDefault();
-            alert('故障描述至少需要10个字符');
+            alert('事件描述至少需要10个字符');
             return false;
         }
 
@@ -349,23 +343,14 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const formData = {
-                equipment_id: document.getElementById('id_equipment').value,
                 title: title,
-                description: description,
-                priority: document.getElementById('id_priority').value
+                severity: document.querySelector('input[name="severity"]:checked').value,
+                incident_time: document.getElementById('id_incident_time').value,
+                location: document.getElementById('id_location').value,
+                description: description
             };
 
-            const operation = {
-                type: 'fault_report',
-                data: formData,
-                client_id: generateUUID(),
-                timestamp: Date.now()
-            };
-
-            const pending = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
-            pending.push(operation);
-            localStorage.setItem('pendingOperations', JSON.stringify(pending));
-            
+            saveOfflineOperation('safety_incident', formData);
             showToast('已保存到离线队列，联网后自动同步', 'warning');
             return false;
         }

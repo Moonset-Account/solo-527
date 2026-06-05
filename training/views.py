@@ -45,9 +45,11 @@ def session_list(request):
 def session_detail(request, pk):
     session = get_object_or_404(TrainingSession, pk=pk)
     applications = TrainingApplication.objects.filter(session=session)
+    user_application = applications.filter(user=request.user).first()
     context = {
         'session': session,
         'applications': applications,
+        'user_application': user_application,
     }
     return render(request, 'training/session_detail.html', context)
 
@@ -60,12 +62,13 @@ def apply_session(request, pk):
 
     if request.method == 'POST':
         try:
-            notes = request.POST.get('notes', '')
+            notes = request.POST.get('application_notes', '')
             application = service.apply(session, request.user, notes)
             messages.success(request, '培训申请已提交')
-            return redirect('training:session_detail', pk=pk)
+            return redirect('training:application_detail', pk=application.pk)
         except Exception as e:
             messages.error(request, str(e))
+            return redirect('training:session_detail', pk=pk)
 
     return redirect('training:session_detail', pk=pk)
 
