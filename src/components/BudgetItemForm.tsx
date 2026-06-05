@@ -33,11 +33,20 @@ export default function BudgetItemForm({ projectId, onSubmit, onCancel, initialD
   const { data: suppliers } = useSWR('/api/suppliers');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
-    }));
+    const target = e.target;
+    const name = target.name;
+    const type = target.type;
+    
+    if (type === 'checkbox') {
+      const checkbox = target as HTMLInputElement;
+      setFormData(prev => ({ ...prev, [name]: checkbox.checked }));
+    } else {
+      const value = target.value;
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? Number(value) : value,
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

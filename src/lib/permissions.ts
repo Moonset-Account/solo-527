@@ -1,5 +1,5 @@
 import type { Role } from '@prisma/client';
-import { prisma } from './prisma';
+import prisma from './prisma';
 
 export type Permission =
   | 'project:read'
@@ -11,37 +11,42 @@ export type Permission =
   | 'budget:read'
   | 'budget:read_internal'
   | 'budget:write'
+  | 'budget:update'
   | 'supplier:read'
   | 'supplier:write'
   | 'file:read'
   | 'file:upload'
   | 'file:approve'
+  | 'file:update'
   | 'confirmation:read'
   | 'confirmation:confirm'
+  | 'confirmation:create'
   | 'comment:read'
   | 'comment:write'
   | 'admin:dashboard'
-  | 'user:manage';
+  | 'user:manage'
+  | 'user:read';
 
 const rolePermissions: Record<Role, Permission[]> = {
   ADMIN: [
     'project:read', 'project:write', 'project:delete',
     'task:read', 'task:write', 'task:update_status',
-    'budget:read', 'budget:read_internal', 'budget:write',
+    'budget:read', 'budget:read_internal', 'budget:write', 'budget:update',
     'supplier:read', 'supplier:write',
-    'file:read', 'file:upload', 'file:approve',
-    'confirmation:read', 'confirmation:confirm',
+    'file:read', 'file:upload', 'file:approve', 'file:update',
+    'confirmation:read', 'confirmation:confirm', 'confirmation:create',
     'comment:read', 'comment:write',
-    'admin:dashboard', 'user:manage',
+    'admin:dashboard', 'user:manage', 'user:read',
   ],
   PLANNER: [
     'project:read', 'project:write',
     'task:read', 'task:write', 'task:update_status',
-    'budget:read', 'budget:read_internal', 'budget:write',
+    'budget:read', 'budget:read_internal', 'budget:write', 'budget:update',
     'supplier:read', 'supplier:write',
-    'file:read', 'file:upload', 'file:approve',
-    'confirmation:read',
+    'file:read', 'file:upload', 'file:approve', 'file:update',
+    'confirmation:read', 'confirmation:create',
     'comment:read', 'comment:write',
+    'user:read',
   ],
   SUPPLIER: [
     'project:read',

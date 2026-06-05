@@ -39,7 +39,7 @@ describe('Task Status Flow', () => {
     });
 
     it('should set startedAt when status changes to IN_PROGRESS', () => {
-      const task = { status: 'TODO', startedAt: null };
+      const task: any = { status: 'TODO', startedAt: null };
       if (task.status === 'TODO') {
         task.status = 'IN_PROGRESS';
         task.startedAt = new Date();
@@ -48,7 +48,7 @@ describe('Task Status Flow', () => {
     });
 
     it('should set completedAt when status changes to COMPLETED', () => {
-      const task = { status: 'APPROVED', completedAt: null };
+      const task: any = { status: 'APPROVED', completedAt: null };
       if (task.status === 'APPROVED') {
         task.status = 'COMPLETED';
         task.completedAt = new Date();

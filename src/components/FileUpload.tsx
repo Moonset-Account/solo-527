@@ -45,21 +45,35 @@ export default function FileUpload({ projectId, onUpload, onCancel }: FileUpload
 
     setUploading(true);
     try {
-      const formData = new FormData();
+      let fileBase64 = '';
+      let fileName = name;
+      let fileType = '';
+
       if (preview) {
-        const base64Data = preview.includes(',') ? preview.split(',')[1] : preview;
-        formData.append('file', base64Data);
-        formData.append('fileName', name);
-        formData.append('isBase64', 'true');
+        fileBase64 = preview;
+        fileType = 'image/jpeg';
       } else if (fileInputRef.current?.files?.[0]) {
-        formData.append('file', fileInputRef.current.files[0]);
+        const file = fileInputRef.current.files[0];
+        fileName = name || file.name;
+        fileType = file.type;
+        
+        const reader = new FileReader();
+        fileBase64 = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       }
-      formData.append('name', name);
-      formData.append('category', category);
 
       const res = await fetch(`/api/projects/${projectId}/upload`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileBase64,
+          fileName,
+          fileType,
+          category,
+        }),
       });
 
       const result = await res.json();

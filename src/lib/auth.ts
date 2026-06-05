@@ -36,6 +36,7 @@ declare module 'next-auth/jwt' {
 }
 
 export const authOptions: NextAuthOptions = {
+  // @ts-ignore - PrismaAdapter 类型版本不兼容
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({

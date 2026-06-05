@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createApiHandler, ApiResponse } from '@/lib/api-utils';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
+import { filterBudgetItemsByRole } from '@/lib/permissions';
+import type { Role } from '@prisma/client';
 
 const projectSchema = z.object({
   name: z.string().min(1, '项目名称不能为空'),
@@ -40,6 +42,7 @@ export default createApiHandler(
         include: {
           manager: { select: { id: true, name: true, email: true } },
           couple: { select: { id: true, name: true, email: true } },
+          budgetItems: true,
           _count: {
             select: { tasks: true, files: true, comments: true },
           },
@@ -49,12 +52,17 @@ export default createApiHandler(
         take: parseInt(pageSize as string),
       });
 
+      const filteredProjects = projects.map((project) => ({
+        ...project,
+        budgetItems: filterBudgetItemsByRole(project.budgetItems, role as Role),
+      }));
+
       const total = await prisma.project.count({ where });
 
       return res.status(200).json({
         success: true,
         data: {
-          items: projects,
+          items: filteredProjects,
           total,
           page: parseInt(page as string),
           pageSize: parseInt(pageSize as string),

@@ -89,5 +89,10 @@ export function useCamera() {
     stopCamera,
     capturePhoto,
     selectFile,
+    isCameraSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
+    openCamera: startCamera,
+    closeCamera: stopCamera,
+    captureImage: capturePhoto,
+    cameraStream: isCapturing,
   };
 }

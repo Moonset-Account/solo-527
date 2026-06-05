@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+import prisma from './prisma';
 import { OfflineSyncQueue } from '@prisma/client';
 
 export async function processSyncItem(syncItemId: string) {

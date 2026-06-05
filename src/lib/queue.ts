@@ -4,6 +4,7 @@ import prisma from './prisma';
 import { processSyncItem } from './offline-processor';
 
 export const emailQueue = new Queue('email-queue', {
+  // @ts-ignore - ioredis 类型版本不兼容
   connection: redis,
   defaultJobOptions: {
     attempts: 3,
@@ -15,6 +16,7 @@ export const emailQueue = new Queue('email-queue', {
 });
 
 export const reminderQueue = new Queue('reminder-queue', {
+  // @ts-ignore - ioredis 类型版本不兼容
   connection: redis,
   defaultJobOptions: {
     attempts: 2,
@@ -22,10 +24,12 @@ export const reminderQueue = new Queue('reminder-queue', {
 });
 
 export const fileProcessingQueue = new Queue('file-processing-queue', {
+  // @ts-ignore - ioredis 类型版本不兼容
   connection: redis,
 });
 
 export const syncQueue = new Queue('sync-queue', {
+  // @ts-ignore - ioredis 类型版本不兼容
   connection: redis,
 });
 
@@ -33,6 +37,7 @@ const emailWorker = new Worker('email-queue', async (job: Job) => {
   const { to, subject, template, data } = job.data;
   console.log(`[Email Queue] Sending email to ${to}: ${subject}`);
   return { success: true, to, subject };
+// @ts-ignore - ioredis 类型版本不兼容
 }, { connection: redis });
 
 const reminderWorker = new Worker('reminder-queue', async (job: Job) => {
@@ -53,6 +58,7 @@ const reminderWorker = new Worker('reminder-queue', async (job: Job) => {
   });
 
   return { success: true, reminderId };
+// @ts-ignore - ioredis 类型版本不兼容
 }, { connection: redis });
 
 const syncWorker = new Worker('sync-queue', async (job: Job) => {
@@ -63,6 +69,7 @@ const syncWorker = new Worker('sync-queue', async (job: Job) => {
   await processSyncItem(syncQueueId);
 
   return { success: true, syncQueueId };
+// @ts-ignore - ioredis 类型版本不兼容
 }, { connection: redis });
 
 export async function scheduleReminder(reminderId: string, remindAt: Date) {
