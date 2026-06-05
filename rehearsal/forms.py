@@ -1,3 +1,4 @@
+import json
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -43,6 +44,7 @@ class RehearsalForm(forms.ModelForm):
         room = cleaned_data.get('room')
         need_lighting = cleaned_data.get('need_lighting')
         members = cleaned_data.get('members', [])
+        prop_quantities_str = self.data.get('prop_quantities', '{}')
 
         if date and start_time and end_time and room:
             if start_time >= end_time:
@@ -69,6 +71,26 @@ class RehearsalForm(forms.ModelForm):
             if conflicts:
                 conflict_info = '; '.join([f'{c.play.title} ({c.date} {c.start_time}-{c.end_time})' for c in conflicts])
                 raise ValidationError(f'时间冲突！该时段已有排练：{conflict_info}')
+
+        try:
+            prop_quantities = json.loads(prop_quantities_str) if prop_quantities_str else {}
+        except (json.JSONDecodeError, Exception):
+            prop_quantities = {}
+
+        if date and prop_quantities:
+            for prop_id, qty in prop_quantities.items():
+                try:
+                    prop = Prop.objects.get(id=prop_id)
+                    qty = int(qty)
+                    available = prop.available_quantity(date)
+                    if qty > available:
+                        raise ValidationError(
+                            f'道具库存不足：{prop.name}，可用 {available} 件，需要 {qty} 件'
+                        )
+                except (Prop.DoesNotExist, ValueError, ValidationError):
+                    raise
+                except Exception:
+                    pass
 
         return cleaned_data
 

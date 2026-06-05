@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="module">
+    <h2>取消排练确认</h2>
+    <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+        <p><strong>⚠️ 您正在取消以下排练：</strong></p>
+        <ul style="margin-top: 10px;">
+            <li><strong>剧目：</strong>{{ rehearsal.play.title }}</li>
+            <li><strong>排练室：</strong>{{ rehearsal.room.name }}</li>
+            <li><strong>时间：</strong>{{ rehearsal.date|date:"Y-m-d" }} {{ rehearsal.start_time|time:"H:i" }} - {{ rehearsal.end_time|time:"H:i" }}</li>
+            <li><strong>导演：</strong>{{ rehearsal.director.name }}</li>
+            <li><strong>参与人数：</strong>{{ rehearsal.members.count }} 人</li>
+        </ul>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <div>
+                    {{ form.reason.label_tag }}
+                    {{ form.reason }}
+                    {% if form.reason.help_text %}
+                    <p class="help">{{ form.reason.help_text }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </fieldset>
+        <div class="submit-row" style="margin-top: 20px;">
+            <a href="../" class="button" style="background: #999; padding: 10px 15px; text-decoration: none; color: white; border-radius: 4px;">返回</a>
+            <input type="submit" value="确认取消" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+        </div>
+    </form>
+</div>
+{% endblock %}
