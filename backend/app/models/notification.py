@@ -15,7 +15,7 @@ class Notification(db.Model):
     read_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
-    user = db.relationship('User', back_populates='notifications')
+    user = db.relationship('User', back_populates='notifications', foreign_keys=[user_id])
     
     def to_dict(self):
         return {

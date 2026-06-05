@@ -25,11 +25,21 @@ def create_app(config_name='default'):
     from app.middlewares.auth import auth_middleware
     app.before_request(auth_middleware)
     
-    from app.api import api_bp
+    from app.api import create_api_blueprint
+    api_bp = create_api_blueprint()
     app.register_blueprint(api_bp, url_prefix='/api')
     
     from app.errors import register_error_handlers
     register_error_handlers(app)
+    
+    try:
+        from app.tasks import make_celery, init_celery_tasks
+        celery = make_celery(app)
+        init_celery_tasks(celery, app, db, mail)
+        app.celery = celery
+    except Exception as e:
+        app.logger.warning(f"Celery initialization skipped: {e}")
+        app.celery = None
     
     @app.route('/health')
     def health_check():
