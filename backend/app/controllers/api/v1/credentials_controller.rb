@@ -44,7 +44,7 @@ module Api
       private
 
       def credential_params
-        params.permit(:person_id, :credential_type, :credential_number, :issuing_authority, :issue_date, :expiry_date, :credential_level)
+        params.permit(:person_id, :credential_type, :credential_number, :number, :issuing_authority, :issued_by, :issue_date, :issued_at, :expiry_date, :valid_until, :credential_level)
       end
     end
   end

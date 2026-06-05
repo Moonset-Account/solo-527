@@ -25,7 +25,7 @@ class Person < ApplicationRecord
   end
 
   def active_passes
-    passes.where(status: 'approved').where('valid_until > ?', Time.current).where(frozen: false)
+    passes.where(status: 'approved').where('valid_until > ?', Time.current).where(is_frozen: false)
   end
 
   def has_valid_pass_for_zone?(work_zone_id)

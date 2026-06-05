@@ -43,7 +43,11 @@ module Api
 
             create_initial_approvals(pass)
 
-            NotificationJob.perform_later(pass, 'pass_created', current_user)
+            begin
+              NotificationJob.perform_later(pass, 'pass_created', current_user)
+            rescue => e
+              Rails.logger.warn "Failed to enqueue notification: #{e.message}"
+            end
 
             render json: pass, status: :created
           else
@@ -116,7 +120,93 @@ module Api
           return { valid: false, message: '有效期开始时间必须早于结束时间' }
         end
 
+        work_zone_ids = params[:work_zone_ids] || []
+        work_zones = WorkZone.where(id: work_zone_ids)
+
+        credential_result = validate_credentials(person, work_zones)
+        return credential_result unless credential_result[:valid]
+
+        capacity_result = validate_capacity(work_zones)
+        return capacity_result unless capacity_result[:valid]
+
+        time_result = validate_time_restrictions(work_zones, pass.valid_from, pass.valid_until)
+        return time_result unless time_result[:valid]
+
         { valid: true }
+      end
+
+      def validate_credentials(person, work_zones)
+        return { valid: true } unless work_zones.exists?(zone_type: 'dangerous')
+
+        valid_credentials = person.credentials.valid
+        has_special_cert = valid_credentials.exists?(credential_type: %w[special_operation safety_certificate])
+
+        unless has_special_cert
+          return {
+            valid: false,
+            message: '进入危险区域需要有效的特种作业证或安全员证'
+          }
+        end
+
+        { valid: true }
+      end
+
+      def validate_capacity(work_zones)
+        work_zones.each do |zone|
+          next unless zone.max_capacity.present? && zone.max_capacity > 0
+
+          current_count = zone.passes.active.count
+          if current_count >= zone.max_capacity
+            return {
+              valid: false,
+              message: "作业区域【#{zone.name}】已达最大容量（#{zone.max_capacity}人），无法再申请"
+            }
+          end
+        end
+
+        { valid: true }
+      end
+
+      def validate_time_restrictions(work_zones, valid_from, valid_until)
+        work_zones.each do |zone|
+          next if zone.time_restrictions.blank?
+
+          unless check_time_allowed(zone.time_restrictions, valid_from, valid_until)
+            return {
+              valid: false,
+              message: "作业区域【#{zone.name}】有时段限制：#{zone.time_restrictions}"
+            }
+          end
+        end
+
+        { valid: true }
+      end
+
+      def check_time_allowed(restrictions, valid_from, valid_until)
+        return true if restrictions.blank?
+
+        allowed_ranges = parse_time_restrictions(restrictions)
+        return true if allowed_ranges.empty?
+
+        check_start = valid_from || Time.current
+        check_end = valid_until || check_start
+
+        (check_start.to_i..check_end.to_i).step(3600) do |time_i|
+          time = Time.at(time_i).getlocal
+          hour = time.hour
+          allowed = allowed_ranges.any? { |start_h, end_h| hour >= start_h && hour < end_h }
+          return false unless allowed
+        end
+
+        true
+      end
+
+      def parse_time_restrictions(restrictions)
+        return [] if restrictions.blank?
+
+        restrictions.scan(/(\d{1,2})[:：](\d{2})\s*[-~到]\s*(\d{1,2})[:：](\d{2})/).map do |start_h, start_m, end_h, end_m|
+          [start_h.to_i, end_h.to_i]
+        end
       end
 
       def create_initial_approvals(pass)

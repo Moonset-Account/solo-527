@@ -2,8 +2,12 @@ class Credential < ApplicationRecord
   belongs_to :person
   belongs_to :verifier, class_name: 'User', optional: true
 
+  attr_accessor :number, :issued_by, :issued_at, :valid_until
+
   validates :credential_type, presence: true
   validates :credential_number, presence: true, uniqueness: { scope: :credential_type }
+
+  before_validation :map_alias_fields
 
   scope :verified, -> { where(verified: true) }
   scope :unverified, -> { where(verified: false) }
@@ -33,5 +37,14 @@ class Credential < ApplicationRecord
 
   def verify!(verifier)
     update!(verified: true, verified_at: Time.current, verifier: verifier)
+  end
+
+  private
+
+  def map_alias_fields
+    self.credential_number ||= number if number.present?
+    self.issuing_authority ||= issued_by if issued_by.present?
+    self.issue_date ||= issued_at if issued_at.present?
+    self.expiry_date ||= valid_until if valid_until.present?
   end
 end

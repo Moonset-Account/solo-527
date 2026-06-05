@@ -28,10 +28,10 @@ class ExpireCheckJob < ApplicationJob
   end
 
   def check_expired_passes
-    expired_passes = Pass.where(status: 'approved').where('valid_until <= ?', Time.current).where(frozen: false)
+    expired_passes = Pass.where(status: 'approved').where('valid_until <= ?', Time.current).where(is_frozen: false)
 
     expired_passes.find_each do |pass|
-      pass.update(frozen: true, frozen_at: Time.current, freeze_reason: '通行证过期自动失效')
+      pass.update(is_frozen: true, frozen_at: Time.current, freeze_reason: '通行证过期自动失效')
     end
   end
 end

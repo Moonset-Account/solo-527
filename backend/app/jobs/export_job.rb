@@ -74,7 +74,7 @@ class ExportJob < ApplicationJob
   end
 
   def generate_excel(sheet_name, collection)
-    require 'axlsx'
+    require 'caxlsx'
 
     dir = Rails.root.join('storage', 'exports')
     FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
