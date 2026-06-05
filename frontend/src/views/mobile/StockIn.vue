@@ -27,10 +27,6 @@
           <el-input-number v-model="form.quantity" :min="0.1" :step="1" class="w-full" />
         </el-form-item>
         
-        <el-form-item label="单位">
-          <el-input v-model="form.unit" placeholder="如: g, mL, L" />
-        </el-form-item>
-        
         <el-form-item label="过期日期">
           <el-date-picker
             v-model="form.expiry_date"
@@ -67,19 +63,24 @@
             :auto-upload="false"
             list-type="picture-card"
             :on-change="handleFileChange"
+            :on-remove="handleFileRemove"
+            :file-list="fileList"
             multiple
             accept="image/*"
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
+          <div v-if="uploading" class="text-sm text-blue-600 mt-1">
+            正在上传附件...
+          </div>
         </el-form-item>
         
-        <el-button type="primary" class="w-full" :loading="submitting" @click="submit">
+        <el-button type="primary" class="w-full" :loading="submitting || uploading" @click="submit">
           {{ offlineMode ? '离线保存，稍后同步' : '提交入库' }}
         </el-button>
         
-        <el-button v-if="pendingSyncCount > 0" class="w-full mt-2" type="warning" @click="syncOfflineData">
-          同步待提交数据 ({{ pendingSyncCount }})
+        <el-button v-if="pendingSyncCount > 0" class="w-full mt-2" type="warning" :loading="syncing" @click="syncOfflineData">
+          {{ syncing ? '同步中...' : `同步待提交数据 (${pendingSyncCount})` }}
         </el-button>
       </el-form>
     </div>
@@ -87,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import localforage from 'localforage'
@@ -100,15 +101,18 @@ const router = useRouter()
 const reagents = ref<any[]>([])
 const cabinets = ref<any[]>([])
 const submitting = ref(false)
-const files = ref<any[]>([])
+const uploading = ref(false)
+const syncing = ref(false)
 const offlineMode = ref(false)
 const pendingSyncCount = ref(0)
+
+const fileList = ref<any[]>([])
+const uploadedAttachmentIds = ref<number[]>([])
 
 const form = reactive({
   reagent_id: null as number | null,
   batch_number: '',
   quantity: 1,
-  unit: 'g',
   expiry_date: '',
   storage_cabinet_id: null as number | null,
   notes: ''
@@ -134,10 +138,45 @@ function onReagentChange() {
   }
 }
 
-function handleFileChange(file: any) {
-  if (files.value.length < 5) {
-    files.value.push(file.raw)
+async function handleFileChange(file: any) {
+  if (!file.raw) return
+  
+  if (offlineMode.value || !navigator.onLine) {
+    fileList.value.push(file)
+    return
   }
+  
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file.raw)
+    
+    const result = await api.post('/attachments/pre-upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }) as any
+    
+    uploadedAttachmentIds.value.push(result.id)
+    fileList.value.push(file)
+    ElMessage.success(`附件 ${file.name} 上传成功`)
+  } catch (e) {
+    console.error('Upload failed:', e)
+    ElMessage.error(`附件 ${file.name} 上传失败`)
+  } finally {
+    uploading.value = false
+  }
+}
+
+function handleFileRemove(file: any, index: number) {
+  uploadedAttachmentIds.value.splice(index, 1)
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 async function submit() {
@@ -157,6 +196,10 @@ async function submit() {
     ElMessage.warning('请选择存放柜位')
     return
   }
+  if (uploading.value) {
+    ElMessage.warning('请等待附件上传完成')
+    return
+  }
   
   if (offlineMode.value || !navigator.onLine) {
     await saveOffline()
@@ -171,7 +214,8 @@ async function submit() {
       quantity: form.quantity,
       expiry_date: form.expiry_date,
       storage_cabinet_id: form.storage_cabinet_id,
-      remarks: form.notes || ''
+      remarks: form.notes || '',
+      attachment_ids: uploadedAttachmentIds.value
     }
     
     await api.post(`/reagents/${form.reagent_id}/batches`, submitData)
@@ -185,6 +229,7 @@ async function submit() {
       await saveOffline()
     } else {
       console.error(e)
+      ElMessage.error('提交失败，请重试')
     }
   } finally {
     submitting.value = false
@@ -193,6 +238,14 @@ async function submit() {
 
 async function saveOffline() {
   try {
+    const fileBase64List: string[] = []
+    for (const file of fileList.value) {
+      if (file.raw) {
+        const b64 = await fileToBase64(file.raw)
+        fileBase64List.push(b64)
+      }
+    }
+    
     const offlineRecord = {
       type: 'stock_in',
       data: {
@@ -203,6 +256,7 @@ async function saveOffline() {
         storage_cabinet_id: form.storage_cabinet_id,
         remarks: form.notes || ''
       },
+      files: fileBase64List,
       timestamp: Date.now(),
       id: Date.now().toString()
     }
@@ -225,6 +279,18 @@ async function updatePendingCount() {
   pendingSyncCount.value = pending.length
 }
 
+function base64ToFile(base64: string, filename: string): File {
+  const arr = base64.split(',')
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg'
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  return new File([u8arr], filename, { type: mime })
+}
+
 async function syncOfflineData() {
   if (!navigator.onLine) {
     ElMessage.warning('请先连接网络')
@@ -234,13 +300,28 @@ async function syncOfflineData() {
   try {
     await ElMessageBox.confirm(`确定要同步 ${pendingSyncCount.value} 条离线数据吗？`, '同步确认')
     
+    syncing.value = true
     const pending = await localforage.getItem('offline_records') as any[] || []
     let successCount = 0
     
     for (const record of pending) {
       try {
         if (record.type === 'stock_in') {
-          const data = record.data
+          const attachmentIds: number[] = []
+          
+          if (record.files && record.files.length > 0) {
+            for (let i = 0; i < record.files.length; i++) {
+              const file = base64ToFile(record.files[i], `offline_${Date.now()}_${i}.jpg`)
+              const formData = new FormData()
+              formData.append('file', file)
+              const result = await api.post('/attachments/pre-upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+              }) as any
+              attachmentIds.push(result.id)
+            }
+          }
+          
+          const data = { ...record.data, attachment_ids: attachmentIds }
           await api.post(`/reagents/${data.reagent_id}/batches`, data)
         }
         successCount++
@@ -256,6 +337,8 @@ async function syncOfflineData() {
     ElMessage.success(`成功同步 ${successCount} 条数据`)
   } catch (e) {
     console.error(e)
+  } finally {
+    syncing.value = false
   }
 }
 
@@ -265,6 +348,10 @@ onMounted(() => {
   
   if (route.query.barcode) {
     form.batch_number = route.query.barcode as string
+  }
+  
+  if (!navigator.onLine) {
+    offlineMode.value = true
   }
 })
 </script>

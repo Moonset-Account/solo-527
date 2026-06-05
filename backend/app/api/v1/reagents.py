@@ -232,7 +232,17 @@ def create_batch(
         raise HTTPException(status_code=404, detail="试剂不存在")
     
     batch_in.reagent_id = reagent_id
-    batch = crud.reagent_batch.create(db, obj_in=batch_in, created_by=current_user.id)
+    attachment_ids = batch_in.attachment_ids or []
+    batch_data = batch_in.model_dump(exclude={"attachment_ids"})
+    batch = crud.reagent_batch.create(db, obj_in=schemas.ReagentBatchCreate(**batch_data), created_by=current_user.id)
+    
+    if attachment_ids:
+        for att_id in attachment_ids:
+            att = crud.attachment.get(db, id=att_id)
+            if att and att.related_id == 0:
+                att.related_id = batch.id
+                db.commit()
+                db.refresh(att)
     
     try:
         notification_service.check_low_stock(db)
@@ -245,7 +255,7 @@ def create_batch(
         action=models.AuditAction.CREATE,
         resource_type="reagent_batch",
         resource_id=batch.id,
-        details=f"入库批次 {batch.batch_number} for {reagent.name}",
+        details=f"入库批次 {batch.batch_number} for {reagent.name}, 备注: {batch.remarks or '无'}, 附件: {len(attachment_ids)}个",
         ip_address=request.client.host if request.client else None
     )
     return batch
