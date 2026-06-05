@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Form, Input, Select, Button, Space, DatePicker, TimePicker,
-  Radio, message, Spin, Tag, Alert
+  Card, Form, Input, Select, Button, Space,
+  Radio, message, Alert
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { appointmentsApi, mentorsApi, industryApi } from '../api';
@@ -49,7 +49,9 @@ const CreateAppointment = () => {
         queryClient.invalidateQueries(['appointments']);
         navigate('/appointments');
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '创建失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '创建失败');
+      }
     }
   );
 

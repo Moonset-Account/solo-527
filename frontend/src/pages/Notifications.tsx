@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, List, Button, Space, Tag, Empty, message, Badge,
-  Select, Radio, Divider, Tooltip
+  Radio, Tooltip
 } from 'antd';
 import {
   BellOutlined, CheckOutlined, CheckCircleOutlined,
@@ -11,8 +11,6 @@ import {
 } from '@ant-design/icons';
 import { notificationsApi } from '../api';
 import dayjs from 'dayjs';
-
-const { Option } = Select;
 
 const typeConfig: Record<string, { icon: any; color: string; text: string }> = {
   appointment_created: { icon: CalendarOutlined, color: 'blue', text: '新预约' },
@@ -30,7 +28,7 @@ const Notifications = () => {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
 
-  const { data, isLoading } = useQuery(
+  const { data } = useQuery(
     ['notifications', filter, page, pageSize],
     () => notificationsApi.list({
       is_read: filter === 'unread' ? false : undefined,
@@ -153,7 +151,7 @@ const Notifications = () => {
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{item.title}</span>
                         {!item.is_read && <Badge status="processing" />}
-                        <Tag color={config.color} size="small">{config.text}</Tag>
+                        <Tag color={config.color}>{config.text}</Tag>
                       </div>
                     }
                     description={

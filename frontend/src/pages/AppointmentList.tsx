@@ -25,7 +25,7 @@ const AppointmentList = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  const { data, isLoading, refetch } = useQuery(
+  const { data, isLoading } = useQuery(
     ['appointments', page, status],
     () => appointmentsApi.list({
       page,
@@ -68,7 +68,7 @@ const AppointmentList = () => {
                 {user?.role === 'student' ? '导师' : '学生'}: {otherName}
               </div>
               {appointment.contact_unlocked && (
-                <Tag color="green" size="small">联系方式已开放</Tag>
+                <Tag color="green">联系方式已开放</Tag>
               )}
             </div>
           }

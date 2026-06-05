@@ -9,11 +9,10 @@ import {
   ArrowLeftOutlined, VideoCameraOutlined, 
   EnvironmentOutlined, UploadOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
-import { appointmentsApi, feedbackApi, uploadApi } from '../api';
+import { appointmentsApi, feedbackApi } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
 import dayjs from 'dayjs';
 import { useAuthStore } from '../store/authStore';
-import type { UploadFile } from 'antd/es/upload/interface';
 
 const statusConfig: Record<string, { color: string; text: string }> = {
   pending: { color: 'orange', text: '待确认' },
@@ -51,12 +50,6 @@ const AppointmentDetail = () => {
     { enabled: !!appointmentId }
   );
 
-  const { data: feedback } = useQuery(
-    ['appointment-feedback', appointmentId],
-    () => feedbackApi.get(appointmentId),
-    { enabled: !!appointmentId }
-  );
-
   const { data: feedbackQuestions } = useQuery(
     'feedback-questions',
     () => feedbackApi.getQuestions(user?.role === 'mentor' ? 'mentor' : 'student')
@@ -71,7 +64,9 @@ const AppointmentDetail = () => {
         queryClient.invalidateQueries(['appointment', appointmentId]);
         setCancelVisible(false);
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '操作失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '操作失败');
+      }
     }
   );
 
@@ -87,9 +82,11 @@ const AppointmentDetail = () => {
         message.success('评价提交成功');
         setFeedbackVisible(false);
         feedbackForm.resetFields();
-        queryClient.invalidateQueries(['appointment-feedback', appointmentId]);
+        queryClient.invalidateQueries(['appointment', appointmentId]);
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '提交失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '提交失败');
+      }
     }
   );
 
@@ -110,7 +107,7 @@ const AppointmentDetail = () => {
   );
 
   const getOtherParty = () => isStudent ? appt.mentor : appt.student;
-  const other = getOtherParty();
+  const other: any = getOtherParty();
 
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
@@ -127,7 +124,22 @@ const AppointmentDetail = () => {
     }
   };
 
-  const tabItems = [
+  const getOtherPartyInfo = () => {
+    if (isStudent) {
+      return {
+        position: other?.current_position,
+        company: other?.current_company,
+      };
+    }
+    return {
+      position: other?.major,
+      company: other?.school,
+    };
+  };
+
+  const otherInfo = getOtherPartyInfo();
+
+  const tabItems: any = [
     {
       key: 'detail',
       label: '预约详情',
@@ -157,7 +169,7 @@ const AppointmentDetail = () => {
               <div>
                 <div className="font-medium text-lg">{other?.user?.name}</div>
                 <div className="text-gray-500">
-                  {isStudent ? `${other?.current_position} @ ${other?.current_company}` : `${other?.school} ${other?.major}`}
+                  {otherInfo.position} @ {otherInfo.company}
                 </div>
                 {appt.contact_unlocked && other?.user?.phone && (
                   <div className="text-green-600 mt-1">
@@ -204,7 +216,7 @@ const AppointmentDetail = () => {
             >
               <Button icon={<UploadOutlined />}>上传附件</Button>
             </Upload>
-            {attachments?.data?.length === 0 ? (
+            {!attachments?.data || attachments.data.length === 0 ? (
               <Empty description="暂无附件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               <List
@@ -273,7 +285,7 @@ const AppointmentDetail = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <Avatar size="small">{appt.student?.user?.name?.[0]}</Avatar>
                   <span className="font-medium">学生评价</span>
-                  <Rate disabled value={appt.feedback.student_rating} size="small" />
+                  <Rate disabled value={appt.feedback.student_rating} />
                   <span className="text-gray-400 text-xs">
                     {dayjs(appt.feedback.student_submitted_at).format('YYYY-MM-DD')}
                   </span>
@@ -289,7 +301,7 @@ const AppointmentDetail = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <Avatar size="small">{appt.mentor?.user?.name?.[0]}</Avatar>
                   <span className="font-medium">导师评价</span>
-                  <Rate disabled value={appt.feedback.mentor_rating} size="small" />
+                  <Rate disabled value={appt.feedback.mentor_rating} />
                   <span className="text-gray-400 text-xs">
                     {dayjs(appt.feedback.mentor_submitted_at).format('YYYY-MM-DD')}
                   </span>

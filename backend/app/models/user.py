@@ -18,9 +18,9 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    student_profile = db.relationship('Student', back_populates='user', uselist=False, cascade='all, delete-orphan')
-    mentor_profile = db.relationship('Mentor', back_populates='user', uselist=False, cascade='all, delete-orphan')
-    notifications = db.relationship('Notification', back_populates='user', cascade='all, delete-orphan')
+    student_profile = db.relationship('Student', back_populates='user', uselist=False, cascade='all, delete-orphan', foreign_keys='Student.user_id')
+    mentor_profile = db.relationship('Mentor', back_populates='user', uselist=False, cascade='all, delete-orphan', foreign_keys='Mentor.user_id')
+    notifications = db.relationship('Notification', back_populates='user', cascade='all, delete-orphan', foreign_keys='Notification.user_id')
     audit_logs = db.relationship('AuditLog', back_populates='user', foreign_keys='AuditLog.user_id')
     
     __mapper_args__ = {
@@ -70,7 +70,8 @@ class Student(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = db.relationship('User', back_populates='student_profile')
+    user = db.relationship('User', back_populates='student_profile', foreign_keys=[user_id])
+    reviewed_by_user = db.relationship('User', foreign_keys=[reviewed_by])
     appointments = db.relationship('Appointment', back_populates='student', foreign_keys='Appointment.student_id')
     feedbacks_given = db.relationship('Feedback', back_populates='student', foreign_keys='Feedback.student_id')
     
@@ -120,7 +121,8 @@ class Mentor(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = db.relationship('User', back_populates='mentor_profile')
+    user = db.relationship('User', back_populates='mentor_profile', foreign_keys=[user_id])
+    reviewed_by_user = db.relationship('User', foreign_keys=[reviewed_by])
     time_slots = db.relationship('TimeSlot', back_populates='mentor', cascade='all, delete-orphan')
     appointments = db.relationship('Appointment', back_populates='mentor', foreign_keys='Appointment.mentor_id')
     feedbacks_received = db.relationship('Feedback', back_populates='mentor', foreign_keys='Feedback.mentor_id')

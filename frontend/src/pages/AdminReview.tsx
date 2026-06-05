@@ -48,7 +48,9 @@ const AdminReview = () => {
         setReviewModalVisible(false);
         setDetailVisible(false);
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '审核失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '审核失败');
+      }
     }
   );
 
@@ -61,7 +63,9 @@ const AdminReview = () => {
         setReviewModalVisible(false);
         setDetailVisible(false);
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '审核失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '审核失败');
+      }
     }
   );
 
@@ -89,19 +93,29 @@ const AdminReview = () => {
     }
   };
 
+  const getPendingMentorCount = () => {
+    const items = mentors?.data?.items || [];
+    return items.filter((m: any) => m.review_status === 'pending').length;
+  };
+
+  const getPendingStudentCount = () => {
+    const items = students?.data?.items || [];
+    return items.filter((s: any) => s.review_status === 'pending').length;
+  };
+
   const mentorColumns = [
     {
       title: '导师信息',
       dataIndex: 'user',
       key: 'user',
-      render: (user: any, record: any) => (
+      render: (user: any) => (
         <div className="flex items-center gap-3">
-          <Avatar icon={<UserOutlined />} src={user.avatar_url}>
-            {user.name?.[0]}
+          <Avatar icon={<UserOutlined />} src={user?.avatar_url}>
+            {user?.name?.[0]}
           </Avatar>
           <div>
-            <div className="font-medium">{user.name}</div>
-            <div className="text-gray-500 text-sm">{user.email}</div>
+            <div className="font-medium">{user?.name}</div>
+            <div className="text-gray-500 text-sm">{user?.email}</div>
           </div>
         </div>
       ),
@@ -179,14 +193,14 @@ const AdminReview = () => {
       title: '学生信息',
       dataIndex: 'user',
       key: 'user',
-      render: (user: any, record: any) => (
+      render: (user: any) => (
         <div className="flex items-center gap-3">
-          <Avatar icon={<UserOutlined />} src={user.avatar_url}>
-            {user.name?.[0]}
+          <Avatar icon={<UserOutlined />} src={user?.avatar_url}>
+            {user?.name?.[0]}
           </Avatar>
           <div>
-            <div className="font-medium">{user.name}</div>
-            <div className="text-gray-500 text-sm">{user.email}</div>
+            <div className="font-medium">{user?.name}</div>
+            <div className="text-gray-500 text-sm">{user?.email}</div>
           </div>
         </div>
       ),
@@ -249,14 +263,14 @@ const AdminReview = () => {
     },
   ];
 
-  const tabItems = [
+  const tabItems: any = [
     {
       key: 'mentors',
       label: (
         <span>
           <TeamOutlined /> 导师审核
-          {mentors?.data?.items?.filter((m: any) => m.review_status === 'pending').length > 0 && (
-            <Badge count={mentors.data.items.filter((m: any) => m.review_status === 'pending').length} size="small" className="ml-2" />
+          {getPendingMentorCount() > 0 && (
+            <Badge count={getPendingMentorCount()} size="small" className="ml-2" />
           )}
         </span>
       ),
@@ -275,8 +289,8 @@ const AdminReview = () => {
       label: (
         <span>
           <UserOutlined /> 学生审核
-          {students?.data?.items?.filter((s: any) => s.review_status === 'pending').length > 0 && (
-            <Badge count={students.data.items.filter((s: any) => s.review_status === 'pending').length} size="small" className="ml-2" />
+          {getPendingStudentCount() > 0 && (
+            <Badge count={getPendingStudentCount()} size="small" className="ml-2" />
           )}
         </span>
       ),

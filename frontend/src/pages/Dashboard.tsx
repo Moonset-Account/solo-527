@@ -1,5 +1,5 @@
 import { useQuery } from 'react-query';
-import { Card, Row, Col, Statistic, Spin, List, Tag, Avatar, Empty, Button } from 'antd';
+import { Card, Row, Col, Statistic, Spin, List, Tag, Avatar, Button } from 'antd';
 import { 
   UserOutlined, 
   TeamOutlined, 
@@ -10,7 +10,6 @@ import {
 import { dashboardApi, mentorsApi } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 
 const Dashboard = () => {
   const { user } = useAuthStore();

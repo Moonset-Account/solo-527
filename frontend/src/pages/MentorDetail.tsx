@@ -1,15 +1,13 @@
-import { useState } from 'react';
 import { useQuery } from 'react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Card, Descriptions, Tag, Avatar, Button, Space, Tabs, 
-  List, Rate, Spin, Empty, Modal, Calendar, Badge 
+  List, Rate, Spin, Empty
 } from 'antd';
 import { 
-  ArrowLeftOutlined, CalendarOutlined, 
-  StarOutlined, MessageOutlined 
+  ArrowLeftOutlined, CalendarOutlined
 } from '@ant-design/icons';
-import { mentorsApi, feedbackApi } from '../api';
+import { mentorsApi } from '../api';
 import dayjs from 'dayjs';
 import { useAuthStore } from '../store/authStore';
 
@@ -18,7 +16,6 @@ const MentorDetail = () => {
   const mentorId = Number(id);
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [bookingVisible, setBookingVisible] = useState(false);
 
   const { data: mentor, isLoading } = useQuery(
     ['mentor', mentorId],
@@ -43,7 +40,7 @@ const MentorDetail = () => {
   const m = mentor?.data;
   if (!m) return <Empty description="导师不存在" />;
 
-  const tabItems = [
+  const tabItems: any = [
     {
       key: 'info',
       label: '导师介绍',
@@ -127,7 +124,7 @@ const MentorDetail = () => {
             <Empty description="暂无评价" />
           ) : (
             <List
-              data={feedbacks?.data?.items}
+              dataSource={feedbacks?.data?.items}
               renderItem={(fb: any) => (
                 <List.Item>
                   <List.Item.Meta
@@ -135,7 +132,7 @@ const MentorDetail = () => {
                     title={
                       <Space>
                         <span>{fb.student?.user?.name || '匿名用户'}</span>
-                        <Rate disabled value={fb.student_rating} size="small" />
+                        <Rate disabled value={fb.student_rating} />
                       </Space>
                     }
                     description={

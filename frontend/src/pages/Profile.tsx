@@ -2,16 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Card, Form, Input, Select, Button, Space, Tabs, Avatar,
-  message, Upload, Tag, Divider, Descriptions
+  message, Upload, Tag, Divider
 } from 'antd';
 import {
   UserOutlined, SaveOutlined, UploadOutlined,
   EditOutlined, ClockCircleOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
 import { authApi, uploadApi, industryApi } from '../api';
-import dayjs from 'dayjs';
 import { useAuthStore } from '../store/authStore';
-import type { UploadFile } from 'antd/es/upload/interface';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -48,7 +46,9 @@ const Profile = () => {
         setEditing(false);
         queryClient.invalidateQueries('profile');
       },
-      onError: (err: any) => message.error(err.response?.data?.error || '更新失败')
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '更新失败');
+      }
     }
   );
 
@@ -75,7 +75,7 @@ const Profile = () => {
   const reviewStatus = profileData?.student?.review_status || profileData?.mentor?.review_status;
   const statusConfig = reviewStatus ? reviewStatusConfig[reviewStatus] : null;
 
-  const basicInfoTab = {
+  const basicInfoTab: any = {
     key: 'basic',
     label: '基本信息',
     children: (
@@ -241,7 +241,7 @@ const Profile = () => {
     ),
   } : null;
 
-  const tabItems = [basicInfoTab, resumeTab].filter(Boolean);
+  const tabItems = [basicInfoTab, resumeTab].filter(Boolean) as any;
 
   return (
     <div className="space-y-4">

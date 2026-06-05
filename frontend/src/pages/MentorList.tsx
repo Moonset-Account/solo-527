@@ -20,7 +20,7 @@ const MentorList = () => {
 
   const { data: industries } = useQuery('industries', () => industryApi.list());
 
-  const { data, isLoading, refetch } = useQuery(
+  const { data, isLoading } = useQuery(
     ['mentors', page, keyword, selectedIndustry],
     () => mentorsApi.list({
       page,

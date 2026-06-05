@@ -1,5 +1,4 @@
 import apiClient from './client';
-import { User } from '../types';
 
 export const authApi = {
   register: (data: any) => apiClient.post('/auth/register', data),
