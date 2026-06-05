@@ -16,7 +16,7 @@ export interface Medicine {
 export interface Batch {
 	id: number;
 	batch_no: string;
-	stock: number;
+	quantity: number;
 	expiry_date: string;
 	medicine_name: string;
 	medicine_code?: string;

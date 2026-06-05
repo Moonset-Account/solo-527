@@ -37,6 +37,10 @@ func CreatePrescription(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
+	if req.IsManualEntry && req.ManualReason == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "人工补录必须填写补录原因"})
+	}
+
 	tx, err := database.DB.Begin()
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to begin transaction"})
@@ -541,7 +545,7 @@ func GetPrescriptionPublic(c *fiber.Ctx) error {
 
 	rows, err := database.DB.Query(`
 		SELECT pi.id, m.name, m.code, mb.batch_no, pi.quantity,
-		       COALESCE(mb.stock, 0) as current_stock,
+		       COALESCE(mb.quantity, 0) as current_stock,
 		       pi.accept_alternative, alt_mb.batch_no,
 		       pi.alternative_confirmed_at IS NOT NULL
 		FROM prescription_items pi
@@ -577,13 +581,13 @@ func GetPrescriptionPublic(c *fiber.Ctx) error {
 	for i, item := range items {
 		if item.IsStockOut {
 			altRows, _ := database.DB.Query(`
-				SELECT id, batch_no, stock, expiry_date
+				SELECT id, batch_no, quantity as stock, expiry_date
 				FROM medicine_batches
 				WHERE medicine_id = (
 					SELECT medicine_id FROM medicine_batches WHERE id = (
 						SELECT batch_id FROM prescription_items WHERE id = ?
 					)
-				) AND stock > 0 AND id != (SELECT batch_id FROM prescription_items WHERE id = ?)
+				) AND quantity > 0 AND id != (SELECT batch_id FROM prescription_items WHERE id = ?)
 				ORDER BY expiry_date ASC
 			`, item.ID, item.ID)
 			var alternatives []map[string]interface{}
@@ -614,7 +618,7 @@ func GetPrescriptionPublic(c *fiber.Ctx) error {
 
 	var rescheduleRecords []map[string]interface{}
 	rsRows, _ := database.DB.Query(`
-		SELECT r.old_time, r.new_time, r.reason, r.created_at, u.name
+		SELECT r.old_pick_up_time as old_time, r.new_pick_up_time as new_time, r.reason, r.created_at, u.name
 		FROM reschedule_records r
 		LEFT JOIN users u ON r.created_by = u.id
 		WHERE r.prescription_id = ?

@@ -125,8 +125,8 @@ CREATE TABLE IF NOT EXISTS backup_records (
 CREATE TABLE IF NOT EXISTS reschedule_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     prescription_id INTEGER NOT NULL,
-    old_time DATETIME NOT NULL,
-    new_time DATETIME NOT NULL,
+    old_pick_up_time DATETIME NOT NULL,
+    new_pick_up_time DATETIME NOT NULL,
     reason TEXT,
     created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
