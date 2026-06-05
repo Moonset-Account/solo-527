@@ -46,7 +46,7 @@ export default async function VenuesPage() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {venues.map((venue) => (
+        {venues.map((venue: any) => (
           <div
             key={venue.id}
             className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow"

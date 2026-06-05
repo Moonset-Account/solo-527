@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const seats = await tx.seat.findMany({
         where: {
           id: { in: seatIds },
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       }
 
       const totalAmount = seats.reduce(
-        (sum, seat) => sum + seat.tier.price.toNumber(),
+        (sum: number, seat: any) => sum + seat.tier.price.toNumber(),
         0
       );
 

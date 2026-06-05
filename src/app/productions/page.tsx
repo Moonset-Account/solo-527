@@ -49,7 +49,7 @@ export default async function ProductionsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {productions.map((production) => (
+        {productions.map((production: any) => (
           <Link
             key={production.id}
             href={`/productions/${production.id}`}

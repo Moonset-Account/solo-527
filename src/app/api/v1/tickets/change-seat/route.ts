@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const { ticketId, newSeatId, reason } = await request.json();
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const ticket = await tx.ticket.findUnique({
         where: { id: ticketId },
         include: { seat: true },

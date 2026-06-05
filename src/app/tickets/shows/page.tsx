@@ -31,7 +31,7 @@ export default async function ShowsPage() {
       </div>
 
       <div className="space-y-6">
-        {shows.map((show) => (
+        {shows.map((show: any) => (
           <div
             key={show.id}
             className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow"
@@ -71,7 +71,7 @@ export default async function ShowsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 mb-4">
-                  {show.ticketTiers.map((tier) => (
+                  {show.ticketTiers.map((tier: any) => (
                     <div
                       key={tier.id}
                       className="px-4 py-2 bg-gray-50 rounded-lg"

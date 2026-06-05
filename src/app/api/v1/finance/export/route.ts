@@ -44,11 +44,11 @@ export async function GET(req: Request) {
     });
 
     const totalIncome = records
-      .filter((r) => r.type === 'INCOME')
-      .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0);
+      .filter((r: any) => r.type === 'INCOME')
+      .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0);
     const totalExpense = records
-      .filter((r) => r.type === 'EXPENSE')
-      .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0);
+      .filter((r: any) => r.type === 'EXPENSE')
+      .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0);
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('财务报表');
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     });
 
-    records.forEach((record) => {
+    records.forEach((record: any) => {
       worksheet.addRow([
         formatDate(record.recordedAt, 'yyyy-MM-dd HH:mm:ss'),
         record.type === 'INCOME' ? '收入' : '支出',

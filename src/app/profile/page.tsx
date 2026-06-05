@@ -93,7 +93,7 @@ export default async function ProfilePage() {
                 我的角色
               </h3>
               <div className="space-y-3">
-                {user.characters.map((character) => (
+                {user?.characters?.map((character: any) => (
                   <div
                     key={character.id}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
@@ -140,8 +140,8 @@ export default async function ProfilePage() {
                   </thead>
                   <tbody>
                     {user.courseSchedules
-                      .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
-                      .map((course) => (
+                      .sort((a: any, b: any) => a.dayOfWeek - b.dayOfWeek)
+                      .map((course: any) => (
                         <tr key={course.id} className="border-b border-gray-100">
                           <td className="py-3 px-4 text-sm text-gray-900">
                             {weekDays[course.dayOfWeek]}

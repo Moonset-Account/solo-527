@@ -96,7 +96,7 @@ export default async function LeavesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {leaveRequests.map((leave) => {
+              {leaveRequests.map((leave: any) => {
                 const status = statusConfig[leave.status];
                 const StatusIcon = status.icon;
                 return (

@@ -159,7 +159,7 @@ export default async function DashboardPage() {
             {upcomingRehearsals.length === 0 ? (
               <p className="text-gray-500 text-center py-8">暂无排练安排</p>
             ) : (
-              upcomingRehearsals.map((rehearsal) => (
+              upcomingRehearsals.map((rehearsal: any) => (
                 <div
                   key={rehearsal.id}
                   className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
             {recentShows.length === 0 ? (
               <p className="text-gray-500 text-center py-8">暂无演出安排</p>
             ) : (
-              recentShows.map((show) => (
+              recentShows.map((show: any) => (
                 <div
                   key={show.id}
                   className="border border-gray-100 rounded-lg p-4 hover:border-primary/30 transition-colors"

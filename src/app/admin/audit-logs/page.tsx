@@ -96,7 +96,7 @@ export default async function AuditLogsPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {auditLogs.map((log) => {
+              {auditLogs.map((log: any) => {
                 const action = actionLabels[log.action] || {
                   label: log.action,
                   className: 'bg-gray-100 text-gray-700',

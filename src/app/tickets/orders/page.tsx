@@ -53,7 +53,7 @@ export default async function OrdersPage() {
       </div>
 
       <div className="space-y-4">
-        {orders.map((order) => (
+        {orders.map((order: any) => (
           <div
             key={order.id}
             className="bg-white rounded-xl shadow-sm overflow-hidden"
@@ -98,7 +98,7 @@ export default async function OrdersPage() {
             <div className="p-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">座位信息</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {order.tickets.map((ticket) => (
+                {order.tickets.map((ticket: any) => (
                   <div
                     key={ticket.id}
                     className="bg-gray-50 rounded-lg p-4 flex items-center justify-between"

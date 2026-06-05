@@ -53,8 +53,8 @@ export default async function AdminUsersPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Object.entries(roleConfig).map(([role, config]) => {
-          const count = users.filter((u) => u.role === role).length;
+        {Object.entries(roleConfig).map(([role, config]: [string, any]) => {
+          const count = users.filter((u: any) => u.role === role).length;
           return (
             <div key={role} className="bg-white rounded-xl shadow-sm p-4">
               <div className="flex items-center justify-between">
@@ -99,7 +99,7 @@ export default async function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {users.map((user) => {
+              {users.map((user: any) => {
                 const role = roleConfig[user.role];
                 return (
                   <tr key={user.id} className="hover:bg-gray-50">
