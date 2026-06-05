@@ -11,9 +11,12 @@ let nurseToken = '';
 let deptNurseToken = '';
 let testPackId = null;
 let testBatchId = null;
+let testPackCode = '';
 
 describe('器械包全流程测试', () => {
   before(async () => {
+    testPackCode = 'TEST-FLOW-' + Date.now();
+
     const res = await request
       .post('/api/auth/login')
       .send({ username: 'lixd', password: 'sn123' });
@@ -26,13 +29,15 @@ describe('器械包全流程测试', () => {
   });
 
   after(async () => {
+    if (testPackId) {
+      await db.query('DELETE FROM pack_logs WHERE pack_id = $1', [testPackId]);
+    }
     if (testBatchId) {
       await db.query('DELETE FROM batch_packs WHERE batch_id = $1', [testBatchId]);
       await db.query('DELETE FROM sterilization_cards WHERE batch_id = $1', [testBatchId]);
       await db.query('DELETE FROM sterilization_batches WHERE id = $1', [testBatchId]);
     }
     if (testPackId) {
-      await db.query('DELETE FROM pack_logs WHERE pack_id = $1', [testPackId]);
       await db.query('DELETE FROM instrument_packs WHERE id = $1', [testPackId]);
     }
   });
@@ -42,10 +47,10 @@ describe('器械包全流程测试', () => {
       const res = await request
         .post('/api/packs')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ code: 'TEST-FLOW-001', name: '流程测试器械包', category: '外科' });
+        .send({ code: testPackCode, name: '流程测试器械包', category: '外科' });
 
       expect(res.status).to.equal(201);
-      expect(res.body.code).to.equal('TEST-FLOW-001');
+      expect(res.body.code).to.equal(testPackCode);
       expect(res.body.status).to.equal('new');
       testPackId = res.body.id;
     });
@@ -54,7 +59,7 @@ describe('器械包全流程测试', () => {
       const res = await request
         .post('/api/packs')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ code: 'TEST-FLOW-001', name: '重复编码包' });
+        .send({ code: testPackCode, name: '重复编码包' });
 
       expect(res.status).to.equal(409);
     });
@@ -63,7 +68,7 @@ describe('器械包全流程测试', () => {
       const res = await request
         .post('/api/packs')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ code: 'TEST-FLOW-002' });
+        .send({ code: 'TEST-FLOW-NONAME-' + Date.now() });
 
       expect(res.status).to.equal(400);
     });

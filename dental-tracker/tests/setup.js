@@ -1,5 +1,5 @@
 const db = require('../src/db/pool');
 
-after(async () => {
+exports.mochaGlobalTeardown = async function () {
   await db.pool.end();
-});
+};
