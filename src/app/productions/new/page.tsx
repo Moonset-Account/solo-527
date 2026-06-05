@@ -23,15 +23,56 @@ export default function NewProductionPage() {
     endDate: '',
   });
 
+  const uploadOfflinePhoto = async (key: string): Promise<string> => {
+    if (!key.startsWith('drama_club_photo_')) return key;
+
+    const base64Data = localStorage.getItem(key);
+    if (!base64Data) return '';
+
+    const base64Parts = base64Data.split(',');
+    const mimeType = base64Parts[0].match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
+    const binaryString = atob(base64Parts[1]);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    const file = new File([blob], `poster-${Date.now()}.jpg`, { type: mimeType });
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'posters');
+
+    const res = await fetch('/api/v1/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.removeItem(key);
+      return data.url;
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let posterUrl = formData.posterUrl;
+      if (posterUrl.startsWith('drama_club_photo_')) {
+        posterUrl = await uploadOfflinePhoto(posterUrl);
+      }
+
       const res = await fetch('/api/v1/productions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          posterUrl,
+        }),
       });
 
       if (res.ok) {

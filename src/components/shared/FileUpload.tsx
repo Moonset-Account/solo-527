@@ -98,7 +98,7 @@ export function FileUpload({
     }
   };
 
-  const isImage = preview && /\.(jpg|jpeg|png|gif|webp)$/i.test(preview);
+  const isImage = preview && (/\.(jpg|jpeg|png|gif|webp)$/i.test(preview) || preview.startsWith('http') || preview.startsWith('blob:'));
   const isOffline = preview?.startsWith('drama_club_photo_');
 
   return (

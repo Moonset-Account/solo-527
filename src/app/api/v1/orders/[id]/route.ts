@@ -27,8 +27,11 @@ export async function GET(
         },
         tickets: {
           include: {
-            seat: true,
-            tier: true,
+            seat: {
+              include: {
+                tier: true,
+              },
+            },
           },
         },
       },

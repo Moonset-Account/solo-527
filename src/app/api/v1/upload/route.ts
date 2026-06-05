@@ -56,13 +56,17 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);
 
-    const fileUrl = `/uploads/${uploadType}/${fileName}`;
+    const protocol = req.headers.get('x-forwarded-proto') || 'http';
+    const host = req.headers.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+    const fileUrl = `${baseUrl}/uploads/${uploadType}/${fileName}`;
 
     return NextResponse.json({
       url: fileUrl,
       name: file.name,
       size: file.size,
       type: file.type,
+      relativePath: `/uploads/${uploadType}/${fileName}`,
     });
   } catch (error) {
     console.error('Failed to upload file:', error);

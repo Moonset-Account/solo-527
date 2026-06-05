@@ -27,16 +27,55 @@ export default function NewFinanceRecordPage() {
     EXPENSE: ['场地租赁', '道具采购', '服装制作', '宣传费用', '人员酬劳', '其他支出'],
   };
 
+  const uploadOfflinePhoto = async (key: string): Promise<string> => {
+    if (!key.startsWith('drama_club_photo_')) return key;
+
+    const base64Data = localStorage.getItem(key);
+    if (!base64Data) return '';
+
+    const base64Parts = base64Data.split(',');
+    const mimeType = base64Parts[0].match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
+    const binaryString = atob(base64Parts[1]);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    const file = new File([blob], `receipt-${Date.now()}.jpg`, { type: mimeType });
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'receipts');
+
+    const res = await fetch('/api/v1/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.removeItem(key);
+      return data.url;
+    }
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let receiptUrl = formData.receiptUrl;
+      if (receiptUrl.startsWith('drama_club_photo_')) {
+        receiptUrl = await uploadOfflinePhoto(receiptUrl);
+      }
+
       const res = await fetch('/api/v1/finance/records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          receiptUrl,
           amount: parseFloat(formData.amount),
         }),
       });

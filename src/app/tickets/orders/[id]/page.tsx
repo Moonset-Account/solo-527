@@ -23,12 +23,12 @@ interface TicketItem {
   seat: {
     rowLabel: string;
     seatNumber: number;
+    tier: {
+      name: string;
+      price: string;
+    };
   };
-  tier: {
-    name: string;
-    price: string;
-  };
-  checkedIn: boolean;
+  isCheckedIn: boolean;
   checkedInAt: string | null;
 }
 
@@ -207,15 +207,15 @@ export default function OrderDetailPage() {
                           {ticket.seat.rowLabel}排 {ticket.seat.seatNumber} 座
                         </p>
                         <p className="text-sm text-gray-500">
-                          {ticket.tier.name}
+                          {ticket.seat.tier.name}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">
-                        {formatCurrency(ticket.tier.price)}
+                        {formatCurrency(ticket.seat.tier.price)}
                       </p>
-                      {ticket.checkedIn ? (
+                      {ticket.isCheckedIn ? (
                         <span className="text-xs text-green-600 flex items-center justify-end">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           已验票
