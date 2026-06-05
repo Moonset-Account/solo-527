@@ -1,124 +1,117 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { component$, useStylesScoped$, $ } from "@builder.io/qwik";
+import { Link, useNavigate } from "@builder.io/qwik-city";
+import { useAuth } from "~/context/auth";
 
 interface LayoutProps {
-  children: React.ReactNode;
+  title?: string;
 }
 
-const menuItems = [
-  { path: '/dashboard', label: '仪表盘', icon: '📊', roles: ['member', 'operator', 'admin'] },
-  { path: '/equipment', label: '设备档案', icon: '🚜', roles: ['member', 'operator', 'admin'] },
-  { path: '/fields', label: '地块地图', icon: '🗺️', roles: ['member', 'operator', 'admin'] },
-  { path: '/reservations', label: '预约管理', icon: '📅', roles: ['member', 'operator', 'admin'] },
-  { path: '/work', label: '作业执行', icon: '👷', roles: ['operator', 'admin'] },
-  { path: '/maintenance', label: '维修工单', icon: '🔧', roles: ['operator', 'admin'] },
-  { path: '/settlement', label: '结算中心', icon: '💰', roles: ['member', 'admin'] },
-  { path: '/audit', label: '审计日志', icon: '📋', roles: ['admin'] },
-];
+export default component$<LayoutProps>(({ title }) => {
+  const auth = useAuth();
+  const nav = useNavigate();
+  
+  useStylesScoped$(`
+    .sidebar {
+      width: 250px;
+      min-height: 100vh;
+    }
+    .nav-item {
+      transition: all 0.2s;
+    }
+    .nav-item:hover {
+      background-color: rgba(34, 197, 94, 0.1);
+    }
+    .nav-item.active {
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #16a34a;
+      border-right: 3px solid #22c55e;
+    }
+  `);
 
-export default function Layout({ children }: LayoutProps) {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const handleLogout = $(async () => {
+    await auth.logout();
+    nav.navigate('/login');
+  });
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const menuItems = [
+    { path: '/dashboard', label: '仪表板', icon: '📊', roles: ['member', 'operator', 'admin'] },
+    { path: '/equipment', label: '设备管理', icon: '🚜', roles: ['member', 'operator', 'admin'] },
+    { path: '/fields', label: '地块管理', icon: '🌾', roles: ['member', 'admin'] },
+    { path: '/reservations', label: '预约管理', icon: '📅', roles: ['member', 'operator', 'admin'] },
+    { path: '/work', label: '作业任务', icon: '👷', roles: ['operator', 'admin'] },
+    { path: '/maintenance', label: '维修工单', icon: '🔧', roles: ['operator', 'admin'] },
+    { path: '/settlement', label: '结算管理', icon: '💰', roles: ['member', 'admin'] },
+    { path: '/audit', label: '审计日志', icon: '📋', roles: ['admin'] },
+  ];
 
   const filteredMenuItems = menuItems.filter(item => 
-    user && item.roles.includes(user.role)
+    auth.user?.role && item.roles.includes(auth.user.role)
   );
 
-  const roleLabels: Record<string, string> = {
-    admin: '管理员',
-    member: '社员',
-    operator: '机手'
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 transition-all duration-300 flex flex-col`}>
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white text-xl">
+    <div class="flex">
+      <aside class="sidebar bg-white border-r border-gray-100 shadow-sm">
+        <div class="p-6 border-b border-gray-100">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white text-xl">
               🌾
             </div>
-            {sidebarOpen && (
-              <div>
-                <h1 className="font-serif font-bold text-lg text-primary-600">农机共享</h1>
-                <p className="text-xs text-gray-500">智慧农业平台</p>
-              </div>
-            )}
+            <div>
+              <h1 class="font-bold text-gray-800">农机共享平台</h1>
+              <p class="text-xs text-gray-500">农业合作社</p>
+            </div>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {filteredMenuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                location.pathname.startsWith(item.path)
-                  ? 'bg-primary-50 text-primary-600 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              {sidebarOpen && <span>{item.label}</span>}
-            </Link>
-          ))}
+        <nav class="p-4">
+          <ul class="space-y-1">
+            {filteredMenuItems.map((item) => (
+              <li key={item.path}>
+                <Link 
+                  href={item.path}
+                  class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:text-primary-600"
+                >
+                  <span class="text-xl">{item.icon}</span>
+                  <span class="font-medium">{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-medium">
-              {user?.name?.charAt(0) || 'U'}
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100">
+          <div class="flex items-center gap-3 mb-4 px-2">
+            <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 font-bold">
+              {auth.user?.name?.charAt(0) || '?'}
             </div>
-            {sidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{user?.name}</p>
-                <p className="text-xs text-gray-500">{roleLabels[user?.role || '']}</p>
-              </div>
-            )}
-            {sidebarOpen && (
-              <button
-                onClick={handleLogout}
-                className="text-gray-400 hover:text-red-500 transition-colors"
-                title="退出登录"
-              >
-                🚪
-              </button>
-            )}
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-800 truncate">{auth.user?.name}</p>
+              <p class="text-xs text-gray-500">
+                {auth.user?.role === 'admin' && '管理员'}
+                {auth.user?.role === 'member' && '社员'}
+                {auth.user?.role === 'operator' && '机手'}
+                {' · '}
+                {auth.user?.points} 积分
+              </p>
+            </div>
           </div>
+          <button 
+            onClick$={handleLogout}
+            class="w-full btn-secondary text-sm"
+          >
+            退出登录
+          </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100"
-          >
-            ☰
-          </button>
-          
-          <div className="flex items-center gap-4">
-            {user?.role === 'member' && (
-              <div className="flex items-center gap-2 bg-gold-50 px-3 py-1.5 rounded-full">
-                <span className="text-gold-600">⭐</span>
-                <span className="text-sm font-medium text-gold-700">{user.points} 积分</span>
-              </div>
-            )}
-          </div>
+      <main class="flex-1 min-h-screen bg-gray-50">
+        <header class="bg-white border-b border-gray-100 px-8 py-4">
+          <h2 class="text-xl font-bold text-gray-800">{title || '农业合作社农机共享平台'}</h2>
         </header>
-
-        <div className="flex-1 p-6 overflow-auto">
-          {children}
+        <div class="p-8">
+          <Slot />
         </div>
       </main>
     </div>
   );
-}
+});

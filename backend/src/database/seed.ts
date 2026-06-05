@@ -190,100 +190,156 @@ async function seed() {
     }
   ]);
 
+  const now = dayjs();
+
   const res1Id = uuidv4();
   const res2Id = uuidv4();
   const res3Id = uuidv4();
   const res4Id = uuidv4();
   const res5Id = uuidv4();
-
-  const now = dayjs();
+  const res6Id = uuidv4();
+  const res7Id = uuidv4();
 
   await db('reservations').insert([
     {
       id: res1Id,
-      user_id: member1Id,
+      member_id: member1Id,
       equipment_id: tractor1Id,
       field_id: field1Id,
-      crop_type: '小麦',
+      crop: '小麦',
       start_time: now.add(1, 'day').hour(8).minute(0).toISOString(),
       end_time: now.add(1, 'day').hour(12).minute(0).toISOString(),
       status: 'confirmed',
-      price_type: 'self_use',
+      price_type: 'member',
       estimated_price: 280,
-      is_cancelled: false,
-      queue_position: null
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: null,
+      notes: '深耕作业，注意土壤湿度'
     },
     {
       id: res2Id,
-      user_id: member2Id,
+      member_id: member2Id,
       equipment_id: tractor1Id,
       field_id: field2Id,
-      crop_type: '玉米',
-      start_time: now.add(2, 'day').hour(8).minute(0).toISOString(),
-      end_time: now.add(2, 'day').hour(11).minute(0).toISOString(),
-      status: 'pending',
-      price_type: 'cooperative_subsidy',
+      crop: '玉米',
+      start_time: now.add(1, 'day').hour(8).minute(0).toISOString(),
+      end_time: now.add(1, 'day').hour(11).minute(0).toISOString(),
+      status: 'waitlisted',
+      price_type: 'subsidy',
       estimated_price: 150,
-      is_cancelled: false,
-      queue_position: null
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: 1,
+      notes: '播种玉米'
     },
     {
       id: res3Id,
-      user_id: member3Id,
+      member_id: member3Id,
       equipment_id: drone1Id,
       field_id: field4Id,
-      crop_type: '水稻',
+      crop: '水稻',
       start_time: now.add(3, 'day').hour(9).minute(0).toISOString(),
       end_time: now.add(3, 'day').hour(12).minute(0).toISOString(),
-      status: 'queued',
-      price_type: 'cross_village',
+      status: 'pending',
+      price_type: 'commercial',
       estimated_price: 390,
-      is_cancelled: false,
-      queue_position: 1
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: null,
+      notes: '植保喷洒作业'
     },
     {
       id: res4Id,
-      user_id: member1Id,
+      member_id: member1Id,
       equipment_id: tractor2Id,
       field_id: field3Id,
-      crop_type: '小麦',
+      crop: '小麦',
       start_time: now.subtract(2, 'day').hour(8).minute(0).toISOString(),
       end_time: now.subtract(2, 'day').hour(14).minute(0).toISOString(),
       status: 'completed',
-      price_type: 'self_use',
+      price_type: 'member',
       estimated_price: 420,
-      is_cancelled: false,
-      queue_position: null
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: null,
+      notes: '收割作业'
     },
     {
       id: res5Id,
-      user_id: member2Id,
+      member_id: member2Id,
       equipment_id: tractor1Id,
       field_id: field2Id,
-      crop_type: '大豆',
+      crop: '大豆',
       start_time: now.add(5, 'day').hour(8).minute(0).toISOString(),
       end_time: now.add(5, 'day').hour(10).minute(0).toISOString(),
       status: 'cancelled',
-      price_type: 'self_use',
+      price_type: 'member',
       estimated_price: 140,
-      is_cancelled: true,
       cancel_reason: '临时有事，撤回预约',
       is_rain_cancel: false,
-      queue_position: null
+      queue_position: null,
+      notes: '原定播种大豆'
+    },
+    {
+      id: res6Id,
+      member_id: member3Id,
+      equipment_id: tractor2Id,
+      field_id: field4Id,
+      crop: '玉米',
+      start_time: now.add(4, 'day').hour(9).minute(0).toISOString(),
+      end_time: now.add(4, 'day').hour(13).minute(0).toISOString(),
+      status: 'pending',
+      price_type: 'member',
+      estimated_price: 280,
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: null,
+      notes: '翻地作业'
+    },
+    {
+      id: res7Id,
+      member_id: member1Id,
+      equipment_id: drone1Id,
+      field_id: field1Id,
+      crop: '小麦',
+      start_time: now.add(3, 'day').hour(9).minute(0).toISOString(),
+      end_time: now.add(3, 'day').hour(11).minute(0).toISOString(),
+      status: 'waitlisted',
+      price_type: 'subsidy',
+      estimated_price: 100,
+      cancel_reason: null,
+      is_rain_cancel: false,
+      queue_position: 1,
+      notes: '病虫害防治'
     }
   ]);
 
   await db('reservation_queue').insert([
     {
       id: uuidv4(),
-      reservation_id: res3Id,
-      priority: 0,
+      reservation_id: res2Id,
+      equipment_id: tractor1Id,
+      target_start_time: now.add(1, 'day').hour(8).minute(0).toISOString(),
+      target_end_time: now.add(1, 'day').hour(11).minute(0).toISOString(),
+      priority: 1,
+      status: 'waiting',
+      queued_at: now.toISOString()
+    },
+    {
+      id: uuidv4(),
+      reservation_id: res7Id,
+      equipment_id: drone1Id,
+      target_start_time: now.add(3, 'day').hour(9).minute(0).toISOString(),
+      target_end_time: now.add(3, 'day').hour(11).minute(0).toISOString(),
+      priority: 1,
       status: 'waiting',
       queued_at: now.toISOString()
     }
   ]);
 
   const workOrder1Id = uuidv4();
+  const workOrder2Id = uuidv4();
 
   await db('work_orders').insert([
     {
@@ -299,6 +355,22 @@ async function seed() {
       }),
       status: 'assigned',
       assigned_at: now.toISOString()
+    },
+    {
+      id: workOrder2Id,
+      reservation_id: res4Id,
+      operator_id: operator2Id,
+      route_info: JSON.stringify({
+        waypoints: [
+          { lat: 39.900, lng: 116.395 },
+          { lat: 39.900, lng: 116.400 }
+        ],
+        distance: 3.2
+      }),
+      status: 'completed',
+      assigned_at: now.subtract(2, 'day').hour(7).minute(30).toISOString(),
+      started_at: now.subtract(2, 'day').hour(8).minute(0).toISOString(),
+      completed_at: now.subtract(2, 'day').hour(14).minute(0).toISOString()
     }
   ]);
 
@@ -308,13 +380,14 @@ async function seed() {
     {
       id: workRecord1Id,
       reservation_id: res4Id,
+      work_order_id: workOrder2Id,
       equipment_id: tractor2Id,
       field_id: field3Id,
       operator_id: operator2Id,
       fuel_consumption: 18.5,
       work_hours: 6,
-      photos: JSON.stringify(['/uploads/work1.jpg', '/uploads/work2.jpg']),
-      notes: '作业完成良好，土壤湿度适宜',
+      field_photos: JSON.stringify(['/uploads/work1.jpg', '/uploads/work2.jpg']),
+      notes: '作业完成良好，土壤湿度适宜，收割效率高',
       completed_at: now.subtract(2, 'day').hour(14).minute(30).toISOString()
     }
   ]);
@@ -325,10 +398,11 @@ async function seed() {
     {
       id: settlement1Id,
       reservation_id: res4Id,
-      user_id: member1Id,
-      price_type: 'self_use',
+      member_id: member1Id,
+      price_type: 'member',
       base_price: 600,
-      subsidy_amount: 0,
+      price_multiplier: 0.7,
+      fuel_cost: 130,
       total_amount: 420,
       points_deducted: 0,
       status: 'confirmed',
@@ -338,6 +412,7 @@ async function seed() {
   ]);
 
   const maintenance1Id = uuidv4();
+  const maintenance2Id = uuidv4();
 
   await db('maintenance_tickets').insert([
     {
@@ -345,16 +420,72 @@ async function seed() {
       equipment_id: transplanter1Id,
       reported_by: operator1Id,
       title: '插秧机秧针损坏',
-      description: '作业时发现秧针磨损严重，需要更换',
+      description: '作业时发现秧针磨损严重，需要更换6根秧针',
+      priority: 'high',
       status: 'in_progress',
       cost: 0,
       reported_at: now.subtract(1, 'day').toISOString()
+    },
+    {
+      id: maintenance2Id,
+      equipment_id: tractor2Id,
+      reported_by: operator2Id,
+      title: '拖拉机液压系统漏油',
+      description: '完成作业后发现液压油管接头处有轻微漏油，需要检查密封',
+      priority: 'medium',
+      status: 'open',
+      cost: 0,
+      reported_at: now.subtract(1, 'day').hour(16).toISOString()
     }
   ]);
 
-  console.log('演示数据生成完成！');
+  await db('audit_logs').insert([
+    {
+      id: uuidv4(),
+      user_id: member2Id,
+      user_name: '王社员',
+      action: 'create',
+      module: 'reservation',
+      target_type: 'reservation',
+      target_id: res2Id,
+      description: '创建预约但因冲突进入候补队列',
+      new_values: JSON.stringify({ equipment: '东方红-904拖拉机', status: 'waitlisted' }),
+      ip_address: '127.0.0.1',
+      user_agent: 'Mozilla/5.0'
+    },
+    {
+      id: uuidv4(),
+      user_id: member2Id,
+      user_name: '王社员',
+      action: 'cancel',
+      module: 'reservation',
+      target_type: 'reservation',
+      target_id: res5Id,
+      description: '用户撤回预约',
+      old_values: JSON.stringify({ status: 'pending' }),
+      new_values: JSON.stringify({ status: 'cancelled', cancel_reason: '临时有事，撤回预约' }),
+      ip_address: '127.0.0.1',
+      user_agent: 'Mozilla/5.0'
+    },
+    {
+      id: uuidv4(),
+      user_id: operator1Id,
+      user_name: '刘机手',
+      action: 'confirm',
+      module: 'reservation',
+      target_type: 'reservation',
+      target_id: res1Id,
+      description: '机手确认预约并分配任务',
+      old_values: JSON.stringify({ status: 'pending' }),
+      new_values: JSON.stringify({ status: 'confirmed', operator: '刘机手' }),
+      ip_address: '127.0.0.1',
+      user_agent: 'Mozilla/5.0'
+    }
+  ]);
+
+  console.log('✅ 演示数据生成完成！');
   console.log('');
-  console.log('登录账号：');
+  console.log('🔐 登录账号（密码均为 123456）：');
   console.log('  管理员: admin / 123456');
   console.log('  社员1: member1 / 123456');
   console.log('  社员2: member2 / 123456');
@@ -362,17 +493,44 @@ async function seed() {
   console.log('  机手1: operator1 / 123456');
   console.log('  机手2: operator2 / 123456');
   console.log('');
-  console.log('演示场景说明：');
-  console.log('  1. 预约冲突：member1 和 member2 都预约了 tractor1');
-  console.log('  2. 预约撤回：member2 已取消一个预约');
-  console.log('  3. 候补排队：member3 预约无人机在候补队列');
-  console.log('  4. 已完成作业：有一个已完成的作业记录和结算');
-  console.log('  5. 设备维修：插秧机正在维修中');
+  console.log('📋 演示场景说明：');
+  console.log('');
+  console.log('  【场景1：预约冲突 & 候补队列】');
+  console.log('  - 李社员已预约 tractor1 明天 8:00-12:00（已确认）');
+  console.log('  - 王社员同时预约 tractor1 明天 8:00-11:00（冲突，进入候补队列 #1）');
+  console.log('  - 李社员取消 → 王社员自动提升为待确认');
+  console.log('');
+  console.log('  【场景2：预约撤回 & 重新提交】');
+  console.log('  - 王社员有一个已取消的预约（5天后的大豆播种）');
+  console.log('  - 可在预约详情页点击"重新提交"，选择新时间重新预约');
+  console.log('  - 重新提交时可修改设备、地块、时间等信息');
+  console.log('');
+  console.log('  【场景3：设备故障自动重排】');
+  console.log('  - 创建高优先级维修工单时，自动触发设备故障重排');
+  console.log('  - 受影响的预约自动延期并进入候补队列');
+  console.log('  - 系统自动寻找下一个可用时段');
+  console.log('');
+  console.log('  【场景4：作业执行 & 照片油耗上传】');
+  console.log('  - 机手登录后可查看分配的任务');
+  console.log('  - 开始作业 → 完成作业时上传地块照片和油耗数据');
+  console.log('  - 完成后自动生成结算单');
+  console.log('');
+  console.log('  【场景5：三种价格体系】');
+  console.log('  - 社员自用：×0.7 倍（如李社员的预约）');
+  console.log('  - 合作社补贴：×0.5 倍（如植保无人机）');
+  console.log('  - 跨村租赁：×1.3 倍（如赵社员的商业预约）');
+  console.log('');
+  console.log('  【场景6：最终确认流程】');
+  console.log('  - 社员提交预约 → 状态 pending');
+  console.log('  - 机手确认 → 状态 confirmed，生成作业单');
+  console.log('  - 机手完成作业 → 状态 completed');
+  console.log('  - 管理员确认结算 → 结算单 confirmed');
+  console.log('');
   
   process.exit(0);
 }
 
 seed().catch((err) => {
-  console.error('种子数据生成失败:', err);
+  console.error('❌ 种子数据生成失败:', err);
   process.exit(1);
 });

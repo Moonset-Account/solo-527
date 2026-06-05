@@ -1,12 +1,14 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from '../services/auth.service';
-import { UserRole } from '../types';
+
+export type UserRole = 'member' | 'operator' | 'admin';
 
 export interface AuthRequest extends FastifyRequest {
   user?: {
     id: string;
     username: string;
     role: UserRole;
+    name: string;
   };
 }
 
@@ -29,13 +31,13 @@ export function authenticate(requiredRoles?: UserRole[]) {
       }
     }
 
-    request.user = payload;
+    (request as any).user = payload;
   };
 }
 
 export function getClientIp(request: FastifyRequest): string {
   return (request.ip || 
-    request.headers['x-forwarded-for'] as string || 
-    request.headers['x-real-ip'] as string || 
+    (request.headers['x-forwarded-for'] as string) || 
+    (request.headers['x-real-ip'] as string) || 
     '127.0.0.1').split(',')[0].trim();
 }

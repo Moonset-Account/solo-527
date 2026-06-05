@@ -1,76 +1,103 @@
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database/db';
-import { User, UserRole } from '../types';
+import bcrypt from 'bcryptjs';
 import { logAudit } from '../utils/audit';
-import { z } from 'zod';
-
-export const loginSchema = z.object({
-  username: z.string().min(3, '用户名至少3个字符'),
-  password: z.string().min(6, '密码至少6个字符')
-});
+import jwt from 'jsonwebtoken';
+import { config } from '../config';
 
 export class AuthService {
-  async login(username: string, password: string, ipAddress: string = '127.0.0.1'): Promise<{
-    user: Omit<User, 'password_hash'>;
-    token: string;
-  } | null> {
-    const validation = loginSchema.safeParse({ username, password });
-    if (!validation.success) {
-      throw new Error(validation.error.errors[0].message);
+  static verifyToken(token: string): any {
+    try {
+      return jwt.verify(token, config.jwt.secret);
+    } catch (e) {
+      return null;
     }
+  }
 
+  async login(username: string, password: string, ipAddress: string = '127.0.0.1', userAgent: string = ''): Promise<any> {
     const user = await db('users').where({ username }).first();
     
     if (!user) {
-      await logAudit(null, 'login_failed', 'auth', null, null, { username }, ipAddress);
       return null;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    
-    if (!isPasswordValid) {
-      await logAudit(user.id, 'login_failed', 'auth', user.id, null, { username }, ipAddress);
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
       return null;
     }
 
     const { password_hash, ...userWithoutPassword } = user;
-    
-    await logAudit(user.id, 'login_success', 'auth', user.id, null, null, ipAddress);
-    
+
+    await logAudit(
+      user.id,
+      'login',
+      'auth',
+      user.id,
+      null,
+      { success: true },
+      ipAddress,
+      userAgent
+    );
+
     return {
-      user: userWithoutPassword,
-      token: this.generateToken(user)
+      token: this.generateToken(user),
+      user: userWithoutPassword
     };
   }
 
-  async getCurrentUser(userId: string): Promise<Omit<User, 'password_hash'> | null> {
-    const user = await db('users').where({ id: userId }).first();
-    if (!user) return null;
+  private generateToken(user: any): string {
+    return jwt.sign(
+      { 
+        id: user.id, 
+        username: user.username, 
+        role: user.role,
+        name: user.name 
+      },
+      config.jwt.secret,
+      { expiresIn: config.jwt.expiresIn }
+    );
+  }
+
+  async logout(userId: string, ipAddress: string = '127.0.0.1', userAgent: string = ''): Promise<void> {
+    await logAudit(
+      userId,
+      'logout',
+      'auth',
+      userId,
+      null,
+      null,
+      ipAddress,
+      userAgent
+    );
+  }
+
+  async getCurrentUser(userId: string): Promise<any> {
+    const user = await db('users')
+      .select('id', 'username', 'name', 'role', 'phone', 'points', 'created_at')
+      .where({ id: userId })
+      .first();
     
-    const { password_hash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return user;
   }
 
-  private generateToken(user: User): string {
-    const payload = Buffer.from(JSON.stringify({
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      exp: Date.now() + 24 * 60 * 60 * 1000
-    })).toString('base64');
-    return payload;
-  }
-
-  static verifyToken(token: string): { id: string; role: UserRole; username: string } | null {
-    try {
-      const payload = JSON.parse(Buffer.from(token, 'base64').toString());
-      if (payload.exp < Date.now()) {
-        return null;
-      }
-      return payload;
-    } catch {
-      return null;
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {
+    const user = await db('users').where({ id: userId }).first();
+    if (!user) {
+      throw new Error('用户不存在');
     }
+
+    const isValid = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!isValid) {
+      throw new Error('原密码错误');
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await db('users')
+      .where({ id: userId })
+      .update({ 
+        password_hash: newPasswordHash,
+        updated_at: new Date()
+      });
+
+    return true;
   }
 }

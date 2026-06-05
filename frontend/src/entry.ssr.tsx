@@ -1,0 +1,20 @@
+/*
+ * WHAT IS THIS FILE?
+ *
+ * SSR entry point, in all cases the application is rendered outside the browser, this
+ * entry point will be the common one.
+ *
+ */
+import {
+  createQwikCity,
+  type PlatformNode,
+} from "@builder.io/qwik-city/middleware/node";
+import qwikCityPlan from "@qwik-city-plan";
+import { manifest } from "@qwik-client-manifest";
+import render from "./entry.ssr";
+
+declare global {
+  interface QwikCityPlatform extends PlatformNode {}
+}
+
+export default createQwikCity({ render, qwikCityPlan, manifest });

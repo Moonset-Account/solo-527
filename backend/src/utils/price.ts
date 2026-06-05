@@ -1,38 +1,49 @@
 import { config } from '../config';
-import { PriceType } from '../types';
+
+export type PriceType = 'member' | 'subsidy' | 'commercial';
 
 export function calculatePrice(
   hours: number,
   priceType: PriceType,
-  area: number = 0
+  fieldArea: number = 0
 ): {
   basePrice: number;
-  subsidyAmount: number;
+  multiplier: number;
+  areaSurcharge: number;
   totalAmount: number;
 } {
   const basePrice = hours * config.price.basePricePerHour;
   const multiplier = config.price.multipliers[priceType];
   
-  let totalAmount = basePrice * multiplier;
-  let subsidyAmount = 0;
-
-  if (priceType === 'cooperative_subsidy') {
-    subsidyAmount = basePrice * 0.5;
-    totalAmount = basePrice - subsidyAmount;
+  let areaSurcharge = 0;
+  if (fieldArea > 50) {
+    areaSurcharge = basePrice * 0.05;
   }
 
+  const totalAmount = (basePrice + areaSurcharge) * multiplier;
+
   return {
-    basePrice: Math.round(basePrice * 100) / 100,
-    subsidyAmount: Math.round(subsidyAmount * 100) / 100,
-    totalAmount: Math.round(totalAmount * 100) / 100
+    basePrice: parseFloat(basePrice.toFixed(2)),
+    multiplier,
+    areaSurcharge: parseFloat(areaSurcharge.toFixed(2)),
+    totalAmount: parseFloat(totalAmount.toFixed(2))
   };
 }
 
 export function getPriceTypeLabel(type: PriceType): string {
   const labels: Record<PriceType, string> = {
-    self_use: '社员自用',
-    cooperative_subsidy: '合作社补贴',
-    cross_village: '跨村租赁'
+    member: '社员自用',
+    subsidy: '合作社补贴',
+    commercial: '跨村租赁'
   };
   return labels[type];
+}
+
+export function getPriceTypeDescription(type: PriceType): string {
+  const descriptions: Record<PriceType, string> = {
+    member: '合作社内部社员使用，享受7折优惠',
+    subsidy: '政府补贴项目，个人仅需支付50%',
+    commercial: '外部村社租赁，按市场价130%计费'
+  };
+  return descriptions[type];
 }

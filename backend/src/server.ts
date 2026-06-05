@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import { config } from './config';
 import { initDatabase } from './database/db';
 import { routes } from './routes';
@@ -30,17 +31,12 @@ fastify.register(fastifyMultipart, {
   }
 });
 
-fastify.register(routes);
-
-fastify.get('/uploads/*', async (request, reply) => {
-  const filename = (request.params as any)['*'];
-  const filePath = path.join(__dirname, '../uploads', filename);
-  
-  if (fs.existsSync(filePath)) {
-    return reply.sendFile(filename, path.join(__dirname, '../uploads'));
-  }
-  return reply.status(404).send({ error: '文件不存在' });
+fastify.register(fastifyStatic, {
+  root: uploadsDir,
+  prefix: '/uploads/',
 });
+
+fastify.register(routes);
 
 async function start() {
   try {

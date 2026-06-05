@@ -1,168 +1,265 @@
 import { v4 as uuidv4 } from 'uuid';
+import dayjs from 'dayjs';
 import { db } from '../database/db';
 import { logAudit } from '../utils/audit';
-import { calculatePrice } from '../utils/price';
-import dayjs from 'dayjs';
 import { z } from 'zod';
+import path from 'path';
+import fs from 'fs';
+import { config } from '../config';
 
 export const completeWorkSchema = z.object({
+  work_hours: z.number().min(0.1, '作业时长至少0.1小时'),
   fuel_consumption: z.number().min(0, '油耗不能为负数'),
-  work_hours: z.number().min(0.5, '工作时长至少30分钟'),
-  photos: z.array(z.string()).default([]),
   notes: z.string().optional()
 });
 
 export class WorkService {
-  async getMyOrders(operatorId: string): Promise<any[]> {
-    return await db('work_orders')
+  async getMyTasks(operatorId: string): Promise<any[]> {
+    const tasks = await db('work_orders')
       .join('reservations', 'work_orders.reservation_id', 'reservations.id')
       .join('equipment', 'reservations.equipment_id', 'equipment.id')
       .join('fields', 'reservations.field_id', 'fields.id')
-      .join('users as member', 'reservations.user_id', 'member.id')
+      .join('users as members', 'reservations.member_id', 'members.id')
       .select(
         'work_orders.*',
-        'reservations.crop_type',
+        'reservations.crop',
         'reservations.start_time',
         'reservations.end_time',
         'reservations.price_type',
-        'reservations.estimated_price',
         'equipment.name as equipment_name',
         'equipment.type as equipment_type',
         'fields.name as field_name',
         'fields.area as field_area',
-        'fields.location as field_location',
-        'member.name as member_name',
-        'member.phone as member_phone'
+        'members.name as member_name',
+        'members.phone as member_phone'
       )
       .where('work_orders.operator_id', operatorId)
       .orderBy('work_orders.assigned_at', 'desc');
+
+    return tasks;
   }
 
-  async acceptOrder(orderId: string, operatorId: string, ipAddress: string = '127.0.0.1'): Promise<boolean> {
-    const order = await db('work_orders').where({ id: orderId }).first();
-    if (!order) {
-      throw new Error('工单不存在');
-    }
-    if (order.operator_id !== operatorId) {
-      throw new Error('无权操作此工单');
-    }
-    if (order.status !== 'assigned') {
-      throw new Error('工单状态不允许接受');
+  async getTaskById(taskId: string, operatorId?: string): Promise<any> {
+    let query = db('work_orders')
+      .join('reservations', 'work_orders.reservation_id', 'reservations.id')
+      .join('equipment', 'reservations.equipment_id', 'equipment.id')
+      .join('fields', 'reservations.field_id', 'fields.id')
+      .join('users as members', 'reservations.member_id', 'members.id')
+      .leftJoin('work_records', 'work_orders.id', 'work_records.work_order_id')
+      .select(
+        'work_orders.*',
+        'reservations.crop',
+        'reservations.start_time',
+        'reservations.end_time',
+        'reservations.price_type',
+        'equipment.name as equipment_name',
+        'equipment.type as equipment_type',
+        'fields.name as field_name',
+        'fields.area as field_area',
+        'members.name as member_name',
+        'members.phone as member_phone',
+        'work_records.fuel_consumption',
+        'work_records.work_hours',
+        'work_records.field_photos',
+        'work_records.notes as record_notes'
+      )
+      .where('work_orders.id', taskId);
+
+    if (operatorId) {
+      query = query.where('work_orders.operator_id', operatorId);
     }
 
-    const beforeData = { ...order };
+    const task = await query.first();
+    
+    if (task && task.field_photos) {
+      try {
+        task.field_photos = JSON.parse(task.field_photos);
+      } catch (e) {
+        task.field_photos = [];
+      }
+    }
+
+    return task;
+  }
+
+  async startWork(taskId: string, operatorId: string, ipAddress: string = '127.0.0.1'): Promise<boolean> {
+    const task = await db('work_orders').where({ id: taskId }).first();
+    if (!task) {
+      throw new Error('任务不存在');
+    }
+    if (task.operator_id !== operatorId) {
+      throw new Error('无权限操作此任务');
+    }
+    if (task.status !== 'assigned') {
+      throw new Error('任务状态不允许开始');
+    }
+
+    const beforeData = { ...task };
 
     await db('work_orders')
-      .where({ id: orderId })
-      .update({ status: 'accepted' });
+      .where({ id: taskId })
+      .update({
+        status: 'in_progress',
+        started_at: new Date()
+      });
 
     await db('reservations')
-      .where({ id: order.reservation_id })
-      .update({ status: 'in_progress' });
+      .where({ id: task.reservation_id })
+      .update({
+        status: 'in_progress',
+        updated_at: new Date()
+      });
 
-    await logAudit(operatorId, 'accept_work_order', 'work_order', orderId, beforeData, { status: 'accepted' }, ipAddress);
+    await logAudit(
+      operatorId,
+      'start_work',
+      'work_order',
+      taskId,
+      beforeData,
+      { status: 'in_progress', started_at: new Date() },
+      ipAddress
+    );
+
     return true;
   }
 
-  async completeWork(orderId: string, operatorId: string, data: z.infer<typeof completeWorkSchema>, ipAddress: string = '127.0.0.1'): Promise<boolean> {
+  async completeWork(
+    taskId: string,
+    operatorId: string,
+    data: z.infer<typeof completeWorkSchema>,
+    photos: string[] = [],
+    ipAddress: string = '127.0.0.1'
+  ): Promise<any> {
     const validation = completeWorkSchema.safeParse(data);
     if (!validation.success) {
       throw new Error(validation.error.errors[0].message);
     }
 
-    const order = await db('work_orders').where({ id: orderId }).first();
-    if (!order) {
-      throw new Error('工单不存在');
+    const task = await this.getTaskById(taskId, operatorId);
+    if (!task) {
+      throw new Error('任务不存在');
     }
-    if (order.operator_id !== operatorId) {
-      throw new Error('无权操作此工单');
-    }
-    if (order.status !== 'accepted' && order.status !== 'in_progress') {
-      throw new Error('工单状态不允许完成');
+    if (task.status !== 'in_progress') {
+      throw new Error('只有进行中的任务可以完成');
     }
 
-    const reservation = await db('reservations').where({ id: order.reservation_id }).first();
+    const trx = await db.transaction();
 
-    const recordId = uuidv4();
-    await db('work_records').insert({
-      id: recordId,
-      reservation_id: order.reservation_id,
-      equipment_id: reservation.equipment_id,
-      field_id: reservation.field_id,
-      operator_id: operatorId,
-      fuel_consumption: data.fuel_consumption,
-      work_hours: data.work_hours,
-      photos: JSON.stringify(data.photos),
-      notes: data.notes,
-      completed_at: new Date().toISOString()
-    });
+    try {
+      await trx('work_orders')
+        .where({ id: taskId })
+        .update({
+          status: 'completed',
+          completed_at: new Date()
+        });
 
-    const hours = data.work_hours;
-    const priceInfo = calculatePrice(hours, reservation.price_type);
-
-    const settlementId = uuidv4();
-    await db('settlements').insert({
-      id: settlementId,
-      reservation_id: order.reservation_id,
-      user_id: reservation.user_id,
-      price_type: reservation.price_type,
-      base_price: priceInfo.basePrice,
-      subsidy_amount: priceInfo.subsidyAmount,
-      total_amount: priceInfo.totalAmount,
-      points_deducted: 0,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    });
-
-    await db('work_orders')
-      .where({ id: orderId })
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString()
+      const recordId = uuidv4();
+      await trx('work_records').insert({
+        id: recordId,
+        reservation_id: task.reservation_id,
+        work_order_id: taskId,
+        equipment_id: task.equipment_id,
+        field_id: task.field_id,
+        operator_id: operatorId,
+        fuel_consumption: data.fuel_consumption,
+        work_hours: data.work_hours,
+        field_photos: JSON.stringify(photos),
+        notes: data.notes || null,
+        completed_at: new Date()
       });
 
-    await db('reservations')
-      .where({ id: order.reservation_id })
-      .update({
-        status: 'completed',
-        updated_at: new Date().toISOString()
+      await trx('reservations')
+        .where({ id: task.reservation_id })
+        .update({
+          status: 'completed',
+          updated_at: new Date()
+        });
+
+      await trx('equipment')
+        .where({ id: task.equipment_id })
+        .update({
+          status: 'available',
+          total_hours: db.raw('total_hours + ?', [data.work_hours])
+        });
+
+      const { calculatePrice } = require('../utils/price');
+      const priceInfo = calculatePrice(data.work_hours, task.price_type, parseFloat(task.field_area));
+      const fuelCost = data.fuel_consumption * 8;
+
+      const settlementId = uuidv4();
+      await trx('settlements').insert({
+        id: settlementId,
+        reservation_id: task.reservation_id,
+        member_id: task.member_id,
+        price_type: task.price_type,
+        base_price: priceInfo.basePrice,
+        price_multiplier: priceInfo.multiplier,
+        fuel_cost: fuelCost,
+        total_amount: priceInfo.totalAmount + fuelCost,
+        status: 'pending',
+        created_at: new Date()
       });
 
-    await db('equipment')
-      .where({ id: reservation.equipment_id })
-      .update({
-        status: 'available',
-        total_hours: db.raw('total_hours + ?', [data.work_hours])
-      });
+      await trx.commit();
 
-    await logAudit(operatorId, 'complete_work', 'work_record', recordId, null, {
-      work_order_id: orderId,
-      ...data,
-      settlement_id: settlementId
-    }, ipAddress);
+      await logAudit(
+        operatorId,
+        'complete_work',
+        'work_order',
+        taskId,
+        { status: task.status },
+        { 
+          status: 'completed', 
+          work_hours: data.work_hours,
+          fuel_consumption: data.fuel_consumption,
+          settlement_id: settlementId
+        },
+        ipAddress
+      );
 
-    return true;
+      return {
+        work_record_id: recordId,
+        settlement_id: settlementId
+      };
+    } catch (error) {
+      await trx.rollback();
+      throw error;
+    }
   }
 
-  async updateRoute(orderId: string, operatorId: string, routeInfo: any, ipAddress: string = '127.0.0.1'): Promise<boolean> {
-    const order = await db('work_orders').where({ id: orderId }).first();
-    if (!order) {
-      throw new Error('工单不存在');
+  async uploadPhoto(
+    taskId: string,
+    operatorId: string,
+    fileData: Buffer,
+    filename: string,
+    mimetype: string
+  ): Promise<string> {
+    if (!config.upload.allowedTypes.includes(mimetype)) {
+      throw new Error('不支持的文件类型，仅支持 JPG、PNG 格式');
     }
-    if (order.operator_id !== operatorId) {
-      throw new Error('无权操作此工单');
+
+    const ext = path.extname(filename) || '.jpg';
+    const newFilename = `${taskId}_${Date.now()}_${uuidv4().slice(0, 8)}${ext}`;
+    const filePath = path.join(process.cwd(), config.upload.dir, newFilename);
+
+    fs.writeFileSync(filePath, fileData);
+
+    return `/uploads/${newFilename}`;
+  }
+
+  async getTaskPhotos(taskId: string): Promise<string[]> {
+    const record = await db('work_records')
+      .where('work_order_id', taskId)
+      .select('field_photos')
+      .first();
+
+    if (record && record.field_photos) {
+      try {
+        return JSON.parse(record.field_photos);
+      } catch (e) {
+        return [];
+      }
     }
-
-    const beforeData = { ...order };
-
-    await db('work_orders')
-      .where({ id: orderId })
-      .update({
-        route_info: JSON.stringify(routeInfo),
-        status: 'in_progress'
-      });
-
-    await logAudit(operatorId, 'update_route', 'work_order', orderId, beforeData, { route_info: routeInfo }, ipAddress);
-    return true;
+    return [];
   }
 }
