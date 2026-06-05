@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"pharmacy-queue/database"
@@ -37,8 +38,8 @@ func CreatePrescription(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if req.IsManualEntry && req.ManualReason == "" {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "人工补录必须填写补录原因"})
+	if req.IsManualEntry && strings.TrimSpace(req.ManualReason) == "" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "人工补录必须填写有效的补录原因"})
 	}
 
 	tx, err := database.DB.Begin()
@@ -58,9 +59,10 @@ func CreatePrescription(c *fiber.Ctx) error {
 	}
 
 	var prescriptionID int64
+	trimmedManualReason := strings.TrimSpace(req.ManualReason)
 	manualEntryBy := sql.NullInt64{Int64: int64(user.UserID), Valid: req.IsManualEntry}
 	manualEntryAt := sql.NullTime{Time: time.Now(), Valid: req.IsManualEntry}
-	manualReason := sql.NullString{String: req.ManualReason, Valid: req.IsManualEntry && req.ManualReason != ""}
+	manualReason := sql.NullString{String: trimmedManualReason, Valid: req.IsManualEntry && trimmedManualReason != ""}
 
 	isManualEntry := 0
 	if req.IsManualEntry {
@@ -387,7 +389,11 @@ func CancelPrescription(c *fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "cannot cancel dispensed prescription"})
 	}
 
-	_, err = tx.Exec("UPDATE prescriptions SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?", prescriptionID)
+	_, err = tx.Exec(`
+		UPDATE prescriptions 
+		SET status = 'cancelled', queue_no = NULL, window_id = NULL, updated_at = CURRENT_TIMESTAMP 
+		WHERE id = ?
+	`, prescriptionID)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update prescription"})
 	}
@@ -643,4 +649,75 @@ func GetPrescriptionPublic(c *fiber.Ctx) error {
 		"ahead_count":         aheadCount,
 		"reschedule_records":  rescheduleRecords,
 	})
+}
+
+func CancelPrescriptionPublic(c *fiber.Ctx) error {
+	prescriptionNo := c.Params("no")
+
+	var req struct {
+		PatientName  string `json:"patient_name"`
+		PatientPhone string `json:"patient_phone"`
+		Reason       string `json:"reason"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to begin transaction"})
+	}
+	defer tx.Rollback()
+
+	var prescriptionID int
+	var patientName string
+	var status string
+	var queueNo sql.NullInt64
+	err = tx.QueryRow(`
+		SELECT id, patient_name, status, queue_no 
+		FROM prescriptions WHERE prescription_no = ?
+	`, prescriptionNo).Scan(&prescriptionID, &patientName, &status, &queueNo)
+	if err == sql.ErrNoRows {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "prescription not found"})
+	}
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	if strings.TrimSpace(req.PatientName) != patientName {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "患者姓名不匹配"})
+	}
+
+	if status == "dispensed" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "已发药的处方不能取消"})
+	}
+	if status == "cancelled" {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "该处方已取消"})
+	}
+
+	_, err = tx.Exec(`
+		UPDATE prescriptions 
+		SET status = 'cancelled', queue_no = NULL, window_id = NULL, updated_at = CURRENT_TIMESTAMP 
+		WHERE id = ?
+	`, prescriptionID)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update prescription"})
+	}
+
+	if queueNo.Valid {
+		queueDate := time.Now().Format("2006-01-02")
+		_, err = tx.Exec(`
+			UPDATE queue_records SET status = 'cancelled' 
+			WHERE prescription_id = ? AND queue_date = ?
+		`, prescriptionID, queueDate)
+		if err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to cancel queue record"})
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "failed to commit transaction"})
+	}
+
+	return c.JSON(fiber.Map{"message": "取药已取消，排队号已释放"})
 }

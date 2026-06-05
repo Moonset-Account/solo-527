@@ -16,6 +16,11 @@
 	let confirmLoading = false;
 	let confirmSuccess = false;
 
+	let showCancelModal = false;
+	let cancelReason = '';
+	let cancelLoading = false;
+	let cancelSuccess = false;
+
 	async function searchPrescription() {
 		if (!prescriptionNo.trim()) {
 			error = '请输入处方号';
@@ -77,6 +82,34 @@
 			alert(e.message || '确认失败');
 		} finally {
 			confirmLoading = false;
+		}
+	}
+
+	function openCancelModal() {
+		cancelReason = '';
+		cancelSuccess = false;
+		showCancelModal = true;
+	}
+
+	async function handleCancel() {
+		if (!prescription) return;
+		cancelLoading = true;
+		try {
+			await publicApi.cancelPrescription(
+				prescription.prescription_no,
+				prescription.patient_name,
+				'',
+				cancelReason
+			);
+			cancelSuccess = true;
+			setTimeout(() => {
+				showCancelModal = false;
+				searchPrescription();
+			}, 1500);
+		} catch (e: any) {
+			alert(e.message || '取消失败');
+		} finally {
+			cancelLoading = false;
 		}
 	}
 
@@ -182,6 +215,17 @@
 						<p>补录时间：{prescription.manual_entry_at || '-'}</p>
 						<p>补录原因：{prescription.manual_entry_reason || '-'}</p>
 					</div>
+				</div>
+			{/if}
+
+			{#if prescription.status !== 'dispensed' && prescription.status !== 'cancelled'}
+				<div class="mt-4 pt-4 border-t border-gray-200">
+					<button
+						on:click={openCancelModal}
+						class="text-sm text-red-600 hover:text-red-800 hover:underline"
+					>
+						✕ 取消取药
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -331,6 +375,54 @@
 						>
 							取消
 						</button>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	{#if showCancelModal}
+		<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+			<div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+				<h3 class="text-lg font-semibold text-gray-800 mb-4">确认取消取药</h3>
+
+				{#if cancelSuccess}
+					<div class="text-center py-8">
+						<div class="text-5xl mb-4">✅</div>
+						<p class="text-green-600 font-medium">取消成功，排队号已释放</p>
+					</div>
+				{:else}
+					<div class="mb-4">
+						<div class="bg-orange-50 border border-orange-200 text-orange-700 px-4 py-3 rounded-lg mb-4">
+							<p>⚠️ 取消后您的排队号将被释放，如需取药需重新排队。</p>
+						</div>
+
+						<div class="mb-4">
+							<label class="block text-sm text-gray-600 mb-1">取消原因（可选）</label>
+							<textarea
+								bind:value={cancelReason}
+								placeholder="请输入取消原因"
+								rows={3}
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 resize-none"
+							/>
+						</div>
+
+						<div class="flex gap-3">
+							<button
+								on:click={() => (showCancelModal = false)}
+								disabled={cancelLoading}
+								class="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+							>
+								返回
+							</button>
+							<button
+								on:click={handleCancel}
+								disabled={cancelLoading}
+								class="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+							>
+								确认取消
+							</button>
+						</div>
 					</div>
 				{/if}
 			</div>

@@ -176,6 +176,24 @@ export const publicApi = {
 			})
 		});
 		return handleResponse(res);
+	},
+
+	cancelPrescription: async (
+		prescriptionNo: string,
+		patientName: string,
+		patientPhone: string,
+		reason: string
+	): Promise<any> => {
+		const res = await fetch(`${API_BASE}/public/prescriptions/${prescriptionNo}/cancel`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				patient_name: patientName,
+				patient_phone: patientPhone,
+				reason
+			})
+		});
+		return handleResponse(res);
 	}
 };
 
