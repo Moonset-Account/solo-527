@@ -1,0 +1,392 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  COMMITTEE
+  DIRECTOR
+  ACTOR
+  TICKET_STAFF
+  USER
+}
+
+enum ProductionStatus {
+  DRAFT
+  REHEARSING
+  PERFORMING
+  COMPLETED
+}
+
+enum RehearsalStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ConflictCheckStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SeatStatus {
+  AVAILABLE
+  HELD
+  SOLD
+  RESERVED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  CONVERTED
+  EXPIRED
+}
+
+enum FinanceType {
+  INCOME
+  EXPENSE
+}
+
+enum NotificationType {
+  SYSTEM
+  REHEARSAL
+  TICKET
+  LEAVE
+  FINANCE
+}
+
+enum VenueType {
+  REHEARSAL
+  PERFORMANCE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String?  @map("password_hash")
+  phone        String?
+  avatarUrl    String?  @map("avatar_url")
+  role         UserRole @default(USER)
+  studentId    String?  @map("student_id")
+  department   String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  productions    Production[]    @relation("CreatedProductions")
+  characters     Character[]
+  rehearsals    Rehearsal[]     @relation("CreatedRehearsals")
+  leaveRequests  LeaveRequest[]  @relation("LeaveRequests")
+  approvedLeaves LeaveRequest[] @relation("ApprovedLeaves")
+  orders         Order[]
+  financeRecords FinanceRecord[] @relation("RecordedFinance")
+  notifications  Notification[]
+  courseSchedules CourseSchedule[]
+
+  @@map("users")
+}
+
+model Production {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  posterUrl   String?          @map("poster_url")
+  author      String?
+  director    String?
+  status      ProductionStatus @default(DRAFT)
+  startDate   DateTime?        @map("start_date")
+  endDate     DateTime?        @map("end_date")
+  createdById String           @map("created_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  createdBy   User         @relation("CreatedProductions", fields: [createdById], references: [id])
+  characters  Character[]
+  rehearsals Rehearsal[]
+  shows       Show[]
+
+  @@map("productions")
+}
+
+model Character {
+  id           String  @id @default(uuid())
+  name         String
+  description  String?
+  productionId String  @map("production_id")
+  actorId      String? @map("actor_id")
+  order        Int     @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  actor      User?      @relation(fields: [actorId], references: [id])
+
+  @@map("characters")
+}
+
+model Venue {
+  id         String    @id @default(uuid())
+  name       String
+  location   String?
+  capacity   Int       @default(0)
+  type       VenueType @default(REHEARSAL)
+  facilities String?
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  rehearsals Rehearsal[]
+  shows      Show[]
+
+  @@map("venues")
+}
+
+model Rehearsal {
+  id                 String              @id @default(uuid())
+  productionId       String              @map("production_id")
+  venueId            String              @map("venue_id")
+  title              String
+  startTime          DateTime            @map("start_time")
+  endTime            DateTime            @map("end_time")
+  content            String?
+  status             RehearsalStatus     @default(SCHEDULED)
+  createdById        String              @map("created_by_id")
+  conflictCheckStatus ConflictCheckStatus @default(PENDING) @map("conflict_check_status")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  venue      Venue      @relation(fields: [venueId], references: [id])
+  createdBy  User       @relation("CreatedRehearsals", fields: [createdById], references: [id])
+  leaveRequests LeaveRequest[]
+
+  @@map("rehearsals")
+}
+
+model CourseSchedule {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  dayOfWeek  Int      @map("day_of_week")
+  startTime  String   @map("start_time")
+  endTime    String   @map("end_time")
+  courseName String   @map("course_name")
+  semester   String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek, startTime, endTime, semester])
+  @@map("course_schedules")
+}
+
+model LeaveRequest {
+  id          String       @id @default(uuid())
+  rehearsalId String       @map("rehearsal_id")
+  userId      String       @map("user_id")
+  reason      String
+  status      LeaveStatus  @default(PENDING)
+  approvedById String?     @map("approved_by_id")
+  approvedAt  DateTime?    @map("approved_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  rehearsal Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
+  user      User      @relation("LeaveRequests", fields: [userId], references: [id])
+  approvedBy User?    @relation("ApprovedLeaves", fields: [approvedById], references: [id])
+
+  @@map("leave_requests")
+}
+
+model Show {
+  id            String   @id @default(uuid())
+  productionId  String   @map("production_id")
+  venueId       String   @map("venue_id")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  isSaleOpen    Boolean  @default(false) @map("is_sale_open")
+  seatMapConfig Json?    @map("seat_map_config")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  production Production  @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  venue      Venue       @relation(fields: [venueId], references: [id])
+  ticketTiers TicketTier[]
+  seats      Seat[]
+  orders     Order[]
+  waitlist   WaitlistEntry[]
+
+  @@map("shows")
+}
+
+model TicketTier {
+  id        String  @id @default(uuid())
+  showId    String  @map("show_id")
+  name      String
+  price     Decimal @db.Decimal(10, 2)
+  color     String?
+  totalSeats Int    @default(0) @map("total_seats")
+  soldSeats  Int    @default(0) @map("sold_seats")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  show  Show  @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seats Seat[]
+  waitlist WaitlistEntry[]
+
+  @@map("ticket_tiers")
+}
+
+model Seat {
+  id         String     @id @default(uuid())
+  showId     String     @map("show_id")
+  rowLabel   String     @map("row_label")
+  seatNumber Int        @map("seat_number")
+  tierId     String     @map("tier_id")
+  status     SeatStatus @default(AVAILABLE)
+  orderId    String?
+  version    Int        @default(0)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  show   Show   @relation(fields: [showId], references: [id], onDelete: Cascade)
+  tier   TicketTier @relation(fields: [tierId], references: [id])
+  order  Order? @relation(fields: [orderId], references: [id])
+  ticket Ticket?
+
+  @@unique([showId, rowLabel, seatNumber])
+  @@map("seats")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNo     String      @unique @map("order_no")
+  userId      String      @map("user_id")
+  showId      String      @map("show_id")
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal     @db.Decimal(10, 2) @default(0) @map("total_amount")
+  paidAt      DateTime?   @map("paid_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user   User            @relation(fields: [userId], references: [id])
+  show   Show            @relation(fields: [showId], references: [id])
+  seats  Seat[]
+  tickets Ticket[]
+  financeRecords FinanceRecord[]
+
+  @@map("orders")
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  seatId      String   @unique @map("seat_id")
+  qrCode      String   @unique @map("qr_code")
+  isCheckedIn Boolean  @default(false) @map("is_checked_in")
+  checkedInAt DateTime? @map("checked_in_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  seat    Seat            @relation(fields: [seatId], references: [id])
+  seatChangeLogs SeatChangeLog[]
+
+  @@map("tickets")
+}
+
+model SeatChangeLog {
+  id         String   @id @default(uuid())
+  ticketId   String   @map("ticket_id")
+  oldSeatId  String   @map("old_seat_id")
+  newSeatId  String   @map("new_seat_id")
+  operatorId String   @map("operator_id")
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@map("seat_change_logs")
+}
+
+model WaitlistEntry {
+  id        String         @id @default(uuid())
+  showId    String         @map("show_id")
+  userId    String         @map("user_id")
+  tierId    String         @map("tier_id")
+  position  Int
+  status    WaitlistStatus @default(WAITING)
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  show Show       @relation(fields: [showId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id])
+  tier TicketTier @relation(fields: [tierId], references: [id])
+
+  @@map("waitlist_entries")
+}
+
+model FinanceRecord {
+  id             String      @id @default(uuid())
+  type           FinanceType
+  category       String
+  amount         Decimal     @db.Decimal(10, 2)
+  description    String?
+  relatedOrderId String?     @map("related_order_id")
+  receiptUrl     String?     @map("receipt_url")
+  recordedById   String      @map("recorded_by_id")
+  recordedAt     DateTime    @default(now()) @map("recorded_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  recordedBy User  @relation("RecordedFinance", fields: [recordedById], references: [id])
+  relatedOrder Order? @relation(fields: [relatedOrderId], references: [id])
+
+  @@map("finance_records")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  content   String
+  relatedId String?          @map("related_id")
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  oldValue  Json?    @map("old_value")
+  newValue  Json?    @map("new_value")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
