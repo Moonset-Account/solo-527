@@ -40,24 +40,21 @@ def booking_calendar(request):
     from datetime import datetime, timedelta
     
     today = timezone.now().date()
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
+    date_str = request.GET.get('date')
     equipment_id = request.GET.get('equipment')
 
-    if start_date_str:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    if date_str:
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     else:
-        start_date = today - timedelta(days=7)
-    
-    if end_date_str:
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-    else:
-        end_date = today + timedelta(days=30)
+        selected_date = today
+
+    prev_date = selected_date - timedelta(days=1)
+    next_date = selected_date + timedelta(days=1)
+    hours = list(range(8, 22))
 
     bookings = Booking.objects.filter(
         status__in=['pending', 'approved', 'checked_in'],
-        start_time__date__gte=start_date,
-        end_time__date__lte=end_date
+        start_time__date=selected_date
     )
 
     if equipment_id:
@@ -65,11 +62,13 @@ def booking_calendar(request):
 
     equipments = Equipment.objects.filter(status='available')
     context = {
-        'bookings': bookings,
-        'equipments': equipments,
-        'start_date': start_date,
-        'end_date': end_date,
+        'selected_date': selected_date,
+        'prev_date': prev_date,
+        'next_date': next_date,
+        'hours': hours,
         'selected_equipment': equipment_id,
+        'equipments': equipments,
+        'bookings': bookings,
     }
     return render(request, 'bookings/calendar.html', context)
 

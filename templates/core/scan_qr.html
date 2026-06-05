@@ -261,24 +261,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function processCode(code) {
-        fetch('{% url "core:process_qr" %}', {
-            method: 'POST',
+        fetch('{% url "core:scan_qr_result" %}?code=' + encodeURIComponent(code), {
+            method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: JSON.stringify({ code: code })
+            }
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                if (data.redirect_url) {
-                    window.location.href = data.redirect_url;
-                } else {
-                    showToast(data.message, 'success');
-                }
+            if (data.found && data.url) {
+                window.location.href = data.url;
             } else {
-                showToast(data.message || '处理失败', 'danger');
+                showToast('未找到相关信息', 'danger');
             }
         })
         .catch(() => {

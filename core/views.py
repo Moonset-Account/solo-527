@@ -223,7 +223,7 @@ def notifications_list(request):
         'notifications': notifications,
         'unread_count': service.get_unread_count(request.user.id),
     }
-    return render(request, 'core/notifications.html', context)
+    return render(request, 'notifications/list.html', context)
 
 
 @login_required

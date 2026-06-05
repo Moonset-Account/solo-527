@@ -5,6 +5,7 @@ app_name = 'training'
 
 urlpatterns = [
     path('', views.course_list, name='course_list'),
+    path('courses/', views.course_list, name='course_list_alt'),
     path('courses/<uuid:pk>/', views.course_detail, name='course_detail'),
     path('sessions/', views.session_list, name='session_list'),
     path('sessions/<uuid:pk>/', views.session_detail, name='session_detail'),
