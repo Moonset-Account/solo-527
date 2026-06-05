@@ -15,7 +15,7 @@ export async function PUT(
     const { id } = await params;
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/matches/:id/score', 'PUT');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {

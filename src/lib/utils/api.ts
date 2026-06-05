@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import type { ApiResponse } from '@/lib/types';
 
 export function successResponse<T>(data: T, meta?: ApiResponse['meta']): NextResponse<ApiResponse<T>> {
@@ -20,9 +21,9 @@ export function errorResponse(message: string, errors?: string[], status: number
   );
 }
 
-export function getServerSession() {
-  const cookies = require('next/headers').cookies();
-  const userCookie = cookies.get('user');
+export async function getServerSession() {
+  const cookieStore = await cookies();
+  const userCookie = cookieStore.get('user');
   
   if (userCookie) {
     try {

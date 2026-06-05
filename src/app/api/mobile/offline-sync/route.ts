@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/mobile/offline-sync', 'POST');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {

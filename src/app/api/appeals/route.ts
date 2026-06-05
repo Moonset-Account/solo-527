@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const searchParams = request.nextUrl.searchParams;
     const teamId = searchParams.get('teamId');
     const status = searchParams.get('status');
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/appeals', 'POST');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {

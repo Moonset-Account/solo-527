@@ -166,6 +166,31 @@ export const apiPermissions: PermissionConfig[] = [
     method: 'POST',
     allowedRoles: ['FIELD_STAFF', 'REFEREE'],
     sensitiveFields: []
+  },
+  {
+    endpoint: '/api/mobile/checkin',
+    method: 'POST',
+    allowedRoles: ['FIELD_STAFF', 'REFEREE', 'TEAM_MANAGER'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/mobile/upload',
+    method: 'POST',
+    allowedRoles: ['FIELD_STAFF', 'REFEREE', 'TEAM_MANAGER'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/matches/:id/stats',
+    method: 'GET',
+    allowedRoles: ['*'],
+    sensitiveFields: []
+  },
+  {
+    endpoint: '/api/matches/:id/stats',
+    method: 'POST',
+    allowedRoles: ['REFEREE', 'LEAGUE_ADMIN', 'SUPER_ADMIN'],
+    sensitiveFields: [],
+    preValidation: 'validateRosterLock'
   }
 ];
 

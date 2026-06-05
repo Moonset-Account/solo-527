@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/admin/export', 'GET');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {

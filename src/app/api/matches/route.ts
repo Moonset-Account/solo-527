@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const searchParams = request.nextUrl.searchParams;
     const seasonId = searchParams.get('seasonId');
     const round = searchParams.get('round');
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/matches', 'POST');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {

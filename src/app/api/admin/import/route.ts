@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     const permissionConfig = findPermissionConfig('/api/admin/import', 'POST');
     
     if (permissionConfig && !hasPermission(session?.role, permissionConfig.allowedRoles)) {
@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest) {
   try {
     await connectDB();
     
-    const session = getServerSession();
+    const session = await getServerSession();
     
     if (!session?.role || !['SUPER_ADMIN'].includes(session.role)) {
       return errorResponse('无权限操作', undefined, 403);
