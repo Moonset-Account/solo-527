@@ -124,23 +124,14 @@ def register_routes(api_bp):
     def sync_offline_appointments():
         current_user = get_current_user()
         data = request.get_json()
+        results = []
         try:
-            from flask import current_app
-            if hasattr(current_app, 'celery') and current_app.celery:
-                sync_task = current_app.celery.tasks.get('sync_offline_data')
-                if sync_task:
-                    sync_task.delay(current_user.id, data)
-                else:
-                    from app.services.upload_service import UploadService
-                    for item in data.get('uploads', []):
-                        UploadService.save_offline_file(item, current_user.id)
-            else:
-                from app.services.upload_service import UploadService
-                for item in data.get('uploads', []):
-                    UploadService.save_offline_file(item, current_user.id)
-        except Exception as e:
-            print(f"Offline sync failed (fallback to sync): {e}")
             from app.services.upload_service import UploadService
             for item in data.get('uploads', []):
-                UploadService.save_offline_file(item, current_user.id)
-        return jsonify({'message': 'Sync started'})
+                appointment_id = item.get('appointment_id')
+                result = UploadService.save_offline_file(item, current_user.id, appointment_id)
+                results.append(result)
+        except Exception as e:
+            print(f"Offline sync failed: {e}")
+            return jsonify({'error': str(e)}), 500
+        return jsonify({'message': 'Sync completed', 'attachments': results})

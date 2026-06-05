@@ -35,6 +35,11 @@ class AppointmentService:
             meeting_type=meeting_type
         )
         
+        time_slot.is_booked = True
+        
+        db.session.add(appointment)
+        db.session.flush()
+        
         if meeting_type == 'online':
             appointment.meeting_link = f"https://meet.example.com/appointment/{appointment.id}"
         
@@ -48,9 +53,6 @@ class AppointmentService:
         img.save(qr_path)
         appointment.qr_code = qr_path
         
-        time_slot.is_booked = True
-        
-        db.session.add(appointment)
         db.session.flush()
         
         feedback = Feedback(

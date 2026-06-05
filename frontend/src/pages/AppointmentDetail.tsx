@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -7,7 +7,8 @@ import {
 } from 'antd';
 import { 
   ArrowLeftOutlined, VideoCameraOutlined, 
-  EnvironmentOutlined, UploadOutlined, CheckCircleOutlined
+  EnvironmentOutlined, UploadOutlined, CheckCircleOutlined,
+  CameraOutlined, CloudSyncOutlined, QrcodeOutlined
 } from '@ant-design/icons';
 import { appointmentsApi, feedbackApi } from '../api';
 import { QRCodeSVG } from 'qrcode.react';
@@ -30,7 +31,12 @@ const AppointmentDetail = () => {
   const queryClient = useQueryClient();
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [cancelVisible, setCancelVisible] = useState(false);
+  const [offlineSyncVisible, setOfflineSyncVisible] = useState(false);
+  const [cameraVisible, setCameraVisible] = useState(false);
   const [feedbackForm] = Form.useForm();
+  const [offlineForm] = Form.useForm();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { data: appointment, isLoading } = useQuery(
     ['appointment', appointmentId],
@@ -90,6 +96,21 @@ const AppointmentDetail = () => {
     }
   );
 
+  const offlineSyncMutation = useMutation(
+    (data: any) => appointmentsApi.offlineSync(data),
+    {
+      onSuccess: () => {
+        message.success('离线数据同步成功');
+        setOfflineSyncVisible(false);
+        offlineForm.resetFields();
+        queryClient.invalidateQueries(['appointment-attachments', appointmentId]);
+      },
+      onError: (err: any) => {
+        message.error(err.response?.data?.error || '同步失败');
+      }
+    }
+  );
+
   if (isLoading) return <div className="flex justify-center py-20"><Spin size="large" /></div>;
 
   const appt = appointment?.data;
@@ -138,6 +159,67 @@ const AppointmentDetail = () => {
   };
 
   const otherInfo = getOtherPartyInfo();
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      setCameraVisible(true);
+    } catch (err) {
+      message.error('无法访问摄像头，请检查权限');
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            const formData = new FormData();
+            formData.append('file', file);
+            appointmentsApi.uploadAttachment(appointmentId, formData)
+              .then(() => {
+                message.success('拍照上传成功');
+                queryClient.invalidateQueries(['appointment-attachments', appointmentId]);
+                stopCamera();
+              })
+              .catch(() => message.error('上传失败'));
+          }
+        }, 'image/jpeg');
+      }
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setCameraVisible(false);
+  };
+
+  const handleOfflineSync = (values: any) => {
+    const data = {
+      uploads: [{
+        filename: values.filename || `offline_${Date.now()}.txt`,
+        content: values.content,
+        description: values.description,
+        appointment_id: appointmentId,
+        type: 'text/plain'
+      }]
+    };
+    offlineSyncMutation.mutate(data);
+  };
 
   const tabItems: any = [
     {
@@ -188,7 +270,10 @@ const AppointmentDetail = () => {
                 </Button>
                 {appt.qr_code && (
                   <div className="flex justify-center mt-4">
-                    <QRCodeSVG value={appt.meeting_link} size={150} />
+                    <div className="text-center">
+                      <QRCodeSVG value={`appointment:${appointmentId}`} size={150} />
+                      <p className="text-gray-400 text-xs mt-2">预约 ID: {appointmentId}（扫码签到）</p>
+                    </div>
                   </div>
                 )}
               </Space>
@@ -209,13 +294,17 @@ const AppointmentDetail = () => {
       children: (
         <Card size="small">
           <Space direction="vertical" className="w-full" size="middle">
-            <Upload
-              customRequest={handleUpload}
-              showUploadList={false}
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-            >
-              <Button icon={<UploadOutlined />}>上传附件</Button>
-            </Upload>
+            <Space wrap>
+              <Upload
+                customRequest={handleUpload}
+                showUploadList={false}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              >
+                <Button icon={<UploadOutlined />}>上传附件</Button>
+              </Upload>
+              <Button icon={<CameraOutlined />} onClick={startCamera}>拍照上传</Button>
+              <Button icon={<CloudSyncOutlined />} onClick={() => setOfflineSyncVisible(true)}>离线补提交</Button>
+            </Space>
             {!attachments?.data || attachments.data.length === 0 ? (
               <Empty description="暂无附件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
@@ -420,6 +509,58 @@ const AppointmentDetail = () => {
               <Button onClick={() => setCancelVisible(false)}>取消</Button>
               <Button type="primary" danger htmlType="submit" loading={updateStatusMutation.isLoading}>
                 确认取消
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="拍照上传"
+        open={cameraVisible}
+        onCancel={stopCamera}
+        footer={[
+          <Button key="cancel" onClick={stopCamera}>取消</Button>,
+          <Button key="capture" type="primary" icon={<CameraOutlined />} onClick={capturePhoto}>
+            拍照并上传
+          </Button>
+        ]}
+        width={600}
+        destroyOnClose
+      >
+        <div className="space-y-4">
+          <video ref={videoRef} className="w-full rounded-lg bg-black" playsInline />
+          <canvas ref={canvasRef} className="hidden" />
+          <p className="text-gray-400 text-sm text-center">请将摄像头对准需要上传的文件或资料</p>
+        </div>
+      </Modal>
+
+      <Modal
+        title="离线数据补提交"
+        open={offlineSyncVisible}
+        onCancel={() => setOfflineSyncVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form
+          form={offlineForm}
+          layout="vertical"
+          onFinish={handleOfflineSync}
+        >
+          <Form.Item name="filename" label="文件名称">
+            <Input placeholder="请输入文件名称，可选" />
+          </Form.Item>
+          <Form.Item name="description" label="备注说明">
+            <Input placeholder="请输入备注说明，可选" />
+          </Form.Item>
+          <Form.Item name="content" label="离线内容" rules={[{ required: true, message: '请输入离线内容' }]}>
+            <Input.TextArea rows={6} placeholder="请输入需要补提交的离线数据内容..." />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button onClick={() => setOfflineSyncVisible(false)}>取消</Button>
+              <Button type="primary" icon={<CloudSyncOutlined />} htmlType="submit" loading={offlineSyncMutation.isLoading}>
+                提交同步
               </Button>
             </Space>
           </Form.Item>

@@ -40,7 +40,7 @@ class UploadService:
         }
     
     @staticmethod
-    def save_offline_file(data, uploaded_by):
+    def save_offline_file(data, uploaded_by, appointment_id=None):
         file_data = {
             'filename': data.get('filename', 'offline_file'),
             'path': data.get('path', f"uploads/offline/{uuid.uuid4().hex}"),
@@ -53,6 +53,22 @@ class UploadService:
         if data.get('content'):
             with open(file_data['path'], 'wb') as f:
                 f.write(data['content'].encode('utf-8') if isinstance(data['content'], str) else data['content'])
+        
+        if appointment_id:
+            attachment = Attachment(
+                appointment_id=appointment_id,
+                uploaded_by=uploaded_by,
+                file_name=file_data['filename'],
+                file_path=file_data['path'],
+                file_size=file_data['size'],
+                file_type=file_data['type'],
+                description=data.get('description', ''),
+                is_offline_upload=True,
+                offline_sync_at=datetime.utcnow()
+            )
+            db.session.add(attachment)
+            db.session.commit()
+            return attachment.to_dict()
         
         return file_data
     
