@@ -3,12 +3,14 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const { expect } = require('chai');
 const supertest = require('supertest');
 const app = require('../src/app');
+const db = require('../src/db/pool');
 
 const request = supertest(app);
 
 let adminToken = '';
 let nurseToken = '';
 let deptNurseToken = '';
+let rbacTestPackId = null;
 
 describe('认证与权限测试', () => {
   before(async () => {
@@ -29,6 +31,13 @@ describe('认证与权限测试', () => {
       deptNurseToken = deptRes.body.token;
     } catch (e) {
       console.error('测试登录失败:', e.message);
+    }
+  });
+
+  after(async () => {
+    if (rbacTestPackId) {
+      await db.query('DELETE FROM pack_logs WHERE pack_id = $1', [rbacTestPackId]);
+      await db.query('DELETE FROM instrument_packs WHERE id = $1', [rbacTestPackId]);
     }
   });
 
@@ -106,18 +115,29 @@ describe('认证与权限测试', () => {
     });
 
     it('消毒护士可以创建器械包', async () => {
+      const uniqueCode = `TEST-PK-RBAC-${Date.now()}`;
       const res = await request
         .post('/api/packs')
         .set('Authorization', `Bearer ${nurseToken}`)
-        .send({ code: 'TEST-PK-RBAC-001', name: '权限测试包', category: '内科' });
+        .send({ code: uniqueCode, name: '权限测试包', category: '内科' });
 
       expect(res.status).to.equal(201);
+      rbacTestPackId = res.body.id;
     });
 
-    it('管理员可以查看科室列表', async () => {
+    it('科室护士可以查看科室列表', async () => {
       const res = await request
         .get('/api/departments')
-        .set('Authorization', `Bearer ${adminToken}`);
+        .set('Authorization', `Bearer ${deptNurseToken}`);
+
+      expect(res.status).to.equal(200);
+      expect(res.body).to.be.an('array');
+    });
+
+    it('消毒护士可以查看消毒锅列表', async () => {
+      const res = await request
+        .get('/api/autoclaves')
+        .set('Authorization', `Bearer ${nurseToken}`);
 
       expect(res.status).to.equal(200);
       expect(res.body).to.be.an('array');

@@ -5,7 +5,7 @@ const rbac = require('../middleware/rbac');
 
 const router = express.Router();
 
-router.get('/', authGuard, rbac('department:manage'), async (_req, res) => {
+router.get('/', authGuard, rbac('department:view'), async (_req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM departments ORDER BY code');
     res.json(rows);

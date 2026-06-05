@@ -28,7 +28,9 @@ async function seed() {
         ('batch:recall', '异常召回'),
         ('batch:confirm', '确认批次'),
         ('autoclave:manage', '管理消毒锅'),
+        ('autoclave:view', '查看消毒锅'),
         ('department:manage', '管理科室'),
+        ('department:view', '查看科室'),
         ('operator:manage', '管理人员'),
         ('report:view', '查看报表'),
         ('notification:send', '发送通知'),
@@ -47,7 +49,7 @@ async function seed() {
       INSERT INTO role_permissions (role_id, permission_id)
       SELECT r.id, p.id FROM roles r, permissions p
       WHERE r.name = 'infection_control'
-        AND p.code IN ('pack:view','batch:view','batch:recall','batch:confirm','report:view','notification:send','recall:execute')
+        AND p.code IN ('pack:view','batch:view','batch:recall','batch:confirm','report:view','notification:send','recall:execute','autoclave:view','department:view')
       ON CONFLICT DO NOTHING
     `);
 
@@ -55,7 +57,7 @@ async function seed() {
       INSERT INTO role_permissions (role_id, permission_id)
       SELECT r.id, p.id FROM roles r, permissions p
       WHERE r.name = 'sterilization_nurse'
-        AND p.code IN ('pack:create','pack:scan','pack:clean','pack:sterilize','pack:view','batch:create','batch:view','batch:confirm')
+        AND p.code IN ('pack:create','pack:scan','pack:clean','pack:sterilize','pack:view','batch:create','batch:view','batch:confirm','autoclave:view','department:view')
       ON CONFLICT DO NOTHING
     `);
 
@@ -63,7 +65,7 @@ async function seed() {
       INSERT INTO role_permissions (role_id, permission_id)
       SELECT r.id, p.id FROM roles r, permissions p
       WHERE r.name = 'department_nurse'
-        AND p.code IN ('pack:view','pack:dispatch','batch:view')
+        AND p.code IN ('pack:view','pack:dispatch','batch:view','department:view')
       ON CONFLICT DO NOTHING
     `);
 

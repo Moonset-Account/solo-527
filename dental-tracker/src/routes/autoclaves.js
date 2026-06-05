@@ -5,7 +5,7 @@ const rbac = require('../middleware/rbac');
 
 const router = express.Router();
 
-router.get('/', authGuard, rbac('autoclave:manage'), async (_req, res) => {
+router.get('/', authGuard, rbac('autoclave:view'), async (_req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM autoclaves ORDER BY code');
     res.json(rows);
