@@ -2,7 +2,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Prompt
+from rich.prompt import Prompt, Confirm
 from typing import Optional
 from lost_found.services.lost_item_service import LostItemService
 from lost_found.services.claim_service import ClaimService
@@ -133,9 +133,15 @@ def list_items(page: int = typer.Option(1, "--page", "-p", help="页码"),
     console.print(table)
 
 
-@app.command()
-def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失物编号")):
-    """提交认领申请"""
+@app.command("submit-claim")
+def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失物编号"),
+                 proof_type: Optional[str] = typer.Option(None, "--proof-type", "-t", 
+                     help="证明材料类型: id_card/student_card/purchase_proof/photo/other"),
+                 proof_desc: Optional[str] = typer.Option(None, "--proof-desc", "-d", 
+                     help="证明材料描述"),
+                 proof_path: Optional[str] = typer.Option(None, "--proof-path", "-p", 
+                     help="证明材料文件路径")):
+    """提交认领申请（可附带证明材料）"""
     item = LostItemService.get_item(item_id, include_sensitive=False)
     if not item:
         console.print("[red]✗ 失物不存在[/red]")
@@ -159,6 +165,26 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
         console.print("[red]✗ 请提供物品特征描述[/red]")
         raise typer.Exit(1)
     
+    add_proof = Confirm.ask("是否上传证明材料？", default=False)
+    
+    actual_proof_type = proof_type
+    actual_proof_desc = proof_desc
+    actual_proof_path = proof_path
+    
+    if add_proof and not actual_proof_type:
+        console.print("\n[cyan]请选择证明材料类型:[/cyan]")
+        console.print("  1) 身份证 (id_card)")
+        console.print("  2) 学生证 (student_card)")
+        console.print("  3) 购买凭证 (purchase_proof)")
+        console.print("  4) 物品照片 (photo)")
+        console.print("  5) 其他 (other)")
+        type_choice = Prompt.ask("选择类型", choices=["1", "2", "3", "4", "5"], default="4")
+        type_map = {"1": "id_card", "2": "student_card", "3": "purchase_proof", 
+                   "4": "photo", "5": "other"}
+        actual_proof_type = type_map[type_choice]
+        actual_proof_desc = Prompt.ask("材料描述", default="")
+        actual_proof_path = Prompt.ask("文件路径（可选）", default="")
+    
     with console.status("[bold green]正在提交申请..."):
         success, msg, request_id = ClaimService.submit_claim(
             lost_item_id=item_id,
@@ -170,11 +196,123 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
             student_id=student_id or None
         )
     
+    if not success:
+        console.print(f"[red]✗ {msg}[/red]")
+        raise typer.Exit(1)
+    
+    console.print(f"[green]✓ 认领申请提交成功，申请编号: {request_id}[/green]")
+    
+    if add_proof and actual_proof_type:
+        with console.status("[bold green]正在上传证明材料..."):
+            success_proof, msg_proof, proof_id = ClaimService.add_proof_material(
+                claim_request_id=request_id,
+                material_type=actual_proof_type,
+                material_path=actual_proof_path or None,
+                description=actual_proof_desc or None
+            )
+        
+        if success_proof:
+            console.print(f"[green]✓ 证明材料已上传，材料ID: {proof_id}[/green]")
+        else:
+            console.print(f"[yellow]⚠ 证明材料上传失败: {msg_proof}[/yellow]")
+            console.print("[yellow]  您可以稍后使用 external add-proof 命令补充上传[/yellow]")
+    
+    console.print("[yellow]请等待工作人员审核，审核结果将通过电话通知您[/yellow]")
+
+
+@app.command("add-proof")
+def add_proof(request_id: int = typer.Option(..., "--request-id", "-r", help="认领申请编号"),
+              material_type: str = typer.Option(..., "--type", "-t", 
+                  help="材料类型: id_card/student_card/purchase_proof/photo/other"),
+              description: Optional[str] = typer.Option(None, "--desc", "-d", help="材料描述"),
+              material_path: Optional[str] = typer.Option(None, "--path", "-p", help="文件路径")):
+    """为已提交的认领申请补充证明材料"""
+    valid_types = ['id_card', 'student_card', 'purchase_proof', 'photo', 'other']
+    if material_type not in valid_types:
+        console.print(f"[red]✗ 无效类型，可选: {', '.join(valid_types)}[/red]")
+        raise typer.Exit(1)
+    
+    req = ClaimService.get_claim_request(request_id, include_sensitive=False)
+    if not req:
+        console.print("[red]✗ 认领申请不存在[/red]")
+        raise typer.Exit(1)
+    
+    with console.status("[bold green]正在上传..."):
+        success, msg, proof_id = ClaimService.add_proof_material(
+            claim_request_id=request_id,
+            material_type=material_type,
+            material_path=material_path,
+            description=description
+        )
+    
     if success:
-        console.print(f"[green]✓ {msg}，申请编号: {request_id}[/green]")
-        console.print("[yellow]请等待工作人员审核，审核结果将通过电话通知您[/yellow]")
+        console.print(f"[green]✓ 证明材料上传成功，材料ID: {proof_id}[/green]")
     else:
         console.print(f"[red]✗ {msg}[/red]")
+
+
+@app.command("view-claim")
+def view_claim(request_id: int = typer.Option(..., "--request-id", "-r", help="认领申请编号"),
+               phone: str = typer.Option(..., "--phone", "-h", help="认领时预留的手机号")):
+    """查看认领申请状态和证明材料（公开视图）"""
+    req = ClaimService.get_claim_request(request_id, include_sensitive=False)
+    if not req:
+        console.print("[red]✗ 认领申请不存在[/red]")
+        raise typer.Exit(1)
+    
+    if req.get('claimant_phone') != phone:
+        console.print("[red]✗ 手机号不匹配，无权查看此申请[/red]")
+        raise typer.Exit(1)
+    
+    proofs = ClaimService.get_proof_materials(request_id)
+    
+    status_map = {
+        'pending': '待审核',
+        'approved': '已通过',
+        'rejected': '已拒绝',
+        'withdrawn': '已撤回',
+        'completed': '已完成'
+    }
+    
+    content = f"""
+[bold cyan]认领申请 #{req['id']}[/bold cyan]
+
+[bold]物品:[/bold] {req['item_name']}
+[bold]状态:[/bold] {status_map.get(req['status'], req['status'])}
+[bold]贵重物品:[/bold] {'是' if req.get('is_valuable') else '否'}
+
+[bold]您的信息:[/bold]
+  姓名: {req.get('claimant_name') or '-'}
+  电话: {req.get('claimant_phone') or '-'}
+
+[bold]审核信息:[/bold]
+  审核意见: {req.get('review_remark') or '-'}
+  审核时间: {req.get('reviewed_at') or '-'}
+    """
+    
+    console.print(Panel(content, title="认领申请状态", border_style="cyan"))
+    
+    if proofs:
+        proof_table = Table(title=f"已上传的证明材料 ({len(proofs)} 份)", show_lines=True)
+        proof_table.add_column("ID", style="cyan")
+        proof_table.add_column("类型")
+        proof_table.add_column("描述")
+        proof_table.add_column("上传时间")
+        type_map = {
+            'id_card': '身份证',
+            'student_card': '学生证',
+            'purchase_proof': '购买凭证',
+            'photo': '照片',
+            'other': '其他'
+        }
+        for p in proofs:
+            proof_table.add_row(
+                str(p['id']),
+                type_map.get(p['material_type'], p['material_type']),
+                p.get('description') or '-',
+                p['uploaded_at'][:16] if p.get('uploaded_at') else '-'
+            )
+        console.print(proof_table)
 
 
 @app.command()
