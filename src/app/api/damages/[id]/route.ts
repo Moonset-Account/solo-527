@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '@/lib/api/response'
-import { getSearchParams, validateRequest, getCurrentUserId } from '@/lib/api/handler'
 import { z } from 'zod'
+import { successResponse, errorResponse, notFoundResponse, validationErrorResponse } from '@/lib/api/response'
+import { validateRequest, getCurrentUserId } from '@/lib/api/handler'
 
 type Damage = {
   id: string
@@ -93,21 +93,6 @@ const mockDamages: Record<string, Damage> = {
   },
 }
 
-const equipmentMap: Record<string, { id: string; name: string; sku: string }> = {
-  '1': { id: '1', name: 'Canon EOS R5', sku: 'CAM-001' },
-  '2': { id: '2', name: 'Sony A7 IV', sku: 'CAM-002' },
-  '3': { id: '3', name: 'Canon 24-70mm f/2.8', sku: 'LEN-001' },
-  '4': { id: '4', name: 'Profoto B10X Plus', sku: 'LIT-001' },
-  '5': { id: '5', name: 'Godox SL60W', sku: 'LIT-002' },
-  '6': { id: '6', name: 'Manfrotto 三脚架', sku: 'TRIPOD-001' },
-}
-
-const bookingMap: Record<string, { id: string; booking_no: string; client_name: string }> = {
-  '1': { id: '1', booking_no: 'BK20240110001', client_name: '张三' },
-  '2': { id: '2', booking_no: 'BK202401150002', client_name: '李四公司' },
-  '3': { id: '3', booking_no: 'BK202401150003', client_name: '王五公司' },
-}
-
 function addAuditLog(damage: Damage, action: string, oldValue?: any, newValue?: any, notes?: string) {
   damage.audit_logs.push({
     id: `log-${Date.now()}-${Math.random()}`,
@@ -121,81 +106,81 @@ function addAuditLog(damage: Damage, action: string, oldValue?: any, newValue?: 
   damage.updated_at = new Date().toISOString()
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const params = await getSearchParams(request)
+    const { id } = await params
+    const damage = mockDamages[id]
     
-    let filtered = Object.values(mockDamages)
-    
-    if (params.equipment_id) {
-      filtered = filtered.filter(d => d.equipment_id === params.equipment_id)
-    }
-    if (params.booking_id) {
-      filtered = filtered.filter(d => d.booking_id === params.booking_id)
-    }
-    if (params.status) {
-      filtered = filtered.filter(d => d.status === params.status)
-    }
-    if (params.severity) {
-      filtered = filtered.filter(d => d.severity === params.severity)
+    if (!damage) {
+      return notFoundResponse('损坏记录')
     }
     
-    return successResponse(filtered)
+    return successResponse(damage)
   } catch (error) {
-    console.error('Get damages error:', error)
-    return errorResponse('获取损坏记录失败', 500)
+    console.error('Get damage error:', error)
+    return errorResponse('获取损坏详情失败', 500)
   }
 }
 
-const damageSchema = z.object({
-  equipment_id: z.string().min(1),
-  booking_id: z.string().optional(),
-  responsible_party: z.string().min(1),
-  severity: z.enum(['minor', 'moderate', 'severe', 'total']),
-  description: z.string().min(1),
+const updateDamageSchema = z.object({
+  status: z.enum(['reported', 'investigating', 'resolved', 'closed']).optional(),
+  severity: z.enum(['minor', 'moderate', 'severe', 'total']).optional(),
   repair_cost: z.number().min(0).optional(),
-  images: z.array(z.string()).optional(),
+  responsible_party: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
   notes: z.string().optional(),
 })
 
-export async function POST(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const userId = await getCurrentUserId()
+    const { id } = await params
+    const damage = mockDamages[id]
     
+    if (!damage) {
+      return notFoundResponse('损坏记录')
+    }
+
     try {
-      const body = await validateRequest(request, damageSchema)
-      
-      const damageId = `damage-${Date.now()}`
-      const newDamage: Damage = {
-        id: damageId,
-        equipment_id: body.equipment_id,
-        booking_id: body.booking_id,
-        reporter_id: userId || 'user-1',
-        responsible_party: body.responsible_party,
-        severity: body.severity,
-        description: body.description,
-        repair_cost: body.repair_cost || 0,
-        status: 'reported',
-        images: body.images,
-        notes: body.notes,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        equipment: equipmentMap[body.equipment_id] || { id: body.equipment_id, name: '未知器材', sku: '' },
-        bookings: body.booking_id ? bookingMap[body.booking_id] || undefined : undefined,
-        reporter: { id: userId || 'user-1', full_name: '当前用户' },
-        audit_logs: [
-          {
-            id: `log-${Date.now()}`,
-            action: 'create_damage',
-            created_by: userId || 'user-1',
-            created_at: new Date().toISOString(),
-          }
-        ],
+      const body = await validateRequest(request, updateDamageSchema)
+
+      if (body.status && body.status !== damage.status) {
+        addAuditLog(damage, 'update_status', damage.status, body.status, body.notes)
+        damage.status = body.status
       }
+
+      if (body.severity && body.severity !== damage.severity) {
+        addAuditLog(damage, 'update_severity', damage.severity, body.severity)
+        damage.severity = body.severity
+      }
+
+      if (body.repair_cost !== undefined && body.repair_cost !== damage.repair_cost) {
+        addAuditLog(damage, 'update_repair_cost', damage.repair_cost, body.repair_cost)
+        damage.repair_cost = body.repair_cost
+      }
+
+      if (body.responsible_party && body.responsible_party !== damage.responsible_party) {
+        addAuditLog(damage, 'update_responsible', damage.responsible_party, body.responsible_party)
+        damage.responsible_party = body.responsible_party
+      }
+
+      if (body.description && body.description !== damage.description) {
+        damage.description = body.description
+      }
+
+      if (body.notes !== undefined) {
+        damage.notes = body.notes
+      }
+
+      damage.updated_at = new Date().toISOString()
       
-      mockDamages[damageId] = newDamage
-      
-      return successResponse({ damage_id: damageId, damage: newDamage }, 201)
+      return successResponse(damage)
     } catch (error: any) {
       if (error.message === 'VALIDATION_ERROR') {
         return validationErrorResponse(error.validationErrors)
@@ -203,7 +188,59 @@ export async function POST(request: NextRequest) {
       throw error
     }
   } catch (error) {
-    console.error('Create damage error:', error)
-    return errorResponse('上报损坏失败', 500)
+    console.error('Update damage error:', error)
+    return errorResponse('更新损坏记录失败', 500)
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await getCurrentUserId()
+    const { id } = await params
+    const damage = mockDamages[id]
+    
+    if (!damage) {
+      return notFoundResponse('损坏记录')
+    }
+
+    const url = new URL(request.url)
+    const action = url.searchParams.get('action')
+
+    if (action === 'start_investigation') {
+      const oldStatus = damage.status
+      damage.status = 'investigating'
+      addAuditLog(damage, 'update_status', oldStatus, 'investigating', '开始调查损坏原因')
+      return successResponse(damage)
+    }
+
+    if (action === 'resolve') {
+      const oldStatus = damage.status
+      damage.status = 'resolved'
+      const body = await request.json().catch(() => ({}))
+      addAuditLog(damage, 'update_status', oldStatus, 'resolved', body.notes || '损坏已处理完毕')
+      return successResponse(damage)
+    }
+
+    if (action === 'close') {
+      const oldStatus = damage.status
+      damage.status = 'closed'
+      addAuditLog(damage, 'update_status', oldStatus, 'closed', '案件已关闭')
+      return successResponse(damage)
+    }
+
+    if (action === 'reopen') {
+      const oldStatus = damage.status
+      damage.status = 'investigating'
+      addAuditLog(damage, 'update_status', oldStatus, 'investigating', '重新打开调查')
+      return successResponse(damage)
+    }
+
+    return errorResponse('未知操作', 400)
+  } catch (error) {
+    console.error('Damage action error:', error)
+    return errorResponse('操作失败', 500)
   }
 }
