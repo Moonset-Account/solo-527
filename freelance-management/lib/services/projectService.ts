@@ -16,7 +16,7 @@ export interface CreateProjectInput {
 export function getProjects(userId: number, role: Role): Project[] {
   if (role === Role.CLIENT) {
     const projects = db.prepare(`
-      SELECT p.id, p.name, p.description, p.client_id, p.status, p.start_date, p.end_date, p.created_by, p.created_at, p.updated_at
+      SELECT p.id, p.name, p.description, p.client_id, p.status, p.start_date, p.end_date, p.created_at, p.updated_at
       FROM projects p
       JOIN clients c ON p.client_id = c.id
       WHERE c.user_id = ?

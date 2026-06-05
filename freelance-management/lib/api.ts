@@ -47,6 +47,22 @@ export const projectApi = {
   create: (data: any) => api.post<any>('/projects', data),
   update: (id: number, data: any) => api.put<any>(`/projects/${id}`, data),
   delete: (id: number) => api.delete<any>(`/projects/${id}`),
+  getFiles: (id: number) => api.get<any[]>(`/projects/${id}/files`),
+  uploadFile: async (id: number, file: File, isPublic: boolean = false) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('is_public', String(isPublic));
+    const response = await fetch(`/api/projects/${id}/files`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: '上传失败' }));
+      throw new Error(error.error || '上传失败');
+    }
+    return response.json();
+  },
 };
 
 export const clientApi = {

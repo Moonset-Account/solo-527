@@ -32,7 +32,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       return NextResponse.json({ error: '无效的导出类型' }, { status: 400 });
   }
   
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${filename}"`,

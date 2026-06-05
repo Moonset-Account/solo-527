@@ -6,8 +6,8 @@ import * as timeEntryService from '@/lib/services/timeEntryService';
 import { Role } from '@/types';
 import { canAccessProject } from '@/lib/auth';
 
-export const GET = requireAuth(async (request: NextRequest, user) => {
-  const id = parseInt(request.nextUrl.pathname.split('/').pop()!);
+export const GET = requireAuth(async (request: NextRequest, user, params: { id: string }) => {
+  const id = parseInt(params.id);
   
   if (user.role === Role.CLIENT && !canAccessProject(user, id)) {
     return NextResponse.json({ error: '权限不足' }, { status: 403 });
@@ -38,24 +38,24 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
   });
 });
 
-export const PUT = requireAuth(async (request: NextRequest, user) => {
+export const PUT = requireAuth(async (request: NextRequest, user, params: { id: string }) => {
   if (user.role === Role.CLIENT) {
     return NextResponse.json({ error: '权限不足' }, { status: 403 });
   }
   
-  const id = parseInt(request.nextUrl.pathname.split('/').pop()!);
+  const id = parseInt(params.id);
   const body = await request.json();
   
   const project = projectService.updateProject(id, body);
   return NextResponse.json(project);
 });
 
-export const DELETE = requireAuth(async (request: NextRequest, user) => {
+export const DELETE = requireAuth(async (request: NextRequest, user, params: { id: string }) => {
   if (user.role !== Role.ADMIN && user.role !== Role.DESIGNER) {
     return NextResponse.json({ error: '权限不足' }, { status: 403 });
   }
   
-  const id = parseInt(request.nextUrl.pathname.split('/').pop()!);
+  const id = parseInt(params.id);
   projectService.deleteProject(id);
   
   return NextResponse.json({ success: true });

@@ -23,13 +23,13 @@ export function authenticate(request: NextRequest): AuthPayload | null {
   return verifyToken(token);
 }
 
-export function requireAuth(handler: (request: NextRequest, user: AuthPayload) => Promise<Response>) {
-  return async (request: NextRequest) => {
+export function requireAuth(handler: (request: NextRequest, user: AuthPayload, params: any) => Promise<Response>) {
+  return async (request: NextRequest, context: { params: any }) => {
     const user = authenticate(request);
     if (!user) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 });
     }
-    return handler(request, user);
+    return handler(request, user, context?.params || {});
   };
 }
 

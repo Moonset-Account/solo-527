@@ -13,12 +13,15 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
+  const [files, setFiles] = useState<any[]>([]);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
-    status: 'todo' as TaskStatus,
+    status: TaskStatus.TODO,
     estimated_hours: '',
     due_date: '',
   });
@@ -30,7 +33,7 @@ export default function ProjectDetailPage() {
     billable: true,
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'time' | 'info'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'time' | 'files' | 'info'>('tasks');
 
   const isClient = user?.role === Role.CLIENT;
   const projectId = parseInt(params.id as string);
@@ -41,10 +44,14 @@ export default function ProjectDetailPage() {
 
   const loadData = async () => {
     try {
-      const projectData = await projectApi.get(projectId);
+      const [projectData, filesData] = await Promise.all([
+        projectApi.get(projectId),
+        projectApi.getFiles(projectId),
+      ]);
       setProject(projectData);
       setTasks(projectData.tasks || []);
       setTimeEntries(projectData.timeEntries || []);
+      setFiles(filesData);
     } catch (error) {
       console.error('Failed to load project:', error);
     } finally {
@@ -64,7 +71,7 @@ export default function ProjectDetailPage() {
       setTaskForm({
         title: '',
         description: '',
-        status: 'todo',
+        status: TaskStatus.TODO,
         estimated_hours: '',
         due_date: '',
       });
@@ -103,6 +110,24 @@ export default function ProjectDetailPage() {
       loadData();
     } catch (error) {
       console.error('Failed to update task status:', error);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      await projectApi.uploadFile(projectId, file, true);
+      loadData();
+      setShowFileModal(false);
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      alert('上传失败');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -225,6 +250,7 @@ export default function ProjectDetailPage() {
             {[
               { key: 'tasks', label: '任务看板' },
               ...(!isClient ? [{ key: 'time', label: '工时记录' }] : []),
+              { key: 'files', label: '项目文件' },
               { key: 'info', label: '项目信息' },
             ].map((tab) => (
               <button
@@ -298,10 +324,10 @@ export default function ProjectDetailPage() {
                                     onClick={(e) => e.stopPropagation()}
                                     className="text-xs border border-gray-200 rounded px-2 py-0.5"
                                   >
-                                    <option value="todo">待办</option>
-                                    <option value="in_progress">进行中</option>
-                                    <option value="review">审核中</option>
-                                    <option value="done">已完成</option>
+                                    <option value={TaskStatus.TODO}>待办</option>
+                                    <option value={TaskStatus.IN_PROGRESS}>进行中</option>
+                                    <option value={TaskStatus.REVIEW}>审核中</option>
+                                    <option value={TaskStatus.DONE}>已完成</option>
                                   </select>
                                 )}
                               </div>
@@ -363,6 +389,69 @@ export default function ProjectDetailPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'files' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">项目文件</h3>
+                  {!isClient && (
+                    <button
+                      onClick={() => setShowFileModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      上传文件
+                    </button>
+                  )}
+                </div>
+
+                {files.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>暂无文件</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {files.map((file) => (
+                      <div key={file.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {(file.file_size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <a
+                            href={file.file_path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-center text-sm text-blue-600 hover:bg-blue-50 py-1.5 rounded transition"
+                          >
+                            查看
+                          </a>
+                          {!isClient && (
+                            <button className="flex-1 text-center text-sm text-red-600 hover:bg-red-50 py-1.5 rounded transition">
+                              删除
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -558,6 +647,46 @@ export default function ProjectDetailPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showFileModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900">上传文件</h2>
+              </div>
+              <div className="p-6">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition">
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                    disabled={uploading}
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-gray-600 font-medium">
+                      {uploading ? '上传中...' : '点击选择文件或拖拽到此处'}
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">支持所有文件格式</p>
+                  </label>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowFileModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                    disabled={uploading}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
