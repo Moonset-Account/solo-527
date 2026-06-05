@@ -1,0 +1,62 @@
+
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">研学课程</h1>
+      <p class="text-gray-600 mt-2">探索博物馆的精彩世界</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% @courses.each do |course| %>
+      <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+        <% if course.cover_image.attached? %>
+          <%= link_to course_path(course) do %>
+            <%= image_tag course.cover_image, class: "w-full h-48 object-cover" %>
+          <% end %>
+        <% else %>
+          <div class="w-full h-48 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <span class="text-2xl font-bold text-white"><%= course.title %></span>
+          </div>
+        <% end %>
+        
+        <div class="p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"><%= course.category %></span>
+            <span class="text-sm text-gray-500"><%= course.age_range %></span>
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            <%= link_to course.title, course_path(course), class: "hover:text-blue-600" %>
+          </h3>
+          
+          <p class="text-gray-600 text-sm mb-4 line-clamp-2">
+            <%= truncate(course.description, length: 100) %>
+          </p>
+          
+          <div class="flex items-center justify-between text-sm text-gray-500">
+            <span><%= course.duration_minutes %>分钟</span>
+            <span>容量<%= course.capacity %>人</span>
+          </div>
+          
+          <% upcoming = course.upcoming_sessions.first %>
+          <% if upcoming %>
+            <div class="mt-4 pt-4 border-t">
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-green-600">最近场次: <%= upcoming.start_at.strftime('%m月%d日') %></span>
+                <%= link_to '查看详情', course_path(course), 
+                  class: "bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors" %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @courses.empty? %>
+    <div class="text-center py-12">
+      <p class="text-gray-500">暂无可报名的课程</p>
+    </div>
+  <% end %>
+</div>

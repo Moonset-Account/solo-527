@@ -31,7 +31,7 @@ module Mobile
       check_in = @session.check_ins.build(
         registration: registration,
         student: student,
-        checked_in_by: current_user || User.find_by(email: 'system@museum.com'),
+        checked_in_by: current_user,
         checked_in_at: Time.current,
         check_in_method: params[:check_in_method] || 'qr',
         status: :confirmed,
@@ -43,7 +43,7 @@ module Mobile
       end
 
       if check_in.save
-        check_in.update(synced_at: Time.current) unless params[:offline_uuid].present?
+        check_in.update(synced_at: Time.current) if user_signed_in? && params[:offline_uuid].blank?
         render json: { success: true, check_in_id: check_in.id }
       else
         render json: { error: check_in.errors.full_messages.join(', ') }, status: :unprocessable_entity
@@ -52,6 +52,7 @@ module Mobile
 
     def sync
       if params[:check_ins].present?
+        synced_count = 0
         params[:check_ins].each do |check_in_data|
           existing = CheckIn.find_by(offline_uuid: check_in_data[:offline_uuid])
           next if existing&.synced?
@@ -61,16 +62,16 @@ module Mobile
             registration_id: check_in_data[:registration_id],
             student_id: check_in_data[:student_id],
             session_id: check_in_data[:session_id],
-            checked_in_by_id: check_in_data[:checked_in_by_id],
+            checked_in_by_id: current_user&.id,
             checked_in_at: check_in_data[:checked_in_at],
             check_in_method: check_in_data[:check_in_method] || 'offline',
             status: :confirmed,
             offline_uuid: check_in_data[:offline_uuid],
             synced_at: Time.current
           )
-          check_in.save
+          synced_count += 1 if check_in.save
         end
-        render json: { success: true, synced_count: params[:check_ins].size }
+        render json: { success: true, synced_count: synced_count }
       else
         render json: { error: '没有数据需要同步' }, status: :unprocessable_entity
       end

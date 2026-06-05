@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>移动端签到 - <%= @session.course.title %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="csrf-token" content="<%= form_authenticity_token %>">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; }
+    .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 16px; position: sticky; top: 0; z-index: 100; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header .sub { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+    .status-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: white; border-bottom: 1px solid #e5e7eb; }
+    .status-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .online { background: #22c55e; }
+    .offline { background: #f59e0b; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .badge { background: #ef4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; min-width: 20px; text-align: center; }
+    .sync-btn { background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 16px; }
+    .stat-card { background: white; border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-number { font-size: 24px; font-weight: 700; color: #1f2937; }
+    .stat-label { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .search-box { padding: 0 16px 12px; }
+    .search-box input { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+    .registration-group { margin: 0 16px 16px; background: white; border-radius: 8px; overflow: hidden; }
+    .reg-header { padding: 12px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+    .reg-title { font-weight: 600; font-size: 14px; color: #1f2937; }
+    .reg-meta { font-size: 12px; color: #6b7280; }
+    .student-list { }
+    .student-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; }
+    .student-item:last-child { border-bottom: none; }
+    .student-info { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; color: #4f46e5; font-weight: 600; font-size: 14px; }
+    .student-name { font-size: 14px; color: #1f2937; font-weight: 500; }
+    .student-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .check-in-btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; min-width: 72px; }
+    .btn-pending { background: #3b82f6; color: white; }
+    .btn-pending:hover { background: #2563eb; }
+    .btn-checked { background: #d1fae5; color: #065f46; }
+    .btn-offline { background: #fef3c7; color: #92400e; }
+    .photo-upload { display: none; }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; }
+    .empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  </style>
+</head>
+<body class="mobile-check-in-page" data-qr-token="<%= params[:qr_token] %>">
+  <div class="header">
+    <h1><%= @session.course.title %></h1>
+    <div class="sub"><%= @session.start_at.strftime('%m月%d日 %H:%M') %> · <%= @session.location %></div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot <%= navigator.onLine ? 'online' : 'offline' %>" id="network-status"></span>
+      <span id="network-text"><%= navigator.onLine ? '在线' : '离线' %></span>
+    </div>
+    <div class="status-item">
+      <span>待同步:</span>
+      <span class="badge" id="offline-badge">0</span>
+    </div>
+    <button class="sync-btn" id="sync-btn">同步数据</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-number"><%= @registrations.sum(&:student_count) %></div>
+      <div class="stat-label">应到人数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="checked-count"><%= @session.check_ins.confirmed.count %></div>
+      <div class="stat-label">已签到</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="remaining-count"><%= @registrations.sum(&:student_count) - @session.check_ins.confirmed.count %></div>
+      <div class="stat-label">未签到</div>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="student-search" placeholder="搜索学生姓名...">
+  </div>
+
+  <% if @registrations.any? %>
+    <% @registrations.each do |reg| %>
+      <div class="registration-group">
+        <div class="reg-header">
+          <div>
+            <div class="reg-title">
+              <%= reg.school_group? ? "#{reg.school&.name || '团体'}" : '散客报名' %>
+            </div>
+            <div class="reg-meta">联系人: <%= reg.contact_name %> · <%= reg.student_count %>人</div>
+          </div>
+        </div>
+        <div class="student-list">
+          <% reg.students.each do |student| %>
+            <div class="student-item" data-student-name="<%= student.name %>">
+              <div class="student-info">
+                <div class="avatar"><%= student.name[0] %></div>
+                <div>
+                  <div class="student-name"><%= student.name %></div>
+                  <div class="student-meta"><%= student.gender == 'male' ? '男' : '女' %> · <%= student.age_group_i18n rescue student.age_group %></div>
+                </div>
+              </div>
+              <% checked_in = @session.student_already_checked_in?(student) %>
+              <button class="check-in-btn <%= checked_in ? 'btn-checked' : 'btn-pending' %>"
+                data-registration-id="<%= reg.id %>"
+                data-student-id="<%= student.id %>"
+                data-session-id="<%= @session.id %>"
+                onclick="handleCheckIn(this)">
+                <%= checked_in ? '已签到' : '签到' %>
+              </button>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <p>暂无报名数据</p>
+    </div>
+  <% end %>
+
+  <script>
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+    const QR_TOKEN = document.querySelector('[data-qr-token]').dataset.qrToken;
+
+    function updateNetworkStatus() {
+      const dot = document.getElementById('network-status');
+      const text = document.getElementById('network-text');
+      if (navigator.onLine) {
+        dot.className = 'status-dot online';
+        text.textContent = '在线';
+      } else {
+        dot.className = 'status-dot offline';
+        text.textContent = '离线';
+      }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
+
+    let offlineData = JSON.parse(localStorage.getItem('offline_check_ins') || '[]');
+    updateOfflineBadge();
+
+    function updateOfflineBadge() {
+      const badge = document.getElementById('offline-badge');
+      badge.textContent = offlineData.length;
+    }
+
+    function saveOfflineData() {
+      localStorage.setItem('offline_check_ins', JSON.stringify(offlineData));
+      updateOfflineBadge();
+    }
+
+    function generateUUID() {
+      if (crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    async function handleCheckIn(btn) {
+      if (btn.classList.contains('btn-checked') || btn.classList.contains('btn-offline')) {
+        return;
+      }
+
+      const data = {
+        registration_id: btn.dataset.registrationId,
+        student_id: btn.dataset.studentId,
+        session_id: btn.dataset.sessionId,
+        checked_in_at: new Date().toISOString(),
+        check_in_method: 'mobile',
+        offline_uuid: generateUUID()
+      };
+
+      if (navigator.onLine) {
+        try {
+          btn.disabled = true;
+          btn.textContent = '签到中...';
+          
+          const response = await fetch(`/mobile/check_in/${QR_TOKEN}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': CSRF_TOKEN
+            },
+            body: JSON.stringify(data)
+          });
+
+          if (response.ok) {
+            btn.classList.remove('btn-pending');
+            btn.classList.add('btn-checked');
+            btn.textContent = '已签到';
+            updateStats(1);
+            showToast('签到成功');
+          } else {
+            const result = await response.json();
+            throw new Error(result.error || '签到失败');
+          }
+        } catch (error) {
+          saveOffline(data, btn);
+        }
+      } else {
+        saveOffline(data, btn);
+      }
+    }
+
+    function saveOffline(data, btn) {
+      offlineData.push(data);
+      saveOfflineData();
+      
+      btn.classList.remove('btn-pending');
+      btn.classList.add('btn-offline');
+      btn.textContent = '已签到(待同步)';
+      btn.disabled = true;
+      
+      showToast('已保存到本地，联网后自动同步');
+    }
+
+    async function syncOfflineData() {
+      if (offlineData.length === 0) {
+        showToast('没有需要同步的数据');
+        return;
+      }
+
+      const syncBtn = document.getElementById('sync-btn');
+      syncBtn.disabled = true;
+      syncBtn.textContent = '同步中...';
+
+      try {
+        const response = await fetch('/mobile/check_ins/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': CSRF_TOKEN
+          },
+          body: JSON.stringify({ check_ins: offlineData })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          offlineData = [];
+          saveOfflineData();
+          showToast(`同步成功，共 ${result.synced_count} 条记录`);
+          
+          document.querySelectorAll('.btn-offline').forEach(btn => {
+            btn.classList.remove('btn-offline');
+            btn.classList.add('btn-checked');
+            btn.textContent = '已签到';
+          });
+          
+          location.reload();
+        } else {
+          throw new Error('同步失败');
+        }
+      } catch (error) {
+        showToast('同步失败，请稍后重试');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = '同步数据';
+      }
+    }
+
+    document.getElementById('sync-btn').addEventListener('click', syncOfflineData);
+
+    window.addEventListener('online', () => {
+      showToast('网络已连接');
+      if (offlineData.length > 0) {
+        setTimeout(syncOfflineData, 1000);
+      }
+    });
+
+    function updateStats(delta) {
+      const checkedEl = document.getElementById('checked-count');
+      const remainingEl = document.getElementById('remaining-count');
+      checkedEl.textContent = parseInt(checkedEl.textContent) + delta;
+      remainingEl.textContent = parseInt(remainingEl.textContent) - delta;
+    }
+
+    function showToast(message) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.remove(), 2500);
+    }
+
+    document.getElementById('student-search').addEventListener('input', function(e) {
+      const query = e.target.value.toLowerCase();
+      document.querySelectorAll('.student-item').forEach(item => {
+        const name = item.dataset.studentName.toLowerCase();
+        item.style.display = name.includes(query) ? '' : 'none';
+      });
+    });
+
+    offlineData.forEach(data => {
+      const btn = document.querySelector(`[data-student-id="${data.student_id}"]`);
+      if (btn) {
+        btn.classList.remove('btn-pending');
+        btn.classList.add('btn-offline');
+        btn.textContent = '已签到(待同步)';
+        btn.disabled = true;
+      }
+    });
+  </script>
+</body>
+</html>

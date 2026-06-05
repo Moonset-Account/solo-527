@@ -1,0 +1,78 @@
+
+<div class="px-4 py-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">报名管理</h1>
+    <div class="flex items-center gap-2">
+      <%= form_tag admin_registrations_path, method: :get, class: "flex items-center gap-2" do %>
+        <%= select_tag :status, options_for_select([['全部状态', ''], ['待审核', 'pending'], ['已通过', 'approved'], ['已拒绝', 'rejected'], ['已取消', 'cancelled']], params[:status]), 
+          class: "border border-gray-300 rounded-lg px-3 py-2 text-sm" %>
+        <%= submit_tag '筛选', class: "bg-gray-100 px-3 py-2 rounded-lg text-sm hover:bg-gray-200 cursor-pointer" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">课程</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">人数</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">联系人</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @registrations.each do |reg| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm font-medium text-gray-900"><%= reg.session.course.title %></div>
+              <% if reg.school.present? %>
+                <div class="text-sm text-gray-500"><%= reg.school.name %></div>
+              <% end %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <%= reg.session.start_at.strftime('%m-%d %H:%M') %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="px-2 py-1 text-xs rounded-full <%= reg.school_group? ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800' %>">
+                <%= reg.school_group? ? '团体' : '散客' %>
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <%= reg.student_count %>人
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900"><%= reg.contact_name %></div>
+              <div class="text-sm text-gray-500"><%= reg.contact_phone %></div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="px-2 py-1 text-xs rounded-full 
+                <%= case reg.status
+                      when 'pending' then 'bg-yellow-100 text-yellow-800'
+                      when 'approved' then 'bg-green-100 text-green-800'
+                      when 'rejected' then 'bg-red-100 text-red-800'
+                      when 'cancelled' then 'bg-gray-100 text-gray-800'
+                      else 'bg-blue-100 text-blue-800'
+                    end %>">
+                <%= case reg.status
+                    when 'pending' then '待审核'
+                    when 'approved' then '已通过'
+                    when 'rejected' then '已拒绝'
+                    when 'cancelled' then '已取消'
+                    when 'completed' then '已完成'
+                    else reg.status
+                  end %>
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <%= link_to '详情', admin_registration_path(reg), class: "text-blue-600 hover:text-blue-900" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,4 +1,5 @@
 class RegistrationsController < ApplicationController
+  skip_before_action :authenticate_user!, only: [:new, :create, :show]
   before_action :set_registration, only: [:show, :cancel]
 
   def index
@@ -19,24 +20,26 @@ class RegistrationsController < ApplicationController
     @session = Session.find(params[:session_id])
     @registration = Registration.new(session: @session)
     @schools = School.active_schools.order(:name)
-    authorize @registration
+    skip_authorization
   end
 
   def create
     @registration = Registration.new(registration_params)
-    @registration.user = current_user
+    @registration.user = current_user if user_signed_in?
     @registration.status = :pending
     @registration.submitted_at = Time.current
-    authorize @registration
+    skip_authorization
 
     if @registration.save
-      Notification.create(
-        user: @registration.user,
-        title: '报名提交成功',
-        content: "您的#{@registration.session.course.title}课程报名已提交，等待审核。",
-        notification_type: 'registration_submitted',
-        related_object: @registration
-      )
+      if @registration.user.present?
+        Notification.create(
+          user: @registration.user,
+          title: '报名提交成功',
+          content: "您的#{@registration.session.course.title}课程报名已提交，等待审核。",
+          notification_type: 'registration_submitted',
+          related_object: @registration
+        )
+      end
       redirect_to registration_path(@registration), notice: '报名提交成功，请等待审核'
     else
       @session = @registration.session
