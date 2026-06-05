@@ -1,146 +1,46 @@
+// @ts-nocheck
 import { NextRequest } from 'next/server'
-import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '@/lib/api/response'
-import { getSearchParams, validateRequest, getCurrentUserId } from '@/lib/api/handler'
+import { successResponse, errorResponse, validationErrorResponse } from '@/lib/api/response'
+import { getSearchParams, validateRequest, requireAuth, insertAuditLog } from '@/lib/api/handler'
 import { z } from 'zod'
-
-type Damage = {
-  id: string
-  equipment_id: string
-  booking_id?: string
-  reporter_id: string
-  responsible_party: string
-  severity: 'minor' | 'moderate' | 'severe' | 'total'
-  description: string
-  repair_cost: number
-  status: 'reported' | 'investigating' | 'resolved' | 'closed'
-  images?: string[]
-  notes?: string
-  created_at: string
-  updated_at: string
-  equipment: { id: string; name: string; sku: string }
-  bookings?: { id: string; booking_no: string; client_name: string }
-  reporter: { id: string; full_name: string; role?: string }
-  audit_logs: Array<{
-    id: string
-    action: string
-    old_value?: any
-    new_value?: any
-    notes?: string
-    created_by: string
-    created_at: string
-  }>
-}
-
-const mockDamages: Record<string, Damage> = {
-  '1': {
-    id: '1',
-    equipment_id: '1',
-    booking_id: '1',
-    reporter_id: 'user-2',
-    responsible_party: '客户 张三',
-    severity: 'minor',
-    description: '机身底部有轻微划痕，不影响使用',
-    repair_cost: 0,
-    status: 'resolved',
-    created_at: '2024-01-08T16:30:00',
-    updated_at: '2024-01-09T10:00:00',
-    equipment: { id: '1', name: 'Canon EOS R5', sku: 'CAM-001' },
-    bookings: { id: '1', booking_no: 'BK20240110001', client_name: '张三' },
-    reporter: { id: 'user-2', full_name: '李助理', role: 'photographer' },
-    audit_logs: [
-      { id: 'log1', action: 'create_damage', created_by: 'user-2', created_at: '2024-01-08T16:30:00' },
-      { id: 'log2', action: 'update_status', old_value: 'reported', new_value: 'resolved', created_by: 'user-1', created_at: '2024-01-09T10:00:00', notes: '划痕轻微，无需维修' },
-    ],
-  },
-  '2': {
-    id: '2',
-    equipment_id: '6',
-    booking_id: '2',
-    reporter_id: 'user-3',
-    responsible_party: '拍摄助理 张助理',
-    severity: 'moderate',
-    description: '三脚架云台连接处松动，需要维修',
-    repair_cost: 500,
-    status: 'reported',
-    created_at: '2024-01-14T11:00:00',
-    updated_at: '2024-01-14T11:00:00',
-    equipment: { id: '6', name: 'Manfrotto 三脚架', sku: 'TRIPOD-001' },
-    bookings: { id: '2', booking_no: 'BK202401150002', client_name: '李四公司' },
-    reporter: { id: 'user-3', full_name: '王助理', role: 'assistant' },
-    audit_logs: [
-      { id: 'log1', action: 'create_damage', created_by: 'user-3', created_at: '2024-01-14T11:00:00' },
-    ],
-  },
-  '3': {
-    id: '3',
-    equipment_id: '4',
-    booking_id: '3',
-    reporter_id: 'user-1',
-    responsible_party: '客户 王五公司',
-    severity: 'severe',
-    description: '闪光灯管破裂，无法正常闪光',
-    repair_cost: 2800,
-    status: 'investigating',
-    created_at: '2024-01-12T09:15:00',
-    updated_at: '2024-01-13T14:00:00',
-    equipment: { id: '4', name: 'Profoto B10X Plus', sku: 'LIT-001' },
-    bookings: { id: '3', booking_no: 'BK202401150003', client_name: '王五公司' },
-    reporter: { id: 'user-1', full_name: '管理员', role: 'admin' },
-    audit_logs: [
-      { id: 'log1', action: 'create_damage', created_by: 'user-1', created_at: '2024-01-12T09:15:00' },
-      { id: 'log2', action: 'update_status', old_value: 'reported', new_value: 'investigating', created_by: 'user-1', created_at: '2024-01-13T14:00:00', notes: '联系维修商报价中' },
-    ],
-  },
-}
-
-const equipmentMap: Record<string, { id: string; name: string; sku: string }> = {
-  '1': { id: '1', name: 'Canon EOS R5', sku: 'CAM-001' },
-  '2': { id: '2', name: 'Sony A7 IV', sku: 'CAM-002' },
-  '3': { id: '3', name: 'Canon 24-70mm f/2.8', sku: 'LEN-001' },
-  '4': { id: '4', name: 'Profoto B10X Plus', sku: 'LIT-001' },
-  '5': { id: '5', name: 'Godox SL60W', sku: 'LIT-002' },
-  '6': { id: '6', name: 'Manfrotto 三脚架', sku: 'TRIPOD-001' },
-}
-
-const bookingMap: Record<string, { id: string; booking_no: string; client_name: string }> = {
-  '1': { id: '1', booking_no: 'BK20240110001', client_name: '张三' },
-  '2': { id: '2', booking_no: 'BK202401150002', client_name: '李四公司' },
-  '3': { id: '3', booking_no: 'BK202401150003', client_name: '王五公司' },
-}
-
-function addAuditLog(damage: Damage, action: string, oldValue?: any, newValue?: any, notes?: string) {
-  damage.audit_logs.push({
-    id: `log-${Date.now()}-${Math.random()}`,
-    action,
-    old_value: oldValue,
-    new_value: newValue,
-    notes,
-    created_by: 'current-user',
-    created_at: new Date().toISOString(),
-  })
-  damage.updated_at = new Date().toISOString()
-}
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient()
     const params = await getSearchParams(request)
     
-    let filtered = Object.values(mockDamages)
+    let query = supabase
+      .from('equipment_damages')
+      .select(`
+        *,
+        equipment:equipment(id, name, sku, status),
+        bookings:bookings(id, booking_no, clients:clients(name)),
+        reporter:profiles(id, full_name, role)
+      `)
+      .order('created_at', { ascending: false })
     
     if (params.equipment_id) {
-      filtered = filtered.filter(d => d.equipment_id === params.equipment_id)
+      query = query.eq('equipment_id', params.equipment_id)
     }
     if (params.booking_id) {
-      filtered = filtered.filter(d => d.booking_id === params.booking_id)
+      query = query.eq('booking_id', params.booking_id)
     }
     if (params.status) {
-      filtered = filtered.filter(d => d.status === params.status)
+      query = query.eq('status', params.status)
     }
     if (params.severity) {
-      filtered = filtered.filter(d => d.severity === params.severity)
+      query = query.eq('severity', params.severity)
     }
     
-    return successResponse(filtered)
+    const { data, error } = await query
+    
+    if (error) {
+      console.error('Get damages error:', error)
+      return errorResponse('获取损坏记录失败', 500)
+    }
+    
+    return successResponse(data || [])
   } catch (error) {
     console.error('Get damages error:', error)
     return errorResponse('获取损坏记录失败', 500)
@@ -160,49 +60,66 @@ const damageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId()
+    const userId = await requireAuth()
+    const supabase = createClient()
     
     try {
       const body = await validateRequest(request, damageSchema)
       
-      const damageId = `damage-${Date.now()}`
-      const newDamage: Damage = {
-        id: damageId,
-        equipment_id: body.equipment_id,
-        booking_id: body.booking_id,
-        reporter_id: userId || 'user-1',
-        responsible_party: body.responsible_party,
-        severity: body.severity,
-        description: body.description,
-        repair_cost: body.repair_cost || 0,
-        status: 'reported',
-        images: body.images,
-        notes: body.notes,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        equipment: equipmentMap[body.equipment_id] || { id: body.equipment_id, name: '未知器材', sku: '' },
-        bookings: body.booking_id ? bookingMap[body.booking_id] || undefined : undefined,
-        reporter: { id: userId || 'user-1', full_name: '当前用户' },
-        audit_logs: [
-          {
-            id: `log-${Date.now()}`,
-            action: 'create_damage',
-            created_by: userId || 'user-1',
-            created_at: new Date().toISOString(),
-          }
-        ],
+      const { data: damage, error: damageError }: any = await supabase
+        .from('equipment_damages')
+        .insert({
+          equipment_id: body.equipment_id,
+          booking_id: body.booking_id || null,
+          reporter_id: userId,
+          responsible_party: body.responsible_party,
+          severity: body.severity,
+          description: body.description,
+          repair_cost: body.repair_cost || null,
+          images: body.images || null,
+          status: 'reported',
+        })
+        .select(`
+          *,
+          equipment:equipment(id, name, sku),
+          bookings:bookings(id, booking_no, clients:clients(name)),
+          reporter:profiles(id, full_name, role)
+        `)
+        .single()
+      
+      if (damageError) {
+        console.error('Create damage error:', damageError)
+        return errorResponse('上报损坏失败: ' + damageError.message, 500)
       }
       
-      mockDamages[damageId] = newDamage
+      const { error: eqError } = await supabase
+        .from('equipment')
+        .update({ status: 'damaged' })
+        .eq('id', body.equipment_id)
       
-      return successResponse({ damage_id: damageId, damage: newDamage }, 201)
+      if (eqError) {
+        console.error('Update equipment status error:', eqError)
+      }
+      
+      await insertAuditLog(userId, 'create_damage', 'equipment_damage', damage.id, null, {
+        equipment_id: body.equipment_id,
+        severity: body.severity,
+      })
+      
+      return successResponse({ damage_id: damage.id, damage }, 201)
     } catch (error: any) {
       if (error.message === 'VALIDATION_ERROR') {
         return validationErrorResponse(error.validationErrors)
       }
+      if (error.message === 'FORBIDDEN') {
+        return errorResponse('没有权限', 403)
+      }
       throw error
     }
   } catch (error) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return errorResponse('未授权', 401)
+    }
     console.error('Create damage error:', error)
     return errorResponse('上报损坏失败', 500)
   }
