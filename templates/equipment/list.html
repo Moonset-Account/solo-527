@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}设备管理 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">设备管理</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'bookings:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新建预约
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">设备类别</label>
+                <select name="category" class="form-select">
+                    <option value="">全部类别</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">状态</label>
+                <select name="status" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="available" {% if selected_status == 'available' %}selected{% endif %}>可用</option>
+                    <option value="in_use" {% if selected_status == 'in_use' %}selected{% endif %}>使用中</option>
+                    <option value="maintenance" {% if selected_status == 'maintenance' %}selected{% endif %}>维护中</option>
+                    <option value="broken" {% if selected_status == 'broken' %}selected{% endif %}>故障</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 筛选
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for equipment in equipments %}
+    <div class="col">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">{{ equipment.name }}</h5>
+                    <span class="status-badge status-{{ equipment.status }}">
+                        {{ equipment.get_status_display }}
+                    </span>
+                </div>
+                <h6 class="card-subtitle mb-2 text-muted">{{ equipment.category.name }}</h6>
+                <p class="card-text small">
+                    <i class="bi bi-geo-alt"></i> {{ equipment.location }}<br>
+                    <i class="bi bi-clock-history"></i> 使用次数: {{ equipment.usage_count }}
+                </p>
+                {% if equipment.requires_training %}
+                <span class="badge bg-warning text-dark mb-2">
+                    <i class="bi bi-exclamation-triangle"></i> 需要培训
+                </span>
+                {% endif %}
+                {% if equipment.is_dangerous %}
+                <span class="badge bg-danger mb-2">
+                    <i class="bi bi-radioactive"></i> 危险设备
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'equipment:detail' equipment.pk %}" class="btn btn-outline-primary">
+                        查看详情
+                    </a>
+                    {% if equipment.status == 'available' %}
+                    <a href="{% url 'bookings:create' %}?equipment={{ equipment.pk }}" class="btn btn-primary">
+                        <i class="bi bi-calendar-plus"></i> 预约
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-gear display-1 text-muted"></i>
+            <p class="mt-3 text-muted">暂无设备数据</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

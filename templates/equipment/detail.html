@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ equipment.name }} - 设备详情{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'equipment:list' %}">设备管理</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ equipment.name }}</li>
+            </ol>
+        </nav>
+        <h1 class="h2">{{ equipment.name }}</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if equipment.status == 'available' %}
+        <a href="{% url 'bookings:create' %}?equipment={{ equipment.pk }}" class="btn btn-primary">
+            <i class="bi bi-calendar-plus"></i> 预约设备
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">设备信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">设备编号</div>
+                    <div class="col-sm-9">{{ equipment.serial_number|default:'-' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">设备型号</div>
+                    <div class="col-sm-9">{{ equipment.model_number|default:'-' }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">设备类别</div>
+                    <div class="col-sm-9">{{ equipment.category.name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">存放位置</div>
+                    <div class="col-sm-9">{{ equipment.location }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">设备状态</div>
+                    <div class="col-sm-9">
+                        <span class="status-badge status-{{ equipment.status }}">
+                            {{ equipment.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">使用次数</div>
+                    <div class="col-sm-9">{{ equipment.usage_count }} 次</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-3 text-muted">培训要求</div>
+                    <div class="col-sm-9">
+                        {% if equipment.requires_training %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle"></i> 需要培训
+                        </span>
+                        {% if equipment.is_dangerous %}
+                        <span class="badge bg-danger ms-1">
+                            <i class="bi bi-radioactive"></i> 危险设备
+                        </span>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge bg-success">无需培训</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-3 text-muted">设备描述</div>
+                    <div class="col-sm-9">{{ equipment.description|default:'-'|linebreaks }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">最近使用记录</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for log in usage_logs %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ log.user.real_name }}</h6>
+                        <small>{{ log.start_time|date:'Y-m-d H:i' }}</small>
+                    </div>
+                    <p class="mb-1 small text-muted">
+                        使用时长: {{ log.duration|default:'使用中' }}
+                    </p>
+                    {% if log.notes %}
+                    <small>{{ log.notes }}</small>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="list-group-item text-center text-muted py-4">
+                    暂无使用记录
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">快捷操作</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% if equipment.status == 'available' %}
+                <a href="{% url 'bookings:create' %}?equipment={{ equipment.pk }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-calendar-plus me-2"></i> 预约此设备
+                </a>
+                {% endif %}
+                <a href="{% url 'maintenance:ticket_create' %}?equipment={{ equipment.pk }}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-wrench me-2"></i> 报障报修
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">二维码</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ3aGl0ZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij7nu5jnoJTkuK3mnInpoY7mnpPgPC90ZXh0Pjwvc3ZnPg==" alt="设备二维码" class="img-fluid">
+                <p class="small text-muted mt-2 mb-0">扫描二维码查看设备信息</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

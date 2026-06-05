@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}创客空间设备预约平台{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background: #1e293b;
+        }
+        .sidebar .nav-link {
+            color: #cbd5e1;
+            padding: 0.75rem 1rem;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: #fff;
+            background: #334155;
+        }
+        .sidebar .nav-link i {
+            margin-right: 0.5rem;
+        }
+        .main-content {
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .card-stat {
+            border-left: 4px solid var(--primary-color);
+        }
+        .card-stat.success { border-left-color: var(--success-color); }
+        .card-stat.warning { border-left-color: var(--warning-color); }
+        .card-stat.danger { border-left-color: var(--danger-color); }
+        .mobile-nav { display: none; }
+        @media (max-width: 768px) {
+            .sidebar { display: none; position: fixed; z-index: 1000; width: 280px; }
+            .sidebar.open { display: block; }
+            .mobile-nav { display: flex; }
+        }
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .status-available { background: #dcfce7; color: #166534; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #dbeafe; color: #1e40af; }
+        .status-in-use { background: #e0e7ff; color: #3730a3; }
+        .status-broken { background: #fee2e2; color: #991b1b; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <nav class="mobile-nav navbar navbar-dark bg-dark fixed-top d-md-none">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">创客空间</span>
+            <button class="navbar-toggler" type="button" onclick="toggleSidebar()">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </nav>
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3 pt-md-5">
+                    <h5 class="text-white px-3 mb-3">创客空间</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'core:dashboard' %}">
+                                <i class="bi bi-speedometer2"></i> 仪表盘
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'equipment:list' %}">
+                                <i class="bi bi-gear"></i> 设备管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'bookings:calendar' %}">
+                                <i class="bi bi-calendar3"></i> 预约日历
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'bookings:my_bookings' %}">
+                                <i class="bi bi-calendar-check"></i> 我的预约
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'training:course_list' %}">
+                                <i class="bi bi-mortarboard"></i> 培训课程
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'training:certification_list' %}">
+                                <i class="bi bi-award"></i> 资格证书
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'consumables:list' %}">
+                                <i class="bi bi-box"></i> 耗材管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'maintenance:ticket_list' %}">
+                                <i class="bi bi-wrench"></i> 故障报修
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'safety:incident_list' %}">
+                                <i class="bi bi-shield-exclamation"></i> 安全记录
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:scan_qr' %}">
+                                <i class="bi bi-qr-code-scan"></i> 扫码
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:notifications' %}">
+                                <i class="bi bi-bell"></i> 通知
+                                {% if notifications_count > 0 %}
+                                <span class="badge bg-danger">{{ notifications_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                    <hr class="text-white-50">
+                    <ul class="nav flex-column mb-2">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:profile' %}">
+                                <i class="bi bi-person"></i> 个人中心
+                            </a>
+                        </li>
+                        {% if user.is_staff %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/">
+                                <i class="bi bi-gear-wide-connected"></i> 管理后台
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'core:logout' %}">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content pt-3 pt-md-4">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+        {% block anonymous_content %}{% endblock %}
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-bg-${type} border-0 position-fixed bottom-0 end-0 m-3`;
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            new bootstrap.Toast(toast).show();
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const pendingOperations = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+                if (pendingOperations.length > 0 && navigator.onLine) {
+                    syncOfflineData();
+                }
+            });
+        }
+
+        function syncOfflineData() {
+            const pending = JSON.parse(localStorage.getItem('pendingOperations') || '[]');
+            if (pending.length === 0) return;
+
+            fetch('/api/offline/sync/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ pending_operations: pending }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const successIds = data.results.filter(r => r.success).map(r => r.client_id);
+                    const remaining = pending.filter(op => !successIds.includes(op.client_id));
+                    localStorage.setItem('pendingOperations', JSON.stringify(remaining));
+                    if (successIds.length > 0) {
+                        showToast(`已同步 ${successIds.length} 条离线数据`);
+                    }
+                }
+            })
+            .catch(() => {});
+        }
+
+        window.addEventListener('online', syncOfflineData);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

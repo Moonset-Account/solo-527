@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}预约日历 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">预约日历</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'bookings:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新建预约
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">选择设备</label>
+                <select name="equipment" class="form-select">
+                    <option value="">全部设备</option>
+                    {% for equipment in equipments %}
+                    <option value="{{ equipment.id }}" {% if selected_equipment == equipment.id|stringformat:"s" %}selected{% endif %}>
+                        {{ equipment.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">选择日期</label>
+                <input type="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> 查看
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            {{ selected_date|date:'Y年m月d日' }} 预约情况
+        </h5>
+        <div class="btn-group btn-group-sm">
+            <a href="?date={{ prev_date|date:'Y-m-d' }}{% if selected_equipment %}&equipment={{ selected_equipment }}{% endif %}" class="btn btn-outline-secondary">
+                <i class="bi bi-chevron-left"></i> 前一天
+            </a>
+            <a href="?date={{ next_date|date:'Y-m-d' }}{% if selected_equipment %}&equipment={{ selected_equipment }}{% endif %}" class="btn btn-outline-secondary">
+                后一天 <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">时间</th>
+                        {% for equipment in equipments %}
+                        <th>{{ equipment.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hour in hours %}
+                    <tr>
+                        <td class="text-center">{{ hour|stringformat:'02d' }}:00</td>
+                        {% for equipment in equipments %}
+                        <td style="min-width: 120px;">
+                            {% for booking in bookings %}
+                            {% if booking.equipment_id == equipment.id and booking.start_time.hour == hour %}
+                            <div class="p-1 mb-1 {% if booking.status == 'approved' %}bg-primary{% elif booking.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %} text-white rounded small">
+                                <strong>{{ booking.user.real_name }}</strong><br>
+                                {{ booking.start_time|date:'H:i' }} - {{ booking.end_time|date:'H:i' }}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">今日预约列表</h5>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for booking in bookings %}
+        <div class="list-group-item">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">{{ booking.equipment.name }}</h6>
+                <span class="status-badge status-{{ booking.status }}">
+                    {{ booking.get_status_display }}
+                </span>
+            </div>
+            <p class="mb-1">
+                <i class="bi bi-person"></i> {{ booking.user.real_name }}
+                <i class="bi bi-clock ms-3"></i> {{ booking.start_time|date:'H:i' }} - {{ booking.end_time|date:'H:i' }}
+            </p>
+            {% if booking.purpose %}
+            <small class="text-muted">{{ booking.purpose }}</small>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-4">
+            今日暂无预约
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

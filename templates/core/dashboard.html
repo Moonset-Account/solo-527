@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">仪表盘</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'bookings:create' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-calendar-plus me-1"></i> 新建预约
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card card-stat h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-gear fs-2 text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ available_equipment }}</h3>
+                        <p class="text-muted mb-0">可用设备</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card card-stat success h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-mortarboard fs-2 text-success"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ pending_training }}</h3>
+                        <p class="text-muted mb-0">待审核培训</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card card-stat warning h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-wrench fs-2 text-warning"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ open_faults }}</h3>
+                        <p class="text-muted mb-0">处理中故障</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card card-stat danger h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-box fs-2 text-danger"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ low_stock_consumables }}</h3>
+                        <p class="text-muted mb-0">库存预警</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">即将到来的预约</h5>
+                <a href="{% url 'bookings:my_bookings' %}" class="btn btn-sm btn-outline-primary">查看全部</a>
+            </div>
+            <div class="card-body">
+                {% if upcoming_bookings %}
+                <div class="list-group list-group-flush">
+                    {% for booking in upcoming_bookings %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ booking.equipment.name }}</h6>
+                            <span class="status-badge status-{{ booking.status }}">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="mb-1 text-muted">
+                            <i class="bi bi-calendar3 me-1"></i>
+                            {{ booking.start_time|date:"Y-m-d H:i" }} - {{ booking.end_time|date:"H:i" }}
+                        </p>
+                        <small class="text-muted">{{ booking.equipment.location }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4">暂无预约</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">我的资格证书</h5>
+                <a href="{% url 'training:certification_list' %}" class="btn btn-sm btn-outline-primary">查看全部</a>
+            </div>
+            <div class="card-body">
+                {% if my_certifications %}
+                <div class="list-group list-group-flush">
+                    {% for cert in my_certifications %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ cert.course.name }}</h6>
+                            <span class="status-badge status-approved">有效</span>
+                        </div>
+                        <p class="mb-1 text-muted">
+                            <i class="bi bi-award me-1"></i>
+                            {{ cert.certificate_number }}
+                        </p>
+                        <small class="text-muted">
+                            颁发日期：{{ cert.issued_date|date:"Y-m-d" }}
+                            {% if cert.expiry_date %}
+                            | 有效期至：{{ cert.expiry_date|date:"Y-m-d" }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-award fs-1 text-muted mb-3"></i>
+                    <p class="text-muted mb-3">暂无资格证书</p>
+                    <a href="{% url 'training:course_list' %}" class="btn btn-sm btn-primary">申请培训</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

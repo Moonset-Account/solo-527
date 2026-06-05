@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}我的预约 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">我的预约</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'bookings:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 新建预约
+        </a>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if not status %}active{% endif %}" href="{% url 'bookings:my_bookings' %}">全部</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'pending' %}active{% endif %}" href="?status=pending">待审批</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'approved' %}active{% endif %}" href="?status=approved">已通过</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'completed' %}active{% endif %}" href="?status=completed">已完成</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if status == 'cancelled' %}active{% endif %}" href="?status=cancelled">已取消</a>
+    </li>
+</ul>
+
+<div class="row g-4">
+    {% for booking in bookings %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ booking.equipment.name }}</h5>
+                <span class="status-badge status-{{ booking.status }}">
+                    {{ booking.get_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    <i class="bi bi-calendar3"></i> {{ booking.start_time|date:'Y-m-d H:i' }} - {{ booking.end_time|date:'H:i' }}<br>
+                    <i class="bi bi-gear"></i> {{ booking.equipment.category.name }}<br>
+                    {% if booking.purpose %}
+                    <i class="bi bi-file-text"></i> {{ booking.purpose|truncatechars:50 }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2 d-md-flex">
+                    <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-outline-primary">
+                        查看详情
+                    </a>
+                    {% if booking.status == 'pending' %}
+                    <a href="{% url 'bookings:cancel' booking.pk %}" class="btn btn-outline-danger"
+                       onclick="return confirm('确定要取消这个预约吗？')">
+                        取消预约
+                    </a>
+                    {% endif %}
+                    {% if booking.status == 'approved' %}
+                    <a href="{% url 'bookings:check_in' booking.pk %}" class="btn btn-success">
+                        签到使用
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-calendar-x display-1 text-muted"></i>
+            <p class="mt-3 text-muted">暂无预约记录</p>
+            <a href="{% url 'bookings:create' %}" class="btn btn-primary mt-2">
+                <i class="bi bi-plus-circle"></i> 创建第一个预约
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

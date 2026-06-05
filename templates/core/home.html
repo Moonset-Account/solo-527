@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}创客空间设备预约平台{% endblock %}
+
+{% block anonymous_content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center bg-gradient-primary">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 text-center text-white">
+                <h1 class="display-4 fw-bold mb-4">创客空间设备预约平台</h1>
+                <p class="lead mb-5">激光切割机、3D 打印机、焊台，专业培训后即可使用</p>
+                <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                    <a href="{% url 'core:login' %}" class="btn btn-light btn-lg px-5">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>登录
+                    </a>
+                </div>
+                <div class="row mt-5 g-4">
+                    <div class="col-md-4">
+                        <div class="card bg-white bg-opacity-10 border-0 text-white">
+                            <div class="card-body">
+                                <i class="bi bi-gear-wide-connected display-4 mb-3"></i>
+                                <h5>设备管理</h5>
+                                <p class="small opacity-75">统一管理所有创客设备状态</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-white bg-opacity-10 border-0 text-white">
+                            <div class="card-body">
+                                <i class="bi bi-calendar-check display-4 mb-3"></i>
+                                <h5>在线预约</h5>
+                                <p class="small opacity-75">随时预约，灵活安排时间</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-white bg-opacity-10 border-0 text-white">
+                            <div class="card-body">
+                                <i class="bi bi-shield-check display-4 mb-3"></i>
+                                <h5>安全培训</h5>
+                                <p class="small opacity-75">专业培训，安全第一</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+{% endblock %}
