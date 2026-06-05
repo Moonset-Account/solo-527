@@ -1,0 +1,10 @@
+export { authApi } from './auth';
+export { mentorsApi } from './mentors';
+export { studentsApi } from './students';
+export { appointmentsApi } from './appointments';
+export { feedbackApi } from './feedback';
+export { notificationsApi } from './notifications';
+export { dashboardApi } from './dashboard';
+export { industryApi } from './industry';
+export { uploadApi } from './upload';
+export { default as apiClient } from './client';
