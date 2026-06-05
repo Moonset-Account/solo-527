@@ -1,5 +1,4 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -7,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @TableName("expense_record")
 public class ExpenseRecord {
 
@@ -28,26 +26,12 @@ public class ExpenseRecord {
 
     private String payStatus;
 
-    @TableField(exist = false)
-    private String payerName;
-
-    @TableField(exist = false)
-    private String orderNo;
-
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime paidAt;
+    private LocalDateTime payTime;
 
     private String payMethod;
 
-    private LocalDateTime payTime;
-
     private Long operatorId;
-
-    @TableField(exist = false)
-    private String operatorName;
-
-    @TableField(exist = false)
-    private String expenseTypeName;
 
     private String remark;
 
@@ -59,8 +43,17 @@ public class ExpenseRecord {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
 
-    @TableLogic
-    private Integer deleted;
+    @TableField(exist = false)
+    private String payerName;
+
+    @TableField(exist = false)
+    private String orderNo;
+
+    @TableField(exist = false)
+    private String operatorName;
+
+    @TableField(exist = false)
+    private String expenseTypeName;
 
     public Long getId() {
         return id;
@@ -126,28 +119,12 @@ public class ExpenseRecord {
         this.payStatus = payStatus;
     }
 
-    public String getPayerName() {
-        return payerName;
+    public LocalDateTime getPayTime() {
+        return payTime;
     }
 
-    public void setPayerName(String payerName) {
-        this.payerName = payerName;
-    }
-
-    public String getOrderNo() {
-        return orderNo;
-    }
-
-    public void setOrderNo(String orderNo) {
-        this.orderNo = orderNo;
-    }
-
-    public LocalDateTime getPaidAt() {
-        return paidAt;
-    }
-
-    public void setPaidAt(LocalDateTime paidAt) {
-        this.paidAt = paidAt;
+    public void setPayTime(LocalDateTime payTime) {
+        this.payTime = payTime;
     }
 
     public String getPayMethod() {
@@ -158,36 +135,12 @@ public class ExpenseRecord {
         this.payMethod = payMethod;
     }
 
-    public LocalDateTime getPayTime() {
-        return payTime;
-    }
-
-    public void setPayTime(LocalDateTime payTime) {
-        this.payTime = payTime;
-    }
-
     public Long getOperatorId() {
         return operatorId;
     }
 
     public void setOperatorId(Long operatorId) {
         this.operatorId = operatorId;
-    }
-
-    public String getOperatorName() {
-        return operatorName;
-    }
-
-    public void setOperatorName(String operatorName) {
-        this.operatorName = operatorName;
-    }
-
-    public String getExpenseTypeName() {
-        return expenseTypeName;
-    }
-
-    public void setExpenseTypeName(String expenseTypeName) {
-        this.expenseTypeName = expenseTypeName;
     }
 
     public String getRemark() {
@@ -214,11 +167,35 @@ public class ExpenseRecord {
         this.updatedAt = updatedAt;
     }
 
-    public Integer getDeleted() {
-        return deleted;
+    public String getPayerName() {
+        return payerName;
     }
 
-    public void setDeleted(Integer deleted) {
-        this.deleted = deleted;
+    public void setPayerName(String payerName) {
+        this.payerName = payerName;
+    }
+
+    public String getOrderNo() {
+        return orderNo;
+    }
+
+    public void setOrderNo(String orderNo) {
+        this.orderNo = orderNo;
+    }
+
+    public String getOperatorName() {
+        return operatorName;
+    }
+
+    public void setOperatorName(String operatorName) {
+        this.operatorName = operatorName;
+    }
+
+    public String getExpenseTypeName() {
+        return expenseTypeName;
+    }
+
+    public void setExpenseTypeName(String expenseTypeName) {
+        this.expenseTypeName = expenseTypeName;
     }
 }

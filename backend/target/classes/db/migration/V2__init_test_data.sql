@@ -1,18 +1,18 @@
 -- ========================================
 -- 初始化测试数据
--- 密码统一为 123456 (BCrypt加密: $2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG)
+-- 密码统一为 123456 (BCrypt加密: $2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG)
 -- ========================================
 
 -- 插入系统用户
 INSERT INTO sys_user (username, password, real_name, phone, email, role, status) VALUES
-('admin', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '张主管', '13800000001', 'admin@property.com', 'ADMIN', 1),
-('property01', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '李物业', '13800000002', 'property01@property.com', 'PROPERTY', 1),
-('maint01', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '王师傅', '13800000003', 'maint01@property.com', 'MAINTENANCE', 1),
-('maint02', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '赵师傅', '13800000004', 'maint02@property.com', 'MAINTENANCE', 1),
-('inspector01', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '刘巡检', '13800000005', 'inspector01@property.com', 'INSPECTOR', 1),
-('owner01', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '陈业主', '13900000001', 'owner01@test.com', 'OWNER', 1),
-('owner02', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '林业主', '13900000002', 'owner02@test.com', 'OWNER', 1),
-('owner03', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG', '黄业主', '13900000003', 'owner03@test.com', 'OWNER', 1);
+('admin', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '张主管', '13800000001', 'admin@property.com', 'ADMIN', 1),
+('property01', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '李物业', '13800000002', 'property01@property.com', 'PROPERTY', 1),
+('maint01', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '王师傅', '13800000003', 'maint01@property.com', 'MAINTENANCE', 1),
+('maint02', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '赵师傅', '13800000004', 'maint02@property.com', 'MAINTENANCE', 1),
+('inspector01', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '刘巡检', '13800000005', 'inspector01@property.com', 'INSPECTOR', 1),
+('owner01', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '陈业主', '13900000001', 'owner01@test.com', 'OWNER', 1),
+('owner02', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '林业主', '13900000002', 'owner02@test.com', 'OWNER', 1),
+('owner03', '$2a$10$yLOyImvRtuUfM4.si/xZ2Ogx4P6RwMNSki2Wzi0tFCpvrpiR4FaMG', '黄业主', '13900000003', 'owner03@test.com', 'OWNER', 1);
 
 -- 插入业主信息
 INSERT INTO owner (user_id, id_card, contact_address, emergency_contact, emergency_phone) VALUES

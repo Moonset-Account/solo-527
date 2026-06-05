@@ -1,12 +1,10 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
-@Data
 @TableName("inspection_point")
 public class InspectionPoint {
 
@@ -19,15 +17,23 @@ public class InspectionPoint {
 
     private String location;
 
-    private String description;
-
     private String category;
 
+    private String checkItems;
+
+    private String qrCode;
+
     private Integer status;
+
+    private String description;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updatedAt;
 
     @TableLogic
     private Integer deleted;
@@ -48,14 +54,6 @@ public class InspectionPoint {
         this.pointCode = pointCode;
     }
 
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
     public String getPointName() {
         return pointName;
     }
@@ -72,12 +70,28 @@ public class InspectionPoint {
         this.location = location;
     }
 
-    public String getDescription() {
-        return description;
+    public String getCategory() {
+        return category;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getCheckItems() {
+        return checkItems;
+    }
+
+    public void setCheckItems(String checkItems) {
+        this.checkItems = checkItems;
+    }
+
+    public String getQrCode() {
+        return qrCode;
+    }
+
+    public void setQrCode(String qrCode) {
+        this.qrCode = qrCode;
     }
 
     public Integer getStatus() {
@@ -88,12 +102,28 @@ public class InspectionPoint {
         this.status = status;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public Integer getDeleted() {

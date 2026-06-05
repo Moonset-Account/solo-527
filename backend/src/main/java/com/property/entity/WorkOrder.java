@@ -1,5 +1,4 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -7,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @TableName("work_order")
 public class WorkOrder {
 
@@ -26,29 +24,21 @@ public class WorkOrder {
 
     private String status;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime reportTime;
-
-    private Long createdBy;
-
-    private Integer hasPhoto;
-
     private Long ownerId;
 
     private Long roomId;
 
-    private String ownerName;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime reportTime;
 
-    private String ownerPhone;
+    private String contactPerson;
 
-    private String location;
-
-    private Long assigneeId;
-
-    private String assigneeName;
+    private String contactPhone;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime assignedAt;
+    private LocalDateTime appointTime;
+
+    private Long assigneeId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime assignTime;
@@ -57,12 +47,7 @@ public class WorkOrder {
     private LocalDateTime startProcessTime;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime completedAt;
-
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime completeTime;
-
-    private String handlerRemark;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime closeTime;
@@ -76,14 +61,15 @@ public class WorkOrder {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime payTime;
 
-    private Long updatedBy;
-
-    @TableField(exist = false)
-    private String roomInfo;
-
     private String rejectReason;
 
-    private String closeRemark;
+    private String handlerRemark;
+
+    private Integer hasPhoto;
+
+    private Long createdBy;
+
+    private Long updatedBy;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -95,6 +81,18 @@ public class WorkOrder {
 
     @TableLogic
     private Integer deleted;
+
+    @TableField(exist = false)
+    private String ownerName;
+
+    @TableField(exist = false)
+    private String ownerPhone;
+
+    @TableField(exist = false)
+    private String assigneeName;
+
+    @TableField(exist = false)
+    private String roomInfo;
 
     public Long getId() {
         return id;
@@ -152,30 +150,6 @@ public class WorkOrder {
         this.status = status;
     }
 
-    public LocalDateTime getReportTime() {
-        return reportTime;
-    }
-
-    public void setReportTime(LocalDateTime reportTime) {
-        this.reportTime = reportTime;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Integer getHasPhoto() {
-        return hasPhoto;
-    }
-
-    public void setHasPhoto(Integer hasPhoto) {
-        this.hasPhoto = hasPhoto;
-    }
-
     public Long getOwnerId() {
         return ownerId;
     }
@@ -192,28 +166,36 @@ public class WorkOrder {
         this.roomId = roomId;
     }
 
-    public String getOwnerName() {
-        return ownerName;
+    public LocalDateTime getReportTime() {
+        return reportTime;
     }
 
-    public void setOwnerName(String ownerName) {
-        this.ownerName = ownerName;
+    public void setReportTime(LocalDateTime reportTime) {
+        this.reportTime = reportTime;
     }
 
-    public String getOwnerPhone() {
-        return ownerPhone;
+    public String getContactPerson() {
+        return contactPerson;
     }
 
-    public void setOwnerPhone(String ownerPhone) {
-        this.ownerPhone = ownerPhone;
+    public void setContactPerson(String contactPerson) {
+        this.contactPerson = contactPerson;
     }
 
-    public String getLocation() {
-        return location;
+    public String getContactPhone() {
+        return contactPhone;
     }
 
-    public void setLocation(String location) {
-        this.location = location;
+    public void setContactPhone(String contactPhone) {
+        this.contactPhone = contactPhone;
+    }
+
+    public LocalDateTime getAppointTime() {
+        return appointTime;
+    }
+
+    public void setAppointTime(LocalDateTime appointTime) {
+        this.appointTime = appointTime;
     }
 
     public Long getAssigneeId() {
@@ -222,22 +204,6 @@ public class WorkOrder {
 
     public void setAssigneeId(Long assigneeId) {
         this.assigneeId = assigneeId;
-    }
-
-    public String getAssigneeName() {
-        return assigneeName;
-    }
-
-    public void setAssigneeName(String assigneeName) {
-        this.assigneeName = assigneeName;
-    }
-
-    public LocalDateTime getAssignedAt() {
-        return assignedAt;
-    }
-
-    public void setAssignedAt(LocalDateTime assignedAt) {
-        this.assignedAt = assignedAt;
     }
 
     public LocalDateTime getAssignTime() {
@@ -256,28 +222,12 @@ public class WorkOrder {
         this.startProcessTime = startProcessTime;
     }
 
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
-    }
-
     public LocalDateTime getCompleteTime() {
         return completeTime;
     }
 
     public void setCompleteTime(LocalDateTime completeTime) {
         this.completeTime = completeTime;
-    }
-
-    public String getHandlerRemark() {
-        return handlerRemark;
-    }
-
-    public void setHandlerRemark(String handlerRemark) {
-        this.handlerRemark = handlerRemark;
     }
 
     public LocalDateTime getCloseTime() {
@@ -320,22 +270,6 @@ public class WorkOrder {
         this.payTime = payTime;
     }
 
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(Long updatedBy) {
-        this.updatedBy = updatedBy;
-    }
-
-    public String getRoomInfo() {
-        return roomInfo;
-    }
-
-    public void setRoomInfo(String roomInfo) {
-        this.roomInfo = roomInfo;
-    }
-
     public String getRejectReason() {
         return rejectReason;
     }
@@ -344,12 +278,36 @@ public class WorkOrder {
         this.rejectReason = rejectReason;
     }
 
-    public String getCloseRemark() {
-        return closeRemark;
+    public String getHandlerRemark() {
+        return handlerRemark;
     }
 
-    public void setCloseRemark(String closeRemark) {
-        this.closeRemark = closeRemark;
+    public void setHandlerRemark(String handlerRemark) {
+        this.handlerRemark = handlerRemark;
+    }
+
+    public Integer getHasPhoto() {
+        return hasPhoto;
+    }
+
+    public void setHasPhoto(Integer hasPhoto) {
+        this.hasPhoto = hasPhoto;
+    }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public Long getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(Long updatedBy) {
+        this.updatedBy = updatedBy;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -374,5 +332,37 @@ public class WorkOrder {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
+    }
+
+    public String getOwnerPhone() {
+        return ownerPhone;
+    }
+
+    public void setOwnerPhone(String ownerPhone) {
+        this.ownerPhone = ownerPhone;
+    }
+
+    public String getAssigneeName() {
+        return assigneeName;
+    }
+
+    public void setAssigneeName(String assigneeName) {
+        this.assigneeName = assigneeName;
+    }
+
+    public String getRoomInfo() {
+        return roomInfo;
+    }
+
+    public void setRoomInfo(String roomInfo) {
+        this.roomInfo = roomInfo;
     }
 }

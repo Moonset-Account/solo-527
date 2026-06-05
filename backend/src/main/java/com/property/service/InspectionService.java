@@ -164,7 +164,7 @@ public class InspectionService {
             order.setIsPaid(0);
 
             workOrderMapper.insert(order);
-            record.setAbnormalOrderId(order.getId());
+            record.setRelatedOrderId(order.getId());
             inspectionRecordMapper.updateById(record);
 
             messageService.sendMessageToAdmins(
@@ -184,6 +184,7 @@ public class InspectionService {
         if (record.getPointId() != null) {
             InspectionPoint point = inspectionPointMapper.selectById(record.getPointId());
             if (point != null) {
+                record.setPointName(point.getPointName());
                 record.setPointLocation(point.getLocation());
             }
         }

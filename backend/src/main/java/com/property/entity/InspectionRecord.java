@@ -1,12 +1,11 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @TableName("inspection_record")
 public class InspectionRecord {
 
@@ -17,41 +16,37 @@ public class InspectionRecord {
 
     private Long pointId;
 
-    @TableField(exist = false)
-    private String pointLocation;
-
     private Long inspectorId;
 
-    private String inspectorName;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime checkTime;
 
     private String status;
-
-    private String remark;
 
     private String abnormalDescription;
 
     private Integer isHandled;
 
-    private Long abnormalOrderId;
-
-    private java.math.BigDecimal locationLng;
-
-    private java.math.BigDecimal locationLat;
-
     private String handleRemark;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime checkTime;
+    private Long relatedOrderId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime checkInTime;
+    private BigDecimal locationLng;
+
+    private BigDecimal locationLat;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 
-    @TableLogic
-    private Integer deleted;
+    @TableField(exist = false)
+    private String pointName;
+
+    @TableField(exist = false)
+    private String pointLocation;
+
+    @TableField(exist = false)
+    private String inspectorName;
 
     public Long getId() {
         return id;
@@ -77,14 +72,6 @@ public class InspectionRecord {
         this.pointId = pointId;
     }
 
-    public String getPointLocation() {
-        return pointLocation;
-    }
-
-    public void setPointLocation(String pointLocation) {
-        this.pointLocation = pointLocation;
-    }
-
     public Long getInspectorId() {
         return inspectorId;
     }
@@ -93,12 +80,12 @@ public class InspectionRecord {
         this.inspectorId = inspectorId;
     }
 
-    public String getInspectorName() {
-        return inspectorName;
+    public LocalDateTime getCheckTime() {
+        return checkTime;
     }
 
-    public void setInspectorName(String inspectorName) {
-        this.inspectorName = inspectorName;
+    public void setCheckTime(LocalDateTime checkTime) {
+        this.checkTime = checkTime;
     }
 
     public String getStatus() {
@@ -107,14 +94,6 @@ public class InspectionRecord {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
     }
 
     public String getAbnormalDescription() {
@@ -133,22 +112,6 @@ public class InspectionRecord {
         this.isHandled = isHandled;
     }
 
-    public java.math.BigDecimal getLocationLng() {
-        return locationLng;
-    }
-
-    public void setLocationLng(java.math.BigDecimal locationLng) {
-        this.locationLng = locationLng;
-    }
-
-    public java.math.BigDecimal getLocationLat() {
-        return locationLat;
-    }
-
-    public void setLocationLat(java.math.BigDecimal locationLat) {
-        this.locationLat = locationLat;
-    }
-
     public String getHandleRemark() {
         return handleRemark;
     }
@@ -157,28 +120,28 @@ public class InspectionRecord {
         this.handleRemark = handleRemark;
     }
 
-    public LocalDateTime getCheckTime() {
-        return checkTime;
+    public Long getRelatedOrderId() {
+        return relatedOrderId;
     }
 
-    public void setCheckTime(LocalDateTime checkTime) {
-        this.checkTime = checkTime;
+    public void setRelatedOrderId(Long relatedOrderId) {
+        this.relatedOrderId = relatedOrderId;
     }
 
-    public Long getAbnormalOrderId() {
-        return abnormalOrderId;
+    public BigDecimal getLocationLng() {
+        return locationLng;
     }
 
-    public void setAbnormalOrderId(Long abnormalOrderId) {
-        this.abnormalOrderId = abnormalOrderId;
+    public void setLocationLng(BigDecimal locationLng) {
+        this.locationLng = locationLng;
     }
 
-    public LocalDateTime getCheckInTime() {
-        return checkInTime;
+    public BigDecimal getLocationLat() {
+        return locationLat;
     }
 
-    public void setCheckInTime(LocalDateTime checkInTime) {
-        this.checkInTime = checkInTime;
+    public void setLocationLat(BigDecimal locationLat) {
+        this.locationLat = locationLat;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -189,11 +152,27 @@ public class InspectionRecord {
         this.createdAt = createdAt;
     }
 
-    public Integer getDeleted() {
-        return deleted;
+    public String getPointName() {
+        return pointName;
     }
 
-    public void setDeleted(Integer deleted) {
-        this.deleted = deleted;
+    public void setPointName(String pointName) {
+        this.pointName = pointName;
+    }
+
+    public String getPointLocation() {
+        return pointLocation;
+    }
+
+    public void setPointLocation(String pointLocation) {
+        this.pointLocation = pointLocation;
+    }
+
+    public String getInspectorName() {
+        return inspectorName;
+    }
+
+    public void setInspectorName(String inspectorName) {
+        this.inspectorName = inspectorName;
     }
 }

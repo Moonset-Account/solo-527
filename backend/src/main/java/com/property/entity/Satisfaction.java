@@ -1,12 +1,10 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
-@Data
 @TableName("satisfaction")
 public class Satisfaction {
 
@@ -17,14 +15,6 @@ public class Satisfaction {
 
     private Long ownerId;
 
-    private String ownerName;
-
-    private Integer rating;
-
-    private String comment;
-
-    private String tags;
-
     private Integer overallScore;
 
     private Integer responseSpeedScore;
@@ -33,19 +23,19 @@ public class Satisfaction {
 
     private Integer qualityScore;
 
-    private Integer isSolved;
-
     private String content;
 
-    @TableField(exist = false)
-    private String orderNo;
+    private Integer isSolved;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 
-    @TableLogic
-    private Integer deleted;
+    @TableField(exist = false)
+    private String ownerName;
+
+    @TableField(exist = false)
+    private String orderNo;
 
     public Long getId() {
         return id;
@@ -69,38 +59,6 @@ public class Satisfaction {
 
     public void setOwnerId(Long ownerId) {
         this.ownerId = ownerId;
-    }
-
-    public String getOwnerName() {
-        return ownerName;
-    }
-
-    public void setOwnerName(String ownerName) {
-        this.ownerName = ownerName;
-    }
-
-    public Integer getRating() {
-        return rating;
-    }
-
-    public void setRating(Integer rating) {
-        this.rating = rating;
-    }
-
-    public String getComment() {
-        return comment;
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
-
-    public String getTags() {
-        return tags;
-    }
-
-    public void setTags(String tags) {
-        this.tags = tags;
     }
 
     public Integer getOverallScore() {
@@ -135,14 +93,6 @@ public class Satisfaction {
         this.qualityScore = qualityScore;
     }
 
-    public Integer getIsSolved() {
-        return isSolved;
-    }
-
-    public void setIsSolved(Integer isSolved) {
-        this.isSolved = isSolved;
-    }
-
     public String getContent() {
         return content;
     }
@@ -151,12 +101,12 @@ public class Satisfaction {
         this.content = content;
     }
 
-    public String getOrderNo() {
-        return orderNo;
+    public Integer getIsSolved() {
+        return isSolved;
     }
 
-    public void setOrderNo(String orderNo) {
-        this.orderNo = orderNo;
+    public void setIsSolved(Integer isSolved) {
+        this.isSolved = isSolved;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -167,11 +117,19 @@ public class Satisfaction {
         this.createdAt = createdAt;
     }
 
-    public Integer getDeleted() {
-        return deleted;
+    public String getOwnerName() {
+        return ownerName;
     }
 
-    public void setDeleted(Integer deleted) {
-        this.deleted = deleted;
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
+    }
+
+    public String getOrderNo() {
+        return orderNo;
+    }
+
+    public void setOrderNo(String orderNo) {
+        this.orderNo = orderNo;
     }
 }

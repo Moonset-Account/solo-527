@@ -1,12 +1,10 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
-@Data
 @TableName("attachment")
 public class Attachment {
 
@@ -25,15 +23,13 @@ public class Attachment {
 
     private String fileUrl;
 
-    private String mimeType;
+    private Long fileSize;
 
     private String fileType;
 
-    private Long fileSize;
+    private String mimeType;
 
     private Long uploaderId;
-
-    private String uploaderName;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -41,6 +37,9 @@ public class Attachment {
 
     @TableLogic
     private Integer deleted;
+
+    @TableField(exist = false)
+    private String uploaderName;
 
     public Long getId() {
         return id;
@@ -90,28 +89,12 @@ public class Attachment {
         this.filePath = filePath;
     }
 
-    public String getMimeType() {
-        return mimeType;
-    }
-
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
-    }
-
     public String getFileUrl() {
         return fileUrl;
     }
 
     public void setFileUrl(String fileUrl) {
         this.fileUrl = fileUrl;
-    }
-
-    public String getFileType() {
-        return fileType;
-    }
-
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
     }
 
     public Long getFileSize() {
@@ -122,20 +105,28 @@ public class Attachment {
         this.fileSize = fileSize;
     }
 
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+
+    public String getMimeType() {
+        return mimeType;
+    }
+
+    public void setMimeType(String mimeType) {
+        this.mimeType = mimeType;
+    }
+
     public Long getUploaderId() {
         return uploaderId;
     }
 
     public void setUploaderId(Long uploaderId) {
         this.uploaderId = uploaderId;
-    }
-
-    public String getUploaderName() {
-        return uploaderName;
-    }
-
-    public void setUploaderName(String uploaderName) {
-        this.uploaderName = uploaderName;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -152,5 +143,13 @@ public class Attachment {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public String getUploaderName() {
+        return uploaderName;
+    }
+
+    public void setUploaderName(String uploaderName) {
+        this.uploaderName = uploaderName;
     }
 }

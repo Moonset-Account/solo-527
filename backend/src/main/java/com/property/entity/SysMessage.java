@@ -1,12 +1,10 @@
 package com.property.entity;
-import lombok.Data;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
-@Data
 @TableName("sys_message")
 public class SysMessage {
 
@@ -16,9 +14,6 @@ public class SysMessage {
     private Long receiverId;
 
     private Long senderId;
-
-    @TableField(exist = false)
-    private String senderName;
 
     private String messageType;
 
@@ -37,9 +32,12 @@ public class SysMessage {
 
     private String priority;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField(fill = FieldFill.INSERT)
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
+
+    @TableField(exist = false)
+    private String senderName;
 
     public Long getId() {
         return id;
@@ -63,14 +61,6 @@ public class SysMessage {
 
     public void setSenderId(Long senderId) {
         this.senderId = senderId;
-    }
-
-    public String getSenderName() {
-        return senderName;
-    }
-
-    public void setSenderName(String senderName) {
-        this.senderName = senderName;
     }
 
     public String getMessageType() {
@@ -143,5 +133,13 @@ public class SysMessage {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getSenderName() {
+        return senderName;
+    }
+
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 }
