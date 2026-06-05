@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "志愿者排班平台" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="bg-gray-50 min-h-screen">
+    <% if user_signed_in? %>
+      <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4">
+          <div class="flex justify-between items-center h-16">
+            <div class="flex items-center space-x-8">
+              <%= link_to root_path, class: "text-xl font-bold text-blue-600" do %>
+                志愿者排班平台
+              <% end %>
+              <div class="hidden md:flex space-x-4">
+                <%= link_to "仪表盘", root_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                <% if current_user.volunteer? %>
+                  <%= link_to "我的档案", volunteer_profile_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                  <%= link_to "服务证明", service_certificates_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                <% end %>
+                <% if current_user.project_manager? || current_user.admin? %>
+                  <%= link_to "活动管理", activities_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                <% end %>
+                <% if current_user.admin? %>
+                  <%= link_to "管理员面板", admin_users_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+                <% end %>
+                <%= link_to "通知", notifications_path, class: "text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium" %>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <span class="text-gray-700 text-sm"><%= current_user.name %></span>
+              <%= button_to "退出登录", destroy_user_session_path, method: :delete, class: "text-gray-700 hover:text-red-600 px-3 py-2 rounded-md text-sm font-medium" %>
+            </div>
+          </div>
+        </div>
+      </nav>
+    <% end %>
+
+    <main>
+      <% if notice %>
+        <div class="container mx-auto px-4 mt-4">
+          <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+            <%= notice %>
+          </div>
+        </div>
+      <% end %>
+      <% if alert %>
+        <div class="container mx-auto px-4 mt-4">
+          <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <%= alert %>
+          </div>
+        </div>
+      <% end %>
+
+      <%= yield %>
+    </main>
+  </body>
+</html>

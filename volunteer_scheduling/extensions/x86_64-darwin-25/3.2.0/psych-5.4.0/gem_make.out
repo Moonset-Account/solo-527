@@ -1,0 +1,29 @@
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/psych-5.4.0/ext/psych
+/Users/xingyaolei/.rbenv/versions/3.2.11/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/psych-5.4.0/ext/psych
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-hm4mrm sitelibdir\=./.gem.20260606-34431-hm4mrm clean
+cd libyaml && /Applications/Xcode.app/Contents/Developer/usr/bin/make clean
+/bin/sh: line 0: cd: libyaml: No such file or directory
+make: [clean-so] Error 1 (ignored)
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/psych-5.4.0/ext/psych
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-hm4mrm sitelibdir\=./.gem.20260606-34431-hm4mrm
+compiling psych.c
+compiling psych_emitter.c
+compiling psych_parser.c
+compiling psych_to_ruby.c
+compiling psych_yaml_tree.c
+linking shared-object psych.bundle
+ld: warning: ignoring duplicate libraries: '-lruby.3.2'
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/psych-5.4.0/ext/psych
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-hm4mrm sitelibdir\=./.gem.20260606-34431-hm4mrm install
+/usr/local/bin/ginstall -c -m 0755 psych.bundle ./.gem.20260606-34431-hm4mrm
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/psych-5.4.0/ext/psych
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-hm4mrm sitelibdir\=./.gem.20260606-34431-hm4mrm clean
+cd libyaml && /Applications/Xcode.app/Contents/Developer/usr/bin/make clean
+/bin/sh: line 0: cd: libyaml: No such file or directory
+make: [clean-so] Error 1 (ignored)

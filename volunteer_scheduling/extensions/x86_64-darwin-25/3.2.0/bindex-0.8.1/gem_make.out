@@ -1,0 +1,19 @@
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/bindex-0.8.1/ext/skiptrace
+/Users/xingyaolei/.rbenv/versions/3.2.11/bin/ruby extconf.rb
+creating Makefile
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/bindex-0.8.1/ext/skiptrace
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-kxcd48 sitelibdir\=./.gem.20260606-34431-kxcd48 clean
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/bindex-0.8.1/ext/skiptrace
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-kxcd48 sitelibdir\=./.gem.20260606-34431-kxcd48
+compiling cruby.c
+linking shared-object skiptrace/internal/cruby.bundle
+ld: warning: ignoring duplicate libraries: '-lruby.3.2'
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/bindex-0.8.1/ext/skiptrace
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-kxcd48 sitelibdir\=./.gem.20260606-34431-kxcd48 install
+/usr/local/bin/ginstall -c -m 0755 cruby.bundle ./.gem.20260606-34431-kxcd48/skiptrace/internal
+
+current directory: /Users/xingyaolei/Desktop/trae-solo-generated-projects/question-032/volunteer_scheduling/gems/bindex-0.8.1/ext/skiptrace
+make DESTDIR\= sitearchdir\=./.gem.20260606-34431-kxcd48 sitelibdir\=./.gem.20260606-34431-kxcd48 clean

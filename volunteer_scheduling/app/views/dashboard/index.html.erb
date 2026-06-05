@@ -1,0 +1,143 @@
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">欢迎，<%= current_user.name %></h1>
+  <p class="text-gray-600 mb-8">角色：<%= t("activerecord.attributes.user.roles.#{current_user.role}", default: current_user.role.humanize) %></p>
+
+  <% if current_user.volunteer? %>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">总服务时长</h3>
+        <p class="text-3xl font-bold text-blue-600"><%= @total_hours.round(1) %> 小时</p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">即将开始的活动</h3>
+        <p class="text-3xl font-bold text-green-600"><%= @upcoming_assignments.count %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">未读通知</h3>
+        <p class="text-3xl font-bold text-orange-600"><%= @notifications.count %></p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+      <h2 class="text-xl font-bold mb-4">即将开始的排班</h2>
+      <% if @upcoming_assignments.any? %>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left py-2">活动名称</th>
+                <th class="text-left py-2">点位</th>
+                <th class="text-left py-2">开始时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @upcoming_assignments.each do |assignment| %>
+                <tr class="border-b">
+                  <td class="py-2"><%= assignment.activity.title %></td>
+                  <td class="py-2"><%= assignment.location.name %></td>
+                  <td class="py-2"><%= assignment.activity.start_time.strftime("%Y-%m-%d %H:%M") %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-gray-500">暂无即将开始的排班</p>
+      <% end %>
+    </div>
+  <% elsif current_user.project_manager? %>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">我的活动</h3>
+        <p class="text-3xl font-bold text-blue-600"><%= @my_activities.count %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">待确认排班</h3>
+        <p class="text-3xl font-bold text-orange-600"><%= @pending_assignments %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">待审核签到</h3>
+        <p class="text-3xl font-bold text-red-600"><%= @check_ins_to_review %></p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">我发布的活动</h2>
+      <% if @my_activities.any? %>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left py-2">活动名称</th>
+                <th class="text-left py-2">状态</th>
+                <th class="text-left py-2">点位数量</th>
+                <th class="text-left py-2">创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @my_activities.each do |activity| %>
+                <tr class="border-b">
+                  <td class="py-2"><%= activity.title %></td>
+                  <td class="py-2"><span class="px-2 py-1 rounded text-sm <%= activity.status == 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>"><%= activity.status.humanize %></span></td>
+                  <td class="py-2"><%= activity.locations.count %></td>
+                  <td class="py-2"><%= activity.created_at.strftime("%Y-%m-%d") %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-gray-500">暂无活动</p>
+      <% end %>
+    </div>
+  <% elsif current_user.admin? %>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">用户总数</h3>
+        <p class="text-3xl font-bold text-blue-600"><%= @total_users %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">志愿者总数</h3>
+        <p class="text-3xl font-bold text-green-600"><%= @total_volunteers %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">活动总数</h3>
+        <p class="text-3xl font-bold text-purple-600"><%= @total_activities %></p>
+      </div>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold mb-2">待审核签到</h3>
+        <p class="text-3xl font-bold text-red-600"><%= @check_ins_pending_review %></p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">最近创建的活动</h2>
+      <% if @recent_activities.any? %>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left py-2">活动名称</th>
+                <th class="text-left py-2">负责人</th>
+                <th class="text-left py-2">状态</th>
+                <th class="text-left py-2">创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @recent_activities.each do |activity| %>
+                <tr class="border-b">
+                  <td class="py-2"><%= activity.title %></td>
+                  <td class="py-2"><%= activity.project_manager&.name %></td>
+                  <td class="py-2"><span class="px-2 py-1 rounded text-sm <%= activity.status == 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>"><%= activity.status.humanize %></span></td>
+                  <td class="py-2"><%= activity.created_at.strftime("%Y-%m-%d") %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-gray-500">暂无活动</p>
+      <% end %>
+    </div>
+  <% end %>
+</div>
