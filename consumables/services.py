@@ -155,7 +155,7 @@ class ConsumableUsageService(BaseService[ConsumableUsage]):
             'unit_price_at_usage': consumable.unit_price,
             'total_cost': total_cost,
             'notes': notes,
-        }, user=user)
+        })
 
         consumable.current_stock -= quantity
         consumable.save()

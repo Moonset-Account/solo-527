@@ -122,7 +122,7 @@
             </div>
             <div class="card-footer bg-transparent">
                 <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    {% if perms.consumables.add_consumableusage and consumable.current_stock > 0 %}
+                    {% if user.is_authenticated and consumable.current_stock > 0 %}
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#useModal{{ consumable.pk }}">
                         <i class="bi bi-cart-check"></i> 领用
                     </button>
@@ -136,7 +136,7 @@
             </div>
         </div>
 
-        {% if perms.consumables.add_consumableusage %}
+        {% if user.is_authenticated %}
         <div class="modal fade" id="useModal{{ consumable.pk }}" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">

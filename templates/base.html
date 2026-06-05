@@ -259,15 +259,18 @@
             .then(data => {
                 if (data.success) {
                     const successIds = data.results.filter(r => r.success).map(r => r.client_id);
-                    const failedIds = data.results.filter(r => !r.success).map(r => r.client_id);
                     const remaining = pending.filter(op => !successIds.includes(op.client_id));
                     localStorage.setItem('pendingOperations', JSON.stringify(remaining));
                     
-                    if (successIds.length > 0) {
-                        showToast(`已成功同步 ${successIds.length} 条离线数据`, 'success');
-                    }
-                    if (failedIds.length > 0) {
-                        showToast(`${failedIds.length} 条数据同步失败，将在下次联网时重试`, 'warning');
+                    const synced = data.synced || 0;
+                    const failed = data.failed || 0;
+                    
+                    if (synced > 0 && failed > 0) {
+                        showToast(`成功同步 ${synced} 条，失败 ${failed} 条，失败的将在下次联网时重试`, 'warning');
+                    } else if (synced > 0) {
+                        showToast(`成功同步 ${synced} 条离线数据`, 'success');
+                    } else if (failed > 0) {
+                        showToast(`${failed} 条数据同步失败，将在下次联网时重试`, 'warning');
                     }
                 } else {
                     showToast('同步失败，将在下次联网时重试', 'danger');

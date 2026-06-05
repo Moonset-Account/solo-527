@@ -5,6 +5,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db import transaction
+from django.core.exceptions import ValidationError
 import json
 
 from .models import User
@@ -162,19 +163,41 @@ def history(request):
 def offline_sync(request):
     try:
         data = json.loads(request.body)
-        pending_operations = data.get('pending_operations', [])
+        pending_operations = data.get('pending_operations', data.get('operations', []))
         results = []
+        synced_count = 0
+        failed_count = 0
+        failed_items = []
 
-        with transaction.atomic():
-            for op in pending_operations:
-                try:
-                    result = _process_operation(request.user, op)
-                    results.append({'id': op.get('id'), 'success': True, 'result': result})
-                except Exception as e:
-                    results.append({'id': op.get('id'), 'success': False, 'error': str(e)})
+        for op in pending_operations:
+            try:
+                result = _process_operation(request.user, op)
+                results.append({
+                    'client_id': op.get('client_id'),
+                    'success': True,
+                    'result': result
+                })
+                synced_count += 1
+            except Exception as e:
+                results.append({
+                    'client_id': op.get('client_id'),
+                    'success': False,
+                    'error': str(e)
+                })
+                failed_count += 1
+                failed_items.append({
+                    'client_id': op.get('client_id'),
+                    'type': op.get('type'),
+                    'error': str(e)
+                })
 
-        request.offline_sync_results = results
-        return JsonResponse({'success': True, 'results': results})
+        return JsonResponse({
+            'success': True,
+            'synced': synced_count,
+            'failed': failed_count,
+            'failed_items': failed_items,
+            'results': results
+        })
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': '无效的JSON数据'}, status=400)
 
@@ -184,28 +207,39 @@ def _process_operation(user, operation):
     data = operation.get('data', {})
 
     if op_type == 'fault_report':
-        from maintenance.services import FaultTicketService
-        service = FaultTicketService(user)
         from equipment.models import Equipment
-        equipment = Equipment.objects.get(id=data['equipment_id'])
-        ticket = service.create({
-            'equipment': equipment,
-            'title': data['title'],
-            'description': data['description'],
-            'priority': data.get('priority', 'medium'),
-        })
+        equipment_id = data.get('equipment_id')
+        equipment = None
+        if equipment_id:
+            equipment = Equipment.objects.filter(pk=equipment_id).first()
+        if not equipment:
+            equipment = Equipment.objects.filter(status='available').first()
+        if not equipment:
+            raise ValidationError('没有可用的设备关联到此故障单')
+            
+        ticket = FaultTicket.objects.create(
+            title=data['title'],
+            description=data.get('description', ''),
+            equipment=equipment,
+            reporter=user,
+            priority=data.get('priority', 'medium'),
+            status='open',
+            created_by=user,
+        )
         return {'ticket_id': str(ticket.id)}
 
     elif op_type == 'safety_incident':
-        from safety.services import SafetyIncidentService
-        service = SafetyIncidentService(user)
-        incident = service.create({
-            'title': data['title'],
-            'description': data['description'],
-            'incident_time': data['incident_time'],
-            'location': data['location'],
-            'severity': data.get('severity', 'moderate'),
-        })
+        incident_time = data.get('incident_time', timezone.now())
+        incident = SafetyIncident.objects.create(
+            title=data['title'],
+            description=data.get('description', ''),
+            incident_time=incident_time,
+            location=data.get('location', ''),
+            severity=data.get('severity', 'moderate'),
+            reporter=user,
+            status='reported',
+            created_by=user,
+        )
         return {'incident_id': str(incident.id)}
 
     return {}

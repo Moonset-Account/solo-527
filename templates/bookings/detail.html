@@ -381,7 +381,7 @@
 <div class="modal fade" id="addConsumableModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="{% url 'consumables:add_usage' %}">
+            <form method="post" id="addConsumableForm" action="">
                 {% csrf_token %}
                 <input type="hidden" name="booking" value="{{ booking.pk }}">
                 <div class="modal-header">
@@ -390,8 +390,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="consumable" class="form-label">选择耗材 <span class="text-danger">*</span></label>
-                        <select name="consumable" id="consumable" class="form-select" required>
+                        <label for="consumableSelect" class="form-label">选择耗材 <span class="text-danger">*</span></label>
+                        <select name="consumable" id="consumableSelect" class="form-select" required>
                             <option value="">请选择耗材</option>
                             {% for consumable in consumables %}
                             <option value="{{ consumable.pk }}" data-price="{{ consumable.unit_price }}" data-stock="{{ consumable.current_stock }}">
@@ -431,18 +431,26 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const consumableSelect = document.getElementById('consumable');
+    const consumableSelect = document.getElementById('consumableSelect');
     const quantityInput = document.getElementById('quantity');
     const totalCostDisplay = document.getElementById('total_cost_display');
     const stockInfo = document.getElementById('stockInfo');
+    const addConsumableForm = document.getElementById('addConsumableForm');
 
     function updateTotal() {
         const selectedOption = consumableSelect.options[consumableSelect.selectedIndex];
         const price = parseFloat(selectedOption.dataset.price) || 0;
         const stock = parseInt(selectedOption.dataset.stock) || 0;
         const quantity = parseInt(quantityInput.value) || 0;
+        const consumableId = selectedOption.value;
 
         totalCostDisplay.value = (price * quantity).toFixed(2);
+
+        if (consumableId) {
+            addConsumableForm.action = `/consumables/${consumableId}/use/`;
+        } else {
+            addConsumableForm.action = '';
+        }
 
         if (stock > 0) {
             if (quantity > stock) {

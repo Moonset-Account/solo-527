@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+
+{% block title %}培训申请详情 - 创客空间设备预约平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'training:course_list' %}">培训课程</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'training:application_list' %}">我的申请</a></li>
+                <li class="breadcrumb-item active" aria-current="page">申请详情</li>
+            </ol>
+        </nav>
+        <h1 class="h2">培训申请详情</h1>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if application.status == 'pending' and application.user == request.user %}
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+            <i class="bi bi-x-circle"></i> 取消申请
+        </button>
+        {% endif %}
+        {% if application.status == 'pending' and user.is_trainer_or_admin %}
+        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#approveModal">
+            <i class="bi bi-check-circle"></i> 通过
+        </button>
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+            <i class="bi bi-x-circle"></i> 拒绝
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 申请信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">状态</div>
+                    <div class="col-md-8">
+                        <span class="status-badge status-{{ application.status }}">
+                            {{ application.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">申请人</div>
+                    <div class="col-md-8">{{ application.user.real_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">申请课程</div>
+                    <div class="col-md-8">
+                        <a href="{% url 'training:course_detail' application.session.course.pk %}">
+                            {{ application.session.course.name }}
+                        </a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">培训场次</div>
+                    <div class="col-md-8">
+                        <a href="{% url 'training:session_detail' application.session.pk %}">
+                            {{ application.session.start_time|date:'Y-m-d H:i' }} - {{ application.session.end_time|date:'H:i' }}
+                        </a>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-geo-alt"></i> {{ application.session.location }}
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-person"></i> 培训师: {{ application.session.trainer.real_name }}
+                        </small>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">申请时间</div>
+                    <div class="col-md-8">{{ application.created_at|date:'Y-m-d H:i:s' }}</div>
+                </div>
+                {% if application.application_notes %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">申请备注</div>
+                    <div class="col-md-8">{{ application.application_notes }}</div>
+                </div>
+                {% endif %}
+                {% if application.review_notes %}
+                <div class="row mb-3">
+                    <div class="col-md-4 fw-medium">审核意见</div>
+                    <div class="col-md-8">{{ application.review_notes }}</div>
+                </div>
+                {% endif %}
+                {% if application.reviewed_by %}
+                <div class="row">
+                    <div class="col-md-4 fw-medium">审核人</div>
+                    <div class="col-md-8">
+                        {{ application.reviewed_by.real_name }}
+                        <small class="text-muted">于 {{ application.reviewed_at|date:'Y-m-d H:i' }}</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if application.status == 'approved' or application.status == 'completed' %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-award"></i> 证书信息</h5>
+            </div>
+            <div class="card-body">
+                {% with certificates=application.user.certifications.all %}
+                {% for cert in certificates %}
+                {% if cert.course == application.session.course %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="bi bi-award-fill text-warning"></i>
+                            {{ cert.course.name }}
+                        </h6>
+                        <p class="card-text mb-1">
+                            <strong>证书编号：</strong>{{ cert.certificate_number }}
+                        </p>
+                        <p class="card-text mb-1">
+                            <strong>颁发日期：</strong>{{ cert.issued_date|date:'Y-m-d' }}
+                        </p>
+                        {% if cert.expiry_date %}
+                        <p class="card-text mb-1">
+                            <strong>有效期至：</strong>{{ cert.expiry_date|date:'Y-m-d' }}
+                        </p>
+                        {% endif %}
+                        {% if cert.score %}
+                        <p class="card-text mb-1">
+                            <strong>考核成绩：</strong>{{ cert.score }} 分
+                        </p>
+                        {% endif %}
+                        <p class="card-text">
+                            <strong>状态：</strong>
+                            <span class="badge {% if cert.status == 'valid' %}bg-success{% elif cert.status == 'expired' %}bg-secondary{% else %}bg-danger{% endif %}">
+                                {{ cert.get_status_display }}
+                            </span>
+                        </p>
+                        <a href="{% url 'training:certification_detail' cert.pk %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye"></i> 查看证书详情
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                {% empty %}
+                <p class="text-muted mb-0">暂无关联证书</p>
+                {% endfor %}
+                {% endwith %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> 状态变更时间线</h5>
+            </div>
+            <div class="card-body">
+                <div class="position-relative">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">
+                                    <span class="status-badge status-pending">待审核</span>
+                                </h6>
+                                <p class="mb-1 small">
+                                    <i class="bi bi-person"></i> {{ application.user.real_name }}
+                                </p>
+                                <small class="text-muted">{{ application.created_at|date:'Y-m-d H:i:s' }}</small>
+                                {% if application.application_notes %}
+                                <p class="mb-0 mt-2 small text-muted">
+                                    {{ application.application_notes }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if application.reviewed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker {% if application.status == 'approved' %}bg-success{% elif application.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">
+                                    <span class="status-badge status-{{ application.status }}">
+                                        {{ application.get_status_display }}
+                                    </span>
+                                </h6>
+                                <p class="mb-1 small">
+                                    <i class="bi bi-person"></i> {{ application.reviewed_by.real_name }}
+                                </p>
+                                <small class="text-muted">{{ application.reviewed_at|date:'Y-m-d H:i:s' }}</small>
+                                {% if application.review_notes %}
+                                <p class="mb-0 mt-2 small text-muted">
+                                    {{ application.review_notes }}
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if application.status == 'cancelled' %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-secondary"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">
+                                    <span class="status-badge status-cancelled">已取消</span>
+                                </h6>
+                                <p class="mb-1 small">
+                                    <i class="bi bi-person"></i> {{ application.user.real_name }}
+                                </p>
+                                <small class="text-muted">{{ application.updated_at|date:'Y-m-d H:i:s' }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-mortarboard"></i> 课程信息</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ application.session.course.name }}</h6>
+                <p class="text-muted small">{{ application.session.course.category.name }}</p>
+                <hr>
+                <p class="mb-2 small">
+                    <i class="bi bi-clock"></i> 课程时长: {{ application.session.course.duration_hours }} 小时
+                </p>
+                <p class="mb-0 small">
+                    <i class="bi bi-people"></i> 最大人数: {{ application.session.max_participants }} 人
+                </p>
+                <hr>
+                <a href="{% url 'training:course_detail' application.session.course.pk %}" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-arrow-right-circle"></i> 查看课程详情
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if application.status == 'pending' and application.user == request.user %}
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'training:cancel_application' application.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle"></i> 取消申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要取消此培训申请吗？</p>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> 
+                        课程: {{ application.session.course.name }}<br>
+                        时间: {{ application.session.start_time|date:'Y-m-d H:i' }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回</button>
+                    <button type="submit" class="btn btn-danger">确认取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if application.status == 'pending' and user.is_trainer_or_admin %}
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'training:approve_application' application.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check-circle"></i> 通过申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要通过此培训申请吗？</p>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">审核意见</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回</button>
+                    <button type="submit" class="btn btn-success">确认通过</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'training:reject_application' application.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle"></i> 拒绝申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要拒绝此培训申请吗？</p>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">拒绝原因 <span class="text-danger">*</span></label>
+                        <textarea name="reason" id="reason" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">返回</button>
+                    <button type="submit" class="btn btn-danger">确认拒绝</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e2e8f0;
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+.timeline-marker {
+    position: absolute;
+    left: -1.75rem;
+    top: 0.25rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #e2e8f0;
+}
+.timeline-content {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+</style>
+{% endblock %}
