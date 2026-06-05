@@ -255,4 +255,78 @@ class ApprovalPathTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_teacher_only_sees_own_approval_flows(): void
+    {
+        $otherTeacher = User::factory()->teacher()->create();
+        $otherStudent = Student::factory()->create([
+            'parent_user_id' => User::factory()->parent()->create()->id,
+            'teacher_user_id' => $otherTeacher->id,
+        ]);
+
+        $ownAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+        ]);
+        $otherAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $otherTeacher->id,
+            'student_id' => $otherStudent->id,
+        ]);
+
+        ApprovalFlow::create([
+            'approvable_type' => Assignment::class,
+            'approvable_id' => $ownAssignment->id,
+            'approver_user_id' => $this->teacher->id,
+            'action' => 'submit',
+        ]);
+        ApprovalFlow::create([
+            'approvable_type' => Assignment::class,
+            'approvable_id' => $otherAssignment->id,
+            'approver_user_id' => $otherTeacher->id,
+            'action' => 'submit',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/approval-flows');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_admin_sees_all_approval_flows(): void
+    {
+        $otherTeacher = User::factory()->teacher()->create();
+        $otherStudent = Student::factory()->create([
+            'parent_user_id' => User::factory()->parent()->create()->id,
+            'teacher_user_id' => $otherTeacher->id,
+        ]);
+
+        $ownAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+        ]);
+        $otherAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $otherTeacher->id,
+            'student_id' => $otherStudent->id,
+        ]);
+
+        ApprovalFlow::create([
+            'approvable_type' => Assignment::class,
+            'approvable_id' => $ownAssignment->id,
+            'approver_user_id' => $this->teacher->id,
+            'action' => 'submit',
+        ]);
+        ApprovalFlow::create([
+            'approvable_type' => Assignment::class,
+            'approvable_id' => $otherAssignment->id,
+            'approver_user_id' => $otherTeacher->id,
+            'action' => 'submit',
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/approval-flows');
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
 }

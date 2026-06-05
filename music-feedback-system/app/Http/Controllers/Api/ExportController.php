@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Assignment;
 use App\Models\PaymentReminder;
 use App\Models\PracticeRecording;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -17,16 +18,24 @@ class ExportController extends Controller
 
         $query = Assignment::with(['student', 'piece']);
 
+        $user = $request->user();
+        if ($user->role === 'teacher') {
+            $query->where('teacher_user_id', $user->id);
+        } elseif ($request->filled('teacher_user_id')) {
+            $query->where('teacher_user_id', $request->teacher_user_id);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('teacher_user_id')) {
-            $query->where('teacher_user_id', $request->teacher_user_id);
-        }
-
-        if ($request->filled('student_id')) {
+        if ($user->role !== 'teacher' && $request->filled('student_id')) {
             $query->where('student_id', $request->student_id);
+        } elseif ($user->role === 'teacher' && $request->filled('student_id')) {
+            $student = \App\Models\Student::find($request->student_id);
+            if ($student && $student->teacher_user_id === $user->id) {
+                $query->where('student_id', $request->student_id);
+            }
         }
 
         if ($request->filled('instrument')) {
@@ -70,8 +79,21 @@ class ExportController extends Controller
 
         $query = PracticeRecording::with(['student', 'assignment']);
 
+        $user = $request->user();
+        if ($user->role === 'teacher') {
+            $studentIds = Student::where('teacher_user_id', $user->id)->pluck('id');
+            $query->whereIn('student_id', $studentIds);
+        }
+
         if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
+            if ($user->role === 'teacher') {
+                $student = Student::find($request->student_id);
+                if ($student && $student->teacher_user_id === $user->id) {
+                    $query->where('student_id', $request->student_id);
+                }
+            } else {
+                $query->where('student_id', $request->student_id);
+            }
         }
 
         if ($request->filled('assignment_id')) {

@@ -256,4 +256,98 @@ class ExportPathTest extends TestCase
         $lines = array_filter(explode("\n", trim($csv)));
         $this->assertCount(1, $lines);
     }
+
+    public function test_teacher_only_exports_own_assignments(): void
+    {
+        $otherStudent = Student::factory()->create([
+            'parent_user_id' => User::factory()->parent()->create()->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+        $otherPiece = Piece::factory()->create();
+
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+            'piece_id' => $this->piece->id,
+            'title' => '我的作业',
+        ]);
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $otherStudent->id,
+            'piece_id' => $otherPiece->id,
+            'title' => '其他老师的作业',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/exports/assignments');
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('我的作业', $csv);
+        $this->assertStringNotContainsString('其他老师的作业', $csv);
+    }
+
+    public function test_admin_exports_all_assignments(): void
+    {
+        $otherStudent = Student::factory()->create([
+            'parent_user_id' => User::factory()->parent()->create()->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+            'piece_id' => $this->piece->id,
+            'title' => '教师A作业',
+        ]);
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $otherStudent->id,
+            'title' => '教师B作业',
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/exports/assignments');
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('教师A作业', $csv);
+        $this->assertStringContainsString('教师B作业', $csv);
+    }
+
+    public function test_teacher_only_exports_own_student_recordings(): void
+    {
+        $otherStudent = Student::factory()->create([
+            'parent_user_id' => User::factory()->parent()->create()->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $ownAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+        ]);
+        $otherAssignment = Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $otherStudent->id,
+        ]);
+
+        PracticeRecording::factory()->create([
+            'student_id' => $this->student->id,
+            'assignment_id' => $ownAssignment->id,
+            'note' => '我的学生录音',
+        ]);
+        PracticeRecording::factory()->create([
+            'student_id' => $otherStudent->id,
+            'assignment_id' => $otherAssignment->id,
+            'note' => '其他学生录音',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/exports/recordings');
+
+        $response->assertOk();
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString('我的学生录音', $csv);
+        $this->assertStringNotContainsString('其他学生录音', $csv);
+    }
 }

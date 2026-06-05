@@ -358,6 +358,44 @@ class ParentAccessTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_teacher_only_sees_own_assignments_in_list(): void
+    {
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->studentA->id,
+            'piece_id' => $this->piece->id,
+        ]);
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $this->studentB->id,
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/assignments');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_admin_sees_all_assignments_in_list(): void
+    {
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->studentA->id,
+            'piece_id' => $this->piece->id,
+        ]);
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $this->studentB->id,
+        ]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/v1/assignments');
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
     public function test_teacher_can_view_own_student_assignment(): void
     {
         $assignment = Assignment::factory()->create([

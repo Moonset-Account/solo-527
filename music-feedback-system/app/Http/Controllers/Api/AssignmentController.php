@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateAssignmentRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Models\ApprovalFlow;
 use App\Models\Assignment;
+use App\Models\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -27,16 +28,24 @@ class AssignmentController extends Controller
             $request->merge($savedFilter->filter_config);
         }
 
+        $user = $request->user();
+        if ($user->role === 'teacher') {
+            $query->where('teacher_user_id', $user->id);
+        } elseif ($request->filled('teacher_user_id')) {
+            $query->where('teacher_user_id', $request->teacher_user_id);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('teacher_user_id')) {
-            $query->where('teacher_user_id', $request->teacher_user_id);
-        }
-
-        if ($request->filled('student_id')) {
+        if ($user->role !== 'teacher' && $request->filled('student_id')) {
             $query->where('student_id', $request->student_id);
+        } elseif ($user->role === 'teacher' && $request->filled('student_id')) {
+            $student = Student::find($request->student_id);
+            if ($student && $student->teacher_user_id === $user->id) {
+                $query->where('student_id', $request->student_id);
+            }
         }
 
         if ($request->filled('instrument')) {
@@ -60,7 +69,22 @@ class AssignmentController extends Controller
     {
         $this->authorize('create', Assignment::class);
 
-        $assignment = Assignment::create($request->validated());
+        $user = $request->user();
+        $data = $request->validated();
+
+        if ($user->role === 'teacher') {
+            if (isset($data['teacher_user_id']) && $data['teacher_user_id'] != $user->id) {
+                abort(403, '您只能以自己的身份创建作业');
+            }
+            $data['teacher_user_id'] = $user->id;
+
+            $student = Student::findOrFail($data['student_id']);
+            if ($student->teacher_user_id !== $user->id) {
+                abort(403, '您只能为分配给您的学生创建作业');
+            }
+        }
+
+        $assignment = Assignment::create($data);
 
         return new AssignmentResource($assignment->load(['teacher', 'student', 'piece']));
     }
@@ -82,7 +106,21 @@ class AssignmentController extends Controller
 
         $this->authorize('update', $assignment);
 
-        $assignment->update($request->validated());
+        $user = $request->user();
+        $data = $request->validated();
+
+        if ($user->role === 'teacher') {
+            $data['teacher_user_id'] = $assignment->teacher_user_id;
+
+            if (isset($data['student_id'])) {
+                $student = Student::findOrFail($data['student_id']);
+                if ($student->teacher_user_id !== $user->id) {
+                    abort(403, '您只能将作业分配给您的学生');
+                }
+            }
+        }
+
+        $assignment->update($data);
 
         return new AssignmentResource($assignment->load(['teacher', 'student', 'piece']));
     }

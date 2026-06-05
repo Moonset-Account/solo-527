@@ -191,6 +191,52 @@ class CreatePathTest extends TestCase
             ->assertJsonValidationErrors(['student_id', 'amount', 'due_date']);
     }
 
+    public function test_teacher_cannot_create_assignment_for_other_teacher(): void
+    {
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/assignments', [
+                'teacher_user_id' => $this->otherTeacher->id,
+                'student_id' => $this->student->id,
+                'piece_id' => $this->piece->id,
+                'title' => '冒充其他教师',
+                'status' => 'draft',
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_teacher_cannot_create_assignment_for_other_teacher_student(): void
+    {
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/assignments', [
+                'teacher_user_id' => $this->teacher->id,
+                'student_id' => $this->otherStudent->id,
+                'piece_id' => $this->piece->id,
+                'title' => '其他老师的学生',
+                'status' => 'draft',
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_teacher_create_assignment_forces_own_teacher_id(): void
+    {
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/assignments', [
+                'teacher_user_id' => $this->teacher->id,
+                'student_id' => $this->student->id,
+                'piece_id' => $this->piece->id,
+                'title' => '自动绑定教师',
+                'status' => 'draft',
+            ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('assignments', [
+            'title' => '自动绑定教师',
+            'teacher_user_id' => $this->teacher->id,
+        ]);
+    }
+
     public function test_parent_can_upload_recording_for_own_child(): void
     {
         Storage::fake('local');
@@ -527,5 +573,43 @@ class CreatePathTest extends TestCase
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['module']);
+    }
+
+    public function test_teacher_assignment_list_only_shows_own_assignments(): void
+    {
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->teacher->id,
+            'student_id' => $this->student->id,
+            'title' => '我的作业',
+        ]);
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $this->otherStudent->id,
+            'title' => '别人的作业',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson('/api/v1/assignments');
+
+        $response->assertOk();
+
+        $titles = collect($response->json('data'))->pluck('title')->all();
+        $this->assertContains('我的作业', $titles);
+        $this->assertNotContains('别人的作业', $titles);
+    }
+
+    public function test_teacher_cannot_filter_other_teacher_assignments_by_param(): void
+    {
+        Assignment::factory()->create([
+            'teacher_user_id' => $this->otherTeacher->id,
+            'student_id' => $this->otherStudent->id,
+            'title' => '别人的作业',
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->getJson("/api/v1/assignments?teacher_user_id={$this->otherTeacher->id}");
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
     }
 }
