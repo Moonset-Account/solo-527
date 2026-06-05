@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  PROJECT_MANAGER
+  DESIGNER
+  FINANCE
+}
+
+enum ChangeStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+  WITHDRAWN
+  PURCHASED
+}
+
+enum ConfirmationType {
+  CONFIRM
+  REJECT
+  WITHDRAW
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  role          Role      @default(OWNER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+
+  accounts      Account[]
+  sessions      Session[]
+  createdChanges ChangeRequest[] @relation("CreatedBy")
+  confirmedRecords ConfirmationRecord[] @relation("ConfirmedBy")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  changes     ChangeRequest[]
+  schedules   Schedule[]
+}
+
+model ChangeRequest {
+  id              String        @id @default(cuid())
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version         Int           @default(1)
+  title           String
+  description     String?
+  status          ChangeStatus  @default(DRAFT)
+  createdById     String
+  createdBy       User          @relation("CreatedBy", fields: [createdById], references: [id])
+  projectManagerId String?
+  projectManager  User?         @relation(fields: [projectManagerId], references: [id])
+  originalPlan    String
+  newMaterial     String
+  priceDifference Decimal       @default(0)
+  scheduleImpact  Int           @default(0)
+  sitePhotoUrl    String?
+  drawingNote     String?
+  managerNote     String?
+  financeNote     String?
+  isLocked        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
+  confirmedAt     DateTime?
+
+  versions        ChangeVersion[]
+  confirmations   ConfirmationRecord[]
+  purchaseOrder   PurchaseOrder?
+  schedule        Schedule?
+  attachments     Attachment[]
+}
+
+model ChangeVersion {
+  id              String   @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  version         Int
+  originalPlan    String
+  newMaterial     String
+  priceDifference Decimal  @default(0)
+  scheduleImpact  Int      @default(0)
+  sitePhotoUrl    String?
+  drawingNote     String?
+  managerNote     String?
+  createdAt       DateTime @default(now())
+  createdById     String
+  createdBy       User     @relation(fields: [createdById], references: [id])
+}
+
+model ConfirmationRecord {
+  id              String        @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  confirmedById   String
+  confirmedBy     User          @relation("ConfirmedBy", fields: [confirmedById], references: [id])
+  type            ConfirmationType
+  comment         String?
+  signatureHash   String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime      @default(now())
+}
+
+model Schedule {
+  id              String        @id @default(cuid())
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changeRequestId String?
+  changeRequest   ChangeRequest? @relation(fields: [changeRequestId], references: [id])
+  startDate       DateTime
+  endDate         DateTime
+  isLocked        Boolean       @default(false)
+  lockedById      String?
+  lockedBy        User?         @relation(fields: [lockedById], references: [id])
+  taskName        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
+}
+
+model PurchaseOrder {
+  id              String        @id @default(cuid())
+  changeRequestId String        @unique
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  orderNumber     String
+  totalAmount     Decimal
+  status          String        @default("PENDING")
+  createdById     String
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now())
+  items           PurchaseItem[]
+}
+
+model PurchaseItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  name            String
+  quantity        Int
+  unitPrice       Decimal
+  totalPrice      Decimal
+}
+
+model Attachment {
+  id              String        @id @default(cuid())
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  fileName        String
+  fileUrl         String
+  fileType        String
+  fileSize        Int
+  uploadedById    String
+  uploadedBy      User          @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime      @default(now())
+}
