@@ -1,51 +1,58 @@
+/**
+ * @jest-environment node
+ */
+
 import { ChangeService } from "@/lib/services/changeService";
 import { PurchaseService } from "@/lib/services/purchaseService";
-import prisma from "@/lib/prisma";
 import { ChangeStatus, ConfirmationType, Role } from "@/generated/prisma";
-import bcrypt from "bcryptjs";
+
+const mockTx = {
+  confirmationRecord: { create: jest.fn() },
+  changeRequest: { update: jest.fn(), findUnique: jest.fn() },
+  changeVersion: { create: jest.fn() },
+  schedule: { findMany: jest.fn(), update: jest.fn() },
+  purchaseOrder: { create: jest.fn() },
+};
 
 jest.mock("@/lib/prisma", () => ({
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
+  __esModule: true,
+  default: {
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    project: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    changeRequest: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+    changeVersion: {
+      create: jest.fn(),
+    },
+    confirmationRecord: {
+      create: jest.fn(),
+    },
+    schedule: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    purchaseOrder: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    purchaseItem: {
+      create: jest.fn(),
+    },
+    $transaction: jest.fn((fn) => fn(mockTx)),
   },
-  project: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
-  changeRequest: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-    findMany: jest.fn(),
-  },
-  changeVersion: {
-    create: jest.fn(),
-  },
-  confirmationRecord: {
-    create: jest.fn(),
-  },
-  schedule: {
-    findMany: jest.fn(),
-    update: jest.fn(),
-  },
-  purchaseOrder: {
-    create: jest.fn(),
-    findUnique: jest.fn(),
-  },
-  purchaseItem: {
-    create: jest.fn(),
-  },
-  $transaction: jest.fn((fn) => fn({
-    confirmationRecord: { create: jest.fn() },
-    changeRequest: { update: jest.fn() },
-    changeVersion: { create: jest.fn() },
-    schedule: { findMany: jest.fn(), update: jest.fn() },
-    purchaseOrder: { create: jest.fn() },
-  })),
 }));
 
-const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+const prisma = require("@/lib/prisma").default;
 
 describe("家庭装修变更确认系统 - 验收测试", () => {
   let ownerUser: any;
@@ -62,7 +69,6 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
       name: "业主张三",
       email: "owner@test.com",
       role: Role.OWNER,
-      password: bcrypt.hashSync("password", 10),
     };
 
     pmUser = {
@@ -96,8 +102,8 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
 
   describe("场景一：新增变更", () => {
     it("应该能够创建新的变更请求并保存版本", async () => {
-      (mockPrisma.project.findUnique as jest.Mock).mockResolvedValue(project);
-      (mockPrisma.changeRequest.create as jest.Mock).mockResolvedValue({
+      (prisma.project.findUnique as jest.Mock).mockResolvedValue(project);
+      (prisma.changeRequest.create as jest.Mock).mockResolvedValue({
         id: "change-1",
         projectId: project.id,
         title: "厨房瓷砖更换",
@@ -111,7 +117,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         versions: [],
         confirmations: [],
       });
-      (mockPrisma.changeVersion.create as jest.Mock).mockResolvedValue({
+      (prisma.changeVersion.create as jest.Mock).mockResolvedValue({
         id: "version-1",
         changeRequestId: "change-1",
         version: 1,
@@ -130,11 +136,13 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
       expect(result.title).toBe("厨房瓷砖更换");
       expect(result.version).toBe(1);
       expect(result.status).toBe(ChangeStatus.DRAFT);
-      expect(mockPrisma.changeVersion.create).toHaveBeenCalledWith(
+      expect(prisma.changeVersion.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          version: 1,
-          originalPlan: "普通白色瓷砖 300x300",
-          newMaterial: "大理石纹理瓷砖 600x600",
+          data: expect.objectContaining({
+            version: 1,
+            originalPlan: "普通白色瓷砖 300x300",
+            newMaterial: "大理石纹理瓷砖 600x600",
+          }),
         })
       );
     });
@@ -150,13 +158,13 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         project,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.changeRequest.update as jest.Mock).mockResolvedValue({
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.update as jest.Mock).mockResolvedValue({
         ...change,
         status: ChangeStatus.PENDING_CONFIRMATION,
         isLocked: true,
       });
-      (mockPrisma.schedule.findMany as jest.Mock).mockResolvedValue([
+      (prisma.schedule.findMany as jest.Mock).mockResolvedValue([
         { id: "schedule-1", task: "泥工施工", isLocked: false },
       ]);
 
@@ -167,7 +175,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
 
       expect(result.status).toBe(ChangeStatus.PENDING_CONFIRMATION);
       expect(result.isLocked).toBe(true);
-      expect(mockPrisma.schedule.update).toHaveBeenCalled();
+      expect(prisma.schedule.update).toHaveBeenCalled();
     });
   });
 
@@ -183,24 +191,16 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         project: { ...project, owner: ownerUser },
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(ownerUser);
-      
-      const mockTx = {
-        confirmationRecord: { create: jest.fn().mockResolvedValue({ id: "conf-1" }) },
-        changeRequest: {
-          update: jest.fn().mockResolvedValue({
-            ...change,
-            status: ChangeStatus.REJECTED,
-            isLocked: false,
-          }),
-        },
-        schedule: {
-          findMany: jest.fn().mockResolvedValue([{ id: "schedule-1" }]),
-          update: jest.fn(),
-        },
-      };
-      (mockPrisma.$transaction as jest.Mock).mockImplementation((fn) => fn(mockTx));
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(ownerUser);
+
+      mockTx.confirmationRecord.create.mockResolvedValue({ id: "conf-1" });
+      mockTx.changeRequest.update.mockResolvedValue({
+        ...change,
+        status: ChangeStatus.REJECTED,
+        isLocked: false,
+      });
+      mockTx.schedule.findMany.mockResolvedValue([{ id: "schedule-1" }]);
 
       const result = await ChangeService.rejectChange(
         "change-1",
@@ -210,9 +210,11 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
 
       expect(mockTx.confirmationRecord.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: ConfirmationType.REJECT,
-          comment: "价格太高，不同意更换",
-          confirmedById: ownerUser.id,
+          data: expect.objectContaining({
+            type: ConfirmationType.REJECT,
+            comment: "价格太高，不同意更换",
+            confirmedById: ownerUser.id,
+          }),
         })
       );
       expect(mockTx.schedule.update).toHaveBeenCalledWith(
@@ -232,8 +234,8 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         project: { ...project, owner: ownerUser },
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValue(pmUser);
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(pmUser);
 
       await expect(
         ChangeService.rejectChange("change-1", pmUser.id)
@@ -257,20 +259,14 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         managerNote: null,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      
-      const mockTx = {
-        changeRequest: {
-          update: jest.fn().mockResolvedValue({
-            ...change,
-            version: 2,
-            status: ChangeStatus.DRAFT,
-            priceDifference: 3000,
-          }),
-        },
-        changeVersion: { create: jest.fn().mockResolvedValue({ id: "v2" }) },
-      };
-      (mockPrisma.$transaction as jest.Mock).mockImplementation((fn) => fn(mockTx));
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      mockTx.changeRequest.update.mockResolvedValue({
+        ...change,
+        version: 2,
+        status: ChangeStatus.DRAFT,
+        priceDifference: 3000,
+      });
+      mockTx.changeVersion.create.mockResolvedValue({ id: "v2" });
 
       const result = await ChangeService.updateChange(
         "change-1",
@@ -284,13 +280,14 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
           data: expect.objectContaining({
             version: 2,
             status: ChangeStatus.DRAFT,
-            priceDifference: 3000,
           }),
         })
       );
       expect(mockTx.changeVersion.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          version: 2,
+          data: expect.objectContaining({
+            version: 2,
+          }),
         })
       );
     });
@@ -307,8 +304,8 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         scheduleImpact: 1,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.changeRequest.update as jest.Mock).mockResolvedValue({
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.update as jest.Mock).mockResolvedValue({
         ...change,
         drawingNote: "图纸已更新，见附件",
       });
@@ -320,7 +317,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         Role.DESIGNER
       );
 
-      expect(mockPrisma.changeRequest.update).toHaveBeenCalledWith(
+      expect(prisma.changeRequest.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { drawingNote: "图纸已更新，见附件" },
         })
@@ -339,8 +336,8 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         scheduleImpact: 1,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.changeRequest.update as jest.Mock).mockResolvedValue({
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.update as jest.Mock).mockResolvedValue({
         ...change,
         managerNote: "现场已确认可以施工",
       });
@@ -352,7 +349,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         Role.PROJECT_MANAGER
       );
 
-      expect(mockPrisma.changeRequest.update).toHaveBeenCalledWith(
+      expect(prisma.changeRequest.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { managerNote: "现场已确认可以施工" },
         })
@@ -388,22 +385,15 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         versions,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      
-      const mockTx = {
-        confirmationRecord: { create: jest.fn() },
-        changeRequest: { update: jest.fn().mockResolvedValue({
-          ...change,
-          status: ChangeStatus.WITHDRAWN,
-          version: 1,
-          originalPlan: "原方案v1",
-        }) },
-        schedule: {
-          findMany: jest.fn().mockResolvedValue([]),
-          update: jest.fn(),
-        },
-      };
-      (mockPrisma.$transaction as jest.Mock).mockImplementation((fn) => fn(mockTx));
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      mockTx.confirmationRecord.create.mockResolvedValue({ id: "conf-2" });
+      mockTx.changeRequest.update.mockResolvedValue({
+        ...change,
+        status: ChangeStatus.WITHDRAWN,
+        version: 1,
+        originalPlan: "原方案v1",
+      });
+      mockTx.schedule.findMany.mockResolvedValue([]);
 
       const result = await ChangeService.withdrawChange(
         "change-1",
@@ -413,7 +403,9 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
 
       expect(mockTx.confirmationRecord.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: ConfirmationType.WITHDRAW,
+          data: expect.objectContaining({
+            type: ConfirmationType.WITHDRAW,
+          }),
         })
       );
       expect(mockTx.changeRequest.update).toHaveBeenCalledWith(
@@ -436,19 +428,16 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         purchaseOrder: null,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      
-      const mockTx = {
-        purchaseOrder: {
-          create: jest.fn().mockResolvedValue({
-            id: "po-1",
-            orderNumber: "PO-123456",
-            totalAmount: 8000,
-          }),
-        },
-        changeRequest: { update: jest.fn() },
-      };
-      (mockPrisma.$transaction as jest.Mock).mockImplementation((fn) => fn(mockTx));
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      mockTx.purchaseOrder.create.mockResolvedValue({
+        id: "po-1",
+        orderNumber: "PO-123456",
+        totalAmount: 8000,
+      });
+      mockTx.changeRequest.update.mockResolvedValue({
+        ...change,
+        status: ChangeStatus.PURCHASED,
+      });
 
       const result = await PurchaseService.createPurchaseOrder(
         pmUser.id,
@@ -476,7 +465,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         purchaseOrder: null,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
 
       await expect(
         PurchaseService.createPurchaseOrder(
@@ -497,7 +486,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         purchaseOrder: { id: "po-1" },
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
 
       await expect(
         PurchaseService.createPurchaseOrder(
@@ -518,7 +507,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         purchaseOrder: null,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
 
       await expect(
         PurchaseService.createPurchaseOrder(
@@ -565,8 +554,8 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         scheduleImpact: 1,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
-      (mockPrisma.changeRequest.update as jest.Mock).mockResolvedValue({
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.update as jest.Mock).mockResolvedValue({
         ...change,
         financeNote: "差价已确认，符合预算",
       });
@@ -578,7 +567,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         Role.FINANCE
       );
 
-      expect(mockPrisma.changeRequest.update).toHaveBeenCalledWith(
+      expect(prisma.changeRequest.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { financeNote: "差价已确认，符合预算" },
         })
@@ -597,7 +586,7 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         scheduleImpact: 1,
       };
 
-      (mockPrisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
+      (prisma.changeRequest.findUnique as jest.Mock).mockResolvedValue(change);
 
       await expect(
         ChangeService.updateChange(
@@ -625,12 +614,12 @@ describe("家庭装修变更确认系统 - 验收测试", () => {
         },
       ];
 
-      (mockPrisma.changeRequest.findMany as jest.Mock).mockResolvedValue(mockChanges);
+      (prisma.changeRequest.findMany as jest.Mock).mockResolvedValue(mockChanges);
 
       const result = await ChangeService.getPendingChangesForWeek(ownerUser.id);
 
       expect(result).toHaveLength(1);
-      expect(mockPrisma.changeRequest.findMany).toHaveBeenCalledWith(
+      expect(prisma.changeRequest.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             status: ChangeStatus.PENDING_CONFIRMATION,

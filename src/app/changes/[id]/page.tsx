@@ -262,6 +262,57 @@ export default async function ChangeDetailPage({
                 </div>
               </div>
             )}
+
+            {change.attachments.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  附件留痕
+                </h2>
+                <div className="space-y-3">
+                  {change.attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded flex items-center justify-center">
+                          <svg
+                            className="w-5 h-5 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {attachment.fileName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {(attachment.fileSize / 1024).toFixed(1)} KB ·{" "}
+                            {attachment.uploadedBy?.name || "未知上传者"}
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={attachment.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        下载
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -397,6 +448,10 @@ export default async function ChangeDetailPage({
               isProjectManager={isProjectManager}
               isFinance={isFinance}
               isLocked={change.isLocked}
+              currentManagerNote={change.managerNote}
+              currentDrawingNote={change.drawingNote}
+              currentFinanceNote={change.financeNote}
+              currentVersion={change.version}
             />
           </div>
         </div>

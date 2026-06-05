@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -42,8 +41,14 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
-  createdChanges ChangeRequest[] @relation("CreatedBy")
-  confirmedRecords ConfirmationRecord[] @relation("ConfirmedBy")
+  ownedProjects Project[] @relation("ProjectOwner")
+  createdChanges ChangeRequest[] @relation("ChangeCreator")
+  managedChanges ChangeRequest[] @relation("ChangeManager")
+  changeVersions ChangeVersion[] @relation("VersionCreator")
+  confirmations ConfirmationRecord[] @relation("ConfirmedBy")
+  lockedSchedules Schedule[] @relation("ScheduleLocker")
+  purchaseOrders PurchaseOrder[] @relation("POCreator")
+  attachments   Attachment[] @relation("AttachmentUploader")
 }
 
 model Account {
@@ -86,7 +91,7 @@ model Project {
   name        String
   address     String?
   ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id])
+  owner       User     @relation("ProjectOwner", fields: [ownerId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
 
@@ -103,9 +108,9 @@ model ChangeRequest {
   description     String?
   status          ChangeStatus  @default(DRAFT)
   createdById     String
-  createdBy       User          @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy       User          @relation("ChangeCreator", fields: [createdById], references: [id])
   projectManagerId String?
-  projectManager  User?         @relation(fields: [projectManagerId], references: [id])
+  projectManager  User?         @relation("ChangeManager", fields: [projectManagerId], references: [id])
   originalPlan    String
   newMaterial     String
   priceDifference Decimal       @default(0)
@@ -122,7 +127,7 @@ model ChangeRequest {
   versions        ChangeVersion[]
   confirmations   ConfirmationRecord[]
   purchaseOrder   PurchaseOrder?
-  schedule        Schedule?
+  schedules       Schedule[]
   attachments     Attachment[]
 }
 
@@ -140,7 +145,7 @@ model ChangeVersion {
   managerNote     String?
   createdAt       DateTime @default(now())
   createdById     String
-  createdBy       User     @relation(fields: [createdById], references: [id])
+  createdBy       User     @relation("VersionCreator", fields: [createdById], references: [id])
 }
 
 model ConfirmationRecord {
@@ -167,7 +172,7 @@ model Schedule {
   endDate         DateTime
   isLocked        Boolean       @default(false)
   lockedById      String?
-  lockedBy        User?         @relation(fields: [lockedById], references: [id])
+  lockedBy        User?         @relation("ScheduleLocker", fields: [lockedById], references: [id])
   taskName        String
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now())
@@ -181,7 +186,7 @@ model PurchaseOrder {
   totalAmount     Decimal
   status          String        @default("PENDING")
   createdById     String
-  createdBy       User          @relation(fields: [createdById], references: [id])
+  createdBy       User          @relation("POCreator", fields: [createdById], references: [id])
   createdAt       DateTime      @default(now())
   items           PurchaseItem[]
 }
@@ -205,6 +210,6 @@ model Attachment {
   fileType        String
   fileSize        Int
   uploadedById    String
-  uploadedBy      User          @relation(fields: [uploadedById], references: [id])
+  uploadedBy      User          @relation("AttachmentUploader", fields: [uploadedById], references: [id])
   createdAt       DateTime      @default(now())
 }

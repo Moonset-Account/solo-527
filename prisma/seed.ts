@@ -1,7 +1,7 @@
-import { PrismaClient, Role } from '@/generated/prisma';
+import { PrismaClient, Role } from '../src/generated/prisma';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({});
 
 async function main() {
   const password = await bcrypt.hash('password', 10);

@@ -237,7 +237,10 @@ export class ChangeService {
   static async withdrawChange(changeId: string, userId: string, comment?: string) {
     const change = await prisma.changeRequest.findUnique({
       where: { id: changeId },
-      include: { versions: { orderBy: { version: "desc" }, take: 2 } },
+      include: { 
+        versions: { orderBy: { version: "desc" }, take: 2 },
+        purchaseOrder: true,
+      },
     });
 
     if (!change) {
@@ -430,8 +433,8 @@ export class ChangeService {
         versions: { orderBy: { version: "desc" } },
         confirmations: { include: { confirmedBy: true }, orderBy: { createdAt: "desc" } },
         purchaseOrder: { include: { items: true } },
-        attachments: true,
-        schedule: true,
+        attachments: { include: { uploadedBy: true } },
+        schedules: true,
       },
     });
   }
@@ -439,6 +442,7 @@ export class ChangeService {
   static async canCreatePurchaseOrder(changeId: string) {
     const change = await prisma.changeRequest.findUnique({
       where: { id: changeId },
+      include: { purchaseOrder: true },
     });
 
     if (!change) return false;

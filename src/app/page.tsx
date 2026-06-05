@@ -36,10 +36,23 @@ export default async function HomePage() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-900">
-              本周待确认的变更
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                本周待确认的变更
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                系统入口：展示本周需要业主确认的所有变更
+              </p>
+            </div>
             <div className="flex items-center space-x-4">
+              {session.user.role !== "OWNER" && (
+                <Link
+                  href="/changes/new"
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                >
+                  + 新变更
+                </Link>
+              )}
               <span className="text-sm text-gray-600">
                 {session.user.name || session.user.email}
               </span>
