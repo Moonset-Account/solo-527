@@ -388,13 +388,14 @@ export async function routes(fastify: FastifyInstance) {
 
   fastify.get('/api/audit-logs', { preHandler: authenticate(['admin']) as any }, async (request: any) => {
     const query = request.query as any;
-    return await auditService.getAll({
+    const result = await auditService.getAll({
       user_id: query.user_id,
       action: query.action,
-      module: query.module,
+      resource_type: query.module,
       start_date: query.start_date,
       end_date: query.end_date
     });
+    return result.data;
   });
 
   fastify.get('/api/dashboard/stats', { preHandler: authenticate() as any }, async (request: any) => {

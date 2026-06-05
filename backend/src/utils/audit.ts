@@ -4,27 +4,25 @@ import { db } from '../database/db';
 export async function logAudit(
   userId: string | null,
   action: string,
-  module: string,
-  targetId: string | null,
+  resourceType: string,
+  resourceId: string | null,
   oldValues: any,
   newValues: any,
   ipAddress: string = '127.0.0.1',
-  userAgent: string = '',
-  targetType: string = module
+  userAgent: string = ''
 ): Promise<void> {
   try {
     const user = userId ? await db('users').where({ id: userId }).first() : null;
 
-    const description = generateDescription(action, module, targetId, newValues);
+    const description = generateDescription(action, resourceType, resourceId, newValues);
 
     await db('audit_logs').insert({
       id: uuidv4(),
       user_id: userId,
       user_name: user?.name || 'system',
       action,
-      module,
-      target_type: targetType,
-      target_id: targetId,
+      resource_type: resourceType,
+      resource_id: resourceId,
       description,
       old_values: oldValues ? JSON.stringify(oldValues) : null,
       new_values: newValues ? JSON.stringify(newValues) : null,
@@ -39,8 +37,8 @@ export async function logAudit(
 
 function generateDescription(
   action: string,
-  module: string,
-  targetId: string | null,
+  resourceType: string,
+  resourceId: string | null,
   values: any
 ): string {
   const moduleLabels: Record<string, string> = {
@@ -71,7 +69,7 @@ function generateDescription(
     logout: '登出'
   };
 
-  const moduleName = moduleLabels[module] || module;
+  const moduleName = moduleLabels[resourceType] || resourceType;
   const actionName = actionLabels[action] || action;
 
   let extra = '';
@@ -98,7 +96,7 @@ function generateDescription(
 export async function getAuditLogs(filters?: {
   user_id?: string;
   action?: string;
-  module?: string;
+  resource_type?: string;
   start_date?: string;
   end_date?: string;
   limit?: number;
@@ -114,8 +112,8 @@ export async function getAuditLogs(filters?: {
   if (filters?.action) {
     query = query.where('audit_logs.action', filters.action);
   }
-  if (filters?.module) {
-    query = query.where('audit_logs.module', filters.module);
+  if (filters?.resource_type) {
+    query = query.where('audit_logs.resource_type', filters.resource_type);
   }
   if (filters?.start_date) {
     query = query.where('audit_logs.created_at', '>=', filters.start_date);

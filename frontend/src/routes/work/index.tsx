@@ -9,21 +9,29 @@ interface WorkTask {
   id: string;
   reservation_id: string;
   operator_id: string;
+  equipment_id: string;
+  field_id: string;
+  member_id: string;
   status: 'assigned' | 'in_progress' | 'completed';
   assigned_at: string;
   started_at: string | null;
   completed_at: string | null;
   route_info: any;
-  reservation: {
-    id: string;
-    member_name: string;
-    equipment_name: string;
-    field_name: string;
-    crop: string;
-    start_time: string;
-    end_time: string;
-    notes: string | null;
-  };
+  crop: string;
+  start_time: string;
+  end_time: string;
+  price_type: string;
+  equipment_name: string;
+  equipment_type: string;
+  field_name: string;
+  field_area: number;
+  member_name: string;
+  member_phone: string;
+  notes: string | null;
+  fuel_consumption?: number;
+  work_hours?: number;
+  field_photos?: string[];
+  record_notes?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -136,7 +144,7 @@ export default component$(() => {
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
-                    <h3 class="font-bold text-gray-800">{task.reservation.equipment_name}</h3>
+                    <h3 class="font-bold text-gray-800">{task.equipment_name}</h3>
                     <span class={`badge ${
                       task.status === 'assigned' ? 'badge-pending' :
                       task.status === 'in_progress' ? 'badge-confirmed' :
@@ -149,27 +157,27 @@ export default component$(() => {
                   <div class="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <span class="text-gray-500">地块：</span>
-                      <span class="text-gray-800">{task.reservation.field_name}</span>
+                      <span class="text-gray-800">{task.field_name}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">作物：</span>
-                      <span class="text-gray-800">{task.reservation.crop}</span>
+                      <span class="text-gray-800">{task.crop}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">社员：</span>
-                      <span class="text-gray-800">{task.reservation.member_name}</span>
+                      <span class="text-gray-800">{task.member_name}</span>
                     </div>
                     <div>
                       <span class="text-gray-500">预约时间：</span>
                       <span class="text-gray-800">
-                        {dayjs(task.reservation.start_time).format('MM-DD HH:mm')}
+                        {dayjs(task.start_time).format('MM-DD HH:mm')}
                       </span>
                     </div>
                   </div>
 
-                  {task.reservation.notes && (
+                  {task.notes && (
                     <div class="text-sm text-gray-500 mb-4">
-                      <span class="text-gray-400">备注：</span>{task.reservation.notes}
+                      <span class="text-gray-400">备注：</span>{task.notes}
                     </div>
                   )}
 

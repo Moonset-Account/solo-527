@@ -161,9 +161,8 @@ async function createTables() {
     table.string('user_id', 36).references('id').inTable('users');
     table.string('user_name', 100);
     table.string('action', 100).notNullable();
-    table.string('module', 50).notNullable();
-    table.string('target_type', 50);
-    table.string('target_id', 36);
+    table.string('resource_type', 50).notNullable();
+    table.string('resource_id', 36);
     table.text('description');
     table.json('old_values');
     table.json('new_values');

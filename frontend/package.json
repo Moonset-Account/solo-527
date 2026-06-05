@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "1.0.0",
   "description": "农业合作社农机共享平台前端",
+  "type": "module",
   "scripts": {
     "dev": "vite --mode ssr --port 5173",
     "build": "vite build && vite build --mode ssr",

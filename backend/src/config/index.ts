@@ -1,5 +1,5 @@
 export const config = {
-  port: parseInt(process.env.PORT || '3001'),
+  port: parseInt(process.env.PORT || '3000'),
   jwt: {
     secret: process.env.JWT_SECRET || 'agricultural-machinery-secret-key-2024',
     expiresIn: '24h'
