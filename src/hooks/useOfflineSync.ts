@@ -102,6 +102,7 @@ export function useOfflineSync() {
     isOnline,
     pendingCount,
     addToQueue,
+    queueOfflineOperation: addToQueue,
     removeFromQueue,
     syncQueue,
     getOfflineQueue,

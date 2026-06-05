@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import Layout from '@/components/Layout';
+import Modal from '@/components/Modal';
+import TaskForm from '@/components/TaskForm';
+import BudgetItemForm from '@/components/BudgetItemForm';
+import FileUpload from '@/components/FileUpload';
+import ConfirmationForm from '@/components/ConfirmationForm';
+import QRScanner from '@/components/QRScanner';
 import {
   Calendar,
   MapPin,
@@ -16,6 +22,13 @@ import {
   Send,
   ChevronRight,
   X,
+  FileText,
+  Scan,
+  Check,
+  XCircle,
+  Eye,
+  Download,
+  Trash2,
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -28,13 +41,15 @@ import {
   getPriorityLabel,
   getRoleLabel,
   formatFileSize,
+  getCategoryLabel,
 } from '@/lib/utils';
-import { useCamera } from '@/hooks/useCamera';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 const taskColumns = [
   { key: 'TODO', label: '待办', color: 'bg-gray-500' },
   { key: 'IN_PROGRESS', label: '进行中', color: 'bg-blue-500' },
   { key: 'REVIEW', label: '待审核', color: 'bg-yellow-500' },
+  { key: 'APPROVED', label: '已通过', color: 'bg-purple-500' },
   { key: 'COMPLETED', label: '已完成', color: 'bg-green-500' },
 ];
 
@@ -42,90 +57,220 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const { projectId } = router.query;
   const { data: session } = useSession();
-  const { data: projectData, mutate } = useSWR(
-    projectId ? `/api/projects/${projectId}` : null
-  );
+  const { isOnline, queueOfflineOperation } = useOfflineSync();
+  
   const [activeTab, setActiveTab] = useState<'kanban' | 'budget' | 'files' | 'confirmations'>('kanban');
   const [newComment, setNewComment] = useState('');
-  const [showCamera, setShowCamera] = useState(false);
-  const { isCapturing, videoRef, startCamera, stopCamera, capturePhoto, selectFile } = useCamera();
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedBudgetItem, setSelectedBudgetItem] = useState<any>(null);
+
+  const { data: projectData, isLoading } = useSWR(
+    projectId ? `/api/projects/${projectId}` : null
+  );
+  const { data: tasksData } = useSWR(
+    projectId ? `/api/projects/${projectId}/tasks` : null
+  );
 
   const project = projectData?.data;
-  const tasks = project?.tasks || [];
+  const tasks = tasksData?.data?.items || project?.tasks || [];
   const budgetItems = project?.budgetItems || [];
   const files = project?.files || [];
   const confirmations = project?.confirmations || [];
   const comments = project?.comments || [];
 
+  const canEditTask = session?.user.role === 'ADMIN' || session?.user.role === 'PLANNER';
+  const canEditBudget = session?.user.role === 'ADMIN' || session?.user.role === 'PLANNER';
+  const canCreateConfirmation = session?.user.role === 'ADMIN' || session?.user.role === 'PLANNER';
+  const canConfirm = session?.user.role === 'COUPLE';
+  const canApproveFiles = session?.user.role === 'ADMIN' || session?.user.role === 'PLANNER';
+
   const getTasksByStatus = (status: string) => {
     return tasks.filter((t: any) => t.status === status);
   };
 
-  const updateTaskStatus = async (taskId: string, status: string) => {
-    await fetch(`/api/tasks/${taskId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    mutate();
+  const handleTaskSubmit = async (formData: any) => {
+    const operation = async () => {
+      const url = selectedTask ? `/api/tasks/${selectedTask.id}` : `/api/projects/${projectId}/tasks`;
+      const method = selectedTask ? 'PATCH' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await res.json();
+      if (result.success) {
+        mutate(`/api/projects/${projectId}`);
+        mutate(`/api/projects/${projectId}/tasks`);
+        setShowTaskModal(false);
+        setSelectedTask(null);
+      }
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: selectedTask ? 'update' : 'create',
+        entityType: 'task',
+        entityData: { ...formData, projectId, taskId: selectedTask?.id },
+      });
+      setShowTaskModal(false);
+      setSelectedTask(null);
+      return;
+    }
+
+    await operation();
+  };
+
+  const handleBudgetSubmit = async (formData: any) => {
+    const operation = async () => {
+      const url = selectedBudgetItem ? `/api/budget/${selectedBudgetItem.id}` : `/api/projects/${projectId}/budget`;
+      const method = selectedBudgetItem ? 'PATCH' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await res.json();
+      if (result.success) {
+        mutate(`/api/projects/${projectId}`);
+        setShowBudgetModal(false);
+        setSelectedBudgetItem(null);
+      }
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: selectedBudgetItem ? 'update' : 'create',
+        entityType: 'budget',
+        entityData: { ...formData, projectId, budgetId: selectedBudgetItem?.id },
+      });
+      setShowBudgetModal(false);
+      setSelectedBudgetItem(null);
+      return;
+    }
+
+    await operation();
+  };
+
+  const handleUpdateTaskStatus = async (taskId: string, status: string) => {
+    const operation = async () => {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      mutate(`/api/projects/${projectId}`);
+      mutate(`/api/projects/${projectId}/tasks`);
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: 'update',
+        entityType: 'task',
+        entityData: { taskId, status },
+      });
+      return;
+    }
+
+    await operation();
   };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     
-    await fetch(`/api/projects/${projectId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: newComment }),
-    });
-    setNewComment('');
-    mutate();
+    const operation = async () => {
+      await fetch(`/api/projects/${projectId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment }),
+      });
+      setNewComment('');
+      mutate(`/api/projects/${projectId}`);
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: 'create',
+        entityType: 'comment',
+        entityData: { projectId, content: newComment },
+      });
+      setNewComment('');
+      return;
+    }
+
+    await operation();
   };
 
   const handleConfirmConfirmation = async (confirmationId: string, confirmed: boolean) => {
-    await fetch(`/api/confirmations/${confirmationId}`, {
+    const operation = async () => {
+      await fetch(`/api/confirmations/${confirmationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: confirmed ? 'CONFIRMED' : 'DECLINED' }),
+      });
+      mutate(`/api/projects/${projectId}`);
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: 'update',
+        entityType: 'confirmation',
+        entityData: { confirmationId, status: confirmed ? 'CONFIRMED' : 'DECLINED' },
+      });
+      return;
+    }
+
+    await operation();
+  };
+
+  const handleFileUploaded = () => {
+    mutate(`/api/projects/${projectId}`);
+    setShowFileModal(false);
+  };
+
+  const handleFileStatus = async (fileId: string, status: 'APPROVED' | 'REJECTED') => {
+    await fetch(`/api/files/${fileId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: confirmed ? 'CONFIRMED' : 'DECLINED' }),
+      body: JSON.stringify({ status }),
     });
-    mutate();
+    mutate(`/api/projects/${projectId}`);
   };
 
-  const handlePhotoCapture = async () => {
-    const photo = await capturePhoto();
-    if (photo) {
-      await fetch(`/api/projects/${projectId}/upload`, {
+  const handleCreateConfirmation = async (formData: any) => {
+    const operation = async () => {
+      const res = await fetch(`/api/projects/${projectId}/confirmations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileBase64: photo,
-          fileName: `photo-${Date.now()}.jpg`,
-          category: 'photo',
-        }),
+        body: JSON.stringify(formData),
       });
-      setShowCamera(false);
-      stopCamera();
-      mutate();
+      const result = await res.json();
+      if (result.success) {
+        mutate(`/api/projects/${projectId}`);
+        setShowConfirmationModal(false);
+      }
+    };
+
+    if (!isOnline) {
+      queueOfflineOperation({
+        operation: 'create',
+        entityType: 'confirmation',
+        entityData: { ...formData, projectId },
+      });
+      setShowConfirmationModal(false);
+      return;
     }
+
+    await operation();
   };
 
-  const handleFileUpload = async () => {
-    const file = await selectFile();
-    if (file) {
-      await fetch(`/api/projects/${projectId}/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileBase64: file,
-          fileName: `file-${Date.now()}`,
-          category: 'document',
-        }),
-      });
-      mutate();
-    }
-  };
-
-  if (!project) {
+  if (isLoading || !project) {
     return (
       <Layout>
         <div className="flex items-center justify-center py-12">
@@ -141,8 +286,17 @@ export default function ProjectDetailPage() {
         <div className="card p-4 lg:p-6">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div>
-              <h1 className="text-xl lg:text-2xl font-bold text-gray-900">{project.name}</h1>
-              <p className="text-gray-500 mt-1">{project.description}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="text-xl lg:text-2xl font-bold text-gray-900">{project.name}</h1>
+                <button
+                  onClick={() => setShowScanner(true)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="扫码"
+                >
+                  <Scan className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <p className="text-gray-500">{project.description}</p>
               <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1.5" />
@@ -162,9 +316,16 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             </div>
-            <span className={`badge ${getStatusColor(project.status)} self-start`}>
-              {getStatusLabel(project.status)}
-            </span>
+            <div className="flex items-center gap-2">
+              {!isOnline && (
+                <span className="badge bg-yellow-100 text-yellow-700">
+                  离线模式
+                </span>
+              )}
+              <span className={`badge ${getStatusColor(project.status)} self-start`}>
+                {getStatusLabel(project.status)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -193,13 +354,21 @@ export default function ProjectDetailPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">任务看板</h2>
-              <button className="btn btn-primary text-sm">
-                <Plus className="w-4 h-4 mr-1.5" />
-                添加任务
-              </button>
+              {canEditTask && (
+                <button
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setShowTaskModal(true);
+                  }}
+                  className="btn btn-primary text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  添加任务
+                </button>
+              )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {taskColumns.map((column) => (
                 <div key={column.key} className="card">
                   <div className="p-3 border-b border-gray-200 flex items-center">
@@ -214,6 +383,10 @@ export default function ProjectDetailPage() {
                       <div
                         key={task.id}
                         className="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setShowTaskModal(true);
+                        }}
                       >
                         <div className="flex items-start justify-between">
                           <h4 className="font-medium text-sm text-gray-900 flex-1">
@@ -223,9 +396,83 @@ export default function ProjectDetailPage() {
                             {getPriorityLabel(task.priority)}
                           </span>
                         </div>
+                        {task.description && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
                         <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
                           <span>{task.assignee?.name || '未分配'}</span>
                           <span>{task.dueDate ? formatDate(task.dueDate) : '无截止'}</span>
+                        </div>
+                        
+                        <div className="mt-2 flex gap-1 flex-wrap">
+                          {column.key === 'TODO' && (task.assigneeId === session?.user.id || canEditTask) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateTaskStatus(task.id, 'IN_PROGRESS');
+                              }}
+                              className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            >
+                              开始
+                            </button>
+                          )}
+                          {column.key === 'IN_PROGRESS' && (task.assigneeId === session?.user.id || canEditTask) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateTaskStatus(task.id, 'REVIEW');
+                              }}
+                              className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                            >
+                              提交审核
+                            </button>
+                          )}
+                          {column.key === 'REVIEW' && canEditTask && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateTaskStatus(task.id, 'APPROVED');
+                                }}
+                                className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+                              >
+                                通过
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateTaskStatus(task.id, 'IN_PROGRESS');
+                                }}
+                                className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                              >
+                                驳回
+                              </button>
+                            </>
+                          )}
+                          {column.key === 'REVIEW' && canConfirm && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateTaskStatus(task.id, 'APPROVED');
+                              }}
+                              className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+                            >
+                              确认
+                            </button>
+                          )}
+                          {column.key === 'APPROVED' && canEditTask && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateTaskStatus(task.id, 'COMPLETED');
+                              }}
+                              className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+                            >
+                              完成
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -260,6 +507,11 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
                 ))}
+                {comments.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    暂无评论，来发表第一条评论吧
+                  </div>
+                )}
               </div>
               <div className="p-4 border-t border-gray-200">
                 <div className="flex space-x-2">
@@ -296,13 +548,13 @@ export default function ProjectDetailPage() {
               <div className="card p-4">
                 <p className="text-sm text-gray-500">已支出</p>
                 <p className="text-2xl font-bold text-orange-600 mt-1">
-                  {formatCurrency(project.totalSpent)}
+                  {formatCurrency(project.totalSpent || budgetItems.reduce((sum: number, i: any) => sum + (i.actual || 0), 0))}
                 </p>
               </div>
               <div className="card p-4">
                 <p className="text-sm text-gray-500">剩余预算</p>
                 <p className="text-2xl font-bold text-green-600 mt-1">
-                  {formatCurrency(Number(project.totalBudget) - Number(project.totalSpent))}
+                  {formatCurrency(Number(project.totalBudget) - (project.totalSpent || budgetItems.reduce((sum: number, i: any) => sum + (i.actual || 0), 0)))}
                 </p>
               </div>
             </div>
@@ -310,8 +562,14 @@ export default function ProjectDetailPage() {
             <div className="card">
               <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">预算明细</h2>
-                {(session?.user?.role === 'ADMIN' || session?.user?.role === 'PLANNER') && (
-                  <button className="btn btn-primary text-sm">
+                {canEditBudget && (
+                  <button
+                    onClick={() => {
+                      setSelectedBudgetItem(null);
+                      setShowBudgetModal(true);
+                    }}
+                    className="btn btn-primary text-sm"
+                  >
                     <Plus className="w-4 h-4 mr-1.5" />
                     添加预算项
                   </button>
@@ -326,14 +584,17 @@ export default function ProjectDetailPage() {
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">预算</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">实际</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">差额</th>
+                      {canEditBudget && (
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {budgetItems.map((item: any) => (
-                      <tr key={item.id} className={item.isInternal ? 'bg-gray-50' : ''}>
+                      <tr key={item.id} className={item.isInternal ? 'bg-gray-50' : 'hover:bg-gray-50'}>
                         <td className="px-4 py-3 text-sm">
                           <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                            {item.category}
+                            {getCategoryLabel(item.category)}
                             {item.isInternal && <span className="ml-1 text-red-500">(内部)</span>}
                           </span>
                         </td>
@@ -351,6 +612,19 @@ export default function ProjectDetailPage() {
                         }`}>
                           {formatCurrency(Number(item.estimated) - Number(item.actual))}
                         </td>
+                        {canEditBudget && (
+                          <td className="px-4 py-3 text-sm text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedBudgetItem(item);
+                                setShowBudgetModal(true);
+                              }}
+                              className="text-primary-600 hover:text-primary-800"
+                            >
+                              编辑
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -372,52 +646,15 @@ export default function ProjectDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">文件资料</h2>
               <div className="flex space-x-2">
-                <button className="btn btn-secondary text-sm" onClick={handleFileUpload}>
+                <button
+                  onClick={() => setShowFileModal(true)}
+                  className="btn btn-primary text-sm"
+                >
                   <Plus className="w-4 h-4 mr-1.5" />
                   上传文件
                 </button>
-                <button
-                  className="btn btn-primary text-sm"
-                  onClick={() => {
-                    setShowCamera(true);
-                    startCamera();
-                  }}
-                >
-                  <Camera className="w-4 h-4 mr-1.5" />
-                  拍照上传
-                </button>
               </div>
             </div>
-
-            {showCamera && (
-              <div className="card mb-6">
-                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                  <h3 className="font-medium text-gray-900">拍照</h3>
-                  <button
-                    onClick={() => {
-                      setShowCamera(false);
-                      stopCamera();
-                    }}
-                    className="p-1 rounded hover:bg-gray-100"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="p-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full rounded-lg bg-black aspect-video"
-                  />
-                  <div className="flex justify-center mt-4">
-                    <button className="btn btn-primary" onClick={handlePhotoCapture}>
-                      拍照
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {files.map((file: any) => (
@@ -448,10 +685,47 @@ export default function ProjectDetailPage() {
                       <User className="w-3 h-3 mr-1" />
                       {file.uploadedBy?.name}
                     </div>
+                    <div className="mt-3 flex gap-2">
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 btn btn-secondary text-xs py-1.5"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        查看
+                      </a>
+                      {canApproveFiles && file.status === 'PENDING' && (
+                        <>
+                          <button
+                            onClick={() => handleFileStatus(file.id, 'APPROVED')}
+                            className="btn btn-primary text-xs py-1.5"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleFileStatus(file.id, 'REJECTED')}
+                            className="btn btn-danger text-xs py-1.5"
+                          >
+                            <XCircle className="w-3 h-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {files.length === 0 && (
+              <div className="card p-12 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                  <FileText className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无文件</h3>
+                <p className="text-gray-500">上传第一个文件开始协作</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -459,8 +733,11 @@ export default function ProjectDetailPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">确认单</h2>
-              {(session?.user?.role === 'ADMIN' || session?.user?.role === 'PLANNER') && (
-                <button className="btn btn-primary text-sm">
+              {canCreateConfirmation && (
+                <button
+                  onClick={() => setShowConfirmationModal(true)}
+                  className="btn btn-primary text-sm"
+                >
                   <Plus className="w-4 h-4 mr-1.5" />
                   创建确认单
                 </button>
@@ -472,44 +749,160 @@ export default function ProjectDetailPage() {
                 <div key={conf.id} className="card">
                   <div className="p-4">
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{conf.title}</h3>
                         <p className="text-sm text-gray-500 mt-1">{conf.content}</p>
+                        {conf.files?.length > 0 && (
+                          <div className="mt-2 flex gap-2">
+                            {conf.files.map((f: any) => (
+                              <a
+                                key={f.id}
+                                href={f.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary-600 hover:underline"
+                              >
+                                <FileText className="w-3 h-3 inline mr-1" />
+                                {f.name}
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <span className={`badge ${getStatusColor(conf.status)}`}>
+                      <span className={`badge ${getStatusColor(conf.status)} ml-4`}>
                         {getStatusLabel(conf.status)}
                       </span>
                     </div>
                     
-                    <div className="mt-4 flex items-center justify-between">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-sm text-gray-500">
                         创建于 {formatDateTime(conf.createdAt)}
                       </span>
                       
-                      {conf.status === 'PENDING' && session?.user?.role === 'COUPLE' && (
+                      {conf.status === 'PENDING' && canConfirm && (
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleConfirmConfirmation(conf.id, false)}
                             className="btn btn-danger text-sm"
                           >
+                            <XCircle className="w-4 h-4 mr-1" />
                             拒绝
                           </button>
                           <button
                             onClick={() => handleConfirmConfirmation(conf.id, true)}
                             className="btn btn-primary text-sm"
                           >
+                            <Check className="w-4 h-4 mr-1" />
                             确认
                           </button>
                         </div>
+                      )}
+
+                      {conf.status !== 'PENDING' && conf.confirmedAt && (
+                        <span className="text-sm text-gray-500">
+                          {conf.status === 'CONFIRMED' ? '确认' : '拒绝'}于 {formatDateTime(conf.confirmedAt)}
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+
+            {confirmations.length === 0 && (
+              <div className="card p-12 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无确认单</h3>
+                <p className="text-gray-500">策划师可以创建确认单供新人确认</p>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={showTaskModal}
+        onClose={() => {
+          setShowTaskModal(false);
+          setSelectedTask(null);
+        }}
+        title={selectedTask ? '编辑任务' : '添加任务'}
+        size="lg"
+      >
+        <TaskForm
+          projectId={projectId as string}
+          initialData={selectedTask}
+          onSubmit={handleTaskSubmit}
+          onCancel={() => {
+            setShowTaskModal(false);
+            setSelectedTask(null);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showBudgetModal}
+        onClose={() => {
+          setShowBudgetModal(false);
+          setSelectedBudgetItem(null);
+        }}
+        title={selectedBudgetItem ? '编辑预算项' : '添加预算项'}
+        size="lg"
+      >
+        <BudgetItemForm
+          projectId={projectId as string}
+          initialData={selectedBudgetItem}
+          onSubmit={handleBudgetSubmit}
+          onCancel={() => {
+            setShowBudgetModal(false);
+            setSelectedBudgetItem(null);
+          }}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showFileModal}
+        onClose={() => setShowFileModal(false)}
+        title="上传文件"
+        size="lg"
+      >
+        <FileUpload
+          projectId={projectId as string}
+          onUpload={handleFileUploaded}
+          onCancel={() => setShowFileModal(false)}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        title="创建确认单"
+        size="lg"
+      >
+        <ConfirmationForm
+          projectId={projectId as string}
+          onSubmit={handleCreateConfirmation}
+          onCancel={() => setShowConfirmationModal(false)}
+        />
+      </Modal>
+
+      <QRScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={(code) => {
+          setShowScanner(false);
+          if (code.startsWith('task-')) {
+            const taskId = code.replace('task-', '');
+            const task = tasks.find((t: any) => t.id === taskId);
+            if (task) {
+              setSelectedTask(task);
+              setShowTaskModal(true);
+            }
+          }
+        }}
+      />
     </Layout>
   );
 }

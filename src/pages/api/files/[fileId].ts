@@ -3,40 +3,34 @@ import { createApiHandler } from '@/lib/api-utils';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 
-const confirmationSchema = z.object({
-  title: z.string().min(1),
-  content: z.string().optional(),
+const fileStatusSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
 });
 
 export default createApiHandler(
   async (req, res, { userId, role }) => {
-    const { projectId } = req.query;
+    const { fileId } = req.query;
 
-    if (req.method === 'POST') {
+    if (req.method === 'PATCH') {
       if (role !== 'ADMIN' && role !== 'PLANNER') {
         return res.status(403).json({
           success: false,
           error: 'Forbidden',
-          message: '没有权限创建确认单',
+          message: '没有权限审批文件',
         });
       }
 
-      const data = confirmationSchema.parse(req.body);
+      const data = fileStatusSchema.parse(req.body);
       
-      const confirmation = await prisma.confirmation.create({
-        data: {
-          ...data,
-          projectId: projectId as string,
-        },
-        include: {
-          files: true,
-        },
+      const file = await prisma.projectFile.update({
+        where: { id: fileId as string },
+        data: { status: data.status },
       });
 
-      return res.status(201).json({
+      return res.status(200).json({
         success: true,
-        data: confirmation,
-        message: '确认单创建成功',
+        data: file,
+        message: '文件状态更新成功',
       });
     }
 
@@ -47,6 +41,6 @@ export default createApiHandler(
     });
   },
   {
-    requirePermission: 'confirmation:create',
+    requirePermission: 'file:update',
   }
 );

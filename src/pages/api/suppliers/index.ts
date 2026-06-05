@@ -1,33 +1,35 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createApiHandler, ApiResponse } from '@/lib/api-utils';
+import { createApiHandler } from '@/lib/api-utils';
 import prisma from '@/lib/prisma';
+import { z } from 'zod';
+
+const supplierSchema = z.object({
+  name: z.string().min(1),
+  category: z.string().min(1),
+  contactName: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().nullable(),
+  address: z.string().optional(),
+  rating: z.number().min(0).max(5).optional().default(0),
+});
 
 export default createApiHandler(
   async (req, res, { role }) => {
     if (req.method === 'GET') {
-      const { category, search } = req.query;
-
-      const where: any = {};
-      if (category) where.category = category;
-      if (search) {
-        where.OR = [
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { contactName: { contains: search as string, mode: 'insensitive' } },
-        ];
-      }
-
       const suppliers = await prisma.supplier.findMany({
-        where,
         include: {
           services: true,
           user: { select: { id: true, name: true, email: true } },
         },
-        orderBy: { name: 'asc' },
+        orderBy: { createdAt: 'desc' },
       });
 
       return res.status(200).json({
         success: true,
-        data: suppliers,
+        data: {
+          items: suppliers,
+          total: suppliers.length,
+        },
       });
     }
 
@@ -40,23 +42,10 @@ export default createApiHandler(
         });
       }
 
-      const { name, category, contactName, phone, email, address, services } = req.body;
-
+      const data = supplierSchema.parse(req.body);
       const supplier = await prisma.supplier.create({
-        data: {
-          name,
-          category,
-          contactName,
-          phone,
-          email,
-          address,
-          services: services ? {
-            create: services,
-          } : undefined,
-        },
-        include: {
-          services: true,
-        },
+        data,
+        include: { services: true },
       });
 
       return res.status(201).json({

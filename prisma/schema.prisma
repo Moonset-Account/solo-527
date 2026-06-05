@@ -249,6 +249,8 @@ model ProjectFile {
   uploadedBy  User       @relation(fields: [uploadedById], references: [id])
   taskId      String?
   task        Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  confirmationId String?
+  confirmation Confirmation? @relation(fields: [confirmationId], references: [id], onDelete: Cascade)
 
   comments    Comment[]
 

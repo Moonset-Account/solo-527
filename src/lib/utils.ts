@@ -121,3 +121,7 @@ export function getBudgetCategoryLabel(category: string): string {
   };
   return labels[category] || category;
 }
+
+export function getCategoryLabel(category: string): string {
+  return getBudgetCategoryLabel(category);
+}

@@ -1,6 +1,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import redis from './redis';
 import prisma from './prisma';
+import { processSyncItem } from './offline-processor';
 
 export const emailQueue = new Queue('email-queue', {
   connection: redis,
@@ -57,18 +58,9 @@ const reminderWorker = new Worker('reminder-queue', async (job: Job) => {
 const syncWorker = new Worker('sync-queue', async (job: Job) => {
   const { syncQueueId } = job.data;
 
-  const syncItem = await prisma.offlineSyncQueue.findUnique({
-    where: { id: syncQueueId },
-  });
-
-  if (!syncItem || syncItem.synced) return;
-
-  console.log(`[Sync Queue] Processing ${syncItem.entityType} for user ${syncItem.userId}`);
-
-  await prisma.offlineSyncQueue.update({
-    where: { id: syncQueueId },
-    data: { synced: true, syncedAt: new Date() },
-  });
+  console.log(`[Sync Queue] Processing sync item: ${syncQueueId}`);
+  
+  await processSyncItem(syncQueueId);
 
   return { success: true, syncQueueId };
 }, { connection: redis });
