@@ -165,25 +165,32 @@ def submit_claim(item_id: int = typer.Option(..., "--item-id", "-i", help="失�
         console.print("[red]✗ 请提供物品特征描述[/red]")
         raise typer.Exit(1)
     
-    add_proof = Confirm.ask("是否上传证明材料？", default=False)
+    has_proof_args = proof_type is not None
     
-    actual_proof_type = proof_type
-    actual_proof_desc = proof_desc
-    actual_proof_path = proof_path
-    
-    if add_proof and not actual_proof_type:
-        console.print("\n[cyan]请选择证明材料类型:[/cyan]")
-        console.print("  1) 身份证 (id_card)")
-        console.print("  2) 学生证 (student_card)")
-        console.print("  3) 购买凭证 (purchase_proof)")
-        console.print("  4) 物品照片 (photo)")
-        console.print("  5) 其他 (other)")
-        type_choice = Prompt.ask("选择类型", choices=["1", "2", "3", "4", "5"], default="4")
-        type_map = {"1": "id_card", "2": "student_card", "3": "purchase_proof", 
-                   "4": "photo", "5": "other"}
-        actual_proof_type = type_map[type_choice]
-        actual_proof_desc = Prompt.ask("材料描述", default="")
-        actual_proof_path = Prompt.ask("文件路径（可选）", default="")
+    if has_proof_args:
+        add_proof = True
+        actual_proof_type = proof_type
+        actual_proof_desc = proof_desc
+        actual_proof_path = proof_path
+    else:
+        add_proof = Confirm.ask("是否上传证明材料？", default=False)
+        actual_proof_type = None
+        actual_proof_desc = None
+        actual_proof_path = None
+        
+        if add_proof:
+            console.print("\n[cyan]请选择证明材料类型:[/cyan]")
+            console.print("  1) 身份证 (id_card)")
+            console.print("  2) 学生证 (student_card)")
+            console.print("  3) 购买凭证 (purchase_proof)")
+            console.print("  4) 物品照片 (photo)")
+            console.print("  5) 其他 (other)")
+            type_choice = Prompt.ask("选择类型", choices=["1", "2", "3", "4", "5"], default="4")
+            type_map = {"1": "id_card", "2": "student_card", "3": "purchase_proof", 
+                       "4": "photo", "5": "other"}
+            actual_proof_type = type_map[type_choice]
+            actual_proof_desc = Prompt.ask("材料描述", default="")
+            actual_proof_path = Prompt.ask("文件路径（可选）", default="")
     
     with console.status("[bold green]正在提交申请..."):
         success, msg, request_id = ClaimService.submit_claim(
