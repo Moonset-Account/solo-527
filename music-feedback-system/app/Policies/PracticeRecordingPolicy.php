@@ -18,7 +18,7 @@ class PracticeRecordingPolicy
 
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['admin', 'teacher']);
+        return in_array($user->role, ['admin', 'teacher', 'parent']);
     }
 
     public function view(User $user, PracticeRecording $practiceRecording): bool

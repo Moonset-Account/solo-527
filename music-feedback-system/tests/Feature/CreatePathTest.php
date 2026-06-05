@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ApprovalFlow;
 use App\Models\Assignment;
 use App\Models\Annotation;
 use App\Models\ParentConfirmation;
@@ -23,9 +22,11 @@ class CreatePathTest extends TestCase
 
     private User $admin;
     private User $teacher;
+    private User $otherTeacher;
     private User $parent;
     private User $otherParent;
     private Student $student;
+    private Student $otherStudent;
     private Piece $piece;
 
     protected function setUp(): void
@@ -34,11 +35,16 @@ class CreatePathTest extends TestCase
 
         $this->admin = User::factory()->admin()->create();
         $this->teacher = User::factory()->teacher()->create();
+        $this->otherTeacher = User::factory()->teacher()->create();
         $this->parent = User::factory()->parent()->create();
         $this->otherParent = User::factory()->parent()->create();
         $this->student = Student::factory()->create([
             'parent_user_id' => $this->parent->id,
             'teacher_user_id' => $this->teacher->id,
+        ]);
+        $this->otherStudent = Student::factory()->create([
+            'parent_user_id' => $this->otherParent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
         ]);
         $this->piece = Piece::factory()->create();
     }
@@ -185,7 +191,7 @@ class CreatePathTest extends TestCase
             ->assertJsonValidationErrors(['student_id', 'amount', 'due_date']);
     }
 
-    public function test_parent_can_upload_recording(): void
+    public function test_parent_can_upload_recording_for_own_child(): void
     {
         Storage::fake('local');
 
@@ -212,6 +218,90 @@ class CreatePathTest extends TestCase
         ]);
     }
 
+    public function test_parent_cannot_upload_recording_for_other_child(): void
+    {
+        Storage::fake('local');
+
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('recording.mp3', 1000, 'audio/mpeg');
+
+        $response = $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/recordings', [
+                'student_id' => $this->otherStudent->id,
+                'assignment_id' => $assignment->id,
+                'file' => $file,
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_teacher_can_upload_recording_for_own_student(): void
+    {
+        Storage::fake('local');
+
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->student->id,
+            'teacher_user_id' => $this->teacher->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('recording.mp3', 1000, 'audio/mpeg');
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/recordings', [
+                'student_id' => $this->student->id,
+                'assignment_id' => $assignment->id,
+                'file' => $file,
+            ]);
+
+        $response->assertCreated();
+    }
+
+    public function test_teacher_cannot_upload_recording_for_other_teacher_student(): void
+    {
+        Storage::fake('local');
+
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('recording.mp3', 1000, 'audio/mpeg');
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/recordings', [
+                'student_id' => $this->otherStudent->id,
+                'assignment_id' => $assignment->id,
+                'file' => $file,
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_recording_assignment_must_belong_to_student(): void
+    {
+        Storage::fake('local');
+
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('recording.mp3', 1000, 'audio/mpeg');
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->postJson('/api/v1/recordings', [
+                'student_id' => $this->student->id,
+                'assignment_id' => $assignment->id,
+                'file' => $file,
+            ]);
+
+        $response->assertStatus(422);
+    }
+
     public function test_recording_file_format_validation(): void
     {
         Storage::fake('local');
@@ -234,7 +324,7 @@ class CreatePathTest extends TestCase
             ->assertJsonValidationErrors(['file']);
     }
 
-    public function test_teacher_can_create_annotation_with_timestamp(): void
+    public function test_teacher_can_create_annotation_for_own_student_recording(): void
     {
         $assignment = Assignment::factory()->create([
             'student_id' => $this->student->id,
@@ -263,6 +353,27 @@ class CreatePathTest extends TestCase
         ]);
     }
 
+    public function test_teacher_cannot_create_annotation_for_other_teacher_recording(): void
+    {
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+        $recording = PracticeRecording::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'assignment_id' => $assignment->id,
+        ]);
+
+        $response = $this->actingAs($this->teacher, 'sanctum')
+            ->postJson('/api/v1/annotations', [
+                'practice_recording_id' => $recording->id,
+                'timestamp_ms' => 5000,
+                'content' => '越权批注',
+            ]);
+
+        $response->assertForbidden();
+    }
+
     public function test_annotation_timestamp_must_be_non_negative(): void
     {
         $recording = PracticeRecording::factory()->create([
@@ -280,7 +391,7 @@ class CreatePathTest extends TestCase
             ->assertJsonValidationErrors(['timestamp_ms']);
     }
 
-    public function test_parent_can_confirm_assignment(): void
+    public function test_parent_cannot_create_annotation(): void
     {
         $assignment = Assignment::factory()->create([
             'student_id' => $this->student->id,
@@ -295,6 +406,92 @@ class CreatePathTest extends TestCase
             ]);
 
         $response->assertForbidden();
+    }
+
+    public function test_parent_can_confirm_assignment(): void
+    {
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->student->id,
+            'teacher_user_id' => $this->teacher->id,
+        ]);
+
+        $response = $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/parent-confirmations', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $this->student->id,
+                'confirmed' => true,
+                'note' => '已了解作业要求',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.confirmed', true)
+            ->assertJsonPath('data.note', '已了解作业要求');
+
+        $this->assertDatabaseHas('parent_confirmations', [
+            'parent_user_id' => $this->parent->id,
+            'assignment_id' => $assignment->id,
+            'student_id' => $this->student->id,
+            'confirmed' => true,
+        ]);
+    }
+
+    public function test_parent_cannot_confirm_other_child_assignment(): void
+    {
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $response = $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/parent-confirmations', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $this->otherStudent->id,
+                'confirmed' => true,
+            ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_parent_cannot_confirm_assignment_for_wrong_student(): void
+    {
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->otherStudent->id,
+            'teacher_user_id' => $this->otherTeacher->id,
+        ]);
+
+        $response = $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/parent-confirmations', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $this->student->id,
+                'confirmed' => true,
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_parent_cannot_confirm_same_assignment_twice(): void
+    {
+        $assignment = Assignment::factory()->create([
+            'student_id' => $this->student->id,
+            'teacher_user_id' => $this->teacher->id,
+        ]);
+
+        $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/parent-confirmations', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $this->student->id,
+                'confirmed' => true,
+            ]);
+
+        $response = $this->actingAs($this->parent, 'sanctum')
+            ->postJson('/api/v1/parent-confirmations', [
+                'assignment_id' => $assignment->id,
+                'student_id' => $this->student->id,
+                'confirmed' => false,
+                'note' => '第二次确认',
+            ]);
+
+        $response->assertStatus(422);
     }
 
     public function test_create_saved_filter(): void

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AnnotationController;
 use App\Http\Controllers\Api\ApprovalController;
 use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\ExportController;
+use App\Http\Controllers\Api\ParentConfirmationController;
 use App\Http\Controllers\Api\PaymentReminderController;
 use App\Http\Controllers\Api\ProgressBoardController;
 use App\Http\Controllers\Api\RecordingController;
@@ -18,6 +19,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::apiResource('recordings', RecordingController::class);
 
     Route::apiResource('annotations', AnnotationController::class);
+
+    Route::apiResource('parent-confirmations', ParentConfirmationController::class)->only(['index', 'store', 'show']);
 
     Route::get('progress-board', [ProgressBoardController::class, 'index']);
 

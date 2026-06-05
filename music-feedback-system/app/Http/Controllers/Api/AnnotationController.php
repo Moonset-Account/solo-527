@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ParentAccessDeniedException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAnnotationRequest;
 use App\Http\Resources\AnnotationResource;
 use App\Models\Annotation;
+use App\Models\PracticeRecording;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -18,11 +20,16 @@ class AnnotationController extends Controller
 
         $request->validate(['practice_recording_id' => 'required|exists:practice_recordings,id']);
 
-        $recording = \App\Models\PracticeRecording::findOrFail($request->practice_recording_id);
+        $recording = PracticeRecording::with(['student'])->findOrFail($request->practice_recording_id);
 
-        if ($request->user()->role === 'parent') {
-            if ($recording->student->parent_user_id !== $request->user()->id) {
-                abort(403, '您只能查看自己孩子的记录');
+        $user = $request->user();
+        if ($user->role === 'parent') {
+            if ($recording->student->parent_user_id !== $user->id) {
+                throw new ParentAccessDeniedException();
+            }
+        } elseif ($user->role === 'teacher') {
+            if ($recording->student->teacher_user_id !== $user->id) {
+                abort(403, '您只能查看分配给您的学生的批注');
             }
         }
 
@@ -37,8 +44,18 @@ class AnnotationController extends Controller
     {
         $this->authorize('create', Annotation::class);
 
+        $user = $request->user();
+        $recordingId = $request->validated('practice_recording_id');
+        $recording = PracticeRecording::with(['student'])->findOrFail($recordingId);
+
+        if ($user->role === 'teacher') {
+            if ($recording->student->teacher_user_id !== $user->id) {
+                abort(403, '您只能为分配给您的学生的录音创建批注');
+            }
+        }
+
         $annotation = Annotation::create(
-            array_merge($request->validated(), ['teacher_user_id' => $request->user()->id])
+            array_merge($request->validated(), ['teacher_user_id' => $user->id])
         );
 
         return new AnnotationResource($annotation->load(['teacher']));
