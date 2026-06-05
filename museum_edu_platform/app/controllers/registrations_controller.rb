@@ -29,6 +29,13 @@ class RegistrationsController < ApplicationController
     @registration.user = current_user if user_signed_in?
     @registration.status = :pending
     @registration.submitted_at = Time.current
+    
+    if @registration.school_group? && @registration.school_id.present?
+      @registration.students.each do |student|
+        student.school_id = @registration.school_id
+      end
+    end
+    
     @registration.student_count = @registration.students.size if @registration.students.any?
     skip_authorization
 

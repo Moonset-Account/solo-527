@@ -41,13 +41,14 @@
     .btn-pending:hover { background: #2563eb; }
     .btn-checked { background: #d1fae5; color: #065f46; }
     .btn-offline { background: #fef3c7; color: #92400e; }
-    .photo-upload { display: none; }
+    .btn-loading { background: #93c5fd; color: white; }
     .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 1000; }
     .empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .scan-hint { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 0 16px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #1e40af; }
   </style>
 </head>
-<body class="mobile-check-in-page" data-qr-token="<%= params[:qr_token] %>">
+<body class="mobile-check-in-page" data-qr-token="<%= params[:qr_token] %>" data-session-id="<%= @session.id %>">
   <div class="header">
     <h1><%= @session.course.title %></h1>
     <div class="sub"><%= @session.start_at.strftime('%m月%d日 %H:%M') %> · <%= @session.location %></div>
@@ -65,9 +66,13 @@
     <button class="sync-btn" id="sync-btn">同步数据</button>
   </div>
 
+  <div class="scan-hint">
+    💡 点击学生右侧的"签到"按钮完成核验，支持离线操作，联网后自动同步
+  </div>
+
   <div class="stats">
     <div class="stat-card">
-      <div class="stat-number"><%= @registrations.sum(&:student_count) %></div>
+      <div class="stat-number"><%= @registrations.sum { |r| r.students.count } %></div>
       <div class="stat-label">应到人数</div>
     </div>
     <div class="stat-card">
@@ -75,7 +80,7 @@
       <div class="stat-label">已签到</div>
     </div>
     <div class="stat-card">
-      <div class="stat-number" id="remaining-count"><%= @registrations.sum(&:student_count) - @session.check_ins.confirmed.count %></div>
+      <div class="stat-number" id="remaining-count"><%= @registrations.sum { |r| r.students.count } - @session.check_ins.confirmed.count %></div>
       <div class="stat-label">未签到</div>
     </div>
   </div>
@@ -92,24 +97,34 @@
             <div class="reg-title">
               <%= reg.school_group? ? "#{reg.school&.name || '团体'}" : '散客报名' %>
             </div>
-            <div class="reg-meta">联系人: <%= reg.contact_name %> · <%= reg.student_count %>人</div>
+            <div class="reg-meta">联系人: <%= reg.contact_name %> · <%= reg.students.count %>人</div>
           </div>
         </div>
         <div class="student-list">
           <% reg.students.each do |student| %>
-            <div class="student-item" data-student-name="<%= student.name %>">
+            <% checked_in = @session.student_already_checked_in?(student) %>
+            <div class="student-item" data-student-name="<%= student.name %>" data-student-id="<%= student.id %>" data-registration-id="<%= reg.id %>">
               <div class="student-info">
                 <div class="avatar"><%= student.name[0] %></div>
                 <div>
                   <div class="student-name"><%= student.name %></div>
-                  <div class="student-meta"><%= student.gender == 'male' ? '男' : '女' %> · <%= student.age_group_i18n rescue student.age_group %></div>
+                  <div class="student-meta">
+                    <%= student.gender == 'male' ? '男' : student.gender == 'female' ? '女' : '其他' %> · 
+                    <% case student.age_group
+                       when 'preschool' then '学龄前'
+                       when 'primary_1_2' then '小学1-2年级'
+                       when 'primary_3_4' then '小学3-4年级'
+                       when 'primary_5_6' then '小学5-6年级'
+                       when 'junior_high' then '初中'
+                       when 'senior_high' then '高中'
+                       else student.age_group
+                       end %>
+                  </div>
                 </div>
               </div>
-              <% checked_in = @session.student_already_checked_in?(student) %>
               <button class="check-in-btn <%= checked_in ? 'btn-checked' : 'btn-pending' %>"
-                data-registration-id="<%= reg.id %>"
                 data-student-id="<%= student.id %>"
-                data-session-id="<%= @session.id %>"
+                data-registration-id="<%= reg.id %>"
                 onclick="handleCheckIn(this)">
                 <%= checked_in ? '已签到' : '签到' %>
               </button>
@@ -121,13 +136,17 @@
   <% else %>
     <div class="empty-state">
       <div class="empty-icon">📋</div>
-      <p>暂无报名数据</p>
+      <p>暂无已审核通过的报名数据</p>
     </div>
   <% end %>
 
   <script>
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
     const QR_TOKEN = document.querySelector('[data-qr-token]').dataset.qrToken;
+    const SESSION_ID = document.querySelector('[data-session-id]').dataset.sessionId;
+
+    let offlineData = JSON.parse(localStorage.getItem('offline_check_ins_' + SESSION_ID) || '[]');
+    updateOfflineBadge();
 
     function updateNetworkStatus() {
       const dot = document.getElementById('network-status');
@@ -141,12 +160,18 @@
       }
     }
 
-    window.addEventListener('online', updateNetworkStatus);
-    window.addEventListener('offline', updateNetworkStatus);
+    window.addEventListener('online', function() {
+      updateNetworkStatus();
+      showToast('网络已连接');
+      if (offlineData.length > 0) {
+        setTimeout(syncOfflineData, 1000);
+      }
+    });
+    window.addEventListener('offline', function() {
+      updateNetworkStatus();
+      showToast('网络已断开，数据将保存到本地');
+    });
     updateNetworkStatus();
-
-    let offlineData = JSON.parse(localStorage.getItem('offline_check_ins') || '[]');
-    updateOfflineBadge();
 
     function updateOfflineBadge() {
       const badge = document.getElementById('offline-badge');
@@ -154,7 +179,7 @@
     }
 
     function saveOfflineData() {
-      localStorage.setItem('offline_check_ins', JSON.stringify(offlineData));
+      localStorage.setItem('offline_check_ins_' + SESSION_ID, JSON.stringify(offlineData));
       updateOfflineBadge();
     }
 
@@ -167,26 +192,54 @@
       });
     }
 
+    function updateStats(delta) {
+      const checkedEl = document.getElementById('checked-count');
+      const remainingEl = document.getElementById('remaining-count');
+      checkedEl.textContent = parseInt(checkedEl.textContent) + delta;
+      remainingEl.textContent = parseInt(remainingEl.textContent) - delta;
+    }
+
+    function showToast(message) {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.remove(), 2500);
+    }
+
+    function isStudentCheckedOffline(studentId) {
+      return offlineData.some(function(d) { return d.student_id == studentId; });
+    }
+
     async function handleCheckIn(btn) {
-      if (btn.classList.contains('btn-checked') || btn.classList.contains('btn-offline')) {
+      if (btn.classList.contains('btn-checked') || btn.classList.contains('btn-offline') || btn.classList.contains('btn-loading')) {
         return;
       }
 
+      const studentId = btn.dataset.studentId;
+      const registrationId = btn.dataset.registrationId;
+      const offlineUuid = generateUUID();
+
       const data = {
-        registration_id: btn.dataset.registrationId,
-        student_id: btn.dataset.studentId,
-        session_id: btn.dataset.sessionId,
+        registration_id: registrationId,
+        student_id: studentId,
+        session_id: SESSION_ID,
         checked_in_at: new Date().toISOString(),
         check_in_method: 'mobile',
-        offline_uuid: generateUUID()
+        offline_uuid: offlineUuid
       };
+
+      btn.classList.add('btn-loading');
+      btn.textContent = '签到中...';
+      btn.disabled = true;
 
       if (navigator.onLine) {
         try {
-          btn.disabled = true;
-          btn.textContent = '签到中...';
-          
-          const response = await fetch(`/mobile/check_in/${QR_TOKEN}`, {
+          const response = await fetch('/mobile/check_in/' + QR_TOKEN, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -195,14 +248,15 @@
             body: JSON.stringify(data)
           });
 
-          if (response.ok) {
-            btn.classList.remove('btn-pending');
+          const result = await response.json();
+          
+          if (response.ok && result.success) {
+            btn.classList.remove('btn-loading', 'btn-pending');
             btn.classList.add('btn-checked');
             btn.textContent = '已签到';
             updateStats(1);
             showToast('签到成功');
           } else {
-            const result = await response.json();
             throw new Error(result.error || '签到失败');
           }
         } catch (error) {
@@ -214,14 +268,17 @@
     }
 
     function saveOffline(data, btn) {
-      offlineData.push(data);
-      saveOfflineData();
+      if (!isStudentCheckedOffline(data.student_id)) {
+        offlineData.push(data);
+        saveOfflineData();
+      }
       
-      btn.classList.remove('btn-pending');
+      btn.classList.remove('btn-loading', 'btn-pending');
       btn.classList.add('btn-offline');
       btn.textContent = '已签到(待同步)';
       btn.disabled = true;
       
+      updateStats(1);
       showToast('已保存到本地，联网后自动同步');
     }
 
@@ -249,15 +306,13 @@
           const result = await response.json();
           offlineData = [];
           saveOfflineData();
-          showToast(`同步成功，共 ${result.synced_count} 条记录`);
+          showToast('同步成功，共 ' + result.synced_count + ' 条记录');
           
-          document.querySelectorAll('.btn-offline').forEach(btn => {
+          document.querySelectorAll('.btn-offline').forEach(function(btn) {
             btn.classList.remove('btn-offline');
             btn.classList.add('btn-checked');
             btn.textContent = '已签到';
           });
-          
-          location.reload();
         } else {
           throw new Error('同步失败');
         }
@@ -271,42 +326,16 @@
 
     document.getElementById('sync-btn').addEventListener('click', syncOfflineData);
 
-    window.addEventListener('online', () => {
-      showToast('网络已连接');
-      if (offlineData.length > 0) {
-        setTimeout(syncOfflineData, 1000);
-      }
-    });
-
-    function updateStats(delta) {
-      const checkedEl = document.getElementById('checked-count');
-      const remainingEl = document.getElementById('remaining-count');
-      checkedEl.textContent = parseInt(checkedEl.textContent) + delta;
-      remainingEl.textContent = parseInt(remainingEl.textContent) - delta;
-    }
-
-    function showToast(message) {
-      const existing = document.querySelector('.toast');
-      if (existing) existing.remove();
-      
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      
-      setTimeout(() => toast.remove(), 2500);
-    }
-
     document.getElementById('student-search').addEventListener('input', function(e) {
       const query = e.target.value.toLowerCase();
-      document.querySelectorAll('.student-item').forEach(item => {
+      document.querySelectorAll('.student-item').forEach(function(item) {
         const name = item.dataset.studentName.toLowerCase();
         item.style.display = name.includes(query) ? '' : 'none';
       });
     });
 
-    offlineData.forEach(data => {
-      const btn = document.querySelector(`[data-student-id="${data.student_id}"]`);
+    offlineData.forEach(function(data) {
+      const btn = document.querySelector('[data-student-id="' + data.student_id + '"]');
       if (btn) {
         btn.classList.remove('btn-pending');
         btn.classList.add('btn-offline');

@@ -21,7 +21,7 @@ class Student < ApplicationRecord
     inactive: 1
   }, default: 'active'
 
-  belongs_to :school
+  belongs_to :school, optional: true
   has_many :registration_students, dependent: :destroy
   has_many :registrations, through: :registration_students
   has_many :check_ins, dependent: :destroy

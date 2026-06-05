@@ -71,6 +71,43 @@
         </div>
       </div>
 
+      <% if @registration.students.any? %>
+        <div class="mb-6">
+          <h2 class="font-medium text-gray-900 mb-3">学生名单</h2>
+          <div class="bg-gray-50 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-4 py-2 text-left font-medium text-gray-600">姓名</th>
+                  <th class="px-4 py-2 text-left font-medium text-gray-600">性别</th>
+                  <th class="px-4 py-2 text-left font-medium text-gray-600">年龄段</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <% @registration.students.each do |student| %>
+                  <tr>
+                    <td class="px-4 py-2"><%= student.name %></td>
+                    <td class="px-4 py-2"><%= student.gender == 'male' ? '男' : student.gender == 'female' ? '女' : '其他' %></td>
+                    <td class="px-4 py-2">
+                      <% case student.age_group
+                         when 'preschool' then '学龄前'
+                         when 'primary_1_2' then '小学1-2年级'
+                         when 'primary_3_4' then '小学3-4年级'
+                         when 'primary_5_6' then '小学5-6年级'
+                         when 'junior_high' then '初中'
+                         when 'senior_high' then '高中'
+                         else student.age_group
+                         end %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">* 仅采集姓名、性别、年龄段，儿童信息最小化采集</p>
+        </div>
+      <% end %>
+
       <% if @registration.notes.present? %>
         <div class="mb-6">
           <h2 class="font-medium text-gray-900 mb-2">备注</h2>
