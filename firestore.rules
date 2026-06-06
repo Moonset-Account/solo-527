@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isResident() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'resident'];
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow delete: if isAdmin();
+    }
+    
+    match /plots/{plotId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isResident();
+      allow delete: if isAdmin();
+    }
+    
+    match /claims/{claimId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.applicantId == request.auth.uid);
+      allow create: if isResident() && request.resource.data.applicantId == request.auth.uid;
+      allow update: if isAdmin() || (isResident() && resource.data.applicantId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /crops/{cropId} {
+      allow read: if isAuthenticated();
+      allow create: if isResident();
+      allow update: if isResident() && (isAdmin() || resource.data.plantedBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /rotations/{rotationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isResident() && resource.data.assigneeId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /tools/{toolId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isResident();
+      allow delete: if isAdmin();
+    }
+    
+    match /toolBorrows/{borrowId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.borrowerId == request.auth.uid);
+      allow create: if isResident() && request.resource.data.borrowerId == request.auth.uid;
+      allow update: if isAdmin() || (isResident() && resource.data.borrowerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /harvests/{harvestId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.harvestedBy == request.auth.uid);
+      allow create: if isResident() && request.resource.data.harvestedBy == request.auth.uid;
+      allow update: if isAdmin() || (isResident() && resource.data.harvestedBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    match /photoLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isResident() && request.resource.data.uploadedBy == request.auth.uid;
+      allow update: if isAdmin() || (isResident() && resource.data.uploadedBy == request.auth.uid);
+      allow delete: if isAdmin() || (isResident() && resource.data.uploadedBy == request.auth.uid);
+    }
+    
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin() || resource.data.userId == request.auth.uid;
+    }
+  }
+}
