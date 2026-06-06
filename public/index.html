@@ -23,7 +23,27 @@
         let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
         let authToken = localStorage.getItem('authToken');
         let currentPage = 'dashboard';
+        let currentView = 'dashboard';
+        let unreadCount = 0;
         let selectedPackageId = null;
+        
+        const menuItems = [
+            { id: 'dashboard', icon: 'fa fa-tachometer', label: '仪表盘', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'schedules', icon: 'fa fa-calendar', label: '手术排班', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'packages', icon: 'fa fa-box', label: '耗材备包', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'returns', icon: 'fa fa-undo', label: '退包盘点', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'inventory', icon: 'fa fa-cubes', label: '库存管理', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'reconciliations', icon: 'fa fa-balance-scale', label: '月度对账', roles: ['admin', 'head_nurse', 'equipment'] },
+            { id: 'importExport', icon: 'fa fa-exchange', label: '导入导出', roles: ['admin', 'head_nurse', 'equipment'] },
+            { id: 'notifications', icon: 'fa fa-bell', label: '通知中心', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+        ];
+
+        const roleMap = {
+            admin: '系统管理员',
+            head_nurse: '护士长',
+            nurse: '手术室护士',
+            equipment: '设备科'
+        };
 
         async function api(url, options = {}) {
             const headers = { 'Content-Type': 'application/json', ...options.headers };
@@ -124,6 +144,10 @@
             localStorage.removeItem('authToken');
             localStorage.removeItem('currentUser');
             renderApp();
+        }
+
+        function logout() {
+            handleLogout();
         }
 
         function renderLayout(content) {
