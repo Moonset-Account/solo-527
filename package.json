@@ -1,0 +1,30 @@
+{
+  "name": "waste-supervision-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "nuxt": "^3.13.0",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0",
+    "mongoose": "^8.2.1",
+    "@nuxt/ui": "^2.14.2",
+    "zod": "^3.22.4",
+    "jsonwebtoken": "^9.0.2",
+    "@vueuse/core": "^10.9.0",
+    "bcryptjs": "^2.4.3",
+    "dayjs": "^1.11.10",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6"
+  }
+}
