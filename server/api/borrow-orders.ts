@@ -25,6 +25,10 @@ borrowOrdersRouter.get("/", async (req, res) => {
     const user = getCurrentUser(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+    if (user.role === "finance") {
+      return res.status(403).json({ error: "Forbidden: Finance can only access finance endpoints" });
+    }
+
     const { status, page = 1, limit = 20, view = "default" } = req.query;
     
     const offset = (Number(page) - 1) * Number(limit);
@@ -84,6 +88,10 @@ borrowOrdersRouter.get("/:id", async (req, res) => {
   try {
     const user = getCurrentUser(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    if (user.role === "finance") {
+      return res.status(403).json({ error: "Forbidden: Finance can only access finance endpoints" });
+    }
 
     const { id } = req.params;
 
@@ -260,12 +268,21 @@ borrowOrdersRouter.post("/:id/approve", requireRole("supervisor"), async (req, r
 
         inventoryId = invResult.rows[0].id;
         batchNo = invResult.rows[0].batch_no;
+      } else {
+        await client.query(
+          `SELECT id FROM inventory WHERE id = $1 FOR UPDATE`,
+          [inventoryId]
+        );
       }
 
-      const locked = await lockInventory(inventoryId, order.quantity, id);
-      if (!locked) {
-        throw new Error("Inventory is busy, please try again");
-      }
+      await client.query(
+        `UPDATE inventory 
+         SET available_quantity = available_quantity - $1,
+             locked_quantity = locked_quantity + $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [order.quantity, inventoryId]
+      );
 
       const updateResult = await client.query(
         `UPDATE borrow_orders 

@@ -10,8 +10,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
   const response = await fetch(`${request.headers.get("origin") || "http://localhost:3000"}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: { 
+      "Content-Type": "application/json",
+      "Cookie": request.headers.get("Cookie") || "",
+    },
     body: JSON.stringify({ username, password }),
   });
 
@@ -20,7 +22,10 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: data.error || "登录失败" }, { status: 401 });
   }
 
-  return redirect("/");
+  const setCookie = response.headers.get("set-cookie");
+  return redirect("/", {
+    headers: setCookie ? { "Set-Cookie": setCookie } : {},
+  });
 }
 
 export default function Login() {

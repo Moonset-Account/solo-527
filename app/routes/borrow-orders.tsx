@@ -4,27 +4,19 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { apiFetch, getStatusBadge, formatDate, isOverdue } from "../utils/api";
-import type { BorrowOrder } from "../types";
+import { serverFetch } from "../utils/server-fetch";
+import type { BorrowOrder, User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
-    if (!userRes.ok) {
-      return redirect("/login");
+    if (user.role === "finance") {
+      return redirect("/finance");
     }
 
-    const { user } = await userRes.json();
     const url = new URL(request.url);
-    
-    const ordersRes = await fetch(
-      `${new URL(request.url).origin}/api/borrow-orders?${url.searchParams}`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const ordersData = ordersRes.ok ? await ordersRes.json() : { orders: [], total: 0 };
+    const ordersData = await serverFetch(request, `/borrow-orders?${url.searchParams}`) as any;
 
     return json({ user, orders: ordersData.orders || [], total: ordersData.total || 0 });
   } catch (err) {

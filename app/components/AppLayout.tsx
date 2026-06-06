@@ -25,7 +25,7 @@ export function AppLayout({ children, user, unreadCount = 0 }: LayoutProps) {
 
   const navItems = [
     { path: "/", label: "工作台", roles: ["engineer", "supervisor", "warehouse", "finance"] },
-    { path: "/borrow-orders", label: "借用单", roles: ["engineer", "supervisor", "warehouse", "finance"] },
+    { path: "/borrow-orders", label: "借用单", roles: ["engineer", "supervisor", "warehouse"] },
     { path: "/parts", label: "备件库", roles: ["engineer", "supervisor", "warehouse"] },
     { path: "/inventory", label: "库存管理", roles: ["warehouse", "supervisor"] },
     { path: "/finance", label: "财务对账", roles: ["finance", "supervisor"] },

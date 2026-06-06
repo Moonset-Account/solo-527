@@ -1,4 +1,4 @@
-import { Queue, Worker, QueueScheduler } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import { redis } from "./db.js";
 import nodemailer from "nodemailer";
 import { pool } from "./db.js";
@@ -27,8 +27,14 @@ export interface NotificationJob {
 }
 
 export async function initNotificationQueue() {
+  const redisConfig = {
+    host: process.env.REDIS_URL ? undefined : "localhost",
+    port: process.env.REDIS_URL ? undefined : 6379,
+    ...(process.env.REDIS_URL ? { url: process.env.REDIS_URL } : {}),
+  };
+
   notificationQueue = new Queue(NOTIFICATION_QUEUE_NAME, {
-    connection: redis.duplicate(),
+    connection: redisConfig as any,
     defaultJobOptions: {
       attempts: 3,
       backoff: {
@@ -40,10 +46,6 @@ export async function initNotificationQueue() {
     },
   });
 
-  new QueueScheduler(NOTIFICATION_QUEUE_NAME, {
-    connection: redis.duplicate(),
-  });
-
   emailWorker = new Worker(NOTIFICATION_QUEUE_NAME, async (job) => {
     const data = job.data as NotificationJob;
     
@@ -53,7 +55,7 @@ export async function initNotificationQueue() {
       await saveInAppNotification(data);
     }
   }, {
-    connection: redis.duplicate(),
+    connection: redisConfig as any,
     concurrency: 5,
   });
 

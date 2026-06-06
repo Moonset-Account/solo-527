@@ -3,27 +3,20 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { formatDateTime, apiFetch } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
+import type { User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
-    if (!userRes.ok) {
-      return redirect("/login");
-    }
+    const notifData = await serverFetch(request, "/notifications?limit=50") as any;
 
-    const { user } = await userRes.json();
-
-    const notifRes = await fetch(
-      `${new URL(request.url).origin}/api/notifications?limit=50`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const notifData = notifRes.ok ? await notifRes.json() : { notifications: [], unread_count: 0 };
-
-    return json({ user, notifications: notifData.notifications || [], unreadCount: notifData.unread_count || 0 });
+    return json({ 
+      user, 
+      notifications: notifData.notifications || [], 
+      unreadCount: notifData.unread_count || 0 
+    });
   } catch (err) {
     return redirect("/login");
   }

@@ -36,6 +36,8 @@ export interface SparePart {
   deposit_ratio: number;
   photo_url?: string;
   description?: string;
+  total_available?: number;
+  total_locked?: number;
   created_at: Date;
   updated_at: Date;
 }

@@ -4,34 +4,24 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { apiFetch, getStatusBadge, getDepositStatusBadge, formatDate, formatDateTime } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
+import type { User } from "../types";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
-    if (!userRes.ok) {
-      return redirect("/login");
+    if (user.role === "finance") {
+      return redirect("/finance");
     }
 
-    const { user } = await userRes.json();
-
-    const detailRes = await fetch(
-      `${new URL(request.url).origin}/api/borrow-orders/${params.id}`,
-      { headers: request.headers, credentials: "include" }
-    );
-
-    if (!detailRes.ok) {
-      if (detailRes.status === 403) return redirect("/borrow-orders");
-      if (detailRes.status === 404) return redirect("/borrow-orders");
-    }
-
-    const detail = await detailRes.json();
+    const detail = await serverFetch(request, `/borrow-orders/${params.id}`) as any;
 
     return json({ user, ...detail });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes("403") || err.message?.includes("404")) {
+      return redirect("/borrow-orders");
+    }
     return redirect("/login");
   }
 }

@@ -3,29 +3,18 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { formatDateTime } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
+import type { User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
-
-    if (!userRes.ok) {
-      return redirect("/login");
-    }
-
-    const { user } = await userRes.json();
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
     if (user.role !== "supervisor" && user.role !== "finance") {
       return redirect("/");
     }
 
-    const auditRes = await fetch(
-      `${new URL(request.url).origin}/api/audit?limit=100`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const auditData = auditRes.ok ? await auditRes.json() : { logs: [] };
+    const auditData = await serverFetch(request, "/audit?limit=100") as any;
 
     return json({ user, logs: auditData.logs || [] });
   } catch (err) {

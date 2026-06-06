@@ -4,32 +4,25 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { getDepositStatusBadge, getStatusBadge, formatDateTime } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
+import type { User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
-
-    if (!userRes.ok) {
-      return redirect("/login");
-    }
-
-    const { user } = await userRes.json();
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
     if (user.role !== "finance" && user.role !== "supervisor") {
       return redirect("/");
     }
 
     const url = new URL(request.url);
-    const depositsRes = await fetch(
-      `${new URL(request.url).origin}/api/finance/deposits?${url.searchParams}`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const depositsData = depositsRes.ok ? await depositsRes.json() : { deposits: [], stats: {} };
+    const depositsData = await serverFetch(request, `/finance/deposits?${url.searchParams}`) as any;
 
-    return json({ user, deposits: depositsData.deposits || [], stats: depositsData.stats || {} });
+    return json({ 
+      user, 
+      deposits: depositsData.deposits || [], 
+      stats: depositsData.stats || {} 
+    });
   } catch (err) {
     return redirect("/login");
   }

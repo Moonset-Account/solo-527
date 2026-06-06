@@ -4,29 +4,18 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { apiFetch, formatDate } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
+import type { User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
-
-    if (!userRes.ok) {
-      return redirect("/login");
-    }
-
-    const { user } = await userRes.json();
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
     if (user.role !== "warehouse" && user.role !== "supervisor") {
       return redirect("/");
     }
 
-    const invRes = await fetch(
-      `${new URL(request.url).origin}/api/inventory?limit=100`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const invData = invRes.ok ? await invRes.json() : { inventory: [] };
+    const invData = await serverFetch(request, "/inventory?limit=100") as any;
 
     return json({ user, inventory: invData.inventory || [] });
   } catch (err) {
@@ -44,7 +33,7 @@ export default function Inventory() {
     e.preventDefault();
     setScanError("");
     try {
-      const res = await apiFetch(`/inventory/scan/${scanInput}`);
+      const res = await apiFetch<{ inventory: any }>(`/inventory/scan/${scanInput}`);
       setScanResult(res.inventory);
     } catch (err: any) {
       setScanError(err.message || "未找到该批次");

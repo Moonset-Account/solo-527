@@ -4,51 +4,37 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { AppLayout } from "../components/AppLayout";
 import { apiFetch, getStatusBadge, formatDate, isOverdue } from "../utils/api";
+import { serverFetch } from "../utils/server-fetch";
 import type { BorrowOrder, User } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const userRes = await fetch(
-      `${new URL(request.url).origin}/api/auth/me`,
-      { headers: request.headers, credentials: "include" }
-    );
+    const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
-    if (!userRes.ok) {
-      return redirect("/login");
-    }
+    let ordersData = { orders: [] };
+    let statsData = { orders: [] };
+    let overdueData = { orders: [] };
+    let notifData = { unread_count: 0 };
+    let financeStats: any = null;
 
-    const { user } = await userRes.json();
-
-    const ordersRes = await fetch(
-      `${new URL(request.url).origin}/api/borrow-orders?limit=10`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const ordersData = ordersRes.ok ? await ordersRes.json() : { orders: [] };
-
-    const statsRes = await fetch(
-      `${new URL(request.url).origin}/api/borrow-orders?view=today`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const statsData = statsRes.ok ? await statsRes.json() : { orders: [] };
-
-    const overdueRes = await fetch(
-      `${new URL(request.url).origin}/api/borrow-orders?view=overdue`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const overdueData = overdueRes.ok ? await overdueRes.json() : { orders: [] };
-
-    const notifRes = await fetch(
-      `${new URL(request.url).origin}/api/notifications?unread_only=true&limit=1`,
-      { headers: request.headers, credentials: "include" }
-    );
-    const notifData = notifRes.ok ? await notifRes.json() : { unread_count: 0 };
+    try {
+      if (user.role !== "finance") {
+        ordersData = await serverFetch(request, "/borrow-orders?limit=10");
+        statsData = await serverFetch(request, "/borrow-orders?view=today");
+        overdueData = await serverFetch(request, "/borrow-orders?view=overdue");
+      } else {
+        financeStats = await serverFetch(request, "/finance/deposits");
+      }
+      notifData = await serverFetch(request, "/notifications?unread_only=true&limit=1");
+    } catch (e) {}
 
     return json({
       user,
-      recentOrders: ordersData.orders || [],
-      todayReturn: statsData.orders || [],
-      overdue: overdueData.orders || [],
-      unreadCount: notifData.unread_count || 0,
+      recentOrders: (ordersData as any).orders || [],
+      todayReturn: (statsData as any).orders || [],
+      overdue: (overdueData as any).orders || [],
+      unreadCount: (notifData as any).unread_count || 0,
+      financeStats: financeStats?.stats || null,
     });
   } catch (err) {
     return redirect("/login");
@@ -56,7 +42,59 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function Dashboard() {
-  const { user, recentOrders, todayReturn, overdue, unreadCount } = useLoaderData<typeof loader>();
+  const { user, recentOrders, todayReturn, overdue, unreadCount, financeStats } = useLoaderData<typeof loader>();
+
+  if (user.role === "finance") {
+    return (
+      <AppLayout user={user} unreadCount={unreadCount}>
+        <div className="page-header">
+          <h1 className="page-title">财务工作台</h1>
+          <Link to="/finance" className="btn btn-primary">
+            查看完整对账
+          </Link>
+        </div>
+
+        <div className="grid grid-4 mb-8">
+          <div className="stat-card">
+            <div className="stat-label">已冻结押金</div>
+            <div className="stat-value" style={{ color: "#2563eb" }}>
+              ¥{Number(financeStats?.total_frozen || 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">已扣除赔付</div>
+            <div className="stat-value" style={{ color: "#dc2626" }}>
+              ¥{Number(financeStats?.total_deducted || 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">已退还押金</div>
+            <div className="stat-value" style={{ color: "#059669" }}>
+              ¥{Number(financeStats?.total_refunded || 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">未读通知</div>
+            <div className="stat-value" style={{ color: "#7c3aed" }}>
+              {unreadCount}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2 className="section-title">财务权限说明</h2>
+          <div style={{ padding: "16px", background: "#f0fdf4", borderRadius: "8px" }}>
+            <ul style={{ color: "#166534", lineHeight: "1.8" }}>
+              <li>✅ 可查看所有押金冻结、扣减、退还记录</li>
+              <li>✅ 可导出财务对账 Excel 报表</li>
+              <li>✅ 可查看系统审计日志</li>
+              <li>❌ 不可查看借用单详情和备件库存</li>
+            </ul>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout user={user} unreadCount={unreadCount}>
