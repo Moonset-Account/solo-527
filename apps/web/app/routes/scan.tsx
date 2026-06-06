@@ -31,8 +31,8 @@ export default function Scan() {
   const [scanning, setScanning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const scannerContainerId = 'qr-reader';
   const isScanningRef = useRef(false);
+  const scannerContainerId = 'qr-reader';
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -43,8 +43,19 @@ export default function Scan() {
   }, [token, isAuthenticated, navigate, mode]);
 
   useEffect(() => {
+    if (scanning && token) {
+      const timer = setTimeout(() => {
+        initScanner();
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      destroyScanner();
+    }
+  }, [scanning, token]);
+
+  useEffect(() => {
     return () => {
-      stopScanner();
+      destroyScanner();
     };
   }, []);
 
@@ -59,32 +70,36 @@ export default function Scan() {
     }
   };
 
-  const startScanner = useCallback(async () => {
-    if (!applicationId) {
-      setMessage({ type: 'error', text: '请先选择借用申请' });
+  const initScanner = useCallback(async () => {
+    if (!token || !applicationId) return;
+
+    const container = document.getElementById(scannerContainerId);
+    if (!container) {
+      setMessage({ type: 'error', text: '扫码容器未就绪，请重试' });
+      setScanning(false);
       return;
     }
-
-    if (!token) {
-      setMessage({ type: 'error', text: '请先登录' });
-      return;
-    }
-
-    setMessage({ type: '', text: '' });
-    setScannedMaterial(null);
 
     try {
-      if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
+      if (html5QrCodeRef.current) {
+        try {
+          if (html5QrCodeRef.current.isScanning) {
+            await html5QrCodeRef.current.stop();
+          }
+          await html5QrCodeRef.current.clear();
+        } catch {}
+        html5QrCodeRef.current = null;
       }
 
+      const scanner = new Html5Qrcode(scannerContainerId);
+      
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
       };
 
-      await html5QrCodeRef.current.start(
+      await scanner.start(
         { facingMode: 'environment' },
         config,
         async (decodedText: string) => {
@@ -102,7 +117,7 @@ export default function Scan() {
         }
       );
 
-      setScanning(true);
+      html5QrCodeRef.current = scanner;
       setMessage({ type: 'success', text: '摄像头已打开，请将二维码对准扫描框' });
     } catch (error: any) {
       console.error('启动摄像头失败:', error);
@@ -120,7 +135,8 @@ export default function Scan() {
     }
   }, [applicationId, token]);
 
-  const stopScanner = useCallback(async () => {
+  const destroyScanner = useCallback(async () => {
+    isScanningRef.current = false;
     if (html5QrCodeRef.current) {
       try {
         if (html5QrCodeRef.current.isScanning) {
@@ -130,8 +146,6 @@ export default function Scan() {
       } catch {}
       html5QrCodeRef.current = null;
     }
-    isScanningRef.current = false;
-    setScanning(false);
   }, []);
 
   const handleQrCodeDetected = async (qrCode: string) => {
@@ -146,7 +160,8 @@ export default function Scan() {
       setScannedMaterial(material);
       setManualQrCode(qrCode);
       setMessage({ type: 'success', text: `识别成功：${material.name}` });
-      await stopScanner();
+      await destroyScanner();
+      setScanning(false);
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || '未找到该物资' });
     } finally {
@@ -210,10 +225,17 @@ export default function Scan() {
 
   const toggleScanning = async () => {
     if (scanning) {
-      await stopScanner();
+      await destroyScanner();
+      setScanning(false);
       setMessage({ type: '', text: '' });
     } else {
-      await startScanner();
+      if (!applicationId) {
+        setMessage({ type: 'error', text: '请先选择借用申请' });
+        return;
+      }
+      setMessage({ type: '', text: '' });
+      setScannedMaterial(null);
+      setScanning(true);
     }
   };
 
@@ -241,7 +263,8 @@ export default function Scan() {
               onClick={() => {
                 setMode('borrow');
                 setScannedMaterial(null);
-                stopScanner();
+                destroyScanner();
+                setScanning(false);
               }}
               className={`flex-1 py-3 rounded-lg font-medium transition ${
                 mode === 'borrow'
@@ -255,7 +278,8 @@ export default function Scan() {
               onClick={() => {
                 setMode('return');
                 setScannedMaterial(null);
-                stopScanner();
+                destroyScanner();
+                setScanning(false);
               }}
               className={`flex-1 py-3 rounded-lg font-medium transition ${
                 mode === 'return'
@@ -274,7 +298,8 @@ export default function Scan() {
               onChange={(e) => {
                 setApplicationId(e.target.value);
                 setScannedMaterial(null);
-                stopScanner();
+                destroyScanner();
+                setScanning(false);
               }}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             >
@@ -375,7 +400,7 @@ export default function Scan() {
                     </p>
                     <p className="text-green-600">
                       <span className="text-gray-500">状态：</span>
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800`}>
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                         {statusText[scannedMaterial.status] || scannedMaterial.status}
                       </span>
                     </p>
