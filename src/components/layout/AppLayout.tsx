@@ -1,6 +1,6 @@
 'use client';
 
-import { AuthProvider } from '@/hooks/useAuth';
+import { AuthProvider } from '@/hooks/useAuth.tsx';
 import { Sidebar } from './Sidebar';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
