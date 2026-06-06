@@ -38,6 +38,17 @@ class DepositViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(deposit)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'])
+    def my_account(self, request):
+        from apps.accounts.models import Family
+        family = Family.objects.filter(members=request.user).first()
+        if not family:
+            return Response({'error': '用户不属于任何家庭'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        deposit, created = Deposit.objects.get_or_create(family=family)
+        serializer = self.get_serializer(deposit)
+        return Response(serializer.data)
+    
     @action(detail=True, methods=['post'])
     def recharge(self, request, pk=None):
         deposit = self.get_object()
@@ -116,6 +127,22 @@ class DepositTransactionViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'])
+    def my_transactions(self, request):
+        from apps.accounts.models import Family
+        family = Family.objects.filter(members=request.user).first()
+        if not family:
+            return Response([])
+        
+        queryset = self.get_queryset().filter(deposit__family=family)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
     def export(self, request):
         from apps.common.exporters import export_deposit_transactions
         queryset = self.filter_queryset(self.get_queryset())
@@ -147,6 +174,22 @@ class DepositAppealViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(family__members=self.request.user)
         
         return queryset.order_by('-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def my_appeals(self, request):
+        from apps.accounts.models import Family
+        family = Family.objects.filter(members=request.user).first()
+        if not family:
+            return Response([])
+        
+        queryset = self.get_queryset().filter(family=family)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     def create(self, request, *args, **kwargs):
         serializer = DepositAppealCreateSerializer(data=request.data)

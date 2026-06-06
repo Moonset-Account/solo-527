@@ -60,6 +60,8 @@ export const api = {
     transition: (id, data) => request.post(`/borrowing/records/${id}/transition/`, data),
     renew: (id) => request.post(`/borrowing/records/${id}/renew/`),
     export: (params) => request.get('/borrowing/records/export/', { params, responseType: 'blob' }),
+    myRecords: (params) => request.get('/borrowing/records/', { params }),
+    getStatusLogs: (id) => request.get(`/borrowing/records/${id}/status_logs/`),
     reservations: {
       list: (params) => request.get('/borrowing/reservations/', { params }),
       create: (data) => request.post('/borrowing/reservations/', data),
@@ -93,6 +95,12 @@ export const api = {
     closeRegistration: (id) => request.post(`/activities/activities/${id}/close_registration/`),
     cancel: (id) => request.post(`/activities/activities/${id}/cancel/`),
     promoteWaitlist: (id) => request.post(`/activities/activities/${id}/promote_waitlist/`),
+    register: (data) => request.post('/activities/registrations/register/', data),
+    myRegistrations: (params) => request.get('/activities/registrations/my_registrations/', { params }),
+    cancelRegistration: (id) => request.post(`/activities/registrations/${id}/cancel/`),
+    waitlistNotifications: () => request.get('/activities/waitlist-notifications/'),
+    confirmWaitlistPromotion: (id) => request.post(`/activities/waitlist-notifications/${id}/confirm/`),
+    markNotificationRead: (id) => request.post(`/activities/waitlist-notifications/${id}/mark_read/`),
     registrations: {
       list: (params) => request.get('/activities/registrations/', { params }),
       register: (data) => request.post('/activities/registrations/register/', data),
@@ -109,6 +117,10 @@ export const api = {
   
   deposits: {
     myDeposit: () => request.get('/deposits/accounts/my_deposit/'),
+    myAccount: () => request.get('/deposits/accounts/my_account/'),
+    myTransactions: (params) => request.get('/deposits/transactions/my_transactions/', { params }),
+    myAppeals: (params) => request.get('/deposits/appeals/my_appeals/', { params }),
+    createAppeal: (data) => request.post('/deposits/appeals/', data),
     list: (params) => request.get('/deposits/accounts/', { params }),
     recharge: (id, data) => request.post(`/deposits/accounts/${id}/recharge/`, data),
     deduct: (id, data) => request.post(`/deposits/accounts/${id}/deduct/`, data),

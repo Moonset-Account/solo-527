@@ -214,6 +214,22 @@ class ActivityRegistrationViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'])
+    def my_registrations(self, request):
+        from apps.accounts.models import Family
+        family = Family.objects.filter(members=request.user).first()
+        if not family:
+            return Response([])
+        
+        queryset = self.get_queryset().filter(family=family)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
     def export(self, request):
         from apps.common.exporters import export_activity_registrations
         queryset = self.filter_queryset(self.get_queryset())
@@ -234,7 +250,25 @@ class ActivityWaitlistNotificationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
         notification = self.get_object()
+        notification.is_read = True
         notification.read_at = timezone.now()
         notification.save()
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        notification = self.get_object()
+        
+        if notification.confirmed_at:
+            return Response({'error': '该通知已确认'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if notification.registration and notification.registration.status == 'promoted':
+            notification.registration.confirm()
+        
+        notification.confirmed_at = timezone.now()
+        notification.is_read = True
+        notification.save()
+        
         serializer = self.get_serializer(notification)
         return Response(serializer.data)

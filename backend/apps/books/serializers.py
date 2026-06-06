@@ -16,6 +16,18 @@ class ThemeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'color']
 
 
+class BookSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
+    class Meta:
+        model = Book
+        fields = ['id', 'isbn', 'title', 'author', 'publisher', 'cover', 'age_min', 'age_max',
+                  'category', 'category_name', 'status', 'status_display', 'can_borrow',
+                  'total_copies', 'location']
+        read_only_fields = ['id']
+
+
 class BookCopySerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     

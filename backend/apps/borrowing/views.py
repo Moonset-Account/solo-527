@@ -62,16 +62,31 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
         if not can_borrow:
             return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
         
+        from django.utils import timezone
+        now = timezone.now()
+        
         borrow_record = BorrowRecord.objects.create(
             family=family,
             book_copy=book_copy,
             book=book_copy.book,
             borrower=request.user,
             status=BorrowStatus.RESERVED,
+            reserved_at=now,
             handled_by=request.user,
             max_renew_count=family.level_config.max_renew_count if family.level_config else 1
         )
-        borrow_record.transition(BorrowStatus.RESERVED, operator=request.user)
+        
+        book_copy.status = 'reserved'
+        book_copy.save()
+        
+        from .models import BorrowStatusLog
+        BorrowStatusLog.objects.create(
+            borrow_record=borrow_record,
+            from_status='',
+            to_status=BorrowStatus.RESERVED,
+            operator=request.user,
+            notes='新建借阅预约'
+        )
         
         serializer = self.get_serializer(borrow_record)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -105,6 +120,20 @@ class BorrowRecordViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'])
+    def status_logs(self, request, pk=None):
+        borrow_record = self.get_object()
+        from .models import BorrowStatusLog
+        from .serializers import BorrowStatusLogSerializer
+        
+        logs = BorrowStatusLog.objects.filter(
+            borrow_record=borrow_record,
+            is_deleted=False
+        ).select_related('operator').order_by('created_at')
+        
+        serializer = BorrowStatusLogSerializer(logs, many=True)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def export(self, request):
