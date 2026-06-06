@@ -15,15 +15,6 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const departmentMap: Record<string, string> = JSON.parse(
-      formData.get("departmentMap") as string || "{}"
-    );
-    const doctorMap: Record<string, string> = JSON.parse(
-      formData.get("doctorMap") as string || "{}"
-    );
-    const patientTypeMap: Record<string, string> = JSON.parse(
-      formData.get("patientTypeMap") as string || "{}"
-    );
 
     if (!file) {
       return NextResponse.json({ error: "请上传CSV文件" }, { status: 400 });
@@ -36,9 +27,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "CSV文件为空" }, { status: 400 });
     }
 
+    const importLog = await prisma.importLog.create({
+      data: {
+        fileName: file.name,
+        totalRecords: csvResult.rowCount,
+        userId: user.id,
+        status: "processing",
+      },
+    });
+
     const allErrors: any[] = [];
     const allWarnings: any[] = [];
-    const validRows: any[] = [];
     let successCount = 0;
     let failedCount = 0;
 
@@ -46,17 +45,6 @@ export async function POST(request: NextRequest) {
       const rowNum = i + 2;
       const rawRow = csvResult.data[i];
       const mappedRow = mapCSVRow(rawRow);
-
-      if (mappedRow.deptId && departmentMap[mappedRow.deptId]) {
-        mappedRow.deptId = departmentMap[mappedRow.deptId];
-      }
-      if (mappedRow.doctorId && doctorMap[mappedRow.doctorId]) {
-        mappedRow.doctorId = doctorMap[mappedRow.doctorId];
-      }
-      if (mappedRow.patientTypeId && patientTypeMap[mappedRow.patientTypeId]) {
-        mappedRow.patientTypeId = patientTypeMap[mappedRow.patientTypeId];
-      }
-
       const validation = validateVisitData(mappedRow, rowNum);
 
       if (!validation.valid) {
@@ -69,25 +57,47 @@ export async function POST(request: NextRequest) {
         allWarnings.push(...validation.warnings);
       }
 
-      validRows.push({ ...mappedRow, rowNum });
-    }
-
-    for (const row of validRows) {
       try {
-        const cleanedData = cleanAndCalculateWaitTimes(row);
-        const visitNumberMasked = maskVisitNumber(row.visitNumber || "");
+        const cleanedData = cleanAndCalculateWaitTimes(mappedRow);
+        const visitNumberMasked = maskVisitNumber(mappedRow.visitNumber || "");
 
-        await prisma.visitProcess.create({
-          data: {
-            ...cleanedData,
-            visitNumberMasked,
-            createdBy: user.id,
-          },
-        });
+        let visitDate: Date;
+        if (cleanedData.visitDate) {
+          visitDate = new Date(cleanedData.visitDate);
+        } else if (cleanedData.registerTime) {
+          visitDate = new Date(cleanedData.registerTime);
+        } else {
+          visitDate = new Date();
+        }
+
+        const createData: any = {
+          visitNumberMasked,
+          deptId: cleanedData.deptId,
+          patientTypeId: cleanedData.patientTypeId || null,
+          doctorId: cleanedData.doctorId || null,
+          registerTime: cleanedData.registerTime ? new Date(cleanedData.registerTime) : null,
+          checkinTime: cleanedData.checkinTime ? new Date(cleanedData.checkinTime) : null,
+          triageTime: cleanedData.triageTime ? new Date(cleanedData.triageTime) : null,
+          callTime: cleanedData.callTime ? new Date(cleanedData.callTime) : null,
+          paymentTime: cleanedData.paymentTime ? new Date(cleanedData.paymentTime) : null,
+          medicineTime: cleanedData.medicineTime ? new Date(cleanedData.medicineTime) : null,
+          waitTotalMinutes: cleanedData.waitTotalMinutes,
+          waitRegisterMinutes: cleanedData.waitRegisterMinutes,
+          waitTriageMinutes: cleanedData.waitTriageMinutes,
+          waitDoctorMinutes: cleanedData.waitDoctorMinutes,
+          waitPaymentMinutes: cleanedData.waitPaymentMinutes,
+          waitMedicineMinutes: cleanedData.waitMedicineMinutes,
+          visitDate,
+          hourOfDay: cleanedData.hourOfDay,
+          dayOfWeek: cleanedData.dayOfWeek,
+          importId: importLog.id,
+        };
+
+        await prisma.visitProcess.create({ data: createData });
         successCount++;
       } catch (err) {
         allErrors.push({
-          row: row.rowNum,
+          row: rowNum,
           field: "database",
           message: `数据库写入失败: ${(err as Error).message}`,
           value: "",
@@ -96,21 +106,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await prisma.importLog.create({
+    await prisma.importLog.update({
+      where: { id: importLog.id },
       data: {
-        fileName: file.name,
-        totalRows: csvResult.rowCount,
-        successCount,
-        failedCount,
+        successRecords: successCount,
+        failedRecords: failedCount,
+        errorDetails: {
+          errors: allErrors,
+          warnings: allWarnings,
+        },
         status: failedCount === 0 ? "completed" : successCount > 0 ? "partial" : "failed",
-        errors: allErrors,
-        warnings: allWarnings,
-        userId: user.id,
       },
     });
 
     return NextResponse.json({
       success: true,
+      importId: importLog.id,
       summary: {
         total: csvResult.rowCount,
         success: successCount,
@@ -134,8 +145,13 @@ export async function GET(request: NextRequest) {
     if (!user) return createAuthErrorResponse();
     if (!hasPermission(user, "data:import")) return createPermissionErrorResponse();
 
+    const where: any = {};
+    if (user.departmentScopes.length > 0) {
+      where.userId = user.id;
+    }
+
     const logs = await prisma.importLog.findMany({
-      where: { userId: user.id },
+      where,
       orderBy: { createdAt: "desc" },
       take: 20,
     });

@@ -116,7 +116,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div id="dashboard-content" className="space-y-4">
         {/* 工具栏 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -184,85 +184,95 @@ export default function DashboardPage() {
         </div>
 
         {/* 流程桑基图 */}
-        <ChartCard
-          title="门诊全流程等待分析"
-          subtitle="患者从挂号到取药的全流程流转及各环节等待时间"
-        >
-          <SankeyChart data={sankeyData} height={320} onNodeClick={handleNodeClick} />
-        </ChartCard>
+        <div data-chart="sankey" data-chart-title="门诊全流程等待分析">
+          <ChartCard
+            title="门诊全流程等待分析"
+            subtitle="患者从挂号到取药的全流程流转及各环节等待时间"
+          >
+            <SankeyChart data={sankeyData} height={320} onNodeClick={handleNodeClick} />
+          </ChartCard>
+        </div>
 
         {/* 图表网格 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* 等待时间分布 */}
-          <ChartCard
-            title="等待时间分布"
-            subtitle="不同等待时长区间的患者数量分布"
-          >
-            <WaitDistributionChart data={waitDistribution} height={280} />
-          </ChartCard>
+          <div data-chart="distribution" data-chart-title="等待时间分布">
+            <ChartCard
+              title="等待时间分布"
+              subtitle="不同等待时长区间的患者数量分布"
+            >
+              <WaitDistributionChart data={waitDistribution} height={280} />
+            </ChartCard>
+          </div>
 
           {/* 科室等待对比 */}
-          <ChartCard
-            title="科室等待对比"
-            subtitle="各科室平均等待时间与就诊人次对比"
-            actions={
-              <div className="flex items-center gap-1 bg-neutral-100 rounded-md p-0.5">
-                <button
-                  onClick={() => setActiveTab("chart")}
-                  className={`px-2 py-1 text-xs rounded ${
-                    activeTab === "chart"
-                      ? "bg-white text-primary-600 shadow-sm"
-                      : "text-neutral-500"
-                  }`}
-                >
-                  图表
-                </button>
-                <button
-                  onClick={() => setActiveTab("map")}
-                  className={`px-2 py-1 text-xs rounded ${
-                    activeTab === "map"
-                      ? "bg-white text-primary-600 shadow-sm"
-                      : "text-neutral-500"
-                  }`}
-                >
-                  地图
-                </button>
-              </div>
-            }
-          >
-            {activeTab === "chart" ? (
-              <DepartmentComparisonChart
-                data={deptComparison}
-                height={280}
-                onDeptClick={handleDeptClick}
-              />
-            ) : (
-              <DepartmentMap comparisonData={deptComparison} height={280} />
-            )}
-          </ChartCard>
+          <div data-chart="comparison" data-chart-title="科室等待对比">
+            <ChartCard
+              title="科室等待对比"
+              subtitle="各科室平均等待时间与就诊人次对比"
+              actions={
+                <div className="flex items-center gap-1 bg-neutral-100 rounded-md p-0.5">
+                  <button
+                    onClick={() => setActiveTab("chart")}
+                    className={`px-2 py-1 text-xs rounded ${
+                      activeTab === "chart"
+                        ? "bg-white text-primary-600 shadow-sm"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    图表
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("map")}
+                    className={`px-2 py-1 text-xs rounded ${
+                      activeTab === "map"
+                        ? "bg-white text-primary-600 shadow-sm"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    地图
+                  </button>
+                </div>
+              }
+            >
+              {activeTab === "chart" ? (
+                <DepartmentComparisonChart
+                  data={deptComparison}
+                  height={280}
+                  onDeptClick={handleDeptClick}
+                />
+              ) : (
+                <DepartmentMap comparisonData={deptComparison} height={280} />
+              )}
+            </ChartCard>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* 趋势分析 */}
-          <ChartCard
-            title="等待时间趋势"
-            subtitle="近30天平均等待时间变化趋势，点击数据点可添加标注"
-          >
-            <TrendChart
-              data={trendData}
-              annotations={annotations}
-              height={280}
-              onPointClick={handlePointClick}
-            />
-          </ChartCard>
+          <div data-chart="trend" data-chart-title="等待时间趋势">
+            <ChartCard
+              title="等待时间趋势"
+              subtitle="近30天平均等待时间变化趋势，点击数据点可添加标注"
+            >
+              <TrendChart
+                data={trendData}
+                annotations={annotations}
+                height={280}
+                onPointClick={handlePointClick}
+              />
+            </ChartCard>
+          </div>
 
           {/* 时段热力图 */}
-          <ChartCard
-            title="日内时段热力图"
-            subtitle="不同星期和时段的平均等待时间分布"
-          >
-            <HeatmapChart data={heatmapData} height={280} />
-          </ChartCard>
+          <div data-chart="heatmap" data-chart-title="日内时段热力图">
+            <ChartCard
+              title="日内时段热力图"
+              subtitle="不同星期和时段的平均等待时间分布"
+            >
+              <HeatmapChart data={heatmapData} height={280} />
+            </ChartCard>
+          </div>
         </div>
 
         {/* 近期标注列表 */}

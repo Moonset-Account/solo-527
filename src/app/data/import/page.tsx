@@ -24,7 +24,8 @@ export default function DataImportPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [importProgress, setImportProgress] = useState(0);
-  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number; importId?: string } | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -56,6 +57,7 @@ export default function DataImportPage() {
     setUploadedFile(file);
     setImportStatus("idle");
     setImportResult(null);
+    setApiError(null);
 
     try {
       const content = await file.text();
@@ -114,42 +116,49 @@ export default function DataImportPage() {
   };
 
   const handleImport = async () => {
-    if (!uploadedFile) return;
+    if (!uploadedFile || !preview) return;
 
     setImportStatus("processing");
-    setImportProgress(0);
+    setImportProgress(10);
+    setApiError(null);
 
     try {
-      const content = await uploadedFile.text();
-      const csvResult = parseCSV(content);
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+      formData.append("departmentMap", JSON.stringify({}));
+      formData.append("doctorMap", JSON.stringify({}));
+      formData.append("patientTypeMap", JSON.stringify({}));
 
-      let success = 0;
-      let failed = 0;
-      const total = csvResult.data.length;
+      setImportProgress(30);
 
-      for (let i = 0; i < csvResult.data.length; i++) {
-        const rawRow = csvResult.data[i];
-        const mappedRow = mapCSVRow(rawRow);
-        const validation = validateVisitData(mappedRow);
+      const response = await fetch("/api/import/csv", {
+        method: "POST",
+        body: formData,
+      });
 
-        if (validation.valid) {
-          try {
-            await new Promise((resolve) => setTimeout(resolve, 5));
-            success++;
-          } catch {
-            failed++;
-          }
-        } else {
-          failed++;
-        }
+      setImportProgress(80);
 
-        setImportProgress(Math.round(((i + 1) / total) * 100));
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || error.error || "导入失败");
       }
 
-      setImportResult({ success, failed });
-      setImportStatus("success");
+      const result = await response.json();
+      setImportProgress(100);
+
+      if (result.success) {
+        setImportResult({
+          success: result.summary.success,
+          failed: result.summary.failed,
+          importId: result.importId,
+        });
+        setImportStatus("success");
+      } else {
+        throw new Error(result.error || "导入失败");
+      }
     } catch (error) {
       console.error("Import failed:", error);
+      setApiError(error instanceof Error ? error.message : "导入失败，请检查网络连接");
       setImportStatus("error");
     }
   };
@@ -160,6 +169,7 @@ export default function DataImportPage() {
     setImportStatus("idle");
     setImportProgress(0);
     setImportResult(null);
+    setApiError(null);
   };
 
   const downloadTemplate = () => {
@@ -199,7 +209,7 @@ export default function DataImportPage() {
         <div>
           <h1 className="text-xl font-bold text-neutral-800">批量数据导入</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            上传CSV格式的门诊流程数据，系统将自动进行数据校验、清洗和脱敏处理
+            上传CSV格式的门诊流程数据，系统将自动进行数据校验、清洗、脱敏并入库
           </p>
         </div>
 
@@ -357,7 +367,7 @@ export default function DataImportPage() {
                         <thead className="sticky top-0 bg-white">
                           <tr className="border-b border-neutral-200">
                             <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">就诊号（脱敏）</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">科室</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">科室编码</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">挂号时间</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">叫号时间</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">总等待</th>
@@ -393,19 +403,37 @@ export default function DataImportPage() {
                   </div>
                 )}
 
+                {apiError && (
+                  <div className="p-4 bg-danger-50 rounded-lg border border-danger-200">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="w-5 h-5 text-danger-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-danger-700">API调用失败</p>
+                        <p className="text-xs text-danger-600 mt-1">{apiError}</p>
+                        <p className="text-xs text-danger-500 mt-2">
+                          提示：请确保已配置正确的 DATABASE_URL 并运行数据库迁移
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {importStatus === "processing" && (
                   <div className="p-4 bg-white rounded-lg shadow-card border border-neutral-200">
                     <div className="flex items-center gap-3 mb-3">
                       <RefreshCw className="w-5 h-5 text-primary-500 animate-spin" />
-                      <p className="text-sm font-medium text-neutral-700">正在导入数据...</p>
+                      <p className="text-sm font-medium text-neutral-700">正在导入数据到数据库...</p>
                       <span className="ml-auto text-sm font-mono text-primary-600">{importProgress}%</span>
                     </div>
                     <div className="w-full bg-neutral-100 rounded-full h-2">
                       <div
-                        className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-primary-500 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${importProgress}%` }}
                       />
                     </div>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      正在将数据写入 PostgreSQL 数据库...
+                    </p>
                   </div>
                 )}
 
@@ -414,25 +442,16 @@ export default function DataImportPage() {
                     <div className="flex items-start gap-3">
                       <CheckCircle className="w-5 h-5 text-success-500 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-success-700">导入完成</p>
+                        <p className="text-sm font-medium text-success-700">数据库导入完成</p>
                         <p className="text-xs text-success-600 mt-1">
-                          成功导入 {importResult.success} 条记录
+                          成功导入 {importResult.success} 条记录到 PostgreSQL
                           {importResult.failed > 0 && `，失败 ${importResult.failed} 条`}
                         </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {importStatus === "error" && (
-                  <div className="p-4 bg-danger-50 rounded-lg border border-danger-200">
-                    <div className="flex items-start gap-3">
-                      <XCircle className="w-5 h-5 text-danger-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-danger-700">导入失败</p>
-                        <p className="text-xs text-danger-600 mt-1">
-                          请检查网络连接后重试
-                        </p>
+                        {importResult.importId && (
+                          <p className="text-xs text-success-500 mt-1">
+                            导入批次ID: {importResult.importId}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -452,7 +471,7 @@ export default function DataImportPage() {
                       className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-500 rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Upload className="w-4 h-4" />
-                      开始导入 ({preview.valid}条有效记录)
+                      导入到数据库 ({preview.valid}条有效记录)
                     </button>
                   </div>
                 )}

@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     if (patientTypeId) where.patientTypeId = patientTypeId;
     if (startDate || endDate) {
       where[dateField] = {};
-      if (startDate) where[dateField].gte = startDate;
-      if (endDate) where[dateField].lte = endDate;
+      if (startDate) where[dateField].gte = new Date(startDate);
+      if (endDate) where[dateField].lte = new Date(endDate);
     }
 
     const [visits, total] = await Promise.all([
@@ -87,12 +87,39 @@ export async function POST(request: NextRequest) {
     const cleanedData = cleanAndCalculateWaitTimes(body);
     const visitNumberMasked = maskVisitNumber(body.visitNumber || "");
 
+    let visitDate: Date;
+    if (cleanedData.visitDate) {
+      visitDate = new Date(cleanedData.visitDate);
+    } else if (cleanedData.registerTime) {
+      visitDate = new Date(cleanedData.registerTime);
+    } else {
+      visitDate = new Date();
+    }
+
+    const createData: any = {
+      visitNumberMasked,
+      deptId: cleanedData.deptId,
+      patientTypeId: cleanedData.patientTypeId || null,
+      doctorId: cleanedData.doctorId || null,
+      registerTime: cleanedData.registerTime ? new Date(cleanedData.registerTime) : null,
+      checkinTime: cleanedData.checkinTime ? new Date(cleanedData.checkinTime) : null,
+      triageTime: cleanedData.triageTime ? new Date(cleanedData.triageTime) : null,
+      callTime: cleanedData.callTime ? new Date(cleanedData.callTime) : null,
+      paymentTime: cleanedData.paymentTime ? new Date(cleanedData.paymentTime) : null,
+      medicineTime: cleanedData.medicineTime ? new Date(cleanedData.medicineTime) : null,
+      waitTotalMinutes: cleanedData.waitTotalMinutes,
+      waitRegisterMinutes: cleanedData.waitRegisterMinutes,
+      waitTriageMinutes: cleanedData.waitTriageMinutes,
+      waitDoctorMinutes: cleanedData.waitDoctorMinutes,
+      waitPaymentMinutes: cleanedData.waitPaymentMinutes,
+      waitMedicineMinutes: cleanedData.waitMedicineMinutes,
+      visitDate,
+      hourOfDay: cleanedData.hourOfDay,
+      dayOfWeek: cleanedData.dayOfWeek,
+    };
+
     const visit = await prisma.visitProcess.create({
-      data: {
-        ...cleanedData,
-        visitNumberMasked,
-        createdBy: user.id,
-      },
+      data: createData,
       include: {
         department: true,
         doctor: true,

@@ -16,9 +16,17 @@ export async function exportToPDF(
   elementId: string,
   options: PDFExportOptions
 ): Promise<void> {
-  const element = document.getElementById(elementId);
+  let element = document.getElementById(elementId);
+  
   if (!element) {
-    throw new Error(`Element with id "${elementId}" not found`);
+    element = document.querySelector(".space-y-4") as HTMLElement;
+  }
+  
+  if (!element) {
+    generateSimplePDF(options.title, `数据报告生成时间: ${new Date().toLocaleString()}\n\n由于页面元素加载问题，仅生成了基础报告。`, {
+      filename: `${options.title}.pdf`,
+    });
+    return;
   }
 
   const pdf = new jsPDF("p", "mm", "a4");

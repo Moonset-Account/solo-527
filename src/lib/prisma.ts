@@ -1,23 +1,13 @@
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace NodeJS {
-    interface Global {
-      prisma: any;
-    }
-  }
-}
+import { PrismaClient } from "@prisma/client";
 
-let prisma: any;
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
 
-if (typeof window === "undefined") {
-  if (process.env.NODE_ENV === "production") {
-    prisma = {} as any;
-  } else {
-    if (!(global as any).prisma) {
-      (global as any).prisma = {} as any;
-    }
-    prisma = (global as any).prisma;
-  }
-}
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
 
-export { prisma };
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
