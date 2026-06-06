@@ -19,8 +19,9 @@ func CreateApplication(c *fiber.Ctx) error {
 	}
 
 	if app.HasNoiseWork {
-		if app.StartDate == app.EndDate && database.IsHoliday(app.StartDate) {
-			return c.Status(400).JSON(fiber.Map{"error": "节假日禁止噪音作业，请调整施工日期"})
+		hasHoliday, holidayInfo := database.HasHolidayInRange(app.StartDate, app.EndDate)
+		if hasHoliday {
+			return c.Status(400).JSON(fiber.Map{"error": "施工日期范围内包含节假日 " + holidayInfo + "，节假日禁止噪音作业，请调整施工日期"})
 		}
 	}
 

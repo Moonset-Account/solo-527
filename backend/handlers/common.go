@@ -243,3 +243,20 @@ func CheckDateNoiseAllowed(c *fiber.Ctx) error {
 		"message":             map[bool]string{true: "节假日禁止噪音作业", false: "可以安排噪音作业"}[isHoliday],
 	})
 }
+
+func CheckDateRangeNoiseAllowed(c *fiber.Ctx) error {
+	startDate := c.Query("start_date", "")
+	endDate := c.Query("end_date", "")
+	if startDate == "" || endDate == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "请提供开始和结束日期"})
+	}
+	hasHoliday, holidayInfo := database.HasHolidayInRange(startDate, endDate)
+	return c.JSON(fiber.Map{
+		"start_date":    startDate,
+		"end_date":      endDate,
+		"has_holiday":   hasHoliday,
+		"holiday_info":  holidayInfo,
+		"noise_allowed": !hasHoliday,
+		"message":       map[bool]string{true: "日期范围内包含节假日 " + holidayInfo + "，节假日禁止噪音作业", false: "日期范围内无节假日，可以安排噪音作业"}[hasHoliday],
+	})
+}

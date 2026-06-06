@@ -49,6 +49,7 @@ export const api = {
 	getTimeSlots: (dayType, isNoise) => request(`/time-slots?day_type=${dayType}&is_noise=${isNoise}`),
 
 	checkNoiseDate: (date) => request(`/check-noise-date?date=${date}`),
+	checkNoiseRange: (startDate, endDate) => request(`/check-noise-range?start_date=${startDate}&end_date=${endDate}`),
 
 	createApplication: (data) => request('/applications', {
 		method: 'POST',

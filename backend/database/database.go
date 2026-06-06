@@ -238,6 +238,19 @@ func IsHoliday(date string) bool {
 	return count > 0
 }
 
+func HasHolidayInRange(startDate, endDate string) (bool, string) {
+	var holidayDate, holidayName string
+	err := DB.QueryRow(`
+		SELECT date, name FROM holidays 
+		WHERE date >= ? AND date <= ? AND is_noise_prohibited = 1
+		ORDER BY date ASC LIMIT 1
+	`, startDate, endDate).Scan(&holidayDate, &holidayName)
+	if err != nil {
+		return false, ""
+	}
+	return true, holidayName + "(" + holidayDate + ")"
+}
+
 func GetTimeSlots(dayType string, isNoise bool) []map[string]interface{} {
 	rows, err := DB.Query("SELECT id, name, start_time, end_time FROM time_slots WHERE day_type = ? AND is_noise_allowed = ?",
 		dayType, isNoise)

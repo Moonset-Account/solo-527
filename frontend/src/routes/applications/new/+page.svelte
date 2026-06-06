@@ -32,7 +32,14 @@
 	});
 
 	async function checkNoiseDate() {
-		if (form.start_date && form.has_noise_work) {
+		if (form.start_date && form.end_date && form.has_noise_work) {
+			try {
+				const res = await api.checkNoiseRange(form.start_date, form.end_date);
+				noiseTip = res.message;
+			} catch (e) {
+				noiseTip = '';
+			}
+		} else if (form.start_date && form.has_noise_work) {
 			try {
 				const res = await api.checkNoiseDate(form.start_date);
 				noiseTip = res.message;

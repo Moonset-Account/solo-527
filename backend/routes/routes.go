@@ -17,6 +17,7 @@ func SetupRoutes(app *fiber.App) {
 	api.Get("/holidays", handlers.GetHolidays)
 	api.Get("/time-slots", handlers.GetTimeSlotsAPI)
 	api.Get("/check-noise-date", handlers.CheckDateNoiseAllowed)
+	api.Get("/check-noise-range", handlers.CheckDateRangeNoiseAllowed)
 
 	applications := api.Group("/applications")
 	applications.Post("", handlers.CreateApplication)
