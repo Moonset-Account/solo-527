@@ -2,16 +2,36 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Card, Typography, Empty, Spin } from 'antd';
 import { useDashboardStore } from '../../store/dashboard';
+import { FilterState } from '../../types';
 
 const { Title, Text } = Typography;
 
+const CYCLE_BUCKET_MAP: Record<string, { min: number; max?: number }> = {
+  '0-1天': { min: 0, max: 1 },
+  '1-3天': { min: 1, max: 3 },
+  '3-7天': { min: 3, max: 7 },
+  '7-15天': { min: 7, max: 15 },
+  '15-30天': { min: 15, max: 30 },
+  '30天以上': { min: 30 },
+};
+
 export const CycleDistributionChart: React.FC = () => {
-  const { dashboardData, loading, setDrillDown, activeDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setFilters, setDrillDown, activeDrillDown } = useDashboardStore();
   const data = dashboardData?.cycle_distribution || [];
 
   const handleClick = (params: any) => {
-    if (params.name) {
-      setDrillDown('cycle_bucket', { status: ['completed'] });
+    const bucketName = params.name || params.axisValue;
+    if (bucketName && CYCLE_BUCKET_MAP[bucketName]) {
+      const range = CYCLE_BUCKET_MAP[bucketName];
+      const drillFilters: FilterState = {
+        status: ['completed'],
+        min_refund_days: range.min,
+      };
+      if (range.max !== undefined) {
+        drillFilters.max_refund_days = range.max;
+      }
+      setFilters(drillFilters);
+      setDrillDown('cycle_bucket', drillFilters);
     }
   };
 

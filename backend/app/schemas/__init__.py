@@ -15,6 +15,9 @@ class FilterParams(BaseModel):
     return_reasons_level1: Optional[List[str]] = None
     return_reasons_level2: Optional[List[str]] = None
     status: Optional[List[str]] = None
+    agent_names: Optional[List[str]] = None
+    min_refund_days: Optional[float] = None
+    max_refund_days: Optional[float] = None
 
 
 class ReturnReasonNode(BaseModel):
@@ -47,6 +50,7 @@ class ServiceDurationItem(BaseModel):
 
 class DimensionStats(BaseModel):
     dimension: str
+    id: Optional[Union[int, str]] = None
     name: str
     count: int
     amount: float

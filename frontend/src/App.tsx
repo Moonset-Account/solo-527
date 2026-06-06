@@ -45,6 +45,17 @@ const App: React.FC = () => {
     setViewName('');
   };
 
+  const DRILL_DOWN_LABELS: Record<string, string> = {
+    reason_level1: '退货原因',
+    cycle_bucket: '退款周期',
+    product: '商品',
+    agent: '客服人员',
+    store: '店铺',
+    warehouse: '仓库',
+    logistics: '物流商',
+    category: '商品品类',
+  };
+
   const handleExitDrillDown = () => {
     setDrillDown(null);
   };
@@ -59,8 +70,8 @@ const App: React.FC = () => {
           </div>
           <Space>
             {activeDrillDown && (
-              <Tag color="success" style={{ margin: 0 }}>
-                下钻模式: {activeDrillDown}
+              <Tag color="success" style={{ margin: 0, padding: '4px 12px' }}>
+                🔍 下钻模式: {DRILL_DOWN_LABELS[activeDrillDown] || activeDrillDown}
                 <Button
                   type="text"
                   size="small"

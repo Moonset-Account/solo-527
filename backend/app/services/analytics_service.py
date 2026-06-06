@@ -33,6 +33,17 @@ def build_filter_query(db: Session, filters: Dict[str, Any]):
         conditions.append(ReturnRequest.return_reason_level2.in_(filters["return_reasons_level2"]))
     if filters.get("status"):
         conditions.append(ReturnRequest.status.in_(filters["status"]))
+    if filters.get("agent_names"):
+        query = query.join(CustomerService, ReturnRequest.id == CustomerService.return_request_id)
+        conditions.append(CustomerService.agent_name.in_(filters["agent_names"]))
+
+    if filters.get("min_refund_days") is not None or filters.get("max_refund_days") is not None:
+        query = query.join(Refund, ReturnRequest.id == Refund.return_request_id)
+        cycle_expr = func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
+        if filters.get("min_refund_days") is not None:
+            conditions.append(cycle_expr >= filters["min_refund_days"])
+        if filters.get("max_refund_days") is not None:
+            conditions.append(cycle_expr < filters["max_refund_days"])
 
     if conditions:
         query = query.filter(and_(*conditions))

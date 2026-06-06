@@ -9,6 +9,9 @@ export interface FilterState {
   return_reasons_level1?: string[];
   return_reasons_level2?: string[];
   status?: string[];
+  agent_names?: string[];
+  min_refund_days?: number;
+  max_refund_days?: number;
 }
 
 export interface DashboardOverview {

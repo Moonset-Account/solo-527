@@ -2,6 +2,7 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Card, Typography, Empty, Spin, Tag, Space } from 'antd';
 import { useDashboardStore } from '../../store/dashboard';
+import { FilterState } from '../../types';
 
 const { Title, Text } = Typography;
 
@@ -10,8 +11,14 @@ export const ServiceDurationChart: React.FC = () => {
   const data = dashboardData?.service_duration || [];
 
   const handleClick = (params: any) => {
-    if (params.name && params.name !== '未分配') {
-      setDrillDown('agent', { status: ['completed'] });
+    const agentName = params.name || params.axisValue;
+    if (agentName && agentName !== '未分配') {
+      const drillFilters: FilterState = {
+        agent_names: [agentName],
+        status: ['completed']
+      };
+      setFilters(drillFilters);
+      setDrillDown('agent', drillFilters);
     }
   };
 

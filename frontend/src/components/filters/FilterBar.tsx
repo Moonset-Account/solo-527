@@ -58,6 +58,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
     filters.warehouse_ids?.length ? `仓库: ${filters.warehouse_ids.length}项` : null,
     filters.logistics_providers?.length ? `物流: ${filters.logistics_providers.length}项` : null,
     filters.return_reasons_level1?.length ? `原因: ${filters.return_reasons_level1.length}项` : null,
+    filters.agent_names?.length ? `客服: ${filters.agent_names.join(',')}` : null,
+    (filters.min_refund_days !== undefined || filters.max_refund_days !== undefined)
+      ? `退款周期: ${filters.min_refund_days || 0}-${filters.max_refund_days || '∞'}天`
+      : null,
   ].filter(Boolean);
 
   const savedViewsContent = (
