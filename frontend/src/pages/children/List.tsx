@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Tag, Input, Select, Button, Space, Avatar } from 'antd'
 import { SearchOutlined, PlusOutlined, UserOutlined, EyeOutlined } from '@ant-design/icons'
 import { useQuery } from 'react-query'
@@ -8,7 +8,7 @@ import type { Child } from '@/types'
 
 const ChildrenList = () => {
   const navigate = useNavigate()
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     child_class: undefined as number | undefined,
     status: undefined as string | undefined,

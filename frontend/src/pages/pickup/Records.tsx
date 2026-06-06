@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Tag, Input, Select, DatePicker, Space } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useQuery } from 'react-query'
@@ -7,7 +7,7 @@ import dayjs from 'dayjs'
 import type { PickupRecord } from '@/types'
 
 const PickupRecords = () => {
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     status: undefined as string | undefined,
     pickup_type: undefined as string | undefined,

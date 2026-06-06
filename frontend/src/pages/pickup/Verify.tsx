@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Form, Input, Select, Button, InputNumber, message, Steps, Table, Tag, Modal, Row, Col } from 'antd'
 import { SearchOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
@@ -14,19 +14,19 @@ const PickupVerify = () => {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const user = useAuthStore((state) => state.user)
-  const [step, setStep] = React.useState(0)
-  const [searchResult, setSearchResult] = React.useState<Child | null>(null)
-  const [authorizedPersons, setAuthorizedPersons] = React.useState<AuthorizedPerson[]>([])
-  const [selectedPerson, setSelectedPerson] = React.useState<AuthorizedPerson | null>(null)
-  const [isAuthorized, setIsAuthorized] = React.useState<boolean | null>(null)
-  const [pendingRecords, setPendingRecords] = React.useState<PickupRecord[]>([])
+  const [step, setStep] = useState(0)
+  const [searchResult, setSearchResult] = useState<Child | null>(null)
+  const [authorizedPersons, setAuthorizedPersons] = useState<AuthorizedPerson[]>([])
+  const [selectedPerson, setSelectedPerson] = useState<AuthorizedPerson | null>(null)
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
+  const [pendingRecords, setPendingRecords] = useState<PickupRecord[]>([])
 
   const { data: children } = useQuery(
     ['children-for-pickup'],
     () => childApi.getList({ status: 'active' }).then((res) => res.data.results)
   )
 
-  React.useEffect(() => {
+  useEffect(() => {
     pickupApi.getRecords({ status: 'pending', ordering: '-created_at' })
       .then((res) => setPendingRecords(res.data.results))
   }, [])

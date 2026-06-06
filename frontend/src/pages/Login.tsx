@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Form, Input, Button, Card, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/auth'
 const Login = () => {
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = useState(false)
 
   const onFinish = async (values: { phone: string; password: string }) => {
     setLoading(true)

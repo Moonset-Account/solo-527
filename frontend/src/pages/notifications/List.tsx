@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Tag, Input, Select, Button, Space, DatePicker, Badge } from 'antd'
 import { SearchOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons'
 import { useQuery, useQueryClient } from 'react-query'
@@ -10,7 +10,7 @@ import type { Notification } from '@/types'
 const Notifications = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     type: undefined as string | undefined,
     status: 'published',

@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Input, Select, Button, Space, DatePicker, Avatar, Modal, Form, InputNumber, message } from 'antd'
 import { SearchOutlined, PlusOutlined, UserOutlined, LineChartOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
@@ -9,13 +9,13 @@ import type { GrowthRecord } from '@/types'
 
 const GrowthRecords = () => {
   const queryClient = useQueryClient()
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     child: undefined as number | undefined
   })
-  const [chartVisible, setChartVisible] = React.useState(false)
-  const [selectedChild, setSelectedChild] = React.useState<number | null>(null)
-  const [modalVisible, setModalVisible] = React.useState(false)
+  const [chartVisible, setChartVisible] = useState(false)
+  const [selectedChild, setSelectedChild] = useState<number | null>(null)
+  const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
 
   const { data: children } = useQuery(

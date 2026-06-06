@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Tag, Input, Select, Button, Space, Modal, message, Statistic, Row, Col } from 'antd'
 import { SearchOutlined, PlusOutlined, CheckCircleOutlined, BellOutlined } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
@@ -12,7 +12,7 @@ const Payments = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useAuthStore((state) => state.user)
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     status: undefined as string | undefined,
     item: undefined as number | undefined

@@ -1,25 +1,40 @@
-import React from 'react'
+import { useState } from 'react'
 import { Row, Col, Card, Table, Tag, DatePicker, Select, Statistic } from 'antd'
 import { useQuery } from 'react-query'
-import { dashboardApi } from '@/services/index'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts'
-import dayjs from 'dayjs'
+import { dashboardApi, childApi } from '@/services/index'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import dayjs, { Dayjs } from 'dayjs'
 import type { PickupTrendItem, ClassUtilization, DashboardOverview } from '@/types'
 
 const { RangePicker } = DatePicker
 
 const Dashboard = () => {
-  const [timeRange, setTimeRange] = React.useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
-  const [selectedClass, setSelectedClass] = React.useState<number | null>(null)
+  const [timeRange, setTimeRange] = useState<[Dayjs, Dayjs] | null>(null)
+  const [selectedClass, setSelectedClass] = useState<number | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
-  const { data: overview, isLoading: overviewLoading } = useQuery(
-    ['dashboard-overview'],
-    () => dashboardApi.getOverview().then((res) => res.data as DashboardOverview)
+  const { data: classes } = useQuery(
+    ['dashboard-classes'],
+    () => childApi.getClasses().then((res) => res.data.results)
   )
 
+  const filterParams: Record<string, any> = {}
+  if (selectedClass) filterParams.class_id = selectedClass
+  if (timeRange) {
+    filterParams.start_date = timeRange[0].format('YYYY-MM-DD')
+    filterParams.end_date = timeRange[1].format('YYYY-MM-DD')
+  }
+  if (statusFilter) filterParams.status = statusFilter
+
+  const { data: overview, isLoading: overviewLoading } = useQuery(
+    ['dashboard-overview', filterParams],
+    () => dashboardApi.getOverview(filterParams).then((res) => res.data as DashboardOverview)
+  )
+
+  const trendParams = { days: 7, ...filterParams }
   const { data: trendData, isLoading: trendLoading } = useQuery(
-    ['dashboard-pickup-trend', timeRange],
-    () => dashboardApi.getPickupTrend(7).then((res) => res.data as PickupTrendItem[]),
+    ['dashboard-pickup-trend', trendParams],
+    () => dashboardApi.getPickupTrend(trendParams).then((res) => res.data as PickupTrendItem[]),
     { refetchInterval: 60000 }
   )
 
@@ -29,8 +44,8 @@ const Dashboard = () => {
   )
 
   const { data: statusBreakdown, isLoading: statusLoading } = useQuery(
-    ['dashboard-status-breakdown'],
-    () => dashboardApi.getStatusBreakdown().then((res) => res.data)
+    ['dashboard-status-breakdown', filterParams],
+    () => dashboardApi.getStatusBreakdown(filterParams).then((res) => res.data)
   )
 
   const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1']
@@ -80,16 +95,31 @@ const Dashboard = () => {
     <div>
       <div className="page-header">
         <h2 className="page-title">数据看板</h2>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Select
             placeholder="选择班级"
             style={{ width: 160 }}
             allowClear
+            value={selectedClass}
             onChange={(v) => setSelectedClass(v)}
+            options={classes?.map((c: any) => ({ label: c.name, value: c.id })) || []}
+          />
+          <Select
+            placeholder="状态筛选"
+            style={{ width: 140 }}
+            allowClear
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v)}
+            options={[
+              { label: '正常', value: 'normal' },
+              { label: '待核验', value: 'pending' },
+              { label: '已完成', value: 'completed' },
+              { label: '请假中', value: 'approved' },
+            ]}
           />
           <RangePicker
             value={timeRange}
-            onChange={(v) => setTimeRange(v as any)}
+            onChange={(v) => setTimeRange(v as [Dayjs, Dayjs] | null}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 import { Card, Table, Tag, Input, Select, Button, Space, DatePicker, Avatar } from 'antd'
 import { SearchOutlined, PlusOutlined, EyeOutlined, UserOutlined } from '@ant-design/icons'
 import { useQuery } from 'react-query'
@@ -6,7 +6,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 
 const DailyRecords = () => {
-  const [filters, setFilters] = React.useState({
+  const [filters, setFilters] = useState({
     search: '',
     child_class: undefined as number | undefined,
     record_date: null as dayjs.Dayjs | null
