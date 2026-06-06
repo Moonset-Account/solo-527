@@ -246,11 +246,11 @@
 									</td>
 									<td class="p-2">{box.deliveryMan}</td>
 									<td class="p-2">
-										{box.status === 'confirmed' ? (
+										{#if box.status === 'confirmed'}
 											<span class="status-confirmed">已确认</span>
-										) : (
+										{:else}
 											<span class="status-pending">待处理</span>
-										)}
+										{/if}
 									</td>
 								</tr>
 							{/each}

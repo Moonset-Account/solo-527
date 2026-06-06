@@ -174,14 +174,14 @@
 				<span class="text-lg">⚠️</span>
 				<div>
 					<p class="font-medium text-slate-700">温度超出合理范围</p>
-					<p class="text-xs mt-1">温度 < 0°C 或 > 100°C 的采样点将被剔除</p>
+					<p class="text-xs mt-1">温度低于 0°C 或高于 100°C 的采样点将被剔除</p>
 				</div>
 			</div>
 			<div class="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
 				<span class="text-lg">📉</span>
 				<div>
 					<p class="font-medium text-slate-700">温度异常突变</p>
-					<p class="text-xs mt-1">相邻采样点温差 > 20°C 的数据将被标记为异常</p>
+					<p class="text-xs mt-1">相邻采样点温差超过 20°C 的数据将被标记为异常</p>
 				</div>
 			</div>
 			<div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">

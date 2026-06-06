@@ -208,7 +208,7 @@
 					<h2 class="text-lg font-semibold text-slate-800">低温箱号</h2>
 					<div class="text-xs text-slate-500 flex items-center gap-1">
 						<span class="w-2 h-2 rounded-full bg-orange-400"></span>
-						采样<{$settings.minSampleCount}次为待复核
+						采样不足 {$settings.minSampleCount} 次为待复核
 					</div>
 				</div>
 				<div class="overflow-x-auto scrollbar-thin">

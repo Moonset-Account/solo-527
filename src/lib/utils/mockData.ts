@@ -43,15 +43,23 @@ function randomChoice<T>(arr: T[]): T {
 	return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function generateOverviewData(date: string): OverviewData {
+export function generateOverviewData(date: string, minSampleCount: number = 3): OverviewData {
 	const lowTempBoxes: LowTempBox[] = [];
 	for (let i = 0; i < 8; i++) {
-		const sampleCount = randomInt(2, 10);
+		const sampleCount = randomInt(1, 10);
+		let status: 'pending' | 'confirmed';
+		
+		if (sampleCount < minSampleCount) {
+			status = 'pending';
+		} else {
+			status = randomChoice(['pending', 'confirmed', 'confirmed']);
+		}
+		
 		lowTempBoxes.push({
 			boxId: `BOX-${String(1001 + i)}`,
 			minTemperature: randomFloat(45, 59),
 			sampleCount,
-			status: sampleCount < 3 ? 'pending' : randomChoice(['pending', 'confirmed', 'confirmed']),
+			status,
 			deliveryMan: randomChoice(deliveryMen),
 			mealType: randomChoice(mealTypes)
 		});
