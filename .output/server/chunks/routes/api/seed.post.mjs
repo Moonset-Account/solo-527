@@ -113,9 +113,9 @@ const points = [
     community: "\u65B0\u534E\u793E\u533A",
     location: { type: "Point", coordinates: [116.4054, 39.9022] },
     binTypes: ["\u53A8\u4F59\u5783\u573E", "\u5176\u4ED6\u5783\u573E"],
-    propertyCompany: "\u5BB6\u5174\u7269\u4E1A",
-    contactPerson: "\u674E\u7ECF\u7406",
-    contactPhone: "13800000013"
+    propertyCompany: "\u6052\u4FE1\u7269\u4E1A",
+    contactPerson: "\u5B59\u7ECF\u7406",
+    contactPhone: "13800000012"
   }
 ];
 const samplePhotos = [

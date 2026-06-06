@@ -106,9 +106,9 @@ const points = [
     community: '新华社区',
     location: { type: 'Point', coordinates: [116.4054, 39.9022] },
     binTypes: ['厨余垃圾', '其他垃圾'],
-    propertyCompany: '家兴物业',
-    contactPerson: '李经理',
-    contactPhone: '13800000013'
+    propertyCompany: '恒信物业',
+    contactPerson: '孙经理',
+    contactPhone: '13800000012'
   }
 ]
 

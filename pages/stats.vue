@@ -8,7 +8,7 @@
     </div>
     
     <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
         <div>
           <label class="block text-sm text-gray-500 mb-1">状态</label>
           <select v-model="filters.status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -34,11 +34,15 @@
           <label class="block text-sm text-gray-500 mb-1">开始日期</label>
           <input v-model="filters.startDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
         </div>
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">结束日期</label>
+          <input v-model="filters.endDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
         <div class="flex space-x-2">
-          <button @click="fetchStats" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
-            应用筛选
+          <button @click="fetchStats" class="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
+            应用
           </button>
-          <button @click="resetFilters" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+          <button @click="resetFilters" class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
             重置
           </button>
         </div>
