@@ -183,8 +183,9 @@ def test_injury_notes_only_coach_visible(client, test_user, test_coach, db_sessi
     injury = models.InjuryNote(
         runner_id=test_user.id,
         reported_by=test_coach.id,
-        title="测试伤病",
-        description="测试备注"
+        injury_type="膝盖酸痛",
+        severity="mild",
+        notes="测试备注"
     )
     db_session.add(injury)
     db_session.commit()

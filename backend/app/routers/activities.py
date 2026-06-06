@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -52,6 +52,7 @@ def get_activity(
 @router.post("/{activity_id}/publish", response_model=schemas.ActivityResponse)
 def publish_activity(
     activity_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_coach)
 ):
@@ -61,6 +62,21 @@ def publish_activity(
     activity.is_published = True
     db.commit()
     db.refresh(activity)
+
+    runners = db.query(models.User).filter(
+        models.User.role == models.UserRole.RUNNER,
+        models.User.is_active == True
+    ).all()
+    for runner in runners:
+        notification = tasks.create_notification(
+            db,
+            runner.id,
+            f"新活动发布: {activity.title}",
+            f"教练发布了新活动「{activity.title}」，时间：{activity.activity_date.strftime('%Y-%m-%d %H:%M')}，快来报名吧！",
+            notification_type="activity"
+        )
+        background_tasks.add_task(tasks.process_notification, notification.id)
+
     return activity
 
 
@@ -68,6 +84,7 @@ def publish_activity(
 def signup_activity(
     activity_id: int,
     signup_data: schemas.ActivitySignupCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_all_authenticated)
 ):
@@ -99,6 +116,19 @@ def signup_activity(
 
     tasks.create_task_for_activity_signup(db_signup, db)
 
+    coaches = db.query(models.User).filter(
+        models.User.role.in_([models.UserRole.ADMIN, models.UserRole.COACH])
+    ).all()
+    for coach in coaches:
+        notification = tasks.create_notification(
+            db,
+            coach.id,
+            f"活动报名待确认: {current_user.full_name or current_user.username}",
+            f"{current_user.full_name or current_user.username}报名了活动「{activity.title}」，请确认。",
+            notification_type="activity"
+        )
+        background_tasks.add_task(tasks.process_notification, notification.id)
+
     return db_signup
 
 
@@ -118,6 +148,7 @@ def list_activity_signups(
 def update_signup_status(
     signup_id: int,
     update: schemas.ActivitySignupUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_coach)
 ):
@@ -128,6 +159,28 @@ def update_signup_status(
         signup.status = update.status
     db.commit()
     db.refresh(signup)
+
+    activity = db.query(models.Activity).filter(models.Activity.id == signup.activity_id).first()
+
+    if update.status == models.TaskStatus.ARCHIVED:
+        notification = tasks.create_notification(
+            db,
+            signup.runner_id,
+            f"活动报名已确认: {activity.title if activity else ''}",
+            f"您的活动报名已通过教练确认，请准时参加。",
+            notification_type="activity"
+        )
+        background_tasks.add_task(tasks.process_notification, notification.id)
+    elif update.status == models.TaskStatus.EXCEPTION_REVIEW:
+        notification = tasks.create_notification(
+            db,
+            signup.runner_id,
+            f"活动报名需要复核: {activity.title if activity else ''}",
+            f"您的活动报名需要进一步信息，请联系教练。",
+            notification_type="activity"
+        )
+        background_tasks.add_task(tasks.process_notification, notification.id)
+
     return signup
 
 

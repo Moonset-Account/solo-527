@@ -187,11 +187,13 @@ class ActivitySignupResponse(ActivitySignupBase):
 
 
 class InjuryNoteBase(BaseModel):
-    title: str
-    description: Optional[str] = None
-    body_part: Optional[str] = None
+    injury_type: str
+    injury_date: Optional[datetime] = None
     severity: Optional[str] = None
-    rest_days: Optional[int] = None
+    notes: Optional[str] = None
+    treatment_notes: Optional[str] = None
+    expected_recovery_date: Optional[datetime] = None
+    is_active: Optional[bool] = True
 
 
 class InjuryNoteCreate(InjuryNoteBase):
@@ -201,6 +203,13 @@ class InjuryNoteCreate(InjuryNoteBase):
 class InjuryNoteUpdate(BaseModel):
     is_resolved: Optional[bool] = None
     resolved_at: Optional[datetime] = None
+    injury_type: Optional[str] = None
+    injury_date: Optional[datetime] = None
+    severity: Optional[str] = None
+    notes: Optional[str] = None
+    treatment_notes: Optional[str] = None
+    expected_recovery_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
 
 
 class InjuryNoteResponse(InjuryNoteBase):

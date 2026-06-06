@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas, auth, tasks
@@ -26,6 +26,7 @@ def list_checkins(
 @router.post("/", response_model=schemas.CheckinResponse)
 def create_checkin(
     checkin: schemas.CheckinCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_all_authenticated)
 ):
@@ -53,12 +54,14 @@ def create_checkin(
         models.User.role.in_([models.UserRole.ADMIN, models.UserRole.COACH])
     ).all()
     for coach in coaches:
-        tasks.create_notification(
+        notification = tasks.create_notification(
             db,
             coach.id,
             f"新打卡待确认: {current_user.full_name or current_user.username}",
-            f"{current_user.full_name or current_user.username}提交了{checkin.distance_km}公里打卡，请审核。"
+            f"{current_user.full_name or current_user.username}提交了{checkin.distance_km}公里打卡，请审核。",
+            notification_type="checkin"
         )
+        background_tasks.add_task(tasks.process_notification, notification.id)
 
     return db_checkin
 
@@ -81,6 +84,7 @@ def get_checkin(
 def update_checkin(
     checkin_id: int,
     checkin_update: schemas.CheckinUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_coach)
 ):
@@ -93,11 +97,23 @@ def update_checkin(
     db.refresh(checkin)
 
     if checkin_update.status == models.TaskStatus.EXCEPTION_REVIEW:
-        tasks.create_notification(
+        notification = tasks.create_notification(
             db,
             checkin.runner_id,
             "打卡数据需要复核",
-            f"您的打卡记录需要进一步复核，请准备相关证明材料。"
+            f"您的打卡记录需要进一步复核，请准备相关证明材料。",
+            notification_type="checkin"
         )
+        background_tasks.add_task(tasks.process_notification, notification.id)
+
+    if checkin_update.status == models.TaskStatus.ARCHIVED:
+        notification = tasks.create_notification(
+            db,
+            checkin.runner_id,
+            "打卡已通过审核",
+            f"您的{checkin.distance_km}公里打卡已通过教练审核。",
+            notification_type="checkin"
+        )
+        background_tasks.add_task(tasks.process_notification, notification.id)
 
     return checkin

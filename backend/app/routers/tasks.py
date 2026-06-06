@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import func
+from typing import List, Optional
+from datetime import datetime, date
 from .. import models, schemas, auth
 from ..database import get_db
 
@@ -9,29 +11,47 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 @router.get("/board", response_model=schemas.TaskBoardResponse)
 def get_task_board(
+    filter_date: Optional[date] = Query(None, description="筛选日期，默认今天"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.allow_all_authenticated)
 ):
+    target_date = filter_date or date.today()
+    start_of_day = datetime.combine(target_date, datetime.min.time())
+    end_of_day = datetime.combine(target_date, datetime.max.time())
+
     if current_user.role in [models.UserRole.ADMIN, models.UserRole.COACH]:
-        query = db.query(models.Task)
+        base_query = db.query(models.Task)
     else:
-        query = db.query(models.Task).filter(
+        base_query = db.query(models.Task).filter(
             (models.Task.assigned_user_id == current_user.id) |
             (models.Task.assigned_user_id.is_(None))
         )
+
+    date_filter = (
+        (func.date(models.Task.created_at) == target_date) |
+        (func.date(models.Task.updated_at) == target_date) |
+        (func.date(models.Task.due_date) == target_date) |
+        (models.Task.status == models.TaskStatus.IN_PROGRESS)
+    )
+
+    query = base_query.filter(date_filter)
 
     new_tasks = query.filter(models.Task.status == models.TaskStatus.NEW).order_by(models.Task.priority.desc()).all()
     pending_confirm = query.filter(models.Task.status == models.TaskStatus.PENDING_CONFIRM).order_by(models.Task.priority.desc()).all()
     in_progress = query.filter(models.Task.status == models.TaskStatus.IN_PROGRESS).order_by(models.Task.priority.desc()).all()
     exception_review = query.filter(models.Task.status == models.TaskStatus.EXCEPTION_REVIEW).order_by(models.Task.priority.desc()).all()
-    archived = query.filter(models.Task.status == models.TaskStatus.ARCHIVED).order_by(models.Task.updated_at.desc()).limit(20).all()
+
+    archived_query = base_query.filter(
+        models.Task.status == models.TaskStatus.ARCHIVED,
+        func.date(models.Task.updated_at) == target_date
+    ).order_by(models.Task.updated_at.desc()).limit(20).all()
 
     return schemas.TaskBoardResponse(
         new=new_tasks,
         pending_confirm=pending_confirm,
         in_progress=in_progress,
         exception_review=exception_review,
-        archived=archived
+        archived=archived_query
     )
 
 
