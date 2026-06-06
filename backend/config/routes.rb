@@ -33,6 +33,9 @@ Rails.application.routes.draw do
           post 'like'
           post 'increment_view'
         end
+        collection do
+          post 'upload_image'
+        end
       end
 
       resources :material_packages, only: [:index, :show, :create, :update] do

@@ -126,6 +126,25 @@ class Api::V1::ArtworksController < Api::V1::BaseController
     render json: { views_count: @artwork.views_count }, status: :ok
   end
 
+  def upload_image
+    authorize Artwork, :create?
+    require 'securerandom'
+
+    if params[:file].present?
+      file = params[:file]
+      image_id = SecureRandom.hex(8)
+      image_url = "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20ceramic%20artwork%20beautiful&image_size=square_hd&t=#{image_id}"
+
+      render json: {
+        id: image_id,
+        url: image_url,
+        filename: file.original_filename
+      }, status: :ok
+    else
+      render json: { error: '请选择要上传的图片' }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def artwork_params

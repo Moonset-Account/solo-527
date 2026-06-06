@@ -26,11 +26,14 @@ class Payments::ProcessService < ApplicationService
         transaction_id: generate_transaction_id
       )
 
+      new_paid_amount = booking.paid_amount + @payment.amount
+      is_fully_paid = new_paid_amount >= booking.total_price
+
       booking.update!(
-        paid_amount: booking.paid_amount + @payment.amount,
-        payment_status: booking.fully_paid? ? :paid : :pending_payment,
-        status: booking.fully_paid? ? :paid : booking.status,
-        paid_at: booking.fully_paid? ? Time.current : booking.paid_at
+        paid_amount: new_paid_amount,
+        payment_status: is_fully_paid ? :paid : :pending_payment,
+        status: is_fully_paid ? :paid : booking.status,
+        paid_at: is_fully_paid ? Time.current : booking.paid_at
       )
 
       if booking.material_package

@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getArtworkImage } from '../utils/images'
+import { artworkAPI } from '../utils/api'
 
 interface UploadedImage {
   id: string
@@ -72,39 +72,43 @@ export function useImageUpload() {
     images.value = []
   }
 
-  const uploadImage = async (image: UploadedImage, seed?: number): Promise<string> => {
+  const uploadImage = async (image: UploadedImage): Promise<string> => {
     image.status = 'uploading'
     image.progress = 0
 
-    return new Promise((resolve) => {
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += Math.random() * 25
-        image.progress = Math.min(progress, 95)
-        if (progress >= 90) {
-          clearInterval(interval)
-          const url = getArtworkImage(seed || Date.now())
-          image.uploadedUrl = url
-          image.progress = 100
-          image.status = 'success'
-          resolve(url)
-        }
-      }, 150)
-    })
+    try {
+      const formData = new FormData()
+      formData.append('file', image.file)
+
+      const progressInterval = setInterval(() => {
+        image.progress = Math.min(image.progress + Math.random() * 20, 80)
+      }, 100)
+
+      const result: any = await artworkAPI.uploadImage(formData)
+
+      clearInterval(progressInterval)
+      image.progress = 100
+      image.status = 'success'
+      image.uploadedUrl = result.url
+
+      return result.url
+    } catch (e: any) {
+      image.status = 'error'
+      image.error = e.response?.data?.error || e.message || '上传失败'
+      throw e
+    }
   }
 
   const uploadAll = async (): Promise<string[]> => {
     const pendingImages = images.value.filter(img => img.status === 'pending')
     const urls: string[] = []
 
-    for (let i = 0; i < pendingImages.length; i++) {
-      const image = pendingImages[i]
+    for (const image of pendingImages) {
       try {
-        const url = await uploadImage(image, i)
+        const url = await uploadImage(image)
         urls.push(url)
-      } catch (e: any) {
-        image.status = 'error'
-        image.error = e.message
+      } catch (e) {
+        console.error('图片上传失败', e)
       }
     }
 

@@ -26,7 +26,7 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response: AxiosResponse) => {
-    return response
+    return response.data
   },
   (error) => {
     if (error.response?.status === 401) {
@@ -40,19 +40,19 @@ api.interceptors.response.use(
 
 export const request = {
   get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return api.get<any, T>(url, config)
+    return api.get(url, config) as unknown as Promise<T>
   },
 
   post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return api.post<any, T>(url, data, config)
+    return api.post(url, data, config) as unknown as Promise<T>
   },
 
   put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return api.put<any, T>(url, data, config)
+    return api.put(url, data, config) as unknown as Promise<T>
   },
 
   delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return api.delete<any, T>(url, config)
+    return api.delete(url, config) as unknown as Promise<T>
   }
 }
 

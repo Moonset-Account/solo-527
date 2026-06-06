@@ -66,7 +66,11 @@ export const artworkAPI = {
   approve: (id: number) => request.post<Artwork>(`/artworks/${id}/approve`),
   reject: (id: number, reason?: string) => request.post<Artwork>(`/artworks/${id}/reject`, { reason }),
   like: (id: number) => request.post<{ likes_count: number }>(`/artworks/${id}/like`),
-  incrementView: (id: number) => request.post(`/artworks/${id}/increment_view`)
+  incrementView: (id: number) => request.post(`/artworks/${id}/increment_view`),
+  uploadImage: (formData: FormData) =>
+    request.post<{ id: string; url: string; filename: string }>('/artworks/upload_image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
 }
 
 export const materialAPI = {

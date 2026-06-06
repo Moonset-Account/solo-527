@@ -132,9 +132,15 @@
                       </div>
                     </div>
                     <div v-if="session.material_package" class="mt-3 pt-3 border-t border-gray-100">
-                      <div class="text-xs text-amber-700 flex items-center">
+                      <div :class="['text-xs flex items-center', getMaterialAvailable(session) && getMaterialAvailable(session)! > 0 ? 'text-green-700' : 'text-red-600']">
                         <span class="mr-1">📦</span>
                         包含材料包：{{ session.material_package.name }}
+                        <span class="ml-2 font-bold">
+                          ({{ getMaterialAvailable(session) || 0 }} 份可用)
+                        </span>
+                      </div>
+                      <div v-if="getMaterialAvailable(session) === 0" class="text-xs text-red-600 mt-1">
+                        ⚠️ 材料包已售罄，暂不可报名
                       </div>
                     </div>
                   </button>
@@ -241,7 +247,18 @@ const formatTime = (dateStr: string) => {
 
 const sessionHasSlots = (session: CourseSession | null | undefined) => {
   if (!session || !course.value) return false
-  return session.registered_count < course.value.max_students
+  const hasSeats = session.registered_count < course.value.max_students
+  let hasMaterial = true
+  if (session.material_package) {
+    const available = session.material_package.stock_quantity - session.material_package.reserved_quantity
+    hasMaterial = available > 0
+  }
+  return hasSeats && hasMaterial
+}
+
+const getMaterialAvailable = (session: CourseSession | null | undefined) => {
+  if (!session?.material_package) return null
+  return session.material_package.stock_quantity - session.material_package.reserved_quantity
 }
 
 const selectSession = (session: CourseSession) => {
