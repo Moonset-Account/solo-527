@@ -9,7 +9,7 @@ export { leaveApi } from './leave'
 
 export const userApi = {
   getTeachers: (params?: any) =>
-    api.get('/accounts/teacher-profiles/', { params }),
+    api.get('/accounts/teachers/', { params }),
 }
 
 export const dashboardApi = {

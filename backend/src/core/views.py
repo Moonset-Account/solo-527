@@ -10,6 +10,7 @@ class DashboardOverviewView(APIView):
     def get(self, request):
         filters = {
             'class_id': request.query_params.get('class_id'),
+            'teacher_id': request.query_params.get('teacher_id'),
             'start_date': request.query_params.get('start_date'),
             'end_date': request.query_params.get('end_date'),
             'status': request.query_params.get('status'),
@@ -25,8 +26,10 @@ class DashboardPickupTrendView(APIView):
         days = int(request.query_params.get('days', 7))
         filters = {
             'class_id': request.query_params.get('class_id'),
+            'teacher_id': request.query_params.get('teacher_id'),
             'start_date': request.query_params.get('start_date'),
             'end_date': request.query_params.get('end_date'),
+            'status': request.query_params.get('status'),
         }
         data = DashboardService.get_pickup_trend(request.user, days, filters)
         return Response(data)
@@ -38,6 +41,10 @@ class DashboardClassUtilizationView(APIView):
     def get(self, request):
         filters = {
             'class_id': request.query_params.get('class_id'),
+            'teacher_id': request.query_params.get('teacher_id'),
+            'start_date': request.query_params.get('start_date'),
+            'end_date': request.query_params.get('end_date'),
+            'status': request.query_params.get('status'),
         }
         data = DashboardService.get_class_utilization(request.user, filters)
         return Response(data)
@@ -49,6 +56,7 @@ class DashboardStatusBreakdownView(APIView):
     def get(self, request):
         filters = {
             'class_id': request.query_params.get('class_id'),
+            'teacher_id': request.query_params.get('teacher_id'),
             'start_date': request.query_params.get('start_date'),
             'end_date': request.query_params.get('end_date'),
             'status': request.query_params.get('status'),
