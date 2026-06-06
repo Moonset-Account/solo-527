@@ -114,11 +114,21 @@
 									{new Date(record.handover_at).toLocaleString()}
 								</td>
 								<td>
-									<button
-										class="btn btn-outline text-xs"
-										style="padding: 0.25rem 0.5rem;"
-										on:click={() => goto(`/records/${record.id}`)}
-									>详情</button>
+									{#if record.status === 'temp_fail' || record.status === 'pending'}
+										<div class="flex gap-2">
+											<button
+												class="btn btn-warning text-xs"
+												style="padding: 0.25rem 0.5rem;"
+												on:click={() => goto(`/records/${record.id}`)}
+											>处理</button>
+										</div>
+									{:else}
+										<button
+											class="btn btn-outline text-xs"
+											style="padding: 0.25rem 0.5rem;"
+											on:click={() => goto(`/records/${record.id}`)}
+										>详情</button>
+									{/if}
 								</td>
 							</tr>
 						{/each}

@@ -79,9 +79,11 @@
 			} else if (result.temp_ok) {
 				success = '交接成功！';
 				refreshTrigger.update((n) => n + 1);
-				setTimeout(() => goto('/records'), 1500);
+				setTimeout(() => goto(`/records/${result.id}`), 1500);
 			} else {
-				error = '温度异常，交接未完成。请联系管理员处理。';
+				success = '已记录温度异常交接，请在详情页处理后续流程。';
+				refreshTrigger.update((n) => n + 1);
+				setTimeout(() => goto(`/records/${result.id}`), 2000);
 			}
 		} catch (e) {
 			error = e.message || '交接失败';
@@ -149,7 +151,7 @@
 				{#if showTempWarning}
 					<div class="alert alert-warning">
 						⚠️ 当前温度 ({form.check_temp}°C) 超出标准范围
-						({selectedBatch.temp_min}~{selectedBatch.temp_max}°C)，交接将无法完成
+						({selectedBatch.temp_min}~{selectedBatch.temp_max}°C)，交接记录将标记为「温度异常」
 					</div>
 				{/if}
 
@@ -201,8 +203,8 @@
 					</div>
 
 					<div class="flex gap-3 mt-6">
-						<button class="btn btn-success w-full" type="submit" disabled={submitting || showTempWarning}>
-							{submitting ? '提交中...' : '确认交接'}
+						<button class="btn {showTempWarning ? 'btn-warning' : 'btn-success'} w-full" type="submit" disabled={submitting}>
+							{submitting ? '提交中...' : (showTempWarning ? '确认交接（温度异常）' : '确认交接')}
 						</button>
 					</div>
 				</form>

@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import { authToken } from '../stores/auth';
+import { authToken, refreshTrigger } from '../stores/auth';
 import { OfflineCache, OfflineQueue, isOnline } from './offline';
 import type {
 	LoginRequest,
@@ -16,6 +16,8 @@ const API_BASE = '/api';
 
 export const offlineQueueCount = writable(OfflineQueue.count());
 export const online = writable(typeof navigator !== 'undefined' ? navigator.onLine : true);
+export const syncStatus = writable('idle');
+export const lastSyncTime = writable(null);
 
 if (typeof window !== 'undefined') {
 	window.addEventListener('online', () => {
@@ -88,12 +90,19 @@ function enqueueOffline(type: string, payload: any): void {
 		timestamp: Date.now()
 	});
 	offlineQueueCount.set(OfflineQueue.count());
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new CustomEvent('offline-enqueued', { detail: { type, count: OfflineQueue.count() } }));
+	}
 }
 
 export async function processOfflineQueue(): Promise<void> {
 	if (!isOnline()) return;
 
+	syncStatus.set('syncing');
+
 	let item = OfflineQueue.dequeue();
+	let syncedCount = 0;
+
 	while (item) {
 		try {
 			switch (item.type) {
@@ -122,14 +131,29 @@ export async function processOfflineQueue(): Promise<void> {
 					});
 					break;
 			}
+			syncedCount++;
 		} catch (e) {
 			console.error('Offline queue item failed:', e);
 			OfflineQueue.enqueue(item);
+			syncStatus.set('error');
 			break;
 		}
 		item = OfflineQueue.dequeue();
 	}
+
 	offlineQueueCount.set(OfflineQueue.count());
+	lastSyncTime.set(new Date());
+
+	if (OfflineQueue.count() === 0 && syncedCount > 0) {
+		syncStatus.set('synced');
+		refreshTrigger.update((n) => n + 1);
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent('offline-synced', { detail: { count: syncedCount } }));
+		}
+		setTimeout(() => syncStatus.set('idle'), 3000);
+	} else if (syncedCount === 0) {
+		syncStatus.set('idle');
+	}
 }
 
 export const api = {

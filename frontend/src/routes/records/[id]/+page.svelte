@@ -150,9 +150,34 @@
 			{/if}
 		</div>
 
+		{#if record.status === 'temp_fail'}
+			<div class="card mb-4" style="border-left: 4px solid var(--warning);">
+				<h3 class="font-semibold mb-3 text-warning">⚠️ 温度异常</h3>
+				<p class="text-sm text-gray-600 mb-3">
+					本次交接复核温度 ({record.check_temp}°C) 超出标准范围。
+					请点击下方按钮记录失败原因和处理方案。
+				</p>
+				<button class="btn btn-warning" on:click={openFailureModal}>
+					处理温度异常
+				</button>
+			</div>
+		{/if}
+
+		{#if record.status === 'pending'}
+			<div class="card mb-4" style="border-left: 4px solid var(--warning);">
+				<h3 class="font-semibold mb-3 text-warning">⏳ 待处理</h3>
+				<p class="text-sm text-gray-600 mb-3">
+					本次交接需要进一步处理。请记录失败原因和下一次复核时间。
+				</p>
+				<button class="btn btn-warning" on:click={openFailureModal}>
+					处理待处理交接
+				</button>
+			</div>
+		{/if}
+
 		{#if record.status === 'failed' || record.failure_reason}
 			<div class="card mb-4" style="border-left: 4px solid var(--danger);">
-				<h3 class="font-semibold mb-3 text-danger">失败处理记录</h3>
+				<h3 class="font-semibold mb-3 text-danger">✅ 失败处理记录</h3>
 				<div class="space-y-2">
 					<div class="flex-between">
 						<span class="text-gray-500 text-sm">失败原因</span>
@@ -166,20 +191,6 @@
 						<span class="text-gray-500 text-sm">下一次复核时间</span>
 						<span>{record.next_review_time ? new Date(record.next_review_time).toLocaleString() : '-'}</span>
 					</div>
-				</div>
-			</div>
-		{/if}
-
-		{#if record.status === 'temp_fail' || record.status === 'pending'}
-			<div class="card mb-4">
-				<div class="flex-between">
-					<div>
-						<h3 class="font-semibold">发放失败处理</h3>
-						<p class="text-sm text-gray-500 mt-1">记录失败原因、处理人和下一次复核时间</p>
-					</div>
-					<button class="btn btn-danger" on:click={openFailureModal}>
-						处理失败
-					</button>
 				</div>
 			</div>
 		{/if}

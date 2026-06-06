@@ -1,8 +1,9 @@
 <script>
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { user, drawerOpen, logout as logoutStore } from '$lib/stores/auth';
-	import { online, offlineQueueCount, processOfflineQueue } from '$lib/utils/api';
+	import { online, offlineQueueCount, processOfflineQueue, syncStatus } from '$lib/utils/api';
 	import AbnormalDrawer from './AbnormalDrawer.svelte';
 
 	const navItems = [
@@ -13,10 +14,26 @@
 		{ path: '/records', label: '交接记录', icon: 'records' }
 	];
 
+	let syncToast = '';
+
 	function handleLogout() {
 		logoutStore();
 		goto('/login');
 	}
+
+	onMount(() => {
+		const handleSynced = (e) => {
+			syncToast = `✅ 已同步 ${e.detail.count} 条离线数据`;
+			setTimeout(() => syncToast = '', 4000);
+		};
+		const handleEnqueued = (e) => {
+			syncToast = `💾 数据已保存到离线队列（共 ${e.detail.count} 条）`;
+			setTimeout(() => syncToast = '', 4000);
+		};
+
+		window.addEventListener('offline-synced', handleSynced);
+		window.addEventListener('offline-enqueued', handleEnqueued);
+	});
 </script>
 
 <div class="app-layout">
@@ -54,12 +71,32 @@
 				{/if}
 
 				{#if $offlineQueueCount > 0}
-					<button class="btn btn-warning header-btn" on:click={processOfflineQueue}>
-						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						队列 ({$offlineQueueCount})
+					<button 
+						class="btn {$syncStatus === 'syncing' ? 'btn-secondary' : 'btn-warning'} header-btn" 
+						on:click={processOfflineQueue}
+						disabled={$syncStatus === 'syncing'}
+					>
+						{#if $syncStatus === 'syncing'}
+							<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+							同步中...
+						{:else}
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							队列 ({$offlineQueueCount})
+						{/if}
 					</button>
+				{/if}
+
+				{#if $syncStatus === 'synced'}
+					<span class="badge badge-success">
+						<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+						</svg>
+						已同步
+					</span>
 				{/if}
 
 				<button class="btn btn-outline header-btn" on:click={() => drawerOpen.set(true)}>
@@ -77,6 +114,12 @@
 			</div>
 		</div>
 	</header>
+
+	{#if syncToast}
+		<div class="sync-toast">
+			{syncToast}
+		</div>
+	{/if}
 
 	<main class="main-content">
 		<slot />
@@ -186,6 +229,45 @@
 	@media (max-width: 1024px) {
 		.nav {
 			display: none;
+		}
+	}
+
+	.sync-toast {
+		position: fixed;
+		top: 80px;
+		right: 24px;
+		background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+		color: white;
+		padding: 0.875rem 1.25rem;
+		border-radius: 0.75rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		box-shadow: 0 10px 25px rgba(22, 163, 74, 0.3);
+		z-index: 100;
+		animation: slideIn 0.3s ease-out;
+	}
+
+	@keyframes slideIn {
+		from {
+			transform: translateX(100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateX(0);
+			opacity: 1;
+		}
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
 		}
 	}
 </style>
