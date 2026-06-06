@@ -69,6 +69,9 @@ async function getCategoryStats(
   if (filters.supplierIds?.length) {
     inventoryWhere.supplierId = { in: filters.supplierIds };
   }
+  if (filters.batchIds?.length) {
+    inventoryWhere.batchId = { in: filters.batchIds };
+  }
 
   const [inventories, losses, promos] = await Promise.all([
     prisma.factInventory.findMany({

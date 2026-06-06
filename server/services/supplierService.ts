@@ -18,6 +18,9 @@ export async function getSupplierRanking(filters: FilterParams): Promise<Supplie
   if (filters.supplierIds?.length) {
     inventoryWhere.supplierId = { in: filters.supplierIds };
   }
+  if (filters.batchIds?.length) {
+    inventoryWhere.batchId = { in: filters.batchIds };
+  }
 
   const suppliers = await prisma.dimSupplier.findMany();
 

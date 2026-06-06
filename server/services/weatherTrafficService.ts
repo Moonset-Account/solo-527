@@ -19,13 +19,25 @@ export async function getWeatherTrafficAnalysis(filters: FilterParams): Promise<
     orderBy: { dateId: 'asc' },
   });
 
+  const lossWhere: any = {
+    lossDate: { gte: startDate, lte: endDate },
+    ...(filters.storeIds?.length
+      ? { inventory: { storeId: { in: filters.storeIds } } }
+      : {}),
+  };
+  
+  if (filters.batchIds?.length) {
+    lossWhere.inventory = { ...lossWhere.inventory, batchId: { in: filters.batchIds } };
+  }
+  if (filters.supplierIds?.length) {
+    lossWhere.inventory = { ...lossWhere.inventory, supplierId: { in: filters.supplierIds } };
+  }
+  if (filters.categoryIds?.length) {
+    lossWhere.inventory = { ...lossWhere.inventory, product: { categoryId: { in: filters.categoryIds } } };
+  }
+
   const lossData = await prisma.factLoss.findMany({
-    where: {
-      lossDate: { gte: startDate, lte: endDate },
-      ...(filters.storeIds?.length
-        ? { inventory: { storeId: { in: filters.storeIds } } }
-        : {}),
-    },
+    where: lossWhere,
     include: { inventory: true },
   });
 

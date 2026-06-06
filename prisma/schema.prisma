@@ -42,14 +42,11 @@ model DimSupplier {
 }
 
 model DimDate {
-  dateId     DateTime          @id @map("date_id") @db.Date
-  year       Int
-  month      Int
-  week       Int
-  isHoliday  Boolean          @map("is_holiday")
-  inventories FactInventory[]  @relation("InventoryReceiveDate")
-  lossRecords FactLoss[]
-  traffic     FactDailyTraffic[]
+  dateId    DateTime  @id @map("date_id") @db.Date
+  year      Int
+  month     Int
+  week      Int
+  isHoliday Boolean   @map("is_holiday")
 
   @@map("dim_date")
 }

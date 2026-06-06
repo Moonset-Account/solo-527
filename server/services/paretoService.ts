@@ -29,6 +29,9 @@ export async function getParetoData(
       product: { categoryId: { in: filters.categoryIds } } 
     };
   }
+  if (filters.batchIds?.length) {
+    lossWhere.inventory = { ...lossWhere.inventory, batchId: { in: filters.batchIds } };
+  }
 
   const losses = await prisma.factLoss.findMany({
     where: lossWhere,
