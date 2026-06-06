@@ -1,0 +1,64 @@
+import api from './index'
+
+export const getOrders = (params) => api.get('/orders', { params })
+export const getOrderDetail = (id) => api.get(`/orders/${id}`)
+export const updateOrder = (id, data) => api.put(`/orders/${id}`, data)
+export const cutoffOrders = (data) => api.post('/orders/cutoff', data)
+export const getCutoffReminder = () => api.get('/orders/cutoff-reminder')
+
+export const getShortages = (params) => api.get('/shortages', { params })
+export const createShortage = (data) => api.post('/shortages', data)
+export const proposeReplace = (id, data) => api.post(`/shortages/${id}/replace`, data)
+export const completeShortage = (id) => api.post(`/shortages/${id}/complete`)
+
+export const getRefunds = (params) => api.get('/refunds', { params })
+export const approveRefund = (id, data) => api.post(`/refunds/${id}/approve`, data)
+export const rejectRefund = (id, data) => api.post(`/refunds/${id}/reject`, data)
+export const completeRefund = (id) => api.post(`/refunds/${id}/complete`)
+
+export const getSortingBags = (params) => api.get('/sorting/bags', { params })
+export const getSortingBag = (id) => api.get(`/sorting/bags/${id}`)
+export const createSortingBag = (data) => api.post('/sorting/bags', data)
+export const addOrderToBag = (bagId, data) => api.post(`/sorting/bags/${bagId}/add-order`, data)
+export const removeBagItem = (bagId, itemId) => api.delete(`/sorting/bags/${bagId}/remove-item/${itemId}`)
+export const checkBagItem = (bagId, itemId, data) => api.post(`/sorting/bags/${bagId}/check-item/${itemId}`, data)
+export const packBag = (id, data) => api.post(`/sorting/bags/${id}/pack`, data)
+export const completeBag = (id) => api.post(`/sorting/bags/${id}/complete`)
+export const getBuildingSortingSummary = () => api.get('/sorting/building-summary')
+
+export const getPendingPickup = (params) => api.get('/pickup/pending', { params })
+export const verifyPickup = (data) => api.post('/pickup/verify', data)
+export const confirmPickup = (data) => api.post('/pickup/confirm', data)
+export const getPickupRecords = (params) => api.get('/pickup/records', { params })
+
+export const getAdminProducts = (params) => api.get('/products', { params })
+export const createProduct = (data) => api.post('/products', data)
+export const updateProduct = (id, data) => api.put(`/products/${id}`, data)
+export const deleteProduct = (id) => api.delete(`/products/${id}`)
+export const getProductCategories = () => api.get('/products/categories')
+export const getAdminBuildings = (params) => api.get('/buildings', { params })
+export const getBuildings = getAdminBuildings
+export const createBuilding = (data) => api.post('/buildings', data)
+export const updateBuilding = (id, data) => api.put(`/buildings/${id}`, data)
+export const deleteBuilding = (id) => api.delete(`/buildings/${id}`)
+export const getUsers = (params) => api.get('/users', { params })
+export const createUser = (data) => api.post('/users', data)
+export const updateUser = (id, data) => api.put(`/users/${id}`, data)
+export const deleteUser = (id) => api.delete(`/users/${id}`)
+
+export const exportOrders = (params) => {
+  window.open(`/api/exports/orders?${new URLSearchParams(params).toString()}`, '_blank')
+}
+export const exportSorting = (buildingId) => {
+  window.open(`/api/exports/sorting/${buildingId}`, '_blank')
+}
+export const exportRefunds = (params) => {
+  window.open(`/api/exports/refunds?${new URLSearchParams(params).toString()}`, '_blank')
+}
+export const exportShortages = (params) => {
+  window.open(`/api/exports/shortages?${new URLSearchParams(params).toString()}`, '_blank')
+}
+
+export const getSavedFilters = (params) => api.get('/filters', { params })
+export const saveFilter = (data) => api.post('/filters', data)
+export const deleteFilter = (id) => api.delete(`/filters/${id}`)

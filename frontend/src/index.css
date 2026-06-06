@@ -1,0 +1,97 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.page-container {
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.filter-section {
+  background: #fff;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.table-section {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-pending { background: #fff7e6; color: #fa8c16; }
+.status-confirmed { background: #e6f7ff; color: #1890ff; }
+.status-sorting { background: #f9f0ff; color: #722ed1; }
+.status-sorted { background: #e6fffb; color: #13c2c2; }
+.status-picked { background: #f6ffed; color: #52c41a; }
+.status-cancelled { background: #f5f5f5; color: #8c8c8c; }
+.status-refunded { background: #fff1f0; color: #f5222d; }
+.status-approved { background: #f6ffed; color: #52c41a; }
+.status-rejected { background: #fff1f0; color: #f5222d; }
+.status-completed { background: #f6ffed; color: #52c41a; }
+
+.product-card {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.login-container {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 32px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.login-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 32px;
+  color: #52c41a;
+}
+
+.cart-float {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
