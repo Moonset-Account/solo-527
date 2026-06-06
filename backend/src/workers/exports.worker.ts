@@ -7,6 +7,8 @@ import { DataSource } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Quote } from '../entities/quote.entity';
 import { Demand } from '../entities/demand.entity';
+import { Contract } from '../entities/contract.entity';
+import { Between, Like } from 'typeorm';
 import { ExportData } from '../queues/export.queue.service';
 
 dotenv.config();
@@ -109,8 +111,19 @@ const worker = new Worker(
 
 async function generateProfitReport(data: ExportData, objectName: string): Promise<string> {
   const quoteRepo = dataSource.getRepository(Quote);
+  const where: any = { status: 'approved' as any };
+
+  if (data.filters) {
+    if (data.filters.startDate && data.filters.endDate) {
+      where.createdAt = Between(new Date(data.filters.startDate), new Date(data.filters.endDate));
+    }
+    if (data.filters.createdById) {
+      where.createdById = data.filters.createdById;
+    }
+  }
+
   const quotes = await quoteRepo.find({
-    where: { status: 'approved' as any },
+    where,
     relations: ['demand', 'createdBy'],
     order: { createdAt: 'DESC' },
   });
@@ -134,10 +147,28 @@ async function generateProfitReport(data: ExportData, objectName: string): Promi
 
 async function generateDemandList(data: ExportData, objectName: string): Promise<string> {
   const demandRepo = dataSource.getRepository(Demand);
+  const where: any = {};
+
+  if (data.filters) {
+    if (data.filters.status) {
+      where.status = data.filters.status;
+    }
+    if (data.filters.assigneeId) {
+      where.assigneeId = data.filters.assigneeId;
+    }
+    if (data.filters.keyword) {
+      where.customerName = Like(`%${data.filters.keyword}%`);
+    }
+    if (data.filters.startDate && data.filters.endDate) {
+      where.createdAt = Between(new Date(data.filters.startDate), new Date(data.filters.endDate));
+    }
+  }
+
   const demands = await demandRepo.find({
+    where,
     relations: ['assignee'],
     order: { createdAt: 'DESC' },
-    take: 100,
+    take: 1000,
   });
 
   const headers = ['需求ID', '客户姓名', '联系电话', '出发日期', '返程日期', '天数', '人数', '成人', '儿童', '状态', '负责人', '创建时间'];
@@ -171,10 +202,28 @@ async function generateDemandList(data: ExportData, objectName: string): Promise
 
 async function generateQuoteList(data: ExportData, objectName: string): Promise<string> {
   const quoteRepo = dataSource.getRepository(Quote);
+  const where: any = {};
+
+  if (data.filters) {
+    if (data.filters.status) {
+      where.status = data.filters.status;
+    }
+    if (data.filters.demandId) {
+      where.demandId = data.filters.demandId;
+    }
+    if (data.filters.createdById) {
+      where.createdById = data.filters.createdById;
+    }
+    if (data.filters.startDate && data.filters.endDate) {
+      where.createdAt = Between(new Date(data.filters.startDate), new Date(data.filters.endDate));
+    }
+  }
+
   const quotes = await quoteRepo.find({
+    where,
     relations: ['demand', 'createdBy', 'items'],
     order: { createdAt: 'DESC' },
-    take: 100,
+    take: 1000,
   });
 
   const headers = ['报价ID', '版本', '客户姓名', '报价项数', '总金额(元)', '总成本(元)', '利润(元)', '毛利率(%)', '需主管审批', '状态', '创建人', '创建时间'];
@@ -207,11 +256,45 @@ async function generateQuoteList(data: ExportData, objectName: string): Promise<
 }
 
 async function generateContractList(data: ExportData, objectName: string): Promise<string> {
-  const csvContent = [
-    '合同ID,关联报价,客户姓名,金额(元),状态,创建时间',
-    'C001,Q001,张三,15000.00,已签署,2024-01-15 10:30:00',
-    'C002,Q002,李四,28000.00,待签署,2024-01-20 14:20:00',
-  ].join('\n');
+  const contractRepo = dataSource.getRepository(Contract);
+  const where: any = {};
+
+  if (data.filters) {
+    if (data.filters.status) {
+      where.status = data.filters.status;
+    }
+    if (data.filters.startDate && data.filters.endDate) {
+      where.createdAt = Between(new Date(data.filters.startDate), new Date(data.filters.endDate));
+    }
+  }
+
+  const contracts = await contractRepo.find({
+    where,
+    relations: ['quote', 'quote.demand'],
+    order: { createdAt: 'DESC' },
+    take: 1000,
+  });
+
+  const headers = ['合同ID', '关联报价ID', '客户姓名', '合同金额(元)', '状态', '签署文件', '创建时间'];
+  const statusMap: Record<string, string> = {
+    draft: '草稿',
+    pending: '待审批',
+    approved: '已通过',
+    rejected: '已拒绝',
+    signed: '已签署',
+  };
+
+  const rows = contracts.map((c) => [
+    c.id.slice(0, 8),
+    c.quoteId?.slice(0, 8) || '-',
+    c.quote?.demand?.customerName || '-',
+    Number(c.quote?.totalPrice || 0).toFixed(2),
+    statusMap[c.status] || c.status,
+    c.signedFileUrl || '-',
+    new Date(c.createdAt).toLocaleString('zh-CN'),
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
   return uploadBuffer(buffer, objectName, 'text/csv; charset=utf-8');
 }

@@ -23,8 +23,8 @@ export class DashboardController {
 
   @Get('resource-utilization')
   @ApiOperation({ summary: '资源利用率' })
-  async getResourceUtilization() {
-    return this.dashboardService.getResourceUtilization();
+  async getResourceUtilization(@Query() query: any) {
+    return this.dashboardService.getResourceUtilization(query);
   }
 
   @Get('process-stuck')

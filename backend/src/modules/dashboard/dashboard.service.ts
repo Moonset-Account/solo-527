@@ -24,7 +24,7 @@ export class DashboardService {
   ) {}
 
   async getOverview(query: any) {
-    const { startDate, endDate, assigneeId } = query;
+    const { startDate, endDate, assigneeId, status, quoteStatus } = query;
     const now = new Date();
 
     const demandWhere: any = {};
@@ -34,6 +34,9 @@ export class DashboardService {
     if (assigneeId) {
       demandWhere.assigneeId = assigneeId;
     }
+    if (status) {
+      demandWhere.status = status;
+    }
 
     const totalDemands = await this.demandRepository.count({ where: demandWhere });
     const pendingDemands = await this.demandRepository.count({ where: { ...demandWhere, status: 'pending' } });
@@ -41,21 +44,35 @@ export class DashboardService {
     const confirmedDemands = await this.demandRepository.count({ where: { ...demandWhere, status: 'confirmed' } });
 
     const quoteWhere: any = {};
+    if (startDate && endDate) {
+      quoteWhere.createdAt = Between(new Date(startDate), new Date(endDate));
+    }
     if (assigneeId) {
       quoteWhere.createdById = assigneeId;
+    }
+    if (quoteStatus) {
+      quoteWhere.status = quoteStatus;
     }
     const totalQuotes = await this.quoteRepository.count({ where: quoteWhere });
     const pendingApprovalQuotes = await this.quoteRepository.count({ where: { ...quoteWhere, status: 'pending_approval' } });
     const approvedQuotes = await this.quoteRepository.count({ where: { ...quoteWhere, status: 'approved' } });
 
-    const totalContracts = await this.contractRepository.count();
-    const pendingContracts = await this.contractRepository.count({ where: { status: 'pending' } });
+    const contractWhere: any = {};
+    if (startDate && endDate) {
+      contractWhere.createdAt = Between(new Date(startDate), new Date(endDate));
+    }
+    const totalContracts = await this.contractRepository.count({ where: contractWhere });
+    const pendingContracts = await this.contractRepository.count({ where: { ...contractWhere, status: 'pending' } });
 
+    const overdueWhere: any = {
+      status: 'quoting',
+      travelStart: LessThan(now),
+    };
+    if (assigneeId) {
+      overdueWhere.assigneeId = assigneeId;
+    }
     const overdueTasks = await this.demandRepository.find({
-      where: {
-        status: 'quoting',
-        travelStart: LessThan(now),
-      },
+      where: overdueWhere,
       relations: ['assignee'],
       take: 10,
     });
@@ -102,14 +119,24 @@ export class DashboardService {
     return { data, total, page, pageSize };
   }
 
-  async getResourceUtilization() {
+  async getResourceUtilization(query: any = {}) {
+    const { startDate, endDate } = query;
+
     const users = await this.userRepository.find({
       where: { role: 'product' },
     });
 
-    const now = dayjs();
-    const startOfMonth = now.startOf('month').toDate();
-    const endOfMonth = now.endOf('month').toDate();
+    let startOfRange: Date;
+    let endOfRange: Date;
+
+    if (startDate && endDate) {
+      startOfRange = new Date(startDate);
+      endOfRange = new Date(endDate);
+    } else {
+      const now = dayjs();
+      startOfRange = now.startOf('month').toDate();
+      endOfRange = now.endOf('month').toDate();
+    }
 
     const utilization = [];
 
@@ -117,7 +144,7 @@ export class DashboardService {
       const assignedCount = await this.demandRepository.count({
         where: {
           assigneeId: user.id,
-          createdAt: Between(startOfMonth, endOfMonth),
+          createdAt: Between(startOfRange, endOfRange),
         },
       });
 
@@ -125,7 +152,7 @@ export class DashboardService {
         where: {
           assigneeId: user.id,
           status: 'confirmed',
-          updatedAt: Between(startOfMonth, endOfMonth),
+          updatedAt: Between(startOfRange, endOfRange),
         },
       });
 
