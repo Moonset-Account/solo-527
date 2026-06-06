@@ -1,0 +1,216 @@
+{
+  "dashboard_title": "仓库SKU周转与滞销分析工作台",
+  "description": "供应链分析师日常复盘使用，支持库存、库龄、周转、补货、异常预警的综合分析",
+  "css": "",
+  "position_json": {
+    "GLOBAL_FILTERS": {
+      "type": "FILTER_BOX",
+      "id": "GLOBAL_FILTERS",
+      "children": [],
+      "meta": {
+        "width": 24,
+        "height": 12,
+        "background": "BACKGROUND_TRANSPARENT"
+      }
+    },
+    "CHART_INVENTORY_FUNNEL": {
+      "type": "CHART",
+      "id": "CHART_INVENTORY_FUNNEL",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 1,
+        "sliceName": "库存漏斗分析"
+      }
+    },
+    "CHART_AGE_DISTRIBUTION": {
+      "type": "CHART",
+      "id": "CHART_AGE_DISTRIBUTION",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 2,
+        "sliceName": "库龄分布"
+      }
+    },
+    "CHART_TURNOVER_RANKING": {
+      "type": "CHART",
+      "id": "CHART_TURNOVER_RANKING",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 35,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 3,
+        "sliceName": "周转排行榜"
+      }
+    },
+    "CHART_REPLENISHMENT": {
+      "type": "CHART",
+      "id": "CHART_REPLENISHMENT",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 35,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 4,
+        "sliceName": "补货建议清单"
+      }
+    },
+    "CHART_INVENTORY_TREND": {
+      "type": "CHART",
+      "id": "CHART_INVENTORY_TREND",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 5,
+        "sliceName": "库存趋势（近30天）"
+      }
+    },
+    "CHART_EXPIRY_ALERT": {
+      "type": "CHART",
+      "id": "CHART_EXPIRY_ALERT",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 6,
+        "sliceName": "近效期预警"
+      }
+    },
+    "CHART_SLOW_MOVING": {
+      "type": "CHART",
+      "id": "CHART_SLOW_MOVING",
+      "children": [],
+      "meta": {
+        "width": 24,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 7,
+        "sliceName": "滞销SKU明细"
+      }
+    },
+    "CHART_SUPPLIER_ANALYSIS": {
+      "type": "CHART",
+      "id": "CHART_SUPPLIER_ANALYSIS",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 8,
+        "sliceName": "供应商供货分析"
+      }
+    },
+    "CHART_RETURN_ANALYSIS": {
+      "type": "CHART",
+      "id": "CHART_RETURN_ANALYSIS",
+      "children": [],
+      "meta": {
+        "width": 12,
+        "height": 30,
+        "background": "BACKGROUND_TRANSPARENT",
+        "chartId": 9,
+        "sliceName": "退货原因分析"
+      }
+    }
+  },
+  "metadata": {
+    "native_filter_configuration": [
+      {
+        "id": "filter_date_range",
+        "name": "日期范围",
+        "filterType": "filter_time",
+        "targets": [
+          {"datasetId": 1, "column": {"name": "snapshot_date"}},
+          {"datasetId": 2, "column": {"name": "snapshot_date"}},
+          {"datasetId": 3, "column": {"name": "snapshot_date"}},
+          {"datasetId": 4, "column": {"name": "snapshot_date"}},
+          {"datasetId": 5, "column": {"name": "snapshot_date"}},
+          {"datasetId": 6, "column": {"name": "snapshot_date"}}
+        ],
+        "defaultValue": "Last 30 days",
+        "controlValues": {"time_range": "Last 30 days"},
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "isInstant": true
+      },
+      {
+        "id": "filter_warehouse",
+        "name": "仓库",
+        "filterType": "filter_select",
+        "targets": [
+          {"datasetId": 1, "column": {"name": "warehouse_code"}},
+          {"datasetId": 2, "column": {"name": "warehouse_code"}},
+          {"datasetId": 3, "column": {"name": "warehouse_code"}},
+          {"datasetId": 4, "column": {"name": "warehouse_code"}},
+          {"datasetId": 5, "column": {"name": "warehouse_code"}},
+          {"datasetId": 6, "column": {"name": "warehouse_code"}}
+        ],
+        "defaultValue": null,
+        "controlValues": {
+          "multiSelect": true,
+          "enableEmptyFilter": false,
+          "defaultToFirstItem": false
+        },
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "isInstant": true
+      },
+      {
+        "id": "filter_category",
+        "name": "商品分类",
+        "filterType": "filter_select",
+        "targets": [
+          {"datasetId": 1, "column": {"name": "category_l1"}},
+          {"datasetId": 2, "column": {"name": "category_l1"}},
+          {"datasetId": 3, "column": {"name": "category_l1"}},
+          {"datasetId": 4, "column": {"name": "category_l1"}},
+          {"datasetId": 5, "column": {"name": "category_l1"}},
+          {"datasetId": 6, "column": {"name": "category_l1"}}
+        ],
+        "defaultValue": null,
+        "controlValues": {
+          "multiSelect": true,
+          "enableEmptyFilter": false,
+          "defaultToFirstItem": false
+        },
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "isInstant": true
+      },
+      {
+        "id": "filter_sku",
+        "name": "SKU搜索",
+        "filterType": "filter_select",
+        "targets": [
+          {"datasetId": 1, "column": {"name": "sku_code"}},
+          {"datasetId": 2, "column": {"name": "sku_code"}},
+          {"datasetId": 3, "column": {"name": "sku_code"}},
+          {"datasetId": 4, "column": {"name": "sku_code"}},
+          {"datasetId": 5, "column": {"name": "sku_code"}},
+          {"datasetId": 6, "column": {"name": "sku_code"}}
+        ],
+        "defaultValue": null,
+        "controlValues": {
+          "multiSelect": true,
+          "enableEmptyFilter": false,
+          "defaultToFirstItem": false,
+          "searchAllOptions": true
+        },
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "isInstant": true
+      }
+    ],
+    "cross_filters_enabled": true,
+    "global_chart_configuration": {
+      "scope": {rootPath: ["ROOT_ID"], excluded: []},
+      "chartsInScope": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    }
+  },
+  "version": "1.0.0"
+}
