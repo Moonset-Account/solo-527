@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
-import { get, post } from '../api'
+import { get, post, download } from '../api'
 import type { DashboardStats, CleaningTask, MaintenanceOrder, PaginatedResponse, User } from '../types'
 
 const { RangePicker } = DatePicker
@@ -132,8 +132,7 @@ const Dashboard: React.FC = () => {
         end_date: dateRange[1].format('YYYY-MM-DD'),
       }
       if (cleanerFilter) params.cleaner_id = cleanerFilter
-      const data = await get('/reports/export/cost', { params, responseType: 'blob' })
-      const blob = new Blob([data as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const blob = await download('/reports/export/cost', { params })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
       link.setAttribute('href', url)
@@ -141,6 +140,7 @@ const Dashboard: React.FC = () => {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(url)
       message.success('导出成功')
     } catch (e) {
       message.error('导出失败')

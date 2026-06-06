@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { message } from 'antd'
 import type { ApiResponse as IApiResponse } from '../types'
+import { useAuthStore } from '../store/auth'
 
 const api = axios.create({
   baseURL: '/api',
@@ -9,7 +10,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -42,6 +43,11 @@ api.interceptors.response.use(
 export async function get<T = any>(url: string, config?: any): Promise<T> {
   const res = await api.get<any, IApiResponse<T>>(url, config)
   return res.data
+}
+
+export async function download(url: string, config?: any): Promise<Blob> {
+  const res = await api.get(url, { ...config, responseType: 'blob' })
+  return res as unknown as Blob
 }
 
 export async function post<T = any>(url: string, data?: any, config?: any): Promise<T> {

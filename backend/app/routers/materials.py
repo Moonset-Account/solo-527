@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, Query, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
@@ -111,9 +111,9 @@ def create_material_usage(
 @router.post("/api/attachments/upload")
 async def upload_attachment(
     file: UploadFile = File(...),
-    cleaning_task_id: Optional[int] = None,
-    maintenance_order_id: Optional[int] = None,
-    purpose: AttachmentPurpose = AttachmentPurpose.OTHER,
+    cleaning_task_id: Optional[int] = Form(None),
+    maintenance_order_id: Optional[int] = Form(None),
+    purpose: AttachmentPurpose = Form(AttachmentPurpose.OTHER),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):

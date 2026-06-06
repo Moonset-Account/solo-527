@@ -2,7 +2,7 @@ import { Card, Row, Col, Statistic, Table, DatePicker, Select, Space, Button, me
 import { DollarOutlined, TeamOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
-import { get } from '../api'
+import { get, download } from '../api'
 import type { CleanerPerformance } from '../types'
 
 const { RangePicker } = DatePicker
@@ -35,10 +35,24 @@ const Reports: React.FC = () => {
 
   const handleExportCost = async () => {
     try {
-      const url = `/api/reports/export/cost?start_date=${dateRange[0].format('YYYY-MM-DD')}&end_date=${dateRange[1].format('YYYY-MM-DD')}`
-      window.open(url, '_blank')
-      message.success('正在导出...')
-    } catch (e) {}
+      const blob = await download('/reports/export/cost', {
+        params: {
+          start_date: dateRange[0].format('YYYY-MM-DD'),
+          end_date: dateRange[1].format('YYYY-MM-DD'),
+        },
+      })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `成本报表_${dayjs().format('YYYYMMDD')}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      message.success('导出成功')
+    } catch (e) {
+      message.error('导出失败')
+    }
   }
 
   const performanceColumns = [

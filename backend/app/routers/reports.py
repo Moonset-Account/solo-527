@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.core.exceptions import BusinessException
-from app.models import Notification, User, UserRole
+from app.models import Notification, User, UserRole, CleaningTask
 from app.schemas.material import NotificationResponse
 from app.schemas.common import ApiResponse, PaginatedResponse, DashboardStats, CleanerPerformanceItem, ReportQuery
 from app.services.maintenance_service import ReportService
@@ -113,6 +113,7 @@ def get_cleaner_performance(
 def export_cost_report(
     start_date: date = Query(...),
     end_date: date = Query(...),
+    cleaner_id: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -127,13 +128,19 @@ def export_cost_report(
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
 
-    material_usages = db.query(MaterialUsage).filter(
+    material_query = db.query(MaterialUsage).filter(
         MaterialUsage.created_at.between(start_dt, end_dt)
-    ).all()
+    )
+    if cleaner_id:
+        material_query = material_query.join(CleaningTask).filter(
+            CleaningTask.cleaner_id == cleaner_id
+        )
+    material_usages = material_query.all()
 
-    maintenance_costs = db.query(MaintenanceOrder).filter(
+    maintenance_query = db.query(MaintenanceOrder).filter(
         MaintenanceOrder.completed_at.between(start_dt, end_dt)
-    ).all()
+    )
+    maintenance_costs = maintenance_query.all()
 
     data = []
     for mu in material_usages:
