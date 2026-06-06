@@ -5,93 +5,173 @@
 {% block page_title %}报表导出{% endblock %}
 
 {% block content %}
-<div class="data-grid">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">📝 生成报表</h3>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-            <label class="label">报表类型</label>
-            <select class="form-select">
-                <option value="loss_summary">损耗汇总报表</option>
-                <option value="loss_detail">损耗明细报表</option>
-                <option value="store_ranking">门店排行报表</option>
-                <option value="material_analysis">原料分析报表</option>
-            </select>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-            <div>
-                <label class="label">开始日期</label>
-                <input type="date" class="form-control" value="2024-01-01">
+<div x-data="reportsPage">
+    <div class="data-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📝 生成报表</h3>
             </div>
-            <div>
-                <label class="label">结束日期</label>
-                <input type="date" class="form-control" value="2024-01-31">
+
+            <div style="margin-bottom: 20px;">
+                <label class="label">报表类型</label>
+                <select class="form-select" x-model="reportType">
+                    <option value="loss_summary">损耗汇总报表</option>
+                    <option value="loss_detail">损耗明细报表</option>
+                    <option value="store_ranking">门店排行报表</option>
+                    <option value="material_analysis">原料分析报表</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                <div>
+                    <label class="label">开始日期</label>
+                    <input type="date" class="form-control" x-model="startDate">
+                </div>
+                <div>
+                    <label class="label">结束日期</label>
+                    <input type="date" class="form-control" x-model="endDate">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="label">数据范围</label>
+                <select class="form-select">
+                    <option>全部门店</option>
+                    <option>华东区域</option>
+                    <option>仅本店</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" x-model="excludeTrial" style="width: 18px; height: 18px;">
+                    <span style="font-size: 14px; font-weight: 500; color: #92400E;">
+                        🆕 排除试营原料（报表将注明"已排除试营原料数据"）
+                    </span>
+                </label>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; justify-content: center;" 
+                    @click="generateReport"
+                    :disabled="generating">
+                <span x-show="generating">⏳ 生成中...</span>
+                <span x-show="!generating">🚀 生成报表</span>
+            </button>
+
+            <div x-show="generateResult" style="margin-top: 16px; padding: 12px; border-radius: 4px; background: #D5F5E3; color: #27AE60;">
+                <strong>✅ 报表生成成功！</strong>
+                <p style="margin-top: 8px;">
+                    <a :href="generateResult.download_url" class="btn btn-success" style="text-decoration: none; color: white;" target="_blank">
+                        📥 立即下载 <span x-text="generateResult.file_name"></span>
+                    </a>
+                </p>
             </div>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <label class="label">数据范围</label>
-            <select class="form-select">
-                <option>全部门店</option>
-                <option>华东区域</option>
-                <option>仅本店</option>
-            </select>
-        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📥 导出记录</h3>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 12px;" @click="loadReports">
+                    🔄 刷新
+                </button>
+            </div>
 
-        <div style="margin-bottom: 24px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" checked style="width: 18px; height: 18px;">
-                <span style="font-size: 14px; font-weight: 500; color: #92400E;">
-                    🆕 排除试营原料（报表将注明"已排除试营原料数据"）
-                </span>
-            </label>
-        </div>
-
-        <button class="btn btn-primary" style="width: 100%; justify-content: center;">
-            🚀 生成报表
-        </button>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">📥 导出记录</h3>
-        </div>
-
-        <ul class="ranking-list">
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">损耗汇总报表_202401.xlsx</div>
-                    <div class="ranking-sub">
-                        admin | 2024-01-15 15:30
-                        <span class="badge badge-trial" style="margin-left: 8px;">已排除试营</span>
+            <ul class="ranking-list">
+                <li class="ranking-item" x-for="report in reportList" :key="report.id">
+                    <div class="ranking-info" style="flex: 1;">
+                        <div class="ranking-name" x-text="report.file_name || report.report_type"></div>
+                        <div class="ranking-sub">
+                            <span x-text="report.created_at"></span>
+                            <span class="badge" 
+                                  :class="report.exclude_trial ? 'badge-trial' : 'badge-warning'" 
+                                  style="margin-left: 8px;">
+                                <span x-text="report.exclude_trial ? '已排除试营' : '包含试营'"></span>
+                            </span>
+                        </div>
                     </div>
-                </div>
-                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
-            </li>
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">门店排行报表_202401.xlsx</div>
-                    <div class="ranking-sub">
-                        admin | 2024-01-10 10:15
-                        <span class="badge badge-warning" style="margin-left: 8px;">包含试营</span>
-                    </div>
-                </div>
-                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
-            </li>
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">损耗明细报表_202401.xlsx</div>
-                    <div class="ranking-sub">
-                        admin | 2024-01-08 09:45
-                        <span class="badge badge-trial" style="margin-left: 8px;">已排除试营</span>
-                    </div>
-                </div>
-                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
-            </li>
-        </ul>
+                    <template x-if="report.download_url && report.status === 'completed'">
+                        <a :href="report.download_url" class="btn btn-outline" style="font-size: 12px; padding: 4px 10px; text-decoration: none;" target="_blank">
+                            下载
+                        </a>
+                    </template>
+                    <span x-show="report.status === 'processing'" class="badge badge-warning">生成中</span>
+                </li>
+                <li x-show="reportList.length === 0" class="empty-state">
+                    <div class="icon">📋</div>
+                    <div>暂无导出记录</div>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('reportsPage', function() {
+        return {
+            reportType: 'loss_summary',
+            startDate: '',
+            endDate: '',
+            excludeTrial: false,
+            generating: false,
+            generateResult: null,
+            reportList: [],
+
+            init() {
+                const range = getDateRange(30);
+                this.startDate = range.startDate;
+                this.endDate = range.endDate;
+                this.loadReports();
+            },
+
+            async generateReport() {
+                this.generating = true;
+                this.generateResult = null;
+                
+                try {
+                    const response = await fetch('/api/v1/reports/generate/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            report_type: this.reportType,
+                            start_date: this.startDate,
+                            end_date: this.endDate,
+                            exclude_trial: this.excludeTrial
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (result.code === 200) {
+                        this.generateResult = result.data;
+                        this.loadReports();
+                    } else {
+                        alert('生成失败: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('生成失败: ' + error.message);
+                } finally {
+                    this.generating = false;
+                }
+            },
+
+            async loadReports() {
+                try {
+                    const response = await fetchAPI('/api/v1/reports/tasks/');
+                    if (response.code === 200) {
+                        this.reportList = response.data;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+    });
+});
+</script>
 {% endblock %}

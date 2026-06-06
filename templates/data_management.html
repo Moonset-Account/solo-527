@@ -5,110 +5,282 @@
 {% block page_title %}数据管理{% endblock %}
 
 {% block content %}
-<div class="data-grid">
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">📤 数据导入</h3>
-        </div>
-        
-        <div style="border: 2px dashed #BDC3C7; border-radius: 8px; padding: 40px 20px; text-align: center; margin-bottom: 20px;">
-            <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
-            <p style="color: #7F8C8D; margin-bottom: 16px;">拖拽文件到此处，或点击下方按钮上传</p>
-            <button class="btn btn-primary">选择文件</button>
-            <p style="font-size: 12px; color: #BDC3C7; margin-top: 12px;">支持 .xlsx, .csv 格式，单文件不超过 50MB</p>
+<div x-data="dataManagement">
+    <div class="data-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📤 数据导入</h3>
+            </div>
+            
+            <div 
+                class="upload-area" 
+                @click="document.getElementById('fileInput').click()"
+                @dragover.prevent="isDragging = true"
+                @dragleave="isDragging = false"
+                @drop.prevent="handleDrop($event)"
+                :class="{ 'drag-over': isDragging }"
+                style="border: 2px dashed #BDC3C7; border-radius: 8px; padding: 40px 20px; text-align: center; margin-bottom: 20px; cursor: pointer; transition: all 0.2s; background: #FAFAFA;"
+            >
+                <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+                <p style="color: #7F8C8D; margin-bottom: 16px;" x-show="!selectedFile">拖拽文件到此处，或点击选择文件</p>
+                <p style="color: #2D5A27; font-weight: 500; margin-bottom: 16px;" x-show="selectedFile">
+                    已选择: <span x-text="selectedFile.name"></span>
+                </p>
+                <button class="btn btn-primary" x-show="!selectedFile">选择文件</button>
+                <input type="file" id="fileInput" @change="handleFileSelect($event)" accept=".xlsx,.csv" style="display: none;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="label">数据类型</label>
+                <select class="form-select" x-model="importDataType">
+                    <option value="wastage">报损数据</option>
+                    <option value="stocktake">盘点数据</option>
+                    <option value="inventory">进货数据</option>
+                    <option value="material_use">领用数据</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; justify-content: center;" 
+                    @click="uploadFile" 
+                    :disabled="uploading || !selectedFile">
+                <span x-show="uploading">⏳ 导入中...</span>
+                <span x-show="!uploading">🚀 开始导入</span>
+            </button>
+
+            <div x-show="uploadResult" style="margin-top: 16px; padding: 12px; border-radius: 4px; background: #D5F5E3; color: #27AE60;">
+                <strong>导入完成！</strong>
+                <p style="margin-top: 4px; font-size: 13px;">
+                    共 <span x-text="uploadResult.total"></span> 条，
+                    成功 <span x-text="uploadResult.success" style="color: #27AE60;"></span> 条，
+                    失败 <span x-text="uploadResult.failed" style="color: #E74C3C;"></span> 条
+                </p>
+            </div>
+
+            <a href="#" class="btn btn-outline" style="width: 100%; justify-content: center; margin-top: 12px;" @click.prevent="downloadTemplate">
+                📄 下载导入模板
+            </a>
         </div>
 
-        <div class="form-group" style="margin-bottom: 20px;">
-            <label class="label">数据类型</label>
-            <select class="form-select">
-                <option value="inventory">进货数据</option>
-                <option value="material_use">领用数据</option>
-                <option value="wastage">报损数据</option>
-                <option value="stocktake">盘点数据</option>
-                <option value="sale">销售数据</option>
-            </select>
-        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">🆕 试营原料管理</h3>
+            </div>
 
-        <a href="#" class="btn btn-outline" style="width: 100%; justify-content: center;">
-            📄 下载导入模板
-        </a>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">🆕 试营原料管理</h3>
-            <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">+ 新增试营</button>
-        </div>
-
-        <ul class="ranking-list">
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">
-                        新品杨枝甘露
-                        <span class="badge badge-trial" style="margin-left: 8px;">🆕 试营中</span>
+            <ul class="ranking-list" id="trialList">
+                <li class="ranking-item" x-for="item in trialProducts" :key="item.id">
+                    <div class="ranking-info" style="flex: 1;">
+                        <div class="ranking-name">
+                            <span x-text="item.material_name"></span>
+                            <span class="badge badge-trial" style="margin-left: 8px;">🆕 试营中</span>
+                        </div>
+                        <div class="ranking-sub" x-text="item.date_range + ' | ' + item.stores_text"></div>
                     </div>
-                    <div class="ranking-sub">2024-01-01 ~ 2024-01-31 | 全部门店</div>
-                </div>
-                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">编辑</button>
-            </li>
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">
-                        草莓大福奶茶
-                        <span class="badge badge-trial" style="margin-left: 8px;">🆕 试营中</span>
-                    </div>
-                    <div class="ranking-sub">2024-01-15 ~ 2024-02-15 | 上海区域</div>
-                </div>
-                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">编辑</button>
-            </li>
-        </ul>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">⚙️ 口径配置</h3>
+                    <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">编辑</button>
+                </li>
+            </ul>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <label class="label">损耗率计算公式</label>
-            <div class="form-control" style="background: #F8F9FA; font-family: monospace;">
-                损耗率 = (报损金额 + |盘点差异金额|) / 总领用金额 × 100%
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">⚙️ 口径配置</h3>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="label">损耗率计算公式</label>
+                <div class="form-control" style="background: #F8F9FA; font-family: monospace;">
+                    <input type="text" x-model="caliberConfig.loss_rate_formula.value" 
+                           class="form-control" style="border: none; background: transparent; font-family: monospace;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label class="label">异常阈值设置 (%)</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="number" step="0.1" class="form-control" style="width: 120px;" x-model.number="caliberConfig.abnormal_threshold.value">
+                    <span>%</span>
+                    <span style="font-size: 13px; color: #7F8C8D;">超过此值标记为异常门店</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" @click="saveCaliber" :disabled="savingCaliber">
+                <span x-show="savingCaliber">⏳ 保存中...</span>
+                <span x-show="!savingCaliber">💾 保存配置</span>
+            </button>
+
+            <div x-show="caliberSaved" style="margin-top: 12px; color: #27AE60; font-size: 14px;">
+                ✅ 配置保存成功！
             </div>
         </div>
 
-        <div style="margin-bottom: 20px;">
-            <label class="label">异常阈值设置</label>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="number" class="form-control" style="width: 100px;" value="5">
-                <span>%</span>
-                <span style="font-size: 13px; color: #7F8C8D;">超过此值标记为异常门店</span>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📊 导入任务记录</h3>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 12px;" @click="loadImportTasks">
+                    🔄 刷新
+                </button>
             </div>
+
+            <ul class="ranking-list">
+                <li class="ranking-item" x-for="task in importTasks" :key="task.id">
+                    <div class="ranking-info" style="flex: 1;">
+                        <div class="ranking-name" x-text="task.file_name"></div>
+                        <div class="ranking-sub">
+                            <span x-text="task.data_type"></span> | 
+                            <span x-text="task.created_at"></span> | 
+                            成功 <span x-text="task.success_rows"></span>/<span x-text="task.total_rows"></span> 条
+                        </div>
+                    </div>
+                    <span class="badge" :class="{
+                        'badge-success': task.status === 'completed',
+                        'badge-warning': task.status === 'processing',
+                        'badge-danger': task.status === 'failed'
+                    }" x-text="task.status_text"></span>
+                </li>
+                <li x-show="importTasks.length === 0" class="empty-state">
+                    <div class="icon">📋</div>
+                    <div>暂无导入记录</div>
+                </li>
+            </ul>
         </div>
-
-        <button class="btn btn-primary">保存配置</button>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">📊 导入任务记录</h3>
-        </div>
-
-        <ul class="ranking-list">
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">2024年1月进货数据.xlsx</div>
-                    <div class="ranking-sub">admin | 2024-01-15 14:30 | 成功 128/128 条</div>
-                </div>
-                <span class="badge badge-success">完成</span>
-            </li>
-            <li class="ranking-item">
-                <div class="ranking-info" style="flex: 1;">
-                    <div class="ranking-name">2024年1月报损数据.xlsx</div>
-                    <div class="ranking-sub">admin | 2024-01-15 14:25 | 成功 89/92 条</div>
-                </div>
-                <span class="badge badge-warning">部分失败</span>
-            </li>
-        </ul>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('dataManagement', function() {
+        return {
+            isDragging: false,
+            selectedFile: null,
+            importDataType: 'wastage',
+            uploading: false,
+            uploadResult: null,
+            importTasks: [],
+            trialProducts: [],
+            caliberConfig: {
+                abnormal_threshold: { value: '5.0', description: '异常门店损耗率阈值(%)' },
+                loss_rate_formula: { value: '(报损金额+|盘点差异|)/总领用金额*100%', description: '损耗率计算公式' }
+            },
+            savingCaliber: false,
+            caliberSaved: false,
+
+            init() {
+                this.loadImportTasks();
+                this.loadCaliberConfig();
+                this.loadTrialProducts();
+            },
+
+            handleFileSelect(event) {
+                if (event.target.files.length > 0) {
+                    this.selectedFile = event.target.files[0];
+                    this.uploadResult = null;
+                }
+            },
+
+            handleDrop(event) {
+                this.isDragging = false;
+                if (event.dataTransfer.files.length > 0) {
+                    this.selectedFile = event.dataTransfer.files[0];
+                    this.uploadResult = null;
+                }
+            },
+
+            async uploadFile() {
+                if (!this.selectedFile) return;
+                
+                this.uploading = true;
+                this.uploadResult = null;
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('file', this.selectedFile);
+                    formData.append('data_type', this.importDataType);
+                    
+                    const response = await fetch('/api/v1/import/upload/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.code === 200) {
+                        this.uploadResult = result.data;
+                        this.loadImportTasks();
+                    } else {
+                        alert('导入失败: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('上传失败: ' + error.message);
+                } finally {
+                    this.uploading = false;
+                }
+            },
+
+            downloadTemplate() {
+                alert('模板下载功能开发中，可使用以下字段: 门店编码, 原料编码, 日期, 数量, 单价, 原因, 班次');
+            },
+
+            async loadImportTasks() {
+                try {
+                    const response = await fetchAPI('/api/v1/import/tasks/');
+                    if (response.code === 200) {
+                        this.importTasks = response.data;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async loadCaliberConfig() {
+                try {
+                    const response = await fetchAPI('/api/v1/config/caliber/');
+                    if (response.code === 200) {
+                        this.caliberConfig = response.data;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async saveCaliber() {
+                this.savingCaliber = true;
+                this.caliberSaved = false;
+                try {
+                    const response = await fetch('/api/v1/config/caliber/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify(this.caliberConfig)
+                    });
+                    const result = await response.json();
+                    if (result.code === 200) {
+                        this.caliberSaved = true;
+                        setTimeout(() => this.caliberSaved = false, 3000);
+                    } else {
+                        alert('保存失败: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('保存失败: ' + error.message);
+                } finally {
+                    this.savingCaliber = false;
+                }
+            },
+
+            async loadTrialProducts() {
+                this.trialProducts = [
+                    { id: 1, material_name: '新品杨枝甘露茶底', date_range: '2024-01-01 ~ 2024-01-31', stores_text: '全部门店' },
+                    { id: 2, material_name: '新品草莓果粒', date_range: '2024-01-15 ~ 2024-02-15', stores_text: '上海区域' }
+                ];
+            }
+        };
+    });
+});
+</script>
 {% endblock %}

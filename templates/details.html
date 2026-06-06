@@ -202,7 +202,14 @@ document.addEventListener('alpine:init', () => {
             },
 
             exportData() {
-                alert('导出功能开发中...');
+                const params = {
+                    store_id: this.filters.storeId,
+                    start_date: this.filters.startDate,
+                    end_date: this.filters.endDate,
+                    exclude_trial: this.filters.excludeTrial
+                };
+                const qs = buildQueryString(params);
+                window.open(`/api/v1/reports/export-details/?${qs}`, '_blank');
             }
         };
     });
