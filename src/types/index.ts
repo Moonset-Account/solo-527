@@ -110,3 +110,62 @@ export type ExportTask = {
   completedAt?: string;
   downloadUrl?: string;
 };
+
+export type RawEvent = {
+  userId: string;
+  teamId: string;
+  eventType: 'register' | 'activate' | 'invite' | 'first_feature_use' | 'first_pay' | 'feature_use' | 'churn' | 'session';
+  timestamp: string;
+  channel: string;
+  version: string;
+  module?: string;
+  feature?: string;
+  churnReason?: string;
+  trafficType: 'experiment' | 'organic';
+  sessionDuration?: number;
+};
+
+export type AggregatedResult = {
+  queryId: string;
+  generatedAt: string;
+  filters: FilterDimensions;
+  dateRange: DateRange;
+  totalUsers: number;
+  funnel: FunnelData;
+  cohort: CohortData;
+  features: FeatureUsage[];
+  paths: PathData;
+  churn: ChurnReason[];
+  summary: {
+    activationRate: number;
+    payConversionRate: number;
+    avgRetention7d: number;
+    totalSessions: number;
+    avgSessionDuration: number;
+  };
+};
+
+export type ETLPipelineStage = {
+  name: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  recordsIn: number;
+  recordsOut: number;
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+};
+
+export type DataCapability = {
+  id: string;
+  name: string;
+  description: string;
+  execute: (params: any) => Promise<any>;
+  cacheTTL: number;
+};
+
+export type CacheStats = {
+  size: number;
+  hits: number;
+  misses: number;
+  hitRate: number;
+};

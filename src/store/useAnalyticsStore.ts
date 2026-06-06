@@ -5,15 +5,15 @@ import {
   DateRange,
   ViewType,
   SavedView,
-  FunnelData,
-  CohortData,
-  FeatureUsage,
-  PathData,
-  ChurnReason,
+  AggregatedResult,
   ETLStatus,
   ExportTask,
+  CacheStats,
+  ETLPipelineStage,
 } from '../types';
-import { apiService, etlEngine, exportService, dataCache } from '../services/apiService';
+import { generateRawEvents } from '../data/rawEvents';
+import { runAggregationPipeline } from '../data/aggregationEngine';
+import { exportTaskManager } from '../services/exportService';
 import { subDays, format } from 'date-fns';
 
 interface AnalyticsState {
@@ -23,14 +23,11 @@ interface AnalyticsState {
   savedViews: SavedView[];
   isLoading: boolean;
   isExporting: boolean;
-  funnelData: FunnelData | null;
-  cohortData: CohortData | null;
-  featureData: FeatureUsage[] | null;
-  pathData: PathData | null;
-  churnReasons: ChurnReason[] | null;
+  aggregatedResult: AggregatedResult | null;
   etlStatus: ETLStatus;
   exportTasks: ExportTask[];
-  cacheStats: { size: number };
+  cacheStats: CacheStats;
+  pipelineStages: ETLPipelineStage[];
   setFilters: (filters: Partial<FilterDimensions>) => void;
   setDateRange: (range: DateRange) => void;
   setActiveView: (view: ViewType) => void;
@@ -41,7 +38,6 @@ interface AnalyticsState {
   resetFilters: () => void;
   runETL: () => Promise<void>;
   exportData: (format: 'csv' | 'xlsx' | 'pdf') => Promise<void>;
-  refreshCacheStats: () => void;
 }
 
 const defaultFilters: FilterDimensions = {
@@ -58,6 +54,29 @@ const defaultDateRange: DateRange = {
   end: format(new Date(), 'yyyy-MM-dd'),
 };
 
+const initialETLStatus: ETLStatus = {
+  lastUpdated: format(new Date(Date.now() - 30 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
+  status: 'success',
+  nextRun: format(new Date(Date.now() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
+  recordsProcessed: 2456789,
+};
+
+const cache = new Map<string, { data: AggregatedResult; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000;
+
+const generateCacheKey = (filters: FilterDimensions, dateRange: DateRange): string => {
+  return [
+    dateRange.start,
+    dateRange.end,
+    filters.users.sort().join(','),
+    filters.teams.sort().join(','),
+    filters.channels.sort().join(','),
+    filters.versions.sort().join(','),
+    filters.modules.sort().join(','),
+    filters.trafficType,
+  ].join('|');
+};
+
 export const useAnalyticsStore = create<AnalyticsState>()(
   persist(
     (set, get) => ({
@@ -67,14 +86,11 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       savedViews: [],
       isLoading: false,
       isExporting: false,
-      funnelData: null,
-      cohortData: null,
-      featureData: null,
-      pathData: null,
-      churnReasons: null,
-      etlStatus: etlEngine.getStatus(),
+      aggregatedResult: null,
+      etlStatus: initialETLStatus,
       exportTasks: [],
-      cacheStats: { size: 0 },
+      cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
+      pipelineStages: [],
 
       setFilters: (newFilters) => {
         set((state) => ({
@@ -128,17 +144,45 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       fetchData: async () => {
         set({ isLoading: true });
         try {
-          const { filters, dateRange } = get();
-          const data = await apiService.fetchAllData(filters, dateRange);
+          const { filters, dateRange, cacheStats } = get();
+          const cacheKey = generateCacheKey(filters, dateRange);
+          const cached = cache.get(cacheKey);
+
+          if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            set({
+              aggregatedResult: cached.data,
+              isLoading: false,
+              cacheStats: {
+                ...cacheStats,
+                hits: cacheStats.hits + 1,
+                hitRate: Math.round(((cacheStats.hits + 1) / (cacheStats.hits + cacheStats.misses + 1)) * 10000) / 100,
+                size: cache.size,
+              },
+            });
+            return;
+          }
+
+          const rawEvents = generateRawEvents(filters, dateRange, 50000);
+          const { result, stages } = await runAggregationPipeline(rawEvents, filters, dateRange);
+
+          cache.set(cacheKey, { data: result, timestamp: Date.now() });
+          
+          if (cache.size > 50) {
+            const oldestKey = cache.keys().next().value;
+            if (oldestKey) cache.delete(oldestKey);
+          }
+
           set({
-            funnelData: data.funnel,
-            cohortData: data.cohort,
-            featureData: data.features,
-            pathData: data.paths,
-            churnReasons: data.churn,
+            aggregatedResult: result,
+            pipelineStages: stages,
             isLoading: false,
+            cacheStats: {
+              ...cacheStats,
+              misses: cacheStats.misses + 1,
+              hitRate: Math.round((cacheStats.hits / (cacheStats.hits + cacheStats.misses + 1)) * 10000) / 100,
+              size: cache.size,
+            },
           });
-          get().refreshCacheStats();
         } catch (error) {
           console.error('Failed to fetch data:', error);
           set({ isLoading: false });
@@ -154,36 +198,32 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         set((state) => ({
           etlStatus: { ...state.etlStatus, status: 'running' },
         }));
-        const newStatus = await etlEngine.runETL();
-        set({ etlStatus: newStatus });
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const now = new Date();
+        const newStatus: ETLStatus = {
+          lastUpdated: format(now, 'yyyy-MM-dd HH:mm:ss'),
+          status: 'success',
+          nextRun: format(new Date(now.getTime() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
+          recordsProcessed: Math.floor(2000000 + Math.random() * 1000000),
+        };
+
+        cache.clear();
+        set({ etlStatus: newStatus, cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 } });
         await get().fetchData();
       },
 
       exportData: async (format) => {
-        set({ isExporting: true });
-        try {
-          const { filters, dateRange, activeView } = get();
-          const task = await exportService.createExport(filters, dateRange, format, activeView);
-          set((state) => ({
-            exportTasks: [task, ...state.exportTasks],
-          }));
-          
-          const checkInterval = setInterval(() => {
-            const updated = exportService.getTasks();
-            set({ exportTasks: updated });
-            if (updated[0]?.status === 'completed' || updated[0]?.status === 'failed') {
-              clearInterval(checkInterval);
-              set({ isExporting: false });
-            }
-          }, 500);
-        } catch (error) {
-          console.error('Export failed:', error);
-          set({ isExporting: false });
-        }
-      },
+        const { aggregatedResult, filters, dateRange } = get();
+        if (!aggregatedResult) return;
 
-      refreshCacheStats: () => {
-        set({ cacheStats: { size: dataCache.size } });
+        set({ isExporting: true });
+        const task = await exportTaskManager.createExport(format, aggregatedResult, filters, dateRange);
+        set((state) => ({
+          exportTasks: [task, ...state.exportTasks.slice(0, 9)],
+          isExporting: false,
+        }));
       },
     }),
     {
