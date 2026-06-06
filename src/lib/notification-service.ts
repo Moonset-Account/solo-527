@@ -5,6 +5,8 @@ import { Database } from '@/types/database'
 
 type NotificationType = Database['public']['Tables']['notifications']['Insert']['type']
 type NotificationChannel = Database['public']['Tables']['notification_queue']['Insert']['channel']
+type NotificationRow = Database['public']['Tables']['notifications']['Row']
+type NotificationQueueRow = Database['public']['Tables']['notification_queue']['Row']
 
 interface CreateNotificationOptions {
   userId: string
@@ -29,37 +31,38 @@ export async function createNotification(options: CreateNotificationOptions) {
       title: options.title,
       content: options.content,
       related_order_id: options.relatedOrderId,
-    })
+    } as Database['public']['Tables']['notifications']['Insert'])
     .select()
     .single()
 
   if (notificationError) throw notificationError
 
+  const notif = notification as NotificationRow
   const queuePromises: Promise<any>[] = []
 
   if (options.sendEmail && options.recipientEmail) {
     queuePromises.push(
       supabase.from('notification_queue').insert({
-        notification_id: notification.id,
+        notification_id: notif.id,
         channel: 'email',
         recipient: options.recipientEmail,
         subject: options.title,
         content: options.content,
         max_retries: 5,
-      })
+      } as Database['public']['Tables']['notification_queue']['Insert'])
     )
   }
 
   if (options.sendSms && options.recipientPhone) {
     queuePromises.push(
       supabase.from('notification_queue').insert({
-        notification_id: notification.id,
+        notification_id: notif.id,
         channel: 'sms',
         recipient: options.recipientPhone,
         subject: options.title,
         content: options.content,
         max_retries: 5,
-      })
+      } as Database['public']['Tables']['notification_queue']['Insert'])
     )
   }
 
@@ -67,7 +70,7 @@ export async function createNotification(options: CreateNotificationOptions) {
     await Promise.all(queuePromises)
   }
 
-  return notification
+  return notif
 }
 
 export async function processNotificationQueue() {
@@ -80,15 +83,16 @@ export async function processNotificationQueue() {
     .order('created_at', { ascending: true })
     .limit(10)
 
-  if (!pendingNotifications || pendingNotifications.length === 0) {
+  const items = pendingNotifications as NotificationQueueRow[] | null
+  if (!items || items.length === 0) {
     return { processed: 0 }
   }
 
   const results = await Promise.allSettled(
-    pendingNotifications.map(async (item) => {
+    items.map(async (item) => {
       await supabase
         .from('notification_queue')
-        .update({ status: 'sending', last_attempt_at: new Date().toISOString() })
+        .update({ status: 'sending', last_attempt_at: new Date().toISOString() } as Database['public']['Tables']['notification_queue']['Update'])
         .eq('id', item.id)
 
       try {
@@ -100,7 +104,7 @@ export async function processNotificationQueue() {
 
         await supabase
           .from('notification_queue')
-          .update({ status: 'sent', retry_count: item.retry_count + 1 })
+          .update({ status: 'sent', retry_count: item.retry_count + 1 } as Database['public']['Tables']['notification_queue']['Update'])
           .eq('id', item.id)
 
         return { id: item.id, success: true }
@@ -114,7 +118,7 @@ export async function processNotificationQueue() {
             status: newStatus,
             retry_count: newRetryCount,
             last_error: error.message,
-          })
+          } as Database['public']['Tables']['notification_queue']['Update'])
           .eq('id', item.id)
 
         return { id: item.id, success: false, error: error.message }
@@ -128,13 +132,89 @@ export async function processNotificationQueue() {
   }
 }
 
+export async function retryNotification(notificationId: string) {
+  const supabase = createClient()
+
+  const { data: item } = await supabase
+    .from('notification_queue')
+    .select('*')
+    .eq('id', notificationId)
+    .single()
+
+  const queueItem = item as NotificationQueueRow | null
+  if (!queueItem) {
+    throw new Error('通知不存在')
+  }
+
+  await supabase
+    .from('notification_queue')
+    .update({ status: 'sending', last_attempt_at: new Date().toISOString() } as Database['public']['Tables']['notification_queue']['Update'])
+    .eq('id', notificationId)
+
+  try {
+    if (queueItem.channel === 'email') {
+      await sendEmail(queueItem.recipient, queueItem.subject, queueItem.content)
+    } else if (queueItem.channel === 'sms') {
+      await sendSms(queueItem.recipient, queueItem.content)
+    }
+
+    await supabase
+      .from('notification_queue')
+      .update({ status: 'sent', retry_count: queueItem.retry_count + 1 } as Database['public']['Tables']['notification_queue']['Update'])
+      .eq('id', notificationId)
+
+    return { success: true }
+  } catch (error: any) {
+    const newRetryCount = queueItem.retry_count + 1
+    const newStatus = newRetryCount >= queueItem.max_retries ? 'failed' : 'failed'
+
+    await supabase
+      .from('notification_queue')
+      .update({
+        status: newStatus,
+        retry_count: newRetryCount,
+        last_error: error.message,
+      } as Database['public']['Tables']['notification_queue']['Update'])
+      .eq('id', notificationId)
+
+    return { success: false, error: error.message }
+  }
+}
+
+export async function resetNotificationRetry(notificationId: string) {
+  const supabase = createClient()
+
+  const { error } = await supabase
+    .from('notification_queue')
+    .update({
+      status: 'pending',
+      retry_count: 0,
+      last_error: null,
+    } as Database['public']['Tables']['notification_queue']['Update'])
+    .eq('id', notificationId)
+
+  if (error) throw error
+
+  return { success: true }
+}
+
+export async function deleteNotificationFromQueue(notificationId: string) {
+  const supabase = createClient()
+
+  const { error } = await supabase
+    .from('notification_queue')
+    .delete()
+    .eq('id', notificationId)
+
+  if (error) throw error
+
+  return { success: true }
+}
+
 async function sendEmail(to: string, subject: string, content: string) {
   console.log(`[Email] To: ${to}, Subject: ${subject}, Content: ${content}`)
-  // TODO: 集成实际的邮件服务（如 Resend、SendGrid 等）
-  // await resend.emails.send({ to, subject, html: content })
 }
 
 async function sendSms(to: string, content: string) {
   console.log(`[SMS] To: ${to}, Content: ${content}`)
-  // TODO: 集成实际的短信服务（如阿里云、腾讯云短信等）
 }

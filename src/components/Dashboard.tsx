@@ -55,7 +55,7 @@ export function Dashboard() {
         .gte('created_at', startOfMonth.toISOString())
         .eq('payment_status', 'paid')
 
-      const monthlyRevenue = monthOrders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0
+      const monthlyRevenue = (monthOrders as Array<{ total_amount: number }> | null)?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0
 
       setStats({
         todayOrders: todayCount || 0,

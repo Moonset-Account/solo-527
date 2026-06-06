@@ -50,7 +50,7 @@ export default function NotificationsPage() {
   const markAsRead = async (id: string) => {
     await supabase
       .from('notifications')
-      .update({ read: true, read_at: new Date().toISOString() })
+      .update({ read: true, read_at: new Date().toISOString() } as Database['public']['Tables']['notifications']['Update'])
       .eq('id', id)
 
     setNotifications(prev =>
@@ -59,10 +59,11 @@ export default function NotificationsPage() {
   }
 
   const markAllAsRead = async () => {
+    if (!user) return
     await supabase
       .from('notifications')
-      .update({ read: true, read_at: new Date().toISOString() })
-      .eq('user_id', user!.id)
+      .update({ read: true, read_at: new Date().toISOString() } as Database['public']['Tables']['notifications']['Update'])
+      .eq('user_id', user.id)
       .eq('read', false)
 
     setNotifications(prev =>
