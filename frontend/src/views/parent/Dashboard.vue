@@ -41,14 +41,16 @@
           </div>
           <el-table :data="myBorrows" size="small">
             <el-table-column prop="book_title" label="绘本名称" />
-            <el-table-column prop="borrow_date" label="借阅日期" width="100">
-              <template #default="{ row }">{{ row.borrow_date }}</template>
+            <el-table-column prop="borrow_date" label="借阅日期" width="110">
+              <template #default="{ row }">{{ formatDate(row.borrow_date) }}</template>
             </el-table-column>
-            <el-table-column prop="due_date" label="应还日期" width="100" />
-            <el-table-column label="状态" width="100">
+            <el-table-column prop="due_date" label="应还日期" width="110">
+              <template #default="{ row }">{{ formatDate(row.due_date) }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="90">
               <template #default="{ row }">
-                <el-tag :type="row.is_overdue ? 'danger' : 'success'" size="small">
-                  {{ row.is_overdue ? '已逾期' : '借阅中' }}
+                <el-tag :type="getBorrowStatusType(row)" size="small">
+                  {{ getBorrowStatusText(row) }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -62,16 +64,24 @@
             <h3 class="card-title">活动报名</h3>
             <el-button type="primary" link @click="$router.push('/parent/activities')">查看全部</el-button>
           </div>
-          <div v-for="activity in myActivities" :key="activity.id" class="activity-item">
-            <div class="activity-name">{{ activity.activity_title }}</div>
+          <div v-for="reg in myActivities" :key="reg.id" class="activity-item">
+            <div class="activity-name">{{ reg.activity_title }}</div>
             <div class="activity-time">
               <el-icon><Clock /></el-icon>
-              {{ activity.activity_start_time }}
+              {{ formatDate(reg.activity_start_time) }}
             </div>
-            <el-tag :type="activity.status === 'confirmed' ? 'success' : 'warning'" size="small">
-              {{ activity.status === 'confirmed' ? '已确认' : (activity.waitlist_position ? `候补 #${activity.waitlist_position}` : '候补中') }}
+            <el-tag 
+              :type="reg.status === 'confirmed' ? 'success' : (reg.status === 'waitlist' ? 'warning' : 'info')" 
+              size="small"
+            >
+              <template v-if="reg.status === 'confirmed'">已确认</template>
+              <template v-else-if="reg.status === 'waitlist'">
+                候补 #{{ reg.waitlist_position }}
+              </template>
+              <template v-else>{{ reg.status }}</template>
             </el-tag>
           </div>
+          <el-empty v-if="!myActivities.length" description="暂无活动报名" :image-size="80" />
         </div>
       </el-col>
     </el-row>
@@ -82,18 +92,42 @@
         <el-button type="primary" link @click="$router.push('/parent/deposits')">查看全部</el-button>
       </div>
       <el-table :data="recentDeposits" size="small">
-        <el-table-column prop="create_time" label="时间" width="160" />
-        <el-table-column prop="trans_type_display" label="类型" width="100" />
+        <el-table-column label="时间" width="160">
+          <template #default="{ row }">{{ formatDate(row.create_time) }}</template>
+        </el-table-column>
+        <el-table-column prop="trans_type_display" label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.trans_type === 'deduct' ? 'danger' : 'success'" size="small">
+              {{ row.trans_type_display }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="description" label="说明" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.status === 'pending'" type="warning" size="small">待确认</el-tag>
+            <el-tag v-else-if="row.status === 'confirmed'" type="success" size="small">已确认</el-tag>
+            <el-tag v-else-if="row.status === 'appealing'" type="info" size="small">申诉中</el-tag>
+            <el-tag v-else size="small">{{ row.status }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="amount" label="金额" width="100">
           <template #default="{ row }">
-            <span :style="{ color: row.trans_type === 'deduct' ? '#f56c6c' : '#67c23a' }">
+            <span :style="{ color: row.trans_type === 'deduct' ? '#f56c6c' : '#67c23a', fontWeight: '600' }">
               {{ row.trans_type === 'deduct' ? '-' : '+' }}¥{{ row.amount }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
+            <el-button 
+              v-if="row.trans_type === 'deduct' && row.status === 'pending'" 
+              type="primary" 
+              size="small"
+              @click="handleConfirmDeduct(row)"
+            >
+              确认
+            </el-button>
             <el-button 
               v-if="row.trans_type === 'deduct' && row.status === 'confirmed'" 
               type="text" 
@@ -105,6 +139,7 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-empty v-if="!recentDeposits.length" description="暂无押金流水" :image-size="80" />
     </div>
 
     <el-dialog v-model="appealDialogVisible" title="押金申诉" width="500px">
@@ -125,32 +160,29 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getMyBorrows } from '@/api/borrows'
+import { getMyRegistrations } from '@/api/activities'
+import { getMyDepositAccount, getMyTransactions, appealTransaction, confirmTransaction } from '@/api/deposits'
 
 const userInfo = ref({
-  family_name: '王家长',
-  child_name: '小明'
+  family_name: '',
+  child_name: ''
 })
 
-const borrowCount = ref(2)
-const activityCount = ref(1)
-const depositBalance = ref('150.00')
+const borrows = ref([])
+const registrations = ref([])
+const depositAccount = ref(null)
+const transactions = ref([])
 
-const myBorrows = ref([
-  { id: 1, book_title: '猜猜我有多爱你', borrow_date: '2024-01-01', due_date: '2024-01-15', is_overdue: false },
-  { id: 2, book_title: '好饿的毛毛虫', borrow_date: '2023-12-25', due_date: '2024-01-08', is_overdue: true }
-])
+const borrowCount = computed(() => borrows.value.filter(b => b.status === 'borrowed').length)
+const activityCount = computed(() => registrations.value.filter(r => r.status !== 'cancelled').length)
+const depositBalance = computed(() => depositAccount.value?.balance || '0.00')
 
-const myActivities = ref([
-  { id: 1, activity_title: '周六海洋主题故事会', activity_start_time: '2024-01-13 10:00', status: 'confirmed' },
-  { id: 2, activity_title: '周日手工绘本课', activity_start_time: '2024-01-14 14:00', status: 'waitlist', waitlist_position: 2 }
-])
-
-const recentDeposits = ref([
-  { id: 1, create_time: '2024-01-05 14:30', trans_type: 'deduct', trans_type_display: '押金扣减', amount: '50.00', description: '绘本破损赔偿', status: 'confirmed' },
-  { id: 2, create_time: '2024-01-01 10:00', trans_type: 'deposit', trans_type_display: '押金充值', amount: '200.00', description: '初始押金', status: 'confirmed' }
-])
+const myBorrows = computed(() => borrows.value.slice(0, 5))
+const myActivities = computed(() => registrations.value.slice(0, 3))
+const recentDeposits = computed(() => transactions.value.slice(0, 5))
 
 const appealDialogVisible = ref(false)
 const appealForm = reactive({
@@ -159,6 +191,72 @@ const appealForm = reactive({
   reason: ''
 })
 
+const fetchAllData = async () => {
+  try {
+    await Promise.all([
+      fetchBorrows(),
+      fetchRegistrations(),
+      fetchDepositAccount(),
+      fetchTransactions()
+    ])
+  } catch (error) {
+    console.error('获取数据失败:', error)
+  }
+}
+
+const fetchBorrows = async () => {
+  try {
+    const data = await getMyBorrows()
+    borrows.value = data.results || data
+  } catch (error) {
+    console.error('获取借阅记录失败:', error)
+  }
+}
+
+const fetchRegistrations = async () => {
+  try {
+    const data = await getMyRegistrations()
+    registrations.value = data.results || data
+  } catch (error) {
+    console.error('获取活动报名失败:', error)
+  }
+}
+
+const fetchDepositAccount = async () => {
+  try {
+    const data = await getMyDepositAccount()
+    depositAccount.value = data
+  } catch (error) {
+    console.error('获取押金账户失败:', error)
+  }
+}
+
+const fetchTransactions = async () => {
+  try {
+    const data = await getMyTransactions()
+    transactions.value = data.results || data
+  } catch (error) {
+    console.error('获取交易流水失败:', error)
+  }
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return dateStr.replace('T', ' ').substring(0, 16)
+}
+
+const getBorrowStatusType = (row) => {
+  if (row.status === 'returned') return 'info'
+  if (row.is_overdue) return 'danger'
+  return 'success'
+}
+
+const getBorrowStatusText = (row) => {
+  if (row.status === 'returned') return '已归还'
+  if (row.is_overdue) return '已逾期'
+  return '借阅中'
+}
+
 const showAppeal = (row) => {
   appealForm.id = row.id
   appealForm.amount = row.amount
@@ -166,14 +264,35 @@ const showAppeal = (row) => {
   appealDialogVisible.value = true
 }
 
-const submitAppeal = () => {
+const handleConfirmDeduct = async (row) => {
+  try {
+    await confirmTransaction(row.id)
+    ElMessage.success('扣减已确认')
+    fetchTransactions()
+    fetchDepositAccount()
+  } catch (error) {
+    console.error('确认失败:', error)
+  }
+}
+
+const submitAppeal = async () => {
   if (!appealForm.reason) {
     ElMessage.warning('请输入申诉原因')
     return
   }
-  ElMessage.success('申诉已提交，请等待审核')
-  appealDialogVisible.value = false
+  try {
+    await appealTransaction(appealForm.id, { appeal_reason: appealForm.reason })
+    ElMessage.success('申诉已提交，请等待审核')
+    appealDialogVisible.value = false
+    fetchTransactions()
+  } catch (error) {
+    console.error('申诉失败:', error)
+  }
 }
+
+onMounted(() => {
+  fetchAllData()
+})
 </script>
 
 <style scoped>

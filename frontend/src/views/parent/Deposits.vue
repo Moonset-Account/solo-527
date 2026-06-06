@@ -38,8 +38,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
+            <el-button 
+              v-if="row.trans_type === 'deduct' && row.status === 'pending'" 
+              type="primary" 
+              size="small"
+              @click="handleConfirm(row)"
+            >
+              确认
+            </el-button>
             <el-button 
               v-if="row.trans_type === 'deduct' && row.status === 'confirmed'" 
               type="text" 
@@ -76,7 +84,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getMyDepositAccount, getMyTransactions, appealTransaction } from '@/api/deposits'
+import { getMyDepositAccount, getMyTransactions, appealTransaction, confirmTransaction } from '@/api/deposits'
 
 const account = ref({
   balance: '0.00',
@@ -136,6 +144,17 @@ const showAppeal = (row) => {
   appealForm.description = row.description
   appealForm.reason = ''
   appealDialogVisible.value = true
+}
+
+const handleConfirm = async (row) => {
+  try {
+    await confirmTransaction(row.id)
+    ElMessage.success('扣减已确认')
+    fetchTransactions()
+    fetchAccount()
+  } catch (error) {
+    console.error('确认失败:', error)
+  }
 }
 
 const submitAppeal = async () => {

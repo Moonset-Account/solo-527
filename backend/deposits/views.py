@@ -44,7 +44,7 @@ class DepositTransactionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['trans_type', 'status', 'account']
 
     def get_permissions(self):
-        if self.action in ['list', 'create', 'update', 'partial_update', 'destroy', 'confirm', 'reject', 'resolve_appeal']:
+        if self.action in ['list', 'create', 'update', 'partial_update', 'destroy', 'reject', 'resolve_appeal']:
             return [permissions.IsAdminUser()]
         return [permissions.IsAuthenticated()]
 
@@ -59,6 +59,10 @@ class DepositTransactionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def confirm(self, request, pk=None):
         transaction = self.get_object()
+        if not request.user.is_staff and transaction.account.member.user != request.user:
+            return Response({'error': '无权限确认该交易'}, status=403)
+        if transaction.status != TransactionStatus.PENDING:
+            return Response({'error': '该交易状态不允许确认'}, status=400)
         transaction.confirm()
         return Response(DepositTransactionSerializer(transaction).data)
 

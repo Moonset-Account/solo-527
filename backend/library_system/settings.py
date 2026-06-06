@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'activities',
     'deposits',
     'repairs',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

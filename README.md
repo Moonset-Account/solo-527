@@ -156,21 +156,33 @@ cd backend
 # 安装依赖
 pip install -r requirements.txt
 
-# 数据库迁移
-python manage.py makemigrations books members borrows activities deposits repairs dashboard
+# 检查应用注册（验证 dashboard 等应用已正确安装）
+python manage.py check
+
+# 数据库迁移（仅对有模型的应用生成迁移）
+python manage.py makemigrations books members borrows activities deposits repairs
 python manage.py migrate
 
 # 创建超级用户
 python manage.py createsuperuser
 
-# 运行测试（验证核心功能）
-python manage.py test tests
+# 运行测试（验证三组核心样例：破损绘本暂停借出、候补转正、押金申诉）
+python manage.py test tests -v 2
+
+# 初始化演示数据（可选，用于验证家长端数据隔离）
+python manage.py shell < scripts/init_demo_data.py
 
 # 启动开发服务器
 python manage.py runserver 8000
 ```
 
-后端 API 文档可访问：`http://localhost:8000/api/`
+**验证后端是否正常：**
+- 访问 API 根目录：`http://localhost:8000/api/`
+- 访问馆员仪表板：`http://localhost:8000/api/dashboard/librarian/`
+- 验证三组样例测试通过：`python manage.py test tests`
+
+> **注意**：`dashboard` 应用无数据库模型，因此不需要单独 `makemigrations`，
+> 但已在 `INSTALLED_APPS` 中注册以提供 API 接口。
 
 ### 前端启动
 
