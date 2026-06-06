@@ -31,6 +31,14 @@ class TeacherSettlementPolicy < ApplicationPolicy
     user.admin?
   end
 
+  def submit?
+    user.admin? || (user.teacher? && record.teacher.user_id == user.id)
+  end
+
+  def pay?
+    user.admin?
+  end
+
   class Scope < Scope
     def resolve
       if user.admin?

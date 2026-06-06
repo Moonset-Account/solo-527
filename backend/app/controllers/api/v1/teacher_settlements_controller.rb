@@ -3,10 +3,20 @@ class Api::V1::TeacherSettlementsController < Api::V1::BaseController
     authorize TeacherSettlement
     settlements = policy_scope(TeacherSettlement)
     settlements = settlements.by_teacher(params[:teacher_id]) if params[:teacher_id].present?
+    settlements = settlements.where(status: params[:status]) if params[:status].present?
     settlements = settlements.pending_approval if params[:pending].present?
     settlements = settlements.order(created_at: :desc).page(params[:page]).per(params[:per_page] || 20)
 
     render json: {
+      settlements: settlements.as_json(
+        include: {
+          teacher: {
+            include: { user: { only: [:id, :name, :phone] } },
+            only: [:id]
+          },
+          approved_by: { only: [:id, :name] }
+        }
+      ),
       teacher_settlements: settlements.as_json(
         include: {
           teacher: {
@@ -78,6 +88,20 @@ class Api::V1::TeacherSettlementsController < Api::V1::BaseController
   def mark_paid
     @settlement = TeacherSettlement.find(params[:id])
     authorize @settlement, :mark_paid?
+    @settlement.update!(status: :paid, paid_at: Time.current)
+    render json: @settlement, status: :ok
+  end
+
+  def submit
+    @settlement = TeacherSettlement.find(params[:id])
+    authorize @settlement, :submit?
+    @settlement.update!(status: :pending_approval)
+    render json: @settlement, status: :ok
+  end
+
+  def pay
+    @settlement = TeacherSettlement.find(params[:id])
+    authorize @settlement, :pay?
     @settlement.update!(status: :paid, paid_at: Time.current)
     render json: @settlement, status: :ok
   end

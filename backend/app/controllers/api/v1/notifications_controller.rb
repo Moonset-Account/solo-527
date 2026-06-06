@@ -29,4 +29,22 @@ class Api::V1::NotificationsController < Api::V1::BaseController
   def unread_count
     render json: { count: current_user.notifications.unread.count }, status: :ok
   end
+
+  def mark_read
+    @notification = current_user.notifications.find(params[:id])
+    @notification.mark_as_read!
+    render json: @notification, status: :ok
+  end
+
+  def export
+    notifications = current_user.notifications.recent
+    columns = [
+      { label: '标题', value: :title },
+      { label: '内容', value: :content },
+      { label: '类型', value: :notification_type },
+      { label: '状态', value: ->(n) { n.read? ? '已读' : '未读' } },
+      { label: '创建时间', value: ->(n) { n.created_at.strftime('%Y-%m-%d %H:%M:%S') } }
+    ]
+    export_to_csv(notifications, '通知记录', columns)
+  end
 end

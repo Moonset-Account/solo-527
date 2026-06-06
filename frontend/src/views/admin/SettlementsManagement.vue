@@ -307,7 +307,7 @@ const submitSettlement = async (settlement: TeacherSettlement) => {
   if (!confirm('确定提交该结算单审批？')) return
   try {
     await settlementAPI.submit(settlement.id)
-    settlement.status = SettlementStatus.PENDING
+    settlement.status = SettlementStatus.PENDING_APPROVAL
   } catch (e: any) {
     alert(e.response?.data?.error || '提交失败')
   }

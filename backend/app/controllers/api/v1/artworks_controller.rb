@@ -6,6 +6,8 @@ class Api::V1::ArtworksController < Api::V1::BaseController
     artworks = policy_scope(Artwork)
     artworks = artworks.by_student(params[:student_id]) if params[:student_id].present?
     artworks = artworks.by_course(params[:course_id]) if params[:course_id].present?
+    artworks = artworks.where(is_public: params[:is_public]) if params[:is_public].present?
+    artworks = artworks.where(status: params[:status]) if params[:status].present?
     artworks = artworks.order_by_likes if params[:sort] == 'popular'
     artworks = artworks.order_by_newest if params[:sort].blank? || params[:sort] == 'newest'
     artworks = artworks.page(params[:page]).per(params[:per_page] || 12)
@@ -16,6 +18,12 @@ class Api::V1::ArtworksController < Api::V1::BaseController
           student: {
             include: { user: { only: [:id, :name, :avatar_url] } },
             only: [:id]
+          },
+          course_session: {
+            include: {
+              course: { only: [:id, :title] }
+            },
+            only: [:id, :start_time]
           }
         }
       ),
@@ -110,6 +118,12 @@ class Api::V1::ArtworksController < Api::V1::BaseController
     @artwork = Artwork.find(params[:id])
     @artwork.toggle_like!
     render json: { likes_count: @artwork.likes_count }, status: :ok
+  end
+
+  def increment_view
+    @artwork = Artwork.find(params[:id])
+    @artwork.increment_views! if @artwork.is_public?
+    render json: { views_count: @artwork.views_count }, status: :ok
   end
 
   private

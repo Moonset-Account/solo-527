@@ -31,6 +31,7 @@ Rails.application.routes.draw do
           post 'approve'
           post 'reject'
           post 'like'
+          post 'increment_view'
         end
       end
 
@@ -59,6 +60,8 @@ Rails.application.routes.draw do
           post 'approve'
           post 'reject'
           post 'mark_paid'
+          post 'submit'
+          post 'pay'
         end
       end
 
@@ -66,6 +69,10 @@ Rails.application.routes.draw do
         collection do
           post 'mark_all_read'
           get 'unread_count'
+          get 'export'
+        end
+        member do
+          post 'mark_read'
         end
       end
 
