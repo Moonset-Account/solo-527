@@ -19,6 +19,7 @@ function UserShortages() {
       const res = await getMyShortages()
       setShortages(res.data?.items || [])
     } catch (e) {
+      message.error('加载缺货记录失败，请刷新重试')
     } finally {
       setLoading(false)
     }
@@ -27,9 +28,15 @@ function UserShortages() {
   const handleConfirm = async (item, confirm) => {
     try {
       await confirmShortage(item.id, { confirm })
-      message.success(confirm ? '已确认替换方案' : '已拒绝')
+      if (confirm) {
+        message.success('✅ 已确认替换方案，等待管理员处理')
+      } else {
+        message.success('✅ 已拒绝替换方案，请联系管理员协商')
+      }
       loadData()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '操作失败，请重试')
+    }
   }
 
   const statusClass = (status) => {

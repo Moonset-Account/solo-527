@@ -43,9 +43,11 @@ function AdminSorting() {
   const handleCreateBag = async (buildingId) => {
     try {
       await createSortingBag({ building_id: buildingId })
-      message.success('分拣袋已创建')
+      message.success('✅ 分拣袋已创建')
       loadData()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '创建分拣袋失败，请重试')
+    }
   }
 
   const handleViewBag = async (bag) => {
@@ -98,23 +100,32 @@ function AdminSorting() {
   const handlePack = async (bagId) => {
     try {
       await packBag(bagId, {})
-      message.success('已打包')
+      message.success('✅ 分拣袋已打包，可交付取货')
       loadData()
       setDetailVisible(false)
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '打包失败，请重试')
+    }
   }
 
   const handleComplete = async (bagId) => {
     try {
       await completeBag(bagId)
-      message.success('已完成')
+      message.success('✅ 分拣已完成')
       loadData()
       setDetailVisible(false)
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '操作失败，请重试')
+    }
   }
 
-  const handleExport = (buildingId) => {
-    exportSorting(buildingId)
+  const handleExport = async (buildingId) => {
+    try {
+      await exportSorting(buildingId)
+      message.success('✅ 分拣单导出成功')
+    } catch (e) {
+      message.error('❌ 导出失败，请检查权限后重试')
+    }
   }
 
   const statusClass = (status) => {

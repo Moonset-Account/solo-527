@@ -42,6 +42,7 @@ function AdminOrders() {
       setOrders(res.data?.items || [])
       setTotal(res.data?.total || 0)
     } catch (e) {
+      message.error('加载订单列表失败，请刷新页面重试')
     } finally {
       setLoading(false)
     }
@@ -71,10 +72,12 @@ function AdminOrders() {
 
   const handleCutoffSelected = async () => {
     try {
-      await cutoffOrders({})
-      message.success('已截单')
+      const res = await cutoffOrders({})
+      message.success(`✅ 截单成功，共截单 ${res.data?.count || 0} 个订单`)
       loadOrders()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '截单失败，请重试')
+    }
   }
 
   const handleEdit = (record) => {
@@ -86,14 +89,21 @@ function AdminOrders() {
   const handleSaveEdit = async (values) => {
     try {
       await updateOrder(currentOrder.id, values)
-      message.success('更新成功')
+      message.success('✅ 订单更新成功')
       setEditVisible(false)
       loadOrders()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '更新失败，请重试')
+    }
   }
 
-  const handleExport = () => {
-    exportOrders(filters)
+  const handleExport = async () => {
+    try {
+      await exportOrders(filters)
+      message.success('✅ 订单列表导出成功')
+    } catch (e) {
+      message.error('❌ 导出失败，请检查权限后重试')
+    }
   }
 
   const statusClass = (status) => {

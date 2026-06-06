@@ -2,6 +2,7 @@ import api, { downloadFile } from './index'
 
 export const getOrders = (params) => api.get('/orders', { params })
 export const getOrderDetail = (id) => api.get(`/orders/${id}`)
+export const withdrawRefund = (id) => api.post(`/refunds/${id}/withdraw`)
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data)
 export const cutoffOrders = (data) => api.post('/orders/cutoff', data)
 export const getCutoffReminder = () => api.get('/orders/cutoff-reminder')

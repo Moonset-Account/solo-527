@@ -1,7 +1,7 @@
 import { Table, Button, Tag, Space, Card, Form, Input, Select, Modal, message, Row, Col } from 'antd'
 import { SearchOutlined, ExportOutlined, EditOutlined, CheckOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import { getShortages, createShortage, proposeReplace, completeShortage, exportShortages, getOrders, getAdminProducts } from '../../api/admin'
+import { getShortages, createShortage, proposeReplace, completeShortage, exportShortages, getOrders, getOrderDetail, getAdminProducts } from '../../api/admin'
 import FilterSaver from '../../components/FilterSaver'
 
 function AdminShortages() {
@@ -24,6 +24,7 @@ function AdminShortages() {
   useEffect(() => {
     loadShortages()
     loadProducts()
+    loadOrders()
   }, [page, pageSize, filters])
 
   const loadShortages = async () => {
@@ -46,12 +47,22 @@ function AdminShortages() {
     } catch (e) {}
   }
 
+  const loadOrders = async () => {
+    try {
+      const res = await getOrders({ per_page: 100, status: 'pending,sorting,sorted' })
+      setOrders(res.data?.items || [])
+    } catch (e) {
+      message.error('加载订单列表失败，请刷新页面重试')
+    }
+  }
+
   const loadOrderItems = async (orderId) => {
     try {
-      const res = await getOrders({})
-      const order = res.data?.items?.find(o => o.id === orderId)
-      setSelectedOrder(order)
-    } catch (e) {}
+      const res = await getOrderDetail(orderId)
+      setSelectedOrder(res.data)
+    } catch (e) {
+      message.error('加载订单项失败，请重试')
+    }
   }
 
   const handleSearch = (values) => {
@@ -74,10 +85,12 @@ function AdminShortages() {
   const handleSaveShortage = async (values) => {
     try {
       await createShortage(values)
-      message.success('已记录缺货')
+      message.success('✅ 已记录缺货')
       setAddVisible(false)
       loadShortages()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '记录缺货失败，请重试')
+    }
   }
 
   const handleProposeReplace = (record) => {
@@ -93,22 +106,31 @@ function AdminShortages() {
   const handleSaveReplace = async (values) => {
     try {
       await proposeReplace(currentItem.id, values)
-      message.success('已提交替换方案')
+      message.success('✅ 已提交替换方案，等待用户确认')
       setReplaceVisible(false)
       loadShortages()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '提交替换方案失败，请重试')
+    }
   }
 
   const handleComplete = async (record) => {
     try {
       await completeShortage(record.id)
-      message.success('已完成')
+      message.success('✅ 缺货处理已完成')
       loadShortages()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '操作失败，请重试')
+    }
   }
 
-  const handleExport = () => {
-    exportShortages(filters)
+  const handleExport = async () => {
+    try {
+      await exportShortages(filters)
+      message.success('✅ 缺货列表导出成功')
+    } catch (e) {
+      message.error('❌ 导出失败，请检查权限后重试')
+    }
   }
 
   const statusClass = (status) => {

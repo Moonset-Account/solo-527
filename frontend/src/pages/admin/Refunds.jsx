@@ -1,7 +1,7 @@
 import { Table, Button, Tag, Space, Card, Form, Select, DatePicker, Modal, Input, message, Row, Col } from 'antd'
-import { SearchOutlined, ExportOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons'
+import { SearchOutlined, ExportOutlined, CheckOutlined, CloseOutlined, RollbackOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import { getRefunds, approveRefund, rejectRefund, completeRefund, exportRefunds } from '../../api/admin'
+import { getRefunds, approveRefund, rejectRefund, completeRefund, withdrawRefund, exportRefunds } from '../../api/admin'
 import FilterSaver from '../../components/FilterSaver'
 
 function AdminRefunds() {
@@ -29,6 +29,7 @@ function AdminRefunds() {
       setRefunds(res.data?.items || [])
       setTotal(res.data?.total || 0)
     } catch (e) {
+      message.error('加载退款列表失败，请刷新页面重试')
     } finally {
       setLoading(false)
     }
@@ -68,26 +69,45 @@ function AdminRefunds() {
     try {
       if (reviewType === 'approve') {
         await approveRefund(currentItem.id, values)
-        message.success('已通过')
+        message.success('✅ 退款已通过，请及时完成退款')
       } else {
         await rejectRefund(currentItem.id, values)
-        message.success('已拒绝')
+        message.success('✅ 已拒绝退款申请')
       }
       setReviewVisible(false)
       loadRefunds()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '操作失败，请重试')
+    }
   }
 
   const handleComplete = async (record) => {
     try {
       await completeRefund(record.id)
-      message.success('退款已完成')
+      message.success('✅ 退款已完成，订单状态已更新')
       loadRefunds()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '操作失败，请重试')
+    }
   }
 
-  const handleExport = () => {
-    exportRefunds(filters)
+  const handleWithdraw = async (record) => {
+    try {
+      await withdrawRefund(record.id)
+      message.success('✅ 退款申请已撤回')
+      loadRefunds()
+    } catch (e) {
+      message.error(e?.response?.data?.message || '撤回失败，请重试')
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      await exportRefunds(filters)
+      message.success('✅ 退款列表导出成功')
+    } catch (e) {
+      message.error('❌ 导出失败，请检查权限后重试')
+    }
   }
 
   const statusClass = (status) => {
@@ -124,6 +144,9 @@ function AdminRefunds() {
               </Button>
               <Button size="small" danger icon={<CloseOutlined />} onClick={() => handleReject(record)}>
                 拒绝
+              </Button>
+              <Button size="small" icon={<RollbackOutlined />} onClick={() => handleWithdraw(record)}>
+                撤回
               </Button>
             </>
           )}

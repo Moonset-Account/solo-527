@@ -81,7 +81,10 @@ function AdminPickup() {
     try {
       const res = await verifyPickup(values)
       setVerifyResult(res.data)
-    } catch (e) {}
+      message.success('✅ 核验成功，请确认取货')
+    } catch (e) {
+      message.error(e?.response?.data?.message || '核验失败，请检查订单号或取货码')
+    }
   }
 
   const handleConfirmPickup = async () => {
@@ -89,22 +92,27 @@ function AdminPickup() {
     try {
       const res = await confirmPickup({ order_id: verifyResult.id })
       setPickupCode(res.data.pickup_code)
-      message.success('取货成功')
+      message.success('✅ 取货成功，已生成取货码')
       setVerifyVisible(false)
       setVerifyResult(null)
       form.resetFields()
       loadOrders()
       loadTodayStats()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '取货失败，请重试')
+    }
   }
 
   const handleQuickPickup = async (order) => {
     try {
       const res = await confirmPickup({ order_id: order.id })
       setPickupCode(res.data.pickup_code)
+      message.success('✅ 快速取货成功')
       loadOrders()
       loadTodayStats()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '取货失败，请重试')
+    }
   }
 
   const columns = [

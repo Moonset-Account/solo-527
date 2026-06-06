@@ -19,6 +19,7 @@ function UserRefunds() {
       const res = await getMyRefunds()
       setRefunds(res.data?.items || [])
     } catch (e) {
+      message.error('加载退款记录失败，请刷新重试')
     } finally {
       setLoading(false)
     }
@@ -27,9 +28,11 @@ function UserRefunds() {
   const handleWithdraw = async (id) => {
     try {
       await withdrawRefund(id)
-      message.success('已撤回')
+      message.success('✅ 退款申请已撤回')
       loadData()
-    } catch (e) {}
+    } catch (e) {
+      message.error(e?.response?.data?.message || '撤回失败，请重试')
+    }
   }
 
   const statusClass = (status) => {
