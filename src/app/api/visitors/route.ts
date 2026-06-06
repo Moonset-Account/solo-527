@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-import { canViewAllVisitors, canViewDepartmentVisitors } from '@/lib/permissions';
+import { getServerCurrentUser } from '@/lib/auth';
+import { canViewAllVisitors } from '@/lib/permissions';
+
+function getUserFromRequest(request: NextRequest) {
+  const userId = request.headers.get('X-User-Id');
+  return getServerCurrentUser(userId || undefined);
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const user = getCurrentUser();
+    const user = getUserFromRequest(request);
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status') as any;
 

@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-import { canViewDepartmentVisitors } from '@/lib/permissions';
+import { getServerCurrentUser } from '@/lib/auth';
+
+function getUserFromRequest(request: NextRequest) {
+  const userId = request.headers.get('X-User-Id');
+  return getServerCurrentUser(userId || undefined);
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
   const roomId = searchParams.get('roomId');
+  const user = getUserFromRequest(request);
 
   try {
     const where: any = {};
@@ -42,8 +47,15 @@ export async function GET(request: NextRequest) {
     }
 
     where.status = {
-      in: ['SCHEDULED', 'IN_PROGRESS'],
+      in: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'RESCHEDULED'],
     };
+
+    if (user.role === 'EMPLOYEE') {
+      where.departmentId = user.departmentId;
+      where.hostId = user.id;
+    } else if (user.role === 'RECEPTIONIST') {
+      where.departmentId = user.departmentId;
+    }
 
     const meetings = await prisma.meeting.findMany({
       where,
@@ -54,6 +66,7 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+            phone: true,
           },
         },
         department: {
@@ -67,11 +80,12 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             status: true,
+            phone: true,
           },
         },
       },
       orderBy: {
-        startTime: 'asc',
+        startTime: 'desc',
       },
     });
 

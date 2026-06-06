@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFrontDeskTasks, completeTask, getPendingTasks } from '@/lib/front-desk';
-import { getCurrentUser } from '@/lib/auth';
+import { getServerCurrentUser } from '@/lib/auth';
 import { canManageFrontDesk } from '@/lib/permissions';
+
+function getUserFromRequest(request: NextRequest) {
+  const userId = request.headers.get('X-User-Id');
+  return getServerCurrentUser(userId || undefined);
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const user = getCurrentUser();
+    const user = getUserFromRequest(request);
 
     if (!canManageFrontDesk(user)) {
       return NextResponse.json(
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = getCurrentUser();
+    const user = getUserFromRequest(request);
 
     if (!canManageFrontDesk(user)) {
       return NextResponse.json(

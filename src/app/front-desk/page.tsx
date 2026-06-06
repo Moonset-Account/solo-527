@@ -3,6 +3,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { apiFetch } from '@/lib/api-client';
+import { getCurrentUser } from '@/lib/auth';
+import Link from 'next/link';
 
 interface Task {
   id: string;
@@ -20,12 +23,14 @@ interface Task {
     };
     host: {
       name: string;
+      phone?: string;
+      email?: string;
     };
     visitors: Array<{
       id: string;
       name: string;
       status: string;
-      phone: string;
+      phone?: string;
     }>;
   };
 }
@@ -63,16 +68,27 @@ export default function FrontDeskPage() {
   const [validatedVisitor, setValidatedVisitor] = useState<TokenValidateResult | null>(null);
   const [idPhoto, setIdPhoto] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [permissionError, setPermissionError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    const user = getCurrentUser();
+    if (user.role !== 'ADMIN' && user.role !== 'RECEPTIONIST') {
+      setPermissionError(true);
+      setLoading(false);
+      return;
+    }
     loadTasks();
   }, []);
 
   async function loadTasks() {
     try {
-      const res = await fetch('/api/front-desk?pending=true');
+      const res = await apiFetch('/api/front-desk?pending=true');
+      if (res.status === 403) {
+        setPermissionError(true);
+        return;
+      }
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch (error) {
@@ -86,11 +102,8 @@ export default function FrontDeskPage() {
     if (!tokenInput.trim()) return;
 
     try {
-      const res = await fetch('/api/token', {
+      const res = await apiFetch('/api/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ token: tokenInput.trim() }),
       });
 
@@ -150,22 +163,16 @@ export default function FrontDeskPage() {
     }
 
     try {
-      await fetch(`/api/visitors/${validatedVisitor.visitor.id}`, {
+      await apiFetch(`/api/visitors/${validatedVisitor.visitor.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           action: 'upload-photo',
           photoBase64: idPhoto,
         }),
       });
 
-      const checkInRes = await fetch(`/api/visitors/${validatedVisitor.visitor.id}`, {
+      const checkInRes = await apiFetch(`/api/visitors/${validatedVisitor.visitor.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ action: 'checkin' }),
       });
 
@@ -189,11 +196,8 @@ export default function FrontDeskPage() {
 
   async function handleCompleteTask(taskId: string) {
     try {
-      await fetch('/api/front-desk', {
+      await apiFetch('/api/front-desk', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ taskId }),
       });
       loadTasks();
@@ -204,10 +208,27 @@ export default function FrontDeskPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">前台工作台</h1>
-        <p className="text-gray-600 mt-1">访客证件核验与待办任务处理</p>
-      </div>
+      {permissionError ? (
+        <div className="card bg-red-50 border-red-200">
+          <div className="text-center py-8">
+            <h2 className="text-xl font-semibold text-red-700 mb-2">⚠️ 权限不足</h2>
+            <p className="text-red-600 mb-4">
+              您当前的身份无法访问前台工作台。请切换到「前台」或「系统管理员」身份。
+            </p>
+            <p className="text-sm text-gray-600">
+              请点击页面右上角的用户头像切换身份
+            </p>
+            <Link href="/" className="btn btn-primary mt-4 inline-block">
+              返回首页
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">前台工作台</h1>
+            <p className="text-gray-600 mt-1">访客证件核验与待办任务处理</p>
+          </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
@@ -424,6 +445,8 @@ export default function FrontDeskPage() {
           * 证件照片将在72小时后自动删除，符合数据保护规定
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }
