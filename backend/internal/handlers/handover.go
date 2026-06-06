@@ -84,6 +84,13 @@ func CreateHandover(c *fiber.Ctx) error {
 		return c.Status(201).JSON(record)
 	}
 
+	if !tempOk {
+		_, _ = database.DB.Exec(
+			"UPDATE vaccine_batches SET status = 'isolated', isolation_reason = ?, temperature_ok = ? WHERE id = ?",
+			"发放交接时温度超标", false, req.BatchID,
+		)
+	}
+
 	handoverID, _ := result.LastInsertId()
 	var record models.HandoverRecord
 	database.DB.QueryRow(`SELECT id, batch_id, batch_no, vaccine_name, quantity, check_temp, temp_ok,

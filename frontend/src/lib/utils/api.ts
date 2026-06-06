@@ -145,10 +145,12 @@ export async function processOfflineQueue(): Promise<void> {
 	lastSyncTime.set(new Date());
 
 	if (OfflineQueue.count() === 0 && syncedCount > 0) {
+		OfflineCache.clearAll();
 		syncStatus.set('synced');
 		refreshTrigger.update((n) => n + 1);
 		if (typeof window !== 'undefined') {
 			window.dispatchEvent(new CustomEvent('offline-synced', { detail: { count: syncedCount } }));
+			window.dispatchEvent(new CustomEvent('offline-cache-cleared'));
 		}
 		setTimeout(() => syncStatus.set('idle'), 3000);
 	} else if (syncedCount === 0) {

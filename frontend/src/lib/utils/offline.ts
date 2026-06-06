@@ -31,6 +31,13 @@ export class OfflineCache {
 		localStorage.removeItem(this.PREFIX + key);
 	}
 
+	static clearAll(): void {
+		if (typeof localStorage === 'undefined') return;
+		Object.keys(localStorage)
+			.filter((k) => k.startsWith(this.PREFIX))
+			.forEach((k) => localStorage.removeItem(k));
+	}
+
 	static clear(): void {
 		if (typeof localStorage === 'undefined') return;
 		Object.keys(localStorage)

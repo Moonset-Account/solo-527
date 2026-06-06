@@ -35,10 +35,15 @@
 		unsubscribe = refreshTrigger.subscribe(() => {
 			loadData();
 		});
+		const handleCacheCleared = () => loadData();
+		window.addEventListener('offline-cache-cleared', handleCacheCleared);
+		(window as any)._offlineCacheClearedHandler = handleCacheCleared;
 	});
 
 	onDestroy(() => {
 		if (unsubscribe) unsubscribe();
+		const handler = (window as any)._offlineCacheClearedHandler;
+		if (handler) window.removeEventListener('offline-cache-cleared', handler);
 	});
 
 	function getStatusBadge(status) {

@@ -40,6 +40,9 @@
 
 	onMount(() => {
 		loadData();
+		const handleCacheCleared = () => loadData();
+		window.addEventListener('offline-cache-cleared', handleCacheCleared);
+		(window as any)._handoverCacheClearedHandler = handleCacheCleared;
 	});
 
 	$: if (selectedBatch) {

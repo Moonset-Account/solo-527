@@ -28,6 +28,9 @@
 
 	onMount(() => {
 		loadData();
+		const handleCacheCleared = () => loadData();
+		window.addEventListener('offline-cache-cleared', handleCacheCleared);
+		(window as any)._batchesCacheClearedHandler = handleCacheCleared;
 	});
 
 	function getStatusBadge(status) {
