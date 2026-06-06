@@ -13,9 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -63,17 +68,36 @@ public class KilnOutRecordService {
         Artwork artwork = artworkRepository.findById(artworkId)
             .orElseThrow(() -> new BusinessException("作品不存在"));
 
-        String photoUrl = "/uploads/" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        try {
+            String uploadDir = "uploads/kiln-out-photos/";
+            Path uploadPath = Paths.get(uploadDir);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
 
-        ArtworkPhoto photo = new ArtworkPhoto();
-        photo.setArtworkId(artworkId);
-        photo.setKilnOutRecordId(kilnOutRecordId);
-        photo.setPhotoUrl(photoUrl);
-        photo.setPhotoType("OUT_KILN");
-        photo.setDescription(description);
-        photo.setUploadedBy(userId);
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename != null && originalFilename.contains(".") 
+                ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
+                : ".jpg";
+            String fileName = UUID.randomUUID().toString() + extension;
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(file.getInputStream(), filePath);
 
-        return artworkPhotoRepository.save(photo);
+            String photoUrl = "/" + uploadDir + fileName;
+
+            ArtworkPhoto photo = new ArtworkPhoto();
+            photo.setArtworkId(artworkId);
+            photo.setKilnOutRecordId(kilnOutRecordId);
+            photo.setPhotoUrl(photoUrl);
+            photo.setPhotoType("OUT_KILN");
+            photo.setDescription(description);
+            photo.setUploadedBy(userId);
+
+            return artworkPhotoRepository.save(photo);
+        } catch (Exception e) {
+            log.error("文件上传失败", e);
+            throw new BusinessException("文件上传失败: " + e.getMessage());
+        }
     }
 
     public Page<KilnOutRecord> searchRecords(Map<String, Object> criteria, Pageable pageable) {

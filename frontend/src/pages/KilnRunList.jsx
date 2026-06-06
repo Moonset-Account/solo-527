@@ -121,6 +121,28 @@ export default function KilnRunList() {
     }
   }
 
+  const handleStart = async (id) => {
+    try {
+      await kilnRunApi.start(id)
+      message.success('已开始烧制')
+      loadData()
+    } catch (e) {
+      console.error(e)
+      message.error(e.response?.data?.message || '操作失败')
+    }
+  }
+
+  const handleComplete = async (id) => {
+    try {
+      await kilnRunApi.complete(id)
+      message.success('烧制完成')
+      loadData()
+    } catch (e) {
+      console.error(e)
+      message.error(e.response?.data?.message || '操作失败')
+    }
+  }
+
   const columns = [
     { title: '窑次编号', dataIndex: 'runCode', width: 180 },
     { 
@@ -167,13 +189,17 @@ export default function KilnRunList() {
               <Popconfirm title="确定撤回该窑次？" onConfirm={() => handleWithdraw(record.id)}>
                 <Button type="link" size="small" icon={<UndoOutlined />}>撤回</Button>
               </Popconfirm>
-              <Button type="link" size="small" icon={<PlayCircleOutlined />}>
-                开始烧制
-              </Button>
+              <Popconfirm title="确定开始烧制？" onConfirm={() => handleStart(record.id)}>
+                <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+                  开始烧制
+                </Button>
+              </Popconfirm>
             </>
           )}
           {record.status === 'FIRING' && (
-            <Button type="link" size="small" icon={<StopOutlined />}>完成烧制</Button>
+            <Popconfirm title="确定完成烧制？" onConfirm={() => handleComplete(record.id)}>
+              <Button type="link" size="small" icon={<StopOutlined />}>完成烧制</Button>
+            </Popconfirm>
           )}
           {record.status === 'COMPLETED' && (
             <Button type="link" size="small" icon={<ExportOutlined />} onClick={() => kilnRunApi.export(record.id)}>

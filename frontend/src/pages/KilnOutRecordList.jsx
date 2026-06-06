@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Table, Button, Modal, Form, Select, Upload, 
-  Tag, Space, message, List, Image
+  Tag, Space, message, List, Image, Input
 } from 'antd'
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons'
-import { kilnOutRecordApi, kilnRunApi, kilnRunDetail } from '../api'
+import { kilnOutRecordApi, kilnRunApi, artworkApi, masterDataApi } from '../api'
 import dayjs from 'dayjs'
 
 const qualityMap = {
@@ -24,10 +24,14 @@ export default function KilnOutRecordList() {
   const [photoModal, setPhotoModal] = useState(false)
   const [currentArtworkId, setCurrentArtworkId] = useState(null)
   const [photos, setPhotos] = useState([])
+  const [completedKilnRuns, setCompletedKilnRuns] = useState([])
+  const [artworksByKiln, setArtworksByKiln] = useState([])
+  const [uploadFiles, setUploadFiles] = useState([])
   const [form] = Form.useForm()
 
   useEffect(() => {
     loadData()
+    loadCompletedKilnRuns()
   }, [page, pageSize])
 
   const loadData = async () => {
@@ -43,23 +47,70 @@ export default function KilnOutRecordList() {
     }
   }
 
+  const loadCompletedKilnRuns = async () => {
+    try {
+      const result = await kilnRunApi.list({ status: 'COMPLETED', page: 0, size: 100 })
+      setCompletedKilnRuns(result.content)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadArtworksByKiln = async (kilnRunId) => {
+    try {
+      const artworks = await artworkApi.getByKilnRun(kilnRunId)
+      setArtworksByKiln(artworks)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleKilnRunChange = (kilnRunId) => {
+    form.setFieldsValue({ artworkId: null })
+    if (kilnRunId) {
+      loadArtworksByKiln(kilnRunId)
+    } else {
+      setArtworksByKiln([])
+    }
+  }
+
   const handleCreate = async (values) => {
     try {
-      await kilnOutRecordApi.create(values)
-      message.success('记录成功')
+      const record = await kilnOutRecordApi.create({
+        kilnRunId: values.kilnRunId,
+        artworkId: values.artworkId,
+        qualityStatus: values.qualityStatus,
+        notes: values.notes
+      })
+
+      if (uploadFiles.length > 0) {
+        for (const file of uploadFiles) {
+          const formData = new FormData()
+          formData.append('artworkId', values.artworkId)
+          formData.append('kilnOutRecordId', record.id)
+          formData.append('file', file.originFileObj)
+          formData.append('description', file.name)
+          await kilnOutRecordApi.uploadPhoto(formData)
+        }
+      }
+
+      message.success('出窑记录成功，照片已关联')
       setCreateModal(false)
       form.resetFields()
+      setUploadFiles([])
+      setArtworksByKiln([])
       loadData()
     } catch (e) {
       console.error(e)
+      message.error(e.response?.data?.message || '记录失败')
     }
   }
 
   const viewPhotos = async (artworkId) => {
     setCurrentArtworkId(artworkId)
     try {
-      const data = await kilnOutRecordApi.getArtworkPhotos(artworkId)
-      setPhotos(data)
+      const result = await kilnOutRecordApi.getArtworkPhotos(artworkId)
+      setPhotos(result || [])
       setPhotoModal(true)
     } catch (e) {
       console.error(e)
@@ -71,7 +122,7 @@ export default function KilnOutRecordList() {
       title: '出窑时间', 
       dataIndex: 'outTime', 
       width: 160,
-      render: date => dayjs(date).format('YYYY-MM-DD HH:mm')
+      render: date => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'
     },
     { title: '窑次ID', dataIndex: 'kilnRunId', width: 100 },
     { title: '作品ID', dataIndex: 'artworkId', width: 100 },
@@ -100,7 +151,11 @@ export default function KilnOutRecordList() {
     <div className="page-container">
       <div className="page-header">
         <h2>出窑记录</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModal(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => {
+          setCreateModal(true)
+          setUploadFiles([])
+          setArtworksByKiln([])
+        }}>
           记录出窑
         </Button>
       </div>
@@ -125,40 +180,71 @@ export default function KilnOutRecordList() {
         open={createModal}
         onCancel={() => setCreateModal(false)}
         footer={null}
+        width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="kilnRunId" label="窑次" rules={[{ required: true }]}>
-            <Select placeholder="请选择窑次">
-              {/* 这里应该动态加载已完成的窑次 */}
-              <Select.Option value={1}>窑次1</Select.Option>
+          <Form.Item name="kilnRunId" label="选择窑次" rules={[{ required: true, message: '请选择窑次' }]}>
+            <Select 
+              placeholder="请选择已完成的窑次"
+              onChange={handleKilnRunChange}
+              showSearch
+              optionFilterProp="children"
+            >
+              {completedKilnRuns.map(run => (
+                <Select.Option key={run.id} value={run.id}>
+                  {run.runCode} - {run.temperatureZone}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
-          <Form.Item name="artworkId" label="作品" rules={[{ required: true }]}>
-            <Select placeholder="请选择作品">
-              <Select.Option value={1}>作品1</Select.Option>
+
+          <Form.Item name="artworkId" label="选择作品" rules={[{ required: true, message: '请选择作品' }]}>
+            <Select 
+              placeholder="请选择该窑次中的作品"
+              disabled={!form.getFieldValue('kilnRunId')}
+              showSearch
+              optionFilterProp="children"
+            >
+              {artworksByKiln.map(artwork => (
+                <Select.Option key={artwork.id} value={artwork.id}>
+                  {artwork.artworkCode} - {artwork.name || '未命名作品'}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
-          <Form.Item name="qualityStatus" label="质量状态" rules={[{ required: true }]}>
+
+          <Form.Item name="qualityStatus" label="质量状态" rules={[{ required: true, message: '请选择质量状态' }]}>
             <Select placeholder="请选择质量状态">
               {Object.entries(qualityMap).map(([key, val]) => (
                 <Select.Option key={key} value={key}>{val.text}</Select.Option>
               ))}
             </Select>
           </Form.Item>
+
           <Form.Item name="notes" label="备注">
-            <Select />
+            <Input.TextArea rows={3} placeholder="请输入备注信息" />
           </Form.Item>
-          <Form.Item label="上传照片">
+
+          <Form.Item label="上传出窑照片（关联到学员作品）">
             <Upload
+              fileList={uploadFiles}
               beforeUpload={() => false}
               multiple
-              listType="picture"
+              listType="picture-card"
+              onChange={({ fileList }) => setUploadFiles(fileList)}
             >
-              <Button icon={<UploadOutlined />}>上传照片</Button>
+              <div>
+                <UploadOutlined />
+                <div style={{ marginTop: 8 }}>上传照片</div>
+              </div>
             </Upload>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>
+              照片将自动关联到所选学员作品
+            </div>
           </Form.Item>
+
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>保存</Button>
+            <Button type="primary" htmlType="submit" block>保存记录</Button>
           </Form.Item>
         </Form>
       </Modal>
