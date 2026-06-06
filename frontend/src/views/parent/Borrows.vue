@@ -32,14 +32,24 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getMyBorrows, renewBook } from '@/api/borrows'
 
-const borrows = ref([
-  { id: 1, book_title: '猜猜我有多爱你', book_isbn: '9787543460756', borrow_date: '2024-01-01', due_date: '2024-01-15', status: 'borrowed', is_overdue: false, renew_count: 0 },
-  { id: 2, book_title: '好饿的毛毛虫', book_isbn: '9787533256210', borrow_date: '2023-12-25', due_date: '2024-01-08', status: 'borrowed', is_overdue: true, renew_count: 1 },
-  { id: 3, book_title: '我爸爸', book_isbn: '9787543462363', borrow_date: '2023-12-10', due_date: '2023-12-24', status: 'returned', is_overdue: false, renew_count: 0 }
-])
+const borrows = ref([])
+const loading = ref(false)
+
+const fetchBorrows = async () => {
+  loading.value = true
+  try {
+    const data = await getMyBorrows()
+    borrows.value = data
+  } catch (error) {
+    console.error('获取借阅记录失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const getBorrowStatusType = (row) => {
   if (row.status === 'returned') return 'info'
@@ -53,12 +63,21 @@ const getBorrowStatusText = (row) => {
   return '借阅中'
 }
 
-const handleRenew = (row) => {
+const handleRenew = async (row) => {
   if (row.renew_count >= 2) {
     ElMessage.warning('已达到最大续借次数')
     return
   }
-  ElMessage.success('续借成功，借阅期限延长14天')
-  row.renew_count += 1
+  try {
+    await renewBook(row.id)
+    ElMessage.success('续借成功，借阅期限延长14天')
+    fetchBorrows()
+  } catch (error) {
+    console.error('续借失败:', error)
+  }
 }
+
+onMounted(() => {
+  fetchBorrows()
+})
 </script>

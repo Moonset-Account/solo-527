@@ -8,7 +8,7 @@
             <h4>{{ activity.title }}</h4>
             <p class="desc">{{ activity.description }}</p>
             <div class="meta">
-              <div><el-icon><Calendar /></el-icon> {{ activity.start_time }}</div>
+              <div><el-icon><Calendar /></el-icon> {{ formatDate(activity.start_time) }}</div>
               <div><el-icon><Location /></el-icon> {{ activity.location }}</div>
             </div>
             <div class="capacity">
@@ -31,23 +31,43 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getActivities, registerActivity } from '@/api/activities'
 
-const activities = ref([
-  { id: 1, title: '周六海洋主题故事会', description: '通过绘本探索神秘的海洋世界', start_time: '2024-01-13 10:00', location: '活动室A', current_capacity: 18, max_capacity: 20, status: 'upcoming' },
-  { id: 2, title: '周日手工绘本课', description: '动手制作自己的小绘本', start_time: '2024-01-14 14:00', location: '活动室B', current_capacity: 10, max_capacity: 15, status: 'upcoming' },
-  { id: 3, title: '周三亲子阅读会', description: '家长和孩子一起读绘本', start_time: '2024-01-17 10:00', location: '阅读区', current_capacity: 16, max_capacity: 20, status: 'upcoming' }
-])
+const activities = ref([])
+const loading = ref(false)
 
-const handleRegister = (activity) => {
-  if (activity.current_capacity >= activity.max_capacity) {
-    ElMessage.success('已加入候补列表，请等待名额释放')
-  } else {
-    ElMessage.success('报名成功！')
-    activity.current_capacity += 1
+const fetchActivities = async () => {
+  loading.value = true
+  try {
+    const data = await getActivities({ status: 'upcoming' })
+    activities.value = data.results || data
+  } catch (error) {
+    console.error('获取活动列表失败:', error)
+  } finally {
+    loading.value = false
   }
 }
+
+const handleRegister = async (activity) => {
+  try {
+    const result = await registerActivity(activity.id)
+    ElMessage.success(result.message || '报名成功')
+    fetchActivities()
+  } catch (error) {
+    console.error('报名失败:', error)
+  }
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return dateStr.replace('T', ' ').substring(0, 16)
+}
+
+onMounted(() => {
+  fetchActivities()
+})
 </script>
 
 <style scoped>

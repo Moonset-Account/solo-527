@@ -180,54 +180,34 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getLibrarianDashboard } from '@/api/dashboard'
 
 const router = useRouter()
+const loading = ref(false)
 
 const dashboardData = ref({
-  today_returns: {
-    count: 3,
-    items: [
-      { id: 1, book_title: '猜猜我有多爱你', member_name: '王家长', member_phone: '13800000001', is_overdue: false },
-      { id: 2, book_title: '好饿的毛毛虫', member_name: '李家长', member_phone: '13800000002', is_overdue: true },
-      { id: 3, book_title: '我爸爸', member_name: '张家长', member_phone: '13800000003', is_overdue: false }
-    ]
-  },
-  pending_repairs: {
-    count: 2,
-    items: [
-      { id: 1, book_title: '不一样的卡梅拉', damage_level: 'affect_read', damage_level_display: '影响阅读', reporter: '李馆员' },
-      { id: 2, book_title: '神奇校车', damage_level: 'need_off', damage_level_display: '需下架', reporter: '王馆员' }
-    ]
-  },
-  waitlist_activities: {
-    count: 1,
-    items: [
-      {
-        id: 1,
-        title: '周六海洋主题故事会',
-        waitlist_count: 3,
-        waitlist_items: [
-          { id: 1, member_name: '赵家长', position: 1 },
-          { id: 2, member_name: '钱家长', position: 2 },
-          { id: 3, member_name: '孙家长', position: 3 }
-        ]
-      }
-    ]
-  },
-  abnormal_deposits: {
-    count: 1,
-    items: [
-      { id: 1, member_name: '周家长', balance: '-50.00', reason: '押金余额不足' }
-    ]
-  },
-  almost_full_activities: {
-    count: 2,
-    items: [
-      { id: 1, title: '周日手工绘本课', start_time: '2024-01-14 14:00:00', current_capacity: 18, max_capacity: 20, fill_rate: 90 },
-      { id: 2, title: '周三亲子阅读会', start_time: '2024-01-17 10:00:00', current_capacity: 16, max_capacity: 20, fill_rate: 80 }
-    ]
-  }
+  today_returns: { count: 0, items: [] },
+  pending_repairs: { count: 0, items: [] },
+  waitlist_activities: { count: 0, items: [] },
+  abnormal_deposits: { count: 0, items: [] },
+  almost_full_activities: { count: 0, items: [] }
 })
+
+const fetchDashboardData = async () => {
+  loading.value = true
+  try {
+    const data = await getLibrarianDashboard()
+    dashboardData.value = data
+  } catch (error) {
+    console.error('获取仪表板数据失败:', error)
+    if (error.response?.status === 401) {
+      ElMessage.warning('请先登录后查看数据')
+    }
+  } finally {
+    loading.value = false
+  }
+}
 
 const getDamageTagType = (level) => {
   const types = {
@@ -255,6 +235,7 @@ const goToActivities = () => router.push('/librarian/activities')
 const goToDeposits = () => router.push('/librarian/deposits')
 
 onMounted(() => {
+  fetchDashboardData()
 })
 </script>
 

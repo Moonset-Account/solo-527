@@ -11,22 +11,24 @@
       <el-table :data="repairs" stripe>
         <el-table-column prop="book_title" label="绘本名称" />
         <el-table-column prop="book_isbn" label="ISBN" width="140" />
-        <el-table-column prop="damage_level_display" label="破损程度" width="120">
+        <el-table-column label="破损程度" width="120">
           <template #default="{ row }">
             <el-tag :type="getDamageTagType(row.damage_level)" size="small">
-              {{ row.damage_level_display }}
+              {{ row.damage_level_display || row.damage_level }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status_display" label="修复状态" width="100">
+        <el-table-column label="修复状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)" size="small">
-              {{ row.status_display }}
+              {{ row.status_display || row.status }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="reporter_name" label="录入人" width="100" />
-        <el-table-column prop="create_time" label="录入时间" width="160" />
+        <el-table-column label="录入时间" width="160">
+          <template #default="{ row }">{{ formatDate(row.create_time) }}</template>
+        </el-table-column>
         <el-table-column label="操作" width="200">
           <template #default="{ row }">
             <el-button 
@@ -53,7 +55,7 @@
     <el-dialog v-model="showAddDialog" title="录入破损绘本" width="600px">
       <el-form :model="repairForm" label-width="100px">
         <el-form-item label="选择绘本" required>
-          <el-select v-model="repairForm.book_id" placeholder="请选择绘本" style="width: 100%">
+          <el-select v-model="repairForm.book" placeholder="请选择绘本" style="width: 100%">
             <el-option 
               v-for="book in availableBooks" 
               :key="book.id" 
@@ -92,27 +94,39 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getRepairs, createRepair, startRepair, completeRepair } from '@/api/repairs'
+import { getBooks } from '@/api/books'
 
-const repairs = ref([
-  { id: 1, book_title: '不一样的卡梅拉', book_isbn: '9787539135694', damage_level: 'affect_read', damage_level_display: '影响阅读', status: 'pending', status_display: '待修复', reporter_name: '李馆员', create_time: '2024-01-10 14:30' },
-  { id: 2, book_title: '神奇校车', book_isbn: '9787221091956', damage_level: 'need_off', damage_level_display: '需下架', status: 'off_shelf', status_display: '需下架', reporter_name: '王馆员', create_time: '2024-01-09 10:15' },
-  { id: 3, book_title: '猜猜我有多爱你', book_isbn: '9787543460756', damage_level: 'light', damage_level_display: '轻微磨损', status: 'repairing', status_display: '修复中', reporter_name: '李馆员', create_time: '2024-01-08 16:00' }
-])
-
-const availableBooks = ref([
-  { id: 1, title: '我爸爸', isbn: '9787543462363' },
-  { id: 2, title: '好饿的毛毛虫', isbn: '9787533256210' },
-  { id: 3, title: '大卫不可以', isbn: '9787543462356' }
-])
+const repairs = ref([])
+const availableBooks = ref([])
+const photoFile = ref(null)
 
 const showAddDialog = ref(false)
 const repairForm = reactive({
-  book_id: null,
+  book: null,
   damage_level: '',
   description: ''
 })
+
+const fetchRepairs = async () => {
+  try {
+    const data = await getRepairs()
+    repairs.value = data.results || data
+  } catch (error) {
+    console.error('获取修复记录失败:', error)
+  }
+}
+
+const fetchAvailableBooks = async () => {
+  try {
+    const data = await getBooks({ status: 'available' })
+    availableBooks.value = data.results || data
+  } catch (error) {
+    console.error('获取绘本列表失败:', error)
+  }
+}
 
 const getDamageTagType = (level) => {
   const types = { light: 'success', affect_read: 'warning', need_off: 'danger' }
@@ -124,44 +138,66 @@ const getStatusTagType = (status) => {
   return types[status] || 'info'
 }
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return dateStr.replace('T', ' ').substring(0, 16)
+}
+
 const handlePhotoChange = (file) => {
-  console.log('Photo selected:', file)
+  photoFile.value = file.raw
 }
 
-const handleStartRepair = (row) => {
-  row.status = 'repairing'
-  row.status_display = '修复中'
-  ElMessage.success('已开始修复')
+const handleStartRepair = async (row) => {
+  try {
+    await startRepair(row.id)
+    ElMessage.success('已开始修复')
+    fetchRepairs()
+  } catch (error) {
+    console.error('开始修复失败:', error)
+  }
 }
 
-const handleCompleteRepair = (row) => {
-  row.status = 'completed'
-  row.status_display = '已修复'
-  ElMessage.success('修复完成，绘本已恢复可借阅状态')
+const handleCompleteRepair = async (row) => {
+  try {
+    await completeRepair(row.id)
+    ElMessage.success('修复完成，绘本已恢复可借阅状态')
+    fetchRepairs()
+  } catch (error) {
+    console.error('完成修复失败:', error)
+  }
 }
 
-const submitRepair = () => {
-  if (!repairForm.book_id || !repairForm.damage_level) {
+const submitRepair = async () => {
+  if (!repairForm.book || !repairForm.damage_level) {
     ElMessage.warning('请填写必填项')
     return
   }
   
-  const book = availableBooks.value.find(b => b.id === repairForm.book_id)
-  
-  const newRepair = {
-    id: Date.now(),
-    book_title: book?.title,
-    book_isbn: book?.isbn,
-    damage_level: repairForm.damage_level,
-    damage_level_display: repairForm.damage_level === 'light' ? '轻微磨损' : (repairForm.damage_level === 'affect_read' ? '影响阅读' : '需下架'),
-    status: repairForm.damage_level === 'need_off' ? 'off_shelf' : 'pending',
-    status_display: repairForm.damage_level === 'need_off' ? '需下架' : '待修复',
-    reporter_name: '李馆员',
-    create_time: new Date().toLocaleString()
+  try {
+    const formData = new FormData()
+    formData.append('book', repairForm.book)
+    formData.append('damage_level', repairForm.damage_level)
+    formData.append('description', repairForm.description)
+    if (photoFile.value) {
+      formData.append('photo', photoFile.value)
+    }
+    
+    await createRepair(formData)
+    showAddDialog.value = false
+    ElMessage.success('破损信息已录入，绘本状态已自动更新')
+    repairForm.book = null
+    repairForm.damage_level = ''
+    repairForm.description = ''
+    photoFile.value = null
+    fetchRepairs()
+    fetchAvailableBooks()
+  } catch (error) {
+    console.error('录入破损失败:', error)
   }
-  
-  repairs.value.unshift(newRepair)
-  showAddDialog.value = false
-  ElMessage.success('破损信息已录入，绘本状态已自动更新')
 }
+
+onMounted(() => {
+  fetchRepairs()
+  fetchAvailableBooks()
+})
 </script>

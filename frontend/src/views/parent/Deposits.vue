@@ -13,7 +13,9 @@
     <div class="card">
       <h3 class="card-title">交易流水</h3>
       <el-table :data="transactions" stripe>
-        <el-table-column prop="create_time" label="时间" width="180" />
+        <el-table-column label="时间" width="180">
+          <template #default="{ row }">{{ formatDate(row.create_time) }}</template>
+        </el-table-column>
         <el-table-column prop="trans_type_display" label="类型" width="100">
           <template #default="{ row }">
             <el-tag :type="row.trans_type === 'deduct' ? 'danger' : 'success'" size="small">
@@ -72,19 +74,17 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getMyDepositAccount, getMyTransactions, appealTransaction } from '@/api/deposits'
 
 const account = ref({
-  balance: '150.00',
+  balance: '0.00',
   is_abnormal: false
 })
 
-const transactions = ref([
-  { id: 1, create_time: '2024-01-08 15:30:00', trans_type: 'deduct', trans_type_display: '押金扣减', amount: '50.00', description: '绘本《小恐龙》内页撕毁赔偿', status: 'appealing', status_display: '申诉中' },
-  { id: 2, create_time: '2024-01-05 14:30:00', trans_type: 'deduct', trans_type_display: '押金扣减', amount: '50.00', description: '绘本破损赔偿', status: 'confirmed', status_display: '已确认' },
-  { id: 3, create_time: '2024-01-01 10:00:00', trans_type: 'deposit', trans_type_display: '押金充值', amount: '200.00', description: '初始押金', status: 'confirmed', status_display: '已确认' }
-])
+const transactions = ref([])
+const loading = ref(false)
 
 const appealDialogVisible = ref(false)
 const appealForm = reactive({
@@ -93,6 +93,27 @@ const appealForm = reactive({
   description: '',
   reason: ''
 })
+
+const fetchAccount = async () => {
+  try {
+    const data = await getMyDepositAccount()
+    account.value = data
+  } catch (error) {
+    console.error('获取押金账户失败:', error)
+  }
+}
+
+const fetchTransactions = async () => {
+  loading.value = true
+  try {
+    const data = await getMyTransactions()
+    transactions.value = data.results || data
+  } catch (error) {
+    console.error('获取交易流水失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const getStatusType = (status) => {
   const types = {
@@ -104,6 +125,11 @@ const getStatusType = (status) => {
   return types[status] || 'info'
 }
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  return dateStr.replace('T', ' ').substring(0, 19)
+}
+
 const showAppeal = (row) => {
   appealForm.id = row.id
   appealForm.amount = row.amount
@@ -112,14 +138,26 @@ const showAppeal = (row) => {
   appealDialogVisible.value = true
 }
 
-const submitAppeal = () => {
+const submitAppeal = async () => {
   if (!appealForm.reason) {
     ElMessage.warning('请输入申诉原因')
     return
   }
-  ElMessage.success('申诉已提交，请等待馆员审核')
-  appealDialogVisible.value = false
+  try {
+    await appealTransaction(appealForm.id, { appeal_reason: appealForm.reason })
+    ElMessage.success('申诉已提交，请等待馆员审核')
+    appealDialogVisible.value = false
+    fetchTransactions()
+    fetchAccount()
+  } catch (error) {
+    console.error('申诉提交失败:', error)
+  }
 }
+
+onMounted(() => {
+  fetchAccount()
+  fetchTransactions()
+})
 </script>
 
 <style scoped>
