@@ -5,14 +5,46 @@ import type { Station, StationTrend } from '@shared/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 export default function Stations() {
-  const { stations, setStations, selectedStation, setSelectedStation, setLoading, setError } = useDashboardStore();
+  const { 
+    stations, 
+    setStations, 
+    selectedStation, 
+    setSelectedStation, 
+    setLoading, 
+    setError,
+    filters,
+    setFilters,
+    saveCurrentFilter,
+    resetFilters,
+  } = useDashboardStore();
   const [showFilters, setShowFilters] = useState(false);
   const [filterArea, setFilterArea] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [stationTrend, setStationTrend] = useState<StationTrend[]>([]);
   const [saveFilterName, setSaveFilterName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const areas = Array.from(new Set(stations.map(s => s.area)));
+
+  const handleSaveFilter = async () => {
+    if (!saveFilterName.trim()) {
+      alert('请输入筛选组合名称');
+      return;
+    }
+    setIsSaving(true);
+    setFilters({
+      areas: filterArea ? [filterArea] : [],
+      bikeStatus: filterStatus ? [filterStatus as 'available' | 'maintenance' | 'all'] : ['all'],
+    });
+    const success = await saveCurrentFilter(saveFilterName.trim());
+    if (success) {
+      alert('筛选组合保存成功！');
+      setSaveFilterName('');
+    } else {
+      alert('保存失败，请重试');
+    }
+    setIsSaving(false);
+  };
 
   useEffect(() => {
     if (stations.length === 0) {
@@ -122,9 +154,13 @@ export default function Stations() {
                   value={saveFilterName}
                   onChange={(e) => setSaveFilterName(e.target.value)}
                 />
-                <button className="btn-primary flex items-center gap-1">
-                  <Save size={14} />
-                  保存
+                <button 
+                  className="btn-primary flex items-center gap-1"
+                  onClick={handleSaveFilter}
+                  disabled={isSaving}
+                >
+                  <Save size={14} className={isSaving ? 'animate-spin' : ''} />
+                  {isSaving ? '保存中...' : '保存'}
                 </button>
               </div>
             </div>

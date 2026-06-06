@@ -118,7 +118,27 @@ router.post('/filters', (req: Request, res: Response) => {
   res.json(response);
 });
 
+router.delete('/filters/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const index = savedFilters.findIndex(f => f.id === id);
+  if (index >= 0) {
+    savedFilters.splice(index, 1);
+    res.json({
+      code: 0,
+      message: '筛选组合已删除',
+      data: null,
+    });
+  } else {
+    res.status(404).json({
+      code: 404,
+      message: '筛选组合不存在',
+      data: null,
+    });
+  }
+});
+
 let exportTasks: ExportTask[] = [];
+const exportBuffers: Map<string, { buffer: Buffer; filename: string }> = new Map();
 
 router.get('/export/tasks', (req: Request, res: Response) => {
   const response: ApiResponse<ExportTask[]> = {
@@ -180,12 +200,15 @@ router.post('/export/tasks', async (req: Request, res: Response) => {
           });
         }
 
-        const buffer = await workbook.xlsx.writeBuffer();
+        const buffer = await workbook.xlsx.writeBuffer() as Buffer;
+        const filename = `${task.name}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        exportBuffers.set(taskId, { buffer, filename });
+        
         exportTasks[taskIndex] = {
           ...task,
           status: 'completed',
           progress: 100,
-          downloadUrl: `/api/export/download/${taskId}`,
+          downloadUrl: `/api/etl/export/download/${taskId}`,
         };
       } catch (e) {
         exportTasks[taskIndex] = {
@@ -203,6 +226,24 @@ router.post('/export/tasks', async (req: Request, res: Response) => {
     data: task,
   };
   res.json(response);
+});
+
+router.get('/export/download/:taskId', (req: Request, res: Response) => {
+  const { taskId } = req.params;
+  const exportData = exportBuffers.get(taskId);
+  
+  if (!exportData) {
+    res.status(404).json({
+      code: 404,
+      message: '导出文件不存在或已过期',
+      data: null,
+    });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(exportData.filename)}"`);
+  res.send(exportData.buffer);
 });
 
 export default router;

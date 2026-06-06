@@ -1,34 +1,34 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, Download, Save, Settings, Database, FileSpreadsheet, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, Download, Save, Settings, Database, FileSpreadsheet, Clock, CheckCircle, AlertCircle, Loader2, Trash2, Play } from 'lucide-react';
 import type { EtlStatus, MetricConfig, FilterCondition, ExportTask } from '@shared/types';
+import { useDashboardStore } from '../store/useDashboardStore';
 
 export default function DataManagement() {
   const [etlStatuses, setEtlStatuses] = useState<EtlStatus[]>([]);
   const [metricConfig, setMetricConfig] = useState<MetricConfig | null>(null);
-  const [savedFilters, setSavedFilters] = useState<FilterCondition[]>([]);
   const [exportTasks, setExportTasks] = useState<ExportTask[]>([]);
   const [isRunningEtl, setIsRunningEtl] = useState(false);
   const [activeTab, setActiveTab] = useState<'etl' | 'metrics' | 'filters' | 'export'>('etl');
+  
+  const { savedFilters, fetchSavedFilters, applyFilter, deleteFilter } = useDashboardStore();
 
   useEffect(() => {
     fetchData();
-  }, []);
+    fetchSavedFilters();
+  }, [fetchSavedFilters]);
 
   const fetchData = async () => {
     try {
-      const [etlRes, metricsRes, filtersRes, exportRes] = await Promise.all([
+      const [etlRes, metricsRes, exportRes] = await Promise.all([
         fetch('/api/etl/status'),
         fetch('/api/etl/metrics'),
-        fetch('/api/etl/filters'),
         fetch('/api/etl/export/tasks'),
       ]);
       const etlData = await etlRes.json();
       const metricsData = await metricsRes.json();
-      const filtersData = await filtersRes.json();
       const exportData = await exportRes.json();
       if (etlData.code === 0) setEtlStatuses(etlData.data);
       if (metricsData.code === 0) setMetricConfig(metricsData.data);
-      if (filtersData.code === 0) setSavedFilters(filtersData.data);
       if (exportData.code === 0) setExportTasks(exportData.data);
     } catch (e) {
       console.error(e);
@@ -61,6 +61,29 @@ export default function DataManagement() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleApplyFilter = (filter: FilterCondition) => {
+    applyFilter(filter);
+    alert(`已应用筛选组合: ${filter.name || '未命名筛选'}`);
+  };
+
+  const handleDeleteFilter = async (filterId: string) => {
+    if (confirm('确定要删除此筛选组合吗？')) {
+      const success = await deleteFilter(filterId);
+      if (success) {
+        alert('删除成功');
+      }
+    }
+  };
+
+  const handleDownload = (downloadUrl: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const sourceLabels: Record<string, string> = {
@@ -244,31 +267,49 @@ export default function DataManagement() {
       {activeTab === 'filters' && (
         <div className="space-y-4">
           <h3 className="section-title">已保存的筛选组合</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {savedFilters.map((filter) => (
-              <div key={filter.id} className="glass-card-hover p-5 cursor-pointer">
-                <h4 className="font-medium text-gray-200">{filter.name || '未命名筛选'}</h4>
-                <div className="mt-3 space-y-2 text-xs text-gray-500">
-                  <div className="flex items-center justify-between">
-                    <span>区域</span>
-                    <span className="text-gray-400">{filter.areas.length > 0 ? filter.areas.join(', ') : '全部'}</span>
+          {savedFilters.length === 0 ? (
+            <div className="glass-card p-8 text-center">
+              <p className="text-gray-500">暂无保存的筛选组合，可在站点分析页保存常用筛选条件</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-4">
+              {savedFilters.map((filter) => (
+                <div key={filter.id} className="glass-card-hover p-5">
+                  <h4 className="font-medium text-gray-200">{filter.name || '未命名筛选'}</h4>
+                  <div className="mt-3 space-y-2 text-xs text-gray-500">
+                    <div className="flex items-center justify-between">
+                      <span>区域</span>
+                      <span className="text-gray-400">{filter.areas?.length > 0 ? filter.areas.join(', ') : '全部'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>车辆状态</span>
+                      <span className="text-gray-400">{filter.bikeStatus?.join(', ') || '全部'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>天气</span>
+                      <span className="text-gray-400">{filter.weatherTypes?.length > 0 ? filter.weatherTypes.join(', ') : '全部'}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span>车辆状态</span>
-                    <span className="text-gray-400">{filter.bikeStatus.join(', ')}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>天气</span>
-                    <span className="text-gray-400">{filter.weatherTypes.length > 0 ? filter.weatherTypes.join(', ') : '全部'}</span>
+                  <div className="mt-4 flex gap-2">
+                    <button 
+                      className="btn-primary flex-1 !py-1.5 text-xs flex items-center justify-center gap-1"
+                      onClick={() => handleApplyFilter(filter)}
+                    >
+                      <Play size={12} />
+                      应用
+                    </button>
+                    <button 
+                      className="btn-secondary !py-1.5 text-xs flex items-center justify-center gap-1 text-red-400 hover:text-red-300"
+                      onClick={() => handleDeleteFilter(filter.id!)}
+                    >
+                      <Trash2 size={12} />
+                      删除
+                    </button>
                   </div>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <button className="btn-primary flex-1 !py-1.5 text-xs">应用</button>
-                  <button className="btn-secondary !py-1.5 text-xs">删除</button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -329,7 +370,10 @@ export default function DataManagement() {
                       <td className="py-3 px-4 text-xs text-gray-500 font-mono">{formatTime(task.createdAt)}</td>
                       <td className="py-3 px-4 text-right">
                         {task.status === 'completed' && task.downloadUrl ? (
-                          <button className="text-accent-cyan text-sm hover:underline flex items-center gap-1 ml-auto">
+                          <button 
+                            className="text-accent-cyan text-sm hover:underline flex items-center gap-1 ml-auto"
+                            onClick={() => handleDownload(task.downloadUrl!, `${task.name}.xlsx`)}
+                          >
                             <Download size={14} />
                             下载
                           </button>

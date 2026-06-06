@@ -1,9 +1,9 @@
 import type { EtlStatus, TripRecord, Station, MetricConfig } from '@shared/types';
 import { mockStations, mockTrips, mockDispatches, mockAlerts, mockMetricConfig } from './mockData';
 
-interface ColumnStore<T> {
+type ColumnStore<T> = {
   [K in keyof T]: T[K][];
-}
+};
 
 interface DataStore {
   stations: ColumnStore<Station>;
