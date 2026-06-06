@@ -98,7 +98,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { bookingAPI } from '../../utils/api'
-import type { Booking, BookingStatus } from '../../types'
+import { BookingStatus } from '../../types'
+import type { Booking } from '../../types'
 
 const bookings = ref<Booking[]>([])
 const activeTab = ref('all')

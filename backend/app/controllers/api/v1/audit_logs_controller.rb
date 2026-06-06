@@ -36,14 +36,4 @@ class Api::V1::AuditLogsController < Api::V1::BaseController
     export_to_csv(logs, '审计日志', columns)
   end
 
-  private
-
-  def pagination_meta(collection)
-    {
-      current_page: collection.current_page,
-      total_pages: collection.total_pages,
-      total_count: collection.total_count,
-      per_page: collection.limit_value
-    }
-  end
 end

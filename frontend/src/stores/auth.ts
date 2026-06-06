@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import type { User, Teacher, Student, UserRole } from '../types'
+import { UserRole } from '../types'
+import type { User, Teacher, Student } from '../types'
 import { authAPI } from '../utils/api'
 
 interface AuthState {

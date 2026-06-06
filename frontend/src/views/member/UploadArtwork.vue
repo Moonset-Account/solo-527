@@ -65,7 +65,7 @@
               </div>
 
               <div v-else class="grid grid-cols-3 gap-3">
-                <div v-for="(img, index) in images" :key="img.id" class="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+                <div v-for="img in images" :key="img.id" class="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
                   <img :src="img.previewUrl" class="w-full h-full object-cover" />
                   <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button type="button" @click="removeImage(img.id)" class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center">
@@ -192,7 +192,7 @@ const handleSubmit = async () => {
   error.value = ''
 
   try {
-    const imageUrls = images.map((_, i) => `https://example.com/artwork_${Date.now()}_${i}.jpg`)
+    const imageUrls = images.map((_img: any, i: number) => `https://example.com/artwork_${Date.now()}_${i}.jpg`)
 
     const artworkData = {
       ...form,

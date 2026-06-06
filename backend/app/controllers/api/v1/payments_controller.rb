@@ -54,13 +54,4 @@ class Api::V1::PaymentsController < Api::V1::BaseController
   def payment_params
     params.permit(:booking_id, :payment_method)
   end
-
-  def pagination_meta(collection)
-    {
-      current_page: collection.current_page,
-      total_pages: collection.total_pages,
-      total_count: collection.total_count,
-      per_page: collection.limit_value
-    }
-  end
 end
