@@ -1,17 +1,18 @@
-import { query } from '../db/index.ts';
+import type { Request, Response, NextFunction } from 'express';
+import { query } from '../db/index';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
-export async function authenticate(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '') || req.session?.token;
+export async function authenticate(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace('Bearer ', '') || (req.session as any)?.token;
   
   if (!token) {
     return res.status(401).json({ error: '未授权访问' });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     const result = await query(
       'SELECT id, username, full_name, role, store_id, region_id FROM users WHERE id = $1',
       [decoded.userId]
@@ -29,7 +30,7 @@ export async function authenticate(req, res, next) {
 }
 
 export function requireRole(...roles: string[]) {
-  return (req, res, next) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: '未授权访问' });
     }
@@ -40,9 +41,13 @@ export function requireRole(...roles: string[]) {
   };
 }
 
-export async function checkStoreAccess(req, res, next) {
+export async function checkStoreAccess(req: Request, res: Response, next: NextFunction) {
   const { storeId } = req.params;
   const user = req.user;
+  
+  if (!user) {
+    return res.status(401).json({ error: '未授权访问' });
+  }
   
   if (user.role === 'regional_manager') {
     return next();
@@ -59,9 +64,13 @@ export async function checkStoreAccess(req, res, next) {
   return res.status(403).json({ error: '无权限访问该门店' });
 }
 
-export async function checkIssueAccess(req, res, next) {
+export async function checkIssueAccess(req: Request, res: Response, next: NextFunction) {
   const { issueId } = req.params;
   const user = req.user;
+  
+  if (!user) {
+    return res.status(401).json({ error: '未授权访问' });
+  }
   
   try {
     const result = await query('SELECT store_id FROM issues WHERE id = $1', [issueId]);

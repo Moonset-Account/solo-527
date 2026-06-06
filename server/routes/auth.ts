@@ -1,13 +1,14 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { query } from '../db/index.ts';
-import { authenticate } from '../middleware/auth.ts';
+import { query } from '../db/index';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
     
@@ -34,8 +35,8 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     
     if (req.session) {
-      req.session.token = token;
-      req.session.userId = user.id;
+      (req.session as any).token = token;
+      (req.session as any).userId = user.id;
     }
     
     res.json({
@@ -55,14 +56,14 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/logout', authenticate, async (req, res) => {
+router.post('/logout', authenticate, async (req: Request, res: Response) => {
   if (req.session) {
     req.session.destroy(() => {});
   }
   res.json({ message: '已退出登录' });
 });
 
-router.get('/me', authenticate, async (req, res) => {
+router.get('/me', authenticate, async (req: Request, res: Response) => {
   res.json({ user: req.user });
 });
 

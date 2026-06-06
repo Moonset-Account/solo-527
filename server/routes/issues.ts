@@ -1,11 +1,12 @@
 import express from 'express';
-import { query, getClient } from '../db/index.ts';
-import { authenticate, requireRole, checkIssueAccess } from '../middleware/auth.ts';
+import type { Request, Response } from 'express';
+import { query, getClient } from '../db/index';
+import { authenticate, requireRole, checkIssueAccess } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-const STATUS_FLOW = {
+const STATUS_FLOW: Record<string, string[]> = {
   pending_confirm: ['pending_rectify', 'false_positive', 'closed'],
   pending_rectify: ['reviewed', 'closed'],
   reviewed: ['pending_rectify', 'closed'],
@@ -13,9 +14,9 @@ const STATUS_FLOW = {
   closed: []
 };
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { 
       store_id, status, category, start_date, end_date, 
       is_overdue, page = 1, limit = 20 
@@ -100,9 +101,9 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/stats', authenticate, async (req, res) => {
+router.get('/stats', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { store_id, start_date, end_date } = req.query;
     
     let sql = `
@@ -146,7 +147,7 @@ router.get('/stats', authenticate, async (req, res) => {
     
     const result = await query(sql, params);
     
-    const stats = {
+    const stats: Record<string, number> = {
       pending_confirm: 0,
       pending_rectify: 0,
       reviewed: 0,
@@ -169,7 +170,7 @@ router.get('/stats', authenticate, async (req, res) => {
   }
 });
 
-router.get('/:issueId', authenticate, checkIssueAccess, async (req, res) => {
+router.get('/:issueId', authenticate, checkIssueAccess, async (req: Request, res: Response) => {
   try {
     const { issueId } = req.params;
     
@@ -215,12 +216,12 @@ router.get('/:issueId', authenticate, checkIssueAccess, async (req, res) => {
   }
 });
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, async (req: Request, res: Response) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
     
-    const user = req.user;
+    const user = req.user!;
     const { 
       store_id, category, title, description, 
       due_date, freezer_temperature, location 
@@ -260,12 +261,12 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.put('/:issueId/status', authenticate, checkIssueAccess, async (req, res) => {
+router.put('/:issueId/status', authenticate, checkIssueAccess, async (req: Request, res: Response) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
     
-    const user = req.user;
+    const user = req.user!;
     const { issueId } = req.params;
     const { status, comment, review_failure_reason, assigned_to } = req.body;
     
@@ -278,7 +279,7 @@ router.put('/:issueId/status', authenticate, checkIssueAccess, async (req, res) 
       return res.status(404).json({ error: '问题不存在' });
     }
     
-    const currentStatus = currentResult.rows[0].status;
+    const currentStatus = currentResult.rows[0].status as string;
     const allowedTransitions = STATUS_FLOW[currentStatus] || [];
     
     if (!allowedTransitions.includes(status)) {
@@ -287,7 +288,7 @@ router.put('/:issueId/status', authenticate, checkIssueAccess, async (req, res) 
       });
     }
     
-    if (status === 'pending_rectify' && !assigned_to) {
+    if (status === 'pending_rectify' && !assigned_to && currentStatus !== 'reviewed') {
       return res.status(400).json({ error: '待整改状态必须指定负责人' });
     }
     

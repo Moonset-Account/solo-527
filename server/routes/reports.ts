@@ -1,12 +1,30 @@
 import express from 'express';
-import { query } from '../db/index.ts';
-import { authenticate, requireRole } from '../middleware/auth.ts';
+import type { Request, Response } from 'express';
+import { query } from '../db/index';
+import { authenticate, requireRole } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/overview', authenticate, requireRole('regional_manager', 'supervisor'), async (req, res) => {
+const statusLabels: Record<string, string> = {
+  pending_confirm: '待确认',
+  pending_rectify: '待整改',
+  reviewed: '已复查',
+  closed: '已关闭',
+  false_positive: '误报'
+};
+
+const categoryLabels: Record<string, string> = {
+  shelf: '货架',
+  price_tag: '价签',
+  fire_exit: '消防通道',
+  freezer_temp: '冷柜温度',
+  cleanliness: '卫生',
+  other: '其他'
+};
+
+router.get('/overview', authenticate, requireRole('regional_manager', 'supervisor'), async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { start_date, end_date, region_id, store_id } = req.query;
     
     let whereClause = 'WHERE 1=1';
@@ -86,15 +104,16 @@ router.get('/overview', authenticate, requireRole('regional_manager', 'superviso
       query(storeSql, params)
     ]);
     
-    const totalIssues = statusResult.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
-    const totalOverdue = categoryResult.rows.reduce((sum, row) => sum + parseInt(row.overdue_count), 0);
+    const totalIssues = statusResult.rows.reduce((sum: number, row: any) => sum + parseInt(row.count), 0);
+    const totalOverdue = categoryResult.rows.reduce((sum: number, row: any) => sum + parseInt(row.overdue_count), 0);
+    const totalPending = storeResult.rows.reduce((sum: number, r: any) => sum + parseInt(r.pending_count), 0);
     
     res.json({
       summary: {
         total_issues: totalIssues,
         total_overdue: totalOverdue,
-        overall_overdue_rate: totalIssues > 0 
-          ? ((totalOverdue / (storeResult.rows.reduce((sum, r) => sum + parseInt(r.pending_count), 0) || 1)) * 100).toFixed(2)
+        overall_overdue_rate: totalPending > 0 
+          ? ((totalOverdue / totalPending) * 100).toFixed(2)
           : 0
       },
       by_status: statusResult.rows,
@@ -107,9 +126,9 @@ router.get('/overview', authenticate, requireRole('regional_manager', 'superviso
   }
 });
 
-router.get('/export', authenticate, requireRole('regional_manager', 'supervisor'), async (req, res) => {
+router.get('/export', authenticate, requireRole('regional_manager', 'supervisor'), async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { 
       start_date, end_date, region_id, store_id, 
       category, status, format = 'csv' 
@@ -181,27 +200,10 @@ router.get('/export', authenticate, requireRole('regional_manager', 'supervisor'
     
     const result = await query(sql, params);
     
-    const statusMap = {
-      pending_confirm: '待确认',
-      pending_rectify: '待整改',
-      reviewed: '已复查',
-      closed: '已关闭',
-      false_positive: '误报'
-    };
-    
-    const categoryMap = {
-      shelf: '货架',
-      price_tag: '价签',
-      fire_exit: '消防通道',
-      freezer_temp: '冷柜温度',
-      cleanliness: '卫生',
-      other: '其他'
-    };
-    
     const rows = result.rows.map(row => ({
       ...row,
-      "当前状态": statusMap[row["当前状态"]] || row["当前状态"],
-      "问题类型": categoryMap[row["问题类型"]] || row["问题类型"],
+      "当前状态": statusLabels[row["当前状态"]] || row["当前状态"],
+      "问题类型": categoryLabels[row["问题类型"]] || row["问题类型"],
       "是否逾期": row["是否逾期"] ? '是' : '否'
     }));
     
@@ -209,7 +211,7 @@ router.get('/export', authenticate, requireRole('regional_manager', 'supervisor'
       const headers = Object.keys(rows[0] || {});
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => 
+        ...rows.map((row: any) => 
           headers.map(header => {
             const val = row[header] || '';
             return `"${String(val).replace(/"/g, '""')}"`;

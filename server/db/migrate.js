@@ -1,11 +1,11 @@
-import { query } from './index.ts';
+import { query } from './connection.js';
 
 const migrationSQL = `
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS regions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(100) NOT NULL,
+  name VARCHAR(100) NOT NULL UNIQUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -20,7 +20,11 @@ CREATE TABLE IF NOT EXISTS stores (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TYPE user_role AS ENUM ('supervisor', 'store_manager', 'regional_manager');
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('supervisor', 'store_manager', 'regional_manager');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -36,8 +40,17 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TYPE issue_category AS ENUM ('shelf', 'price_tag', 'fire_exit', 'freezer_temp', 'cleanliness', 'other');
-CREATE TYPE issue_status AS ENUM ('pending_confirm', 'pending_rectify', 'reviewed', 'closed', 'false_positive');
+DO $$ BEGIN
+  CREATE TYPE issue_category AS ENUM ('shelf', 'price_tag', 'fire_exit', 'freezer_temp', 'cleanliness', 'other');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE issue_status AS ENUM ('pending_confirm', 'pending_rectify', 'reviewed', 'closed', 'false_positive');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 CREATE TABLE IF NOT EXISTS issues (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -101,6 +114,19 @@ CREATE TABLE IF NOT EXISTS reminders (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  sid VARCHAR NOT NULL COLLATE "default",
+  sess JSON NOT NULL,
+  expire TIMESTAMP(6) NOT NULL
+)
+WITH (OIDS=FALSE);
+
+DO $$ BEGIN
+  ALTER TABLE sessions ADD CONSTRAINT sessions_pkey PRIMARY KEY (sid);
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_issues_store_id ON issues(store_id);
 CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
 CREATE INDEX IF NOT EXISTS idx_issues_category ON issues(category);
@@ -112,7 +138,7 @@ CREATE INDEX IF NOT EXISTS idx_users_region_id ON users(region_id);
 
 INSERT INTO regions (name) VALUES 
   ('华东区'), ('华北区'), ('华南区')
-ON CONFLICT DO NOTHING;
+ON CONFLICT (name) DO NOTHING;
 `;
 
 async function migrate() {

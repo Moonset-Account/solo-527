@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "remix vite:build",
-    "dev": "node server/index.js",
-    "start": "cross-env NODE_ENV=production node server/index.js",
+    "dev": "tsx watch server/index.ts",
+    "start": "cross-env NODE_ENV=production tsx server/index.ts",
     "db:migrate": "node server/db/migrate.js",
     "db:seed": "node server/db/seed.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@remix-run/express": "^2.8.0",
@@ -36,7 +36,10 @@
   },
   "devDependencies": {
     "@remix-run/dev": "^2.8.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.17.10",
     "@types/jsonwebtoken": "^9.0.5",
@@ -47,6 +50,7 @@
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "@types/uuid": "^9.0.7",
+    "tsx": "^4.22.4",
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
     "vite-tsconfig-paths": "^4.2.3"

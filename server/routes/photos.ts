@@ -1,10 +1,11 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { query } from '../db/index.ts';
-import { authenticate, checkIssueAccess } from '../middleware/auth.ts';
+import { query } from '../db/index';
+import { authenticate, checkIssueAccess } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,13 +46,13 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post('/:issueId', authenticate, checkIssueAccess, upload.array('photos', 5), async (req, res) => {
+router.post('/:issueId', authenticate, checkIssueAccess, upload.array('photos', 5), async (req: Request, res: Response) => {
   try {
     const { issueId } = req.params;
     const { photo_type = 'original' } = req.body;
-    const user = req.user;
+    const user = req.user!;
     
-    if (!req.files || req.files.length === 0) {
+    if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
       return res.status(400).json({ error: '没有上传文件' });
     }
     
@@ -83,11 +84,12 @@ router.post('/:issueId', authenticate, checkIssueAccess, upload.array('photos', 
     });
   } catch (error) {
     console.error('Upload photo error:', error);
-    res.status(500).json({ error: error.message || '照片上传失败' });
+    const errorMessage = error instanceof Error ? error.message : '照片上传失败';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
-router.get('/:photoId', async (req, res) => {
+router.get('/:photoId', async (req: Request, res: Response) => {
   try {
     const { photoId } = req.params;
     

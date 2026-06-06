@@ -1,12 +1,13 @@
 import express from 'express';
-import { query } from '../db/index.ts';
-import { authenticate, requireRole } from '../middleware/auth.ts';
+import type { Request, Response } from 'express';
+import { query } from '../db/index';
+import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { region_id } = req.query;
     
     let sql = `
@@ -45,7 +46,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/:storeId', authenticate, async (req, res) => {
+router.get('/:storeId', authenticate, async (req: Request, res: Response) => {
   try {
     const { storeId } = req.params;
     
@@ -67,7 +68,7 @@ router.get('/:storeId', authenticate, async (req, res) => {
   }
 });
 
-router.get('/:storeId/managers', authenticate, async (req, res) => {
+router.get('/:storeId/managers', authenticate, async (req: Request, res: Response) => {
   try {
     const { storeId } = req.params;
     

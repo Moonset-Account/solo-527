@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { getClient } from './index.ts';
+import { getClient } from './connection.js';
 
 async function seed() {
   const client = await getClient();
@@ -79,10 +79,7 @@ async function seed() {
       userIds[user.username] = result.rows[0].id;
     }
     
-    console.log('Seeding issues with various statuses...');
-    
-    const categories = ['shelf', 'price_tag', 'fire_exit', 'freezer_temp', 'cleanliness', 'other'];
-    const statuses = ['pending_confirm', 'pending_rectify', 'reviewed', 'closed', 'false_positive'];
+    console.log('Seeding issues with various statuses (including false positives, overdue, and review failures)...');
     
     const issueTemplates = [
       { category: 'shelf', title: '货架商品陈列不整齐', description: '零食区第三层货架商品摆放混乱，需要整理' },
@@ -134,6 +131,7 @@ async function seed() {
       
       issuesData.push({
         id: issueId,
+        index: i,
         store_id: storeIds[storeCode],
         category: template.category,
         title: template.title,
@@ -181,7 +179,7 @@ async function seed() {
            '已完成整改，申请复查', issue.assigned_to]
         );
       } else if (issue.status === 'closed') {
-        if (i % 3 === 0) {
+        if (issue.index % 3 === 0) {
           await client.query(
             `INSERT INTO issue_logs (id, issue_id, action, from_status, to_status, review_failure_reason, comment, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -205,7 +203,6 @@ async function seed() {
     }
     
     console.log('Seeding photos...');
-    const photoTypes = ['original', 'rectification'];
     for (let i = 0; i < 40; i++) {
       const issue = issuesData[i % issuesData.length];
       const photoType = i < 25 ? 'original' : 'rectification';
@@ -226,7 +223,16 @@ async function seed() {
     }
     
     await client.query('COMMIT');
+    
+    const falsePositives = issuesData.filter(i => i.status === 'false_positive').length;
+    const overdue = issuesData.filter(i => i.is_overdue).length;
+    const reviewFailures = issuesData.filter(i => i.status === 'closed' && i.index % 3 === 0).length;
+    
     console.log('Seed data completed successfully!');
+    console.log(`  - 问题总数: ${issuesData.length}`);
+    console.log(`  - 误报问题: ${falsePositives} 条`);
+    console.log(`  - 逾期问题: ${overdue} 条`);
+    console.log(`  - 复查失败问题: ${reviewFailures} 条`);
     console.log('\nDemo accounts:');
     console.log('  督导: supervisor1 / 123456');
     console.log('  店长: manager_sh001 / 123456');

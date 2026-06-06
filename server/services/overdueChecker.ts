@@ -1,5 +1,5 @@
-import { query } from '../db/index.ts';
-import { redis } from '../redis/index.ts';
+import { query } from '../db/index';
+import { redis } from '../redis/index';
 
 const OVERDUE_CHECK_KEY = 'overdue_check:last_run';
 const REMINDER_INTERVAL = 60 * 60 * 1000;

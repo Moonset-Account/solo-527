@@ -1,13 +1,14 @@
 import express from 'express';
-import { query, getClient } from '../db/index.ts';
-import { authenticate } from '../middleware/auth.ts';
+import type { Request, Response } from 'express';
+import { query, getClient } from '../db/index';
+import { authenticate } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { payload } = req.body;
     
     if (!payload) {
@@ -31,9 +32,9 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/pending', authenticate, async (req, res) => {
+router.get('/pending', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     
     const result = await query(`
       SELECT * FROM offline_submissions
@@ -48,12 +49,12 @@ router.get('/pending', authenticate, async (req, res) => {
   }
 });
 
-router.post('/:submissionId/retry', authenticate, async (req, res) => {
+router.post('/:submissionId/retry', authenticate, async (req: Request, res: Response) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
     
-    const user = req.user;
+    const user = req.user!;
     const { submissionId } = req.params;
     
     const submissionResult = await client.query(`
@@ -102,6 +103,8 @@ router.post('/:submissionId/retry', authenticate, async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Retry submission error:', error);
     
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
+    
     await query(`
       UPDATE offline_submissions 
       SET status = 'failed', 
@@ -110,7 +113,7 @@ router.post('/:submissionId/retry', authenticate, async (req, res) => {
           error_message = $1,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
-    `, [error.message, req.params.submissionId]);
+    `, [errorMessage, req.params.submissionId]);
     
     res.status(500).json({ error: '重试失败' });
   } finally {
@@ -118,9 +121,9 @@ router.post('/:submissionId/retry', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/:submissionId', authenticate, async (req, res) => {
+router.delete('/:submissionId', authenticate, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
+    const user = req.user!;
     const { submissionId } = req.params;
     
     await query(`
