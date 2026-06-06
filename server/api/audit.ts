@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { requireRole } from "../middleware/auth.js";
+import { requireRole, getCurrentUser } from "../middleware/auth.js";
 
 export const auditRouter = Router();
 
-auditRouter.get("/", requireRole("supervisor", "finance"), async (req, res) => {
+auditRouter.get("/", requireRole("supervisor"), async (req, res) => {
   try {
+    const user = getCurrentUser(req);
     const { action, resource_type, user_id, start_date, end_date, page = 1, limit = 50 } = req.query;
     
     const offset = (Number(page) - 1) * Number(limit);

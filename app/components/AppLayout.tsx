@@ -29,7 +29,7 @@ export function AppLayout({ children, user, unreadCount = 0 }: LayoutProps) {
     { path: "/parts", label: "备件库", roles: ["engineer", "supervisor", "warehouse"] },
     { path: "/inventory", label: "库存管理", roles: ["warehouse", "supervisor"] },
     { path: "/finance", label: "财务对账", roles: ["finance", "supervisor"] },
-    { path: "/audit", label: "审计日志", roles: ["supervisor", "finance"] },
+    { path: "/audit", label: "审计日志", roles: ["supervisor"] },
   ];
 
   const visibleNavItems = navItems.filter((item) => item.roles.includes(user.role));

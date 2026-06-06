@@ -10,7 +10,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const { user } = await serverFetch<{ user: User }>(request, "/auth/me");
 
-    if (user.role !== "supervisor" && user.role !== "finance") {
+    if (user.role !== "supervisor") {
       return redirect("/");
     }
 
