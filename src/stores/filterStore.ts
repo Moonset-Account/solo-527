@@ -8,7 +8,7 @@ const getDefaultTimeRange = () => {
   return { start, end, preset: 'month' as TimePreset };
 };
 
-const STORAGE_VERSION = '1.0.3';
+const STORAGE_VERSION = '1.0.4';
 
 const loadFromSessionStorage = (): Partial<FilterState> | null => {
   try {

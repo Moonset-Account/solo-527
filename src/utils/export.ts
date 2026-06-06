@@ -133,10 +133,33 @@ export const exportToCSV = (
   students: Student[],
   courses: Course[],
   chapters: Chapter[],
+  questions: Question[],
   filename: string = '学习路径数据'
 ): void => {
   const dataRows = formatActivitiesForExport(activities, students, courses, chapters);
-  const csvContent = dataRows.map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+  
+  const filterRows = formatFiltersForExport(filters, students, questions);
+  const metadataRows: string[][] = [];
+  metadataRows.push(['# 数据导出说明', '', '']);
+  metadataRows.push(['# 导出时间', new Date().toISOString(), '']);
+  metadataRows.push(['# 样本量', activities.length.toString(), '活动记录数']);
+  metadataRows.push(['# 学员数', [...new Set(activities.map(a => a.studentId))].length.toString(), '独立学员数']);
+  metadataRows.push(['# 数据时间范围', `${filters.timeRange.start} 至 ${filters.timeRange.end}`, '']);
+  metadataRows.push(['# 数据口径', '补课学员按首次完成时间去重', '']);
+  metadataRows.push(['# 筛选条件说明', '', '']);
+  
+  filterRows.forEach(row => {
+    if (row.some(cell => cell && cell !== '')) {
+      metadataRows.push(['# ' + (row[0] || ''), row[1] || '', row[2] || '']);
+    }
+  });
+  
+  metadataRows.push(['# 分隔线', '', '']);
+  metadataRows.push(['# 以下为数据明细', '', '']);
+  metadataRows.push(['', '', '']);
+  
+  const allRows = [...metadataRows, ...dataRows];
+  const csvContent = allRows.map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
   
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });

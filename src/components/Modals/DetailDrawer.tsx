@@ -139,6 +139,7 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
       students,
       courses,
       chapters,
+      allQuestions,
       '学习路径明细数据'
     );
   };
@@ -165,28 +166,30 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
         </Space>
       }
     >
-      {activityType ? (
-        <div>
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700">
-              <Users size={16} />
-              <span className="font-medium">
-                共 {dropoutStudents.length} 名掉队学员
-              </span>
+      <Tabs defaultActiveKey={activityType ? "dropout" : "activities"}>
+        {activityType && (
+          <TabPane tab="掉队学员明细" key="dropout">
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700">
+                <Users size={16} />
+                <span className="font-medium">
+                  {ACTIVITY_TYPE_LABELS[activityType as keyof typeof ACTIVITY_TYPE_LABELS]} 环节
+                  共 {dropoutStudents.length} 名掉队学员
+                </span>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                注：补课学员已按首次完成时间去重，不重复计入统计
+              </p>
             </div>
-            <p className="text-xs text-blue-600 mt-1">
-              注：补课学员已按首次完成时间去重，不重复计入统计
-            </p>
-          </div>
-          <Table
-            columns={dropoutColumns}
-            dataSource={dropoutStudents.map((s) => ({ ...s, key: s.studentId }))}
-            pagination={{ pageSize: 10 }}
-            size="small"
-          />
-        </div>
-      ) : (
-        <Tabs defaultActiveKey="activities">
+            <Table
+              columns={dropoutColumns}
+              dataSource={dropoutStudents.map((s) => ({ ...s, key: s.studentId }))}
+              pagination={{ pageSize: 10 }}
+              size="small"
+            />
+          </TabPane>
+        )}
+        {!activityType && (
           <TabPane tab="学习行为明细" key="activities">
             <Table
               columns={activityColumns}
@@ -196,46 +199,67 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
               scroll={{ x: 800 }}
             />
           </TabPane>
-          <TabPane tab="筛选条件说明" key="filters">
-            <div className="space-y-3">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-700 mb-2">当前筛选条件</h4>
-                <div className="text-sm space-y-1.5 text-gray-600">
-                  <p>课程: {filters.courseIds.length > 0 ? `${filters.courseIds.length} 门` : '全部'}</p>
-                  <p>章节: {filters.chapterIds.length > 0 ? `${filters.chapterIds.length} 个` : '全部'}</p>
-                  <p>班期: {filters.cohortIds.length > 0 ? `${filters.cohortIds.length} 个` : '全部'}</p>
-                  <p>学员: {filters.studentIds.length > 0 ? `${filters.studentIds.length} 名` : '全部'}</p>
-                  <p>题目: {filters.questionIds.length > 0 ? `${filters.questionIds.length} 道` : '全部'}</p>
-                  <p>时间范围: {filters.timeRange.start} 至 {filters.timeRange.end}</p>
-                  {filters.questionIds.length > 0 && (
-                    <p className="text-blue-600 mt-2 pt-2 border-t border-gray-200">
-                      <strong>注意:</strong> 选择题目后，仅保留选中题目的测验活动记录，
-                      视频、作业、讨论、证书等无 questionId 的记录将被过滤
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-700 mb-2">数据口径说明</h4>
-                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                  <li>补课学员按首次完成时间去重，不重复计入首次完成率</li>
-                  <li>学习路径漏斗统计各环节独立去重学员数</li>
-                  <li>课程、章节、学员、班期、题目五个条件同时作用于活动记录</li>
-                  <li>选择题目后，仅保留有 questionId 且在选中列表中的测验记录</li>
-                </ul>
-              </div>
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <h4 className="font-medium text-yellow-700 mb-2">导出说明</h4>
-                <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
-                  <li>导出文件包含完整的筛选条件元数据</li>
-                  <li>Excel 文件包含两个 Sheet：数据明细 + 筛选条件与元数据</li>
-                  <li>请结合筛选条件和数据口径解读结论，避免误读</li>
-                </ul>
+        )}
+        <TabPane tab="筛选条件与口径" key="filters">
+          <div className="space-y-3">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-700 mb-2">当前筛选条件</h4>
+              <div className="text-sm space-y-1.5 text-gray-600">
+                <p>
+                  <strong>课程:</strong> {filters.courseIds.length > 0 ? `${filters.courseIds.length} 门` : '全部'}
+                </p>
+                <p>
+                  <strong>章节:</strong> {filters.chapterIds.length > 0 ? `${filters.chapterIds.length} 个` : '全部'}
+                </p>
+                <p>
+                  <strong>班期:</strong> {filters.cohortIds.length > 0 ? `${filters.cohortIds.length} 个` : '全部'}
+                </p>
+                <p>
+                  <strong>学员:</strong> {filters.studentIds.length > 0 ? `${filters.studentIds.length} 名` : '全部'}
+                </p>
+                <p>
+                  <strong>题目:</strong> {filters.questionIds.length > 0 ? `${filters.questionIds.length} 道` : '全部'}
+                </p>
+                <p>
+                  <strong>时间范围:</strong> {filters.timeRange.start} 至 {filters.timeRange.end}
+                </p>
+                <p>
+                  <strong>时间预设:</strong> {filters.timeRange.preset}
+                </p>
+                {activityType && (
+                  <p className="text-blue-600 mt-2 pt-2 border-t border-gray-200">
+                    <strong>当前下钻:</strong> {ACTIVITY_TYPE_LABELS[activityType as keyof typeof ACTIVITY_TYPE_LABELS]} 环节掉队学员
+                  </p>
+                )}
+                {filters.questionIds.length > 0 && (
+                  <p className="text-blue-600 mt-2 pt-2 border-t border-gray-200">
+                    <strong>注意:</strong> 选择题目后，仅保留选中题目的测验活动记录，
+                    视频、作业、讨论、证书等无 questionId 的记录将被过滤
+                  </p>
+                )}
               </div>
             </div>
-          </TabPane>
-        </Tabs>
-      )}
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-700 mb-2">数据口径说明</h4>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li>补课学员按首次完成时间去重，不重复计入首次完成率</li>
+                <li>学习路径漏斗统计各环节独立去重学员数</li>
+                <li>课程、章节、学员、班期、题目五个条件同时作用于活动记录（AND 关系）</li>
+                <li>选择题目后，仅保留有 questionId 且在选中列表中的测验记录</li>
+                <li>掉队学员 = 完成上一环节但未完成当前环节的学员</li>
+              </ul>
+            </div>
+            <div className="p-4 bg-yellow-50 rounded-lg">
+              <h4 className="font-medium text-yellow-700 mb-2">导出说明</h4>
+              <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                <li>Excel 导出包含两个 Sheet：数据明细 + 筛选条件与元数据</li>
+                <li>CSV 导出包含筛选条件注释行 + 数据明细</li>
+                <li>请结合筛选条件和数据口径解读结论，避免误读</li>
+              </ul>
+            </div>
+          </div>
+        </TabPane>
+      </Tabs>
     </Drawer>
   );
 };
