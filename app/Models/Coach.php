@@ -17,6 +17,7 @@ class Coach extends Model
         'specialties',
         'certifications',
         'experience_years',
+        'hourly_rate',
         'bio',
         'rating',
         'total_students',

@@ -11,11 +11,12 @@ return new class extends Migration
         Schema::create('coaches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade');
-            $table->string('employee_no')->unique();
+            $table->string('employee_no')->unique()->nullable();
             $table->string('gender')->nullable();
             $table->text('specialties')->nullable();
             $table->text('certifications')->nullable();
             $table->integer('experience_years')->default(0);
+            $table->decimal('hourly_rate', 10, 2)->default(200);
             $table->text('bio')->nullable();
             $table->decimal('rating', 3, 2)->default(5.00);
             $table->integer('total_students')->default(0);

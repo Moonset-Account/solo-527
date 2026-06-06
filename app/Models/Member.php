@@ -19,6 +19,8 @@ class Member extends Model
         'weight',
         'fitness_goal',
         'health_condition',
+        'health_notes',
+        'emergency_contact',
         'notes',
         'join_date',
         'expire_date',

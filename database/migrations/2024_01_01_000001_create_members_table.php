@@ -11,13 +11,15 @@ return new class extends Migration
         Schema::create('members', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade');
-            $table->string('member_no')->unique();
+            $table->string('member_no')->unique()->nullable();
             $table->string('gender')->nullable();
             $table->date('birthday')->nullable();
             $table->decimal('height', 5, 2)->nullable();
             $table->decimal('weight', 5, 2)->nullable();
             $table->text('fitness_goal')->nullable();
             $table->text('health_condition')->nullable();
+            $table->text('health_notes')->nullable();
+            $table->string('emergency_contact')->nullable();
             $table->text('notes')->nullable();
             $table->date('join_date')->nullable();
             $table->date('expire_date')->nullable();
