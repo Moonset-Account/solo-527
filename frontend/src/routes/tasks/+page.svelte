@@ -5,19 +5,22 @@
 	import { taskFilter } from '$stores/filter';
 	import { auth } from '$stores/auth';
 	import { getStatusLabel, getStatusClass, formatDate } from '$utils/helpers';
+	import { browser } from '$app/environment';
 
 	let tasks = [];
 	let total = 0;
 	let loading = false;
 	let sites = [];
-	let filter = $taskFilter;
 	let showFilters = true;
+	let filter = $taskFilter;
 
 	$: isDispatcher = $auth.user?.role === 'dispatcher' || $auth.user?.role === 'admin';
 	$: isNurse = $auth.user?.role === 'nurse';
 
-	$: {
-		taskFilter.set(filter);
+	function saveFilter() {
+		if (browser) {
+			taskFilter.set({ ...filter });
+		}
 	}
 
 	async function loadTasks() {
@@ -35,6 +38,7 @@
 			const result = await api.getTasks(params);
 			tasks = result.data;
 			total = result.total;
+			saveFilter();
 		} catch (e) {
 			alert(e.message);
 		} finally {
@@ -50,7 +54,7 @@
 
 	function handleFilter() {
 		filter.page = 1;
-		taskFilter.set(filter);
+		saveFilter();
 		loadTasks();
 	}
 
@@ -70,7 +74,7 @@
 
 	function changePage(page) {
 		filter.page = page;
-		taskFilter.set(filter);
+		saveFilter();
 		loadTasks();
 	}
 

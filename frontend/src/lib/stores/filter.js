@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 
 const initialFilter = {
 	status: '',
@@ -11,22 +12,29 @@ const initialFilter = {
 };
 
 function createFilterStore() {
-	const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('taskFilter') : null;
-	const initial = stored ? { ...initialFilter, ...JSON.parse(stored) } : initialFilter;
+	let initial = { ...initialFilter };
+	if (browser) {
+		const stored = sessionStorage.getItem('taskFilter');
+		if (stored) {
+			try {
+				initial = { ...initialFilter, ...JSON.parse(stored) };
+			} catch (e) {}
+		}
+	}
 
-	const { subscribe, set, update } = writable(initial);
+	const { subscribe, set } = writable(initial);
 
 	return {
 		subscribe,
 		set: (filter) => {
 			set(filter);
-			if (typeof sessionStorage !== 'undefined') {
+			if (browser) {
 				sessionStorage.setItem('taskFilter', JSON.stringify(filter));
 			}
 		},
 		reset: () => {
 			set(initialFilter);
-			if (typeof sessionStorage !== 'undefined') {
+			if (browser) {
 				sessionStorage.removeItem('taskFilter');
 			}
 		}

@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	let showMenu = false;
 
@@ -11,17 +12,24 @@
 	$: isDispatcher = user?.role === 'dispatcher' || user?.role === 'admin';
 	$: isNurse = user?.role === 'nurse';
 	$: isAdmin = user?.role === 'admin';
+	$: isAuthenticated = !!$auth.token;
 
 	function logout() {
 		auth.logout();
-		goto('/login');
+		if (browser) {
+			goto('/login');
+		}
 	}
 
 	onMount(() => {
-		if (!isLoginPage && !$auth.token) {
+		if (browser && !isLoginPage && !isAuthenticated) {
 			goto('/login');
 		}
 	});
+
+	$: if (browser && !isLoginPage && !isAuthenticated) {
+		goto('/login');
+	}
 </script>
 
 {#if isLoginPage}

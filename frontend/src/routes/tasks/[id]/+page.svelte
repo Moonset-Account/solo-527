@@ -31,7 +31,7 @@
 	$: canSign = isNurse && (task?.status === 'in_transit' || task?.status === 'returned');
 	$: canReturn = isNurse && task?.status === 'in_transit';
 	$: canResend = isDispatcher && task?.status === 'returned';
-	$: canReview = isDispatcher && task?.status === 'exception';
+	$: canReview = isDispatcher && !task?.reviewed && task?.status === 'exception';
 	$: tempNormal = isTemperatureNormal(signForm.temperature);
 
 	async function loadTask() {
