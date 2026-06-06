@@ -1,22 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth'
 import { formatCurrency, getStatusText, getStatusColor } from '@/lib/utils'
+import { getEquipmentList } from '@/lib/order-service'
 import { Loader2, Plus, Search, Camera, Lightbulb, Wrench, Package as PackageIcon } from 'lucide-react'
-import { Database } from '@/types/database'
-
-type Equipment = Database['public']['Tables']['equipment']['Row']
+import type { Equipment } from '@/types'
 
 export default function EquipmentPage() {
-  const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [equipment, setEquipment] = useState<Array<Omit<Equipment, 'purchase_price'> & { purchase_price?: number | null }>>([])
   const [loading, setLoading] = useState(true)
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const { profile } = useAuth()
-  const supabase = createClient()
 
   const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
 
@@ -29,17 +26,12 @@ export default function EquipmentPage() {
 
   useEffect(() => {
     const fetchEquipment = async () => {
-      let query = supabase.from('equipment').select('*').order('created_at', { ascending: false })
-
-      if (categoryFilter !== 'all') {
-        query = query.eq('category', categoryFilter)
-      }
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter)
-      }
-
-      const { data } = await query
-      setEquipment(data || [])
+      setLoading(true)
+      const data = await getEquipmentList({
+        category: categoryFilter,
+        status: statusFilter,
+      })
+      setEquipment(data)
       setLoading(false)
     }
 

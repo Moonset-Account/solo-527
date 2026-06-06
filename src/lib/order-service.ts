@@ -64,6 +64,22 @@ export async function checkAvailability(
   }
 
   if (equipmentIds.length > 0) {
+    const { data: equipmentList } = await supabase
+      .from('equipment')
+      .select('id, name, status')
+      .in('id', equipmentIds)
+
+    for (const eq of (equipmentList || []) as any[]) {
+      if (eq.status !== 'available' && !conflicts.find(c => c.id === eq.id)) {
+        conflicts.push({
+          type: 'equipment',
+          id: eq.id,
+          name: eq.name,
+          conflictingOrderId: null,
+        })
+      }
+    }
+
     const { data: equipmentConflicts } = await supabase
       .from('order_equipment')
       .select(`
@@ -71,17 +87,14 @@ export async function checkAvailability(
         order_id,
         equipment_id,
         equipment:equipment(id, name),
-        order:orders(id, order_number, start_time, end_time, status)
+        order:orders(id, order_number)
       `)
       .in('equipment_id', equipmentIds)
-      .in('order.status', ['confirmed', 'in_progress'])
-      .lt('order.start_time', endTime)
-      .gt('order.end_time', startTime)
       .eq('returned', false)
       .neq(excludeOrderId ? 'order_id' : '__none__', excludeOrderId || '')
 
     if (equipmentConflicts) {
-      const conflictEquipmentIds = new Set<string>()
+      const conflictEquipmentIds = new Set<string>(conflicts.map(c => c.id))
       for (const ec of equipmentConflicts as any[]) {
         if (!conflictEquipmentIds.has(ec.equipment_id)) {
           conflictEquipmentIds.add(ec.equipment_id)
@@ -489,4 +502,50 @@ export async function resolveDamageRecord(
     .single()
 
   return damageRecordData as DamageRecord
+}
+
+export async function getEquipmentList(options?: {
+  category?: string
+  status?: string
+}): Promise<Array<Omit<Equipment, 'purchase_price'> & { purchase_price?: number | null }>> {
+  const supabase = createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  
+  const profile = profileData as { role: string } | null
+  const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
+
+  let query = supabase
+    .from('equipment')
+    .select(isStaff ? '*' : 'id, name, category, description, rental_price, deposit_amount, status, serial_number, brand, model, purchase_date, created_at, updated_at')
+    .order('created_at', { ascending: false })
+
+  if (options?.category && options.category !== 'all') {
+    query = query.eq('category', options.category)
+  }
+  if (options?.status && options.status !== 'all') {
+    query = query.eq('status', options.status)
+  }
+
+  const { data } = await query
+  return (data || []) as Array<Omit<Equipment, 'purchase_price'> & { purchase_price?: number | null }>
+}
+
+export async function getAvailableEquipment(): Promise<Array<Omit<Equipment, 'purchase_price'>>> {
+  const supabase = createClient()
+
+  const { data } = await supabase
+    .from('equipment')
+    .select('id, name, category, description, rental_price, deposit_amount, status, serial_number, brand, model, purchase_date, created_at, updated_at')
+    .eq('status', 'available')
+    .order('name')
+
+  return (data || []) as Array<Omit<Equipment, 'purchase_price'>>
 }

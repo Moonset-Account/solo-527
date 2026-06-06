@@ -39,7 +39,7 @@ export type AvailabilityCheckResult = {
     type: 'studio' | 'equipment'
     id: string
     name?: string
-    conflictingOrderId?: string
+    conflictingOrderId?: string | null
   }[]
 }
 

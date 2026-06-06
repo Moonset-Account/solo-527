@@ -8,6 +8,8 @@ type NotificationChannel = Database['public']['Tables']['notification_queue']['I
 type NotificationRow = Database['public']['Tables']['notifications']['Row']
 type NotificationQueueRow = Database['public']['Tables']['notification_queue']['Row']
 
+const SIMULATE_FAILURE_RATE = 0.3
+
 interface CreateNotificationOptions {
   userId: string
   type: NotificationType
@@ -110,7 +112,7 @@ export async function processNotificationQueue() {
         return { id: item.id, success: true }
       } catch (error: any) {
         const newRetryCount = item.retry_count + 1
-        const newStatus = newRetryCount >= item.max_retries ? 'failed' : 'failed'
+        const newStatus = newRetryCount >= item.max_retries ? 'failed' : 'pending'
 
         await supabase
           .from('notification_queue')
@@ -166,7 +168,7 @@ export async function retryNotification(notificationId: string) {
     return { success: true }
   } catch (error: any) {
     const newRetryCount = queueItem.retry_count + 1
-    const newStatus = newRetryCount >= queueItem.max_retries ? 'failed' : 'failed'
+    const newStatus = newRetryCount >= queueItem.max_retries ? 'failed' : 'pending'
 
     await supabase
       .from('notification_queue')
@@ -212,9 +214,25 @@ export async function deleteNotificationFromQueue(notificationId: string) {
 }
 
 async function sendEmail(to: string, subject: string, content: string) {
-  console.log(`[Email] To: ${to}, Subject: ${subject}, Content: ${content}`)
+  console.log(`[Email] To: ${to}, Subject: ${subject}`)
+  
+  if (Math.random() < SIMULATE_FAILURE_RATE) {
+    const error = new Error('SMTP连接超时：无法连接到邮件服务器')
+    console.error(`[Email] 发送失败: ${error.message}`)
+    throw error
+  }
+  
+  console.log(`[Email] 发送成功`)
 }
 
 async function sendSms(to: string, content: string) {
-  console.log(`[SMS] To: ${to}, Content: ${content}`)
+  console.log(`[SMS] To: ${to}`)
+  
+  if (Math.random() < SIMULATE_FAILURE_RATE) {
+    const error = new Error('短信网关错误：服务商限流')
+    console.error(`[SMS] 发送失败: ${error.message}`)
+    throw error
+  }
+  
+  console.log(`[SMS] 发送成功`)
 }
