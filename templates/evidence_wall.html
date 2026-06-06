@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% set active_page = 'evidence-wall' %}
+{% block title %}证据墙 - 采购异常截图归档系统{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:20px;">证据墙</h2>
+
+<div class="filter-bar">
+    <div class="form-group">
+        <label>证据类型</label>
+        <select id="type-filter" onchange="loadEvidence()">
+            <option value="">全部</option>
+            <option value="price_comparison">比价截图</option>
+            <option value="supplier_quote">供应商报价</option>
+            <option value="approval_form">审批单</option>
+        </select>
+    </div>
+    <div class="form-group" style="flex:2;min-width:200px;">
+        <label>搜索</label>
+        <input type="text" id="search-input" placeholder="搜索项目/文件名..." oninput="debounceLoad()">
+    </div>
+    <a href="/api/export/evidence/excel" class="btn btn-secondary">导出Excel</a>
+</div>
+
+<div id="evidence-wall" class="grid">
+    <p>加载中...</p>
+</div>
+
+<div style="text-align:center; margin:20px 0;">
+    <button class="btn btn-secondary" id="load-more-btn" onclick="loadMore()" style="display:none;">加载更多</button>
+</div>
+
+<div id="preview-modal" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h3 id="preview-title">证据详情</h3>
+            <span class="close" onclick="hidePreviewModal()">&times;</span>
+        </div>
+        <div id="preview-content"></div>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let pageSize = 12;
+let hasMore = true;
+let allItems = [];
+
+function debounce(func, wait) {
+    let timeout;
+    return function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(func, wait);
+    };
+}
+const debounceLoad = debounce(loadEvidence, 300);
+
+async function init() {
+    await checkAuth();
+    loadEvidence();
+}
+
+async function loadEvidence() {
+    currentPage = 1;
+    allItems = [];
+    hasMore = true;
+    
+    const type = document.getElementById('type-filter').value;
+    const search = document.getElementById('search-input').value;
+    
+    let url = `/api/evidence/wall/list?page=${currentPage}&page_size=${pageSize}`;
+    if (type) url += `&file_type=${type}`;
+    
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const data = await res.json();
+    
+    allItems = data.items;
+    if (search) {
+        allItems = allItems.filter(item => 
+            item.file_name.includes(search) || 
+            item.project_name.includes(search) ||
+            item.project_code.includes(search)
+        );
+    }
+    
+    hasMore = (currentPage * pageSize) < data.total;
+    renderWall();
+}
+
+async function loadMore() {
+    currentPage++;
+    
+    const type = document.getElementById('type-filter').value;
+    let url = `/api/evidence/wall/list?page=${currentPage}&page_size=${pageSize}`;
+    if (type) url += `&file_type=${type}`;
+    
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const data = await res.json();
+    allItems = allItems.concat(data.items);
+    hasMore = (currentPage * pageSize) < data.total;
+    renderWall();
+}
+
+function renderWall() {
+    const container = document.getElementById('evidence-wall');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    
+    if (allItems.length === 0) {
+        container.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">暂无证据</p>';
+        loadMoreBtn.style.display = 'none';
+        return;
+    }
+    
+    let html = '';
+    for (const item of allItems) {
+        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(item.file_path);
+        
+        html += `
+            <div class="evidence-card" onclick="viewEvidence(${item.id})">
+                <div class="evidence-preview">
+                    ${isImage ? `<img src="${item.file_path}" alt="${item.file_name}">` : 
+                    `<span class="file-icon">📄</span>`}
+                </div>
+                <div class="evidence-info">
+                    <h4 title="${item.file_name}">${item.file_name}</h4>
+                    <div class="evidence-meta">
+                        <span class="badge badge-${item.project_status === 'archived' ? 'archived' : 'pending'}">${item.file_type_name}</span>
+                        <div style="margin-top:5px;">${item.project_code} - ${item.project_name}</div>
+                        <div style="margin-top:3px;">上传人：${item.uploader_name}</div>
+                        <div style="margin-top:3px;">${item.uploaded_at.substring(0, 16)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    loadMoreBtn.style.display = hasMore ? 'inline-block' : 'none';
+}
+
+function hidePreviewModal() {
+    document.getElementById('preview-modal').classList.remove('show');
+}
+
+async function viewEvidence(evidenceId) {
+    const res = await fetch(`/api/evidence/${evidenceId}`, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const evidence = await res.json();
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(evidence.file_path);
+    
+    let commentHtml = '';
+    if (evidence.comments.length > 0) {
+        commentHtml = '<div class="comment-section"><h4>追加说明</h4>';
+        for (const c of evidence.comments) {
+            commentHtml += `
+                <div class="comment">
+                    <div class="comment-meta">${c.creator_name} - ${c.created_at}</div>
+                    <div>${c.comment_text}</div>
+                </div>
+            `;
+        }
+        commentHtml += '</div>';
+    }
+    
+    let html = `
+        <h4>${evidence.file_name}</h4>
+        <p><strong>上传人：</strong>${evidence.uploader_name}</p>
+        <p><strong>上传时间：</strong>${evidence.uploaded_at}</p>
+        <p><strong>文件大小：</strong>${(evidence.file_size / 1024).toFixed(2)} KB</p>
+        <p><strong>归档状态：</strong>${evidence.is_archived ? '已归档' : '未归档'}</p>
+        <div style="margin:20px 0;">
+            ${isImage ? `<img src="${evidence.file_path}" style="max-width:100%;border-radius:4px;">` : 
+            `<a href="${evidence.file_path}" target="_blank" class="btn btn-primary">下载/打开文件</a>`}
+        </div>
+        ${commentHtml}
+    `;
+    
+    if (evidence.is_archived) {
+        html += `
+            <div style="margin-top:20px;">
+                <h4>追加说明（已归档证据只能追加，不能删除）</h4>
+                <form onsubmit="addComment(event, ${evidenceId})">
+                    <div class="form-group">
+                        <textarea name="comment_text" required rows="3" placeholder="输入说明内容..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">追加说明</button>
+                </form>
+            </div>
+        `;
+    }
+    
+    document.getElementById('preview-title').textContent = evidence.file_name;
+    document.getElementById('preview-content').innerHTML = html;
+    document.getElementById('preview-modal').classList.add('show');
+}
+
+async function addComment(e, evidenceId) {
+    e.preventDefault();
+    const text = e.target.comment_text.value;
+    
+    const res = await fetch(`/api/evidence/${evidenceId}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_text: text })
+    });
+    
+    if (res.ok) {
+        showToast('说明已追加');
+        viewEvidence(evidenceId);
+    } else {
+        const result = await res.json();
+        showToast(result.detail || '操作失败', 'error');
+    }
+}
+
+init();
+</script>
+{% endblock %}

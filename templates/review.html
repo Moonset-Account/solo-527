@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% set active_page = 'review' %}
+{% block title %}审核中心 - 采购异常截图归档系统{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:20px;">审核中心</h2>
+
+<div class="card">
+    <div class="card-header">
+        <h2>待审核项目</h2>
+        <div id="threshold-info" style="font-size:14px;color:#666;"></div>
+    </div>
+    <div id="pending-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>已退回项目</h2>
+    </div>
+    <div id="rejected-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div id="review-modal" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h3 id="review-title">项目审核</h3>
+            <span class="close" onclick="hideReviewModal()">&times;</span>
+        </div>
+        <div id="review-content"></div>
+    </div>
+</div>
+
+<script>
+let threshold = 50000;
+
+async function init() {
+    const user = await checkAuth();
+    if (!user) return;
+    
+    const thRes = await fetch('/api/review/threshold', { credentials: 'include' });
+    if (thRes.ok) {
+        const data = await thRes.json();
+        threshold = data.threshold_amount;
+        document.getElementById('threshold-info').textContent = 
+            `金额阈值：¥${threshold.toLocaleString()}（超过此金额需二审）`;
+    }
+    
+    loadPending();
+    loadRejected();
+}
+
+async function loadPending() {
+    const res = await fetch('/api/review/pending', { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const data = await res.json();
+    const items = data.items;
+    
+    if (items.length === 0) {
+        document.getElementById('pending-list').innerHTML = 
+            '<p style="text-align:center;color:#999;padding:30px;">暂无待审核项目</p>';
+        return;
+    }
+    
+    let html = '<table><thead><tr><th>项目编号</th><th>项目名称</th><th>供应商</th><th>金额</th><th>需二审</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+    for (const p of items) {
+        html += `
+            <tr>
+                <td>${p.project_code}</td>
+                <td>${p.project_name}</td>
+                <td>${p.supplier_name}</td>
+                <td>¥${p.amount.toLocaleString()}</td>
+                <td>${p.needs_second_review ? '<span class="badge badge-warning">是</span>' : '否'}</td>
+                <td>${p.status === 'pending_review' ? '待一审' : '待二审'}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="openReview(${p.id}, '${p.status}')">审核</button>
+                </td>
+            </tr>
+        `;
+    }
+    html += '</tbody></table>';
+    document.getElementById('pending-list').innerHTML = html;
+}
+
+async function loadRejected() {
+    const res = await fetch('/api/review/rejected', { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const projects = await res.json();
+    
+    if (projects.length === 0) {
+        document.getElementById('rejected-list').innerHTML = 
+            '<p style="text-align:center;color:#999;padding:30px;">暂无退回项目</p>';
+        return;
+    }
+    
+    let html = '<table><thead><tr><th>项目编号</th><th>项目名称</th><th>供应商</th><th>金额</th><th>退回原因</th><th>退回时间</th></tr></thead><tbody>';
+    for (const p of projects) {
+        html += `
+            <tr>
+                <td>${p.project_code}</td>
+                <td>${p.project_name}</td>
+                <td>${p.supplier_name}</td>
+                <td>¥${p.amount.toLocaleString()}</td>
+                <td>${p.reject_reason || '-'}</td>
+                <td>${p.rejected_at}</td>
+            </tr>
+        `;
+    }
+    html += '</tbody></table>';
+    document.getElementById('rejected-list').innerHTML = html;
+}
+
+function hideReviewModal() {
+    document.getElementById('review-modal').classList.remove('show');
+}
+
+async function openReview(projectId, status) {
+    const res = await fetch(`/api/projects/${projectId}`, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const project = await res.json();
+    const fileTypeMap = {
+        'price_comparison': '比价截图',
+        'supplier_quote': '供应商报价',
+        'approval_form': '审批单'
+    };
+    
+    const reviewType = status === 'pending_review' ? 'first_review' : 'second_review';
+    const reviewTypeName = reviewType === 'first_review' ? '一审' : '二审';
+    const hasSupplierQuote = project.evidence.some(e => e.file_type === 'supplier_quote');
+    
+    let html = `
+        <div style="margin-bottom:20px;">
+            <p><strong>项目编号：</strong>${project.project_code}</p>
+            <p><strong>项目名称：</strong>${project.project_name}</p>
+            <p><strong>供应商：</strong>${project.supplier_name}</p>
+            <p><strong>金额：</strong>¥${project.amount.toLocaleString()} 
+                ${project.amount > threshold ? '<span class="badge badge-warning">超过阈值，需二审</span>' : ''}
+            </p>
+            <p><strong>创建人：</strong>${project.creator_name}</p>
+            <p><strong>创建时间：</strong>${project.created_at}</p>
+        </div>
+        
+        <h4 style="margin:20px 0 10px;">证据文件</h4>
+    `;
+    
+    if (project.evidence.length > 0) {
+        html += '<table><thead><tr><th>类型</th><th>文件名</th><th>上传人</th><th>上传时间</th><th>操作</th></tr></thead><tbody>';
+        for (const e of project.evidence) {
+            html += `
+                <tr>
+                    <td>${fileTypeMap[e.file_type] || e.file_type}</td>
+                    <td>${e.file_name}</td>
+                    <td>${e.uploader_name}</td>
+                    <td>${e.uploaded_at}</td>
+                    <td><a href="${e.file_path}" target="_blank" class="btn btn-sm btn-secondary">查看</a></td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+    } else {
+        html += '<p style="color:#999;">暂无证据文件</p>';
+    }
+    
+    if (!hasSupplierQuote) {
+        html += '<div class="alert alert-warning" style="margin-top:15px;">⚠️ 缺少供应商报价文件，不能通过审核，只能退回补证</div>';
+    }
+    
+    if (project.reviews.length > 0) {
+        html += `
+            <h4 style="margin:20px 0 10px;">审核记录</h4>
+            <table><thead><tr><th>类型</th><th>结果</th><th>审核人</th><th>意见</th><th>时间</th></tr></thead><tbody>
+        `;
+        for (const r of project.reviews) {
+            html += `
+                <tr>
+                    <td>${r.review_type === 'first_review' ? '一审' : '二审'}</td>
+                    <td>${r.decision === 'approve' ? '通过' : '退回'}</td>
+                    <td>${r.reviewer_name}</td>
+                    <td>${r.comments || '-'}</td>
+                    <td>${r.reviewed_at}</td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+    }
+    
+    html += `
+        <div style="margin-top:30px; padding-top:20px; border-top:1px solid #eee;">
+            <h4>${reviewTypeName}意见</h4>
+            <form onsubmit="submitReview(event, ${projectId}, '${reviewType}')">
+                <div class="form-group">
+                    <label>审核意见</label>
+                    <textarea name="comments" rows="3" placeholder="请输入审核意见..."></textarea>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="submit" name="decision" value="approve" class="btn btn-success" 
+                        ${!hasSupplierQuote ? 'disabled title="缺少供应商报价文件"' : ''}>
+                        通过
+                    </button>
+                    <button type="submit" name="decision" value="reject" class="btn btn-danger">退回补证</button>
+                </div>
+                <div id="review-result"></div>
+            </form>
+        </div>
+    `;
+    
+    document.getElementById('review-title').textContent = `项目审核 - ${reviewTypeName}`;
+    document.getElementById('review-content').innerHTML = html;
+    document.getElementById('review-modal').classList.add('show');
+}
+
+async function submitReview(e, projectId, reviewType) {
+    e.preventDefault();
+    const form = e.target;
+    const decision = e.submitter.value;
+    const comments = form.comments.value;
+    
+    const res = await fetch(`/api/review/${projectId}/${reviewType}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, comments })
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+        showToast('审核完成');
+        hideReviewModal();
+        loadPending();
+        loadRejected();
+    } else {
+        document.getElementById('review-result').innerHTML = 
+            `<div class="alert alert-error">${result.detail || '审核失败'}</div>`;
+    }
+}
+
+init();
+</script>
+{% endblock %}

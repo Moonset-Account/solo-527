@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% set active_page = 'upload' %}
+{% block title %}上传证据 - 采购异常截图归档系统{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:20px;">项目管理与证据上传</h2>
+
+<div class="filter-bar">
+    <div class="form-group" style="flex:2;min-width:200px;">
+        <label>项目编号/名称</label>
+        <input type="text" id="search-input" placeholder="搜索项目..." oninput="loadProjects()">
+    </div>
+    <div class="form-group">
+        <label>状态</label>
+        <select id="status-filter" onchange="loadProjects()">
+            <option value="">全部</option>
+            <option value="draft">草稿</option>
+            <option value="pending_review">待审核</option>
+            <option value="rejected">已退回</option>
+            <option value="archived">已归档</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="showCreateModal()">+ 新建项目</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>项目列表</h2>
+        <a href="/api/export/projects/excel" class="btn btn-secondary btn-sm">导出Excel</a>
+    </div>
+    <div id="projects-list">
+        <p>加载中...</p>
+    </div>
+</div>
+
+<div id="create-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>新建项目</h3>
+            <span class="close" onclick="hideCreateModal()">&times;</span>
+        </div>
+        <form id="create-form" onsubmit="createProject(event)">
+            <div class="form-group">
+                <label>项目编号 *</label>
+                <input type="text" name="project_code" required placeholder="如：PO-2024-001">
+            </div>
+            <div class="form-group">
+                <label>项目名称 *</label>
+                <input type="text" name="project_name" required placeholder="采购项目名称">
+            </div>
+            <div class="form-group">
+                <label>供应商名称 *</label>
+                <input type="text" name="supplier_name" required placeholder="供应商全称">
+            </div>
+            <div class="form-group">
+                <label>采购金额 (元) *</label>
+                <input type="number" name="amount" step="0.01" required placeholder="0.00">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">创建项目</button>
+            <div id="create-result" style="margin-top:15px;"></div>
+        </form>
+    </div>
+</div>
+
+<div id="detail-modal" class="modal">
+    <div class="modal-content" style="max-width:900px;">
+        <div class="modal-header">
+            <h3 id="detail-title">项目详情</h3>
+            <span class="close" onclick="hideDetailModal()">&times;</span>
+        </div>
+        <div id="detail-content"></div>
+    </div>
+</div>
+
+<script>
+let currentUser = null;
+
+async function init() {
+    currentUser = await checkAuth();
+    if (!currentUser) return;
+    loadProjects();
+}
+
+async function loadProjects() {
+    const search = document.getElementById('search-input').value;
+    const status = document.getElementById('status-filter').value;
+    
+    let url = '/api/projects';
+    const params = [];
+    if (status) params.push(`status=${status}`);
+    if (params.length) url += '?' + params.join('&');
+    
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const projects = await res.json();
+    
+    const filtered = search ? projects.filter(p => 
+        p.project_code.includes(search) || p.project_name.includes(search)
+    ) : projects;
+    
+    const statusMap = {
+        'draft': ['草稿', 'badge-draft'],
+        'pending_review': ['待审核', 'badge-pending'],
+        'first_reviewed': ['一审通过', 'badge-approved'],
+        'archived': ['已归档', 'badge-archived'],
+        'rejected': ['已退回', 'badge-rejected']
+    };
+    
+    let html = '<table><thead><tr><th>项目编号</th><th>项目名称</th><th>供应商</th><th>金额</th><th>证据数</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+    for (const p of filtered) {
+        const [statusName, statusClass] = statusMap[p.status] || [p.status, ''];
+        const canEdit = ['draft', 'rejected'].includes(p.status);
+        html += `
+            <tr>
+                <td>${p.project_code}</td>
+                <td>${p.project_name}</td>
+                <td>${p.supplier_name}</td>
+                <td>¥${p.amount.toLocaleString()}</td>
+                <td>${p.evidence_count}</td>
+                <td><span class="badge ${statusClass}">${statusName}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="viewDetail(${p.id})">查看</button>
+                    ${canEdit ? `<button class="btn btn-sm btn-primary" onclick="viewDetail(${p.id})">上传</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }
+    html += '</tbody></table>';
+    if (filtered.length === 0) html = '<p style="text-align:center;color:#999;padding:30px;">暂无项目</p>';
+    document.getElementById('projects-list').innerHTML = html;
+}
+
+function showCreateModal() {
+    document.getElementById('create-modal').classList.add('show');
+}
+
+function hideCreateModal() {
+    document.getElementById('create-modal').classList.remove('show');
+    document.getElementById('create-form').reset();
+    document.getElementById('create-result').innerHTML = '';
+}
+
+function hideDetailModal() {
+    document.getElementById('detail-modal').classList.remove('show');
+}
+
+async function createProject(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+        project_code: form.project_code.value,
+        project_name: form.project_name.value,
+        supplier_name: form.supplier_name.value,
+        amount: parseFloat(form.amount.value)
+    };
+    
+    const res = await fetch('/api/projects', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+        showToast('项目创建成功');
+        hideCreateModal();
+        loadProjects();
+    } else {
+        document.getElementById('create-result').innerHTML = 
+            `<div class="alert alert-error">${result.detail || '创建失败'}</div>`;
+    }
+}
+
+async function viewDetail(projectId) {
+    const res = await fetch(`/api/projects/${projectId}`, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const project = await res.json();
+    const fileTypeMap = {
+        'price_comparison': '比价截图',
+        'supplier_quote': '供应商报价',
+        'approval_form': '审批单'
+    };
+    
+    const statusMap = {
+        'draft': ['草稿', 'badge-draft'],
+        'pending_review': ['待审核', 'badge-pending'],
+        'first_reviewed': ['一审通过', 'badge-approved'],
+        'archived': ['已归档', 'badge-archived'],
+        'rejected': ['已退回', 'badge-rejected']
+    };
+    
+    const [statusName, statusClass] = statusMap[project.status] || [project.status, ''];
+    const canUpload = project.status !== 'archived';
+    const canSubmit = ['draft', 'rejected'].includes(project.status);
+    const hasSupplierQuote = project.evidence.some(e => e.file_type === 'supplier_quote');
+    
+    let html = `
+        <div style="margin-bottom:20px;">
+            <p><strong>项目编号：</strong>${project.project_code}</p>
+            <p><strong>项目名称：</strong>${project.project_name}</p>
+            <p><strong>供应商：</strong>${project.supplier_name}</p>
+            <p><strong>金额：</strong>¥${project.amount.toLocaleString()}</p>
+            <p><strong>状态：</strong><span class="badge ${statusClass}">${statusName}</span></p>
+            <p><strong>创建人：</strong>${project.creator_name}</p>
+            <p><strong>创建时间：</strong>${project.created_at}</p>
+        </div>
+        
+        <h4 style="margin:20px 0 10px;">证据文件</h4>
+    `;
+    
+    if (project.evidence.length > 0) {
+        html += '<table><thead><tr><th>类型</th><th>文件名</th><th>上传人</th><th>上传时间</th><th>已归档</th><th>操作</th></tr></thead><tbody>';
+        for (const e of project.evidence) {
+            html += `
+                <tr>
+                    <td>${fileTypeMap[e.file_type] || e.file_type}</td>
+                    <td><a href="${e.file_path}" target="_blank">${e.file_name}</a></td>
+                    <td>${e.uploader_name}</td>
+                    <td>${e.uploaded_at}</td>
+                    <td>${e.is_archived ? '是' : '否'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="viewEvidence(${e.id})">查看</button>
+                        ${!e.is_archived && canUpload ? `<button class="btn btn-sm btn-danger" onclick="deleteEvidence(${e.id}, ${projectId})">删除</button>` : ''}
+                        ${e.is_archived ? `<button class="btn btn-sm btn-warning" onclick="viewEvidence(${e.id})">追加说明</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+    } else {
+        html += '<p style="color:#999;">暂无证据文件</p>';
+    }
+    
+    if (canUpload) {
+        html += `
+            <div style="margin-top:20px;">
+                <h4 style="margin-bottom:10px;">上传证据</h4>
+                <form id="upload-form" onsubmit="uploadEvidence(event, ${projectId})">
+                    <div class="form-group">
+                        <label>证据类型 *</label>
+                        <select name="file_type" required>
+                            <option value="">请选择</option>
+                            <option value="price_comparison">比价截图</option>
+                            <option value="supplier_quote">供应商报价</option>
+                            <option value="approval_form">审批单</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>选择文件 *</label>
+                        <input type="file" name="file" required accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                    </div>
+                    <button type="submit" class="btn btn-primary">上传</button>
+                    <div id="upload-result"></div>
+                </form>
+            </div>
+        `;
+    }
+    
+    if (canSubmit) {
+        html += `
+            <div style="margin-top:20px; padding-top:20px; border-top:1px solid #eee;">
+                ${!hasSupplierQuote ? '<div class="alert alert-warning">注意：缺少供应商报价文件，无法提交审核</div>' : ''}
+                <button class="btn btn-success" ${!hasSupplierQuote ? 'disabled' : ''} onclick="submitProject(${projectId})">提交审核</button>
+            </div>
+        `;
+    }
+    
+    if (project.reviews.length > 0) {
+        html += `
+            <h4 style="margin:20px 0 10px;">审核记录</h4>
+            <table><thead><tr><th>审核类型</th><th>结果</th><th>审核人</th><th>意见</th><th>时间</th></tr></thead><tbody>
+        `;
+        for (const r of project.reviews) {
+            html += `
+                <tr>
+                    <td>${r.review_type === 'first_review' ? '一审' : '二审'}</td>
+                    <td>${r.decision === 'approve' ? '通过' : '退回'}</td>
+                    <td>${r.reviewer_name}</td>
+                    <td>${r.comments || '-'}</td>
+                    <td>${r.reviewed_at}</td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+    }
+    
+    document.getElementById('detail-content').innerHTML = html;
+    document.getElementById('detail-modal').classList.add('show');
+}
+
+async function uploadEvidence(e, projectId) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const res = await fetch(`/api/evidence/${projectId}`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    });
+    
+    const result = await res.json();
+    if (res.ok) {
+        showToast('上传成功');
+        viewDetail(projectId);
+        loadProjects();
+    } else {
+        document.getElementById('upload-result').innerHTML = 
+            `<div class="alert alert-error">${result.detail || '上传失败'}</div>`;
+    }
+}
+
+async function deleteEvidence(evidenceId, projectId) {
+    if (!confirm('确定删除此证据？')) return;
+    
+    const res = await fetch(`/api/evidence/${evidenceId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    
+    if (res.ok) {
+        showToast('删除成功');
+        viewDetail(projectId);
+        loadProjects();
+    } else {
+        const result = await res.json();
+        showToast(result.detail || '删除失败', 'error');
+    }
+}
+
+async function viewEvidence(evidenceId) {
+    const res = await fetch(`/api/evidence/${evidenceId}`, { credentials: 'include' });
+    if (!res.ok) return;
+    
+    const evidence = await res.json();
+    
+    let commentHtml = '';
+    if (evidence.comments.length > 0) {
+        commentHtml = '<div class="comment-section"><h4>追加说明</h4>';
+        for (const c of evidence.comments) {
+            commentHtml += `
+                <div class="comment">
+                    <div class="comment-meta">${c.creator_name} - ${c.created_at}</div>
+                    <div>${c.comment_text}</div>
+                </div>
+            `;
+        }
+        commentHtml += '</div>';
+    }
+    
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(evidence.file_path);
+    
+    let html = `
+        <h4>${evidence.file_name}</h4>
+        <p><strong>上传人：</strong>${evidence.uploader_name}</p>
+        <p><strong>上传时间：</strong>${evidence.uploaded_at}</p>
+        <p><strong>文件大小：</strong>${(evidence.file_size / 1024).toFixed(2)} KB</p>
+        <div style="margin:20px 0;">
+            ${isImage ? `<img src="${evidence.file_path}" style="max-width:100%;border-radius:4px;">` : 
+            `<a href="${evidence.file_path}" target="_blank" class="btn btn-primary">下载/打开文件</a>`}
+        </div>
+        ${commentHtml}
+    `;
+    
+    if (evidence.is_archived) {
+        html += `
+            <div style="margin-top:20px;">
+                <h4>追加说明</h4>
+                <form onsubmit="addComment(event, ${evidenceId})">
+                    <div class="form-group">
+                        <textarea name="comment_text" required rows="3" placeholder="输入说明内容..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">追加</button>
+                </form>
+            </div>
+        `;
+    }
+    
+    document.getElementById('detail-content').innerHTML = html;
+}
+
+async function addComment(e, evidenceId) {
+    e.preventDefault();
+    const text = e.target.comment_text.value;
+    
+    const res = await fetch(`/api/evidence/${evidenceId}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_text: text })
+    });
+    
+    if (res.ok) {
+        showToast('说明已追加');
+        viewEvidence(evidenceId);
+    } else {
+        const result = await res.json();
+        showToast(result.detail || '操作失败', 'error');
+    }
+}
+
+async function submitProject(projectId) {
+    if (!confirm('确定提交审核？提交后将无法修改证据。')) return;
+    
+    const res = await fetch(`/api/projects/${projectId}/submit`, {
+        method: 'POST',
+        credentials: 'include'
+    });
+    
+    if (res.ok) {
+        showToast('已提交审核');
+        hideDetailModal();
+        loadProjects();
+    } else {
+        const result = await res.json();
+        showToast(result.detail || '提交失败', 'error');
+    }
+}
+
+init();
+</script>
+{% endblock %}

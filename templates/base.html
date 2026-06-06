@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}采购异常截图归档系统{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+    {% if not hide_nav %}
+    <nav class="navbar">
+        <a href="/dashboard" class="navbar-brand">采购异常截图归档系统</a>
+        <ul class="navbar-nav">
+            <li><a href="/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">首页</a></li>
+            <li><a href="/upload" class="{% if active_page == 'upload' %}active{% endif %}">上传证据</a></li>
+            <li><a href="/review" class="{% if active_page == 'review' %}active{% endif %}">审核中心</a></li>
+            <li><a href="/evidence-wall" class="{% if active_page == 'evidence-wall' %}active{% endif %}">证据墙</a></li>
+            <li id="user-info"></li>
+        </ul>
+    </nav>
+    {% endif %}
+    
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <div id="toast-container"></div>
+    
+    <script>
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type}`;
+            toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2000;min-width:250px;';
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/me', {
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    const userInfo = document.getElementById('user-info');
+                    if (userInfo) {
+                        userInfo.innerHTML = `
+                            <span>${user.full_name} (${user.role === 'buyer' ? '采购员' : user.role === 'auditor' ? '审计员' : '管理员'})</span>
+                            <a href="#" onclick="logout()" style="margin-left:10px;">退出</a>
+                        `;
+                    }
+                    return user;
+                }
+            } catch (e) {}
+            
+            if (!window.location.pathname.endsWith('/login')) {
+                window.location.href = '/login';
+            }
+            return null;
+        }
+        
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            window.location.href = '/login';
+        }
+        
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            const xhr = evt.detail.xhr;
+            if (xhr && xhr.status === 401) {
+                window.location.href = '/login';
+            }
+        });
+    </script>
+</body>
+</html>
