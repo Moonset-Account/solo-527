@@ -22,7 +22,7 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
   activityType,
   dropoutStudents,
 }) => {
-  const { activities, courses, chapters, students } = useETL();
+  const { activities, courses, chapters, students, allQuestions } = useETL();
   const filters = useFilterStore();
   
   const dropoutColumns = [
@@ -127,6 +127,7 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
       students,
       courses,
       chapters,
+      allQuestions,
       '学习路径明细数据'
     );
   };
@@ -199,20 +200,35 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
             <div className="space-y-3">
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium text-gray-700 mb-2">当前筛选条件</h4>
-                <div className="text-sm space-y-1 text-gray-600">
+                <div className="text-sm space-y-1.5 text-gray-600">
                   <p>课程: {filters.courseIds.length > 0 ? `${filters.courseIds.length} 门` : '全部'}</p>
                   <p>章节: {filters.chapterIds.length > 0 ? `${filters.chapterIds.length} 个` : '全部'}</p>
                   <p>班期: {filters.cohortIds.length > 0 ? `${filters.cohortIds.length} 个` : '全部'}</p>
+                  <p>学员: {filters.studentIds.length > 0 ? `${filters.studentIds.length} 名` : '全部'}</p>
+                  <p>题目: {filters.questionIds.length > 0 ? `${filters.questionIds.length} 道` : '全部'}</p>
                   <p>时间范围: {filters.timeRange.start} 至 {filters.timeRange.end}</p>
+                  {filters.questionIds.length > 0 && (
+                    <p className="text-blue-600 mt-2 pt-2 border-t border-gray-200">
+                      <strong>注意:</strong> 选择题目后，将自动过滤出做过这些题目的学员，
+                      所有统计指标均基于这些学员的完整学习行为
+                    </p>
+                  )}
                 </div>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-700 mb-2">数据口径说明</h4>
+                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                  <li>补课学员按首次完成时间去重，不重复计入首次完成率</li>
+                  <li>学习路径漏斗统计各环节独立去重学员数</li>
+                  <li>题目筛选会联动过滤出相关学员，确保口径统一</li>
+                </ul>
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg">
                 <h4 className="font-medium text-yellow-700 mb-2">导出说明</h4>
                 <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
                   <li>导出文件包含完整的筛选条件元数据</li>
-                  <li>补课学员按首次完成时间去重，不重复统计</li>
-                  <li>Excel 文件包含两个 Sheet：数据明细 + 筛选条件</li>
-                  <li>请结合筛选条件解读数据结论</li>
+                  <li>Excel 文件包含两个 Sheet：数据明细 + 筛选条件与元数据</li>
+                  <li>请结合筛选条件和数据口径解读结论，避免误读</li>
                 </ul>
               </div>
             </div>

@@ -6,6 +6,7 @@ import {
   getChapters,
   getCohorts,
   getStudents,
+  getQuestions,
 } from '../data/mock';
 import {
   filterActivities,
@@ -28,11 +29,11 @@ export const useETL = () => {
   const cohorts = useMemo(() => getCohorts(), []);
   const allStudents = useMemo(() => getStudents(), []);
   const allActivities = useMemo(() => getActivities(), []);
+  const allQuestions = useMemo(() => getQuestions(), []);
   
   const processedData = useMemo(() => {
     let activities = filterActivities(allActivities, filters);
     activities = filterByCohorts(activities, filters.cohortIds, allStudents);
-    activities = deduplicateFirstCompletion(activities);
     
     let students = allStudents;
     if (filters.cohortIds.length > 0) {
@@ -41,6 +42,17 @@ export const useETL = () => {
     if (filters.studentIds.length > 0) {
       students = students.filter((s) => filters.studentIds.includes(s.id));
     }
+    
+    if (filters.questionIds.length > 0) {
+      const quizActivitiesWithQuestions = activities.filter(
+        (a) => a.activityType === 'quiz' && a.questionId && filters.questionIds.includes(a.questionId)
+      );
+      const studentIdsWithSelectedQuestions = [...new Set(quizActivitiesWithQuestions.map((a) => a.studentId))];
+      activities = activities.filter((a) => studentIdsWithSelectedQuestions.includes(a.studentId));
+      students = students.filter((s) => studentIdsWithSelectedQuestions.includes(s.id));
+    }
+    
+    activities = deduplicateFirstCompletion(activities);
     
     const filteredCohorts = filters.cohortIds.length > 0
       ? cohorts.filter((c) => filters.cohortIds.includes(c.id))
@@ -73,12 +85,28 @@ export const useETL = () => {
     );
   };
   
+  const questions = useMemo(() => {
+    let qs = allQuestions;
+    if (filters.courseIds.length > 0) {
+      const filteredChapterIds = chapters
+        .filter((ch) => filters.courseIds.includes(ch.courseId))
+        .map((ch) => ch.id);
+      qs = qs.filter((q) => filteredChapterIds.includes(q.chapterId));
+    }
+    if (filters.chapterIds.length > 0) {
+      qs = qs.filter((q) => filters.chapterIds.includes(q.chapterId));
+    }
+    return qs;
+  }, [allQuestions, filters.courseIds, filters.chapterIds, chapters]);
+
   return {
     courses,
     chapters,
     cohorts,
     students: processedData.students,
     activities: processedData.activities,
+    questions,
+    allQuestions,
     validation: processedData.validation as ValidationResult,
     funnel: processedData.funnel as FunnelNode[],
     totalStudents: processedData.totalStudents as number,

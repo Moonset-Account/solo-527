@@ -29,7 +29,7 @@ export const FilterPanel: React.FC = () => {
     resetFilters,
   } = useFilterStore();
   
-  const { courses, chapters, cohorts, students } = useETL();
+  const { courses, chapters, cohorts, students, questions } = useETL();
   
   const filteredChapters = courseIds.length > 0
     ? chapters.filter((ch) => courseIds.includes(ch.courseId))
@@ -38,19 +38,6 @@ export const FilterPanel: React.FC = () => {
   const filteredStudents = cohortIds.length > 0
     ? students.filter((s) => cohortIds.includes(s.cohortId))
     : students;
-  
-  const filteredQuestions = filteredChapters.length > 0
-    ? filteredChapters.flatMap((ch) => {
-        const chapterQuestions = [];
-        for (let i = 1; i <= 8; i++) {
-          chapterQuestions.push({
-            id: `q-${ch.id}-${i}`,
-            title: `${ch.name} - 题目${i}`,
-          });
-        }
-        return chapterQuestions;
-      })
-    : [];
   
   const handleTimePresetChange = (preset: TimePreset) => {
     const end = MOCK_DATA_END;
@@ -212,12 +199,22 @@ export const FilterPanel: React.FC = () => {
             size="middle"
             maxTagCount={2}
             showSearch
-            disabled={filteredQuestions.length === 0}
+            filterOption={(input, option) =>
+              (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+            disabled={questions.length === 0}
           >
-            {filteredQuestions.map((q) => (
-              <Option key={q.id} value={q.id}>{q.title}</Option>
+            {questions.map((q) => (
+              <Option key={q.id} value={q.id}>
+                {q.title}
+              </Option>
             ))}
           </Select>
+          {questionIds.length > 0 && (
+            <p className="text-xs text-blue-500 mt-1">
+              已选择 {questionIds.length} 道题目，将自动过滤出做过这些题目的学员
+            </p>
+          )}
         </div>
         
         <Divider className="my-3" />

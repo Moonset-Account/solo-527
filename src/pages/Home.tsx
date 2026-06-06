@@ -27,6 +27,7 @@ export default function Home() {
     courses,
     chapters,
     students,
+    allQuestions,
     getDropoutStudentsByType,
   } = useETL();
   
@@ -56,6 +57,7 @@ export default function Home() {
       students,
       courses,
       chapters,
+      allQuestions,
       '学习路径数据'
     );
   };
