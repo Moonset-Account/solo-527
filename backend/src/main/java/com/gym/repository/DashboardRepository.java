@@ -1,5 +1,6 @@
 package com.gym.repository;
 
+import com.gym.entity.Booking;
 import com.gym.enums.BookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 
 @Repository
-public interface DashboardRepository extends JpaRepository<Object, Long> {
+public interface DashboardRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT COUNT(b) FROM Booking b WHERE " +
            "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
@@ -100,4 +101,44 @@ public interface DashboardRepository extends JpaRepository<Object, Long> {
     @Query("SELECT COUNT(DISTINCT p.memberId) FROM MemberPackage p WHERE p.status = 'ACTIVE' AND " +
            "(:coachId IS NULL OR p.coachId = :coachId)")
     long countActivePackageMembers(@Param("coachId") Long coachId);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.bookingType = 'PRIVATE' AND b.status = 'COMPLETED' AND " +
+           "b.coachId = :coachId AND " +
+           "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
+           "(:endDate IS NULL OR b.bookingDate <= :endDate)")
+    long countCompletedPrivateBookings(
+            @Param("coachId") Long coachId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COUNT(g) FROM GroupClass g WHERE g.coachId = :coachId AND g.status != 'CANCELLED' AND " +
+           "(:startDate IS NULL OR g.classDate >= :startDate) AND " +
+           "(:endDate IS NULL OR g.classDate <= :endDate)")
+    long countCoachGroupClasses(
+            @Param("coachId") Long coachId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COUNT(DISTINCT b.memberId) FROM Booking b WHERE b.coachId = :coachId AND " +
+           "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
+           "(:endDate IS NULL OR b.bookingDate <= :endDate)")
+    long countCoachMembers(
+            @Param("coachId") Long coachId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COUNT(p) FROM MemberPackage p WHERE p.status = 'ACTIVE' AND " +
+           "(:coachId IS NULL OR p.coachId = :coachId) AND " +
+           "p.expireDate BETWEEN :today AND :threshold")
+    long countExpiringPackages(
+            @Param("coachId") Long coachId,
+            @Param("today") LocalDate today,
+            @Param("threshold") LocalDate threshold);
+
+    @Query("SELECT COUNT(p) FROM MemberPackage p WHERE p.status = 'ACTIVE' AND " +
+           "(:coachId IS NULL OR p.coachId = :coachId) AND " +
+           "p.remainingSessions <= :threshold")
+    long countLowSessionPackages(
+            @Param("coachId") Long coachId,
+            @Param("threshold") Integer threshold);
 }

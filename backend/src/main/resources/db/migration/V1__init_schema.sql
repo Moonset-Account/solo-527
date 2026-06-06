@@ -11,11 +11,12 @@ CREATE TABLE users (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_username (username),
-    INDEX idx_role (role),
-    INDEX idx_status (status)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_status ON users(status);
 
 -- 教练表
 CREATE TABLE coaches (
@@ -28,11 +29,12 @@ CREATE TABLE coaches (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    INDEX idx_coach_no (coach_no),
-    INDEX idx_user_id (user_id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+CREATE INDEX idx_coaches_coach_no ON coaches(coach_no);
+CREATE INDEX idx_coaches_user_id ON coaches(user_id);
 
 -- 会员表
 CREATE TABLE members (
@@ -49,12 +51,13 @@ CREATE TABLE members (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_member_no (member_no),
-    INDEX idx_phone (phone),
-    INDEX idx_status (status),
-    INDEX idx_name (name)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_members_member_no ON members(member_no);
+CREATE INDEX idx_members_phone ON members(phone);
+CREATE INDEX idx_members_status ON members(status);
+CREATE INDEX idx_members_name ON members(name);
 
 -- 课包类型表
 CREATE TABLE package_types (
@@ -69,10 +72,11 @@ CREATE TABLE package_types (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_type (type),
-    INDEX idx_status (status)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_package_types_type ON package_types(type);
+CREATE INDEX idx_package_types_status ON package_types(status);
 
 -- 会员课包表
 CREATE TABLE member_packages (
@@ -91,15 +95,16 @@ CREATE TABLE member_packages (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (member_id) REFERENCES members(id),
     FOREIGN KEY (package_type_id) REFERENCES package_types(id),
-    FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    INDEX idx_member_id (member_id),
-    INDEX idx_coach_id (coach_id),
-    INDEX idx_status (status),
-    INDEX idx_expire_date (expire_date)
+    FOREIGN KEY (coach_id) REFERENCES coaches(id)
 );
+
+CREATE INDEX idx_member_packages_member_id ON member_packages(member_id);
+CREATE INDEX idx_member_packages_coach_id ON member_packages(coach_id);
+CREATE INDEX idx_member_packages_status ON member_packages(status);
+CREATE INDEX idx_member_packages_expire_date ON member_packages(expire_date);
 
 -- 团课表
 CREATE TABLE group_classes (
@@ -108,8 +113,8 @@ CREATE TABLE group_classes (
     name VARCHAR(100) NOT NULL,
     coach_id BIGINT NOT NULL,
     class_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
+    start_time VARCHAR(10) NOT NULL,
+    end_time VARCHAR(10) NOT NULL,
     capacity INT NOT NULL,
     registered_count INT DEFAULT 0,
     location VARCHAR(100),
@@ -118,13 +123,14 @@ CREATE TABLE group_classes (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    INDEX idx_class_no (class_no),
-    INDEX idx_coach_id (coach_id),
-    INDEX idx_class_date (class_date),
-    INDEX idx_status (status)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (coach_id) REFERENCES coaches(id)
 );
+
+CREATE INDEX idx_group_classes_class_no ON group_classes(class_no);
+CREATE INDEX idx_group_classes_coach_id ON group_classes(coach_id);
+CREATE INDEX idx_group_classes_class_date ON group_classes(class_date);
+CREATE INDEX idx_group_classes_status ON group_classes(status);
 
 -- 预约表
 CREATE TABLE bookings (
@@ -133,37 +139,37 @@ CREATE TABLE bookings (
     member_id BIGINT NOT NULL,
     member_package_id BIGINT,
     coach_id BIGINT,
-    group_class_id BIGINT,
+    group_id BIGINT,
     booking_type VARCHAR(20) NOT NULL,
     booking_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
+    start_time VARCHAR(10) NOT NULL,
+    end_time VARCHAR(10) NOT NULL,
     status VARCHAR(20) DEFAULT 'BOOKED',
     check_in_time TIMESTAMP,
-    check_out_time TIMESTAMP,
     remark TEXT,
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (member_id) REFERENCES members(id),
     FOREIGN KEY (member_package_id) REFERENCES member_packages(id),
     FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    FOREIGN KEY (group_class_id) REFERENCES group_classes(id),
-    INDEX idx_booking_no (booking_no),
-    INDEX idx_member_id (member_id),
-    INDEX idx_coach_id (coach_id),
-    INDEX idx_booking_date (booking_date),
-    INDEX idx_status (status)
+    FOREIGN KEY (group_id) REFERENCES group_classes(id)
 );
+
+CREATE INDEX idx_bookings_booking_no ON bookings(booking_no);
+CREATE INDEX idx_bookings_member_id ON bookings(member_id);
+CREATE INDEX idx_bookings_coach_id ON bookings(coach_id);
+CREATE INDEX idx_bookings_booking_date ON bookings(booking_date);
+CREATE INDEX idx_bookings_status ON bookings(status);
+CREATE INDEX idx_bookings_type ON bookings(booking_type);
 
 -- 会员冻结表
 CREATE TABLE member_freezes (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     freeze_no VARCHAR(50) NOT NULL UNIQUE,
     member_id BIGINT NOT NULL,
-    member_package_id BIGINT,
-    freeze_type VARCHAR(20) DEFAULT 'NORMAL',
+    freeze_type VARCHAR(50) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     freeze_days INT NOT NULL,
@@ -172,14 +178,14 @@ CREATE TABLE member_freezes (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (member_id) REFERENCES members(id),
-    FOREIGN KEY (member_package_id) REFERENCES member_packages(id),
-    INDEX idx_freeze_no (freeze_no),
-    INDEX idx_member_id (member_id),
-    INDEX idx_status (status),
-    INDEX idx_date_range (start_date, end_date)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (member_id) REFERENCES members(id)
 );
+
+CREATE INDEX idx_member_freezes_freeze_no ON member_freezes(freeze_no);
+CREATE INDEX idx_member_freezes_member_id ON member_freezes(member_id);
+CREATE INDEX idx_member_freezes_status ON member_freezes(status);
+CREATE INDEX idx_member_freezes_date_range ON member_freezes(start_date, end_date);
 
 -- 体测记录表
 CREATE TABLE body_measurements (
@@ -188,124 +194,75 @@ CREATE TABLE body_measurements (
     measure_date DATE NOT NULL,
     height DECIMAL(5,2),
     weight DECIMAL(5,2),
-    bmi DECIMAL(5,2),
-    body_fat DECIMAL(5,2),
+    bmi DECIMAL(4,1),
+    body_fat DECIMAL(4,1),
     muscle_mass DECIMAL(5,2),
     waist DECIMAL(5,2),
     hip DECIMAL(5,2),
     chest DECIMAL(5,2),
-    arm_left DECIMAL(5,2),
-    arm_right DECIMAL(5,2),
-    thigh_left DECIMAL(5,2),
-    thigh_right DECIMAL(5,2),
     remark TEXT,
     attachment_url VARCHAR(255),
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (member_id) REFERENCES members(id),
-    INDEX idx_member_id (member_id),
-    INDEX idx_measure_date (measure_date)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (member_id) REFERENCES members(id)
 );
+
+CREATE INDEX idx_body_measurements_member_id ON body_measurements(member_id);
+CREATE INDEX idx_body_measurements_measure_date ON body_measurements(measure_date);
 
 -- 通知表
 CREATE TABLE notifications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     notification_no VARCHAR(50) NOT NULL UNIQUE,
-    user_id BIGINT,
     member_id BIGINT,
-    type VARCHAR(20) NOT NULL,
+    coach_id BIGINT,
+    type VARCHAR(50) NOT NULL,
     title VARCHAR(200) NOT NULL,
     content TEXT,
     is_read BOOLEAN DEFAULT FALSE,
     read_at TIMESTAMP,
-    created_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_notification_no (notification_no),
-    INDEX idx_user_id (user_id),
-    INDEX idx_member_id (member_id),
-    INDEX idx_is_read (is_read),
-    INDEX idx_created_at (created_at)
+    FOREIGN KEY (member_id) REFERENCES members(id),
+    FOREIGN KEY (coach_id) REFERENCES coaches(id)
 );
+
+CREATE INDEX idx_notifications_member_id ON notifications(member_id);
+CREATE INDEX idx_notifications_coach_id ON notifications(coach_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_type ON notifications(type);
 
 -- 审计日志表
 CREATE TABLE audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    log_no VARCHAR(50) NOT NULL UNIQUE,
-    user_id BIGINT,
-    username VARCHAR(50),
-    operation VARCHAR(100) NOT NULL,
-    module VARCHAR(50) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
     target_id BIGINT,
-    target_type VARCHAR(50),
-    old_value TEXT,
-    new_value TEXT,
-    ip_address VARCHAR(50),
-    user_agent VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_log_no (log_no),
-    INDEX idx_user_id (user_id),
-    INDEX idx_module (module),
-    INDEX idx_operation (operation),
-    INDEX idx_created_at (created_at)
+    action VARCHAR(50) NOT NULL,
+    operator VARCHAR(100) NOT NULL,
+    detail TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 团课预约关联表
-CREATE TABLE group_class_bookings (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    group_class_id BIGINT NOT NULL,
-    booking_id BIGINT NOT NULL,
-    member_id BIGINT NOT NULL,
-    status VARCHAR(20) DEFAULT 'REGISTERED',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (group_class_id) REFERENCES group_classes(id),
-    FOREIGN KEY (booking_id) REFERENCES bookings(id),
-    FOREIGN KEY (member_id) REFERENCES members(id),
-    UNIQUE KEY uk_class_booking (group_class_id, member_id),
-    INDEX idx_group_class_id (group_class_id),
-    INDEX idx_member_id (member_id)
-);
+CREATE INDEX idx_audit_logs_target ON audit_logs(target_type, target_id);
+CREATE INDEX idx_audit_logs_operator ON audit_logs(operator);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 
 -- 续费记录表
 CREATE TABLE renewals (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    renewal_no VARCHAR(50) NOT NULL UNIQUE,
     member_id BIGINT NOT NULL,
     old_package_id BIGINT,
     new_package_id BIGINT NOT NULL,
-    coach_id BIGINT,
     renewal_date DATE NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'COMPLETED',
+    price DECIMAL(10,2),
     remark TEXT,
     created_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (member_id) REFERENCES members(id),
     FOREIGN KEY (old_package_id) REFERENCES member_packages(id),
-    FOREIGN KEY (new_package_id) REFERENCES member_packages(id),
-    FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    INDEX idx_renewal_no (renewal_no),
-    INDEX idx_member_id (member_id),
-    INDEX idx_renewal_date (renewal_date)
+    FOREIGN KEY (new_package_id) REFERENCES member_packages(id)
 );
 
--- 教练业绩表
-CREATE TABLE coach_performances (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    coach_id BIGINT NOT NULL,
-    stat_date DATE NOT NULL,
-    private_count INT DEFAULT 0,
-    group_count INT DEFAULT 0,
-    new_member_count INT DEFAULT 0,
-    renewal_count INT DEFAULT 0,
-    revenue DECIMAL(12,2) DEFAULT 0,
-    created_by VARCHAR(50),
-    updated_by VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    UNIQUE KEY uk_coach_date (coach_id, stat_date),
-    INDEX idx_coach_id (coach_id),
-    INDEX idx_stat_date (stat_date)
-);
+CREATE INDEX idx_renewals_member_id ON renewals(member_id);
+CREATE INDEX idx_renewals_renewal_date ON renewals(renewal_date);
