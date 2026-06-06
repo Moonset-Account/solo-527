@@ -4,15 +4,17 @@ from datetime import datetime, date
 from io import BytesIO
 
 import dash
-from dash import dcc, html, Input, Output, State, callback, ALL, ctx
+from dash import dcc, html, Input, Output, State, callback, ctx, dash_table
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
+import pandas as pd
 
 from config import Config
 from database import init_db
 from data_service import DataService
 from chart_components import ChartComponents
 from report_exporter import ReportExporter
+from database import StageTransition
 
 app = dash.Dash(
     __name__,
@@ -160,6 +162,20 @@ def create_filter_panel():
                             ),
                         ]
                     ),
+                    html.Hr(),
+                    html.Div(
+                        [
+                            html.Small(
+                                f"数据库模式: {Config.DATABASE_MODE.upper()}",
+                                className="text-muted",
+                            ),
+                            html.Br(),
+                            html.Small(
+                                "💡 点击图表可下钻查看候选人明细",
+                                className="text-info",
+                            ),
+                        ]
+                    ),
                 ]
             ),
         ],
@@ -234,7 +250,19 @@ def create_charts_row():
                                 ],
                                 className="d-flex justify-content-between align-items-center",
                             ),
-                            dbc.CardBody(dcc.Graph(id="funnel-chart")),
+                            dbc.CardBody(
+                                [
+                                    dcc.Graph(
+                                        id="funnel-chart",
+                                        clickData={"points": []},
+                                        config={"displayModeBar": True},
+                                    ),
+                                    html.Small(
+                                        "💡 点击漏斗阶段可查看该阶段的候选人明细",
+                                        className="text-muted d-block text-center mt-2",
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
                     width=6,
@@ -261,7 +289,18 @@ def create_charts_row():
                                 ],
                                 className="d-flex justify-content-between align-items-center",
                             ),
-                            dbc.CardBody(dcc.Graph(id="duration-chart")),
+                            dbc.CardBody(
+                                [
+                                    dcc.Graph(
+                                        id="duration-chart",
+                                        clickData={"points": []},
+                                    ),
+                                    html.Small(
+                                        "💡 点击柱状图可查看该阶段的候选人明细",
+                                        className="text-muted d-block text-center mt-2",
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
                     width=6,
@@ -275,7 +314,18 @@ def create_charts_row():
                     dbc.Card(
                         [
                             dbc.CardHeader(html.H5("🎯 渠道质量分析", className="mb-0")),
-                            dbc.CardBody(dcc.Graph(id="channel-chart")),
+                            dbc.CardBody(
+                                [
+                                    dcc.Graph(
+                                        id="channel-chart",
+                                        clickData={"points": []},
+                                    ),
+                                    html.Small(
+                                        "💡 点击渠道可查看该渠道的候选人明细",
+                                        className="text-muted d-block text-center mt-2",
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
                     width=6,
@@ -284,7 +334,18 @@ def create_charts_row():
                     dbc.Card(
                         [
                             dbc.CardHeader(html.H5("👥 面试官负载", className="mb-0")),
-                            dbc.CardBody(dcc.Graph(id="interviewer-chart")),
+                            dbc.CardBody(
+                                [
+                                    dcc.Graph(
+                                        id="interviewer-chart",
+                                        clickData={"points": []},
+                                    ),
+                                    html.Small(
+                                        "💡 点击面试官可查看其面试的候选人明细",
+                                        className="text-muted d-block text-center mt-2",
+                                    ),
+                                ]
+                            ),
                         ]
                     ),
                     width=6,
@@ -341,9 +402,62 @@ def create_data_quality_modal():
     )
 
 
+def create_candidate_detail_modal():
+    return dbc.Modal(
+        [
+            dbc.ModalHeader(
+                [
+                    dbc.ModalTitle(id="detail-modal-title"),
+                    dbc.Badge(id="detail-modal-badge", className="ms-2"),
+                ]
+            ),
+            dbc.ModalBody(
+                [
+                    html.Div(id="detail-modal-summary", className="mb-3"),
+                    dash_table.DataTable(
+                        id="candidate-detail-table",
+                        page_size=20,
+                        style_table={"overflowX": "auto"},
+                        style_header={
+                            "backgroundColor": "rgb(230, 230, 230)",
+                            "fontWeight": "bold",
+                        },
+                        style_cell={"textAlign": "left", "padding": "8px"},
+                        style_data_conditional=[
+                            {"if": {"row_index": "odd"}, "backgroundColor": "rgb(248, 248, 248)"}
+                        ],
+                        filter_action="native",
+                        sort_action="native",
+                        export_format="xlsx",
+                        export_headers="display",
+                    ),
+                ]
+            ),
+            dbc.ModalFooter(
+                [
+                    dbc.Button(
+                        "下载当前列表",
+                        id="download-detail-btn",
+                        color="primary",
+                        outline=True,
+                        className="me-auto",
+                    ),
+                    dcc.Download(id="download-detail-excel"),
+                    dbc.Button("关闭", id="close-detail-modal", className="ms-auto", n_clicks=0),
+                ]
+            ),
+        ],
+        id="detail-modal",
+        is_open=False,
+        size="xl",
+        scrollable=True,
+    )
+
+
 app.layout = dbc.Container(
     [
         dcc.Store(id="current-filters", data="{}"),
+        dcc.Store(id="drilldown-context", data="{}"),
         dbc.Row(
             [
                 dbc.Col(
@@ -366,6 +480,7 @@ app.layout = dbc.Container(
             ]
         ),
         create_data_quality_modal(),
+        create_candidate_detail_modal(),
     ],
     fluid=True,
     className="bg-light min-vh-100 py-3",
@@ -515,7 +630,9 @@ def update_all_charts(
     quality_issues = data_service.check_data_quality()
     for issue in quality_issues:
         color = "danger" if issue["severity"] == "error" else "warning"
-        icon = "❌" if issue["severity"] == "error" else "⚠️"
+        if issue["severity"] == "info":
+            color = "info"
+        icon = "❌" if issue["severity"] == "error" else "⚠️" if issue["severity"] == "warning" else "ℹ️"
         alerts.append(
             dbc.Alert(
                 [
@@ -635,21 +752,31 @@ def toggle_quality_modal(check_clicks, close_clicks, is_open):
             result = dbc.Alert("✅ 数据质量校验通过，未发现问题！", color="success")
         else:
             result_children = []
-            for issue in issues:
+            severity_order = {"error": 0, "warning": 1, "info": 2}
+            sorted_issues = sorted(issues, key=lambda x: severity_order.get(x["severity"], 3))
+
+            for issue in sorted_issues:
                 color = "danger" if issue["severity"] == "error" else "warning"
+                if issue["severity"] == "info":
+                    color = "info"
+
+                issue_body = [
+                    html.H6([
+                        "❌ " if issue["severity"] == "error" else "⚠️ " if issue["severity"] == "warning" else "ℹ️ ",
+                        f"严重程度: {issue['severity'].upper()}"
+                    ]),
+                    html.P(issue["message"]),
+                    html.Small(f"影响字段: {issue.get('field', '未知')}", className="text-muted"),
+                ]
+                if issue.get("missing_pct"):
+                    issue_body.append(html.Br())
+                    issue_body.append(html.Small(f"缺失比例: {issue['missing_pct']}%", className="text-muted"))
+                if issue.get("detail"):
+                    issue_body.append(html.Br())
+                    issue_body.append(html.Small(issue["detail"], className="text-muted"))
+
                 result_children.append(
-                    dbc.Alert(
-                        [
-                            html.H6([
-                                "❌ " if issue["severity"] == "error" else "⚠️ ",
-                                f"严重程度: {issue['severity'].upper()}"
-                            ]),
-                            html.P(issue["message"]),
-                            html.Small(f"影响字段: {issue.get('field', '未知')}", className="text-muted"),
-                        ],
-                        color=color,
-                        className="mb-2",
-                    )
+                    dbc.Alert(issue_body, color=color, className="mb-2")
                 )
             result = html.Div(result_children)
 
@@ -659,6 +786,174 @@ def toggle_quality_modal(check_clicks, close_clicks, is_open):
         return False, dash.no_update
 
     return is_open, dash.no_update
+
+
+@callback(
+    Output("detail-modal", "is_open"),
+    Output("detail-modal-title", "children"),
+    Output("detail-modal-badge", "children"),
+    Output("detail-modal-summary", "children"),
+    Output("candidate-detail-table", "data"),
+    Output("candidate-detail-table", "columns"),
+    Output("drilldown-context", "data"),
+    Input("funnel-chart", "clickData"),
+    Input("duration-chart", "clickData"),
+    Input("channel-chart", "clickData"),
+    Input("interviewer-chart", "clickData"),
+    Input("close-detail-modal", "n_clicks"),
+    State("filter-position", "value"),
+    State("filter-department", "value"),
+    State("filter-recruiter", "value"),
+    State("filter-channel", "value"),
+    State("filter-stage", "value"),
+    State("filter-date-range", "start_date"),
+    State("filter-date-range", "end_date"),
+    prevent_initial_call=True,
+)
+def handle_drilldown(
+    funnel_click,
+    duration_click,
+    channel_click,
+    interviewer_click,
+    close_clicks,
+    positions,
+    departments,
+    recruiters,
+    channels,
+    stages,
+    start_date,
+    end_date,
+):
+    triggered = ctx.triggered_id
+
+    if triggered == "close-detail-modal":
+        return False, "", "", "", [], [], "{}"
+
+    date_range = (start_date, end_date) if (start_date and end_date) else None
+    base_filters = get_current_filters(positions, departments, recruiters, channels, stages, date_range)
+
+    drilldown_filters = dict(base_filters)
+    drilldown_title = ""
+    drilldown_stage = None
+    drilldown_context = {}
+
+    if triggered == "funnel-chart" and funnel_click and funnel_click.get("points"):
+        point = funnel_click["points"][0]
+        stage_name = point.get("y", point.get("label", ""))
+        if stage_name in Config.STAGES:
+            drilldown_stage = stage_name
+            drilldown_title = f"阶段明细: {stage_name}"
+            drilldown_filters["stages"] = [stage_name]
+            drilldown_context = {"type": "stage", "value": stage_name}
+
+    elif triggered == "duration-chart" and duration_click and duration_click.get("points"):
+        point = duration_click["points"][0]
+        stage_name = point.get("x", "")
+        if stage_name in Config.STAGES:
+            drilldown_stage = stage_name
+            drilldown_title = f"阶段耗时明细: {stage_name}"
+            drilldown_filters["stages"] = [stage_name]
+            drilldown_context = {"type": "stage", "value": stage_name}
+
+    elif triggered == "channel-chart" and channel_click and channel_click.get("points"):
+        point = channel_click["points"][0]
+        channel_name = point.get("x", "")
+        if channel_name in dim_options["channels"]:
+            drilldown_title = f"渠道明细: {channel_name}"
+            drilldown_filters["channels"] = [channel_name]
+            drilldown_context = {"type": "channel", "value": channel_name}
+
+    elif triggered == "interviewer-chart" and interviewer_click and interviewer_click.get("points"):
+        point = interviewer_click["points"][0]
+        interviewer_name = point.get("y", point.get("label", ""))
+        if interviewer_name:
+            drilldown_title = f"面试官明细: {interviewer_name}"
+            drilldown_context = {"type": "interviewer", "value": interviewer_name}
+
+            base_df = data_service.get_candidate_details(base_filters)
+            if not base_df.empty:
+                interview_filter = {"interviewer": interviewer_name}
+                transition_df = pd.read_sql(
+                    data_service.session.query(StageTransition.candidate_id)
+                    .filter(StageTransition.interviewer == interviewer_name)
+                    .statement,
+                    data_service.session.bind,
+                )
+                candidate_ids = transition_df["candidate_id"].unique().tolist()
+                filtered_df = base_df[base_df["id"].isin(candidate_ids)]
+            else:
+                filtered_df = base_df
+
+            candidates = filtered_df
+            count = len(filtered_df)
+            badge = f"{count} 人"
+
+            summary = dbc.Row(
+                [
+                    dbc.Col(dbc.Card(dbc.CardBody([
+                        html.H6("面试官", className="text-muted mb-1"),
+                        html.H5(interviewer_name, className="mb-0")
+                    ])), width=4),
+                    dbc.Col(dbc.Card(dbc.CardBody([
+                        html.H6("面试人数", className="text-muted mb-1"),
+                        html.H5(f"{count}", className="mb-0")
+                    ])), width=4),
+                ],
+                className="g-2",
+            )
+
+            columns = [
+                {"name": "候选人姓名", "id": "name"},
+                {"name": "职位", "id": "position"},
+                {"name": "部门", "id": "department"},
+                {"name": "渠道", "id": "channel"},
+                {"name": "招聘官", "id": "recruiter"},
+                {"name": "当前阶段", "id": "current_stage"},
+                {"name": "申请日期", "id": "application_date"},
+            ]
+
+            table_data = filtered_df[["name", "position", "department", "channel", "recruiter", "current_stage", "application_date"]].to_dict("records")
+
+            return True, drilldown_title, badge, summary, table_data, columns, json.dumps(drilldown_context)
+
+    if not drilldown_title:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
+    df = data_service.get_candidate_details(drilldown_filters, drilldown_stage)
+    count = len(df)
+    badge = f"{count} 人"
+
+    summary = dbc.Row(
+        [
+            dbc.Col(dbc.Card(dbc.CardBody([
+                html.H6("筛选维度", className="text-muted mb-1"),
+                html.H5(drilldown_context.get("type", ""), className="mb-0")
+            ])), width=4),
+            dbc.Col(dbc.Card(dbc.CardBody([
+                html.H6("筛选值", className="text-muted mb-1"),
+                html.H5(drilldown_context.get("value", ""), className="mb-0")
+            ])), width=4),
+            dbc.Col(dbc.Card(dbc.CardBody([
+                html.H6("候选人数量", className="text-muted mb-1"),
+                html.H5(f"{count}", className="mb-0")
+            ])), width=4),
+        ],
+        className="g-2",
+    )
+
+    columns = [
+        {"name": "候选人姓名", "id": "name"},
+        {"name": "职位", "id": "position"},
+        {"name": "部门", "id": "department"},
+        {"name": "渠道", "id": "channel"},
+        {"name": "招聘官", "id": "recruiter"},
+        {"name": "当前阶段", "id": "current_stage"},
+        {"name": "申请日期", "id": "application_date"},
+    ]
+
+    table_data = df[["name", "position", "department", "channel", "recruiter", "current_stage", "application_date"]].to_dict("records")
+
+    return True, drilldown_title, badge, summary, table_data, columns, json.dumps(drilldown_context)
 
 
 if __name__ == "__main__":

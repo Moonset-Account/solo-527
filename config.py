@@ -10,6 +10,8 @@ class Config:
     DEBUG = os.getenv("DEBUG", "True").lower() == "true"
     PORT = int(os.getenv("PORT", 8050))
     HOST = os.getenv("HOST", "0.0.0.0")
+    API_PORT = int(os.getenv("API_PORT", 5000))
+    API_BASE_URL = os.getenv("API_BASE_URL", f"http://localhost:{API_PORT}")
 
     STAGES = [
         "职位发布",

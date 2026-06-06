@@ -280,31 +280,94 @@ class DataService:
     def check_data_quality(self) -> List[Dict]:
         issues = []
 
+        total_candidates = self.session.query(Candidate).count()
+
+        if total_candidates == 0:
+            issues.append(
+                {
+                    "severity": "error",
+                    "message": "数据库中没有候选人数据，请检查数据导入",
+                    "field": "candidates",
+                }
+            )
+            return issues
+
         null_counts = (
             self.session.query(
                 func.sum(func.cast(Candidate.position.is_(None), Integer)).label("position_null"),
+                func.sum(func.cast(Candidate.position == "", Integer)).label("position_empty"),
                 func.sum(func.cast(Candidate.department.is_(None), Integer)).label("department_null"),
+                func.sum(func.cast(Candidate.department == "", Integer)).label("department_empty"),
                 func.sum(func.cast(Candidate.channel.is_(None), Integer)).label("channel_null"),
+                func.sum(func.cast(Candidate.channel == "", Integer)).label("channel_empty"),
                 func.sum(func.cast(Candidate.recruiter.is_(None), Integer)).label("recruiter_null"),
+                func.sum(func.cast(Candidate.recruiter == "", Integer)).label("recruiter_empty"),
+                func.sum(func.cast(Candidate.current_stage.is_(None), Integer)).label("stage_null"),
+                func.sum(func.cast(Candidate.current_stage == "", Integer)).label("stage_empty"),
+                func.sum(func.cast(Candidate.application_date.is_(None), Integer)).label("app_date_null"),
             )
             .first()
         )
 
-        if null_counts.position_null and null_counts.position_null > 0:
+        field_checks = [
+            ("position", "职位", null_counts.position_null or 0, null_counts.position_empty or 0, "error"),
+            ("department", "部门", null_counts.department_null or 0, null_counts.department_empty or 0, "error"),
+            ("channel", "渠道", null_counts.channel_null or 0, null_counts.channel_empty or 0, "error"),
+            ("recruiter", "招聘官", null_counts.recruiter_null or 0, null_counts.recruiter_empty or 0, "warning"),
+            ("current_stage", "当前阶段", null_counts.stage_null or 0, null_counts.stage_empty or 0, "error"),
+            ("application_date", "申请日期", null_counts.app_date_null or 0, 0, "error"),
+        ]
+
+        for field_name, field_label, null_count, empty_count, severity in field_checks:
+            total_missing = null_count + empty_count
+            if total_missing > 0:
+                pct = round(total_missing / total_candidates * 100, 1)
+                issues.append(
+                    {
+                        "severity": severity,
+                        "message": f"发现 {total_missing} 条（{pct}%）候选人数据缺少{field_label}信息",
+                        "field": field_name,
+                        "null_count": null_count,
+                        "empty_count": empty_count,
+                        "total_count": total_candidates,
+                        "missing_pct": pct,
+                    }
+                )
+
+        valid_stages = set(Config.STAGES)
+        invalid_stage_count = (
+            self.session.query(Candidate)
+            .filter(Candidate.current_stage.isnot(None))
+            .filter(~Candidate.current_stage.in_(valid_stages))
+            .count()
+        )
+        if invalid_stage_count > 0:
             issues.append(
                 {
-                    "severity": "error",
-                    "message": f"发现 {null_counts.position_null} 条候选人数据缺少职位信息",
-                    "field": "position",
+                    "severity": "warning",
+                    "message": f"发现 {invalid_stage_count} 条候选人数据的阶段值不在标准阶段列表中",
+                    "field": "current_stage",
+                    "detail": "标准阶段: " + ", ".join(Config.STAGES),
                 }
             )
 
-        if null_counts.department_null and null_counts.department_null > 0:
+        interview_null = (
+            self.session.query(StageTransition)
+            .filter(StageTransition.stage_name.in_(["一面", "二面", "HR面"]))
+            .filter(
+                or_(
+                    StageTransition.interviewer.is_(None),
+                    StageTransition.interviewer == "",
+                )
+            )
+            .count()
+        )
+        if interview_null > 0:
             issues.append(
                 {
-                    "severity": "error",
-                    "message": f"发现 {null_counts.department_null} 条候选人数据缺少部门信息",
-                    "field": "department",
+                    "severity": "warning",
+                    "message": f"发现 {interview_null} 条面试记录缺少面试官信息",
+                    "field": "stage_transitions.interviewer",
                 }
             )
 
@@ -326,6 +389,26 @@ class DataService:
                 }
             )
 
+        duration_missing = (
+            self.session.query(StageTransition)
+            .filter(StageTransition.exit_date.isnot(None))
+            .filter(
+                or_(
+                    StageTransition.duration_days.is_(None),
+                    StageTransition.duration_days <= 0,
+                )
+            )
+            .count()
+        )
+        if duration_missing > 0:
+            issues.append(
+                {
+                    "severity": "warning",
+                    "message": f"发现 {duration_missing} 条已完成的阶段流转缺少或有异常的耗时数据",
+                    "field": "stage_transitions.duration_days",
+                }
+            )
+
         orphan_transitions = (
             self.session.query(StageTransition)
             .outerjoin(Candidate)
@@ -339,6 +422,23 @@ class DataService:
                     "severity": "error",
                     "message": f"发现 {orphan_transitions} 条阶段流转数据没有关联的候选人",
                     "field": "stage_transitions.candidate_id",
+                }
+            )
+
+        duplicate_candidates = (
+            self.session.query(Candidate.email, func.count(Candidate.id).label("cnt"))
+            .filter(Candidate.email.isnot(None))
+            .filter(Candidate.email != "")
+            .group_by(Candidate.email)
+            .having(func.count(Candidate.id) > 1)
+            .count()
+        )
+        if duplicate_candidates > 0:
+            issues.append(
+                {
+                    "severity": "info",
+                    "message": f"发现 {duplicate_candidates} 个重复的邮箱地址（同一候选人多次投递）",
+                    "field": "candidates.email",
                 }
             )
 
