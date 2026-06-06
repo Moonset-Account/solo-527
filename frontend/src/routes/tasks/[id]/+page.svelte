@@ -211,10 +211,46 @@
 						</div>
 					{/if}
 
-					{#if task.reviewed}
+					{#if task.reviewed && task.status === 'completed'}
 						<div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
 							<p class="text-sm font-medium text-emerald-800">
-								复核信息：{task.reviewed_by} 于 {formatDate(task.reviewed_at)} 复核
+								✅ 复核通过：{task.reviewed_by} 于 {formatDate(task.reviewed_at)} 完成复核
+							</p>
+							<p class="text-sm text-emerald-700 mt-1">
+								📦 库存已释放：箱子已恢复空闲状态，可重新分配使用
+							</p>
+						</div>
+					{/if}
+
+					{#if task.reviewed && task.status === 'exception'}
+						<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+							<p class="text-sm font-medium text-red-800">
+								❌ 复核不通过：{task.reviewed_by} 于 {formatDate(task.reviewed_at)} 复核
+							</p>
+							<p class="text-sm text-red-700 mt-1">
+								🔒 继续保持异常隔离，库存未释放
+							</p>
+						</div>
+					{/if}
+
+					{#if !task.reviewed && task.status === 'exception' && task.temperature_ok === false}
+						<div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+							<p class="text-sm font-medium text-yellow-800">
+								⚠️ 温度异常：待复核，当前库存锁定中
+							</p>
+							<p class="text-sm text-yellow-700 mt-1">
+								需管理员或调度员复核通过后，库存才能释放
+							</p>
+						</div>
+					{/if}
+
+					{#if task.status === 'returned'}
+						<div class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+							<p class="text-sm font-medium text-purple-800">
+								🔒 库存锁定：任务已退回，等待补传资料后重新派送
+							</p>
+							<p class="text-sm text-purple-700 mt-1">
+								退回期间箱内库存保持锁定，不能被重新分配
 							</p>
 						</div>
 					{/if}

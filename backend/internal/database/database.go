@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var DB *sql.DB
@@ -179,6 +180,12 @@ func seedData() error {
 		}
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error generating password hash: %v", err)
+		hashedPassword = []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
+	}
+
 	users := []struct {
 		id       string
 		username string
@@ -188,14 +195,14 @@ func seedData() error {
 		phone    string
 		siteID   *string
 	}{
-		{"user-admin", "admin", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "admin", "系统管理员", "13800000000", nil},
-		{"user-disp1", "dispatcher1", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "dispatcher", "王调度", "13800000001", nil},
-		{"user-disp2", "dispatcher2", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "dispatcher", "李调度", "13800000002", nil},
-		{"user-nurse1", "nurse1", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "nurse", "张护士", "13800000003", &siteIDs[0]},
-		{"user-nurse2", "nurse2", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "nurse", "刘护士", "13800000004", &siteIDs[1]},
-		{"user-nurse3", "nurse3", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "nurse", "陈护士", "13800000005", &siteIDs[2]},
-		{"user-nurse4", "nurse4", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "nurse", "杨护士", "13800000006", &siteIDs[3]},
-		{"user-nurse5", "nurse5", "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", "nurse", "黄护士", "13800000007", &siteIDs[4]},
+		{"user-admin", "admin", string(hashedPassword), "admin", "系统管理员", "13800000000", nil},
+		{"user-disp1", "dispatcher1", string(hashedPassword), "dispatcher", "王调度", "13800000001", nil},
+		{"user-disp2", "dispatcher2", string(hashedPassword), "dispatcher", "李调度", "13800000002", nil},
+		{"user-nurse1", "nurse1", string(hashedPassword), "nurse", "张护士", "13800000003", &siteIDs[0]},
+		{"user-nurse2", "nurse2", string(hashedPassword), "nurse", "刘护士", "13800000004", &siteIDs[1]},
+		{"user-nurse3", "nurse3", string(hashedPassword), "nurse", "陈护士", "13800000005", &siteIDs[2]},
+		{"user-nurse4", "nurse4", string(hashedPassword), "nurse", "杨护士", "13800000006", &siteIDs[3]},
+		{"user-nurse5", "nurse5", string(hashedPassword), "nurse", "黄护士", "13800000007", &siteIDs[4]},
 	}
 
 	for _, u := range users {

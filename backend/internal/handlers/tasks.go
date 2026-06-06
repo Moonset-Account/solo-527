@@ -601,10 +601,11 @@ func ReturnTask(c *fiber.Ctx) error {
 	var taskSiteID string
 	var boxNumber string
 	var siteName string
+	var boxStatus string
 	err := database.DB.QueryRow(
 		"SELECT t.box_id, t.status, t.site_id, t.box_number, t.site_name, b.status FROM tasks t JOIN boxes b ON t.box_id = b.id WHERE t.id = ?",
 		taskID,
-	).Scan(&boxID, &currentStatus, &taskSiteID, &boxNumber, &siteName)
+	).Scan(&boxID, &currentStatus, &taskSiteID, &boxNumber, &siteName, &boxStatus)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "任务不存在",
@@ -798,21 +799,18 @@ func ReviewTask(c *fiber.Ctx) error {
 
 	var newTaskStatus models.TaskStatus
 	var newBoxStatus models.BoxStatus
-	var reviewedVal bool
 
 	if req.Approved {
 		newTaskStatus = models.TaskStatusCompleted
 		newBoxStatus = models.BoxStatusIdle
-		reviewedVal = true
 	} else {
 		newTaskStatus = models.TaskStatusException
 		newBoxStatus = models.BoxStatusException
-		reviewedVal = false
 	}
 
 	_, err = tx.Exec(
-		`UPDATE tasks SET status = ?, reviewed = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?`,
-		newTaskStatus, reviewedVal, userID, userName, now, taskID,
+		`UPDATE tasks SET status = ?, reviewed = 1, reviewed_by = ?, reviewed_at = ?, updated_at = ? WHERE id = ?`,
+		newTaskStatus, userName, now, now, taskID,
 	)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -837,14 +835,26 @@ func ReviewTask(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Approved {
-		exceptionID := uuid.New().String()
-		_, err = tx.Exec(
-			`INSERT INTO exception_records (id, task_id, box_id, type, description, reported_by, resolved, resolved_by, resolved_at, resolution, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-			exceptionID, taskID, boxID, "review", "复核处理", userID, userID, now, req.Note, now,
-		)
+	exceptionID := uuid.New().String()
+	resolved := req.Approved
+	resolution := req.Note
+	if resolution == "" {
+		if req.Approved {
+			resolution = "复核通过，库存已释放"
+		} else {
+			resolution = "复核不通过，继续保持异常隔离"
+		}
 	}
+	description := "复核通过"
+	if !req.Approved {
+		description = "复核不通过"
+	}
+	_, err = tx.Exec(
+		`INSERT INTO exception_records (id, task_id, box_id, type, description, reported_by, resolved, resolved_by, resolved_at, resolution, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		exceptionID, taskID, boxID, "review", description,
+		userID, resolved, userName, now, resolution, now,
+	)
 
 	if err = tx.Commit(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -861,7 +871,7 @@ func ReviewTask(c *fiber.Ctx) error {
 			ID:        taskID,
 			BoxNumber: boxNumber,
 			SiteName:  siteName,
-			Reviewed:  reviewedVal,
+			Reviewed:  req.Approved,
 		}
 		go sms.NotifyTaskReviewed(&task, nursePhone)
 	}
