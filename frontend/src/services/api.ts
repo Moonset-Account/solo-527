@@ -98,9 +98,9 @@ export const dashboardApi = {
     api.get<DashboardOverview>('/dashboard/overview', { params }).then((r) => r.data),
   getOverdueTasks: (params?: any) =>
     api.get<PaginatedResponse<Demand>>('/dashboard/overdue-tasks', { params }).then((r) => r.data),
-  getResourceUtilization: () =>
-    api.get<ResourceUtilization[]>('/dashboard/resource-utilization').then((r) => r.data),
-  getProcessStuck: () => api.get('/dashboard/process-stuck').then((r) => r.data),
+  getResourceUtilization: (params?: any) =>
+    api.get<ResourceUtilization[]>('/dashboard/resource-utilization', { params }).then((r) => r.data),
+  getProcessStuck: (params?: any) => api.get('/dashboard/process-stuck', { params }).then((r) => r.data),
 };
 
 export const financeApi = {

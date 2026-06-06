@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   FileText,
   Receipt,
@@ -9,33 +9,71 @@ import {
   TrendingUp,
   Calendar,
   Filter,
+  RefreshCw,
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Layout } from '../components/Layout';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { dashboardApi, financeApi } from '../services/api';
-import { DashboardOverview, ResourceUtilization, MonthlyTrend } from '../types';
+import { dashboardApi, financeApi, authApi } from '../services/api';
+import { DashboardOverview, ResourceUtilization, MonthlyTrend, User } from '../types';
 import { formatCurrency, formatDate, formatPercent } from '../utils/format';
+
+const DEMAND_STATUS_OPTIONS = [
+  { value: '', label: '全部状态' },
+  { value: 'pending', label: '待处理' },
+  { value: 'quoting', label: '报价中' },
+  { value: 'confirmed', label: '已确认' },
+  { value: 'cancelled', label: '已取消' },
+];
+
+const QUOTE_STATUS_OPTIONS = [
+  { value: '', label: '全部报价状态' },
+  { value: 'draft', label: '草稿' },
+  { value: 'pending_approval', label: '待审批' },
+  { value: 'approved', label: '已通过' },
+  { value: 'rejected', label: '已拒绝' },
+];
 
 export const Dashboard: React.FC = () => {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
   const [utilization, setUtilization] = useState<ResourceUtilization[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
     assigneeId: '',
+    status: '',
+    quoteStatus: '',
   });
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const profile = await authApi.getProfile();
+      setUsers([profile]);
+    } catch {
+      setUsers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const [overviewData, trendData, utilData] = await Promise.all([
           dashboardApi.getOverview(filters),
           financeApi.getMonthlyTrend(6),
-          dashboardApi.getResourceUtilization(),
+          dashboardApi.getResourceUtilization({
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            assigneeId: filters.assigneeId,
+          }),
         ]);
         setOverview(overviewData);
         setMonthlyTrend(trendData);
@@ -74,12 +112,12 @@ export const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">后台看板</h1>
             <p className="text-slate-500 mt-1">实时监控业务运营状况</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg">
               <Filter size={16} className="text-slate-400" />
               <input
@@ -96,6 +134,47 @@ export const Dashboard: React.FC = () => {
                 className="text-sm text-slate-600 bg-transparent outline-none"
               />
             </div>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg outline-none focus:border-teal-500"
+            >
+              {DEMAND_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filters.quoteStatus}
+              onChange={(e) => setFilters({ ...filters, quoteStatus: e.target.value })}
+              className="px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg outline-none focus:border-teal-500"
+            >
+              {QUOTE_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filters.assigneeId}
+              onChange={(e) => setFilters({ ...filters, assigneeId: e.target.value })}
+              className="px-3 py-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-lg outline-none focus:border-teal-500"
+            >
+              <option value="">全部负责人</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setFilters({ startDate: '', endDate: '', assigneeId: '', status: '', quoteStatus: '' })}
+              className="flex items-center gap-1 px-3 py-2 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <RefreshCw size={14} />
+              重置
+            </button>
           </div>
         </div>
 

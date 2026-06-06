@@ -120,11 +120,13 @@ export class DashboardService {
   }
 
   async getResourceUtilization(query: any = {}) {
-    const { startDate, endDate } = query;
+    const { startDate, endDate, assigneeId, status } = query;
 
-    const users = await this.userRepository.find({
-      where: { role: 'product' },
-    });
+    const userWhere: any = { role: 'product' };
+    if (assigneeId) {
+      userWhere.id = assigneeId;
+    }
+    const users = await this.userRepository.find({ where: userWhere });
 
     let startOfRange: Date;
     let endOfRange: Date;
@@ -141,20 +143,21 @@ export class DashboardService {
     const utilization = [];
 
     for (const user of users) {
-      const assignedCount = await this.demandRepository.count({
-        where: {
-          assigneeId: user.id,
-          createdAt: Between(startOfRange, endOfRange),
-        },
-      });
+      const assignedWhere: any = {
+        assigneeId: user.id,
+        createdAt: Between(startOfRange, endOfRange),
+      };
+      if (status) {
+        assignedWhere.status = status;
+      }
+      const assignedCount = await this.demandRepository.count({ where: assignedWhere });
 
-      const completedCount = await this.demandRepository.count({
-        where: {
-          assigneeId: user.id,
-          status: 'confirmed',
-          updatedAt: Between(startOfRange, endOfRange),
-        },
-      });
+      const completedWhere: any = {
+        assigneeId: user.id,
+        status: 'confirmed',
+        updatedAt: Between(startOfRange, endOfRange),
+      };
+      const completedCount = await this.demandRepository.count({ where: completedWhere });
 
       utilization.push({
         userId: user.id,
@@ -168,20 +171,44 @@ export class DashboardService {
     return utilization;
   }
 
-  async getProcessStuck() {
-    const stuckDemands = await this.demandRepository
-      .createQueryBuilder('demand')
-      .where('demand.status = :status', { status: 'quoting' })
-      .andWhere("demand.updated_at < NOW() - INTERVAL '3 days'")
-      .leftJoinAndSelect('demand.assignee', 'assignee')
-      .getMany();
+  async getProcessStuck(query: any = {}) {
+    const { startDate, endDate, assigneeId, status, createdById } = query;
 
-    const stuckQuotes = await this.quoteRepository
+    const demandQuery = this.demandRepository
+      .createQueryBuilder('demand')
+      .where('demand.status = :status', { status: status || 'quoting' })
+      .andWhere("demand.updated_at < NOW() - INTERVAL '3 days'")
+      .leftJoinAndSelect('demand.assignee', 'assignee');
+
+    if (startDate && endDate) {
+      demandQuery.andWhere('demand.created_at BETWEEN :start AND :end', {
+        start: new Date(startDate),
+        end: new Date(endDate),
+      });
+    }
+    if (assigneeId) {
+      demandQuery.andWhere('demand.assignee_id = :assigneeId', { assigneeId });
+    }
+
+    const stuckDemands = await demandQuery.getMany();
+
+    const quoteQuery = this.quoteRepository
       .createQueryBuilder('quote')
       .where('quote.status = :status', { status: 'pending_approval' })
       .andWhere("quote.created_at < NOW() - INTERVAL '2 days'")
-      .leftJoinAndSelect('quote.createdBy', 'createdBy')
-      .getMany();
+      .leftJoinAndSelect('quote.createdBy', 'createdBy');
+
+    if (startDate && endDate) {
+      quoteQuery.andWhere('quote.created_at BETWEEN :start AND :end', {
+        start: new Date(startDate),
+        end: new Date(endDate),
+      });
+    }
+    if (createdById) {
+      quoteQuery.andWhere('quote.created_by_id = :createdById', { createdById });
+    }
+
+    const stuckQuotes = await quoteQuery.getMany();
 
     return {
       stuckDemands,

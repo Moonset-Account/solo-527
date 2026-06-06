@@ -29,7 +29,7 @@ export class DashboardController {
 
   @Get('process-stuck')
   @ApiOperation({ summary: '流程卡点分析' })
-  async getProcessStuck() {
-    return this.dashboardService.getProcessStuck();
+  async getProcessStuck(@Query() query: any) {
+    return this.dashboardService.getProcessStuck(query);
   }
 }
