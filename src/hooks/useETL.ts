@@ -42,10 +42,14 @@ export const useETL = () => {
       students = students.filter((s) => filters.studentIds.includes(s.id));
     }
     
+    const filteredCohorts = filters.cohortIds.length > 0
+      ? cohorts.filter((c) => filters.cohortIds.includes(c.id))
+      : cohorts;
+    
     const validation = validateData(activities);
     const { funnel, totalStudents } = calculateFunnelData(activities, students);
-    const correctRates = calculateCorrectRates(activities, chapters);
-    const cohortMetrics = calculateCohortMetrics(activities, cohorts, allStudents);
+    const correctRates = calculateCorrectRates(activities, chapters, filters.questionIds);
+    const cohortMetrics = calculateCohortMetrics(activities, filteredCohorts, students);
     const kpis = calculateKPIs(activities, students);
     
     return {
@@ -63,7 +67,7 @@ export const useETL = () => {
   const getDropoutStudentsByType = (activityType: ActivityType): DropoutStudent[] => {
     return getDropoutStudents(
       processedData.activities,
-      allStudents,
+      processedData.students,
       activityType,
       cohorts
     );

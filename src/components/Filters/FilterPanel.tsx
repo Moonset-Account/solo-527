@@ -10,38 +10,61 @@ import { TIME_PRESET_LABELS } from '../../data/constants';
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+const MOCK_DATA_END = dayjs('2025-06-30');
+
 export const FilterPanel: React.FC = () => {
   const {
     courseIds,
     chapterIds,
     cohortIds,
+    studentIds,
+    questionIds,
     timeRange,
     setCourseIds,
     setChapterIds,
     setCohortIds,
+    setStudentIds,
+    setQuestionIds,
     setTimeRange,
     resetFilters,
   } = useFilterStore();
   
-  const { courses, chapters, cohorts } = useETL();
+  const { courses, chapters, cohorts, students } = useETL();
   
   const filteredChapters = courseIds.length > 0
     ? chapters.filter((ch) => courseIds.includes(ch.courseId))
     : chapters;
   
+  const filteredStudents = cohortIds.length > 0
+    ? students.filter((s) => cohortIds.includes(s.cohortId))
+    : students;
+  
+  const filteredQuestions = filteredChapters.length > 0
+    ? filteredChapters.flatMap((ch) => {
+        const chapterQuestions = [];
+        for (let i = 1; i <= 8; i++) {
+          chapterQuestions.push({
+            id: `q-${ch.id}-${i}`,
+            title: `${ch.name} - 题目${i}`,
+          });
+        }
+        return chapterQuestions;
+      })
+    : [];
+  
   const handleTimePresetChange = (preset: TimePreset) => {
-    const end = dayjs();
-    let start = dayjs();
+    const end = MOCK_DATA_END;
+    let start = MOCK_DATA_END;
     
     switch (preset) {
       case 'day':
-        start = dayjs();
+        start = MOCK_DATA_END.subtract(1, 'day');
         break;
       case 'week':
-        start = dayjs().subtract(7, 'day');
+        start = MOCK_DATA_END.subtract(7, 'day');
         break;
       case 'month':
-        start = dayjs().subtract(30, 'day');
+        start = MOCK_DATA_END.subtract(30, 'day');
         break;
       default:
         break;
@@ -68,6 +91,8 @@ export const FilterPanel: React.FC = () => {
     courseIds.length,
     chapterIds.length,
     cohortIds.length,
+    studentIds.length,
+    questionIds.length,
   ].filter(Boolean).length;
   
   return (
@@ -143,6 +168,54 @@ export const FilterPanel: React.FC = () => {
           >
             {cohorts.map((cohort) => (
               <Option key={cohort.id} value={cohort.id}>{cohort.name}</Option>
+            ))}
+          </Select>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1.5">学员</label>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="选择学员"
+            value={studentIds}
+            onChange={setStudentIds}
+            style={{ width: '100%' }}
+            size="middle"
+            maxTagCount={2}
+            showSearch
+            filterOption={(input, option) =>
+              (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+            disabled={filteredStudents.length === 0}
+          >
+            {filteredStudents.slice(0, 200).map((student) => (
+              <Option key={student.id} value={student.id}>
+                {student.name} {student.isMakeup ? '(补课)' : ''}
+              </Option>
+            ))}
+          </Select>
+          {filteredStudents.length > 200 && (
+            <p className="text-xs text-gray-400 mt-1">仅显示前 200 名学员，请使用班期筛选缩小范围</p>
+          )}
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1.5">题目</label>
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="选择题目"
+            value={questionIds}
+            onChange={setQuestionIds}
+            style={{ width: '100%' }}
+            size="middle"
+            maxTagCount={2}
+            showSearch
+            disabled={filteredQuestions.length === 0}
+          >
+            {filteredQuestions.map((q) => (
+              <Option key={q.id} value={q.id}>{q.title}</Option>
             ))}
           </Select>
         </div>

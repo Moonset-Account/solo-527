@@ -112,15 +112,27 @@ export const calculateFunnelData = (
 
 export const calculateCorrectRates = (
   activities: LearningActivity[],
-  chapters: Chapter[]
+  chapters: Chapter[],
+  questionIds: string[] = []
 ): CorrectRateItem[] => {
-  const quizActivities = activities.filter(
+  let quizActivities = activities.filter(
     (a) => a.activityType === 'quiz' && a.firstCompletedAt !== null
   );
   
+  if (questionIds.length > 0) {
+    quizActivities = quizActivities.filter(
+      (a) => a.questionId && questionIds.includes(a.questionId)
+    );
+  }
+  
+  const relevantChapterIds = [...new Set(quizActivities.map((a) => a.chapterId))];
+  const relevantChapters = relevantChapterIds.length > 0
+    ? chapters.filter((ch) => relevantChapterIds.includes(ch.id))
+    : chapters;
+  
   const groupedByChapter = groupBy(quizActivities, 'chapterId');
   
-  const rates: CorrectRateItem[] = chapters.map((chapter) => {
+  const rates: CorrectRateItem[] = relevantChapters.map((chapter) => {
     const chapterActivities = groupedByChapter[chapter.id] || [];
     const totalAttempts = chapterActivities.length;
     const correctCount = chapterActivities.filter((a) => a.isCorrect).length;

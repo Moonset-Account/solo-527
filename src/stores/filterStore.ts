@@ -3,15 +3,23 @@ import dayjs from 'dayjs';
 import { FilterState, TimePreset } from '../data/types';
 
 const getDefaultTimeRange = () => {
-  const end = dayjs().format('YYYY-MM-DD');
-  const start = dayjs().subtract(30, 'day').format('YYYY-MM-DD');
+  const end = dayjs('2025-06-30').format('YYYY-MM-DD');
+  const start = dayjs('2024-03-01').format('YYYY-MM-DD');
   return { start, end, preset: 'month' as TimePreset };
 };
+
+const STORAGE_VERSION = '1.0.1';
 
 const loadFromSessionStorage = (): Partial<FilterState> | null => {
   try {
     const saved = sessionStorage.getItem('dashboard:lastFilters');
-    return saved ? JSON.parse(saved) : null;
+    const version = sessionStorage.getItem('dashboard:storageVersion');
+    if (saved && version === STORAGE_VERSION) {
+      return JSON.parse(saved);
+    }
+    sessionStorage.removeItem('dashboard:lastFilters');
+    sessionStorage.setItem('dashboard:storageVersion', STORAGE_VERSION);
+    return null;
   } catch {
     return null;
   }
