@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}物料管理 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-box-seam"></i> 物料管理</h2>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">类别</label>
+                <select name="category" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"i" %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">类型</label>
+                <select name="type" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部</option>
+                    <option value="display_case" {% if request.GET.type == 'display_case' %}selected{% endif %}>展柜</option>
+                    <option value="lighting" {% if request.GET.type == 'lighting' %}selected{% endif %}>灯具</option>
+                    <option value="transport_box" {% if request.GET.type == 'transport_box' %}selected{% endif %}>运输箱</option>
+                    <option value="other" {% if request.GET.type == 'other' %}selected{% endif %}>其他</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">搜索</label>
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="物料名称/编码" value="{{ request.GET.search }}">
+                    <button class="btn btn-outline-secondary" type="submit">搜索</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>编码</th>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>类别</th>
+                        <th>贵重</th>
+                        <th>需双人确认</th>
+                        <th>库存数量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for material in materials %}
+                    <tr>
+                        <td>{{ material.code }}</td>
+                        <td><a href="{% url 'material_detail' material.pk %}">{{ material.name }}</a></td>
+                        <td>{{ material.get_type_display }}</td>
+                        <td>{{ material.category.name|default:"-" }}</td>
+                        <td>
+                            {% if material.is_valuable %}
+                            <span class="badge bg-danger">是</span>
+                            {% else %}否{% endif %}
+                        </td>
+                        <td>
+                            {% if material.requires_double_confirm %}
+                            <span class="badge bg-warning">是</span>
+                            {% else %}否{% endif %}
+                        </td>
+                        <td>{{ material.total_items }}</td>
+                        <td>
+                            <a href="{% url 'material_detail' material.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">暂无物料</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

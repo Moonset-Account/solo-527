@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}布展日历 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div x-data="calendarApp()">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="bi bi-calendar-month"></i>
+            布展日历 - {{ year }}年{{ month }}月
+        </h2>
+        <div class="btn-group">
+            <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn-outline-secondary">
+                <i class="bi bi-chevron-left"></i> 上月
+            </a>
+            <a href="?year={{ today.year }}&month={{ today.month }}" class="btn btn-outline-primary">
+                今天
+            </a>
+            <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn-outline-secondary">
+                下月 <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="row mb-2">
+                <div class="col text-center fw-bold py-2">一</div>
+                <div class="col text-center fw-bold py-2">二</div>
+                <div class="col text-center fw-bold py-2">三</div>
+                <div class="col text-center fw-bold py-2">四</div>
+                <div class="col text-center fw-bold py-2">五</div>
+                <div class="col text-center fw-bold py-2">六</div>
+                <div class="col text-center fw-bold py-2">日</div>
+            </div>
+
+            {% for week in calendar %}
+            <div class="row">
+                {% for day in week %}
+                <div class="col calendar-day {% if day == 0 %}other-month{% endif %} {% if day == today.day and month == today.month and year == today.year %}today{% endif %}"
+                     {% if day > 0 %}
+                     onclick="window.location.href='{% url 'day_detail' year month day %}'"
+                     {% endif %}>
+                    {% if day > 0 %}
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ day }}</strong>
+                        {% for conflict in conflicts %}
+                            {% if conflict.conflict_date.day == day and conflict.conflict_date.month == month and conflict.conflict_date.year == year %}
+                            <span class="badge bg-danger conflict-indicator">!</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    {% for exhibition in exhibitions %}
+                        {% if exhibition.start_date.day <= day and exhibition.end_date.day >= day and exhibition.start_date.month == month and exhibition.start_date.year == year %}
+                        <div class="event-item" style="background-color: #3498db;">
+                            {{ exhibition.name|truncatechars:10 }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% for order in borrow_orders %}
+                        {% if order.expected_pickup_date.day == day and order.expected_pickup_date.month == month and order.expected_pickup_date.year == year %}
+                        <div class="event-item" style="background-color: #2ecc71;">
+                            领: {{ order.order_no|slice:":8" }}
+                        </div>
+                        {% endif %}
+                        {% if order.expected_return_date.day == day and order.expected_return_date.month == month and order.expected_return_date.year == year %}
+                        <div class="event-item" style="background-color: #e74c3c;">
+                            还: {{ order.order_no|slice:":8" }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-exclamation-triangle"></i> 图例说明
+                </div>
+                <div class="card-body">
+                    <div class="mb-2"><span class="event-item d-inline-block" style="background-color: #3498db; width: 60px;"></span> 展览</div>
+                    <div class="mb-2"><span class="event-item d-inline-block" style="background-color: #2ecc71; width: 60px;"></span> 物料领取</div>
+                    <div class="mb-2"><span class="event-item d-inline-block" style="background-color: #e74c3c; width: 60px;"></span> 物料归还</div>
+                    <div class="mb-2"><span class="badge bg-danger">!</span> 存在冲突</div>
+                    <div><span class="calendar-day today d-inline-block" style="width: 30px; height: 30px;"></span> 今天</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-exclamation-circle"></i> 未解决的冲突
+                </div>
+                <div class="card-body">
+                    {% with unresolved_conflicts=conflicts|dictsort:"conflict_date" %}
+                        {% if unresolved_conflicts %}
+                            <div class="list-group">
+                            {% for conflict in unresolved_conflicts|slice:":5" %}
+                                <a href="{% url 'day_detail' conflict.conflict_date.year conflict.conflict_date.month conflict.conflict_date.day %}"
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">
+                                            <span class="badge bg-{{ conflict.severity|yesno:'danger,warning,primary,secondary' }}">
+                                                {{ conflict.get_severity_display_name }}
+                                            </span>
+                                            {{ conflict.get_type_display_name }}
+                                        </h6>
+                                        <small>{{ conflict.conflict_date }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ conflict.description }}</p>
+                                    <small>展览: {{ conflict.exhibition.name }}</small>
+                                </a>
+                            {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-success"><i class="bi bi-check-circle"></i> 本月暂无未解决的冲突</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

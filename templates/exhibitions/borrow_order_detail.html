@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}借用单 {{ order.order_no }} - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-receipt"></i>
+        借用单详情: {{ order.order_no }}
+        <span class="badge bg-{{ order.status|yesno:'secondary,warning,primary,success,warning,danger,secondary' }} ms-2">
+            {{ order.get_status_display_name }}
+        </span>
+    </h2>
+    <div>
+        <a href="{% url 'borrow_order_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+        <a href="{% url 'export_borrow_order' order.pk %}" class="btn btn-outline-success">
+            <i class="bi bi-download"></i> 导出Excel
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 基本信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>展览:</strong>
+                            <a href="{% url 'exhibition_detail' order.exhibition.pk %}">{{ order.exhibition.name }}</a>
+                        </p>
+                        <p><strong>展厅:</strong> {{ order.hall.name }}</p>
+                        <p><strong>借用类型:</strong>
+                            <span class="badge bg-{{ order.type|yesno:'primary,info' }}">{{ order.get_type_display_name }}</span>
+                        </p>
+                        <p><strong>申请人:</strong> {{ order.requester }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>施工负责人:</strong> {{ order.construction_lead|default:"未指定" }}</p>
+                        <p><strong>预计领取:</strong> {{ order.expected_pickup_date }}</p>
+                        <p><strong>预计归还:</strong> {{ order.expected_return_date }}</p>
+                        <p><strong>是否跨展厅:</strong>
+                            {% if order.is_cross_hall %}
+                            <span class="badge bg-warning">是 (需要审批)</span>
+                            {% else %}否{% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% if order.remarks %}
+                <div class="mt-3">
+                    <strong>备注:</strong>
+                    <p class="text-muted">{{ order.remarks }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> 借用物料明细</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>物料编码</th>
+                                <th>物料名称</th>
+                                <th>类型</th>
+                                <th>贵重</th>
+                                <th>数量</th>
+                                <th>已领</th>
+                                <th>已还</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.material.code }}</td>
+                                <td>{{ item.material.name }}</td>
+                                <td>{{ item.material.get_type_display_name }}</td>
+                                <td>
+                                    {% if item.material.is_valuable %}
+                                    <span class="badge bg-danger">是</span>
+                                    {% else %}否{% endif %}
+                                </td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.picked_up_quantity }}</td>
+                                <td>{{ item.returned_quantity }}</td>
+                                <td>
+                                    <span class="badge bg-{{ item.status|yesno:'secondary,primary,success,warning,danger' }}">
+                                        {{ item.get_status_display_name }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if transport_records %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-truck"></i> 运输记录</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for transport in transport_records %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <h6>{{ transport.tracking_no|default:"运单#"|add:transport.id }}</h6>
+                            <span class="badge bg-info">{{ transport.get_status_display_name }}</span>
+                        </div>
+                        <p class="mb-1">{{ transport.from_location }} → {{ transport.to_location }}</p>
+                        <small>
+                            出发: {{ transport.actual_departure|default:transport.estimated_departure|date:"Y-m-d H:i" }}
+                            | 到达: {{ transport.actual_arrival|default:transport.estimated_arrival|date:"Y-m-d H:i" }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if approval_records %}
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-check2-square"></i> 审批记录</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for record in approval_records %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <h6>
+                                {{ record.approver }}
+                                <span class="badge bg-{{ record.action|yesno:'success,danger,warning' }}">
+                                    {{ record.get_action_display_name }}
+                                </span>
+                            </h6>
+                            <small>{{ record.created_at|date:"Y-m-d H:i" }}</small>
+                        </div>
+                        {% if record.remarks %}
+                        <p class="mb-0 text-muted">{{ record.remarks }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> 操作</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                {% if order.status == 'draft' and user.is_curator %}
+                <form method="post" action="{% url 'borrow_order_submit' order.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-send"></i> 提交审批
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if order.status == 'pending_approval' and user.is_admin %}
+                <a href="{% url 'borrow_order_approve' order.pk %}" class="btn btn-success w-100">
+                    <i class="bi bi-check-circle"></i> 审批
+                </a>
+                {% endif %}
+
+                {% if order.has_valuable_items and order.status == 'approved' %}
+                {% if user.is_warehouse_keeper or user.is_admin %}
+                <div class="border rounded p-3 mb-2 bg-light">
+                    <h6 class="text-danger"><i class="bi bi-exclamation-triangle"></i> 贵重物品双人确认</h6>
+                    {% if not order.first_confirmer %}
+                    <form method="post" action="{% url 'confirm_valuable_items' order.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="confirm_type" value="first">
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                            第一确认人确认
+                        </button>
+                    </form>
+                    {% else %}
+                    <p class="mb-1 text-success"><i class="bi bi-check"></i> 第一确认: {{ order.first_confirmer }} {{ order.first_confirm_time|date:"m-d H:i" }}</p>
+                    {% endif %}
+
+                    {% if order.first_confirmer and not order.second_confirmer %}
+                    <form method="post" action="{% url 'confirm_valuable_items' order.pk %}" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="confirm_type" value="second">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                                {% if order.first_confirmer_id == user.id %}disabled title="同一账号不能进行两次确认"{% endif %}>
+                            第二确认人确认
+                        </button>
+                    </form>
+                    {% if order.first_confirmer_id == user.id %}
+                    <small class="text-muted d-block mt-1">* 您已完成第一确认，请由其他人员进行第二确认</small>
+                    {% endif %}
+                    {% elif order.second_confirmer %}
+                    <p class="mb-0 text-success"><i class="bi bi-check"></i> 第二确认: {{ order.second_confirmer }} {{ order.second_confirm_time|date:"m-d H:i" }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endif %}
+
+                {% if order.status == 'approved' %}
+                {% if not order.is_reservation_confirmed %}
+                {% if user.is_warehouse_keeper or user.is_admin %}
+                <form method="post" action="{% url 'confirm_reservation' order.pk %}" class="mb-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check2-square"></i> 确认库存预占
+                    </button>
+                </form>
+                <small class="text-muted d-block mb-2">* 确认后库存将被锁定，施工人员可以领取物料</small>
+                {% endif %}
+                {% endif %}
+
+                {% if user.is_construction_lead or user.is_warehouse_keeper or user.is_admin %}
+                <form method="post" action="{% url 'pickup_items' order.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100"
+                            {% if not order.can_be_picked_up %}disabled title="{% if not order.is_reservation_confirmed %}请先由仓管确认库存预占{% elif order.has_valuable_items and not order.is_double_confirmed %}贵重物品需完成双人确认后才能领取{% else %}无法领取{% endif %}"{% endif %}>
+                        <i class="bi bi-box-arrow-right"></i> 确认领取
+                    </button>
+                </form>
+                {% if not order.can_be_picked_up %}
+                <small class="text-muted d-block mt-1">
+                    {% if not order.is_reservation_confirmed %}* 请先由仓管确认库存预占{% endif %}
+                    {% if order.has_valuable_items and not order.is_double_confirmed %}* 请先完成贵重物品双人确认{% endif %}
+                </small>
+                {% endif %}
+                {% endif %}
+                {% endif %}
+
+                {% if order.status == 'picked_up' %}
+                {% if user.is_construction_lead or user.is_warehouse_keeper or user.is_admin %}
+                <button type="button" class="btn btn-warning w-100" data-bs-toggle="modal" data-bs-target="#returnModal">
+                    <i class="bi bi-box-arrow-in-right"></i> 归还物料
+                </button>
+                {% endif %}
+                {% endif %}
+
+                {% if order.exhibition.is_open %}
+                <div class="alert alert-info small mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    展览已开幕，仅可追加临时借用，不能修改已归还记录
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> 时间线</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-plus-circle text-primary"></i> 创建: {{ order.created_at|date:"Y-m-d H:i" }}</li>
+                    {% if order.approval_time %}
+                    <li class="mb-2"><i class="bi bi-check-circle text-success"></i> 审批: {{ order.approval_time|date:"Y-m-d H:i" }}</li>
+                    {% endif %}
+                    {% if order.actual_pickup_date %}
+                    <li class="mb-2"><i class="bi bi-box-arrow-right text-info"></i> 领取: {{ order.actual_pickup_date|date:"Y-m-d H:i" }}</li>
+                    {% endif %}
+                    {% if order.actual_return_date %}
+                    <li class="mb-2"><i class="bi bi-box-arrow-in-right text-warning"></i> 归还: {{ order.actual_return_date|date:"Y-m-d H:i" }}</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if order.status == 'picked_up' %}
+<div class="modal fade" id="returnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'return_items' order.pk %}">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">归还物料</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% for item in items %}
+                    {% if item.status == 'picked_up' %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ item.material.name }} (待还: {{ item.quantity|add:"-item.returned_quantity" }})</label>
+                        <input type="hidden" name="item_ids[]" value="{{ item.id }}">
+                        <input type="number" name="return_qtys[]" class="form-control"
+                               min="0" max="{{ item.quantity|add:"-item.returned_quantity" }}"
+                               value="{{ item.quantity|add:"-item.returned_quantity" }}">
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认归还</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

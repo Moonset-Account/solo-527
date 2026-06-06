@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}展览管理 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-easel"></i> 展览管理</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>展览名称</th>
+                        <th>展厅</th>
+                        <th>策展人</th>
+                        <th>开始日期</th>
+                        <th>结束日期</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exhibition in exhibitions %}
+                    <tr>
+                        <td><a href="{% url 'exhibition_detail' exhibition.pk %}">{{ exhibition.name }}</a></td>
+                        <td>{{ exhibition.hall.name }}</td>
+                        <td>{{ exhibition.curator.get_full_name|default:"-" }}</td>
+                        <td>{{ exhibition.start_date }}</td>
+                        <td>{{ exhibition.end_date }}</td>
+                        <td>
+                            <span class="badge bg-{{ exhibition.status|yesno:'secondary,primary,warning,success,secondary,dark' }}">
+                                {{ exhibition.get_status_display_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'exhibition_detail' exhibition.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                            {% if user.is_curator %}
+                            <a href="{% url 'borrow_order_create' exhibition.pk %}" class="btn btn-sm btn-outline-success">新建借用</a>
+                            {% endif %}
+                            {% if exhibition.is_open %}
+                            <a href="{% url 'create_temporary_borrow' exhibition.pk %}" class="btn btn-sm btn-outline-info">临时追加</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">暂无展览</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}库存预占 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clipboard-check"></i> 库存预占</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>物料</th>
+                        <th>序列号</th>
+                        <th>展览</th>
+                        <th>申请人</th>
+                        <th>开始日期</th>
+                        <th>结束日期</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in reservations %}
+                    <tr>
+                        <td>{{ res.inventory_item.material.name }}</td>
+                        <td>{{ res.inventory_item.serial_number }}</td>
+                        <td>{{ res.exhibition.name }}</td>
+                        <td>{{ res.requested_by.get_full_name|default:res.requested_by.username }}</td>
+                        <td>{{ res.start_date }}</td>
+                        <td>{{ res.end_date }}</td>
+                        <td>
+                            <span class="badge bg-{{ res.status|yesno:'warning,primary,danger,success' }}">
+                                {{ res.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if res.status == 'pending' and user.is_warehouse_keeper %}
+                            <form method="post" action="{% url 'confirm_reservation' res.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success">确认</button>
+                            </form>
+                            {% endif %}
+                            {% if res.status in 'pending,confirmed' and user.is_admin %}
+                            <form method="post" action="{% url 'cancel_reservation' res.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">取消</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">暂无预占记录</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

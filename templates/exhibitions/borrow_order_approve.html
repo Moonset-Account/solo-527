@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}审批借用单 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-check2-square"></i> 审批借用单: {{ order.order_no }}</h2>
+    <a href="{% url 'borrow_order_detail' order.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回详情
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">借用单信息</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>展览:</strong> {{ order.exhibition.name }}</p>
+                <p><strong>展厅:</strong> {{ order.hall.name }}</p>
+                <p><strong>申请人:</strong> {{ order.requester }}</p>
+                <p><strong>预计领取:</strong> {{ order.expected_pickup_date }}</p>
+                <p><strong>预计归还:</strong> {{ order.expected_return_date }}</p>
+                {% if order.is_cross_hall %}
+                <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> <strong>跨展厅借用，需要审批</strong></p>
+                {% endif %}
+                {% if order.has_valuable_items %}
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> <strong>包含贵重物品，需要双人确认</strong></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">物料明细</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>物料</th>
+                            <th>数量</th>
+                            <th>贵重</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order.items.all %}
+                        <tr>
+                            <td>{{ item.material.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{% if item.material.is_valuable %}<span class="badge bg-danger">是</span>{% else %}否{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">审批操作</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">审批意见</label>
+                        <textarea name="remarks" class="form-control" rows="4" placeholder="请输入审批意见..."></textarea>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> 批准
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> 拒绝
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

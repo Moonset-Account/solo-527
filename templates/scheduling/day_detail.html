@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ target_date }} 详情 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-calendar-date"></i>
+        {{ target_date|date:"Y年m月d日" }} 详情
+    </h2>
+    <a href="{% url 'calendar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回日历
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> 物料冲突 ({{ conflicts|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if conflicts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>严重程度</th>
+                                    <th>冲突类型</th>
+                                    <th>展览</th>
+                                    <th>物料</th>
+                                    <th>描述</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conflict in conflicts %}
+                                <tr class="{% if conflict.severity == 'critical' %}table-danger{% elif conflict.severity == 'high' %}table-warning{% endif %}">
+                                    <td>
+                                        <span class="badge bg-{{ conflict.severity|yesno:'danger,warning,primary,secondary' }}">
+                                            {{ conflict.get_severity_display_name }}
+                                        </span>
+                                    </td>
+                                    <td>{{ conflict.get_type_display_name }}</td>
+                                    <td>
+                                        {% if conflict.exhibition %}
+                                            <a href="{% url 'exhibition_detail' conflict.exhibition.pk %}">{{ conflict.exhibition.name }}</a>
+                                        {% else %}-{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if conflict.material %}
+                                            <a href="{% url 'material_detail' conflict.material.pk %}">{{ conflict.material.name }}</a>
+                                        {% else %}-{% endif %}
+                                    </td>
+                                    <td>{{ conflict.description }}</td>
+                                    <td>
+                                        {% if conflict.borrow_order %}
+                                            <a href="{% url 'borrow_order_detail' conflict.borrow_order.pk %}" class="btn btn-sm btn-outline-primary">查看借用单</a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-success"><i class="bi bi-check-circle-fill"></i> 当日无物料冲突</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card border-warning mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> 未归还清单 ({{ unreturned_items|length }})</h5>
+                <a href="{% url 'export_unreturned' %}?date={{ target_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-download"></i> 导出Excel
+                </a>
+            </div>
+            <div class="card-body">
+                {% if unreturned_items %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>借单号</th>
+                                    <th>展览</th>
+                                    <th>物料</th>
+                                    <th>应还数量</th>
+                                    <th>已还</th>
+                                    <th>逾期天数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in unreturned_items %}
+                                <tr class="table-warning">
+                                    <td><a href="{% url 'borrow_order_detail' item.borrow_order.pk %}">{{ item.borrow_order.order_no }}</a></td>
+                                    <td>{{ item.borrow_order.exhibition.name }}</td>
+                                    <td>{{ item.material.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>{{ item.returned_quantity }}</td>
+                                    <td class="text-danger fw-bold">{{ target_date|timeuntil:item.borrow_order.expected_return_date }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-success"><i class="bi bi-check-circle-fill"></i> 当日无逾期未归还物料</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-info mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-truck"></i> 运输状态 ({{ in_transit|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if in_transit %}
+                    <div class="list-group">
+                        {% for transport in in_transit %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-truck"></i>
+                                    {{ transport.tracking_no|default:"运单#"|add:transport.id }}
+                                </h6>
+                                <span class="badge bg-info">{{ transport.get_status_display_name }}</span>
+                            </div>
+                            <p class="mb-1">
+                                <i class="bi bi-arrow-right"></i>
+                                {{ transport.from_location }} → {{ transport.to_location }}
+                            </p>
+                            <small>
+                                借用单: <a href="{% url 'borrow_order_detail' transport.borrow_order.pk %}">{{ transport.borrow_order.order_no }}</a>
+                                {% if transport.driver %} | 司机: {{ transport.driver }} ({{ transport.driver_phone }}){% endif %}
+                            </small>
+                            {% if transport.estimated_arrival %}
+                            <div class="mt-1">
+                                <small class="text-muted">预计到达: {{ transport.estimated_arrival|date:"Y-m-d H:i" }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted"><i class="bi bi-info-circle"></i> 当前没有在运输中的物料</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> 今日活动</h5>
+            </div>
+            <div class="card-body">
+                {% if borrow_orders_today %}
+                    <div class="list-group">
+                        {% for order in borrow_orders_today %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">
+                                    <a href="{% url 'borrow_order_detail' order.pk %}">{{ order.order_no }}</a>
+                                </h6>
+                                <span class="badge bg-{{ order.status|yesno:'success,warning,primary,info,danger' }}">
+                                    {{ order.get_status_display_name }}
+                                </span>
+                            </div>
+                            <p class="mb-1">{{ order.exhibition.name }} - {{ order.hall.name }}</p>
+                            <small>
+                                {% if order.expected_pickup_date == target_date %}
+                                    <span class="text-success"><i class="bi bi-box-arrow-right"></i> 预计领取</span>
+                                {% endif %}
+                                {% if order.expected_return_date == target_date %}
+                                    <span class="text-danger"><i class="bi bi-box-arrow-in-right"></i> 预计归还</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">今日无借用安排</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-easel"></i> 进行中的展览</h5>
+            </div>
+            <div class="card-body">
+                {% if exhibitions %}
+                    <div class="list-group">
+                        {% for exhibition in exhibitions %}
+                        <a href="{% url 'exhibition_detail' exhibition.pk %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ exhibition.name }}</h6>
+                                <span class="badge bg-{{ exhibition.status|yesno:'primary,warning,success,info,secondary' }}">
+                                    {{ exhibition.get_status_display_name }}
+                                </span>
+                            </div>
+                            <p class="mb-1">{{ exhibition.hall.name }}</p>
+                            <small>{{ exhibition.start_date|date:"Y-m-d" }} 至 {{ exhibition.end_date|date:"Y-m-d" }}</small>
+                            {% if exhibition.is_open %}
+                            <div class="mt-2">
+                                <a href="{% url 'create_temporary_borrow' exhibition.pk %}" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-plus"></i> 追加临时借用
+                                </a>
+                            </div>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">当日无进行中的展览</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

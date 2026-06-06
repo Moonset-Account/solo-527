@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ exhibition.name }} - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-easel"></i> {{ exhibition.name }}
+        <span class="badge bg-{{ exhibition.status|yesno:'secondary,primary,warning,success,secondary,dark' }} ms-2">
+            {{ exhibition.get_status_display_name }}
+        </span>
+    </h2>
+    <div>
+        <a href="{% url 'exhibition_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if not exhibition.is_open %}
+        {% if user.is_curator %}
+        <a href="{% url 'borrow_order_create' exhibition.pk %}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> 新建借用单
+        </a>
+        {% endif %}
+        {% endif %}
+        {% if exhibition.is_open %}
+        <a href="{% url 'create_temporary_borrow' exhibition.pk %}" class="btn btn-info text-white">
+            <i class="bi bi-plus"></i> 追加临时借用
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 展览信息</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>展厅:</strong> {{ exhibition.hall.name }}</p>
+                <p><strong>策展人:</strong> {{ exhibition.curator.get_full_name|default:"未指定" }}</p>
+                <p><strong>开始日期:</strong> {{ exhibition.start_date }}</p>
+                <p><strong>结束日期:</strong> {{ exhibition.end_date }}</p>
+                {% if exhibition.installation_start %}
+                <p><strong>布展开始:</strong> {{ exhibition.installation_start }}</p>
+                {% endif %}
+                {% if exhibition.opening_date %}
+                <p><strong>开幕日期:</strong> {{ exhibition.opening_date }}</p>
+                {% endif %}
+                {% if exhibition.description %}
+                <p><strong>描述:</strong> {{ exhibition.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 借用统计</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>借用单总数:</strong> {{ borrow_orders|length }}</p>
+                <p><strong>进行中:</strong> {{ borrow_orders|dictsort:"status"|length }}</p>
+                {% if exhibition.is_open %}
+                <div class="alert alert-info small mt-3 mb-0">
+                    <i class="bi bi-info-circle"></i> 展览已开幕，仅可追加临时借用
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> 借用单列表</h5>
+    </div>
+    <div class="card-body">
+        {% if borrow_orders %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>借单号</th>
+                        <th>类型</th>
+                        <th>申请人</th>
+                        <th>预计领取</th>
+                        <th>预计归还</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in borrow_orders %}
+                    <tr>
+                        <td><a href="{% url 'borrow_order_detail' order.pk %}">{{ order.order_no }}</a></td>
+                        <td>
+                            <span class="badge bg-{{ order.type|yesno:'primary,info' }}">
+                                {{ order.get_type_display_name }}
+                            </span>
+                        </td>
+                        <td>{{ order.requester.get_full_name|default:order.requester.username }}</td>
+                        <td>{{ order.expected_pickup_date }}</td>
+                        <td>{{ order.expected_return_date }}</td>
+                        <td>
+                            <span class="badge bg-{{ order.status|yesno:'secondary,warning,primary,success,warning,danger,secondary' }}">
+                                {{ order.get_status_display_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'borrow_order_detail' order.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-3">暂无借用单</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

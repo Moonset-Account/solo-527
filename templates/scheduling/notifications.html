@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}通知 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bell"></i> 通知中心</h2>
+</div>
+
+<div class="card">
+    <div class="list-group list-group-flush">
+        {% for notification in notifications %}
+        <div class="list-group-item {% if not notification.is_read %}list-group-item-primary{% endif %}"
+             x-data="{ show: true }">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">
+                    <span class="badge bg-{{ notification.type }}">
+                        {{ notification.get_type_display_name }}
+                    </span>
+                    {{ notification.title }}
+                </h6>
+                <small>{{ notification.created_at|date:"Y-m-d H:i" }}</small>
+            </div>
+            <p class="mb-1">{{ notification.message }}</p>
+            {% if notification.related_borrow_order %}
+            <small>
+                <a href="{% url 'borrow_order_detail' notification.related_borrow_order.pk %}">
+                    查看借用单
+                </a>
+            </small>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-5">
+            <i class="bi bi-bell-slash" style="font-size: 3rem;"></i>
+            <p class="mt-3">暂无通知</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

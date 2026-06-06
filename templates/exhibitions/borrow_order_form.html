@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}创建借用单 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-plus-circle"></i> 创建借用单</h2>
+    <a href="{% if exhibition %}{% url 'exhibition_detail' exhibition.pk %}{% else %}{% url 'borrow_order_list' %}{% endif %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" x-data="{ items: [] }">
+            {% csrf_token %}
+
+            {% if exhibition %}
+            <div class="mb-3">
+                <label class="form-label">展览</label>
+                <input type="text" class="form-control" value="{{ exhibition.name }}" readonly>
+            </div>
+            {% endif %}
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">使用展厅 *</label>
+                    <select name="hall" class="form-select" required>
+                        <option value="">请选择展厅</option>
+                        {% for hall in halls %}
+                        <option value="{{ hall.id }}" {% if exhibition and exhibition.hall.id == hall.id %}selected{% endif %}>{{ hall.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">预计领取日期 *</label>
+                    <input type="date" name="expected_pickup_date" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">预计归还日期 *</label>
+                    <input type="date" name="expected_return_date" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">备注</label>
+                <textarea name="remarks" class="form-control" rows="3"></textarea>
+            </div>
+
+            <hr>
+
+            <h5 class="mb-3">物料明细</h5>
+
+            <div id="materials-container">
+                <div class="row mb-2 material-row">
+                    <div class="col-md-6">
+                        <select name="material_ids[]" class="form-select">
+                            <option value="">选择物料</option>
+                            {% for material in materials %}
+                            <option value="{{ material.id }}">{{ material.code }} - {{ material.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" name="quantities[]" class="form-control" placeholder="数量" min="1" value="1">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger remove-row" onclick="this.closest('.material-row').remove()">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-outline-primary mb-3" onclick="addMaterialRow()">
+                <i class="bi bi-plus"></i> 添加物料
+            </button>
+
+            <hr>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> 创建借用单
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function addMaterialRow() {
+    const container = document.getElementById('materials-container');
+    const firstRow = container.querySelector('.material-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input, select').forEach(input => input.value = '');
+    newRow.querySelector('input[name="quantities[]"]').value = '1';
+    container.appendChild(newRow);
+}
+</script>
+{% endblock %}

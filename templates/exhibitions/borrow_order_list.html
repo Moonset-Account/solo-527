@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}借用单管理 - 博物馆物料调度系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> 借用单管理</h2>
+    <div class="btn-group">
+        <a href="{% url 'exhibition_list' %}" class="btn btn-primary">
+            <i class="bi bi-plus"></i> 新建借用单
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">状态</label>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">全部</option>
+                    <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>草稿</option>
+                    <option value="pending_approval" {% if request.GET.status == 'pending_approval' %}selected{% endif %}>待审批</option>
+                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>已批准</option>
+                    <option value="picked_up" {% if request.GET.status == 'picked_up' %}selected{% endif %}>已领取</option>
+                    <option value="returned" {% if request.GET.status == 'returned' %}selected{% endif %}>已归还</option>
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>借单号</th>
+                        <th>展览</th>
+                        <th>展厅</th>
+                        <th>类型</th>
+                        <th>申请人</th>
+                        <th>预计领取</th>
+                        <th>预计归还</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><a href="{% url 'borrow_order_detail' order.pk %}">{{ order.order_no }}</a></td>
+                        <td>{{ order.exhibition.name }}</td>
+                        <td>{{ order.hall.name }}</td>
+                        <td>
+                            <span class="badge bg-{{ order.type|yesno:'primary,info' }}">
+                                {{ order.get_type_display_name }}
+                            </span>
+                        </td>
+                        <td>{{ order.requester.get_full_name|default:order.requester.username }}</td>
+                        <td>{{ order.expected_pickup_date }}</td>
+                        <td>{{ order.expected_return_date }}</td>
+                        <td>
+                            <span class="badge bg-{{ order.status|yesno:'secondary,warning,primary,success,warning,danger,secondary' }}">
+                                {{ order.get_status_display_name }}
+                            </span>
+                            {% if order.is_overdue %}
+                            <span class="badge bg-danger ms-1">逾期</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'borrow_order_detail' order.pk %}" class="btn btn-sm btn-outline-primary">详情</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">暂无借用单</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

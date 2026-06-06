@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}博物馆临时展览物料调度系统{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { padding-top: 56px; }
+        .sidebar { position: fixed; top: 56px; bottom: 0; left: 0; z-index: 100; padding: 0; box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1); }
+        .sidebar-sticky { position: relative; top: 0; height: calc(100vh - 56px); overflow-x: hidden; overflow-y: auto; }
+        .main-content { margin-left: 240px; padding: 20px; }
+        .nav-link { color: #333; }
+        .nav-link.active { background-color: #0d6efd; color: white; }
+        .status-badge { padding: 0.25em 0.5em; border-radius: 0.25em; font-size: 0.75em; font-weight: 500; }
+        .calendar-day { min-height: 100px; border: 1px solid #dee2e6; padding: 5px; position: relative; }
+        .calendar-day:hover { background-color: #f8f9fa; cursor: pointer; }
+        .calendar-day.today { background-color: #e3f2fd; }
+        .calendar-day.other-month { background-color: #f5f5f5; color: #999; }
+        .conflict-indicator { position: absolute; top: 2px; right: 2px; }
+        .event-item { font-size: 0.75em; padding: 2px 4px; margin: 1px 0; border-radius: 3px; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'calendar' %}">
+                <i class="bi bi-calendar3"></i> 博物馆物料调度系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-bell"></i>
+                                <span id="notif-badge" class="badge bg-danger" style="font-size: 0.6em;"></span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'notifications' %}">查看所有通知</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><span class="dropdown-item-text">{{ user.get_role_display }}</span></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">退出登录</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{% url 'login' %}">登录</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% if user.is_authenticated %}
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block bg-light sidebar">
+                <div class="sidebar-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' %}">
+                                <i class="bi bi-calendar-month"></i> 布展日历
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'exhibition' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'exhibition_list' %}">
+                                <i class="bi bi-easel"></i> 展览管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'borrow_order' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'borrow_order_list' %}">
+                                <i class="bi bi-receipt"></i> 借用单管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'material' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'material_list' %}">
+                                <i class="bi bi-box-seam"></i> 物料管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'inventory' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'inventory_list' %}">
+                                <i class="bi bi-archive"></i> 库存管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'reservation' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'reservation_list' %}">
+                                <i class="bi bi-clipboard-check"></i> 库存预占
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'hall' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'hall_list' %}">
+                                <i class="bi bi-building"></i> 展厅管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'warehouse' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'warehouse_list' %}">
+                                <i class="bi bi-warehouse"></i> 仓库管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <hr class="my-2">
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'export_unreturned' %}">
+                                <i class="bi bi-file-earmark-excel"></i> 导出未归还清单
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'export_inventory' %}">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> 导出库存清单
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto main-content">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+        <div class="container mt-5">
+            {% block content_not_auth %}{% endblock %}
+        </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/notifications/unread-count/')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notif-badge');
+                    if (badge && data.unread_count > 0) {
+                        badge.textContent = data.unread_count;
+                    }
+                });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
