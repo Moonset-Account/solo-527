@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount, onDestroy, beforeUpdate, browser } from 'svelte';
+  import { onMount, onDestroy, beforeUpdate } from 'svelte';
+  import { browser } from '$app/environment';
   import * as echarts from 'echarts';
-  import type { EChartsOption, ECharts } from 'echarts';
+  import type { ECharts } from 'echarts';
 
-  export let option: EChartsOption;
+  export let option: any;
   export let theme: string | null = 'dark';
   export let height: string = '100%';
   export let width: string = '100%';

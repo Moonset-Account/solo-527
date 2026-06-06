@@ -1,6 +1,6 @@
 <script lang="ts">
   import BaseChart from './BaseChart.svelte';
-  import type { SensorReading, Sensor, SensorType, EChartsOption } from '$lib/types';
+  import type { SensorReading, Sensor, SensorType } from '$lib/types';
   import { METRIC_CONFIGS, SENSOR_TYPE_LABELS } from '$lib/data/dictionary';
   import dayjs from 'dayjs';
 
@@ -8,7 +8,7 @@
   export let sensors: Sensor[];
   export let selectedType: SensorType | 'all' = 'all';
 
-  let chartOption: EChartsOption = {};
+  let chartOption: any = {};
 
   function updateChart() {
     const sensorMap = new Map(sensors.map((s: Sensor) => [s.id, s]));
