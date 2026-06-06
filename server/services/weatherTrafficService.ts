@@ -5,15 +5,34 @@ export async function getWeatherTrafficAnalysis(filters: FilterParams): Promise<
   const startDate = new Date(filters.startDate);
   const endDate = new Date(filters.endDate);
 
-  const storeWhere: any = {};
+  const inventoryWhere: any = {};
   if (filters.storeIds?.length) {
-    storeWhere.storeId = { in: filters.storeIds };
+    inventoryWhere.storeId = { in: filters.storeIds };
   }
+  if (filters.supplierIds?.length) {
+    inventoryWhere.supplierId = { in: filters.supplierIds };
+  }
+  if (filters.categoryIds?.length) {
+    inventoryWhere.product = { categoryId: { in: filters.categoryIds } };
+  }
+  if (filters.batchIds?.length) {
+    inventoryWhere.batchId = { in: filters.batchIds };
+  }
+
+  const matchedInventories = await prisma.factInventory.findMany({
+    where: inventoryWhere,
+    select: { storeId: true },
+    distinct: ['storeId'],
+  });
+
+  const matchedStoreIds = matchedInventories.map((i: any) => i.storeId);
 
   const trafficData = await prisma.factDailyTraffic.findMany({
     where: {
       dateId: { gte: startDate, lte: endDate },
-      ...storeWhere,
+      ...(matchedStoreIds.length > 0
+        ? { storeId: { in: matchedStoreIds } }
+        : {}),
     },
     include: { store: true },
     orderBy: { dateId: 'asc' },
@@ -21,11 +40,11 @@ export async function getWeatherTrafficAnalysis(filters: FilterParams): Promise<
 
   const lossWhere: any = {
     lossDate: { gte: startDate, lte: endDate },
-    ...(filters.storeIds?.length
-      ? { inventory: { storeId: { in: filters.storeIds } } }
-      : {}),
   };
   
+  if (filters.storeIds?.length) {
+    lossWhere.inventory = { storeId: { in: filters.storeIds } };
+  }
   if (filters.batchIds?.length) {
     lossWhere.inventory = { ...lossWhere.inventory, batchId: { in: filters.batchIds } };
   }

@@ -73,22 +73,44 @@ async function getCategoryStats(
     inventoryWhere.batchId = { in: filters.batchIds };
   }
 
+  const lossWhere: any = {
+    lossDate: { gte: periodStart, lte: periodEnd },
+    inventory: { product: { categoryId } },
+  };
+  if (filters.storeIds?.length) {
+    lossWhere.inventory.storeId = { in: filters.storeIds };
+  }
+  if (filters.supplierIds?.length) {
+    lossWhere.inventory.supplierId = { in: filters.supplierIds };
+  }
+  if (filters.batchIds?.length) {
+    lossWhere.inventory.batchId = { in: filters.batchIds };
+  }
+
+  const promoWhere: any = {
+    startDate: { gte: periodStart, lte: periodEnd },
+    inventory: { product: { categoryId } },
+  };
+  if (filters.storeIds?.length) {
+    promoWhere.inventory.storeId = { in: filters.storeIds };
+  }
+  if (filters.supplierIds?.length) {
+    promoWhere.inventory.supplierId = { in: filters.supplierIds };
+  }
+  if (filters.batchIds?.length) {
+    promoWhere.inventory.batchId = { in: filters.batchIds };
+  }
+
   const [inventories, losses, promos] = await Promise.all([
     prisma.factInventory.findMany({
       where: inventoryWhere,
       include: { lossRecords: true, promotions: true, product: true },
     }),
     prisma.factLoss.findMany({
-      where: {
-        lossDate: { gte: periodStart, lte: periodEnd },
-        inventory: { product: { categoryId } },
-      },
+      where: lossWhere,
     }),
     prisma.factPromotion.findMany({
-      where: {
-        startDate: { gte: periodStart, lte: periodEnd },
-        inventory: { product: { categoryId } },
-      },
+      where: promoWhere,
     }),
   ]);
 

@@ -26,16 +26,27 @@ export async function getSupplierRanking(filters: FilterParams): Promise<Supplie
 
   const rankings = await Promise.all(
     suppliers.map(async (supplier: any) => {
+      const lossWhere: any = {
+        lossDate: { gte: startDate, lte: endDate },
+        inventory: { supplierId: supplier.supplierId },
+      };
+      if (filters.storeIds?.length) {
+        lossWhere.inventory.storeId = { in: filters.storeIds };
+      }
+      if (filters.categoryIds?.length) {
+        lossWhere.inventory.product = { categoryId: { in: filters.categoryIds } };
+      }
+      if (filters.batchIds?.length) {
+        lossWhere.inventory.batchId = { in: filters.batchIds };
+      }
+
       const [inventories, losses] = await Promise.all([
         prisma.factInventory.findMany({
           where: { ...inventoryWhere, supplierId: supplier.supplierId },
           include: { lossRecords: true },
         }),
         prisma.factLoss.findMany({
-          where: {
-            lossDate: { gte: startDate, lte: endDate },
-            inventory: { supplierId: supplier.supplierId },
-          },
+          where: lossWhere,
         }),
       ]);
 
