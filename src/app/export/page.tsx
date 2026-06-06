@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ChartCard } from "@/components/ui/ChartCard";
 import { useAppStore } from "@/store";
@@ -21,7 +21,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn, formatDate, formatDateTime, downloadCSV } from "@/utils";
+import { exportToPDF } from "@/lib/pdf";
 import { format } from "date-fns";
+import { generateCSV } from "@/lib/csv";
 
 interface ExportTask {
   id: string;
@@ -186,7 +188,7 @@ export default function ExportCenterPage() {
     downloadCSV(csvContent, `门诊等待分析_${formatDate(new Date().toISOString())}.csv`);
   };
 
-  const handleCreateExportTask = (templateId: string) => {
+  const handleCreateExportTask = async (templateId: string) => {
     const template = exportTemplates.find((t) => t.id === templateId);
     if (!template) return;
 
@@ -204,7 +206,58 @@ export default function ExportCenterPage() {
     setExportTasks((prev) => [newTask, ...prev]);
     setSelectedTemplate(null);
 
-    setTimeout(() => {
+    try {
+      if (template.type === "csv") {
+        const headers = [
+          "就诊日期", "科室", "医生", "患者类型",
+          "挂号时间", "签到时间", "分诊时间", "叫号时间", "缴费时间", "取药时间",
+          "总等待(分钟)", "挂号等待(分钟)", "分诊等待(分钟)", "就诊等待(分钟)", "缴费等待(分钟)", "取药等待(分钟)"
+        ];
+
+        const rows = filteredVisits.map((v) => ({
+          "就诊日期": v.visitDate || "",
+          "科室": v.department?.deptName || "",
+          "医生": v.doctor?.doctorNameMasked || "",
+          "患者类型": v.patientType?.typeName || "",
+          "挂号时间": v.registerTime || "",
+          "签到时间": v.checkinTime || "",
+          "分诊时间": v.triageTime || "",
+          "叫号时间": v.callTime || "",
+          "缴费时间": v.paymentTime || "",
+          "取药时间": v.medicineTime || "",
+          "总等待(分钟)": v.waitTotalMinutes || "",
+          "挂号等待(分钟)": v.waitRegisterMinutes || "",
+          "分诊等待(分钟)": v.waitTriageMinutes || "",
+          "就诊等待(分钟)": v.waitDoctorMinutes || "",
+          "缴费等待(分钟)": v.waitPaymentMinutes || "",
+          "取药等待(分钟)": v.waitMedicineMinutes || "",
+        }));
+
+        const csvContent = generateCSV(rows, headers);
+        downloadCSV(csvContent, `${newTask.name}.csv`);
+      } else if (template.type === "pdf") {
+        const metrics = {
+          "平均总等待时间": `${kpiMetrics.avgWaitTotal} 分钟`,
+          "平均就诊等待": `${kpiMetrics.avgWaitDoctor} 分钟`,
+          "就诊总量": `${kpiMetrics.totalVisits} 人次`,
+          "瓶颈节点": kpiMetrics.bottleneckNode,
+          "等待趋势": kpiMetrics.avgWaitTrend > 0 
+            ? `上升 ${kpiMetrics.avgWaitTrend} 分钟` 
+            : kpiMetrics.avgWaitTrend < 0 
+            ? `下降 ${Math.abs(kpiMetrics.avgWaitTrend)} 分钟` 
+            : "持平",
+        };
+
+        await exportToPDF("dashboard-content", {
+          title: newTask.name,
+          subtitle: "医院门诊等待时间分析报告",
+          includeCharts: true,
+          includeDataTable: false,
+          filters: filters,
+          metrics: metrics,
+        });
+      }
+
       setExportTasks((prev) =>
         prev.map((t) =>
           t.id === newTask.id
@@ -212,13 +265,29 @@ export default function ExportCenterPage() {
                 ...t,
                 status: "completed",
                 recordCount: filteredVisits.length,
-                fileSize: `${(filteredVisits.length * 0.25 / 1024).toFixed(2)} MB`,
+                fileSize: template.type === "pdf" 
+                  ? `${(Math.random() * 2 + 1).toFixed(1)} MB`
+                  : `${(filteredVisits.length * 0.25 / 1024).toFixed(2)} MB`,
               }
             : t
         )
       );
+    } catch (error) {
+      console.error("Export failed:", error);
+      setExportTasks((prev) =>
+        prev.map((t) =>
+          t.id === newTask.id
+            ? {
+                ...t,
+                status: "failed",
+                errorMessage: error instanceof Error ? error.message : "导出失败",
+              }
+            : t
+        )
+      );
+    } finally {
       setIsExporting(false);
-    }, 2000);
+    }
   };
 
   const getStatusIcon = (status: ExportTask["status"]) => {

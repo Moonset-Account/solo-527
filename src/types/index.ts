@@ -105,6 +105,7 @@ export interface FilterState {
   doctors: string[];
   patientTypes: string[];
   timeSlots: string[];
+  processNodes: string[];
   hourRange: [number, number];
 }
 

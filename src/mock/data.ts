@@ -263,6 +263,21 @@ export function filterVisits(
       const [start, end] = filters.dateRange;
       if (visit.visitDate < start || visit.visitDate > end) return false;
     }
+    if (filters.processNodes?.length) {
+      const nodeFieldMap: Record<string, keyof VisitProcess> = {
+        register: "registerTime",
+        checkin: "checkinTime",
+        triage: "triageTime",
+        call: "callTime",
+        payment: "paymentTime",
+        medicine: "medicineTime",
+      };
+      const hasAllNodes = filters.processNodes.every((node) => {
+        const field = nodeFieldMap[node];
+        return field && visit[field] !== null;
+      });
+      if (!hasAllNodes) return false;
+    }
     return true;
   });
 }
@@ -333,34 +348,41 @@ export function generateSankeyData(visits: VisitProcess[]): SankeyData {
     itemStyle: { color: n.color },
   }));
 
-  const nodeKeys = PROCESS_NODES.map((n) => n.key);
-  const links: SankeyData["links"] = [];
+  const linkWaitMapping: Array<{
+    source: string;
+    target: string;
+    waitField: keyof VisitProcess;
+  }> = [
+    { source: "挂号", target: "签到", waitField: "waitRegisterMinutes" },
+    { source: "签到", target: "分诊", waitField: "waitTriageMinutes" },
+    { source: "分诊", target: "叫号就诊", waitField: "waitDoctorMinutes" },
+    { source: "叫号就诊", target: "缴费", waitField: "waitPaymentMinutes" },
+    { source: "缴费", target: "取药", waitField: "waitMedicineMinutes" },
+  ];
 
-  for (let i = 0; i < nodeKeys.length - 1; i++) {
-    const sourceKey = nodeKeys[i];
-    const targetKey = nodeKeys[i + 1];
-    const sourceName = PROCESS_NODES[i].name;
-    const targetName = PROCESS_NODES[i + 1].name;
+  const links: SankeyData["links"] = linkWaitMapping.map((mapping) => {
+    const validWaits = visits
+      .map((v) => v[mapping.waitField] as number | null)
+      .filter((w): w is number => w !== null && typeof w === "number" && w >= 0);
+    
+    const totalWait = validWaits.reduce((acc, w) => acc + w, 0);
+    const avgWait = validWaits.length > 0 ? Math.round(totalWait / validWaits.length) : 0;
 
-    const waitKey = `wait${targetKey.charAt(0).toUpperCase() + targetKey.slice(1)}Minutes` as keyof VisitProcess;
-    const totalWait = visits.reduce((acc, v) => acc + ((v[waitKey] as number) || 0), 0);
-    const avgWait = visits.length > 0 ? Math.round(totalWait / visits.length) : 0;
-
-    links.push({
-      source: sourceName,
-      target: targetName,
-      value: visits.length,
+    return {
+      source: mapping.source,
+      target: mapping.target,
+      value: validWaits.length,
       waitTime: avgWait,
-    });
-  }
+    };
+  });
 
   return { nodes, links };
 }
 
 export function generateWaitDistribution(visits: VisitProcess[]): WaitDistributionItem[] {
   const waits = visits
-    .map((v) => v.waitTotalMinutes)
-    .filter((w): w is number => w !== null && w >= 0);
+    .map((v) => v.waitTotalMinutes as number | null)
+    .filter((w): w is number => w !== null && typeof w === "number" && w >= 0);
 
   if (waits.length === 0) return [];
 

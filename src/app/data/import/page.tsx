@@ -2,15 +2,20 @@
 
 import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react";
-import { cn } from "@/utils";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, RefreshCw } from "lucide-react";
+import { cn, downloadCSV } from "@/utils";
+import { parseCSV, mapCSVRow, generateCSV } from "@/lib/csv";
+import { validateVisitData, cleanAndCalculateWaitTimes, maskVisitNumber } from "@/lib/validation";
 
 interface ImportPreview {
   total: number;
   valid: number;
   invalid: number;
-  errors: { row: number; message: string }[];
+  errors: { row: number; field: string; message: string }[];
+  warnings: { row: number; field: string; message: string }[];
   sample: Record<string, any>[];
+  headers: string[];
+  detectedColumns: string[];
 }
 
 export default function DataImportPage() {
@@ -19,6 +24,7 @@ export default function DataImportPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [importStatus, setImportStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [importProgress, setImportProgress] = useState(0);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -46,41 +52,106 @@ export default function DataImportPage() {
     }
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setUploadedFile(file);
     setImportStatus("idle");
-    setPreview({
-      total: 1258,
-      valid: 1245,
-      invalid: 13,
-      errors: [
-        { row: 45, message: "挂号时间格式不正确" },
-        { row: 128, message: "科室编码不存在" },
-        { row: 256, message: "等待时间计算异常" },
-        { row: 512, message: "患者类型编码无效" },
-      ],
-      sample: [
-        { visitNumber: "VISIT202606010001", dept: "内科", doctor: "张医生", registerTime: "2026-06-01 08:15:00", waitTotal: 45 },
-        { visitNumber: "VISIT202606010002", dept: "外科", doctor: "李医生", registerTime: "2026-06-01 08:20:00", waitTotal: 32 },
-        { visitNumber: "VISIT202606010003", dept: "儿科", doctor: "王医生", registerTime: "2026-06-01 08:30:00", waitTotal: 58 },
-      ],
-    });
+    setImportResult(null);
+
+    try {
+      const content = await file.text();
+      const csvResult = parseCSV(content);
+
+      const allErrors: { row: number; field: string; message: string }[] = [];
+      const allWarnings: { row: number; field: string; message: string }[] = [];
+      const validRows: Record<string, any>[] = [];
+
+      for (let i = 0; i < csvResult.data.length; i++) {
+        const rowNum = i + 2;
+        const rawRow = csvResult.data[i];
+        const mappedRow = mapCSVRow(rawRow);
+        const validation = validateVisitData(mappedRow, rowNum);
+
+        if (!validation.valid) {
+          allErrors.push(...validation.errors);
+        } else {
+          const cleaned = cleanAndCalculateWaitTimes(mappedRow);
+          cleaned.visitNumberMasked = maskVisitNumber(mappedRow.visitNumber || "");
+          validRows.push(cleaned);
+        }
+
+        if (validation.warnings.length > 0) {
+          allWarnings.push(...validation.warnings);
+        }
+      }
+
+      const detectedColumns = csvResult.headers.filter(
+        (h) => h.includes("时间") || h.includes("号") || h.includes("科室") || h.includes("医生")
+      );
+
+      setPreview({
+        total: csvResult.rowCount,
+        valid: validRows.length,
+        invalid: csvResult.rowCount - validRows.length,
+        errors: allErrors,
+        warnings: allWarnings,
+        sample: validRows.slice(0, 5),
+        headers: csvResult.headers,
+        detectedColumns,
+      });
+    } catch (error) {
+      console.error("Failed to parse CSV:", error);
+      setPreview({
+        total: 0,
+        valid: 0,
+        invalid: 0,
+        errors: [{ row: 0, field: "file", message: "文件解析失败，请检查文件格式" }],
+        warnings: [],
+        sample: [],
+        headers: [],
+        detectedColumns: [],
+      });
+    }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
+    if (!uploadedFile) return;
+
     setImportStatus("processing");
     setImportProgress(0);
 
-    const interval = setInterval(() => {
-      setImportProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setImportStatus("success");
-          return 100;
+    try {
+      const content = await uploadedFile.text();
+      const csvResult = parseCSV(content);
+
+      let success = 0;
+      let failed = 0;
+      const total = csvResult.data.length;
+
+      for (let i = 0; i < csvResult.data.length; i++) {
+        const rawRow = csvResult.data[i];
+        const mappedRow = mapCSVRow(rawRow);
+        const validation = validateVisitData(mappedRow);
+
+        if (validation.valid) {
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            success++;
+          } catch {
+            failed++;
+          }
+        } else {
+          failed++;
         }
-        return prev + 10;
-      });
-    }, 300);
+
+        setImportProgress(Math.round(((i + 1) / total) * 100));
+      }
+
+      setImportResult({ success, failed });
+      setImportStatus("success");
+    } catch (error) {
+      console.error("Import failed:", error);
+      setImportStatus("error");
+    }
   };
 
   const handleReset = () => {
@@ -88,6 +159,7 @@ export default function DataImportPage() {
     setPreview(null);
     setImportStatus("idle");
     setImportProgress(0);
+    setImportResult(null);
   };
 
   const downloadTemplate = () => {
@@ -103,16 +175,22 @@ export default function DataImportPage() {
       "缴费时间",
       "取药时间",
     ];
-    const csvContent = headers.join(",") + "\n";
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "门诊数据导入模板.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const sampleData = [
+      {
+        "就诊号": "VISIT202606010001",
+        "科室编码": "dept-001",
+        "医生编码": "doc-001",
+        "患者类型": "pt-001",
+        "挂号时间": "2026-06-01 08:00:00",
+        "签到时间": "2026-06-01 08:05:00",
+        "分诊时间": "2026-06-01 08:10:00",
+        "叫号时间": "2026-06-01 08:45:00",
+        "缴费时间": "2026-06-01 09:15:00",
+        "取药时间": "2026-06-01 09:25:00",
+      },
+    ];
+    const csvContent = generateCSV(sampleData, headers);
+    downloadCSV(csvContent, "门诊数据导入模板.csv");
   };
 
   return (
@@ -187,7 +265,8 @@ export default function DataImportPage() {
                 <div>
                   <p className="text-sm font-medium text-neutral-800">{uploadedFile.name}</p>
                   <p className="text-xs text-neutral-500">
-                    {(uploadedFile.size / 1024).toFixed(2)} KB · {preview?.total || 0} 条记录
+                    {(uploadedFile.size / 1024).toFixed(2)} KB
+                    {preview && ` · 检测到 ${preview.headers.length} 列`}
                   </p>
                 </div>
               </div>
@@ -223,100 +302,169 @@ export default function DataImportPage() {
                 </div>
 
                 {preview.errors.length > 0 && (
-                  <div className="p-4 bg-warning-50 rounded-lg border border-warning-200">
+                  <div className="p-4 bg-danger-50 rounded-lg border border-danger-200">
                     <div className="flex items-start gap-2 mb-2">
-                      <AlertCircle className="w-4 h-4 text-warning-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm font-medium text-warning-700">
-                        发现 {preview.errors.length} 条数据异常
+                      <XCircle className="w-4 h-4 text-danger-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm font-medium text-danger-700">
+                        发现 {preview.errors.length} 条数据错误
                       </p>
                     </div>
-                    <div className="space-y-1 pl-6">
-                      {preview.errors.slice(0, 3).map((error, index) => (
-                        <p key={index} className="text-xs text-warning-600">
-                          第 {error.row} 行: {error.message}
+                    <div className="space-y-1 pl-6 max-h-32 overflow-y-auto">
+                      {preview.errors.slice(0, 5).map((error, index) => (
+                        <p key={index} className="text-xs text-danger-600">
+                          第 {error.row} 行 [{error.field}]: {error.message}
                         </p>
                       ))}
-                      {preview.errors.length > 3 && (
-                        <p className="text-xs text-warning-500">
-                          ...还有 {preview.errors.length - 3} 条异常
+                      {preview.errors.length > 5 && (
+                        <p className="text-xs text-danger-500">
+                          ...还有 {preview.errors.length - 5} 条错误
                         </p>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div className="p-4 bg-white rounded-lg shadow-card border border-neutral-200">
-                  <p className="text-sm font-medium text-neutral-700 mb-3">数据预览（前3条）</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-neutral-200">
-                          <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">就诊号</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">科室</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">医生</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">挂号时间</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">总等待</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.sample.map((row, index) => (
-                          <tr key={index} className="border-b border-neutral-100 last:border-b-0">
-                            <td className="px-3 py-2 text-xs text-neutral-600 font-mono">{row.visitNumber}</td>
-                            <td className="px-3 py-2 text-xs text-neutral-600">{row.dept}</td>
-                            <td className="px-3 py-2 text-xs text-neutral-600">{row.doctor}</td>
-                            <td className="px-3 py-2 text-xs text-neutral-600">{row.registerTime}</td>
-                            <td className="px-3 py-2 text-xs text-neutral-600">{row.waitTotal}分钟</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {preview.warnings.length > 0 && (
+                  <div className="p-4 bg-warning-50 rounded-lg border border-warning-200">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertCircle className="w-4 h-4 text-warning-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm font-medium text-warning-700">
+                        发现 {preview.warnings.length} 条数据警告
+                      </p>
+                    </div>
+                    <div className="space-y-1 pl-6 max-h-24 overflow-y-auto">
+                      {preview.warnings.slice(0, 3).map((warning, index) => (
+                        <p key={index} className="text-xs text-warning-600">
+                          第 {warning.row} 行 [{warning.field}]: {warning.message}
+                        </p>
+                      ))}
+                      {preview.warnings.length > 3 && (
+                        <p className="text-xs text-warning-500">
+                          ...还有 {preview.warnings.length - 3} 条警告
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {importStatus === "idle" && (
-                  <div className="flex justify-end gap-3">
-                    <button
-                      onClick={handleReset}
-                      className="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100 rounded-md transition-colors"
-                    >
-                      重新选择
-                    </button>
-                    <button
-                      onClick={handleImport}
-                      className="px-4 py-2 text-sm text-white bg-primary-500 hover:bg-primary-600 rounded-md transition-colors"
-                    >
-                      确认导入
-                    </button>
+                {preview.sample.length > 0 && (
+                  <div className="p-4 bg-white rounded-lg shadow-card border border-neutral-200">
+                    <p className="text-sm font-medium text-neutral-700 mb-3">
+                      数据预览（前{preview.sample.length}条，已脱敏）
+                    </p>
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b border-neutral-200">
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">就诊号（脱敏）</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">科室</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">挂号时间</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">叫号时间</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">总等待</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">就诊等待</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.sample.map((row, index) => (
+                            <tr key={index} className="border-b border-neutral-100 last:border-b-0">
+                              <td className="px-3 py-2 text-xs text-neutral-600 font-mono">
+                                {row.visitNumberMasked || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-neutral-600">
+                                {row.deptId || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-neutral-600">
+                                {row.registerTime ? String(row.registerTime).slice(0, 16) : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-neutral-600">
+                                {row.callTime ? String(row.callTime).slice(0, 16) : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-neutral-600">
+                                {row.waitTotalMinutes != null ? `${row.waitTotalMinutes}分钟` : "-"}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-neutral-600">
+                                {row.waitDoctorMinutes != null ? `${row.waitDoctorMinutes}分钟` : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
                 {importStatus === "processing" && (
                   <div className="p-4 bg-white rounded-lg shadow-card border border-neutral-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-neutral-700">正在导入数据...</span>
-                      <span className="text-sm font-medium text-primary-600">{importProgress}%</span>
+                    <div className="flex items-center gap-3 mb-3">
+                      <RefreshCw className="w-5 h-5 text-primary-500 animate-spin" />
+                      <p className="text-sm font-medium text-neutral-700">正在导入数据...</p>
+                      <span className="ml-auto text-sm font-mono text-primary-600">{importProgress}%</span>
                     </div>
-                    <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                    <div className="w-full bg-neutral-100 rounded-full h-2">
                       <div
-                        className="h-full bg-primary-500 rounded-full transition-all duration-300"
+                        className="bg-primary-500 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${importProgress}%` }}
                       />
                     </div>
                   </div>
                 )}
 
-                {importStatus === "success" && (
-                  <div className="p-6 bg-success-50 rounded-lg border border-success-200 text-center">
-                    <CheckCircle className="w-12 h-12 text-success-500 mx-auto mb-3" />
-                    <p className="text-lg font-semibold text-success-700">数据导入成功</p>
-                    <p className="text-sm text-success-600 mt-1">
-                      共成功导入 {preview.valid} 条记录，已自动完成脱敏处理
-                    </p>
+                {importStatus === "success" && importResult && (
+                  <div className="p-4 bg-success-50 rounded-lg border border-success-200">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-success-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-success-700">导入完成</p>
+                        <p className="text-xs text-success-600 mt-1">
+                          成功导入 {importResult.success} 条记录
+                          {importResult.failed > 0 && `，失败 ${importResult.failed} 条`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {importStatus === "error" && (
+                  <div className="p-4 bg-danger-50 rounded-lg border border-danger-200">
+                    <div className="flex items-start gap-3">
+                      <XCircle className="w-5 h-5 text-danger-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-danger-700">导入失败</p>
+                        <p className="text-xs text-danger-600 mt-1">
+                          请检查网络连接后重试
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {importStatus === "idle" && (
+                  <div className="flex justify-end gap-3">
                     <button
                       onClick={handleReset}
-                      className="mt-4 px-4 py-2 text-sm text-success-700 bg-white border border-success-300 rounded-md hover:bg-success-50 transition-colors"
+                      className="px-4 py-2 text-sm text-neutral-600 bg-neutral-100 rounded-md hover:bg-neutral-200 transition-colors"
                     >
-                      继续导入
+                      重新选择
+                    </button>
+                    <button
+                      onClick={handleImport}
+                      disabled={preview.valid === 0}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-500 rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Upload className="w-4 h-4" />
+                      开始导入 ({preview.valid}条有效记录)
+                    </button>
+                  </div>
+                )}
+
+                {importStatus !== "idle" && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleReset}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      导入新文件
                     </button>
                   </div>
                 )}
@@ -324,36 +472,6 @@ export default function DataImportPage() {
             )}
           </div>
         )}
-
-        <div className="p-4 bg-white rounded-lg shadow-card border border-neutral-200">
-          <h3 className="text-sm font-semibold text-neutral-800 mb-3">数据处理规则</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm font-medium text-neutral-700 mb-1">数据脱敏</p>
-              <p className="text-xs text-neutral-500">
-                患者姓名、就诊号、身份证号等敏感信息自动哈希脱敏
-              </p>
-            </div>
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm font-medium text-neutral-700 mb-1">缺失值处理</p>
-              <p className="text-xs text-neutral-500">
-                时间戳缺失标记为异常，科室/医生缺失归类为"未分配"
-              </p>
-            </div>
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm font-medium text-neutral-700 mb-1">异常值检测</p>
-              <p className="text-xs text-neutral-500">
-                等待时间超出P95分位数或小于0标记为异常
-              </p>
-            </div>
-            <div className="p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm font-medium text-neutral-700 mb-1">权限控制</p>
-              <p className="text-xs text-neutral-500">
-                导入数据按用户权限范围进行行级过滤
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </DashboardLayout>
   );

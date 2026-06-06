@@ -40,6 +40,7 @@ const DEFAULT_FILTERS: FilterState = {
   doctors: [],
   patientTypes: [],
   timeSlots: [],
+  processNodes: [],
   hourRange: [0, 24],
 };
 
