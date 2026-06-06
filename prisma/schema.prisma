@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String
+  passwordHash String
+  role         String          @default("CLIENT")
+  avatarUrl    String?
+  clientId     String?
+  client       Client?         @relation(fields: [clientId], references: [id])
+  createdAt    DateTime        @default(now())
+  projects     ProjectMember[]
+  timesheets   Timesheet[]
+  auditLogs    AuditLog[]
+  uploadedAttachments Attachment[] @relation("UploadedBy")
+  assignedTasks Task[]         @relation("TaskAssignee")
+  notifications Notification[]
+}
+
+model Client {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  contactPerson String?
+  createdAt     DateTime  @default(now())
+  users         User[]
+  projects      Project[]
+  invoices      Invoice[]
+  quotes        Quote[]
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      String        @default("PENDING")
+  budget      Float
+  startDate   DateTime?
+  dueDate     DateTime?
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id])
+  members     ProjectMember[]
+  tasks       Task[]
+  timesheets  Timesheet[]
+  quotes      Quote[]
+  invoices    Invoice[]
+  attachments Attachment[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  status       String       @default("TODO")
+  priority     String       @default("MEDIUM")
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId   String?
+  assignee     User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate      DateTime?
+  timeEstimate Float        @default(0)
+  timeSpent    Float        @default(0)
+  sortOrder    Int          @default(0)
+  attachments  Attachment[]
+  timesheets   Timesheet[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Timesheet {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  description String?
+  hours       Float
+  hourlyRate  Float    @default(0)
+  workDate    DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Quote {
+  id           String      @id @default(cuid())
+  quoteNumber  String      @unique
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId     String
+  client       Client      @relation(fields: [clientId], references: [id])
+  subtotal     Float
+  taxRate      Float       @default(0)
+  taxAmount    Float       @default(0)
+  total        Float
+  status       String      @default("DRAFT")
+  validUntil   DateTime?
+  notes        String?
+  sentAt       DateTime?
+  acceptedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  items        QuoteItem[]
+  invoices     Invoice[]
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int
+  unitPrice   Float
+  amount      Float
+  sortOrder   Int     @default(0)
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  projectId     String
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  quoteId       String?
+  quote         Quote?        @relation(fields: [quoteId], references: [id])
+  subtotal      Float
+  taxRate       Float         @default(0)
+  taxAmount     Float         @default(0)
+  total         Float
+  amountPaid    Float         @default(0)
+  status        String        @default("DRAFT")
+  issueDate     DateTime
+  dueDate       DateTime
+  notes         String?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         InvoiceItem[]
+  payments      Payment[]
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int
+  unitPrice   Float
+  amount      Float
+  sortOrder   Int     @default(0)
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentDate   DateTime
+  method        String   @default("BANK")
+  transactionId String?
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+model Attachment {
+  id            String   @id @default(cuid())
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById  String
+  uploadedBy    User     @relation("UploadedBy", fields: [uploadedById], references: [id])
+  fileName      String
+  filePath      String
+  mimeType      String
+  fileSize      Int
+  isDeliverable Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  action     String
+  entityType String
+  entityId   String
+  oldValues  String?
+  newValues  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  title      String
+  content    String?
+  type       String
+  entityId   String?
+  entityType String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
