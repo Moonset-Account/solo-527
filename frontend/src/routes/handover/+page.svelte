@@ -1,7 +1,7 @@
 <script>
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import { api } from '$lib/utils/api';
+	import { api, online } from '$lib/utils/api';
 	import { user, refreshTrigger } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import SignatureInput from '$lib/components/SignatureInput.svelte';
@@ -73,7 +73,10 @@
 				signature: form.signature
 			});
 
-			if (result.temp_ok) {
+			if (result.offline) {
+				success = '当前处于离线模式，数据已保存到本地队列，联网后将自动同步。';
+				setTimeout(() => goto('/records'), 2000);
+			} else if (result.temp_ok) {
 				success = '交接成功！';
 				refreshTrigger.update((n) => n + 1);
 				setTimeout(() => goto('/records'), 1500);
@@ -95,6 +98,12 @@
 			<p class="text-gray-500 mt-1">发放到接种室前确认温度区间</p>
 		</div>
 	</div>
+
+	{#if !$online}
+		<div class="alert alert-warning">
+			⚠️ 当前处于离线模式，提交的数据将保存到本地，联网后自动同步
+		</div>
+	{/if}
 
 	{#if error}
 		<div class="alert alert-danger">{error}</div>

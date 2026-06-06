@@ -1,6 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { api } from '$lib/utils/api';
+	import { api, online } from '$lib/utils/api';
 	import { user, refreshTrigger } from '$lib/stores/auth';
 	import SignatureInput from '$lib/components/SignatureInput.svelte';
 
@@ -34,13 +34,17 @@
 				throw new Error('请完成签名');
 			}
 
-			await api.receiveBatch(form);
-			success = '入库成功！';
-			refreshTrigger.update((n) => n + 1);
+			const result = await api.receiveBatch(form);
+			if (result.offline) {
+				success = '当前处于离线模式，数据已保存到本地队列，联网后将自动同步。';
+			} else {
+				success = '入库成功！';
+				refreshTrigger.update((n) => n + 1);
+			}
 
 			setTimeout(() => {
 				goto('/');
-			}, 1500);
+			}, 2000);
 		} catch (e) {
 			error = e.message || '入库失败';
 		} finally {
@@ -61,6 +65,12 @@
 			<p class="text-gray-500 mt-1">从上级仓接收疫苗和冷藏药品</p>
 		</div>
 	</div>
+
+	{#if !$online}
+		<div class="alert alert-warning">
+			⚠️ 当前处于离线模式，提交的数据将保存到本地，联网后自动同步
+		</div>
+	{/if}
 
 	{#if error}
 		<div class="alert alert-danger">{error}</div>

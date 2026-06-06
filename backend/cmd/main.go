@@ -40,13 +40,13 @@ func main() {
 
 	batches := protected.Group("/batches")
 	batches.Post("/receive", handlers.ReceiveBatch)
-	batches.Get("", handlers.GetBatches)
-	batches.Get("/:id", handlers.GetBatch)
-	batches.Post("/isolate", handlers.IsolateBatch)
-	batches.Post("/:id/restore", handlers.RestoreBatch)
 	batches.Get("/expiring", handlers.GetExpiringBatches)
 	batches.Get("/abnormal", handlers.GetAbnormalBatches)
+	batches.Post("/isolate", handlers.IsolateBatch)
 	batches.Post("/attachments", handlers.UploadTempAttachment)
+	batches.Get("", handlers.GetBatches)
+	batches.Get("/:id", handlers.GetBatch)
+	batches.Post("/:id/restore", handlers.RestoreBatch)
 	batches.Get("/:batchId/attachments", handlers.GetBatchAttachments)
 
 	attachments := protected.Group("/attachments")
@@ -54,9 +54,9 @@ func main() {
 
 	handover := protected.Group("/handover")
 	handover.Post("", handlers.CreateHandover)
+	handover.Post("/failure", handlers.HandleHandoverFailure)
 	handover.Get("", handlers.GetHandoverRecords)
 	handover.Get("/:id", handlers.GetHandoverRecord)
-	handover.Post("/failure", handlers.HandleHandoverFailure)
 
 	protected.Get("/stats/today", handlers.GetTodayStats)
 

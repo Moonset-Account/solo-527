@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { user, drawerOpen, logout as logoutStore } from '$lib/stores/auth';
+	import { online, offlineQueueCount, processOfflineQueue } from '$lib/utils/api';
 	import AbnormalDrawer from './AbnormalDrawer.svelte';
 
 	const navItems = [
@@ -43,6 +44,24 @@
 			</nav>
 
 			<div class="flex items-center gap-4">
+				{#if !$online}
+					<span class="badge badge-danger">
+						<svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+						</svg>
+						离线模式
+					</span>
+				{/if}
+
+				{#if $offlineQueueCount > 0}
+					<button class="btn btn-warning header-btn" on:click={processOfflineQueue}>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						队列 ({$offlineQueueCount})
+					</button>
+				{/if}
+
 				<button class="btn btn-outline header-btn" on:click={() => drawerOpen.set(true)}>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />

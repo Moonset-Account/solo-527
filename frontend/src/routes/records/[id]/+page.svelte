@@ -170,7 +170,7 @@
 			</div>
 		{/if}
 
-		{(record.status === 'temp_fail' || record.status === 'pending') && (
+		{#if record.status === 'temp_fail' || record.status === 'pending'}
 			<div class="card mb-4">
 				<div class="flex-between">
 					<div>
@@ -182,7 +182,7 @@
 					</button>
 				</div>
 			</div>
-		)}
+		{/if}
 
 		<button class="btn btn-secondary" on:click={() => history.back()}>返回列表</button>
 	</div>
