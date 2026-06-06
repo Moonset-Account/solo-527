@@ -1,0 +1,97 @@
+{% extends 'base_main.html' %}
+{% load static %}
+
+{% block title %}报表导出 - 连锁茶饮原料损耗看板{% endblock %}
+{% block page_title %}报表导出{% endblock %}
+
+{% block content %}
+<div class="data-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📝 生成报表</h3>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label class="label">报表类型</label>
+            <select class="form-select">
+                <option value="loss_summary">损耗汇总报表</option>
+                <option value="loss_detail">损耗明细报表</option>
+                <option value="store_ranking">门店排行报表</option>
+                <option value="material_analysis">原料分析报表</option>
+            </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <div>
+                <label class="label">开始日期</label>
+                <input type="date" class="form-control" value="2024-01-01">
+            </div>
+            <div>
+                <label class="label">结束日期</label>
+                <input type="date" class="form-control" value="2024-01-31">
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label class="label">数据范围</label>
+            <select class="form-select">
+                <option>全部门店</option>
+                <option>华东区域</option>
+                <option>仅本店</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" checked style="width: 18px; height: 18px;">
+                <span style="font-size: 14px; font-weight: 500; color: #92400E;">
+                    🆕 排除试营原料（报表将注明"已排除试营原料数据"）
+                </span>
+            </label>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; justify-content: center;">
+            🚀 生成报表
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📥 导出记录</h3>
+        </div>
+
+        <ul class="ranking-list">
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">损耗汇总报表_202401.xlsx</div>
+                    <div class="ranking-sub">
+                        admin | 2024-01-15 15:30
+                        <span class="badge badge-trial" style="margin-left: 8px;">已排除试营</span>
+                    </div>
+                </div>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
+            </li>
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">门店排行报表_202401.xlsx</div>
+                    <div class="ranking-sub">
+                        admin | 2024-01-10 10:15
+                        <span class="badge badge-warning" style="margin-left: 8px;">包含试营</span>
+                    </div>
+                </div>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
+            </li>
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">损耗明细报表_202401.xlsx</div>
+                    <div class="ranking-sub">
+                        admin | 2024-01-08 09:45
+                        <span class="badge badge-trial" style="margin-left: 8px;">已排除试营</span>
+                    </div>
+                </div>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">下载</button>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

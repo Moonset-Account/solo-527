@@ -1,0 +1,114 @@
+{% extends 'base_main.html' %}
+{% load static %}
+
+{% block title %}数据管理 - 连锁茶饮原料损耗看板{% endblock %}
+{% block page_title %}数据管理{% endblock %}
+
+{% block content %}
+<div class="data-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📤 数据导入</h3>
+        </div>
+        
+        <div style="border: 2px dashed #BDC3C7; border-radius: 8px; padding: 40px 20px; text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+            <p style="color: #7F8C8D; margin-bottom: 16px;">拖拽文件到此处，或点击下方按钮上传</p>
+            <button class="btn btn-primary">选择文件</button>
+            <p style="font-size: 12px; color: #BDC3C7; margin-top: 12px;">支持 .xlsx, .csv 格式，单文件不超过 50MB</p>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label class="label">数据类型</label>
+            <select class="form-select">
+                <option value="inventory">进货数据</option>
+                <option value="material_use">领用数据</option>
+                <option value="wastage">报损数据</option>
+                <option value="stocktake">盘点数据</option>
+                <option value="sale">销售数据</option>
+            </select>
+        </div>
+
+        <a href="#" class="btn btn-outline" style="width: 100%; justify-content: center;">
+            📄 下载导入模板
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🆕 试营原料管理</h3>
+            <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">+ 新增试营</button>
+        </div>
+
+        <ul class="ranking-list">
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">
+                        新品杨枝甘露
+                        <span class="badge badge-trial" style="margin-left: 8px;">🆕 试营中</span>
+                    </div>
+                    <div class="ranking-sub">2024-01-01 ~ 2024-01-31 | 全部门店</div>
+                </div>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">编辑</button>
+            </li>
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">
+                        草莓大福奶茶
+                        <span class="badge badge-trial" style="margin-left: 8px;">🆕 试营中</span>
+                    </div>
+                    <div class="ranking-sub">2024-01-15 ~ 2024-02-15 | 上海区域</div>
+                </div>
+                <button class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">编辑</button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">⚙️ 口径配置</h3>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label class="label">损耗率计算公式</label>
+            <div class="form-control" style="background: #F8F9FA; font-family: monospace;">
+                损耗率 = (报损金额 + |盘点差异金额|) / 总领用金额 × 100%
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label class="label">异常阈值设置</label>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <input type="number" class="form-control" style="width: 100px;" value="5">
+                <span>%</span>
+                <span style="font-size: 13px; color: #7F8C8D;">超过此值标记为异常门店</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary">保存配置</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📊 导入任务记录</h3>
+        </div>
+
+        <ul class="ranking-list">
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">2024年1月进货数据.xlsx</div>
+                    <div class="ranking-sub">admin | 2024-01-15 14:30 | 成功 128/128 条</div>
+                </div>
+                <span class="badge badge-success">完成</span>
+            </li>
+            <li class="ranking-item">
+                <div class="ranking-info" style="flex: 1;">
+                    <div class="ranking-name">2024年1月报损数据.xlsx</div>
+                    <div class="ranking-sub">admin | 2024-01-15 14:25 | 成功 89/92 条</div>
+                </div>
+                <span class="badge badge-warning">部分失败</span>
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

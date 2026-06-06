@@ -1,0 +1,157 @@
+{% extends 'base_main.html' %}
+{% load static %}
+
+{% block title %}数据看板 - 连锁茶饮原料损耗看板{% endblock %}
+{% block page_title %}数据看板{% endblock %}
+
+{% block content %}
+<div x-data="dashboard">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" x-model="filters.startDate" class="form-control" style="width: 140px;">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" x-model="filters.endDate" class="form-control" style="width: 140px;">
+        </div>
+        <div class="filter-group">
+            <label>时间粒度</label>
+            <select x-model="filters.period" class="form-select">
+                <option value="day">按日</option>
+                <option value="week">按周</option>
+                <option value="month">按月</option>
+            </select>
+        </div>
+        <div class="filter-group" style="margin-left: auto;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <div class="toggle-switch" :class="{ active: filters.excludeTrial }" @click="filters.excludeTrial = !filters.excludeTrial"></div>
+                <span style="font-size: 13px; color: #92400E; font-weight: 500;">🆕 排除试营原料</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value" x-text="formatPercent(metrics.totalLossRate)">0%</div>
+            <div class="metric-label">总损耗率</div>
+            <div class="metric-trend" :class="metrics.comparedToLastPeriod.lossRate >= 0 ? 'up' : 'down'">
+                <span x-text="metrics.comparedToLastPeriod.lossRate >= 0 ? '↑' : '↓'"></span>
+                <span x-text="Math.abs(metrics.comparedToLastPeriod.lossRate) + '% 环比'"></span>
+            </div>
+        </div>
+        <div class="metric-card warning">
+            <div class="metric-value" x-text="formatCurrency(metrics.totalLossAmount)">¥0</div>
+            <div class="metric-label">总损耗金额</div>
+            <div class="metric-trend" :class="metrics.comparedToLastPeriod.lossAmount >= 0 ? 'up' : 'down'">
+                <span x-text="metrics.comparedToLastPeriod.lossAmount >= 0 ? '↑' : '↓'"></span>
+                <span x-text="formatCurrency(Math.abs(metrics.comparedToLastPeriod.lossAmount)) + ' 环比'"></span>
+            </div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" x-text="metrics.abnormalStoreCount">0</div>
+            <div class="metric-label">异常门店数</div>
+            <div class="metric-trend" style="color: #E67E22;">
+                <span>⚠️</span>
+                <span>损耗率超 5%</span>
+            </div>
+        </div>
+        <div class="metric-card trial">
+            <div class="metric-value" x-text="formatPercent(metrics.trialMaterialRatio)">0%</div>
+            <div class="metric-label">试营原料占比</div>
+            <div class="metric-trend" style="color: #F1C40F;">
+                <span>🆕</span>
+                <span>新品试营中</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card">
+            <div class="card-header">
+                <h3 class="card-title">📈 损耗率趋势</h3>
+            </div>
+            <div id="trendChart" class="chart-container"></div>
+        </div>
+        <div class="chart-card">
+            <div class="card-header">
+                <h3 class="card-title">🏆 高损耗原料 TOP10</h3>
+            </div>
+            <div id="materialChart" class="chart-container"></div>
+        </div>
+    </div>
+
+    <div class="data-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">⚠️ 异常门店排行</h3>
+                <a href="/details/" class="btn btn-outline" style="font-size: 12px; padding: 4px 12px;">查看明细</a>
+            </div>
+            <ul class="ranking-list">
+                <template x-for="(store, index) in storeRanking" :key="store.id">
+                    <li class="ranking-item">
+                        <div class="rank-number" :class="{
+                            'top1': store.rank === 1,
+                            'top2': store.rank === 2,
+                            'top3': store.rank === 3
+                        }" x-text="store.rank"></div>
+                        <div class="ranking-info">
+                            <div class="ranking-name" x-text="store.name"></div>
+                            <div class="ranking-sub">
+                                <span x-show="store.hasTrialMaterial" class="badge badge-trial" style="margin-right: 4px;">🆕 试营</span>
+                                <span x-show="store.isAbnormal" class="badge badge-danger">异常</span>
+                            </div>
+                        </div>
+                        <div class="ranking-value">
+                            <div class="amount" x-text="formatCurrency(store.lossAmount)"></div>
+                            <div class="rate" x-text="formatPercent(store.lossRate)"></div>
+                        </div>
+                    </li>
+                </template>
+                <template x-if="storeRanking.length === 0 && !loading">
+                    <li class="empty-state">
+                        <div class="icon">📊</div>
+                        <div>暂无数据</div>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">🍵 原料损耗排行</h3>
+            </div>
+            <ul class="ranking-list">
+                <template x-for="(material, index) in materialRanking" :key="material.id">
+                    <li class="ranking-item">
+                        <div class="rank-number" :class="{
+                            'top1': material.rank === 1,
+                            'top2': material.rank === 2,
+                            'top3': material.rank === 3
+                        }" x-text="material.rank"></div>
+                        <div class="ranking-info">
+                            <div class="ranking-name" x-text="material.name"></div>
+                            <div class="ranking-sub">
+                                <span x-show="material.isTrial" class="badge badge-trial">🆕 试营原料</span>
+                            </div>
+                        </div>
+                        <div class="ranking-value">
+                            <div class="amount" x-text="formatCurrency(material.lossAmount)"></div>
+                        </div>
+                    </li>
+                </template>
+                <template x-if="materialRanking.length === 0 && !loading">
+                    <li class="empty-state">
+                        <div class="icon">🍵</div>
+                        <div>暂无数据</div>
+                    </li>
+                </template>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

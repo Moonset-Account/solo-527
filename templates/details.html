@@ -1,0 +1,211 @@
+{% extends 'base_main.html' %}
+{% load static %}
+
+{% block title %}损耗明细 - 连锁茶饮原料损耗看板{% endblock %}
+{% block page_title %}损耗明细{% endblock %}
+
+{% block content %}
+<div x-data="lossDetails">
+    <div class="filter-bar">
+        <div class="filter-group">
+            <label>门店</label>
+            <select x-model="filters.storeId" class="form-select">
+                <option value="">全部门店</option>
+                <template x-for="store in storeList" :key="store.id">
+                    <option :value="store.id" x-text="store.name"></option>
+                </template>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>损耗类型</label>
+            <select x-model="filters.lossType" class="form-select">
+                <option value="all">全部</option>
+                <option value="wastage">报损</option>
+                <option value="stocktake">盘点差异</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>开始日期</label>
+            <input type="date" x-model="filters.startDate" class="form-control" style="width: 140px;">
+        </div>
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" x-model="filters.endDate" class="form-control" style="width: 140px;">
+        </div>
+        <div class="filter-group" style="margin-left: auto;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <div class="toggle-switch" :class="{ active: filters.excludeTrial }" @click="filters.excludeTrial = !filters.excludeTrial"></div>
+                <span style="font-size: 13px; color: #92400E; font-weight: 500;">🆕 排除试营原料</span>
+            </label>
+        </div>
+        <button class="btn btn-primary" @click="loadData">
+            🔍 查询
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📋 损耗明细列表</h3>
+            <div style="display: flex; gap: 8px;">
+                <span style="font-size: 13px; color: #7F8C8D; line-height: 32px;">
+                    共 <span x-text="totalCount" style="font-weight: 600; color: #2C3E50;">0</span> 条记录
+                </span>
+                <button class="btn btn-outline" @click="exportData">📥 导出</button>
+            </div>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>门店</th>
+                        <th>原料名称</th>
+                        <th>分类</th>
+                        <th>数量</th>
+                        <th>损耗金额</th>
+                        <th>损耗类型</th>
+                        <th>原因</th>
+                        <th>班次</th>
+                        <th>标记</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in lossList" :key="item.id">
+                        <tr :class="{ 'abnormal': item.totalAmount > 500 }">
+                            <td x-text="item.recordDate"></td>
+                            <td x-text="item.storeName"></td>
+                            <td x-text="item.materialName"></td>
+                            <td x-text="item.categoryName"></td>
+                            <td x-text="item.quantity + ' ' + item.unit"></td>
+                            <td style="font-weight: 600;" x-text="formatCurrency(item.totalAmount)"></td>
+                            <td>
+                                <span class="badge" :class="item.lossType === 'wastage' ? 'badge-danger' : 'badge-warning'">
+                                    <span x-text="item.lossType === 'wastage' ? '报损' : '盘点差异'"></span>
+                                </span>
+                            </td>
+                            <td x-text="item.reason"></td>
+                            <td x-text="item.shift"></td>
+                            <td>
+                                <span x-show="item.isTrial" class="badge badge-trial">🆕 试营</span>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="lossList.length === 0 && !loading">
+                        <tr>
+                            <td colspan="10">
+                                <div class="empty-state">
+                                    <div class="icon">📋</div>
+                                    <div>暂无数据</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" x-show="totalPages > 1">
+            <button class="page-btn" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">上一页</button>
+            <template x-for="page in visiblePages" :key="page">
+                <button class="page-btn" :class="{ active: page === currentPage }" @click="goToPage(page)" x-text="page"></button>
+            </template>
+            <button class="page-btn" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">下一页</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('lossDetails', function() {
+        return {
+            filters: {
+                storeId: '',
+                lossType: 'all',
+                startDate: '',
+                endDate: '',
+                excludeTrial: false
+            },
+            storeList: [],
+            lossList: [],
+            loading: false,
+            currentPage: 1,
+            pageSize: 20,
+            totalCount: 0,
+
+            init() {
+                const range = getDateRange(30);
+                this.filters.startDate = range.startDate;
+                this.filters.endDate = range.endDate;
+                this.loadStores();
+                this.loadData();
+            },
+
+            get totalPages() {
+                return Math.ceil(this.totalCount / this.pageSize);
+            },
+
+            get visiblePages() {
+                const pages = [];
+                const start = Math.max(1, this.currentPage - 2);
+                const end = Math.min(this.totalPages, start + 4);
+                for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                }
+                return pages;
+            },
+
+            async loadStores() {
+                try {
+                    this.storeList = [
+                        { id: 1, name: '南京西路店' },
+                        { id: 2, name: '人民广场店' },
+                        { id: 3, name: '陆家嘴店' },
+                        { id: 4, name: '徐家汇店' },
+                        { id: 5, name: '静安寺店' }
+                    ];
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async loadData() {
+                this.loading = true;
+                try {
+                    const params = {
+                        store_id: this.filters.storeId,
+                        loss_type: this.filters.lossType,
+                        start_date: this.filters.startDate,
+                        end_date: this.filters.endDate,
+                        exclude_trial: this.filters.excludeTrial,
+                        page: this.currentPage,
+                        page_size: this.pageSize
+                    };
+                    const qs = buildQueryString(params);
+                    const response = await fetchAPI(`/api/v1/loss/list/?${qs}`);
+                    if (response.code === 200) {
+                        this.lossList = response.data.results;
+                        this.totalCount = response.data.count;
+                    }
+                } catch (error) {
+                    console.error('Failed to load loss details:', error);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            goToPage(page) {
+                this.currentPage = page;
+                this.loadData();
+            },
+
+            exportData() {
+                alert('导出功能开发中...');
+            }
+        };
+    });
+});
+</script>
+{% endblock %}
