@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Settlement;
 use App\Models\SettlementItem;
 use App\Models\Booking;
+use App\Models\BookingDailySplit;
 use App\Models\ParkingViolation;
 use App\Models\Payment;
 use Carbon\Carbon;
@@ -24,71 +25,110 @@ class SettlementService
                 throw new \Exception('该周期结算已存在');
             }
 
-            $bookings = Booking::whereHas('spot', function ($q) use ($ownerId) {
+            $periodStartDate = $periodStart->startOfDay();
+            $periodEndDate = $periodEnd->endOfDay();
+
+            $dailySplits = BookingDailySplit::whereHas('booking.spot', function ($q) use ($ownerId) {
                 $q->where('owner_id', $ownerId);
             })
-                ->whereBetween('start_time', [$periodStart, $periodEnd])
-                ->whereIn('status', ['completed', 'paid', 'in_progress'])
+                ->whereBetween('split_date', [$periodStartDate->toDateString(), $periodEndDate->toDateString()])
+                ->whereHas('booking', function ($q) {
+                    $q->whereIn('status', ['completed', 'paid', 'in_progress']);
+                })
+                ->with('booking')
                 ->get();
+
+            $bookingsInPeriod = $dailySplits->pluck('booking')->unique('id');
+
+            $totalBookingAmount = $dailySplits->sum('segment_amount');
+            $totalOwnerEarning = $dailySplits->sum('owner_share');
+            $totalPlatformFee = $dailySplits->sum('platform_share');
+
+            $totalRefund = 0;
+            foreach ($bookingsInPeriod as $booking) {
+                if ($booking->refund_amount > 0) {
+                    $bookingDays = $booking->dailySplits->count();
+                    if ($bookingDays > 0) {
+                        $periodSplitDays = $dailySplits->where('booking_id', $booking->id)->count();
+                        $ratio = $periodSplitDays / $bookingDays;
+                        $totalRefund += $booking->refund_amount * $ratio;
+                    }
+                }
+            }
 
             $violations = ParkingViolation::whereHas('spot', function ($q) use ($ownerId) {
                 $q->where('owner_id', $ownerId);
             })
-                ->whereBetween('violation_time', [$periodStart, $periodEnd])
+                ->whereBetween('violation_time', [$periodStartDate, $periodEndDate])
                 ->where('status', 'paid')
                 ->get();
 
-            $totalBookingAmount = $bookings->sum('total_amount');
-            $totalOwnerEarning = $bookings->sum('owner_earning');
-            $totalPlatformFee = $bookings->sum('platform_fee');
-            $totalRefund = $bookings->sum('refund_amount');
             $totalFineIncome = $violations->sum('fine_amount') * 0.5;
-            $manualInterventionCount = $bookings->sum('manual_intervention_count');
+
+            $manualInterventionCount = 0;
+            foreach ($bookingsInPeriod as $booking) {
+                $bookingDays = $booking->dailySplits->count();
+                if ($bookingDays > 0) {
+                    $periodSplitDays = $dailySplits->where('booking_id', $booking->id)->count();
+                    $ratio = $periodSplitDays / $bookingDays;
+                    $manualInterventionCount += (int) round($booking->manual_intervention_count * $ratio);
+                }
+            }
 
             $netSettlement = $totalOwnerEarning + $totalFineIncome - $totalRefund;
 
             $settlement = Settlement::create([
                 'owner_id' => $ownerId,
-                'period_start' => $periodStart->toDateString(),
-                'period_end' => $periodEnd->toDateString(),
-                'total_booking_amount' => $totalBookingAmount,
-                'total_owner_earning' => $totalOwnerEarning,
-                'total_platform_fee' => $totalPlatformFee,
-                'total_refund' => $totalRefund,
-                'total_fine_income' => $totalFineIncome,
-                'net_settlement' => max(0, $netSettlement),
-                'total_bookings' => $bookings->count(),
+                'period_start' => $periodStartDate->toDateString(),
+                'period_end' => $periodEndDate->toDateString(),
+                'total_booking_amount' => round($totalBookingAmount, 2),
+                'total_owner_earning' => round($totalOwnerEarning, 2),
+                'total_platform_fee' => round($totalPlatformFee, 2),
+                'total_refund' => round($totalRefund, 2),
+                'total_fine_income' => round($totalFineIncome, 2),
+                'net_settlement' => max(0, round($netSettlement, 2)),
+                'total_bookings' => $bookingsInPeriod->count(),
                 'manual_intervention_count' => $manualInterventionCount,
                 'status' => 'pending',
             ]);
 
-            foreach ($bookings as $booking) {
+            foreach ($dailySplits as $split) {
                 SettlementItem::create([
                     'settlement_id' => $settlement->id,
-                    'booking_id' => $booking->id,
+                    'booking_id' => $split->booking_id,
                     'type' => 'booking_income',
-                    'amount' => $booking->total_amount,
-                    'owner_share' => $booking->owner_earning,
-                    'platform_share' => $booking->platform_fee,
-                    'description' => "订单 {$booking->booking_no} 收入",
+                    'amount' => $split->segment_amount,
+                    'owner_share' => $split->owner_share,
+                    'platform_share' => $split->platform_share,
+                    'description' => "订单 {$split->booking->booking_no} - {$split->split_date} 收入",
                 ]);
+            }
 
+            foreach ($bookingsInPeriod as $booking) {
                 if ($booking->refund_amount > 0) {
-                    SettlementItem::create([
-                        'settlement_id' => $settlement->id,
-                        'booking_id' => $booking->id,
-                        'type' => 'refund',
-                        'amount' => -$booking->refund_amount,
-                        'owner_share' => -$booking->refund_amount * 0.9,
-                        'platform_share' => -$booking->refund_amount * 0.1,
-                        'description' => "订单 {$booking->booking_no} 退款",
-                    ]);
+                    $bookingDays = $booking->dailySplits->count();
+                    $periodSplitDays = $dailySplits->where('booking_id', $booking->id)->count();
+                    if ($bookingDays > 0 && $periodSplitDays > 0) {
+                        $ratio = $periodSplitDays / $bookingDays;
+                        $periodRefund = round($booking->refund_amount * $ratio, 2);
+                        if ($periodRefund > 0) {
+                            SettlementItem::create([
+                                'settlement_id' => $settlement->id,
+                                'booking_id' => $booking->id,
+                                'type' => 'refund',
+                                'amount' => -$periodRefund,
+                                'owner_share' => -round($periodRefund * 0.9, 2),
+                                'platform_share' => -round($periodRefund * 0.1, 2),
+                                'description' => "订单 {$booking->booking_no} 退款",
+                            ]);
+                        }
+                    }
                 }
             }
 
             foreach ($violations as $violation) {
-                $ownerShare = $violation->fine_amount * 0.5;
-                $platformShare = $violation->fine_amount * 0.5;
+                $ownerShare = round($violation->fine_amount * 0.5, 2);
+                $platformShare = round($violation->fine_amount * 0.5, 2);
                 SettlementItem::create([
                     'settlement_id' => $settlement->id,
                     'violation_id' => $violation->id,

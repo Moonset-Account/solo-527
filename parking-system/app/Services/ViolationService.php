@@ -125,6 +125,7 @@ class ViolationService
             ]);
 
             $violation = $appeal->violation;
+            $wasPaid = $violation->status === 'paid';
 
             if ($approved) {
                 $violation->update([
@@ -132,9 +133,8 @@ class ViolationService
                     'process_remark' => '申诉通过，违停已取消',
                 ]);
 
-                if ($refundAmount > 0 && $violation->status === 'paid') {
-                    Payment::create([
-                        'booking_id' => $violation->booking_id,
+                if ($refundAmount > 0 && $wasPaid) {
+                    $paymentData = [
                         'user_id' => $appeal->appellant_id,
                         'amount' => -$refundAmount,
                         'type' => 'refund',
@@ -142,7 +142,11 @@ class ViolationService
                         'status' => 'success',
                         'paid_at' => now(),
                         'remark' => "违停申诉退款: {$violation->violation_no}",
-                    ]);
+                    ];
+                    if ($violation->booking_id) {
+                        $paymentData['booking_id'] = $violation->booking_id;
+                    }
+                    Payment::create($paymentData);
                 }
             } else {
                 $violation->update([
@@ -163,15 +167,18 @@ class ViolationService
         }
 
         return DB::transaction(function () use ($violation, $method, $userId) {
-            $payment = Payment::create([
-                'booking_id' => $violation->booking_id,
+            $paymentData = [
                 'user_id' => $userId,
                 'amount' => $violation->fine_amount,
                 'type' => 'fine',
                 'method' => $method,
                 'status' => 'success',
                 'paid_at' => now(),
-            ]);
+            ];
+            if ($violation->booking_id) {
+                $paymentData['booking_id'] = $violation->booking_id;
+            }
+            $payment = Payment::create($paymentData);
 
             $violation->update(['status' => 'paid']);
 

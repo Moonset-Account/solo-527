@@ -53,25 +53,32 @@
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">交易流水号</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">关联订单</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">用户</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">类型</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">金额</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">方式</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">状态</th>
-                        <th class="text-left py-3 px-6 text-sm font-medium text-gray-500">时间</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">交易流水号</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">关联订单/违停</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">用户</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">类型</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">金额</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">方式</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">状态</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">备注</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">时间</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach($payments as $payment)
                         <tr class="hover:bg-gray-50">
-                            <td class="py-4 px-6 text-sm font-mono text-gray-800">{{ $payment->transaction_no }}</td>
-                            <td class="py-4 px-6 text-sm text-gray-600">
-                                {{ $payment->booking?->booking_no ?? '-' }}
+                            <td class="py-3 px-4 text-sm font-mono text-gray-800">{{ $payment->transaction_no }}</td>
+                            <td class="py-3 px-4 text-sm text-gray-600">
+                                @if($payment->booking_id)
+                                    <span class="font-mono">{{ $payment->booking?->booking_no ?? '-' }}</span>
+                                @elseif($payment->type == 'fine' || $payment->type == 'refund')
+                                    <span class="text-orange-600 text-xs">违停相关</span>
+                                @else
+                                    -
+                                @endif
                             </td>
-                            <td class="py-4 px-6 text-sm text-gray-600">{{ $payment->user?->name ?? '-' }}</td>
-                            <td class="py-4 px-6">
+                            <td class="py-3 px-4 text-sm text-gray-600">{{ $payment->user?->name ?? '-' }}</td>
+                            <td class="py-3 px-4">
                                 <span class="px-2 py-1 text-xs rounded-full
                                     @if($payment->type == 'booking') bg-blue-100 text-blue-700
                                     @elseif($payment->type == 'fine') bg-orange-100 text-orange-700
@@ -81,17 +88,17 @@
                                     @else 退款 @endif
                                 </span>
                             </td>
-                            <td class="py-4 px-6 text-sm font-medium {{ $payment->amount < 0 ? 'text-red-600' : 'text-gray-800' }}">
+                            <td class="py-3 px-4 text-sm font-medium {{ $payment->amount < 0 ? 'text-red-600' : 'text-gray-800' }}">
                                 ¥{{ number_format($payment->amount, 2) }}
                             </td>
-                            <td class="py-4 px-6 text-sm text-gray-600">
+                            <td class="py-3 px-4 text-sm text-gray-600">
                                 @if($payment->method == 'wechat') 微信支付
                                 @elseif($payment->method == 'alipay') 支付宝
                                 @elseif($payment->method == 'cash') 现金
                                 @elseif($payment->method == 'card') 银行卡
                                 @else 余额支付 @endif
                             </td>
-                            <td class="py-4 px-6">
+                            <td class="py-3 px-4">
                                 <span class="px-2 py-1 text-xs rounded-full
                                     @if($payment->status == 'success') bg-green-100 text-green-700
                                     @elseif($payment->status == 'pending') bg-yellow-100 text-yellow-700
@@ -104,7 +111,10 @@
                                     @else 部分退款 @endif
                                 </span>
                             </td>
-                            <td class="py-4 px-6 text-sm text-gray-500">
+                            <td class="py-3 px-4 text-sm text-gray-500 max-w-xs truncate" title="{{ $payment->remark }}">
+                                {{ $payment->remark ?: '-' }}
+                            </td>
+                            <td class="py-3 px-4 text-sm text-gray-500">
                                 {{ $payment->paid_at?->format('Y-m-d H:i') ?? $payment->created_at->format('Y-m-d H:i') }}
                             </td>
                         </tr>
