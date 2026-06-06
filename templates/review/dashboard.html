@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}复核工作台{% endblock %}
+
+{% block content %}
+<div style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px;">🔍 复核工作台</h2>
+            <p style="color: var(--gray-500); margin-top: 4px;">待复核: {{ total }} 单</p>
+        </div>
+    </div>
+    
+    <div class="card">
+        {% if pending_orders %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>调拨单号</th>
+                        <th>批次号</th>
+                        <th>调出</th>
+                        <th>调入</th>
+                        <th>金额</th>
+                        <th>承运商</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in pending_orders %}
+                    <tr>
+                        <td><strong>{{ order.order_no }}</strong></td>
+                        <td>{{ order.batch_no or '-' }}</td>
+                        <td>{{ order.from_warehouse or '-' }}</td>
+                        <td>{{ order.to_warehouse or '-' }}</td>
+                        <td>¥{{ "%.2f"|format(order.amount or 0) }}</td>
+                        <td>{{ order.carrier or '-' }}</td>
+                        <td>{{ order.created_at|string if order.created_at else '-' }}</td>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/transfer/{{ order.id }}" class="btn btn-sm btn-secondary">查看详情</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            <button class="page-btn" {% if page <= 1 %}disabled{% endif %} onclick="goToPage({{ page - 1 }})">上一页</button>
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <button class="page-btn {% if p == page %}active{% endif %}" onclick="goToPage({{ p }})">{{ p }}</button>
+                {% elif p == page - 3 or p == page + 3 %}
+                <span>...</span>
+                {% endif %}
+            {% endfor %}
+            <button class="page-btn" {% if page >= total_pages %}disabled{% endif %} onclick="goToPage({{ page + 1 }})">下一页</button>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">🎉</div>
+            <div class="empty-text">太棒了！没有待复核的单据</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function goToPage(p) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', p);
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}财务对账{% endblock %}
+
+{% block content %}
+<div style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px;">💰 财务对账</h2>
+            <p style="color: var(--gray-500); margin-top: 4px;">已复核通过: {{ total }} 单</p>
+        </div>
+        <button class="btn btn-success" onclick="exportExcel()">📊 导出对账Excel</button>
+    </div>
+    
+    <div class="filter-panel">
+        <form id="filter-form">
+            <div class="filter-row">
+                <div>
+                    <label class="form-label">日期从</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">日期至</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">关键词</label>
+                    <input type="text" name="keyword" class="form-control" value="{{ keyword or '' }}" placeholder="单号/批次搜索">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetFilter()">重置</button>
+                <button type="submit" class="btn btn-primary btn-sm">🔍 筛选</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="card">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>调拨单号</th>
+                        <th>批次号</th>
+                        <th>调拨日期</th>
+                        <th>调出</th>
+                        <th>调入</th>
+                        <th>金额</th>
+                        <th>承运商</th>
+                        <th>状态</th>
+                        <th>复核时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><strong>{{ order.order_no }}</strong></td>
+                        <td>{{ order.batch_no or '-' }}</td>
+                        <td>{{ order.transfer_date or '-' }}</td>
+                        <td>{{ order.from_warehouse or '-' }}</td>
+                        <td>{{ order.to_warehouse or '-' }}</td>
+                        <td>¥{{ "%.2f"|format(order.amount or 0) }}</td>
+                        <td>{{ order.carrier or '-' }}</td>
+                        <td>
+                            <span class="badge badge-approved">{{ STATUS_NAMES.get(order.status, order.status) }}</span>
+                        </td>
+                        <td>{{ order.reviewed_at|string if order.reviewed_at else '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <div class="empty-text">暂无数据</div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            <button class="page-btn" {% if page <= 1 %}disabled{% endif %} onclick="goToPage({{ page - 1 }})">上一页</button>
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <button class="page-btn {% if p == page %}active{% endif %}" onclick="goToPage({{ p }})">{{ p }}</button>
+                {% elif p == page - 3 or p == page + 3 %}
+                <span>...</span>
+                {% endif %}
+            {% endfor %}
+            <button class="page-btn" {% if page >= total_pages %}disabled{% endif %} onclick="goToPage({{ page + 1 }})">下一页</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function goToPage(p) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', p);
+    window.location.href = url.toString();
+}
+
+function resetFilter() {
+    window.location.href = '/finance';
+}
+
+function exportExcel() {
+    const params = new URLSearchParams(window.location.search);
+    const exportUrl = '/api/finance/export?' + params.toString();
+    window.open(exportUrl, '_blank');
+}
+
+document.getElementById('filter-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        if (value) params.set(key, value);
+    }
+    window.location.href = '/finance?' + params.toString();
+});
+</script>
+{% endblock %}

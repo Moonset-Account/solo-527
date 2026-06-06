@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}{{ order.order_no }} - 调拨单详情{% endblock %}
+
+{% block content %}
+<div style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px; margin-bottom: 8px;">
+                📦 {{ order.order_no }}
+                {% set badge_class = {
+                    'DRAFT': 'badge-draft',
+                    'PENDING_REVIEW': 'badge-pending',
+                    'SUPPLEMENT': 'badge-supplement',
+                    'APPROVED': 'badge-approved',
+                    'REJECTED': 'badge-rejected',
+                    'SETTLED': 'badge-settled'
+                }[order.status] %}
+                <span class="badge {{ badge_class }}" style="margin-left: 12px;">{{ STATUS_NAMES.get(order.status, order.status) }}</span>
+            </h2>
+            <div style="color: var(--gray-500); font-size: 13px;">
+                创建于 {{ order.created_at }}
+                {% if order.reviewed_at %}
+                 · 复核于 {{ order.reviewed_at }}
+                {% endif %}
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="/transfer" class="btn btn-secondary btn-sm">← 返回列表</a>
+            {% if order.status in ['DRAFT', 'SUPPLEMENT', 'REJECTED'] and current_user.role in ['WATCHER', 'ADMIN'] %}
+            <button class="btn btn-primary btn-sm" onclick="submitReview()">📤 提交复核</button>
+            {% endif %}
+            {% if order.status == 'PENDING_REVIEW' and current_user.role in ['SUPERVISOR', 'ADMIN'] %}
+            <button class="btn btn-success btn-sm" onclick="showApproveModal()">✓ 通过</button>
+            <button class="btn btn-danger btn-sm" onclick="showRejectModal()">✗ 驳回</button>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="detail-section">
+            <h3>基本信息</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">调拨单号</div>
+                    <div class="info-value">{{ order.order_no }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">批次号</div>
+                    <div class="info-value">{{ order.batch_no or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">调拨日期</div>
+                    <div class="info-value">{{ order.transfer_date or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">金额</div>
+                    <div class="info-value">¥{{ "%.2f"|format(order.amount or 0) }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">调出仓库</div>
+                    <div class="info-value">{{ order.from_warehouse or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">调入仓库</div>
+                    <div class="info-value">{{ order.to_warehouse or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">承运商</div>
+                    <div class="info-value">{{ order.carrier or '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">复核意见</div>
+                    <div class="info-value">{{ order.review_comment or '-' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="detail-section">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <h3>📎 证据附件</h3>
+                {% if current_user.role in ['WATCHER', 'ADMIN'] %}
+                <div style="display: flex; gap: 8px;">
+                    {% for att_type, att_name in ATTACHMENT_TYPE_NAMES.items() %}
+                    <button class="btn btn-sm btn-secondary" onclick="showUploadModal('{{ att_type }}', '{{ att_name }}')">
+                        + 上传{{ att_name }}
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            
+            {% set required_types = ['PACKING_PHOTO', 'WAYBILL', 'RECEIPT'] %}
+            {% for att_type in required_types %}
+            <div style="margin-top: 20px;">
+                <h4 style="font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    {{ ATTACHMENT_TYPE_NAMES.get(att_type, att_type) }}
+                    {% if att_type == 'RECEIPT' %}
+                    <span style="color: var(--danger); font-size: 12px;">*必需</span>
+                    {% endif %}
+                    {% if att_type in attachments_by_type %}
+                    <span class="badge badge-approved">已上传 ({{ attachments_by_type[att_type]|length }})</span>
+                    {% else %}
+                    <span class="badge badge-draft">未上传</span>
+                    {% endif %}
+                </h4>
+                
+                {% if att_type in attachments_by_type %}
+                <div class="attachment-grid">
+                    {% for att in attachments_by_type[att_type] %}
+                    <div class="attachment-card {% if att.is_supplement %}is-supplement{% endif %}" style="position: relative;">
+                        {% if att.is_supplement %}
+                        <span class="attachment-badge">补证</span>
+                        {% endif %}
+                        <div class="attachment-icon">
+                            {% if att.file_type and att.file_type.startswith('image') %}
+                            🖼️
+                            {% elif att.file_type == 'application/pdf' %}
+                            📄
+                            {% else %}
+                            📎
+                            {% endif %}
+                        </div>
+                        <div class="attachment-name" title="{{ att.file_name }}">{{ att.file_name }}</div>
+                        <div class="attachment-meta">
+                            {{ formatFileSize(att.file_size) if att.file_size else '' }} · {{ att.uploaded_at|string }}
+                        </div>
+                        {% if att.file_path %}
+                        <div style="margin-top: 8px;">
+                            <a href="{{ att.file_path }}" target="_blank" class="btn btn-sm btn-secondary" style="width: 100%;">查看</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 24px; background: var(--gray-50); border-radius: var(--radius);">
+                    <div class="empty-icon" style="font-size: 32px;">📭</div>
+                    <div class="empty-text">暂无{{ ATTACHMENT_TYPE_NAMES.get(att_type, att_type) }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    {% if supplement_records %}
+    <div class="card">
+        <div class="detail-section">
+            <h3>⚠️ 补证记录</h3>
+            <div class="supplement-list">
+                {% for record in supplement_records %}
+                <div class="supplement-item">
+                    <div>
+                        <strong>{{ ATTACHMENT_TYPE_NAMES.get(record.attachment_type, record.attachment_type) }}</strong>
+                        <span style="color: var(--gray-500); margin-left: 12px;">补录时间: {{ record.supplemented_at }}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--gray-500);">
+                        操作人: {{ record.supplemented_by }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <div class="detail-section">
+            <h3>📜 操作日志</h3>
+            <div class="timeline">
+                {% for log in audit_logs %}
+                <div class="timeline-item">
+                    <div class="timeline-dot {{ log.action.lower() }}"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-action">
+                            {{ ACTION_NAMES.get(log.action, log.action) }}
+                            {% if log.old_status and log.new_status %}
+                            <span style="color: var(--gray-500); font-weight: normal;">
+                                ({{ STATUS_NAMES.get(log.old_status, log.old_status) }} → {{ STATUS_NAMES.get(log.new_status, log.new_status) }})
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-time">{{ log.operated_at }}</div>
+                        {% if log.remark %}
+                        <div class="timeline-remark">{{ log.remark }}</div>
+                        {% endif %}
+                        {% if log.filter_snapshot %}
+                        <div class="timeline-remark" style="color: var(--primary);">
+                            筛选条件: {{ log.filter_snapshot }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 24px;">
+                    <div class="empty-text">暂无操作日志</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="upload-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">上传 <span id="upload-type-name"></span></h3>
+            <button class="modal-close" onclick="hideUploadModal()">&times;</button>
+        </div>
+        <form id="upload-form">
+            <input type="hidden" name="attachment_type" id="upload-type">
+            <div class="form-group">
+                <label class="form-label">选择文件</label>
+                <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                    <div class="upload-icon">📁</div>
+                    <div>点击选择文件或拖拽到此处</div>
+                    <div style="font-size: 12px; color: var(--gray-500); margin-top: 8px;" id="file-tip">
+                        支持 JPG, PNG, PDF，最大 10MB
+                    </div>
+                </div>
+                <input type="file" name="file" id="file-input" style="display: none;" required>
+                <div id="selected-file" style="margin-top: 8px; padding: 8px; background: var(--gray-50); border-radius: var(--radius); display: none;">
+                    已选择: <span id="file-name"></span>
+                </div>
+            </div>
+            {% if order.status in ['SUPPLEMENT', 'REJECTED'] %}
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="is_supplement" value="true" checked>
+                    <span>标记为人工补证（将记录补录时间）</span>
+                </label>
+            </div>
+            {% endif %}
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="hideUploadModal()">取消</button>
+                <button type="submit" class="btn btn-primary">上传</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="approve-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">复核通过</h3>
+            <button class="modal-close" onclick="hideApproveModal()">&times;</button>
+        </div>
+        <form id="approve-form">
+            <div class="form-group">
+                <label class="form-label">复核意见</label>
+                <textarea name="comment" class="form-control" rows="3" placeholder="请输入复核意见（可选）"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="hideApproveModal()">取消</button>
+                <button type="submit" class="btn btn-success">确认通过</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="reject-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">复核驳回</h3>
+            <button class="modal-close" onclick="hideRejectModal()">&times;</button>
+        </div>
+        <form id="reject-form">
+            <div class="form-group">
+                <label class="form-label">驳回原因 *</label>
+                <textarea name="comment" class="form-control" rows="3" placeholder="请输入驳回原因" required></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="hideRejectModal()">取消</button>
+                <button type="submit" class="btn btn-danger">确认驳回</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const orderId = "{{ order.id }}";
+
+function showUploadModal(type, name) {
+    document.getElementById('upload-type').value = type;
+    document.getElementById('upload-type-name').textContent = name;
+    document.getElementById('upload-modal').classList.remove('hidden');
+}
+
+function hideUploadModal() {
+    document.getElementById('upload-modal').classList.add('hidden');
+    document.getElementById('upload-form').reset();
+    document.getElementById('selected-file').style.display = 'none';
+}
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+    if (e.target.files[0]) {
+        document.getElementById('file-name').textContent = e.target.files[0].name;
+        document.getElementById('selected-file').style.display = 'block';
+    }
+});
+
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(`/api/transfer/${orderId}/attachment`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('上传成功');
+            hideUploadModal();
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '上传失败', 'error');
+        }
+    })
+    .catch(() => showToast('网络错误', 'error'));
+});
+
+function submitReview() {
+    if (!confirm('确认提交复核？提交后将进入主管审核流程。')) return;
+    
+    fetch(`/api/transfer/${orderId}/submit`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('提交成功');
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '提交失败', 'error');
+        }
+    })
+    .catch(() => showToast('网络错误', 'error'));
+}
+
+function showApproveModal() {
+    document.getElementById('approve-modal').classList.remove('hidden');
+}
+
+function hideApproveModal() {
+    document.getElementById('approve-modal').classList.add('hidden');
+}
+
+function showRejectModal() {
+    document.getElementById('reject-modal').classList.remove('hidden');
+}
+
+function hideRejectModal() {
+    document.getElementById('reject-modal').classList.add('hidden');
+}
+
+document.getElementById('approve-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(`/api/review/${orderId}/approve`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('复核通过');
+            hideApproveModal();
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '操作失败', 'error');
+        }
+    })
+    .catch(() => showToast('网络错误', 'error'));
+});
+
+document.getElementById('reject-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(`/api/review/${orderId}/reject`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('已驳回');
+            hideRejectModal();
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            showToast(data.message || '操作失败', 'error');
+        }
+    })
+    .catch(() => showToast('网络错误', 'error'));
+});
+</script>
+{% endblock %}

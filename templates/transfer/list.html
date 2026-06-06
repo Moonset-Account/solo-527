@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}调拨单管理{% endblock %}
+
+{% block content %}
+<div class="main-layout">
+    <div class="sidebar">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📊 批次概览</h3>
+            </div>
+            <div class="batch-grid" style="grid-template-columns: 1fr;">
+                {% for batch in batch_map %}
+                <div class="batch-card" onclick="filterByBatch('{{ batch.batch_no }}')">
+                    <div class="batch-no">{{ batch.batch_no }}</div>
+                    <div class="batch-stats">
+                        <span class="batch-stat">共 {{ batch.total_count }} 单</span>
+                        <span class="batch-stat" style="background: #E8F5E9; color: #2E7D32;">✓ {{ batch.approved_count }}</span>
+                        {% if batch.pending_count > 0 %}
+                        <span class="batch-stat" style="background: #FFF3E0; color: #EF6C00;">⏳ {{ batch.pending_count }}</span>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: var(--gray-500);">
+                        金额: ¥{{ "%.2f"|format(batch.total_amount or 0) }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="filter-panel">
+            <form id="filter-form">
+                <div class="filter-row">
+                    <div>
+                        <label class="form-label">状态</label>
+                        <select name="status" class="form-control" onchange="this.form.submit()">
+                            <option value="">全部状态</option>
+                            {% for key, name in STATUS_NAMES.items() %}
+                            <option value="{{ key }}" {% if filters.status == key %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">批次号</label>
+                        <input type="text" name="batch_no" class="form-control" value="{{ filters.batch_no or '' }}" placeholder="输入批次号">
+                    </div>
+                    <div>
+                        <label class="form-label">调出仓库</label>
+                        <input type="text" name="from_warehouse" class="form-control" value="{{ filters.from_warehouse or '' }}" placeholder="调出仓库">
+                    </div>
+                    <div>
+                        <label class="form-label">调入仓库</label>
+                        <input type="text" name="to_warehouse" class="form-control" value="{{ filters.to_warehouse or '' }}" placeholder="调入仓库">
+                    </div>
+                    <div>
+                        <label class="form-label">关键词</label>
+                        <input type="text" name="keyword" class="form-control" value="{{ filters.keyword or '' }}" placeholder="单号/批次搜索">
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="resetFilter()">重置</button>
+                    <button type="submit" class="btn btn-primary btn-sm">🔍 筛选</button>
+                    {% if current_user.role in ['WATCHER', 'ADMIN'] %}
+                    <button type="button" class="btn btn-success btn-sm" onclick="showCreateModal()">+ 新建调拨单</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">调拨单列表 (共 {{ total }} 条)</h3>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>调拨单号</th>
+                            <th>批次号</th>
+                            <th>调拨日期</th>
+                            <th>调出</th>
+                            <th>调入</th>
+                            <th>金额</th>
+                            <th>承运商</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td><strong>{{ order.order_no }}</strong></td>
+                            <td>{{ order.batch_no or '-' }}</td>
+                            <td>{{ order.transfer_date or '-' }}</td>
+                            <td>{{ order.from_warehouse or '-' }}</td>
+                            <td>{{ order.to_warehouse or '-' }}</td>
+                            <td>¥{{ "%.2f"|format(order.amount or 0) }}</td>
+                            <td>{{ order.carrier or '-' }}</td>
+                            <td>
+                                {% set badge_class = {
+                                    'DRAFT': 'badge-draft',
+                                    'PENDING_REVIEW': 'badge-pending',
+                                    'SUPPLEMENT': 'badge-supplement',
+                                    'APPROVED': 'badge-approved',
+                                    'REJECTED': 'badge-rejected',
+                                    'SETTLED': 'badge-settled'
+                                }[order.status] %}
+                                <span class="badge {{ badge_class }}">{{ STATUS_NAMES.get(order.status, order.status) }}</span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <a href="/transfer/{{ order.id }}" class="btn btn-sm btn-secondary">查看</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📭</div>
+                                    <div class="empty-text">暂无数据</div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                <button class="page-btn" {% if page <= 1 %}disabled{% endif %} onclick="goToPage({{ page - 1 }})">上一页</button>
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                    <button class="page-btn {% if p == page %}active{% endif %}" onclick="goToPage({{ p }})">{{ p }}</button>
+                    {% elif p == page - 3 or p == page + 3 %}
+                    <span>...</span>
+                    {% endif %}
+                {% endfor %}
+                <button class="page-btn" {% if page >= total_pages %}disabled{% endif %} onclick="goToPage({{ page + 1 }})">下一页</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div id="create-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">新建调拨单</h3>
+            <button class="modal-close" onclick="hideCreateModal()">&times;</button>
+        </div>
+        <form id="create-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">调拨单号 *</label>
+                    <input type="text" name="order_no" class="form-control" required placeholder="如: TO2024010001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">批次号</label>
+                    <input type="text" name="batch_no" class="form-control" placeholder="如: BATCH001">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">调拨日期</label>
+                    <input type="date" name="transfer_date" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">金额</label>
+                    <input type="number" name="amount" step="0.01" class="form-control" placeholder="0.00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">调出仓库</label>
+                    <input type="text" name="from_warehouse" class="form-control" placeholder="如: 北京中心仓">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">调入仓库</label>
+                    <input type="text" name="to_warehouse" class="form-control" placeholder="如: 上海分仓">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">承运商</label>
+                <input type="text" name="carrier" class="form-control" placeholder="如: 顺丰物流">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="hideCreateModal()">取消</button>
+                <button type="submit" class="btn btn-primary">创建</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function filterByBatch(batchNo) {
+    const url = new URL(window.location);
+    url.searchParams.set('batch_no', batchNo);
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+}
+
+function resetFilter() {
+    window.location.href = '/transfer';
+}
+
+function goToPage(p) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', p);
+    window.location.href = url.toString();
+}
+
+function showCreateModal() {
+    document.getElementById('create-modal').classList.remove('hidden');
+}
+
+function hideCreateModal() {
+    document.getElementById('create-modal').classList.add('hidden');
+}
+
+document.getElementById('create-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('/api/transfer', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('创建成功');
+            setTimeout(() => window.location.href = data.redirect, 500);
+        } else {
+            showToast(data.message || '创建失败', 'error');
+        }
+    })
+    .catch(() => showToast('网络错误', 'error'));
+});
+
+document.getElementById('filter-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        if (value) params.set(key, value);
+    }
+    window.location.href = '/transfer?' + params.toString();
+});
+</script>
+{% endblock %}

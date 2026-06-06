@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}审计日志{% endblock %}
+
+{% block content %}
+<div style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="font-size: 20px;">📜 审计日志</h2>
+            <p style="color: var(--gray-500); margin-top: 4px;">共 {{ total }} 条记录</p>
+        </div>
+    </div>
+    
+    <div class="filter-panel">
+        <form id="filter-form">
+            <div class="filter-row">
+                <div>
+                    <label class="form-label">操作人</label>
+                    <input type="text" name="operator" class="form-control" value="{{ operator or '' }}" placeholder="操作人ID">
+                </div>
+                <div>
+                    <label class="form-label">操作类型</label>
+                    <select name="action" class="form-control">
+                        <option value="">全部</option>
+                        {% for key, name in ACTION_NAMES.items() %}
+                        <option value="{{ key }}" {% if action == key %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">日期从</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">日期至</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="resetFilter()">重置</button>
+                <button type="submit" class="btn btn-primary btn-sm">🔍 筛选</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="card">
+        <div class="timeline">
+            {% for log in logs %}
+            <div class="timeline-item">
+                <div class="timeline-dot {{ log.action.lower() }}"></div>
+                <div class="timeline-content">
+                    <div class="timeline-action">
+                        {{ ACTION_NAMES.get(log.action, log.action) }}
+                        {% if log.old_status and log.new_status %}
+                        <span style="color: var(--gray-500); font-weight: normal;">
+                            ({{ STATUS_NAMES.get(log.old_status, log.old_status) }} → {{ STATUS_NAMES.get(log.new_status, log.new_status) }})
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="timeline-time">
+                        {{ log.operated_at }}
+                        {% if log.transfer_order_id %}
+                        · <a href="/transfer/{{ log.transfer_order_id }}" style="color: var(--primary);">查看单据</a>
+                        {% endif %}
+                    </div>
+                    {% if log.remark %}
+                    <div class="timeline-remark">{{ log.remark }}</div>
+                    {% endif %}
+                    {% if log.filter_snapshot %}
+                    <div class="timeline-remark" style="color: var(--primary); font-size: 12px; background: var(--primary-light); padding: 8px; border-radius: 4px; margin-top: 8px;">
+                        <strong>📋 筛选条件快照：</strong>{{ log.filter_snapshot }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding: 48px;">
+                <div class="empty-icon">📭</div>
+                <div class="empty-text">暂无审计日志</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            <button class="page-btn" {% if page <= 1 %}disabled{% endif %} onclick="goToPage({{ page - 1 }})">上一页</button>
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <button class="page-btn {% if p == page %}active{% endif %}" onclick="goToPage({{ p }})">{{ p }}</button>
+                {% elif p == page - 3 or p == page + 3 %}
+                <span>...</span>
+                {% endif %}
+            {% endfor %}
+            <button class="page-btn" {% if page >= total_pages %}disabled{% endif %} onclick="goToPage({{ page + 1 }})">下一页</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function goToPage(p) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', p);
+    window.location.href = url.toString();
+}
+
+function resetFilter() {
+    window.location.href = '/audit';
+}
+
+document.getElementById('filter-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+        if (value) params.set(key, value);
+    }
+    window.location.href = '/audit?' + params.toString();
+});
+</script>
+{% endblock %}
