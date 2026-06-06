@@ -10,14 +10,10 @@ import {
   FeatureUsage,
   PathData,
   ChurnReason,
+  ETLStatus,
+  ExportTask,
 } from '../types';
-import {
-  generateFunnelData,
-  generateCohortData,
-  generateFeatureUsage,
-  generatePathData,
-  generateChurnReasons,
-} from '../data/mockData';
+import { apiService, etlEngine, exportService, dataCache } from '../services/apiService';
 import { subDays, format } from 'date-fns';
 
 interface AnalyticsState {
@@ -26,11 +22,15 @@ interface AnalyticsState {
   activeView: ViewType;
   savedViews: SavedView[];
   isLoading: boolean;
+  isExporting: boolean;
   funnelData: FunnelData | null;
   cohortData: CohortData | null;
   featureData: FeatureUsage[] | null;
   pathData: PathData | null;
   churnReasons: ChurnReason[] | null;
+  etlStatus: ETLStatus;
+  exportTasks: ExportTask[];
+  cacheStats: { size: number };
   setFilters: (filters: Partial<FilterDimensions>) => void;
   setDateRange: (range: DateRange) => void;
   setActiveView: (view: ViewType) => void;
@@ -39,6 +39,9 @@ interface AnalyticsState {
   deleteView: (viewId: string) => void;
   fetchData: () => Promise<void>;
   resetFilters: () => void;
+  runETL: () => Promise<void>;
+  exportData: (format: 'csv' | 'xlsx' | 'pdf') => Promise<void>;
+  refreshCacheStats: () => void;
 }
 
 const defaultFilters: FilterDimensions = {
@@ -63,11 +66,15 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       activeView: 'funnel',
       savedViews: [],
       isLoading: false,
+      isExporting: false,
       funnelData: null,
       cohortData: null,
       featureData: null,
       pathData: null,
       churnReasons: null,
+      etlStatus: etlEngine.getStatus(),
+      exportTasks: [],
+      cacheStats: { size: 0 },
 
       setFilters: (newFilters) => {
         set((state) => ({
@@ -120,21 +127,63 @@ export const useAnalyticsStore = create<AnalyticsState>()(
 
       fetchData: async () => {
         set({ isLoading: true });
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const filters = get().filters;
-        set({
-          funnelData: generateFunnelData(filters),
-          cohortData: generateCohortData(),
-          featureData: generateFeatureUsage(),
-          pathData: generatePathData(),
-          churnReasons: generateChurnReasons(),
-          isLoading: false,
-        });
+        try {
+          const { filters, dateRange } = get();
+          const data = await apiService.fetchAllData(filters, dateRange);
+          set({
+            funnelData: data.funnel,
+            cohortData: data.cohort,
+            featureData: data.features,
+            pathData: data.paths,
+            churnReasons: data.churn,
+            isLoading: false,
+          });
+          get().refreshCacheStats();
+        } catch (error) {
+          console.error('Failed to fetch data:', error);
+          set({ isLoading: false });
+        }
       },
 
       resetFilters: () => {
         set({ filters: defaultFilters, dateRange: defaultDateRange });
         get().fetchData();
+      },
+
+      runETL: async () => {
+        set((state) => ({
+          etlStatus: { ...state.etlStatus, status: 'running' },
+        }));
+        const newStatus = await etlEngine.runETL();
+        set({ etlStatus: newStatus });
+        await get().fetchData();
+      },
+
+      exportData: async (format) => {
+        set({ isExporting: true });
+        try {
+          const { filters, dateRange, activeView } = get();
+          const task = await exportService.createExport(filters, dateRange, format, activeView);
+          set((state) => ({
+            exportTasks: [task, ...state.exportTasks],
+          }));
+          
+          const checkInterval = setInterval(() => {
+            const updated = exportService.getTasks();
+            set({ exportTasks: updated });
+            if (updated[0]?.status === 'completed' || updated[0]?.status === 'failed') {
+              clearInterval(checkInterval);
+              set({ isExporting: false });
+            }
+          }, 500);
+        } catch (error) {
+          console.error('Export failed:', error);
+          set({ isExporting: false });
+        }
+      },
+
+      refreshCacheStats: () => {
+        set({ cacheStats: { size: dataCache.size } });
       },
     }),
     {

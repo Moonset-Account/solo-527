@@ -15,21 +15,37 @@ import {
   Settings,
   Bell,
   ChevronDown,
+  Database,
+  PlayCircle,
+  HardDrive,
 } from 'lucide-react';
 import { useAnalyticsStore } from '../store/useAnalyticsStore';
-import { etlStatus, metricConfigs } from '../data/mockData';
+import { metricConfigs } from '../data/mockData';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 const Header: React.FC = () => {
-  const { savedViews, saveView, loadView, deleteView, fetchData, isLoading } = useAnalyticsStore();
+  const {
+    savedViews,
+    saveView,
+    loadView,
+    deleteView,
+    fetchData,
+    isLoading,
+    isExporting,
+    exportData,
+    etlStatus,
+    runETL,
+    cacheStats,
+  } = useAnalyticsStore();
+
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showViewsModal, setShowViewsModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [showETLModal, setShowETLModal] = useState(false);
   const [viewName, setViewName] = useState('');
   const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf'>('csv');
-  const [exporting, setExporting] = useState(false);
 
   const handleSaveView = () => {
     if (viewName.trim()) {
@@ -39,12 +55,9 @@ const Header: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    setExporting(true);
-    setTimeout(() => {
-      setExporting(false);
-      setShowExportModal(false);
-    }, 2000);
+  const handleExport = async () => {
+    await exportData(exportFormat);
+    setShowExportModal(false);
   };
 
   const statusConfig = {
@@ -70,6 +83,10 @@ const Header: React.FC = () => {
                 <p className="text-xs text-gray-500">增长运营数据日会专用</p>
               </div>
             </div>
+            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500">
+              <HardDrive className="w-3 h-3" />
+              缓存: {cacheStats.size} 条目
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -81,7 +98,8 @@ const Header: React.FC = () => {
               指标口径
             </button>
 
-            <div
+            <button
+              onClick={() => setShowETLModal(true)}
               className={`flex items-center gap-2 px-3 py-2 ${status.bg} rounded-lg cursor-pointer hover:opacity-80 transition-opacity`}
               title={`下次更新: ${etlStatus.nextRun}`}
             >
@@ -96,7 +114,7 @@ const Header: React.FC = () => {
                   })}
                 </div>
               </div>
-            </div>
+            </button>
 
             <button
               onClick={() => fetchData()}
@@ -132,9 +150,14 @@ const Header: React.FC = () => {
 
             <button
               onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors"
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
               导出
               <ChevronDown className="w-3 h-3" />
             </button>
@@ -159,7 +182,7 @@ const Header: React.FC = () => {
 
       {showSaveModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">保存当前视图</h3>
               <button
@@ -202,7 +225,7 @@ const Header: React.FC = () => {
 
       {showViewsModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[500px] shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl p-6 w-[500px] shadow-2xl max-h-[80vh] overflow-hidden flex flex-col animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">已保存的视图</h3>
               <button
@@ -225,12 +248,21 @@ const Header: React.FC = () => {
                     key={view.id}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                   >
-                    <div className="flex-1 cursor-pointer" onClick={() => { loadView(view.id); setShowViewsModal(false); }}>
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => {
+                        loadView(view.id);
+                        setShowViewsModal(false);
+                      }}
+                    >
                       <div className="font-medium text-gray-800 group-hover:text-primary-600 transition-colors">
                         {view.name}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {new Date(view.createdAt).toLocaleString('zh-CN')} · {view.filters.channels.length > 0 ? `${view.filters.channels.length} 个渠道` : '全部渠道'}
+                        {new Date(view.createdAt).toLocaleString('zh-CN')} ·{' '}
+                        {view.filters.channels.length > 0
+                          ? `${view.filters.channels.length} 个渠道`
+                          : '全部渠道'}
                       </div>
                     </div>
                     <button
@@ -249,7 +281,7 @@ const Header: React.FC = () => {
 
       {showExportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">导出数据</h3>
               <button
@@ -259,12 +291,14 @@ const Header: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">选择导出格式，将导出当前筛选条件下的所有数据</p>
+            <p className="text-sm text-gray-500 mb-4">
+              选择导出格式，将导出当前筛选条件下的所有分析数据
+            </p>
             <div className="space-y-2 mb-6">
               {[
                 { id: 'csv', label: 'CSV 表格', desc: '适合 Excel、Numbers 等表格软件' },
                 { id: 'xlsx', label: 'Excel (.xlsx)', desc: '包含多个工作表的完整报表' },
-                { id: 'pdf', label: 'PDF 文档', desc: '适合打印和分享的报告格式' },
+                { id: 'pdf', label: 'PDF 报告', desc: '适合打印和分享的格式化报告' },
               ].map((format) => (
                 <label
                   key={format.id}
@@ -298,13 +332,13 @@ const Header: React.FC = () => {
               </button>
               <button
                 onClick={handleExport}
-                disabled={exporting}
+                disabled={isExporting}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
               >
-                {exporting ? (
+                {isExporting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    导出中...
+                    生成中...
                   </>
                 ) : (
                   <>
@@ -320,7 +354,7 @@ const Header: React.FC = () => {
 
       {showMetricsModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-[600px] shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl p-6 w-[600px] shadow-2xl max-h-[80vh] overflow-hidden flex flex-col animate-fade-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800">指标口径说明</h3>
               <button
@@ -346,6 +380,83 @@ const Header: React.FC = () => {
               <p className="text-xs text-gray-500">
                 * 所有指标均已按照统一口径计算，不同渠道的注册定义已标准化处理
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showETLModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-[500px] shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary-500" />
+                ETL 数据处理状态
+              </h3>
+              <button
+                onClick={() => setShowETLModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">上次更新时间</div>
+                  <div className="text-sm font-medium text-gray-800">{etlStatus.lastUpdated}</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="text-xs text-gray-500 mb-1">下次调度时间</div>
+                  <div className="text-sm font-medium text-gray-800">{etlStatus.nextRun}</div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="text-xs text-gray-500 mb-1">已处理记录数</div>
+                <div className="text-xl font-bold text-primary-600">
+                  {etlStatus.recordsProcessed.toLocaleString()}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">行数据（注册、激活、行为事件等）</div>
+              </div>
+
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div className="text-xs font-medium text-blue-700 mb-2">数据处理流程</div>
+                <ul className="space-y-1 text-xs text-blue-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    多渠道注册数据标准化清洗
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    实验组/自然流量标签分离
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    用户行为路径聚合计算
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    Cohort 留存矩阵预计算
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3" />
+                    缓存预热（5分钟 TTL）
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                onClick={async () => {
+                  await runETL();
+                }}
+                disabled={etlStatus.status === 'running'}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <PlayCircle className="w-4 h-4" />
+                {etlStatus.status === 'running' ? 'ETL 运行中...' : '手动触发 ETL 重跑'}
+              </button>
             </div>
           </div>
         </div>
