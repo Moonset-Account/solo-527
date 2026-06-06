@@ -1,8 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format as formatDate } from 'date-fns';
-import { AggregatedResult, FilterDimensions, DateRange, ExportTask } from '../types';
+import { AggregatedResult, FilterDimensions, DateRange } from '../types';
 
 export const generateStandardExcel = (
   aggregatedResult: AggregatedResult,
@@ -374,60 +373,4 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
   link.click();
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-};
-
-export const exportTaskManager = {
-  tasks: [] as ExportTask[],
-
-  async createExport(
-    format: 'csv' | 'xlsx' | 'pdf',
-    aggregatedResult: AggregatedResult,
-    filters: FilterDimensions,
-    dateRange: DateRange
-  ): Promise<ExportTask> {
-    const task: ExportTask = {
-      id: `export_${Date.now()}`,
-      name: `${format.toUpperCase()}_${dateRange.start}_${dateRange.end}`,
-      status: 'processing',
-      createdAt: new Date().toISOString(),
-    };
-    this.tasks.unshift(task);
-
-    try {
-      await new Promise((r) => setTimeout(r, 800 + Math.random() * 700));
-
-      let blob: Blob;
-      let filename: string;
-      const timestamp = formatDate(new Date(), 'yyyyMMdd_HHmmss');
-
-      switch (format) {
-        case 'xlsx':
-          blob = generateStandardExcel(aggregatedResult, filters, dateRange);
-          filename = `留存分析报告_${timestamp}.xlsx`;
-          break;
-        case 'pdf':
-          blob = generateStandardPDF(aggregatedResult, filters, dateRange);
-          filename = `留存分析报告_${timestamp}.pdf`;
-          break;
-        case 'csv':
-        default:
-          blob = generateCSV(aggregatedResult, filters, dateRange);
-          filename = `留存分析报告_${timestamp}.csv`;
-      }
-
-      downloadBlob(blob, filename);
-
-      task.status = 'completed';
-      task.completedAt = new Date().toISOString();
-    } catch (error) {
-      task.status = 'failed';
-      console.error('Export failed:', error);
-    }
-
-    return task;
-  },
-
-  getTasks(): ExportTask[] {
-    return [...this.tasks];
-  },
 };

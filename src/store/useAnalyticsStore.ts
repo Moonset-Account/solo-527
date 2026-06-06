@@ -7,13 +7,13 @@ import {
   SavedView,
   AggregatedResult,
   ETLStatus,
-  ExportTask,
   CacheStats,
   ETLPipelineStage,
+  QueueTask,
 } from '../types';
-import { generateRawEvents } from '../data/rawEvents';
-import { runAggregationPipeline } from '../data/aggregationEngine';
-import { exportTaskManager } from '../services/exportService';
+import { etlEngine, CleanStats } from '../services/etlEngine';
+import { taskQueue } from '../services/taskQueue';
+import { apiService } from '../services/apiService';
 import { subDays, format } from 'date-fns';
 
 interface AnalyticsState {
@@ -22,12 +22,14 @@ interface AnalyticsState {
   activeView: ViewType;
   savedViews: SavedView[];
   isLoading: boolean;
-  isExporting: boolean;
+  isETLRunning: boolean;
   aggregatedResult: AggregatedResult | null;
   etlStatus: ETLStatus;
-  exportTasks: ExportTask[];
   cacheStats: CacheStats;
   pipelineStages: ETLPipelineStage[];
+  cleanStats: CleanStats | null;
+  tasks: QueueTask[];
+  dataCapabilities: any[];
   setFilters: (filters: Partial<FilterDimensions>) => void;
   setDateRange: (range: DateRange) => void;
   setActiveView: (view: ViewType) => void;
@@ -37,7 +39,12 @@ interface AnalyticsState {
   fetchData: () => Promise<void>;
   resetFilters: () => void;
   runETL: () => Promise<void>;
-  exportData: (format: 'csv' | 'xlsx' | 'pdf') => Promise<void>;
+  exportData: (format: 'csv' | 'xlsx' | 'pdf') => void;
+  cancelTask: (taskId: string) => boolean;
+  retryTask: (taskId: string) => boolean;
+  clearCompletedTasks: () => number;
+  clearCache: () => Promise<void>;
+  refreshTasks: () => void;
 }
 
 const defaultFilters: FilterDimensions = {
@@ -85,12 +92,14 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       activeView: 'funnel',
       savedViews: [],
       isLoading: false,
-      isExporting: false,
+      isETLRunning: false,
       aggregatedResult: null,
       etlStatus: initialETLStatus,
-      exportTasks: [],
       cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
       pipelineStages: [],
+      cleanStats: null,
+      tasks: [],
+      dataCapabilities: [],
 
       setFilters: (newFilters) => {
         set((state) => ({
@@ -162,8 +171,13 @@ export const useAnalyticsStore = create<AnalyticsState>()(
             return;
           }
 
-          const rawEvents = generateRawEvents(filters, dateRange, 50000);
-          const { result, stages } = await runAggregationPipeline(rawEvents, filters, dateRange);
+          const { result, stages, stats } = await etlEngine.runFullPipeline(
+            filters,
+            dateRange,
+            (stage, progress, message) => {
+              console.log(`[ETL] ${stage}: ${progress}% - ${message}`);
+            }
+          );
 
           cache.set(cacheKey, { data: result, timestamp: Date.now() });
           
@@ -175,6 +189,7 @@ export const useAnalyticsStore = create<AnalyticsState>()(
           set({
             aggregatedResult: result,
             pipelineStages: stages,
+            cleanStats: stats,
             isLoading: false,
             cacheStats: {
               ...cacheStats,
@@ -183,6 +198,13 @@ export const useAnalyticsStore = create<AnalyticsState>()(
               size: cache.size,
             },
           });
+
+          apiService.listCapabilities().then(res => {
+            if (res.success && res.data) {
+              set({ dataCapabilities: res.data });
+            }
+          });
+
         } catch (error) {
           console.error('Failed to fetch data:', error);
           set({ isLoading: false });
@@ -195,35 +217,89 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       },
 
       runETL: async () => {
-        set((state) => ({
-          etlStatus: { ...state.etlStatus, status: 'running' },
-        }));
+        const { filters, dateRange } = get();
+        set({ isETLRunning: true });
 
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        taskQueue.createTask(
+          'etl',
+          '全量 ETL 数据同步',
+          { filters, dateRange, source: 'events_db', mode: 'full' },
+          'high'
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        
+        cache.clear();
+        set({
+          etlStatus: {
+            ...get().etlStatus,
+            status: 'running',
+          },
+          cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
+        });
+
+        await get().fetchData();
 
         const now = new Date();
-        const newStatus: ETLStatus = {
-          lastUpdated: format(now, 'yyyy-MM-dd HH:mm:ss'),
-          status: 'success',
-          nextRun: format(new Date(now.getTime() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
-          recordsProcessed: Math.floor(2000000 + Math.random() * 1000000),
-        };
-
-        cache.clear();
-        set({ etlStatus: newStatus, cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 } });
-        await get().fetchData();
+        set({
+          isETLRunning: false,
+          etlStatus: {
+            lastUpdated: format(now, 'yyyy-MM-dd HH:mm:ss'),
+            status: 'success',
+            nextRun: format(new Date(now.getTime() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
+            recordsProcessed: Math.floor(2000000 + Math.random() * 1000000),
+          },
+        });
       },
 
-      exportData: async (format) => {
+      exportData: (format) => {
         const { aggregatedResult, filters, dateRange } = get();
         if (!aggregatedResult) return;
 
-        set({ isExporting: true });
-        const task = await exportTaskManager.createExport(format, aggregatedResult, filters, dateRange);
-        set((state) => ({
-          exportTasks: [task, ...state.exportTasks.slice(0, 9)],
-          isExporting: false,
-        }));
+        const taskType = `export_${format}` as const;
+        const formatNames = { csv: 'CSV', xlsx: 'Excel', pdf: 'PDF' };
+        
+        taskQueue.createTask(
+          taskType,
+          `导出 ${formatNames[format]} 报告`,
+          {
+            queryId: aggregatedResult.queryId,
+            aggregatedResult,
+            filters,
+            dateRange,
+          },
+          'medium'
+        );
+
+        get().refreshTasks();
+      },
+
+      cancelTask: (taskId) => {
+        const result = taskQueue.cancelTask(taskId);
+        get().refreshTasks();
+        return result;
+      },
+
+      retryTask: (taskId) => {
+        const result = taskQueue.retryTask(taskId);
+        get().refreshTasks();
+        return result;
+      },
+
+      clearCompletedTasks: () => {
+        const count = taskQueue.clearCompleted();
+        get().refreshTasks();
+        return count;
+      },
+
+      clearCache: async () => {
+        cache.clear();
+        set({ cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 } });
+        await get().fetchData();
+      },
+
+      refreshTasks: () => {
+        set({ tasks: taskQueue.getTasks() });
       },
     }),
     {
@@ -237,3 +313,10 @@ export const useAnalyticsStore = create<AnalyticsState>()(
     }
   )
 );
+
+taskQueue.subscribe((tasks) => {
+  const state = useAnalyticsStore.getState();
+  if (JSON.stringify(state.tasks) !== JSON.stringify(tasks)) {
+    useAnalyticsStore.setState({ tasks });
+  }
+});

@@ -32,12 +32,18 @@ const Header: React.FC = () => {
     deleteView,
     fetchData,
     isLoading,
-    isExporting,
+    tasks,
     exportData,
     etlStatus,
     runETL,
     cacheStats,
+    isETLRunning,
   } = useAnalyticsStore();
+
+  const isExporting = tasks.some(t => 
+    (t.type as string).startsWith('export_') && 
+    (t.status === 'queued' || t.status === 'running')
+  );
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showViewsModal, setShowViewsModal] = useState(false);
@@ -451,11 +457,11 @@ const Header: React.FC = () => {
                 onClick={async () => {
                   await runETL();
                 }}
-                disabled={etlStatus.status === 'running'}
+                disabled={isETLRunning}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 <PlayCircle className="w-4 h-4" />
-                {etlStatus.status === 'running' ? 'ETL 运行中...' : '手动触发 ETL 重跑'}
+                {isETLRunning ? 'ETL 运行中...' : '手动触发 ETL 重跑'}
               </button>
             </div>
           </div>

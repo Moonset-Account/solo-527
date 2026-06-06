@@ -102,15 +102,6 @@ export type MetricConfig = {
   calculation: string;
 };
 
-export type ExportTask = {
-  id: string;
-  name: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: string;
-  completedAt?: string;
-  downloadUrl?: string;
-};
-
 export type RawEvent = {
   userId: string;
   teamId: string;
@@ -168,4 +159,94 @@ export type CacheStats = {
   hits: number;
   misses: number;
   hitRate: number;
+};
+
+export type TaskStatus = 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export type TaskType = 'etl' | 'export_csv' | 'export_xlsx' | 'export_pdf' | 'aggregation';
+
+export type BaseTask = {
+  id: string;
+  type: TaskType;
+  name: string;
+  status: TaskStatus;
+  priority: 'low' | 'medium' | 'high';
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  failedAt?: string;
+  progress: number;
+  error?: string;
+  result?: any;
+  metadata?: Record<string, any>;
+};
+
+export type ETLTask = BaseTask & {
+  type: 'etl';
+  metadata: {
+    source: string;
+    recordsProcessed?: number;
+    stages?: ETLPipelineStage[];
+  };
+};
+
+export type ExportTask = BaseTask & {
+  type: 'export_csv' | 'export_xlsx' | 'export_pdf';
+  metadata: {
+    queryId: string;
+    filters: FilterDimensions;
+    dateRange: DateRange;
+    fileSize?: number;
+    downloadUrl?: string;
+    expiresAt?: string;
+  };
+};
+
+export type AggregationTask = BaseTask & {
+  type: 'aggregation';
+  metadata: {
+    queryId: string;
+    filters: FilterDimensions;
+    dateRange: DateRange;
+  };
+};
+
+export type QueueTask = ETLTask | ExportTask | AggregationTask;
+
+export type ApiResponse<T = any> = {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  requestId: string;
+  timestamp: string;
+};
+
+export type PaginatedResponse<T> = ApiResponse<{
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}>;
+
+export type DataCapabilityDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  endpoints: {
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    path: string;
+    description: string;
+    params?: string[];
+    returns?: string;
+  }[];
+  cacheTTL: number;
+  rateLimit: {
+    requests: number;
+    window: string;
+  };
 };
