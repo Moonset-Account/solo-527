@@ -6,7 +6,9 @@ import { ChartCard } from '../components/charts/ChartCard';
 import { SubjectTrendChart } from '../components/charts/SubjectTrendChart';
 import { BranchComparisonChart } from '../components/charts/BranchComparisonChart';
 import RenewTrendChart from '../components/charts/RenewTrendChart';
+import RenewBranchChart from '../components/charts/RenewBranchChart';
 import ActivityTrendChart from '../components/charts/ActivityTrendChart';
+import ActivityTypeChart from '../components/charts/ActivityTypeChart';
 
 export default function Home() {
   const {
@@ -14,7 +16,9 @@ export default function Home() {
     subjectTrends,
     branchComparison,
     renewTrends,
+    renewByBranch,
     activityTrends,
+    activityByType,
     loading,
     errors,
     filters,
@@ -22,7 +26,9 @@ export default function Home() {
     loadSubjectTrends,
     loadBranchComparison,
     loadRenewTrends,
+    loadRenewByBranch,
     loadActivityTrends,
+    loadActivityByType,
   } = useDashboardStore();
 
   useEffect(() => {
@@ -30,7 +36,9 @@ export default function Home() {
     loadSubjectTrends();
     loadBranchComparison();
     loadRenewTrends();
+    loadRenewByBranch();
     loadActivityTrends();
+    loadActivityByType();
   }, [filters]);
 
   return (
@@ -120,6 +128,11 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RenewTrendChart />
         <ActivityTrendChart />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RenewBranchChart />
+        <ActivityTypeChart />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

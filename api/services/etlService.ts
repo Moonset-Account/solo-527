@@ -392,15 +392,30 @@ export class ETLService {
     const cached = cacheService.get<ActivityParticipationTrend[]>(cacheKey);
     if (cached) return cached;
 
-    const { activities, activityParticipations, readers } = dataRepository.getDataset();
+    const { activities, activityParticipations, readers, books, borrowRecords } = dataRepository.getDataset();
     const readerMap = new Map(readers.map(r => [r.id, r]));
     const activityMap = new Map(activities.map(a => [a.id, a]));
+    const bookMap = new Map(books.map(b => [b.id, b]));
+
+    let eligibleReaderIds = new Set<string>();
+    const needBookFilter = filters.collections.length > 0 || filters.subjects.length > 0;
+    
+    if (needBookFilter) {
+      borrowRecords.forEach(record => {
+        const book = bookMap.get(record.bookId);
+        if (!book) return;
+        if (filters.collections.length > 0 && !filters.collections.includes(book.collection)) return;
+        if (filters.subjects.length > 0 && !filters.subjects.includes(book.subject)) return;
+        eligibleReaderIds.add(record.readerId);
+      });
+    }
 
     const filteredParticipations = activityParticipations.filter(p => {
       const activity = activityMap.get(p.activityId);
       const reader = readerMap.get(p.readerId);
       if (!activity || !reader) return false;
 
+      if (needBookFilter && !eligibleReaderIds.has(p.readerId)) return false;
       if (filters.branches.length > 0 && !filters.branches.includes(activity.branch)) return false;
       if (filters.readerGroups.length > 0 && !filters.readerGroups.includes(reader.readerGroup)) return false;
       
@@ -449,15 +464,30 @@ export class ETLService {
     const cached = cacheService.get<ActivityByType[]>(cacheKey);
     if (cached) return cached;
 
-    const { activities, activityParticipations, readers } = dataRepository.getDataset();
+    const { activities, activityParticipations, readers, books, borrowRecords } = dataRepository.getDataset();
     const readerMap = new Map(readers.map(r => [r.id, r]));
     const activityMap = new Map(activities.map(a => [a.id, a]));
+    const bookMap = new Map(books.map(b => [b.id, b]));
+
+    let eligibleReaderIds = new Set<string>();
+    const needBookFilter = filters.collections.length > 0 || filters.subjects.length > 0;
+    
+    if (needBookFilter) {
+      borrowRecords.forEach(record => {
+        const book = bookMap.get(record.bookId);
+        if (!book) return;
+        if (filters.collections.length > 0 && !filters.collections.includes(book.collection)) return;
+        if (filters.subjects.length > 0 && !filters.subjects.includes(book.subject)) return;
+        eligibleReaderIds.add(record.readerId);
+      });
+    }
 
     const filteredParticipations = activityParticipations.filter(p => {
       const activity = activityMap.get(p.activityId);
       const reader = readerMap.get(p.readerId);
       if (!activity || !reader) return false;
 
+      if (needBookFilter && !eligibleReaderIds.has(p.readerId)) return false;
       if (filters.branches.length > 0 && !filters.branches.includes(activity.branch)) return false;
       if (filters.readerGroups.length > 0 && !filters.readerGroups.includes(reader.readerGroup)) return false;
       
@@ -507,18 +537,25 @@ export class ETLService {
     const { readers } = dataRepository.getDataset();
     const readerMap = new Map(readers.map(r => [r.id, r]));
 
-    const hasChildrenFilter = filters.readerGroups.some(g => 
-      g.includes('儿童') || g.includes('少儿') || g.includes('0-6') || g.includes('7-12')
+    const childrenAndYouthGroups = ['儿童', '青少年'];
+    const childrenAndYouthAgeGroups = ['0-6岁', '7-12岁', '13-18岁'];
+
+    const hasChildrenOrYouthFilter = filters.readerGroups.some(g => 
+      childrenAndYouthGroups.includes(g) ||
+      childrenAndYouthAgeGroups.includes(g)
     );
 
     let records = dataRepository.filterBorrowRecords(filters);
 
-    if (hasChildrenFilter) {
-      records = records.filter(record => {
-        const reader = readerMap.get(record.readerId);
-        return reader && !reader.isChildren;
-      });
-    }
+    records = records.filter(record => {
+      const reader = readerMap.get(record.readerId);
+      if (!reader) return false;
+      const isChildrenOrYouth = 
+        reader.isChildren || 
+        childrenAndYouthGroups.includes(reader.readerGroup) ||
+        childrenAndYouthAgeGroups.includes(reader.ageGroup);
+      return !isChildrenOrYouth;
+    });
 
     return records.slice(0, limit);
   }
