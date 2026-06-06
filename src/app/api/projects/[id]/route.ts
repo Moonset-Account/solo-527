@@ -62,36 +62,82 @@ export async function GET(
 
     const isClient = session.user.role === 'CLIENT';
 
-    const totalHours = isClient
-      ? 0
-      : project.timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours as any), 0);
-    const totalCost = isClient
-      ? 0
-      : project.timesheets.reduce(
-          (sum, ts) => sum + parseFloat(ts.hours as any) * parseFloat(ts.hourlyRate as any),
-          0
-        );
+    if (isClient) {
+      const clientTasks = project.tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      }));
 
-    const filteredAttachments = isClient
-      ? project.attachments.filter((a) => a.isDeliverable)
-      : project.attachments;
+      const clientAttachments = project.attachments
+        .filter((a) => a.isDeliverable)
+        .map((a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          fileSize: a.fileSize,
+          uploadedBy: { name: a.uploadedBy?.name },
+          createdAt: a.createdAt,
+        }));
 
-    const responseData: any = {
+      const clientAuditLogs = project.auditLogs.map((log) => ({
+        id: log.id,
+        action: log.action,
+        entityType: log.entityType,
+        createdAt: log.createdAt,
+        user: { name: log.user?.name },
+      }));
+
+      const clientViewData = {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        startDate: project.startDate,
+        dueDate: project.dueDate,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        progress,
+        totalTasks,
+        doneTasks,
+        client: {
+          id: project.client.id,
+          name: project.client.name,
+        },
+        tasks: clientTasks,
+        attachments: clientAttachments,
+        auditLogs: clientAuditLogs,
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: clientViewData,
+      });
+    }
+
+    const totalHours = project.timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours as any), 0);
+    const totalCost = project.timesheets.reduce(
+      (sum, ts) => sum + parseFloat(ts.hours as any) * parseFloat(ts.hourlyRate as any),
+      0
+    );
+
+    const internalViewData = {
       ...project,
       progress,
-      attachments: filteredAttachments,
+      totalTasks,
+      doneTasks,
+      totalHours,
+      totalCost,
     };
-
-    if (!isClient) {
-      responseData.totalHours = totalHours;
-      responseData.totalCost = totalCost;
-    } else {
-      responseData.timesheets = [];
-    }
 
     return NextResponse.json({
       success: true,
-      data: responseData,
+      data: internalViewData,
     });
   } catch (error) {
     console.error('获取项目详情失败:', error);
