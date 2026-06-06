@@ -12,7 +12,7 @@ from app.core.logging import logger
 router = APIRouter(prefix="/api/properties", tags=["房源管理"])
 
 
-@router.get("", response_model=PaginatedResponse[PropertyResponse])
+@router.get("", response_model=ApiResponse[PaginatedResponse[PropertyResponse]])
 def get_properties(
     community: Optional[str] = None,
     status: Optional[PropertyStatus] = None,
@@ -30,12 +30,12 @@ def get_properties(
     total = query.count()
     properties = query.order_by(Property.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[PropertyResponse.model_validate(p) for p in properties],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.get("/communities", response_model=ApiResponse[List[str]])

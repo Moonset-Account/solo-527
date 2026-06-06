@@ -15,7 +15,7 @@ from app.core.logging import logger
 router = APIRouter(tags=["通知与报表"])
 
 
-@router.get("/api/notifications", response_model=PaginatedResponse[NotificationResponse])
+@router.get("/api/notifications", response_model=ApiResponse[PaginatedResponse[NotificationResponse]])
 def get_notifications(
     is_read: Optional[int] = None,
     page: int = Query(1, ge=1),
@@ -30,12 +30,12 @@ def get_notifications(
     total = query.count()
     notifications = query.order_by(Notification.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[NotificationResponse.model_validate(n) for n in notifications],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.post("/api/notifications/{notification_id}/read", response_model=ApiResponse)
@@ -73,6 +73,8 @@ def mark_all_notifications_read(
 def get_dashboard_stats(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    status: Optional[str] = None,
+    cleaner_id: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -86,7 +88,7 @@ def get_dashboard_stats(
 
     TaskService.check_and_update_overdue(db)
 
-    stats = ReportService.get_dashboard_stats(db, start_dt, end_dt)
+    stats = ReportService.get_dashboard_stats(db, start_dt, end_dt, status=status, cleaner_id=cleaner_id)
     return ApiResponse(data=DashboardStats(**stats))
 
 

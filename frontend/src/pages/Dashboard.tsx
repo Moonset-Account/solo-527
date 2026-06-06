@@ -9,11 +9,13 @@ import {
   WarningOutlined,
   CheckCircleOutlined,
   ReloadOutlined,
+  DownloadOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import { get, post } from '../api'
-import type { DashboardStats, CleaningTask, MaintenanceOrder, PaginatedResponse } from '../types'
+import type { DashboardStats, CleaningTask, MaintenanceOrder, PaginatedResponse, User } from '../types'
 
 const { RangePicker } = DatePicker
 const { Option } = Select
@@ -56,22 +58,44 @@ const priorityTexts: Record<string, string> = {
   urgent: '紧急',
 }
 
+const taskStatusOptions = [
+  { value: 'pending', label: '待分配' },
+  { value: 'assigned', label: '已分配' },
+  { value: 'in_progress', label: '进行中' },
+  { value: 'submitted', label: '待验收' },
+  { value: 'inspecting', label: '验收中' },
+  { value: 'approved', label: '已完成' },
+  { value: 'rejected', label: '已驳回' },
+  { value: 'cancelled', label: '已取消' },
+]
+
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [overdueTasks, setOverdueTasks] = useState<CleaningTask[]>([])
   const [overdueOrders, setOverdueOrders] = useState<MaintenanceOrder[]>([])
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(30, 'day'), dayjs()])
+  const [taskStatusFilter, setTaskStatusFilter] = useState<string | undefined>()
+  const [cleanerFilter, setCleanerFilter] = useState<number | undefined>()
+  const [cleaners, setCleaners] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
+
+  const fetchCleaners = async () => {
+    try {
+      const data = await get<User[]>('/users/cleaners')
+      setCleaners(data)
+    } catch (e) {}
+  }
 
   const fetchStats = async () => {
     setLoading(true)
     try {
-      const data = await get<DashboardStats>('/dashboard/stats', {
-        params: {
-          start_date: dateRange[0].format('YYYY-MM-DD'),
-          end_date: dateRange[1].format('YYYY-MM-DD'),
-        },
-      })
+      const params: any = {
+        start_date: dateRange[0].format('YYYY-MM-DD'),
+        end_date: dateRange[1].format('YYYY-MM-DD'),
+      }
+      if (taskStatusFilter) params.status = taskStatusFilter
+      if (cleanerFilter) params.cleaner_id = cleanerFilter
+      const data = await get<DashboardStats>('/dashboard/stats', { params })
       setStats(data)
     } catch (e) {
     } finally {
@@ -81,13 +105,11 @@ const Dashboard: React.FC = () => {
 
   const fetchOverdue = async () => {
     try {
+      const params: any = { is_overdue: 1, page_size: 10 }
+      if (cleanerFilter) params.cleaner_id = cleanerFilter
       const [tasksData, ordersData] = await Promise.all([
-        get<PaginatedResponse<CleaningTask>>('/cleaning-tasks', {
-          params: { is_overdue: 1, page_size: 10 },
-        }),
-        get<PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', {
-          params: { is_overdue: 1, page_size: 10 },
-        }),
+        get<PaginatedResponse<CleaningTask>>('/cleaning-tasks', { params }),
+        get<PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', { params: { is_overdue: 1, page_size: 10 } }),
       ])
       setOverdueTasks(tasksData.data)
       setOverdueOrders(ordersData.data)
@@ -103,10 +125,36 @@ const Dashboard: React.FC = () => {
     } catch (e) {}
   }
 
+  const handleExportCost = async () => {
+    try {
+      const params: any = {
+        start_date: dateRange[0].format('YYYY-MM-DD'),
+        end_date: dateRange[1].format('YYYY-MM-DD'),
+      }
+      if (cleanerFilter) params.cleaner_id = cleanerFilter
+      const data = await get('/reports/export/cost', { params, responseType: 'blob' })
+      const blob = new Blob([data as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `成本报表_${dayjs().format('YYYYMMDD')}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      message.success('导出成功')
+    } catch (e) {
+      message.error('导出失败')
+    }
+  }
+
+  useEffect(() => {
+    fetchCleaners()
+  }, [])
+
   useEffect(() => {
     fetchStats()
     fetchOverdue()
-  }, [dateRange])
+  }, [dateRange, taskStatusFilter, cleanerFilter])
 
   const taskColumns = [
     { title: '任务编号', dataIndex: 'task_no', key: 'task_no', width: 140 },
@@ -126,11 +174,40 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }}>
-        <RangePicker value={dateRange} onChange={(v) => v && setDateRange(v as [Dayjs, Dayjs])} />
-        <Button icon={<ReloadOutlined />} onClick={fetchStats}>刷新</Button>
-        <Button type="primary" icon={<WarningOutlined />} onClick={handleCheckOverdue}>检查超时</Button>
-      </Space>
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Space>
+            <FilterOutlined />
+            <span style={{ fontWeight: 500 }}>筛选：</span>
+          </Space>
+          <RangePicker value={dateRange} onChange={(v) => v && setDateRange(v as [Dayjs, Dayjs])} />
+          <Select
+            placeholder="任务状态"
+            style={{ width: 140 }}
+            allowClear
+            value={taskStatusFilter}
+            onChange={setTaskStatusFilter}
+          >
+            {taskStatusOptions.map(opt => (
+              <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+            ))}
+          </Select>
+          <Select
+            placeholder="负责人(保洁员)"
+            style={{ width: 180 }}
+            allowClear
+            value={cleanerFilter}
+            onChange={setCleanerFilter}
+          >
+            {cleaners.map(c => (
+              <Option key={c.id} value={c.id}>{c.full_name}</Option>
+            ))}
+          </Select>
+          <Button icon={<ReloadOutlined />} onClick={fetchStats}>刷新</Button>
+          <Button type="primary" icon={<WarningOutlined />} onClick={handleCheckOverdue}>检查超时</Button>
+          <Button icon={<DownloadOutlined />} onClick={handleExportCost}>导出成本</Button>
+        </Space>
+      </Card>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>

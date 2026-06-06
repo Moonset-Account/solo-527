@@ -19,7 +19,7 @@ from app.core.logging import logger
 router = APIRouter(tags=["物料与附件"])
 
 
-@router.get("/api/materials", response_model=PaginatedResponse[MaterialResponse])
+@router.get("/api/materials", response_model=ApiResponse[PaginatedResponse[MaterialResponse]])
 def get_materials(
     category: Optional[str] = None,
     keyword: Optional[str] = None,
@@ -37,12 +37,12 @@ def get_materials(
     total = query.count()
     materials = query.order_by(Material.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[MaterialResponse.model_validate(m) for m in materials],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.post("/api/materials", response_model=ApiResponse[MaterialResponse])

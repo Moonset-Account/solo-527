@@ -23,7 +23,7 @@ from app.core.logging import logger
 router = APIRouter(prefix="/api/cleaning-tasks", tags=["保洁任务"])
 
 
-@router.get("", response_model=PaginatedResponse[CleaningTaskResponse])
+@router.get("", response_model=ApiResponse[PaginatedResponse[CleaningTaskResponse]])
 def get_cleaning_tasks(
     status: Optional[CleaningTaskStatus] = None,
     property_id: Optional[int] = None,
@@ -63,12 +63,12 @@ def get_cleaning_tasks(
     total = query.count()
     tasks = query.order_by(CleaningTask.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[CleaningTaskResponse.model_validate(t) for t in tasks],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.get("/{task_id}", response_model=ApiResponse[CleaningTaskResponse])

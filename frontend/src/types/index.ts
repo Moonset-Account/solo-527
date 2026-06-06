@@ -5,8 +5,6 @@ export interface ApiResponse<T = any> {
 }
 
 export interface PaginatedResponse<T = any> {
-  success: boolean
-  message: string
   data: T[]
   total: number
   page: number
@@ -141,8 +139,7 @@ export interface Attachment {
   original_filename: string
   content_type?: string
   file_size?: number
-  attachment_type?: string
-  purpose?: string
-  file_url?: string
+  attachment_type?: 'image' | 'document' | 'video' | 'other'
+  purpose?: 'before_cleaning' | 'after_cleaning' | 'maintenance_before' | 'maintenance_after' | 'inspection' | 'other'
   created_at?: string
 }

@@ -205,7 +205,13 @@ class MaintenanceService:
 
 class ReportService:
     @staticmethod
-    def get_dashboard_stats(db: Session, start_date: datetime = None, end_date: datetime = None) -> Dict:
+    def get_dashboard_stats(
+        db: Session, 
+        start_date: datetime = None, 
+        end_date: datetime = None,
+        status: Optional[str] = None,
+        cleaner_id: Optional[int] = None
+    ) -> Dict:
         if not start_date:
             start_date = datetime.utcnow() - timedelta(days=30)
         if not end_date:
@@ -213,19 +219,31 @@ class ReportService:
 
         stats = {}
 
-        stats["total_cleaning_tasks"] = db.query(CleaningTask).filter(
+        task_query = db.query(CleaningTask).filter(
             CleaningTask.created_at.between(start_date, end_date)
-        ).count()
+        )
+        if cleaner_id:
+            task_query = task_query.filter(CleaningTask.cleaner_id == cleaner_id)
+        if status:
+            task_query = task_query.filter(CleaningTask.status == status)
 
-        stats["completed_cleaning_tasks"] = db.query(CleaningTask).filter(
+        stats["total_cleaning_tasks"] = task_query.count()
+
+        completed_task_query = db.query(CleaningTask).filter(
             CleaningTask.status == CleaningTaskStatus.APPROVED,
             CleaningTask.completed_at.between(start_date, end_date)
-        ).count()
+        )
+        if cleaner_id:
+            completed_task_query = completed_task_query.filter(CleaningTask.cleaner_id == cleaner_id)
+        stats["completed_cleaning_tasks"] = completed_task_query.count()
 
-        stats["overdue_cleaning_tasks"] = db.query(CleaningTask).filter(
+        overdue_task_query = db.query(CleaningTask).filter(
             CleaningTask.is_overdue == 1,
             CleaningTask.status.notin_([CleaningTaskStatus.APPROVED, CleaningTaskStatus.CANCELLED])
-        ).count()
+        )
+        if cleaner_id:
+            overdue_task_query = overdue_task_query.filter(CleaningTask.cleaner_id == cleaner_id)
+        stats["overdue_cleaning_tasks"] = overdue_task_query.count()
 
         stats["total_maintenance_orders"] = db.query(MaintenanceOrder).filter(
             MaintenanceOrder.created_at.between(start_date, end_date)
@@ -241,9 +259,14 @@ class ReportService:
             MaintenanceOrder.status.notin_([MaintenanceOrderStatus.COMPLETED, MaintenanceOrderStatus.CANCELLED])
         ).count()
 
-        material_cost = db.query(func.sum(MaterialUsage.total_cost)).filter(
+        material_cost_query = db.query(func.sum(MaterialUsage.total_cost)).filter(
             MaterialUsage.created_at.between(start_date, end_date)
-        ).scalar() or 0
+        )
+        if cleaner_id:
+            material_cost_query = material_cost_query.join(CleaningTask).filter(
+                CleaningTask.cleaner_id == cleaner_id
+            )
+        material_cost = material_cost_query.scalar() or 0
 
         maintenance_cost = db.query(func.sum(MaintenanceOrder.actual_cost)).filter(
             MaintenanceOrder.completed_at.between(start_date, end_date)
@@ -256,9 +279,13 @@ class ReportService:
             User.is_active == True
         ).count()
 
-        busy_cleaners = db.query(CleaningTask.cleaner_id).filter(
+        busy_cleaners_query = db.query(CleaningTask.cleaner_id).filter(
             CleaningTask.status.in_([CleaningTaskStatus.ASSIGNED, CleaningTaskStatus.IN_PROGRESS])
-        ).distinct().count()
+        )
+        if cleaner_id:
+            busy_cleaners_query = busy_cleaners_query.filter(CleaningTask.cleaner_id == cleaner_id)
+            active_cleaners = 1 if cleaner_id else active_cleaners
+        busy_cleaners = busy_cleaners_query.distinct().count()
 
         stats["cleaner_utilization"] = round((busy_cleaners / active_cleaners * 100), 1) if active_cleaners > 0 else 0
 

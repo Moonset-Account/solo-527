@@ -7,7 +7,6 @@ Create Date: 2025-01-01 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '001'
@@ -26,8 +25,8 @@ def upgrade() -> None:
     op.execute("CREATE TYPE maintenanceorderstatus AS ENUM ('pending', 'assigned', 'in_progress', 'submitted', 'inspecting', 'completed', 'rejected', 'cancelled')")
     op.execute("CREATE TYPE maintenancetype AS ENUM ('plumbing', 'electrical', 'appliance', 'furniture', 'painting', 'door_window', 'other')")
     op.execute("CREATE TYPE maintenancepriority AS ENUM ('low', 'normal', 'high', 'urgent')")
-    op.execute("CREATE TYPE attachmenttype AS ENUM ('image', 'document', 'other')")
-    op.execute("CREATE TYPE attachmentpurpose AS ENUM ('cleaning_before', 'cleaning_after', 'maintenance_before', 'maintenance_after', 'inspection', 'other')")
+    op.execute("CREATE TYPE attachmenttype AS ENUM ('image', 'document', 'video', 'other')")
+    op.execute("CREATE TYPE attachmentpurpose AS ENUM ('before_cleaning', 'after_cleaning', 'maintenance_before', 'maintenance_after', 'inspection', 'other')")
 
     # users table
     op.create_table(
@@ -165,16 +164,20 @@ def upgrade() -> None:
         'materials',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(length=100), nullable=False),
-        sa.Column('category', sa.String(length=50), nullable=False),
+        sa.Column('sku', sa.String(length=50), nullable=True),
+        sa.Column('category', sa.String(length=50), nullable=True),
         sa.Column('unit', sa.String(length=20), nullable=False),
-        sa.Column('unit_price', sa.Float(), nullable=False),
-        sa.Column('stock_quantity', sa.Float(), nullable=False, server_default='0'),
+        sa.Column('unit_price', sa.Float(), nullable=True, server_default='0.0'),
+        sa.Column('stock_quantity', sa.Float(), nullable=False, server_default='0.0'),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('sku')
     )
     op.create_index(op.f('ix_materials_id'), 'materials', ['id'], unique=False)
+    op.create_index(op.f('ix_materials_sku'), 'materials', ['sku'], unique=True)
+    op.create_index(op.f('ix_materials_category'), 'materials', ['category'], unique=False)
 
     # material_usages table
     op.create_table(
@@ -186,10 +189,10 @@ def upgrade() -> None:
         sa.Column('quantity', sa.Float(), nullable=False),
         sa.Column('unit_price', sa.Float(), nullable=False),
         sa.Column('total_cost', sa.Float(), nullable=False),
-        sa.Column('used_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.Column('remarks', sa.String(length=255), nullable=True),
-        sa.ForeignKeyConstraint(['cleaning_task_id'], ['cleaning_tasks.id'], ondelete='SET NULL'),
-        sa.ForeignKeyConstraint(['maintenance_order_id'], ['maintenance_orders.id'], ondelete='SET NULL'),
+        sa.Column('remarks', sa.String(length=500), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+        sa.ForeignKeyConstraint(['cleaning_task_id'], ['cleaning_tasks.id'], ),
+        sa.ForeignKeyConstraint(['maintenance_order_id'], ['maintenance_orders.id'], ),
         sa.ForeignKeyConstraint(['material_id'], ['materials.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
@@ -199,20 +202,19 @@ def upgrade() -> None:
     op.create_table(
         'attachments',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('filename', sa.String(length=255), nullable=False),
+        sa.Column('cleaning_task_id', sa.Integer(), nullable=True),
+        sa.Column('maintenance_order_id', sa.Integer(), nullable=True),
+        sa.Column('uploaded_by', sa.Integer(), nullable=False),
+        sa.Column('object_name', sa.String(length=255), nullable=False),
         sa.Column('original_filename', sa.String(length=255), nullable=False),
         sa.Column('content_type', sa.String(length=100), nullable=True),
         sa.Column('file_size', sa.Integer(), nullable=True),
-        sa.Column('storage_path', sa.String(length=500), nullable=False),
-        sa.Column('type', sa.Enum('image', 'document', 'other', name='attachmenttype'), nullable=False, server_default='image'),
-        sa.Column('purpose', sa.Enum('cleaning_before', 'cleaning_after', 'maintenance_before', 'maintenance_after', 'inspection', 'other', name='attachmentpurpose'), nullable=False, server_default='other'),
-        sa.Column('cleaning_task_id', sa.Integer(), nullable=True),
-        sa.Column('maintenance_order_id', sa.Integer(), nullable=True),
-        sa.Column('uploaded_by', sa.Integer(), nullable=True),
+        sa.Column('attachment_type', sa.Enum('image', 'document', 'video', 'other', name='attachmenttype'), nullable=True, server_default='image'),
+        sa.Column('purpose', sa.Enum('before_cleaning', 'after_cleaning', 'maintenance_before', 'maintenance_after', 'inspection', 'other', name='attachmentpurpose'), nullable=True, server_default='other'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-        sa.ForeignKeyConstraint(['cleaning_task_id'], ['cleaning_tasks.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['maintenance_order_id'], ['maintenance_orders.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['uploaded_by'], ['users.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['cleaning_task_id'], ['cleaning_tasks.id'], ),
+        sa.ForeignKeyConstraint(['maintenance_order_id'], ['maintenance_orders.id'], ),
+        sa.ForeignKeyConstraint(['uploaded_by'], ['users.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_attachments_id'), 'attachments', ['id'], unique=False)
@@ -223,22 +225,21 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('title', sa.String(length=200), nullable=False),
-        sa.Column('content', sa.Text(), nullable=True),
-        sa.Column('type', sa.String(length=50), nullable=True),
+        sa.Column('content', sa.String(length=1000), nullable=True),
+        sa.Column('notification_type', sa.String(length=50), nullable=True),
         sa.Column('related_id', sa.Integer(), nullable=True),
-        sa.Column('related_type', sa.String(length=50), nullable=True),
-        sa.Column('is_read', sa.Boolean(), nullable=True, server_default=sa.text('false')),
+        sa.Column('is_read', sa.Integer(), nullable=True, server_default='0'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_notifications_id'), 'notifications', ['id'], unique=False)
     op.create_index(op.f('ix_notifications_user_id'), 'notifications', ['user_id'], unique=False)
-    op.create_index(op.f('ix_notifications_is_read'), 'notifications', ['is_read'], unique=False)
+    op.create_index(op.f('ix_notifications_notification_type'), 'notifications', ['notification_type'], unique=False)
 
 
 def downgrade() -> None:
-    op.drop_index(op.f('ix_notifications_is_read'), table_name='notifications')
+    op.drop_index(op.f('ix_notifications_notification_type'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_user_id'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_id'), table_name='notifications')
     op.drop_table('notifications')
@@ -246,16 +247,18 @@ def downgrade() -> None:
     op.drop_table('attachments')
     op.drop_index(op.f('ix_material_usages_id'), table_name='material_usages')
     op.drop_table('material_usages')
+    op.drop_index(op.f('ix_materials_category'), table_name='materials')
+    op.drop_index(op.f('ix_materials_sku'), table_name='materials')
     op.drop_index(op.f('ix_materials_id'), table_name='materials')
     op.drop_table('materials')
-    op.drop_index(op.f('ix_maintenance_orders_technician_id'), table_name='maintenance_orders')
+    op.drop_index(op.f('ix_maintenance_orders_order_no'), table_name='maintenance_orders')
     op.drop_index(op.f('ix_maintenance_orders_status'), table_name='maintenance_orders')
     op.drop_index(op.f('ix_maintenance_orders_id'), table_name='maintenance_orders')
     op.drop_table('maintenance_orders')
     op.drop_index(op.f('ix_room_statuses_date'), table_name='room_statuses')
     op.drop_index(op.f('ix_room_statuses_id'), table_name='room_statuses')
     op.drop_table('room_statuses')
-    op.drop_index(op.f('ix_cleaning_tasks_scheduled_time'), table_name='cleaning_tasks')
+    op.drop_index(op.f('ix_cleaning_tasks_task_no'), table_name='cleaning_tasks')
     op.drop_index(op.f('ix_cleaning_tasks_cleaner_id'), table_name='cleaning_tasks')
     op.drop_index(op.f('ix_cleaning_tasks_status'), table_name='cleaning_tasks')
     op.drop_index(op.f('ix_cleaning_tasks_id'), table_name='cleaning_tasks')

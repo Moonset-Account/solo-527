@@ -22,7 +22,7 @@ from app.core.logging import logger
 router = APIRouter(prefix="/api/maintenance-orders", tags=["维修工单"])
 
 
-@router.get("", response_model=PaginatedResponse[MaintenanceOrderResponse])
+@router.get("", response_model=ApiResponse[PaginatedResponse[MaintenanceOrderResponse]])
 def get_maintenance_orders(
     status: Optional[MaintenanceOrderStatus] = None,
     property_id: Optional[int] = None,
@@ -65,12 +65,12 @@ def get_maintenance_orders(
     total = query.count()
     orders = query.order_by(MaintenanceOrder.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[MaintenanceOrderResponse.model_validate(o) for o in orders],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.get("/{order_id}", response_model=ApiResponse[MaintenanceOrderResponse])

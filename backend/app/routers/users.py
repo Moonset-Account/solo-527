@@ -13,7 +13,7 @@ from app.core.logging import logger
 router = APIRouter(prefix="/api/users", tags=["用户管理"])
 
 
-@router.get("", response_model=PaginatedResponse[UserResponse])
+@router.get("", response_model=ApiResponse[PaginatedResponse[UserResponse]])
 def get_users(
     role: Optional[UserRole] = None,
     is_active: Optional[bool] = None,
@@ -34,12 +34,12 @@ def get_users(
     total = query.count()
     users = query.order_by(User.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
 
-    return PaginatedResponse(
+    return ApiResponse(data=PaginatedResponse(
         data=[UserResponse.model_validate(u) for u in users],
         total=total,
         page=page,
         page_size=page_size
-    )
+    ))
 
 
 @router.get("/cleaners", response_model=ApiResponse[List[UserResponse]])
