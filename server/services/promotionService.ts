@@ -48,15 +48,21 @@ async function getCategoryStats(
   filters: FilterParams,
   isBefore: boolean
 ) {
-  const days = 7;
-  const periodStart = new Date(startDate);
+  let periodStart: Date;
+  let periodEnd: Date;
+
   if (isBefore) {
-    periodStart.setDate(periodStart.getDate() - days);
-  }
-  const periodEnd = new Date(startDate);
-  if (isBefore) {
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    periodEnd = new Date(startDate);
     periodEnd.setDate(periodEnd.getDate() - 1);
+    periodStart = new Date(periodEnd);
+    periodStart.setDate(periodStart.getDate() - daysDiff);
+  } else {
+    periodStart = new Date(startDate);
+    periodEnd = new Date(endDate);
   }
+
+  const days = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   const inventoryWhere: any = {
     receiveDate: { gte: periodStart, lte: periodEnd },
@@ -88,7 +94,11 @@ async function getCategoryStats(
   }
 
   const promoWhere: any = {
-    startDate: { gte: periodStart, lte: periodEnd },
+    OR: [
+      { startDate: { gte: periodStart, lte: periodEnd } },
+      { endDate: { gte: periodStart, lte: periodEnd } },
+      { AND: [{ startDate: { lte: periodStart } }, { endDate: { gte: periodEnd } }] },
+    ],
     inventory: { product: { categoryId } },
   };
   if (filters.storeIds?.length) {
