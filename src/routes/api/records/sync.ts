@@ -9,6 +9,25 @@ export async function POST({ request }: APIEvent) {
   const body = await request.json();
   const { records, guardName } = body;
 
+  if (!guardName || !guardName.trim()) {
+    return Response.json({ error: "保安姓名不能为空" }, { status: 400 });
+  }
+
+  for (const record of records) {
+    if (record.isManual && (!record.remark || !record.remark.trim())) {
+      return Response.json(
+        { error: `记录 ${record.id}: 人工放行必须填写原因` },
+        { status: 400 }
+      );
+    }
+    if (!record.guardName && !guardName) {
+      return Response.json(
+        { error: `记录 ${record.id}: 保安姓名不能为空` },
+        { status: 400 }
+      );
+    }
+  }
+
   const results: any[] = [];
 
   for (const record of records) {

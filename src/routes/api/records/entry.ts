@@ -11,6 +11,14 @@ export async function POST({ request }: APIEvent) {
 
   const { qrCode, plateNumber, guardName, isManual = false, remark = "", isOffline = false } = body;
 
+  if (!guardName || !guardName.trim()) {
+    return Response.json({ error: "保安姓名不能为空" }, { status: 400 });
+  }
+
+  if (isManual && (!remark || !remark.trim())) {
+    return Response.json({ error: "人工放行必须填写原因" }, { status: 400 });
+  }
+
   const blacklistCheck = checkBlacklist(plateNumber || "");
   if (blacklistCheck.blocked) {
     writeAuditLog(
