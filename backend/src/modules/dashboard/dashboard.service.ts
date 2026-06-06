@@ -6,7 +6,7 @@ import { Quote } from '../../entities/quote.entity';
 import { Contract } from '../../entities/contract.entity';
 import { Supplier } from '../../entities/supplier.entity';
 import { User } from '../../entities/user.entity';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class DashboardService {

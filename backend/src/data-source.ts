@@ -1,6 +1,14 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
+import { User } from './entities/user.entity';
+import { Demand } from './entities/demand.entity';
+import { Quote } from './entities/quote.entity';
+import { QuoteItem } from './entities/quote-item.entity';
+import { Supplier } from './entities/supplier.entity';
+import { Contract } from './entities/contract.entity';
+import { ApprovalLog } from './entities/approval-log.entity';
+import { PaymentNode } from './entities/payment-node.entity';
 
 dotenv.config();
 
@@ -11,9 +19,18 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'travel_quote',
-  synchronize: true,
-  logging: false,
-  entities: [__dirname + '/entities/**/*.entity{.ts,.js}'],
+  synchronize: false,
+  logging: process.env.NODE_ENV === 'development',
+  entities: [
+    User,
+    Demand,
+    Quote,
+    QuoteItem,
+    Supplier,
+    Contract,
+    ApprovalLog,
+    PaymentNode,
+  ],
   migrations: [__dirname + '/../migrations/**/*{.ts,.js}'],
   subscribers: [],
 });

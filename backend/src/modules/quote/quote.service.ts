@@ -132,23 +132,19 @@ export class QuoteService {
     const savedQuote = await this.quoteRepository.save(quote);
 
     if (items.length > 0) {
-      const quoteItems = items.map((item) =>
-        this.quoteItemRepository.create({
-          ...item,
-          quoteId: savedQuote.id,
-        }),
-      );
+      const quoteItems = items.map((item) => ({
+        ...item,
+        quoteId: savedQuote.id,
+      }));
       await this.quoteItemRepository.save(quoteItems);
     }
 
     if (paymentNodes.length > 0) {
-      const nodes = paymentNodes.map((node) =>
-        this.paymentNodeRepository.create({
-          ...node,
-          quoteId: savedQuote.id,
-          amount: (Number(node.percentage) / 100) * totalPrice,
-        }),
-      );
+      const nodes = paymentNodes.map((node) => ({
+        ...node,
+        quoteId: savedQuote.id,
+        amount: (Number(node.percentage) / 100) * totalPrice,
+      }));
       await this.paymentNodeRepository.save(nodes);
     }
 
@@ -193,10 +189,10 @@ export class QuoteService {
     if (items.length > 0) {
       const quoteItems = items.map((item) => {
         const { id: _, ...itemData } = item;
-        return this.quoteItemRepository.create({
+        return {
           ...itemData,
           quoteId: savedQuote.id,
-        });
+        };
       });
       await this.quoteItemRepository.save(quoteItems);
     }
@@ -204,11 +200,11 @@ export class QuoteService {
     if (paymentNodes.length > 0) {
       const nodes = paymentNodes.map((node) => {
         const { id: _, ...nodeData } = node;
-        return this.paymentNodeRepository.create({
+        return {
           ...nodeData,
           quoteId: savedQuote.id,
           amount: (Number(nodeData.percentage) / 100) * totalPrice,
-        });
+        };
       });
       await this.paymentNodeRepository.save(nodes);
     }

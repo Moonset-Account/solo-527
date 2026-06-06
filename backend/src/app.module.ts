@@ -8,6 +8,7 @@ import { SupplierModule } from './modules/supplier/supplier.module';
 import { ContractModule } from './modules/contract/contract.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { ExportModule } from './modules/export/export.module';
 import { QueueModule } from './queues/queue.module';
 import { StorageModule } from './storage/storage.module';
 import { User } from './entities/user.entity';
@@ -30,7 +31,8 @@ import { PaymentNode } from './entities/payment-node.entity';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'travel_quote',
       entities: [User, Demand, Quote, QuoteItem, Supplier, Contract, ApprovalLog, PaymentNode],
-      synchronize: true,
+      synchronize: false,
+      migrationsRun: false,
       logging: false,
     }),
     QueueModule,
@@ -42,6 +44,7 @@ import { PaymentNode } from './entities/payment-node.entity';
     ContractModule,
     DashboardModule,
     FinanceModule,
+    ExportModule,
   ],
 })
 export class AppModule {}

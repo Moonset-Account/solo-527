@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Quote } from '../../entities/quote.entity';
 import { PaymentNode } from '../../entities/payment-node.entity';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class FinanceService {

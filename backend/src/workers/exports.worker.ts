@@ -3,6 +3,10 @@ import * as dotenv from 'dotenv';
 import { Logger } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import * as Minio from 'minio';
+import { DataSource } from 'typeorm';
+import { AppDataSource } from '../data-source';
+import { Quote } from '../entities/quote.entity';
+import { Demand } from '../entities/demand.entity';
 import { ExportData } from '../queues/export.queue.service';
 
 dotenv.config();
@@ -10,6 +14,7 @@ dotenv.config();
 const logger = new Logger('ExportWorker');
 
 let storageClient: Minio.Client;
+let dataSource: DataSource;
 
 function initStorage() {
   storageClient = new Minio.Client({
@@ -21,6 +26,15 @@ function initStorage() {
   });
 }
 
+async function initDatabase() {
+  if (!AppDataSource.isInitialized) {
+    dataSource = await AppDataSource.initialize();
+    logger.log('Database initialized for export worker');
+  } else {
+    dataSource = AppDataSource;
+  }
+}
+
 async function uploadBuffer(buffer: Buffer, objectName: string, contentType: string): Promise<string> {
   const bucketName = process.env.MINIO_BUCKET || 'travel-quote';
   try {
@@ -29,12 +43,19 @@ async function uploadBuffer(buffer: Buffer, objectName: string, contentType: str
     });
     const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
     const port = process.env.MINIO_PORT || '9000';
-    return `http://${endpoint}:${port}/${bucketName}/${objectName}`;
+    const protocol = process.env.MINIO_USE_SSL === 'true' ? 'https' : 'http';
+    return `${protocol}://${endpoint}:${port}/${bucketName}/${objectName}`;
   } catch (error) {
     logger.warn('Storage upload failed, returning local path');
     return `/uploads/${objectName}`;
   }
 }
+
+const connectionConfig = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD || undefined,
+};
 
 const worker = new Worker(
   'export-queue',
@@ -42,6 +63,7 @@ const worker = new Worker(
     logger.log(`Processing export job ${job.id}: ${job.data.type}`);
 
     try {
+      await initDatabase();
       job.updateProgress(10);
 
       let fileUrl = '';
@@ -80,61 +102,118 @@ const worker = new Worker(
     }
   },
   {
-    connection: {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD || undefined,
-    },
+    connection: connectionConfig,
     concurrency: 2,
   },
 );
 
 async function generateProfitReport(data: ExportData, objectName: string): Promise<string> {
-  const csvContent = [
-    '月份,营收,成本,利润,毛利率',
-    '2024-01,100000,70000,30000,30%',
-    '2024-02,120000,80000,40000,33.33%',
-    '2024-03,95000,68000,27000,28.42%',
-    '2024-04,150000,100000,50000,33.33%',
-    '2024-05,130000,85000,45000,34.62%',
-  ].join('\n');
+  const quoteRepo = dataSource.getRepository(Quote);
+  const quotes = await quoteRepo.find({
+    where: { status: 'approved' as any },
+    relations: ['demand', 'createdBy'],
+    order: { createdAt: 'DESC' },
+  });
 
-  const buffer = Buffer.from(csvContent, 'utf-8');
-  return uploadBuffer(buffer, objectName, 'text/csv');
+  const headers = ['报价ID', '客户姓名', '创建人', '营收(元)', '成本(元)', '利润(元)', '毛利率(%)', '创建时间'];
+  const rows = quotes.map((q) => [
+    q.id.slice(0, 8),
+    q.demand?.customerName || '-',
+    q.createdBy?.name || '-',
+    Number(q.totalPrice).toFixed(2),
+    Number(q.totalCost).toFixed(2),
+    (Number(q.totalPrice) - Number(q.totalCost)).toFixed(2),
+    Number(q.profitMargin).toFixed(2),
+    new Date(q.createdAt).toLocaleString('zh-CN'),
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
+  return uploadBuffer(buffer, objectName, 'text/csv; charset=utf-8');
 }
 
 async function generateDemandList(data: ExportData, objectName: string): Promise<string> {
-  const csvContent = [
-    '客户姓名,电话,出行日期,天数,人数,状态,创建时间',
-    '张三,13800000001,2024-01-15,5,3,已报价,2024-01-10',
-    '李四,13800000002,2024-02-01,7,5,待确认,2024-01-15',
-    '王五,13800000003,2024-03-10,4,2,处理中,2024-02-20',
-  ].join('\n');
+  const demandRepo = dataSource.getRepository(Demand);
+  const demands = await demandRepo.find({
+    relations: ['assignee'],
+    order: { createdAt: 'DESC' },
+    take: 100,
+  });
 
-  const buffer = Buffer.from(csvContent, 'utf-8');
-  return uploadBuffer(buffer, objectName, 'text/csv');
+  const headers = ['需求ID', '客户姓名', '联系电话', '出发日期', '返程日期', '天数', '人数', '成人', '儿童', '状态', '负责人', '创建时间'];
+  const statusMap: Record<string, string> = {
+    pending: '待处理',
+    processing: '处理中',
+    quoted: '已报价',
+    confirmed: '已确认',
+    cancelled: '已取消',
+  };
+
+  const rows = demands.map((d) => [
+    d.id.slice(0, 8),
+    d.customerName,
+    d.customerPhone,
+    d.travelStart,
+    d.travelEnd,
+    d.days,
+    d.peopleCount,
+    d.adultCount,
+    d.childCount,
+    statusMap[d.status] || d.status,
+    d.assignee?.name || '-',
+    new Date(d.createdAt).toLocaleString('zh-CN'),
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
+  return uploadBuffer(buffer, objectName, 'text/csv; charset=utf-8');
 }
 
 async function generateQuoteList(data: ExportData, objectName: string): Promise<string> {
-  const csvContent = [
-    '报价单号,客户,总金额,成本,毛利,毛利率,状态,创建时间',
-    'Q001,张三,15000,10500,4500,30%,已通过,2024-01-12',
-    'Q002,李四,28000,20000,8000,28.57%,待审批,2024-01-18',
-  ].join('\n');
+  const quoteRepo = dataSource.getRepository(Quote);
+  const quotes = await quoteRepo.find({
+    relations: ['demand', 'createdBy', 'items'],
+    order: { createdAt: 'DESC' },
+    take: 100,
+  });
 
-  const buffer = Buffer.from(csvContent, 'utf-8');
-  return uploadBuffer(buffer, objectName, 'text/csv');
+  const headers = ['报价ID', '版本', '客户姓名', '报价项数', '总金额(元)', '总成本(元)', '利润(元)', '毛利率(%)', '需主管审批', '状态', '创建人', '创建时间'];
+  const statusMap: Record<string, string> = {
+    draft: '草稿',
+    pending_approval: '待审批',
+    approved: '已通过',
+    rejected: '已拒绝',
+    sent: '已发送',
+  };
+
+  const rows = quotes.map((q) => [
+    q.id.slice(0, 8),
+    `v${q.version}`,
+    q.demand?.customerName || '-',
+    q.items?.length || 0,
+    Number(q.totalPrice).toFixed(2),
+    Number(q.totalCost).toFixed(2),
+    (Number(q.totalPrice) - Number(q.totalCost)).toFixed(2),
+    Number(q.profitMargin).toFixed(2),
+    q.requiresManagerApproval ? '是' : '否',
+    statusMap[q.status] || q.status,
+    q.createdBy?.name || '-',
+    new Date(q.createdAt).toLocaleString('zh-CN'),
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
+  return uploadBuffer(buffer, objectName, 'text/csv; charset=utf-8');
 }
 
 async function generateContractList(data: ExportData, objectName: string): Promise<string> {
   const csvContent = [
-    '合同编号,客户,金额,状态,创建时间,签署时间',
-    'C001,张三,15000,已签署,2024-01-15,2024-01-16',
-    'C002,李四,28000,待签署,2024-01-20,-',
+    '合同ID,关联报价,客户姓名,金额(元),状态,创建时间',
+    'C001,Q001,张三,15000.00,已签署,2024-01-15 10:30:00',
+    'C002,Q002,李四,28000.00,待签署,2024-01-20 14:20:00',
   ].join('\n');
-
-  const buffer = Buffer.from(csvContent, 'utf-8');
-  return uploadBuffer(buffer, objectName, 'text/csv');
+  const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
+  return uploadBuffer(buffer, objectName, 'text/csv; charset=utf-8');
 }
 
 worker.on('completed', (job) => {
@@ -151,6 +230,9 @@ worker.on('error', (err) => {
 
 process.on('SIGINT', async () => {
   logger.log('Stopping export worker...');
+  if (dataSource && dataSource.isInitialized) {
+    await dataSource.destroy();
+  }
   await worker.close();
   process.exit(0);
 });
