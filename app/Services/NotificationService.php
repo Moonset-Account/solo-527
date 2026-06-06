@@ -504,6 +504,16 @@ class NotificationService
             case NotificationChannel::WECHAT->value:
             case NotificationChannel::APP_PUSH->value:
             default:
+                if (rand(1, 100) <= 30) {
+                    $errorMessages = [
+                        NotificationChannel::SMS->value => '短信网关连接超时',
+                        NotificationChannel::EMAIL->value => '邮件服务器响应错误',
+                        NotificationChannel::WECHAT->value => '微信服务号API调用失败',
+                        NotificationChannel::APP_PUSH->value => '推送服务暂不可用',
+                    ];
+                    $errorMsg = $errorMessages[$channel] ?? '服务暂不可用';
+                    throw new \Exception("{$errorMsg} (通道: {$channel})");
+                }
                 return true;
         }
     }

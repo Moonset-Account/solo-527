@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('max_retries')->default(3);
             $table->text('error_message')->nullable();
             $table->dateTime('sent_at')->nullable();
+            $table->dateTime('read_at')->nullable();
             $table->dateTime('last_retry_at')->nullable();
             $table->dateTime('next_retry_at')->nullable();
             $table->foreignId('related_booking_id')->nullable()->constrained('bookings')->onDelete('set null');

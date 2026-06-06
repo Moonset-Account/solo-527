@@ -73,25 +73,27 @@ class DatabaseSeeder extends Seeder
         $package4 = $this->createCoursePackage($member3, $courseTypes[2], '康复训练私教课15节', 15, 350);
 
         $this->command->info('场景1: 创建正常预约');
+        $bookingDate1 = $this->getNextWeekday(Carbon::now(), 2)->setTime(10, 0, 0);
         $booking1 = $this->bookingService->createBooking([
             'member_id' => $member1->id,
             'coach_id' => $coach1->id,
             'course_type_id' => $courseTypes[0]->id,
             'package_id' => $package1->id,
-            'start_time' => Carbon::now()->addDays(2)->setTime(10, 0, 0),
+            'start_time' => $bookingDate1,
             'notes' => '希望侧重腹部训练',
         ], $frontdeskUser->id);
-        $this->command->info("  - 预约1创建成功: #{$booking1->id}");
+        $this->command->info("  - 预约1创建成功: #{$booking1->id} ({$bookingDate1->format('Y-m-d H:i')})");
 
+        $bookingDate2 = $this->getNextWeekday(Carbon::now(), 2)->setTime(14, 0, 0);
         $booking2 = $this->bookingService->createBooking([
             'member_id' => $member2->id,
             'coach_id' => $coach1->id,
             'course_type_id' => $courseTypes[1]->id,
             'package_id' => $package3->id,
-            'start_time' => Carbon::now()->addDays(2)->setTime(14, 0, 0),
+            'start_time' => $bookingDate2,
             'notes' => '腿部力量训练',
         ], $frontdeskUser->id);
-        $this->command->info("  - 预约2创建成功: #{$booking2->id}");
+        $this->command->info("  - 预约2创建成功: #{$booking2->id} ({$bookingDate2->format('Y-m-d H:i')})");
 
         $this->command->info('场景2: 预约冲突 - 同一时段重复预约');
         try {
@@ -100,7 +102,7 @@ class DatabaseSeeder extends Seeder
                 'coach_id' => $coach1->id,
                 'course_type_id' => $courseTypes[0]->id,
                 'package_id' => $package4->id,
-                'start_time' => Carbon::now()->addDays(2)->setTime(10, 0, 0),
+                'start_time' => $bookingDate1,
                 'notes' => '测试冲突',
             ], $frontdeskUser->id);
         } catch (\Exception $e) {
@@ -108,27 +110,31 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('场景3: 会员签到');
+        $pastDate1 = $this->getPreviousWeekday(Carbon::now(), 1)->setTime(9, 0, 0);
         $booking3 = $this->bookingService->createBooking([
             'member_id' => $member1->id,
             'coach_id' => $coach1->id,
             'course_type_id' => $courseTypes[0]->id,
             'package_id' => $package1->id,
-            'start_time' => Carbon::now()->subHour()->setTime(9, 0, 0),
+            'start_time' => $pastDate1,
             'notes' => '已完成的课程',
         ], $frontdeskUser->id);
+        $this->command->info("  - 预约3创建成功: #{$booking3->id} ({$pastDate1->format('Y-m-d H:i')})");
 
         $attendance1 = $this->attendanceService->memberSelfCheckIn($booking3->id, $member1->id);
         $this->command->info("  - 签到成功: 会员 {$member1->user->name} 完成签到");
 
         $this->command->info('场景4: 教练代签到，需要主管复核');
+        $pastDate2 = $this->getPreviousWeekday(Carbon::now(), 1)->setTime(14, 0, 0);
         $booking4 = $this->bookingService->createBooking([
             'member_id' => $member2->id,
             'coach_id' => $coach2->id,
             'course_type_id' => $courseTypes[1]->id,
             'package_id' => $package3->id,
-            'start_time' => Carbon::now()->subHours(2)->setTime(14, 0, 0),
+            'start_time' => $pastDate2,
             'notes' => '教练代签课程',
         ], $frontdeskUser->id);
+        $this->command->info("  - 预约4创建成功: #{$booking4->id} ({$pastDate2->format('Y-m-d H:i')})");
 
         $attendance2 = $this->attendanceService->coachSign($booking4->id, $coach2User->id, '会员按时到课，训练认真');
         $this->command->info("  - 教练代签成功，状态为待复核: #{$attendance2->id}");
@@ -138,14 +144,16 @@ class DatabaseSeeder extends Seeder
         $this->command->info("  - 主管批准代签成功");
 
         $this->command->info('场景6: 请假申请 - 提交、撤回、重新提交、最终批准');
+        $bookingDate5 = $this->getNextWeekday(Carbon::now(), 5)->setTime(16, 0, 0);
         $booking5 = $this->bookingService->createBooking([
             'member_id' => $member3->id,
             'coach_id' => $coach2->id,
             'course_type_id' => $courseTypes[2]->id,
             'package_id' => $package4->id,
-            'start_time' => Carbon::now()->addDays(5)->setTime(16, 0, 0),
+            'start_time' => $bookingDate5,
             'notes' => '康复训练课',
         ], $frontdeskUser->id);
+        $this->command->info("  - 预约5创建成功: #{$booking5->id} ({$bookingDate5->format('Y-m-d H:i')})");
 
         $leave1 = $this->leaveRequestService->createRequest([
             'booking_id' => $booking5->id,
@@ -191,16 +199,18 @@ class DatabaseSeeder extends Seeder
         $this->command->info("  - 退款已完成，已调整教练课时和会员余额");
 
         $this->command->info('场景9: 取消预约 - 超期扣课时');
+        $bookingDate6 = $this->getNextWeekday(Carbon::now(), 1)->setTime(11, 0, 0);
         $booking6 = $this->bookingService->createBooking([
             'member_id' => $member1->id,
             'coach_id' => $coach1->id,
             'course_type_id' => $courseTypes[0]->id,
             'package_id' => $package1->id,
-            'start_time' => Carbon::now()->addHours(12),
+            'start_time' => $bookingDate6,
             'notes' => '测试超期取消',
         ], $frontdeskUser->id);
+        $this->command->info("  - 预约6创建成功: #{$booking6->id} ({$bookingDate6->format('Y-m-d H:i')})");
 
-        $booking6->cancellation_deadline_hours = 24;
+        $booking6->cancellation_deadline_hours = 168;
         $booking6->save();
 
         $balanceBefore = $package1->remaining_lessons;
@@ -228,6 +238,32 @@ class DatabaseSeeder extends Seeder
         $this->command->info("教练账号: coach1@example.com, coach2@example.com / password");
         $this->command->info("会员账号: member1@example.com, member2@example.com, member3@example.com / password");
         $this->command->info('========================================');
+    }
+
+    protected function getNextWeekday($fromDate, $days = 1)
+    {
+        $date = $fromDate->copy();
+        $count = 0;
+        while ($count < $days) {
+            $date->addDay();
+            if ($date->dayOfWeek >= 1 && $date->dayOfWeek <= 5) {
+                $count++;
+            }
+        }
+        return $date;
+    }
+
+    protected function getPreviousWeekday($fromDate, $days = 1)
+    {
+        $date = $fromDate->copy();
+        $count = 0;
+        while ($count < $days) {
+            $date->subDay();
+            if ($date->dayOfWeek >= 1 && $date->dayOfWeek <= 5) {
+                $count++;
+            }
+        }
+        return $date;
     }
 
     protected function createAdmin()
