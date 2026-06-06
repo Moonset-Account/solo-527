@@ -20,7 +20,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -33,7 +33,7 @@ spring:
     locations: classpath:db/migration
 
 jwt:
-  secret: gym-management-secret-key-for-jwt-token-generation-2024
+  secret: gym-management-secret-key-for-jwt-token-generation-2024-very-long-secret-key-that-is-at-least-64-bytes-for-hs512-algorithm
   expiration: 86400000
 
 logging:

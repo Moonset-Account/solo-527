@@ -139,13 +139,14 @@ CREATE TABLE bookings (
     member_id BIGINT NOT NULL,
     member_package_id BIGINT,
     coach_id BIGINT,
-    group_id BIGINT,
+    group_class_id BIGINT,
     booking_type VARCHAR(20) NOT NULL,
     booking_date DATE NOT NULL,
     start_time VARCHAR(10) NOT NULL,
     end_time VARCHAR(10) NOT NULL,
     status VARCHAR(20) DEFAULT 'BOOKED',
     check_in_time TIMESTAMP,
+    check_out_time TIMESTAMP,
     remark TEXT,
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
@@ -154,7 +155,7 @@ CREATE TABLE bookings (
     FOREIGN KEY (member_id) REFERENCES members(id),
     FOREIGN KEY (member_package_id) REFERENCES member_packages(id),
     FOREIGN KEY (coach_id) REFERENCES coaches(id),
-    FOREIGN KEY (group_id) REFERENCES group_classes(id)
+    FOREIGN KEY (group_class_id) REFERENCES group_classes(id)
 );
 
 CREATE INDEX idx_bookings_booking_no ON bookings(booking_no);
@@ -236,33 +237,46 @@ CREATE INDEX idx_notifications_type ON notifications(type);
 -- 审计日志表
 CREATE TABLE audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    target_type VARCHAR(50) NOT NULL,
+    log_no VARCHAR(50) NOT NULL UNIQUE,
+    user_id BIGINT,
+    username VARCHAR(50),
+    operation VARCHAR(100) NOT NULL,
+    module VARCHAR(50) NOT NULL,
     target_id BIGINT,
-    action VARCHAR(50) NOT NULL,
-    operator VARCHAR(100) NOT NULL,
-    detail TEXT,
+    target_type VARCHAR(50),
+    old_value TEXT,
+    new_value TEXT,
+    ip_address VARCHAR(50),
+    user_agent VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_audit_logs_target ON audit_logs(target_type, target_id);
-CREATE INDEX idx_audit_logs_operator ON audit_logs(operator);
+CREATE INDEX idx_audit_logs_username ON audit_logs(username);
+CREATE INDEX idx_audit_logs_module ON audit_logs(module);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
 
 -- 续费记录表
 CREATE TABLE renewals (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    renewal_no VARCHAR(50) NOT NULL UNIQUE,
     member_id BIGINT NOT NULL,
     old_package_id BIGINT,
     new_package_id BIGINT NOT NULL,
+    coach_id BIGINT,
     renewal_date DATE NOT NULL,
-    price DECIMAL(10,2),
+    amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'COMPLETED',
     remark TEXT,
     created_by VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (member_id) REFERENCES members(id),
     FOREIGN KEY (old_package_id) REFERENCES member_packages(id),
-    FOREIGN KEY (new_package_id) REFERENCES member_packages(id)
+    FOREIGN KEY (new_package_id) REFERENCES member_packages(id),
+    FOREIGN KEY (coach_id) REFERENCES coaches(id)
 );
 
 CREATE INDEX idx_renewals_member_id ON renewals(member_id);
+CREATE INDEX idx_renewals_coach_id ON renewals(coach_id);
 CREATE INDEX idx_renewals_renewal_date ON renewals(renewal_date);
+CREATE INDEX idx_renewals_status ON renewals(status);

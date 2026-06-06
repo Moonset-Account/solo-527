@@ -13,10 +13,10 @@ import java.time.LocalDate;
 public interface DashboardRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT COUNT(b) FROM Booking b WHERE " +
+           "(:status IS NULL OR b.status = :status) AND " +
            "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
            "(:endDate IS NULL OR b.bookingDate <= :endDate) AND " +
-           "(:coachId IS NULL OR b.coachId = :coachId) AND " +
-           "(:status IS NULL OR b.status = :status)")
+           "(:coachId IS NULL OR b.coachId = :coachId)")
     long countBookings(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
@@ -58,6 +58,18 @@ public interface DashboardRepository extends JpaRepository<Booking, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("coachId") Long coachId);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.bookingType = :type AND " +
+           "b.status = :status AND " +
+           "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
+           "(:endDate IS NULL OR b.bookingDate <= :endDate) AND " +
+           "(:coachId IS NULL OR b.coachId = :coachId)")
+    long countBookingsByTypeAndStatus(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("coachId") Long coachId,
+            @Param("status") BookingStatus status,
+            @Param("type") String type);
 
     @Query("SELECT COUNT(g) FROM GroupClass g WHERE " +
            "(:startDate IS NULL OR g.classDate >= :startDate) AND " +

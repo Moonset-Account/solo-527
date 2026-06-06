@@ -30,11 +30,32 @@ public class DashboardService {
     public Map<String, Object> getDashboardStats(LocalDate startDate, LocalDate endDate, Long coachId, BookingStatus status) {
         Map<String, Object> stats = new HashMap<>();
 
+        boolean hasStatusFilter = status != null;
+
         long totalBookings = dashboardRepository.countBookings(startDate, endDate, coachId, status);
-        long completedBookings = dashboardRepository.countCompletedBookings(startDate, endDate, coachId);
-        long cancelledBookings = dashboardRepository.countCancelledBookings(startDate, endDate, coachId);
-        long privateBookings = dashboardRepository.countPrivateBookings(startDate, endDate, coachId);
-        long groupBookings = dashboardRepository.countGroupBookings(startDate, endDate, coachId);
+
+        long completedBookings;
+        long cancelledBookings;
+
+        if (hasStatusFilter) {
+            completedBookings = dashboardRepository.countBookings(startDate, endDate, coachId, status);
+            cancelledBookings = 0;
+        } else {
+            completedBookings = dashboardRepository.countCompletedBookings(startDate, endDate, coachId);
+            cancelledBookings = dashboardRepository.countCancelledBookings(startDate, endDate, coachId);
+        }
+
+        long privateBookings;
+        long groupBookings;
+
+        if (hasStatusFilter) {
+            privateBookings = countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "PRIVATE");
+            groupBookings = countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "GROUP");
+        } else {
+            privateBookings = dashboardRepository.countPrivateBookings(startDate, endDate, coachId);
+            groupBookings = dashboardRepository.countGroupBookings(startDate, endDate, coachId);
+        }
+
         long totalGroupClasses = dashboardRepository.countGroupClasses(startDate, endDate, coachId);
         long cancelledGroupClasses = dashboardRepository.countCancelledGroupClasses(startDate, endDate, coachId);
         long totalPackages = dashboardRepository.countMemberPackages(coachId);
@@ -46,7 +67,7 @@ public class DashboardService {
         stats.put("totalBookings", totalBookings);
         stats.put("completedBookings", completedBookings);
         stats.put("cancelledBookings", cancelledBookings);
-        stats.put("pendingBookings", totalBookings - completedBookings - cancelledBookings);
+        stats.put("pendingBookings", hasStatusFilter ? 0 : (totalBookings - completedBookings - cancelledBookings));
         stats.put("privateBookings", privateBookings);
         stats.put("groupBookings", groupBookings);
 
@@ -79,12 +100,17 @@ public class DashboardService {
 
         stats.put("newMemberCount", activeMembers);
         stats.put("totalActiveMembers", activeMembers);
-        stats.put("classUtilizationRate", totalGroupClasses > 0 ? 
+        stats.put("classUtilizationRate", totalGroupClasses > 0 ?
             BigDecimal.valueOf((totalGroupClasses - cancelledGroupClasses) * 100.0 / totalGroupClasses).setScale(1, RoundingMode.HALF_UP) + "%" : "0%");
         stats.put("expiringPackagesCount", expiringPackages);
         stats.put("lowSessionPackagesCount", lowSessionPackages);
+        stats.put("statusFilter", hasStatusFilter ? status.name() : null);
 
         return stats;
+    }
+
+    private long countBookingsByTypeAndStatus(LocalDate startDate, LocalDate endDate, Long coachId, BookingStatus status, String type) {
+        return dashboardRepository.countBookingsByTypeAndStatus(startDate, endDate, coachId, status, type);
     }
 
     private long countExpiringPackages(Long coachId) {
@@ -119,7 +145,7 @@ public class DashboardService {
 
     public List<Map<String, Object>> getCoachPerformance(Long coachId, LocalDate startDate, LocalDate endDate) {
         List<Map<String, Object>> performanceList = new ArrayList<>();
-        
+
         if (startDate == null) {
             startDate = LocalDate.now().withDayOfMonth(1);
         }
@@ -129,18 +155,18 @@ public class DashboardService {
 
         Map<String, Object> performance = new HashMap<>();
         performance.put("coachId", coachId);
-        
+
         long privateSessionCount = dashboardRepository.countCompletedPrivateBookings(coachId, startDate, endDate);
         long groupClassCount = dashboardRepository.countCoachGroupClasses(coachId, startDate, endDate);
         long totalMembers = dashboardRepository.countCoachMembers(coachId, startDate, endDate);
-        
+
         performance.put("privateSessionCount", privateSessionCount);
         performance.put("groupClassCount", groupClassCount);
         performance.put("totalMembers", totalMembers);
         performance.put("totalSessions", privateSessionCount + groupClassCount);
         performance.put("startDate", startDate.toString());
         performance.put("endDate", endDate.toString());
-        
+
         performanceList.add(performance);
         return performanceList;
     }
