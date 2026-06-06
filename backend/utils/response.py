@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, jsonify
 
 def paginate_query(query, page=None, per_page=None):
     if page is None:
@@ -23,10 +23,10 @@ def success_response(data=None, message='操作成功', code=200):
     response = {'code': code, 'message': message}
     if data is not None:
         response['data'] = data
-    return response, code
+    return jsonify(response)
 
 def error_response(message='操作失败', code=400, data=None):
     response = {'code': code, 'message': message}
     if data:
         response['data'] = data
-    return response, code
+    return jsonify(response), code

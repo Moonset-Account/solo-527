@@ -1,4 +1,4 @@
-import api from './index'
+import api, { downloadFile } from './index'
 
 export const getOrders = (params) => api.get('/orders', { params })
 export const getOrderDetail = (id) => api.get(`/orders/${id}`)
@@ -46,18 +46,10 @@ export const createUser = (data) => api.post('/users', data)
 export const updateUser = (id, data) => api.put(`/users/${id}`, data)
 export const deleteUser = (id) => api.delete(`/users/${id}`)
 
-export const exportOrders = (params) => {
-  window.open(`/api/exports/orders?${new URLSearchParams(params).toString()}`, '_blank')
-}
-export const exportSorting = (buildingId) => {
-  window.open(`/api/exports/sorting/${buildingId}`, '_blank')
-}
-export const exportRefunds = (params) => {
-  window.open(`/api/exports/refunds?${new URLSearchParams(params).toString()}`, '_blank')
-}
-export const exportShortages = (params) => {
-  window.open(`/api/exports/shortages?${new URLSearchParams(params).toString()}`, '_blank')
-}
+export const exportOrders = (params) => downloadFile('/exports/orders', params, `订单列表_${Date.now()}.xlsx`)
+export const exportSorting = (buildingId) => downloadFile(`/exports/sorting/${buildingId}`, {}, `分拣单_${Date.now()}.xlsx`)
+export const exportRefunds = (params) => downloadFile('/exports/refunds', params, `退款列表_${Date.now()}.xlsx`)
+export const exportShortages = (params) => downloadFile('/exports/shortages', params, `缺货列表_${Date.now()}.xlsx`)
 
 export const getSavedFilters = (params) => api.get('/filters', { params })
 export const saveFilter = (data) => api.post('/filters', data)
