@@ -26,6 +26,7 @@ class ImportTask(TimeStampedModel):
     success_rows = models.IntegerField(default=0, verbose_name='成功行数')
     failed_rows = models.IntegerField(default=0, verbose_name='失败行数')
     error_log = models.TextField(blank=True, verbose_name='错误日志')
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
 
     class Meta:
         verbose_name = '数据导入任务'
@@ -55,6 +56,8 @@ class ReportTask(TimeStampedModel):
     exclude_trial = models.BooleanField(default=False, verbose_name='排除试营原料')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='状态')
     file_path = models.CharField(max_length=255, blank=True, verbose_name='文件路径')
+    error_log = models.TextField(blank=True, verbose_name='错误日志')
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name='完成时间')
 
     class Meta:
         verbose_name = '报表导出任务'

@@ -10,7 +10,7 @@ from organization.models import Store
 from materials.models import Material
 from accounts.models import Staff, StaffShift
 from analytics.models import LossAggregation
-from django.db.models import Sum
+from django.db.models import Sum, Count, Avg
 from django.contrib.auth.models import User
 from accounts.models import UserProfile
 
@@ -248,11 +248,12 @@ def process_import_task(self, task_id):
                     shift_type_raw = safe_str(row.iloc[2]) if len(row) > 2 else 'all'
                     shift_type = SHIFT_MAP.get(shift_type_raw, 'all')
                     shift_date = pd.to_datetime(row.iloc[3]).date() if len(row) > 3 else datetime.now().date()
-                    start_time = safe_str(row.iloc[4], '09:00') if len(row) > 4 else '09:00'
-                    end_time = safe_str(row.iloc[5], '18:00') if len(row) > 5 else '18:00'
+                    start_time = safe_str(row.iloc[4], None) if len(row) > 4 else None
+                    end_time = safe_str(row.iloc[5], None) if len(row) > 5 else None
                     
                     StaffShift.objects.create(
                         staff=staff,
+                        store=store,
                         shift_type=shift_type,
                         shift_date=shift_date,
                         start_time=start_time,
@@ -269,7 +270,7 @@ def process_import_task(self, task_id):
         task.total_rows = total_rows
         task.success_rows = success_rows
         task.failed_rows = failed_rows
-        task.error_message = '\n'.join(error_details[:10]) if error_details else ''
+        task.error_log = '\n'.join(error_details[:10]) if error_details else ''
         task.completed_at = datetime.now()
         task.save()
         
@@ -283,7 +284,7 @@ def process_import_task(self, task_id):
     
     except Exception as e:
         task.status = 'failed'
-        task.error_message = str(e)
+        task.error_log = str(e)
         task.save()
         return {'status': 'failed', 'error': str(e)}
 
@@ -437,9 +438,38 @@ def generate_report_task(self, task_id):
                 
                 ws.append([store.name, round(total_loss, 2), round(total_use, 2), round(loss_rate, 2), is_abnormal])
         
-        elif report_type == 'store_comparison':
-            ws = wb.create_sheet('门店对比')
-            ws.append(['门店', '损耗金额(元)', '损耗率(%)', '异常状态', '门店等级'])
+        elif report_type == 'loss_detail':
+            ws = wb.create_sheet('损耗明细')
+            ws.append(['日期', '门店', '原料编码', '原料名称', '分类', '数量', '单价', '金额(元)', '原因', '班次', '是否试营'])
+            
+            wastage_qs = Wastage.objects.all()
+            if allowed_stores:
+                wastage_qs = wastage_qs.filter(store_id__in=allowed_stores)
+            if start_date and start_date != '全部':
+                wastage_qs = wastage_qs.filter(record_date__gte=start_date)
+            if end_date and end_date != '全部':
+                wastage_qs = wastage_qs.filter(record_date__lte=end_date)
+            if exclude_trial:
+                wastage_qs = wastage_qs.filter(material__is_trial=False)
+            
+            for w in wastage_qs.select_related('store', 'material', 'material__category').order_by('-record_date')[:5000]:
+                ws.append([
+                    w.record_date.strftime('%Y-%m-%d'),
+                    w.store.name,
+                    w.material.code,
+                    w.material.name,
+                    w.material.category.name if w.material.category else '',
+                    float(w.quantity),
+                    float(w.unit_price),
+                    float(w.total_amount),
+                    w.get_reason_display(),
+                    w.get_shift_display(),
+                    '是' if w.material.is_trial else '否'
+                ])
+        
+        elif report_type == 'store_ranking':
+            ws = wb.create_sheet('门店排行')
+            ws.append(['排名', '门店编码', '门店名称', '区域', '损耗金额(元)', '损耗率(%)', '异常状态', '门店等级'])
             
             store_query = Store.objects.all()
             if allowed_stores:
@@ -474,7 +504,9 @@ def generate_report_task(self, task_id):
                     grade = 'A - 优秀'
                 
                 store_data.append({
+                    'code': store.code,
                     'name': store.name,
+                    'region': store.region.name if store.region else '',
                     'loss': total_loss,
                     'rate': loss_rate,
                     'abnormal': is_abnormal,
@@ -482,12 +514,13 @@ def generate_report_task(self, task_id):
                 })
             
             store_data.sort(key=lambda x: x['rate'], reverse=True)
-            for s in store_data:
-                ws.append([s['name'], round(s['loss'], 2), round(s['rate'], 2), s['abnormal'], s['grade']])
+            for i, s in enumerate(store_data):
+                ws.append([i + 1, s['code'], s['name'], s['region'], 
+                          round(s['loss'], 2), round(s['rate'], 2), s['abnormal'], s['grade']])
         
-        elif report_type == 'material_ranking':
-            ws = wb.create_sheet('原料排行')
-            ws.append(['排名', '原料编码', '原料名称', '分类', '损耗金额(元)', '损耗占比(%)', '是否试营原料'])
+        elif report_type == 'material_analysis':
+            ws = wb.create_sheet('原料分析')
+            ws.append(['排名', '原料编码', '原料名称', '分类', '损耗金额(元)', '损耗占比(%)', '损耗次数', '平均单价(元)', '是否试营原料'])
             
             wastage_qs = Wastage.objects.all()
             if allowed_stores:
@@ -502,7 +535,9 @@ def generate_report_task(self, task_id):
             material_data = wastage_qs.values(
                 'material__code', 'material__name', 'material__category__name', 'material__is_trial'
             ).annotate(
-                total_loss=Sum('total_amount')
+                total_loss=Sum('total_amount'),
+                loss_count=Count('id'),
+                avg_price=Avg('unit_price')
             ).order_by('-total_loss')[:50]
             
             total_all = float(wastage_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 1)
@@ -517,35 +552,9 @@ def generate_report_task(self, task_id):
                     item['material__category__name'] or '',
                     round(loss_val, 2),
                     round(ratio, 2),
+                    item['loss_count'],
+                    round(float(item['avg_price'] or 0), 2),
                     '是' if item['material__is_trial'] else '否'
-                ])
-        
-        elif report_type == 'abnormal_details':
-            ws = wb.create_sheet('异常明细')
-            ws.append(['日期', '门店', '原料编码', '原料名称', '数量', '单价', '金额(元)', '原因', '班次', '是否试营'])
-            
-            wastage_qs = Wastage.objects.all()
-            if allowed_stores:
-                wastage_qs = wastage_qs.filter(store_id__in=allowed_stores)
-            if start_date and start_date != '全部':
-                wastage_qs = wastage_qs.filter(record_date__gte=start_date)
-            if end_date and end_date != '全部':
-                wastage_qs = wastage_qs.filter(record_date__lte=end_date)
-            if exclude_trial:
-                wastage_qs = wastage_qs.filter(material__is_trial=False)
-            
-            for w in wastage_qs.select_related('store', 'material').order_by('-record_date')[:5000]:
-                ws.append([
-                    w.record_date.strftime('%Y-%m-%d'),
-                    w.store.name,
-                    w.material.code,
-                    w.material.name,
-                    float(w.quantity),
-                    float(w.unit_price),
-                    float(w.total_amount),
-                    w.get_reason_display(),
-                    w.get_shift_display(),
-                    '是' if w.material.is_trial else '否'
                 ])
         
         else:
@@ -581,6 +590,6 @@ def generate_report_task(self, task_id):
     
     except Exception as e:
         task.status = 'failed'
-        task.error_message = str(e)
+        task.error_log = str(e)
         task.save()
         return {'status': 'failed', 'error': str(e)}

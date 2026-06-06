@@ -37,6 +37,8 @@
                     <option value="stocktake">盘点数据</option>
                     <option value="inventory">进货数据</option>
                     <option value="material_use">领用数据</option>
+                    <option value="sale">销量数据</option>
+                    <option value="staff_shift">员工班次</option>
                 </select>
             </div>
 
@@ -221,7 +223,7 @@ document.addEventListener('alpine:init', () => {
             },
 
             downloadTemplate() {
-                alert('模板下载功能开发中，可使用以下字段: 门店编码, 原料编码, 日期, 数量, 单价, 原因, 班次');
+                window.open(`/api/v1/import/template/?type=${this.importDataType}`, '_blank');
             },
 
             async loadImportTasks() {
