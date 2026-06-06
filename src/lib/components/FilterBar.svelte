@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { filters, greenhouses, sensors, batches } from '$lib/stores/appStore';
+  import { filters, greenhouses, sensors, batches, filteredReadings, readingStats } from '$lib/stores/appStore';
   import { SENSOR_TYPE_LABELS, DEVICE_STATUS_LABELS } from '$lib/data/dictionary';
   import { Filter, RefreshCw, Download, Upload, ChevronDown, X } from 'lucide-svelte';
   import dayjs from 'dayjs';
   import { onMount } from 'svelte';
   import { exportToCSV, exportToPDF, downloadFile } from '$lib/utils/export';
-  import { sensorReadings, dataUpdateInfo } from '$lib/stores/appStore';
-  import { getSensorReadings, refreshData } from '$lib/data/store';
+  import { triggerImportFileSelect, refreshFrontendData } from '$lib/utils/import';
+  import { dataUpdateInfo } from '$lib/stores/appStore';
+  import { refreshData } from '$lib/data/store';
   import type { ExportOptions } from '$lib/types';
 
   let showFilters = false;
@@ -52,13 +53,15 @@
 
   async function handleRefresh() {
     await refreshData();
+    await refreshFrontendData();
   }
 
   async function handleExport(format: 'csv' | 'pdf') {
-    const readings = $sensorReadings;
+    const readings = $filteredReadings;
     const gh = $greenhouses;
     const sen = $sensors;
     const info = $dataUpdateInfo;
+    const stats = $readingStats;
 
     if (!info) return;
 
@@ -71,11 +74,11 @@
     };
 
     if (format === 'csv') {
-      const csv = await exportToCSV(readings, sen, gh, options);
+      const csv = await exportToCSV(readings, sen, gh, options, stats);
       const filename = `温室监控数据_${dayjs().format('YYYYMMDD_HHmm')}.csv`;
       downloadFile(csv, filename, 'text/csv;charset=utf-8');
     } else {
-      const blob = await exportToPDF(readings, sen, gh, options);
+      const blob = await exportToPDF(readings, sen, gh, options, stats);
       const filename = `温室监控报告_${dayjs().format('YYYYMMDD_HHmm')}.pdf`;
       downloadFile(blob, filename, 'application/pdf');
     }
@@ -83,17 +86,14 @@
     showExportMenu = false;
   }
 
-  function handleImport() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        console.log('导入文件:', file.name);
-      }
-    };
-    input.click();
+  async function handleImport() {
+    const result = await triggerImportFileSelect();
+    if (result && result.success) {
+      const skipped = result.skippedCount || 0;
+      alert(`导入成功！共导入 ${result.importedCount} 条记录${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
+    } else if (result && !result.success) {
+      alert(`导入失败: ${result.error}`);
+    }
   }
 
   function toggleFilter(key: string, value: string, list: string[]) {

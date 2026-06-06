@@ -9,7 +9,8 @@ export async function exportToCSV(
   readings: SensorReading[],
   sensors: Sensor[],
   greenhouses: Greenhouse[],
-  options: ExportOptions
+  options: ExportOptions,
+  filteredStats?: { total: number; valid: number; missing: number; anomalies: number }
 ): Promise<string> {
   const sensorMap = new Map(sensors.map((s) => [s.id, s]));
   const greenhouseMap = new Map(greenhouses.map((g) => [g.id, g]));
@@ -34,7 +35,7 @@ export async function exportToCSV(
   let csvContent = '';
 
   if (options.includeMetadata) {
-    csvContent += generateMetadataHeader(options);
+    csvContent += generateMetadataHeader(options, filteredStats);
     csvContent += '\n\n';
   }
 
@@ -46,7 +47,8 @@ export async function exportToPDF(
   readings: SensorReading[],
   sensors: Sensor[],
   greenhouses: Greenhouse[],
-  options: ExportOptions
+  options: ExportOptions,
+  filteredStats?: { total: number; valid: number; missing: number; anomalies: number }
 ): Promise<Blob> {
   const doc = new jsPDF();
 
@@ -61,7 +63,7 @@ export async function exportToPDF(
     doc.text('报告元数据', 14, yPos);
     yPos += 8;
 
-    const metadata = generateMetadataArray(options);
+    const metadata = generateMetadataArray(options, filteredStats);
     autoTable(doc, {
       startY: yPos,
       head: [['项目', '值']],
@@ -125,20 +127,23 @@ export async function exportToPDF(
   return doc.output('blob');
 }
 
-function generateMetadataHeader(options: ExportOptions): string {
+function generateMetadataHeader(options: ExportOptions, filteredStats?: { total: number; valid: number; missing: number; anomalies: number }): string {
   const lines: string[] = [];
   lines.push(`# 温室传感器与灌溉监控导出报告`);
   lines.push(`# 导出时间: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`);
   lines.push(`# 数据更新时间: ${dayjs(options.dataUpdateInfo.lastUpdateTime).format('YYYY-MM-DD HH:mm:ss')}`);
   lines.push(`# 总记录数: ${options.dataUpdateInfo.recordCount}`);
+  lines.push(`# 筛选后记录数: ${filteredStats ? filteredStats.total : options.dataUpdateInfo.recordCount}`);
+  lines.push(`# 筛选后有效记录数: ${filteredStats ? filteredStats.valid : options.dataUpdateInfo.recordCount - options.dataUpdateInfo.missingCount - options.dataUpdateInfo.anomalyCount}`);
   lines.push(`# 传感器数量: ${options.dataUpdateInfo.sensorCount}`);
-  lines.push(`# 缺失值数量: ${options.dataUpdateInfo.missingCount}`);
-  lines.push(`# 异常值数量: ${options.dataUpdateInfo.anomalyCount}`);
+  lines.push(`# 缺失值数量: ${filteredStats ? filteredStats.missing : options.dataUpdateInfo.missingCount}`);
+  lines.push(`# 异常值数量: ${filteredStats ? filteredStats.anomalies : options.dataUpdateInfo.anomalyCount}`);
   lines.push(`# 数据时间范围: ${dayjs(options.dataUpdateInfo.dataRange.start).format('YYYY-MM-DD')} 至 ${dayjs(options.dataUpdateInfo.dataRange.end).format('YYYY-MM-DD')}`);
   lines.push(`# 筛选条件:`);
   lines.push(`#   - 温室: ${options.filters.greenhouseIds.length > 0 ? options.filters.greenhouseIds.join(', ') : '全部'}`);
   lines.push(`#   - 传感器类型: ${options.filters.sensorTypes.length > 0 ? options.filters.sensorTypes.map(t => SENSOR_TYPE_LABELS[t]).join(', ') : '全部'}`);
   lines.push(`#   - 设备状态: ${options.filters.deviceStatuses.length > 0 ? options.filters.deviceStatuses.join(', ') : '全部'}`);
+  lines.push(`#   - 作物批次: ${options.filters.batchIds.length > 0 ? options.filters.batchIds.join(', ') : '全部'}`);
   lines.push(`#   - 时间范围: ${dayjs(options.filters.timeRange.start).format('YYYY-MM-DD HH:mm')} 至 ${dayjs(options.filters.timeRange.end).format('YYYY-MM-DD HH:mm')}`);
   lines.push(`#   - 显示异常: ${options.filters.showAnomalies ? '是' : '否'}`);
   lines.push(`#   - 显示缺失: ${options.filters.showMissing ? '是' : '否'}`);
@@ -146,17 +151,20 @@ function generateMetadataHeader(options: ExportOptions): string {
   return lines.join('\n');
 }
 
-function generateMetadataArray(options: ExportOptions): string[][] {
+function generateMetadataArray(options: ExportOptions, filteredStats?: { total: number; valid: number; missing: number; anomalies: number }): string[][] {
   return [
     ['导出时间', dayjs().format('YYYY-MM-DD HH:mm:ss')],
     ['数据更新时间', dayjs(options.dataUpdateInfo.lastUpdateTime).format('YYYY-MM-DD HH:mm:ss')],
     ['总记录数', String(options.dataUpdateInfo.recordCount)],
+    ['筛选后记录数', String(filteredStats ? filteredStats.total : options.dataUpdateInfo.recordCount)],
+    ['筛选后有效记录数', String(filteredStats ? filteredStats.valid : options.dataUpdateInfo.recordCount - options.dataUpdateInfo.missingCount - options.dataUpdateInfo.anomalyCount)],
     ['传感器数量', String(options.dataUpdateInfo.sensorCount)],
-    ['缺失值数量', String(options.dataUpdateInfo.missingCount)],
-    ['异常值数量', String(options.dataUpdateInfo.anomalyCount)],
+    ['缺失值数量', String(filteredStats ? filteredStats.missing : options.dataUpdateInfo.missingCount)],
+    ['异常值数量', String(filteredStats ? filteredStats.anomalies : options.dataUpdateInfo.anomalyCount)],
     ['数据时间范围', `${dayjs(options.dataUpdateInfo.dataRange.start).format('YYYY-MM-DD')} 至 ${dayjs(options.dataUpdateInfo.dataRange.end).format('YYYY-MM-DD')}`],
     ['筛选温室', options.filters.greenhouseIds.length > 0 ? options.filters.greenhouseIds.join(', ') : '全部'],
     ['筛选传感器类型', options.filters.sensorTypes.length > 0 ? options.filters.sensorTypes.map(t => SENSOR_TYPE_LABELS[t]).join(', ') : '全部'],
+    ['筛选作物批次', options.filters.batchIds.length > 0 ? options.filters.batchIds.join(', ') : '全部'],
     ['显示异常', options.filters.showAnomalies ? '是' : '否'],
     ['显示缺失', options.filters.showMissing ? '是' : '否']
   ];

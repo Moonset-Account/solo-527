@@ -68,11 +68,32 @@ export const filteredSensors = derived(
 
 export const offlineSensors = derived(sensors, ($sensors) => $sensors.filter((s) => s.status === 'offline'));
 
+export const filteredValves = derived(
+  [valves, filters],
+  ([$valves, $filters]) => {
+    let result = [...$valves];
+
+    if ($filters.greenhouseIds.length > 0) {
+      result = result.filter((v) => $filters.greenhouseIds.includes(v.greenhouseId));
+    }
+
+    if ($filters.deviceStatuses.length > 0) {
+      result = result.filter((v) => $filters.deviceStatuses.includes(v.status as any));
+    }
+
+    return result;
+  }
+);
+
 export const filteredReadings = derived(
   [sensorReadings, filteredSensors, filters],
   ([$sensorReadings, $filteredSensors, $filters]) => {
     const sensorIds = new Set($filteredSensors.map((s) => s.id));
     let result = $sensorReadings.filter((r) => sensorIds.has(r.sensorId));
+
+    if ($filters.batchIds.length > 0) {
+      result = result.filter((r) => r.batchId && $filters.batchIds.includes(r.batchId));
+    }
 
     if ($filters.timeRange) {
       const start = new Date($filters.timeRange.start).getTime();
@@ -95,10 +116,15 @@ export const filteredReadings = derived(
 );
 
 export const filteredAlerts = derived(
-  [alerts, filteredSensors, filters],
-  ([$alerts, $filteredSensors, $filters]) => {
+  [alerts, filteredSensors, filteredValves, filters],
+  ([$alerts, $filteredSensors, $filteredValves, $filters]) => {
     const sensorIds = new Set($filteredSensors.map((s) => s.id));
-    let result = $alerts.filter((a) => a.sensorId && sensorIds.has(a.sensorId));
+    const valveIds = new Set($filteredValves.map((v) => v.id));
+    let result = $alerts.filter((a) => {
+      if (a.sensorId) return sensorIds.has(a.sensorId);
+      if (a.valveId) return valveIds.has(a.valveId);
+      return false;
+    });
 
     if ($filters.timeRange) {
       const start = new Date($filters.timeRange.start).getTime();
@@ -133,23 +159,6 @@ export const filteredIrrigationEvents = derived(
 
     if ($filters.batchIds.length > 0) {
       result = result.filter((e) => e.batchId && $filters.batchIds.includes(e.batchId));
-    }
-
-    return result;
-  }
-);
-
-export const filteredValves = derived(
-  [valves, filters],
-  ([$valves, $filters]) => {
-    let result = [...$valves];
-
-    if ($filters.greenhouseIds.length > 0) {
-      result = result.filter((v) => $filters.greenhouseIds.includes(v.greenhouseId));
-    }
-
-    if ($filters.deviceStatuses.length > 0) {
-      result = result.filter((v) => $filters.deviceStatuses.includes(v.status as any));
     }
 
     return result;

@@ -44,6 +44,7 @@
   import { Sprout, BarChart3, Settings, HelpCircle, Leaf, FileCheck, Download, Upload } from 'lucide-svelte';
   import type { SensorType, ExportOptions } from '$lib/types';
   import { exportToCSV, exportToPDF, downloadFile } from '$lib/utils/export';
+  import { triggerImportFileSelect, refreshFrontendData } from '$lib/utils/import';
   import dayjs from 'dayjs';
 
   let activeTab: 'overview' | 'sensors' | 'irrigation' | 'batches' | 'anomalies' = 'overview';
@@ -116,7 +117,14 @@
       dataUpdateInfo: $dataUpdateInfo!
     };
 
-    const csv = await exportToCSV($filteredReadings, $filteredSensors, $greenhouses, exportOptions);
+    const stats = {
+      total: $filteredReadings.length,
+      valid: $filteredReadings.filter((r) => !r.isMissing && !r.isOutlier).length,
+      missing: $filteredReadings.filter((r) => r.isMissing).length,
+      anomalies: $filteredReadings.filter((r) => r.isOutlier).length
+    };
+
+    const csv = await exportToCSV($filteredReadings, $filteredSensors, $greenhouses, exportOptions, stats);
     downloadFile(csv, `温室传感器数据_${dayjs().format('YYYYMMDD_HHmmss')}.csv`, 'text/csv;charset=utf-8');
   }
 
@@ -128,41 +136,24 @@
       dataUpdateInfo: $dataUpdateInfo!
     };
 
-    const blob = await exportToPDF($filteredReadings, $filteredSensors, $greenhouses, exportOptions);
+    const stats = {
+      total: $filteredReadings.length,
+      valid: $filteredReadings.filter((r) => !r.isMissing && !r.isOutlier).length,
+      missing: $filteredReadings.filter((r) => r.isMissing).length,
+      anomalies: $filteredReadings.filter((r) => r.isOutlier).length
+    };
+
+    const blob = await exportToPDF($filteredReadings, $filteredSensors, $greenhouses, exportOptions, stats);
     downloadFile(blob, `温室传感器报告_${dayjs().format('YYYYMMDD_HHmmss')}.pdf`, 'application/pdf');
   }
 
-  function handleImportClick() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = async (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        await handleImportFile(file);
-      }
-    };
-    input.click();
-  }
-
-  async function handleImportFile(file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/data', {
-        method: 'POST',
-        body: formData
-      });
-      const result = await response.json();
-      if (result.success) {
-        alert(`导入成功！共导入 ${result.importedCount} 条记录`);
-        await loadData();
-      } else {
-        alert(`导入失败: ${result.error}`);
-      }
-    } catch (error) {
-      alert(`导入失败: ${error}`);
+  async function handleImportClick() {
+    const result = await triggerImportFileSelect();
+    if (result && result.success) {
+      const skipped = result.skippedCount || 0;
+      alert(`导入成功！共导入 ${result.importedCount} 条记录${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
+    } else if (result && !result.success) {
+      alert(`导入失败: ${result.error}`);
     }
   }
 
