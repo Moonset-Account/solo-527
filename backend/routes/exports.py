@@ -31,7 +31,11 @@ def export_orders():
     
     query = Order.query
     if status:
-        query = query.filter(Order.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Order.status.in_(status_list))
+        else:
+            query = query.filter(Order.status == status)
     if building_id:
         query = query.filter(Order.building_id == building_id)
     if start_date:
@@ -134,7 +138,11 @@ def export_refunds():
     
     query = Refund.query
     if status:
-        query = query.filter(Refund.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Refund.status.in_(status_list))
+        else:
+            query = query.filter(Refund.status == status)
     if start_date:
         query = query.filter(Refund.created_at >= datetime.strptime(start_date, '%Y-%m-%d'))
     if end_date:
@@ -166,7 +174,11 @@ def export_shortages():
     
     query = ShortageItem.query
     if status:
-        query = query.filter(ShortageItem.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(ShortageItem.status.in_(status_list))
+        else:
+            query = query.filter(ShortageItem.status == status)
     if building_id:
         query = query.join(Order).filter(Order.building_id == building_id)
     

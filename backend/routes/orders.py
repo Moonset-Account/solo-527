@@ -76,7 +76,11 @@ def my_orders():
     
     query = Order.query.filter_by(user_id=user_id)
     if status:
-        query = query.filter(Order.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Order.status.in_(status_list))
+        else:
+            query = query.filter(Order.status == status)
     
     query = query.order_by(Order.created_at.desc())
     result = paginate_query(query)
@@ -101,7 +105,11 @@ def list_orders():
     end_date = request.args.get('end_date')
     
     if status:
-        query = query.filter(Order.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Order.status.in_(status_list))
+        else:
+            query = query.filter(Order.status == status)
     if building_id:
         query = query.filter(Order.building_id == building_id)
     if user_id:

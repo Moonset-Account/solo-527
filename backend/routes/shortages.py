@@ -57,7 +57,11 @@ def list_shortages():
     keyword = request.args.get('keyword')
     
     if status:
-        query = query.filter(ShortageItem.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(ShortageItem.status.in_(status_list))
+        else:
+            query = query.filter(ShortageItem.status == status)
     if building_id:
         query = query.join(Order).filter(Order.building_id == building_id)
     if keyword:
@@ -81,7 +85,11 @@ def my_shortages():
     
     query = ShortageItem.query.join(Order).filter(Order.user_id == user_id)
     if status:
-        query = query.filter(ShortageItem.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(ShortageItem.status.in_(status_list))
+        else:
+            query = query.filter(ShortageItem.status == status)
     
     query = query.order_by(ShortageItem.created_at.desc())
     result = paginate_query(query)

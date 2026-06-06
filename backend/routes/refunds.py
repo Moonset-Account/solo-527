@@ -52,7 +52,11 @@ def list_refunds():
     keyword = request.args.get('keyword')
     
     if status:
-        query = query.filter(Refund.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Refund.status.in_(status_list))
+        else:
+            query = query.filter(Refund.status == status)
     if building_id:
         query = query.join(Order).filter(Order.building_id == building_id)
     if keyword:
@@ -79,7 +83,11 @@ def my_refunds():
     
     query = Refund.query.filter_by(user_id=user_id)
     if status:
-        query = query.filter(Refund.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(Refund.status.in_(status_list))
+        else:
+            query = query.filter(Refund.status == status)
     
     query = query.order_by(Refund.created_at.desc())
     result = paginate_query(query)

@@ -40,7 +40,11 @@ def list_bags():
     building_id = request.args.get('building_id')
     
     if status:
-        query = query.filter(SortingBag.status == status)
+        status_list = [s.strip() for s in status.split(',') if s.strip()]
+        if len(status_list) > 1:
+            query = query.filter(SortingBag.status.in_(status_list))
+        else:
+            query = query.filter(SortingBag.status == status)
     if building_id:
         query = query.filter(SortingBag.building_id == building_id)
     
