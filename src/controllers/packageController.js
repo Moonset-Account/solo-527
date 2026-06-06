@@ -394,6 +394,10 @@ async function reviewPackage(req, res, next) {
     const { id } = req.params;
     const { passed, reviewNotes } = req.body;
 
+    if (typeof passed !== 'boolean') {
+      throw new ValidationError('请明确指定审核结果（通过/驳回）');
+    }
+
     const packageResult = await client.query('SELECT * FROM package_preparations WHERE id = $1', [id]);
     if (packageResult.rows.length === 0) {
       throw new NotFoundError('备包记录不存在');

@@ -439,12 +439,12 @@
                 await api('/schedules', { 
                     method: 'POST', 
                     body: JSON.stringify({
-                        surgery_type_id: document.getElementById('sch_surgery_type_id').value,
-                        operating_room_id: document.getElementById('sch_operating_room_id').value,
-                        patient_name: document.getElementById('sch_patient_name').value,
-                        surgeon_name: document.getElementById('sch_surgeon_name').value,
-                        scheduled_start_time: document.getElementById('sch_start').value,
-                        scheduled_end_time: document.getElementById('sch_end').value
+                        surgeryTypeId: document.getElementById('sch_surgery_type_id').value,
+                        operatingRoomId: document.getElementById('sch_operating_room_id').value,
+                        patientName: document.getElementById('sch_patient_name').value,
+                        surgeonName: document.getElementById('sch_surgeon_name').value,
+                        scheduledStartTime: document.getElementById('sch_start').value,
+                        scheduledEndTime: document.getElementById('sch_end').value
                     })
                 });
                 showToast('排班添加成功', 'success');
@@ -612,15 +612,23 @@
             }
         }
 
+        let editingPackageId = null;
+        let editingItems = [];
+
         async function viewPackage(id) {
             try {
                 const pkg = await api(`/packages/${id}`);
                 const items = pkg.data?.items || pkg.items || [];
                 const pkgData = pkg.data || pkg;
+                editingPackageId = id;
+                editingItems = items.map(i => ({...i}));
                 
                 const highValueItems = items.filter(item => item.is_high_value || item.requires_scan);
                 const scannedCount = highValueItems.filter(item => item.is_scanned).length;
                 const allHighValueScanned = highValueItems.length === 0 || scannedCount === highValueItems.length;
+
+                const isDraft = pkgData.status === 'draft';
+                const canEdit = isDraft && ['admin','head_nurse','nurse'].includes(currentUser.role);
                 
                 showModal(`
                     <div class="p-6">
@@ -641,7 +649,16 @@
                             </div>
                         </div>
 
-                        ${highValueItems.length > 0 ? `
+                        ${isDraft ? `
+                            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa fa-info-circle text-blue-600"></i>
+                                    <span class="text-sm text-blue-700">草稿状态：请为每项耗材指定批号和准备数量，然后提交审核</span>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${highValueItems.length > 0 && pkgData.status !== 'draft' ? `
                             <div class="mb-4 p-3 ${allHighValueScanned ? 'bg-green-50 border border-green-200' : 'bg-orange-50 border border-orange-200'} rounded-lg">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-2">
@@ -657,38 +674,34 @@
                         ` : ''}
 
                         <div>
-                            <h4 class="font-medium mb-2">耗材明细</h4>
+                            <h4 class="font-medium mb-2">耗材明细${isDraft ? '（点击编辑批号/数量）' : ''}</h4>
                             <div class="border rounded-lg overflow-hidden max-h-64 overflow-y-auto">
                                 <table class="w-full text-sm">
                                     <thead class="bg-gray-50 sticky top-0">
                                         <tr>
                                             <th class="px-3 py-2 text-left">耗材名称</th>
-                                            <th class="px-3 py-2 text-right">数量</th>
+                                            <th class="px-3 py-2 text-right">需/备数量</th>
                                             <th class="px-3 py-2 text-center">批号</th>
                                             <th class="px-3 py-2 text-center">有效期</th>
                                             <th class="px-3 py-2 text-center">类型</th>
-                                            <th class="px-3 py-2 text-center">状态</th>
                                             ${pkgData.status === 'distributed' ? '<th class="px-3 py-2 text-center">扫码</th>' : ''}
+                                            ${isDraft ? '<th class="px-3 py-2 text-center">操作</th>' : ''}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${items.map(item => `
+                                        ${items.map((item, idx) => `
                                             <tr class="border-t">
                                                 <td class="px-3 py-2">${item.item_name || item.supply_item_id}</td>
-                                                <td class="px-3 py-2 text-right font-medium">${item.quantity_needed || item.quantity}</td>
+                                                <td class="px-3 py-2 text-right font-medium">
+                                                    ${item.quantity_needed || item.quantity}
+                                                    ${item.quantity_prepared > 0 ? `<span class="text-green-600">/${item.quantity_prepared}</span>` : ''}
+                                                </td>
                                                 <td class="px-3 py-2 text-center font-mono text-xs">${item.batch_no || '-'}</td>
                                                 <td class="px-3 py-2 text-center">${formatDate(item.expiry_date, false)}</td>
                                                 <td class="px-3 py-2 text-center">
                                                     ${item.is_high_value || item.requires_scan ? 
                                                         '<span class="text-red-500 text-xs bg-red-50 px-2 py-0.5 rounded">高值</span>' : 
                                                         '<span class="text-gray-500 text-xs">普通</span>'}
-                                                </td>
-                                                <td class="px-3 py-2 text-center">
-                                                    ${item.is_scanned ? 
-                                                        '<span class="text-green-600"><i class="fa fa-check-circle"></i> 已扫码</span>' : 
-                                                        (item.is_high_value || item.requires_scan) ? 
-                                                            '<span class="text-orange-500"><i class="fa fa-clock-o"></i> 待扫码</span>' :
-                                                            '<span class="text-gray-400">无需扫码</span>'}
                                                 </td>
                                                 ${pkgData.status === 'distributed' ? `
                                                     <td class="px-3 py-2 text-center">
@@ -699,6 +712,12 @@
                                                             </button>` : 
                                                             (item.is_scanned ? '<span class="text-green-500 text-xs">已完成</span>' : '<span class="text-gray-400 text-xs">-</span>')}
                                                     </td>` : ''}
+                                                ${isDraft ? `
+                                                    <td class="px-3 py-2 text-center">
+                                                        <button onclick="showEditItemModal(${idx}, '${item.id}')" class="text-primary hover:underline text-xs">
+                                                            <i class="fa fa-edit mr-1"></i>编辑
+                                                        </button>
+                                                    </td>` : ''}
                                             </tr>
                                         `).join('')}
                                     </tbody>
@@ -707,6 +726,10 @@
                         </div>
 
                         <div class="flex justify-end gap-2 pt-4 mt-4 border-t">
+                            ${isDraft && ['admin','head_nurse','nurse'].includes(currentUser.role) ? 
+                                `<button onclick="closeModal(); submitPackageReview('${pkgData.id}')" class="px-4 py-2 bg-orange-500 text-white rounded text-sm hover:bg-orange-600">
+                                    <i class="fa fa-send mr-1"></i>提交审核
+                                </button>` : ''}
                             ${pkgData.status === 'distributed' ? 
                                 `<button onclick="usePackage('${pkgData.id}')" 
                                          class="px-4 py-2 ${allHighValueScanned ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'} text-white rounded text-sm transition-colors"
@@ -721,6 +744,72 @@
                         </div>
                     </div>
                 `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function showEditItemModal(idx, itemId) {
+            const item = editingItems[idx];
+            if (!item) return;
+            
+            try {
+                const batchesRes = await api(`/inventory/batches?supplyItemId=${item.supply_item_id}`);
+                const batches = batchesRes.data || batchesRes || [];
+                
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">编辑备包明细</h3>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                            <p class="text-sm font-medium">${item.item_name || item.supply_item_id}</p>
+                            <p class="text-xs text-gray-500">需要数量: ${item.quantity_needed || item.quantity} · ${item.is_high_value || item.requires_scan ? '高值耗材' : '普通耗材'}</p>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">选择批号 *</label>
+                                <select id="edit_batch_id" class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required>
+                                    <option value="">-- 请选择批号 --</option>
+                                    ${batches.filter(b=>b.status==='normal' && new Date(b.expiry_date) > new Date()).map(b => 
+                                        `<option value="${b.id}" data-batchno="${b.batch_no}" data-expiry="${b.expiry_date}" ${item.batch_id === b.id ? 'selected' : ''}>
+                                            ${b.batch_no} (库存: ${b.quantity}, 有效期: ${formatDate(b.expiry_date, false)})
+                                        </option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">准备数量 *</label>
+                                <input type="number" id="edit_qty" min="1" max="${item.quantity_needed || item.quantity}" value="${item.quantity_prepared || item.quantity_needed || 1}" 
+                                       class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required>
+                            </div>
+                            <div class="flex justify-end gap-2 pt-4">
+                                <button type="button" onclick="viewPackage('${editingPackageId}')" class="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
+                                <button onclick="saveItemEdit(${idx}, '${itemId}')" class="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-blue-600">保存</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function saveItemEdit(idx, itemId) {
+            const batchSelect = document.getElementById('edit_batch_id');
+            const batchId = batchSelect.value;
+            const quantityPrepared = parseInt(document.getElementById('edit_qty').value);
+            
+            if (!batchId) { showToast('请选择批号', 'warning'); return; }
+            if (!quantityPrepared || quantityPrepared < 1) { showToast('请输入有效数量', 'warning'); return; }
+            
+            try {
+                await api(`/packages/${editingPackageId}/items/${itemId}`, { 
+                    method: 'PUT', 
+                    body: JSON.stringify({ 
+                        batchId: batchId, 
+                        quantityPrepared: quantityPrepared 
+                    }) 
+                });
+                showToast('明细已更新', 'success');
+                viewPackage(editingPackageId);
             } catch(err) { showToast(err.message, 'error'); }
         }
 
@@ -842,7 +931,10 @@
         async function approvePackage(id) {
             if (!confirm('确认审核通过？审核通过后库存将被锁定')) return;
             try {
-                await api(`/packages/${id}/approve`, { method: 'POST' });
+                await api(`/packages/${id}/approve`, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ passed: true }) 
+                });
                 showToast('审核通过', 'success');
                 renderApp();
             } catch(err) { showToast(err.message, 'error'); }
@@ -1001,6 +1093,8 @@
             }
         }
 
+        let returnItemsState = [];
+
         async function showReturnModal() {
             try {
                 const packages = await api('/packages?status=distributed&pageSize=50');
@@ -1011,13 +1105,17 @@
                             <h3 class="text-lg font-semibold">登记退包</h3>
                             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa fa-times"></i></button>
                         </div>
-                        <form onsubmit="submitReturn(event)" class="space-y-4">
+                        <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-600 mb-1">选择备包 *</label>
-                                <select id="ret_package_id" class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required>
+                                <select id="ret_package_id" onchange="loadReturnPackageItems(this.value)" class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" required>
                                     <option value="">-- 请选择已发放的备包 --</option>
                                     ${(packages.data || []).map(p => `<option value="${p.id}">${p.package_no} - ${p.package_name}</option>`).join('')}
                                 </select>
+                            </div>
+                            <div id="ret_items_container" style="display:none;">
+                                <label class="block text-sm font-medium text-gray-600 mb-2">选择退回耗材及数量 *</label>
+                                <div id="ret_items_list" class="border rounded-lg max-h-48 overflow-y-auto"></div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-600 mb-1">退回原因 *</label>
@@ -1027,31 +1125,101 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-600 mb-1">详细说明</label>
-                                <textarea id="ret_detail" class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" rows="3" placeholder="请输入详细说明（可选）"></textarea>
+                                <textarea id="ret_detail" class="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" rows="2" placeholder="请输入详细说明（可选）"></textarea>
                             </div>
                             <div class="flex justify-end gap-2 pt-4">
                                 <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded text-sm hover:bg-gray-50">取消</button>
-                                <button type="submit" class="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-blue-600">确认登记</button>
+                                <button onclick="submitReturn()" class="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-blue-600">确认登记</button>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 `);
             } catch(err) { showToast(err.message, 'error'); }
         }
 
-        async function submitReturn(e) {
-            e.preventDefault();
+        async function loadReturnPackageItems(packageId) {
+            const container = document.getElementById('ret_items_container');
+            const listDiv = document.getElementById('ret_items_list');
+            if (!packageId) { container.style.display = 'none'; returnItemsState = []; return; }
+            
+            try {
+                const res = await api(`/packages/${packageId}`);
+                const items = res.data?.items || res.items || [];
+                returnItemsState = items.map(item => ({
+                    packageItemId: item.id,
+                    itemName: item.item_name || item.supply_item_id,
+                    maxReturnable: (item.quantity_prepared || 0) - (item.quantity_used || 0) - (item.quantity_returned || 0),
+                    quantityReturned: 0,
+                    checked: false
+                })).filter(i => i.maxReturnable > 0);
+                
+                if (returnItemsState.length === 0) {
+                    listDiv.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">该备包无可退回耗材</div>';
+                } else {
+                    listDiv.innerHTML = returnItemsState.map((item, idx) => `
+                        <div class="flex items-center gap-3 p-3 border-b hover:bg-gray-50">
+                            <input type="checkbox" id="ret_item_${idx}" onchange="toggleReturnItem(${idx}, this.checked)" class="rounded">
+                            <label for="ret_item_${idx}" class="flex-1 cursor-pointer">
+                                <span class="text-sm font-medium">${item.itemName}</span>
+                                <span class="text-xs text-gray-400 ml-2">可退: ${item.maxReturnable}</span>
+                            </label>
+                            <input type="number" id="ret_qty_${idx}" min="0" max="${item.maxReturnable}" value="0" 
+                                   onchange="updateReturnQty(${idx}, this.value)"
+                                   class="w-20 px-2 py-1 border rounded text-sm text-center" ${item.checked ? '' : 'disabled'}>
+                        </div>
+                    `).join('');
+                }
+                container.style.display = 'block';
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        function toggleReturnItem(idx, checked) {
+            returnItemsState[idx].checked = checked;
+            const qtyInput = document.getElementById(`ret_qty_${idx}`);
+            if (checked) {
+                qtyInput.disabled = false;
+                qtyInput.value = returnItemsState[idx].maxReturnable;
+                returnItemsState[idx].quantityReturned = returnItemsState[idx].maxReturnable;
+            } else {
+                qtyInput.disabled = true;
+                qtyInput.value = 0;
+                returnItemsState[idx].quantityReturned = 0;
+            }
+        }
+
+        function updateReturnQty(idx, val) {
+            const qty = Math.min(Math.max(0, parseInt(val) || 0), returnItemsState[idx].maxReturnable);
+            returnItemsState[idx].quantityReturned = qty;
+            document.getElementById(`ret_qty_${idx}`).value = qty;
+        }
+
+        async function submitReturn() {
+            const packageId = document.getElementById('ret_package_id').value;
+            const returnReason = document.getElementById('ret_reason').value;
+            const items = returnItemsState.filter(i => i.checked && i.quantityReturned > 0);
+            
+            if (!packageId) { showToast('请选择备包', 'warning'); return; }
+            if (!returnReason) { showToast('请选择退回原因', 'warning'); return; }
+            if (items.length === 0) { showToast('请至少选择一项退回耗材', 'warning'); return; }
+            
             try {
                 await api('/returns', { 
                     method: 'POST', 
                     body: JSON.stringify({
-                        package_id: document.getElementById('ret_package_id').value,
-                        return_reason: document.getElementById('ret_reason').value,
-                        return_detail: document.getElementById('ret_detail').value
+                        packageId: packageId,
+                        returnReason: returnReason,
+                        returnReasonDetail: document.getElementById('ret_detail').value,
+                        items: items.map(i => ({
+                            packageItemId: i.packageItemId,
+                            quantityReturned: i.quantityReturned,
+                            condition: 'good',
+                            isRestockable: true
+                        }))
                     })
                 });
                 showToast('退包登记成功', 'success');
                 closeModal();
+                returnItemsState = [];
                 renderApp();
             } catch(err) { showToast(err.message, 'error'); }
         }
@@ -1060,6 +1228,7 @@
             try {
                 const res = await api(`/returns/${id}`);
                 const r = res.data || res;
+                const items = r.items || [];
                 showModal(`
                     <div class="p-6">
                         <div class="flex items-center justify-between mb-4">
@@ -1073,9 +1242,24 @@
                                 <div><span class="text-gray-500">退回原因：</span>${r.return_reason || '-'}</div>
                                 <div><span class="text-gray-500">退回人：</span>${r.returned_by_name || '-'}</div>
                                 <div><span class="text-gray-500">退回时间：</span>${formatDate(r.return_time || r.created_at)}</div>
-                                <div><span class="text-gray-500">核验人：</span>${r.verified_by_name || '-'}</div>
+                                <div><span class="text-gray-500">核验人：</span>${r.checked_by_name || r.verified_by_name || '-'}</div>
                             </div>
-                            ${r.return_detail ? `<div><span class="text-gray-500">详细说明：</span>${r.return_detail}</div>` : ''}
+                            ${r.return_reason_detail ? `<div><span class="text-gray-500">详细说明：</span>${r.return_reason_detail}</div>` : ''}
+                            ${items.length > 0 ? `
+                                <div class="mt-3">
+                                    <h4 class="font-medium mb-2">退回明细</h4>
+                                    <div class="border rounded max-h-32 overflow-y-auto">
+                                        <table class="w-full text-sm">
+                                            <thead class="bg-gray-50 sticky top-0">
+                                                <tr><th class="px-3 py-2 text-left">耗材</th><th class="px-3 py-2 text-right">数量</th><th class="px-3 py-2 text-center">批号</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                ${items.map(i => `<tr class="border-t"><td class="px-3 py-2">${i.item_name || '-'}</td><td class="px-3 py-2 text-right">${i.quantity_returned}</td><td class="px-3 py-2 text-center text-xs font-mono">${i.batch_no || '-'}</td></tr>`).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="flex justify-end gap-2 pt-6 mt-4 border-t">
                             ${r.status === 'pending' && ['admin','head_nurse','equipment'].includes(currentUser.role) ? 
@@ -1090,7 +1274,10 @@
         async function verifyReturn(id) {
             if (!confirm('确认核验通过？核验后库存将被回补')) return;
             try {
-                await api(`/returns/${id}/verify`, { method: 'POST' });
+                await api(`/returns/${id}/check`, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ passed: true }) 
+                });
                 showToast('核验通过，库存已回补', 'success');
                 renderApp();
             } catch(err) { showToast(err.message, 'error'); }
