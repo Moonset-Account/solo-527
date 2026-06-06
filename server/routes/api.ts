@@ -10,6 +10,7 @@ router.get('/pareto', analyticsController.getPareto);
 router.get('/promotion', analyticsController.getPromotion);
 router.get('/suppliers', analyticsController.getSuppliers);
 router.get('/filters', analyticsController.getFilters);
+router.get('/weather-traffic', analyticsController.getWeatherTraffic);
 
 router.post('/export', exportController.createExportTask);
 router.get('/export/:id', exportController.getExportStatus);

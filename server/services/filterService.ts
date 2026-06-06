@@ -17,10 +17,10 @@ export async function getFilterOptions(): Promise<FilterOptionsResponse> {
   ]);
 
   return {
-    stores: stores.map((s) => ({ id: s.storeId, name: s.storeName })),
-    categories: products.map((p) => ({ id: p.categoryId, name: p.categoryName })),
-    suppliers: suppliers.map((s) => ({ id: s.supplierId, name: s.supplierName })),
-    batches: batches.map((b) => ({ id: b.batchId, name: b.batchId })),
+    stores: stores.map((s: { storeId: string; storeName: string }) => ({ id: s.storeId, name: s.storeName })),
+    categories: products.map((p: { categoryId: string; categoryName: string }) => ({ id: p.categoryId, name: p.categoryName })),
+    suppliers: suppliers.map((s: { supplierId: string; supplierName: string }) => ({ id: s.supplierId, name: s.supplierName })),
+    batches: batches.map((b: { batchId: string }) => ({ id: b.batchId, name: b.batchId })),
   };
 }
 

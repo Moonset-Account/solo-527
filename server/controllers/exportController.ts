@@ -5,7 +5,10 @@ import { prisma } from '../utils/db';
 import type { ExportTaskRequest, ExportTaskStatus } from '@shared/types';
 
 const exportQueue = new Queue('export-tasks', {
-  connection: redis,
+  connection: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+  },
 });
 
 export async function createExportTask(req: Request, res: Response) {

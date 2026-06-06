@@ -7,7 +7,8 @@ import type {
   SupplierResponse,
   FilterOptionsResponse,
   ExportTaskRequest,
-  ExportTaskStatus
+  ExportTaskStatus,
+  WeatherTrafficResponse
 } from '@shared/types';
 
 const API_BASE = '/api';
@@ -59,6 +60,9 @@ export const api = {
   
   getFilterOptions: () =>
     fetchAPI<FilterOptionsResponse>('/filters'),
+  
+  getWeatherTraffic: (filters: FilterParams) =>
+    fetchAPI<WeatherTrafficResponse>('/weather-traffic', filters),
   
   createExport: (data: ExportTaskRequest) =>
     fetch(`${API_BASE}/export`, {

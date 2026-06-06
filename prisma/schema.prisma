@@ -132,10 +132,10 @@ model FactDailyTraffic {
 }
 
 model DwsDailyLossSummary {
-  summaryDate      DateTime  @id @map("summary_date") @db.Date
-  storeId          String    @id @map("store_id")
-  categoryId       String    @id @map("category_id")
-  supplierId       String    @id @map("supplier_id")
+  summaryDate      DateTime  @map("summary_date") @db.Date
+  storeId          String    @map("store_id")
+  categoryId       String    @map("category_id")
+  supplierId       String    @map("supplier_id")
   totalReceivedQty Int       @map("total_received_qty")
   totalLossQty     Int       @map("total_loss_qty")
   totalLossAmount  Decimal   @map("total_loss_amount") @db.Decimal(12, 2)

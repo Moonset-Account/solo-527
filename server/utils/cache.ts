@@ -15,7 +15,7 @@ export const CACHE_TTL = {
   EXPORT: 7 * 24 * 60 * 60,
 };
 
-export function generateCacheKey(endpoint: string, params: Record<string, unknown>): string {
+export function generateCacheKey(endpoint: string, params: Record<string, any>): string {
   const sortedParams = Object.keys(params)
     .sort()
     .reduce((acc, key) => {

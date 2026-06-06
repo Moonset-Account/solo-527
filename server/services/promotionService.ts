@@ -14,7 +14,7 @@ export async function getPromotionComparison(filters: FilterParams): Promise<Pro
   });
 
   const comparisons = await Promise.all(
-    categories.map(async (cat) => {
+    categories.map(async (cat: any) => {
       const [beforeData, duringData] = await Promise.all([
         getCategoryStats(cat.categoryId, startDate, endDate, filters, true),
         getCategoryStats(cat.categoryId, startDate, endDate, filters, false),
@@ -89,9 +89,9 @@ async function getCategoryStats(
     }),
   ]);
 
-  const totalSales = promos.reduce((sum, p) => sum + p.soldQty, 0);
-  const totalLoss = losses.reduce((sum, l) => sum + l.lossQty, 0);
-  const nearExpiryCount = inventories.filter((inv) => {
+  const totalSales = promos.reduce((sum: number, p: any) => sum + p.soldQty, 0);
+      const totalLoss = losses.reduce((sum: number, l: any) => sum + l.lossQty, 0);
+      const nearExpiryCount = inventories.filter((inv: any) => {
     const shelfLifeMs = inv.product.shelfLifeDays * 24 * 60 * 60 * 1000;
     const elapsedMs = endDate.getTime() - inv.receiveDate.getTime();
     return elapsedMs / shelfLifeMs > 0.7;

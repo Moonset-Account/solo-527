@@ -45,7 +45,7 @@ export async function getParetoData(
 
   const groupedData = new Map<string, { name: string; lossAmount: number; lossQty: number }>();
 
-  losses.forEach((loss) => {
+  losses.forEach((loss: any) => {
     let id: string;
     let name: string;
 

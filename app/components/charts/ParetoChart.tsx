@@ -55,7 +55,7 @@ export default function ParetoChart({ data, loading, dimension = 'category' }: P
           axisLabel: {
             color: '#94A3B8',
             fontSize: 10,
-            formatter: (v: number) => v >= 10000 ? (v / 10000).toFixed(1) + '万' : v,
+            formatter: (v: any) => v >= 10000 ? (v / 10000).toFixed(1) + '万' : v,
           },
           splitLine: { lineStyle: { color: '#334155' } },
         },

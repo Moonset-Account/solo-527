@@ -5,6 +5,7 @@ import { getParetoData } from '../services/paretoService';
 import { getPromotionComparison } from '../services/promotionService';
 import { getSupplierRanking } from '../services/supplierService';
 import { getFilterOptions, parseFilterParams } from '../services/filterService';
+import { getWeatherTrafficAnalysis } from '../services/weatherTrafficService';
 import { getCachedData, setCachedData, generateCacheKey, CACHE_TTL } from '../utils/cache';
 
 export async function getOverview(req: Request, res: Response) {
@@ -118,5 +119,24 @@ export async function getFilters(req: Request, res: Response) {
   } catch (error) {
     console.error('Filters error:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
+  }
+}
+
+export async function getWeatherTraffic(req: Request, res: Response) {
+  try {
+    const filters = parseFilterParams(req.query);
+    const cacheKey = generateCacheKey('weather-traffic', filters);
+    const cached = await getCachedData(cacheKey);
+    
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const data = await getWeatherTrafficAnalysis(filters);
+    await setCachedData(cacheKey, data, CACHE_TTL.MEDIUM);
+    res.json(data);
+  } catch (error) {
+    console.error('Weather traffic error:', error);
+    res.status(500).json({ error: 'Failed to fetch weather traffic data' });
   }
 }

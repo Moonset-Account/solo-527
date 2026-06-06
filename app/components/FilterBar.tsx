@@ -10,7 +10,8 @@ export default function FilterBar() {
     stores: FilterOption[];
     categories: FilterOption[];
     suppliers: FilterOption[];
-  }>({ stores: [], categories: [], suppliers: [] });
+    batches: FilterOption[];
+  }>({ stores: [], categories: [], suppliers: [], batches: [] });
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,13 +21,14 @@ export default function FilterBar() {
   const activeFilterCount = 
     (filters.storeIds?.length || 0) +
     (filters.categoryIds?.length || 0) +
-    (filters.supplierIds?.length || 0);
+    (filters.supplierIds?.length || 0) +
+    (filters.batchIds?.length || 0);
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
 
-  const toggleOption = (field: 'storeIds' | 'categoryIds' | 'supplierIds', id: string) => {
+  const toggleOption = (field: 'storeIds' | 'categoryIds' | 'supplierIds' | 'batchIds', id: string) => {
     const current = filters[field] || [];
     const updated = current.includes(id)
       ? current.filter((i) => i !== id)
@@ -36,7 +38,7 @@ export default function FilterBar() {
 
   const renderDropdown = (
     name: string,
-    field: 'storeIds' | 'categoryIds' | 'supplierIds',
+    field: 'storeIds' | 'categoryIds' | 'supplierIds' | 'batchIds',
     items: FilterOption[]
   ) => (
     <div className="relative">
@@ -87,6 +89,7 @@ export default function FilterBar() {
             {renderDropdown('门店', 'storeIds', options.stores)}
             {renderDropdown('品类', 'categoryIds', options.categories)}
             {renderDropdown('供应商', 'supplierIds', options.suppliers)}
+            {renderDropdown('批次', 'batchIds', options.batches)}
 
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700">
               <input

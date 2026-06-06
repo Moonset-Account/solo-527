@@ -141,6 +141,27 @@ export interface ExportTaskRequest {
   includeCharts?: boolean;
 }
 
+export interface WeatherTrafficItem {
+  date: string;
+  weatherType: string;
+  temperature: number;
+  rainfall: number;
+  customerCount: number;
+  lossAmount: number;
+  lossQty: number;
+  conversionRate: number;
+}
+
+export interface WeatherTrafficResponse {
+  items: WeatherTrafficItem[];
+  correlation: {
+    rainfallVsLoss: number;
+    temperatureVsLoss: number;
+    trafficVsLoss: number;
+    weatherVsTraffic: number;
+  };
+}
+
 export interface ExportTaskStatus {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';

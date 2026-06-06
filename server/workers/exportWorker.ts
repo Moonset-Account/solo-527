@@ -18,7 +18,7 @@ if (!fs.existsSync(exportDir)) {
 
 export const exportWorker = new Worker(
   'export-tasks',
-  async (job) => {
+  async (job: any) => {
     const { taskId, filters, format } = job.data;
 
     try {
@@ -95,7 +95,12 @@ export const exportWorker = new Worker(
       throw error;
     }
   },
-  { connection: redis }
+  {
+    connection: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    },
+  }
 );
 
 console.log('Export worker started');

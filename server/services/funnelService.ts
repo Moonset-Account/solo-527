@@ -45,10 +45,10 @@ export async function getFunnelData(filters: FilterParams): Promise<FunnelRespon
     let amount = 0;
     const batches: any[] = [];
 
-    inventories.forEach((inv) => {
+    inventories.forEach((inv: any) => {
       const receivedQty = inv.receivedQty;
-      const totalLossQty = inv.lossRecords.reduce((sum, l) => sum + l.lossQty, 0);
-      const promoSoldQty = inv.promotions.reduce((sum, p) => sum + p.soldQty, 0);
+      const totalLossQty = inv.lossRecords.reduce((sum: number, l: any) => sum + l.lossQty, 0);
+      const promoSoldQty = inv.promotions.reduce((sum: number, p: any) => sum + p.soldQty, 0);
       const remainingQty = receivedQty - totalLossQty - promoSoldQty;
       
       const shelfLifeMs = inv.product.shelfLifeDays * 24 * 60 * 60 * 1000;
@@ -56,11 +56,11 @@ export async function getFunnelData(filters: FilterParams): Promise<FunnelRespon
       const shelfLifeUsed = elapsedMs / shelfLifeMs;
       
       const writeOffQty = inv.lossRecords
-        .filter((l) => l.lossType === 'written_off')
-        .reduce((sum, l) => sum + l.lossQty, 0);
+        .filter((l: any) => l.lossType === 'written_off')
+        .reduce((sum: number, l: any) => sum + l.lossQty, 0);
       const returnQty = inv.lossRecords
-        .filter((l) => l.lossType === 'returned')
-        .reduce((sum, l) => sum + l.lossQty, 0);
+        .filter((l: any) => l.lossType === 'returned')
+        .reduce((sum: number, l: any) => sum + l.lossQty, 0);
 
       let stageQty = 0;
       switch (stage) {

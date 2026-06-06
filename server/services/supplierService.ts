@@ -22,7 +22,7 @@ export async function getSupplierRanking(filters: FilterParams): Promise<Supplie
   const suppliers = await prisma.dimSupplier.findMany();
 
   const rankings = await Promise.all(
-    suppliers.map(async (supplier) => {
+    suppliers.map(async (supplier: any) => {
       const [inventories, losses] = await Promise.all([
         prisma.factInventory.findMany({
           where: { ...inventoryWhere, supplierId: supplier.supplierId },
@@ -36,9 +36,9 @@ export async function getSupplierRanking(filters: FilterParams): Promise<Supplie
         }),
       ]);
 
-      const totalSupplyQty = inventories.reduce((sum, inv) => sum + inv.receivedQty, 0);
-      const totalLossQty = losses.reduce((sum, l) => sum + l.lossQty, 0);
-      const qualityIssues = losses.filter((l) => l.reason === 'quality').length;
+      const totalSupplyQty = inventories.reduce((sum: number, inv: any) => sum + inv.receivedQty, 0);
+      const totalLossQty = losses.reduce((sum: number, l: any) => sum + l.lossQty, 0);
+      const qualityIssues = losses.filter((l: any) => l.reason === 'quality').length;
 
       const lossRate = totalSupplyQty > 0 ? totalLossQty / totalSupplyQty : 0;
       const onTimeDeliveryRate = inventories.length > 0 ? 0.92 + Math.random() * 0.07 : 0;

@@ -7,13 +7,15 @@ import FunnelChart from '~/components/charts/FunnelChart';
 import ParetoChart from '~/components/charts/ParetoChart';
 import PromotionChart from '~/components/charts/PromotionChart';
 import SupplierRanking from '~/components/charts/SupplierRanking';
+import WeatherTrafficChart from '~/components/charts/WeatherTrafficChart';
 import { api } from '~/utils/api';
 import type { 
   OverviewResponse, 
   FunnelResponse, 
   ParetoResponse, 
   PromotionResponse, 
-  SupplierResponse 
+  SupplierResponse,
+  WeatherTrafficResponse
 } from '@shared/types';
 import { formatCurrency, formatPercent } from '~/utils/format';
 import { TrendingDown, Package, AlertTriangle, Sparkles } from 'lucide-react';
@@ -26,24 +28,27 @@ function DashboardContent() {
   const [pareto, setPareto] = useState<ParetoResponse | null>(null);
   const [promotion, setPromotion] = useState<PromotionResponse | null>(null);
   const [suppliers, setSuppliers] = useState<SupplierResponse | null>(null);
+  const [weatherTraffic, setWeatherTraffic] = useState<WeatherTrafficResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, f, p, pr, s] = await Promise.all([
+      const [o, f, p, pr, s, wt] = await Promise.all([
         api.getOverview(filters),
         api.getFunnel(filters),
         api.getPareto(filters),
         api.getPromotion(filters),
         api.getSuppliers(filters),
+        api.getWeatherTraffic(filters),
       ]);
       setOverview(o);
       setFunnel(f);
       setPareto(p);
       setPromotion(pr);
       setSuppliers(s);
+      setWeatherTraffic(wt);
     } catch (error) {
       console.error('Fetch data error:', error);
     } finally {
@@ -178,6 +183,10 @@ function DashboardContent() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <PromotionChart data={promotion} loading={loading} />
             <SupplierRanking data={suppliers} loading={loading} />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <WeatherTrafficChart data={weatherTraffic} loading={loading} />
           </div>
         </section>
 

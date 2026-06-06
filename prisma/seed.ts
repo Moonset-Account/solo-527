@@ -167,6 +167,28 @@ async function main() {
     }
   }
 
+  const weatherTypes = ['晴', '多云', '阴', '小雨', '中雨', '大雨', '雷阵雨'];
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    try {
+      const weatherType = weatherTypes[randomInt(0, weatherTypes.length - 1)];
+      const rainfall = weatherType.includes('雨') 
+        ? parseFloat((Math.random() * 50).toFixed(1)) 
+        : 0;
+      const temperature = parseFloat((15 + Math.random() * 20).toFixed(1));
+
+      await prisma.dimWeather.create({
+        data: {
+          dateId: new Date(d),
+          city: '北京',
+          temperature,
+          weatherType,
+          rainfall,
+        },
+      });
+    } catch (e) {
+    }
+  }
+
   console.log('Seed data completed!');
 }
 
