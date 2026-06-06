@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { auth } from '../stores/auth';
+import { authToken } from '../stores/auth';
 import type {
 	LoginRequest,
 	LoginResponse,
@@ -14,7 +14,7 @@ import type {
 const API_BASE = '/api';
 
 function getHeaders(): Record<string, string> {
-	const token = get(auth.token);
+	const token = get(authToken);
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json'
 	};
@@ -104,7 +104,7 @@ export const api = {
 	getTodayStats: (): Promise<StatsData> => request('/stats/today'),
 
 	uploadAttachment: (formData: FormData): Promise<any> => {
-		const token = get(auth.token);
+		const token = get(authToken);
 		return fetch(`${API_BASE}/batches/attachments`, {
 			method: 'POST',
 			headers: token ? { Authorization: `Bearer ${token}` } : {},

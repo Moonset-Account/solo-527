@@ -1,18 +1,19 @@
-<script lang="ts">
-	import { onMount } from 'svelte';
+<script>
+	import { onMount, onDestroy } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { StatsData, VaccineBatch, HandoverRecord } from '$lib/types';
 	import { refreshTrigger, drawerOpen } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 
-	let stats: StatsData | null = null;
-	let todayBatches: VaccineBatch[] = [];
-	let todayHandovers: HandoverRecord[] = [];
+	let stats = null;
+	let todayBatches = [];
+	let todayHandovers = [];
 	let loading = true;
 
 	const today = new Date().toISOString().split('T')[0];
 
 	async function loadData() {
+		if (!browser) return;
 		loading = true;
 		try {
 			[stats, todayBatches, todayHandovers] = await Promise.all([
@@ -27,11 +28,20 @@
 		}
 	}
 
-	$effect(() => {
+	let unsubscribe;
+
+	onMount(() => {
 		loadData();
+		unsubscribe = refreshTrigger.subscribe(() => {
+			loadData();
+		});
 	});
 
-	function getStatusBadge(status: string) {
+	onDestroy(() => {
+		if (unsubscribe) unsubscribe();
+	});
+
+	function getStatusBadge(status) {
 		switch (status) {
 			case 'available':
 				return { class: 'badge-success', text: '可用' };
@@ -264,7 +274,7 @@
 		color: #991b1b;
 	}
 
-	.blue-600 {
+	.text-blue-600 {
 		color: var(--primary);
 	}
 </style>

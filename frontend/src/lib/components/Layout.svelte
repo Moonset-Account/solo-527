@@ -1,17 +1,10 @@
-<script lang="ts">
+<script>
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { auth, drawerOpen } from '$lib/stores/auth';
+	import { user, drawerOpen, logout as logoutStore } from '$lib/stores/auth';
 	import AbnormalDrawer from './AbnormalDrawer.svelte';
 
-	interface NavItem {
-		path: string;
-		label: string;
-		icon: string;
-		roles?: string[];
-	}
-
-	const navItems: NavItem[] = [
+	const navItems = [
 		{ path: '/', label: '首页', icon: 'home' },
 		{ path: '/receive', label: '药品入库', icon: 'receive' },
 		{ path: '/batches', label: '批次管理', icon: 'batch' },
@@ -19,8 +12,8 @@
 		{ path: '/records', label: '交接记录', icon: 'records' }
 	];
 
-	function logout() {
-		auth.logout();
+	function handleLogout() {
+		logoutStore();
 		goto('/login');
 	}
 </script>
@@ -58,9 +51,9 @@
 				</button>
 
 				<div class="user-info">
-					<span class="text-white text-sm">{$auth.user?.name}</span>
-					<span class="badge badge-info text-xs">{$auth.user?.role === 'admin' ? '管理员' : $auth.user?.role === 'nurse' ? '护士' : '接种员'}</span>
-					<button class="logout-btn" on:click={logout}>退出</button>
+					<span class="text-white text-sm">{$user?.name}</span>
+					<span class="badge badge-info text-xs">{$user?.role === 'admin' ? '管理员' : $user?.role === 'nurse' ? '护士' : '接种员'}</span>
+					<button class="logout-btn" on:click={handleLogout}>退出</button>
 				</div>
 			</div>
 		</div>

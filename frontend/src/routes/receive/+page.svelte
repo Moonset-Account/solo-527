@@ -1,7 +1,7 @@
-<script lang="ts">
+<script>
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/utils/api';
-	import { auth, refreshTrigger } from '$lib/stores/auth';
+	import { user, refreshTrigger } from '$lib/stores/auth';
 	import SignatureInput from '$lib/components/SignatureInput.svelte';
 
 	let form = {
@@ -41,7 +41,7 @@
 			setTimeout(() => {
 				goto('/');
 			}, 1500);
-		} catch (e: any) {
+		} catch (e) {
 			error = e.message || '入库失败';
 		} finally {
 			loading = false;
@@ -178,7 +178,7 @@
 
 			<div class="form-group">
 				<label class="form-label">接收人签名 *</label>
-				<p class="text-xs text-gray-500 mb-2">接收人：{$auth.user?.name}</p>
+				<p class="text-xs text-gray-500 mb-2">接收人：{$user?.name}</p>
 				<SignatureInput bind:value={form.signature} width={500} height={160} />
 			</div>
 

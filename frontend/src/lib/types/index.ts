@@ -80,3 +80,10 @@ export interface LoginResponse {
 	token: string;
 	user: User;
 }
+
+export interface NavItem {
+	path: string;
+	label: string;
+	icon: string;
+	roles?: string[];
+}

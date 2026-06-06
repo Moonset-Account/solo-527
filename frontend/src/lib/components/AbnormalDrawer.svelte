@@ -1,14 +1,15 @@
-<script lang="ts">
+<script>
+	import { browser } from '$app/environment';
 	import { drawerOpen } from '$lib/stores/auth';
 	import { api } from '$lib/utils/api';
-	import type { AbnormalData } from '$lib/types';
 	import { onMount } from 'svelte';
 
-	let data: AbnormalData | null = null;
+	let data = null;
 	let loading = false;
 	let activeTab = 'temperature';
 
 	async function loadData() {
+		if (!browser) return;
 		loading = true;
 		try {
 			data = await api.getAbnormalBatches();
@@ -19,13 +20,16 @@
 		}
 	}
 
-	$effect(() => {
-		if ($drawerOpen) {
-			loadData();
-		}
+	onMount(() => {
+		const unsubscribe = drawerOpen.subscribe((open) => {
+			if (open) {
+				loadData();
+			}
+		});
+		return unsubscribe;
 	});
 
-	function getDaysUntilExpire(dateStr: string): number {
+	function getDaysUntilExpire(dateStr) {
 		const expire = new Date(dateStr);
 		const now = new Date();
 		const diff = Math.ceil((expire.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

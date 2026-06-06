@@ -1,14 +1,13 @@
-<script lang="ts">
+<script>
 	import { onMount } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { VaccineBatch, TempAttachment } from '$lib/types';
 	import { page } from '$app/stores';
 
-	let batch: VaccineBatch | null = null;
-	let attachments: TempAttachment[] = [];
+	let batch = null;
+	let attachments = [];
 	let loading = true;
 	let uploading = false;
-	let selectedFile: File | null = null;
+	let selectedFile = null;
 
 	async function loadData() {
 		loading = true;
@@ -29,7 +28,7 @@
 		loadData();
 	});
 
-	function getStatusBadge(status: string) {
+	function getStatusBadge(status) {
 		switch (status) {
 			case 'available':
 				return { class: 'badge-success', text: '可用' };
@@ -42,8 +41,8 @@
 		}
 	}
 
-	function onFileSelect(e: Event) {
-		const target = e.target as HTMLInputElement;
+	function onFileSelect(e) {
+		const target = e.target;
 		if (target.files?.[0]) {
 			selectedFile = target.files[0];
 		}
@@ -59,7 +58,7 @@
 			await api.uploadAttachment(formData);
 			selectedFile = null;
 			loadData();
-		} catch (e: any) {
+		} catch (e) {
 			alert(e.message);
 		} finally {
 			uploading = false;

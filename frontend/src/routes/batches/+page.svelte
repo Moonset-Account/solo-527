@@ -1,21 +1,22 @@
-<script lang="ts">
+<script>
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { VaccineBatch } from '$lib/types';
-	import { auth } from '$lib/stores/auth';
+	import { user } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 
-	let batches: VaccineBatch[] = [];
+	let batches = [];
 	let loading = true;
 	let filter = 'all';
 	let showIsolateModal = false;
-	let selectedBatch: VaccineBatch | null = null;
+	let selectedBatch = null;
 	let isolateReason = '';
 
 	async function loadData() {
+		if (!browser) return;
 		loading = true;
 		try {
-			const params: any = {};
+			const params = {};
 			if (filter !== 'all') params.status = filter;
 			batches = await api.getBatches(params);
 		} catch (e) {
@@ -25,15 +26,11 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		loadData();
 	});
 
-	$: if (filter) {
-		loadData();
-	}
-
-	function getStatusBadge(status: string) {
+	function getStatusBadge(status) {
 		switch (status) {
 			case 'available':
 				return { class: 'badge-success', text: '可用' };
@@ -46,14 +43,14 @@
 		}
 	}
 
-	function isExpiringSoon(dateStr: string): boolean {
+	function isExpiringSoon(dateStr) {
 		const expire = new Date(dateStr);
 		const now = new Date();
 		const diff = Math.ceil((expire.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 		return diff <= 7;
 	}
 
-	function openIsolateModal(batch: VaccineBatch) {
+	function openIsolateModal(batch) {
 		selectedBatch = batch;
 		isolateReason = '';
 		showIsolateModal = true;
@@ -65,17 +62,17 @@
 			await api.isolateBatch({ batch_id: selectedBatch.id, reason: isolateReason });
 			showIsolateModal = false;
 			loadData();
-		} catch (e: any) {
+		} catch (e) {
 			alert(e.message);
 		}
 	}
 
-	async function restoreBatch(batch: VaccineBatch) {
+	async function restoreBatch(batch) {
 		if (!confirm('确定要恢复此隔离批次吗？只有管理员可执行此操作。')) return;
 		try {
 			await api.restoreBatch(batch.id);
 			loadData();
-		} catch (e: any) {
+		} catch (e) {
 			alert(e.message);
 		}
 	}
@@ -93,19 +90,19 @@
 		<div class="flex gap-2 flex-wrap">
 			<button
 				class="btn {filter === 'all' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'all'}
+				on:click={() => { filter = 'all'; loadData(); }}
 			>全部</button>
 			<button
 				class="btn {filter === 'available' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'available'}
+				on:click={() => { filter = 'available'; loadData(); }}
 			>可用</button>
 			<button
 				class="btn {filter === 'isolated' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'isolated'}
+				on:click={() => { filter = 'isolated'; loadData(); }}
 			>隔离中</button>
 			<button
 				class="btn {filter === 'used_up' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'used_up'}
+				on:click={() => { filter = 'used_up'; loadData(); }}
 			>已用完</button>
 		</div>
 	</div>
@@ -158,7 +155,7 @@
 												style="padding: 0.25rem 0.5rem;"
 												on:click={() => openIsolateModal(batch)}
 											>隔离</button>
-										{:else if batch.status === 'isolated' && $auth.user?.role === 'admin'}
+										{:else if batch.status === 'isolated' && $user?.role === 'admin'}
 											<button
 												class="btn btn-success text-xs"
 												style="padding: 0.25rem 0.5rem;"

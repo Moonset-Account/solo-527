@@ -1,16 +1,16 @@
-<script lang="ts">
+<script>
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { VaccineBatch, User } from '$lib/types';
-	import { auth, refreshTrigger } from '$lib/stores/auth';
+	import { user, refreshTrigger } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import SignatureInput from '$lib/components/SignatureInput.svelte';
 
-	let batches: VaccineBatch[] = [];
-	let users: User[] = [];
+	let batches = [];
+	let users = [];
 	let loading = true;
 
-	let selectedBatch: VaccineBatch | null = null;
+	let selectedBatch = null;
 	let form = {
 		quantity: 1,
 		check_temp: 4,
@@ -24,6 +24,7 @@
 	let showTempWarning = false;
 
 	async function loadData() {
+		if (!browser) return;
 		loading = true;
 		try {
 			[batches, users] = await Promise.all([
@@ -46,7 +47,7 @@
 		form.quantity = Math.min(form.quantity, selectedBatch.quantity);
 	}
 
-	function selectBatch(batch: VaccineBatch) {
+	function selectBatch(batch) {
 		selectedBatch = batch;
 		form.quantity = Math.min(1, batch.quantity);
 		form.check_temp = batch.receive_temp;
@@ -79,7 +80,7 @@
 			} else {
 				error = '温度异常，交接未完成。请联系管理员处理。';
 			}
-		} catch (e: any) {
+		} catch (e) {
 			error = e.message || '交接失败';
 		} finally {
 			submitting = false;
@@ -179,7 +180,7 @@
 						<label class="form-label">接收人 *</label>
 						<select class="form-select" bind:value={form.receiver_id} required>
 							<option value={0}>请选择接收人</option>
-							{#each users.filter(u => u.id !== $auth.user?.id) as user}
+						{#each users.filter(u => u.id !== $user?.id) as user}
 								<option value={user.id}>{user.name} ({user.role === 'vaccinator' ? '接种员' : user.role === 'nurse' ? '护士' : '管理员'})</option>
 							{/each}
 						</select>

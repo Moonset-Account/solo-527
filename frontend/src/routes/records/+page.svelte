@@ -1,17 +1,18 @@
-<script lang="ts">
+<script>
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { HandoverRecord } from '$lib/types';
 	import { goto } from '$app/navigation';
 
-	let records: HandoverRecord[] = [];
+	let records = [];
 	let loading = true;
 	let filter = 'all';
 
 	async function loadData() {
+		if (!browser) return;
 		loading = true;
 		try {
-			const params: any = {};
+			const params = {};
 			if (filter !== 'all') params.status = filter;
 			records = await api.getHandoverRecords(params);
 		} catch (e) {
@@ -25,11 +26,7 @@
 		loadData();
 	});
 
-	$: if (filter) {
-		loadData();
-	}
-
-	function getStatusBadge(status: string) {
+	function getStatusBadge(status) {
 		switch (status) {
 			case 'completed':
 				return { class: 'badge-success', text: '已完成' };
@@ -57,23 +54,23 @@
 		<div class="flex gap-2 flex-wrap">
 			<button
 				class="btn {filter === 'all' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'all'}
+				on:click={() => { filter = 'all'; loadData(); }}
 			>全部</button>
 			<button
 				class="btn {filter === 'completed' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'completed'}
+				on:click={() => { filter = 'completed'; loadData(); }}
 			>已完成</button>
 			<button
 				class="btn {filter === 'pending' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'pending'}
+				on:click={() => { filter = 'pending'; loadData(); }}
 			>待处理</button>
 			<button
 				class="btn {filter === 'failed' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'failed'}
+				on:click={() => { filter = 'failed'; loadData(); }}
 			>失败</button>
 			<button
 				class="btn {filter === 'temp_fail' ? 'btn-primary' : 'btn-outline'}"
-				on:click={() => filter = 'temp_fail'}
+				on:click={() => { filter = 'temp_fail'; loadData(); }}
 			>温度异常</button>
 		</div>
 	</div>

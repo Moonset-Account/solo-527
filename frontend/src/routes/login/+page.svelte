@@ -1,7 +1,7 @@
-<script lang="ts">
+<script>
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/utils/api';
-	import { auth } from '$lib/stores/auth';
+	import { login } from '$lib/stores/auth';
 
 	let username = '';
 	let password = '';
@@ -13,9 +13,9 @@
 		loading = true;
 		try {
 			const res = await api.login({ username, password });
-			auth.login(res.token, res.user);
+			login(res.token, res.user);
 			goto('/');
-		} catch (e: any) {
+		} catch (e) {
 			error = e.message || '登录失败';
 		} finally {
 			loading = false;

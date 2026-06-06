@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	import { onMount, onDestroy } from 'svelte';
 	import SignaturePad from 'signature_pad';
 
@@ -6,8 +6,8 @@
 	export let width = 400;
 	export let height = 200;
 
-	let canvas: HTMLCanvasElement;
-	let signaturePad: SignaturePad;
+	let canvas;
+	let signaturePad;
 
 	onMount(() => {
 		signaturePad = new SignaturePad(canvas, {

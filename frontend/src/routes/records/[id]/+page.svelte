@@ -1,13 +1,12 @@
-<script lang="ts">
+<script>
 	import { onMount } from 'svelte';
 	import { api } from '$lib/utils/api';
-	import type { HandoverRecord, User } from '$lib/types';
 	import { page } from '$app/stores';
-	import { auth, refreshTrigger } from '$lib/stores/auth';
+	import { user, refreshTrigger } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 
-	let record: HandoverRecord | null = null;
-	let users: User[] = [];
+	let record = null;
+	let users = [];
 	let loading = true;
 	let showFailureModal = false;
 	let failureForm = {
@@ -37,7 +36,7 @@
 		loadData();
 	});
 
-	function getStatusBadge(status: string) {
+	function getStatusBadge(status) {
 		switch (status) {
 			case 'completed':
 				return { class: 'badge-success', text: '已完成' };
@@ -54,7 +53,7 @@
 
 	function openFailureModal() {
 		showFailureModal = true;
-		failureForm.handler_id = $auth.user?.id || 0;
+		failureForm.handler_id = $user?.id || 0;
 		failureForm.next_review_time = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
 	}
 
@@ -82,7 +81,7 @@
 			showFailureModal = false;
 			refreshTrigger.update((n) => n + 1);
 			loadData();
-		} catch (e: any) {
+		} catch (e) {
 			error = e.message;
 		} finally {
 			submitting = false;
