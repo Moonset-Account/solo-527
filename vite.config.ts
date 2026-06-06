@@ -1,7 +1,6 @@
-import { defineConfig } from "@solidjs/start/config";
+import { defineConfig } from "vite";
+import solid from "@solidjs/start/vite";
 
 export default defineConfig({
-  server: {
-    preset: "node-server",
-  },
+  plugins: [solid()],
 });
