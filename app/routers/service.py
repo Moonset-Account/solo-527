@@ -74,6 +74,34 @@ def create_service_record(
     if existing:
         raise HTTPException(status_code=400, detail="服务记录已存在")
     
+    schedule = crud.schedule.get(db, id=record_in.schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="排班不存在")
+    
+    boxes = db.query(models.MedicineBox).filter(
+        models.MedicineBox.schedule_id == record_in.schedule_id,
+        models.MedicineBox.status == models.MedicineBoxStatus.IN_USE
+    ).all()
+    box_item_map = {}
+    for box in boxes:
+        for item in box.items:
+            box_item_map[item.medicine_id] = item
+    
+    for rx_in in record_in.prescriptions:
+        medicine = crud.medicine.get(db, id=rx_in.medicine_id)
+        if not medicine:
+            raise HTTPException(status_code=400, detail=f"药品ID {rx_in.medicine_id} 不存在")
+        
+        box_item = box_item_map.get(rx_in.medicine_id)
+        if not box_item:
+            raise HTTPException(status_code=400, detail=f"药品 {medicine.name} 不在当前排班的药品箱中")
+        
+        available = box_item.packed_quantity - box_item.used_quantity
+        if rx_in.quantity > available:
+            raise HTTPException(status_code=400, detail=f"药品 {medicine.name} 可用数量不足，剩余 {available}")
+        
+        box_item.used_quantity += rx_in.quantity
+    
     record_data = record_in.model_dump(exclude={"prescriptions"})
     record_data["service_start_time"] = datetime.utcnow()
     db_record = models.ServiceRecord(**record_data)
@@ -83,12 +111,8 @@ def create_service_record(
     for rx_in in record_in.prescriptions:
         rx = models.PrescriptionItem(
             service_record_id=db_record.id,
-            medicine_name=rx_in.medicine_name,
-            specification=rx_in.specification,
-            quantity=rx_in.quantity,
-            unit=rx_in.unit,
-            dosage=rx_in.dosage,
-            notes=rx_in.notes
+            medicine_id=rx_in.medicine_id,
+            quantity=rx_in.quantity
         )
         db.add(rx)
 

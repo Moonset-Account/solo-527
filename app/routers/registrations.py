@@ -74,6 +74,21 @@ def create_registration(
     if current_count >= schedule.max_patients:
         raise HTTPException(status_code=400, detail="该排班名额已满")
     
+    if reg_in.patient_phone:
+        duplicate = db.query(models.Registration).filter(
+            models.Registration.schedule_id == reg_in.schedule_id,
+            models.Registration.patient_phone == reg_in.patient_phone,
+            models.Registration.status.in_([
+                RegistrationStatus.PENDING,
+                RegistrationStatus.QUALIFIED,
+                RegistrationStatus.CONFIRMED,
+                RegistrationStatus.CHECKED_IN,
+                RegistrationStatus.SERVICED
+            ])
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="该手机号在同一排班已登记，请勿重复报名")
+    
     queue_number = crud.registration.get_next_queue_number(db, schedule_id=reg_in.schedule_id)
     
     reg_data = reg_in.model_dump()

@@ -297,14 +297,11 @@ class PrescriptionItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     service_record_id = Column(Integer, ForeignKey("service_records.id"), nullable=False)
-    medicine_name = Column(String(200), nullable=False)
-    specification = Column(String(200))
+    medicine_id = Column(Integer, ForeignKey("medicines.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
-    unit = Column(String(20), nullable=False)
-    dosage = Column(String(200))
-    notes = Column(Text)
 
     service_record = relationship("ServiceRecord", back_populates="prescriptions")
+    medicine = relationship("Medicine")
 
 
 class ReturnedItem(Base):

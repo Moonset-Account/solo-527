@@ -369,12 +369,8 @@ class CheckInResponse(CheckInBase):
 
 
 class PrescriptionItemBase(BaseModel):
-    medicine_name: str
-    specification: Optional[str] = None
+    medicine_id: int
     quantity: int
-    unit: str
-    dosage: Optional[str] = None
-    notes: Optional[str] = None
 
 
 class PrescriptionItemCreate(PrescriptionItemBase):
@@ -384,6 +380,7 @@ class PrescriptionItemCreate(PrescriptionItemBase):
 class PrescriptionItemResponse(PrescriptionItemBase):
     id: int
     service_record_id: int
+    medicine: MedicineResponse
 
     class Config:
         from_attributes = True
