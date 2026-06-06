@@ -14,7 +14,13 @@ def get_settlement_orders(
 ) -> tuple[list[dict], int]:
     conn = get_db()
     try:
-        query = "SELECT * FROM transfer_orders WHERE status = ?"
+        query = """
+            SELECT DISTINCT t.* FROM transfer_orders t
+            WHERE t.status = ?
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'PACKING_PHOTO')
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'WAYBILL')
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'RECEIPT')
+        """
         params = [status]
         
         if date_from:
@@ -27,8 +33,26 @@ def get_settlement_orders(
             query += " AND (order_no LIKE ? OR batch_no LIKE ?)"
             params.extend([f"%{keyword}%", f"%{keyword}%"])
         
-        count_query = query.replace("SELECT *", "SELECT COUNT(*)")
-        total = conn.execute(count_query, params).fetchone()[0]
+        count_query = """
+            SELECT COUNT(DISTINCT t.id) FROM transfer_orders t
+            WHERE t.status = ?
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'PACKING_PHOTO')
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'WAYBILL')
+            AND EXISTS (SELECT 1 FROM attachments a WHERE a.transfer_order_id = t.id AND a.type = 'RECEIPT')
+        """
+        count_params = [status]
+        
+        if date_from:
+            count_query += " AND transfer_date >= ?"
+            count_params.append(date_from)
+        if date_to:
+            count_query += " AND transfer_date <= ?"
+            count_params.append(date_to)
+        if keyword:
+            count_query += " AND (order_no LIKE ? OR batch_no LIKE ?)"
+            count_params.extend([f"%{keyword}%", f"%{keyword}%"])
+        
+        total = conn.execute(count_query, count_params).fetchone()[0]
         
         query += " ORDER BY reviewed_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])

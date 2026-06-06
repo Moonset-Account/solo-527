@@ -206,10 +206,11 @@ async def import_preview(request: Request, file: UploadFile = File(...)):
     data, errors = parse_excel(content)
     
     from app.services.audit import log_action
+    import json
     log_action(
-        user_id=user["id"],
+        operator=user["id"],
         action="IMPORT_PREVIEW",
-        details={"filename": file.filename, "rows_count": len(data), "errors_count": len(errors)}
+        remark=json.dumps({"filename": file.filename, "rows_count": len(data), "errors_count": len(errors)}, ensure_ascii=False)
     )
     
     return JSONResponse({
@@ -252,10 +253,11 @@ async def import_confirm(request: Request):
             errors.append(f"第 {idx+1} 行导入失败: {str(e)}")
     
     from app.services.audit import log_action
+    import json
     log_action(
-        user_id=user["id"],
+        operator=user["id"],
         action="IMPORT_CONFIRM",
-        details={"import_count": import_count, "errors_count": len(errors)}
+        remark=json.dumps({"import_count": import_count, "errors_count": len(errors)}, ensure_ascii=False)
     )
     
     return JSONResponse({

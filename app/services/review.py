@@ -1,6 +1,7 @@
 from app.database import get_db
-from app.services.transfer import get_transfer_order
+from app.services.transfer import get_transfer_order, check_evidence_complete
 from app.services.audit import log_action
+from app.config import ATTACHMENT_TYPE_NAMES
 from datetime import datetime
 
 def approve_order(order_id: str, operator: str, comment: str = None) -> dict:
@@ -11,6 +12,11 @@ def approve_order(order_id: str, operator: str, comment: str = None) -> dict:
             raise ValueError("调拨单不存在")
         if order["status"] != "PENDING_REVIEW":
             raise ValueError("只有待复核状态的单据可以审核")
+        
+        complete, missing = check_evidence_complete(order_id)
+        if not complete:
+            missing_names = [ATTACHMENT_TYPE_NAMES.get(t, t) for t in missing]
+            raise ValueError(f"证据不完整，缺少: {', '.join(missing_names)}")
         
         old_status = order["status"]
         

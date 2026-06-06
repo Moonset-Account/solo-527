@@ -88,4 +88,6 @@ ACTION_NAMES = {
     "REJECT": "复核驳回",
     "EXPORT": "导出",
     "LOGIN": "登录",
+    "IMPORT_PREVIEW": "导入预览",
+    "IMPORT_CONFIRM": "导入确认",
 }
