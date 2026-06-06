@@ -11,8 +11,6 @@ import {
   ETLPipelineStage,
   QueueTask,
 } from '../types';
-import { etlEngine, CleanStats } from '../services/etlEngine';
-import { taskQueue } from '../services/taskQueue';
 import { apiService } from '../services/apiService';
 import { subDays, format } from 'date-fns';
 
@@ -27,7 +25,6 @@ interface AnalyticsState {
   etlStatus: ETLStatus;
   cacheStats: CacheStats;
   pipelineStages: ETLPipelineStage[];
-  cleanStats: CleanStats | null;
   tasks: QueueTask[];
   dataCapabilities: any[];
   setFilters: (filters: Partial<FilterDimensions>) => void;
@@ -39,12 +36,13 @@ interface AnalyticsState {
   fetchData: () => Promise<void>;
   resetFilters: () => void;
   runETL: () => Promise<void>;
-  exportData: (format: 'csv' | 'xlsx' | 'pdf') => void;
-  cancelTask: (taskId: string) => boolean;
-  retryTask: (taskId: string) => boolean;
-  clearCompletedTasks: () => number;
+  exportData: (format: 'csv' | 'xlsx' | 'pdf') => Promise<void>;
+  cancelTask: (taskId: string) => Promise<boolean>;
+  retryTask: (taskId: string) => Promise<boolean>;
+  clearCompletedTasks: () => Promise<number>;
   clearCache: () => Promise<void>;
-  refreshTasks: () => void;
+  refreshTasks: () => Promise<void>;
+  downloadExport: (taskId: string) => Promise<void>;
 }
 
 const defaultFilters: FilterDimensions = {
@@ -68,22 +66,6 @@ const initialETLStatus: ETLStatus = {
   recordsProcessed: 2456789,
 };
 
-const cache = new Map<string, { data: AggregatedResult; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000;
-
-const generateCacheKey = (filters: FilterDimensions, dateRange: DateRange): string => {
-  return [
-    dateRange.start,
-    dateRange.end,
-    filters.users.sort().join(','),
-    filters.teams.sort().join(','),
-    filters.channels.sort().join(','),
-    filters.versions.sort().join(','),
-    filters.modules.sort().join(','),
-    filters.trafficType,
-  ].join('|');
-};
-
 export const useAnalyticsStore = create<AnalyticsState>()(
   persist(
     (set, get) => ({
@@ -97,7 +79,6 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       etlStatus: initialETLStatus,
       cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
       pipelineStages: [],
-      cleanStats: null,
       tasks: [],
       dataCapabilities: [],
 
@@ -153,58 +134,30 @@ export const useAnalyticsStore = create<AnalyticsState>()(
       fetchData: async () => {
         set({ isLoading: true });
         try {
-          const { filters, dateRange, cacheStats } = get();
-          const cacheKey = generateCacheKey(filters, dateRange);
-          const cached = cache.get(cacheKey);
+          const { filters, dateRange } = get();
 
-          if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          const response = await apiService.queryAggregation(filters, dateRange);
+
+          if (response.success && response.data) {
             set({
-              aggregatedResult: cached.data,
+              aggregatedResult: response.data,
               isLoading: false,
-              cacheStats: {
-                ...cacheStats,
-                hits: cacheStats.hits + 1,
-                hitRate: Math.round(((cacheStats.hits + 1) / (cacheStats.hits + cacheStats.misses + 1)) * 10000) / 100,
-                size: cache.size,
-              },
             });
-            return;
-          }
 
-          const { result, stages, stats } = await etlEngine.runFullPipeline(
-            filters,
-            dateRange,
-            (stage, progress, message) => {
-              console.log(`[ETL] ${stage}: ${progress}% - ${message}`);
+            const statsResponse = await apiService.getCacheStats();
+            if (statsResponse.success && statsResponse.data) {
+              set({ cacheStats: statsResponse.data });
             }
-          );
 
-          cache.set(cacheKey, { data: result, timestamp: Date.now() });
-          
-          if (cache.size > 50) {
-            const oldestKey = cache.keys().next().value;
-            if (oldestKey) cache.delete(oldestKey);
-          }
-
-          set({
-            aggregatedResult: result,
-            pipelineStages: stages,
-            cleanStats: stats,
-            isLoading: false,
-            cacheStats: {
-              ...cacheStats,
-              misses: cacheStats.misses + 1,
-              hitRate: Math.round((cacheStats.hits / (cacheStats.hits + cacheStats.misses + 1)) * 10000) / 100,
-              size: cache.size,
-            },
-          });
-
-          apiService.listCapabilities().then(res => {
-            if (res.success && res.data) {
-              set({ dataCapabilities: res.data });
+            const capResponse = await apiService.listCapabilities();
+            if (capResponse.success && capResponse.data) {
+              set({ dataCapabilities: capResponse.data });
             }
-          });
 
+            await get().refreshTasks();
+          } else {
+            throw new Error(response.error?.message || '聚合查询失败');
+          }
         } catch (error) {
           console.error('Failed to fetch data:', error);
           set({ isLoading: false });
@@ -220,86 +173,132 @@ export const useAnalyticsStore = create<AnalyticsState>()(
         const { filters, dateRange } = get();
         set({ isETLRunning: true });
 
-        taskQueue.createTask(
-          'etl',
-          '全量 ETL 数据同步',
-          { filters, dateRange, source: 'events_db', mode: 'full' },
-          'high'
-        );
+        try {
+          const response = await apiService.runETL(filters, dateRange, 'events_db', 'full');
+          
+          if (response.success && response.data) {
+            const now = new Date();
+            set({
+              etlStatus: {
+                lastUpdated: format(now, 'yyyy-MM-dd HH:mm:ss'),
+                status: 'success',
+                nextRun: format(new Date(now.getTime() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
+                recordsProcessed: Math.floor(2000000 + Math.random() * 1000000),
+              },
+              cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
+            });
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        cache.clear();
-        set({
-          etlStatus: {
-            ...get().etlStatus,
-            status: 'running',
-          },
-          cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
-        });
-
-        await get().fetchData();
-
-        const now = new Date();
-        set({
-          isETLRunning: false,
-          etlStatus: {
-            lastUpdated: format(now, 'yyyy-MM-dd HH:mm:ss'),
-            status: 'success',
-            nextRun: format(new Date(now.getTime() + 60 * 60 * 1000), 'yyyy-MM-dd HH:mm:ss'),
-            recordsProcessed: Math.floor(2000000 + Math.random() * 1000000),
-          },
-        });
+            await get().fetchData();
+          }
+        } catch (error) {
+          console.error('ETL failed:', error);
+        } finally {
+          set({ isETLRunning: false });
+        }
       },
 
-      exportData: (format) => {
+      exportData: async (format) => {
         const { aggregatedResult, filters, dateRange } = get();
         if (!aggregatedResult) return;
 
-        const taskType = `export_${format}` as const;
-        const formatNames = { csv: 'CSV', xlsx: 'Excel', pdf: 'PDF' };
-        
-        taskQueue.createTask(
-          taskType,
-          `导出 ${formatNames[format]} 报告`,
-          {
-            queryId: aggregatedResult.queryId,
-            aggregatedResult,
+        try {
+          const response = await apiService.createExport(
+            aggregatedResult.queryId,
+            format,
             filters,
-            dateRange,
-          },
-          'medium'
-        );
+            dateRange
+          );
 
-        get().refreshTasks();
+          if (response.success) {
+            await get().refreshTasks();
+          }
+        } catch (error) {
+          console.error('Export failed:', error);
+        }
       },
 
-      cancelTask: (taskId) => {
-        const result = taskQueue.cancelTask(taskId);
-        get().refreshTasks();
-        return result;
+      cancelTask: async (taskId) => {
+        try {
+          const response = await apiService.cancelTask(taskId);
+          await get().refreshTasks();
+          return response.success ? response.data! : false;
+        } catch (error) {
+          console.error('Cancel task failed:', error);
+          return false;
+        }
       },
 
-      retryTask: (taskId) => {
-        const result = taskQueue.retryTask(taskId);
-        get().refreshTasks();
-        return result;
+      retryTask: async (taskId) => {
+        try {
+          const response = await apiService.retryTask(taskId);
+          await get().refreshTasks();
+          return response.success ? response.data! : false;
+        } catch (error) {
+          console.error('Retry task failed:', error);
+          return false;
+        }
       },
 
-      clearCompletedTasks: () => {
-        const count = taskQueue.clearCompleted();
-        get().refreshTasks();
-        return count;
+      clearCompletedTasks: async () => {
+        try {
+          const response = await apiService.clearCompletedTasks();
+          await get().refreshTasks();
+          return response.success ? (response.data?.cleared || 0) : 0;
+        } catch (error) {
+          console.error('Clear completed tasks failed:', error);
+          return 0;
+        }
       },
 
       clearCache: async () => {
-        cache.clear();
-        set({ cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 } });
-        await get().fetchData();
+        try {
+          await apiService.clearCache();
+          set({ cacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 } });
+          await get().fetchData();
+        } catch (error) {
+          console.error('Clear cache failed:', error);
+        }
       },
 
-      refreshTasks: () => {
-        set({ tasks: taskQueue.getTasks() });
+      refreshTasks: async () => {
+        try {
+          const response = await apiService.listTasks();
+          if (response.success && response.data) {
+            set({ tasks: response.data });
+          }
+        } catch (error) {
+          console.error('Refresh tasks failed:', error);
+        }
+      },
+
+      downloadExport: async (taskId) => {
+        try {
+          const blob = await apiService.downloadExport(taskId);
+          const taskResponse = await apiService.getExportStatus(taskId);
+          const task = taskResponse.data;
+          
+          if (task) {
+            const format = ((task as any).type as string).replace('export_', '');
+            const extMap: Record<string, string> = { csv: 'csv', xlsx: 'xlsx', pdf: 'pdf' };
+            const mimeMap: Record<string, string> = {
+              csv: 'text/csv;charset=utf-8',
+              xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              pdf: 'application/pdf',
+            };
+            
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = `留存分析报告_${Date.now()}.${extMap[format]}`;
+            a.type = mimeMap[format];
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          }
+        } catch (error) {
+          console.error('Download export failed:', error);
+        }
       },
     }),
     {
@@ -313,10 +312,3 @@ export const useAnalyticsStore = create<AnalyticsState>()(
     }
   )
 );
-
-taskQueue.subscribe((tasks) => {
-  const state = useAnalyticsStore.getState();
-  if (JSON.stringify(state.tasks) !== JSON.stringify(tasks)) {
-    useAnalyticsStore.setState({ tasks });
-  }
-});

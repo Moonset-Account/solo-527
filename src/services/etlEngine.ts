@@ -10,6 +10,7 @@ import {
   PathData,
   ChurnReason,
 } from '../types';
+import { eventRepository } from './eventRepository';
 import { parseISO, eachWeekOfInterval, getWeek, getYear } from 'date-fns';
 
 export type ETLProgressCallback = (stage: string, progress: number, message: string) => void;
@@ -41,15 +42,6 @@ const VALID_CHANNELS = [
   '邮件营销',
   '直接访问',
   '推荐邀请',
-];
-
-const VALID_MODULES = [
-  '项目管理',
-  '数据分析',
-  '团队协作',
-  '文件存储',
-  '集成中心',
-  '设置',
 ];
 
 export class ETLEngine {
@@ -105,84 +97,12 @@ export class ETLEngine {
   ): Promise<RawEvent[]> {
     this.addStage('extract', 'running', 0, 0);
 
-    const events: RawEvent[] = [];
-    const startDate = parseISO(dateRange.start);
-    const endDate = parseISO(dateRange.end);
-    const dateSpan = endDate.getTime() - startDate.getTime();
-
-    for (let i = 0; i < count; i++) {
-      const eventType = this.weightedRandomEventType();
-      const timestamp = new Date(startDate.getTime() + Math.random() * dateSpan).toISOString();
-
-      const event: RawEvent = {
-        userId: `user_${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`,
-        teamId: `team_${String(Math.floor(Math.random() * 500)).padStart(4, '0')}`,
-        eventType,
-        timestamp,
-        channel: VALID_CHANNELS[Math.floor(Math.random() * VALID_CHANNELS.length)],
-        version: Math.random() > 0.3 ? 'v2.1.0' : Math.random() > 0.5 ? 'v2.0.5' : 'v2.0.0',
-        trafficType: Math.random() > 0.3 ? 'organic' : 'experiment',
-      };
-
-      if (eventType === 'feature_use' || eventType === 'first_feature_use') {
-        event.module = VALID_MODULES[Math.floor(Math.random() * VALID_MODULES.length)];
-        const features: Record<string, string[]> = {
-          '项目管理': ['看板视图', '甘特图', '任务列表', '里程碑', '任务依赖'],
-          '数据分析': ['数据仪表盘', '自定义报表', '漏斗分析', 'Cohort分析', '路径分析'],
-          '团队协作': ['实时聊天', '视频会议', '评论', '@提醒', '共享文档'],
-          '文件存储': ['上传下载', '版本管理', '在线预览', '文件分享', '回收站'],
-          '集成中心': ['API接入', 'Webhook', '第三方应用', '单点登录'],
-          '设置': ['个人设置', '团队设置', '安全设置', '通知设置'],
-        };
-        event.feature = features[event.module][Math.floor(Math.random() * features[event.module].length)];
-      }
-
-      if (eventType === 'churn') {
-        const reasons = ['价格过高', '功能不足', '易用性差', '客服响应慢', '竞品替代', '团队解散'];
-        event.churnReason = reasons[Math.floor(Math.random() * reasons.length)];
-      }
-
-      if (eventType === 'session') {
-        event.sessionDuration = Math.floor(Math.random() * 3600);
-      }
-
-      if (Math.random() < 0.05) {
-        if (Math.random() < 0.5) delete (event as any).userId;
-        if (Math.random() < 0.3) (event as any).eventType = 'invalid_type';
-        if (Math.random() < 0.4) (event as any).timestamp = 'invalid_date';
-      }
-
-      events.push(event);
-    }
-
-    for (let i = 0; i < Math.floor(count * 0.03); i++) {
-      events.push({ ...events[Math.floor(Math.random() * events.length)] });
-    }
+    const events = await eventRepository.generateEvents(dateRange, count, { includeDirtyData: true });
 
     this.stats.totalInput = events.length;
     this.addStage('extract', 'completed', events.length, events.length);
 
     return events;
-  }
-
-  private weightedRandomEventType(): RawEvent['eventType'] {
-    const weights: { type: RawEvent['eventType']; weight: number }[] = [
-      { type: 'register', weight: 15 },
-      { type: 'activate', weight: 12 },
-      { type: 'invite', weight: 5 },
-      { type: 'first_feature_use', weight: 10 },
-      { type: 'first_pay', weight: 3 },
-      { type: 'feature_use', weight: 40 },
-      { type: 'churn', weight: 5 },
-      { type: 'session', weight: 10 },
-    ];
-    const total = weights.reduce((s, w) => s + w.weight, 0);
-    let r = Math.random() * total;
-    for (const w of weights) {
-      r -= w.weight;
-      if (r <= 0) return w.type;
-    }
-    return 'feature_use';
   }
 
   async clean(events: RawEvent[]): Promise<{ events: RawEvent[]; stats: CleanStats }> {
