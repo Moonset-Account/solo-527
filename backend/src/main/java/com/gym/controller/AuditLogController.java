@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.AuditLog;
 import com.gym.service.AuditLogService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,11 +13,14 @@ import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/audit-logs")
-@RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AuditLogController {
 
     private final AuditLogService auditLogService;
+
+    public AuditLogController(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
+    }
 
     @GetMapping
     public ApiResponse<Page<AuditLog>> getLogs(

@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.GroupClass;
 import com.gym.service.GroupClassService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/group-classes")
-@RequiredArgsConstructor
 public class GroupClassController {
 
     private final GroupClassService groupClassService;
+
+    public GroupClassController(GroupClassService groupClassService) {
+        this.groupClassService = groupClassService;
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")

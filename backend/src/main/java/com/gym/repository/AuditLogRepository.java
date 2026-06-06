@@ -16,6 +16,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     List<AuditLog> findByUserId(Long userId);
     List<AuditLog> findByModule(String module);
     List<AuditLog> findByTargetTypeAndTargetId(String targetType, Long targetId);
+    List<AuditLog> findByTargetTypeOrderByCreatedAtDesc(String targetType);
 
     @Query("SELECT al FROM AuditLog al WHERE al.createdAt BETWEEN :start AND :end")
     List<AuditLog> findByCreatedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);

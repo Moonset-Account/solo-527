@@ -4,19 +4,27 @@ import com.gym.common.BusinessException;
 import com.gym.entity.Coach;
 import com.gym.repository.CoachRepository;
 import com.gym.validation.CoachPermissionValidator;
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class CoachService {
+
+    private static final Logger log = LoggerFactory.getLogger(CoachService.class);
 
     private final CoachRepository coachRepository;
     private final AuditLogService auditLogService;
     private final CoachPermissionValidator coachPermissionValidator;
+
+    public CoachService(CoachRepository coachRepository, AuditLogService auditLogService, CoachPermissionValidator coachPermissionValidator) {
+        this.coachRepository = coachRepository;
+        this.auditLogService = auditLogService;
+        this.coachPermissionValidator = coachPermissionValidator;
+    }
 
     @Transactional
     public Coach createCoach(Coach coach) {

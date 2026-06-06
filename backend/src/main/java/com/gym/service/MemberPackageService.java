@@ -3,7 +3,6 @@ package com.gym.service;
 import com.gym.common.BusinessException;
 import com.gym.entity.MemberPackage;
 import com.gym.repository.MemberPackageRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,11 +10,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class MemberPackageService {
 
     private final MemberPackageRepository memberPackageRepository;
     private final AuditLogService auditLogService;
+
+    public MemberPackageService(MemberPackageRepository memberPackageRepository, AuditLogService auditLogService) {
+        this.memberPackageRepository = memberPackageRepository;
+        this.auditLogService = auditLogService;
+    }
 
     @Transactional
     public MemberPackage createPackage(MemberPackage memberPackage) {

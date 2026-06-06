@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.MemberFreeze;
 import com.gym.service.MemberFreezeService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/freezes")
-@RequiredArgsConstructor
 public class MemberFreezeController {
 
     private final MemberFreezeService memberFreezeService;
+
+    public MemberFreezeController(MemberFreezeService memberFreezeService) {
+        this.memberFreezeService = memberFreezeService;
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")

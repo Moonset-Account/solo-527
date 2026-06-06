@@ -1,13 +1,9 @@
 package com.gym.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
 
-@Data
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "member_freezes")
 public class MemberFreeze extends BaseEntity {
@@ -50,4 +46,100 @@ public class MemberFreeze extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_package_id", insertable = false, updatable = false)
     private MemberPackage memberPackage;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getFreezeNo() {
+        return freezeNo;
+    }
+
+    public void setFreezeNo(String freezeNo) {
+        this.freezeNo = freezeNo;
+    }
+
+    public Long getMemberId() {
+        return memberId;
+    }
+
+    public void setMemberId(Long memberId) {
+        this.memberId = memberId;
+    }
+
+    public Long getMemberPackageId() {
+        return memberPackageId;
+    }
+
+    public void setMemberPackageId(Long memberPackageId) {
+        this.memberPackageId = memberPackageId;
+    }
+
+    public String getFreezeType() {
+        return freezeType;
+    }
+
+    public void setFreezeType(String freezeType) {
+        this.freezeType = freezeType;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
+
+    public Integer getFreezeDays() {
+        return freezeDays;
+    }
+
+    public void setFreezeDays(Integer freezeDays) {
+        this.freezeDays = freezeDays;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Member getMember() {
+        return member;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
+    }
+
+    public MemberPackage getMemberPackage() {
+        return memberPackage;
+    }
+
+    public void setMemberPackage(MemberPackage memberPackage) {
+        this.memberPackage = memberPackage;
+    }
 }

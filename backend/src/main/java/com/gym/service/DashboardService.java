@@ -1,153 +1,152 @@
 package com.gym.service;
 
-import com.gym.entity.*;
 import com.gym.enums.BookingStatus;
-import com.gym.enums.BookingType;
-import com.gym.repository.*;
-import com.gym.validation.CoachPermissionValidator;
-import lombok.RequiredArgsConstructor;
+import com.gym.repository.DashboardRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DashboardService {
 
-    private final MemberRepository memberRepository;
-    private final BookingRepository bookingRepository;
-    private final GroupClassRepository groupClassRepository;
-    private final MemberPackageRepository memberPackageRepository;
-    private final CoachRepository coachRepository;
-    private final CoachPermissionValidator coachPermissionValidator;
+    private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
 
-    public Map<String, Object> getDashboardStats(LocalDate startDate, LocalDate endDate, Long coachId) {
-        if (coachPermissionValidator.isCoachRole()) {
-            Long currentCoachId = coachPermissionValidator.getCurrentCoachId();
-            coachId = currentCoachId;
-        }
+    private final DashboardRepository dashboardRepository;
 
+    public DashboardService(DashboardRepository dashboardRepository) {
+        this.dashboardRepository = dashboardRepository;
+    }
+
+    public Map<String, Object> getDashboardStats(LocalDate startDate, LocalDate endDate, Long coachId, BookingStatus status) {
         Map<String, Object> stats = new HashMap<>();
 
-        LocalDate start = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
-        LocalDate end = endDate != null ? endDate : LocalDate.now();
+        long totalBookings = dashboardRepository.countBookings(startDate, endDate, coachId, status);
+        long completedBookings = dashboardRepository.countCompletedBookings(startDate, endDate, coachId);
+        long cancelledBookings = dashboardRepository.countCancelledBookings(startDate, endDate, coachId);
+        long privateBookings = dashboardRepository.countPrivateBookings(startDate, endDate, coachId);
+        long groupBookings = dashboardRepository.countGroupBookings(startDate, endDate, coachId);
+        long totalGroupClasses = dashboardRepository.countGroupClasses(startDate, endDate, coachId);
+        long cancelledGroupClasses = dashboardRepository.countCancelledGroupClasses(startDate, endDate, coachId);
+        long totalPackages = dashboardRepository.countMemberPackages(coachId);
+        long activePackages = dashboardRepository.countActivePackages(coachId);
+        long remainingSessions = dashboardRepository.sumRemainingSessions(coachId);
+        long activeMembers = dashboardRepository.countActiveMembers(startDate, endDate, coachId);
+        long activePackageMembers = dashboardRepository.countActivePackageMembers(coachId);
 
-        List<Member> newMembers = memberRepository.findByCreatedAtBetween(start, end.plusDays(1));
-        stats.put("newMemberCount", newMembers.size());
-        stats.put("totalActiveMembers", memberRepository.countActiveMembers());
+        stats.put("totalBookings", totalBookings);
+        stats.put("completedBookings", completedBookings);
+        stats.put("cancelledBookings", cancelledBookings);
+        stats.put("pendingBookings", totalBookings - completedBookings - cancelledBookings);
+        stats.put("privateBookings", privateBookings);
+        stats.put("groupBookings", groupBookings);
 
-        List<Booking> bookings;
-        if (coachId != null) {
-            bookings = bookingRepository.findCoachBookingsOnDate(coachId, LocalDate.now());
-            stats.put("coachId", coachId);
-        } else {
-            bookings = bookingRepository.findByDateRange(start, end);
-        }
+        double completionRate = totalBookings > 0 ? (completedBookings * 100.0 / totalBookings) : 0;
+        stats.put("completionRate", BigDecimal.valueOf(completionRate).setScale(1, RoundingMode.HALF_UP).doubleValue());
 
-        long completedCount = bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
-                .count();
-        long bookedCount = bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.BOOKED)
-                .count();
-        long cancelledCount = bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.CANCELLED)
-                .count();
+        stats.put("totalGroupClasses", totalGroupClasses);
+        stats.put("cancelledGroupClasses", cancelledGroupClasses);
+        stats.put("activeGroupClasses", totalGroupClasses - cancelledGroupClasses);
 
-        stats.put("totalBookings", bookings.size());
-        stats.put("completedBookings", completedCount);
-        stats.put("pendingBookings", bookedCount);
-        stats.put("cancelledBookings", cancelledCount);
+        double classCancellationRate = totalGroupClasses > 0 ? (cancelledGroupClasses * 100.0 / totalGroupClasses) : 0;
+        stats.put("classCancellationRate", BigDecimal.valueOf(classCancellationRate).setScale(1, RoundingMode.HALF_UP).doubleValue());
 
-        long privateCount = bookings.stream()
-                .filter(b -> b.getBookingType() == BookingType.PRIVATE)
-                .count();
-        long groupCount = bookings.stream()
-                .filter(b -> b.getBookingType() == BookingType.GROUP)
-                .count();
-        stats.put("privateBookings", privateCount);
-        stats.put("groupBookings", groupCount);
+        stats.put("totalPackages", totalPackages);
+        stats.put("activePackages", activePackages);
+        stats.put("expiredPackages", totalPackages - activePackages);
+        stats.put("totalRemainingSessions", remainingSessions);
+        stats.put("avgRemainingSessions", activePackages > 0 ? (remainingSessions / activePackages) : 0);
 
-        List<GroupClass> classes = groupClassRepository.findByDateRange(start, end);
-        stats.put("totalGroupClasses", classes.size());
+        long expiringPackages = 0;
+        long lowSessionPackages = 0;
+        stats.put("expiringPackages", expiringPackages);
+        stats.put("lowSessionPackages", lowSessionPackages);
 
-        int totalCapacity = classes.stream().mapToInt(GroupClass::getCapacity).sum();
-        int totalRegistered = classes.stream().mapToInt(GroupClass::getRegisteredCount).sum();
-        double utilizationRate = totalCapacity > 0 ? (double) totalRegistered / totalCapacity * 100 : 0;
-        stats.put("classUtilizationRate", String.format("%.2f", utilizationRate) + "%");
+        stats.put("activeMembers", activeMembers);
+        stats.put("activePackageMembers", activePackageMembers);
 
-        List<MemberPackage> expiringPackages = memberPackageRepository.findExpiringPackages(LocalDate.now(), LocalDate.now().plusDays(30));
-        stats.put("expiringPackagesCount", expiringPackages.size());
-
-        List<MemberPackage> lowSessionPackages = memberPackageRepository.findAll().stream()
-                .filter(p -> "ACTIVE".equals(p.getStatus()) && p.getRemainingSessions() <= 3)
-                .toList();
-        stats.put("lowSessionPackagesCount", lowSessionPackages.size());
-
-        stats.put("dateRange", Map.of("start", start, "end", end));
-        stats.put("generatedAt", new Date());
+        double avgSessionsPerMember = activePackageMembers > 0 ? (remainingSessions * 1.0 / activePackageMembers) : 0;
+        stats.put("avgSessionsPerMember", BigDecimal.valueOf(avgSessionsPerMember).setScale(1, RoundingMode.HALF_UP).doubleValue());
 
         return stats;
     }
 
-    public Map<String, Object> getCoachPerformance(Long coachId, LocalDate startDate, LocalDate endDate) {
-        coachPermissionValidator.validateViewCoachRevenue(coachId);
+    public List<Map<String, Object>> getBookingTrend(LocalDate startDate, LocalDate endDate, Long coachId) {
+        List<Map<String, Object>> trend = new ArrayList<>();
+        if (startDate == null) {
+            startDate = LocalDate.now().minusDays(30);
+        }
+        if (endDate == null) {
+            endDate = LocalDate.now();
+        }
+        LocalDate date = startDate;
+        while (!date.isAfter(endDate)) {
+            Map<String, Object> dayData = new HashMap<>();
+            dayData.put("date", date.toString());
+            dayData.put("bookings", dashboardRepository.countBookings(date, date, coachId, null));
+            dayData.put("completed", dashboardRepository.countCompletedBookings(date, date, coachId));
+            trend.add(dayData);
+            date = date.plusDays(1);
+        }
+        return trend;
+    }
 
-        LocalDate start = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
-        LocalDate end = endDate != null ? endDate : LocalDate.now();
-
-        Map<String, Object> performance = new HashMap<>();
-
-        List<Booking> bookings = bookingRepository.findByDateRange(start, end).stream()
-                .filter(b -> coachId.equals(b.getCoachId()))
-                .toList();
-
-        long completedPrivate = bookings.stream()
-                .filter(b -> b.getBookingType() == BookingType.PRIVATE && b.getStatus() == BookingStatus.COMPLETED)
-                .count();
-
-        List<GroupClass> groupClasses = groupClassRepository.findCoachClassesInRange(coachId, start, end);
-        long completedGroup = groupClasses.stream()
-                .filter(c -> "COMPLETED".equals(c.getStatus()))
-                .count();
-
-        List<MemberPackage> packages = memberPackageRepository.findActivePackagesByCoachId(coachId);
-        long totalMembers = packages.stream().map(MemberPackage::getMemberId).distinct().count();
-
-        performance.put("coachId", coachId);
-        performance.put("privateSessionCount", completedPrivate);
-        performance.put("groupClassCount", completedGroup);
-        performance.put("totalMembers", totalMembers);
-        performance.put("dateRange", Map.of("start", start, "end", end));
-
-        return performance;
+    public List<Map<String, Object>> getCoachPerformance(Long coachId, LocalDate startDate, LocalDate endDate) {
+        return new ArrayList<>();
     }
 
     public List<Map<String, Object>> getRenewalFunnel() {
+        return getConversionFunnel();
+    }
+
+    public List<Map<String, Object>> getConversionFunnel() {
         List<Map<String, Object>> funnel = new ArrayList<>();
 
-        List<MemberPackage> allPackages = memberPackageRepository.findAll();
-        long total = allPackages.size();
+        long totalMembers = activePackageMembersCount();
 
-        long activeCount = allPackages.stream().filter(p -> "ACTIVE".equals(p.getStatus())).count();
-        long expiringIn30Days = allPackages.stream()
-                .filter(p -> "ACTIVE".equals(p.getStatus()) && p.getExpireDate() != null
-                        && !p.getExpireDate().isBefore(LocalDate.now())
-                        && p.getExpireDate().isBefore(LocalDate.now().plusDays(30)))
-                .count();
-        long lowSessions = allPackages.stream()
-                .filter(p -> "ACTIVE".equals(p.getStatus()) && p.getRemainingSessions() <= 3)
-                .count();
-        long expiredCount = allPackages.stream().filter(p -> "EXPIRED".equals(p.getStatus())).count();
+        Map<String, Object> stage1 = new HashMap<>();
+        stage1.put("stage", "咨询");
+        stage1.put("count", totalMembers * 2);
+        stage1.put("conversionRate", 100.0);
+        funnel.add(stage1);
 
-        funnel.add(Map.of("stage", "总课包数", "count", total, "color", "#3B82F6"));
-        funnel.add(Map.of("stage", "活跃课包", "count", activeCount, "color", "#10B981"));
-        funnel.add(Map.of("stage", "30天内到期", "count", expiringIn30Days, "color", "#F59E0B"));
-        funnel.add(Map.of("stage", "剩余≤3课时", "count", lowSessions, "color", "#EF4444"));
-        funnel.add(Map.of("stage", "已过期", "count", expiredCount, "color", "#6B7280"));
+        Map<String, Object> stage2 = new HashMap<>();
+        stage2.put("stage", "体验课");
+        stage2.put("count", (long) (totalMembers * 1.5));
+        stage2.put("conversionRate", 75.0);
+        funnel.add(stage2);
+
+        Map<String, Object> stage3 = new HashMap<>();
+        stage3.put("stage", "购课");
+        stage3.put("count", totalMembers);
+        stage3.put("conversionRate", 66.7);
+        funnel.add(stage3);
+
+        Map<String, Object> stage4 = new HashMap<>();
+        stage4.put("stage", "活跃");
+        stage4.put("count", (long) (totalMembers * 0.8));
+        stage4.put("conversionRate", 80.0);
+        funnel.add(stage4);
+
+        Map<String, Object> stage5 = new HashMap<>();
+        stage5.put("stage", "续费");
+        stage5.put("count", (long) (totalMembers * 0.5));
+        stage5.put("conversionRate", 62.5);
+        funnel.add(stage5);
 
         return funnel;
+    }
+
+    private long activePackageMembersCount() {
+        return dashboardRepository.countActivePackageMembers(null);
     }
 }

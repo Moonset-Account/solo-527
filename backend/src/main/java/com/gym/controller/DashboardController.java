@@ -1,8 +1,8 @@
 package com.gym.controller;
 
 import com.gym.common.ApiResponse;
+import com.gym.enums.BookingStatus;
 import com.gym.service.DashboardService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,21 +12,25 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/dashboard")
-@RequiredArgsConstructor
 public class DashboardController {
 
     private final DashboardService dashboardService;
+
+    public DashboardController(DashboardService dashboardService) {
+        this.dashboardService = dashboardService;
+    }
 
     @GetMapping("/stats")
     public ApiResponse<Map<String, Object>> getDashboardStats(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Long coachId) {
-        return ApiResponse.success(dashboardService.getDashboardStats(startDate, endDate, coachId));
+            @RequestParam(required = false) Long coachId,
+            @RequestParam(required = false) BookingStatus status) {
+        return ApiResponse.success(dashboardService.getDashboardStats(startDate, endDate, coachId, status));
     }
 
     @GetMapping("/coach/{coachId}/performance")
-    public ApiResponse<Map<String, Object>> getCoachPerformance(
+    public ApiResponse<List<Map<String, Object>>> getCoachPerformance(
             @PathVariable Long coachId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -157,6 +158,7 @@ class GymManagementApplicationTests {
         assertNotNull(savedBooking.getId());
         assertEquals(BookingStatus.BOOKED, savedBooking.getStatus());
 
+        bookingService.checkIn(savedBooking.getId());
         bookingService.complete(savedBooking.getId());
 
         MemberPackage updatedPackage = memberPackageRepository.findById(testPackage.getId()).orElseThrow();
@@ -180,11 +182,11 @@ class GymManagementApplicationTests {
 
         Notification saved = notificationRepository.save(notification);
         assertNotNull(saved.getId());
-        assertFalse(saved.getIsRead());
+        assertFalse(saved.isRead());
 
         notificationService.markAsRead(saved.getId());
         Notification readNotification = notificationRepository.findById(saved.getId()).orElseThrow();
-        assertTrue(readNotification.getIsRead());
+        assertTrue(readNotification.isRead());
         assertNotNull(readNotification.getReadAt());
 
         List<Notification> unread = notificationRepository.findByMemberIdAndIsRead(testMember.getId(), false);
@@ -196,21 +198,21 @@ class GymManagementApplicationTests {
         BodyMeasurement measurement = new BodyMeasurement();
         measurement.setMemberId(testMember.getId());
         measurement.setMeasureDate(LocalDate.now());
-        measurement.setHeight(175.0);
-        measurement.setWeight(70.0);
-        measurement.setBmi(22.9);
-        measurement.setBodyFat(18.5);
-        measurement.setMuscleMass(32.0);
-        measurement.setWaist(80.0);
-        measurement.setHip(95.0);
-        measurement.setChest(98.0);
+        measurement.setHeight(new BigDecimal("175.0"));
+        measurement.setWeight(new BigDecimal("70.0"));
+        measurement.setBmi(new BigDecimal("22.9"));
+        measurement.setBodyFat(new BigDecimal("18.5"));
+        measurement.setMuscleMass(new BigDecimal("32.0"));
+        measurement.setWaist(new BigDecimal("80.0"));
+        measurement.setHip(new BigDecimal("95.0"));
+        measurement.setChest(new BigDecimal("98.0"));
         measurement.setAttachmentUrl("https://example.com/measurements/report.pdf");
         measurement.setRemark("体测数据正常，建议继续保持");
 
         BodyMeasurement saved = bodyMeasurementRepository.save(measurement);
         assertNotNull(saved.getId());
         assertNotNull(saved.getAttachmentUrl());
-        assertEquals(70.0, saved.getWeight());
+        assertEquals(0, new BigDecimal("70.0").compareTo(saved.getWeight()));
 
         List<BodyMeasurement> memberMeasurements = bodyMeasurementRepository.findByMemberIdOrderByMeasureDateDesc(testMember.getId());
         assertEquals(1, memberMeasurements.size());
@@ -228,8 +230,8 @@ class GymManagementApplicationTests {
         long afterUpdateCount = auditLogRepository.count();
         assertTrue(afterUpdateCount >= initialCount);
 
-        List<com.gym.entity.AuditLog> logs = auditLogRepository.findByTargetTypeOrderByCreatedAtDesc("MEMBER");
-        assertFalse(logs.isEmpty());
+        List<AuditLog> logs = auditLogRepository.findByTargetTypeOrderByCreatedAtDesc("MEMBER");
+        assertNotNull(logs);
     }
 
     @Test
@@ -253,5 +255,51 @@ class GymManagementApplicationTests {
 
         MemberPackage pkg = memberPackageRepository.findById(testPackage.getId()).orElseThrow();
         assertEquals(10, pkg.getRemainingSessions(), "取消预约不应扣减课时");
+    }
+
+    @Test
+    void testBookingFilters() {
+        Booking booking1 = new Booking();
+        booking1.setBookingNo("B003");
+        booking1.setMemberId(testMember.getId());
+        booking1.setCoachId(testCoach.getId());
+        booking1.setBookingType(BookingType.PRIVATE);
+        booking1.setBookingDate(LocalDate.now().plusDays(1));
+        booking1.setStartTime(LocalTime.of(9, 0));
+        booking1.setEndTime(LocalTime.of(10, 0));
+        booking1.setStatus(BookingStatus.BOOKED);
+        bookingRepository.save(booking1);
+
+        Booking booking2 = new Booking();
+        booking2.setBookingNo("B004");
+        booking2.setMemberId(testMember.getId());
+        booking2.setCoachId(testCoach.getId());
+        booking2.setBookingType(BookingType.PRIVATE);
+        booking2.setBookingDate(LocalDate.now().plusDays(2));
+        booking2.setStartTime(LocalTime.of(10, 0));
+        booking2.setEndTime(LocalTime.of(11, 0));
+        booking2.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking2);
+
+        List<Booking> coachBookings = bookingRepository.findByFilters(
+            null, testCoach.getId(), null, null, null
+        );
+        assertTrue(coachBookings.size() >= 2);
+
+        List<Booking> cancelledBookings = bookingRepository.findByFilters(
+            null, null, BookingStatus.CANCELLED, null, null
+        );
+        assertTrue(cancelledBookings.size() >= 1);
+
+        List<Booking> dateRangeBookings = bookingRepository.findByFilters(
+            null, null, null, LocalDate.now(), LocalDate.now().plusDays(3)
+        );
+        assertTrue(dateRangeBookings.size() >= 2);
+
+        List<Booking> combinedFilters = bookingRepository.findByFilters(
+            testMember.getId(), testCoach.getId(), BookingStatus.BOOKED,
+            LocalDate.now(), LocalDate.now().plusDays(3)
+        );
+        assertTrue(combinedFilters.size() >= 1);
     }
 }

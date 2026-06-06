@@ -5,8 +5,8 @@ import com.gym.repository.AuditLogRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,13 +16,18 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuditLogService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuditLogService.class);
 
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+
+    public AuditLogService(AuditLogRepository auditLogRepository, ObjectMapper objectMapper) {
+        this.auditLogRepository = auditLogRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public void log(String operation, String module, Long targetId, String targetType, Object oldValue, Object newValue) {
         try {

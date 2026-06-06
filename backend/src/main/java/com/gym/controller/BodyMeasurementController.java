@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.BodyMeasurement;
 import com.gym.service.BodyMeasurementService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +11,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/measurements")
-@RequiredArgsConstructor
 public class BodyMeasurementController {
 
     private final BodyMeasurementService bodyMeasurementService;
+
+    public BodyMeasurementController(BodyMeasurementService bodyMeasurementService) {
+        this.bodyMeasurementService = bodyMeasurementService;
+    }
 
     @PostMapping
     public ApiResponse<BodyMeasurement> createMeasurement(@RequestBody BodyMeasurement measurement) {

@@ -10,7 +10,8 @@ import com.gym.repository.BookingRepository;
 import com.gym.repository.GroupClassRepository;
 import com.gym.repository.MemberPackageRepository;
 import com.gym.validation.BookingValidator;
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,14 +22,23 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class BookingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
     private final BookingRepository bookingRepository;
     private final MemberPackageRepository memberPackageRepository;
     private final GroupClassRepository groupClassRepository;
     private final BookingValidator bookingValidator;
     private final AuditLogService auditLogService;
+
+    public BookingService(BookingRepository bookingRepository, MemberPackageRepository memberPackageRepository, GroupClassRepository groupClassRepository, BookingValidator bookingValidator, AuditLogService auditLogService) {
+        this.bookingRepository = bookingRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.groupClassRepository = groupClassRepository;
+        this.bookingValidator = bookingValidator;
+        this.auditLogService = auditLogService;
+    }
 
     @Transactional
     public Booking createBooking(Booking booking) {
@@ -119,6 +129,14 @@ public class BookingService {
         return saved;
     }
 
+    public Booking complete(Long id) {
+        return completeBooking(id);
+    }
+
+    public Booking cancel(Long id) {
+        return cancelBooking(id);
+    }
+
     @Transactional
     public void deductSession(Long memberPackageId) {
         MemberPackage memberPackage = memberPackageRepository.findById(memberPackageId)
@@ -140,19 +158,7 @@ public class BookingService {
     }
 
     public List<Booking> getBookings(Long memberId, Long coachId, LocalDate startDate, LocalDate endDate, BookingStatus status) {
-        if (startDate != null && endDate != null) {
-            return bookingRepository.findByDateRange(startDate, endDate);
-        }
-        if (memberId != null) {
-            return bookingRepository.findByMemberId(memberId);
-        }
-        if (coachId != null) {
-            return bookingRepository.findByCoachId(coachId);
-        }
-        if (status != null) {
-            return bookingRepository.findByStatus(status);
-        }
-        return bookingRepository.findAll();
+        return bookingRepository.findByFilters(memberId, coachId, status, startDate, endDate);
     }
 
     public Booking getBookingById(Long id) {

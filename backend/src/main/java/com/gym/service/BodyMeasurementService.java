@@ -3,7 +3,8 @@ package com.gym.service;
 import com.gym.common.BusinessException;
 import com.gym.entity.BodyMeasurement;
 import com.gym.repository.BodyMeasurementRepository;
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,11 +12,17 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class BodyMeasurementService {
+
+    private static final Logger log = LoggerFactory.getLogger(BodyMeasurementService.class);
 
     private final BodyMeasurementRepository bodyMeasurementRepository;
     private final AuditLogService auditLogService;
+
+    public BodyMeasurementService(BodyMeasurementRepository bodyMeasurementRepository, AuditLogService auditLogService) {
+        this.bodyMeasurementRepository = bodyMeasurementRepository;
+        this.auditLogService = auditLogService;
+    }
 
     @Transactional
     public BodyMeasurement createMeasurement(BodyMeasurement measurement) {

@@ -5,22 +5,28 @@ import com.gym.entity.User;
 import com.gym.enums.UserRole;
 import com.gym.repository.CoachRepository;
 import com.gym.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
     private final UserRepository userRepository;
     private final CoachRepository coachRepository;
     private final PasswordEncoder passwordEncoder;
+
+    public DataInitializer(UserRepository userRepository, CoachRepository coachRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.coachRepository = coachRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
     public void run(String... args) {

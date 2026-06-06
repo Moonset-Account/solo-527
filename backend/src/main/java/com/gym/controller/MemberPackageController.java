@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.MemberPackage;
 import com.gym.service.MemberPackageService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/packages")
-@RequiredArgsConstructor
 public class MemberPackageController {
 
     private final MemberPackageService memberPackageService;
+
+    public MemberPackageController(MemberPackageService memberPackageService) {
+        this.memberPackageService = memberPackageService;
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")

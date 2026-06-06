@@ -104,7 +104,7 @@ export const measurementApi = {
 }
 
 export const dashboardApi = {
-  getStats: (params?: { startDate?: string; endDate?: string; coachId?: number }) =>
+  getStats: (params?: { startDate?: string; endDate?: string; coachId?: number; status?: string }) =>
     request.get<any, DashboardStats>('/dashboard/stats', { params }),
   getCoachPerformance: (coachId: number, params?: { startDate?: string; endDate?: string }) =>
     request.get<any, CoachPerformance>(`/dashboard/coach/${coachId}/performance`, { params }),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, DatePicker, Spin } from 'antd'
+import { Row, Col, Card, Statistic, DatePicker, Spin, Select } from 'antd'
 import {
   UserOutlined,
   CalendarOutlined,
@@ -9,24 +9,42 @@ import {
   TeamOutlined
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
-import { dashboardApi } from '@/api'
-import type { DashboardStats, FunnelItem } from '@/types'
+import { dashboardApi, coachApi } from '@/api'
+import type { DashboardStats, FunnelItem, Coach } from '@/types'
 import dayjs from 'dayjs'
+import { useUserStore } from '@/store'
 
 const { RangePicker } = DatePicker
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [funnel, setFunnel] = useState<FunnelItem[]>([])
+  const [coaches, setCoaches] = useState<Coach[]>([])
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf('month'),
     dayjs()
   ])
+  const [statusFilter, setStatusFilter] = useState<string | undefined>()
+  const [coachFilter, setCoachFilter] = useState<number | undefined>()
+  const { isAdmin } = useUserStore()
+
+  useEffect(() => {
+    loadCoaches()
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [dateRange])
+  }, [dateRange, statusFilter, coachFilter])
+
+  const loadCoaches = async () => {
+    try {
+      const data = await coachApi.list()
+      setCoaches(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -34,7 +52,9 @@ const Dashboard: React.FC = () => {
       const [statsData, funnelData] = await Promise.all([
         dashboardApi.getStats({
           startDate: dateRange[0].format('YYYY-MM-DD'),
-          endDate: dateRange[1].format('YYYY-MM-DD')
+          endDate: dateRange[1].format('YYYY-MM-DD'),
+          coachId: coachFilter,
+          status: statusFilter
         }),
         dashboardApi.getRenewalFunnel()
       ])
@@ -91,20 +111,52 @@ const Dashboard: React.FC = () => {
 
   return (
     <Spin spinning={loading}>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <span>时间范围：</span>
         <RangePicker
           value={dateRange}
           onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
         />
+        <span>预约状态：</span>
+        <Select
+          style={{ width: 150 }}
+          placeholder="全部状态"
+          allowClear
+          value={statusFilter}
+          onChange={setStatusFilter}
+        >
+          <Select.Option value="BOOKED">已预约</Select.Option>
+          <Select.Option value="CHECKED_IN">已签到</Select.Option>
+          <Select.Option value="COMPLETED">已完成</Select.Option>
+          <Select.Option value="CANCELLED">已取消</Select.Option>
+          <Select.Option value="NO_SHOW">未到场</Select.Option>
+        </Select>
+        {isAdmin() && (
+          <>
+            <span>负责人：</span>
+            <Select
+              style={{ width: 180 }}
+              placeholder="全部教练"
+              allowClear
+              value={coachFilter}
+              onChange={setCoachFilter}
+            >
+              {coaches.map((c) => (
+                <Select.Option key={c.id} value={c.id}>
+                  {c.coachNo}
+                </Select.Option>
+              ))}
+            </Select>
+          </>
+        )}
       </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="新增会员"
-              value={stats?.newMemberCount || 0}
+              title="活跃会员"
+              value={stats?.activeMembers || 0}
               prefix={<UserOutlined style={{ color: '#3B82F6' }} />}
               valueStyle={{ color: '#3B82F6' }}
             />
@@ -113,8 +165,8 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="活跃会员总数"
-              value={stats?.totalActiveMembers || 0}
+              title="有效课包会员"
+              value={stats?.activePackageMembers || 0}
               prefix={<TeamOutlined style={{ color: '#10B981' }} />}
               valueStyle={{ color: '#10B981' }}
             />
@@ -168,8 +220,8 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="团课利用率"
-              value={stats?.classUtilizationRate || '0%'}
+              title="预约完成率"
+              value={`${stats?.completionRate || 0}%`}
               prefix={<ArrowUpOutlined style={{ color: '#06B6D4' }} />}
             />
           </Card>
@@ -177,8 +229,8 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="即将到期课包"
-              value={stats?.expiringPackagesCount || 0}
+              title="活跃课包"
+              value={stats?.activePackages || 0}
               prefix={<WarningOutlined style={{ color: '#F59E0B' }} />}
               valueStyle={{ color: '#F59E0B' }}
             />
@@ -187,10 +239,10 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="低课时课包"
-              value={stats?.lowSessionPackagesCount || 0}
-              prefix={<WarningOutlined style={{ color: '#EF4444' }} />}
-              valueStyle={{ color: '#EF4444' }}
+              title="剩余总课时"
+              value={stats?.totalRemainingSessions || 0}
+              prefix={<WarningOutlined style={{ color: '#10B981' }} />}
+              valueStyle={{ color: '#10B981' }}
             />
           </Card>
         </Col>

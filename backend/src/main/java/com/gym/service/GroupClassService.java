@@ -3,7 +3,6 @@ package com.gym.service;
 import com.gym.common.BusinessException;
 import com.gym.entity.GroupClass;
 import com.gym.repository.GroupClassRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,11 +11,15 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class GroupClassService {
 
     private final GroupClassRepository groupClassRepository;
     private final AuditLogService auditLogService;
+
+    public GroupClassService(GroupClassRepository groupClassRepository, AuditLogService auditLogService) {
+        this.groupClassRepository = groupClassRepository;
+        this.auditLogService = auditLogService;
+    }
 
     @Transactional
     public GroupClass createGroupClass(GroupClass groupClass) {

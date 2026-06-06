@@ -3,7 +3,6 @@ package com.gym.controller;
 import com.gym.common.ApiResponse;
 import com.gym.entity.Coach;
 import com.gym.service.CoachService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,10 +10,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/coaches")
-@RequiredArgsConstructor
 public class CoachController {
 
     private final CoachService coachService;
+
+    public CoachController(CoachService coachService) {
+        this.coachService = coachService;
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

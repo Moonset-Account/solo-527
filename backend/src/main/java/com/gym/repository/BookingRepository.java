@@ -26,6 +26,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE b.coachId = :coachId AND b.bookingDate = :date AND b.status != 'CANCELLED'")
     List<Booking> findCoachBookingsOnDate(@Param("coachId") Long coachId, @Param("date") LocalDate date);
 
+    @Query("SELECT b FROM Booking b WHERE " +
+           "(:memberId IS NULL OR b.memberId = :memberId) AND " +
+           "(:coachId IS NULL OR b.coachId = :coachId) AND " +
+           "(:status IS NULL OR b.status = :status) AND " +
+           "(:startDate IS NULL OR b.bookingDate >= :startDate) AND " +
+           "(:endDate IS NULL OR b.bookingDate <= :endDate) " +
+           "ORDER BY b.bookingDate DESC, b.startTime DESC")
+    List<Booking> findByFilters(
+            @Param("memberId") Long memberId,
+            @Param("coachId") Long coachId,
+            @Param("status") BookingStatus status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
     @Query("SELECT b FROM Booking b WHERE b.memberId = :memberId AND b.bookingDate BETWEEN :startDate AND :endDate")
     List<Booking> findMemberBookingsInRange(@Param("memberId") Long memberId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 

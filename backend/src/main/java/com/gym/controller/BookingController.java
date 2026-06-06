@@ -4,7 +4,6 @@ import com.gym.common.ApiResponse;
 import com.gym.entity.Booking;
 import com.gym.enums.BookingStatus;
 import com.gym.service.BookingService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
-@RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
+
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
+    }
 
     @PostMapping
     public ApiResponse<Booking> createBooking(@RequestBody Booking booking) {

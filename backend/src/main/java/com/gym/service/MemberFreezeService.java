@@ -5,7 +5,6 @@ import com.gym.entity.MemberFreeze;
 import com.gym.entity.MemberPackage;
 import com.gym.repository.MemberFreezeRepository;
 import com.gym.repository.MemberPackageRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +14,17 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class MemberFreezeService {
 
     private final MemberFreezeRepository memberFreezeRepository;
     private final MemberPackageRepository memberPackageRepository;
     private final AuditLogService auditLogService;
+
+    public MemberFreezeService(MemberFreezeRepository memberFreezeRepository, MemberPackageRepository memberPackageRepository, AuditLogService auditLogService) {
+        this.memberFreezeRepository = memberFreezeRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.auditLogService = auditLogService;
+    }
 
     @Transactional
     public MemberFreeze createFreeze(MemberFreeze freeze) {

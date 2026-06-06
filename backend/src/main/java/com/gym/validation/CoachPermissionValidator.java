@@ -6,17 +6,20 @@ import com.gym.entity.User;
 import com.gym.enums.UserRole;
 import com.gym.repository.CoachRepository;
 import com.gym.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class CoachPermissionValidator {
 
     private final UserRepository userRepository;
     private final CoachRepository coachRepository;
+
+    public CoachPermissionValidator(UserRepository userRepository, CoachRepository coachRepository) {
+        this.userRepository = userRepository;
+        this.coachRepository = coachRepository;
+    }
 
     public void validateViewCoachRevenue(Long targetCoachId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

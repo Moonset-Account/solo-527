@@ -8,19 +8,23 @@ import com.gym.enums.BookingStatus;
 import com.gym.repository.MemberFreezeRepository;
 import com.gym.repository.MemberPackageRepository;
 import com.gym.repository.MemberRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class BookingValidator {
 
     private final MemberFreezeRepository memberFreezeRepository;
     private final MemberPackageRepository memberPackageRepository;
     private final MemberRepository memberRepository;
+
+    public BookingValidator(MemberFreezeRepository memberFreezeRepository, MemberPackageRepository memberPackageRepository, MemberRepository memberRepository) {
+        this.memberFreezeRepository = memberFreezeRepository;
+        this.memberPackageRepository = memberPackageRepository;
+        this.memberRepository = memberRepository;
+    }
 
     public void validateBooking(Booking booking) {
         validateMemberNotFrozen(booking.getMemberId(), booking.getBookingDate());

@@ -191,24 +191,33 @@ export interface AuditLog {
 }
 
 export interface DashboardStats {
-  newMemberCount: number
-  totalActiveMembers: number
   totalBookings: number
   completedBookings: number
   pendingBookings: number
   cancelledBookings: number
   privateBookings: number
   groupBookings: number
+  completionRate: number
   totalGroupClasses: number
-  classUtilizationRate: string
-  expiringPackagesCount: number
-  lowSessionPackagesCount: number
+  activeGroupClasses: number
+  cancelledGroupClasses: number
+  classCancellationRate: number
+  totalPackages: number
+  activePackages: number
+  expiredPackages: number
+  totalRemainingSessions: number
+  avgRemainingSessions: number
+  expiringPackages: number
+  lowSessionPackages: number
+  activeMembers: number
+  activePackageMembers: number
+  avgSessionsPerMember: number
+  newMemberCount?: number
+  totalActiveMembers?: number
+  classUtilizationRate?: string
+  expiringPackagesCount?: number
+  lowSessionPackagesCount?: number
   coachId?: number
-  dateRange: {
-    start: string
-    end: string
-  }
-  generatedAt: string
 }
 
 export interface CoachPerformance {
