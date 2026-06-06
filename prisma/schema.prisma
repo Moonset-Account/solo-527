@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserRole {
+  id          String   @id @default(uuid())
+  roleName    String   @unique @map("role_name")
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  users       User[]
+
+  @@map("user_roles")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  realNameMasked  String?  @map("real_name_masked")
+  roleId          String   @map("role_id")
+  departmentScopes String[] @default([]) @map("department_scopes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  lastLogin       DateTime? @map("last_login")
+
+  role       UserRole     @relation(fields: [roleId], references: [id])
+  annotations Annotation[]
+  importLogs ImportLog[]
+
+  @@map("users")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  deptCode    String   @unique @map("dept_code")
+  deptName    String   @map("dept_name")
+  location    Unsupported("geography(Point, 4326)")?
+  floorNumber Int?     @map("floor_number")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  doctors        Doctor[]
+  visitProcesses VisitProcess[]
+
+  @@map("departments")
+}
+
+model Doctor {
+  id               String   @id @default(uuid())
+  doctorCode       String   @unique @map("doctor_code")
+  doctorNameMasked String   @map("doctor_name_masked")
+  deptId           String   @map("dept_id")
+  title            String?
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  department     Department     @relation(fields: [deptId], references: [id])
+  visitProcesses VisitProcess[]
+
+  @@map("doctors")
+}
+
+model PatientType {
+  id          String   @id @default(uuid())
+  typeCode    String   @unique @map("type_code")
+  typeName    String   @map("type_name")
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  visitProcesses VisitProcess[]
+
+  @@map("patient_types")
+}
+
+model VisitProcess {
+  id                  String    @id @default(uuid())
+  visitNumberMasked   String    @map("visit_number_masked")
+  patientTypeId       String?   @map("patient_type_id")
+  deptId              String    @map("dept_id")
+  doctorId            String?   @map("doctor_id")
+  registerTime        DateTime? @map("register_time")
+  checkinTime         DateTime? @map("checkin_time")
+  triageTime          DateTime? @map("triage_time")
+  callTime            DateTime? @map("call_time")
+  paymentTime         DateTime? @map("payment_time")
+  medicineTime        DateTime? @map("medicine_time")
+  waitTotalMinutes    Int?      @map("wait_total_minutes")
+  waitRegisterMinutes Int?      @map("wait_register_minutes")
+  waitTriageMinutes   Int?      @map("wait_triage_minutes")
+  waitDoctorMinutes   Int?      @map("wait_doctor_minutes")
+  waitPaymentMinutes  Int?      @map("wait_payment_minutes")
+  waitMedicineMinutes Int?      @map("wait_medicine_minutes")
+  visitDate           DateTime  @map("visit_date")
+  hourOfDay           Int?      @map("hour_of_day")
+  dayOfWeek           Int?      @map("day_of_week")
+  importId            String?   @map("import_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  patientType PatientType? @relation(fields: [patientTypeId], references: [id])
+  department  Department   @relation(fields: [deptId], references: [id])
+  doctor      Doctor?      @relation(fields: [doctorId], references: [id])
+  annotations Annotation[]
+
+  @@index([visitDate])
+  @@index([deptId])
+  @@index([doctorId])
+  @@index([hourOfDay])
+  @@index([dayOfWeek])
+  @@map("visit_processes")
+}
+
+model Annotation {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  visitId        String?  @map("visit_id")
+  annotationType String   @map("annotation_type")
+  description    String
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id])
+  visit VisitProcess?  @relation(fields: [visitId], references: [id])
+
+  @@index([visitId])
+  @@index([userId])
+  @@map("annotations")
+}
+
+model ImportLog {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  fileName       String   @map("file_name")
+  totalRecords   Int      @default(0) @map("total_records")
+  successRecords Int      @default(0) @map("success_records")
+  failedRecords  Int      @default(0) @map("failed_records")
+  errorDetails   Json?    @map("error_details")
+  status         String   @default("pending")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("import_logs")
+}
+
+model DataQualityRule {
+  id             String   @id @default(uuid())
+  ruleCode       String   @unique @map("rule_code")
+  ruleName       String   @map("rule_name")
+  ruleDescription String?  @map("rule_description")
+  severity       String
+  isActive       Boolean  @default(true) @map("is_active")
+
+  @@map("data_quality_rules")
+}
