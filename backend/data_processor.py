@@ -35,6 +35,32 @@ def is_exam_week(target_date: date, db: Session) -> bool:
     return exam_week is not None and exam_week.is_exam_week
 
 
+def apply_time_filter(query, filters, time_field='start_time'):
+    time_slot = filters.get('time_slot')
+    if not time_slot:
+        return query
+    
+    time_map = {
+        'morning': ('08:00', '12:00'),
+        'afternoon': ('12:00', '18:00'),
+        'evening': ('18:00', '22:00'),
+        '08-10': ('08:00', '10:00'),
+        '10-12': ('10:00', '12:00'),
+        '12-14': ('12:00', '14:00'),
+        '14-16': ('14:00', '16:00'),
+        '16-18': ('16:00', '18:00'),
+        '18-20': ('18:00', '20:00'),
+        '20-22': ('20:00', '22:00'),
+    }
+    
+    if time_slot in time_map:
+        start_t, end_t = time_map[time_slot]
+        field = getattr(models.Reservation, time_field)
+        query = query.filter(and_(field >= start_t, field < end_t))
+    
+    return query
+
+
 def get_utilization_rate(db: Session, filters: dict) -> float:
     query = db.query(models.Reservation).join(models.Seat)
     
@@ -50,6 +76,8 @@ def get_utilization_rate(db: Session, filters: dict) -> float:
         query = query.filter(models.Seat.seat_type == filters['seat_type'])
     if filters.get('user_group_id'):
         query = query.filter(models.Reservation.user_group_id == filters['user_group_id'])
+    
+    query = apply_time_filter(query, filters)
     
     total = query.count()
     if total == 0:
@@ -81,6 +109,8 @@ def get_no_show_rate(db: Session, filters: dict) -> float:
     if filters.get('user_group_id'):
         query = query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     
+    query = apply_time_filter(query, filters)
+    
     total = query.count()
     if total == 0:
         return 0.0
@@ -106,22 +136,26 @@ def get_sample_size(db: Session, filters: dict) -> int:
     if filters.get('user_group_id'):
         query = query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     
+    query = apply_time_filter(query, filters)
+    
     return query.count()
 
 
 def get_heatmap_data(db: Session, filters: dict) -> list:
+    from sqlalchemy import case
+    
+    checkin_case = case(
+        (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
+        else_=0
+    )
+    
     query = db.query(
         models.Seat.grid_x,
         models.Seat.grid_y,
         models.Seat.seat_code,
         func.count(models.Reservation.id).label('reservation_count'),
-        func.sum(
-            func.case(
-                (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
-                else_=0
-            )
-        ).label('checkin_count')
-    ).join(models.Reservation, isouter=True)
+        func.sum(checkin_case).label('checkin_count')
+    ).select_from(models.Seat).outerjoin(models.Reservation)
     
     if filters.get('start_date'):
         query = query.filter(models.Reservation.reservation_date >= filters['start_date'])
@@ -163,6 +197,8 @@ def get_no_show_trend(db: Session, filters: dict) -> list:
     if filters.get('user_group_id'):
         base_query = base_query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     
+    base_query = apply_time_filter(base_query, filters)
+    
     start_date = filters.get('start_date', date.today() - timedelta(days=30))
     end_date = filters.get('end_date', date.today())
     
@@ -188,27 +224,28 @@ def get_no_show_trend(db: Session, filters: dict) -> list:
 
 
 def get_area_comparison(db: Session, filters: dict) -> list:
+    from sqlalchemy import case
+    
+    checkin_case = case(
+        (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
+        else_=0
+    )
+    no_show_case = case(
+        (models.Reservation.status == 'no_show', 1),
+        else_=0
+    )
+    
     query = db.query(
         models.Area.area_name,
         func.count(models.Reservation.id).label('total_reservations'),
-        func.sum(
-            func.case(
-                (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
-                else_=0
-            )
-        ).label('checkin_count'),
-        func.sum(
-            func.case(
-                (models.Reservation.status == 'no_show', 1),
-                else_=0
-            )
-        ).label('no_show_count'),
+        func.sum(checkin_case).label('checkin_count'),
+        func.sum(no_show_case).label('no_show_count'),
         func.avg(models.WaitQueue.wait_duration).label('avg_wait'),
         models.Area.total_seats
     ).select_from(models.Area) \
      .join(models.Seat, models.Seat.area_id == models.Area.id) \
-     .join(models.Reservation, models.Reservation.seat_id == models.Seat.id, isouter=True) \
-     .join(models.WaitQueue, models.WaitQueue.area_id == models.Area.id, isouter=True)
+     .outerjoin(models.Reservation, models.Reservation.seat_id == models.Seat.id) \
+     .outerjoin(models.WaitQueue, models.WaitQueue.area_id == models.Area.id)
     
     if filters.get('start_date'):
         query = query.filter(models.Reservation.reservation_date >= filters['start_date'])
@@ -218,6 +255,9 @@ def get_area_comparison(db: Session, filters: dict) -> list:
         query = query.filter(models.Area.floor_id == filters['floor_id'])
     if filters.get('seat_type'):
         query = query.filter(models.Seat.seat_type == filters['seat_type'])
+    
+    if filters.get('time_slot'):
+        query = apply_time_filter(query, filters)
     
     query = query.group_by(models.Area.id, models.Area.area_name, models.Area.total_seats)
     
@@ -256,6 +296,8 @@ def get_funnel_data(db: Session, filters: dict) -> list:
     if filters.get('user_group_id'):
         base_query = base_query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     
+    base_query = apply_time_filter(base_query, filters)
+    
     queue_query = db.query(models.WaitQueue)
     if filters.get('start_date'):
         queue_query = queue_query.filter(models.WaitQueue.queue_date >= filters['start_date'])
@@ -284,6 +326,31 @@ def get_funnel_data(db: Session, filters: dict) -> list:
     ]
     
     return steps
+
+
+def get_repair_rate(db: Session, filters: dict) -> float:
+    area_id = filters.get('area_id')
+    start_date = filters.get('start_date')
+    end_date = filters.get('end_date')
+    
+    seat_query = db.query(models.Seat.id)
+    if area_id:
+        seat_query = seat_query.filter(models.Seat.area_id == area_id)
+    total_seats = seat_query.count()
+    
+    if total_seats == 0:
+        return 0.0
+    
+    repair_query = db.query(models.DeviceRepair).join(models.Seat)
+    if area_id:
+        repair_query = repair_query.filter(models.Seat.area_id == area_id)
+    if start_date:
+        repair_query = repair_query.filter(models.DeviceRepair.report_date >= start_date)
+    if end_date:
+        repair_query = repair_query.filter(models.DeviceRepair.report_date <= end_date)
+    
+    repair_count = repair_query.count()
+    return round(repair_count / total_seats * 100, 2)
 
 
 def detect_anomalies(db: Session, target_date: date = None) -> list:
@@ -320,6 +387,29 @@ def detect_anomalies(db: Session, target_date: date = None) -> list:
                     'related_id': area.id,
                     'date': target_date,
                     'sample_size': sample_size
+                })
+                anomaly_id += 1
+        
+        current_repair = get_repair_rate(db, area_filters)
+        baseline_repair = get_repair_rate(db, baseline_filters)
+        repair_change = current_repair - baseline_repair
+        if repair_change > 15 and baseline_repair >= 0:
+            repair_count_today = db.query(models.DeviceRepair).join(models.Seat)\
+                .filter(models.Seat.area_id == area.id)\
+                .filter(models.DeviceRepair.report_date == target_date).count()
+            if repair_count_today >= 2:
+                anomalies.append({
+                    'id': anomaly_id,
+                    'title': f'{area.area_name} 设备报修激增',
+                    'description': f'今日报修率较过去30天均值上升了{repair_change:.1f}%，请检查设备状况',
+                    'severity': 'medium',
+                    'metric_value': current_repair,
+                    'baseline_value': baseline_repair,
+                    'change_percent': round(repair_change, 2),
+                    'related_dimension': 'area',
+                    'related_id': area.id,
+                    'date': target_date,
+                    'sample_size': repair_count_today
                 })
                 anomaly_id += 1
     
@@ -372,6 +462,34 @@ def detect_anomalies(db: Session, target_date: date = None) -> list:
                     'change_percent': round(change, 2),
                     'related_dimension': 'user_group',
                     'related_id': group.id,
+                    'date': target_date,
+                    'sample_size': sample_size
+                })
+                anomaly_id += 1
+    
+    time_slots = ['morning', 'afternoon', 'evening']
+    for slot in time_slots:
+        slot_filters = {'time_slot': slot, 'start_date': target_date, 'end_date': target_date}
+        slot_baseline = {'time_slot': slot, 'start_date': prev_30, 'end_date': target_date - timedelta(days=1)}
+        
+        current_util = get_utilization_rate(db, slot_filters)
+        baseline_util = get_utilization_rate(db, slot_baseline)
+        
+        change = current_util - baseline_util
+        if abs(change) > 30 and baseline_util > 10:
+            sample_size = get_sample_size(db, slot_filters)
+            slot_name = {'morning': '上午', 'afternoon': '下午', 'evening': '晚间'}[slot]
+            if sample_size >= 20:
+                anomalies.append({
+                    'id': anomaly_id,
+                    'title': f'{slot_name}时段利用率异常',
+                    'description': f'{slot_name}时段利用率较基线{"上升" if change > 0 else "下降"}了{abs(change):.1f}%',
+                    'severity': 'medium',
+                    'metric_value': current_util,
+                    'baseline_value': baseline_util,
+                    'change_percent': round(change, 2),
+                    'related_dimension': 'time_slot',
+                    'related_id': slot,
                     'date': target_date,
                     'sample_size': sample_size
                 })

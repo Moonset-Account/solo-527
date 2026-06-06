@@ -9,6 +9,7 @@ export const getFloors = () => api.get('/floors');
 export const getAreas = (floorId) => api.get('/areas', { params: { floor_id: floorId } });
 export const getUserGroups = () => api.get('/user-groups');
 export const getSeatTypes = () => api.get('/seat-types');
+export const getTimeSlots = () => api.get('/time-slots');
 export const getAnomalies = (targetDate) => api.get('/anomalies', { params: { target_date: targetDate } });
 export const getHeatmap = (params) => api.get('/heatmap', { params });
 export const getNoShowTrend = (params) => api.get('/no-show-trend', { params });

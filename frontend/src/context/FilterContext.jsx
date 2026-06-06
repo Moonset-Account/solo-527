@@ -18,7 +18,8 @@ export const FilterProvider = ({ children }) => {
     floor_id: null,
     area_id: null,
     seat_type: null,
-    user_group_id: null
+    user_group_id: null,
+    time_slot: null
   });
 
   const [drillDown, setDrillDown] = useState(null);
@@ -44,7 +45,8 @@ export const FilterProvider = ({ children }) => {
       floor_id: null,
       area_id: null,
       seat_type: null,
-      user_group_id: null
+      user_group_id: null,
+      time_slot: null
     });
     setDrillDown(null);
   }, []);
@@ -57,6 +59,8 @@ export const FilterProvider = ({ children }) => {
       updateFilter('area_id', id);
     } else if (dimension === 'user_group') {
       updateFilter('user_group_id', id);
+    } else if (dimension === 'time_slot') {
+      updateFilter('time_slot', id);
     }
   }, [updateFilter]);
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Row, Col, Select, DatePicker, Button, Tag, Space, Tooltip } from 'antd';
 import { ReloadOutlined, DownloadOutlined, FilterOutlined } from '@ant-design/icons';
 import { useFilter } from '../context/FilterContext';
-import { getFloors, getAreas, getUserGroups, getSeatTypes, exportCSV, exportPDF } from '../services/api';
+import { getFloors, getAreas, getUserGroups, getSeatTypes, getTimeSlots, exportCSV, exportPDF } from '../services/api';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -14,6 +14,7 @@ const FilterBar = () => {
   const [areas, setAreas] = useState([]);
   const [userGroups, setUserGroups] = useState([]);
   const [seatTypes, setSeatTypes] = useState([]);
+  const [timeSlots, setTimeSlots] = useState([]);
 
   useEffect(() => {
     fetchOptions();
@@ -29,14 +30,16 @@ const FilterBar = () => {
 
   const fetchOptions = async () => {
     try {
-      const [floorsRes, groupsRes, typesRes] = await Promise.all([
+      const [floorsRes, groupsRes, typesRes, slotsRes] = await Promise.all([
         getFloors(),
         getUserGroups(),
-        getSeatTypes()
+        getSeatTypes(),
+        getTimeSlots()
       ]);
       setFloors(floorsRes.data.data || []);
       setUserGroups(groupsRes.data.data || []);
       setSeatTypes(typesRes.data.data || []);
+      setTimeSlots(slotsRes.data.data || []);
     } catch (error) {
       console.error('获取筛选选项失败:', error);
     }
@@ -77,19 +80,40 @@ const FilterBar = () => {
       floor_id: '楼层',
       area_id: '区域',
       seat_type: '座位类型',
-      user_group_id: '用户组'
+      user_group_id: '用户组',
+      time_slot: '时间段'
     };
-    return `${labels[key] || key}: ${value}`;
+    
+    let displayValue = value;
+    if (key === 'time_slot') {
+      const slot = timeSlots.find(s => s.key === value);
+      displayValue = slot ? slot.label : value;
+    }
+    if (key === 'floor_id') {
+      const floor = floors.find(f => f.id === value);
+      displayValue = floor ? floor.floor_name : value;
+    }
+    if (key === 'area_id') {
+      const area = areas.find(a => a.id === value);
+      displayValue = area ? area.area_name : value;
+    }
+    if (key === 'user_group_id') {
+      const group = userGroups.find(g => g.id === value);
+      displayValue = group ? group.group_name : value;
+    }
+    
+    return `${labels[key] || key}: ${displayValue}`;
   };
 
   return (
     <div className="filter-bar">
       <Row gutter={16} align="middle">
-        <Col span={6}>
+        <Col xs={24} sm={12} md={5}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>日期范围</span>
             <RangePicker
               style={{ width: '100%' }}
+              size="middle"
               value={[
                 filters.start_date ? dayjs(filters.start_date) : null,
                 filters.end_date ? dayjs(filters.end_date) : null
@@ -98,13 +122,14 @@ const FilterBar = () => {
             />
           </Space>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={3}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>楼层</span>
             <Select
               style={{ width: '100%' }}
               placeholder="选择楼层"
               allowClear
+              size="middle"
               value={filters.floor_id}
               onChange={(v) => updateFilter('floor_id', v)}
             >
@@ -114,13 +139,14 @@ const FilterBar = () => {
             </Select>
           </Space>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={3}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>区域</span>
             <Select
               style={{ width: '100%' }}
               placeholder="选择区域"
               allowClear
+              size="middle"
               disabled={!filters.floor_id}
               value={filters.area_id}
               onChange={(v) => updateFilter('area_id', v)}
@@ -131,13 +157,14 @@ const FilterBar = () => {
             </Select>
           </Space>
         </Col>
-        <Col span={3}>
+        <Col xs={24} sm={12} md={3}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>座位类型</span>
             <Select
               style={{ width: '100%' }}
               placeholder="选择类型"
               allowClear
+              size="middle"
               value={filters.seat_type}
               onChange={(v) => updateFilter('seat_type', v)}
             >
@@ -147,13 +174,14 @@ const FilterBar = () => {
             </Select>
           </Space>
         </Col>
-        <Col span={3}>
+        <Col xs={24} sm={12} md={3}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <span style={{ fontSize: 12, color: '#8c8c8c' }}>用户组</span>
             <Select
               style={{ width: '100%' }}
               placeholder="用户组"
               allowClear
+              size="middle"
               value={filters.user_group_id}
               onChange={(v) => updateFilter('user_group_id', v)}
             >
@@ -163,7 +191,24 @@ const FilterBar = () => {
             </Select>
           </Space>
         </Col>
-        <Col span={4}>
+        <Col xs={24} sm={12} md={3}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <span style={{ fontSize: 12, color: '#8c8c8c' }}>时间段</span>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="选择时段"
+              allowClear
+              size="middle"
+              value={filters.time_slot}
+              onChange={(v) => updateFilter('time_slot', v)}
+            >
+              {timeSlots.map(s => (
+                <Option key={s.key} value={s.key}>{s.label}</Option>
+              ))}
+            </Select>
+          </Space>
+        </Col>
+        <Col xs={24} sm={12} md={4}>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={resetFilters}>
               重置
