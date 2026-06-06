@@ -53,6 +53,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
 
   const activeFilterTags = [
     filters.store_ids?.length ? `店铺: ${filters.store_ids.length}项` : null,
+    filters.product_ids?.length ? `商品: ${filters.product_ids.length}项` : null,
     filters.product_categories?.length ? `品类: ${filters.product_categories.length}项` : null,
     filters.warehouse_ids?.length ? `仓库: ${filters.warehouse_ids.length}项` : null,
     filters.logistics_providers?.length ? `物流: ${filters.logistics_providers.length}项` : null,
@@ -124,6 +125,25 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
         >
           {filterOptions?.product_categories.map(c => (
             <Option key={c.name} value={c.name}>{c.name}</Option>
+          ))}
+        </Select>
+
+        <Select
+          mode="multiple"
+          placeholder="选择商品"
+          style={{ minWidth: 200 }}
+          value={filters.product_ids}
+          onChange={(v) => handleSelectChange('product_ids', v)}
+          allowClear
+          maxTagCount="responsive"
+          showSearch
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+          }
+        >
+          {filterOptions?.products.map(p => (
+            <Option key={p.id} value={p.id}>{p.name}</Option>
           ))}
         </Select>
 

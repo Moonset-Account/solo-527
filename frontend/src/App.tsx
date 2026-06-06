@@ -47,7 +47,6 @@ const App: React.FC = () => {
 
   const handleExitDrillDown = () => {
     setDrillDown(null);
-    fetchDashboardData();
   };
 
   return (

@@ -50,6 +50,7 @@ export interface ServiceDurationItem {
 
 export interface DimensionStats {
   dimension: string;
+  id?: number | string;
   name: string;
   count: number;
   amount: number;
@@ -76,6 +77,7 @@ export interface FilterOptions {
   warehouses: FilterOption[];
   logistics_providers: FilterOption[];
   product_categories: FilterOption[];
+  products: FilterOption[];
   return_reasons_level1: FilterOption[];
 }
 

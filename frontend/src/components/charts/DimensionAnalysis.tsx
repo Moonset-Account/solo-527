@@ -20,16 +20,16 @@ const DimensionPanel: React.FC<DimensionPanelProps> = ({ dimension, title, dataK
     let filters: FilterState = {};
     switch (dimension) {
       case 'store':
-        filters = { store_ids: [record.name] };
+        filters = { store_ids: record.id ? [record.id] : undefined };
         break;
       case 'warehouse':
-        filters = { warehouse_ids: [record.name] };
+        filters = { warehouse_ids: record.id ? [record.id] : undefined };
         break;
       case 'logistics':
-        filters = { logistics_providers: [record.name] };
+        filters = { logistics_providers: record.name ? [record.name] : undefined };
         break;
       case 'category':
-        filters = { product_categories: [record.name] };
+        filters = { product_categories: record.name ? [record.name] : undefined };
         break;
     }
     setFilters(filters);

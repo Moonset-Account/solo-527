@@ -12,7 +12,7 @@ interface DashboardStore {
   drillDownFilters: FilterState;
   activeDrillDown: string | null;
 
-  setFilters: (filters: Partial<FilterState>) => void;
+  setFilters: (filters: Partial<FilterState>, autoFetch?: boolean) => void;
   resetFilters: () => void;
   setDrillDown: (dimension: string | null, filters?: FilterState) => void;
   fetchFilterOptions: () => Promise<void>;
@@ -35,7 +35,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   drillDownFilters: {},
   activeDrillDown: null,
 
-  setFilters: (newFilters) => {
+  setFilters: (newFilters, autoFetch = true) => {
     const merged = { ...get().filters, ...newFilters };
     Object.keys(merged).forEach(key => {
       if (merged[key as keyof FilterState] === undefined ||
@@ -45,9 +45,15 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       }
     });
     set({ filters: merged });
+    if (autoFetch) {
+      get().fetchDashboardData();
+    }
   },
 
-  resetFilters: () => set({ filters: defaultFilters, activeDrillDown: null, drillDownFilters: {} }),
+  resetFilters: () => {
+    set({ filters: defaultFilters, activeDrillDown: null, drillDownFilters: {} });
+    get().fetchDashboardData();
+  },
 
   setDrillDown: (dimension, filters) => {
     if (dimension === null) {
@@ -55,6 +61,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     } else {
       set({ activeDrillDown: dimension, drillDownFilters: filters || {} });
     }
+    get().fetchDashboardData();
   },
 
   fetchFilterOptions: async () => {
@@ -110,5 +117,6 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
   loadView: (view) => {
     set({ filters: view.filters, activeDrillDown: null, drillDownFilters: {} });
+    get().fetchDashboardData();
   }
 }));

@@ -58,6 +58,12 @@ def get_overview_stats(db: Session, filters: Dict[str, Any]) -> Dict[str, Any]:
         orders_query = orders_query.filter(Order.created_at < end_date)
     if filters.get("store_ids"):
         orders_query = orders_query.filter(Order.store_id.in_(filters["store_ids"]))
+    if filters.get("product_ids"):
+        orders_query = orders_query.filter(Order.product_id.in_(filters["product_ids"]))
+    if filters.get("product_categories"):
+        orders_query = orders_query.filter(Order.product_category.in_(filters["product_categories"]))
+    if filters.get("warehouse_ids"):
+        orders_query = orders_query.filter(Order.warehouse_id.in_(filters["warehouse_ids"]))
 
     total_orders = orders_query.count()
     return_rate = (total_returns / total_orders * 100) if total_orders > 0 else 0
@@ -242,7 +248,7 @@ def get_service_duration_stats(db: Session, filters: Dict[str, Any]) -> List[Dic
         func.count(ReturnRequest.id).label('case_count'),
         func.avg(CustomerService.handling_duration).label('avg_duration'),
         func.percentile_cont(0.5).within_group(
-            Order.by(CustomerService.handling_duration)
+            CustomerService.handling_duration
         ).label('median_duration')
     ).group_by(CustomerService.agent_name).order_by(
         func.count(ReturnRequest.id).desc()
@@ -275,23 +281,25 @@ def get_dimension_stats(db: Session, filters: Dict[str, Any]) -> Dict[str, List[
         stats = base_query.outerjoin(
             Refund, ReturnRequest.id == Refund.return_request_id
         ).with_entities(
+            id_col,
             name_col,
             func.count(ReturnRequest.id).label('count'),
             func.coalesce(func.sum(ReturnRequest.return_amount), 0).label('amount'),
             func.avg(
                 func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
             ).label('avg_cycle')
-        ).group_by(name_col).all()
+        ).group_by(id_col, name_col).all()
 
         result[dim_name] = [
             {
                 "dimension": dim_name,
-                "name": str(name) if name else f"未知{dim_name}",
+                "id": id_val,
+                "name": str(name_val) if name_val else f"未知{dim_name}",
                 "count": count,
                 "amount": float(amount or 0),
                 "avg_cycle_days": round(float(avg_cycle or 0), 1)
             }
-            for name, count, amount, avg_cycle in stats
+            for id_val, name_val, count, amount, avg_cycle in stats
         ]
 
     return result
@@ -302,6 +310,7 @@ def get_dimension_options(db: Session) -> Dict[str, List[Dict[str, Any]]]:
     warehouses = db.query(Order.warehouse_id, Order.warehouse_name).distinct().all()
     logistics = db.query(Order.logistics_provider).distinct().all()
     categories = db.query(Order.product_category).distinct().all()
+    products = db.query(Order.product_id, Order.product_name).distinct().limit(200).all()
     reasons_l1 = db.query(ReturnRequest.return_reason_level1).distinct().all()
 
     return {
@@ -309,5 +318,6 @@ def get_dimension_options(db: Session) -> Dict[str, List[Dict[str, Any]]]:
         "warehouses": [{"id": wid, "name": wname or f"仓库{wid}"} for wid, wname in warehouses if wid],
         "logistics_providers": [{"name": lp[0]} for lp in logistics if lp[0]],
         "product_categories": [{"name": cat[0]} for cat in categories if cat[0]],
+        "products": [{"id": pid, "name": pname or f"商品{pid}"} for pid, pname in products if pid],
         "return_reasons_level1": [{"name": r[0]} for r in reasons_l1 if r[0]],
     }
