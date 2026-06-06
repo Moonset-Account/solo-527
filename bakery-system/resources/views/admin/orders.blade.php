@@ -407,11 +407,8 @@ createApp({
         };
 
         const hasDepositPaid = (order) => {
-            if (!order.payments) return false;
-            const depositPaid = order.payments
-                .filter(p => p.type === 'deposit' && p.status === 'completed')
-                .reduce((sum, p) => sum + parseFloat(p.amount), 0);
-            return depositPaid >= parseFloat(order.deposit_amount);
+            const netPaid = getPaidAmount(order);
+            return netPaid >= parseFloat(order.deposit_amount);
         };
 
         const confirmOrder = async (order) => {

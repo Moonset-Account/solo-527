@@ -93,23 +93,24 @@ class RefundController extends Controller
                 ]
             ));
 
-            $this->updateOrderRefundStatus($order);
-
-            if ($request->payment_id) {
-                $payment = Payment::find($request->payment_id);
-                if ($payment) {
-                    $payment->update(['status' => Payment::STATUS_REFUNDED]);
-                }
-            }
-
             if ($isFullRefund && !$wasFullyRefunded && $order->pickupSlot) {
-                $shouldDecrement = !in_array($order->status, [
+                $originalStatus = $order->status;
+                $shouldDecrement = !in_array($originalStatus, [
                     Order::STATUS_CANCELLED,
                     Order::STATUS_REFUNDED,
                     Order::STATUS_PICKED_UP,
                 ]);
                 if ($shouldDecrement && $order->pickupSlot->current_orders > 0) {
                     $order->pickupSlot->decrement('current_orders');
+                }
+            }
+
+            $this->updateOrderRefundStatus($order);
+
+            if ($request->payment_id) {
+                $payment = Payment::find($request->payment_id);
+                if ($payment) {
+                    $payment->update(['status' => Payment::STATUS_REFUNDED]);
                 }
             }
 
