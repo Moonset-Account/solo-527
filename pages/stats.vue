@@ -3,8 +3,46 @@
     <div class="flex justify-between items-center">
       <h2 class="text-2xl font-bold text-gray-800">统计报表</h2>
       <button @click="exportExcel" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-        📥 导出报表
+        📥 导出报表（当前筛选）
       </button>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">状态</label>
+          <select v-model="filters.status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option value="">全部状态</option>
+            <option v-for="(label, value) in statusOptions" :key="value" :value="value">{{ label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">类型</label>
+          <select v-model="filters.type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option value="">全部类型</option>
+            <option v-for="(label, value) in typeOptions" :key="value" :value="value">{{ label }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">社区</label>
+          <select v-model="filters.community" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            <option value="">全部社区</option>
+            <option v-for="c in communities" :key="c" :value="c">{{ c }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">开始日期</label>
+          <input v-model="filters.startDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div class="flex space-x-2">
+          <button @click="fetchStats" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
+            应用筛选
+          </button>
+          <button @click="resetFilters" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+            重置
+          </button>
+        </div>
+      </div>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -142,7 +180,7 @@
         <div v-for="item in stats?.dailyTrend" :key="item._id" class="flex flex-col items-center">
           <div class="flex flex-col items-end space-y-1 h-48 justify-end">
             <div class="w-8 bg-green-400 rounded-t" :style="{ height: (item.closed / maxDaily) * 150 + 'px' }"></div>
-            <div class="w-8 bg-blue-400" :style="{ height: ((item.submitted - item.closed) / maxDaily * 150 + 'px' }"></div>
+            <div class="w-8 bg-blue-400" :style="{ height: Math.max(0, (item.submitted - item.closed) / maxDaily) * 150 + 'px' }"></div>
           </div>
           <span class="text-xs text-gray-500 mt-2">{{ item._id?.slice(5) }}</span>
         </div>
@@ -166,9 +204,43 @@ import { TaskType, TaskStatus, TaskTypeLabels, TaskStatusLabels } from '~/types'
 
 const stats = ref<any>(null)
 
+const filters = ref({
+  status: '',
+  type: '',
+  community: '',
+  startDate: '',
+  endDate: ''
+})
+
+const statusOptions = TaskStatusLabels
+const typeOptions = TaskTypeLabels
+const communities = ['阳光社区', '和平社区', '幸福社区', '新华社区']
+
+const resetFilters = () => {
+  filters.value = {
+    status: '',
+    type: '',
+    community: '',
+    startDate: '',
+    endDate: ''
+  }
+  fetchStats()
+}
+
+const buildQueryParams = () => {
+  const params = new URLSearchParams()
+  if (filters.value.status) params.append('status', filters.value.status)
+  if (filters.value.type) params.append('type', filters.value.type)
+  if (filters.value.community) params.append('community', filters.value.community)
+  if (filters.value.startDate) params.append('startDate', filters.value.startDate)
+  if (filters.value.endDate) params.append('endDate', filters.value.endDate)
+  return params
+}
+
 const fetchStats = async () => {
   try {
-    stats.value = await $fetch('/api/stats/overview')
+    const query = buildQueryParams()
+    stats.value = await $fetch('/api/stats/overview?' + query.toString())
   } catch (e) {
     console.error('Failed to fetch stats:', e)
   }
@@ -227,14 +299,15 @@ const maxDaily = computed(() => {
 })
 
 const exportExcel = async () => {
-  const response = await $fetch('/api/stats/export', {
+  const query = buildQueryParams()
+  const response = await $fetch(`/api/stats/export?${query.toString()}`, {
     responseType: 'blob'
   })
   
   const url = window.URL.createObjectURL(new Blob([response]))
   const link = document.createElement('a')
   link.href = url
-  link.download = `统计报表_${new Date().toISOString().split('T')[0]}.xlsx`
+  link.download = `整改任务报表_${new Date().toISOString().split('T')[0]}.xlsx`
   link.click()
   window.URL.revokeObjectURL(url)
 }

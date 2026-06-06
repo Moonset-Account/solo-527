@@ -131,12 +131,14 @@ export default defineEventHandler(async () => {
   const gridMember2 = createdUsers.find(u => u.username === 'grid2')!
   const property1 = createdUsers.find(u => u.username === 'property1')!
   const property2 = createdUsers.find(u => u.username === 'property2')!
+  const property3 = createdUsers.find(u => u.username === 'property3')!
   const admin = createdUsers.find(u => u.username === 'admin')!
   
   const point1 = createdPoints[0]
   const point2 = createdPoints[1]
   const point3 = createdPoints[2]
   const point4 = createdPoints[3]
+  const point5 = createdPoints[4]
   
   const now = new Date()
   const deadlineHours = 24
@@ -358,6 +360,102 @@ export default defineEventHandler(async () => {
       { status: TaskStatus.PENDING_REVIEW, changedBy: property2._id, changedByName: property2.name, changedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000), note: '提交整改完成' },
       { status: TaskStatus.REJECTED, changedBy: admin._id, changedByName: admin.name, changedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000), note: '复查不通过：标识牌安装不牢固' },
       { status: TaskStatus.CLAIMED, changedBy: property2._id, changedByName: property2.name, changedAt: new Date(now.getTime() - 2.5 * 60 * 60 * 1000), note: '重新认领，继续整改' }
+    ]
+  })
+  
+  tasks.push({
+    taskNumber: generateTaskNumber(),
+    type: TaskType.BIN_FULL,
+    pointId: point5._id,
+    pointName: point5.name,
+    community: point5.community,
+    submitterId: gridMember._id,
+    submitterName: gridMember.name,
+    description: '垃圾桶满溢，清运不及时',
+    beforePhotos: [
+      { url: samplePhotos[0].url, uploadedBy: gridMember._id, uploadedAt: new Date(now.getTime() - 8 * 60 * 60 * 1000), caption: '满溢照片' }
+    ],
+    afterPhotos: [
+      { url: samplePhotos[1].url, uploadedBy: property3._id, uploadedAt: new Date(now.getTime() - 7 * 60 * 60 * 1000), caption: '第一次清运' },
+      { url: samplePhotos[2].url, uploadedBy: property3._id, uploadedAt: new Date(now.getTime() - 5 * 60 * 60 * 1000), caption: '第二次清运（复查不通过后重新整改）' }
+    ],
+    status: TaskStatus.CLOSED,
+    propertyCompany: point5.propertyCompany,
+    assigneeId: property3._id,
+    assigneeName: property3.name,
+    deadline: new Date(now.getTime() - 1 * 60 * 60 * 1000),
+    isEscalated: false,
+    rejectReason: '清运不彻底，桶底有残留垃圾',
+    reviewRecords: [
+      {
+        reviewerId: admin._id,
+        reviewerName: admin.name,
+        result: 'fail',
+        reason: '清运不彻底，桶底有残留垃圾',
+        photos: [
+          { url: samplePhotos[1].url, uploadedBy: admin._id, uploadedAt: new Date(now.getTime() - 6.5 * 60 * 60 * 1000), caption: '复查照片：桶底残留' }
+        ],
+        reviewedAt: new Date(now.getTime() - 6.5 * 60 * 60 * 1000)
+      },
+      {
+        reviewerId: admin._id,
+        reviewerName: admin.name,
+        result: 'pass',
+        reason: '整改合格，清运彻底',
+        photos: [
+          { url: samplePhotos[0].url, uploadedBy: admin._id, uploadedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000), caption: '复查照片：已清理干净' }
+        ],
+        reviewedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000)
+      }
+    ],
+    history: [
+      { status: TaskStatus.SUBMITTED, changedBy: gridMember._id, changedByName: gridMember.name, changedAt: new Date(now.getTime() - 8 * 60 * 60 * 1000), note: '任务提交' },
+      { status: TaskStatus.CLAIMED, changedBy: property3._id, changedByName: property3.name, changedAt: new Date(now.getTime() - 7.5 * 60 * 60 * 1000), note: '物业认领任务' },
+      { status: TaskStatus.PENDING_REVIEW, changedBy: property3._id, changedByName: property3.name, changedAt: new Date(now.getTime() - 7 * 60 * 60 * 1000), note: '提交整改完成：已清运' },
+      { status: TaskStatus.REJECTED, changedBy: admin._id, changedByName: admin.name, changedAt: new Date(now.getTime() - 6.5 * 60 * 60 * 1000), note: '复查不通过：清运不彻底，桶底有残留垃圾' },
+      { status: TaskStatus.CLAIMED, changedBy: property3._id, changedByName: property3.name, changedAt: new Date(now.getTime() - 6 * 60 * 60 * 1000), note: '重新认领' },
+      { status: TaskStatus.PENDING_REVIEW, changedBy: property3._id, changedByName: property3.name, changedAt: new Date(now.getTime() - 5 * 60 * 60 * 1000), note: '重新提交整改：彻底清理桶底' },
+      { status: TaskStatus.CLOSED, changedBy: admin._id, changedByName: admin.name, changedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000), note: '复查通过，任务关闭' }
+    ]
+  })
+  
+  tasks.push({
+    taskNumber: generateTaskNumber(),
+    type: TaskType.MISSED_SORT,
+    pointId: point1._id,
+    pointName: point1.name,
+    community: point1.community,
+    submitterId: gridMember._id,
+    submitterName: gridMember.name,
+    description: '厨余垃圾桶内混入大量塑料包装',
+    beforePhotos: [
+      { url: samplePhotos[1].url, uploadedBy: gridMember._id, uploadedAt: new Date(now.getTime() - 10 * 60 * 60 * 1000), caption: '误投照片' }
+    ],
+    afterPhotos: [
+      { url: samplePhotos[2].url, uploadedBy: property1._id, uploadedAt: new Date(now.getTime() - 9 * 60 * 60 * 1000), caption: '分拣后照片' }
+    ],
+    status: TaskStatus.CLOSED,
+    propertyCompany: point1.propertyCompany,
+    assigneeId: property1._id,
+    assigneeName: property1.name,
+    deadline: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    isEscalated: false,
+    reviewRecords: [
+      {
+        reviewerId: admin._id,
+        reviewerName: admin.name,
+        result: 'pass',
+        reason: '分拣合格，已对居民进行宣传',
+        photos: [],
+        reviewedAt: new Date(now.getTime() - 8.5 * 60 * 60 * 1000)
+      }
+    ],
+    history: [
+      { status: TaskStatus.SUBMITTED, changedBy: gridMember._id, changedByName: gridMember.name, changedAt: new Date(now.getTime() - 10 * 60 * 60 * 1000), note: '任务提交' },
+      { status: TaskStatus.CLAIMED, changedBy: property2._id, changedByName: property2.name, changedAt: new Date(now.getTime() - 9.8 * 60 * 60 * 1000), note: '安居物业尝试认领（冲突）' },
+      { status: TaskStatus.CLAIMED, changedBy: property1._id, changedByName: property1.name, changedAt: new Date(now.getTime() - 9.5 * 60 * 60 * 1000), note: '绿源物业成功认领（本点位归属绿源）' },
+      { status: TaskStatus.PENDING_REVIEW, changedBy: property1._id, changedByName: property1.name, changedAt: new Date(now.getTime() - 9 * 60 * 60 * 1000), note: '提交整改完成：已分拣并宣传' },
+      { status: TaskStatus.CLOSED, changedBy: admin._id, changedByName: admin.name, changedAt: new Date(now.getTime() - 8.5 * 60 * 60 * 1000), note: '复查通过，任务关闭' }
     ]
   })
   

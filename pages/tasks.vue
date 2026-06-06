@@ -12,7 +12,7 @@
     </div>
     
     <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
         <div>
           <label class="block text-sm text-gray-500 mb-1">状态</label>
           <select v-model="filters.status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
@@ -38,12 +38,23 @@
             <option v-for="c in communities" :key="c" :value="c">{{ c }}</option>
           </select>
         </div>
-        <div class="flex items-end space-x-2">
-          <button @click="fetchTasks" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">开始日期</label>
+          <input v-model="filters.startDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-500 mb-1">结束日期</label>
+          <input v-model="filters.endDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+        </div>
+        <div class="flex space-x-2">
+          <button @click="fetchTasks" class="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
             搜索
           </button>
-          <button @click="exportExcel" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
-            导出报表
+          <button @click="resetFilters" class="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+            重置
+          </button>
+          <button @click="exportExcel" class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+            导出
           </button>
         </div>
       </div>
@@ -138,7 +149,9 @@ const showCreateModal = ref(false)
 const filters = ref({
   status: '',
   type: '',
-  community: ''
+  community: '',
+  startDate: '',
+  endDate: ''
 })
 
 const { hasRole } = useAuth()
@@ -152,15 +165,35 @@ const canSubmitTask = computed(() => {
 const statusOptions = TaskStatusLabels
 const typeOptions = TaskTypeLabels
 
+const buildQueryParams = (includePagination = true) => {
+  const params = new URLSearchParams()
+  if (includePagination) {
+    params.append('page', page.value.toString())
+    params.append('limit', pageSize.value.toString())
+  }
+  if (filters.value.status) params.append('status', filters.value.status)
+  if (filters.value.type) params.append('type', filters.value.type)
+  if (filters.value.community) params.append('community', filters.value.community)
+  if (filters.value.startDate) params.append('startDate', filters.value.startDate)
+  if (filters.value.endDate) params.append('endDate', filters.value.endDate)
+  return params
+}
+
+const resetFilters = () => {
+  filters.value = {
+    status: '',
+    type: '',
+    community: '',
+    startDate: '',
+    endDate: ''
+  }
+  page.value = 1
+  fetchTasks()
+}
+
 const fetchTasks = async () => {
   try {
-    const query = new URLSearchParams()
-    query.append('page', page.value.toString())
-    query.append('limit', pageSize.value.toString())
-    if (filters.value.status) query.append('status', filters.value.status)
-    if (filters.value.type) query.append('type', filters.value.type)
-    if (filters.value.community) query.append('community', filters.value.community)
-    
+    const query = buildQueryParams()
     const data = await $fetch<{ tasks: Task[]; total: number }>(`/api/tasks?${query.toString()}`)
     tasks.value = data.tasks
     total.value = data.total
@@ -213,11 +246,7 @@ const isClosed = (status: string) => {
 }
 
 const exportExcel = async () => {
-  const query = new URLSearchParams()
-  if (filters.value.status) query.append('status', filters.value.status)
-  if (filters.value.type) query.append('type', filters.value.type)
-  if (filters.value.community) query.append('community', filters.value.community)
-  
+  const query = buildQueryParams(false)
   const response = await $fetch(`/api/stats/export?${query.toString()}`, {
     responseType: 'blob'
   })
