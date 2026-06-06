@@ -34,8 +34,10 @@ export const filterActivities = (
     if (filters.studentIds.length > 0 && !filters.studentIds.includes(act.studentId)) {
       return false;
     }
-    if (filters.questionIds.length > 0 && act.questionId && !filters.questionIds.includes(act.questionId)) {
-      return false;
+    if (filters.questionIds.length > 0) {
+      if (!act.questionId || !filters.questionIds.includes(act.questionId)) {
+        return false;
+      }
     }
     if (act.firstCompletedAt) {
       const completedAt = dayjs(act.firstCompletedAt);

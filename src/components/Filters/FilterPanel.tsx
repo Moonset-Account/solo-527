@@ -212,7 +212,7 @@ export const FilterPanel: React.FC = () => {
           </Select>
           {questionIds.length > 0 && (
             <p className="text-xs text-blue-500 mt-1">
-              已选择 {questionIds.length} 道题目，将自动过滤出做过这些题目的学员
+              已选择 {questionIds.length} 道题目，仅展示这些题目的测验记录
             </p>
           )}
         </div>

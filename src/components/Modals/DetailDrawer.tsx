@@ -209,8 +209,8 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
                   <p>时间范围: {filters.timeRange.start} 至 {filters.timeRange.end}</p>
                   {filters.questionIds.length > 0 && (
                     <p className="text-blue-600 mt-2 pt-2 border-t border-gray-200">
-                      <strong>注意:</strong> 选择题目后，将自动过滤出做过这些题目的学员，
-                      所有统计指标均基于这些学员的完整学习行为
+                      <strong>注意:</strong> 选择题目后，仅保留选中题目的测验活动记录，
+                      视频、作业、讨论、证书等无 questionId 的记录将被过滤
                     </p>
                   )}
                 </div>
@@ -220,7 +220,8 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
                 <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                   <li>补课学员按首次完成时间去重，不重复计入首次完成率</li>
                   <li>学习路径漏斗统计各环节独立去重学员数</li>
-                  <li>题目筛选会联动过滤出相关学员，确保口径统一</li>
+                  <li>课程、章节、学员、班期、题目五个条件同时作用于活动记录</li>
+                  <li>选择题目后，仅保留有 questionId 且在选中列表中的测验记录</li>
                 </ul>
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg">

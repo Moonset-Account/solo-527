@@ -35,21 +35,14 @@ export const useETL = () => {
     let activities = filterActivities(allActivities, filters);
     activities = filterByCohorts(activities, filters.cohortIds, allStudents);
     
-    let students = allStudents;
+    const studentIdsInActivities = [...new Set(activities.map((a) => a.studentId))];
+    let students = allStudents.filter((s) => studentIdsInActivities.includes(s.id));
+    
     if (filters.cohortIds.length > 0) {
       students = students.filter((s) => filters.cohortIds.includes(s.cohortId));
     }
     if (filters.studentIds.length > 0) {
       students = students.filter((s) => filters.studentIds.includes(s.id));
-    }
-    
-    if (filters.questionIds.length > 0) {
-      const quizActivitiesWithQuestions = activities.filter(
-        (a) => a.activityType === 'quiz' && a.questionId && filters.questionIds.includes(a.questionId)
-      );
-      const studentIdsWithSelectedQuestions = [...new Set(quizActivitiesWithQuestions.map((a) => a.studentId))];
-      activities = activities.filter((a) => studentIdsWithSelectedQuestions.includes(a.studentId));
-      students = students.filter((s) => studentIdsWithSelectedQuestions.includes(s.id));
     }
     
     activities = deduplicateFirstCompletion(activities);

@@ -29,7 +29,8 @@ const formatFiltersForExport = (
   if (filters.questionIds.length > 0) {
     rows.push([]);
     rows.push(['数据口径说明', '', '']);
-    rows.push(['题目筛选联动', '已启用', '选择题目后自动过滤出做过这些题目的学员，所有统计指标均基于这些学员']);
+    rows.push(['题目筛选', '精确匹配', '仅保留有 questionId 且在选中列表中的测验记录']);
+    rows.push(['活动范围', '仅测验', '视频、作业、讨论、证书等无 questionId 的记录将被过滤']);
   }
   
   return rows;
@@ -115,6 +116,10 @@ export const exportToExcel = (
   filterRows.push(['数据口径说明', '', '']);
   filterRows.push(['补课学员去重', '已启用', '按首次完成时间去重，不重复计入首次完成率']);
   filterRows.push(['统计口径', '独立学员数', '各环节按学员去重统计']);
+  filterRows.push(['筛选条件', 'AND 关系', '五个条件同时作用于同一套活动结果']);
+  if (filters.questionIds.length > 0) {
+    filterRows.push(['题目筛选', '精确匹配', '仅保留选中题目的测验记录']);
+  }
   
   const wsMeta = XLSX.utils.aoa_to_sheet(filterRows);
   XLSX.utils.book_append_sheet(wb, wsMeta, '筛选条件与元数据');
