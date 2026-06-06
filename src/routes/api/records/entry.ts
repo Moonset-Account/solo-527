@@ -19,22 +19,8 @@ export async function POST({ request }: APIEvent) {
     return Response.json({ error: "人工放行必须填写原因" }, { status: 400 });
   }
 
-  const blacklistCheck = checkBlacklist(plateNumber || "");
-  if (blacklistCheck.blocked) {
-    writeAuditLog(
-      "blacklist_block",
-      "parking_record",
-      "entry_attempt",
-      guardName || "system",
-      "guard",
-      null,
-      { plateNumber, reason: blacklistCheck.reason },
-      `黑名单车辆入场被拦截：${blacklistCheck.reason}`
-    );
-    return Response.json({ error: `车辆在黑名单中：${blacklistCheck.reason}` }, { status: 403 });
-  }
-
   let visitor: any = null;
+  let actualPlateNumber = plateNumber || "";
 
   if (qrCode) {
     visitor = db
@@ -47,10 +33,13 @@ export async function POST({ request }: APIEvent) {
       return Response.json({ error: "二维码无效或已过期" }, { status: 400 });
     }
 
+    actualPlateNumber = visitor.plate_number;
+
     if (plateNumber && visitor.plate_number !== plateNumber.toUpperCase()) {
       return Response.json({ error: "车牌与预约信息不符" }, { status: 400 });
     }
   } else if (isManual && plateNumber) {
+    actualPlateNumber = plateNumber.toUpperCase();
     visitor = db
       .prepare(
         "SELECT * FROM visitors WHERE plate_number = ? AND status = 'active' AND start_time <= ? AND end_time >= ?"
@@ -62,6 +51,21 @@ export async function POST({ request }: APIEvent) {
     }
   } else {
     return Response.json({ error: "请提供二维码或车牌信息" }, { status: 400 });
+  }
+
+  const blacklistCheck = checkBlacklist(actualPlateNumber);
+  if (blacklistCheck.blocked) {
+    writeAuditLog(
+      "blacklist_block",
+      "parking_record",
+      "entry_attempt",
+      guardName || "system",
+      "guard",
+      null,
+      { plateNumber: actualPlateNumber, visitor: visitor?.name, reason: blacklistCheck.reason },
+      `黑名单车辆入场被拦截：${blacklistCheck.reason}`
+    );
+    return Response.json({ error: `车辆在黑名单中：${blacklistCheck.reason}` }, { status: 403 });
   }
 
   const existingRecord = db
