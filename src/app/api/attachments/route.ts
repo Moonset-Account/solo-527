@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requireDesignerOrAdmin } from '@/lib/auth';
 import { logCreate } from '@/lib/audit';
 
 export async function POST(request: Request) {
-  const user = await requireAuth();
+  const user = await requireDesignerOrAdmin();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -69,14 +69,27 @@ export async function GET(request: Request) {
   const projectId = searchParams.get('projectId');
   const taskId = searchParams.get('taskId');
 
+  const isClient = user.role === 'CLIENT';
+
+  const whereClause: any = {
+    ...(projectId ? { projectId } : {}),
+    ...(taskId ? { taskId } : {}),
+  };
+
+  if (isClient) {
+    if (user.clientId) {
+      whereClause.project = {
+        clientId: user.clientId,
+      };
+    }
+    whereClause.isDeliverable = true;
+  }
+
   const attachments = await prisma.attachment.findMany({
-    where: {
-      ...(projectId ? { projectId } : {}),
-      ...(taskId ? { taskId } : {}),
-    },
+    where: whereClause,
     include: {
       uploadedBy: {
-        select: { id: true, name: true, email: true },
+        select: { id: isClient ? false : true, name: true, email: isClient ? false : true },
       },
     },
     orderBy: { createdAt: 'desc' },
