@@ -89,8 +89,9 @@
   <div class="flex-1 overflow-auto p-2">
     <div class="grid grid-cols-1 gap-2">
       {#each filteredSensors as sensor (sensor.id)}
-        <div
-          class="p-3 rounded border transition-all cursor-pointer hover:border-gh-accent/50 {$selectedSensor?.id === sensor.id
+        <button
+          type="button"
+          class="p-3 rounded border transition-all text-left w-full cursor-pointer hover:border-gh-accent/50 {$selectedSensor?.id === sensor.id
             ? 'border-gh-accent bg-gh-accent/10'
             : 'border-gh-border bg-gh-bg/50'}"
           class:opacity-60={sensor.status === 'offline'}
@@ -112,7 +113,7 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium truncate">{sensor.name}</span>
-                <div class={`status-${sensor.status}`} />
+                <div class={`status-${sensor.status}`}></div>
               </div>
               <div class="flex items-center gap-2 text-xs text-gh-muted mt-0.5">
                 <span>{getGreenhouseName(sensor.greenhouseId)}</span>
@@ -168,7 +169,7 @@
               </div>
             </div>
           {/if}
-        </div>
+        </button>
       {:else}
         <div class="p-8 text-center text-gh-muted text-sm">
           没有找到匹配的传感器

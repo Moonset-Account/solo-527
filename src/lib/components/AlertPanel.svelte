@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { alerts, greenhouses, sensors } from '$lib/stores/appStore';
+  import { filteredAlerts, greenhouses, sensors } from '$lib/stores/appStore';
   import { AlertTriangle, CheckCircle, WifiOff, Thermometer, Droplets, Sun, Droplet, X } from 'lucide-svelte';
   import { ALERT_LEVEL_LABELS } from '$lib/data/dictionary';
   import dayjs from 'dayjs';
@@ -52,7 +52,7 @@
     <div class="flex items-center gap-2">
       <AlertTriangle size={18} class="text-gh-warning" />
       <span class="panel-title">告警中心</span>
-      <span class="badge badge-danger">{$alerts.filter((a) => !a.resolved).length}</span>
+      <span class="badge badge-danger">{$filteredAlerts.filter((a) => !a.resolved).length}</span>
     </div>
     <label class="flex items-center gap-1 text-xs text-gh-muted cursor-pointer">
       <input
@@ -66,7 +66,7 @@
 
   <div class="panel-body flex-1 overflow-auto p-0">
     <div class="divide-y divide-gh-border/50">
-      {#each $alerts.filter((a) => showResolved || !a.resolved) as alert (alert.id)}
+      {#each $filteredAlerts.filter((a) => showResolved || !a.resolved) as alert (alert.id)}
         <div
           class="p-3 hover:bg-gh-bg/50 transition-colors cursor-pointer"
           class:opacity-60={alert.resolved}

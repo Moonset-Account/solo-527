@@ -134,7 +134,7 @@ export interface MetricConfig {
 export interface ExportOptions {
   format: 'csv' | 'pdf';
   includeMetadata: boolean;
-  includeCharts: boolean;
+  includeCharts?: boolean;
   filters: FilterState;
   dataUpdateInfo: DataUpdateInfo;
 }

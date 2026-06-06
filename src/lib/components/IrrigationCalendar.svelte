@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { valves, irrigationEvents, greenhouses } from '$lib/stores/appStore';
+  import { filteredValves, filteredIrrigationEvents, greenhouses } from '$lib/stores/appStore';
   import { VALVE_STATUS_LABELS } from '$lib/data/dictionary';
   import { Droplets, Clock, Calendar, Zap } from 'lucide-svelte';
   import dayjs from 'dayjs';
@@ -15,7 +15,7 @@
   function getEventsForDate(date: dayjs.Dayjs) {
     const start = date.startOf('day').toISOString();
     const end = date.endOf('day').toISOString();
-    return $irrigationEvents.filter((e) => {
+    return $filteredIrrigationEvents.filter((e) => {
       const t = new Date(e.startTime).getTime();
       return t >= new Date(start).getTime() && t <= new Date(end).getTime();
     });
@@ -58,8 +58,8 @@
   $: calendarDays = generateCalendarDays();
   $: selectedEvents = getEventsForDate(selectedDate);
   $: selectedTotalWater = getTotalWaterForDate(selectedDate);
-  $: openValves = $valves.filter((v) => v.status === 'open');
-  $: faultyValves = $valves.filter((v) => v.status === 'fault');
+  $: openValves = $filteredValves.filter((v) => v.status === 'open');
+  $: faultyValves = $filteredValves.filter((v) => v.status === 'fault');
 
   function prevMonth() {
     currentMonth = currentMonth.subtract(1, 'month');
@@ -79,11 +79,11 @@
       <span class="panel-title">灌溉日历</span>
     </div>
     <div class="flex items-center gap-1">
-      <button class="p-1 hover:bg-gh-border rounded" onclick={prevMonth}>
+      <button class="p-1 hover:bg-gh-border rounded" onclick={prevMonth} aria-label="上一月">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <span class="text-sm font-medium px-2">{currentMonth.format('YYYY年 MM月')}</span>
-      <button class="p-1 hover:bg-gh-border rounded" onclick={nextMonth}>
+      <button class="p-1 hover:bg-gh-border rounded" onclick={nextMonth} aria-label="下一月">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
@@ -93,11 +93,11 @@
     <div class="px-3 py-2 border-b border-gh-border/50 flex items-center justify-between">
       <div class="flex items-center gap-4 text-xs">
         <span class="flex items-center gap-1">
-          <span class="status-online" />
+          <span class="status-online"></span>
           运行中 {openValves.length}
         </span>
         <span class="flex items-center gap-1">
-          <span class="status-offline" />
+          <span class="status-offline"></span>
           故障 {faultyValves.length}
         </span>
       </div>
@@ -125,7 +125,7 @@
             >
               <span>{day.format('D')}</span>
               {#if hasEvents(day)}
-                <span class="w-1 h-1 rounded-full bg-gh-info mt-0.5" />
+                <span class="w-1 h-1 rounded-full bg-gh-info mt-0.5"></span>
               {/if}
             </button>
           {/each}
@@ -149,7 +149,7 @@
                   </span>
                 </div>
                 <div class="flex items-center justify-between text-xs text-gh-muted">
-                  <span>{$valves.find((v) => v.id === event.valveId)?.name || event.valveId}</span>
+                  <span>{$filteredValves.find((v) => v.id === event.valveId)?.name || event.valveId}</span>
                   <span>{event.waterVolume.toFixed(0)}L · {event.reason}</span>
                 </div>
               </div>
@@ -166,7 +166,7 @@
     <div class="px-3 py-2 border-t border-gh-border/50">
       <div class="text-xs text-gh-muted mb-2">阀门状态总览</div>
       <div class="grid grid-cols-4 gap-2">
-        {#each $valves.slice(0, 8) as valve}
+        {#each $filteredValves.slice(0, 8) as valve}
           <div class="p-2 bg-gh-bg/50 rounded border border-gh-border text-center">
             <div class="text-xs font-medium truncate">{valve.name}</div>
             <div

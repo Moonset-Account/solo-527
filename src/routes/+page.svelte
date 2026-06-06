@@ -10,7 +10,14 @@
     alerts,
     dataUpdateInfo,
     filters,
-    loading
+    loading,
+    filteredReadings,
+    filteredSensors,
+    filteredAlerts,
+    filteredIrrigationEvents,
+    filteredValves,
+    readingStats,
+    activeAlerts
   } from '$lib/stores/appStore';
   import {
     getGreenhouses,
@@ -34,8 +41,10 @@
   import BatchComparison from '$lib/components/BatchComparison.svelte';
   import AnomalyPanel from '$lib/components/AnomalyPanel.svelte';
   import DataQualityModal from '$lib/components/DataQualityModal.svelte';
-  import { Sprout, BarChart3, Settings, HelpCircle, Leaf, FileCheck } from 'lucide-svelte';
-  import type { SensorType } from '$lib/types';
+  import { Sprout, BarChart3, Settings, HelpCircle, Leaf, FileCheck, Download, Upload } from 'lucide-svelte';
+  import type { SensorType, ExportOptions } from '$lib/types';
+  import { exportToCSV, exportToPDF, downloadFile } from '$lib/utils/export';
+  import dayjs from 'dayjs';
 
   let activeTab: 'overview' | 'sensors' | 'irrigation' | 'batches' | 'anomalies' = 'overview';
   let showDataQuality = false;
@@ -99,6 +108,64 @@
     refreshReadings();
   }
 
+  async function handleExportCSV() {
+    const exportOptions: ExportOptions = {
+      format: 'csv',
+      includeMetadata: true,
+      filters: $filters,
+      dataUpdateInfo: $dataUpdateInfo!
+    };
+
+    const csv = await exportToCSV($filteredReadings, $filteredSensors, $greenhouses, exportOptions);
+    downloadFile(csv, `温室传感器数据_${dayjs().format('YYYYMMDD_HHmmss')}.csv`, 'text/csv;charset=utf-8');
+  }
+
+  async function handleExportPDF() {
+    const exportOptions: ExportOptions = {
+      format: 'pdf',
+      includeMetadata: true,
+      filters: $filters,
+      dataUpdateInfo: $dataUpdateInfo!
+    };
+
+    const blob = await exportToPDF($filteredReadings, $filteredSensors, $greenhouses, exportOptions);
+    downloadFile(blob, `温室传感器报告_${dayjs().format('YYYYMMDD_HHmmss')}.pdf`, 'application/pdf');
+  }
+
+  function handleImportClick() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        await handleImportFile(file);
+      }
+    };
+    input.click();
+  }
+
+  async function handleImportFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        body: formData
+      });
+      const result = await response.json();
+      if (result.success) {
+        alert(`导入成功！共导入 ${result.importedCount} 条记录`);
+        await loadData();
+      } else {
+        alert(`导入失败: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`导入失败: ${error}`);
+    }
+  }
+
   const metricTypes: SensorType[] = ['temperature', 'humidity', 'light', 'soil_moisture'];
   const tabs = [
     { id: 'overview', label: '总览', icon: BarChart3 },
@@ -139,6 +206,35 @@
     <div class="flex items-center gap-3">
       <button
         class="btn btn-secondary flex items-center gap-2 text-xs"
+        onclick={handleImportClick}
+      >
+        <Upload size={14} />
+        导入
+      </button>
+      <div class="relative group">
+        <button
+          class="btn btn-secondary flex items-center gap-2 text-xs"
+        >
+          <Download size={14} />
+          导出
+        </button>
+        <div class="absolute right-0 top-full mt-1 bg-gh-panel border border-gh-border rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[120px]">
+          <button
+            class="w-full px-3 py-2 text-left text-xs hover:bg-gh-bg transition-colors"
+            onclick={handleExportCSV}
+          >
+            导出 CSV
+          </button>
+          <button
+            class="w-full px-3 py-2 text-left text-xs hover:bg-gh-bg transition-colors"
+            onclick={handleExportPDF}
+          >
+            导出 PDF
+          </button>
+        </div>
+      </div>
+      <button
+        class="btn btn-secondary flex items-center gap-2 text-xs"
         onclick={() => (showDataQuality = true)}
       >
         <FileCheck size={14} />
@@ -146,7 +242,7 @@
       </button>
       {#if $loading}
         <span class="text-xs text-gh-muted flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-gh-accent animate-pulse" />
+          <span class="w-2 h-2 rounded-full bg-gh-accent animate-pulse"></span>
           加载中...
         </span>
       {/if}
@@ -164,7 +260,7 @@
       <div class="space-y-4">
         <div class="grid grid-cols-4 gap-4">
           {#each metricTypes as type}
-            <MetricCard readings={$sensorReadings} sensors={$sensors} {type} />
+            <MetricCard readings={$filteredReadings} sensors={$filteredSensors} {type} />
           {/each}
         </div>
 
@@ -174,7 +270,7 @@
               <span class="panel-title">实时趋势曲线</span>
             </div>
             <div class="p-4 h-[calc(100%-48px)]">
-              <TimeSeriesChart readings={$sensorReadings} sensors={$sensors} selectedType="all" />
+              <TimeSeriesChart readings={$filteredReadings} sensors={$filteredSensors} selectedType="all" />
             </div>
           </div>
           <div class="h-[400px]">
@@ -198,7 +294,7 @@
             <span class="panel-title">传感器详细趋势</span>
           </div>
           <div class="p-4 h-[calc(100%-48px)]">
-            <TimeSeriesChart readings={$sensorReadings} sensors={$sensors} selectedType="all" />
+            <TimeSeriesChart readings={$filteredReadings} sensors={$filteredSensors} selectedType="all" />
           </div>
         </div>
         <div class="h-full">
@@ -226,7 +322,7 @@
             <div class="grid grid-cols-2 gap-4">
               {#each metricTypes as type}
                 <div class="p-4 bg-gh-bg/50 rounded border border-gh-border">
-                  <MetricCard readings={$sensorReadings} sensors={$sensors} {type} />
+                  <MetricCard readings={$filteredReadings} sensors={$filteredSensors} {type} />
                 </div>
               {/each}
             </div>

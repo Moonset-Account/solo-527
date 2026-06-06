@@ -39,7 +39,7 @@
       groupedBySensorType[type].data.push([time, value]);
     });
 
-    const series = Object.entries(groupedBySensorType).map(([type, { sensor, data }]) => {
+    const series: any[] = Object.entries(groupedBySensorType).map(([type, { sensor, data }]) => {
       const config = METRIC_CONFIGS.find((m) => m.key === type);
       const sortedData = data.sort((a, b) => a[0] - b[0]);
 

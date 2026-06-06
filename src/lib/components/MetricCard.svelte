@@ -107,7 +107,7 @@
     <div>
       <div class="text-gh-muted">范围</div>
       <div class="font-medium text-gh-text">
-        {stats.min !== null ? `${stats.min.toFixed(0)}-${stats.max.toFixed(0)}` : '-'}
+        {stats.min !== null && stats.max !== null ? `${stats.min.toFixed(0)}-${stats.max.toFixed(0)}` : '-'}
       </div>
     </div>
     <div>
@@ -124,7 +124,7 @@
         <div
           class="h-full rounded-full transition-all"
           style="width: {Math.round((stats.inRange / stats.total) * 100)}%; background: {config?.color}"
-        />
+        ></div>
       </div>
     </div>
   {/if}

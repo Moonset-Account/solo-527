@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { sensorReadings, sensors, greenhouses } from '$lib/stores/appStore';
+  import { filteredReadings, sensors, greenhouses } from '$lib/stores/appStore';
   import { AlertTriangle, Database, Filter, X, ExternalLink } from 'lucide-svelte';
   import { SENSOR_TYPE_LABELS } from '$lib/data/dictionary';
   import dayjs from 'dayjs';
@@ -24,8 +24,8 @@
     return $sensors.find((s) => s.id === sensorId)?.unit || '';
   }
 
-  $: missingReadings = $sensorReadings.filter((r) => r.isMissing);
-  $: anomalyReadings = $sensorReadings.filter((r) => r.isOutlier);
+  $: missingReadings = $filteredReadings.filter((r) => r.isMissing);
+  $: anomalyReadings = $filteredReadings.filter((r) => r.isOutlier);
   $: displayedReadings = viewMode === 'missing' ? missingReadings : anomalyReadings;
 
   function dismissReading(reading: SensorReading) {
@@ -137,12 +137,12 @@
   <div class="px-4 py-3 border-t border-gh-border/50">
     <div class="grid grid-cols-4 gap-3 text-center">
       <div>
-        <div class="text-lg font-bold text-gh-text">{$sensorReadings.length.toLocaleString()}</div>
+        <div class="text-lg font-bold text-gh-text">{$filteredReadings.length.toLocaleString()}</div>
         <div class="text-xs text-gh-muted">总样本</div>
       </div>
       <div>
         <div class="text-lg font-bold text-gh-success">
-          {($sensorReadings.length - missingReadings.length - anomalyReadings.length).toLocaleString()}
+          {($filteredReadings.length - missingReadings.length - anomalyReadings.length).toLocaleString()}
         </div>
         <div class="text-xs text-gh-muted">有效数据</div>
       </div>

@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { batches, greenhouses, sensorReadings, sensors } from '$lib/stores/appStore';
+  import { batches, greenhouses, filteredReadings, sensors } from '$lib/stores/appStore';
   import { CROP_PHASE_LABELS, METRIC_CONFIGS, SENSOR_TYPE_LABELS } from '$lib/data/dictionary';
   import { Sprout, BarChart3, Thermometer, Droplets, Sun, Droplet, Filter } from 'lucide-svelte';
   import dayjs from 'dayjs';
   import BaseChart from './charts/BaseChart.svelte';
-  import type { CropBatch, SensorType, EChartsOption } from '$lib/types';
+  import type { CropBatch, SensorType } from '$lib/types';
 
   let selectedBatches: string[] = [];
   let selectedMetric: SensorType = 'temperature';
-  let comparisonChart: EChartsOption = {};
+  let comparisonChart: any = {};
 
   function toggleBatch(batchId: string) {
     if (selectedBatches.includes(batchId)) {
@@ -27,7 +27,7 @@
     const sensorIds = $sensors
       .filter((s) => s.greenhouseId === batch.greenhouseId)
       .map((s) => s.id);
-    const batchReadings = $sensorReadings.filter(
+    const batchReadings = $filteredReadings.filter(
       (r) =>
         sensorIds.includes(r.sensorId) &&
         !r.isMissing &&
@@ -76,7 +76,7 @@
         .map((s) => s.id);
 
       const groupedByDay: Record<string, number[]> = {};
-      $sensorReadings
+      $filteredReadings
         .filter((r) => sensorIds.includes(r.sensorId) && !r.isMissing)
         .forEach((r) => {
           const day = dayjs(r.timestamp).format('MM-DD');
@@ -147,7 +147,7 @@
   $: {
     selectedMetric;
     $batches;
-    $sensorReadings;
+    $filteredReadings;
     $sensors;
     updateChart();
   }

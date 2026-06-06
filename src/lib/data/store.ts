@@ -183,6 +183,19 @@ export async function refreshData(): Promise<void> {
   await loadAllData();
 }
 
+export async function addSensorReadings(newReadings: SensorReading[]): Promise<number> {
+  if (!cache) {
+    await loadAllData();
+  }
+  
+  const filteredReadings = applyPermissionFilter(newReadings, MOCK_USER) as SensorReading[];
+  cache!.sensorReadings = [...cache!.sensorReadings, ...filteredReadings];
+  cache!.lastUpdate = new Date().toISOString();
+  lastFetchTime = Date.now();
+  
+  return filteredReadings.length;
+}
+
 export async function importSensorData(csvData: string): Promise<{ imported: number; errors: string[] }> {
   console.log('导入传感器数据...');
   return { imported: 0, errors: [] };

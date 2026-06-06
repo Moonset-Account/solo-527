@@ -66,11 +66,99 @@ export const filteredSensors = derived(
   }
 );
 
-export const activeAlerts = derived(alerts, ($alerts) => $alerts.filter((a) => !a.resolved));
-
 export const offlineSensors = derived(sensors, ($sensors) => $sensors.filter((s) => s.status === 'offline'));
 
-export const readingStats = derived(sensorReadings, ($readings) => {
+export const filteredReadings = derived(
+  [sensorReadings, filteredSensors, filters],
+  ([$sensorReadings, $filteredSensors, $filters]) => {
+    const sensorIds = new Set($filteredSensors.map((s) => s.id));
+    let result = $sensorReadings.filter((r) => sensorIds.has(r.sensorId));
+
+    if ($filters.timeRange) {
+      const start = new Date($filters.timeRange.start).getTime();
+      const end = new Date($filters.timeRange.end).getTime();
+      result = result.filter((r) => {
+        const t = new Date(r.timestamp).getTime();
+        return t >= start && t <= end;
+      });
+    }
+
+    if (!$filters.showMissing) {
+      result = result.filter((r) => !r.isMissing);
+    }
+    if (!$filters.showAnomalies) {
+      result = result.filter((r) => !r.isOutlier);
+    }
+
+    return result;
+  }
+);
+
+export const filteredAlerts = derived(
+  [alerts, filteredSensors, filters],
+  ([$alerts, $filteredSensors, $filters]) => {
+    const sensorIds = new Set($filteredSensors.map((s) => s.id));
+    let result = $alerts.filter((a) => a.sensorId && sensorIds.has(a.sensorId));
+
+    if ($filters.timeRange) {
+      const start = new Date($filters.timeRange.start).getTime();
+      const end = new Date($filters.timeRange.end).getTime();
+      result = result.filter((a) => {
+        const t = new Date(a.timestamp).getTime();
+        return t >= start && t <= end;
+      });
+    }
+
+    return result;
+  }
+);
+
+export const filteredIrrigationEvents = derived(
+  [irrigationEvents, filters],
+  ([$irrigationEvents, $filters]) => {
+    let result = [...$irrigationEvents];
+
+    if ($filters.greenhouseIds.length > 0) {
+      result = result.filter((e) => $filters.greenhouseIds.includes(e.greenhouseId));
+    }
+
+    if ($filters.timeRange) {
+      const start = new Date($filters.timeRange.start).getTime();
+      const end = new Date($filters.timeRange.end).getTime();
+      result = result.filter((e) => {
+        const t = new Date(e.startTime).getTime();
+        return t >= start && t <= end;
+      });
+    }
+
+    if ($filters.batchIds.length > 0) {
+      result = result.filter((e) => e.batchId && $filters.batchIds.includes(e.batchId));
+    }
+
+    return result;
+  }
+);
+
+export const filteredValves = derived(
+  [valves, filters],
+  ([$valves, $filters]) => {
+    let result = [...$valves];
+
+    if ($filters.greenhouseIds.length > 0) {
+      result = result.filter((v) => $filters.greenhouseIds.includes(v.greenhouseId));
+    }
+
+    if ($filters.deviceStatuses.length > 0) {
+      result = result.filter((v) => $filters.deviceStatuses.includes(v.status as any));
+    }
+
+    return result;
+  }
+);
+
+export const activeAlerts = derived(filteredAlerts, ($alerts) => $alerts.filter((a) => !a.resolved));
+
+export const readingStats = derived(filteredReadings, ($readings) => {
   return {
     total: $readings.length,
     missing: $readings.filter((r) => r.isMissing).length,

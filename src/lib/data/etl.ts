@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 export interface ETLOptions {
   fillMissing: boolean;
   detectOutliers: boolean;
+  markMissing?: boolean;
   interpolateMethod: 'linear' | 'forward' | 'mean';
   outlierMethod: 'iqr' | 'zscore' | 'both';
 }
@@ -12,6 +13,7 @@ export interface ETLOptions {
 const DEFAULT_ETL_OPTIONS: ETLOptions = {
   fillMissing: true,
   detectOutliers: true,
+  markMissing: true,
   interpolateMethod: 'linear',
   outlierMethod: 'both'
 };

@@ -199,7 +199,7 @@
     <div class="px-4 pb-4 pt-2 border-t border-gh-border/50">
       <div class="grid grid-cols-5 gap-4">
         <div>
-          <label class="text-xs text-gh-muted mb-2 block">温室</label>
+          <div class="text-xs text-gh-muted mb-2 block">温室</div>
           <div class="flex flex-wrap gap-1">
             {#each $greenhouses as gh}
               <button
@@ -220,7 +220,7 @@
         </div>
 
         <div>
-          <label class="text-xs text-gh-muted mb-2 block">传感器类型</label>
+          <div class="text-xs text-gh-muted mb-2 block">传感器类型</div>
           <div class="flex flex-wrap gap-1">
             {#each Object.entries(SENSOR_TYPE_LABELS) as [key, label]}
               <button
@@ -241,7 +241,7 @@
         </div>
 
         <div>
-          <label class="text-xs text-gh-muted mb-2 block">设备状态</label>
+          <div class="text-xs text-gh-muted mb-2 block">设备状态</div>
           <div class="flex flex-wrap gap-1">
             {#each Object.entries(DEVICE_STATUS_LABELS) as [key, label]}
               <button
@@ -262,7 +262,7 @@
         </div>
 
         <div>
-          <label class="text-xs text-gh-muted mb-2 block">数据显示</label>
+          <div class="text-xs text-gh-muted mb-2 block">数据显示</div>
           <div class="flex flex-wrap gap-2">
             <label class="flex items-center gap-1 text-sm cursor-pointer">
               <input
@@ -286,7 +286,7 @@
         </div>
 
         <div>
-          <label class="text-xs text-gh-muted mb-2 block">作物批次</label>
+          <div class="text-xs text-gh-muted mb-2 block">作物批次</div>
           <div class="flex flex-wrap gap-1 max-h-[60px] overflow-auto">
             {#each $batches as batch}
               <button
