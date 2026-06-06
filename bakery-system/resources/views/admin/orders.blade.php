@@ -113,48 +113,48 @@
                                                 class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
                                             确认
                                         </button>
-                                        
-                                        <button v-if="order.payment_status === 'unpaid' && ['pending','confirmed'].includes(order.status)"
+
+                                        <button v-if="!hasDepositPaid(order) && getRemainingAmount(order) > 0 && ['pending','confirmed'].includes(order.status)"
                                                 @click="openPayment(order, 'deposit')"
                                                 class="text-xs px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">
                                             收定金
                                         </button>
-                                        
-                                        <button v-if="order.payment_status === 'deposit_paid' && ['confirmed','in_production','ready'].includes(order.status)"
+
+                                        <button v-if="hasDepositPaid(order) && getRemainingAmount(order) > 0 && ['confirmed','in_production','ready'].includes(order.status)"
                                                 @click="openPayment(order, 'balance')"
                                                 class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">
                                             收尾款
                                         </button>
-                                        
-                                        <button v-if="order.payment_status === 'unpaid' && ['pending','confirmed'].includes(order.status)"
+
+                                        <button v-if="getRemainingAmount(order) > 0 && ['pending','confirmed','in_production','ready'].includes(order.status) && order.payment_status !== 'full_refund' && order.status !== 'refunded'"
                                                 @click="openPayment(order, 'full')"
                                                 class="text-xs px-2 py-1 bg-emerald-500 text-white rounded hover:bg-emerald-600">
                                             收全款
                                         </button>
-                                        
+
                                         <button v-if="order.status === 'confirmed' && order.payment_status !== 'unpaid'"
                                                 @click="startProduction(order)"
                                                 class="text-xs px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">
                                             开始生产
                                         </button>
-                                        
+
                                         <button v-if="order.status === 'in_production'" @click="markReady(order)"
                                                 class="text-xs px-2 py-1 bg-teal-500 text-white rounded hover:bg-teal-600">
                                             标记就绪
                                         </button>
-                                        
+
                                         <button v-if="order.status === 'ready' && order.payment_status === 'paid'"
                                                 @click="pickup(order)"
                                                 class="text-xs px-2 py-1 bg-amber-500 text-white rounded hover:bg-amber-600">
                                             核销取货
                                         </button>
-                                        
+
                                         <button v-if="order.payment_status !== 'unpaid' && order.payment_status !== 'full_refund' && order.status !== 'refunded'"
                                                 @click="openRefund(order)"
                                                 class="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">
                                             退款
                                         </button>
-                                        
+
                                         <button v-if="['pending','confirmed'].includes(order.status)" @click="cancelOrder(order)"
                                                 class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">
                                             取消
@@ -197,22 +197,22 @@
                 <div class="p-3 bg-gray-50 rounded-lg">
                     <p class="text-sm">订单号: <span class="font-mono font-medium">@{{ selectedOrder.order_number }}</span></p>
                     <p class="text-sm">客户: @{{ selectedOrder.customer_name }}</p>
+                    <p class="text-sm">已付: ¥@{{ getPaidAmount(selectedOrder) }}</p>
                     <p class="text-lg font-bold mt-2">
-                        应收金额: 
+                        应收金额:
                         <span class="text-primary">
-                            ¥@{{ paymentType === 'deposit' ? selectedOrder.deposit_amount : 
-                                paymentType === 'balance' ? selectedOrder.balance_amount : 
-                                selectedOrder.total_amount }}
+                            ¥@{{ paymentType === 'deposit' ? selectedOrder.deposit_amount :
+                                getRemainingAmount(selectedOrder) }}
                         </span>
                     </p>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">实收金额</label>
                     <input v-model.number="paymentForm.amount" type="number" step="0.01" min="0"
                            class="w-full border rounded-lg px-3 py-2">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">支付方式</label>
                     <select v-model="paymentForm.method" class="w-full border rounded-lg px-3 py-2">
@@ -223,10 +223,10 @@
                         <option value="other">其他</option>
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">交易号/备注</label>
-                    <input v-model="paymentForm.transaction_id" type="text" 
+                    <input v-model="paymentForm.transaction_id" type="text"
                            class="w-full border rounded-lg px-3 py-2" placeholder="选填">
                 </div>
             </div>
@@ -252,7 +252,7 @@
                     <p class="text-sm">总额: ¥@{{ selectedOrder.total_amount }}</p>
                     <p class="text-sm">已付: ¥@{{ getPaidAmount(selectedOrder) }}</p>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">退款类型</label>
                     <select v-model="refundForm.type" class="w-full border rounded-lg px-3 py-2">
@@ -261,13 +261,13 @@
                         <option value="deposit">退定金</option>
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">退款金额</label>
                     <input v-model.number="refundForm.amount" type="number" step="0.01" min="0"
                            class="w-full border rounded-lg px-3 py-2">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">退款方式</label>
                     <select v-model="refundForm.method" class="w-full border rounded-lg px-3 py-2">
@@ -278,7 +278,7 @@
                         <option value="other">其他</option>
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">退款原因 *</label>
                     <textarea v-model="refundForm.reason" rows="2" required
@@ -316,7 +316,7 @@ createApp({
             pickup_date: '',
             search: ''
         });
-        
+
         const showPaymentModal = ref(false);
         const showRefundModal = ref(false);
         const selectedOrder = ref(null);
@@ -386,12 +386,32 @@ createApp({
         };
 
         const getPaidAmount = (order) => {
-            if (order.payment_status === 'paid' || order.payment_status === 'full_refund') {
-                return order.total_amount;
-            } else if (order.payment_status === 'deposit_paid') {
-                return order.deposit_amount;
+            let totalPaid = 0;
+            if (order.payments && order.payments.length > 0) {
+                totalPaid = order.payments
+                    .filter(p => p.status === 'completed')
+                    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
             }
-            return 0;
+            let totalRefunded = 0;
+            if (order.refunds && order.refunds.length > 0) {
+                totalRefunded = order.refunds
+                    .filter(r => r.status === 'completed')
+                    .reduce((sum, r) => sum + parseFloat(r.amount), 0);
+            }
+            return Math.max(0, totalPaid - totalRefunded);
+        };
+
+        const getRemainingAmount = (order) => {
+            const paid = getPaidAmount(order);
+            return Math.max(0, parseFloat(order.total_amount) - paid);
+        };
+
+        const hasDepositPaid = (order) => {
+            if (!order.payments) return false;
+            const depositPaid = order.payments
+                .filter(p => p.type === 'deposit' && p.status === 'completed')
+                .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            return depositPaid >= parseFloat(order.deposit_amount);
         };
 
         const confirmOrder = async (order) => {
@@ -407,12 +427,13 @@ createApp({
         const openPayment = (order, type) => {
             selectedOrder.value = order;
             paymentType.value = type;
+            const remaining = getRemainingAmount(order);
             if (type === 'deposit') {
                 paymentForm.amount = parseFloat(order.deposit_amount);
             } else if (type === 'balance') {
-                paymentForm.amount = parseFloat(order.balance_amount);
+                paymentForm.amount = remaining;
             } else {
-                paymentForm.amount = parseFloat(order.total_amount);
+                paymentForm.amount = remaining;
             }
             paymentForm.method = 'cash';
             paymentForm.transaction_id = '';
@@ -543,7 +564,7 @@ createApp({
         return {
             user, orders, page, lastPage, total, filters,
             showPaymentModal, showRefundModal, selectedOrder, paymentType, paymentForm, refundForm,
-            loadOrders, getStatusLabel, getPaymentLabel, getPaidAmount,
+            loadOrders, getStatusLabel, getPaymentLabel, getPaidAmount, getRemainingAmount, hasDepositPaid,
             confirmOrder, openPayment, submitPayment, openRefund, submitRefund,
             startProduction, markReady, pickup, cancelOrder,
             prevPage, nextPage, logout

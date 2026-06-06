@@ -57,6 +57,57 @@ class PaymentController extends Controller
 
         $order = Order::findOrFail($request->order_id);
 
+        $totalPaid = $order->payments()
+            ->where('status', Payment::STATUS_COMPLETED)
+            ->sum('amount');
+
+        $totalRefunded = $order->refunds()
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $netPaid = $totalPaid - $totalRefunded;
+        $remaining = max(0, $order->total_amount - $netPaid);
+
+        if ($remaining <= 0) {
+            return response()->json(['message' => '订单款项已付清，无需重复收款'], 422);
+        }
+
+        if ($request->amount > $remaining) {
+            return response()->json(['message' => "收款金额超过剩余应付款 {$remaining} 元"], 422);
+        }
+
+        if ($request->type === 'deposit') {
+            $depositPaid = $order->payments()
+                ->where('type', 'deposit')
+                ->where('status', Payment::STATUS_COMPLETED)
+                ->sum('amount');
+            if ($depositPaid > 0) {
+                return response()->json(['message' => '定金已支付，请勿重复收取'], 422);
+            }
+            if ($request->amount != $order->deposit_amount) {
+                return response()->json(['message' => "定金金额应为 {$order->deposit_amount} 元"], 422);
+            }
+        }
+
+        if ($request->type === 'full') {
+            if ($request->amount != $remaining) {
+                return response()->json(['message' => "收全款金额应为剩余应付款 {$remaining} 元"], 422);
+            }
+        }
+
+        if ($request->type === 'balance') {
+            $depositPaid = $order->payments()
+                ->where('type', 'deposit')
+                ->where('status', Payment::STATUS_COMPLETED)
+                ->sum('amount');
+            if ($depositPaid < $order->deposit_amount) {
+                return response()->json(['message' => '请先收取定金后再收尾款'], 422);
+            }
+            if ($request->amount != $remaining) {
+                return response()->json(['message' => "尾款金额应为剩余应付款 {$remaining} 元"], 422);
+            }
+        }
+
         DB::beginTransaction();
         try {
             $payment = Payment::create(array_merge(
@@ -68,7 +119,7 @@ class PaymentController extends Controller
                 ]
             ));
 
-            $this->updateOrderPaymentStatus($order, $payment);
+            $this->updateOrderPaymentStatus($order);
 
             DB::commit();
 
@@ -110,7 +161,7 @@ class PaymentController extends Controller
         return response()->json(['message' => '支付记录已删除']);
     }
 
-    protected function updateOrderPaymentStatus(Order $order, Payment $payment)
+    protected function updateOrderPaymentStatus(Order $order)
     {
         $totalPaid = $order->payments()
             ->where('status', Payment::STATUS_COMPLETED)
@@ -122,7 +173,11 @@ class PaymentController extends Controller
 
         $netPaid = $totalPaid - $refundedAmount;
 
-        if ($netPaid >= $order->total_amount) {
+        if ($refundedAmount >= $order->total_amount) {
+            $order->payment_status = Order::PAYMENT_FULL_REFUND;
+        } elseif ($refundedAmount > 0) {
+            $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
+        } elseif ($netPaid >= $order->total_amount) {
             $order->payment_status = Order::PAYMENT_PAID;
         } elseif ($netPaid >= $order->deposit_amount) {
             $order->payment_status = Order::PAYMENT_DEPOSIT_PAID;

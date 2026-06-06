@@ -58,13 +58,29 @@ class RefundController extends Controller
             return response()->json(['message' => '该订单已全额退款'], 422);
         }
 
+        $totalPaid = $order->payments()
+            ->where('status', 'completed')
+            ->sum('amount');
+
         $totalRefunded = $order->refunds()
             ->where('status', Refund::STATUS_COMPLETED)
             ->sum('amount');
 
-        if ($totalRefunded + $request->amount > $order->total_amount) {
+        if ($totalPaid <= 0) {
+            return response()->json(['message' => '该订单尚无支付记录，无法退款'], 422);
+        }
+
+        $newTotalRefunded = $totalRefunded + $request->amount;
+        if ($newTotalRefunded > $totalPaid) {
+            return response()->json(['message' => "退款金额超过已支付金额 {$totalPaid} 元"], 422);
+        }
+
+        if ($newTotalRefunded > $order->total_amount) {
             return response()->json(['message' => '退款金额超过订单总额'], 422);
         }
+
+        $isFullRefund = $newTotalRefunded >= $totalPaid;
+        $wasFullyRefunded = $totalRefunded >= $totalPaid;
 
         DB::beginTransaction();
         try {
@@ -86,7 +102,7 @@ class RefundController extends Controller
                 }
             }
 
-            if ($order->pickupSlot) {
+            if ($isFullRefund && !$wasFullyRefunded && $order->pickupSlot) {
                 $order->pickupSlot->decrement('current_orders');
             }
 
@@ -129,11 +145,28 @@ class RefundController extends Controller
             ->where('status', Refund::STATUS_COMPLETED)
             ->sum('amount');
 
-        if ($totalRefunded >= $order->total_amount) {
+        $totalPaid = $order->payments()
+            ->where('status', 'completed')
+            ->sum('amount');
+
+        $netPaid = $totalPaid - $totalRefunded;
+
+        if ($totalPaid > 0 && $totalRefunded >= $totalPaid) {
             $order->payment_status = Order::PAYMENT_FULL_REFUND;
-            $order->status = Order::STATUS_REFUNDED;
+            if (!in_array($order->status, [Order::STATUS_PICKED_UP, Order::STATUS_CANCELLED])) {
+                $order->status = Order::STATUS_REFUNDED;
+            }
         } elseif ($totalRefunded > 0) {
             $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
+            if ($netPaid >= $order->deposit_amount && $order->status === Order::STATUS_PENDING) {
+                $order->status = Order::STATUS_CONFIRMED;
+            }
+        } elseif ($netPaid >= $order->total_amount) {
+            $order->payment_status = Order::PAYMENT_PAID;
+        } elseif ($netPaid >= $order->deposit_amount) {
+            $order->payment_status = Order::PAYMENT_DEPOSIT_PAID;
+        } else {
+            $order->payment_status = Order::PAYMENT_UNPAID;
         }
 
         $order->save();
