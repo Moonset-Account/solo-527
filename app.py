@@ -25,11 +25,59 @@ app = dash.Dash(
 
 server = app.server
 
-init_db()
-data_service = DataService()
-report_exporter = ReportExporter(data_service)
+init_error = None
+data_service = None
+report_exporter = None
+dim_options = {
+    "positions": [],
+    "departments": [],
+    "recruiters": [],
+    "channels": [],
+    "stages": Config.STAGES,
+    "interviewers": [],
+}
 
-dim_options = data_service.get_dimension_options()
+try:
+    init_db()
+    data_service = DataService()
+    report_exporter = ReportExporter(data_service)
+    dim_options = data_service.get_dimension_options()
+except Exception as e:
+    init_error = f"数据库初始化失败: {str(e)}"
+    print(f"ERROR: {init_error}")
+
+
+def get_init_alerts():
+    alerts = []
+    if init_error:
+        alerts.append(
+            dbc.Alert(
+                [
+                    html.Strong("❌ 系统初始化错误: "),
+                    init_error,
+                    html.Br(),
+                    html.Small("请检查数据库连接配置和数据库服务状态"),
+                ],
+                color="danger",
+                dismissable=True,
+            )
+        )
+    if data_service:
+        dim_issues = data_service.get_dimension_issues()
+        for issue in dim_issues:
+            alerts.append(
+                dbc.Alert(
+                    [
+                        html.Strong("⚠️  维度数据警告: "),
+                        issue,
+                        html.Br(),
+                        html.Small("相关筛选器可能为空，请检查数据源"),
+                    ],
+                    color="warning",
+                    dismissable=True,
+                )
+            )
+    return alerts
 
 
 def create_filter_panel():
@@ -468,10 +516,20 @@ app.layout = dbc.Container(
         ),
         dbc.Row(
             [
+                dbc.Col(
+                    [
+                        html.Div(id="init-alert-container", children=get_init_alerts()),
+                        html.Div(id="data-alert-container"),
+                    ],
+                    width=12,
+                ),
+            ]
+        ),
+        dbc.Row(
+            [
                 dbc.Col(create_filter_panel(), width=3),
                 dbc.Col(
                     [
-                        html.Div(id="data-alert-container"),
                         create_kpi_row(),
                         *create_charts_row(),
                     ],
@@ -513,6 +571,8 @@ def get_current_filters(
     prevent_initial_call=False,
 )
 def update_saved_filters(options, n_clicks):
+    if not data_service:
+        return []
     saved = data_service.get_saved_filters()
     return [{"label": s["name"], "value": s["id"]} for s in saved]
 
@@ -572,7 +632,7 @@ def load_saved_filter(filter_id, reset_clicks):
     prevent_initial_call=True,
 )
 def save_current_filter(n_clicks, name, positions, departments, recruiters, channels, stages, start_date, end_date):
-    if not name or not n_clicks:
+    if not name or not n_clicks or not data_service:
         return dash.no_update
 
     filter_config = {
@@ -623,23 +683,59 @@ def update_all_charts(
     duration_group,
     feedback_group,
 ):
+    empty_fig = go.Figure()
+    empty_fig.update_layout(
+        annotations=[
+            dict(
+                text="数据服务不可用",
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(size=16, color="red"),
+            )
+        ]
+    )
+
+    if not data_service:
+        error_alert = dbc.Alert(
+            [
+                html.Strong("❌ 数据服务未初始化: "),
+                "请检查数据库连接配置和服务状态",
+            ],
+            color="danger",
+            dismissable=True,
+        )
+        return (empty_fig,) * 5 + (empty_fig,) * 5 + ([error_alert],)
+
     date_range = (start_date, end_date) if (start_date and end_date) else None
     filters = get_current_filters(positions, departments, recruiters, channels, stages, date_range)
 
     alerts = []
-    quality_issues = data_service.check_data_quality()
-    for issue in quality_issues:
-        color = "danger" if issue["severity"] == "error" else "warning"
-        if issue["severity"] == "info":
-            color = "info"
-        icon = "❌" if issue["severity"] == "error" else "⚠️" if issue["severity"] == "warning" else "ℹ️"
+    try:
+        quality_issues = data_service.check_data_quality()
+        for issue in quality_issues:
+            color = "danger" if issue["severity"] == "error" else "warning"
+            if issue["severity"] == "info":
+                color = "info"
+            icon = "❌" if issue["severity"] == "error" else "⚠️" if issue["severity"] == "warning" else "ℹ️"
+            alerts.append(
+                dbc.Alert(
+                    [
+                        html.Strong(f"{icon} 数据质量{issue['severity']}: "),
+                        issue["message"],
+                    ],
+                    color=color,
+                    dismissable=True,
+                )
+            )
+    except Exception as e:
         alerts.append(
             dbc.Alert(
                 [
-                    html.Strong(f"{icon} 数据质量{issue['severity']}: "),
-                    issue["message"],
+                    html.Strong("⚠️  数据质量检查失败: "),
+                    str(e),
                 ],
-                color=color,
+                color="warning",
                 dismissable=True,
             )
         )
@@ -692,20 +788,6 @@ def update_all_charts(
             dismissable=True,
         )
         alerts.append(error_alert)
-
-        empty_fig = go.Figure()
-        empty_fig.update_layout(
-            annotations=[
-                dict(
-                    text="数据加载失败",
-                    xref="paper",
-                    yref="paper",
-                    showarrow=False,
-                    font=dict(size=16, color="red"),
-                )
-            ]
-        )
-
         return (empty_fig,) * 5 + (empty_fig,) * 5 + (alerts,)
 
 
@@ -722,7 +804,7 @@ def update_all_charts(
     prevent_initial_call=True,
 )
 def export_report(n_clicks, positions, departments, recruiters, channels, stages, start_date, end_date):
-    if not n_clicks:
+    if not n_clicks or not report_exporter:
         return dash.no_update
 
     date_range = (start_date, end_date) if (start_date and end_date) else None
@@ -746,39 +828,58 @@ def toggle_quality_modal(check_clicks, close_clicks, is_open):
     triggered = ctx.triggered_id
 
     if triggered == "check-quality-btn":
-        issues = data_service.check_data_quality()
+        if not data_service:
+            result = dbc.Alert(
+                [
+                    html.Strong("❌ 数据服务不可用: "),
+                    "无法执行数据质量检查，请检查数据库连接",
+                ],
+                color="danger",
+            )
+            return True, result
 
-        if not issues:
-            result = dbc.Alert("✅ 数据质量校验通过，未发现问题！", color="success")
-        else:
-            result_children = []
-            severity_order = {"error": 0, "warning": 1, "info": 2}
-            sorted_issues = sorted(issues, key=lambda x: severity_order.get(x["severity"], 3))
+        try:
+            issues = data_service.check_data_quality()
 
-            for issue in sorted_issues:
-                color = "danger" if issue["severity"] == "error" else "warning"
-                if issue["severity"] == "info":
-                    color = "info"
+            if not issues:
+                result = dbc.Alert("✅ 数据质量校验通过，未发现问题！", color="success")
+            else:
+                result_children = []
+                severity_order = {"error": 0, "warning": 1, "info": 2}
+                sorted_issues = sorted(issues, key=lambda x: severity_order.get(x["severity"], 3))
 
-                issue_body = [
-                    html.H6([
-                        "❌ " if issue["severity"] == "error" else "⚠️ " if issue["severity"] == "warning" else "ℹ️ ",
-                        f"严重程度: {issue['severity'].upper()}"
-                    ]),
-                    html.P(issue["message"]),
-                    html.Small(f"影响字段: {issue.get('field', '未知')}", className="text-muted"),
-                ]
-                if issue.get("missing_pct"):
-                    issue_body.append(html.Br())
-                    issue_body.append(html.Small(f"缺失比例: {issue['missing_pct']}%", className="text-muted"))
-                if issue.get("detail"):
-                    issue_body.append(html.Br())
-                    issue_body.append(html.Small(issue["detail"], className="text-muted"))
+                for issue in sorted_issues:
+                    color = "danger" if issue["severity"] == "error" else "warning"
+                    if issue["severity"] == "info":
+                        color = "info"
 
-                result_children.append(
-                    dbc.Alert(issue_body, color=color, className="mb-2")
-                )
-            result = html.Div(result_children)
+                    issue_body = [
+                        html.H6([
+                            "❌ " if issue["severity"] == "error" else "⚠️ " if issue["severity"] == "warning" else "ℹ️ ",
+                            f"严重程度: {issue['severity'].upper()}"
+                        ]),
+                        html.P(issue["message"]),
+                        html.Small(f"影响字段: {issue.get('field', '未知')}", className="text-muted"),
+                    ]
+                    if issue.get("missing_pct"):
+                        issue_body.append(html.Br())
+                        issue_body.append(html.Small(f"缺失比例: {issue['missing_pct']}%", className="text-muted"))
+                    if issue.get("detail"):
+                        issue_body.append(html.Br())
+                        issue_body.append(html.Small(issue["detail"], className="text-muted"))
+
+                    result_children.append(
+                        dbc.Alert(issue_body, color=color, className="mb-2")
+                    )
+                result = html.Div(result_children)
+        except Exception as e:
+            result = dbc.Alert(
+                [
+                    html.Strong("❌ 数据质量检查失败: "),
+                    str(e),
+                ],
+                color="danger",
+            )
 
         return True, result
 
@@ -829,6 +930,9 @@ def handle_drilldown(
     if triggered == "close-detail-modal":
         return False, "", "", "", [], [], "{}"
 
+    if not data_service:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
     date_range = (start_date, end_date) if (start_date and end_date) else None
     base_filters = get_current_filters(positions, departments, recruiters, channels, stages, date_range)
 
@@ -858,7 +962,7 @@ def handle_drilldown(
     elif triggered == "channel-chart" and channel_click and channel_click.get("points"):
         point = channel_click["points"][0]
         channel_name = point.get("x", "")
-        if channel_name in dim_options["channels"]:
+        if channel_name in dim_options["channels"] or True:
             drilldown_title = f"渠道明细: {channel_name}"
             drilldown_filters["channels"] = [channel_name]
             drilldown_context = {"type": "channel", "value": channel_name}
@@ -872,19 +976,20 @@ def handle_drilldown(
 
             base_df = data_service.get_candidate_details(base_filters)
             if not base_df.empty:
-                interview_filter = {"interviewer": interviewer_name}
-                transition_df = pd.read_sql(
-                    data_service.session.query(StageTransition.candidate_id)
-                    .filter(StageTransition.interviewer == interviewer_name)
-                    .statement,
-                    data_service.session.bind,
-                )
-                candidate_ids = transition_df["candidate_id"].unique().tolist()
-                filtered_df = base_df[base_df["id"].isin(candidate_ids)]
+                try:
+                    transition_df = pd.read_sql(
+                        data_service.session.query(StageTransition.candidate_id)
+                        .filter(StageTransition.interviewer == interviewer_name)
+                        .statement,
+                        data_service.session.bind,
+                    )
+                    candidate_ids = transition_df["candidate_id"].unique().tolist()
+                    filtered_df = base_df[base_df["id"].isin(candidate_ids)]
+                except Exception:
+                    filtered_df = base_df.iloc[0:0]
             else:
                 filtered_df = base_df
 
-            candidates = filtered_df
             count = len(filtered_df)
             badge = f"{count} 人"
 
@@ -919,7 +1024,11 @@ def handle_drilldown(
     if not drilldown_title:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    df = data_service.get_candidate_details(drilldown_filters, drilldown_stage)
+    try:
+        df = data_service.get_candidate_details(drilldown_filters, drilldown_stage)
+    except Exception:
+        df = pd.DataFrame()
+
     count = len(df)
     badge = f"{count} 人"
 
@@ -951,7 +1060,10 @@ def handle_drilldown(
         {"name": "申请日期", "id": "application_date"},
     ]
 
-    table_data = df[["name", "position", "department", "channel", "recruiter", "current_stage", "application_date"]].to_dict("records")
+    if df.empty:
+        table_data = []
+    else:
+        table_data = df[["name", "position", "department", "channel", "recruiter", "current_stage", "application_date"]].to_dict("records")
 
     return True, drilldown_title, badge, summary, table_data, columns, json.dumps(drilldown_context)
 

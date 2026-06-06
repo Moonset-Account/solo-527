@@ -34,24 +34,69 @@ class DataService:
         return query
 
     def get_dimension_options(self) -> Dict:
-        candidates = self.session.query(Candidate).all()
-        return {
-            "positions": sorted(list(set([c.position for c in candidates]))),
-            "departments": sorted(list(set([c.department for c in candidates]))),
-            "recruiters": sorted(list(set([c.recruiter for c in candidates]))),
-            "channels": sorted(list(set([c.channel for c in candidates]))),
-            "stages": Config.STAGES,
-            "interviewers": sorted(
+        try:
+            candidates = self.session.query(Candidate).all()
+        except Exception as e:
+            print(f"Warning: Could not query candidates: {e}")
+            candidates = []
+
+        def safe_extract(items, attr):
+            result = set()
+            for item in items:
+                try:
+                    val = getattr(item, attr)
+                    if val is not None and str(val).strip() != "":
+                        result.add(str(val).strip())
+                except Exception:
+                    continue
+            return sorted(list(result))
+
+        positions = safe_extract(candidates, "position")
+        departments = safe_extract(candidates, "department")
+        recruiters = safe_extract(candidates, "recruiter")
+        channels = safe_extract(candidates, "channel")
+
+        try:
+            interviewers = sorted(
                 list(
                     set(
                         [
-                            t.interviewer
-                            for t in self.session.query(StageTransition).filter(StageTransition.interviewer.isnot(None)).all()
+                            str(t.interviewer).strip()
+                            for t in self.session.query(StageTransition)
+                            .filter(StageTransition.interviewer.isnot(None))
+                            .all()
+                            if t.interviewer and str(t.interviewer).strip() != ""
                         ]
                     )
                 )
-            ),
+            )
+        except Exception as e:
+            print(f"Warning: Could not query interviewers: {e}")
+            interviewers = []
+
+        self.dim_issues = []
+        if not positions:
+            self.dim_issues.append("职位数据为空或全部缺失")
+        if not departments:
+            self.dim_issues.append("部门数据为空或全部缺失")
+        if not channels:
+            self.dim_issues.append("渠道数据为空或全部缺失")
+        if not recruiters:
+            self.dim_issues.append("招聘官数据为空或全部缺失")
+
+        return {
+            "positions": positions,
+            "departments": departments,
+            "recruiters": recruiters,
+            "channels": channels,
+            "stages": Config.STAGES,
+            "interviewers": interviewers,
         }
+
+    def get_dimension_issues(self) -> List[str]:
+        if not hasattr(self, 'dim_issues'):
+            self.get_dimension_options()
+        return getattr(self, 'dim_issues', [])
 
     def get_funnel_data(self, filters: Dict = None, group_by: str = None) -> pd.DataFrame:
         filters = filters or {}
