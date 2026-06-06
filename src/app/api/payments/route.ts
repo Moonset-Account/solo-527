@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
       if (newStatus !== invoice.status) {
         await logStatusChange(
-          session.user.id,
+          session.user.id!,
           'INVOICE',
           invoiceId,
           invoice.status,
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       }
 
       await logCreate(
-        session.user.id,
+        session.user.id!,
         'PAYMENT',
         payment.id,
         { invoiceId, amount },

@@ -33,7 +33,7 @@ export async function PATCH(
 
     if (status && status !== oldTask.status) {
       await logStatusChange(
-        session.user.id,
+        session.user.id!,
         'TASK',
         task.id,
         oldTask.status,
@@ -44,7 +44,7 @@ export async function PATCH(
 
     if (Object.keys(rest).length > 0) {
       await logUpdate(
-        session.user.id,
+        session.user.id!,
         'TASK',
         task.id,
         oldTask,

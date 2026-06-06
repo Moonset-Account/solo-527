@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, FileText, Send, CheckCircle, XCircle, Download, Edit3 } from 'lucide-react';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '@/lib/utils';
-import AppLayout from '@/components/AppLayout';
+import { AppLayout } from '@/components/AppLayout';
 
 interface QuoteItem {
   id: string;

@@ -71,7 +71,7 @@ export async function PATCH(
 
   if (status && status !== existingQuote.status) {
     await logStatusChange(
-      user.id,
+      user.id!,
       'QUOTE',
       quote.id,
       existingQuote.status,
@@ -80,7 +80,7 @@ export async function PATCH(
     );
   } else {
     await logUpdate(
-      user.id,
+      user.id!,
       'QUOTE',
       quote.id,
       existingQuote,

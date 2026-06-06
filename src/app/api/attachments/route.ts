@@ -41,12 +41,12 @@ export async function POST(request: Request) {
         isDeliverable,
         projectId: projectId || null,
         taskId: taskId || null,
-        uploadedById: user.id,
+        uploadedById: user.id!,
       },
     });
 
     if (projectId) {
-      await logCreate(user.id, 'ATTACHMENT', attachment.id, {
+      await logCreate(user.id!, 'ATTACHMENT', attachment.id, {
         fileName: file.name,
         isDeliverable,
       }, projectId);

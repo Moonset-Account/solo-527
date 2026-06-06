@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     },
   });
 
-  await logCreate(user.id, 'QUOTE', quote.id, {
+  await logCreate(user.id!, 'QUOTE', quote.id, {
     quoteNumber: quote.quoteNumber,
     total: quote.total,
   }, projectId);

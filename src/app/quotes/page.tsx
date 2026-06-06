@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Search, Filter, Eye, Download, Send, CheckCircle, XCircle } from 'lucide-react';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '@/lib/utils';
-import AppLayout from '@/components/AppLayout';
+import { AppLayout } from '@/components/AppLayout';
 
 interface QuoteItem {
   id: string;

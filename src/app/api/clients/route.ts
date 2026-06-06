@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       data: { name, email, phone, address, contactPerson },
     });
 
-    await logCreate(session.user.id, 'CLIENT', client.id, body);
+    await logCreate(session.user.id!, 'CLIENT', client.id, body);
 
     return NextResponse.json({ success: true, data: client });
   } catch (error) {

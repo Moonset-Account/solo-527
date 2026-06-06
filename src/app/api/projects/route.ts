@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     }
 
     if (session.user.role === 'DESIGNER') {
-      where.members = { ...where.members, some: { userId: session.user.id } };
+      where.members = { ...where.members, some: { userId: session.user.id! } };
     }
 
     const projects = await prisma.project.findMany({
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
           members: {
             create: assigneeIds?.map((userId: string) => ({
               userId,
-              role: userId === session.user.id ? 'MANAGER' : 'MEMBER',
+              role: userId === session.user.id! ? 'MANAGER' : 'MEMBER',
             })) || [],
           },
         },
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       });
 
       await logCreate(
-        session.user.id,
+        session.user.id!,
         'PROJECT',
         newProject.id,
         { name, clientId, budget },

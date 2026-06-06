@@ -1,9 +1,9 @@
 import { Worker } from 'bullmq';
-import { redis } from '../redis';
+import getRedis from '../redis';
 import { prisma } from '../prisma';
-import { logger } from '../logger';
+import logger from '../logger';
 
-const connection = redis;
+const connection = getRedis() as any;
 
 export const notificationWorker = new Worker('notifications', async (job) => {
   logger.info(`Processing notification job: ${job.id}`, job.data);

@@ -6,7 +6,7 @@ let notificationQueue: Queue | null = null;
 export function getNotificationQueue() {
   if (!notificationQueue) {
     notificationQueue = new Queue('notifications', {
-      connection: getRedis(),
+      connection: getRedis() as any,
     });
   }
   return notificationQueue;

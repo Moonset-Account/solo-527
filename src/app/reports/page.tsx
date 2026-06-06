@@ -4,14 +4,18 @@ import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { TrendingUp, Clock, DollarSign, Users, Calendar } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import AppLayout from '@/components/AppLayout';
-import StatsCard from '@/components/StatsCard';
+import { AppLayout } from '@/components/AppLayout';
+import { StatsCard } from '@/components/StatsCard';
 
 export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState('month');
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [projectData, setProjectData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalHours, setTotalHours] = useState(0);
+  const [activeProjects, setActiveProjects] = useState(0);
+  const [activeClients, setActiveClients] = useState(0);
 
   useEffect(() => {
     loadReportData();
@@ -19,15 +23,33 @@ export default function ReportsPage() {
 
   async function loadReportData() {
     try {
-      const [projectsRes, invoicesRes, timesheetsRes] = await Promise.all([
+      const [projectsRes, invoicesRes, timesheetsRes, clientsRes] = await Promise.all([
         fetch('/api/projects'),
         fetch('/api/invoices'),
         fetch('/api/timesheets'),
+        fetch('/api/clients'),
       ]);
       
-      const projects = await projectsRes.json();
-      const invoices = await invoicesRes.json();
-      const timesheets = await timesheetsRes.json();
+      const projectsResult = await projectsRes.json();
+      const invoicesResult = await invoicesRes.json();
+      const timesheetsResult = await timesheetsRes.json();
+      const clientsResult = await clientsRes.json();
+
+      const projects = projectsResult.data || [];
+      const invoices = invoicesResult.data || [];
+      const timesheets = timesheetsResult.data || [];
+      const clients = clientsResult.data || [];
+
+      const revenue = invoices.reduce((sum: number, inv: any) => sum + (inv.amountPaid || 0), 0);
+      setTotalRevenue(revenue);
+
+      const hours = timesheets.reduce((sum: number, ts: any) => sum + (parseFloat(ts.hours) || 0), 0);
+      setTotalHours(hours);
+
+      const active = projects.filter((p: any) => p.status === 'IN_PROGRESS' || p.status === 'PENDING');
+      setActiveProjects(active.length);
+
+      setActiveClients(clients.length);
 
       const monthlyRevenue: Record<string, number> = {};
       invoices.forEach((inv: any) => {
@@ -40,12 +62,16 @@ export default function ReportsPage() {
         revenue,
       }));
 
-      const projectStats = projects.map((proj: any) => ({
-        name: proj.name,
-        budget: proj.budget || 0,
-        spent: (proj.timesheets?.length || 0) * 300,
-        tasks: proj.tasks?.length || 0,
-      }));
+      const projectStats = projects.map((proj: any) => {
+        const projTimesheets = timesheets.filter((ts: any) => ts.projectId === proj.id);
+        const spent = projTimesheets.reduce((sum: number, ts: any) => sum + (parseFloat(ts.hours) || 0), 0) * 300;
+        return {
+          name: proj.name.length > 10 ? proj.name.substring(0, 10) + '...' : proj.name,
+          budget: proj.budget || 0,
+          spent,
+          tasks: proj._count?.tasks || 0,
+        };
+      });
 
       setMonthlyData(monthlyChartData);
       setProjectData(projectStats);
@@ -101,28 +127,28 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
             title="总收入"
-            value={formatCurrency(115000)}
+            value={formatCurrency(totalRevenue)}
             icon={<DollarSign className="w-6 h-6" />}
             trend="+12.5%"
             trendUp={true}
           />
           <StatsCard
             title="总工时"
-            value="156.5 小时"
+            value={`${totalHours.toFixed(1)} 小时`}
             icon={<Clock className="w-6 h-6" />}
             trend="+8.2%"
             trendUp={true}
           />
           <StatsCard
             title="进行中项目"
-            value="2"
+            value={activeProjects.toString()}
             icon={<TrendingUp className="w-6 h-6" />}
             trend="持平"
             trendUp={true}
           />
           <StatsCard
             title="活跃客户"
-            value="3"
+            value={activeClients.toString()}
             icon={<Users className="w-6 h-6" />}
             trend="+1"
             trendUp={true}

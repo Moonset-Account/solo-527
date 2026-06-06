@@ -50,7 +50,7 @@ export async function GET(
     }
 
     if (session.user.role === 'DESIGNER') {
-      const isMember = project.members.some((m) => m.userId === session.user.id);
+      const isMember = project.members.some((m) => m.userId === session.user.id!);
       if (!isMember) {
         return NextResponse.json({ error: '无权访问' }, { status: 403 });
       }
@@ -60,20 +60,38 @@ export async function GET(
     const doneTasks = project.tasks.filter((t) => t.status === 'DONE').length;
     const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-    const totalHours = project.timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours as any), 0);
-    const totalCost = project.timesheets.reduce(
-      (sum, ts) => sum + parseFloat(ts.hours as any) * parseFloat(ts.hourlyRate as any),
-      0
-    );
+    const isClient = session.user.role === 'CLIENT';
+
+    const totalHours = isClient
+      ? 0
+      : project.timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours as any), 0);
+    const totalCost = isClient
+      ? 0
+      : project.timesheets.reduce(
+          (sum, ts) => sum + parseFloat(ts.hours as any) * parseFloat(ts.hourlyRate as any),
+          0
+        );
+
+    const filteredAttachments = isClient
+      ? project.attachments.filter((a) => a.isDeliverable)
+      : project.attachments;
+
+    const responseData: any = {
+      ...project,
+      progress,
+      attachments: filteredAttachments,
+    };
+
+    if (!isClient) {
+      responseData.totalHours = totalHours;
+      responseData.totalCost = totalCost;
+    } else {
+      responseData.timesheets = [];
+    }
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...project,
-        progress,
-        totalHours,
-        totalCost,
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error('获取项目详情失败:', error);
@@ -112,7 +130,7 @@ export async function PATCH(
 
     if (status && status !== oldProject.status) {
       await logStatusChange(
-        session.user.id,
+        session.user.id!,
         'PROJECT',
         project.id,
         oldProject.status,
@@ -123,7 +141,7 @@ export async function PATCH(
 
     if (Object.keys(rest).length > 0) {
       await logUpdate(
-        session.user.id,
+        session.user.id!,
         'PROJECT',
         project.id,
         oldProject,

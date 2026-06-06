@@ -1,16 +1,16 @@
-import { LucideIcon } from 'lucide-react';
+import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StatsCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
+  icon: ReactNode;
   trend?: string;
   trendUp?: boolean;
   className?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend, trendUp, className }: StatsCardProps) {
+export function StatsCard({ title, value, icon, trend, trendUp, className }: StatsCardProps) {
   return (
     <div className={cn('bg-white rounded-xl p-5 border border-gray-100 shadow-sm', className)}>
       <div className="flex items-start justify-between">
@@ -26,8 +26,8 @@ export function StatsCard({ title, value, icon: Icon, trend, trendUp, className 
             </p>
           )}
         </div>
-        <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Icon className="w-6 h-6 text-primary" />
+        <div className="w-11 h-11 rounded-lg bg-blue-900/10 flex items-center justify-center">
+          {icon}
         </div>
       </div>
     </div>

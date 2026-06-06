@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     });
 
     await logCreate(
-      session.user.id,
+      session.user.id!,
       'INVOICE',
       invoice.id,
       { projectId, clientId, total },

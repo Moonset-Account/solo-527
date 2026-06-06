@@ -77,24 +77,24 @@ export default async function DashboardPage() {
           <StatsCard
             title="本月收入"
             value={formatCurrency(totalPaid._sum.amount || 0)}
-            icon={DollarSign}
+            icon={<DollarSign className="w-6 h-6 text-blue-900" />}
             trend="12% 较上月"
             trendUp
           />
           <StatsCard
             title="进行中项目"
             value={inProgressCount}
-            icon={FolderKanban}
+            icon={<FolderKanban className="w-6 h-6 text-blue-900" />}
           />
           <StatsCard
             title="待开始项目"
             value={pendingCount}
-            icon={Calendar}
+            icon={<Calendar className="w-6 h-6 text-blue-900" />}
           />
           <StatsCard
             title="逾期发票"
             value={overdueInvoices.length}
-            icon={AlertCircle}
+            icon={<AlertCircle className="w-6 h-6 text-blue-900" />}
             className={overdueInvoices.length > 0 ? 'border-red-200 bg-red-50/30' : ''}
           />
         </div>

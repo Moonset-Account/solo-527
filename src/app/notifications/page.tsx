@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, CheckCheck, Clock, FileText, AlertTriangle, MessageSquare } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
-import AppLayout from '@/components/AppLayout';
+import { AppLayout } from '@/components/AppLayout';
 
 interface Notification {
   id: string;

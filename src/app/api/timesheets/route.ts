@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (dateTo) where.workDate = { ...where.workDate, lte: new Date(dateTo) };
 
     if (session.user.role === 'DESIGNER') {
-      where.userId = session.user.id;
+      where.userId = session.user.id!;
     }
 
     const timesheets = await prisma.timesheet.findMany({
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
     const timesheet = await prisma.timesheet.create({
       data: {
-        userId: session.user.id,
+        userId: session.user.id!,
         projectId,
         taskId: taskId || null,
         description,
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     });
 
     await logCreate(
-      session.user.id,
+      session.user.id!,
       'TIMESHEET',
       timesheet.id,
       { projectId, hours, date },
