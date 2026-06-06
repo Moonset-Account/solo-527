@@ -147,28 +147,27 @@ def create_task_for_activity_signup(signup: models.ActivitySignup, db: Session =
 
 def check_injury_reminders():
     db = next(get_db_session())
+    today = datetime.utcnow().date()
     unresolved_injuries = db.query(models.InjuryNote).filter(
-        models.InjuryNote.is_resolved == False
+        models.InjuryNote.is_resolved == False,
+        models.InjuryNote.is_active == True,
+        models.InjuryNote.expected_recovery_date.isnot(None)
     ).all()
 
     for injury in unresolved_injuries:
-        days_since_report = (datetime.utcnow() - injury.reported_at).days
-        rest_days = 0
-        try:
-            rest_days = int(injury.notes or 0) if hasattr(injury, 'notes') and injury.notes else 0
-        except (ValueError, TypeError):
-            pass
-        if rest_days and days_since_report >= rest_days:
+        recovery_date = injury.expected_recovery_date.date()
+        if today >= recovery_date:
             coaches = db.query(models.User).filter(
                 models.User.role.in_([models.UserRole.ADMIN, models.UserRole.COACH])
             ).all()
             runner = db.query(models.User).filter(models.User.id == injury.runner_id).first()
+            runner_name = runner.full_name or runner.username if runner else f"跑友{injury.runner_id}"
             for coach in coaches:
                 create_notification(
                     db,
                     coach.id,
-                    f"伤病恢复提醒: {runner.full_name or runner.username}",
-                    f"{runner.full_name or runner.username}的伤病「{injury.injury_type}」已过建议休息期，请评估是否可以恢复训练。"
+                    f"伤病恢复提醒: {runner_name}",
+                    f"{runner_name}的伤病「{injury.injury_type}」已到达预计恢复日期（{recovery_date.strftime('%Y-%m-%d')}），请评估是否可以恢复训练。"
                 )
 
 

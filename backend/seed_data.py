@@ -240,11 +240,13 @@ def seed_data():
         injury1 = models.InjuryNote(
             runner_id=runner3.id,
             reported_by=coach.id,
-            title="右膝疼痛",
-            description="跑步时右膝外侧疼痛，休息后缓解",
-            body_part="右膝",
-            severity="中等",
-            rest_days=7,
+            injury_type="右膝外侧疼痛",
+            injury_date=datetime.now() - timedelta(days=3),
+            severity="moderate",
+            notes="跑步时右膝外侧疼痛，休息后缓解，怀疑髂胫束综合征",
+            treatment_notes="建议冰敷、减少跑量、加强臀部力量训练",
+            expected_recovery_date=datetime.now() + timedelta(days=4),
+            is_active=True,
             is_resolved=False
         )
         db.add(injury1)

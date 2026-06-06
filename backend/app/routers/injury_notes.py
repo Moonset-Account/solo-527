@@ -73,17 +73,6 @@ def create_injury_note(
     return db_note
 
 
-@router.get("/my-injuries", response_model=List[schemas.InjuryNoteResponse])
-def get_my_injuries(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.allow_all_authenticated)
-):
-    notes = db.query(models.InjuryNote).filter(
-        models.InjuryNote.runner_id == current_user.id
-    ).all()
-    return notes
-
-
 @router.get("/{note_id}", response_model=schemas.InjuryNoteResponse)
 def get_injury_note(
     note_id: int,
@@ -93,8 +82,6 @@ def get_injury_note(
     note = db.query(models.InjuryNote).filter(models.InjuryNote.id == note_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Injury note not found")
-    if current_user.role == models.UserRole.RUNNER and note.runner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this injury note")
     return note
 
 

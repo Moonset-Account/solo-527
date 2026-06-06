@@ -120,7 +120,7 @@ ROLE_PERMISSIONS = {
         "checkins": ["create", "read_self", "update_self"],
         "activities": ["read"],
         "activity_signups": ["create", "read_self", "update_self"],
-        "injury_notes": ["read_self"],
+        "injury_notes": [],
         "tasks": ["read_self", "update_self"],
         "pace_analysis": ["read_self"],
     }
