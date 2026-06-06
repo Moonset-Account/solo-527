@@ -78,6 +78,40 @@ def check_conflict(
     return {"has_conflict": len(conflicts) > 0, "conflicts": conflicts}
 
 
+@router.get("", response_model=List[schemas.ScheduleResponse])
+def get_schedules(
+    skip: int = 0,
+    limit: int = 100,
+    doctor_id: int = Query(None),
+    location_id: int = Query(None),
+    start_date: date = Query(None),
+    end_date: date = Query(None),
+    status: ScheduleStatus = Query(None),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_user)
+):
+    query = db.query(models.Schedule)
+    if doctor_id:
+        query = query.filter(models.Schedule.doctor_id == doctor_id)
+    if location_id:
+        query = query.filter(models.Schedule.location_id == location_id)
+    if start_date:
+        query = query.filter(models.Schedule.date >= start_date)
+    if end_date:
+        query = query.filter(models.Schedule.date <= end_date)
+    if status:
+        query = query.filter(models.Schedule.status == status)
+    return query.order_by(models.Schedule.date.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/{schedule_id}", response_model=schemas.ScheduleResponse)
+def get_schedule(schedule_id: int, db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
+    db_schedule = crud.schedule.get(db, id=schedule_id)
+    if db_schedule is None:
+        raise HTTPException(status_code=404, detail="排班不存在")
+    return db_schedule
+
+
 @router.post("", response_model=schemas.ScheduleResponse, dependencies=[Depends(allow_admin_coordinator)])
 def create_schedule(schedule_in: schemas.ScheduleCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     conflicts = check_schedule_conflict(
@@ -121,6 +155,30 @@ def update_schedule(schedule_id: int, schedule_in: schemas.ScheduleUpdate, db: S
     db_schedule = crud.schedule.get(db, id=schedule_id)
     if db_schedule is None:
         raise HTTPException(status_code=404, detail="排班不存在")
+    
+    update_data = schedule_in.model_dump(exclude_unset=True)
+    
+    new_date = update_data.get("date", db_schedule.date)
+    new_start = update_data.get("start_time", db_schedule.start_time)
+    new_end = update_data.get("end_time", db_schedule.end_time)
+    new_doctor = update_data.get("doctor_id", db_schedule.doctor_id)
+    new_location = update_data.get("location_id", db_schedule.location_id)
+    
+    current_volunteers = [sv.volunteer_id for sv in db_schedule.volunteers]
+    
+    conflicts = check_schedule_conflict(
+        db,
+        new_date,
+        new_start,
+        new_end,
+        doctor_id=new_doctor,
+        location_id=new_location,
+        volunteer_ids=current_volunteers,
+        exclude_schedule_id=schedule_id
+    )
+    if conflicts:
+        raise HTTPException(status_code=400, detail="排班冲突：" + "; ".join(conflicts))
+    
     return crud.schedule.update(db, db_obj=db_schedule, obj_in=schedule_in)
 
 
