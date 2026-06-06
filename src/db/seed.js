@@ -177,19 +177,20 @@ async function seedData() {
       ('B2024012', $13, 120, 25.00, '2024-02-01', $2, '2024-02-20', '某医疗供应商', 'CER-2024-012', 'E区-01-01', 'normal'),
       ('B2023099', $4, 20, 35.00, '2022-12-01', $14, '2023-01-15', '某医疗供应商', 'CER-2023-099', 'B区-01-01', 'expired')
     `, [
-      supplies['SUT-001'], futureDate.toISOString().split('T')[0],
-      supplies['SUT-002'], futureDate.toISOString().split('T')[0],
-      supplies['DRS-001'], futureDate.toISOString().split('T')[0],
-      supplies['DRS-002'], futureDate.toISOString().split('T')[0],
-      supplies['DRS-003'], futureDate.toISOString().split('T')[0],
-      supplies['INS-001'], futureDate.toISOString().split('T')[0],
-      supplies['INS-002'], futureDate.toISOString().split('T')[0],
-      supplies['INS-003'], futureDate.toISOString().split('T')[0],
-      supplies['DIS-001'], futureDate.toISOString().split('T')[0],
-      supplies['DIS-002'], futureDate.toISOString().split('T')[0],
-      supplies['INS-004'], futureDate.toISOString().split('T')[0],
-      supplies['MED-001'], futureDate.toISOString().split('T')[0],
-      supplies['DRS-001'], nearExpiry.toISOString().split('T')[0]
+      supplies['SUT-001'],
+      futureDate.toISOString().split('T')[0],
+      supplies['SUT-002'],
+      supplies['DRS-001'],
+      supplies['DRS-002'],
+      supplies['DRS-003'],
+      supplies['INS-001'],
+      supplies['INS-002'],
+      supplies['INS-003'],
+      supplies['DIS-001'],
+      supplies['DIS-002'],
+      supplies['INS-004'],
+      supplies['MED-001'],
+      nearExpiry.toISOString().split('T')[0]
     ]);
 
     console.log('✅ 批次数据插入完成');

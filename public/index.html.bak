@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手术室耗材备包系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primary: '#165DFF', success: '#00B42A', warning: '#FF7D00', danger: '#F53F3F' } } } }
+    </script>
+    <style>
+        .sidebar-item.active { background-color: rgba(22, 93, 255, 0.1); color: #165DFF; border-left: 3px solid #165DFF; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .step-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.5); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="app"></div>
+    <script>
+        const API_BASE = '/api';
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        let authToken = localStorage.getItem('authToken');
+        let currentPage = 'dashboard';
+        let currentView = 'dashboard';
+        let unreadCount = 0;
+        let selectedPackageId = null;
+        
+        const menuItems = [
+            { id: 'dashboard', icon: 'fa fa-tachometer', label: '仪表盘', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'schedules', icon: 'fa fa-calendar', label: '手术排班', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'packages', icon: 'fa fa-box', label: '耗材备包', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'returns', icon: 'fa fa-undo', label: '退包盘点', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'inventory', icon: 'fa fa-cubes', label: '库存管理', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+            { id: 'reconciliations', icon: 'fa fa-balance-scale', label: '月度对账', roles: ['admin', 'head_nurse', 'equipment'] },
+            { id: 'importExport', icon: 'fa fa-exchange', label: '导入导出', roles: ['admin', 'head_nurse', 'equipment'] },
+            { id: 'notifications', icon: 'fa fa-bell', label: '通知中心', roles: ['admin', 'head_nurse', 'nurse', 'equipment'] },
+        ];
+
+        const roleMap = {
+            admin: '系统管理员',
+            head_nurse: '护士长',
+            nurse: '手术室护士',
+            equipment: '设备科'
+        };
+
+        async function api(url, options = {}) {
+            const headers = { 'Content-Type': 'application/json', ...options.headers };
+            if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+            const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || '请求失败');
+            return data;
+        }
+
+        function formatDate(date, withTime = true) {
+            if (!date) return '-';
+            const d = new Date(date);
+            const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+            if (withTime) {
+                const h = String(d.getHours()).padStart(2,'0'), min = String(d.getMinutes()).padStart(2,'0');
+                return `${y}-${m}-${day} ${h}:${min}`;
+            }
+            return `${y}-${m}-${day}`;
+        }
+
+        function getStatusLabel(s) {
+            const m = {draft:'草稿',pending_review:'待审核',reviewed:'已审核',confirmed:'已确认',distributed:'已发放',used:'已使用',returned:'已退回',cancelled:'已取消',scheduled:'已排班',completed:'已完成',pending:'待核验',normal:'正常',expired:'已过期'};
+            return m[s] || s;
+        }
+
+        function getStatusColor(s) {
+            const m = {draft:'bg-gray-200 text-gray-600',pending_review:'bg-orange-100 text-orange-600',reviewed:'bg-blue-100 text-blue-600',confirmed:'bg-green-100 text-green-600',distributed:'bg-blue-100 text-blue-600',used:'bg-gray-200 text-gray-600',returned:'bg-gray-200 text-gray-600',cancelled:'bg-red-100 text-red-600',scheduled:'bg-blue-100 text-blue-600',completed:'bg-green-100 text-green-600',pending:'bg-orange-100 text-orange-600',normal:'bg-green-100 text-green-600',expired:'bg-red-100 text-red-600'};
+            return m[s] || 'bg-gray-200 text-gray-600';
+        }
+
+        function showToast(msg, type='success') {
+            const c = {success:'bg-green-500',error:'bg-red-500',warning:'bg-orange-500',info:'bg-blue-500'};
+            const t = document.createElement('div');
+            t.className = `fixed top-4 right-4 ${c[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all transform translate-x-full`;
+            t.innerHTML = `<div class="flex items-center gap-2"><i class="fa fa-${type==='success'?'check-circle':'exclamation-circle'}"></i><span>${msg}</span></div>`;
+            document.body.appendChild(t);
+            setTimeout(()=>t.classList.remove('translate-x-full'), 10);
+            setTimeout(()=>{t.classList.add('translate-x-full'); setTimeout(()=>t.remove(), 300);}, 3000);
+        }
+
+        function showModal(content) {
+            const m = document.createElement('div');
+            m.className = 'fixed inset-0 z-50 flex items-center justify-center modal-backdrop';
+            m.innerHTML = `<div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">${content}</div>`;
+            m.onclick = (e) => { if(e.target===m) m.remove(); };
+            document.body.appendChild(m);
+            return m;
+        }
+
+        function renderLogin() {
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+                    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fa fa-medkit text-white text-2xl"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold text-gray-800">手术室耗材备包系统</h1>
+                        </div>
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">用户名</label>
+                                <input type="text" id="username" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" value="nurse1">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+                                <input type="password" id="password" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" value="123456">
+                            </div>
+                            <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-blue-600">登 录</button>
+                        </form>
+                        <div class="mt-6 pt-4 border-t border-gray-100">
+                            <p class="text-xs text-gray-400 mb-2">测试账号（密码均为 123456）：</p>
+                            <div class="text-xs text-gray-500 space-y-1">
+                                <p>admin - 系统管理员 | headnurse - 护士长 | nurse1 - 手术室护士 | equipment1 - 设备科</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            try {
+                const res = await api('/auth/login', { method:'POST', body: JSON.stringify({ username: document.getElementById('username').value, password: document.getElementById('password').value }) });
+                currentUser = res.user;
+                authToken = res.token;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showToast('登录成功');
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        function handleLogout() {
+            authToken = null; currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            renderApp();
+        }
+
+        function logout() {
+            handleLogout();
+        }
+
+        function renderLayout(content) {
+            const menus = [
+                {id:'dashboard',icon:'fa-tachometer',label:'仪表盘',roles:['admin','head_nurse','nurse','equipment']},
+                {id:'schedules',icon:'fa-calendar',label:'手术排班',roles:['admin','head_nurse','nurse','equipment']},
+                {id:'packages',icon:'fa-box',label:'耗材备包',roles:['admin','head_nurse','nurse','equipment']},
+                {id:'returns',icon:'fa-undo',label:'退包盘点',roles:['admin','head_nurse','nurse','equipment']},
+                {id:'inventory',icon:'fa-cubes',label:'库存管理',roles:['admin','head_nurse','nurse','equipment']},
+                {id:'reconciliations',icon:'fa-balance-scale',label:'月度对账',roles:['admin','head_nurse','equipment']},
+                {id:'import-export',icon:'fa-exchange',label:'导入导出',roles:['admin','head_nurse','equipment']},
+            ];
+            const allowed = menus.filter(m => m.roles.includes(currentUser.role));
+            const roleNames = {admin:'系统管理员',head_nurse:'护士长',nurse:'手术室护士',equipment:'设备科'};
+            
+            return `
+                <div class="flex h-screen">
+                    <aside class="w-60 bg-white shadow-sm flex flex-col">
+                        <div class="p-4 border-b border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                                    <i class="fa fa-medkit text-white"></i>
+                                </div>
+                                <div><h1 class="font-bold text-gray-800 text-sm">耗材备包系统</h1></div>
+                            </div>
+                        </div>
+                        <nav class="flex-1 py-4 overflow-y-auto">
+                            ${allowed.map(m => `<div class="sidebar-item flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 text-gray-600 ${currentPage===m.id?'active':''}" onclick="navigateTo('${m.id}')"><i class="fa ${m.icon} w-5 text-center"></i><span class="text-sm">${m.label}</span></div>`).join('')}
+                        </nav>
+                        <div class="p-4 border-t border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-primary font-medium">${currentUser.realName.charAt(0)}</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-700 truncate">${currentUser.realName}</p>
+                                    <p class="text-xs text-gray-400">${roleNames[currentUser.role]}</p>
+                                </div>
+                                <button onclick="handleLogout()" class="text-gray-400 hover:text-red-500"><i class="fa fa-sign-out"></i></button>
+                            </div>
+                        </div>
+                    </aside>
+                    <main class="flex-1 overflow-y-auto">${content}</main>
+                </div>
+            `;
+        }
+
+        function navigateTo(page) { currentPage = page; selectedPackageId = null; renderApp(); }
+
+        async function renderDashboard() {
+            try {
+                const [pkg, sch] = await Promise.all([api('/packages?pageSize=5'), api('/schedules?pageSize=10')]);
+                const today = new Date().toISOString().split('T')[0];
+                const todaySch = sch.data.filter(s => s.scheduled_start_time.startsWith(today));
+                const pending = pkg.data.filter(p => p.status === 'pending_review');
+
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div><h2 class="text-xl font-bold text-gray-800">仪表盘</h2><p class="text-gray-400 text-sm mt-1">欢迎回来，${currentUser.realName}</p></div>
+                            <div class="text-sm text-gray-400">${formatDate(new Date())}</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-white p-5 rounded-lg shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div><p class="text-gray-400 text-sm">今日手术</p><p class="text-2xl font-bold text-gray-800 mt-1">${todaySch.length}</p></div>
+                                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"><i class="fa fa-calendar text-primary text-xl"></i></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div><p class="text-gray-400 text-sm">待审核备包</p><p class="text-2xl font-bold text-orange-500 mt-1">${pending.length}</p></div>
+                                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"><i class="fa fa-clock-o text-orange-500 text-xl"></i></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div><p class="text-gray-400 text-sm">总备包数</p><p class="text-2xl font-bold text-gray-800 mt-1">${pkg.total||0}</p></div>
+                                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center"><i class="fa fa-file-text-o text-gray-500 text-xl"></i></div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div><p class="text-gray-400 text-sm">手术间数</p><p class="text-2xl font-bold text-gray-800 mt-1">6</p></div>
+                                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"><i class="fa fa-hospital-o text-green-500 text-xl"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white rounded-lg shadow-sm">
+                                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 class="font-medium text-gray-700">今日手术排班</h3>
+                                    <button onclick="navigateTo('schedules')" class="text-sm text-primary hover:underline">查看全部</button>
+                                </div>
+                                <div class="divide-y divide-gray-50">
+                                    ${todaySch.length>0 ? todaySch.map(s=>`
+                                        <div class="p-4 flex items-center gap-4 hover:bg-gray-50">
+                                            <div class="w-1 h-12 bg-primary rounded-full"></div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium text-gray-700 truncate">${s.surgery_type_name||'未命名'}</p>
+                                                <p class="text-sm text-gray-400">${s.patient_name} · ${s.surgeon_name}</p>
+                                            </div>
+                                            <span class="status-badge ${getStatusColor(s.status)}">${getStatusLabel(s.status)}</span>
+                                        </div>
+                                    `).join('') : '<div class="p-8 text-center text-gray-400">今日暂无手术</div>'}
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm">
+                                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 class="font-medium text-gray-700">最近备包记录</h3>
+                                    <button onclick="navigateTo('packages')" class="text-sm text-primary hover:underline">查看全部</button>
+                                </div>
+                                <div class="divide-y divide-gray-50">
+                                    ${pkg.data.length>0 ? pkg.data.map(p=>`
+                                        <div class="p-4 flex items-center gap-4 hover:bg-gray-50">
+                                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fa fa-box text-primary"></i></div>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium text-gray-700 truncate">${p.package_name}</p>
+                                                <p class="text-sm text-gray-400">${p.preparer_name||'未知'} · ${formatDate(p.created_at)}</p>
+                                            </div>
+                                            <span class="status-badge ${getStatusColor(p.status)}">${getStatusLabel(p.status)}</span>
+                                        </div>
+                                    `).join('') : '<div class="p-8 text-center text-gray-400">暂无记录</div>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        async function renderSchedules() {
+            try {
+                const [sch, rooms, types] = await Promise.all([api('/schedules?pageSize=50'), api('/inventory/operating-rooms'), api('/inventory/surgery-types')]);
+                window._rooms = rooms.data; window._types = types.data;
+                
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div><h2 class="text-xl font-bold text-gray-800">手术排班</h2></div>
+                            ${['admin','head_nurse'].includes(currentUser.role) ? `<button onclick="showCreateScheduleModal()" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 flex items-center gap-2"><i class="fa fa-plus"></i>新增排班</button>` : ''}
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">排班编号</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">术式</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">手术间</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">患者</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">主刀</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">时间</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">状态</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    ${sch.data.map(s=>`
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 font-mono text-gray-500">${s.schedule_no}</td>
+                                            <td class="px-4 py-3">${s.surgery_type_name||'-'}</td>
+                                            <td class="px-4 py-3">${s.room_name||'-'}</td>
+                                            <td class="px-4 py-3">${s.patient_name}</td>
+                                            <td class="px-4 py-3">${s.surgeon_name}</td>
+                                            <td class="px-4 py-3 text-gray-500">${formatDate(s.scheduled_start_time)}</td>
+                                            <td class="px-4 py-3"><span class="status-badge ${getStatusColor(s.status)}">${getStatusLabel(s.status)}</span></td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex gap-2">
+                                                    <button onclick="viewSchedule('${s.id}')" class="text-primary hover:underline text-xs">详情</button>
+                                                    ${['admin','head_nurse'].includes(currentUser.role) && s.status!=='cancelled' && s.status!=='completed' ? `<button onclick="cancelSchedule('${s.id}')" class="text-red-500 hover:underline text-xs">取消</button>` : ''}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        function showCreateScheduleModal() {
+            const rooms = window._rooms || [], types = window._types || [];
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">新增手术排班</h3>
+                        <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                    </div>
+                    <form onsubmit="submitSchedule(event)" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs text-gray-500">术式 *</label>
+                                <select id="surgeryTypeId" required class="w-full px-3 py-2 border rounded text-sm">
+                                    <option value="">请选择</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div><label class="text-xs text-gray-500">手术间 *</label>
+                                <select id="operatingRoomId" required class="w-full px-3 py-2 border rounded text-sm">
+                                    <option value="">请选择</option>${rooms.map(r=>`<option value="${r.id}">${r.room_name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs text-gray-500">患者姓名 *</label><input id="patientName" required class="w-full px-3 py-2 border rounded text-sm"></div>
+                            <div><label class="text-xs text-gray-500">主刀医生 *</label><input id="surgeonName" required class="w-full px-3 py-2 border rounded text-sm"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><label class="text-xs text-gray-500">开始时间 *</label><input type="datetime-local" id="scheduledStartTime" required class="w-full px-3 py-2 border rounded text-sm"></div>
+                            <div><label class="text-xs text-gray-500">结束时间 *</label><input type="datetime-local" id="scheduledEndTime" required class="w-full px-3 py-2 border rounded text-sm"></div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 border rounded text-sm text-gray-500">取消</button>
+                            <button type="submit" class="px-4 py-2 bg-primary text-white rounded text-sm">创建</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        async function submitSchedule(e) {
+            e.preventDefault();
+            try {
+                await api('/schedules', { method:'POST', body: JSON.stringify({
+                    surgeryTypeId: document.getElementById('surgeryTypeId').value,
+                    operatingRoomId: document.getElementById('operatingRoomId').value,
+                    patientName: document.getElementById('patientName').value,
+                    surgeonName: document.getElementById('surgeonName').value,
+                    scheduledStartTime: document.getElementById('scheduledStartTime').value,
+                    scheduledEndTime: document.getElementById('scheduledEndTime').value,
+                })});
+                showToast('创建成功');
+                document.querySelector('.modal-backdrop').remove();
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function viewSchedule(id) {
+            try {
+                const res = await api(`/schedules/${id}`);
+                const s = res.data;
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">排班详情</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                            <div><p class="text-gray-400">排班编号</p><p class="font-mono">${s.schedule_no}</p></div>
+                            <div><p class="text-gray-400">状态</p><span class="status-badge ${getStatusColor(s.status)}">${getStatusLabel(s.status)}</span></div>
+                            <div><p class="text-gray-400">术式</p><p>${s.surgery_type_name||'-'}</p></div>
+                            <div><p class="text-gray-400">手术间</p><p>${s.room_name||'-'}</p></div>
+                            <div><p class="text-gray-400">患者</p><p>${s.patient_name}</p></div>
+                            <div><p class="text-gray-400">主刀</p><p>${s.surgeon_name}</p></div>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 border rounded text-sm">关闭</button>
+                            ${['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="quickCreatePackage('${s.id}')" class="px-4 py-2 bg-primary text-white rounded text-sm">快速备包</button>` : ''}
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function cancelSchedule(id) {
+            if(!confirm('确定取消此排班？')) return;
+            try { await api(`/schedules/${id}/cancel`, {method:'POST',body:JSON.stringify({})}); showToast('已取消'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function quickCreatePackage(scheduleId) {
+            try {
+                const templates = await api('/inventory/package-templates?isActive=true');
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">选择备包模板</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="space-y-2 max-h-80 overflow-y-auto">
+                            ${templates.data.map(t=>`
+                                <div class="p-3 border rounded hover:border-primary cursor-pointer" onclick="doCreatePackage('${scheduleId}','${t.id}')">
+                                    <p class="font-medium text-gray-700">${t.template_name}</p>
+                                    <p class="text-xs text-gray-400">${t.template_code}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function doCreatePackage(scheduleId, templateId) {
+            try {
+                const res = await api('/packages/from-template', {method:'POST',body:JSON.stringify({scheduleId, templateId})});
+                showToast('备包创建成功');
+                document.querySelector('.modal-backdrop').remove();
+                currentPage = 'packages'; selectedPackageId = res.data.id;
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderPackages() {
+            try {
+                const [pkg, tpl] = await Promise.all([api('/packages?pageSize=50'), api('/inventory/package-templates?isActive=true')]);
+                window._templates = tpl.data;
+                
+                let detail = '<div class="p-8 text-center text-gray-400">请选择备包查看详情</div>';
+                if (selectedPackageId) {
+                    try {
+                        const res = await api(`/packages/${selectedPackageId}`);
+                        detail = renderPkgDetail(res.data);
+                    } catch { selectedPackageId = null; }
+                }
+
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div><h2 class="text-xl font-bold text-gray-800">耗材备包</h2></div>
+                            ${['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="showCreatePackageModal()" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 flex items-center gap-2"><i class="fa fa-plus"></i>新建备包</button>` : ''}
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="space-y-2">
+                                ${pkg.data.map(p=>`
+                                    <div class="bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md ${selectedPackageId===p.id?'ring-2 ring-primary':''}" onclick="selectPkg('${p.id}')">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-medium text-gray-700 truncate">${p.package_name}</p>
+                                                <p class="text-xs text-gray-400 font-mono mt-1">${p.package_no}</p>
+                                                <p class="text-xs text-gray-400 mt-1">${formatDate(p.created_at)}</p>
+                                            </div>
+                                            <span class="status-badge ${getStatusColor(p.status)} whitespace-nowrap">${getStatusLabel(p.status)}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="lg:col-span-2 bg-white rounded-lg shadow-sm">${detail}</div>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        function selectPkg(id) { selectedPackageId = id; renderApp(); }
+
+        function renderPkgDetail(pkg) {
+            const steps = ['draft','pending_review','reviewed','confirmed','distributed','used'];
+            const labels = ['创建','提交审核','审核通过','确认出库','发放','使用'];
+            const idx = steps.indexOf(pkg.status);
+
+            return `
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div><h3 class="text-lg font-bold text-gray-800">${pkg.package_name}</h3><p class="text-sm text-gray-400 font-mono">${pkg.package_no}</p></div>
+                        <span class="status-badge ${getStatusColor(pkg.status)} text-base">${getStatusLabel(pkg.status)}</span>
+                    </div>
+                    <div class="flex items-center mb-4 overflow-x-auto pb-2">
+                        ${steps.map((s,i)=>`
+                            <div class="flex items-center">
+                                <div class="flex flex-col items-center">
+                                    <div class="step-circle ${i<=idx?'bg-primary text-white':'bg-gray-200 text-gray-400'} text-sm">${i+1}</div>
+                                    <p class="text-xs mt-1 ${i<=idx?'text-primary':'text-gray-400'}">${labels[i]}</p>
+                                </div>
+                                ${i<steps.length-1?`<div class="w-12 h-0.5 mx-1 ${i<idx?'bg-primary':'bg-gray-200'}"></div>`:''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mb-4 text-sm">
+                        <div><p class="text-gray-400 text-xs">术式</p><p>${pkg.surgery_type_name||'-'}</p></div>
+                        <div><p class="text-gray-400 text-xs">手术间</p><p>${pkg.room_name||'-'}</p></div>
+                        <div><p class="text-gray-400 text-xs">备包人</p><p>${pkg.preparer_name||'-'}</p></div>
+                        <div><p class="text-gray-400 text-xs">患者</p><p>${pkg.patient_name||'-'}</p></div>
+                        <div><p class="text-gray-400 text-xs">主刀</p><p>${pkg.surgeon_name||'-'}</p></div>
+                        <div><p class="text-gray-400 text-xs">创建时间</p><p>${formatDate(pkg.created_at)}</p></div>
+                    </div>
+                    <div class="border-t pt-4">
+                        <h4 class="font-medium text-gray-700 mb-3 text-sm">耗材明细 (${pkg.items.length})</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-2 py-2 text-left text-xs text-gray-400">耗材名称</th>
+                                        <th class="px-2 py-2 text-center text-xs text-gray-400">需用</th>
+                                        <th class="px-2 py-2 text-center text-xs text-gray-400">实备</th>
+                                        <th class="px-2 py-2 text-left text-xs text-gray-400">批号</th>
+                                        <th class="px-2 py-2 text-left text-xs text-gray-400">有效期</th>
+                                        <th class="px-2 py-2 text-left text-xs text-gray-400">状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    ${pkg.items.map(item=>`
+                                        <tr>
+                                            <td class="px-2 py-2">
+                                                <div class="flex items-center gap-1">
+                                                    ${item.is_high_value?'<i class="fa fa-star text-orange-400 text-xs"></i>':''}
+                                                    <span class="text-gray-700">${item.item_name}</span>
+                                                </div>
+                                            </td>
+                                            <td class="px-2 py-2 text-center">${item.quantity_needed}</td>
+                                            <td class="px-2 py-2 text-center">
+                                                ${pkg.status==='draft'?`<input type="number" value="${item.quantity_prepared}" min="0" onchange="updatePkgItem('${pkg.id}','${item.id}',this.value)" class="w-14 px-1 py-1 border rounded text-center text-xs">`:item.quantity_prepared}
+                                            </td>
+                                            <td class="px-2 py-2">
+                                                ${pkg.status==='draft'?`<button onclick="selectBatch('${pkg.id}','${item.id}','${item.supply_item_id}')" class="text-primary text-xs hover:underline">${item.batch_no||'选择'}</button>`:`<span class="font-mono text-xs text-gray-500">${item.batch_no||'-'}</span>`}
+                                            </td>
+                                            <td class="px-2 py-2 text-xs ${item.expiry_date&&new Date(item.expiry_date)<new Date()?'text-red-500':'text-gray-500'}">${formatDate(item.expiry_date,false)||'-'}</td>
+                                            <td class="px-2 py-2"><span class="status-badge ${getStatusColor(item.status)}">${getStatusLabel(item.status)}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-4 border-t mt-4">
+                        ${pkg.status==='draft' && ['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="submitPkg('${pkg.id}')" class="px-4 py-2 bg-primary text-white rounded text-sm">提交审核</button>` : ''}
+                        ${pkg.status==='pending_review' && ['admin','head_nurse'].includes(currentUser.role) ? `<button onclick="reviewPkg('${pkg.id}',false)" class="px-4 py-2 border rounded text-sm text-gray-500">驳回</button><button onclick="reviewPkg('${pkg.id}',true)" class="px-4 py-2 bg-green-500 text-white rounded text-sm">通过</button>` : ''}
+                        ${pkg.status==='reviewed' && ['admin','head_nurse'].includes(currentUser.role) ? `<button onclick="confirmPkg('${pkg.id}')" class="px-4 py-2 bg-primary text-white rounded text-sm">确认出库</button>` : ''}
+                        ${pkg.status==='confirmed' && ['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="distributePkg('${pkg.id}')" class="px-4 py-2 bg-primary text-white rounded text-sm">发放</button>` : ''}
+                        ${pkg.status==='distributed' && ['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="usePkg('${pkg.id}')" class="px-4 py-2 bg-green-500 text-white rounded text-sm">标记使用</button>` : ''}
+                        ${pkg.status==='used' ? `<button onclick="createReturn('${pkg.id}')" class="px-4 py-2 bg-orange-500 text-white rounded text-sm">办理退包</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function showCreatePackageModal() {
+            const tpls = window._templates || [];
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">新建备包</h3>
+                        <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                    </div>
+                    <form onsubmit="createPackage(event)" class="space-y-3">
+                        <div><label class="text-xs text-gray-500">选择模板 *</label>
+                            <select id="templateId" required class="w-full px-3 py-2 border rounded text-sm">
+                                <option value="">请选择</option>${tpls.map(t=>`<option value="${t.id}">${t.template_name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 border rounded text-sm text-gray-500">取消</button>
+                            <button type="submit" class="px-4 py-2 bg-primary text-white rounded text-sm">创建</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        async function createPackage(e) {
+            e.preventDefault();
+            try {
+                const res = await api('/packages/from-template', {method:'POST',body:JSON.stringify({templateId: document.getElementById('templateId').value})});
+                showToast('创建成功');
+                document.querySelector('.modal-backdrop').remove();
+                selectedPackageId = res.data.id;
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function updatePkgItem(pkgId, itemId, qty) {
+            try { await api(`/packages/${pkgId}/items/${itemId}`, {method:'PUT',body:JSON.stringify({quantityPrepared: parseInt(qty)})}); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function selectBatch(pkgId, itemId, supplyId) {
+            try {
+                const res = await api(`/inventory/batches?supplyItemId=${supplyId}&status=normal`);
+                const valid = res.data.filter(b => new Date(b.expiry_date) > new Date());
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">选择批号</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="space-y-2 max-h-72 overflow-y-auto">
+                            ${valid.length>0?valid.map(b=>`
+                                <div class="p-3 border rounded hover:border-primary cursor-pointer ${new Date(b.expiry_date)<new Date(Date.now()+30*86400000)?'border-orange-300 bg-orange-50':''}" onclick="setBatch('${pkgId}','${itemId}','${b.id}','${b.batch_no}')">
+                                    <div class="flex justify-between items-center">
+                                        <div><p class="font-mono text-sm">${b.batch_no}</p><p class="text-xs text-gray-400">库存: ${b.quantity}</p></div>
+                                        <p class="text-xs ${new Date(b.expiry_date)<new Date(Date.now()+30*86400000)?'text-orange-500':'text-gray-500'}">${formatDate(b.expiry_date,false)}</p>
+                                    </div>
+                                </div>
+                            `).join(''):'<div class="p-8 text-center text-gray-400">暂无可用批号</div>'}
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function setBatch(pkgId, itemId, batchId, batchNo) {
+            try {
+                await api(`/packages/${pkgId}/items/${itemId}`, {method:'PUT',body:JSON.stringify({batchId})});
+                showToast(`已选择 ${batchNo}`);
+                document.querySelector('.modal-backdrop').remove();
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function submitPkg(id) {
+            if(!confirm('提交审核？')) return;
+            try { await api(`/packages/${id}/submit`, {method:'POST'}); showToast('已提交'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function reviewPkg(id, passed) {
+            try { await api(`/packages/${id}/review`, {method:'POST',body:JSON.stringify({passed})}); showToast(passed?'已通过':'已驳回'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function confirmPkg(id) {
+            if(!confirm('确认出库？将扣减库存。')) return;
+            try { await api(`/packages/${id}/confirm`, {method:'POST'}); showToast('已确认出库'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function distributePkg(id) {
+            try { await api(`/packages/${id}/distribute`, {method:'POST'}); showToast('已发放'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function usePkg(id) {
+            if(!confirm('标记使用？')) return;
+            try { await api(`/packages/${id}/use`, {method:'POST'}); showToast('已标记'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderReturns() {
+            try {
+                const res = await api('/returns?pageSize=50');
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div><h2 class="text-xl font-bold text-gray-800">退包盘点</h2></div>
+                            ${['admin','head_nurse','nurse'].includes(currentUser.role) ? `<button onclick="showCreateReturnModal()" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 flex items-center gap-2"><i class="fa fa-plus"></i>新增退包</button>` : ''}
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">退包编号</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">关联备包</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">退包原因</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">退包人</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">时间</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">状态</th>
+                                        <th class="px-4 py-3 text-left text-xs text-gray-400">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    ${res.data.map(r=>`
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 font-mono text-gray-500">${r.return_no}</td>
+                                            <td class="px-4 py-3">${r.package_name||'-'}</td>
+                                            <td class="px-4 py-3">${r.return_reason}</td>
+                                            <td class="px-4 py-3">${r.returned_by_name||'-'}</td>
+                                            <td class="px-4 py-3">${formatDate(r.return_time)}</td>
+                                            <td class="px-4 py-3"><span class="status-badge ${getStatusColor(r.status)}">${getStatusLabel(r.status)}</span></td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex gap-2">
+                                                    <button onclick="viewReturn('${r.id}')" class="text-primary hover:underline text-xs">详情</button>
+                                                    ${r.status==='pending' && ['admin','head_nurse','equipment'].includes(currentUser.role) ? `<button onclick="checkReturn('${r.id}')" class="text-green-500 hover:underline text-xs">核验</button>` : ''}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        async function viewReturn(id) {
+            try {
+                const res = await api(`/returns/${id}`);
+                const r = res.data;
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">退包详情</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                            <div><p class="text-gray-400 text-xs">退包编号</p><p class="font-mono">${r.return_no}</p></div>
+                            <div><p class="text-gray-400 text-xs">状态</p><span class="status-badge ${getStatusColor(r.status)}">${getStatusLabel(r.status)}</span></div>
+                            <div><p class="text-gray-400 text-xs">备包</p><p>${r.package_name||'-'}</p></div>
+                            <div><p class="text-gray-400 text-xs">退包人</p><p>${r.returned_by_name||'-'}</p></div>
+                            <div><p class="text-gray-400 text-xs">原因</p><p>${r.return_reason}</p></div>
+                            <div><p class="text-gray-400 text-xs">时间</p><p>${formatDate(r.return_time)}</p></div>
+                        </div>
+                        <h4 class="font-medium text-gray-700 mb-2 text-sm">退回明细</h4>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr><th class="px-2 py-2 text-left text-xs text-gray-400">耗材</th><th class="px-2 py-2 text-center text-xs text-gray-400">数量</th><th class="px-2 py-2 text-left text-xs text-gray-400">批号</th><th class="px-2 py-2 text-left text-xs text-gray-400">状况</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${(r.items||[]).map(i=>`
+                                    <tr>
+                                        <td class="px-2 py-2">${i.item_name}</td>
+                                        <td class="px-2 py-2 text-center">${i.quantity_returned}</td>
+                                        <td class="px-2 py-2 font-mono text-xs">${i.batch_no||'-'}</td>
+                                        <td class="px-2 py-2">${{good:'完好',damaged:'损坏',opened:'已开封',contaminated:'污染',expired:'过期'}[i.condition]||i.condition}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        <div class="flex justify-end pt-4">
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 border rounded text-sm">关闭</button>
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function checkReturn(id) {
+            if(!confirm('核验通过？完好的耗材将退回库存。')) return;
+            try { await api(`/returns/${id}/check`, {method:'POST',body:JSON.stringify({passed:true})}); showToast('核验完成'); renderApp(); }
+            catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function createReturn(packageId) {
+            try {
+                const pkg = await api(`/packages/${packageId}`);
+                const items = pkg.data.items.filter(i => (i.quantity_prepared||0) - (i.quantity_used||0) - (i.quantity_returned||0) > 0);
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">办理退包</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <form onsubmit="submitReturn(event, '${packageId}')" class="space-y-3">
+                            <div><label class="text-xs text-gray-500">退包原因 *</label>
+                                <select id="returnReason" required class="w-full px-3 py-2 border rounded text-sm">
+                                    <option value="">请选择</option>
+                                    <option value="手术取消">手术取消</option>
+                                    <option value="未使用">耗材未使用</option>
+                                    <option value="规格不符">规格不符</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            <p class="text-xs text-gray-500">退回明细：</p>
+                            <div class="space-y-2 max-h-56 overflow-y-auto">
+                                ${items.map(i=>{const max=(i.quantity_prepared||0)-(i.quantity_used||0)-(i.quantity_returned||0);return `
+                                    <div class="p-2 bg-gray-50 rounded flex items-center gap-2">
+                                        <span class="flex-1 text-sm">${i.item_name}</span>
+                                        <input type="number" class="ret-qty w-16 px-2 py-1 border rounded text-xs text-center" value="${max}" min="0" max="${max}" data-item-id="${i.id}" data-supply="${i.supply_item_id}" data-batch="${i.batch_id}">
+                                        <span class="text-xs text-gray-400">${i.unit}</span>
+                                    </div>
+                                `;}).join('')}
+                            </div>
+                            <div class="flex justify-end gap-2 pt-2">
+                                <button type="button" onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 border rounded text-sm text-gray-500">取消</button>
+                                <button type="submit" class="px-4 py-2 bg-primary text-white rounded text-sm">提交</button>
+                            </div>
+                        </form>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function showCreateReturnModal() {
+            try {
+                const pkg = await api('/packages?status=used&status=distributed');
+                showModal(`
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">选择备包</h3>
+                            <button onclick="this.closest('.modal-backdrop').remove()" class="text-gray-400"><i class="fa fa-times"></i></button>
+                        </div>
+                        <div class="space-y-2 max-h-72 overflow-y-auto">
+                            ${pkg.data.map(p=>`
+                                <div class="p-3 border rounded hover:border-primary cursor-pointer" onclick="createReturn('${p.id}')">
+                                    <p class="font-medium text-gray-700">${p.package_name}</p>
+                                    <p class="text-xs text-gray-400">${p.package_no}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function submitReturn(e, packageId) {
+            e.preventDefault();
+            try {
+                const qtyInputs = document.querySelectorAll('.ret-qty');
+                const items = [];
+                qtyInputs.forEach(input => {
+                    const qty = parseInt(input.value);
+                    if (qty > 0) {
+                        items.push({
+                            packageItemId: input.dataset.itemId,
+                            supplyItemId: input.dataset.supply,
+                            batchId: input.dataset.batch,
+                            quantityReturned: qty,
+                            condition: 'good',
+                            isRestockable: true
+                        });
+                    }
+                });
+                if (items.length === 0) { showToast('请选择退回的耗材', 'warning'); return; }
+                await api('/returns', {method:'POST',body:JSON.stringify({
+                    packageId, returnReason: document.getElementById('returnReason').value, items
+                })});
+                showToast('退包已提交');
+                document.querySelector('.modal-backdrop').remove();
+                currentPage = 'returns'; renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderInventory() {
+            try {
+                const [items, batches, alerts] = await Promise.all([
+                    api('/inventory/supply-items?pageSize=20'),
+                    api('/inventory/batches?pageSize=20'),
+                    api('/inventory/stock-alerts?isResolved=false')
+                ]);
+                return `
+                    <div class="p-6">
+                        <div class="mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">库存管理</h2>
+                        </div>
+                        ${alerts.data?.length>0 ? `
+                        <div class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                            <h4 class="font-medium text-red-600 mb-2"><i class="fa fa-exclamation-triangle mr-2"></i>库存预警 (${alerts.data.length})</h4>
+                            <div class="space-y-1 max-h-24 overflow-y-auto">
+                                ${alerts.data.slice(0,5).map(a=>`<p class="text-sm text-red-500">• ${a.message}</p>`).join('')}
+                            </div>
+                        </div>`:''}
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white rounded-lg shadow-sm">
+                                <div class="p-4 border-b flex justify-between items-center">
+                                    <h3 class="font-medium text-gray-700">耗材目录</h3>
+                                    <span class="text-xs text-gray-400">共 ${items.total} 种</span>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr><th class="px-3 py-2 text-left text-xs text-gray-400">编码</th><th class="px-3 py-2 text-left text-xs text-gray-400">名称</th><th class="px-3 py-2 text-center text-xs text-gray-400">库存</th></tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            ${items.data.map(i=>`
+                                                <tr>
+                                                    <td class="px-3 py-2 font-mono text-xs text-gray-500">${i.item_code}</td>
+                                                    <td class="px-3 py-2">${i.is_high_value?'<span class="text-orange-400 text-xs mr-1">★</span>':''}${i.item_name}</td>
+                                                    <td class="px-3 py-2 text-center ${i.current_stock<=i.safety_stock?'text-red-500 font-medium':'text-gray-700'}">${i.current_stock}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm">
+                                <div class="p-4 border-b flex justify-between items-center">
+                                    <h3 class="font-medium text-gray-700">批次信息</h3>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="bg-gray-50">
+                                            <tr><th class="px-3 py-2 text-left text-xs text-gray-400">批号</th><th class="px-3 py-2 text-left text-xs text-gray-400">耗材</th><th class="px-3 py-2 text-center text-xs text-gray-400">数量</th><th class="px-3 py-2 text-left text-xs text-gray-400">有效期</th><th class="px-3 py-2 text-left text-xs text-gray-400">状态</th></tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            ${batches.data.map(b=>`
+                                                <tr>
+                                                    <td class="px-3 py-2 font-mono text-xs text-gray-500">${b.batch_no}</td>
+                                                    <td class="px-3 py-2 text-xs">${b.item_name}</td>
+                                                    <td class="px-3 py-2 text-center">${b.quantity}</td>
+                                                    <td class="px-3 py-2 text-xs ${new Date(b.expiry_date)<new Date()?'text-red-500':new Date(b.expiry_date)<new Date(Date.now()+30*86400000)?'text-orange-500':'text-gray-500'}">${formatDate(b.expiry_date,false)}</td>
+                                                    <td class="px-3 py-2"><span class="status-badge ${getStatusColor(b.status)}">${getStatusLabel(b.status)}</span></td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm p-4">
+                            <h3 class="font-medium text-gray-700 mb-3">快速批号核验</h3>
+                            <div class="flex gap-2">
+                                <input id="verifyBatchNo" placeholder="输入批号进行核验（如 B20240001）" class="flex-1 px-3 py-2 border rounded text-sm">
+                                <button onclick="verifyBatch()" class="px-4 py-2 bg-primary text-white rounded text-sm">核验</button>
+                            </div>
+                            <div id="verifyResult" class="mt-3"></div>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        async function verifyBatch() {
+            const batchNo = document.getElementById('verifyBatchNo').value.trim();
+            if (!batchNo) { showToast('请输入批号', 'warning'); return; }
+            try {
+                const res = await api(`/inventory/batches/verify/${batchNo}`);
+                const el = document.getElementById('verifyResult');
+                if (res.valid) {
+                    el.innerHTML = `<div class="p-3 bg-green-50 border border-green-200 rounded">
+                        <p class="text-green-700 font-medium">✓ 批号有效</p>
+                        <p class="text-sm text-gray-600">耗材: ${res.data.item_name} | 库存: ${res.data.quantity} | 有效期: ${formatDate(res.data.expiry_date,false)}</p>
+                    </div>`;
+                } else {
+                    el.innerHTML = `<div class="p-3 bg-red-50 border border-red-200 rounded">
+                        <p class="text-red-700 font-medium">✗ ${res.message}</p>
+                    </div>`;
+                }
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderReconciliations() {
+            try {
+                const res = await api('/reconciliations?pageSize=20');
+                const currentMonth = new Date().toISOString().slice(0,7);
+                const reconciliations = res.data || [];
+                const statusMap = { draft: '草稿', submitted: '已提交', approved: '已审核', rejected: '已驳回' };
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div><h2 class="text-xl font-bold text-gray-800">月度对账</h2></div>
+                            ${['admin','equipment'].includes(currentUser.role) ? `
+                            <button onclick="generateRecon('${currentMonth}')" class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600">生成 ${currentMonth} 对账</button>` : ''}
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 text-gray-600">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">对账月份</th>
+                                        <th class="px-4 py-3 text-left">状态</th>
+                                        <th class="px-4 py-3 text-right">备包总数</th>
+                                        <th class="px-4 py-3 text-right">使用总数</th>
+                                        <th class="px-4 py-3 text-right">退回总数</th>
+                                        <th class="px-4 py-3 text-right">差异数</th>
+                                        <th class="px-4 py-3 text-left">创建时间</th>
+                                        <th class="px-4 py-3 text-center">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${reconciliations.length === 0 ? `<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">暂无对账记录</td></tr>` : 
+                                    reconciliations.map(r => `
+                                    <tr class="border-t hover:bg-gray-50">
+                                        <td class="px-4 py-3 font-medium">${r.month}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="px-2 py-1 rounded-full text-xs ${
+                                                r.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                r.status === 'submitted' ? 'bg-blue-100 text-blue-700' :
+                                                r.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                            }">${statusMap[r.status] || r.status}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right">${r.total_prepared}</td>
+                                        <td class="px-4 py-3 text-right">${r.total_used}</td>
+                                        <td class="px-4 py-3 text-right">${r.total_returned}</td>
+                                        <td class="px-4 py-3 text-right ${r.diff_count > 0 ? 'text-red-600 font-medium' : 'text-green-600'}">${r.diff_count}</td>
+                                        <td class="px-4 py-3 text-gray-500">${formatDate(r.created_at, false)}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            ${r.status === 'draft' && ['admin','equipment'].includes(currentUser.role) ? 
+                                                `<button onclick="submitRecon(${r.id})" class="text-blue-600 hover:underline text-xs">提交</button>` : ''}
+                                            ${r.status === 'submitted' && currentUser.role === 'admin' ? 
+                                                `<button onclick="approveRecon(${r.id})" class="text-green-600 hover:underline text-xs mr-2">审核</button>` : ''}
+                                        </td>
+                                    </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        async function generateRecon(month) {
+            if (!confirm(`确认生成 ${month} 月度对账？`)) return;
+            try {
+                await api('/reconciliations/generate', { method: 'POST', body: JSON.stringify({ month }) });
+                showToast('对账生成中，请稍后刷新查看', 'success');
+                setTimeout(renderApp, 1500);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function submitRecon(id) {
+            if (!confirm('确认提交该对账？提交后将进入审核流程')) return;
+            try {
+                await api(`/reconciliations/${id}/submit`, { method: 'POST' });
+                showToast('提交成功', 'success');
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function approveRecon(id) {
+            if (!confirm('确认审核通过该对账？')) return;
+            try {
+                await api(`/reconciliations/${id}/approve`, { method: 'POST' });
+                showToast('审核通过', 'success');
+                renderApp();
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderImportExport() {
+            try {
+                const res = await api('/import-export?pageSize=20');
+                const tasks = res.data || [];
+                const typeMap = { export: '导出', import: '导入' };
+                const statusMap = { pending: '等待中', processing: '处理中', completed: '已完成', failed: '失败' };
+                return `
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">导入导出</h2>
+                                <p class="text-sm text-gray-500 mt-1">批量数据导入导出任务队列</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="exportData('schedules')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700">
+                                    <i class="fas fa-file-export mr-1"></i>导出排班
+                                </button>
+                                <button onclick="exportData('inventory')" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700">
+                                    <i class="fas fa-file-export mr-1"></i>导出库存
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 text-gray-600">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">任务类型</th>
+                                        <th class="px-4 py-3 text-left">数据类型</th>
+                                        <th class="px-4 py-3 text-left">状态</th>
+                                        <th class="px-4 py-3 text-right">进度</th>
+                                        <th class="px-4 py-3 text-left">创建人</th>
+                                        <th class="px-4 py-3 text-left">创建时间</th>
+                                        <th class="px-4 py-3 text-center">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tasks.length === 0 ? `<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">暂无任务</td></tr>` : 
+                                    tasks.map(t => `
+                                    <tr class="border-t hover:bg-gray-50">
+                                        <td class="px-4 py-3">${typeMap[t.task_type] || t.task_type}</td>
+                                        <td class="px-4 py-3">${t.data_type}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="px-2 py-1 rounded-full text-xs ${
+                                                t.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                t.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                                t.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                            }">${statusMap[t.status] || t.status}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-right">${t.progress || 0}%</td>
+                                        <td class="px-4 py-3">${t.created_by_name || '-'}</td>
+                                        <td class="px-4 py-3 text-gray-500">${formatDate(t.created_at, false)}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            ${t.status === 'completed' && t.file_path ? 
+                                                `<a href="${t.file_path}" class="text-blue-600 hover:underline text-xs" download>下载</a>` : '-'}
+                                        </td>
+                                    </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch(err) { return `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`; }
+        }
+
+        async function exportData(dataType) {
+            try {
+                await api('/import-export/export', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ data_type: dataType }) 
+                });
+                showToast('导出任务已创建，请稍后在任务列表查看', 'success');
+                setTimeout(renderApp, 1000);
+            } catch(err) { showToast(err.message, 'error'); }
+        }
+
+        async function renderApp() {
+            if (!currentUser) {
+                app.innerHTML = renderLogin();
+                return;
+            }
+            app.innerHTML = `
+                <div class="flex h-screen bg-gray-100">
+                    <aside class="w-64 bg-white shadow-sm flex flex-col">
+                        <div class="p-4 border-b">
+                            <h1 class="text-xl font-bold text-primary flex items-center">
+                                <i class="fas fa-suitcase-medical mr-2"></i>手术室备包系统
+                            </h1>
+                        </div>
+                        <nav class="flex-1 p-4 space-y-1">
+                            ${menuItems.map(item => `
+                            <button onclick="navigateTo('${item.id}')" 
+                                class="w-full flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                                    currentView === item.id 
+                                        ? 'bg-primary text-white' 
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                }" id="menu-${item.id}">
+                                <i class="${item.icon} w-5 mr-3"></i>${item.label}
+                                ${item.id === 'notifications' && unreadCount > 0 ? 
+                                    `<span class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">${unreadCount}</span>` : ''}
+                            </button>
+                            `).join('')}
+                        </nav>
+                        <div class="p-4 border-t">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
+                                    ${currentUser.real_name ? currentUser.real_name.charAt(0) : 'U'}
+                                </div>
+                                <div class="ml-3 flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-800 truncate">${currentUser.real_name || currentUser.username}</p>
+                                    <p class="text-xs text-gray-500 truncate">${roleMap[currentUser.role] || currentUser.role}</p>
+                                </div>
+                                <button onclick="logout()" class="text-gray-400 hover:text-red-500" title="退出登录">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+                    <main class="flex-1 overflow-auto">
+                        <div id="main-content"></div>
+                    </main>
+                </div>
+                <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+                <div id="modal-container"></div>
+            `;
+            await renderView();
+        }
+
+        async function renderView() {
+            const mainContent = document.getElementById('main-content');
+            let content = '';
+            try {
+                switch(currentView) {
+                    case 'dashboard': content = await renderDashboard(); break;
+                    case 'schedules': content = await renderSchedules(); break;
+                    case 'packages': content = await renderPackages(); break;
+                    case 'returns': content = await renderReturns(); break;
+                    case 'inventory': content = await renderInventory(); break;
+                    case 'reconciliations': content = await renderReconciliations(); break;
+                    case 'importExport': content = await renderImportExport(); break;
+                    case 'notifications': content = await renderNotifications(); break;
+                    default: content = await renderDashboard();
+                }
+                mainContent.innerHTML = content;
+            } catch(err) {
+                mainContent.innerHTML = `<div class="p-6"><div class="bg-white p-8 rounded-lg text-center text-red-400">加载失败: ${err.message}</div></div>`;
+            }
+        }
+
+        function navigateTo(view) {
+            currentView = view;
+            renderApp();
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500', error: 'bg-red-500', 
+                warning: 'bg-yellow-500', info: 'bg-blue-500'
+            };
+            const icons = {
+                success: 'fa-check-circle', error: 'fa-times-circle',
+                warning: 'fa-exclamation-triangle', info: 'fa-info-circle'
+            };
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center animate-slideIn`;
+            toast.innerHTML = `<i class="fas ${icons[type]} mr-2"></i>${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showModal(title, content, actions = []) {
+            const container = document.getElementById('modal-container');
+            container.innerHTML = `
+                <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-40" onclick="if(event.target===this)closeModal()">
+                    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-auto">
+                        <div class="flex items-center justify-between p-4 border-b">
+                            <h3 class="text-lg font-semibold">${title}</h3>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="p-4">${content}</div>
+                        <div class="flex justify-end gap-2 p-4 border-t bg-gray-50">
+                            ${actions.map(a => `<button onclick="${a.action}" class="${a.class || 'px-4 py-2 rounded text-sm'}">${a.label}</button>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeModal() {
+            document.getElementById('modal-container').innerHTML = '';
+        }
+
+        function formatDate(dateStr, showTime = true) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            const date = d.toISOString().slice(0,10);
+            if (!showTime) return date;
+            return `${date} ${d.toTimeString().slice(0,5)}`;
+        }
+
+        async function checkNotifications() {
+            if (!currentUser) return;
+            try {
+                const res = await api('/notifications?unread=true&pageSize=10');
+                const notifications = res.data || [];
+                unreadCount = notifications.length;
+                if (unreadCount > 0 && currentView !== 'notifications') {
+                    notifications.slice(0, 2).forEach(n => {
+                        showToast(n.message, 'info');
+                    });
+                }
+            } catch(e) {}
+        }
+
+        setInterval(checkNotifications, 60000);
+        renderApp();

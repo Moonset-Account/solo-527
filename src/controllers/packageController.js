@@ -558,6 +558,18 @@ async function markPackageUsed(req, res, next) {
       throw new ValidationError('备包状态不允许标记使用');
     }
 
+    const highValueItemsResult = await client.query(`
+      SELECT pi.*, si.is_high_value, si.requires_scan
+      FROM package_items pi
+      JOIN supply_items si ON pi.supply_item_id = si.id
+      WHERE pi.package_id = $1 AND (si.is_high_value = true OR si.requires_scan = true)
+    `, [id]);
+
+    const unscannedHighValue = highValueItemsResult.rows.filter(item => !item.is_scanned);
+    if (unscannedHighValue.length > 0) {
+      throw new ValidationError(`还有 ${unscannedHighValue.length} 件高值耗材未扫码，请先完成扫码再标记使用`);
+    }
+
     if (itemsUsed && itemsUsed.length > 0) {
       for (const itemUsed of itemsUsed) {
         await client.query(`
@@ -591,14 +603,184 @@ async function markPackageUsed(req, res, next) {
   }
 }
 
+async function scanPackageItem(req, res, next) {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    const { id } = req.params;
+    const { item_id, batch_code } = req.body;
+
+    if (!item_id || !batch_code) {
+      throw new ValidationError('请提供耗材项ID和批号');
+    }
+
+    const packageResult = await client.query('SELECT * FROM package_preparations WHERE id = $1', [id]);
+    if (packageResult.rows.length === 0) {
+      throw new NotFoundError('备包记录不存在');
+    }
+
+    if (packageResult.rows[0].status !== 'distributed') {
+      throw new ValidationError('备包状态不允许扫码，只有已发放的备包才能扫码');
+    }
+
+    const itemResult = await client.query(`
+      SELECT pi.*, si.item_name, si.is_high_value, si.requires_scan
+      FROM package_items pi
+      JOIN supply_items si ON pi.supply_item_id = si.id
+      WHERE pi.id = $1 AND pi.package_id = $2
+    `, [item_id, id]);
+
+    if (itemResult.rows.length === 0) {
+      throw new NotFoundError('备包明细不存在');
+    }
+
+    const item = itemResult.rows[0];
+    if (!item.is_high_value && !item.requires_scan) {
+      throw new ValidationError('该耗材不需要扫码');
+    }
+
+    if (item.is_scanned) {
+      throw new ValidationError('该耗材已扫码');
+    }
+
+    const batchResult = await client.query(`
+      SELECT sb.*, si.item_name
+      FROM supply_batches sb
+      JOIN supply_items si ON sb.supply_item_id = si.id
+      WHERE sb.batch_no = $1 AND sb.supply_item_id = $2
+    `, [batch_code, item.supply_item_id]);
+
+    if (batchResult.rows.length === 0) {
+      throw new ValidationError(`批号 ${batch_code} 不存在`);
+    }
+
+    const batch = batchResult.rows[0];
+    if (batch.status === 'expired') {
+      throw new ValidationError(`批号 ${batch.batch_no} 已过期`);
+    }
+
+    const updateResult = await client.query(`
+      UPDATE package_items SET
+        is_scanned = true,
+        scanned_batch_code = $1,
+        scanned_at = CURRENT_TIMESTAMP,
+        scanned_by = $2,
+        batch_id = COALESCE($3, batch_id),
+        batch_no = COALESCE($4, batch_no),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *
+    `, [batch_code, req.user.id, batch.id, batch.batch_no, item_id]);
+
+    await logAudit(req.user.id, req.user.realName, 'scan_item', 'package', 'package_item', item_id, item, updateResult.rows[0], req);
+
+    await client.query('COMMIT');
+    res.json({ 
+      success: true, 
+      data: updateResult.rows[0], 
+      message: `扫码成功，${item.item_name} 已关联到手术 ${packageResult.rows[0].package_no}` 
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+}
+
+async function createPackage(req, res, next) {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    const { schedule_id, template_id, package_name } = req.body;
+
+    if (!package_name) {
+      throw new ValidationError('请输入备包名称');
+    }
+
+    const packageNo = `PKG${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+
+    let schedule = null;
+    let surgeryTypeId = null;
+    let operatingRoomId = null;
+    let patientName = null;
+    let surgeonName = null;
+    let scheduledTime = null;
+
+    if (schedule_id) {
+      const scheduleResult = await client.query('SELECT * FROM surgery_schedules WHERE id = $1', [schedule_id]);
+      if (scheduleResult.rows.length === 0) {
+        throw new NotFoundError('排班记录不存在');
+      }
+      schedule = scheduleResult.rows[0];
+      surgeryTypeId = schedule.surgery_type_id;
+      operatingRoomId = schedule.operating_room_id;
+      patientName = schedule.patient_name;
+      surgeonName = schedule.surgeon_name;
+      scheduledTime = schedule.scheduled_start_time;
+    }
+
+    const packageResult = await client.query(`
+      INSERT INTO package_preparations 
+      (package_no, schedule_id, surgery_type_id, operating_room_id, template_id, 
+       package_name, preparer_id, preparer_name, status, patient_name, surgeon_name, scheduled_time)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', $9, $10, $11)
+      RETURNING *
+    `, [
+      packageNo, schedule_id || null, surgeryTypeId, operatingRoomId, template_id || null,
+      package_name, req.user.id, req.user.realName, patientName, surgeonName, scheduledTime
+    ]);
+
+    const packageId = packageResult.rows[0].id;
+
+    if (template_id) {
+      const templateItemsResult = await client.query(`
+        SELECT pti.*, si.is_high_value, si.safety_stock
+        FROM package_template_items pti
+        JOIN supply_items si ON pti.supply_item_id = si.id
+        WHERE pti.template_id = $1
+      `, [template_id]);
+
+      for (const templateItem of templateItemsResult.rows) {
+        await client.query(`
+          INSERT INTO package_items 
+          (package_id, supply_item_id, quantity_needed, quantity_prepared, is_high_value, status)
+          VALUES ($1, $2, $3, 0, $4, 'pending')
+        `, [packageId, templateItem.supply_item_id, templateItem.quantity, templateItem.is_high_value]);
+      }
+    }
+
+    await logAudit(req.user.id, req.user.realName, 'create_package', 'package', 'package_preparation', packageId, null, packageResult.rows[0], req);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      data: packageResult.rows[0],
+      message: '备包创建成功',
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getPackages,
   getPackageById,
+  createPackage,
   createPackageFromTemplate,
   updatePackageItem,
   submitPackageForReview,
   reviewPackage,
+  approvePackage: reviewPackage,
   confirmPackage,
+  deliverPackage: distributePackage,
   distributePackage,
   markPackageUsed,
+  scanPackageItem,
 };
