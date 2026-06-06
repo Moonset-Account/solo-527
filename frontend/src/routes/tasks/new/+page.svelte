@@ -21,14 +21,18 @@
 	let error = '';
 	let success = '';
 
-	$: selectedRoute = routes.find(r => r.id === form.route_id);
+	let routeId = '';
+	$: selectedRoute = routes.find(r => r.id === routeId);
 	$: {
 		if (selectedRoute) {
 			availableSites = sites.filter(s => selectedRoute.site_ids.includes(s.id));
 		} else {
 			availableSites = [];
 		}
-		if (form.site_id && !availableSites.find(s => s.id === form.site_id)) {
+	}
+	$: {
+		if (routeId !== form.route_id) {
+			form.route_id = routeId;
 			form.site_id = '';
 		}
 	}
@@ -45,10 +49,14 @@
 		}
 	}
 
-	$: selectedBox = boxes.find(b => b.box_number === form.box_number);
+	let boxNumber = '';
+	$: selectedBox = boxes.find(b => b.box_number === boxNumber);
 	$: {
-		if (selectedBox && !form.thermometer_id) {
-			form.thermometer_id = selectedBox.thermometer_id;
+		if (boxNumber !== form.box_number) {
+			form.box_number = boxNumber;
+			if (selectedBox) {
+				form.thermometer_id = selectedBox.thermometer_id;
+			}
 		}
 	}
 
@@ -103,7 +111,7 @@
 						箱号 <span class="text-red-500">*</span>
 					</label>
 					<select
-						bind:value={form.box_number}
+						bind:value={boxNumber}
 						class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
 						required
 					>
@@ -138,7 +146,7 @@
 						配送路线 <span class="text-red-500">*</span>
 					</label>
 					<select
-						bind:value={form.route_id}
+						bind:value={routeId}
 						class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
 						required
 					>
@@ -157,7 +165,7 @@
 						bind:value={form.site_id}
 						class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
 						required
-						disabled={!form.route_id}
+						disabled={!routeId}
 					>
 						<option value="">请先选择路线</option>
 						{#each availableSites as s}
