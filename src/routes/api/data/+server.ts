@@ -181,16 +181,18 @@ export const POST: RequestHandler = async ({ request }) => {
       outlierMethod: 'iqr'
     });
 
-    await addSensorReadings(cleanedResult.cleaned);
+    const { cleaned: importedReadings } = cleanedResult;
+    await addSensorReadings(importedReadings);
 
     return json({
       success: true,
       message: '导入成功',
       filename: file.name,
       totalRows: rawData.length,
-      importedCount: cleanedResult.cleaned.length,
+      importedCount: importedReadings.length,
       skippedCount,
-      errors: errors.slice(0, 20)
+      errors: errors.slice(0, 20),
+      importedReadings
     });
   } catch (error) {
     return json({

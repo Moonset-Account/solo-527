@@ -116,13 +116,30 @@ export const filteredReadings = derived(
 );
 
 export const filteredAlerts = derived(
-  [alerts, filteredSensors, filteredValves, filters],
-  ([$alerts, $filteredSensors, $filteredValves, $filters]) => {
+  [alerts, filteredSensors, valves, filters, sensorReadings],
+  ([$alerts, $filteredSensors, $valves, $filters, $sensorReadings]) => {
     const sensorIds = new Set($filteredSensors.map((s) => s.id));
-    const valveIds = new Set($filteredValves.map((v) => v.id));
+    const allValveIds = new Set($valves.map((v) => v.id));
+
+    const batchSensorReadings = $filters.batchIds.length > 0
+      ? $sensorReadings.filter((r) => r.batchId && $filters.batchIds.includes(r.batchId))
+      : $sensorReadings;
+    const readingIds = new Set(batchSensorReadings.map((r) => r.id));
+    const readingSensorTimes = new Map(
+      batchSensorReadings.map((r) => [`${r.sensorId}_${new Date(r.timestamp).getTime()}`, true])
+    );
+
     let result = $alerts.filter((a) => {
-      if (a.sensorId) return sensorIds.has(a.sensorId);
-      if (a.valveId) return valveIds.has(a.valveId);
+      if (a.sensorId) {
+        if (!sensorIds.has(a.sensorId)) return false;
+        if ($filters.batchIds.length > 0 && a.readingId) {
+          if (!readingIds.has(a.readingId)) return false;
+        }
+        return true;
+      }
+      if (a.valveId) {
+        return allValveIds.has(a.valveId);
+      }
       return false;
     });
 

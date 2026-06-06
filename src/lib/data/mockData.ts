@@ -1,4 +1,4 @@
-import type { UserPermission, Greenhouse, Sensor, SensorReading } from '$lib/types';
+import type { UserPermission, Greenhouse, Sensor, SensorReading, CropBatch } from '$lib/types';
 
 export const MOCK_USER: UserPermission = {
   userId: 'tech-001',
@@ -160,7 +160,7 @@ export function generateValves() {
   return valves;
 }
 
-export function generateBatches() {
+export function generateBatches(): CropBatch[] {
   const greenhouseIds = ['gh-001', 'gh-002', 'gh-003'];
   const crops = [
     { type: '番茄', variety: '圣桃1号', days: 90 },
@@ -168,8 +168,8 @@ export function generateBatches() {
     { type: '生菜', variety: '美国大速生', days: 45 },
     { type: '草莓', variety: '红颜', days: 120 }
   ];
-  const phases = ['sowing', 'germination', 'vegetative', 'flowering', 'fruiting', 'harvest'];
-  const batches = [];
+  const phases: Array<'sowing' | 'germination' | 'vegetative' | 'flowering' | 'fruiting' | 'harvest'> = ['sowing', 'germination', 'vegetative', 'flowering', 'fruiting', 'harvest'];
+  const batches: CropBatch[] = [];
   let idx = 1;
 
   for (const ghId of greenhouseIds) {
@@ -191,7 +191,7 @@ export function generateBatches() {
         phase: phases[phaseIdx],
         plantCount: 500 + Math.floor(Math.random() * 500),
         expectedYield: 2000 + Math.random() * 3000,
-        status: phaseIdx === 5 ? 'completed' : 'active'
+        status: (phaseIdx === 5 ? 'completed' : 'active') as 'active' | 'completed' | 'failed'
       });
       idx++;
     }
@@ -202,12 +202,21 @@ export function generateBatches() {
 
 export function generateSensorReadings(
   sensors: Sensor[],
-  days: number = 7
+  days: number = 7,
+  batches: CropBatch[] = []
 ): SensorReading[] {
   const readings: SensorReading[] = [];
   const now = Date.now();
   const interval = 300 * 1000;
   const pointsPerSensor = Math.floor((days * 86400 * 1000) / interval);
+
+  const greenhouseBatches: Record<string, string[]> = {};
+  batches.forEach((b) => {
+    if (!greenhouseBatches[b.greenhouseId]) {
+      greenhouseBatches[b.greenhouseId] = [];
+    }
+    greenhouseBatches[b.greenhouseId].push(b.id);
+  });
 
   sensors.forEach((sensor, sIdx) => {
     const baseValues: Record<string, number> = {
@@ -217,6 +226,11 @@ export function generateSensorReadings(
       soil_moisture: 55
     };
     const base = baseValues[sensor.type];
+
+    const ghBatches = greenhouseBatches[sensor.greenhouseId] || [];
+    const assignedBatch = ghBatches.length > 0 && Math.random() > 0.3
+      ? ghBatches[Math.floor(Math.random() * ghBatches.length)]
+      : undefined;
 
     for (let i = 0; i < pointsPerSensor; i++) {
       const timestamp = new Date(now - (pointsPerSensor - i) * interval);
@@ -248,7 +262,8 @@ export function generateSensorReadings(
         value: isMissing ? NaN : value,
         quality: isMissing ? 'missing' : isOutlier ? 'outlier' : 'good',
         isMissing,
-        isOutlier
+        isOutlier,
+        batchId: assignedBatch
       });
     }
   });
@@ -288,12 +303,23 @@ export function generateIrrigationEvents(valves: any[], days: number = 7) {
   return events;
 }
 
-export function generateAlerts(sensors: any[], valves: any[]) {
+export function generateAlerts(sensors: any[], valves: any[], readings: SensorReading[] = []) {
   const alerts: any[] = [];
   const now = Date.now();
   let idx = 1;
 
+  const readingsBySensor: Record<string, SensorReading[]> = {};
+  readings.forEach((r) => {
+    if (!readingsBySensor[r.sensorId]) {
+      readingsBySensor[r.sensorId] = [];
+    }
+    readingsBySensor[r.sensorId].push(r);
+  });
+
   sensors.forEach((sensor, sIdx) => {
+    const sensorReadings = readingsBySensor[sensor.id] || [];
+    const outlierReadings = sensorReadings.filter((r) => r.isOutlier);
+
     if (sensor.status === 'offline') {
       alerts.push({
         id: `alert-${String(idx++).padStart(5, '0')}`,
@@ -307,7 +333,8 @@ export function generateAlerts(sensors: any[], valves: any[]) {
       });
     }
 
-    if (Math.random() < 0.3) {
+    if (Math.random() < 0.3 && outlierReadings.length > 0) {
+      const randomOutlier = outlierReadings[Math.floor(Math.random() * outlierReadings.length)];
       alerts.push({
         id: `alert-${String(idx++).padStart(5, '0')}`,
         greenhouseId: sensor.greenhouseId,
@@ -315,8 +342,24 @@ export function generateAlerts(sensors: any[], valves: any[]) {
         type: 'threshold',
         level: Math.random() < 0.5 ? 'warning' : 'critical',
         message: `${sensor.name} 超出阈值范围`,
-        timestamp: new Date(now - Math.random() * 86400000).toISOString(),
-        resolved: Math.random() < 0.5
+        timestamp: randomOutlier.timestamp,
+        resolved: Math.random() < 0.5,
+        readingId: randomOutlier.id
+      });
+    }
+
+    if (Math.random() < 0.2 && outlierReadings.length > 0) {
+      const randomOutlier = outlierReadings[Math.floor(Math.random() * outlierReadings.length)];
+      alerts.push({
+        id: `alert-${String(idx++).padStart(5, '0')}`,
+        greenhouseId: sensor.greenhouseId,
+        sensorId: sensor.id,
+        type: 'anomaly',
+        level: 'warning',
+        message: `${sensor.name} 检测到异常数据点`,
+        timestamp: randomOutlier.timestamp,
+        resolved: Math.random() < 0.6,
+        readingId: randomOutlier.id
       });
     }
   });

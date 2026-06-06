@@ -10,6 +10,7 @@ export async function importCSVFile(file: File): Promise<{
   skippedCount?: number;
   errors?: string[];
   error?: string;
+  importedReadings?: SensorReading[];
 }> {
   const formData = new FormData();
   formData.append('file', file);
@@ -22,8 +23,9 @@ export async function importCSVFile(file: File): Promise<{
     });
     const result = await response.json();
 
-    if (result.success) {
-      await refreshFrontendData();
+    if (result.success && result.importedReadings) {
+      mergeImportedReadings(result.importedReadings);
+      await updateDataInfo();
     }
 
     return result;
@@ -35,6 +37,25 @@ export async function importCSVFile(file: File): Promise<{
   } finally {
     loading.set(false);
   }
+}
+
+function mergeImportedReadings(newReadings: SensorReading[]): void {
+  const current = get(sensorReadings);
+  const existingIds = new Set(current.map((r) => r.id));
+  const merged = [...current];
+
+  for (const reading of newReadings) {
+    if (!existingIds.has(reading.id)) {
+      merged.push(reading);
+    }
+  }
+
+  sensorReadings.set(merged);
+}
+
+async function updateDataInfo(): Promise<void> {
+  const updateInfo = await getDataUpdateInfo();
+  dataUpdateInfo.set(updateInfo);
 }
 
 export async function refreshFrontendData(): Promise<void> {

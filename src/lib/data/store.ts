@@ -35,9 +35,8 @@ async function loadAllData(): Promise<CachedData> {
   const sensors = generateSensors();
   const valves = generateValves();
   const batches = generateBatches();
-  const rawReadings = generateSensorReadings(sensors, 7);
+  const rawReadings = generateSensorReadings(sensors, 7, batches);
   const irrigationEvents = generateIrrigationEvents(valves, 7);
-  const alerts = generateAlerts(sensors, valves);
 
   const { cleaned: sensorReadings } = cleanSensorReadings(rawReadings, sensors, {
     fillMissing: true,
@@ -45,6 +44,8 @@ async function loadAllData(): Promise<CachedData> {
     interpolateMethod: 'linear',
     outlierMethod: 'both'
   });
+
+  const alerts = generateAlerts(sensors, valves, sensorReadings);
 
   cache = {
     greenhouses: applyPermissionFilter(greenhouses, MOCK_USER) as Greenhouse[],

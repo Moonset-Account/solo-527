@@ -70,7 +70,7 @@ export interface SensorReading {
   quality: DataQuality;
   isMissing: boolean;
   isOutlier: boolean;
-  batchId?: string;
+  batchId?: string | null;
 }
 
 export interface IrrigationEvent {
