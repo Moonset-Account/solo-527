@@ -291,6 +291,11 @@ async function loadRecords() {
   }
 }
 
+function goToDetail(row) {
+  const query = { ...route.query }
+  router.push({ path: `/admin/borrowing/${row.id}`, query })
+}
+
 function resetFilters() {
   filters.status = ''
   filters.family_name = ''

@@ -56,9 +56,21 @@ const routes = [
         meta: { roles: ['admin', 'librarian'] }
       },
       {
+        path: 'admin/borrowing/:id',
+        name: 'AdminBorrowingDetail',
+        component: () => import('@/views/admin/BorrowingDetail.vue'),
+        meta: { roles: ['admin', 'librarian'] }
+      },
+      {
         path: 'admin/repairs',
         name: 'AdminRepairs',
         component: () => import('@/views/admin/RepairManage.vue'),
+        meta: { roles: ['admin', 'librarian'] }
+      },
+      {
+        path: 'admin/repairs/:id',
+        name: 'AdminRepairDetail',
+        component: () => import('@/views/admin/RepairDetail.vue'),
         meta: { roles: ['admin', 'librarian'] }
       },
       {
@@ -77,6 +89,12 @@ const routes = [
         path: 'admin/books',
         name: 'AdminBooks',
         component: () => import('@/views/admin/BookManage.vue'),
+        meta: { roles: ['admin', 'librarian'] }
+      },
+      {
+        path: 'admin/books/:id',
+        name: 'AdminBookDetail',
+        component: () => import('@/views/admin/BookDetail.vue'),
         meta: { roles: ['admin', 'librarian'] }
       }
     ]

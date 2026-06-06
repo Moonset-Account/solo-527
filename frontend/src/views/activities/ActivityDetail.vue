@@ -127,7 +127,7 @@ const registerForm = ref({
 
 const canRegister = computed(() => {
   if (!activity.value) return false
-  if (activity.value.status !== 'open') return false
+  if (activity.value.status !== 'registration_open') return false
   if (!children.value || children.value.length === 0) return false
   
   const now = new Date()
@@ -141,7 +141,7 @@ const canRegister = computed(() => {
 
 const registerMessage = computed(() => {
   if (!activity.value) return ''
-  if (activity.value.status !== 'open') return '活动报名未开启或已结束'
+  if (activity.value.status !== 'registration_open') return '活动报名未开启或已结束'
   if (!children.value || children.value.length === 0) return '请先添加孩子信息'
   
   const now = new Date()
@@ -157,8 +157,9 @@ const registerMessage = computed(() => {
 const getStatusType = (status) => {
   const typeMap = {
     'draft': 'info',
-    'open': 'success',
-    'closed': 'warning',
+    'published': 'info',
+    'registration_open': 'success',
+    'registration_closed': 'warning',
     'in_progress': 'primary',
     'completed': 'success',
     'cancelled': 'danger'

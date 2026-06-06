@@ -12,7 +12,7 @@
               <el-tag :type="getStatusType(row.status)">
                 {{ row.status_display }}
               </el-tag>
-              <span v-if="row.status === 'waitlist'" class="waitlist-position">
+              <span v-if="row.status === 'waitlisted'" class="waitlist-position">
                 候补排位：第 {{ row.waitlist_position }} 位
               </span>
             </template>
@@ -34,7 +34,7 @@
                 type="danger" 
                 size="small" 
                 @click="cancelRegistration(row)"
-                v-if="row.status === 'registered' || row.status === 'waitlist'"
+                v-if="row.status === 'registered' || row.status === 'waitlisted' || row.status === 'promoted'"
               >
                 取消报名
               </el-button>
@@ -60,15 +60,15 @@
           <el-table-column prop="notification_type_display" label="通知类型" />
           <el-table-column label="状态">
             <template #default="{ row }">
-              <el-tag :type="row.is_read ? 'info' : 'warning'">
-                {{ row.is_read ? '已读' : '未读' }}
+              <el-tag :type="row.read_at ? 'info' : 'warning'">
+                {{ row.read_at ? '已读' : '未读' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="message" label="通知内容" />
-          <el-table-column prop="created_at" label="通知时间">
+          <el-table-column prop="sent_at" label="通知时间">
             <template #default="{ row }">
-              {{ formatDate(row.created_at) }}
+              {{ formatDate(row.sent_at || row.created_at) }}
             </template>
           </el-table-column>
           <el-table-column label="操作" width="250">
@@ -77,7 +77,7 @@
                 type="success" 
                 size="small" 
                 @click="confirmWaitlist(row)"
-                v-if="row.notification_type === 'promotion' && !row.confirmed_at"
+                v-if="row.notification_type === 'promoted' && row.registration?.status === 'promoted'"
               >
                 确认参加
               </el-button>
@@ -85,7 +85,7 @@
                 type="info" 
                 size="small" 
                 @click="markAsRead(row)"
-                v-if="!row.is_read"
+                v-if="!row.read_at"
               >
                 标记已读
               </el-button>
@@ -124,11 +124,12 @@ const notifications = ref([])
 const getStatusType = (status) => {
   const typeMap = {
     'registered': 'success',
-    'waitlist': 'warning',
+    'waitlisted': 'warning',
     'confirmed': 'primary',
     'cancelled': 'info',
-    'completed': 'success',
-    'no_show': 'danger'
+    'attended': 'success',
+    'no_show': 'danger',
+    'promoted': 'warning'
   }
   return typeMap[status] || 'info'
 }
@@ -209,7 +210,7 @@ const confirmWaitlist = async (notification) => {
 const markAsRead = async (notification) => {
   try {
     await api.activities.markNotificationRead(notification.id)
-    notification.is_read = true
+    notification.read_at = new Date().toISOString()
   } catch (error) {
     ElMessage.error('操作失败')
   }
