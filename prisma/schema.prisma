@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model DimStore {
+  storeId    String          @id @map("store_id")
+  storeName  String          @map("store_name")
+  city       String
+  area       String?
+  inventories FactInventory[]
+  traffic     FactDailyTraffic[]
+
+  @@map("dim_store")
+}
+
+model DimProduct {
+  skuId         String          @id @map("sku_id")
+  skuName       String          @map("sku_name")
+  categoryId    String          @map("category_id")
+  categoryName  String          @map("category_name")
+  shelfLifeDays Int             @map("shelf_life_days")
+  inventories   FactInventory[]
+
+  @@map("dim_product")
+}
+
+model DimSupplier {
+  supplierId   String          @id @map("supplier_id")
+  supplierName String          @map("supplier_name")
+  creditLevel  String          @map("credit_level")
+  inventories  FactInventory[]
+
+  @@map("dim_supplier")
+}
+
+model DimDate {
+  dateId     DateTime          @id @map("date_id") @db.Date
+  year       Int
+  month      Int
+  week       Int
+  isHoliday  Boolean          @map("is_holiday")
+  inventories FactInventory[]  @relation("InventoryReceiveDate")
+  lossRecords FactLoss[]
+  traffic     FactDailyTraffic[]
+
+  @@map("dim_date")
+}
+
+model DimWeather {
+  dateId       DateTime         @id @map("date_id") @db.Date
+  city         String
+  temperature  Float?
+  weatherType  String?          @map("weather_type")
+  rainfall     Float?
+
+  @@map("dim_weather")
+}
+
+model FactInventory {
+  inventoryId  String         @id @default(uuid()) @map("inventory_id")
+  batchId      String         @map("batch_id")
+  storeId      String         @map("store_id")
+  skuId        String         @map("sku_id")
+  supplierId   String         @map("supplier_id")
+  receiveDate  DateTime       @map("receive_date") @db.Date
+  receivedQty  Int            @map("received_qty")
+  expiryDate   DateTime       @map("expiry_date") @db.Date
+  costPrice    Decimal        @map("cost_price") @db.Decimal(10, 2)
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  store        DimStore       @relation(fields: [storeId], references: [storeId])
+  product      DimProduct     @relation(fields: [skuId], references: [skuId])
+  supplier     DimSupplier    @relation(fields: [supplierId], references: [supplierId])
+  lossRecords  FactLoss[]
+  promotions   FactPromotion[]
+
+  @@unique([batchId, skuId, storeId])
+  @@index([storeId, skuId, supplierId, receiveDate])
+  @@index([expiryDate])
+  @@map("fact_inventory")
+}
+
+model FactLoss {
+  lossId      String         @id @default(uuid()) @map("loss_id")
+  inventoryId String         @map("inventory_id")
+  lossDate    DateTime       @map("loss_date") @db.Date
+  lossType    String         @map("loss_type")
+  lossQty     Int            @map("loss_qty")
+  lossAmount  Decimal        @map("loss_amount") @db.Decimal(12, 2)
+  reason      String?
+
+  inventory   FactInventory  @relation(fields: [inventoryId], references: [inventoryId])
+
+  @@index([inventoryId, lossDate])
+  @@map("fact_loss")
+}
+
+model FactPromotion {
+  promotionId String         @id @default(uuid()) @map("promotion_id")
+  inventoryId String         @map("inventory_id")
+  startDate   DateTime       @map("start_date") @db.Date
+  endDate     DateTime       @map("end_date") @db.Date
+  discountRate Decimal       @map("discount_rate") @db.Decimal(5, 4)
+  soldQty     Int            @map("sold_qty")
+  revenue     Decimal        @map("revenue") @db.Decimal(12, 2)
+
+  inventory   FactInventory  @relation(fields: [inventoryId], references: [inventoryId])
+
+  @@index([inventoryId, startDate])
+  @@map("fact_promotion")
+}
+
+model FactDailyTraffic {
+  trafficId      String    @id @default(uuid()) @map("traffic_id")
+  storeId        String    @map("store_id")
+  dateId         DateTime  @map("date_id") @db.Date
+  customerCount  Int       @map("customer_count")
+  conversionRate Float     @map("conversion_rate")
+
+  store          DimStore  @relation(fields: [storeId], references: [storeId])
+
+  @@unique([storeId, dateId])
+  @@map("fact_daily_traffic")
+}
+
+model DwsDailyLossSummary {
+  summaryDate      DateTime  @id @map("summary_date") @db.Date
+  storeId          String    @id @map("store_id")
+  categoryId       String    @id @map("category_id")
+  supplierId       String    @id @map("supplier_id")
+  totalReceivedQty Int       @map("total_received_qty")
+  totalLossQty     Int       @map("total_loss_qty")
+  totalLossAmount  Decimal   @map("total_loss_amount") @db.Decimal(12, 2)
+  lossRate         Decimal   @map("loss_rate") @db.Decimal(5, 4)
+
+  @@id([summaryDate, storeId, categoryId, supplierId])
+  @@map("dws_daily_loss_summary")
+}
+
+model ExportTask {
+  id        String   @id @default(uuid())
+  status    String   @default("pending")
+  fileUrl   String?
+  filters   Json
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+
+  @@map("export_task")
+}
