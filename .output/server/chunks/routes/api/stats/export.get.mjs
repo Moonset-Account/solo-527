@@ -24399,7 +24399,11 @@ const export_get = requireAuth(async (event) => {
   if (startDate || endDate) {
     filter.createdAt = {};
     if (startDate) filter.createdAt.$gte = new Date(startDate);
-    if (endDate) filter.createdAt.$lte = new Date(endDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = end;
+    }
   }
   const tasks = await Task.find(filter).sort({ createdAt: -1 });
   const data = tasks.map((task) => ({

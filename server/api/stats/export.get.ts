@@ -40,7 +40,11 @@ export default requireAuth(async (event) => {
   if (startDate || endDate) {
     filter.createdAt = {}
     if (startDate) filter.createdAt.$gte = new Date(startDate as string)
-    if (endDate) filter.createdAt.$lte = new Date(endDate as string)
+    if (endDate) {
+      const end = new Date(endDate as string)
+      end.setHours(23, 59, 59, 999)
+      filter.createdAt.$lte = end
+    }
   }
   
   const tasks = await Task.find(filter).sort({ createdAt: -1 })

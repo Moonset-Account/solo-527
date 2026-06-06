@@ -25,7 +25,11 @@ const overview_get = requireAuth(async (event) => {
   if (startDate || endDate) {
     baseFilter.createdAt = {};
     if (startDate) baseFilter.createdAt.$gte = new Date(startDate);
-    if (endDate) baseFilter.createdAt.$lte = new Date(endDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      baseFilter.createdAt.$lte = end;
+    }
   }
   const pendingFilter = {
     ...baseFilter,

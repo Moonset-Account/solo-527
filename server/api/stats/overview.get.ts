@@ -14,7 +14,11 @@ export default requireAuth(async (event) => {
   if (startDate || endDate) {
     baseFilter.createdAt = {}
     if (startDate) baseFilter.createdAt.$gte = new Date(startDate as string)
-    if (endDate) baseFilter.createdAt.$lte = new Date(endDate as string)
+    if (endDate) {
+      const end = new Date(endDate as string)
+      end.setHours(23, 59, 59, 999)
+      baseFilter.createdAt.$lte = end
+    }
   }
   
   const pendingFilter = { 

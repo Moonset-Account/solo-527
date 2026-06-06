@@ -30,7 +30,11 @@ export default requireAuth(async (event, user: IUser) => {
   if (startDate || endDate) {
     filter.createdAt = {}
     if (startDate) filter.createdAt.$gte = new Date(startDate as string)
-    if (endDate) filter.createdAt.$lte = new Date(endDate as string)
+    if (endDate) {
+      const end = new Date(endDate as string)
+      end.setHours(23, 59, 59, 999)
+      filter.createdAt.$lte = end
+    }
   }
   
   if (user.role === UserRole.PROPERTY) {

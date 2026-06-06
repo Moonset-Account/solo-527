@@ -184,7 +184,7 @@
         <div class="p-6 space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">整改后照片 *</label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400" @click="$refs.fixFileInput?.click()">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400" @click="triggerFixFileInput">
               <input type="file" accept="image/*" multiple class="hidden" @change="handleFixPhotoUpload" ref="fixFileInput" />
               <div class="text-4xl mb-2">📷</div>
               <p class="text-sm text-gray-500">点击上传整改后照片</p>
@@ -233,7 +233,7 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">复查照片</label>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400" @click="$refs.reviewFileInput?.click()">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-400" @click="triggerReviewFileInput">
               <input type="file" accept="image/*" multiple class="hidden" @change="handleReviewPhotoUpload" ref="reviewFileInput" />
               <div class="text-4xl mb-2">📷</div>
               <p class="text-sm text-gray-500">点击上传复查照片</p>
@@ -281,6 +281,17 @@ const reviewReason = ref('')
 const reviewPhotos = ref<any[]>([])
 
 const previewUrl = ref('')
+
+const fixFileInput = ref<HTMLInputElement | null>(null)
+const reviewFileInput = ref<HTMLInputElement | null>(null)
+
+const triggerFixFileInput = () => {
+  fixFileInput.value?.click()
+}
+
+const triggerReviewFileInput = () => {
+  reviewFileInput.value?.click()
+}
 
 const { user, hasRole } = useAuth()
 
@@ -387,17 +398,36 @@ const handleClaim = async () => {
   }
 }
 
-const handleFixPhotoUpload = (event: Event) => {
+const handleFixPhotoUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = target.files
   if (!files) return
   for (let i = 0; i < files.length; i++) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      fixPhotos.value.push({ url: e.target?.result as string, caption: files[i].name })
+    const file = files[i]
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const result: any = await $fetch('/api/uploads/photo', {
+        method: 'POST',
+        body: formData
+      })
+      fixPhotos.value.push({
+        url: result.url,
+        caption: file.name
+      })
+    } catch (e) {
+      console.error('Upload failed:', e)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        fixPhotos.value.push({
+          url: e.target?.result as string,
+          caption: file.name
+        })
+      }
+      reader.readAsDataURL(file)
     }
-    reader.readAsDataURL(files[i])
   }
+  if (target) target.value = ''
 }
 
 const submitFix = async () => {
@@ -426,17 +456,36 @@ const submitFix = async () => {
   }
 }
 
-const handleReviewPhotoUpload = (event: Event) => {
+const handleReviewPhotoUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = target.files
   if (!files) return
   for (let i = 0; i < files.length; i++) {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      reviewPhotos.value.push({ url: e.target?.result as string, caption: files[i].name })
+    const file = files[i]
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      const result: any = await $fetch('/api/uploads/photo', {
+        method: 'POST',
+        body: formData
+      })
+      reviewPhotos.value.push({
+        url: result.url,
+        caption: file.name
+      })
+    } catch (e) {
+      console.error('Upload failed:', e)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        reviewPhotos.value.push({
+          url: e.target?.result as string,
+          caption: file.name
+        })
+      }
+      reader.readAsDataURL(file)
     }
-    reader.readAsDataURL(files[i])
   }
+  if (target) target.value = ''
 }
 
 const submitReview = async () => {

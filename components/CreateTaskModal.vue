@@ -58,7 +58,7 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">现场照片</label>
           <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-400 transition cursor-pointer">
             <input type="file" accept="image/*" multiple class="hidden" @change="handleFileUpload" ref="fileInput" />
-            <div @click="$refs.fileInput?.click()" class="py-4">
+            <div @click="triggerFileInput" class="py-4">
               <div class="text-4xl mb-2">📷</div>
               <p class="text-sm text-gray-500">点击上传或拖拽图片到此处</p>
             </div>
@@ -107,7 +107,11 @@ const emit = defineEmits<{
 const points = ref<Point[]>([])
 const uploadedPhotos = ref<any[]>([])
 const loading = ref(false)
-const fileInput = ref<HTMLInputElement>()
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
 
 const form = ref({
   pointId: '',
