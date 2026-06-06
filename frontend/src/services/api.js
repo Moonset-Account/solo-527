@@ -18,11 +18,23 @@ export const getFunnel = (params) => api.get('/funnel', { params });
 export const getSummary = (params) => api.get('/summary', { params });
 export const getExamWeekComparison = () => api.get('/exam-week-comparison');
 export const exportCSV = (params) => {
-  const queryStr = new URLSearchParams(params).toString();
+  const cleanParams = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      cleanParams[key] = value;
+    }
+  });
+  const queryStr = new URLSearchParams(cleanParams).toString();
   window.open(`/api/report/csv?${queryStr}`, '_blank');
 };
 export const exportPDF = (params) => {
-  const queryStr = new URLSearchParams(params).toString();
+  const cleanParams = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      cleanParams[key] = value;
+    }
+  });
+  const queryStr = new URLSearchParams(cleanParams).toString();
   window.open(`/api/report/pdf?${queryStr}`, '_blank');
 };
 

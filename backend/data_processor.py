@@ -230,6 +230,8 @@ def get_area_comparison(db: Session, filters: dict) -> list:
     area_query = db.query(models.Area)
     if filters.get('floor_id'):
         area_query = area_query.filter(models.Area.floor_id == filters['floor_id'])
+    if filters.get('area_id'):
+        area_query = area_query.filter(models.Area.id == filters['area_id'])
     areas = area_query.all()
     
     if not areas:
@@ -248,6 +250,8 @@ def get_area_comparison(db: Session, filters: dict) -> list:
         res_query = res_query.filter(models.Reservation.reservation_date >= filters['start_date'])
     if filters.get('end_date'):
         res_query = res_query.filter(models.Reservation.reservation_date <= filters['end_date'])
+    if filters.get('user_group_id'):
+        res_query = res_query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     if filters.get('time_slot'):
         res_query = apply_time_filter(res_query, filters)
     reservations = res_query.all()

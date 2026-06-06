@@ -149,7 +149,9 @@ def get_area_comparison(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     floor_id: Optional[int] = None,
+    area_id: Optional[int] = None,
     seat_type: Optional[str] = None,
+    user_group_id: Optional[int] = None,
     time_slot: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -157,7 +159,9 @@ def get_area_comparison(
         'start_date': start_date,
         'end_date': end_date,
         'floor_id': floor_id,
+        'area_id': area_id,
         'seat_type': seat_type,
+        'user_group_id': user_group_id,
         'time_slot': time_slot
     }
     data = data_processor.get_area_comparison(db, filters)
