@@ -1,15 +1,4 @@
-from functools import wraps
 from rest_framework import permissions
-from rest_framework.response import Response
-from rest_framework import status
-
-
-class RolePermissionMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        return self.get_response(request)
 
 
 class IsDirector(permissions.BasePermission):

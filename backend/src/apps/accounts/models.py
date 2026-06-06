@@ -20,7 +20,7 @@ class UserManager(BaseUserManager):
         return self.create_user(phone, password, **extra_fields)
 
 
-class User(AbstractUser):
+class User(AbstractUser, BaseModel):
     ROLE_CHOICES = (
         ('director', '园长'),
         ('teacher', '老师'),
@@ -43,6 +43,11 @@ class User(AbstractUser):
 
     def __str__(self):
         return f'{self.name}({self.get_role_display()})'
+
+    def delete(self, using=None, keep_parents=False):
+        self.is_deleted = True
+        self.is_active = False
+        self.save()
 
 
 class TeacherProfile(BaseModel):

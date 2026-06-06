@@ -93,10 +93,10 @@ class DashboardService:
     @staticmethod
     def get_class_utilization(user):
         from apps.children.models import ChildClass, Child
-        from django.db.models import Count
+        from django.db.models import Count, Q
 
         qs = ChildClass.objects.filter(is_deleted=False).annotate(
-            current_count=Count('children', filter=Count('children', filter=models.Q(children__status='active', children__is_deleted=False)))
+            current_count=Count('children', filter=Q(children__status='active', children__is_deleted=False))
         )
 
         if user.role == 'teacher':
