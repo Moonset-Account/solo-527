@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from . import models
 from .database import SessionLocal
@@ -7,8 +7,15 @@ import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 import logging
+import threading
+import time
 
 logger = logging.getLogger(__name__)
+
+_scheduler_running = False
+_scheduler_thread = None
+_scheduler_lock = threading.Lock()
+RETRY_INTERVAL_SECONDS = 60
 
 
 def get_db_session():
@@ -146,7 +153,12 @@ def check_injury_reminders():
 
     for injury in unresolved_injuries:
         days_since_report = (datetime.utcnow() - injury.reported_at).days
-        if injury.rest_days and days_since_report >= injury.rest_days:
+        rest_days = 0
+        try:
+            rest_days = int(injury.notes or 0) if hasattr(injury, 'notes') and injury.notes else 0
+        except (ValueError, TypeError):
+            pass
+        if rest_days and days_since_report >= rest_days:
             coaches = db.query(models.User).filter(
                 models.User.role.in_([models.UserRole.ADMIN, models.UserRole.COACH])
             ).all()
@@ -156,5 +168,66 @@ def check_injury_reminders():
                     db,
                     coach.id,
                     f"伤病恢复提醒: {runner.full_name or runner.username}",
-                    f"{runner.full_name or runner.username}的伤病「{injury.title}」已过建议休息期，请评估是否可以恢复训练。"
+                    f"{runner.full_name or runner.username}的伤病「{injury.injury_type}」已过建议休息期，请评估是否可以恢复训练。"
                 )
+
+
+def notification_retry_worker():
+    """后台线程：定期重试失败的通知"""
+    logger.info("Notification retry scheduler started, interval: %ds", RETRY_INTERVAL_SECONDS)
+    while _scheduler_running:
+        try:
+            retry_failed_notifications()
+        except Exception as e:
+            logger.error("Error in notification retry worker: %s", e)
+        for _ in range(RETRY_INTERVAL_SECONDS):
+            if not _scheduler_running:
+                break
+            time.sleep(1)
+    logger.info("Notification retry scheduler stopped")
+
+
+def start_notification_scheduler():
+    """启动后台通知重试调度器"""
+    global _scheduler_running, _scheduler_thread
+    with _scheduler_lock:
+        if _scheduler_running:
+            logger.warning("Notification scheduler already running")
+            return
+        _scheduler_running = True
+        _scheduler_thread = threading.Thread(target=notification_retry_worker, daemon=True)
+        _scheduler_thread.start()
+        logger.info("Notification scheduler started")
+
+
+def stop_notification_scheduler():
+    """停止后台通知重试调度器"""
+    global _scheduler_running
+    with _scheduler_lock:
+        _scheduler_running = False
+        if _scheduler_thread:
+            _scheduler_thread.join(timeout=5)
+        logger.info("Notification scheduler stopped")
+
+
+def get_scheduler_status() -> dict:
+    """获取调度器状态"""
+    db = next(get_db_session())
+    pending = db.query(models.Notification).filter(
+        models.Notification.sent_at.is_(None),
+        models.Notification.retry_count < models.Notification.max_retries
+    ).count()
+    sent = db.query(models.Notification).filter(
+        models.Notification.sent_at.isnot(None)
+    ).count()
+    failed = db.query(models.Notification).filter(
+        models.Notification.sent_at.is_(None),
+        models.Notification.retry_count >= models.Notification.max_retries
+    ).count()
+    return {
+        "running": _scheduler_running,
+        "retry_interval_seconds": RETRY_INTERVAL_SECONDS,
+        "pending_notifications": pending,
+        "sent_notifications": sent,
+        "max_retried_failed": failed
+    }

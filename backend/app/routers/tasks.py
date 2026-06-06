@@ -30,8 +30,7 @@ def get_task_board(
     date_filter = (
         (func.date(models.Task.created_at) == target_date) |
         (func.date(models.Task.updated_at) == target_date) |
-        (func.date(models.Task.due_date) == target_date) |
-        (models.Task.status == models.TaskStatus.IN_PROGRESS)
+        (func.date(models.Task.due_date) == target_date)
     )
 
     query = base_query.filter(date_filter)

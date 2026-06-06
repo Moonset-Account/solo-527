@@ -52,11 +52,17 @@ def create_injury_note(
     )
     db.add(injury_task)
 
+    recovery_hint = ""
+    if db_note.expected_recovery_date:
+        recovery_date = db_note.expected_recovery_date.strftime("%Y-%m-%d")
+        recovery_hint = f"建议休息至 {recovery_date}。"
+    notification_msg = f"教练已为您记录伤病：{db_note.injury_type}。{recovery_hint}请遵医嘱进行恢复。"
+
     notification = app_tasks.create_notification(
         db,
         user_id=note.runner_id,
         title=f"伤病记录已创建: {db_note.injury_type}",
-        message=f"教练已为您记录伤病：{db_note.injury_type}。{f'建议休息至 {db_note.expected_recovery_date.strftime(\"%Y-%m-%d\")}' if db_note.expected_recovery_date else ''} 请遵医嘱进行恢复。",
+        message=notification_msg,
         notification_type="injury"
     )
 
