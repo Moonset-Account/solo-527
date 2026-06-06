@@ -98,8 +98,11 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
   saveCurrentView: async (name, isPublic = false) => {
     try {
-      const { filters } = get();
-      await api.saveView(name, filters, isPublic);
+      const { filters, drillDownFilters, activeDrillDown } = get();
+      const effectiveFilters = activeDrillDown
+        ? { ...filters, ...drillDownFilters }
+        : filters;
+      await api.saveView(name, effectiveFilters, isPublic);
       await get().fetchSavedViews();
     } catch (error: any) {
       set({ error: error.message });

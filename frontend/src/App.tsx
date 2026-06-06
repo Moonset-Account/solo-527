@@ -22,8 +22,18 @@ const App: React.FC = () => {
     error,
     activeDrillDown,
     setDrillDown,
-    filters
+    filters,
+    drillDownFilters
   } = useDashboardStore();
+
+  const effectiveFilters = activeDrillDown
+    ? { ...filters, ...drillDownFilters }
+    : filters;
+
+  const filterCount = Object.keys(effectiveFilters).filter(k => {
+    const v = effectiveFilters[k as keyof typeof effectiveFilters];
+    return v !== undefined && v !== null && (Array.isArray(v) ? v.length > 0 : true);
+  }).length;
 
   const [saveModalVisible, setSaveModalVisible] = React.useState(false);
   const [viewName, setViewName] = React.useState('');
@@ -133,7 +143,8 @@ const App: React.FC = () => {
         />
         <div style={{ marginTop: 12 }}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            当前共 {Object.keys(filters).length} 个筛选条件将被保存
+            当前共 {filterCount} 个筛选条件将被保存
+            {activeDrillDown && '（含下钻口径）'}
           </Typography.Text>
         </div>
       </Modal>
