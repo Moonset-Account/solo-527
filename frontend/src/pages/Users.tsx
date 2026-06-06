@@ -1,7 +1,7 @@
 import { Card, Table, Tag, Space, Button, Modal, Form, Input, Select, message, Popconfirm } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import api from '../api'
+import { get, post, put, del } from '../api'
 import type { User, PaginatedResponse } from '../types'
 import type { User as AuthUser } from '../store/auth'
 
@@ -35,11 +35,11 @@ const Users: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, PaginatedResponse<AuthUser>>('/users', {
-        params: { page, page_size: pageSize, role: roleFilter },
+      const data = await get<PaginatedResponse<AuthUser>>('/users', {
+        params: { page, page_size: pageSize },
       })
-      setUsers(res.data.data)
-      setTotal(res.data.total)
+      setUsers(data.data)
+      setTotal(data.total)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -65,10 +65,10 @@ const Users: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       if (selectedUser) {
-        await api.put(`/users/${selectedUser.id}`, values)
+        await put(`/users/${selectedUser.id}`, values)
         message.success('更新成功')
       } else {
-        await api.post('/users', values)
+        await post('/users', values)
         message.success('创建成功')
       }
       setModalVisible(false)
@@ -78,7 +78,7 @@ const Users: React.FC = () => {
 
   const handleDelete = async (record: AuthUser) => {
     try {
-      await api.delete(`/users/${record.id}`)
+      await del(`/users/${record.id}`)
       message.success('已禁用')
       fetchUsers()
     } catch (e) {}

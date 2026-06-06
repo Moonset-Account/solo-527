@@ -2,9 +2,8 @@ import { Form, Input, Button, Card, message } from 'antd'
 import { useState } from 'react'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import api from '../api'
+import { post } from '../api'
 import { useAuthStore } from '../store/auth'
-import type { ApiResponse } from '../types'
 import type { User } from '../store/auth'
 
 interface LoginResponse {
@@ -21,8 +20,8 @@ const Login: React.FC = () => {
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      const res = await api.post<ApiResponse<LoginResponse>>('/auth/login', values)
-      const { access_token, user } = res.data
+      const data = await post<LoginResponse>('/auth/login', values)
+      const { access_token, user } = data
       setAuth(access_token, user)
       message.success('登录成功')
       navigate('/')

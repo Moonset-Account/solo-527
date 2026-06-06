@@ -2,7 +2,7 @@ import { Card, Row, Col, Statistic, Table, DatePicker, Select, Space, Button, me
 import { DollarOutlined, TeamOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
-import api from '../api'
+import { get } from '../api'
 import type { CleanerPerformance } from '../types'
 
 const { RangePicker } = DatePicker
@@ -16,13 +16,13 @@ const Reports: React.FC = () => {
   const fetchPerformance = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, CleanerPerformance[]>('/reports/cleaner-performance', {
+      const data = await get<CleanerPerformance[]>('/reports/cleaner-performance', {
         params: {
           start_date: dateRange[0].format('YYYY-MM-DD'),
           end_date: dateRange[1].format('YYYY-MM-DD'),
         },
       })
-      setCleanerPerformance(res.data)
+      setCleanerPerformance(data)
     } catch (e) {
     } finally {
       setLoading(false)

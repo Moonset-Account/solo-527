@@ -1,7 +1,7 @@
 import { Card, Table, Space, Button, Modal, Form, Input, Select, message, InputNumber, Popconfirm } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import api from '../api'
+import { get, post, put, del } from '../api'
 import { useAuthStore } from '../store/auth'
 import type { Property, PaginatedResponse } from '../types'
 
@@ -30,11 +30,11 @@ const Properties: React.FC = () => {
   const fetchProperties = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, PaginatedResponse<Property>>('/properties', {
+      const data = await get<PaginatedResponse<Property>>('/properties', {
         params: { page, page_size: pageSize },
       })
-      setProperties(res.data.data)
-      setTotal(res.data.total)
+      setProperties(data.data)
+      setTotal(data.total)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -60,10 +60,10 @@ const Properties: React.FC = () => {
   const handleSubmit = async (values: any) => {
     try {
       if (selectedProperty) {
-        await api.put(`/properties/${selectedProperty.id}`, values)
+        await put(`/properties/${selectedProperty.id}`, values)
         message.success('更新成功')
       } else {
-        await api.post('/properties', values)
+        await post('/properties', values)
         message.success('创建成功')
       }
       setModalVisible(false)
@@ -73,7 +73,7 @@ const Properties: React.FC = () => {
 
   const handleDelete = async (record: Property) => {
     try {
-      await api.delete(`/properties/${record.id}`)
+      await del(`/properties/${record.id}`)
       message.success('已停用')
       fetchProperties()
     } catch (e) {}

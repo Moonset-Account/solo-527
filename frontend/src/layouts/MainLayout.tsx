@@ -14,8 +14,8 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useState, useEffect } from 'react'
-import api from '../api'
-import type { Notification } from '../types'
+import { get } from '../api'
+import type { Notification, PaginatedResponse } from '../types'
 
 const { Header, Sider, Content } = Layout
 
@@ -28,8 +28,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const fetchUnread = async () => {
     try {
-      const res = await api.get('/notifications', { params: { is_read: 0, page_size: 1 } })
-      setUnreadCount(res.total || 0)
+      const data = await get<PaginatedResponse<Notification>>('/notifications', { params: { is_read: 0, page_size: 1 } })
+      setUnreadCount(data.total || 0)
     } catch (e) {}
   }
 

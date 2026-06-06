@@ -1,12 +1,11 @@
-import { Card, Select, Badge, Space, Tooltip, Button, Modal, Form, Input, DatePicker, Radio, message, Table } from 'antd'
-import { CalendarOutlined, LeftOutlined, RightOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { useState, useMemo } from 'react'
+import { Card, Select, Badge, Space, Tooltip, Button, Modal, Form, Input, DatePicker, Radio, message } from 'antd'
+import { CalendarOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { useState, useEffect, useMemo } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
-import api from '../api'
-import type { RoomStatus, Property, ApiResponse, PaginatedResponse } from '../types'
+import { get, post } from '../api'
+import type { RoomStatus, Property, PaginatedResponse } from '../types'
 
 const { Option } = Select
-const { RangePicker } = DatePicker
 
 const statusConfig: Record<string, { color: string; text: string; bgColor: string }> = {
   occupied: { color: '#faad14', text: '已入住', bgColor: '#fffbe6' },
@@ -26,22 +25,24 @@ const Calendar: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([])
   const [roomStatuses, setRoomStatuses] = useState<RoomStatus[]>([])
   const [modalVisible, setModalVisible] = useState(false)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null)
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | null>(null)
   const [form] = Form.useForm()
 
   const fetchCommunities = async () => {
     try {
-      const res = await api.get<any, string[]>('/properties/communities')
-      setCommunities(res.data || [])
+      const data = await get<string[]>('/properties/communities')
+      setCommunities(data || [])
     } catch (e) {}
   }
 
   const fetchProperties = async () => {
     try {
-      const res = await api.get<any, PaginatedResponse<Property>>('/properties', {
+      const data = await get<PaginatedResponse<Property>>('/properties', {
         params: { community: selectedCommunity, page_size: 100 },
       })
-      setProperties(res.data.data || [])
+      setProperties(data.data || [])
     } catch (e) {}
   }
 
@@ -49,22 +50,22 @@ const Calendar: React.FC = () => {
     const startDate = currentMonth.startOf('month').format('YYYY-MM-DD')
     const endDate = currentMonth.endOf('month').format('YYYY-MM-DD')
     try {
-      const res = await api.get<any, RoomStatus[]>('/room-statuses/calendar', {
+      const data = await get<RoomStatus[]>('/room-statuses/calendar', {
         params: {
           start_date: startDate,
           end_date: endDate,
           community: selectedCommunity,
         },
       })
-      setRoomStatuses(res.data || [])
+      setRoomStatuses(data || [])
     } catch (e) {}
   }
 
-  useState(() => {
+  useEffect(() => {
     fetchCommunities()
-  })
+  }, [])
 
-  useMemo(() => {
+  useEffect(() => {
     fetchProperties()
     fetchRoomStatuses()
   }, [selectedCommunity, currentMonth])
@@ -89,6 +90,8 @@ const Calendar: React.FC = () => {
 
   const handleCellClick = (status: RoomStatus | null, propertyId: number, date: Dayjs) => {
     setSelectedStatus(status)
+    setSelectedPropertyId(propertyId)
+    setSelectedDate(date)
     if (status) {
       form.setFieldsValue({
         status: status.status,
@@ -104,9 +107,9 @@ const Calendar: React.FC = () => {
 
   const handleSaveStatus = async (values: any) => {
     try {
-      await api.post('/room-statuses', {
-        property_id: selectedStatus?.property_id || (properties[0]?.id),
-        date: (selectedStatus ? dayjs(selectedStatus.date) : daysInMonth[0]).format('YYYY-MM-DD'),
+      await post('/room-statuses', {
+        property_id: selectedPropertyId,
+        date: selectedDate?.format('YYYY-MM-DD'),
         status: values.status,
         guest_name: values.guest_name,
         remarks: values.remarks,
@@ -243,11 +246,11 @@ const Calendar: React.FC = () => {
         <Form form={form} layout="vertical" onFinish={handleSaveStatus}>
           <Form.Item name="status" label="房间状态" rules={[{ required: true }]}>
             <Radio.Group>
-              {Object.entries(statusConfig).map(([key, config]) => (
-                <Radio key={key} value={key}>
-                  <Badge color={config.color} text={config.text} />
-                </Radio>
-              ))}
+            {Object.entries(statusConfig).map(([key, config]) => (
+              <Radio key={key} value={key}>
+                <Badge color={config.color} text={config.text} />
+              </Radio>
+            ))}
             </Radio.Group>
           </Form.Item>
           <Form.Item name="guest_name" label="客人姓名">

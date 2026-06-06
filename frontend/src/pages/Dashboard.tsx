@@ -11,8 +11,8 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import dayjs from 'dayjs'
-import api from '../api'
+import dayjs, { Dayjs } from 'dayjs'
+import { get, post } from '../api'
 import type { DashboardStats, CleaningTask, MaintenanceOrder, PaginatedResponse } from '../types'
 
 const { RangePicker } = DatePicker
@@ -60,19 +60,19 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [overdueTasks, setOverdueTasks] = useState<CleaningTask[]>([])
   const [overdueOrders, setOverdueOrders] = useState<MaintenanceOrder[]>([])
-  const [dateRange, setDateRange] = useState([dayjs().subtract(30, 'day'), dayjs()])
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(30, 'day'), dayjs()])
   const [loading, setLoading] = useState(false)
 
   const fetchStats = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, DashboardStats>('/dashboard/stats', {
+      const data = await get<DashboardStats>('/dashboard/stats', {
         params: {
           start_date: dateRange[0].format('YYYY-MM-DD'),
           end_date: dateRange[1].format('YYYY-MM-DD'),
         },
       })
-      setStats(res.data)
+      setStats(data)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -81,22 +81,22 @@ const Dashboard: React.FC = () => {
 
   const fetchOverdue = async () => {
     try {
-      const [tasksRes, ordersRes] = await Promise.all([
-        api.get<any, PaginatedResponse<CleaningTask>>('/cleaning-tasks', {
+      const [tasksData, ordersData] = await Promise.all([
+        get<PaginatedResponse<CleaningTask>>('/cleaning-tasks', {
           params: { is_overdue: 1, page_size: 10 },
         }),
-        api.get<any, PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', {
+        get<PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', {
           params: { is_overdue: 1, page_size: 10 },
         }),
       ])
-      setOverdueTasks(tasksRes.data.data)
-      setOverdueOrders(ordersRes.data.data)
+      setOverdueTasks(tasksData.data)
+      setOverdueOrders(ordersData.data)
     } catch (e) {}
   }
 
   const handleCheckOverdue = async () => {
     try {
-      await api.post('/tasks/check-overdue')
+      await post('/tasks/check-overdue')
       message.success('超时检查完成')
       fetchStats()
       fetchOverdue()
@@ -127,7 +127,7 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <RangePicker value={dateRange} onChange={(v) => v && setDateRange(v)} />
+        <RangePicker value={dateRange} onChange={(v) => v && setDateRange(v as [Dayjs, Dayjs])} />
         <Button icon={<ReloadOutlined />} onClick={fetchStats}>刷新</Button>
         <Button type="primary" icon={<WarningOutlined />} onClick={handleCheckOverdue}>检查超时</Button>
       </Space>

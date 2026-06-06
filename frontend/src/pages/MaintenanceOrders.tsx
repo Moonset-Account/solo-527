@@ -2,7 +2,7 @@ import { Card, Table, Tag, Space, Button, Modal, Form, Input, Select, DatePicker
 import { PlusOutlined, CheckOutlined, CloseOutlined, UploadOutlined, EyeOutlined, PlayCircleOutlined, SendOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
-import api from '../api'
+import { get, post, put, del } from '../api'
 import { useAuthStore } from '../store/auth'
 import type { MaintenanceOrder, PaginatedResponse, Property, User, Attachment } from '../types'
 
@@ -76,11 +76,11 @@ const MaintenanceOrders: React.FC = () => {
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', {
+      const data = await get<PaginatedResponse<MaintenanceOrder>>('/maintenance-orders', {
         params: { page, page_size: pageSize, status: statusFilter },
       })
-      setOrders(res.data.data)
-      setTotal(res.data.total)
+      setOrders(data.data)
+      setTotal(data.total)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -89,24 +89,24 @@ const MaintenanceOrders: React.FC = () => {
 
   const fetchProperties = async () => {
     try {
-      const res = await api.get<any, PaginatedResponse<Property>>('/properties', {
+      const data = await get<PaginatedResponse<Property>>('/properties', {
         params: { page_size: 100 },
       })
-      setProperties(res.data.data)
+      setProperties(data.data)
     } catch (e) {}
   }
 
   const fetchTechnicians = async () => {
     try {
-      const res = await api.get<any, User[]>('/users/technicians')
-      setTechnicians(res.data)
+      const data = await get<User[]>('/users/technicians')
+      setTechnicians(data)
     } catch (e) {}
   }
 
   const fetchAttachments = async (orderId: number) => {
     try {
-      const res = await api.get<any, Attachment[]>(`/attachments/maintenance-order/${orderId}`)
-      setAttachments(res.data)
+      const data = await get<Attachment[]>(`/attachments/maintenance-order/${orderId}`)
+      setAttachments(data)
     } catch (e) {}
   }
 
@@ -129,7 +129,7 @@ const MaintenanceOrders: React.FC = () => {
         scheduled_time: values.scheduled_time ? values.scheduled_time.toISOString() : null,
         deadline_time: values.deadline_time ? values.deadline_time.toISOString() : null,
       }
-      await api.post('/maintenance-orders', data)
+      await post('/maintenance-orders', data)
       message.success('创建成功')
       setModalVisible(false)
       fetchOrders()
@@ -138,7 +138,7 @@ const MaintenanceOrders: React.FC = () => {
 
   const handleAssign = async (values: any) => {
     try {
-      await api.post(`/maintenance-orders/${selectedOrder?.id}/assign`, {
+      await post(`/maintenance-orders/${selectedOrder?.id}/assign`, {
         ...values,
         scheduled_time: values.scheduled_time ? values.scheduled_time.toISOString() : null,
       })
@@ -150,7 +150,7 @@ const MaintenanceOrders: React.FC = () => {
 
   const handleStart = async (order: MaintenanceOrder) => {
     try {
-      await api.post(`/maintenance-orders/${order.id}/start`)
+      await post(`/maintenance-orders/${order.id}/start`)
       message.success('已开始维修')
       fetchOrders()
     } catch (e) {}
@@ -174,7 +174,7 @@ const MaintenanceOrders: React.FC = () => {
         const actualCostInput = document.querySelector('#submit-mt-form input[type="number"]') as HTMLInputElement
         const actual_cost = actualCostInput ? parseFloat(actualCostInput.value) || 0 : 0
         try {
-          await api.post(`/maintenance-orders/${order.id}/submit`, { solution, actual_cost })
+          await post(`/maintenance-orders/${order.id}/submit`, { solution, actual_cost })
           message.success('已提交')
           fetchOrders()
         } catch (e) {}
@@ -184,7 +184,7 @@ const MaintenanceOrders: React.FC = () => {
 
   const handleApprove = async (order: MaintenanceOrder) => {
     try {
-      await api.post(`/maintenance-orders/${order.id}/approve`, { remarks: '' })
+      await post(`/maintenance-orders/${order.id}/approve`, { remarks: '' })
       message.success('验收通过')
       fetchOrders()
     } catch (e) {}
@@ -203,7 +203,7 @@ const MaintenanceOrders: React.FC = () => {
       onOk: async () => {
         const remarks = (document.querySelector('#reject-mt-form textarea') as HTMLTextAreaElement)?.value
         try {
-          await api.post(`/maintenance-orders/${order.id}/reject`, { remarks })
+          await post(`/maintenance-orders/${order.id}/reject`, { remarks })
           message.success('已驳回')
           fetchOrders()
         } catch (e) {}
@@ -224,7 +224,7 @@ const MaintenanceOrders: React.FC = () => {
     formData.append('maintenance_order_id', String(selectedOrder?.id))
     formData.append('purpose', 'maintenance_after')
     try {
-      await api.post('/attachments/upload', formData, {
+      await post('/attachments/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       message.success('上传成功')
@@ -278,7 +278,7 @@ const MaintenanceOrders: React.FC = () => {
           )}
           {canManage && !['completed', 'cancelled'].includes(record.status) && (
             <Popconfirm title="确定取消吗？" onConfirm={async () => {
-              try { await api.post(`/maintenance-orders/${record.id}/cancel`); message.success('已取消'); fetchOrders() } catch(e) {}
+              try { await post(`/maintenance-orders/${record.id}/cancel`); message.success('已取消'); fetchOrders() } catch(e) {}
             }}>
               <Button type="link" size="small" danger>取消</Button>
             </Popconfirm>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.core.exceptions import BusinessException
@@ -101,7 +101,7 @@ def create_cleaning_task(
     task_no = TaskService.generate_task_no()
     deadline = task_in.deadline_time
     if not deadline:
-        deadline = task_in.scheduled_time + datetime.timedelta(minutes=settings.CLEANING_TIMEOUT_MINUTES)
+        deadline = task_in.scheduled_time + timedelta(minutes=settings.CLEANING_TIMEOUT_MINUTES)
 
     task = CleaningTask(
         task_no=task_no,

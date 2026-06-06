@@ -1,7 +1,7 @@
 import { Card, Table, Space, Button, Modal, Form, Input, Select, message, InputNumber } from 'antd'
 import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import api from '../api'
+import { get, post } from '../api'
 import { useAuthStore } from '../store/auth'
 import type { Material, PaginatedResponse } from '../types'
 
@@ -24,11 +24,11 @@ const Materials: React.FC = () => {
   const fetchMaterials = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, PaginatedResponse<Material>>('/materials', {
+      const data = await get<PaginatedResponse<Material>>('/materials', {
         params: { page, page_size: pageSize },
       })
-      setMaterials(res.data.data)
-      setTotal(res.data.total)
+      setMaterials(data.data)
+      setTotal(data.total)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -47,7 +47,7 @@ const Materials: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      await api.post('/materials', values)
+      await post('/materials', values)
       message.success('创建成功')
       setModalVisible(false)
       fetchMaterials()

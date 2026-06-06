@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { message } from 'antd'
+import type { ApiResponse as IApiResponse } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -19,8 +20,8 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    const data = response.data
-    if (data.success === false) {
+    const data = response.data as IApiResponse
+    if (data && data.success === false) {
       message.error(data.message || '请求失败')
       return Promise.reject(new Error(data.message))
     }
@@ -37,5 +38,25 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+export async function get<T = any>(url: string, config?: any): Promise<T> {
+  const res = await api.get<any, IApiResponse<T>>(url, config)
+  return res.data
+}
+
+export async function post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  const res = await api.post<any, IApiResponse<T>>(url, data, config)
+  return res.data
+}
+
+export async function put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+  const res = await api.put<any, IApiResponse<T>>(url, data, config)
+  return res.data
+}
+
+export async function del<T = any>(url: string, config?: any): Promise<T> {
+  const res = await api.delete<any, IApiResponse<T>>(url, config)
+  return res.data
+}
 
 export default api

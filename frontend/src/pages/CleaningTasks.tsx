@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
-import api from '../api'
+import { get, post, put, del } from '../api'
 import { useAuthStore } from '../store/auth'
 import type { CleaningTask, PaginatedResponse, Property, User, Attachment } from '../types'
 
@@ -75,11 +75,11 @@ const CleaningTasks: React.FC = () => {
   const fetchTasks = async () => {
     setLoading(true)
     try {
-      const res = await api.get<any, PaginatedResponse<CleaningTask>>('/cleaning-tasks', {
+      const data = await get<PaginatedResponse<CleaningTask>>('/cleaning-tasks', {
         params: { page, page_size: pageSize, status: statusFilter },
       })
-      setTasks(res.data.data)
-      setTotal(res.data.total)
+      setTasks(data.data)
+      setTotal(data.total)
     } catch (e) {
     } finally {
       setLoading(false)
@@ -88,24 +88,24 @@ const CleaningTasks: React.FC = () => {
 
   const fetchProperties = async () => {
     try {
-      const res = await api.get<any, PaginatedResponse<Property>>('/properties', {
+      const data = await get<PaginatedResponse<Property>>('/properties', {
         params: { page_size: 100 },
       })
-      setProperties(res.data.data)
+      setProperties(data.data)
     } catch (e) {}
   }
 
   const fetchCleaners = async () => {
     try {
-      const res = await api.get<any, User[]>('/users/cleaners')
-      setCleaners(res.data)
+      const data = await get<User[]>('/users/cleaners')
+      setCleaners(data)
     } catch (e) {}
   }
 
   const fetchAttachments = async (taskId: number) => {
     try {
-      const res = await api.get<any, Attachment[]>(`/attachments/cleaning-task/${taskId}`)
-      setAttachments(res.data)
+      const data = await get<Attachment[]>(`/attachments/cleaning-task/${taskId}`)
+      setAttachments(data)
     } catch (e) {}
   }
 
@@ -129,10 +129,10 @@ const CleaningTasks: React.FC = () => {
         deadline_time: values.deadline_time ? values.deadline_time.toISOString() : null,
       }
       if (selectedTask) {
-        await api.put(`/cleaning-tasks/${selectedTask.id}`, data)
+        await put(`/cleaning-tasks/${selectedTask.id}`, data)
         message.success('更新成功')
       } else {
-        await api.post('/cleaning-tasks', data)
+        await post('/cleaning-tasks', data)
         message.success('创建成功')
       }
       setModalVisible(false)
@@ -142,7 +142,7 @@ const CleaningTasks: React.FC = () => {
 
   const handleAssign = async (values: any) => {
     try {
-      await api.post(`/cleaning-tasks/${selectedTask?.id}/assign`, values)
+      await post(`/cleaning-tasks/${selectedTask?.id}/assign`, values)
       message.success('分配成功')
       setAssignModalVisible(false)
       fetchTasks()
@@ -151,7 +151,7 @@ const CleaningTasks: React.FC = () => {
 
   const handleStart = async (task: CleaningTask) => {
     try {
-      await api.post(`/cleaning-tasks/${task.id}/start`)
+      await post(`/cleaning-tasks/${task.id}/start`)
       message.success('已开始任务')
       fetchTasks()
     } catch (e) {}
@@ -159,7 +159,7 @@ const CleaningTasks: React.FC = () => {
 
   const handleSubmitTask = async (task: CleaningTask) => {
     try {
-      await api.post(`/cleaning-tasks/${task.id}/submit`, { description: '' })
+      await post(`/cleaning-tasks/${task.id}/submit`, { description: '' })
       message.success('任务已提交')
       fetchTasks()
     } catch (e) {}
@@ -167,7 +167,7 @@ const CleaningTasks: React.FC = () => {
 
   const handleApprove = async (task: CleaningTask) => {
     try {
-      await api.post(`/cleaning-tasks/${task.id}/approve`, { remarks: '' })
+      await post(`/cleaning-tasks/${task.id}/approve`, { remarks: '' })
       message.success('验收通过')
       fetchTasks()
     } catch (e) {}
@@ -186,7 +186,7 @@ const CleaningTasks: React.FC = () => {
       onOk: async () => {
         const remarks = (document.querySelector('#reject-form textarea') as HTMLTextAreaElement)?.value
         try {
-          await api.post(`/cleaning-tasks/${task.id}/reject`, { remarks })
+          await post(`/cleaning-tasks/${task.id}/reject`, { remarks })
           message.success('已驳回')
           fetchTasks()
         } catch (e) {}
@@ -207,7 +207,7 @@ const CleaningTasks: React.FC = () => {
     formData.append('cleaning_task_id', String(selectedTask?.id))
     formData.append('purpose', 'after_cleaning')
     try {
-      await api.post('/attachments/upload', formData, {
+      await post('/attachments/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       message.success('上传成功')
@@ -270,7 +270,7 @@ const CleaningTasks: React.FC = () => {
 
   const handleCancel = async (task: CleaningTask) => {
     try {
-      await api.post(`/cleaning-tasks/${task.id}/cancel`)
+      await post(`/cleaning-tasks/${task.id}/cancel`)
       message.success('已取消')
       fetchTasks()
     } catch (e) {}
