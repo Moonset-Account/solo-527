@@ -122,6 +122,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
     
     const cacheKey = JSON.stringify({
       storeIds: filters.storeIds,
+      categories: filters.categories,
       timeRange: filters.timeRange,
       weatherTypes: filters.weatherTypes,
       campaignId: filters.campaignId,
@@ -147,7 +148,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         weatherImpact: aggregateByWeather(filtered),
         hourlyHeatmap: aggregateHourlyHeatmap(filtered),
         anomalies: detectAnomalies(filtered),
-        campaignComparison: filters.campaignId ? getCampaignComparison(rawData, filters.campaignId) : [],
+        campaignComparison: filters.campaignId ? getCampaignComparison(rawData, filters.campaignId, filters) : [],
       }
       
       dataCache.set(cacheKey, computed)

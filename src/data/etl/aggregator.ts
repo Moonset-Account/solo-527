@@ -6,13 +6,25 @@ export function filterData(data: DailySalesData[], filters: FilterState): DailyS
     if (filters.storeIds.length > 0 && !filters.storeIds.includes(item.storeId)) {
       return false
     }
-    if (item.date < filters.timeRange.start || item.date > filters.timeRange.end) {
-      return false
-    }
     if (filters.weatherTypes.length > 0 && !filters.weatherTypes.includes(item.weatherType)) {
       return false
     }
     if (filters.campaignId && item.campaignId !== filters.campaignId) {
+      return false
+    }
+    if (item.date < filters.timeRange.start || item.date > filters.timeRange.end) {
+      return false
+    }
+    return true
+  })
+}
+
+export function filterDataWithoutCampaign(data: DailySalesData[], filters: FilterState): DailySalesData[] {
+  return data.filter(item => {
+    if (filters.storeIds.length > 0 && !filters.storeIds.includes(item.storeId)) {
+      return false
+    }
+    if (filters.weatherTypes.length > 0 && !filters.weatherTypes.includes(item.weatherType)) {
       return false
     }
     return true
@@ -311,7 +323,11 @@ export function detectAnomalies(data: DailySalesData[]): AnomalyPoint[] {
   })
 }
 
-export function getCampaignComparison(data: DailySalesData[], campaignId: string): CampaignComparison[] {
+export function getCampaignComparison(
+  rawData: DailySalesData[], 
+  campaignId: string,
+  filters: FilterState
+): CampaignComparison[] {
   const campaign = CAMPAIGNS.find(c => c.id === campaignId)
   if (!campaign) return []
 
@@ -320,9 +336,23 @@ export function getCampaignComparison(data: DailySalesData[], campaignId: string
   const afterStart = addDays(campaign.endDate, 1)
   const afterEnd = addDays(campaign.endDate, 7)
 
-  const beforeData = data.filter(d => d.date >= beforeStart && d.date <= beforeEnd)
-  const duringData = data.filter(d => d.date >= campaign.startDate && d.date <= campaign.endDate)
-  const afterData = data.filter(d => d.date >= afterStart && d.date <= afterEnd)
+  const applyContextFilters = (data: DailySalesData[]): DailySalesData[] => {
+    return data.filter(item => {
+      if (filters.storeIds.length > 0 && !filters.storeIds.includes(item.storeId)) {
+        return false
+      }
+      if (filters.weatherTypes.length > 0 && !filters.weatherTypes.includes(item.weatherType)) {
+        return false
+      }
+      return true
+    })
+  }
+
+  const contextFilteredData = applyContextFilters(rawData)
+  
+  const beforeData = contextFilteredData.filter(d => d.date >= beforeStart && d.date <= beforeEnd)
+  const duringData = contextFilteredData.filter(d => d.date >= campaign.startDate && d.date <= campaign.endDate)
+  const afterData = contextFilteredData.filter(d => d.date >= afterStart && d.date <= afterEnd)
 
   const calcMetrics = (items: DailySalesData[], start: string, end: string, period: 'before' | 'during' | 'after'): CampaignComparison => {
     const days = getDaysDiff(start, end)

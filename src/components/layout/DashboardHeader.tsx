@@ -1,5 +1,6 @@
 import { Coffee } from 'lucide-react'
 import StoreFilter from '../filters/StoreFilter'
+import CategoryFilter from '../filters/CategoryFilter'
 import WeatherFilter from '../filters/WeatherFilter'
 import CampaignFilter from '../filters/CampaignFilter'
 import TimeRangeFilter from '../filters/TimeRangeFilter'
@@ -32,6 +33,7 @@ export default function DashboardHeader() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 flex-wrap">
             <StoreFilter />
+            <CategoryFilter />
             <WeatherFilter />
             <CampaignFilter />
           </div>

@@ -90,6 +90,7 @@ export default function ViewToolbar() {
       { '筛选条件': '时间范围', '值': `${filters.timeRange.start} ~ ${filters.timeRange.end}` },
       { '筛选条件': '时间粒度', '值': filters.timeWindow === 'day' ? '日' : filters.timeWindow === 'week' ? '周' : '月' },
       { '筛选条件': '门店数量', '值': filters.storeIds.length === 0 ? '全部' : `${filters.storeIds.length} 家` },
+      { '筛选条件': '品类', '值': filters.categories.length === 0 ? '全部' : `${filters.categories.length} 类` },
       { '筛选条件': '天气类型', '值': filters.weatherTypes.length === 0 ? '全部' : `${filters.weatherTypes.length} 种` },
       { '筛选条件': '活动批次', '值': filters.campaignId || '全部' },
     ]

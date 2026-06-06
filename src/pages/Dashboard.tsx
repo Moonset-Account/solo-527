@@ -35,6 +35,7 @@ export default function Dashboard() {
     const parts: string[] = []
     parts.push(`${filters.timeRange.start} ~ ${filters.timeRange.end}`)
     if (filters.storeIds.length > 0) parts.push(`${filters.storeIds.length}家门店`)
+    if (filters.categories.length > 0) parts.push(`${filters.categories.length}类`)
     if (filters.weatherTypes.length > 0) parts.push(`${filters.weatherTypes.length}种天气`)
     if (filters.campaignId) parts.push('指定活动')
     return parts.join(' · ')
