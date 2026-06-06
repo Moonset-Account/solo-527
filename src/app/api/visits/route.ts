@@ -27,7 +27,16 @@ export async function GET(request: NextRequest) {
       where.deptId = { in: user.departmentScopes };
     }
 
-    if (deptId) where.deptId = deptId;
+    if (deptId) {
+      if (user.departmentScopes.length > 0) {
+        if (!user.departmentScopes.includes(deptId)) {
+          return createPermissionErrorResponse("无权访问该科室数据");
+        }
+        where.deptId = deptId;
+      } else {
+        where.deptId = deptId;
+      }
+    }
     if (doctorId) where.doctorId = doctorId;
     if (patientTypeId) where.patientTypeId = patientTypeId;
     if (startDate || endDate) {

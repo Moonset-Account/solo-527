@@ -13,6 +13,8 @@ export interface ApiResponse<T> {
   page?: number;
   pageSize?: number;
   totalPages?: number;
+  summary?: { total: number; success: number; failed: number };
+  importId?: string;
 }
 
 export interface FetchVisitsParams {
@@ -23,6 +25,39 @@ export interface FetchVisitsParams {
   patientTypeId?: string;
   startDate?: string;
   endDate?: string;
+}
+
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("hospital-auth-storage");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.state?.token || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
 }
 
 export async function fetchVisits(
@@ -63,12 +98,15 @@ export async function fetchVisits(
     if (params.startDate) searchParams.set("startDate", params.startDate);
     if (params.endDate) searchParams.set("endDate", params.endDate);
 
-    const response = await fetch(`${API_BASE_URL}/visits?${searchParams.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/visits?${searchParams.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -102,7 +140,7 @@ export async function createVisit(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/visits`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/visits`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -159,7 +197,7 @@ export async function importCSV(
     formData.append("doctorMap", JSON.stringify(options.doctorMap || {}));
     formData.append("patientTypeMap", JSON.stringify(options.patientTypeMap || {}));
 
-    const response = await fetch(`${API_BASE_URL}/import/csv`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/import/csv`, {
       method: "POST",
       body: formData,
     });
@@ -212,7 +250,7 @@ export async function previewCSV(
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`${API_BASE_URL}/import/preview`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/import/preview`, {
       method: "POST",
       body: formData,
     });
@@ -255,7 +293,7 @@ export async function getImportLogs(): Promise<ApiResponse<any[]>> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/import/csv`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/import/csv`, {
       method: "GET",
     });
 
@@ -285,4 +323,40 @@ export function getDataSources() {
     doctors: MOCK_DOCTORS,
     patientTypes: MOCK_PATIENT_TYPES,
   };
+}
+
+export async function login(
+  username: string,
+  password: string
+): Promise<ApiResponse<{ token: string; user: any }>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      return {
+        success: false,
+        error: data.error || "登录失败",
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        token: data.token,
+        user: data.user,
+      },
+    };
+  } catch (error) {
+    console.error("API Error - login:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "网络请求失败",
+    };
+  }
 }

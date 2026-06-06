@@ -2,10 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, RefreshCw } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn, downloadCSV } from "@/utils";
 import { parseCSV, mapCSVRow, generateCSV } from "@/lib/csv";
 import { validateVisitData, cleanAndCalculateWaitTimes, maskVisitNumber } from "@/lib/validation";
+import { importCSV, getDataSources } from "@/lib/api";
+import { useAuthStore } from "@/store";
 
 interface ImportPreview {
   total: number;
@@ -26,6 +28,9 @@ export default function DataImportPage() {
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; importId?: string } | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const dataSources = getDataSources();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -118,40 +123,31 @@ export default function DataImportPage() {
   const handleImport = async () => {
     if (!uploadedFile || !preview) return;
 
+    if (!dataSources.USE_MOCK_DATA && !isAuthenticated) {
+      setApiError("请先登录后再导入数据");
+      setImportStatus("error");
+      return;
+    }
+
     setImportStatus("processing");
-    setImportProgress(10);
+    setImportProgress(20);
     setApiError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", uploadedFile);
-      formData.append("departmentMap", JSON.stringify({}));
-      formData.append("doctorMap", JSON.stringify({}));
-      formData.append("patientTypeMap", JSON.stringify({}));
+      setImportProgress(50);
 
-      setImportProgress(30);
+      const result = await importCSV(uploadedFile, {});
 
-      const response = await fetch("/api/import/csv", {
-        method: "POST",
-        body: formData,
-      });
-
-      setImportProgress(80);
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || error.error || "导入失败");
-      }
-
-      const result = await response.json();
-      setImportProgress(100);
+      setImportProgress(90);
 
       if (result.success) {
+        const summary = result.data?.summary;
         setImportResult({
-          success: result.summary.success,
-          failed: result.summary.failed,
-          importId: result.importId,
+          success: summary?.success || 0,
+          failed: summary?.failed || 0,
+          importId: result.data?.importId || result.importId,
         });
+        setImportProgress(100);
         setImportStatus("success");
       } else {
         throw new Error(result.error || "导入失败");
@@ -212,6 +208,31 @@ export default function DataImportPage() {
             上传CSV格式的门诊流程数据，系统将自动进行数据校验、清洗、脱敏并入库
           </p>
         </div>
+
+        {!dataSources.USE_MOCK_DATA && !isAuthenticated && (
+          <div className="flex items-start gap-3 p-4 bg-warning-50 rounded-lg border border-warning-200">
+            <AlertTriangle className="w-5 h-5 text-warning-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-warning-700">未登录状态</p>
+              <p className="text-xs text-warning-600 mt-0.5">
+                当前使用真实 API 模式，需要先登录才能导入数据。请先前往
+                <a href="/login" className="underline font-medium">登录页面</a>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {dataSources.USE_MOCK_DATA && (
+          <div className="flex items-start gap-3 p-4 bg-info-50 rounded-lg border border-info-200">
+            <AlertCircle className="w-5 h-5 text-info-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-info-700">模拟数据模式</p>
+              <p className="text-xs text-info-600 mt-0.5">
+                当前使用前端模拟数据导入，设置 NEXT_PUBLIC_USE_MOCK_DATA=false 切换为真实 API
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-4 p-4 bg-primary-50 rounded-lg border border-primary-100">
           <div className="p-2 bg-primary-100 rounded-lg">

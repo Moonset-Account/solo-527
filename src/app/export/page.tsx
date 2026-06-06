@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ChartCard } from "@/components/ui/ChartCard";
-import { useAppStore } from "@/store";
+import { useAppStore, useAuthStore } from "@/store";
 import {
   FileDown,
   FileText,
@@ -12,18 +13,22 @@ import {
   Check,
   Clock,
   AlertCircle,
-  Filter,
   Calendar,
   Building2,
   Users,
   Activity,
   RefreshCw,
   Trash2,
+  ArrowRight,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { cn, formatDate, formatDateTime, downloadCSV } from "@/utils";
 import { exportToPDF } from "@/lib/pdf";
 import { format } from "date-fns";
 import { generateCSV } from "@/lib/csv";
+import { getDataSources, fetchVisits } from "@/lib/api";
+import { VisitProcess } from "@/types";
 
 interface ExportTask {
   id: string;
@@ -133,13 +138,38 @@ export default function ExportCenterPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [exportTasks, setExportTasks] = useState<ExportTask[]>(mockExportTasks);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const filters = useAppStore((state) => state.filters);
   const getFilteredVisits = useAppStore((state) => state.getFilteredVisits);
   const getKPIMetrics = useAppStore((state) => state.getKPIMetrics);
+  const setAllVisits = useAppStore((state) => state.setAllVisits);
+  const dataSources = getDataSources();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const router = useRouter();
 
   const filteredVisits = useMemo(() => getFilteredVisits(), [filters, getFilteredVisits]);
   const kpiMetrics = useMemo(() => getKPIMetrics(), [getKPIMetrics]);
+
+  const loadDataForExport = async () => {
+    if (dataSources.USE_MOCK_DATA) return true;
+    if (!isAuthenticated) return false;
+
+    setIsLoading(true);
+    try {
+      const result = await fetchVisits({ pageSize: "1000" });
+      if (result.success && result.data) {
+        setAllVisits(result.data as VisitProcess[]);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to load data:", error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleExportCSV = () => {
     const headers = [
@@ -192,6 +222,16 @@ export default function ExportCenterPage() {
     const template = exportTemplates.find((t) => t.id === templateId);
     if (!template) return;
 
+    if (!dataSources.USE_MOCK_DATA && !isAuthenticated) {
+      alert("请先登录后再导出数据");
+      return;
+    }
+
+    if (template.type === "pdf") {
+      router.push("/dashboard?export=pdf");
+      return;
+    }
+
     setIsExporting(true);
     
     const newTask: ExportTask = {
@@ -207,6 +247,8 @@ export default function ExportCenterPage() {
     setSelectedTemplate(null);
 
     try {
+      await loadDataForExport();
+
       if (template.type === "csv") {
         const headers = [
           "就诊日期", "科室", "医生", "患者类型",
@@ -235,27 +277,6 @@ export default function ExportCenterPage() {
 
         const csvContent = generateCSV(rows, headers);
         downloadCSV(csvContent, `${newTask.name}.csv`);
-      } else if (template.type === "pdf") {
-        const metrics = {
-          "平均总等待时间": `${kpiMetrics.avgWaitTotal} 分钟`,
-          "平均就诊等待": `${kpiMetrics.avgWaitDoctor} 分钟`,
-          "就诊总量": `${kpiMetrics.totalVisits} 人次`,
-          "瓶颈节点": kpiMetrics.bottleneckNode,
-          "等待趋势": kpiMetrics.avgWaitTrend > 0 
-            ? `上升 ${kpiMetrics.avgWaitTrend} 分钟` 
-            : kpiMetrics.avgWaitTrend < 0 
-            ? `下降 ${Math.abs(kpiMetrics.avgWaitTrend)} 分钟` 
-            : "持平",
-        };
-
-        await exportToPDF("dashboard-content", {
-          title: newTask.name,
-          subtitle: "医院门诊等待时间分析报告",
-          includeCharts: true,
-          includeDataTable: false,
-          filters: filters,
-          metrics: metrics,
-        });
       }
 
       setExportTasks((prev) =>
@@ -265,9 +286,7 @@ export default function ExportCenterPage() {
                 ...t,
                 status: "completed",
                 recordCount: filteredVisits.length,
-                fileSize: template.type === "pdf" 
-                  ? `${(Math.random() * 2 + 1).toFixed(1)} MB`
-                  : `${(filteredVisits.length * 0.25 / 1024).toFixed(2)} MB`,
+                fileSize: `${(filteredVisits.length * 0.25 / 1024).toFixed(2)} MB`,
               }
             : t
         )
@@ -327,6 +346,34 @@ export default function ExportCenterPage() {
             </h1>
             <p className="text-sm text-neutral-500 mt-1">
               导出数据报表和分析报告，支持CSV和PDF格式
+            </p>
+          </div>
+          {dataSources.USE_MOCK_DATA && (
+            <span className="text-xs bg-info-50 text-info-600 px-2 py-1 rounded border border-info-200">
+              模拟数据模式
+            </span>
+          )}
+        </div>
+
+        {!dataSources.USE_MOCK_DATA && !isAuthenticated && (
+          <div className="flex items-start gap-3 p-4 bg-warning-50 rounded-lg border border-warning-200">
+            <AlertTriangle className="w-5 h-5 text-warning-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-warning-700">未登录状态</p>
+              <p className="text-xs text-warning-600 mt-0.5">
+                当前使用真实 API 模式，需要先登录才能导出数据。请先前往
+                <a href="/login" className="underline font-medium">登录页面</a>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-start gap-3 p-4 bg-info-50 rounded-lg border border-info-200">
+          <Info className="w-5 h-5 text-info-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-info-700">PDF 导出说明</p>
+            <p className="text-xs text-info-600 mt-0.5">
+              导出数据分析报告（PDF）将跳转到 Dashboard 页面，在确认数据无误后点击"导出PDF"按钮即可生成完整报告。
             </p>
           </div>
         </div>
@@ -427,12 +474,13 @@ export default function ExportCenterPage() {
               {exportTemplates.map((template) => {
                 const Icon = template.icon;
                 const isSelected = selectedTemplate === template.id;
+                const isPDF = template.type === "pdf";
                 return (
                   <div
                     key={template.id}
                     onClick={() => setSelectedTemplate(template.id)}
                     className={cn(
-                      "p-4 border rounded-lg cursor-pointer transition-all",
+                      "p-4 border rounded-lg cursor-pointer transition-all relative",
                       isSelected
                         ? "border-primary-500 bg-primary-50/50 shadow-sm"
                         : "border-neutral-200 hover:border-primary-300 hover:bg-neutral-50"
@@ -480,6 +528,12 @@ export default function ExportCenterPage() {
                             </span>
                           )}
                         </div>
+                        {isPDF && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-info-600">
+                            <ArrowRight className="w-3 h-3" />
+                            将跳转到 Dashboard 页面导出
+                          </div>
+                        )}
                       </div>
                     </div>
                     {isSelected && (
@@ -489,18 +543,32 @@ export default function ExportCenterPage() {
                             e.stopPropagation();
                             handleCreateExportTask(template.id);
                           }}
-                          disabled={isExporting}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-white bg-primary-500 rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isExporting || isLoading}
+                          className={cn(
+                            "w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                            isPDF
+                              ? "bg-info-500 hover:bg-info-600"
+                              : "bg-primary-500 hover:bg-primary-600"
+                          )}
                         >
-                          {isExporting ? (
+                          {isExporting || isLoading ? (
                             <>
                               <RefreshCw className="w-4 h-4 animate-spin" />
                               生成中...
                             </>
                           ) : (
                             <>
-                              <Download className="w-4 h-4" />
-                              立即导出
+                              {isPDF ? (
+                                <>
+                                  <ArrowRight className="w-4 h-4" />
+                                  前往 Dashboard 导出
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4" />
+                                  立即导出
+                                </>
+                              )}
                             </>
                           )}
                         </button>

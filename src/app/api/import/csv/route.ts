@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, hasPermission, createAuthErrorResponse, createPermissionErrorResponse } from "@/lib/auth";
+import { getAuthUser, hasPermission, hasDepartmentAccess, createAuthErrorResponse, createPermissionErrorResponse } from "@/lib/auth";
 import { parseCSV, mapCSVRow } from "@/lib/csv";
 import { validateVisitData, cleanAndCalculateWaitTimes, maskVisitNumber } from "@/lib/validation";
 
@@ -49,6 +49,16 @@ export async function POST(request: NextRequest) {
 
       if (!validation.valid) {
         allErrors.push(...validation.errors);
+        failedCount++;
+        continue;
+      }
+
+      if (mappedRow.deptId && !hasDepartmentAccess(user, mappedRow.deptId)) {
+        allErrors.push({
+          row: rowNum,
+          field: "deptId",
+          message: `无权导入科室 [${mappedRow.deptId}] 的数据`,
+        });
         failedCount++;
         continue;
       }
