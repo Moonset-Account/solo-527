@@ -132,7 +132,7 @@
                                             收全款
                                         </button>
 
-                                        <button v-if="order.status === 'confirmed' && order.payment_status !== 'unpaid'"
+                                        <button v-if="order.status === 'confirmed' && getPaidAmount(order) >= parseFloat(order.deposit_amount)"
                                                 @click="startProduction(order)"
                                                 class="text-xs px-2 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">
                                             开始生产
@@ -143,13 +143,13 @@
                                             标记就绪
                                         </button>
 
-                                        <button v-if="order.status === 'ready' && order.payment_status === 'paid'"
+                                        <button v-if="order.status === 'ready' && getPaidAmount(order) >= parseFloat(order.total_amount)"
                                                 @click="pickup(order)"
                                                 class="text-xs px-2 py-1 bg-amber-500 text-white rounded hover:bg-amber-600">
                                             核销取货
                                         </button>
 
-                                        <button v-if="order.payment_status !== 'unpaid' && order.payment_status !== 'full_refund' && order.status !== 'refunded'"
+                                        <button v-if="getPaidAmount(order) > 0 && order.payment_status !== 'full_refund' && order.status !== 'refunded'"
                                                 @click="openRefund(order)"
                                                 class="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">
                                             退款

@@ -18,7 +18,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Order::with(['pickupSlot', 'items.product', 'customer']);
+        $query = Order::with(['pickupSlot', 'items.product', 'customer', 'payments', 'refunds']);
 
         if ($request->user()->isCustomer()) {
             $query->where('customer_id', $request->user()->id);
@@ -62,7 +62,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $this->checkOrderPermission($order);
-        
+
         return response()->json($order->load([
             'items.product',
             'pickupSlot',
@@ -217,7 +217,9 @@ class OrderController extends Controller
         try {
             $order->update(['status' => Order::STATUS_CANCELLED]);
 
-            $order->pickupSlot->decrement('current_orders');
+            if ($order->pickupSlot && $order->pickupSlot->current_orders > 0) {
+                $order->pickupSlot->decrement('current_orders');
+            }
 
             DB::commit();
 

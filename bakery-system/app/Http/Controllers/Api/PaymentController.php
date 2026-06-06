@@ -76,16 +76,15 @@ class PaymentController extends Controller
             return response()->json(['message' => "收款金额超过剩余应付款 {$remaining} 元"], 422);
         }
 
+        $depositPaidNet = max(0, $netPaid);
+        $depositDeficit = max(0, $order->deposit_amount - $depositPaidNet);
+
         if ($request->type === 'deposit') {
-            $depositPaid = $order->payments()
-                ->where('type', 'deposit')
-                ->where('status', Payment::STATUS_COMPLETED)
-                ->sum('amount');
-            if ($depositPaid > 0) {
-                return response()->json(['message' => '定金已支付，请勿重复收取'], 422);
+            if ($depositDeficit <= 0) {
+                return response()->json(['message' => '定金已足额支付'], 422);
             }
-            if ($request->amount != $order->deposit_amount) {
-                return response()->json(['message' => "定金金额应为 {$order->deposit_amount} 元"], 422);
+            if ($request->amount > $depositDeficit) {
+                return response()->json(['message' => "定金不足部分为 {$depositDeficit} 元"], 422);
             }
         }
 
@@ -96,15 +95,11 @@ class PaymentController extends Controller
         }
 
         if ($request->type === 'balance') {
-            $depositPaid = $order->payments()
-                ->where('type', 'deposit')
-                ->where('status', Payment::STATUS_COMPLETED)
-                ->sum('amount');
-            if ($depositPaid < $order->deposit_amount) {
-                return response()->json(['message' => '请先收取定金后再收尾款'], 422);
+            if ($depositPaidNet < $order->deposit_amount) {
+                return response()->json(['message' => '请先补足定金后再收尾款'], 422);
             }
-            if ($request->amount != $remaining) {
-                return response()->json(['message' => "尾款金额应为剩余应付款 {$remaining} 元"], 422);
+            if ($request->amount > $remaining) {
+                return response()->json(['message' => "尾款金额不能超过剩余应付款 {$remaining} 元"], 422);
             }
         }
 
@@ -173,14 +168,14 @@ class PaymentController extends Controller
 
         $netPaid = $totalPaid - $refundedAmount;
 
-        if ($refundedAmount >= $order->total_amount) {
+        if ($netPaid <= 0 && $refundedAmount > 0) {
             $order->payment_status = Order::PAYMENT_FULL_REFUND;
-        } elseif ($refundedAmount > 0) {
-            $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
         } elseif ($netPaid >= $order->total_amount) {
             $order->payment_status = Order::PAYMENT_PAID;
         } elseif ($netPaid >= $order->deposit_amount) {
             $order->payment_status = Order::PAYMENT_DEPOSIT_PAID;
+        } elseif ($netPaid > 0) {
+            $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
         } else {
             $order->payment_status = Order::PAYMENT_UNPAID;
         }

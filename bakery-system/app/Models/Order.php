@@ -141,11 +141,19 @@ class Order extends Model
 
     public function canStartProduction()
     {
-        return $this->status === self::STATUS_CONFIRMED && $this->payment_status !== self::PAYMENT_UNPAID;
+        $totalPaid = $this->payments()->where('status', 'completed')->sum('amount');
+        $totalRefunded = $this->refunds()->where('status', 'completed')->sum('amount');
+        $netPaid = $totalPaid - $totalRefunded;
+
+        return $this->status === self::STATUS_CONFIRMED && $netPaid >= $this->deposit_amount;
     }
 
     public function canPickup()
     {
-        return $this->status === self::STATUS_READY && $this->payment_status === self::PAYMENT_PAID;
+        $totalPaid = $this->payments()->where('status', 'completed')->sum('amount');
+        $totalRefunded = $this->refunds()->where('status', 'completed')->sum('amount');
+        $netPaid = $totalPaid - $totalRefunded;
+
+        return $this->status === self::STATUS_READY && $netPaid >= $this->total_amount;
     }
 }

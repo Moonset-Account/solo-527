@@ -103,7 +103,14 @@ class RefundController extends Controller
             }
 
             if ($isFullRefund && !$wasFullyRefunded && $order->pickupSlot) {
-                $order->pickupSlot->decrement('current_orders');
+                $shouldDecrement = !in_array($order->status, [
+                    Order::STATUS_CANCELLED,
+                    Order::STATUS_REFUNDED,
+                    Order::STATUS_PICKED_UP,
+                ]);
+                if ($shouldDecrement && $order->pickupSlot->current_orders > 0) {
+                    $order->pickupSlot->decrement('current_orders');
+                }
             }
 
             DB::commit();
@@ -151,20 +158,17 @@ class RefundController extends Controller
 
         $netPaid = $totalPaid - $totalRefunded;
 
-        if ($totalPaid > 0 && $totalRefunded >= $totalPaid) {
+        if ($totalPaid > 0 && $netPaid <= 0) {
             $order->payment_status = Order::PAYMENT_FULL_REFUND;
-            if (!in_array($order->status, [Order::STATUS_PICKED_UP, Order::STATUS_CANCELLED])) {
+            if (!in_array($order->status, [Order::STATUS_PICKED_UP, Order::STATUS_CANCELLED, Order::STATUS_REFUNDED])) {
                 $order->status = Order::STATUS_REFUNDED;
-            }
-        } elseif ($totalRefunded > 0) {
-            $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
-            if ($netPaid >= $order->deposit_amount && $order->status === Order::STATUS_PENDING) {
-                $order->status = Order::STATUS_CONFIRMED;
             }
         } elseif ($netPaid >= $order->total_amount) {
             $order->payment_status = Order::PAYMENT_PAID;
         } elseif ($netPaid >= $order->deposit_amount) {
             $order->payment_status = Order::PAYMENT_DEPOSIT_PAID;
+        } elseif ($netPaid > 0) {
+            $order->payment_status = Order::PAYMENT_PARTIAL_REFUND;
         } else {
             $order->payment_status = Order::PAYMENT_UNPAID;
         }
