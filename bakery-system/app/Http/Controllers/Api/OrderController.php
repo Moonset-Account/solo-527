@@ -62,7 +62,7 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $this->checkOrderPermission($order);
-
+        
         return response()->json($order->load([
             'items.product',
             'pickupSlot',
@@ -71,6 +71,17 @@ class OrderController extends Controller
             'productionSchedules.assignedTo',
             'customer',
             'assignedTo',
+        ]));
+    }
+
+    public function showPublic(Order $order)
+    {
+        return response()->json($order->load([
+            'items.product',
+            'pickupSlot',
+            'payments' => function ($q) {
+                $q->select('id', 'order_id', 'amount', 'type', 'method', 'status', 'created_at');
+            },
         ]));
     }
 
@@ -96,6 +107,8 @@ class OrderController extends Controller
             ]);
         }
 
+        $userId = auth('sanctum')->check() ? auth('sanctum')->user()->id : null;
+
         DB::beginTransaction();
         try {
             $totalAmount = 0;
@@ -118,7 +131,7 @@ class OrderController extends Controller
             }
 
             $order = Order::create([
-                'customer_id' => $request->user()?->id,
+                'customer_id' => $userId,
                 'pickup_slot_id' => $request->pickup_slot_id,
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
@@ -129,7 +142,7 @@ class OrderController extends Controller
                 'balance_amount' => $totalAmount - $totalDeposit,
                 'status' => Order::STATUS_PENDING,
                 'payment_status' => Order::PAYMENT_UNPAID,
-                'created_by' => $request->user()?->id,
+                'created_by' => $userId,
             ]);
 
             foreach ($orderItems as $item) {

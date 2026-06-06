@@ -23,12 +23,14 @@ Route::get('/product/sizes', [ProductController::class, 'sizes']);
 Route::get('/pickup-slots', [PickupSlotController::class, 'index']);
 Route::get('/pickup-slots/{pickupSlot}', [PickupSlotController::class, 'show']);
 
+Route::post('/orders', [OrderController::class, 'store']);
+Route::get('/orders/{order}/public', [OrderController::class, 'showPublic']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
 
-    Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
