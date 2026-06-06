@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.card {
+	@apply bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-md;
+}
+
+.card-hover {
+	@apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300;
+}
+
+.btn-primary {
+	@apply px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors duration-200 font-medium;
+}
+
+.btn-secondary {
+	@apply px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors duration-200 font-medium;
+}
+
+.status-pending {
+	@apply px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700;
+}
+
+.status-confirmed {
+	@apply px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700;
+}
+
+.status-danger {
+	@apply px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700;
+}
+
+.table-row {
+	@apply hover:bg-slate-50 transition-colors duration-150 cursor-pointer;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+	background: #f1f5f9;
+	border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8;
+}
