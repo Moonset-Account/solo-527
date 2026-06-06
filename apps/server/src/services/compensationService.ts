@@ -6,7 +6,7 @@ export const handleCompensation = async (
   compensationId: string,
   action: 'paid' | 'waived',
   handledBy: string,
-  remarks?: string
+  remarks?: string | null
 ) => {
   const client = await getClient();
   
@@ -18,7 +18,7 @@ export const handleCompensation = async (
        SET status = $2, handled_by = $3, handled_at = NOW(), remarks = $4, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [compensationId, action, handledBy, remarks]
+      [compensationId, action, handledBy, remarks ?? null]
     );
     
     if (result.rows.length === 0) {

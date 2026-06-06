@@ -48,7 +48,7 @@ export default function Compensations() {
 
   const handleCompensation = async (id: string, action: 'paid' | 'waived') => {
     if (!token) return;
-    const remarks = action === 'waived' ? prompt('请输入豁免原因：') : undefined;
+    const remarks = action === 'waived' ? prompt('请输入豁免原因：') ?? undefined : undefined;
     try {
       await api.compensations.handle(token, id, action, remarks);
       loadData();

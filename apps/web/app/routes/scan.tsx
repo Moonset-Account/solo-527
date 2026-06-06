@@ -6,13 +6,22 @@ import Layout from '~/components/Layout';
 
 type ScanMode = 'borrow' | 'return';
 
+interface Material {
+  id: string;
+  name: string;
+  qr_code: string;
+  category_name?: string;
+  status: string;
+  condition?: string;
+}
+
 export default function Scan() {
   const { token, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<ScanMode>('borrow');
   const [applicationId, setApplicationId] = useState('');
   const [applications, setApplications] = useState<any[]>([]);
-  const [scannedMaterial, setScannedMaterial] = useState<any>(null);
+  const [scannedMaterial, setScannedMaterial] = useState<Material | null>(null);
   const [manualQrCode, setManualQrCode] = useState('');
   const [condition, setCondition] = useState('good');
   const [damageDescription, setDamageDescription] = useState('');
@@ -47,7 +56,7 @@ export default function Scan() {
     }
 
     try {
-      const material = await api.materials.getByQr(token, manualQrCode);
+      const material = await api.materials.getByQr(token, manualQrCode) as Material;
       setScannedMaterial(material);
       setMessage({ type: 'success', text: `识别成功：${material.name}` });
     } catch (error: any) {
