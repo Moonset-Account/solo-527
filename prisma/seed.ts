@@ -3,15 +3,34 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+async function clearDatabase() {
+  console.log('清空现有数据...');
+  await prisma.auditLog.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.attachment.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.invoiceItem.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.quoteItem.deleteMany();
+  await prisma.quote.deleteMany();
+  await prisma.timesheet.deleteMany();
+  await prisma.task.deleteMany();
+  await prisma.projectMember.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.client.deleteMany();
+  console.log('数据库已清空');
+}
+
 async function main() {
   console.log('开始播种数据...');
 
+  await clearDatabase();
+
   const passwordHash = await bcrypt.hash('demo123456', 10);
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@demo.com' },
-    update: {},
-    create: {
+  const admin = await prisma.user.create({
+    data: {
       email: 'admin@demo.com',
       name: '张管理',
       passwordHash,
@@ -19,10 +38,8 @@ async function main() {
     },
   });
 
-  const designer = await prisma.user.upsert({
-    where: { email: 'designer@demo.com' },
-    update: {},
-    create: {
+  const designer = await prisma.user.create({
+    data: {
       email: 'designer@demo.com',
       name: '李设计',
       passwordHash,
@@ -60,10 +77,8 @@ async function main() {
     },
   });
 
-  const clientUser = await prisma.user.upsert({
-    where: { email: 'client@demo.com' },
-    update: {},
-    create: {
+  const clientUser = await prisma.user.create({
+    data: {
       email: 'client@demo.com',
       name: '王客户',
       passwordHash,
@@ -379,12 +394,90 @@ async function main() {
     },
   });
 
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      projectId: project3.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'PROJECT',
+      entityId: project3.id,
+      oldValues: JSON.stringify({ status: 'PENDING' }),
+      newValues: JSON.stringify({ status: 'IN_PROGRESS' }),
+      createdAt: new Date('2026-03-02'),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      projectId: project3.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'PROJECT',
+      entityId: project3.id,
+      oldValues: JSON.stringify({ status: 'IN_PROGRESS' }),
+      newValues: JSON.stringify({ status: 'COMPLETED' }),
+      createdAt: new Date('2026-05-30'),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: designer.id,
+      projectId: project1.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'TASK',
+      entityId: 'task-homepage-design',
+      oldValues: JSON.stringify({ status: 'TODO' }),
+      newValues: JSON.stringify({ status: 'IN_PROGRESS' }),
+      createdAt: new Date('2026-05-08'),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: designer.id,
+      projectId: project1.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'TASK',
+      entityId: 'task-homepage-design',
+      oldValues: JSON.stringify({ status: 'IN_PROGRESS' }),
+      newValues: JSON.stringify({ status: 'DONE' }),
+      createdAt: new Date('2026-05-15'),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      projectId: project1.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'INVOICE',
+      entityId: invoice2.id,
+      oldValues: JSON.stringify({ status: 'SENT' }),
+      newValues: JSON.stringify({ status: 'PAID' }),
+      createdAt: new Date('2026-05-15'),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      projectId: project5.id,
+      action: 'STATUS_CHANGE',
+      entityType: 'INVOICE',
+      entityId: invoice3.id,
+      oldValues: JSON.stringify({ status: 'SENT' }),
+      newValues: JSON.stringify({ status: 'OVERDUE' }),
+      createdAt: new Date('2026-04-21'),
+    },
+  });
+
   await prisma.notification.createMany({
     data: [
       { userId: admin.id, title: '项目开始', content: '企业官网改版项目已启动', type: 'PROJECT_UPDATE', entityId: project1.id, entityType: 'PROJECT' },
       { userId: designer.id, title: '新任务分配', content: '您有新的任务需要处理：首页设计稿', type: 'TASK_ASSIGNED', entityId: tasksData[1].title, entityType: 'TASK', createdAt: new Date(Date.now() - 3600000) },
       { userId: admin.id, title: '发票已逾期', content: '产品手册设计费发票已逾期 47 天，请立即跟进客户', type: 'INVOICE_OVERDUE', entityId: invoice3.id, entityType: 'INVOICE', createdAt: new Date(Date.now() - 7200000) },
-      { userId: admin.id, title: '付款提醒', content: '发票 INV2026060001 已到期，客户：光明科技', type: 'PAYMENT_REMINDER', entityId: invoice3.id, entityType: 'INVOICE', createdAt: new Date(Date.now() - 86400000) },
+      { userId: admin.id, title: '付款提醒', content: '发票 INV2026060001 已到期，客户：科技创新有限公司', type: 'PAYMENT_REMINDER', entityId: invoice3.id, entityType: 'INVOICE', createdAt: new Date(Date.now() - 86400000) },
       { userId: designer.id, title: '任务提醒', content: '活动主题视觉设计任务即将截止', type: 'TASK_REMINDER', entityId: tasksData[11].title, entityType: 'TASK', createdAt: new Date(Date.now() - 1800000) },
       { userId: admin.id, title: '收款成功', content: '收到 App UI 设计项目款项 ¥80,000', type: 'PAYMENT_RECEIVED', entityId: invoice1.id, entityType: 'INVOICE', read: true },
       { userId: admin.id, title: '报价已接受', content: '企业官网改版项目报价已被客户接受', type: 'QUOTE_ACCEPTED', entityId: quote1.id, entityType: 'QUOTE', read: true },
@@ -446,76 +539,25 @@ async function main() {
     ],
   });
 
-  await prisma.auditLog.createMany({
-    data: [
-      {
-        userId: admin.id,
-        projectId: project3.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'PROJECT',
-        entityId: project3.id,
-        oldValues: JSON.stringify({ status: 'PENDING' }),
-        newValues: JSON.stringify({ status: 'IN_PROGRESS' }),
-        createdAt: new Date('2026-03-02'),
-      },
-      {
-        userId: admin.id,
-        projectId: project3.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'PROJECT',
-        entityId: project3.id,
-        oldValues: JSON.stringify({ status: 'IN_PROGRESS' }),
-        newValues: JSON.stringify({ status: 'COMPLETED' }),
-        createdAt: new Date('2026-05-30'),
-      },
-      {
-        userId: designer.id,
-        projectId: project1.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'TASK',
-        entityId: 'task-temp-1',
-        oldValues: JSON.stringify({ status: 'TODO' }),
-        newValues: JSON.stringify({ status: 'IN_PROGRESS' }),
-        createdAt: new Date('2026-05-08'),
-      },
-      {
-        userId: designer.id,
-        projectId: project1.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'TASK',
-        entityId: 'task-temp-2',
-        oldValues: JSON.stringify({ status: 'IN_PROGRESS' }),
-        newValues: JSON.stringify({ status: 'DONE' }),
-        createdAt: new Date('2026-05-15'),
-      },
-      {
-        userId: admin.id,
-        projectId: project1.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'INVOICE',
-        entityId: invoice2.id,
-        oldValues: JSON.stringify({ status: 'SENT' }),
-        newValues: JSON.stringify({ status: 'PAID' }),
-        createdAt: new Date('2026-05-15'),
-      },
-      {
-        userId: admin.id,
-        projectId: project5.id,
-        action: 'STATUS_CHANGE',
-        entityType: 'INVOICE',
-        entityId: invoice3.id,
-        oldValues: JSON.stringify({ status: 'SENT' }),
-        newValues: JSON.stringify({ status: 'OVERDUE' }),
-        createdAt: new Date('2026-04-21'),
-      },
-    ],
-  });
-
-  console.log('数据播种完成！');
-  console.log('测试账号：');
-  console.log('管理员: admin@demo.com / demo123456');
-  console.log('设计师: designer@demo.com / demo123456');
-  console.log('客户: client@demo.com / demo123456');
+  console.log('✅ 数据播种完成！');
+  console.log('');
+  console.log('📊 数据统计：');
+  console.log('  用户: 4 (管理员/设计师/客户+客户账号)');
+  console.log('  客户: 3');
+  console.log('  项目: 5');
+  console.log('  任务: 15');
+  console.log('  工时: 20');
+  console.log('  报价单: 2');
+  console.log('  发票: 3');
+  console.log('  收款: 2');
+  console.log('  审计日志: 8（含项目/任务/发票状态变更）');
+  console.log('  通知: 7（含付款提醒、任务提醒、收款成功）');
+  console.log('  附件: 5（含 3 个可交付文件 + 2 个内部文件）');
+  console.log('');
+  console.log('🔑 测试账号：');
+  console.log('  管理员: admin@demo.com / demo123456');
+  console.log('  设计师: designer@demo.com / demo123456');
+  console.log('  客户:   client@demo.com / demo123456');
 }
 
 main()
