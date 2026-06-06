@@ -10,7 +10,7 @@ export default function WeekCompareChart() {
   const chartRef = useRef<ReactECharts>(null);
   const [data, setData] = useState<WeekCompareData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { roomIds } = useFilterStore();
+  const { roomIds, includeMaintenance } = useFilterStore();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -22,6 +22,7 @@ export default function WeekCompareChart() {
         examWeekStart,
         normalWeekStart,
         roomIds: roomIds.length > 0 ? roomIds : undefined,
+        includeMaintenance,
       });
       setData(result);
     } catch (error) {
@@ -29,7 +30,7 @@ export default function WeekCompareChart() {
     } finally {
       setLoading(false);
     }
-  }, [roomIds]);
+  }, [roomIds, includeMaintenance]);
 
   useEffect(() => {
     fetchData();
@@ -38,9 +39,9 @@ export default function WeekCompareChart() {
   const getChartOption = (): EChartsOption => {
     if (!data) return {};
 
-    const examTimes = data.exam_week.map(d => d.time.split(' ')[1] || d.time);
-    const examValues = data.exam_week.map(d => d.value);
-    const normalValues = data.normal_week.map(d => d.value);
+    const examTimes = data.examWeek.map(d => d.time.split(' ')[1] || d.time);
+    const examValues = data.examWeek.map(d => d.value);
+    const normalValues = data.normalWeek.map(d => d.value);
 
     return {
       backgroundColor: 'transparent',
@@ -126,9 +127,9 @@ export default function WeekCompareChart() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">差异:</span>
             <span className={`text-xs font-semibold ${
-              data.difference_percent > 0 ? 'text-red-400' : 'text-green-400'
+              data.differencePercent > 0 ? 'text-red-400' : 'text-green-400'
             }`}>
-              {data.difference_percent > 0 ? '+' : ''}{data.difference_percent}%
+              {data.differencePercent > 0 ? '+' : ''}{data.differencePercent}%
             </span>
           </div>
         )}
@@ -138,11 +139,11 @@ export default function WeekCompareChart() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20">
             <p className="text-xs text-slate-400">考试周总能耗</p>
-            <p className="text-lg font-bold text-red-400">{data.exam_total.toFixed(1)} <span className="text-xs font-normal">kWh</span></p>
+            <p className="text-lg font-bold text-red-400">{data.examTotal.toFixed(1)} <span className="text-xs font-normal">kWh</span></p>
           </div>
           <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/20">
             <p className="text-xs text-slate-400">普通周总能耗</p>
-            <p className="text-lg font-bold text-green-400">{data.normal_total.toFixed(1)} <span className="text-xs font-normal">kWh</span></p>
+            <p className="text-lg font-bold text-green-400">{data.normalTotal.toFixed(1)} <span className="text-xs font-normal">kWh</span></p>
           </div>
         </div>
       )}

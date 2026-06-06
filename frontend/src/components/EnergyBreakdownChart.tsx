@@ -9,7 +9,7 @@ export default function EnergyBreakdownChart() {
   const chartRef = useRef<ReactECharts>(null);
   const [data, setData] = useState<EnergyBreakdownItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { timeRange, roomIds } = useFilterStore();
+  const { timeRange, roomIds, includeMaintenance, weekType } = useFilterStore();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -18,6 +18,8 @@ export default function EnergyBreakdownChart() {
         startTime: timeRange.start,
         endTime: timeRange.end,
         roomIds: roomIds.length > 0 ? roomIds : undefined,
+        includeMaintenance,
+        weekType: weekType !== 'all' ? weekType : undefined,
       });
       setData(result);
     } catch (error) {
@@ -25,7 +27,7 @@ export default function EnergyBreakdownChart() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, roomIds]);
+  }, [timeRange, roomIds, includeMaintenance, weekType]);
 
   useEffect(() => {
     fetchData();

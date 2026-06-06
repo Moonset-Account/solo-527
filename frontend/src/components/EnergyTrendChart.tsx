@@ -15,7 +15,7 @@ export default function EnergyTrendChart({ onAnomalyClick }: EnergyTrendChartPro
   const [data, setData] = useState<EnergyTrendPoint[]>([]);
   const [anomalies, setAnomalies] = useState<AnomalyPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const { timeRange, roomIds, includeMaintenance } = useFilterStore();
+  const { timeRange, roomIds, includeMaintenance, weekType } = useFilterStore();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -26,11 +26,13 @@ export default function EnergyTrendChart({ onAnomalyClick }: EnergyTrendChartPro
           endTime: timeRange.end,
           roomIds: roomIds.length > 0 ? roomIds : undefined,
           includeMaintenance,
+          weekType: weekType !== 'all' ? weekType : undefined,
         }),
         apiService.getAnomalies({
           startTime: timeRange.start,
           endTime: timeRange.end,
           roomIds: roomIds.length > 0 ? roomIds : undefined,
+          weekType: weekType !== 'all' ? weekType : undefined,
         }),
       ]);
       setData(trendData);
@@ -40,7 +42,7 @@ export default function EnergyTrendChart({ onAnomalyClick }: EnergyTrendChartPro
     } finally {
       setLoading(false);
     }
-  }, [timeRange, roomIds, includeMaintenance]);
+  }, [timeRange, roomIds, includeMaintenance, weekType]);
 
   useEffect(() => {
     fetchData();

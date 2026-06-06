@@ -9,23 +9,25 @@ from app import schemas
 router = APIRouter(prefix="/api", tags=["main"])
 
 
-@router.get("/overview", response_model=schemas.OverviewMetrics)
+@router.get("/overview")
 def get_overview(
     room_ids: Optional[str] = Query(None, description="机房ID列表，逗号分隔"),
+    week_type: Optional[str] = Query(None, description="周类型: all/normal/exam"),
     db: Session = Depends(get_db)
 ):
     room_id_list = room_ids.split(",") if room_ids else None
     service = EnergyService(db)
-    return service.get_overview_metrics(room_id_list)
+    return service.get_overview_metrics(room_id_list, week_type)
 
 
-@router.get("/energy/trend", response_model=List[schemas.EnergyTrendPoint])
+@router.get("/energy/trend")
 def get_energy_trend(
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
     room_ids: Optional[str] = Query(None),
     categories: Optional[str] = Query(None),
     include_maintenance: bool = Query(False),
+    week_type: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     if not end_time:
@@ -38,15 +40,17 @@ def get_energy_trend(
     
     service = EnergyService(db)
     return service.get_energy_trend(
-        start_time, end_time, room_id_list, category_list, include_maintenance
+        start_time, end_time, room_id_list, category_list, include_maintenance, False, week_type
     )
 
 
-@router.get("/energy/breakdown", response_model=List[schemas.EnergyBreakdownItem])
+@router.get("/energy/breakdown")
 def get_energy_breakdown(
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
     room_ids: Optional[str] = Query(None),
+    include_maintenance: bool = Query(False),
+    week_type: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     if not end_time:
@@ -56,7 +60,7 @@ def get_energy_breakdown(
     
     room_id_list = room_ids.split(",") if room_ids else None
     service = EnergyService(db)
-    return service.get_energy_breakdown(start_time, end_time, room_id_list)
+    return service.get_energy_breakdown(start_time, end_time, room_id_list, include_maintenance, week_type)
 
 
 @router.get("/energy/compare")
@@ -64,6 +68,7 @@ def compare_weeks(
     exam_week_start: Optional[datetime] = Query(None),
     normal_week_start: Optional[datetime] = Query(None),
     room_ids: Optional[str] = Query(None),
+    include_maintenance: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     if not exam_week_start:
@@ -73,7 +78,7 @@ def compare_weeks(
     
     room_id_list = room_ids.split(",") if room_ids else None
     service = EnergyService(db)
-    return service.compare_weeks(exam_week_start, normal_week_start, room_id_list)
+    return service.compare_weeks(exam_week_start, normal_week_start, room_id_list, include_maintenance)
 
 
 @router.get("/energy/anomalies")
@@ -82,27 +87,15 @@ def get_anomalies(
     end_time: Optional[datetime] = Query(None),
     severity: Optional[str] = Query(None),
     room_ids: Optional[str] = Query(None),
+    week_type: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     room_id_list = room_ids.split(",") if room_ids else None
     service = AnomalyService(db)
-    anomalies = service.get_anomalies(start_time, end_time, severity, room_id_list)
-    return [
-        {
-            "id": a.id,
-            "energy_data_id": a.energy_data_id,
-            "timestamp": a.timestamp,
-            "value": a.value,
-            "expected_value": a.expected_value,
-            "deviation": a.deviation,
-            "severity": a.severity,
-            "comment": a.comment
-        }
-        for a in anomalies
-    ]
+    return service.get_anomalies(start_time, end_time, severity, room_id_list, week_type)
 
 
-@router.get("/energy/anomalies/{anomaly_id}", response_model=schemas.AnomalyDetail)
+@router.get("/energy/anomalies/{anomaly_id}")
 def get_anomaly_detail(anomaly_id: str, db: Session = Depends(get_db)):
     service = AnomalyService(db)
     detail = service.get_anomaly_detail(anomaly_id)
@@ -124,29 +117,33 @@ def add_anomaly_comment(
     return {"success": True, "message": "注释添加成功"}
 
 
-@router.get("/alarms", response_model=List[schemas.Alarm])
+@router.get("/alarms")
 def get_alarms(
     status: Optional[str] = Query(None),
     level: Optional[str] = Query(None),
     limit: int = Query(50),
+    room_ids: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
+    room_id_list = room_ids.split(",") if room_ids else None
     service = AlarmWorkorderService(db)
-    return service.get_alarms(status, level, limit)
+    return service.get_alarms(status, level, limit, room_id_list)
 
 
-@router.get("/workorders", response_model=List[schemas.Workorder])
+@router.get("/workorders")
 def get_workorders(
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     limit: int = Query(50),
+    room_ids: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
+    room_id_list = room_ids.split(",") if room_ids else None
     service = AlarmWorkorderService(db)
-    return service.get_workorders(status, priority, limit)
+    return service.get_workorders(status, priority, limit, room_id_list)
 
 
-@router.get("/devices/status", response_model=List[schemas.Device])
+@router.get("/devices/status")
 def get_device_status(
     room_ids: Optional[str] = Query(None),
     db: Session = Depends(get_db)
@@ -156,7 +153,7 @@ def get_device_status(
     return service.get_device_status(room_id_list)
 
 
-@router.get("/schedule", response_model=List[schemas.Schedule])
+@router.get("/schedule")
 def get_schedule(
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
@@ -174,7 +171,7 @@ def get_schedule(
     return service.get_schedules(start_time, end_time, room_id_list, week_type)
 
 
-@router.get("/filter/options", response_model=schemas.FilterOptions)
+@router.get("/filter/options")
 def get_filter_options(db: Session = Depends(get_db)):
     service = FilterService(db)
     return service.get_filter_options()
@@ -206,17 +203,18 @@ def export_pdf(request: schemas.ExportPDFRequest, db: Session = Depends(get_db))
     story.append(Spacer(1, 20))
     
     energy_service = EnergyService(db)
-    metrics = energy_service.get_overview_metrics(request.room_ids)
+    room_id_list = request.room_ids.split(",") if request.room_ids else None
+    metrics = energy_service.get_overview_metrics(room_id_list, request.week_type)
     
     story.append(Paragraph("一、核心指标", h2_style))
     story.append(Spacer(1, 12))
     
     data = [
         ["指标", "数值"],
-        ["总能耗 (kWh)", f"{metrics.totalEnergy:.2f}"],
-        ["PUE值", f"{metrics.pue:.2f}"],
-        ["在线设备数", str(metrics.onlineDevices)],
-        ["待处理工单数", str(metrics.pendingWorkorders)]
+        ["总能耗 (kWh)", f"{metrics['totalEnergy']:.2f}"],
+        ["PUE值", f"{metrics['pue']:.2f}"],
+        ["在线设备数", str(metrics['onlineDevices'])],
+        ["待处理工单数", str(metrics['pendingWorkorders'])]
     ]
     
     t = Table(data)
@@ -237,12 +235,13 @@ def export_pdf(request: schemas.ExportPDFRequest, db: Session = Depends(get_db))
     story.append(Spacer(1, 12))
     
     breakdown = energy_service.get_energy_breakdown(
-        request.start_time, request.end_time, request.room_ids
+        request.start_time, request.end_time, room_id_list, 
+        getattr(request, 'include_maintenance', False), request.week_type
     )
     
     breakdown_data = [["能耗分类", "能耗值 (kWh)", "占比 (%)"]]
     for item in breakdown:
-        breakdown_data.append([item.category, f"{item.value:.2f}", f"{item.percentage:.1f}"])
+        breakdown_data.append([item['category'], f"{item['value']:.2f}", f"{item['percentage']:.1f}"])
     
     t2 = Table(breakdown_data)
     t2.setStyle(TableStyle([
@@ -255,7 +254,7 @@ def export_pdf(request: schemas.ExportPDFRequest, db: Session = Depends(get_db))
     story.append(Spacer(1, 20))
     
     alarm_service = AlarmWorkorderService(db)
-    alarms = alarm_service.get_alarms(limit=10)
+    alarms = alarm_service.get_alarms(limit=10, room_ids=room_id_list)
     
     story.append(Paragraph("三、近期告警", h2_style))
     story.append(Spacer(1, 12))
@@ -264,10 +263,10 @@ def export_pdf(request: schemas.ExportPDFRequest, db: Session = Depends(get_db))
         alarm_data = [["时间", "设备", "级别", "信息"]]
         for a in alarms[:5]:
             alarm_data.append([
-                a.timestamp.strftime("%Y-%m-%d %H:%M"),
-                a.device_name or "-",
-                a.level,
-                a.message[:30]
+                a['timestamp'].strftime("%Y-%m-%d %H:%M"),
+                a.get('deviceName') or "-",
+                a['level'],
+                a['message'][:30]
             ])
         
         t3 = Table(alarm_data)

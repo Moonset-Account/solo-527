@@ -109,9 +109,9 @@ export interface FilterContext {
 }
 
 export interface WeekCompareData {
-  exam_week: { time: string; value: number }[];
-  normal_week: { time: string; value: number }[];
-  exam_total: number;
-  normal_total: number;
-  difference_percent: number;
+  examWeek: { time: string; value: number }[];
+  normalWeek: { time: string; value: number }[];
+  examTotal: number;
+  normalTotal: number;
+  differencePercent: number;
 }

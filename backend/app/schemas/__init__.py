@@ -155,5 +155,7 @@ class AnomalyCommentRequest(BaseSchema):
 class ExportPDFRequest(BaseSchema):
     start_time: datetime
     end_time: datetime
-    room_ids: Optional[List[str]] = None
+    room_ids: Optional[str] = None
+    include_maintenance: bool = False
+    week_type: Optional[str] = None
     include_charts: bool = True

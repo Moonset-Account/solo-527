@@ -1,19 +1,42 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, between
+from sqlalchemy import func, and_, between, text
 from datetime import datetime, timedelta
 from typing import Optional, List
 from app.models import Room, Device, EnergyData, Alarm, Workorder, Schedule, Anomaly, ACStrategy, WorkorderAlarm
 from app import schemas
 
 
+def _filter_week_type(query, week_type: Optional[str], table_alias: str = "energy_data"):
+    if week_type and week_type != "all":
+        if week_type == "exam":
+            query = query.filter(
+                text(f"CAST(strftime('%d', {table_alias}.timestamp) AS INTEGER) BETWEEN 15 AND 21")
+            )
+        elif week_type == "normal":
+            query = query.filter(
+                text(f"NOT CAST(strftime('%d', {table_alias}.timestamp) AS INTEGER) BETWEEN 15 AND 21")
+            )
+    return query
+
+
 class EnergyService:
     def __init__(self, db: Session):
         self.db = db
     
-    def get_overview_metrics(self, room_ids: Optional[List[str]] = None):
-        query = self.db.query(EnergyData)
+    def _exclude_offline_devices(self, query, include_offline=False):
+        if not include_offline:
+            return query.filter(Device.status.in_(["online", "maintenance"]))
+        return query
+
+    def _filter_by_week_type(self, query, week_type: Optional[str] = None, time_col=None):
+        return _filter_week_type(query, week_type, "energy_data")
+    
+    def get_overview_metrics(self, room_ids: Optional[List[str]] = None, week_type: Optional[str] = None):
+        query = self.db.query(EnergyData).join(Device)
         if room_ids:
-            query = query.join(Device).filter(Device.room_id.in_(room_ids))
+            query = query.filter(Device.room_id.in_(room_ids))
+        query = self._exclude_offline_devices(query, include_offline=False)
+        query = self._filter_by_week_type(query, week_type)
         
         end_time = datetime.now()
         start_time_today = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -63,14 +86,14 @@ class EnergyService:
         
         pue = (energy_today / total_it_energy) if total_it_energy > 0 else 1.35
         
-        return schemas.OverviewMetrics(
-            totalEnergy=round(energy_today, 2),
-            pue=round(pue, 2),
-            onlineDevices=online_devices,
-            pendingWorkorders=pending_wo,
-            energyTrend=trend_values,
-            comparedToYesterday=round(compared, 1)
-        )
+        return {
+            "totalEnergy": round(energy_today, 2),
+            "pue": round(pue, 2),
+            "onlineDevices": online_devices,
+            "pendingWorkorders": pending_wo,
+            "energyTrend": trend_values,
+            "comparedToYesterday": round(compared, 1)
+        }
     
     def get_energy_trend(
         self, 
@@ -78,7 +101,9 @@ class EnergyService:
         end_time: datetime,
         room_ids: Optional[List[str]] = None,
         categories: Optional[List[str]] = None,
-        include_maintenance: bool = False
+        include_maintenance: bool = False,
+        include_offline: bool = False,
+        week_type: Optional[str] = None
     ):
         query = self.db.query(EnergyData, Device).join(Device, EnergyData.device_id == Device.id)
         
@@ -88,6 +113,9 @@ class EnergyService:
             query = query.filter(EnergyData.category.in_(categories))
         if not include_maintenance:
             query = query.filter(Device.status != "maintenance")
+        if not include_offline:
+            query = query.filter(Device.status != "offline")
+        query = _filter_week_type(query, week_type, "energy_data")
             
         query = query.filter(
             between(EnergyData.timestamp, start_time, end_time)
@@ -98,13 +126,13 @@ class EnergyService:
         trend_data = []
         for ed, device in results:
             is_offline = device.status == "offline"
-            trend_data.append(schemas.EnergyTrendPoint(
-                timestamp=ed.timestamp,
-                value=ed.value if not is_offline else 0,
-                category=ed.category,
-                deviceId=device.id,
-                isOffline=is_offline
-            ))
+            trend_data.append({
+                "timestamp": ed.timestamp,
+                "value": ed.value,
+                "category": ed.category,
+                "deviceId": device.id,
+                "isOffline": is_offline
+            })
         
         return trend_data
     
@@ -112,22 +140,28 @@ class EnergyService:
         self,
         start_time: datetime,
         end_time: datetime,
-        room_ids: Optional[List[str]] = None
+        room_ids: Optional[List[str]] = None,
+        include_maintenance: bool = False,
+        week_type: Optional[str] = None
     ):
         query = self.db.query(
             EnergyData.category,
             func.sum(EnergyData.value).label("total")
         ).join(Device).filter(
-            between(EnergyData.timestamp, start_time, end_time)
+            between(EnergyData.timestamp, start_time, end_time),
+            Device.status != "offline"
         )
         
         if room_ids:
             query = query.filter(Device.room_id.in_(room_ids))
+        if not include_maintenance:
+            query = query.filter(Device.status != "maintenance")
+        query = _filter_week_type(query, week_type, "energy_data")
             
         query = query.group_by(EnergyData.category)
         results = query.all()
         
-        total = sum(r.total for r in results) if results else 1
+        total = sum(r.total for r in results if r[0] != "total") if results else 1
         breakdown = []
         category_names = {
             "total": "总能耗",
@@ -138,11 +172,11 @@ class EnergyService:
         
         for category, value in results:
             if category != "total":
-                breakdown.append(schemas.EnergyBreakdownItem(
-                    category=category_names.get(category, category),
-                    value=round(value, 2),
-                    percentage=round(value / total * 100, 1) if total > 0 else 0
-                ))
+                breakdown.append({
+                    "category": category_names.get(category, category),
+                    "value": round(value, 2),
+                    "percentage": round(value / total * 100, 1) if total > 0 else 0
+                })
         
         return breakdown
     
@@ -150,30 +184,38 @@ class EnergyService:
         self,
         exam_week_start: datetime,
         normal_week_start: datetime,
-        room_ids: Optional[List[str]] = None
+        room_ids: Optional[List[str]] = None,
+        include_maintenance: bool = False
     ):
-        def get_week_data(start: datetime):
+        def get_week_data(start: datetime, label_week_type: str):
             end = start + timedelta(days=7)
-            data = self.get_energy_trend(start, end, room_ids=room_ids, categories=["total"])
+            data = self.get_energy_trend(
+                start, end, 
+                room_ids=room_ids, 
+                categories=["total"],
+                include_maintenance=include_maintenance,
+                week_type=label_week_type
+            )
             hourly = {}
             for point in data:
-                hour_key = point.timestamp.strftime("%Y-%m-%d %H:00")
-                hourly[hour_key] = hourly.get(hour_key, 0) + point.value
+                ts = point["timestamp"]
+                hour_key = ts.strftime("%Y-%m-%d %H:00")
+                hourly[hour_key] = hourly.get(hour_key, 0) + point["value"]
             return [{"time": k, "value": round(v, 2)} for k, v in sorted(hourly.items())]
         
-        exam_data = get_week_data(exam_week_start)
-        normal_data = get_week_data(normal_week_start)
+        exam_data = get_week_data(exam_week_start, "exam")
+        normal_data = get_week_data(normal_week_start, "normal")
         
         exam_total = sum(d["value"] for d in exam_data)
         normal_total = sum(d["value"] for d in normal_data)
         diff_pct = ((exam_total - normal_total) / normal_total * 100) if normal_total > 0 else 0
         
         return {
-            "exam_week": exam_data,
-            "normal_week": normal_data,
-            "exam_total": round(exam_total, 2),
-            "normal_total": round(normal_total, 2),
-            "difference_percent": round(diff_pct, 1)
+            "examWeek": exam_data,
+            "normalWeek": normal_data,
+            "examTotal": round(exam_total, 2),
+            "normalTotal": round(normal_total, 2),
+            "differencePercent": round(diff_pct, 1)
         }
 
 
@@ -186,9 +228,14 @@ class AnomalyService:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         severity: Optional[str] = None,
-        room_ids: Optional[List[str]] = None
+        room_ids: Optional[List[str]] = None,
+        week_type: Optional[str] = None
     ):
-        query = self.db.query(Anomaly).order_by(Anomaly.timestamp.desc())
+        query = self.db.query(Anomaly).join(
+            EnergyData, Anomaly.energy_data_id == EnergyData.id
+        ).join(
+            Device, EnergyData.device_id == Device.id
+        ).order_by(Anomaly.timestamp.desc())
         
         if start_time:
             query = query.filter(Anomaly.timestamp >= start_time)
@@ -196,8 +243,24 @@ class AnomalyService:
             query = query.filter(Anomaly.timestamp <= end_time)
         if severity:
             query = query.filter(Anomaly.severity == severity)
+        if room_ids:
+            query = query.filter(Device.room_id.in_(room_ids))
+        query = _filter_week_type(query, week_type, "anomalies")
             
-        return query.limit(100).all()
+        anomalies = query.limit(100).all()
+        return [
+            {
+                "id": a.id,
+                "energyDataId": a.energy_data_id,
+                "timestamp": a.timestamp,
+                "value": a.value,
+                "expectedValue": a.expected_value,
+                "deviation": a.deviation,
+                "severity": a.severity,
+                "comment": a.comment
+            }
+            for a in anomalies
+        ]
     
     def get_anomaly_detail(self, anomaly_id: str):
         anomaly = self.db.query(Anomaly).filter(Anomaly.id == anomaly_id).first()
@@ -262,56 +325,70 @@ class AnomalyService:
         if not possible_causes:
             possible_causes.append("暂无明确关联因素，建议人工核查")
         
-        alarm_schemas = []
+        alarm_list = []
         for alarm in related_alarms:
             dev = self.db.query(Device).filter(Device.id == alarm.device_id).first()
-            alarm_schemas.append(schemas.Alarm(
-                id=alarm.id,
-                device_id=alarm.device_id,
-                device_name=dev.name if dev else None,
-                level=alarm.level,
-                message=alarm.message,
-                timestamp=alarm.timestamp,
-                status=alarm.status,
-                created_at=alarm.created_at
-            ))
+            alarm_list.append({
+                "id": alarm.id,
+                "deviceId": alarm.device_id,
+                "deviceName": dev.name if dev else None,
+                "level": alarm.level,
+                "message": alarm.message,
+                "timestamp": alarm.timestamp,
+                "status": alarm.status,
+                "createdAt": alarm.created_at
+            })
         
-        wo_schemas = []
+        wo_list = []
         for wo in related_workorders:
             wo_alm = self.db.query(WorkorderAlarm).filter(
                 WorkorderAlarm.workorder_id == wo.id
             ).all()
-            wo_schemas.append(schemas.Workorder(
-                id=wo.id,
-                title=wo.title,
-                description=wo.description,
-                status=wo.status,
-                priority=wo.priority,
-                created_at=wo.created_at,
-                assignee=wo.assignee,
-                related_alarm_ids=[wa.alarm_id for wa in wo_alm]
-            ))
+            wo_list.append({
+                "id": wo.id,
+                "title": wo.title,
+                "description": wo.description,
+                "status": wo.status,
+                "priority": wo.priority,
+                "createdAt": wo.created_at,
+                "assignee": wo.assignee,
+                "relatedAlarmIds": [wa.alarm_id for wa in wo_alm]
+            })
         
-        return schemas.AnomalyDetail(
-            id=anomaly.id,
-            energy_data_id=anomaly.energy_data_id,
-            timestamp=anomaly.timestamp,
-            value=anomaly.value,
-            expected_value=anomaly.expected_value,
-            deviation=anomaly.deviation,
-            severity=anomaly.severity,
-            comment=anomaly.comment,
-            possible_causes=possible_causes,
-            related_schedule=[schemas.Schedule.model_validate(s) for s in related_schedules],
-            related_alarms=alarm_schemas,
-            related_workorders=wo_schemas,
-            ac_strategy={
-                "target_temp": ac_strategy.target_temp,
+        schedule_list = [
+            {
+                "id": s.id,
+                "roomId": s.room_id,
+                "courseName": s.course_name,
+                "startTime": s.start_time,
+                "endTime": s.end_time,
+                "studentCount": s.student_count,
+                "weekType": s.week_type,
+                "createdAt": s.created_at
+            }
+            for s in related_schedules
+        ]
+        
+        return {
+            "id": anomaly.id,
+            "energyDataId": anomaly.energy_data_id,
+            "timestamp": anomaly.timestamp,
+            "value": anomaly.value,
+            "expectedValue": anomaly.expected_value,
+            "deviation": anomaly.deviation,
+            "severity": anomaly.severity,
+            "comment": anomaly.comment,
+            "possibleCauses": possible_causes,
+            "relatedSchedule": schedule_list,
+            "relatedAlarms": alarm_list,
+            "relatedWorkorders": wo_list,
+            "acStrategy": {
+                "targetTemp": ac_strategy.target_temp,
                 "mode": ac_strategy.mode,
-                "fan_speed": ac_strategy.fan_speed
+                "fanSpeed": ac_strategy.fan_speed
             } if ac_strategy else None,
-            created_at=anomaly.created_at
-        )
+            "createdAt": anomaly.created_at
+        }
     
     def add_comment(self, anomaly_id: str, comment: str):
         anomaly = self.db.query(Anomaly).filter(Anomaly.id == anomaly_id).first()
@@ -330,35 +407,39 @@ class AlarmWorkorderService:
         self,
         status: Optional[str] = None,
         level: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
+        room_ids: Optional[List[str]] = None
     ):
         query = self.db.query(Alarm).order_by(Alarm.timestamp.desc())
         if status:
             query = query.filter(Alarm.status == status)
         if level:
             query = query.filter(Alarm.level == level)
+        if room_ids:
+            query = query.join(Device).filter(Device.room_id.in_(room_ids))
         
         alarms = query.limit(limit).all()
         result = []
         for alarm in alarms:
             device = self.db.query(Device).filter(Device.id == alarm.device_id).first()
-            result.append(schemas.Alarm(
-                id=alarm.id,
-                device_id=alarm.device_id,
-                device_name=device.name if device else None,
-                level=alarm.level,
-                message=alarm.message,
-                timestamp=alarm.timestamp,
-                status=alarm.status,
-                created_at=alarm.created_at
-            ))
+            result.append({
+                "id": alarm.id,
+                "deviceId": alarm.device_id,
+                "deviceName": device.name if device else None,
+                "level": alarm.level,
+                "message": alarm.message,
+                "timestamp": alarm.timestamp,
+                "status": alarm.status,
+                "createdAt": alarm.created_at
+            })
         return result
     
     def get_workorders(
         self,
         status: Optional[str] = None,
         priority: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
+        room_ids: Optional[List[str]] = None
     ):
         query = self.db.query(Workorder).order_by(Workorder.created_at.desc())
         if status:
@@ -372,16 +453,16 @@ class AlarmWorkorderService:
             wo_alm = self.db.query(WorkorderAlarm).filter(
                 WorkorderAlarm.workorder_id == wo.id
             ).all()
-            result.append(schemas.Workorder(
-                id=wo.id,
-                title=wo.title,
-                description=wo.description,
-                status=wo.status,
-                priority=wo.priority,
-                created_at=wo.created_at,
-                assignee=wo.assignee,
-                related_alarm_ids=[wa.alarm_id for wa in wo_alm]
-            ))
+            result.append({
+                "id": wo.id,
+                "title": wo.title,
+                "description": wo.description,
+                "status": wo.status,
+                "priority": wo.priority,
+                "createdAt": wo.created_at,
+                "assignee": wo.assignee,
+                "relatedAlarmIds": [wa.alarm_id for wa in wo_alm]
+            })
         return result
     
     def get_device_status(self, room_ids: Optional[List[str]] = None):
@@ -390,7 +471,18 @@ class AlarmWorkorderService:
             query = query.filter(Device.room_id.in_(room_ids))
         
         devices = query.all()
-        return [schemas.Device.model_validate(d) for d in devices]
+        return [
+            {
+                "id": d.id,
+                "name": d.name,
+                "type": d.type,
+                "roomId": d.room_id,
+                "status": d.status,
+                "lastSeen": d.last_seen,
+                "createdAt": d.created_at
+            }
+            for d in devices
+        ]
 
 
 class FilterService:
@@ -399,11 +491,20 @@ class FilterService:
     
     def get_filter_options(self):
         rooms = self.db.query(Room).all()
-        return schemas.FilterOptions(
-            rooms=[schemas.Room.model_validate(r) for r in rooms],
-            weekTypes=["all", "normal", "exam"],
-            deviceTypes=["meter", "ac", "server", "ups"]
-        )
+        return {
+            "rooms": [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "building": r.building,
+                    "capacity": r.capacity,
+                    "createdAt": r.created_at
+                }
+                for r in rooms
+            ],
+            "weekTypes": ["all", "normal", "exam"],
+            "deviceTypes": ["meter", "ac", "server", "ups"]
+        }
     
     def get_schedules(
         self,
@@ -423,4 +524,17 @@ class FilterService:
         if week_type and week_type != "all":
             query = query.filter(Schedule.week_type == week_type)
         
-        return [schemas.Schedule.model_validate(s) for s in query.all()]
+        schedules = query.all()
+        return [
+            {
+                "id": s.id,
+                "roomId": s.room_id,
+                "courseName": s.course_name,
+                "startTime": s.start_time,
+                "endTime": s.end_time,
+                "studentCount": s.student_count,
+                "weekType": s.week_type,
+                "createdAt": s.created_at
+            }
+            for s in schedules
+        ]

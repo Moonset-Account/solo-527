@@ -13,7 +13,7 @@ import { AlertTriangle, Clock, ChevronRight } from 'lucide-react';
 export default function EnergyAnalysis() {
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
   const [anomalies, setAnomalies] = useState<AnomalyPoint[]>([]);
-  const { timeRange, roomIds } = useFilterStore();
+  const { timeRange, roomIds, weekType } = useFilterStore();
 
   const fetchAnomalies = useCallback(async () => {
     try {
@@ -21,12 +21,13 @@ export default function EnergyAnalysis() {
         startTime: timeRange.start,
         endTime: timeRange.end,
         roomIds: roomIds.length > 0 ? roomIds : undefined,
+        weekType: weekType !== 'all' ? weekType : undefined,
       });
       setAnomalies(data as AnomalyPoint[]);
     } catch (error) {
       console.error('Failed to fetch anomalies:', error);
     }
-  }, [timeRange, roomIds]);
+  }, [timeRange, roomIds, weekType]);
 
   useEffect(() => {
     fetchAnomalies();

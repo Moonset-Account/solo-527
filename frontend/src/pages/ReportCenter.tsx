@@ -24,7 +24,7 @@ export default function ReportCenter() {
   const [customEnd, setCustomEnd] = useState(dayjs().format('YYYY-MM-DD'));
   const [exporting, setExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
-  const { roomIds } = useFilterStore();
+  const { roomIds, includeMaintenance, weekType } = useFilterStore();
 
   const handleExport = async () => {
     setExporting(true);
@@ -56,6 +56,8 @@ export default function ReportCenter() {
         startTime,
         endTime,
         roomIds: roomIds.length > 0 ? roomIds : undefined,
+        includeMaintenance,
+        weekType: weekType !== 'all' ? weekType : undefined,
         includeCharts: true,
       });
 

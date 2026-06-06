@@ -16,19 +16,20 @@ import html2canvas from 'html2canvas';
 export default function Dashboard() {
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
-  const { roomIds } = useFilterStore();
+  const { roomIds, weekType } = useFilterStore();
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   const fetchMetrics = useCallback(async () => {
     try {
       const data = await apiService.getOverview(
-        roomIds.length > 0 ? roomIds : undefined
+        roomIds.length > 0 ? roomIds : undefined,
+        weekType !== 'all' ? weekType : undefined
       );
       setMetrics(data);
     } catch (error) {
       console.error('Failed to fetch metrics:', error);
     }
-  }, [roomIds]);
+  }, [roomIds, weekType]);
 
   useEffect(() => {
     fetchMetrics();
