@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: kiln-platform
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ceramic_kiln
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+server:
+  port: 8080
+
+jwt:
+  secret: ceramic-kiln-platform-secret-key-2024-very-long-secret-for-jwt-token
+  expiration: 86400000
+
+logging:
+  level:
+    com.ceramic.kiln: DEBUG
+    org.springframework.security: INFO
