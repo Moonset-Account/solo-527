@@ -6,7 +6,8 @@ interface StatCardProps {
   value: number | string;
   icon: LucideIcon;
   trend?: { value: number; isPositive: boolean };
-  color?: 'teal' | 'blue' | 'amber' | 'red' | 'slate';
+  color?: 'teal' | 'blue' | 'amber' | 'red' | 'slate' | 'green';
+  formatValue?: (value: number | string) => string;
 }
 
 const colorClasses: Record<string, string> = {
@@ -15,11 +16,19 @@ const colorClasses: Record<string, string> = {
   amber: 'bg-amber-50 text-amber-600',
   red: 'bg-red-50 text-red-600',
   slate: 'bg-slate-50 text-slate-600',
+  green: 'bg-green-50 text-green-600',
 };
 
-export const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, trend, color = 'teal', formatValue }) => {
+export const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  color = 'teal',
+  formatValue,
+}) => {
   const displayValue = formatValue ? formatValue(value) : value;
-  
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">

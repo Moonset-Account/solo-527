@@ -52,9 +52,9 @@ export class QuoteController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: '更新报价' })
-  async update(@Param('id') id: string, @Body() dto: any) {
-    return this.quoteService.update(id, dto);
+  @ApiOperation({ summary: '更新报价（创建新版本）' })
+  async update(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: User) {
+    return this.quoteService.update(id, dto, user);
   }
 
   @Delete(':id')

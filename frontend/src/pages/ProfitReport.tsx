@@ -4,13 +4,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Layout } from '../components/Layout';
 import { StatCard } from '../components/StatCard';
 import { financeApi } from '../services/api';
-import { ProfitReport, MonthlyTrend } from '../types';
+import { ProfitReport as ProfitReportType, MonthlyTrend } from '../types';
 import { formatCurrency, formatPercent } from '../utils/format';
 
 const COLORS = ['#0d9488', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-export const ProfitReport: React.FC = () => {
-  const [report, setReport] = useState<ProfitReport | null>(null);
+export const ProfitReportPage: React.FC = () => {
+  const [report, setReport] = useState<ProfitReportType | null>(null);
   const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({

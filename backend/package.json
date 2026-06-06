@@ -10,7 +10,10 @@
     "migration:generate": "npm run typeorm -- migration:generate -d src/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/data-source.ts",
+    "migration:create": "npm run typeorm -- migration:create",
     "seed": "ts-node src/seed.ts",
+    "worker:notifications": "ts-node -r tsconfig-paths/register src/workers/notifications.worker.ts",
+    "worker:exports": "ts-node -r tsconfig-paths/register src/workers/exports.worker.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts"
   },

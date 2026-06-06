@@ -5,6 +5,7 @@ import { authApi } from '../services/api';
 interface AuthState {
   user: User | null;
   accessToken: string | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
@@ -12,9 +13,12 @@ interface AuthState {
   fetchProfile: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: JSON.parse(localStorage.getItem('user') || 'null'),
   accessToken: localStorage.getItem('access_token'),
+  get isAuthenticated() {
+    return !!get().accessToken && !!get().user;
+  },
   isLoading: false,
   error: null,
 

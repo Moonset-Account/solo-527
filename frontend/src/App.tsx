@@ -8,7 +8,7 @@ import { QuoteForm } from "@/pages/QuoteForm";
 import { QuoteDetail } from "@/pages/QuoteDetail";
 import { ContractList } from "@/pages/ContractList";
 import { SupplierList } from "@/pages/SupplierList";
-import { ProfitReport } from "@/pages/ProfitReport";
+import { ProfitReportPage } from "@/pages/ProfitReport";
 import { useAuthStore } from "@/stores/auth";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -109,7 +109,15 @@ export default function App() {
           path="/finance/profit"
           element={
             <ProtectedRoute>
-              <ProfitReport />
+              <ProfitReportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quotes/:id/compare"
+          element={
+            <ProtectedRoute>
+              <QuoteDetail />
             </ProtectedRoute>
           }
         />

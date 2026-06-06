@@ -8,6 +8,8 @@ import { SupplierModule } from './modules/supplier/supplier.module';
 import { ContractModule } from './modules/contract/contract.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { QueueModule } from './queues/queue.module';
+import { StorageModule } from './storage/storage.module';
 import { User } from './entities/user.entity';
 import { Demand } from './entities/demand.entity';
 import { Quote } from './entities/quote.entity';
@@ -31,6 +33,8 @@ import { PaymentNode } from './entities/payment-node.entity';
       synchronize: true,
       logging: false,
     }),
+    QueueModule,
+    StorageModule,
     AuthModule,
     DemandModule,
     QuoteModule,

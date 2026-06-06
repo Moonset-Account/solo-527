@@ -59,22 +59,37 @@ export class QuoteService {
     return quote;
   }
 
-  async getVersions(demandId: string) {
+  async getVersions(quoteId: string) {
+    const quote = await this.findOne(quoteId);
+    if (!quote.demandId) {
+      return [quote];
+    }
     return this.quoteRepository.find({
-      where: { demandId },
-      order: { version: 'DESC' },
+      where: { demandId: quote.demandId },
+      relations: ['items', 'paymentNodes'],
+      order: { version: 'DESC', createdAt: 'DESC' },
     });
   }
 
   async compareVersions(quoteId: string, version1: number, version2: number) {
+    const quote = await this.findOne(quoteId);
+    if (!quote.demandId) {
+      throw new BadRequestException('该报价没有关联需求，无法对比版本');
+    }
+
     const v1 = await this.quoteRepository.findOne({
-      where: { demandId: quoteId, version: version1 },
+      where: { demandId: quote.demandId, version: version1 },
       relations: ['items', 'paymentNodes'],
     });
     const v2 = await this.quoteRepository.findOne({
-      where: { demandId: quoteId, version: version2 },
+      where: { demandId: quote.demandId, version: version2 },
       relations: ['items', 'paymentNodes'],
     });
+
+    if (!v1 || !v2) {
+      throw new NotFoundException('指定的版本不存在');
+    }
+
     return { version1: v1, version2: v2 };
   }
 
@@ -140,45 +155,65 @@ export class QuoteService {
     return this.findOne(savedQuote.id);
   }
 
-  async update(id: string, dto: UpdateQuoteDto) {
-    const quote = await this.findOne(id);
+  async update(id: string, dto: UpdateQuoteDto, user: User) {
+    const existingQuote = await this.findOne(id);
 
-    if (dto.items) {
-      const { totalCost, totalPrice, profitMargin } = this.calculateTotals(dto.items);
-      const threshold = parseFloat(process.env.PROFIT_MARGIN_THRESHOLD || '15');
+    if (!dto.items && !dto.paymentNodes && !dto.status) {
+      return existingQuote;
+    }
 
-      quote.totalCost = totalCost;
-      quote.totalPrice = totalPrice;
-      quote.profitMargin = profitMargin;
-      quote.requiresManagerApproval = profitMargin < threshold;
+    if (dto.status && !dto.items && !dto.paymentNodes) {
+      existingQuote.status = dto.status as any;
+      return this.quoteRepository.save(existingQuote);
+    }
 
-      await this.quoteItemRepository.delete({ quoteId: id });
-      const quoteItems = dto.items.map((item) =>
-        this.quoteItemRepository.create({
-          ...item,
-          quoteId: id,
-        }),
-      );
+    const items = dto.items || existingQuote.items;
+    const paymentNodes = dto.paymentNodes || existingQuote.paymentNodes;
+
+    const { totalCost, totalPrice, profitMargin } = this.calculateTotals(items);
+    const threshold = parseFloat(process.env.PROFIT_MARGIN_THRESHOLD || '15');
+
+    const existingVersionCount = await this.quoteRepository.count({
+      where: { demandId: existingQuote.demandId },
+    });
+
+    const newQuote = this.quoteRepository.create({
+      demandId: existingQuote.demandId,
+      version: existingVersionCount + 1,
+      status: dto.status ? (dto.status as any) : 'draft',
+      totalCost,
+      totalPrice,
+      profitMargin,
+      requiresManagerApproval: profitMargin < threshold,
+      createdById: user.id,
+    });
+
+    const savedQuote = await this.quoteRepository.save(newQuote);
+
+    if (items.length > 0) {
+      const quoteItems = items.map((item) => {
+        const { id: _, ...itemData } = item;
+        return this.quoteItemRepository.create({
+          ...itemData,
+          quoteId: savedQuote.id,
+        });
+      });
       await this.quoteItemRepository.save(quoteItems);
     }
 
-    if (dto.paymentNodes) {
-      await this.paymentNodeRepository.delete({ quoteId: id });
-      const nodes = dto.paymentNodes.map((node) =>
-        this.paymentNodeRepository.create({
-          ...node,
-          quoteId: id,
-          amount: (Number(node.percentage) / 100) * quote.totalPrice,
-        }),
-      );
+    if (paymentNodes.length > 0) {
+      const nodes = paymentNodes.map((node) => {
+        const { id: _, ...nodeData } = node;
+        return this.paymentNodeRepository.create({
+          ...nodeData,
+          quoteId: savedQuote.id,
+          amount: (Number(nodeData.percentage) / 100) * totalPrice,
+        });
+      });
       await this.paymentNodeRepository.save(nodes);
     }
 
-    if (dto.status) {
-      quote.status = dto.status as any;
-    }
-
-    return this.quoteRepository.save(quote);
+    return this.findOne(savedQuote.id);
   }
 
   async submitForApproval(id: string, user: User) {
