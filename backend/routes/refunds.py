@@ -12,7 +12,7 @@ refunds_bp = Blueprint('refunds', __name__)
 @refunds_bp.route('', methods=['POST'])
 @jwt_required()
 def create_refund():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     order_id = data.get('order_id')
     order_item_id = data.get('order_item_id')
@@ -74,7 +74,7 @@ def list_refunds():
 @refunds_bp.route('/my', methods=['GET'])
 @jwt_required()
 def my_refunds():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
     query = Refund.query.filter_by(user_id=user_id)
@@ -105,7 +105,7 @@ def approve_refund(refund_id):
     remark = data.get('remark')
     
     refund.status = 'approved'
-    refund.approved_by = get_jwt_identity()
+    refund.approved_by = int(get_jwt_identity())
     refund.approved_at = datetime.now()
     if remark:
         refund.remark = remark
@@ -128,7 +128,7 @@ def reject_refund(refund_id):
     remark = data.get('remark')
     
     refund.status = 'rejected'
-    refund.approved_by = get_jwt_identity()
+    refund.approved_by = int(get_jwt_identity())
     refund.approved_at = datetime.now()
     if remark:
         refund.remark = remark

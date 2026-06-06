@@ -40,7 +40,7 @@ def create_shortage():
         product_name=order_item.product_name,
         shortage_quantity=float(shortage_quantity),
         remark=remark,
-        handled_by=get_jwt_identity()
+        handled_by=int(get_jwt_identity())
     )
     
     db.session.add(shortage)
@@ -76,7 +76,7 @@ def list_shortages():
 @shortages_bp.route('/my', methods=['GET'])
 @jwt_required()
 def my_shortages():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
     query = ShortageItem.query.join(Order).filter(Order.user_id == user_id)

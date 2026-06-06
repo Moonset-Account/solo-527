@@ -171,7 +171,7 @@ def pack_bag(bag_id):
         raise APIError('分拣袋为空，无法打包', 400)
     
     bag.status = 'packed'
-    bag.packed_by = get_jwt_identity()
+    bag.packed_by = int(get_jwt_identity())
     bag.packed_at = datetime.now()
     
     if 'remark' in request.get_json(silent=True) or {}:

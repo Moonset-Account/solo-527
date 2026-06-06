@@ -23,7 +23,7 @@ def success_response(data=None, message='操作成功', code=200):
     response = {'code': code, 'message': message}
     if data is not None:
         response['data'] = data
-    return jsonify(response)
+    return response
 
 def error_response(message='操作失败', code=400, data=None):
     response = {'code': code, 'message': message}

@@ -19,7 +19,7 @@ def login():
     if not user or not user.check_password(password):
         raise APIError('手机号或密码错误', 401)
     
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     return jsonify(success_response({
         'token': access_token,
         'user': user.to_dict()
@@ -56,7 +56,7 @@ def register():
     db.session.add(user)
     db.session.commit()
     
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     return jsonify(success_response({
         'token': access_token,
         'user': user.to_dict()
@@ -65,7 +65,7 @@ def register():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     if not user:
         raise APIError('用户不存在', 404)

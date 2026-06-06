@@ -12,7 +12,7 @@ orders_bp = Blueprint('orders', __name__)
 @orders_bp.route('', methods=['POST'])
 @jwt_required()
 def create_order():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     items = data.get('items', [])
     building_id = data.get('building_id')
@@ -71,7 +71,7 @@ def create_order():
 @orders_bp.route('/my', methods=['GET'])
 @jwt_required()
 def my_orders():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
     query = Order.query.filter_by(user_id=user_id)

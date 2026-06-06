@@ -8,7 +8,7 @@ def role_required(*roles):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()
-            user_id = get_jwt_identity()
+            user_id = int(get_jwt_identity())
             user = User.query.get(user_id)
             if not user:
                 return jsonify({'code': 401, 'message': '用户不存在'}), 401
@@ -25,7 +25,7 @@ def internal_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
         if not user:
             return jsonify({'code': 401, 'message': '用户不存在'}), 401
@@ -37,7 +37,7 @@ def internal_required(fn):
 def get_current_user():
     try:
         verify_jwt_in_request()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         return User.query.get(user_id)
     except Exception:
         return None

@@ -80,7 +80,7 @@ def confirm_pickup():
     record = PickupRecord(
         order_id=order_id,
         user_id=order.user_id,
-        picked_by=get_jwt_identity(),
+        picked_by=int(get_jwt_identity()),
         pickup_code=pickup_code,
         remark=remark
     )

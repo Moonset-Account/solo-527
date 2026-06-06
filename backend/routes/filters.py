@@ -10,7 +10,7 @@ filters_bp = Blueprint('filters', __name__)
 @filters_bp.route('', methods=['GET'])
 @jwt_required()
 def list_filters():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     page_name = request.args.get('page_name')
     
     query = SavedFilter.query.filter_by(user_id=user_id)
@@ -24,7 +24,7 @@ def list_filters():
 @filters_bp.route('', methods=['POST'])
 @jwt_required()
 def save_filter():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     page_name = data.get('page_name')
     filter_name = data.get('filter_name')
@@ -57,7 +57,7 @@ def save_filter():
 @filters_bp.route('/<int:filter_id>', methods=['PUT'])
 @jwt_required()
 def update_filter(filter_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     saved_filter = SavedFilter.query.get(filter_id)
     
     if not saved_filter or saved_filter.user_id != user_id:
@@ -85,7 +85,7 @@ def update_filter(filter_id):
 @filters_bp.route('/<int:filter_id>', methods=['DELETE'])
 @jwt_required()
 def delete_filter(filter_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     saved_filter = SavedFilter.query.get(filter_id)
     
     if not saved_filter or saved_filter.user_id != user_id:
