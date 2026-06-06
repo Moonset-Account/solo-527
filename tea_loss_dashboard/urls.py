@@ -8,10 +8,12 @@ from analytics.views import (
     LossDetailViewSet, 
     upload_data, 
     import_tasks, 
+    import_template,
     caliber_config,
     generate_report,
     report_tasks,
-    export_loss_details
+    export_loss_details,
+    trigger_aggregation
 )
 
 router = DefaultRouter()
@@ -25,10 +27,12 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('api/v1/import/upload/', upload_data, name='import_upload'),
     path('api/v1/import/tasks/', import_tasks, name='import_tasks'),
+    path('api/v1/import/template/', import_template, name='import_template'),
     path('api/v1/config/caliber/', caliber_config, name='caliber_config'),
     path('api/v1/reports/generate/', generate_report, name='generate_report'),
     path('api/v1/reports/tasks/', report_tasks, name='report_tasks'),
     path('api/v1/reports/export-details/', export_loss_details, name='export_details'),
+    path('api/v1/analytics/aggregate/', trigger_aggregation, name='trigger_aggregation'),
 ]
 
 if settings.DEBUG:
