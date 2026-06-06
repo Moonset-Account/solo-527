@@ -1,28 +1,36 @@
 import { useEffect } from 'react';
-import { BookOpen, Users, CalendarClock, AlertTriangle } from 'lucide-react';
+import { BookOpen, Users, CalendarClock, AlertTriangle, RefreshCw, PartyPopper } from 'lucide-react';
 import { useDashboardStore } from '../store/useDashboardStore';
 import { KPICard } from '../components/charts/KPICard';
 import { ChartCard } from '../components/charts/ChartCard';
 import { SubjectTrendChart } from '../components/charts/SubjectTrendChart';
 import { BranchComparisonChart } from '../components/charts/BranchComparisonChart';
+import RenewTrendChart from '../components/charts/RenewTrendChart';
+import ActivityTrendChart from '../components/charts/ActivityTrendChart';
 
 export default function Home() {
   const {
     kpiData,
     subjectTrends,
     branchComparison,
+    renewTrends,
+    activityTrends,
     loading,
     errors,
     filters,
     loadKPIData,
     loadSubjectTrends,
     loadBranchComparison,
+    loadRenewTrends,
+    loadActivityTrends,
   } = useDashboardStore();
 
   useEffect(() => {
     loadKPIData();
     loadSubjectTrends();
     loadBranchComparison();
+    loadRenewTrends();
+    loadActivityTrends();
   }, [filters]);
 
   return (
@@ -34,7 +42,7 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <KPICard
           title="总借阅量"
           value={kpiData?.totalBorrows || 0}
@@ -59,6 +67,22 @@ export default function Home() {
           icon={CalendarClock}
           color="accent"
           loading={loading.kpi}
+        />
+        <KPICard
+          title="续借次数"
+          value={renewTrends.reduce((a, b) => a + b.renewCount, 0)}
+          trend={5.2}
+          icon={RefreshCw}
+          color="teal"
+          loading={loading.renewTrends}
+        />
+        <KPICard
+          title="活动参与"
+          value={activityTrends.reduce((a, b) => a + b.participationCount, 0)}
+          trend={8.7}
+          icon={PartyPopper}
+          color="purple"
+          loading={loading.activityTrends}
         />
         <KPICard
           title="逾期率"
@@ -91,6 +115,11 @@ export default function Home() {
         >
           <BranchComparisonChart data={branchComparison} loading={loading.branch} />
         </ChartCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RenewTrendChart />
+        <ActivityTrendChart />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

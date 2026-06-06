@@ -139,6 +139,33 @@ export interface SavedFilter {
   createdAt: string;
 }
 
+export interface RenewTrend {
+  date: string;
+  renewCount: number;
+  borrowCount: number;
+  renewRate: number;
+}
+
+export interface RenewByBranch {
+  branch: string;
+  totalRenews: number;
+  renewRate: number;
+  avgRenewsPerBook: number;
+}
+
+export interface ActivityParticipationTrend {
+  date: string;
+  participationCount: number;
+  activityCount: number;
+}
+
+export interface ActivityByType {
+  type: string;
+  participationCount: number;
+  activityCount: number;
+  uniqueReaders: number;
+}
+
 export interface RawRecordWithValidation {
   record: BorrowRecord;
   isValid: boolean;

@@ -6,7 +6,7 @@ interface KPICardProps {
   suffix?: string;
   trend?: number;
   icon: LucideIcon;
-  color: 'primary' | 'accent' | 'success' | 'danger';
+  color: 'primary' | 'accent' | 'success' | 'danger' | 'teal' | 'purple';
   loading?: boolean;
 }
 
@@ -16,6 +16,8 @@ export function KPICard({ title, value, suffix, trend, icon: Icon, color, loadin
     accent: 'bg-accent-50 text-accent-600',
     success: 'bg-success-50 text-success-600',
     danger: 'bg-danger-50 text-danger-600',
+    teal: 'bg-teal-50 text-teal-600',
+    purple: 'bg-purple-50 text-purple-600',
   };
 
   const trendColor = (trend ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600';

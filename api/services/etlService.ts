@@ -12,6 +12,10 @@ import type {
   WaitTimeDistribution,
   BorrowRecord,
   Reservation,
+  RenewTrend,
+  RenewByBranch,
+  ActivityParticipationTrend,
+  ActivityByType,
 } from '../../shared/types.js';
 
 function getCacheKey(prefix: string, filters: FilterParams): string {
@@ -168,11 +172,26 @@ export class ETLService {
     const cached = cacheService.get<ReservationAnalysis>(cacheKey);
     if (cached) return cached;
 
-    const { reservations, books } = dataRepository.getDataset();
+    const { reservations, books, readers } = dataRepository.getDataset();
     const bookMap = new Map(books.map(b => [b.id, b]));
+    const readerMap = new Map(readers.map(r => [r.id, r]));
 
     const filteredReservations = reservations.filter(r => {
       if (filters.branches.length > 0 && !filters.branches.includes(r.branch)) return false;
+      
+      const book = bookMap.get(r.bookId);
+      if (filters.collections.length > 0 && book && !filters.collections.includes(book.collection)) return false;
+      if (filters.subjects.length > 0 && book && !filters.subjects.includes(book.subject)) return false;
+      
+      const reader = readerMap.get(r.readerId);
+      if (filters.readerGroups.length > 0 && reader && !filters.readerGroups.includes(reader.readerGroup)) return false;
+      
+      if (filters.months.length > 0) {
+        const date = new Date(r.reserveDate);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!filters.months.includes(monthKey)) return false;
+      }
+      
       if (filters.timeWindow !== 'all') {
         const daysMap: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
         const cutoff = new Date();
@@ -304,8 +323,203 @@ export class ETLService {
     };
   }
 
-  public async getRawRecords(filters: FilterParams, limit = 100): Promise<BorrowRecord[]> {
+  public async getRenewTrends(filters: FilterParams): Promise<RenewTrend[]> {
+    const cacheKey = getCacheKey('renew-trends', filters);
+    const cached = cacheService.get<RenewTrend[]>(cacheKey);
+    if (cached) return cached;
+
     const records = dataRepository.filterBorrowRecords(filters);
+
+    const dateGroups = new Map<string, { borrows: number; renews: number }>();
+
+    records.forEach(record => {
+      const date = record.borrowDate.substring(0, 7);
+      if (!dateGroups.has(date)) {
+        dateGroups.set(date, { borrows: 0, renews: 0 });
+      }
+      const group = dateGroups.get(date)!;
+      group.borrows++;
+      group.renews += record.renewCount;
+    });
+
+    const result: RenewTrend[] = Array.from(dateGroups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, group]) => ({
+        date,
+        renewCount: group.renews,
+        borrowCount: group.borrows,
+        renewRate: group.borrows > 0 ? Math.round((group.renews / group.borrows) * 100) / 100 : 0,
+      }));
+
+    cacheService.set(cacheKey, result);
+    return result;
+  }
+
+  public async getRenewByBranch(filters: FilterParams): Promise<RenewByBranch[]> {
+    const cacheKey = getCacheKey('renew-branch', filters);
+    const cached = cacheService.get<RenewByBranch[]>(cacheKey);
+    if (cached) return cached;
+
+    const records = dataRepository.filterBorrowRecords(filters);
+
+    const branchStats = new Map<string, { totalBorrows: number; totalRenews: number; booksWithRenew: Set<string> }>();
+
+    records.forEach(record => {
+      if (!branchStats.has(record.branch)) {
+        branchStats.set(record.branch, { totalBorrows: 0, totalRenews: 0, booksWithRenew: new Set() });
+      }
+      const stats = branchStats.get(record.branch)!;
+      stats.totalBorrows++;
+      stats.totalRenews += record.renewCount;
+      if (record.renewCount > 0) {
+        stats.booksWithRenew.add(record.bookId);
+      }
+    });
+
+    const result: RenewByBranch[] = Array.from(branchStats.entries()).map(([branch, stats]) => ({
+      branch,
+      totalRenews: stats.totalRenews,
+      renewRate: stats.totalBorrows > 0 ? Math.round((stats.totalRenews / stats.totalBorrows) * 100) / 100 : 0,
+      avgRenewsPerBook: stats.booksWithRenew.size > 0 ? Math.round((stats.totalRenews / stats.booksWithRenew.size) * 10) / 10 : 0,
+    }));
+
+    cacheService.set(cacheKey, result);
+    return result;
+  }
+
+  public async getActivityTrends(filters: FilterParams): Promise<ActivityParticipationTrend[]> {
+    const cacheKey = getCacheKey('activity-trends', filters);
+    const cached = cacheService.get<ActivityParticipationTrend[]>(cacheKey);
+    if (cached) return cached;
+
+    const { activities, activityParticipations, readers } = dataRepository.getDataset();
+    const readerMap = new Map(readers.map(r => [r.id, r]));
+    const activityMap = new Map(activities.map(a => [a.id, a]));
+
+    const filteredParticipations = activityParticipations.filter(p => {
+      const activity = activityMap.get(p.activityId);
+      const reader = readerMap.get(p.readerId);
+      if (!activity || !reader) return false;
+
+      if (filters.branches.length > 0 && !filters.branches.includes(activity.branch)) return false;
+      if (filters.readerGroups.length > 0 && !filters.readerGroups.includes(reader.readerGroup)) return false;
+      
+      if (filters.months.length > 0) {
+        const date = new Date(p.participatedAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!filters.months.includes(monthKey)) return false;
+      }
+
+      if (filters.timeWindow !== 'all') {
+        const daysMap: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - daysMap[filters.timeWindow]);
+        if (new Date(p.participatedAt) < cutoff) return false;
+      }
+
+      return true;
+    });
+
+    const dateGroups = new Map<string, { participations: number; activities: Set<string> }>();
+
+    filteredParticipations.forEach(p => {
+      const date = p.participatedAt.substring(0, 7);
+      if (!dateGroups.has(date)) {
+        dateGroups.set(date, { participations: 0, activities: new Set() });
+      }
+      const group = dateGroups.get(date)!;
+      group.participations++;
+      group.activities.add(p.activityId);
+    });
+
+    const result: ActivityParticipationTrend[] = Array.from(dateGroups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, group]) => ({
+        date,
+        participationCount: group.participations,
+        activityCount: group.activities.size,
+      }));
+
+    cacheService.set(cacheKey, result);
+    return result;
+  }
+
+  public async getActivityByType(filters: FilterParams): Promise<ActivityByType[]> {
+    const cacheKey = getCacheKey('activity-type', filters);
+    const cached = cacheService.get<ActivityByType[]>(cacheKey);
+    if (cached) return cached;
+
+    const { activities, activityParticipations, readers } = dataRepository.getDataset();
+    const readerMap = new Map(readers.map(r => [r.id, r]));
+    const activityMap = new Map(activities.map(a => [a.id, a]));
+
+    const filteredParticipations = activityParticipations.filter(p => {
+      const activity = activityMap.get(p.activityId);
+      const reader = readerMap.get(p.readerId);
+      if (!activity || !reader) return false;
+
+      if (filters.branches.length > 0 && !filters.branches.includes(activity.branch)) return false;
+      if (filters.readerGroups.length > 0 && !filters.readerGroups.includes(reader.readerGroup)) return false;
+      
+      if (filters.months.length > 0) {
+        const date = new Date(p.participatedAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!filters.months.includes(monthKey)) return false;
+      }
+
+      if (filters.timeWindow !== 'all') {
+        const daysMap: Record<string, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 };
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - daysMap[filters.timeWindow]);
+        if (new Date(p.participatedAt) < cutoff) return false;
+      }
+
+      return true;
+    });
+
+    const typeStats = new Map<string, { participations: number; activities: Set<string>; readers: Set<string> }>();
+
+    filteredParticipations.forEach(p => {
+      const activity = activityMap.get(p.activityId);
+      if (!activity) return;
+
+      if (!typeStats.has(activity.type)) {
+        typeStats.set(activity.type, { participations: 0, activities: new Set(), readers: new Set() });
+      }
+      const stats = typeStats.get(activity.type)!;
+      stats.participations++;
+      stats.activities.add(activity.id);
+      stats.readers.add(p.readerId);
+    });
+
+    const result: ActivityByType[] = Array.from(typeStats.entries()).map(([type, stats]) => ({
+      type,
+      participationCount: stats.participations,
+      activityCount: stats.activities.size,
+      uniqueReaders: stats.readers.size,
+    }));
+
+    cacheService.set(cacheKey, result);
+    return result;
+  }
+
+  public async getRawRecords(filters: FilterParams, limit = 100): Promise<BorrowRecord[]> {
+    const { readers } = dataRepository.getDataset();
+    const readerMap = new Map(readers.map(r => [r.id, r]));
+
+    const hasChildrenFilter = filters.readerGroups.some(g => 
+      g.includes('儿童') || g.includes('少儿') || g.includes('0-6') || g.includes('7-12')
+    );
+
+    let records = dataRepository.filterBorrowRecords(filters);
+
+    if (hasChildrenFilter) {
+      records = records.filter(record => {
+        const reader = readerMap.get(record.readerId);
+        return reader && !reader.isChildren;
+      });
+    }
+
     return records.slice(0, limit);
   }
 

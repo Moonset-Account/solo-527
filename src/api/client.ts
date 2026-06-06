@@ -9,6 +9,10 @@ import type {
   DataQualityStatus,
   SavedFilter,
   RawRecordWithValidation,
+  RenewTrend,
+  RenewByBranch,
+  ActivityParticipationTrend,
+  ActivityByType,
 } from '../../shared/types.js';
 
 const API_BASE = '/api/library';
@@ -79,4 +83,16 @@ export const apiClient = {
 
   deleteFilter: (id: string) =>
     request<{ message: string }>(`/filters/saved/${id}`, 'DELETE'),
+
+  getRenewTrends: (filters: FilterParams) =>
+    request<RenewTrend[]>('/renews/trends', 'POST', filters),
+
+  getRenewByBranch: (filters: FilterParams) =>
+    request<RenewByBranch[]>('/renews/by-branch', 'POST', filters),
+
+  getActivityTrends: (filters: FilterParams) =>
+    request<ActivityParticipationTrend[]>('/activities/trends', 'POST', filters),
+
+  getActivityByType: (filters: FilterParams) =>
+    request<ActivityByType[]>('/activities/by-type', 'POST', filters),
 };

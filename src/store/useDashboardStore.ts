@@ -11,6 +11,10 @@ import type {
   DataQualityStatus,
   SavedFilter,
   RawRecordWithValidation,
+  RenewTrend,
+  RenewByBranch,
+  ActivityParticipationTrend,
+  ActivityByType,
 } from '../../shared/types.js';
 import { apiClient } from '../api/client.js';
 
@@ -32,6 +36,10 @@ interface DashboardState {
   dataQualityStatus: DataQualityStatus | null;
   savedFilters: SavedFilter[];
   rawRecords: RawRecordWithValidation[];
+  renewTrends: RenewTrend[];
+  renewByBranch: RenewByBranch[];
+  activityTrends: ActivityParticipationTrend[];
+  activityByType: ActivityByType[];
   loading: Record<string, boolean>;
   errors: Record<string, string | null>;
   sidebarOpen: boolean;
@@ -49,6 +57,10 @@ interface DashboardState {
   loadDataQualityStatus: () => Promise<void>;
   loadSavedFilters: () => Promise<void>;
   loadRawRecords: (limit?: number) => Promise<void>;
+  loadRenewTrends: () => Promise<void>;
+  loadRenewByBranch: () => Promise<void>;
+  loadActivityTrends: () => Promise<void>;
+  loadActivityByType: () => Promise<void>;
   saveCurrentFilter: (name: string) => Promise<void>;
   applySavedFilter: (filter: SavedFilter) => void;
   deleteSavedFilter: (id: string) => Promise<void>;
@@ -83,6 +95,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   dataQualityStatus: null,
   savedFilters: [],
   rawRecords: [],
+  renewTrends: [],
+  renewByBranch: [],
+  activityTrends: [],
+  activityByType: [],
   loading: {},
   errors: {},
   sidebarOpen: true,
@@ -210,6 +226,54 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       set({ errors: { ...get().errors, rawRecords: (error as Error).message } });
     } finally {
       set({ loading: { ...get().loading, rawRecords: false } });
+    }
+  },
+
+  loadRenewTrends: async () => {
+    set({ loading: { ...get().loading, renewTrends: true } });
+    try {
+      const data = await apiClient.getRenewTrends(get().filters);
+      set({ renewTrends: data, errors: { ...get().errors, renewTrends: null } });
+    } catch (error) {
+      set({ errors: { ...get().errors, renewTrends: (error as Error).message } });
+    } finally {
+      set({ loading: { ...get().loading, renewTrends: false } });
+    }
+  },
+
+  loadRenewByBranch: async () => {
+    set({ loading: { ...get().loading, renewBranch: true } });
+    try {
+      const data = await apiClient.getRenewByBranch(get().filters);
+      set({ renewByBranch: data, errors: { ...get().errors, renewBranch: null } });
+    } catch (error) {
+      set({ errors: { ...get().errors, renewBranch: (error as Error).message } });
+    } finally {
+      set({ loading: { ...get().loading, renewBranch: false } });
+    }
+  },
+
+  loadActivityTrends: async () => {
+    set({ loading: { ...get().loading, activityTrends: true } });
+    try {
+      const data = await apiClient.getActivityTrends(get().filters);
+      set({ activityTrends: data, errors: { ...get().errors, activityTrends: null } });
+    } catch (error) {
+      set({ errors: { ...get().errors, activityTrends: (error as Error).message } });
+    } finally {
+      set({ loading: { ...get().loading, activityTrends: false } });
+    }
+  },
+
+  loadActivityByType: async () => {
+    set({ loading: { ...get().loading, activityType: true } });
+    try {
+      const data = await apiClient.getActivityByType(get().filters);
+      set({ activityByType: data, errors: { ...get().errors, activityType: null } });
+    } catch (error) {
+      set({ errors: { ...get().errors, activityType: (error as Error).message } });
+    } finally {
+      set({ loading: { ...get().loading, activityType: false } });
     }
   },
 

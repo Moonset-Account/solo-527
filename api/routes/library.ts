@@ -169,6 +169,46 @@ router.post('/filters/saved', async (req: Request, res: Response): Promise<void>
   }
 });
 
+router.post('/renews/trends', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filters = parseFilterParams(req);
+    const data = await etlService.getRenewTrends(filters);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to get renew trends' });
+  }
+});
+
+router.post('/renews/by-branch', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filters = parseFilterParams(req);
+    const data = await etlService.getRenewByBranch(filters);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to get renew by branch' });
+  }
+});
+
+router.post('/activities/trends', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filters = parseFilterParams(req);
+    const data = await etlService.getActivityTrends(filters);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to get activity trends' });
+  }
+});
+
+router.post('/activities/by-type', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filters = parseFilterParams(req);
+    const data = await etlService.getActivityByType(filters);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to get activity by type' });
+  }
+});
+
 router.delete('/filters/saved/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
