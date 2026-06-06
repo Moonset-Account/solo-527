@@ -44,26 +44,47 @@ class SettlementService
             $totalOwnerEarning = $dailySplits->sum('owner_share');
             $totalPlatformFee = $dailySplits->sum('platform_share');
 
-            $totalRefund = 0;
-            foreach ($bookingsInPeriod as $booking) {
-                if ($booking->refund_amount > 0) {
-                    $bookingDays = $booking->dailySplits->count();
-                    if ($bookingDays > 0) {
-                        $periodSplitDays = $dailySplits->where('booking_id', $booking->id)->count();
-                        $ratio = $periodSplitDays / $bookingDays;
-                        $totalRefund += $booking->refund_amount * $ratio;
-                    }
-                }
-            }
-
-            $violations = ParkingViolation::whereHas('spot', function ($q) use ($ownerId) {
-                $q->where('owner_id', $ownerId);
+            $refundPayments = Payment::where(function ($q) use ($ownerId, $periodStartDate, $periodEndDate) {
+                $q->where(function ($subQ) use ($ownerId) {
+                    $subQ->whereHas('booking.spot', function ($spotQ) use ($ownerId) {
+                        $spotQ->where('owner_id', $ownerId);
+                    });
+                })->orWhere(function ($subQ) use ($ownerId) {
+                    $subQ->whereNull('booking_id')
+                        ->whereExists(function ($existsQ) use ($ownerId) {
+                            $existsQ->select(DB::raw(1))
+                                ->from('parking_violations')
+                                ->whereRaw("parking_violations.violation_no = TRIM(SUBSTRING_INDEX(payments.remark, ':', -1))")
+                                ->whereHas('spot', function ($spotQ) use ($ownerId) {
+                                    $spotQ->where('owner_id', $ownerId);
+                                });
+                        });
+                });
             })
-                ->whereBetween('violation_time', [$periodStartDate, $periodEndDate])
-                ->where('status', 'paid')
+                ->where('type', 'refund')
+                ->where('status', 'success')
+                ->whereBetween('paid_at', [$periodStartDate, $periodEndDate])
                 ->get();
 
-            $totalFineIncome = $violations->sum('fine_amount') * 0.5;
+            $totalRefund = abs($refundPayments->sum('amount'));
+
+            $finePayments = Payment::whereNull('booking_id')
+                ->where('type', 'fine')
+                ->where('status', 'success')
+                ->whereBetween('paid_at', [$periodStartDate, $periodEndDate])
+                ->whereExists(function ($existsQ) use ($ownerId) {
+                    $existsQ->select(DB::raw(1))
+                        ->from('parking_violations')
+                        ->whereRaw("parking_violations.violation_no = TRIM(SUBSTRING_INDEX(payments.remark, ':', -1))")
+                        ->whereHas('spot', function ($spotQ) use ($ownerId) {
+                            $spotQ->where('owner_id', $ownerId);
+                        });
+                })
+                ->get();
+
+            $totalFineAmount = $finePayments->sum('amount');
+            $totalFineIncome = round($totalFineAmount * 0.5, 2);
+            $totalFinePlatformFee = round($totalFineAmount * 0.5, 2);
 
             $manualInterventionCount = 0;
             foreach ($bookingsInPeriod as $booking) {
@@ -83,9 +104,9 @@ class SettlementService
                 'period_end' => $periodEndDate->toDateString(),
                 'total_booking_amount' => round($totalBookingAmount, 2),
                 'total_owner_earning' => round($totalOwnerEarning, 2),
-                'total_platform_fee' => round($totalPlatformFee, 2),
+                'total_platform_fee' => round($totalPlatformFee + $totalFinePlatformFee, 2),
                 'total_refund' => round($totalRefund, 2),
-                'total_fine_income' => round($totalFineIncome, 2),
+                'total_fine_income' => $totalFineIncome,
                 'net_settlement' => max(0, round($netSettlement, 2)),
                 'total_bookings' => $bookingsInPeriod->count(),
                 'manual_intervention_count' => $manualInterventionCount,
@@ -104,39 +125,32 @@ class SettlementService
                 ]);
             }
 
-            foreach ($bookingsInPeriod as $booking) {
-                if ($booking->refund_amount > 0) {
-                    $bookingDays = $booking->dailySplits->count();
-                    $periodSplitDays = $dailySplits->where('booking_id', $booking->id)->count();
-                    if ($bookingDays > 0 && $periodSplitDays > 0) {
-                        $ratio = $periodSplitDays / $bookingDays;
-                        $periodRefund = round($booking->refund_amount * $ratio, 2);
-                        if ($periodRefund > 0) {
-                            SettlementItem::create([
-                                'settlement_id' => $settlement->id,
-                                'booking_id' => $booking->id,
-                                'type' => 'refund',
-                                'amount' => -$periodRefund,
-                                'owner_share' => -round($periodRefund * 0.9, 2),
-                                'platform_share' => -round($periodRefund * 0.1, 2),
-                                'description' => "订单 {$booking->booking_no} 退款",
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            foreach ($violations as $violation) {
-                $ownerShare = round($violation->fine_amount * 0.5, 2);
-                $platformShare = round($violation->fine_amount * 0.5, 2);
+            foreach ($refundPayments as $payment) {
+                $ownerRefund = round(abs($payment->amount) * 0.9, 2);
+                $platformRefund = round(abs($payment->amount) * 0.1, 2);
                 SettlementItem::create([
                     'settlement_id' => $settlement->id,
-                    'violation_id' => $violation->id,
+                    'booking_id' => $payment->booking_id,
+                    'payment_id' => $payment->id,
+                    'type' => 'refund',
+                    'amount' => $payment->amount,
+                    'owner_share' => -$ownerRefund,
+                    'platform_share' => -$platformRefund,
+                    'description' => $payment->remark ?: "订单退款",
+                ]);
+            }
+
+            foreach ($finePayments as $payment) {
+                $ownerShare = round($payment->amount * 0.5, 2);
+                $platformShare = round($payment->amount * 0.5, 2);
+                SettlementItem::create([
+                    'settlement_id' => $settlement->id,
+                    'payment_id' => $payment->id,
                     'type' => 'fine',
-                    'amount' => $violation->fine_amount,
+                    'amount' => $payment->amount,
                     'owner_share' => $ownerShare,
                     'platform_share' => $platformShare,
-                    'description' => "违停 {$violation->violation_no} 罚款分成",
+                    'description' => $payment->remark ?: "违停罚款分成",
                 ]);
             }
 

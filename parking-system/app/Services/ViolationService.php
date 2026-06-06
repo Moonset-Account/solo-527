@@ -174,6 +174,7 @@ class ViolationService
                 'method' => $method,
                 'status' => 'success',
                 'paid_at' => now(),
+                'remark' => "违停罚款: {$violation->violation_no}",
             ];
             if ($violation->booking_id) {
                 $paymentData['booking_id'] = $violation->booking_id;
