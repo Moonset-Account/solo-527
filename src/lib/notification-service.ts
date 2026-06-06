@@ -8,8 +8,6 @@ type NotificationChannel = Database['public']['Tables']['notification_queue']['I
 type NotificationRow = Database['public']['Tables']['notifications']['Row']
 type NotificationQueueRow = Database['public']['Tables']['notification_queue']['Row']
 
-const SIMULATE_FAILURE_RATE = 0.3
-
 interface CreateNotificationOptions {
   userId: string
   type: NotificationType
@@ -18,8 +16,15 @@ interface CreateNotificationOptions {
   relatedOrderId?: string
   sendEmail?: boolean
   sendSms?: boolean
-  recipientEmail?: string
-  recipientPhone?: string
+  recipientEmail?: string | null
+  recipientPhone?: string | null
+  priority?: 'low' | 'normal' | 'high'
+}
+
+interface SendResult {
+  success: boolean
+  error?: string
+  retryable?: boolean
 }
 
 export async function createNotification(options: CreateNotificationOptions) {
@@ -42,15 +47,18 @@ export async function createNotification(options: CreateNotificationOptions) {
   const notif = notification as NotificationRow
   const queuePromises: Promise<any>[] = []
 
+  const priority = options.priority || 'normal'
+
   if (options.sendEmail && options.recipientEmail) {
     queuePromises.push(
       supabase.from('notification_queue').insert({
         notification_id: notif.id,
         channel: 'email',
-        recipient: options.recipientEmail,
+        recipient: options.recipientEmail as string,
         subject: options.title,
         content: options.content,
-        max_retries: 5,
+        max_retries: priority === 'high' ? 10 : 5,
+        priority,
       } as Database['public']['Tables']['notification_queue']['Insert'])
     )
   }
@@ -60,10 +68,11 @@ export async function createNotification(options: CreateNotificationOptions) {
       supabase.from('notification_queue').insert({
         notification_id: notif.id,
         channel: 'sms',
-        recipient: options.recipientPhone,
+        recipient: options.recipientPhone as string,
         subject: options.title,
         content: options.content,
-        max_retries: 5,
+        max_retries: priority === 'high' ? 10 : 5,
+        priority,
       } as Database['public']['Tables']['notification_queue']['Insert'])
     )
   }
@@ -82,8 +91,9 @@ export async function processNotificationQueue() {
     .from('notification_queue')
     .select('*')
     .or('status.eq.pending,and(status.eq.failed,retry_count.lt.max_retries)')
+    .order('priority', { ascending: false })
     .order('created_at', { ascending: true })
-    .limit(10)
+    .limit(20)
 
   const items = pendingNotifications as NotificationQueueRow[] | null
   if (!items || items.length === 0) {
@@ -94,25 +104,44 @@ export async function processNotificationQueue() {
     items.map(async (item) => {
       await supabase
         .from('notification_queue')
-        .update({ status: 'sending', last_attempt_at: new Date().toISOString() } as Database['public']['Tables']['notification_queue']['Update'])
+        .update({ 
+          status: 'sending', 
+          last_attempt_at: new Date().toISOString() 
+        } as Database['public']['Tables']['notification_queue']['Update'])
         .eq('id', item.id)
+
+      let sendResult: SendResult = { success: false, error: '未知错误', retryable: true }
 
       try {
         if (item.channel === 'email') {
-          await sendEmail(item.recipient, item.subject, item.content)
+          sendResult = await sendEmail(item.recipient, item.subject, item.content)
         } else if (item.channel === 'sms') {
-          await sendSms(item.recipient, item.content)
+          sendResult = await sendSms(item.recipient, item.content)
         }
 
-        await supabase
-          .from('notification_queue')
-          .update({ status: 'sent', retry_count: item.retry_count + 1 } as Database['public']['Tables']['notification_queue']['Update'])
-          .eq('id', item.id)
+        if (sendResult.success) {
+          await supabase
+            .from('notification_queue')
+            .update({ 
+              status: 'sent', 
+              retry_count: item.retry_count + 1,
+              sent_at: new Date().toISOString(),
+              last_error: null,
+            } as Database['public']['Tables']['notification_queue']['Update'])
+            .eq('id', item.id)
 
-        return { id: item.id, success: true }
+          return { id: item.id, success: true }
+        } else {
+          throw new Error(sendResult.error || '发送失败')
+        }
       } catch (error: any) {
         const newRetryCount = item.retry_count + 1
-        const newStatus = newRetryCount >= item.max_retries ? 'failed' : 'pending'
+        const maxRetriesReached = newRetryCount >= item.max_retries
+        const newStatus = maxRetriesReached ? 'failed' : 'pending'
+
+        const nextRetryAt = maxRetriesReached 
+          ? null 
+          : calculateNextRetryTime(newRetryCount)
 
         await supabase
           .from('notification_queue')
@@ -120,6 +149,7 @@ export async function processNotificationQueue() {
             status: newStatus,
             retry_count: newRetryCount,
             last_error: error.message,
+            next_retry_at: nextRetryAt,
           } as Database['public']['Tables']['notification_queue']['Update'])
           .eq('id', item.id)
 
@@ -132,6 +162,13 @@ export async function processNotificationQueue() {
     processed: results.length,
     results,
   }
+}
+
+function calculateNextRetryTime(retryCount: number): string {
+  const backoffMinutes = Math.min(Math.pow(2, retryCount) * 5, 1440)
+  const next = new Date()
+  next.setMinutes(next.getMinutes() + backoffMinutes)
+  return next.toISOString()
 }
 
 export async function retryNotification(notificationId: string) {
@@ -150,25 +187,47 @@ export async function retryNotification(notificationId: string) {
 
   await supabase
     .from('notification_queue')
-    .update({ status: 'sending', last_attempt_at: new Date().toISOString() } as Database['public']['Tables']['notification_queue']['Update'])
+    .update({ 
+      status: 'sending', 
+      last_attempt_at: new Date().toISOString(),
+      next_retry_at: null,
+    } as Database['public']['Tables']['notification_queue']['Update'])
     .eq('id', notificationId)
+
+  let sendResult: SendResult
 
   try {
     if (queueItem.channel === 'email') {
-      await sendEmail(queueItem.recipient, queueItem.subject, queueItem.content)
+      sendResult = await sendEmail(queueItem.recipient, queueItem.subject, queueItem.content)
     } else if (queueItem.channel === 'sms') {
-      await sendSms(queueItem.recipient, queueItem.content)
+      sendResult = await sendSms(queueItem.recipient, queueItem.content)
+    } else {
+      sendResult = { success: false, error: '不支持的渠道', retryable: false }
     }
 
-    await supabase
-      .from('notification_queue')
-      .update({ status: 'sent', retry_count: queueItem.retry_count + 1 } as Database['public']['Tables']['notification_queue']['Update'])
-      .eq('id', notificationId)
+    if (sendResult.success) {
+      await supabase
+        .from('notification_queue')
+        .update({ 
+          status: 'sent', 
+          retry_count: queueItem.retry_count + 1,
+          sent_at: new Date().toISOString(),
+          last_error: null,
+        } as Database['public']['Tables']['notification_queue']['Update'])
+        .eq('id', notificationId)
 
-    return { success: true }
+      return { success: true }
+    } else {
+      throw new Error(sendResult.error || '发送失败')
+    }
   } catch (error: any) {
     const newRetryCount = queueItem.retry_count + 1
-    const newStatus = newRetryCount >= queueItem.max_retries ? 'failed' : 'pending'
+    const maxRetriesReached = newRetryCount >= queueItem.max_retries
+    const newStatus = maxRetriesReached ? 'failed' : 'pending'
+
+    const nextRetryAt = maxRetriesReached 
+      ? null 
+      : calculateNextRetryTime(newRetryCount)
 
     await supabase
       .from('notification_queue')
@@ -176,10 +235,11 @@ export async function retryNotification(notificationId: string) {
         status: newStatus,
         retry_count: newRetryCount,
         last_error: error.message,
+        next_retry_at: nextRetryAt,
       } as Database['public']['Tables']['notification_queue']['Update'])
       .eq('id', notificationId)
 
-    return { success: false, error: error.message }
+    return { success: false, error: error.message, retryable: !maxRetriesReached }
   }
 }
 
@@ -192,6 +252,7 @@ export async function resetNotificationRetry(notificationId: string) {
       status: 'pending',
       retry_count: 0,
       last_error: null,
+      next_retry_at: null,
     } as Database['public']['Tables']['notification_queue']['Update'])
     .eq('id', notificationId)
 
@@ -213,26 +274,84 @@ export async function deleteNotificationFromQueue(notificationId: string) {
   return { success: true }
 }
 
-async function sendEmail(to: string, subject: string, content: string) {
-  console.log(`[Email] To: ${to}, Subject: ${subject}`)
+async function sendEmail(to: string, subject: string, content: string): Promise<SendResult> {
+  console.log(`[Email] 正在发送邮件 To: ${to}, Subject: ${subject}`)
   
-  if (Math.random() < SIMULATE_FAILURE_RATE) {
-    const error = new Error('SMTP连接超时：无法连接到邮件服务器')
-    console.error(`[Email] 发送失败: ${error.message}`)
-    throw error
+  try {
+    const result = await simulateEmailDelivery(to, subject, content)
+    console.log(`[Email] 发送成功: ${to}`)
+    return { success: true }
+  } catch (error: any) {
+    console.error(`[Email] 发送失败 To: ${to}, 错误: ${error.message}`)
+    return {
+      success: false,
+      error: error.message,
+      retryable: isRetryableError(error.message),
+    }
   }
-  
-  console.log(`[Email] 发送成功`)
 }
 
-async function sendSms(to: string, content: string) {
-  console.log(`[SMS] To: ${to}`)
+async function sendSms(to: string, content: string): Promise<SendResult> {
+  console.log(`[SMS] 正在发送短信 To: ${to}`)
   
-  if (Math.random() < SIMULATE_FAILURE_RATE) {
-    const error = new Error('短信网关错误：服务商限流')
-    console.error(`[SMS] 发送失败: ${error.message}`)
-    throw error
+  try {
+    const result = await simulateSmsDelivery(to, content)
+    console.log(`[SMS] 发送成功: ${to}`)
+    return { success: true }
+  } catch (error: any) {
+    console.error(`[SMS] 发送失败 To: ${to}, 错误: ${error.message}`)
+    return {
+      success: false,
+      error: error.message,
+      retryable: isRetryableError(error.message),
+    }
   }
+}
+
+async function simulateEmailDelivery(to: string, subject: string, content: string): Promise<boolean> {
+  await new Promise(resolve => setTimeout(resolve, 500))
   
-  console.log(`[SMS] 发送成功`)
+  const failureScenarios = [
+    { condition: to.includes('fail'), message: '收件人邮箱不存在' },
+    { condition: to.includes('spam'), message: '邮件被标记为垃圾邮件' },
+    { condition: Math.random() < 0.1, message: 'SMTP服务器连接超时' },
+    { condition: Math.random() < 0.05, message: '发件人域名验证失败' },
+  ]
+
+  for (const scenario of failureScenarios) {
+    if (scenario.condition) {
+      throw new Error(scenario.message)
+    }
+  }
+
+  return true
+}
+
+async function simulateSmsDelivery(to: string, content: string): Promise<boolean> {
+  await new Promise(resolve => setTimeout(resolve, 300))
+  
+  const failureScenarios = [
+    { condition: to.includes('0000'), message: '手机号码格式错误' },
+    { condition: to.includes('9999'), message: '用户已关机' },
+    { condition: Math.random() < 0.1, message: '短信网关限流' },
+    { condition: Math.random() < 0.05, message: '运营商网络异常' },
+  ]
+
+  for (const scenario of failureScenarios) {
+    if (scenario.condition) {
+      throw new Error(scenario.message)
+    }
+  }
+
+  return true
+}
+
+function isRetryableError(errorMessage: string): boolean {
+  const nonRetryableErrors = [
+    '收件人邮箱不存在',
+    '手机号码格式错误',
+    '用户已关机',
+  ]
+  
+  return !nonRetryableErrors.some(err => errorMessage.includes(err))
 }

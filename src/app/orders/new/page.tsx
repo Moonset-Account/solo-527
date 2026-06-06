@@ -2,25 +2,35 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth'
-import { createOrder } from '@/lib/order-service'
+import { createOrder, getNewOrderData } from '@/lib/order-service'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Loader2, ArrowLeft, Calendar, Camera, Package } from 'lucide-react'
 import Link from 'next/link'
-import { Database } from '@/types/database'
 import { addHours } from 'date-fns'
+import type { Equipment } from '@/types'
 
-type Studio = Database['public']['Tables']['studios']['Row']
-type Package = Database['public']['Tables']['packages']['Row']
-type Equipment = Database['public']['Tables']['equipment']['Row']
+type Studio = {
+  id: string
+  name: string
+  hourly_rate: number
+  description: string | null
+}
+
+type Package = {
+  id: string
+  name: string
+  base_price: number
+  studio_hours: number
+  description: string | null
+}
 
 export default function NewOrderPage() {
   const router = useRouter()
   const { user, profile } = useAuth()
   const [studios, setStudios] = useState<Studio[]>([])
   const [packages, setPackages] = useState<Package[]>([])
-  const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [equipment, setEquipment] = useState<Array<Omit<Equipment, 'purchase_price'>>>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -31,20 +41,12 @@ export default function NewOrderPage() {
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
   const [notes, setNotes] = useState('')
 
-  const supabase = createClient()
-  const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
-
   useEffect(() => {
     const fetchData = async () => {
-      const [{ data: studiosData }, { data: packagesData }, { data: equipmentData }] = await Promise.all([
-        supabase.from('studios').select('*').eq('is_active', true),
-        supabase.from('packages').select('*').eq('is_active', true),
-        supabase.from('equipment').select('*').eq('status', 'available'),
-      ])
-
-      setStudios(studiosData || [])
-      setPackages(packagesData || [])
-      setEquipment(equipmentData || [])
+      const data = await getNewOrderData()
+      setStudios(data.studios)
+      setPackages(data.packages)
+      setEquipment(data.equipment)
       setLoading(false)
 
       const defaultStart = new Date()

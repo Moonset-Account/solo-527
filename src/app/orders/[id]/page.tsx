@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth'
 import { formatCurrency, formatDate, getStatusText } from '@/lib/utils'
-import { confirmOrder, addExtraEquipment, pickupEquipment, returnEquipment, createDamageRecord } from '@/lib/order-service'
+import { 
+  confirmOrder, 
+  addExtraEquipment, 
+  pickupEquipment, 
+  returnEquipment, 
+  createDamageRecord,
+  getOrderDetail,
+  getAvailableEquipment,
+} from '@/lib/order-service'
 import { StatusBadge } from '@/components/StatusBadge'
 import type { OrderWithDetails, Equipment, Profile } from '@/types'
 import {
@@ -27,71 +34,31 @@ export default function OrderDetailPage() {
   const [damageDescription, setDamageDescription] = useState('')
   const [damageSeverity, setDamageSeverity] = useState<'minor' | 'moderate' | 'severe' | 'total'>('minor')
   const [damageRepairCost, setDamageRepairCost] = useState('')
-  const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([])
+  const [availableEquipment, setAvailableEquipment] = useState<Array<Omit<Equipment, 'purchase_price'>>>([])
   const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const [responsibleParty, setResponsibleParty] = useState('')
   const [uploadingContract, setUploadingContract] = useState(false)
   const { profile, user } = useAuth()
-  const supabase = createClient()
 
   const isStaff = profile?.role === 'staff' || profile?.role === 'admin'
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: orderData } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          studio:studios(*),
-          customer:profiles(*),
-          package:packages(*),
-          order_equipment(*, equipment:equipment(*)),
-          deposit_transactions(*),
-          damage_records(*, equipment:equipment(name), responsible_party:profiles(full_name)),
-          contracts(*)
-        `)
-        .eq('id', params.id)
-        .single()
+      const orderData = await getOrderDetail(params.id as string)
+      setOrder(orderData)
 
-      setOrder(orderData as unknown as OrderWithDetails)
-
-      const { data: equipment } = await supabase
-        .from('equipment')
-        .select('*')
-        .eq('status', 'available')
-
-      setAvailableEquipment(equipment as Equipment[] || [])
-
-      if (isStaff) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-        setAllProfiles(profiles as Profile[] || [])
-      }
+      const equipment = await getAvailableEquipment()
+      setAvailableEquipment(equipment)
 
       setLoading(false)
     }
 
     fetchData()
-  }, [params.id, isStaff])
+  }, [params.id])
 
   const refreshData = async () => {
-    const { data: orderData } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        studio:studios(*),
-        customer:profiles(*),
-        package:packages(*),
-        order_equipment(*, equipment:equipment(*)),
-        deposit_transactions(*),
-        damage_records(*, equipment:equipment(name), responsible_party:profiles(full_name)),
-        contracts(*)
-      `)
-      .eq('id', params.id)
-      .single()
-
-    setOrder(orderData as unknown as OrderWithDetails)
+    const orderData = await getOrderDetail(params.id as string)
+    setOrder(orderData)
   }
 
   const handleConfirm = async () => {
