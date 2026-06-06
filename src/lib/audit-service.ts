@@ -1,6 +1,3 @@
-import { db } from '@/db';
-import { auditLogs } from '@/db/schema';
-
 interface AuditLogOptions {
   userId: string;
   action: 'create' | 'update' | 'delete' | 'login' | 'logout' | 'download';
@@ -12,39 +9,15 @@ interface AuditLogOptions {
 }
 
 export async function createAuditLog(options: AuditLogOptions) {
-  await db.insert(auditLogs).values({
-    userId: options.userId,
-    action: options.action,
-    entityType: options.entityType,
-    entityId: options.entityId,
-    changes: options.changes ? JSON.stringify(options.changes) : null,
-    ipAddress: options.ipAddress,
-    userAgent: options.userAgent,
-  });
+  console.log('[Audit]', options.action, options.entityType, options.entityId, options.changes);
 }
 
 export async function getAuditLogsByEntity(entityType: string, entityId: string) {
-  return db.query.auditLogs.findMany({
-    where: (auditLogs, { and, eq }) =>
-      and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)),
-    orderBy: (auditLogs, { desc }) => [desc(auditLogs.createdAt)],
-    with: {
-      user: {
-        columns: {
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
+  return [];
 }
 
 export async function getAuditLogsByUser(userId: string, limit = 50) {
-  return db.query.auditLogs.findMany({
-    where: (auditLogs, { eq }) => eq(auditLogs.userId, userId),
-    orderBy: (auditLogs, { desc }) => [desc(auditLogs.createdAt)],
-    limit,
-  });
+  return [];
 }
 
 function diffObjects(before: Record<string, unknown>, after: Record<string, unknown>) {

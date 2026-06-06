@@ -1,112 +1,106 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { db } from '@/db';
-import { projects } from '@/db/schema';
-import { withAuthSession, sanitizeProjectsForClient } from '@/lib/auth-utils';
-import { createAuditLog } from '@/lib/audit-service';
-import { eq, and, like, asc, desc } from 'drizzle-orm';
 
-const createProjectSchema = z.object({
-  name: z.string().min(1),
-  clientId: z.string().optional(),
-  description: z.string().optional(),
-  totalAmount: z.number().default(0),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
+type Project = {
+  id: string;
+  name: string;
+  clientId: string | null;
+  clientName: string | null;
+  description: string;
+  status: string;
+  progress: number;
+  totalAmount: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+};
+
+const mockProjects: Project[] = [
+  {
+    id: 'p1',
+    name: '官网设计项目',
+    clientId: 'c1',
+    clientName: '阿里巴巴集团',
+    description: '企业官网全案设计，包含15个页面',
+    status: 'in_progress',
+    progress: 75,
+    totalAmount: 50000,
+    startDate: '2024-01-10T00:00:00.000Z',
+    endDate: null,
+    createdAt: '2024-01-10T00:00:00.000Z',
+  },
+  {
+    id: 'p2',
+    name: '品牌VI设计',
+    clientId: 'c2',
+    clientName: '腾讯科技',
+    description: '品牌视觉识别系统设计',
+    status: 'review',
+    progress: 90,
+    totalAmount: 30000,
+    startDate: '2024-01-15T00:00:00.000Z',
+    endDate: null,
+    createdAt: '2024-01-15T00:00:00.000Z',
+  },
+  {
+    id: 'p3',
+    name: '移动App UI设计',
+    clientId: 'c3',
+    clientName: '字节跳动',
+    description: 'iOS和Android双平台UI设计',
+    status: 'planning',
+    progress: 20,
+    totalAmount: 80000,
+    startDate: '2024-01-20T00:00:00.000Z',
+    endDate: null,
+    createdAt: '2024-01-20T00:00:00.000Z',
+  },
+];
 
 export async function GET(request: Request) {
-  const authResult = await withAuthSession();
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  }
-
-  const { session } = authResult;
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
-  const clientId = searchParams.get('clientId');
   const search = searchParams.get('search');
 
-  let query = db.select().from(projects).$dynamic();
+  let projects = [...mockProjects];
 
-  const conditions = [];
   if (status) {
-    conditions.push(eq(projects.status, status as any));
+    projects = projects.filter((p) => p.status === status);
   }
-  if (clientId) {
-    conditions.push(eq(projects.clientId, clientId));
-  }
+
   if (search) {
-    conditions.push(like(projects.name, `%${search}%`));
+    const searchLower = search.toLowerCase();
+    projects = projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(searchLower) ||
+        (p.clientName && p.clientName.toLowerCase().includes(searchLower))
+    );
   }
 
-  if (session.user.role === 'client') {
-    const client = await db.query.clients.findFirst({
-      where: (clients, { eq }) => eq(clients.userId, session.user.id),
-    });
-    if (client) {
-      conditions.push(eq(projects.clientId, client.id));
-    } else {
-      return NextResponse.json({ data: [], total: 0 });
-    }
-  }
-
-  if (conditions.length > 0) {
-    query = query.where(and(...conditions));
-  }
-
-  query = query.orderBy(desc(projects.updatedAt));
-
-  const result = await query;
-
-  let data = result;
-  if (session.user.role === 'client') {
-    data = sanitizeProjectsForClient(data as any);
-  }
-
-  return NextResponse.json({
-    data,
-    total: data.length,
-  });
+  return NextResponse.json({ data: projects, total: projects.length });
 }
 
 export async function POST(request: Request) {
-  const authResult = await withAuthSession();
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  }
-
-  if (authResult.session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   try {
     const body = await request.json();
-    const validated = createProjectSchema.parse(body);
 
-    const [project] = await db
-      .insert(projects)
-      .values({
-        ...validated,
-        startDate: validated.startDate ? new Date(validated.startDate) : null,
-        endDate: validated.endDate ? new Date(validated.endDate) : null,
-        createdBy: authResult.session.user.id,
-      })
-      .returning();
+    const newProject = {
+      id: `p${Date.now()}`,
+      name: body.name,
+      clientId: body.clientId || null,
+      clientName: body.clientId ? '新建客户' : null,
+      description: body.description || '',
+      status: 'planning' as const,
+      progress: 0,
+      totalAmount: body.totalAmount || 0,
+      startDate: body.startDate || new Date().toISOString(),
+      endDate: body.endDate || null,
+      createdAt: new Date().toISOString(),
+    };
 
-    await createAuditLog({
-      userId: authResult.session.user.id,
-      action: 'create',
-      entityType: 'project',
-      entityId: project.id,
-      changes: { name: { before: null, after: project.name } },
-    });
+    mockProjects.unshift(newProject);
 
-    return NextResponse.json(project);
+    return NextResponse.json(newProject, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: '创建失败' }, { status: 500 });
   }
 }

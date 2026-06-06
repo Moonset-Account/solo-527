@@ -1,63 +1,65 @@
-import NextAuth from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { db } from '@/db';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { z } from 'zod';
+import { cookies } from 'next/headers';
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db),
-  providers: [
-    Credentials({
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        const parsed = z
-          .object({
-            email: z.string().email(),
-            password: z.string().min(6),
-          })
-          .safeParse(credentials);
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'client';
+  image?: string | null;
+}
 
-        if (!parsed.success) return null;
+export interface Session {
+  user: User;
+}
 
-        const user = await db.query.users.findFirst({
-          where: eq(users.email, parsed.data.email),
-        });
+export async function auth(): Promise<Session | null> {
+  const cookieStore = cookies();
+  const userCookie = cookieStore.get('user');
+  
+  if (!userCookie?.value) {
+    return null;
+  }
 
-        if (!user) return null;
+  try {
+    const user = JSON.parse(userCookie.value) as User;
+    return { user };
+  } catch {
+    return null;
+  }
+}
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          image: user.image,
-        };
-      },
-    }),
-  ],
-  session: { strategy: 'jwt' },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-        token.id = user.id;
-      }
-      return token;
+export async function signIn(email: string, password: string): Promise<User | null> {
+  const demoUsers: User[] = [
+    {
+      id: 'demo-admin-1',
+      name: '管理员',
+      email: 'admin@demo.com',
+      role: 'admin',
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as string;
-        session.user.id = token.id as string;
-      }
-      return session;
+    {
+      id: 'demo-client-1',
+      name: '张经理',
+      email: 'client@demo.com',
+      role: 'client',
     },
-  },
-  pages: {
-    signIn: '/login',
-  },
-});
+  ];
+
+  const user = demoUsers.find((u) => u.email === email);
+  if (!user) return null;
+
+  if (password === 'admin123' || password === 'client123' || password === 'demo') {
+    return user;
+  }
+
+  return null;
+}
+
+export async function signOut() {
+  const cookieStore = cookies();
+  cookieStore.delete('user');
+}
+
+export const handlers = {
+  GET: async () => new Response('Not implemented'),
+  POST: async () => new Response('Not implemented'),
+};

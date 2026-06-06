@@ -1,51 +1,52 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { notifications } from '@/db/schema';
-import { withAuthSession } from '@/lib/auth-utils';
-import { processNotificationQueue, markNotificationAsRead } from '@/lib/notification-service';
-import { eq, and } from 'drizzle-orm';
+
+const mockNotifications = [
+  {
+    id: 'n1',
+    title: '新的付款到账',
+    message: '官网设计项目首付款 ¥25,000 已到账',
+    type: 'payment',
+    status: 'unread',
+    createdAt: '2024-02-15T10:30:00.000Z',
+  },
+  {
+    id: 'n2',
+    title: '发票即将到期',
+    message: 'INV2024020002 将在3天后到期',
+    type: 'invoice',
+    status: 'unread',
+    createdAt: '2024-02-14T09:00:00.000Z',
+  },
+  {
+    id: 'n3',
+    title: '报价单已被查看',
+    message: '客户查看了 Q2024010002 报价单',
+    type: 'quote',
+    status: 'read',
+    createdAt: '2024-02-13T14:20:00.000Z',
+  },
+];
 
 export async function GET(request: Request) {
-  const authResult = await withAuthSession();
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  }
-
   const { searchParams } = new URL(request.url);
   const unreadOnly = searchParams.get('unread') === 'true';
 
-  const conditions = [eq(notifications.userId, authResult.session.user.id)];
+  let data = [...mockNotifications];
   if (unreadOnly) {
-    conditions.push(eq(notifications.status, 'sent'));
+    data = data.filter((n) => n.status === 'unread');
   }
-
-  const data = await db.query.notifications.findMany({
-    where: and(...conditions),
-    orderBy: (notifications, { desc }) => [desc(notifications.createdAt)],
-    limit: 50,
-  });
 
   return NextResponse.json({ data });
 }
 
 export async function POST(request: Request) {
-  const authResult = await withAuthSession();
-  if ('error' in authResult) {
-    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  }
-
   const body = await request.json();
 
-  if (body.action === 'process-queue') {
-    if (authResult.session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    const results = await processNotificationQueue();
-    return NextResponse.json({ processed: results.length, results });
-  }
-
   if (body.action === 'mark-read' && body.id) {
-    await markNotificationAsRead(body.id);
+    const notification = mockNotifications.find((n) => n.id === body.id);
+    if (notification) {
+      notification.status = 'read';
+    }
     return NextResponse.json({ success: true });
   }
 
