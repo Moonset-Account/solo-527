@@ -117,7 +117,7 @@
                     提交审批
                   </button>
                   <button
-                    v-if="settlement.status === SettlementStatus.PENDING"
+                    v-if="settlement.status === SettlementStatus.PENDING_APPROVAL"
                     @click="approveSettlement(settlement)"
                     class="text-green-600 hover:text-green-700 text-sm font-medium"
                   >
@@ -213,7 +213,7 @@
             提交审批
           </button>
           <button
-            v-if="viewSettlement.status === SettlementStatus.PENDING"
+            v-if="viewSettlement.status === SettlementStatus.PENDING_APPROVAL"
             @click="approveSettlement(viewSettlement); viewSettlement = null"
             class="btn btn-success flex-1"
           >
@@ -245,24 +245,23 @@ const viewSettlement = ref<TeacherSettlement | null>(null)
 const statusFilters = [
   { label: '全部', value: null },
   { label: '草稿', value: SettlementStatus.DRAFT },
-  { label: '待审批', value: SettlementStatus.PENDING },
+  { label: '待审批', value: SettlementStatus.PENDING_APPROVAL },
   { label: '已批准', value: SettlementStatus.APPROVED },
   { label: '已付款', value: SettlementStatus.PAID }
 ]
 
 const totalAmount = computed(() => settlements.value.reduce((sum, s) => sum + parseFloat(s.total_amount), 0))
-const pendingCount = computed(() => settlements.value.filter(s => s.status === SettlementStatus.PENDING).length)
+const pendingCount = computed(() => settlements.value.filter(s => s.status === SettlementStatus.PENDING_APPROVAL).length)
 const approvedCount = computed(() => settlements.value.filter(s => s.status === SettlementStatus.APPROVED).length)
 const paidCount = computed(() => settlements.value.filter(s => s.status === SettlementStatus.PAID).length)
 
 const getStatusLabel = (status: SettlementStatus) => {
   const labels: Record<SettlementStatus, string> = {
     [SettlementStatus.DRAFT]: '草稿',
-    [SettlementStatus.PENDING]: '待审批',
+    [SettlementStatus.PENDING_APPROVAL]: '待审批',
     [SettlementStatus.APPROVED]: '已批准',
     [SettlementStatus.PAID]: '已付款',
-    [SettlementStatus.REJECTED]: '已拒绝',
-    [SettlementStatus.CANCELLED]: '已取消'
+    [SettlementStatus.REJECTED]: '已拒绝'
   }
   return labels[status]
 }
@@ -270,11 +269,10 @@ const getStatusLabel = (status: SettlementStatus) => {
 const getStatusBadge = (status: SettlementStatus) => {
   const badges: Record<SettlementStatus, string> = {
     [SettlementStatus.DRAFT]: 'badge-secondary',
-    [SettlementStatus.PENDING]: 'badge-warning',
+    [SettlementStatus.PENDING_APPROVAL]: 'badge-warning',
     [SettlementStatus.APPROVED]: 'badge-info',
     [SettlementStatus.PAID]: 'badge-success',
-    [SettlementStatus.REJECTED]: 'badge-danger',
-    [SettlementStatus.CANCELLED]: 'badge-secondary'
+    [SettlementStatus.REJECTED]: 'badge-danger'
   }
   return badges[status]
 }
@@ -288,7 +286,7 @@ const loadSettlements = async () => {
     const params: any = { per_page: 100 }
     if (currentStatus.value !== null) params.status = currentStatus.value
     const res: any = await settlementAPI.list(params)
-    settlements.value = res.settlements || []
+    settlements.value = res.settlements || res.teacher_settlements || []
   } catch (e) {
     console.error('加载结算失败', e)
   }

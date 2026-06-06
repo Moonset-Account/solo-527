@@ -23,6 +23,6 @@ class User < ApplicationRecord
   end
 
   def admin?
-    admin? || super_admin?
+    role == 'admin' || role == 'super_admin'
   end
 end

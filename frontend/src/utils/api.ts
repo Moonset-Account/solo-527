@@ -57,7 +57,7 @@ export const bookingAPI = {
 }
 
 export const artworkAPI = {
-  list: (params?: PaginationParams & { student_id?: number; course_id?: number; sort?: string }) =>
+  list: (params?: PaginationParams & { student_id?: number; course_id?: number; sort?: string; is_public?: boolean; status?: number }) =>
     request.get<{ artworks: Artwork[]; meta: any }>('/artworks', { params }),
   detail: (id: number) => request.get<Artwork>(`/artworks/${id}`),
   create: (data: Partial<Artwork>) => request.post<Artwork>('/artworks', data),
@@ -65,7 +65,8 @@ export const artworkAPI = {
   delete: (id: number) => request.delete(`/artworks/${id}`),
   approve: (id: number) => request.post<Artwork>(`/artworks/${id}/approve`),
   reject: (id: number, reason?: string) => request.post<Artwork>(`/artworks/${id}/reject`, { reason }),
-  like: (id: number) => request.post<{ likes_count: number }>(`/artworks/${id}/like`)
+  like: (id: number) => request.post<{ likes_count: number }>(`/artworks/${id}/like`),
+  incrementView: (id: number) => request.post(`/artworks/${id}/increment_view`)
 }
 
 export const materialAPI = {
@@ -89,24 +90,28 @@ export const paymentAPI = {
 }
 
 export const settlementAPI = {
-  list: (params?: PaginationParams & { teacher_id?: number; pending?: boolean }) =>
-    request.get<{ teacher_settlements: TeacherSettlement[]; meta: any }>('/teacher_settlements', { params }),
+  list: (params?: PaginationParams & { teacher_id?: number; status?: number }) =>
+    request.get<{ settlements: TeacherSettlement[]; teacher_settlements: TeacherSettlement[]; meta: any }>('/teacher_settlements', { params }),
   detail: (id: number) => request.get<TeacherSettlement>(`/teacher_settlements/${id}`),
-  generate: (data: { teacher_id: number; period_start: string; period_end: string }) =>
-    request.post<TeacherSettlement>('/teacher_settlements/generate', data),
+  generate: (data?: { teacher_id?: number; period_start?: string; period_end?: string }) =>
+    request.post<{ settlements: TeacherSettlement[] }>('/teacher_settlements/generate', data || {}),
+  submit: (id: number) => request.post<TeacherSettlement>(`/teacher_settlements/${id}/submit`),
   approve: (id: number) => request.post<TeacherSettlement>(`/teacher_settlements/${id}/approve`),
   reject: (id: number, reason?: string) => request.post<TeacherSettlement>(`/teacher_settlements/${id}/reject`, { reason }),
+  pay: (id: number) => request.post<TeacherSettlement>(`/teacher_settlements/${id}/pay`),
   markPaid: (id: number) => request.post<TeacherSettlement>(`/teacher_settlements/${id}/mark_paid`),
   export: (params?: { start_date?: string; end_date?: string }) =>
     request.get('/teacher_settlements/export', { params, responseType: 'blob' })
 }
 
 export const notificationAPI = {
-  list: (params?: PaginationParams & { unread?: boolean }) =>
+  list: (params?: PaginationParams & { unread?: boolean; type?: string }) =>
     request.get<{ notifications: Notification[]; meta: any }>('/notifications', { params }),
   detail: (id: number) => request.get<Notification>(`/notifications/${id}`),
+  markRead: (id: number) => request.post<Notification>(`/notifications/${id}/mark_read`),
   markAllRead: () => request.post('/notifications/mark_all_read'),
-  unreadCount: () => request.get<{ count: number }>('/notifications/unread_count')
+  unreadCount: () => request.get<{ count: number }>('/notifications/unread_count'),
+  export: () => request.get('/notifications/export', { responseType: 'blob' })
 }
 
 export const auditLogAPI = {

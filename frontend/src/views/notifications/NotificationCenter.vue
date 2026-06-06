@@ -128,8 +128,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { notificationAPI } from '../utils/api'
-import type { Notification } from '../types'
+import { notificationAPI } from '../../utils/api'
+import type { Notification } from '../../types'
 
 const notifications = ref<Notification[]>([])
 const loading = ref(true)

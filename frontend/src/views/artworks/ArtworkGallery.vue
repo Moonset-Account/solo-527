@@ -134,9 +134,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { artworkAPI } from '../utils/api'
-import { getArtworkImage } from '../utils/images'
-import type { Artwork } from '../types'
+import { artworkAPI } from '../../utils/api'
+import { getArtworkImage } from '../../utils/images'
+import type { Artwork } from '../../types'
 
 const artworks = ref<Artwork[]>([])
 const loading = ref(true)

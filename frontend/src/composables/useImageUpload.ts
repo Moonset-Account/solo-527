@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { getArtworkImage } from '../utils/images'
 
 interface UploadedImage {
   id: string
@@ -7,6 +8,7 @@ interface UploadedImage {
   status: 'pending' | 'uploading' | 'success' | 'error'
   progress: number
   error?: string
+  uploadedUrl?: string
 }
 
 export function useImageUpload() {
@@ -70,20 +72,24 @@ export function useImageUpload() {
     images.value = []
   }
 
-  const uploadImage = async (image: UploadedImage): Promise<string> => {
+  const uploadImage = async (image: UploadedImage, seed?: number): Promise<string> => {
     image.status = 'uploading'
     image.progress = 0
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+      let progress = 0
       const interval = setInterval(() => {
-        image.progress += Math.random() * 30
-        if (image.progress >= 100) {
+        progress += Math.random() * 25
+        image.progress = Math.min(progress, 95)
+        if (progress >= 90) {
+          clearInterval(interval)
+          const url = getArtworkImage(seed || Date.now())
+          image.uploadedUrl = url
           image.progress = 100
           image.status = 'success'
-          clearInterval(interval)
-          resolve(`https://example.com/uploads/${image.id}.jpg`)
+          resolve(url)
         }
-      }, 200)
+      }, 150)
     })
   }
 
@@ -91,9 +97,10 @@ export function useImageUpload() {
     const pendingImages = images.value.filter(img => img.status === 'pending')
     const urls: string[] = []
 
-    for (const image of pendingImages) {
+    for (let i = 0; i < pendingImages.length; i++) {
+      const image = pendingImages[i]
       try {
-        const url = await uploadImage(image)
+        const url = await uploadImage(image, i)
         urls.push(url)
       } catch (e: any) {
         image.status = 'error'

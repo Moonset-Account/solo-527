@@ -124,7 +124,7 @@ import type { CourseSession } from '../../types'
 
 const route = useRoute()
 const router = useRouter()
-const { images, addFiles, removeImage, clearAll, handleDragOver, handleDragLeave, handleDrop } = useImageUpload()
+const { images, addFiles, removeImage, clearAll, uploadAll, handleDragOver, handleDragLeave, handleDrop } = useImageUpload()
 const { isOnline, addToQueue } = useOfflineQueue()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -192,7 +192,7 @@ const handleSubmit = async () => {
   error.value = ''
 
   try {
-    const imageUrls = images.map((_img: any, i: number) => `https://example.com/artwork_${Date.now()}_${i}.jpg`)
+    const imageUrls = await uploadAll()
 
     const artworkData = {
       ...form,
