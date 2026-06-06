@@ -157,7 +157,7 @@ export default function ExportCenterPage() {
 
     setIsLoading(true);
     try {
-      const result = await fetchVisits({ pageSize: "1000" });
+      const result = await fetchVisits({ pageSize: 1000 });
       if (result.success && result.data) {
         setAllVisits(result.data as VisitProcess[]);
         return true;

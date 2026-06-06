@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
+      success: true,
       data: visits,
       total,
       page,
@@ -136,7 +137,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: visit, warnings: validation.warnings }, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: visit, warnings: validation.warnings },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating visit:", error);
     return NextResponse.json({ error: "创建数据失败" }, { status: 500 });

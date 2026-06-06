@@ -228,21 +228,19 @@ export async function previewCSV(
     await new Promise((resolve) => setTimeout(resolve, 500));
     return {
       success: true,
-      data: {
-        fileName: file.name,
-        fileSize: file.size,
-        totalRows: 100,
-        headers: ["就诊号", "科室编码", "医生编码", "挂号时间", "叫号时间"],
-        sample: Array(5).fill(null).map((_, i) => ({
-          visitNumber: `VISIT2026060${i + 1}`,
-          deptId: "dept-001",
-          doctorId: "doc-001",
-          registerTime: "2026-06-01 08:00:00",
-          callTime: "2026-06-01 08:45:00",
-        })),
-        errorCount: 0,
-        warningCount: 0,
-      },
+      fileName: file.name,
+      fileSize: file.size,
+      totalRows: 100,
+      headers: ["就诊号", "科室编码", "医生编码", "挂号时间", "叫号时间"],
+      preview: Array(5).fill(null).map((_, i) => ({
+        visitNumber: `VISIT2026060${i + 1}`,
+        deptId: "dept-001",
+        doctorId: "doc-001",
+        registerTime: "2026-06-01 08:00:00",
+        callTime: "2026-06-01 08:45:00",
+      })),
+      errorCount: 0,
+      warningCount: 0,
     };
   }
 

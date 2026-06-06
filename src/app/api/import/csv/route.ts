@@ -131,11 +131,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      importId: importLog.id,
-      summary: {
-        total: csvResult.rowCount,
-        success: successCount,
-        failed: failedCount,
+      data: {
+        importId: importLog.id,
+        summary: {
+          total: csvResult.rowCount,
+          success: successCount,
+          failed: failedCount,
+        },
       },
       errors: allErrors,
       warnings: allWarnings,
@@ -166,7 +168,7 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
-    return NextResponse.json({ data: logs });
+    return NextResponse.json({ success: true, data: logs });
   } catch (error) {
     console.error("Error fetching import logs:", error);
     return NextResponse.json({ error: "获取导入记录失败" }, { status: 500 });

@@ -10,11 +10,11 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed --preview-feature || tsx prisma/seed.ts",
+    "db:seed": "node --loader ts-node/esm prisma/seed.ts 2>/dev/null || npx tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "next": "14.2.5",

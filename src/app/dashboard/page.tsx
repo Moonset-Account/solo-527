@@ -64,8 +64,8 @@ export default function DashboardPage() {
     setLoadError(null);
 
     try {
-      const params: Record<string, string> = {
-        pageSize: "1000",
+      const params: Record<string, string | number> = {
+        pageSize: 1000,
       };
       if (filters.departments?.length) params.deptId = filters.departments[0];
       if (filters.doctors?.length) params.doctorId = filters.doctors[0];
