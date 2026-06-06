@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calculateComparisonMetrics_async, getRoutes_async } from "@/lib/dataStore";
+import { calculateComparisonMetrics, getRoutes } from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,11 +16,11 @@ export async function GET(request: Request) {
 
   let ids = routeIds;
   if (ids.length === 0) {
-    const routes = await getRoutes_async();
+    const routes = await getRoutes();
     ids = routes.map((r) => r.id);
   }
 
-  const metrics = await calculateComparisonMetrics_async(ids, peakPeriod, {
+  const metrics = await calculateComparisonMetrics(ids, peakPeriod, {
     startDate,
     endDate,
     startHour,

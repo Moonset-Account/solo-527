@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAnomalies_async, updateAnomalyNote_async } from "@/lib/dataStore";
+import { getAnomalies, updateAnomalyNote } from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
   const resolved = searchParams.get("resolved");
 
-  const anomalies = await getAnomalies_async(
+  const anomalies = await getAnomalies(
     routeId || undefined,
     type as any,
     resolved !== null ? resolved === "true" : undefined
@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updated = await updateAnomalyNote_async(anomalyId, notes, resolvedBy || "系统管理员");
+    const updated = await updateAnomalyNote(anomalyId, notes, resolvedBy || "系统管理员");
 
     if (!updated) {
       return NextResponse.json(

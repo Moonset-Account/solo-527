@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getComplaints_async } from "@/lib/dataStore";
+import { getComplaints } from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     : undefined;
   const peakPeriod = searchParams.get("peakPeriod") as any;
 
-  const complaints = await getComplaints_async(routeId, status, category, {
+  const complaints = await getComplaints(routeId, status, category, {
     startDate,
     endDate,
     startHour,

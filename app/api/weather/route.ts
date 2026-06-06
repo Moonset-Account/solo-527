@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWeatherRecords_async } from "@/lib/dataStore";
+import { getWeatherRecords } from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     ? parseInt(searchParams.get("endHour")!)
     : undefined;
 
-  const records = await getWeatherRecords_async(date || undefined, startHour, endHour);
+  const records = await getWeatherRecords(date || undefined, startHour, endHour);
 
   return NextResponse.json(records);
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStations_async, getArrivalRecords_async, getStationCrowdingData_async } from "@/lib/dataStore";
+import { getStations, getStationCrowdingData } from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,13 +8,13 @@ export async function GET(request: Request) {
   const hour = searchParams.get("hour");
   const routeId = searchParams.get("routeId") || undefined;
 
-  let stations = await getStations_async();
+  let stations = await getStations();
   if (stationId) {
     stations = stations.filter((s) => s.id === stationId);
   }
 
   if (withCrowding) {
-    const crowdingData = await getStationCrowdingData_async({
+    const crowdingData = await getStationCrowdingData({
       routeId,
       hour: hour ? parseInt(hour) : undefined,
       includeDetour: false,

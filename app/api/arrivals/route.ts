@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import {
-  getArrivalRecords_async,
-  getStationCrowdingData_async,
-  getDrillDownData_async,
-  getHourlyTrendData_async,
+  getArrivalRecords,
+  getStationCrowdingData,
+  getDrillDownData,
+  getHourlyTrendData,
   type TimeWindow,
-} from "@/lib/dataStore";
+} from "@/lib/serverDataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   const drillId = searchParams.get("drillId") || undefined;
 
   if (drillDown && drillId) {
-    const result = await getDrillDownData_async(drillDown, drillId, {
+    const result = await getDrillDownData(drillDown, drillId, {
       startDate,
       endDate,
       startHour,
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
   const crowdingMode = searchParams.get("crowdingMode") === "true";
   if (crowdingMode) {
-    const data = await getStationCrowdingData_async({
+    const data = await getStationCrowdingData({
       routeId,
       startHour,
       endHour,
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
   const hourlyMode = searchParams.get("hourlyMode") === "true";
   if (hourlyMode) {
-    const data = await getHourlyTrendData_async(routeId, {
+    const data = await getHourlyTrendData(routeId, {
       startDate,
       endDate,
       startHour,
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data);
   }
 
-  const records = await getArrivalRecords_async(
+  const records = await getArrivalRecords(
     routeId,
     stationId,
     tripId,

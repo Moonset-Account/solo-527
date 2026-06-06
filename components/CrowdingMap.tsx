@@ -8,12 +8,10 @@ import Map, {
   NavigationControl,
   ScaleControl,
   FullscreenControl,
-  useMap,
 } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { getStationCrowdingData, getRoutes, getStations } from "@/lib/dataStore";
 import type { AnyLayer } from "mapbox-gl";
-import { ZoomIn, ZoomOut, Move, Info, Layers, AlertTriangle } from "lucide-react";
+import { ZoomIn, ZoomOut, Move, Info, Layers, AlertTriangle, Loader2 } from "lucide-react";
 
 interface CrowdingMapProps {
   selectedHour?: number;
@@ -31,6 +29,24 @@ const crowdingColors: Record<string, string> = {
   low: "#10b981",
 };
 
+interface StationCrowding {
+  stationId: string;
+  stationName: string;
+  lng: number;
+  lat: number;
+  avgLoadFactor: number;
+  crowdingLevel: string;
+  totalPassengers: number;
+  arrivalCount: number;
+}
+
+interface RouteData {
+  id: string;
+  name: string;
+  color: string;
+  stations: Array<{ lng: number; lat: number }>;
+}
+
 export default function CrowdingMap({
   selectedHour,
   selectedRouteId,
@@ -47,13 +63,52 @@ export default function CrowdingMap({
   });
   const [mapLoaded, setMapLoaded] = useState(false);
   const [tokenError, setTokenError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [crowdingData, setCrowdingData] = useState<StationCrowding[]>([]);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [allStations, setAllStations] = useState<Array<{ lng: number; lat: number }>>([]);
 
-  const routes = getRoutes();
-  const allStations = getStations();
-  const crowdingData = useMemo(
-    () => getStationCrowdingData({ hour: selectedHour, includeDetour: false }),
-    [selectedHour]
-  );
+  useEffect(() => {
+    if (!MAPBOX_TOKEN) {
+      setTokenError(true);
+      setLoading(false);
+      return;
+    }
+
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        const [crowdingRes, routesRes] = await Promise.all([
+          fetch(`/api/arrivals?crowdingMode=true${selectedHour !== undefined ? `&hour=${selectedHour}` : ""}${selectedRouteId ? `&routeId=${selectedRouteId}` : ""}`),
+          fetch("/api/routes"),
+        ]);
+
+        const [crowdingData, routesData] = await Promise.all([
+          crowdingRes.json(),
+          routesRes.json(),
+        ]);
+
+        setCrowdingData(crowdingData || []);
+        setRoutes(routesData || []);
+
+        const stations = (crowdingData || []).map((s: StationCrowding) => ({
+          lng: s.lng,
+          lat: s.lat,
+        }));
+        setAllStations(stations);
+      } catch (error) {
+        console.error("加载地图数据失败:", error);
+        setCrowdingData([]);
+        setRoutes([]);
+        setAllStations([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [selectedHour, selectedRouteId]);
 
   const initialViewState = useMemo(() => {
     if (allStations.length === 0) {
@@ -236,12 +291,6 @@ export default function CrowdingMap({
     }
   }, []);
 
-  useEffect(() => {
-    if (!MAPBOX_TOKEN) {
-      setTokenError(true);
-    }
-  }, []);
-
   const crowdingLabels: Record<string, string> = {
     low: "宽松 (<40%)",
     medium: "适中 (40-69%)",
@@ -274,6 +323,17 @@ export default function CrowdingMap({
               mapbox.com
             </a>
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="relative h-full w-full flex items-center justify-center bg-slate-50 rounded-lg border border-gray-200" style={{ height }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <span className="text-gray-600">加载地图数据中...</span>
         </div>
       </div>
     );
@@ -356,13 +416,13 @@ export default function CrowdingMap({
                   <div className="flex justify-between gap-4">
                     <span className="text-gray-500">今日客流</span>
                     <span className="font-semibold text-gray-700">
-                      {popupInfo.totalPassengers.toLocaleString()} 人次
+                      {popupInfo.totalPassengers?.toLocaleString?.() || 0} 人次
                     </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-gray-500">到达班次</span>
                     <span className="font-semibold text-gray-700">
-                      {popupInfo.arrivalCount} 班
+                      {popupInfo.arrivalCount || 0} 班
                     </span>
                   </div>
                 </div>
