@@ -1,0 +1,27 @@
+service: museum-education
+image: your-registry/museum-education
+servers:
+  - 192.168.1.1
+  - 192.168.1.2
+registry:
+  server: registry.example.com
+  username: deploy
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+env:
+  secret:
+    - RAILS_MASTER_KEY
+    - DB_PASSWORD
+    - REDIS_URL
+  clear:
+    RAILS_SERVE_STATIC_FILES: true
+    RAILS_LOG_TO_STDOUT: true
+    DB_HOST: db.example.com
+    DB_USERNAME: museum_user
+    DB_NAME: museum_education_production
+volumes:
+  - /data/museum-education/storage:/rails/storage
+healthcheck:
+  path: /up
+  port: 3000
+  interval: 30s

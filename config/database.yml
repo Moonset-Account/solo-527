@@ -1,0 +1,23 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("DB_USERNAME") { 'postgres' } %>
+  password: <%= ENV.fetch("DB_PASSWORD") { '' } %>
+  host: <%= ENV.fetch("DB_HOST") { 'localhost' } %>
+  port: <%= ENV.fetch("DB_PORT") { 5432 } %>
+
+development:
+  <<: *default
+  database: question_069_development
+
+test:
+  <<: *default
+  database: question_069_test
+
+production:
+  <<: *default
+  database: <%= ENV['DB_NAME'] || 'museum_education_production' %>
+  username: <%= ENV['DB_USERNAME'] %>
+  password: <%= ENV['DB_PASSWORD'] %>
+  host: <%= ENV['DB_HOST'] %>
