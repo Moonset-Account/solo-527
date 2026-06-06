@@ -44,22 +44,24 @@ class SettlementService
             $totalOwnerEarning = $dailySplits->sum('owner_share');
             $totalPlatformFee = $dailySplits->sum('platform_share');
 
-            $refundPayments = Payment::where(function ($q) use ($ownerId, $periodStartDate, $periodEndDate) {
-                $q->where(function ($subQ) use ($ownerId) {
-                    $subQ->whereHas('booking.spot', function ($spotQ) use ($ownerId) {
-                        $spotQ->where('owner_id', $ownerId);
-                    });
-                })->orWhere(function ($subQ) use ($ownerId) {
-                    $subQ->whereNull('booking_id')
-                        ->whereExists(function ($existsQ) use ($ownerId) {
-                            $existsQ->select(DB::raw(1))
-                                ->from('parking_violations')
-                                ->whereRaw("parking_violations.violation_no = TRIM(SUBSTRING_INDEX(payments.remark, ':', -1))")
-                                ->whereHas('spot', function ($spotQ) use ($ownerId) {
-                                    $spotQ->where('owner_id', $ownerId);
-                                });
-                        });
+            $violationNos = ParkingViolation::whereHas('spot', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
+            })->pluck('violation_no')->toArray();
+
+            $refundPayments = Payment::where(function ($q) use ($ownerId, $violationNos) {
+                $q->whereHas('booking.spot', function ($spotQ) use ($ownerId) {
+                    $spotQ->where('owner_id', $ownerId);
                 });
+                if (!empty($violationNos)) {
+                    $q->orWhere(function ($subQ) use ($violationNos) {
+                        $subQ->whereNull('booking_id')
+                            ->where(function ($remarkQ) use ($violationNos) {
+                                foreach ($violationNos as $no) {
+                                    $remarkQ->orWhere('remark', 'LIKE', "%{$no}%");
+                                }
+                            });
+                    });
+                }
             })
                 ->where('type', 'refund')
                 ->where('status', 'success')
@@ -72,13 +74,14 @@ class SettlementService
                 ->where('type', 'fine')
                 ->where('status', 'success')
                 ->whereBetween('paid_at', [$periodStartDate, $periodEndDate])
-                ->whereExists(function ($existsQ) use ($ownerId) {
-                    $existsQ->select(DB::raw(1))
-                        ->from('parking_violations')
-                        ->whereRaw("parking_violations.violation_no = TRIM(SUBSTRING_INDEX(payments.remark, ':', -1))")
-                        ->whereHas('spot', function ($spotQ) use ($ownerId) {
-                            $spotQ->where('owner_id', $ownerId);
-                        });
+                ->where(function ($q) use ($violationNos) {
+                    if (!empty($violationNos)) {
+                        foreach ($violationNos as $no) {
+                            $q->orWhere('remark', 'LIKE', "%{$no}%");
+                        }
+                    } else {
+                        $q->whereRaw('1=0');
+                    }
                 })
                 ->get();
 
