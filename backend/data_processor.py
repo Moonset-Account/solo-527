@@ -144,43 +144,46 @@ def get_sample_size(db: Session, filters: dict) -> int:
 def get_heatmap_data(db: Session, filters: dict) -> list:
     from sqlalchemy import case
     
-    checkin_case = case(
-        (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
-        else_=0
+    area_id = filters.get('area_id', 1)
+    
+    seats = db.query(models.Seat).filter(models.Seat.area_id == area_id).all()
+    if not seats:
+        return []
+    
+    res_query = db.query(models.Reservation).filter(
+        models.Reservation.seat_id.in_([s.id for s in seats])
     )
     
-    query = db.query(
-        models.Seat.grid_x,
-        models.Seat.grid_y,
-        models.Seat.seat_code,
-        func.count(models.Reservation.id).label('reservation_count'),
-        func.sum(checkin_case).label('checkin_count')
-    ).select_from(models.Seat).outerjoin(models.Reservation)
-    
     if filters.get('start_date'):
-        query = query.filter(models.Reservation.reservation_date >= filters['start_date'])
+        res_query = res_query.filter(models.Reservation.reservation_date >= filters['start_date'])
     if filters.get('end_date'):
-        query = query.filter(models.Reservation.reservation_date <= filters['end_date'])
-    if filters.get('area_id'):
-        query = query.filter(models.Seat.area_id == filters['area_id'])
-    else:
-        query = query.filter(models.Seat.area_id == 1)
+        res_query = res_query.filter(models.Reservation.reservation_date <= filters['end_date'])
+    if filters.get('time_slot'):
+        res_query = apply_time_filter(res_query, filters)
     
-    query = query.group_by(models.Seat.id, models.Seat.grid_x, models.Seat.grid_y, models.Seat.seat_code)
+    reservations = res_query.all()
     
-    results = query.all()
+    seat_res_map = {}
+    for r in reservations:
+        if r.seat_id not in seat_res_map:
+            seat_res_map[r.seat_id] = {'total': 0, 'checkin': 0}
+        seat_res_map[r.seat_id]['total'] += 1
+        if r.status in ('checked_in', 'completed'):
+            seat_res_map[r.seat_id]['checkin'] += 1
     
     heatmap_data = []
-    for row in results:
-        if row.grid_x is not None and row.grid_y is not None:
-            utilization = (row.checkin_count / row.reservation_count * 100) if row.reservation_count > 0 else 0
-            heatmap_data.append({
-                'grid_x': row.grid_x,
-                'grid_y': row.grid_y,
-                'value': round(utilization, 1),
-                'seat_code': row.seat_code,
-                'sample_size': row.reservation_count or 0
-            })
+    for seat in seats:
+        if seat.grid_x is None or seat.grid_y is None:
+            continue
+        stats = seat_res_map.get(seat.id, {'total': 0, 'checkin': 0})
+        utilization = (stats['checkin'] / stats['total'] * 100) if stats['total'] > 0 else 0
+        heatmap_data.append({
+            'grid_x': seat.grid_x,
+            'grid_y': seat.grid_y,
+            'value': round(utilization, 1),
+            'seat_code': seat.seat_code,
+            'sample_size': stats['total']
+        })
     
     return heatmap_data
 
@@ -224,57 +227,78 @@ def get_no_show_trend(db: Session, filters: dict) -> list:
 
 
 def get_area_comparison(db: Session, filters: dict) -> list:
-    from sqlalchemy import case
-    
-    checkin_case = case(
-        (or_(models.Reservation.status == 'checked_in', models.Reservation.status == 'completed'), 1),
-        else_=0
-    )
-    no_show_case = case(
-        (models.Reservation.status == 'no_show', 1),
-        else_=0
-    )
-    
-    query = db.query(
-        models.Area.area_name,
-        func.count(models.Reservation.id).label('total_reservations'),
-        func.sum(checkin_case).label('checkin_count'),
-        func.sum(no_show_case).label('no_show_count'),
-        func.avg(models.WaitQueue.wait_duration).label('avg_wait'),
-        models.Area.total_seats
-    ).select_from(models.Area) \
-     .join(models.Seat, models.Seat.area_id == models.Area.id) \
-     .outerjoin(models.Reservation, models.Reservation.seat_id == models.Seat.id) \
-     .outerjoin(models.WaitQueue, models.WaitQueue.area_id == models.Area.id)
-    
-    if filters.get('start_date'):
-        query = query.filter(models.Reservation.reservation_date >= filters['start_date'])
-    if filters.get('end_date'):
-        query = query.filter(models.Reservation.reservation_date <= filters['end_date'])
+    area_query = db.query(models.Area)
     if filters.get('floor_id'):
-        query = query.filter(models.Area.floor_id == filters['floor_id'])
+        area_query = area_query.filter(models.Area.floor_id == filters['floor_id'])
+    areas = area_query.all()
+    
+    if not areas:
+        return []
+    
+    seat_query = db.query(models.Seat).filter(models.Seat.area_id.in_([a.id for a in areas]))
     if filters.get('seat_type'):
-        query = query.filter(models.Seat.seat_type == filters['seat_type'])
+        seat_query = seat_query.filter(models.Seat.seat_type == filters['seat_type'])
+    seats = seat_query.all()
+    seat_id_map = {s.id: s.area_id for s in seats}
     
+    res_query = db.query(models.Reservation).filter(
+        models.Reservation.seat_id.in_([s.id for s in seats])
+    )
+    if filters.get('start_date'):
+        res_query = res_query.filter(models.Reservation.reservation_date >= filters['start_date'])
+    if filters.get('end_date'):
+        res_query = res_query.filter(models.Reservation.reservation_date <= filters['end_date'])
     if filters.get('time_slot'):
-        query = apply_time_filter(query, filters)
+        res_query = apply_time_filter(res_query, filters)
+    reservations = res_query.all()
     
-    query = query.group_by(models.Area.id, models.Area.area_name, models.Area.total_seats)
+    wait_query = db.query(models.WaitQueue).filter(
+        models.WaitQueue.area_id.in_([a.id for a in areas])
+    )
+    if filters.get('start_date'):
+        wait_query = wait_query.filter(models.WaitQueue.queue_date >= filters['start_date'])
+    if filters.get('end_date'):
+        wait_query = wait_query.filter(models.WaitQueue.queue_date <= filters['end_date'])
+    wait_records = wait_query.all()
     
-    results = query.all()
+    area_stats = {}
+    for a in areas:
+        area_stats[a.id] = {
+            'total_reservations': 0,
+            'checkin_count': 0,
+            'no_show_count': 0,
+            'wait_durations': [],
+            'area_name': a.area_name,
+            'total_seats': a.total_seats
+        }
+    
+    for r in reservations:
+        area_id = seat_id_map.get(r.seat_id)
+        if area_id and area_id in area_stats:
+            area_stats[area_id]['total_reservations'] += 1
+            if r.status in ('checked_in', 'completed'):
+                area_stats[area_id]['checkin_count'] += 1
+            if r.status == 'no_show':
+                area_stats[area_id]['no_show_count'] += 1
+    
+    for w in wait_records:
+        if w.area_id in area_stats and w.wait_duration is not None:
+            area_stats[w.area_id]['wait_durations'].append(w.wait_duration)
     
     comparison_data = []
-    for row in results:
-        utilization = (row.checkin_count / row.total_reservations * 100) if row.total_reservations > 0 else 0
-        no_show_rate = (row.no_show_count / row.total_reservations * 100) if row.total_reservations > 0 else 0
+    for a_id, stats in area_stats.items():
+        total = stats['total_reservations']
+        utilization = (stats['checkin_count'] / total * 100) if total > 0 else 0
+        no_show_rate = (stats['no_show_count'] / total * 100) if total > 0 else 0
+        avg_wait = sum(stats['wait_durations']) / len(stats['wait_durations']) if stats['wait_durations'] else 0
         
         comparison_data.append({
-            'area_name': row.area_name,
+            'area_name': stats['area_name'],
             'utilization_rate': round(utilization, 2),
             'no_show_rate': round(no_show_rate, 2),
-            'avg_wait_time': round(float(row.avg_wait or 0), 1),
-            'sample_size': row.total_reservations or 0,
-            'seat_count': row.total_seats
+            'avg_wait_time': round(float(avg_wait), 1),
+            'sample_size': total,
+            'seat_count': stats['total_seats']
         })
     
     return comparison_data

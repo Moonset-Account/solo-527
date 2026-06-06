@@ -21,7 +21,7 @@ const SeatHeatmap = () => {
 
   useEffect(() => {
     fetchData();
-  }, [filters.start_date, filters.end_date, selectedArea]);
+  }, [filters.start_date, filters.end_date, filters.time_slot, selectedArea]);
 
   const fetchAreas = async () => {
     try {
@@ -43,7 +43,8 @@ const SeatHeatmap = () => {
       const res = await getHeatmap({
         start_date: filters.start_date,
         end_date: filters.end_date,
-        area_id: selectedArea
+        area_id: selectedArea,
+        time_slot: filters.time_slot
       });
       setData(res.data.data || []);
       setMeta({

@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 import io
 import csv
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
