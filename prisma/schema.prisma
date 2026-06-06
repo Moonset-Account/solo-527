@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  RECEPTIONIST
+  EMPLOYEE
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum VisitorStatus {
+  INVITED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum AccessStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum AuditAction {
+  MEETING_CREATED
+  MEETING_UPDATED
+  MEETING_CANCELLED
+  VISITOR_INVITED
+  VISITOR_CHECKED_IN
+  VISITOR_CHECKED_OUT
+  ACCESS_GRANTED
+  ACCESS_REVOKED
+  ID_PHOTO_UPLOADED
+  ID_PHOTO_DELETED
+  TASK_CREATED
+  TASK_COMPLETED
+  QR_CODE_GENERATED
+  QR_CODE_UPDATED
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  meetings  Meeting[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         UserRole   @default(EMPLOYEE)
+  departmentId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  department   Department? @relation(fields: [departmentId], references: [id])
+  hostedMeetings Meeting[] @relation("Host")
+  auditLogs    AuditLog[]
+}
+
+model MeetingRoom {
+  id        String   @id @default(cuid())
+  name      String
+  location  String
+  capacity  Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetings  Meeting[]
+}
+
+model Meeting {
+  id            String         @id @default(cuid())
+  title         String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime
+  status        MeetingStatus  @default(SCHEDULED)
+  hostId        String
+  departmentId  String
+  roomId        String?
+  previousRoomId String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  host          User           @relation("Host", fields: [hostId], references: [id])
+  department    Department     @relation(fields: [departmentId], references: [id])
+  room          MeetingRoom?   @relation(fields: [roomId], references: [id])
+  visitors      Visitor[]
+  accessGrants  AccessGrant[]
+  frontDeskTasks FrontDeskTask[]
+}
+
+model Visitor {
+  id             String        @id @default(cuid())
+  name           String
+  phone          String
+  idCardNumber   String?
+  company        String?
+  meetingId      String
+  status         VisitorStatus @default(INVITED)
+  checkInTime    DateTime?
+  checkOutTime   DateTime?
+  idPhotoPath    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  meeting        Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  tokens         VisitorToken[]
+  accessGrants   AccessGrant[]
+}
+
+model VisitorToken {
+  id         String   @id @default(cuid())
+  visitorId  String
+  token      String   @unique
+  qrCodeData String
+  expiresAt  DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  visitor    Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+}
+
+model AccessGrant {
+  id          String       @id @default(cuid())
+  visitorId   String
+  meetingId   String
+  startTime   DateTime
+  endTime     DateTime
+  status      AccessStatus @default(ACTIVE)
+  revokedAt   DateTime?
+  revokedBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  visitor     Visitor      @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  meeting     Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model FrontDeskTask {
+  id          String     @id @default(cuid())
+  meetingId   String
+  visitorName String
+  taskType    String
+  status      TaskStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  meeting     Meeting    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  action     AuditAction
+  entityType String
+  entityId   String
+  userId     String?
+  details    Json?
+  createdAt  DateTime    @default(now())
+
+  user       User?       @relation(fields: [userId], references: [id])
+}
+
+model IDPhoto {
+  id         String   @id @default(cuid())
+  visitorId  String   @unique
+  filePath   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+}
