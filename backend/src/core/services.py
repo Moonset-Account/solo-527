@@ -4,6 +4,20 @@ from django.db import models
 class DashboardService:
     @staticmethod
     def _apply_filters(qs, filters, user, date_field=None):
+        if filters.get('teacher_id'):
+            from apps.accounts.models import TeacherProfile
+            try:
+                teacher = TeacherProfile.objects.get(id=filters['teacher_id'])
+                class_ids = teacher.classes.values_list('id', flat=True)
+                if hasattr(qs.model, 'child_class'):
+                    qs = qs.filter(child_class_id__in=class_ids)
+                elif hasattr(qs.model, 'child'):
+                    qs = qs.filter(child__child_class_id__in=class_ids)
+                elif hasattr(qs.model, 'teachers'):
+                    qs = qs.filter(teachers=teacher)
+            except TeacherProfile.DoesNotExist:
+                pass
+
         if filters.get('class_id'):
             if hasattr(qs.model, 'child_class'):
                 qs = qs.filter(child_class_id=filters['class_id'])

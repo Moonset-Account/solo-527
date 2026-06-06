@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Row, Col, Card, Table, Tag, DatePicker, Select, Statistic } from 'antd'
 import { useQuery } from 'react-query'
-import { dashboardApi, childApi } from '@/services/index'
+import { dashboardApi, childApi, userApi } from '@/services/index'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import dayjs, { Dayjs } from 'dayjs'
 import type { PickupTrendItem, ClassUtilization, DashboardOverview } from '@/types'
@@ -11,6 +11,7 @@ const { RangePicker } = DatePicker
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [selectedClass, setSelectedClass] = useState<number | null>(null)
+  const [selectedTeacher, setSelectedTeacher] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   const { data: classes } = useQuery(
@@ -18,8 +19,14 @@ const Dashboard = () => {
     () => childApi.getClasses().then((res) => res.data.results)
   )
 
+  const { data: teachers } = useQuery(
+    ['dashboard-teachers'],
+    () => userApi.getTeachers().then((res) => res.data.results)
+  )
+
   const filterParams: Record<string, any> = {}
   if (selectedClass) filterParams.class_id = selectedClass
+  if (selectedTeacher) filterParams.teacher_id = selectedTeacher
   if (timeRange) {
     filterParams.start_date = timeRange[0].format('YYYY-MM-DD')
     filterParams.end_date = timeRange[1].format('YYYY-MM-DD')
@@ -39,8 +46,8 @@ const Dashboard = () => {
   )
 
   const { data: classUtilization, isLoading: utilLoading } = useQuery(
-    ['dashboard-class-utilization'],
-    () => dashboardApi.getClassUtilization().then((res) => res.data as ClassUtilization[])
+    ['dashboard-class-utilization', filterParams],
+    () => dashboardApi.getClassUtilization(filterParams).then((res) => res.data as ClassUtilization[])
   )
 
   const { data: statusBreakdown, isLoading: statusLoading } = useQuery(
@@ -105,6 +112,14 @@ const Dashboard = () => {
             options={classes?.map((c: any) => ({ label: c.name, value: c.id })) || []}
           />
           <Select
+            placeholder="选择负责人"
+            style={{ width: 160 }}
+            allowClear
+            value={selectedTeacher}
+            onChange={(v) => setSelectedTeacher(v)}
+            options={teachers?.map((t: any) => ({ label: t.user?.name || t.employee_id, value: t.id })) || []}
+          />
+          <Select
             placeholder="状态筛选"
             style={{ width: 140 }}
             allowClear
@@ -119,7 +134,7 @@ const Dashboard = () => {
           />
           <RangePicker
             value={timeRange}
-            onChange={(v) => setTimeRange(v as [Dayjs, Dayjs] | null}
+            onChange={(v) => setTimeRange(v as [Dayjs, Dayjs] | null)}
           />
         </div>
       </div>

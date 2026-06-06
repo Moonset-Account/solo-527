@@ -7,6 +7,11 @@ export { notificationApi } from './notifications'
 export { paymentApi } from './payments'
 export { leaveApi } from './leave'
 
+export const userApi = {
+  getTeachers: (params?: any) =>
+    api.get('/accounts/teacher-profiles/', { params }),
+}
+
 export const dashboardApi = {
   getOverview: (params?: any) =>
     api.get('/dashboard/overview/', { params }),

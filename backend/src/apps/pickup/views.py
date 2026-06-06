@@ -63,6 +63,17 @@ class PickupRecordViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        from apps.children.models import Child
+        child_qs = Child.objects.filter(id=child_id, is_deleted=False)
+        if request.user.role == 'teacher':
+            class_ids = request.user.teacher_profile.classes.values_list('id', flat=True)
+            child_qs = child_qs.filter(child_class_id__in=class_ids)
+        if not child_qs.exists():
+            return Response(
+                {'authorized': False, 'reason': '无权限操作该儿童'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         authorized = AuthorizedPickupPerson.objects.filter(
             child_id=child_id,
             phone=phone,
