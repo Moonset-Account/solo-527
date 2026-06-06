@@ -16,7 +16,7 @@ const CYCLE_BUCKET_MAP: Record<string, { min: number; max?: number }> = {
 };
 
 export const CycleDistributionChart: React.FC = () => {
-  const { dashboardData, loading, setFilters, setDrillDown, activeDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setDrillDown, activeDrillDown } = useDashboardStore();
   const data = dashboardData?.cycle_distribution || [];
 
   const handleClick = (params: any) => {
@@ -30,7 +30,6 @@ export const CycleDistributionChart: React.FC = () => {
       if (range.max !== undefined) {
         drillFilters.max_refund_days = range.max;
       }
-      setFilters(drillFilters);
       setDrillDown('cycle_bucket', drillFilters);
     }
   };

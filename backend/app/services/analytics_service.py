@@ -6,10 +6,9 @@ from app.models import Order, ReturnRequest, Inspection, Refund, ReturnLogistics
 from decimal import Decimal
 
 
-def build_filter_query(db: Session, filters: Dict[str, Any]):
-    query = db.query(ReturnRequest).join(Order, ReturnRequest.order_id == Order.id)
-
+def build_filter_conditions(filters: Dict[str, Any]):
     conditions = []
+    joins_needed = set()
 
     if filters.get("start_date"):
         start_date = datetime.strptime(filters["start_date"], "%Y-%m-%d")
@@ -34,16 +33,31 @@ def build_filter_query(db: Session, filters: Dict[str, Any]):
     if filters.get("status"):
         conditions.append(ReturnRequest.status.in_(filters["status"]))
     if filters.get("agent_names"):
-        query = query.join(CustomerService, ReturnRequest.id == CustomerService.return_request_id)
+        joins_needed.add('customer_service')
         conditions.append(CustomerService.agent_name.in_(filters["agent_names"]))
 
     if filters.get("min_refund_days") is not None or filters.get("max_refund_days") is not None:
-        query = query.join(Refund, ReturnRequest.id == Refund.return_request_id)
+        joins_needed.add('refund')
         cycle_expr = func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
         if filters.get("min_refund_days") is not None:
             conditions.append(cycle_expr >= filters["min_refund_days"])
         if filters.get("max_refund_days") is not None:
             conditions.append(cycle_expr < filters["max_refund_days"])
+
+    return conditions, joins_needed
+
+
+def build_filter_query(db: Session, filters: Dict[str, Any], extra_joins: Optional[List[str]] = None):
+    query = db.query(ReturnRequest).join(Order, ReturnRequest.order_id == Order.id)
+    conditions, joins_needed = build_filter_conditions(filters)
+
+    if extra_joins:
+        joins_needed.update(extra_joins)
+
+    if 'customer_service' in joins_needed:
+        query = query.outerjoin(CustomerService, ReturnRequest.id == CustomerService.return_request_id)
+    if 'refund' in joins_needed:
+        query = query.outerjoin(Refund, ReturnRequest.id == Refund.return_request_id)
 
     if conditions:
         query = query.filter(and_(*conditions))
@@ -79,23 +93,13 @@ def get_overview_stats(db: Session, filters: Dict[str, Any]) -> Dict[str, Any]:
     total_orders = orders_query.count()
     return_rate = (total_returns / total_orders * 100) if total_orders > 0 else 0
 
-    avg_cycle = db.query(
-        func.avg(
-            func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
-        )
-    ).join(ReturnRequest, Refund.return_request_id == ReturnRequest.id)
-
-    avg_cycle = build_filter_query(db, filters).join(
-        Refund, ReturnRequest.id == Refund.return_request_id
-    ).with_entities(
+    avg_cycle = build_filter_query(db, filters, extra_joins=['refund']).with_entities(
         func.avg(
             func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
         )
     ).scalar() or 0
 
-    avg_service = build_filter_query(db, filters).join(
-        CustomerService, ReturnRequest.id == CustomerService.return_request_id
-    ).with_entities(
+    avg_service = build_filter_query(db, filters, extra_joins=['customer_service']).with_entities(
         func.avg(CustomerService.handling_duration)
     ).scalar() or 0
 
@@ -179,9 +183,7 @@ def get_reason_tree(db: Session, filters: Dict[str, Any]) -> List[Dict[str, Any]
 
 
 def get_cycle_distribution(db: Session, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
-    base_query = build_filter_query(db, filters).join(
-        Refund, ReturnRequest.id == Refund.return_request_id
-    )
+    base_query = build_filter_query(db, filters, extra_joins=['refund'])
 
     cycle_expr = func.extract('epoch', Refund.refund_time - ReturnRequest.apply_time) / 86400
 
@@ -250,9 +252,7 @@ def get_product_ranking(db: Session, filters: Dict[str, Any], top_n: int = 20) -
 
 
 def get_service_duration_stats(db: Session, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
-    base_query = build_filter_query(db, filters).join(
-        CustomerService, ReturnRequest.id == CustomerService.return_request_id
-    )
+    base_query = build_filter_query(db, filters, extra_joins=['customer_service'])
 
     stats = base_query.with_entities(
         CustomerService.agent_name,
@@ -286,12 +286,10 @@ def get_dimension_stats(db: Session, filters: Dict[str, Any]) -> Dict[str, List[
     }
 
     result = {}
-    base_query = build_filter_query(db, filters)
+    base_query = build_filter_query(db, filters, extra_joins=['refund'])
 
     for dim_name, (id_col, name_col) in dimensions.items():
-        stats = base_query.outerjoin(
-            Refund, ReturnRequest.id == Refund.return_request_id
-        ).with_entities(
+        stats = base_query.with_entities(
             id_col,
             name_col,
             func.count(ReturnRequest.id).label('count'),

@@ -6,12 +6,11 @@ import { useDashboardStore } from '../../store/dashboard';
 const { Title, Text } = Typography;
 
 export const ProductRankingChart: React.FC = () => {
-  const { dashboardData, loading, setFilters, setDrillDown, activeDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setDrillDown, activeDrillDown } = useDashboardStore();
   const data = dashboardData?.product_ranking?.slice(0, 15) || [];
 
   const handleClick = (params: any) => {
     if (params.data?.product_id) {
-      setFilters({ product_ids: [params.data.product_id] });
       setDrillDown('product', { product_ids: [params.data.product_id] });
     }
   };

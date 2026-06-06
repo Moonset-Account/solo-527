@@ -13,7 +13,7 @@ interface DimensionPanelProps {
 }
 
 const DimensionPanel: React.FC<DimensionPanelProps> = ({ dimension, title, dataKey, onDrillDown }) => {
-  const { dashboardData, loading, setFilters, setDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setDrillDown } = useDashboardStore();
   const data = dashboardData?.dimension_stats?.[dataKey] || [];
 
   const handleRowClick = (record: any) => {
@@ -32,7 +32,6 @@ const DimensionPanel: React.FC<DimensionPanelProps> = ({ dimension, title, dataK
         filters = { product_categories: record.name ? [record.name] : undefined };
         break;
     }
-    setFilters(filters);
     setDrillDown(dimension, filters);
   };
 

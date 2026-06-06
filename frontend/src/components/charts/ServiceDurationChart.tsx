@@ -7,7 +7,7 @@ import { FilterState } from '../../types';
 const { Title, Text } = Typography;
 
 export const ServiceDurationChart: React.FC = () => {
-  const { dashboardData, loading, setFilters, setDrillDown, activeDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setDrillDown, activeDrillDown } = useDashboardStore();
   const data = dashboardData?.service_duration || [];
 
   const handleClick = (params: any) => {
@@ -17,7 +17,6 @@ export const ServiceDurationChart: React.FC = () => {
         agent_names: [agentName],
         status: ['completed']
       };
-      setFilters(drillFilters);
       setDrillDown('agent', drillFilters);
     }
   };

@@ -123,13 +123,7 @@ def export_report(request: ReportExportRequest, db: Session = Depends(get_db)):
 
 @router.post("/details")
 def export_details(filters: dict, db: Session = Depends(get_db)):
-    base_query = build_filter_query(db, filters).join(
-        Order, ReturnRequest.order_id == Order.id
-    ).outerjoin(
-        Refund, ReturnRequest.id == Refund.return_request_id
-    ).outerjoin(
-        CustomerService, ReturnRequest.id == CustomerService.return_request_id
-    )
+    base_query = build_filter_query(db, filters, extra_joins=['refund', 'customer_service'])
 
     data = base_query.with_entities(
         ReturnRequest.return_no,

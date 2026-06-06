@@ -6,13 +6,12 @@ import { useDashboardStore } from '../../store/dashboard';
 const { Title, Text } = Typography;
 
 export const ReasonTreeChart: React.FC = () => {
-  const { dashboardData, loading, setFilters, setDrillDown, activeDrillDown } = useDashboardStore();
+  const { dashboardData, loading, setDrillDown, activeDrillDown } = useDashboardStore();
   const reasonTree = dashboardData?.reason_tree || [];
 
   const handleClick = (params: any) => {
     if (params.data?.name) {
       if (params.treePathInfo?.length === 1) {
-        setFilters({ return_reasons_level1: [params.data.name] });
         setDrillDown('reason_level1', { return_reasons_level1: [params.data.name] });
       }
     }

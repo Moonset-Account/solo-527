@@ -18,6 +18,8 @@ interface FilterBarProps {
 export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
   const {
     filters,
+    drillDownFilters,
+    activeDrillDown,
     filterOptions,
     setFilters,
     resetFilters,
@@ -26,6 +28,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
     deleteView,
     fetchDashboardData
   } = useDashboardStore();
+
+  const effectiveFilters = activeDrillDown
+    ? { ...filters, ...drillDownFilters }
+    : filters;
 
   const handleDateChange = (dates: any) => {
     if (dates && dates.length === 2) {
@@ -44,7 +50,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
 
   const handleExport = async () => {
     try {
-      const blob = await api.exportReport(filters);
+      const blob = await api.exportReport(effectiveFilters);
       saveAs(blob, `退货分析报告_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
     } catch (error) {
       console.error('导出失败:', error);
@@ -52,15 +58,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({ onSaveView }) => {
   };
 
   const activeFilterTags = [
-    filters.store_ids?.length ? `店铺: ${filters.store_ids.length}项` : null,
-    filters.product_ids?.length ? `商品: ${filters.product_ids.length}项` : null,
-    filters.product_categories?.length ? `品类: ${filters.product_categories.length}项` : null,
-    filters.warehouse_ids?.length ? `仓库: ${filters.warehouse_ids.length}项` : null,
-    filters.logistics_providers?.length ? `物流: ${filters.logistics_providers.length}项` : null,
-    filters.return_reasons_level1?.length ? `原因: ${filters.return_reasons_level1.length}项` : null,
-    filters.agent_names?.length ? `客服: ${filters.agent_names.join(',')}` : null,
-    (filters.min_refund_days !== undefined || filters.max_refund_days !== undefined)
-      ? `退款周期: ${filters.min_refund_days || 0}-${filters.max_refund_days || '∞'}天`
+    effectiveFilters.store_ids?.length ? `店铺: ${effectiveFilters.store_ids.length}项` : null,
+    effectiveFilters.product_ids?.length ? `商品: ${effectiveFilters.product_ids.length}项` : null,
+    effectiveFilters.product_categories?.length ? `品类: ${effectiveFilters.product_categories.length}项` : null,
+    effectiveFilters.warehouse_ids?.length ? `仓库: ${effectiveFilters.warehouse_ids.length}项` : null,
+    effectiveFilters.logistics_providers?.length ? `物流: ${effectiveFilters.logistics_providers.length}项` : null,
+    effectiveFilters.return_reasons_level1?.length ? `原因: ${effectiveFilters.return_reasons_level1.length}项` : null,
+    effectiveFilters.agent_names?.length ? `客服: ${effectiveFilters.agent_names.join(',')}` : null,
+    (effectiveFilters.min_refund_days !== undefined || effectiveFilters.max_refund_days !== undefined)
+      ? `退款周期: ${effectiveFilters.min_refund_days || 0}-${effectiveFilters.max_refund_days || '∞'}天`
       : null,
   ].filter(Boolean);
 
