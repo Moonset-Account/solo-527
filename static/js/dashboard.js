@@ -4,7 +4,7 @@ document.addEventListener('alpine:init', () => {
             filters: {
                 startDate: '',
                 endDate: '',
-                excludeTrial: false,
+                excludeTrial: true,
                 period: 'day'
             },
             metrics: {

@@ -2,6 +2,7 @@ from celery import shared_task
 from django.conf import settings
 import os
 import pandas as pd
+import openpyxl
 from datetime import datetime, timedelta
 from reports.models import ImportTask, ReportTask
 from operations.models import Wastage, Stocktake, Inventory, MaterialUse, Sale
@@ -10,8 +11,51 @@ from materials.models import Material
 from accounts.models import Staff, StaffShift
 from analytics.models import LossAggregation
 from django.db.models import Sum
-import io
-import openpyxl
+from django.contrib.auth.models import User
+from accounts.models import UserProfile
+
+
+SHIFT_MAP = {
+    '早班': 'morning',
+    '中班': 'afternoon',
+    '晚班': 'evening',
+    '全天': 'all',
+    'morning': 'morning',
+    'afternoon': 'afternoon',
+    'evening': 'evening',
+    'all': 'all',
+}
+
+REASON_MAP = {
+    '过期': 'expired',
+    '损坏': 'damaged',
+    '变质': 'spoilage',
+    '操作失误': 'operation',
+    '其他': 'other',
+    'expired': 'expired',
+    'damaged': 'damaged',
+    'spoilage': 'spoilage',
+    'operation': 'operation',
+    'other': 'other',
+}
+
+
+def safe_float(val, default=0.0):
+    try:
+        if pd.isna(val) or val is None or str(val).strip() == '':
+            return default
+        return float(val)
+    except:
+        return default
+
+
+def safe_str(val, default=''):
+    try:
+        if pd.isna(val) or val is None:
+            return default
+        return str(val).strip()
+    except:
+        return default
 
 
 @shared_task(bind=True)
@@ -28,100 +72,204 @@ def process_import_task(self, task_id):
         else:
             df = pd.read_csv(file_path)
         
+        df = df.dropna(how='all')
         total_rows = len(df)
         success_rows = 0
         failed_rows = 0
+        error_details = []
         
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
             try:
                 if task.data_type == 'wastage':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    material = Material.objects.get(code=str(row.iloc[1]).strip())
+                    store_code = safe_str(row.iloc[0])
+                    material_code = safe_str(row.iloc[1])
+                    if not store_code or not material_code:
+                        failed_rows += 1
+                        error_details.append(f'第{idx+2}行: 门店编码或原料编码为空')
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
+                    material = Material.objects.get(code=material_code)
+                    qty = safe_float(row.iloc[3])
+                    price = safe_float(row.iloc[4])
+                    total = qty * price
+                    
+                    reason_raw = safe_str(row.iloc[5]) if len(row) > 5 else 'other'
+                    reason = REASON_MAP.get(reason_raw, 'other')
+                    
+                    shift_raw = safe_str(row.iloc[6]) if len(row) > 6 else 'all'
+                    shift = SHIFT_MAP.get(shift_raw, 'all')
+                    
+                    record_date = pd.to_datetime(row.iloc[2]).date() if len(row) > 2 else datetime.now().date()
+                    
                     Wastage.objects.create(
                         store=store,
                         material=material,
-                        record_date=pd.to_datetime(row.iloc[2]).date(),
-                        quantity=float(row.iloc[3]),
-                        unit_price=float(row.iloc[4]),
-                        reason=str(row.iloc[5]) if len(row) > 5 else 'other',
-                        shift=str(row.iloc[6]) if len(row) > 6 else 'day'
+                        record_date=record_date,
+                        quantity=qty,
+                        unit_price=price,
+                        total_amount=total,
+                        reason=reason,
+                        shift=shift
                     )
+                    success_rows += 1
+                
                 elif task.data_type == 'stocktake':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    material = Material.objects.get(code=str(row.iloc[1]).strip())
-                    sys_qty = float(row.iloc[3])
-                    actual_qty = float(row.iloc[4])
+                    store_code = safe_str(row.iloc[0])
+                    material_code = safe_str(row.iloc[1])
+                    if not store_code or not material_code:
+                        failed_rows += 1
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
+                    material = Material.objects.get(code=material_code)
+                    sys_qty = safe_float(row.iloc[3])
+                    actual_qty = safe_float(row.iloc[4])
                     diff = actual_qty - sys_qty
-                    unit_price = float(row.iloc[5]) if len(row) > 5 else float(material.unit_price)
+                    unit_price = safe_float(row.iloc[5]) if len(row) > 5 else float(material.unit_price)
+                    diff_amount = diff * unit_price
+                    
+                    shift_raw = safe_str(row.iloc[6]) if len(row) > 6 else 'all'
+                    shift = SHIFT_MAP.get(shift_raw, 'all')
+                    record_date = pd.to_datetime(row.iloc[2]).date() if len(row) > 2 else datetime.now().date()
+                    
                     Stocktake.objects.create(
                         store=store,
                         material=material,
-                        record_date=pd.to_datetime(row.iloc[2]).date(),
+                        record_date=record_date,
                         system_quantity=sys_qty,
                         actual_quantity=actual_qty,
                         diff_quantity=diff,
-                        diff_amount=diff * unit_price,
-                        shift=str(row.iloc[6]) if len(row) > 6 else 'day'
+                        diff_amount=diff_amount,
+                        shift=shift
                     )
+                    success_rows += 1
+                
                 elif task.data_type == 'inventory':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    material = Material.objects.get(code=str(row.iloc[1]).strip())
+                    store_code = safe_str(row.iloc[0])
+                    material_code = safe_str(row.iloc[1])
+                    if not store_code or not material_code:
+                        failed_rows += 1
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
+                    material = Material.objects.get(code=material_code)
+                    qty = safe_float(row.iloc[3])
+                    price = safe_float(row.iloc[4])
+                    total = qty * price
+                    batch_no = safe_str(row.iloc[5]) if len(row) > 5 else ''
+                    record_date = pd.to_datetime(row.iloc[2]).date() if len(row) > 2 else datetime.now().date()
+                    
                     Inventory.objects.create(
                         store=store,
                         material=material,
-                        record_date=pd.to_datetime(row.iloc[2]).date(),
-                        quantity=float(row.iloc[3]),
-                        unit_price=float(row.iloc[4]),
-                        batch_number=str(row.iloc[5]) if len(row) > 5 else ''
+                        record_date=record_date,
+                        quantity=qty,
+                        unit_price=price,
+                        total_amount=total,
+                        batch_no=batch_no
                     )
+                    success_rows += 1
+                
                 elif task.data_type == 'material_use':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    material = Material.objects.get(code=str(row.iloc[1]).strip())
+                    store_code = safe_str(row.iloc[0])
+                    material_code = safe_str(row.iloc[1])
+                    if not store_code or not material_code:
+                        failed_rows += 1
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
+                    material = Material.objects.get(code=material_code)
+                    qty = safe_float(row.iloc[3])
+                    
+                    shift_raw = safe_str(row.iloc[4]) if len(row) > 4 else 'all'
+                    shift = SHIFT_MAP.get(shift_raw, 'all')
+                    record_date = pd.to_datetime(row.iloc[2]).date() if len(row) > 2 else datetime.now().date()
+                    
                     MaterialUse.objects.create(
                         store=store,
                         material=material,
-                        record_date=pd.to_datetime(row.iloc[2]).date(),
-                        quantity=float(row.iloc[3]),
-                        shift=str(row.iloc[4]) if len(row) > 4 else 'day'
+                        record_date=record_date,
+                        quantity=qty,
+                        shift=shift
                     )
+                    success_rows += 1
+                
                 elif task.data_type == 'sale':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    material = Material.objects.get(code=str(row.iloc[2]).strip())
+                    store_code = safe_str(row.iloc[0])
+                    product_name = safe_str(row.iloc[1])
+                    material_code = safe_str(row.iloc[2])
+                    if not store_code:
+                        failed_rows += 1
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
+                    material = None
+                    if material_code:
+                        try:
+                            material = Material.objects.get(code=material_code)
+                        except:
+                            pass
+                    
+                    sale_qty = safe_float(row.iloc[4])
+                    mat_consume = safe_float(row.iloc[5])
+                    sale_amount = safe_float(row.iloc[6]) if len(row) > 6 else 0
+                    
+                    shift_raw = safe_str(row.iloc[7]) if len(row) > 7 else 'all'
+                    shift = SHIFT_MAP.get(shift_raw, 'all')
+                    sale_date = pd.to_datetime(row.iloc[3]).date() if len(row) > 3 else datetime.now().date()
+                    
                     Sale.objects.create(
                         store=store,
-                        product_name=str(row.iloc[1]),
+                        product_name=product_name,
                         material=material,
-                        sale_date=pd.to_datetime(row.iloc[3]).date(),
-                        sale_quantity=float(row.iloc[4]),
-                        material_used=float(row.iloc[5]),
-                        sale_amount=float(row.iloc[6]) if len(row) > 6 else 0,
-                        shift=str(row.iloc[7]) if len(row) > 7 else 'day'
+                        sale_date=sale_date,
+                        quantity=sale_qty,
+                        material_consume=mat_consume,
+                        sale_amount=sale_amount,
+                        shift=shift
                     )
+                    success_rows += 1
+                
                 elif task.data_type == 'staff_shift':
-                    store = Store.objects.get(code=str(row.iloc[0]).strip())
-                    staff_name = str(row.iloc[1]).strip()
+                    store_code = safe_str(row.iloc[0])
+                    staff_name = safe_str(row.iloc[1])
+                    if not store_code or not staff_name:
+                        failed_rows += 1
+                        continue
+                    
+                    store = Store.objects.get(code=store_code)
                     staff, _ = Staff.objects.get_or_create(
                         name=staff_name,
                         store=store,
                         defaults={'position': 'staff'}
                     )
+                    
+                    shift_type_raw = safe_str(row.iloc[2]) if len(row) > 2 else 'all'
+                    shift_type = SHIFT_MAP.get(shift_type_raw, 'all')
+                    shift_date = pd.to_datetime(row.iloc[3]).date() if len(row) > 3 else datetime.now().date()
+                    start_time = safe_str(row.iloc[4], '09:00') if len(row) > 4 else '09:00'
+                    end_time = safe_str(row.iloc[5], '18:00') if len(row) > 5 else '18:00'
+                    
                     StaffShift.objects.create(
                         staff=staff,
-                        shift_type=str(row.iloc[2]) if len(row) > 2 else 'day',
-                        shift_date=pd.to_datetime(row.iloc[3]).date(),
-                        start_time=str(row.iloc[4]) if len(row) > 4 else '09:00',
-                        end_time=str(row.iloc[5]) if len(row) > 5 else '18:00'
+                        shift_type=shift_type,
+                        shift_date=shift_date,
+                        start_time=start_time,
+                        end_time=end_time
                     )
-                
-                success_rows += 1
+                    success_rows += 1
+            
             except Exception as e:
                 failed_rows += 1
+                error_details.append(f'第{idx+2}行: {str(e)}')
                 continue
         
         task.status = 'completed'
         task.total_rows = total_rows
         task.success_rows = success_rows
         task.failed_rows = failed_rows
+        task.error_message = '\n'.join(error_details[:10]) if error_details else ''
         task.completed_at = datetime.now()
         task.save()
         
@@ -160,105 +308,54 @@ def aggregate_loss_data(self, start_date=None, end_date=None):
         while current <= end_date:
             for store in stores:
                 for includes_trial in materials_trial:
-                    wastage_qs = Wastage.objects.filter(
-                        store=store,
-                        record_date=current
-                    )
+                    wastage_qs = Wastage.objects.filter(store=store, record_date=current)
                     if not includes_trial:
                         wastage_qs = wastage_qs.filter(material__is_trial=False)
                     
-                    stocktake_qs = Stocktake.objects.filter(
-                        store=store,
-                        record_date=current
-                    )
+                    stocktake_qs = Stocktake.objects.filter(store=store, record_date=current)
                     if not includes_trial:
                         stocktake_qs = stocktake_qs.filter(material__is_trial=False)
                     
-                    use_qs = MaterialUse.objects.filter(
-                        store=store,
-                        record_date=current
-                    )
+                    use_qs = MaterialUse.objects.filter(store=store, record_date=current)
                     if not includes_trial:
                         use_qs = use_qs.filter(material__is_trial=False)
                     
-                    use_total = 0
+                    use_total = 0.0
                     for mu in use_qs.select_related('material'):
                         use_total += float(mu.quantity) * float(mu.material.unit_price)
                     
                     loss_amount = float(wastage_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0)
                     diff_amount = float(stocktake_qs.aggregate(Sum('diff_amount'))['diff_amount__sum'] or 0)
                     total_loss = loss_amount + abs(diff_amount)
-                    total_use = use_total or 5000
+                    total_use = use_total or 5000.0
+                    loss_rate = (total_loss / total_use * 100) if total_use > 0 else 0
                     
-                    LossAggregation.objects.update_or_create(
+                    existing = LossAggregation.objects.filter(
                         store=store,
                         period_date=current,
                         period_type='day',
+                        shift='all',
                         includes_trial=includes_trial,
-                        defaults={
-                            'loss_amount': total_loss,
-                            'total_use': total_use,
-                            'loss_rate': (total_loss / total_use * 100) if total_use > 0 else 0
-                        }
-                    )
-            
-            if current.weekday() == 0:
-                week_start = current
-                week_end = current + timedelta(days=6)
-                for store in stores:
-                    for includes_trial in materials_trial:
-                        day_aggs = LossAggregation.objects.filter(
+                        material=None
+                    ).first()
+                    
+                    if existing:
+                        existing.loss_amount = round(total_loss, 2)
+                        existing.total_use = round(total_use, 2)
+                        existing.loss_rate = round(loss_rate, 4)
+                        existing.save()
+                    else:
+                        LossAggregation.objects.create(
                             store=store,
-                            period_date__gte=week_start,
-                            period_date__lte=week_end,
+                            period_date=current,
                             period_type='day',
-                            includes_trial=includes_trial
-                        )
-                        loss_sum = 0
-                        use_sum = 0
-                        for agg in day_aggs:
-                            loss_sum += float(agg.loss_amount)
-                            use_sum += float(agg.total_use)
-                        LossAggregation.objects.update_or_create(
-                            store=store,
-                            period_date=week_start,
-                            period_type='week',
+                            shift='all',
                             includes_trial=includes_trial,
-                            defaults={
-                                'loss_amount': loss_sum,
-                                'total_use': use_sum,
-                                'loss_rate': (loss_sum / use_sum * 100) if use_sum > 0 else 0
-                            }
+                            material=None,
+                            loss_amount=round(total_loss, 2),
+                            total_use=round(total_use, 2),
+                            loss_rate=round(loss_rate, 4)
                         )
-            
-            if current.day == 1:
-                month_start = current
-                for store in stores:
-                    for includes_trial in materials_trial:
-                        day_aggs = LossAggregation.objects.filter(
-                            store=store,
-                            period_date__year=month_start.year,
-                            period_date__month=month_start.month,
-                            period_type='day',
-                            includes_trial=includes_trial
-                        )
-                        loss_sum = 0
-                        use_sum = 0
-                        for agg in day_aggs:
-                            loss_sum += float(agg.loss_amount)
-                            use_sum += float(agg.total_use)
-                        LossAggregation.objects.update_or_create(
-                            store=store,
-                            period_date=month_start,
-                            period_type='month',
-                            includes_trial=includes_trial,
-                            defaults={
-                                'loss_amount': loss_sum,
-                                'total_use': use_sum,
-                                'loss_rate': (loss_sum / use_sum * 100) if use_sum > 0 else 0
-                            }
-                        )
-            
             current += timedelta(days=1)
         
         return {'status': 'completed', 'date_range': f'{start_date} to {end_date}'}
@@ -274,9 +371,6 @@ def generate_report_task(self, task_id):
     task.save()
     
     try:
-        from django.contrib.auth.models import User
-        from accounts.models import UserProfile
-        
         user = task.user
         profile = UserProfile.objects.filter(user=user).first()
         exclude_trial = task.exclude_trial
@@ -287,29 +381,34 @@ def generate_report_task(self, task_id):
             role_name = 'admin'
         
         allowed_stores = None
+        store_filter_desc = '全部门店'
         if role_name == 'store_manager' and profile.store:
             allowed_stores = [profile.store.id]
+            store_filter_desc = profile.store.name
         elif role_name == 'region_operator' and profile.region:
             allowed_stores = list(Store.objects.filter(region=profile.region).values_list('id', flat=True))
+            store_filter_desc = f'{profile.region.name} 区域门店'
         
         filters = task.filters or {}
-        start_date = filters.get('start_date')
-        end_date = filters.get('end_date')
+        start_date = filters.get('start_date', '全部')
+        end_date = filters.get('end_date', '全部')
         report_type = task.report_type
         
         wb = openpyxl.Workbook()
         
         info_sheet = wb.active
-        info_sheet.title = '报表信息'
-        info_sheet['A1'] = '连锁茶饮原料损耗看板'
-        info_sheet['A2'] = f'报表类型: {task.get_report_type_display()}'
-        info_sheet['A3'] = f'生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
-        info_sheet['A4'] = f'操作人: {user.username}'
-        info_sheet['A5'] = f'是否排除试营原料: {"是" if exclude_trial else "否"}'
-        info_sheet['A6'] = f'数据范围: {start_date or "全部"} ~ {end_date or "全部"}'
+        info_sheet.title = '报表说明'
+        info_sheet['A1'] = '连锁茶饮原料损耗看板 - 报表'
+        info_sheet['A1'].font = openpyxl.styles.Font(size=14, bold=True)
+        info_sheet['A3'] = f'报表类型: {task.get_report_type_display()}'
+        info_sheet['A4'] = f'生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+        info_sheet['A5'] = f'操作人: {user.username}'
+        info_sheet['A6'] = f'数据范围: {store_filter_desc}'
+        info_sheet['A7'] = f'日期范围: {start_date} ~ {end_date}'
+        info_sheet['A8'] = f'是否排除试营原料: {"是" if exclude_trial else "否"}'
+        info_sheet['A9'] = f'备注: 排除试营原料后的数据不包含新品试营期间的原料损耗'
         
-        wb.remove(info_sheet)
-        
+        ws = None
         if report_type == 'loss_summary':
             ws = wb.create_sheet('损耗汇总')
             ws.append(['门店', '损耗金额(元)', '总领用(元)', '损耗率(%)', '异常状态'])
@@ -322,11 +421,13 @@ def generate_report_task(self, task_id):
                 agg_qs = LossAggregation.objects.filter(
                     store=store,
                     period_type='day',
-                    includes_trial=not exclude_trial
+                    includes_trial=not exclude_trial,
+                    shift='all',
+                    material=None
                 )
-                if start_date:
+                if start_date and start_date != '全部':
                     agg_qs = agg_qs.filter(period_date__gte=start_date)
-                if end_date:
+                if end_date and end_date != '全部':
                     agg_qs = agg_qs.filter(period_date__lte=end_date)
                 
                 total_loss = float(agg_qs.aggregate(Sum('loss_amount'))['loss_amount__sum'] or 0)
@@ -338,21 +439,24 @@ def generate_report_task(self, task_id):
         
         elif report_type == 'store_comparison':
             ws = wb.create_sheet('门店对比')
-            ws.append(['门店', '损耗金额(元)', '损耗率(%)', '环比变化(%)', '异常状态'])
+            ws.append(['门店', '损耗金额(元)', '损耗率(%)', '异常状态', '门店等级'])
             
             store_query = Store.objects.all()
             if allowed_stores:
                 store_query = store_query.filter(id__in=allowed_stores)
             
+            store_data = []
             for store in store_query:
                 agg_qs = LossAggregation.objects.filter(
                     store=store,
                     period_type='day',
-                    includes_trial=not exclude_trial
+                    includes_trial=not exclude_trial,
+                    shift='all',
+                    material=None
                 )
-                if start_date:
+                if start_date and start_date != '全部':
                     agg_qs = agg_qs.filter(period_date__gte=start_date)
-                if end_date:
+                if end_date and end_date != '全部':
                     agg_qs = agg_qs.filter(period_date__lte=end_date)
                 
                 total_loss = float(agg_qs.aggregate(Sum('loss_amount'))['loss_amount__sum'] or 0)
@@ -360,59 +464,107 @@ def generate_report_task(self, task_id):
                 loss_rate = (total_loss / total_use * 100) if total_use > 0 else 0
                 is_abnormal = '异常' if loss_rate > settings.DEFAULT_ABNORMAL_THRESHOLD else '正常'
                 
-                ws.append([store.name, round(total_loss, 2), round(loss_rate, 2), 0, is_abnormal])
+                if loss_rate > 10:
+                    grade = 'D - 严重'
+                elif loss_rate > 7:
+                    grade = 'C - 较差'
+                elif loss_rate > 5:
+                    grade = 'B - 一般'
+                else:
+                    grade = 'A - 优秀'
+                
+                store_data.append({
+                    'name': store.name,
+                    'loss': total_loss,
+                    'rate': loss_rate,
+                    'abnormal': is_abnormal,
+                    'grade': grade
+                })
+            
+            store_data.sort(key=lambda x: x['rate'], reverse=True)
+            for s in store_data:
+                ws.append([s['name'], round(s['loss'], 2), round(s['rate'], 2), s['abnormal'], s['grade']])
         
         elif report_type == 'material_ranking':
             ws = wb.create_sheet('原料排行')
-            ws.append(['排名', '原料编码', '原料名称', '损耗金额(元)', '是否试营原料'])
+            ws.append(['排名', '原料编码', '原料名称', '分类', '损耗金额(元)', '损耗占比(%)', '是否试营原料'])
             
             wastage_qs = Wastage.objects.all()
             if allowed_stores:
                 wastage_qs = wastage_qs.filter(store_id__in=allowed_stores)
-            if start_date:
+            if start_date and start_date != '全部':
                 wastage_qs = wastage_qs.filter(record_date__gte=start_date)
-            if end_date:
+            if end_date and end_date != '全部':
                 wastage_qs = wastage_qs.filter(record_date__lte=end_date)
             if exclude_trial:
                 wastage_qs = wastage_qs.filter(material__is_trial=False)
             
-            material_data = wastage_qs.values('material__code', 'material__name', 'material__is_trial').annotate(
+            material_data = wastage_qs.values(
+                'material__code', 'material__name', 'material__category__name', 'material__is_trial'
+            ).annotate(
                 total_loss=Sum('total_amount')
             ).order_by('-total_loss')[:50]
             
+            total_all = float(wastage_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 1)
+            
             for i, item in enumerate(material_data):
+                loss_val = float(item['total_loss'] or 0)
+                ratio = (loss_val / total_all * 100) if total_all > 0 else 0
                 ws.append([
                     i + 1,
                     item['material__code'],
                     item['material__name'],
-                    round(float(item['total_loss'] or 0), 2),
+                    item['material__category__name'] or '',
+                    round(loss_val, 2),
+                    round(ratio, 2),
                     '是' if item['material__is_trial'] else '否'
                 ])
         
         elif report_type == 'abnormal_details':
             ws = wb.create_sheet('异常明细')
-            ws.append(['日期', '门店', '原料', '数量', '金额', '原因', '班次'])
+            ws.append(['日期', '门店', '原料编码', '原料名称', '数量', '单价', '金额(元)', '原因', '班次', '是否试营'])
             
             wastage_qs = Wastage.objects.all()
             if allowed_stores:
                 wastage_qs = wastage_qs.filter(store_id__in=allowed_stores)
-            if start_date:
+            if start_date and start_date != '全部':
                 wastage_qs = wastage_qs.filter(record_date__gte=start_date)
-            if end_date:
+            if end_date and end_date != '全部':
                 wastage_qs = wastage_qs.filter(record_date__lte=end_date)
             if exclude_trial:
                 wastage_qs = wastage_qs.filter(material__is_trial=False)
             
-            for w in wastage_qs.select_related('store', 'material')[:1000]:
+            for w in wastage_qs.select_related('store', 'material').order_by('-record_date')[:5000]:
                 ws.append([
                     w.record_date.strftime('%Y-%m-%d'),
                     w.store.name,
+                    w.material.code,
                     w.material.name,
                     float(w.quantity),
+                    float(w.unit_price),
                     float(w.total_amount),
                     w.get_reason_display(),
-                    w.get_shift_display()
+                    w.get_shift_display(),
+                    '是' if w.material.is_trial else '否'
                 ])
+        
+        else:
+            ws = wb.create_sheet('报表内容')
+            ws.append(['报表类型', report_type])
+            ws.append(['状态', '待完善'])
+        
+        for sheet in wb.worksheets:
+            for col in sheet.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 30)
+                sheet.column_dimensions[column].width = adjusted_width
         
         os.makedirs(os.path.join(settings.MEDIA_ROOT, 'reports'), exist_ok=True)
         file_name = f'{report_type}_{datetime.now().strftime("%Y%m%d%H%M%S")}.xlsx'
