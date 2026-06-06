@@ -1286,7 +1286,7 @@
         // ========== 库存管理 ==========
         async function renderInventory() {
             try {
-                const res = await api('/inventory/items?pageSize=20');
+                const res = await api('/inventory/supply-items?pageSize=20');
                 const items = res.data || [];
                 return `
                     <div class="p-6">
