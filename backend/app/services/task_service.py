@@ -138,14 +138,14 @@ class TaskService:
         task.status = CleaningTaskStatus.APPROVED
         task.completed_at = datetime.utcnow()
         task.inspector_remarks = remarks
+        task.inspected_by = inspector_id
 
-        room_status = db.query(RoomStatus).filter(
-            RoomStatus.property_id == task.property_id,
-            RoomStatus.date == datetime.utcnow().date()
-        ).first()
-        if room_status:
-            room_status.status = RoomStatusType.AVAILABLE
-            room_status.current_cleaning_task_id = None
+        room_statuses = db.query(RoomStatus).filter(
+            RoomStatus.current_cleaning_task_id == task.id
+        ).all()
+        for rs in room_statuses:
+            rs.status = RoomStatusType.AVAILABLE
+            rs.current_cleaning_task_id = None
 
         db.add(Notification(
             user_id=task.cleaner_id,

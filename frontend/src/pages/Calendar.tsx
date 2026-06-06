@@ -1,9 +1,9 @@
-import { Card, Select, Badge, Space, Tooltip, Button, Modal, Form, Input, DatePicker, Radio, message } from 'antd'
-import { CalendarOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { Card, Select, Badge, Space, Tooltip, Button, Modal, Form, Input, DatePicker, Radio, message, Alert, Tag } from 'antd'
+import { CalendarOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useState, useEffect, useMemo } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import { get, post } from '../api'
-import type { RoomStatus, Property, PaginatedResponse } from '../types'
+import type { RoomStatus, Property, PaginatedResponse, CleaningTask } from '../types'
 
 const { Option } = Select
 
@@ -28,7 +28,17 @@ const Calendar: React.FC = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null)
   const [selectedStatus, setSelectedStatus] = useState<RoomStatus | null>(null)
+  const [linkedTask, setLinkedTask] = useState<CleaningTask | null>(null)
   const [form] = Form.useForm()
+
+  const fetchLinkedTask = async (taskId: number) => {
+    try {
+      const data = await get<CleaningTask>(`/cleaning-tasks/${taskId}`)
+      setLinkedTask(data)
+    } catch (e) {
+      setLinkedTask(null)
+    }
+  }
 
   const fetchCommunities = async () => {
     try {
@@ -92,12 +102,16 @@ const Calendar: React.FC = () => {
     setSelectedStatus(status)
     setSelectedPropertyId(propertyId)
     setSelectedDate(date)
+    setLinkedTask(null)
     if (status) {
       form.setFieldsValue({
         status: status.status,
         guest_name: status.guest_name,
         remarks: status.remarks,
       })
+      if (status.current_cleaning_task_id) {
+        fetchLinkedTask(status.current_cleaning_task_id)
+      }
     } else {
       form.resetFields()
       form.setFieldsValue({ status: 'available' })
@@ -107,7 +121,7 @@ const Calendar: React.FC = () => {
 
   const handleSaveStatus = async (values: any) => {
     try {
-      await post('/room-statuses', {
+      const data = await post<any>('/room-statuses', {
         property_id: selectedPropertyId,
         date: selectedDate?.format('YYYY-MM-DD'),
         status: values.status,
@@ -116,10 +130,28 @@ const Calendar: React.FC = () => {
         check_in_time: values.check_in_time ? values.check_in_time.toISOString() : null,
         check_out_time: values.check_out_time ? values.check_out_time.toISOString() : null,
       })
-      message.success('房态更新成功')
+      
+      if (values.status === 'checked_out') {
+        message.success('已退房，已自动创建保洁任务并绑定')
+      } else if (values.status === 'available' || values.status === 'occupied') {
+        if (selectedStatus?.current_cleaning_task_id) {
+          message.success('房态已更新，关联保洁任务已验收通过')
+        } else {
+          message.success('房态更新成功')
+        }
+      } else {
+        message.success('房态更新成功')
+      }
+      
       setModalVisible(false)
       fetchRoomStatuses()
-    } catch (e) {}
+    } catch (e: any) {
+      if (e?.response?.data?.detail) {
+        message.error(e.response.data.detail)
+      } else {
+        message.error('房态更新失败')
+      }
+    }
   }
 
   const weekDays = ['日', '一', '二', '三', '四', '五', '六']
@@ -203,6 +235,7 @@ const Calendar: React.FC = () => {
                   {daysInMonth.map((day) => {
                     const status = getStatusForPropertyAndDate(prop.id, day)
                     const config = status ? statusConfig[status.status] : statusConfig.available
+                    const hasTask = status?.current_cleaning_task_id
                     return (
                       <td
                         key={day.format('YYYY-MM-DD')}
@@ -216,15 +249,27 @@ const Calendar: React.FC = () => {
                         }}
                         onClick={() => handleCellClick(status || null, prop.id, day)}
                       >
-                        <Tooltip title={status?.guest_name || config.text}>
-                          <Badge
-                            color={config.color}
-                            text={
-                              <span style={{ fontSize: 11 }}>
-                                {status?.guest_name || config.text}
-                              </span>
-                            }
-                          />
+                        <Tooltip title={
+                          <div>
+                            <div>{status?.guest_name || config.text}</div>
+                            {hasTask && <div style={{ color: '#1890ff', marginTop: 4 }}>🧹 关联保洁任务</div>}
+                          </div>
+                        }>
+                          <div>
+                            <Badge
+                              color={config.color}
+                              text={
+                                <span style={{ fontSize: 11 }}>
+                                  {status?.guest_name || config.text}
+                                </span>
+                              }
+                            />
+                            {hasTask && (
+                              <div style={{ fontSize: 10, color: '#1890ff', marginTop: 2 }}>
+                                <CheckCircleOutlined /> 任务
+                              </div>
+                            )}
+                          </div>
                         </Tooltip>
                       </td>
                     )
@@ -241,14 +286,47 @@ const Calendar: React.FC = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         footer={null}
-        width={500}
+        width={550}
       >
+        {linkedTask && linkedTask.status !== 'approved' && (
+          <Alert
+            message="该房间关联了未完成的保洁任务"
+            description={
+              <div>
+                <p>任务编号：<Tag color="blue">{linkedTask.task_no}</Tag></p>
+                <p>任务状态：<Tag color="orange">{linkedTask.status}</Tag></p>
+                <p>保洁验收通过前，不能改为可入住或办理入住</p>
+              </div>
+            }
+            type="warning"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        {linkedTask && linkedTask.status === 'approved' && (
+          <Alert
+            message="保洁任务已验收通过"
+            description={`任务编号：${linkedTask.task_no}，可以正常入住`}
+            type="success"
+            showIcon
+            icon={<CheckCircleOutlined />}
+            style={{ marginBottom: 16 }}
+          />
+        )}
         <Form form={form} layout="vertical" onFinish={handleSaveStatus}>
           <Form.Item name="status" label="房间状态" rules={[{ required: true }]}>
             <Radio.Group>
             {Object.entries(statusConfig).map(([key, config]) => (
-              <Radio key={key} value={key}>
+              <Radio key={key} value={key} disabled={
+                linkedTask && linkedTask.status !== 'approved' && 
+                (key === 'available' || key === 'occupied')
+              }>
                 <Badge color={config.color} text={config.text} />
+                {linkedTask && linkedTask.status !== 'approved' && 
+                 (key === 'available' || key === 'occupied') && (
+                  <span style={{ color: '#999', fontSize: 12, marginLeft: 4 }}>(需保洁验收)</span>
+                )}
               </Radio>
             ))}
             </Radio.Group>

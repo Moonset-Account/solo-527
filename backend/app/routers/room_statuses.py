@@ -12,6 +12,7 @@ from app.schemas.room_status import (
 )
 from app.schemas.common import ApiResponse
 from app.services.task_service import TaskService
+from app.services.room_status_service import RoomStatusService
 from app.core.logging import logger
 
 router = APIRouter(prefix="/api/room-statuses", tags=["房态管理"])
@@ -78,9 +79,17 @@ def create_or_update_room_status(
         RoomStatus.date == room_status_in.date
     ).first()
 
+    update_data = room_status_in.model_dump()
+    new_status = update_data.pop('status', None)
+
     if existing:
-        for field, value in room_status_in.model_dump().items():
-            setattr(existing, field, value)
+        if new_status and new_status != existing.status:
+            RoomStatusService.update_status(
+                db, existing, RoomStatusType(new_status), current_user, **update_data
+            )
+        else:
+            for field, value in update_data.items():
+                setattr(existing, field, value)
         db.commit()
         db.refresh(existing)
         logger.info(f"Room status updated for property {room_status_in.property_id} on {room_status_in.date}")
@@ -88,6 +97,13 @@ def create_or_update_room_status(
 
     room_status = RoomStatus(**room_status_in.model_dump())
     db.add(room_status)
+    db.flush()
+
+    if new_status == RoomStatusType.CHECKED_OUT:
+        RoomStatusService.on_status_changed(
+            db, room_status, None, RoomStatusType.CHECKED_OUT, current_user
+        )
+
     db.commit()
     db.refresh(room_status)
     logger.info(f"Room status created for property {room_status_in.property_id} on {room_status_in.date}")
@@ -109,8 +125,15 @@ def update_room_status(
         raise BusinessException("房态记录不存在")
 
     update_data = room_status_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(room_status, field, value)
+    new_status = update_data.pop('status', None)
+
+    if new_status:
+        RoomStatusService.update_status(
+            db, room_status, RoomStatusType(new_status), current_user, **update_data
+        )
+    else:
+        for field, value in update_data.items():
+            setattr(room_status, field, value)
 
     db.commit()
     db.refresh(room_status)
