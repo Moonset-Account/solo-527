@@ -36,22 +36,37 @@ public class DashboardService {
 
         long completedBookings;
         long cancelledBookings;
-
-        if (hasStatusFilter) {
-            completedBookings = dashboardRepository.countBookings(startDate, endDate, coachId, status);
-            cancelledBookings = 0;
-        } else {
-            completedBookings = dashboardRepository.countCompletedBookings(startDate, endDate, coachId);
-            cancelledBookings = dashboardRepository.countCancelledBookings(startDate, endDate, coachId);
-        }
-
+        long pendingBookings;
         long privateBookings;
         long groupBookings;
 
         if (hasStatusFilter) {
-            privateBookings = countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "PRIVATE");
-            groupBookings = countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "GROUP");
+            switch (status) {
+                case COMPLETED:
+                    completedBookings = totalBookings;
+                    cancelledBookings = 0;
+                    pendingBookings = 0;
+                    break;
+                case CANCELLED:
+                case NO_SHOW:
+                    completedBookings = 0;
+                    cancelledBookings = totalBookings;
+                    pendingBookings = 0;
+                    break;
+                case BOOKED:
+                case CHECKED_IN:
+                default:
+                    completedBookings = 0;
+                    cancelledBookings = 0;
+                    pendingBookings = totalBookings;
+                    break;
+            }
+            privateBookings = dashboardRepository.countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "PRIVATE");
+            groupBookings = dashboardRepository.countBookingsByTypeAndStatus(startDate, endDate, coachId, status, "GROUP");
         } else {
+            completedBookings = dashboardRepository.countCompletedBookings(startDate, endDate, coachId);
+            cancelledBookings = dashboardRepository.countCancelledBookings(startDate, endDate, coachId);
+            pendingBookings = totalBookings - completedBookings - cancelledBookings;
             privateBookings = dashboardRepository.countPrivateBookings(startDate, endDate, coachId);
             groupBookings = dashboardRepository.countGroupBookings(startDate, endDate, coachId);
         }
@@ -67,7 +82,7 @@ public class DashboardService {
         stats.put("totalBookings", totalBookings);
         stats.put("completedBookings", completedBookings);
         stats.put("cancelledBookings", cancelledBookings);
-        stats.put("pendingBookings", hasStatusFilter ? 0 : (totalBookings - completedBookings - cancelledBookings));
+        stats.put("pendingBookings", pendingBookings);
         stats.put("privateBookings", privateBookings);
         stats.put("groupBookings", groupBookings);
 
@@ -107,10 +122,6 @@ public class DashboardService {
         stats.put("statusFilter", hasStatusFilter ? status.name() : null);
 
         return stats;
-    }
-
-    private long countBookingsByTypeAndStatus(LocalDate startDate, LocalDate endDate, Long coachId, BookingStatus status, String type) {
-        return dashboardRepository.countBookingsByTypeAndStatus(startDate, endDate, coachId, status, type);
     }
 
     private long countExpiringPackages(Long coachId) {

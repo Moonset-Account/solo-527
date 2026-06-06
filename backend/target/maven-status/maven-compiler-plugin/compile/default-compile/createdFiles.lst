@@ -24,6 +24,7 @@ com/gym/service/GroupClassService.class
 com/gym/common/BusinessException.class
 com/gym/validation/CoachPermissionValidator.class
 com/gym/entity/PackageType.class
+com/gym/service/DashboardService$1.class
 com/gym/repository/BodyMeasurementRepository.class
 com/gym/security/JwtAuthenticationFilter.class
 com/gym/controller/BodyMeasurementController.class
