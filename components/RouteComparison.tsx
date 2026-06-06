@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   RadarChart,
   PolarGrid,
@@ -17,22 +17,73 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
-import { calculateComparisonMetrics, getRoutes } from "@/lib/dataStore";
-import type { ComparisonMetric } from "@/types";
+import { api } from "@/lib/apiClient";
+
+type Route = {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  direction: string;
+  totalStops: number;
+  operatingHours: { start: string; end: string };
+  stations: any[];
+};
+
+type ComparisonMetric = {
+  routeId: string;
+  routeName: string;
+  avgLoadFactor: number;
+  avgDelaySeconds: number;
+  onTimeRate: number;
+  totalPassengers: number;
+  peakLoadFactor: number;
+  complaintCount: number;
+};
 
 export default function RouteComparison() {
-  const routes = getRoutes();
-  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(
-    routes.slice(0, 3).map((r) => r.id)
-  );
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>([]);
   const [peakPeriod, setPeakPeriod] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"radar" | "bar">("radar");
+  const [metrics, setMetrics] = useState<ComparisonMetric[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const metrics = useMemo(() => {
-    return calculateComparisonMetrics(
-      selectedRoutes,
-      peakPeriod === "all" ? undefined : (peakPeriod as any)
-    );
+  useEffect(() => {
+    async function loadRoutes() {
+      try {
+        const data = await api.getRoutes();
+        setRoutes(data as Route[]);
+        if (data.length > 0) {
+          setSelectedRoutes(data.slice(0, 3).map((r: Route) => r.id));
+        }
+      } catch (error) {
+        console.error("加载线路数据失败:", error);
+      }
+    }
+    loadRoutes();
+  }, []);
+
+  useEffect(() => {
+    if (selectedRoutes.length === 0) {
+      setMetrics([]);
+      return;
+    }
+    async function loadMetrics() {
+      setLoading(true);
+      try {
+        const data = await api.getComparison({
+          routeIds: selectedRoutes,
+          peakPeriod: peakPeriod === "all" ? undefined : peakPeriod,
+        });
+        setMetrics(data as ComparisonMetric[]);
+      } catch (error) {
+        console.error("加载对比数据失败:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadMetrics();
   }, [selectedRoutes, peakPeriod]);
 
   const radarData = useMemo(() => {
@@ -105,6 +156,17 @@ export default function RouteComparison() {
     return colors[index % colors.length];
   };
 
+  if (routes.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
@@ -173,48 +235,57 @@ export default function RouteComparison() {
         ))}
       </div>
 
-      <div className="h-[450px]">
-        {viewMode === "radar" ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#e5e7eb" />
-              <PolarAngleAxis dataKey="indicator" tick={{ fill: "#6b7280", fontSize: 12 }} />
-              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "#9ca3af", fontSize: 10 }} />
-              {metrics.map((m, index) => (
-                <Radar
-                  key={m.routeId}
-                  name={m.routeName}
-                  dataKey={m.routeName}
-                  stroke={getRouteColor(index)}
-                  fill={getRouteColor(index)}
-                  fillOpacity={0.2}
-                  strokeWidth={2}
+      {loading ? (
+        <div className="flex items-center justify-center h-[450px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">加载数据中...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="h-[450px]">
+          {viewMode === "radar" ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#e5e7eb" />
+                <PolarAngleAxis dataKey="indicator" tick={{ fill: "#6b7280", fontSize: 12 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: "#9ca3af", fontSize: 10 }} />
+                {metrics.map((m, index) => (
+                  <Radar
+                    key={m.routeId}
+                    name={m.routeName}
+                    dataKey={m.routeName}
+                    stroke={getRouteColor(index)}
+                    fill={getRouteColor(index)}
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                ))}
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="name" tick={{ fill: "#6b7280", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "1px solid #e5e7eb",
+                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+                  }}
                 />
-              ))}
-              <Legend />
-            </RadarChart>
-          </ResponsiveContainer>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fill: "#6b7280", fontSize: 12 }} />
-              <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: "8px",
-                  border: "1px solid #e5e7eb",
-                  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
-                }}
-              />
-              <Legend />
-              <Bar dataKey="准点率" name="准点率 (%)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="满载率" name="满载率 (%)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="平均延误" name="平均延误 (分钟)" fill="#ef4444" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+                <Legend />
+                <Bar dataKey="准点率" name="准点率 (%)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="满载率" name="满载率 (%)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="平均延误" name="平均延误 (分钟)" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {metrics.map((m, index) => (

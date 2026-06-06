@@ -214,6 +214,24 @@ export async function getCardRecords_PostGIS(
       conditions.push(`c.timestamp <= $${paramIndex++}`);
       params.push(window.endDate + " 23:59:59");
     }
+    if (window.startHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM c.timestamp) >= $${paramIndex++}`);
+      params.push(window.startHour);
+    }
+    if (window.endHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM c.timestamp) <= $${paramIndex++}`);
+      params.push(window.endHour);
+    }
+    if (window.peakPeriod && window.peakPeriod !== "all") {
+      if (window.peakPeriod === "morning") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) BETWEEN 7 AND 9`);
+      } else if (window.peakPeriod === "evening") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) BETWEEN 17 AND 19`);
+      } else if (window.peakPeriod === "off-peak") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) NOT BETWEEN 7 AND 9`);
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) NOT BETWEEN 17 AND 19`);
+      }
+    }
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -273,6 +291,24 @@ export async function getComplaints_PostGIS(
     if (window.endDate) {
       conditions.push(`c.timestamp <= $${paramIndex++}`);
       params.push(window.endDate + " 23:59:59");
+    }
+    if (window.startHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM c.timestamp) >= $${paramIndex++}`);
+      params.push(window.startHour);
+    }
+    if (window.endHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM c.timestamp) <= $${paramIndex++}`);
+      params.push(window.endHour);
+    }
+    if (window.peakPeriod && window.peakPeriod !== "all") {
+      if (window.peakPeriod === "morning") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) BETWEEN 7 AND 9`);
+      } else if (window.peakPeriod === "evening") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) BETWEEN 17 AND 19`);
+      } else if (window.peakPeriod === "off-peak") {
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) NOT BETWEEN 7 AND 9`);
+        conditions.push(`EXTRACT(HOUR FROM c.timestamp) NOT BETWEEN 17 AND 19`);
+      }
     }
   }
 
@@ -345,6 +381,16 @@ export async function getStationCrowdingData_PostGIS(
       conditions.push(`EXTRACT(HOUR FROM a.timestamp) <= $${paramIndex++}`);
       params.push(window.endHour);
     }
+    if (window.peakPeriod && window.peakPeriod !== "all") {
+      if (window.peakPeriod === "morning") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 7 AND 9`);
+      } else if (window.peakPeriod === "evening") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 17 AND 19`);
+      } else if (window.peakPeriod === "off-peak") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 7 AND 9`);
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 17 AND 19`);
+      }
+    }
   }
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
@@ -391,11 +437,17 @@ export async function calculateComparisonMetrics_PostGIS(
   const params: any[] = [...routeIds];
   let paramIndex = routeIds.length + 1;
 
-  if (peakPeriod) {
-    conditions.push(`t.peak_period = $${paramIndex++}`);
-    params.push(peakPeriod);
-  }
   if (window) {
+    if (window.peakPeriod && window.peakPeriod !== "all") {
+      if (window.peakPeriod === "morning") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 7 AND 9`);
+      } else if (window.peakPeriod === "evening") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 17 AND 19`);
+      } else if (window.peakPeriod === "off-peak") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 7 AND 9`);
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 17 AND 19`);
+      }
+    }
     if (window.startDate) {
       conditions.push(`a.timestamp >= $${paramIndex++}`);
       params.push(window.startDate);
@@ -404,9 +456,32 @@ export async function calculateComparisonMetrics_PostGIS(
       conditions.push(`a.timestamp <= $${paramIndex++}`);
       params.push(window.endDate + " 23:59:59");
     }
+    if (window.startHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM a.timestamp) >= $${paramIndex++}`);
+      params.push(window.startHour);
+    }
+    if (window.endHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM a.timestamp) <= $${paramIndex++}`);
+      params.push(window.endHour);
+    }
   }
 
   const whereClause = `WHERE r.id = ANY($1) AND ${conditions.join(" AND ")}`;
+
+  const complaintWhereParts: string[] = ["c.route_id = r.id"];
+  
+  if (window) {
+    if (window.startDate) {
+      complaintWhereParts.push(`c.timestamp >= $${paramIndex++}`);
+      params.push(window.startDate);
+    }
+    if (window.endDate) {
+      complaintWhereParts.push(`c.timestamp <= $${paramIndex++}`);
+      params.push(window.endDate + " 23:59:59");
+    }
+  }
+  const complaintWhere = complaintWhereParts.join(" AND ");
+  const complaintSql = `(SELECT COUNT(*) FROM complaints c WHERE ${complaintWhere})`;
 
   const sql = `
     SELECT
@@ -417,7 +492,7 @@ export async function calculateComparisonMetrics_PostGIS(
       SUM(CASE WHEN a.delay_seconds <= 120 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as "onTimeRate",
       SUM(a.passenger_count) as "totalPassengers",
       MAX(a.load_factor) as "peakLoadFactor",
-      (SELECT COUNT(*) FROM complaints c WHERE c.route_id = r.id) as "complaintCount"
+      ${complaintSql} as "complaintCount"
     FROM routes r
     JOIN trips t ON r.id = t.route_id
     JOIN arrival_records a ON t.id = a.trip_id
@@ -573,6 +648,24 @@ export async function getAnomalies_PostGIS(
     if (window.endDate) {
       conditions.push(`a.timestamp <= $${paramIndex++}`);
       params.push(window.endDate + " 23:59:59");
+    }
+    if (window.startHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM a.timestamp) >= $${paramIndex++}`);
+      params.push(window.startHour);
+    }
+    if (window.endHour !== undefined) {
+      conditions.push(`EXTRACT(HOUR FROM a.timestamp) <= $${paramIndex++}`);
+      params.push(window.endHour);
+    }
+    if (window.peakPeriod && window.peakPeriod !== "all") {
+      if (window.peakPeriod === "morning") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 7 AND 9`);
+      } else if (window.peakPeriod === "evening") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) BETWEEN 17 AND 19`);
+      } else if (window.peakPeriod === "off-peak") {
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 7 AND 9`);
+        conditions.push(`EXTRACT(HOUR FROM a.timestamp) NOT BETWEEN 17 AND 19`);
+      }
     }
   }
 

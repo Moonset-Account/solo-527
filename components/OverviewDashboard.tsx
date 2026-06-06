@@ -1,14 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  getArrivalRecords,
-  getCardRecords,
-  getComplaints,
-  getTrips,
-  calculateComparisonMetrics,
-  getRoutes,
-} from "@/lib/dataStore";
+import { useMemo, useState, useEffect } from "react";
+import { api } from "@/lib/apiClient";
 import KPICard from "./KPICard";
 import CrowdingMap from "./CrowdingMap";
 import {
@@ -27,16 +20,114 @@ import {
   Legend,
 } from "recharts";
 
+type ArrivalRecord = {
+  id: string;
+  tripId: string;
+  routeId: string;
+  stationId: string;
+  stationName: string;
+  scheduledTime: string;
+  actualTime: string;
+  delaySeconds: number;
+  loadFactor: number;
+  passengerCount: number;
+  crowdingLevel: string;
+  isDetour: boolean;
+  timestamp: string;
+};
+
+type Complaint = {
+  id: string;
+  routeId: string;
+  routeName: string;
+  stationId: string;
+  stationName: string;
+  tripId: string;
+  category: string;
+  description: string;
+  timestamp: string;
+  status: string;
+};
+
+type Trip = {
+  id: string;
+  routeId: string;
+  routeName: string;
+  direction: string;
+  startTime: string;
+  endTime: string;
+  vehicleId: string;
+  driverName: string;
+  isDetour: boolean;
+  detourReason?: string;
+  peakPeriod: string;
+};
+
+type Route = {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  direction: string;
+  totalStops: number;
+  operatingHours: { start: string; end: string };
+  stations: any[];
+};
+
+type ComparisonMetric = {
+  routeId: string;
+  routeName: string;
+  avgLoadFactor: number;
+  avgDelaySeconds: number;
+  onTimeRate: number;
+  totalPassengers: number;
+  peakLoadFactor: number;
+  complaintCount: number;
+};
+
 export default function OverviewDashboard() {
   const [selectedHour, setSelectedHour] = useState<number | undefined>();
   const [selectedRouteId, setSelectedRouteId] = useState<string | undefined>();
+  
+  const [allArrivals, setAllArrivals] = useState<ArrivalRecord[]>([]);
+  const [regularArrivals, setRegularArrivals] = useState<ArrivalRecord[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [routeMetrics, setRouteMetrics] = useState<ComparisonMetric[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const routes = getRoutes();
-  const allArrivals = getArrivalRecords();
-  const regularArrivals = getArrivalRecords(undefined, undefined, undefined, false);
-  const cardRecords = getCardRecords();
-  const complaints = getComplaints();
-  const trips = getTrips();
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [arrivalsData, regularData, complaintsData, tripsData, routesData] = await Promise.all([
+          api.getArrivals(),
+          api.getArrivals({ includeDetour: false }),
+          api.getComplaints(),
+          api.getDetours(),
+          api.getRoutes(),
+        ]);
+        setAllArrivals(arrivalsData as ArrivalRecord[]);
+        setRegularArrivals(regularData as ArrivalRecord[]);
+        setComplaints(complaintsData as Complaint[]);
+        setTrips(tripsData as Trip[]);
+        setRoutes(routesData as Route[]);
+
+        if (routesData && routesData.length > 0) {
+          const metrics = await api.getComparison({
+            routeIds: routesData.map((r: Route) => r.id),
+          });
+          setRouteMetrics(metrics as ComparisonMetric[]);
+        }
+      } catch (error) {
+        console.error("加载数据失败:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const kpis = useMemo(() => {
     const totalPassengers = allArrivals.reduce(
@@ -108,10 +199,6 @@ export default function OverviewDashboard() {
     }));
   }, [allArrivals, complaints]);
 
-  const routeMetrics = useMemo(() => {
-    return calculateComparisonMetrics(routes.map((r) => r.id));
-  }, [routes]);
-
   const crowdingDistribution = useMemo(() => {
     const levels: Record<string, number> = {
       low: 0,
@@ -129,6 +216,17 @@ export default function OverviewDashboard() {
       { name: "极度拥挤", value: levels.extreme, color: "#7c2d12" },
     ];
   }, [allArrivals]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
