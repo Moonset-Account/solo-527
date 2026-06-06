@@ -9,6 +9,14 @@ import type { BorrowOrderStatus } from "../../app/types/index.js";
 
 export const borrowOrdersRouter = Router();
 
+borrowOrdersRouter.use((req, res, next) => {
+  const user = getCurrentUser(req);
+  if (user?.role === "finance") {
+    return res.status(403).json({ error: "Forbidden: Finance can only access finance endpoints" });
+  }
+  next();
+});
+
 const createSchema = z.object({
   part_id: z.string().uuid(),
   inventory_id: z.string().uuid().optional(),
@@ -24,10 +32,6 @@ borrowOrdersRouter.get("/", async (req, res) => {
   try {
     const user = getCurrentUser(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    if (user.role === "finance") {
-      return res.status(403).json({ error: "Forbidden: Finance can only access finance endpoints" });
-    }
 
     const { status, page = 1, limit = 20, view = "default" } = req.query;
     
@@ -88,10 +92,6 @@ borrowOrdersRouter.get("/:id", async (req, res) => {
   try {
     const user = getCurrentUser(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    if (user.role === "finance") {
-      return res.status(403).json({ error: "Forbidden: Finance can only access finance endpoints" });
-    }
 
     const { id } = req.params;
 
@@ -158,7 +158,7 @@ borrowOrdersRouter.get("/:id", async (req, res) => {
   }
 });
 
-borrowOrdersRouter.post("/", async (req, res) => {
+borrowOrdersRouter.post("/", requireRole("engineer", "supervisor"), async (req, res) => {
   try {
     const user = getCurrentUser(req);
     if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -424,7 +424,7 @@ borrowOrdersRouter.post("/:id/pickup", requireRole("warehouse"), async (req, res
   }
 });
 
-borrowOrdersRouter.post("/:id/extend", async (req, res) => {
+borrowOrdersRouter.post("/:id/extend", requireRole("engineer", "supervisor"), async (req, res) => {
   try {
     const user = getCurrentUser(req);
     const { id } = req.params;
@@ -442,7 +442,7 @@ borrowOrdersRouter.post("/:id/extend", async (req, res) => {
     const order = orderResult.rows[0];
 
     if (user!.role === "engineer" && order.applicant_id !== user!.id) {
-      return res.status(403).json({ error: "Forbidden" });
+      return res.status(403).json({ error: "Forbidden: You can only extend your own orders" });
     }
 
     if (!["picked", "extended"].includes(order.status)) {
