@@ -35,6 +35,7 @@ export type OrderWithStudioCustomer = Order & {
 
 export type AvailabilityCheckResult = {
   available: boolean
+  hasError?: boolean
   conflicts?: {
     type: 'studio' | 'equipment'
     id: string

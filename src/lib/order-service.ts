@@ -46,104 +46,117 @@ export async function checkAvailability(
 ): Promise<AvailabilityCheckResult> {
   const supabase = createClient()
   const conflicts: AvailabilityCheckResult['conflicts'] = []
+  let hasError = false
 
-  try {
-    let studioQuery = supabase
-      .from('orders')
-      .select('id, order_number, start_time, end_time')
-      .eq('studio_id', studioId)
-      .in('status', ['confirmed', 'in_progress'])
-      .lt('start_time', endTime)
-      .gt('end_time', startTime)
+  let studioQuery = supabase
+    .from('orders')
+    .select('id, order_number, start_time, end_time')
+    .eq('studio_id', studioId)
+    .in('status', ['confirmed', 'in_progress'])
+    .lt('start_time', endTime)
+    .gt('end_time', startTime)
 
-    if (excludeOrderId) {
-      studioQuery = studioQuery.neq('id', excludeOrderId)
-    }
+  if (excludeOrderId) {
+    studioQuery = studioQuery.neq('id', excludeOrderId)
+  }
 
-    const { data: studioConflicts, error: studioError } = await studioQuery
+  const { data: studioConflicts, error: studioError } = await studioQuery
 
-    if (studioError) {
-      console.error('Studio availability check error:', studioError)
-    } else if (studioConflicts && studioConflicts.length > 0) {
-      conflicts.push({
-        type: 'studio',
-        id: studioId,
-        name: '棚位已被预约',
-        conflictingOrderId: (studioConflicts[0] as any).id,
-      })
-    }
-  } catch (error) {
-    console.error('Studio availability check exception:', error)
+  if (studioError) {
+    console.error('Studio availability check error:', studioError)
+    hasError = true
+    conflicts.push({
+      type: 'studio',
+      id: studioId,
+      name: '棚位可用性校验失败，请稍后重试',
+      conflictingOrderId: null,
+    })
+  } else if (studioConflicts && studioConflicts.length > 0) {
+    conflicts.push({
+      type: 'studio',
+      id: studioId,
+      name: '棚位已被预约',
+      conflictingOrderId: (studioConflicts[0] as any).id,
+    })
   }
 
   if (equipmentIds.length > 0) {
-    try {
-      const { data: equipmentList, error: equipmentError } = await supabase
-        .from('equipment')
-        .select('id, name, status')
-        .in('id', equipmentIds)
+    const { data: equipmentList, error: equipmentError } = await supabase
+      .from('equipment')
+      .select('id, name, status')
+      .in('id', equipmentIds)
 
-      if (equipmentError) {
-        console.error('Equipment status check error:', equipmentError)
-      } else {
-        for (const eq of (equipmentList || []) as any[]) {
-          if (eq.status !== 'available' && !conflicts.find(c => c.id === eq.id)) {
-            conflicts.push({
-              type: 'equipment',
-              id: eq.id,
-              name: eq.name,
-              conflictingOrderId: null,
-            })
-          }
+    if (equipmentError) {
+      console.error('Equipment status check error:', equipmentError)
+      hasError = true
+      conflicts.push({
+        type: 'equipment',
+        id: 'equipment_check_error',
+        name: '器材状态校验失败，请稍后重试',
+        conflictingOrderId: null,
+      })
+    } else {
+      for (const eq of (equipmentList || []) as any[]) {
+        if (eq.status !== 'available' && !conflicts.find(c => c.id === eq.id)) {
+          conflicts.push({
+            type: 'equipment',
+            id: eq.id,
+            name: eq.name,
+            conflictingOrderId: null,
+          })
         }
       }
-    } catch (error) {
-      console.error('Equipment status check exception:', error)
     }
 
-    try {
-      let equipmentConflictQuery = supabase
-        .from('order_equipment')
-        .select(`
-          id,
-          order_id,
-          equipment_id,
-          equipment:equipment(id, name),
-          order:orders(id, order_number)
-        `)
-        .in('equipment_id', equipmentIds)
-        .eq('returned', false)
+    let equipmentConflictQuery = supabase
+      .from('order_equipment')
+      .select(`
+        id,
+        order_id,
+        equipment_id,
+        equipment:equipment(id, name),
+        order:orders(id, order_number)
+      `)
+      .in('equipment_id', equipmentIds)
+      .eq('returned', false)
 
-      if (excludeOrderId) {
-        equipmentConflictQuery = equipmentConflictQuery.neq('order_id', excludeOrderId)
+    if (excludeOrderId) {
+      equipmentConflictQuery = equipmentConflictQuery.neq('order_id', excludeOrderId)
+    }
+
+    const { data: equipmentConflicts, error: conflictError } = await equipmentConflictQuery
+
+    if (conflictError) {
+      console.error('Equipment conflict check error:', conflictError)
+      hasError = true
+      if (!conflicts.find(c => c.id === 'equipment_check_error')) {
+        conflicts.push({
+          type: 'equipment',
+          id: 'equipment_check_error',
+          name: '器材占用校验失败，请稍后重试',
+          conflictingOrderId: null,
+        })
       }
-
-      const { data: equipmentConflicts, error: conflictError } = await equipmentConflictQuery
-
-      if (conflictError) {
-        console.error('Equipment conflict check error:', conflictError)
-      } else if (equipmentConflicts) {
-        const conflictEquipmentIds = new Set<string>(conflicts.map(c => c.id))
-        for (const ec of equipmentConflicts as any[]) {
-          if (!conflictEquipmentIds.has(ec.equipment_id)) {
-            conflictEquipmentIds.add(ec.equipment_id)
-            conflicts.push({
-              type: 'equipment',
-              id: ec.equipment_id,
-              name: ec.equipment?.name || '未知器材',
-              conflictingOrderId: ec.order?.id,
-            })
-          }
+    } else if (equipmentConflicts) {
+      const conflictEquipmentIds = new Set<string>(conflicts.map(c => c.id))
+      for (const ec of equipmentConflicts as any[]) {
+        if (!conflictEquipmentIds.has(ec.equipment_id)) {
+          conflictEquipmentIds.add(ec.equipment_id)
+          conflicts.push({
+            type: 'equipment',
+            id: ec.equipment_id,
+            name: ec.equipment?.name || '未知器材',
+            conflictingOrderId: ec.order?.id,
+          })
         }
       }
-    } catch (error) {
-      console.error('Equipment conflict check exception:', error)
     }
   }
 
   return {
-    available: conflicts.length === 0,
+    available: !hasError && conflicts.length === 0,
     conflicts,
+    hasError,
   }
 }
 
