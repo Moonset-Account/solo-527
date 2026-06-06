@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}批量导入调拨单{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 style="font-size: 20px; margin: 0;">批量导入调拨单</h1>
+        <p style="color: var(--text-secondary); margin: 4px 0 0 0; font-size: 13px;">
+            上传Excel文件，预览确认后批量导入
+        </p>
+    </div>
+    <div>
+        <a href="/transfer" class="btn btn-secondary">返回列表</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px;">
+    <div id="upload-section">
+        <h3 style="margin-top: 0;">1. 上传Excel文件</h3>
+        <p style="color: var(--text-secondary); font-size: 13px;">
+            Excel需包含以下列：调拨单号、批次号、调拨日期、调出仓库、调入仓库、金额、承运商
+        </p>
+        
+        <div style="border: 2px dashed var(--border); border-radius: 8px; padding: 40px; text-align: center; background: var(--bg-light);">
+            <input type="file" id="file-input" accept=".xlsx,.xls" style="display: none;">
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                选择文件
+            </button>
+            <p id="file-name" style="margin-top: 12px; color: var(--text-secondary); font-size: 13px;"></p>
+        </div>
+        
+        <div id="upload-error" class="alert alert-danger" style="display: none; margin-top: 16px;"></div>
+    </div>
+</div>
+
+<div id="preview-section" class="card" style="max-width: 1000px; display: none; margin-top: 20px;">
+    <h3 style="margin-top: 0;">2. 预览数据</h3>
+    
+    <div id="preview-warnings" class="alert alert-warning" style="display: none;"></div>
+    <div id="preview-success" class="alert alert-success" style="display: none;"></div>
+    
+    <div style="overflow-x: auto; margin-top: 16px;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>调拨单号</th>
+                    <th>批次号</th>
+                    <th>调拨日期</th>
+                    <th>调出仓库</th>
+                    <th>调入仓库</th>
+                    <th>金额</th>
+                    <th>承运商</th>
+                </tr>
+            </thead>
+            <tbody id="preview-table-body">
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="resetImport()">重新上传</button>
+        <button class="btn btn-primary" id="confirm-btn" onclick="confirmImport()">
+            确认导入 <span id="import-count"></span> 条数据
+        </button>
+    </div>
+</div>
+
+<div id="result-section" class="card" style="max-width: 600px; display: none; margin-top: 20px;">
+    <h3 style="margin-top: 0;">3. 导入结果</h3>
+    <div id="result-success" class="alert alert-success" style="display: none;"></div>
+    <div id="result-errors" class="alert alert-danger" style="display: none;"></div>
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/transfer" class="btn btn-primary">返回列表</a>
+    </div>
+</div>
+
+<script>
+let previewData = [];
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('upload-error').style.display = 'none';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch('/api/transfer/import/preview', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            previewData = data.data;
+            renderPreview(data);
+        } else {
+            showError(data.detail || '预览失败');
+        }
+    })
+    .catch(err => {
+        showError('上传失败: ' + err.message);
+    });
+});
+
+function renderPreview(data) {
+    const tbody = document.getElementById('preview-table-body');
+    tbody.innerHTML = '';
+    
+    data.data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${row.order_no || '-'}</td>
+            <td>${row.batch_no || '-'}</td>
+            <td>${row.transfer_date || '-'}</td>
+            <td>${row.from_warehouse || '-'}</td>
+            <td>${row.to_warehouse || '-'}</td>
+            <td>¥${row.amount ? parseFloat(row.amount).toFixed(2) : '0.00'}</td>
+            <td>${row.carrier || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    if (data.errors && data.errors.length > 0) {
+        const warnDiv = document.getElementById('preview-warnings');
+        warnDiv.style.display = 'block';
+        warnDiv.innerHTML = '<strong>解析警告:</strong><br>' + data.errors.join('<br>');
+    } else {
+        document.getElementById('preview-warnings').style.display = 'none';
+    }
+    
+    const successDiv = document.getElementById('preview-success');
+    successDiv.style.display = 'block';
+    successDiv.textContent = `成功解析 ${data.count} 条有效数据`;
+    
+    document.getElementById('import-count').textContent = data.count;
+    document.getElementById('preview-section').style.display = 'block';
+}
+
+function confirmImport() {
+    if (!previewData.length) return;
+    
+    const btn = document.getElementById('confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '导入中...';
+    
+    fetch('/api/transfer/import/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: previewData })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('preview-section').style.display = 'none';
+        document.getElementById('result-section').style.display = 'block';
+        
+        if (data.import_count > 0) {
+            document.getElementById('result-success').style.display = 'block';
+            document.getElementById('result-success').textContent = `成功导入 ${data.import_count} 条调拨单`;
+        }
+        
+        if (data.errors && data.errors.length > 0) {
+            document.getElementById('result-errors').style.display = 'block';
+            document.getElementById('result-errors').innerHTML = '<strong>导入失败:</strong><br>' + data.errors.join('<br>');
+        }
+    })
+    .catch(err => {
+        showError('导入失败: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '确认导入';
+    });
+}
+
+function resetImport() {
+    document.getElementById('file-input').value = '';
+    document.getElementById('file-name').textContent = '';
+    document.getElementById('preview-section').style.display = 'none';
+    document.getElementById('result-section').style.display = 'none';
+    previewData = [];
+}
+
+function showError(msg) {
+    const errDiv = document.getElementById('upload-error');
+    errDiv.style.display = 'block';
+    errDiv.textContent = msg;
+}
+</script>
+{% endblock %}

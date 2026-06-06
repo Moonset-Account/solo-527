@@ -113,7 +113,7 @@ def check_evidence_complete(order_id: str) -> tuple[bool, list[str]]:
         ).fetchall()
         existing_types = [r[0] for r in rows]
         
-        required = ["RECEIPT"]
+        required = ["PACKING_PHOTO", "WAYBILL", "RECEIPT"]
         missing = []
         
         for t in required:

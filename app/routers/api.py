@@ -190,3 +190,76 @@ async def api_export_finance(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@router.post("/transfer/import/preview")
+async def import_preview(request: Request, file: UploadFile = File(...)):
+    user = get_current_user(request)
+    if not user or user["role"] not in ["WATCHER", "SUPERVISOR", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="无权限")
+    
+    if not file.filename or not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="只支持Excel文件(.xlsx, .xls)")
+    
+    content = await file.read()
+    from app.utils.excel import parse_excel
+    
+    data, errors = parse_excel(content)
+    
+    from app.services.audit import log_action
+    log_action(
+        user_id=user["id"],
+        action="IMPORT_PREVIEW",
+        details={"filename": file.filename, "rows_count": len(data), "errors_count": len(errors)}
+    )
+    
+    return JSONResponse({
+        "success": True,
+        "data": data,
+        "errors": errors,
+        "count": len(data)
+    })
+
+@router.post("/transfer/import/confirm")
+async def import_confirm(request: Request):
+    user = get_current_user(request)
+    if not user or user["role"] not in ["WATCHER", "SUPERVISOR", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="无权限")
+    
+    body = await request.json()
+    rows = body.get("rows", [])
+    
+    if not rows:
+        raise HTTPException(status_code=400, detail="没有可导入的数据")
+    
+    from app.services.transfer import create_transfer_order
+    import_count = 0
+    errors = []
+    
+    for idx, row in enumerate(rows):
+        try:
+            order_data = TransferOrderCreate(
+                order_no=str(row.get("order_no", "")),
+                batch_no=str(row.get("batch_no", "")),
+                transfer_date=row.get("transfer_date"),
+                from_warehouse=str(row.get("from_warehouse", "")),
+                to_warehouse=str(row.get("to_warehouse", "")),
+                amount=float(row.get("amount", 0)) if row.get("amount") else 0,
+                carrier=str(row.get("carrier", "")) if row.get("carrier") else ""
+            )
+            create_transfer_order(order_data, user["id"])
+            import_count += 1
+        except Exception as e:
+            errors.append(f"第 {idx+1} 行导入失败: {str(e)}")
+    
+    from app.services.audit import log_action
+    log_action(
+        user_id=user["id"],
+        action="IMPORT_CONFIRM",
+        details={"import_count": import_count, "errors_count": len(errors)}
+    )
+    
+    return JSONResponse({
+        "success": True,
+        "import_count": import_count,
+        "errors": errors
+    })

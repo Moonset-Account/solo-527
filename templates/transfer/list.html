@@ -62,6 +62,9 @@
                 <div class="filter-actions">
                     <button type="button" class="btn btn-secondary btn-sm" onclick="resetFilter()">重置</button>
                     <button type="submit" class="btn btn-primary btn-sm">🔍 筛选</button>
+                    {% if current_user.role in ['WATCHER', 'SUPERVISOR', 'ADMIN'] %}
+                    <a href="/transfer/import" class="btn btn-outline btn-sm">📥 批量导入</a>
+                    {% endif %}
                     {% if current_user.role in ['WATCHER', 'ADMIN'] %}
                     <button type="button" class="btn btn-success btn-sm" onclick="showCreateModal()">+ 新建调拨单</button>
                     {% endif %}

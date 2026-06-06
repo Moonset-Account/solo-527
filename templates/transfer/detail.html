@@ -97,9 +97,7 @@
             <div style="margin-top: 20px;">
                 <h4 style="font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                     {{ ATTACHMENT_TYPE_NAMES.get(att_type, att_type) }}
-                    {% if att_type == 'RECEIPT' %}
                     <span style="color: var(--danger); font-size: 12px;">*必需</span>
-                    {% endif %}
                     {% if att_type in attachments_by_type %}
                     <span class="badge badge-approved">已上传 ({{ attachments_by_type[att_type]|length }})</span>
                     {% else %}

@@ -226,6 +226,17 @@ a:hover {
     background: var(--gray-50);
 }
 
+.btn-outline {
+    background: white;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+}
+
 .btn-sm {
     padding: 4px 10px;
     font-size: 12px;

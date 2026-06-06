@@ -72,6 +72,10 @@ async def transfer_list(
         from fastapi.responses import RedirectResponse
         return RedirectResponse("/login", status_code=302)
     
+    if user["role"] == "FINANCE":
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/finance", status_code=302)
+    
     filters = FilterParams(
         status=status,
         batch_no=batch_no,
@@ -104,12 +108,30 @@ async def transfer_list(
         batch_map=batch_map
     ))
 
+@router.get("/transfer/import", response_class=HTMLResponse)
+async def transfer_import_page(request: Request):
+    user = get_current_user(request)
+    if not user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/login", status_code=302)
+    
+    if user["role"] == "FINANCE":
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/finance", status_code=302)
+    
+    return templates.TemplateResponse("transfer/import.html", template_context(
+        request
+    ))
+
 @router.get("/transfer/{order_id}", response_class=HTMLResponse)
 async def transfer_detail(request: Request, order_id: str):
     user = get_current_user(request)
     if not user:
         from fastapi.responses import RedirectResponse
         return RedirectResponse("/login", status_code=302)
+    
+    if user["role"] == "FINANCE":
+        raise HTTPException(status_code=403, detail="财务角色无权限访问调拨单详情")
     
     order = get_transfer_order(order_id)
     if not order:
