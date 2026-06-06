@@ -44,31 +44,14 @@ def create_injury_note(
         title=f"伤病跟踪: {runner.full_name or runner.username} - {db_note.injury_type}",
         task_type=models.TaskType.INJURY_REPORT,
         status=models.TaskStatus.NEW,
-        assigned_user_id=note.runner_id,
+        assigned_user_id=current_user.id,
         related_id=db_note.id,
         priority=2,
         due_date=db_note.expected_recovery_date,
         notes=f"伤病类型: {db_note.injury_type}\n严重程度: {db_note.severity}\n备注: {db_note.notes or ''}"
     )
     db.add(injury_task)
-
-    recovery_hint = ""
-    if db_note.expected_recovery_date:
-        recovery_date = db_note.expected_recovery_date.strftime("%Y-%m-%d")
-        recovery_hint = f"建议休息至 {recovery_date}。"
-    notification_msg = f"教练已为您记录伤病：{db_note.injury_type}。{recovery_hint}请遵医嘱进行恢复。"
-
-    notification = app_tasks.create_notification(
-        db,
-        user_id=note.runner_id,
-        title=f"伤病记录已创建: {db_note.injury_type}",
-        message=notification_msg,
-        notification_type="injury"
-    )
-
     db.commit()
-
-    background_tasks.add_task(app_tasks.process_notification, notification.id)
 
     return db_note
 

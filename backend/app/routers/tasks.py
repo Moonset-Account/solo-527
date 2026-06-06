@@ -25,6 +25,8 @@ def get_task_board(
         base_query = db.query(models.Task).filter(
             (models.Task.assigned_user_id == current_user.id) |
             (models.Task.assigned_user_id.is_(None))
+        ).filter(
+            models.Task.task_type != models.TaskType.INJURY_REPORT
         )
 
     date_filter = (
@@ -64,7 +66,10 @@ def list_tasks(
 ):
     query = db.query(models.Task)
     if current_user.role == models.UserRole.RUNNER:
-        query = query.filter(models.Task.assigned_user_id == current_user.id)
+        query = query.filter(
+            models.Task.assigned_user_id == current_user.id,
+            models.Task.task_type != models.TaskType.INJURY_REPORT
+        )
     if status:
         query = query.filter(models.Task.status == status)
     tasks = query.offset(skip).limit(limit).all()
@@ -94,8 +99,9 @@ def update_task(
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if current_user.role == models.UserRole.RUNNER and task.assigned_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this task")
+    if current_user.role == models.UserRole.RUNNER:
+        if task.assigned_user_id != current_user.id or task.task_type == models.TaskType.INJURY_REPORT:
+            raise HTTPException(status_code=403, detail="Not authorized to update this task")
     for key, value in task_update.model_dump(exclude_unset=True).items():
         setattr(task, key, value)
     db.commit()
@@ -112,6 +118,7 @@ def get_task(
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if current_user.role == models.UserRole.RUNNER and task.assigned_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to view this task")
+    if current_user.role == models.UserRole.RUNNER:
+        if task.assigned_user_id != current_user.id or task.task_type == models.TaskType.INJURY_REPORT:
+            raise HTTPException(status_code=403, detail="Not authorized to view this task")
     return task

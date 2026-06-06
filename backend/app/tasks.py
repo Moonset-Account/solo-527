@@ -171,19 +171,33 @@ def check_injury_reminders():
                 )
 
 
+_injury_check_counter = 0
+INJURY_CHECK_INTERVAL = 300  # 每5分钟检查一次伤病到期提醒
+
 def notification_retry_worker():
-    """后台线程：定期重试失败的通知"""
-    logger.info("Notification retry scheduler started, interval: %ds", RETRY_INTERVAL_SECONDS)
+    """后台线程：定期重试失败的通知 + 检查伤病到期提醒"""
+    global _injury_check_counter
+    logger.info("Background scheduler started, retry interval: %ds, injury check interval: %ds",
+                RETRY_INTERVAL_SECONDS, INJURY_CHECK_INTERVAL)
     while _scheduler_running:
         try:
             retry_failed_notifications()
         except Exception as e:
             logger.error("Error in notification retry worker: %s", e)
+
+        _injury_check_counter += RETRY_INTERVAL_SECONDS
+        if _injury_check_counter >= INJURY_CHECK_INTERVAL:
+            _injury_check_counter = 0
+            try:
+                check_injury_reminders()
+            except Exception as e:
+                logger.error("Error in injury reminder check: %s", e)
+
         for _ in range(RETRY_INTERVAL_SECONDS):
             if not _scheduler_running:
                 break
             time.sleep(1)
-    logger.info("Notification retry scheduler stopped")
+    logger.info("Background scheduler stopped")
 
 
 def start_notification_scheduler():
@@ -223,10 +237,16 @@ def get_scheduler_status() -> dict:
         models.Notification.sent_at.is_(None),
         models.Notification.retry_count >= models.Notification.max_retries
     ).count()
+    active_injuries = db.query(models.InjuryNote).filter(
+        models.InjuryNote.is_resolved == False,
+        models.InjuryNote.is_active == True
+    ).count()
     return {
         "running": _scheduler_running,
         "retry_interval_seconds": RETRY_INTERVAL_SECONDS,
+        "injury_check_interval_seconds": INJURY_CHECK_INTERVAL,
         "pending_notifications": pending,
         "sent_notifications": sent,
-        "max_retried_failed": failed
+        "max_retried_failed": failed,
+        "active_injuries": active_injuries
     }
