@@ -45,6 +45,13 @@ func CreateApplication(c *fiber.Ctx) error {
 
 	qrCode := uuid.New().String()
 
+	var materialEntryTime interface{}
+	if app.MaterialEntryTime != nil && !app.MaterialEntryTime.IsZero() {
+		materialEntryTime = app.MaterialEntryTime
+	} else {
+		materialEntryTime = nil
+	}
+
 	result, err := database.DB.Exec(`
 		INSERT INTO applications (
 			application_no, owner_name, owner_phone, building, unit, room,
@@ -52,7 +59,7 @@ func CreateApplication(c *fiber.Ctx) error {
 			has_noise_work, noise_time_slots, status, qr_code, created_by
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, appNo, app.OwnerName, app.OwnerPhone, app.Building, app.Unit, app.Room,
-		app.TeamID, app.WorkTypes, app.MaterialEntryTime, app.StartDate, app.EndDate,
+		app.TeamID, app.WorkTypes, materialEntryTime, app.StartDate, app.EndDate,
 		app.HasNoiseWork, app.NoiseTimeSlots, status, qrCode, user.ID)
 
 	if err != nil {
@@ -189,10 +196,10 @@ func GetApplication(c *fiber.Ctx) error {
 	var app models.Application
 	var teamName, reviewerName sql.NullString
 	var reviewerID sql.NullInt64
-	var reviewedAt sql.NullTime
+	var reviewedAt, materialEntryTime sql.NullTime
 	err := row.Scan(&app.ID, &app.ApplicationNo, &app.OwnerName, &app.OwnerPhone,
 		&app.Building, &app.Unit, &app.Room, &app.TeamID, &teamName, &app.WorkTypes,
-		&app.MaterialEntryTime, &app.StartDate, &app.EndDate, &app.HasNoiseWork,
+		&materialEntryTime, &app.StartDate, &app.EndDate, &app.HasNoiseWork,
 		&app.NoiseTimeSlots, &app.Status, &reviewerID, &reviewerName, &app.ReviewComment,
 		&reviewedAt, &app.QRCode, &app.CreatedAt, &app.UpdatedAt)
 
@@ -209,7 +216,10 @@ func GetApplication(c *fiber.Ctx) error {
 		app.ReviewerID = int(reviewerID.Int64)
 	}
 	if reviewedAt.Valid {
-		app.ReviewedAt = reviewedAt.Time
+		app.ReviewedAt = &reviewedAt.Time
+	}
+	if materialEntryTime.Valid {
+		app.MaterialEntryTime = &materialEntryTime.Time
 	}
 
 	return c.JSON(app)
@@ -279,13 +289,20 @@ func UpdateApplication(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "只有退回或待审核的申请可以修改"})
 	}
 
+	var updateMaterialEntryTime interface{}
+	if app.MaterialEntryTime != nil && !app.MaterialEntryTime.IsZero() {
+		updateMaterialEntryTime = app.MaterialEntryTime
+	} else {
+		updateMaterialEntryTime = nil
+	}
+
 	_, err := database.DB.Exec(`
 		UPDATE applications SET owner_name = ?, owner_phone = ?, building = ?, unit = ?, room = ?,
 		team_id = ?, work_types = ?, material_entry_time = ?, start_date = ?, end_date = ?,
 		has_noise_work = ?, noise_time_slots = ?, status = 'pending', updated_at = ?
 		WHERE id = ?
 	`, app.OwnerName, app.OwnerPhone, app.Building, app.Unit, app.Room,
-		app.TeamID, app.WorkTypes, app.MaterialEntryTime, app.StartDate, app.EndDate,
+		app.TeamID, app.WorkTypes, updateMaterialEntryTime, app.StartDate, app.EndDate,
 		app.HasNoiseWork, app.NoiseTimeSlots, time.Now(), id)
 
 	if err != nil {

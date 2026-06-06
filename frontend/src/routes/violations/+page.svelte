@@ -136,15 +136,9 @@
 	{/if}
 
 	<div class="tabs">
-		<button class="tab {tab === 'open' ? 'active' : ''}" on:click={() => tab = 'open'}">
-			待处理
-		</button>
-		<button class="tab {tab === 'closed' ? 'active' : ''}" on:click={() => tab = 'closed'}">
-			已处理
-		</button>
-		<button class="tab {tab === 'all' ? 'active' : ''}" on:click={() => tab = 'all'}">
-			全部
-		</button>
+		<button class="tab {tab === 'open' ? 'active' : ''}" on:click={() => tab = 'open'}>待处理</button>
+		<button class="tab {tab === 'closed' ? 'active' : ''}" on:click={() => tab = 'closed'}>已处理</button>
+		<button class="tab {tab === 'all' ? 'active' : ''}" on:click={() => tab = 'all'}>全部</button>
 	</div>
 
 	<div class="card">

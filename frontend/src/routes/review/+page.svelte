@@ -38,15 +38,9 @@
 	</div>
 
 	<div class="tabs">
-		<button class="tab {tab === 'pending' ? 'active' : ''}" on:click={() => tab = 'pending'}">
-			待审核
-		</button>
-		<button class="tab {tab === 'manual' ? 'active' : ''}" on:click={() => tab = 'manual'}">
-			待人工复核
-		</button>
-		<button class="tab {tab === 'all' ? 'active' : ''}" on:click={() => tab = 'all'}">
-			全部
-		</button>
+		<button class="tab {tab === 'pending' ? 'active' : ''}" on:click={() => tab = 'pending'}>待审核</button>
+		<button class="tab {tab === 'manual' ? 'active' : ''}" on:click={() => tab = 'manual'}>待人工复核</button>
+		<button class="tab {tab === 'all' ? 'active' : ''}" on:click={() => tab = 'all'}>全部</button>
 	</div>
 
 	<div class="card">

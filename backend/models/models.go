@@ -24,30 +24,30 @@ type ConstructionTeam struct {
 }
 
 type Application struct {
-	ID               int       `json:"id"`
-	ApplicationNo    string    `json:"application_no"`
-	OwnerName        string    `json:"owner_name"`
-	OwnerPhone       string    `json:"owner_phone"`
-	Building         string    `json:"building"`
-	Unit             string    `json:"unit"`
-	Room             string    `json:"room"`
-	TeamID           int       `json:"team_id"`
-	TeamName         string    `json:"team_name,omitempty"`
-	WorkTypes        string    `json:"work_types"`
-	MaterialEntryTime time.Time `json:"material_entry_time"`
-	StartDate        string    `json:"start_date"`
-	EndDate          string    `json:"end_date"`
-	HasNoiseWork     bool      `json:"has_noise_work"`
-	NoiseTimeSlots   string    `json:"noise_time_slots"`
-	Status           string    `json:"status"`
-	ReviewerID       int       `json:"reviewer_id"`
-	ReviewerName     string    `json:"reviewer_name,omitempty"`
-	ReviewComment    string    `json:"review_comment"`
-	ReviewedAt       time.Time `json:"reviewed_at"`
-	QRCode           string    `json:"qr_code"`
-	CreatedBy        int       `json:"created_by"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               int        `json:"id"`
+	ApplicationNo    string     `json:"application_no"`
+	OwnerName        string     `json:"owner_name"`
+	OwnerPhone       string     `json:"owner_phone"`
+	Building         string     `json:"building"`
+	Unit             string     `json:"unit"`
+	Room             string     `json:"room"`
+	TeamID           int        `json:"team_id"`
+	TeamName         string     `json:"team_name,omitempty"`
+	WorkTypes        string     `json:"work_types"`
+	MaterialEntryTime *time.Time `json:"material_entry_time"`
+	StartDate        string     `json:"start_date"`
+	EndDate          string     `json:"end_date"`
+	HasNoiseWork     bool       `json:"has_noise_work"`
+	NoiseTimeSlots   string     `json:"noise_time_slots"`
+	Status           string     `json:"status"`
+	ReviewerID       int        `json:"reviewer_id"`
+	ReviewerName     string     `json:"reviewer_name,omitempty"`
+	ReviewComment    string     `json:"review_comment"`
+	ReviewedAt       *time.Time `json:"reviewed_at"`
+	QRCode           string     `json:"qr_code"`
+	CreatedBy        int        `json:"created_by"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type Violation struct {

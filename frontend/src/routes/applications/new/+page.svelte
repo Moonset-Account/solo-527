@@ -62,6 +62,12 @@
 			if (form.team_id) {
 				data.team_id = parseInt(form.team_id);
 			}
+			if (!data.material_entry_time) {
+				delete data.material_entry_time;
+			}
+			if (!data.noise_time_slots) {
+				delete data.noise_time_slots;
+			}
 			const res = await api.createApplication(data);
 			alert(`申请提交成功！申请编号：${res.application_no}`);
 			goto('/applications');

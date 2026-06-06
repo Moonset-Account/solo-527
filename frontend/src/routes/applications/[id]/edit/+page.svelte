@@ -48,6 +48,12 @@
 			if (form.team_id) {
 				data.team_id = parseInt(form.team_id);
 			}
+			if (!data.material_entry_time) {
+				delete data.material_entry_time;
+			}
+			if (!data.noise_time_slots) {
+				delete data.noise_time_slots;
+			}
 			await api.updateApplication(app.id, data);
 			alert('更新成功');
 			goto(`/applications/${app.id}`);
