@@ -431,7 +431,14 @@ export default function BorrowOrderDetail() {
   );
 }
 
-function ExtendModal({ onClose, onSubmit, loading, currentDate }: any) {
+interface ExtendModalProps {
+  onClose: () => void;
+  onSubmit: (data: { new_return_date: string; reason: string }) => void;
+  loading: boolean;
+  currentDate: string;
+}
+
+function ExtendModal({ onClose, onSubmit, loading, currentDate }: ExtendModalProps) {
   const [newReturnDate, setNewReturnDate] = useState("");
   const [reason, setReason] = useState("");
 
@@ -483,7 +490,19 @@ function ExtendModal({ onClose, onSubmit, loading, currentDate }: any) {
   );
 }
 
-function ReturnModal({ onClose, onSubmit, loading, quantity }: any) {
+interface ReturnModalProps {
+  onClose: () => void;
+  onSubmit: (data: {
+    returned_quantity: number;
+    damaged_quantity: number;
+    lost_quantity: number;
+    inspection_result?: string;
+  }) => void;
+  loading: boolean;
+  quantity: number;
+}
+
+function ReturnModal({ onClose, onSubmit, loading, quantity }: ReturnModalProps) {
   const [returned, setReturned] = useState(quantity);
   const [damaged, setDamaged] = useState(0);
   const [lost, setLost] = useState(0);
@@ -574,7 +593,13 @@ function ReturnModal({ onClose, onSubmit, loading, quantity }: any) {
   );
 }
 
-function RejectModal({ onClose, onSubmit, loading }: any) {
+interface RejectModalProps {
+  onClose: () => void;
+  onSubmit: (data: { reason: string }) => void;
+  loading: boolean;
+}
+
+function RejectModal({ onClose, onSubmit, loading }: RejectModalProps) {
   const [reason, setReason] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {

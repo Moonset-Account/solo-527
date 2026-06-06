@@ -269,10 +269,18 @@ borrowOrdersRouter.post("/:id/approve", requireRole("supervisor"), async (req, r
         inventoryId = invResult.rows[0].id;
         batchNo = invResult.rows[0].batch_no;
       } else {
-        await client.query(
-          `SELECT id FROM inventory WHERE id = $1 FOR UPDATE`,
+        const invResult = await client.query(
+          `SELECT id, available_quantity FROM inventory WHERE id = $1 FOR UPDATE`,
           [inventoryId]
         );
+
+        if (invResult.rows.length === 0) {
+          throw new Error("Inventory not found");
+        }
+
+        if (invResult.rows[0].available_quantity < order.quantity) {
+          throw new Error("Insufficient inventory");
+        }
       }
 
       await client.query(

@@ -65,7 +65,8 @@ app.all(
   createRequestHandler({
     build: viteDevServer
       ? () => viteDevServer.ssrLoadModule("virtual:remix/server-build")
-      : await import("../build/server/index.js"),
+      : // @ts-ignore - build 产物在开发时不存在
+        await import("../build/server/index.js"),
     mode: MODE,
   })
 );
