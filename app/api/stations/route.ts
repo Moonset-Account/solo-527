@@ -1,43 +1,43 @@
 import { NextResponse } from "next/server";
-import { getStations, getArrivalRecords } from "@/lib/dataStore";
+import { getStations_async, getArrivalRecords_async, getStationCrowdingData_async } from "@/lib/dataStore";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const stationId = searchParams.get("stationId");
   const withCrowding = searchParams.get("withCrowding") === "true";
   const hour = searchParams.get("hour");
+  const routeId = searchParams.get("routeId") || undefined;
 
-  let stations = getStations();
+  let stations = await getStations_async();
   if (stationId) {
     stations = stations.filter((s) => s.id === stationId);
   }
 
   if (withCrowding) {
-    const arrivals = getArrivalRecords();
-    const stationStats: Record<string, { load: number; count: number; passengers: number }> = {};
+    const crowdingData = await getStationCrowdingData_async({
+      routeId,
+      hour: hour ? parseInt(hour) : undefined,
+      includeDetour: false,
+    });
 
-    arrivals.forEach((a) => {
-      if (!stationStats[a.stationId]) {
-        stationStats[a.stationId] = { load: 0, count: 0, passengers: 0 };
-      }
-      stationStats[a.stationId].load += a.loadFactor;
-      stationStats[a.stationId].count += 1;
-      stationStats[a.stationId].passengers += a.passengerCount;
+    const crowdingMap: Record<string, any> = {};
+    crowdingData.forEach((item) => {
+      crowdingMap[item.stationId] = item;
     });
 
     const stationsWithCrowding = stations.map((s) => {
-      const stats = stationStats[s.id] || { load: 0, count: 0, passengers: 0 };
-      const avgLoad = stats.count > 0 ? stats.load / stats.count : 0;
-      let crowdingLevel = "low";
-      if (avgLoad >= 0.9) crowdingLevel = "extreme";
-      else if (avgLoad >= 0.7) crowdingLevel = "high";
-      else if (avgLoad >= 0.4) crowdingLevel = "medium";
-
+      const stats = crowdingMap[s.id] || {
+        avgLoadFactor: 0,
+        crowdingLevel: "low",
+        totalPassengers: 0,
+        arrivalCount: 0,
+      };
       return {
         ...s,
-        avgLoadFactor: Number(avgLoad.toFixed(4)),
-        crowdingLevel,
-        totalPassengers: stats.passengers,
+        avgLoadFactor: stats.avgLoadFactor,
+        crowdingLevel: stats.crowdingLevel,
+        totalPassengers: stats.totalPassengers,
+        arrivalCount: stats.arrivalCount,
       };
     });
 
