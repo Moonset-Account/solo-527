@@ -35,7 +35,7 @@ def is_exam_week(target_date: date, db: Session) -> bool:
     return exam_week is not None and exam_week.is_exam_week
 
 
-def apply_time_filter(query, filters, time_field='start_time'):
+def apply_time_filter(query, filters, time_field='start_time', model=None):
     time_slot = filters.get('time_slot')
     if not time_slot:
         return query
@@ -55,7 +55,8 @@ def apply_time_filter(query, filters, time_field='start_time'):
     
     if time_slot in time_map:
         start_t, end_t = time_map[time_slot]
-        field = getattr(models.Reservation, time_field)
+        target_model = model or models.Reservation
+        field = getattr(target_model, time_field)
         query = query.filter(and_(field >= start_t, field < end_t))
     
     return query
@@ -158,6 +159,8 @@ def get_heatmap_data(db: Session, filters: dict) -> list:
         res_query = res_query.filter(models.Reservation.reservation_date >= filters['start_date'])
     if filters.get('end_date'):
         res_query = res_query.filter(models.Reservation.reservation_date <= filters['end_date'])
+    if filters.get('user_group_id'):
+        res_query = res_query.filter(models.Reservation.user_group_id == filters['user_group_id'])
     if filters.get('time_slot'):
         res_query = apply_time_filter(res_query, filters)
     
@@ -263,6 +266,10 @@ def get_area_comparison(db: Session, filters: dict) -> list:
         wait_query = wait_query.filter(models.WaitQueue.queue_date >= filters['start_date'])
     if filters.get('end_date'):
         wait_query = wait_query.filter(models.WaitQueue.queue_date <= filters['end_date'])
+    if filters.get('user_group_id'):
+        wait_query = wait_query.filter(models.WaitQueue.user_group_id == filters['user_group_id'])
+    if filters.get('time_slot'):
+        wait_query = apply_time_filter(wait_query, filters, 'queue_time', models.WaitQueue)
     wait_records = wait_query.all()
     
     area_stats = {}

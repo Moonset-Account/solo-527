@@ -15,20 +15,29 @@ const SeatHeatmap = () => {
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState(null);
 
+  const effectiveAreaId = filters.area_id || selectedArea;
+  const selectedAreaObj = areas.find(a => a.id === effectiveAreaId);
+
   useEffect(() => {
     fetchAreas();
   }, [filters.floor_id]);
 
   useEffect(() => {
+    if (filters.area_id) {
+      setSelectedArea(filters.area_id);
+    }
+  }, [filters.area_id]);
+
+  useEffect(() => {
     fetchData();
-  }, [filters.start_date, filters.end_date, filters.time_slot, selectedArea]);
+  }, [filters.start_date, filters.end_date, filters.time_slot, filters.user_group_id, effectiveAreaId]);
 
   const fetchAreas = async () => {
     try {
       const res = await getAreas(filters.floor_id);
       const areaList = res.data.data || [];
       setAreas(areaList);
-      if (areaList.length > 0 && !selectedArea) {
+      if (areaList.length > 0 && !effectiveAreaId && !filters.area_id) {
         setSelectedArea(areaList[0].id);
       }
     } catch (error) {
@@ -37,13 +46,14 @@ const SeatHeatmap = () => {
   };
 
   const fetchData = async () => {
-    if (!selectedArea) return;
+    if (!effectiveAreaId) return;
     try {
       setLoading(true);
       const res = await getHeatmap({
         start_date: filters.start_date,
         end_date: filters.end_date,
-        area_id: selectedArea,
+        area_id: effectiveAreaId,
+        user_group_id: filters.user_group_id,
         time_slot: filters.time_slot
       });
       setData(res.data.data || []);
@@ -142,12 +152,14 @@ const SeatHeatmap = () => {
           sampleSize={meta.sampleSize}
           updateTime={meta.updateTime}
           filters={filters}
+          areaName={selectedAreaObj?.area_name}
         />
         <Select
           style={{ width: 150, marginLeft: 16 }}
-          value={selectedArea}
+          value={effectiveAreaId}
           onChange={setSelectedArea}
           placeholder="选择区域"
+          disabled={!!filters.area_id}
         >
           {areas.map(a => (
             <Option key={a.id} value={a.id}>{a.area_name}</Option>

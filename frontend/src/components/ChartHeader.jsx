@@ -31,6 +31,30 @@ const ChartHeader = ({ title, sampleSize, updateTime, filters, floorName, areaNa
     return parts.join(' | ');
   };
 
+  const getFilterTags = () => {
+    if (!filters) return null;
+    const tags = [];
+    if (filters.floor_id) {
+      tags.push(<Tag key="floor" color="orange">{`楼层: ${floorName || filters.floor_id}`}</Tag>);
+    }
+    if (filters.area_id) {
+      tags.push(<Tag key="area" color="orange">{`区域: ${areaName || filters.area_id}`}</Tag>);
+    }
+    if (filters.seat_type) {
+      tags.push(<Tag key="seat_type" color="orange">{`座位: ${filters.seat_type}`}</Tag>);
+    }
+    if (filters.user_group_id) {
+      tags.push(<Tag key="user_group" color="orange">{`用户组: ${userGroupName || filters.user_group_id}`}</Tag>);
+    }
+    if (filters.time_slot) {
+      tags.push(<Tag key="time_slot" color="orange">{`时段: ${TIME_SLOT_LABELS[filters.time_slot] || filters.time_slot}`}</Tag>);
+    }
+    if (filters.start_date && filters.end_date) {
+      tags.push(<Tag key="date" color="orange">{`${filters.start_date} ~ ${filters.end_date}`}</Tag>);
+    }
+    return tags;
+  };
+
   return (
     <div className="chart-header">
       <span className="chart-title">{title}</span>
@@ -49,11 +73,7 @@ const ChartHeader = ({ title, sampleSize, updateTime, filters, floorName, areaNa
             </Tag>
           </Tooltip>
         )}
-        {filters && formatFilters() && (
-          <Tooltip title={formatFilters()}>
-            <Tag color="orange">筛选条件</Tag>
-          </Tooltip>
-        )}
+        {filters && getFilterTags()}
       </div>
     </div>
   );
