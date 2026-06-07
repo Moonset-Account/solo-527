@@ -8,7 +8,8 @@ import type {
   PriceTrendPoint,
   PrescriptionRangeStat,
   ChronicTag,
-  MedicineCategory
+  MedicineCategory,
+  StoreRankItem
 } from '@/types'
 
 function randomInt(min: number, max: number): number {
@@ -148,12 +149,31 @@ export function generatePriceTrend(): PriceTrendPoint[] {
 
 export function generatePrescriptionStats(): PrescriptionRangeStat[] {
   return [
-    { range: '0-10次', count: 15680, percentage: 45.2 },
-    { range: '10-20次', count: 8920, percentage: 25.7 },
-    { range: '20-50次', count: 6580, percentage: 19.0 },
-    { range: '50-100次', count: 2560, percentage: 7.4 },
-    { range: '100次以上', count: 920, percentage: 2.7 }
+    { range: '0-10次', memberCount: 15680, percentage: 45.2, lowSample: false },
+    { range: '10-20次', memberCount: 8920, percentage: 25.7, lowSample: false },
+    { range: '20-50次', memberCount: 6580, percentage: 19.0, lowSample: false },
+    { range: '50-100次', memberCount: 2560, percentage: 7.4, lowSample: false },
+    { range: '100次以上', memberCount: 920, percentage: 2.7, lowSample: false }
   ]
+}
+
+export function generateStoreRank(): StoreRankItem[] {
+  const regions = ['华东区', '华北区', '华南区', '华中区', '西南区', '西北区', '东北区']
+  const stores: StoreRankItem[] = []
+  for (let i = 1; i <= 20; i++) {
+    const region = regions[randomInt(0, regions.length - 1)]
+    const sampleSize = randomInt(500, 5000)
+    stores.push({
+      storeId: `STORE-${String(i).padStart(3, '0')}`,
+      storeName: `${region}第${i}店`,
+      region,
+      repurchaseRate: randomFloat(20, 45),
+      orderCount: randomInt(1000, 10000),
+      sampleSize,
+      lowSample: sampleSize < 10
+    })
+  }
+  return stores.sort((a, b) => b.repurchaseRate - a.repurchaseRate)
 }
 
 export function generateChronicTags(): ChronicTag[] {
@@ -198,4 +218,36 @@ export function generateMedicineCategories(): MedicineCategory[] {
   })
   
   return categories
+}
+
+export const defaultMedicineCategories: MedicineCategory[] = generateMedicineCategories()
+
+export interface MockDataResult {
+  coreMetrics: CoreMetric[]
+  cohortData: CohortData[]
+  funnelData: FunnelStep[]
+  storeRank: StoreRankItem[]
+  storeData: StoreData[]
+  memberTiers: MemberTier[]
+  medicineComparison: MedicineComparison[]
+  priceTrend: PriceTrendPoint[]
+  prescriptionRanges: PrescriptionRangeStat[]
+  chronicTags: ChronicTag[]
+  medicineCategories: MedicineCategory[]
+}
+
+export function generateMockData(): MockDataResult {
+  return {
+    coreMetrics: generateCoreMetrics(),
+    cohortData: generateCohortData(),
+    funnelData: generateFunnelData(),
+    storeRank: generateStoreRank(),
+    storeData: generateStoreData(),
+    memberTiers: generateMemberTiers(),
+    medicineComparison: generateMedicineComparison(),
+    priceTrend: generatePriceTrend(),
+    prescriptionRanges: generatePrescriptionStats(),
+    chronicTags: generateChronicTags(),
+    medicineCategories: generateMedicineCategories()
+  }
 }

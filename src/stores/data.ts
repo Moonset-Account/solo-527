@@ -4,166 +4,282 @@ import type {
   CoreMetric,
   CohortData,
   FunnelStep,
-  StoreData,
-  MemberTier,
-  MedicineComparison,
   PriceTrendPoint,
+  StoreRankItem,
+  MedicineComparison,
   PrescriptionRangeStat,
-  ChronicTag,
   MedicineCategory
 } from '@/types'
+import type {
+  QueryFilter,
+  CohortQueryParams,
+  PaginatedResult
+} from '@/types/query'
 import {
-  generateCoreMetrics,
-  generateCohortData,
-  generateFunnelData,
-  generateStoreData,
-  generateMemberTiers,
-  generateMedicineComparison,
-  generatePriceTrend,
-  generatePrescriptionStats,
-  generateChronicTags,
-  generateMedicineCategories
-} from '@/utils/mock'
-
-const CACHE_KEY = 'store_cache_data'
-const CACHE_EXPIRY = 30 * 60 * 1000
+  queryCoreMetrics,
+  queryCohortData,
+  queryFunnelData,
+  queryPriceTrend,
+  queryStoreRank,
+  queryMedicineComparison,
+  queryPrescriptionRangeStats,
+  clearQueryCache
+} from '@/services/clickhouse'
+import { MEDICINE_CATEGORIES_KEY } from '@/utils/storage'
+import { defaultMedicineCategories } from '@/utils/mock'
+import { STORE_CACHE_KEY, CACHE_TTL } from '@/utils/constants'
 
 export const useDataStore = defineStore('data', () => {
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  const lastQueryId = ref('')
+  const lastExecutionTime = ref(0)
+
   const coreMetrics = ref<CoreMetric[]>([])
   const cohortData = ref<CohortData[]>([])
   const funnelData = ref<FunnelStep[]>([])
-  const storeData = ref<StoreData[]>([])
-  const memberTiers = ref<MemberTier[]>([])
-  const medicineComparison = ref<MedicineComparison[]>([])
   const priceTrend = ref<PriceTrendPoint[]>([])
-  const prescriptionStats = ref<PrescriptionRangeStat[]>([])
-  const chronicTags = ref<ChronicTag[]>([])
+  const storeRank = ref<StoreRankItem[]>([])
+  const medicineComparison = ref<MedicineComparison[]>([])
+  const prescriptionRanges = ref<PrescriptionRangeStat[]>([])
   const medicineCategories = ref<MedicineCategory[]>([])
-  
-  const loading = ref(false)
-  const selectedRegion = ref<string>('all')
-  const selectedDateRange = ref<[Date, Date] | null>(null)
 
-  const filteredStoreData = computed(() => {
-    if (selectedRegion.value === 'all') return storeData.value
-    return storeData.value.filter(s => s.region === selectedRegion.value)
+  const currentFilter = ref<QueryFilter>({
+    chronicLabels: [],
+    storeIds: [],
+    regionIds: [],
+    memberTier: []
   })
 
-  const allRegions = computed(() => {
-    const regions = new Set(storeData.value.map(s => s.region))
-    return Array.from(regions)
+  const hasActiveFilter = computed(() => {
+    const f = currentFilter.value
+    return (
+      (f.chronicLabels && f.chronicLabels.length > 0) ||
+      (f.storeIds && f.storeIds.length > 0) ||
+      (f.memberTier && f.memberTier.length > 0) ||
+      !!f.startDate ||
+      !!f.endDate
+    )
   })
 
-  async function loadAllData(forceRefresh = false) {
+  function updateFilter(filter: Partial<QueryFilter>) {
+    currentFilter.value = { ...currentFilter.value, ...filter }
+    clearQueryCache()
+  }
+
+  function setChronicLabels(labels: string[]) {
+    currentFilter.value.chronicLabels = labels
+    clearQueryCache()
+  }
+
+  function setStores(storeIds: string[]) {
+    currentFilter.value.storeIds = storeIds
+    clearQueryCache()
+  }
+
+  function setDateRange(start: string, end: string) {
+    currentFilter.value.startDate = start
+    currentFilter.value.endDate = end
+    clearQueryCache()
+  }
+
+  function clearFilter() {
+    currentFilter.value = {
+      chronicLabels: [],
+      storeIds: [],
+      regionIds: [],
+      memberTier: []
+    }
+    clearQueryCache()
+  }
+
+  function wrapResult<T>(result: PaginatedResult<T>): T {
+    lastQueryId.value = result.queryId
+    lastExecutionTime.value = result.executionTime
+    return result.data
+  }
+
+  async function loadCoreMetrics() {
     loading.value = true
-    
+    error.value = null
     try {
-      if (!forceRefresh) {
-        const cached = loadFromCache()
-        if (cached) {
-          applyCachedData(cached)
-          loading.value = false
-          return
-        }
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      coreMetrics.value = generateCoreMetrics()
-      cohortData.value = generateCohortData()
-      funnelData.value = generateFunnelData()
-      storeData.value = generateStoreData()
-      memberTiers.value = generateMemberTiers()
-      medicineComparison.value = generateMedicineComparison()
-      priceTrend.value = generatePriceTrend()
-      prescriptionStats.value = generatePrescriptionStats()
-      chronicTags.value = generateChronicTags()
-      medicineCategories.value = generateMedicineCategories()
-      
-      saveToCache()
+      const result = await queryCoreMetrics(currentFilter.value)
+      coreMetrics.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
     } finally {
       loading.value = false
     }
   }
 
-  function saveToCache() {
-    const data = {
-      timestamp: Date.now(),
-      coreMetrics: coreMetrics.value,
-      cohortData: cohortData.value,
-      funnelData: funnelData.value,
-      storeData: storeData.value,
-      memberTiers: memberTiers.value,
-      medicineComparison: medicineComparison.value,
-      priceTrend: priceTrend.value,
-      prescriptionStats: prescriptionStats.value,
-      chronicTags: chronicTags.value,
-      medicineCategories: medicineCategories.value
-    }
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-  }
-
-  function loadFromCache(): any | null {
-    const cached = localStorage.getItem(CACHE_KEY)
-    if (!cached) return null
-    
+  async function loadCohortData(params?: Partial<CohortQueryParams>) {
+    loading.value = true
+    error.value = null
     try {
-      const data = JSON.parse(cached)
-      if (Date.now() - data.timestamp < CACHE_EXPIRY) {
-        return data
-      }
-      localStorage.removeItem(CACHE_KEY)
-    } catch {
-      localStorage.removeItem(CACHE_KEY)
+      const queryParams = { ...currentFilter.value, ...params }
+      const result = await queryCohortData(queryParams)
+      cohortData.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
     }
-    return null
   }
 
-  function applyCachedData(data: any) {
-    coreMetrics.value = data.coreMetrics || []
-    cohortData.value = data.cohortData || []
-    funnelData.value = data.funnelData || []
-    storeData.value = data.storeData || []
-    memberTiers.value = data.memberTiers || []
-    medicineComparison.value = data.medicineComparison || []
-    priceTrend.value = data.priceTrend || []
-    prescriptionStats.value = data.prescriptionStats || []
-    chronicTags.value = data.chronicTags || []
-    medicineCategories.value = data.medicineCategories || []
+  async function loadFunnelData(activityId: string = 'ACT-2024-001') {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await queryFunnelData({ ...currentFilter.value, activityId })
+      funnelData.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
+    }
   }
 
-  function clearCache() {
-    localStorage.removeItem(CACHE_KEY)
+  async function loadPriceTrend() {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await queryPriceTrend(currentFilter.value)
+      priceTrend.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
+    }
   }
 
-  function setRegion(region: string) {
-    selectedRegion.value = region
+  async function loadStoreRank() {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await queryStoreRank(currentFilter.value)
+      storeRank.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
+    }
   }
 
-  function updateMedicineCategory(categories: MedicineCategory[]) {
-    medicineCategories.value = categories
-    saveToCache()
+  async function loadMedicineComparison(activityId: string = 'ACT-2024-001', categories: string[] = []) {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await queryMedicineComparison({
+        ...currentFilter.value,
+        activityId,
+        targetCategories: categories
+      })
+      medicineComparison.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadPrescriptionRanges() {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await queryPrescriptionRangeStats(currentFilter.value)
+      prescriptionRanges.value = wrapResult(result)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : '加载失败'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function loadMedicineCategories() {
+    try {
+      const stored = localStorage.getItem(MEDICINE_CATEGORIES_KEY)
+      if (stored) {
+        medicineCategories.value = JSON.parse(stored)
+      } else {
+        medicineCategories.value = defaultMedicineCategories
+      }
+    } catch {
+      medicineCategories.value = defaultMedicineCategories
+    }
+  }
+
+  function saveMedicineCategories() {
+    localStorage.setItem(MEDICINE_CATEGORIES_KEY, JSON.stringify(medicineCategories.value))
+  }
+
+  function addMedicineCategory(category: Omit<MedicineCategory, 'id'>) {
+    const newCategory: MedicineCategory = {
+      ...category,
+      id: 'CAT_' + Date.now()
+    }
+    medicineCategories.value.push(newCategory)
+    saveMedicineCategories()
+  }
+
+  function updateMedicineCategory(id: string, updates: Partial<MedicineCategory>) {
+    const index = medicineCategories.value.findIndex(c => c.id === id)
+    if (index !== -1) {
+      medicineCategories.value[index] = { ...medicineCategories.value[index], ...updates }
+      saveMedicineCategories()
+    }
+  }
+
+  function deleteMedicineCategory(id: string) {
+    medicineCategories.value = medicineCategories.value.filter(c => c.id !== id)
+    saveMedicineCategories()
+  }
+
+  function refreshAll() {
+    clearQueryCache()
+    return Promise.all([
+      loadCoreMetrics(),
+      loadCohortData(),
+      loadPriceTrend(),
+      loadStoreRank()
+    ])
+  }
+
+  function init() {
+    loadMedicineCategories()
   }
 
   return {
+    loading,
+    error,
+    lastQueryId,
+    lastExecutionTime,
     coreMetrics,
     cohortData,
     funnelData,
-    storeData,
-    memberTiers,
-    medicineComparison,
     priceTrend,
-    prescriptionStats,
-    chronicTags,
+    storeRank,
+    medicineComparison,
+    prescriptionRanges,
     medicineCategories,
-    loading,
-    selectedRegion,
-    selectedDateRange,
-    filteredStoreData,
-    allRegions,
-    loadAllData,
-    clearCache,
-    setRegion,
-    updateMedicineCategory
+    currentFilter,
+    hasActiveFilter,
+    updateFilter,
+    setChronicLabels,
+    setStores,
+    setDateRange,
+    clearFilter,
+    loadCoreMetrics,
+    loadCohortData,
+    loadFunnelData,
+    loadPriceTrend,
+    loadStoreRank,
+    loadMedicineComparison,
+    loadPrescriptionRanges,
+    loadMedicineCategories,
+    addMedicineCategory,
+    updateMedicineCategory,
+    deleteMedicineCategory,
+    refreshAll,
+    init
   }
 })

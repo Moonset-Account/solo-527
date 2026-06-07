@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { maskValue, type MaskType } from '@/utils/privacy'
+import { maskValue } from '@/utils/privacy'
+import type { MaskType } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{

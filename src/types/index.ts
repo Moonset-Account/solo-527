@@ -115,6 +115,27 @@ export interface PriceTrendPoint {
 
 export interface PrescriptionRangeStat {
   range: string
-  count: number
+  memberCount: number
   percentage: number
+  lowSample: boolean
+}
+
+export interface StoreRankItem {
+  storeId: string
+  storeName: string
+  region: string
+  repurchaseRate: number
+  orderCount: number
+  sampleSize: number
+  lowSample: boolean
+}
+
+export interface StoreData {
+  id: string
+  name: string
+  region: string
+  repurchaseRate: number
+  avgOrderValue: number
+  totalSales: number
+  sampleSize: number
 }

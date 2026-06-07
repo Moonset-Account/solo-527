@@ -124,8 +124,8 @@ function renderChart() {
     .style('pointer-events', 'none')
     .style('z-index', '100')
 
-  svg.selectAll('.dot')
-    .on('mouseover', function(event, d) {
+  svg.selectAll<SVGCircleElement, PriceTrendPoint>('.dot')
+    .on('mouseover', function(_event, d) {
       d3.select(this).attr('r', 6)
       tooltip.style('visibility', 'visible')
         .html(`
@@ -135,7 +135,7 @@ function renderChart() {
           ${d.lowSample ? '<div style="color:#f97316">样本不足</div>' : ''}
         `)
     })
-    .on('mousemove', function(event) {
+    .on('mousemove', function(event: MouseEvent) {
       tooltip.style('top', (event.offsetY - 10) + 'px')
         .style('left', (event.offsetX + 10) + 'px')
     })

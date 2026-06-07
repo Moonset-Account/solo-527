@@ -66,7 +66,7 @@ function renderChart() {
       Z
     `
 
-    const group = svg.append('g')
+    const group = svg.append<SVGGElement>('g')
       .style('cursor', 'pointer')
 
     group.append('path')
@@ -75,7 +75,7 @@ function renderChart() {
       .attr('opacity', 0.85)
       .style('transition', 'opacity 0.2s')
 
-    group.on('mouseover', function(event) {
+    group.on('mouseover', function(_event: MouseEvent) {
         d3.select(this).select('path').attr('opacity', 1)
         tooltip.style('visibility', 'visible')
           .html(`
@@ -86,7 +86,7 @@ function renderChart() {
             ${d.lowSample ? '<div style="color:#f97316">样本不足</div>' : ''}
           `)
       })
-      .on('mousemove', function(event) {
+      .on('mousemove', function(event: MouseEvent) {
         tooltip.style('top', (event.offsetY - 80) + 'px')
           .style('left', (event.offsetX + 10) + 'px')
       })

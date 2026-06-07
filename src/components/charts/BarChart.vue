@@ -77,7 +77,7 @@ function renderChart() {
     .style('font-size', '11px')
     .style('fill', '#6b7280')
 
-  const groups = svg.selectAll('.bar-group')
+  const groups = svg.selectAll<SVGGElement, MedicineComparison>('.bar-group')
     .data(props.data)
     .enter()
     .append('g')
@@ -92,7 +92,7 @@ function renderChart() {
     .attr('fill', '#94A3B8')
     .attr('rx', 3)
     .style('cursor', 'pointer')
-    .on('mouseover', function(event, d) {
+    .on('mouseover', function(_event, d) {
       d3.select(this).attr('fill', '#64748B')
       tooltip.style('visibility', 'visible')
         .html(`
@@ -101,7 +101,7 @@ function renderChart() {
           <div>样本量: n=${d.sampleSize}</div>
         `)
     })
-    .on('mousemove', function(event) {
+    .on('mousemove', function(event: MouseEvent) {
       tooltip.style('top', (event.offsetY - 60) + 'px')
         .style('left', (event.offsetX + 10) + 'px')
     })
@@ -118,7 +118,7 @@ function renderChart() {
     .attr('fill', d => d.lowSample ? '#f97316' : '#165DFF')
     .attr('rx', 3)
     .style('cursor', 'pointer')
-    .on('mouseover', function(event, d) {
+    .on('mouseover', function(_event, d) {
       d3.select(this).attr('fill', d.lowSample ? '#ea580c' : '#0E4BCC')
       tooltip.style('visibility', 'visible')
         .html(`
@@ -128,12 +128,12 @@ function renderChart() {
           <div>样本量: ${d.lowSample ? 'n<10' : 'n=' + d.sampleSize}</div>
         `)
     })
-    .on('mousemove', function(event) {
+    .on('mousemove', function(event: MouseEvent) {
       tooltip.style('top', (event.offsetY - 70) + 'px')
         .style('left', (event.offsetX + 10) + 'px')
     })
-    .on('mouseout', function() {
-      d3.select(this).attr('fill', d => d.lowSample ? '#f97316' : '#165DFF')
+    .on('mouseout', function(_event, d) {
+      d3.select(this).attr('fill', d.lowSample ? '#f97316' : '#165DFF')
       tooltip.style('visibility', 'hidden')
     })
 

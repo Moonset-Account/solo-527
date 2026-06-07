@@ -66,14 +66,16 @@ function renderChart() {
 
   svg.selectAll('.domain').remove()
 
-  const flatData: {
+  interface CohortFlatData {
     cohort: string
     period: string
     periodNum: number
     value: number
     sampleSize: number
     lowSample: boolean
-  }[] = []
+  }
+
+  const flatData: CohortFlatData[] = []
 
   props.data.forEach(d => {
     d.cells.forEach(cell => {
@@ -103,7 +105,7 @@ function renderChart() {
     .style('z-index', '100')
     .style('box-shadow', '0 4px 12px rgba(0,0,0,0.15)')
 
-  const cells = svg.selectAll('.cell')
+  const cells = svg.selectAll<SVGRectElement, CohortFlatData>('.cell')
     .data(flatData)
     .enter()
     .append('rect')
@@ -119,7 +121,7 @@ function renderChart() {
     .style('cursor', 'pointer')
     .style('transition', 'all 0.2s')
 
-  cells.on('mouseover', function(event, d) {
+  cells.on('mouseover', function(_event, d) {
       d3.select(this)
         .attr('stroke', '#165DFF')
         .attr('stroke-width', 2)
@@ -130,7 +132,7 @@ function renderChart() {
           <div>样本量: ${d.lowSample ? 'n<10' : 'n=' + d.sampleSize}</div>
         `)
     })
-    .on('mousemove', function(event) {
+    .on('mousemove', function(event: MouseEvent) {
       const rect = chartRef.value?.getBoundingClientRect()
       if (rect) {
         tooltip.style('top', (event.offsetY - 70) + 'px')
@@ -144,7 +146,7 @@ function renderChart() {
       tooltip.style('visibility', 'hidden')
     })
 
-  svg.selectAll('.value-label')
+  svg.selectAll<SVGTextElement, CohortFlatData>('.value-label')
     .data(flatData)
     .enter()
     .append('text')
@@ -158,7 +160,7 @@ function renderChart() {
     .style('fill', d => d.lowSample || d.value > 40 ? '#1f2937' : '#fff')
     .text(d => d.lowSample ? '?' : d.value + '%')
 
-  svg.selectAll('.sample-label')
+  svg.selectAll<SVGTextElement, CohortFlatData>('.sample-label')
     .data(flatData)
     .enter()
     .append('text')
