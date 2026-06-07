@@ -281,15 +281,17 @@ export function getRawRecords(filter: FilterParams & { page?: number; pageSize?:
   }
 
   if (!source || source === 'weather') {
-    allRecords.push(...filterByTime(dataStore.weathers, filter.startTime, filter.endTime)
-      .map(w => ({
-        id: w.id,
-        source: 'weather' as const,
-        time: w.recordTime.toISOString(),
-        title: `天气记录: ${w.weather}`,
-        description: `温度 ${w.temperature.toFixed(1)}°C，湿度 ${w.humidity}%，风速 ${w.windSpeed.toFixed(1)}m/s`,
-        metadata: { temperature: w.temperature, humidity: w.humidity, weather: w.weather, windSpeed: w.windSpeed }
-      })));
+    if (!filter.activity?.length) {
+      allRecords.push(...filterByTime(dataStore.weathers, filter.startTime, filter.endTime)
+        .map(w => ({
+          id: w.id,
+          source: 'weather' as const,
+          time: w.recordTime.toISOString(),
+          title: `天气记录: ${w.weather}`,
+          description: `温度 ${w.temperature.toFixed(1)}°C，湿度 ${w.humidity}%，风速 ${w.windSpeed.toFixed(1)}m/s`,
+          metadata: { temperature: w.temperature, humidity: w.humidity, weather: w.weather, windSpeed: w.windSpeed }
+        })));
+    }
   }
 
   if (!source || source === 'show') {
