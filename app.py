@@ -60,15 +60,35 @@ def query_data(source_wh=None, target_wh=None, carrier=None, evidence_type=None,
     return df
 
 
-def get_rework_reasons():
+def get_rework_reasons(source_wh=None, target_wh=None, carrier=None, evidence_type=None, handler=None):
     conn = get_db_connection()
-    df = pd.read_sql_query('''
-        SELECT rework_reason, COUNT(*) as count 
-        FROM rework_records 
-        WHERE rework_reason IS NOT NULL 
-        GROUP BY rework_reason 
-        ORDER BY count DESC
-    ''', conn)
+    query = '''
+        SELECT r.rework_reason, COUNT(*) as count 
+        FROM rework_records r
+        JOIN transfer_orders t ON r.order_id = t.order_id
+        WHERE r.rework_reason IS NOT NULL 
+        AND t.is_auditing = 0
+    '''
+    params = []
+    
+    if source_wh:
+        query += ' AND t.source_warehouse = ?'
+        params.append(source_wh)
+    if target_wh:
+        query += ' AND t.target_warehouse = ?'
+        params.append(target_wh)
+    if carrier:
+        query += ' AND t.carrier = ?'
+        params.append(carrier)
+    if evidence_type:
+        query += ' AND t.evidence_type = ?'
+        params.append(evidence_type)
+    if handler:
+        query += ' AND t.handler = ?'
+        params.append(handler)
+    
+    query += ' GROUP BY r.rework_reason ORDER BY count DESC'
+    df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
 
@@ -337,7 +357,7 @@ def update_dashboard(source_wh, target_wh, carrier, evidence_type, handler):
         margin=dict(l=0, r=0, t=30, b=0)
     )
     
-    reason_df = get_rework_reasons()
+    reason_df = get_rework_reasons(source_wh, target_wh, carrier, evidence_type, handler)
     reason_fig = px.pie(
         reason_df,
         values='count',
@@ -486,6 +506,7 @@ def export_data(csv_clicks, pdf_clicks, data, source_wh, target_wh, carrier, evi
         return dash.no_update
     
     df = pd.DataFrame(data)
+    df = df[df['is_auditing'] == 0].copy()
     exclude_auditing_note = "说明: 统计数据已剔除状态为'审计中'的单据"
     
     filters_applied = []

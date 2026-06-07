@@ -42,7 +42,7 @@ def quick_import():
         ct = create_times[i]
         complete = ct + timedelta(hours=np.random.randint(1, 72)) if np.random.random() > 0.1 else None
         ph = (complete - ct).total_seconds() / 3600 if complete else None
-        miss_att = np.random.choice([0, 1], p=[0.85, 0.15])
+        miss_att = 0
         man_ent = np.random.choice([0, 1], p=[0.9, 0.1])
         is_rw = 1 if status == '返工' else 0
         is_aud = 1 if status == '审计中' else 0
@@ -71,12 +71,24 @@ def quick_import():
         ))
         imported += 1
         
-        if np.random.random() > 0.15:
+        has_evidence = np.random.random() > 0.15
+        if has_evidence:
             ev_status = np.random.choice(evidence_statuses, p=[0.75, 0.1, 0.08, 0.07])
+            evidence_name = f'证据_{i:04d}.jpg' if np.random.random() > 0.05 else None
+            if evidence_name is None:
+                miss_att = 1
+                cursor.execute('''
+                    UPDATE transfer_orders SET missing_attachment = 1 WHERE order_id = ?
+                ''', (oid,))
             cursor.execute('''
                 INSERT INTO evidence_records (order_id, evidence_name, evidence_status, upload_time)
                 VALUES (?, ?, ?, ?)
-            ''', (oid, f'证据_{i:04d}.jpg', ev_status, (ct + timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')))
+            ''', (oid, evidence_name, ev_status if evidence_name else '缺失', (ct + timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S')))
+        else:
+            miss_att = 1
+            cursor.execute('''
+                UPDATE transfer_orders SET missing_attachment = 1 WHERE order_id = ?
+            ''', (oid,))
         
         if status == '返工' or np.random.random() > 0.9:
             cursor.execute('''

@@ -16,8 +16,19 @@ def clean_data(df):
     duplicates_removed = duplicates_mask.sum()
     df = df[~duplicates_mask].copy()
     
-    missing_attachment_count = df['missing_attachment'].sum() if 'missing_attachment' in df.columns else 0
-    manual_entry_count = df['manual_entry'].sum() if 'manual_entry' in df.columns else 0
+    for col in ['missing_attachment', 'manual_entry']:
+        if col not in df.columns:
+            df[col] = 0
+        else:
+            df[col] = df[col].fillna(0).astype(int)
+    
+    if 'evidence_name' in df.columns:
+        df['evidence_name'] = df['evidence_name'].astype(str).str.strip()
+        empty_evidence_mask = (df['evidence_name'].isna()) | (df['evidence_name'] == '') | (df['evidence_name'] == 'nan')
+        df.loc[empty_evidence_mask, 'missing_attachment'] = 1
+    
+    missing_attachment_count = df['missing_attachment'].sum()
+    manual_entry_count = df['manual_entry'].sum()
     
     for col in ['source_warehouse', 'target_warehouse', 'carrier', 'evidence_type', 'handler']:
         if col in df.columns:
@@ -30,12 +41,6 @@ def clean_data(df):
     
     df['is_rework'] = df['status'].apply(lambda x: 1 if x == '返工' else 0)
     df['is_auditing'] = df['status'].apply(lambda x: 1 if x == '审计中' else 0)
-    
-    for col in ['missing_attachment', 'manual_entry']:
-        if col not in df.columns:
-            df[col] = 0
-        else:
-            df[col] = df[col].fillna(0).astype(int)
     
     for col in ['create_time', 'complete_time']:
         if col in df.columns:
