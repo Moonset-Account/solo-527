@@ -71,13 +71,15 @@ def get_course_heatmap(
     coach_ids: Optional[List[int]] = Query(None),
     course_ids: Optional[List[int]] = Query(None),
     month: Optional[str] = Query(None),
+    member_type_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "store_ids": store_ids,
         "coach_ids": coach_ids,
         "course_ids": course_ids,
-        "month": month
+        "month": month,
+        "member_type_ids": member_type_ids
     }
     service = AnalyticsService(db)
     return service.get_course_heatmap(filters)

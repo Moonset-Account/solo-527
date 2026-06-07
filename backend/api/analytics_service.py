@@ -133,12 +133,13 @@ class AnalyticsService:
         start_date, end_date = self._get_month_date_range(filters)
         
         if start_date and end_date:
-            month_end = end_date - timedelta(days=1)
-            thirty_days_ago = max(start_date, month_end - timedelta(days=30))
-            sixty_days_ago = max(start_date, month_end - timedelta(days=60))
+            period_start = start_date
+            period_end = end_date
+            ref_start = start_date - timedelta(days=30)
         else:
-            thirty_days_ago = today - timedelta(days=30)
-            sixty_days_ago = today - timedelta(days=60)
+            period_start = today - timedelta(days=30)
+            period_end = today
+            ref_start = today - timedelta(days=60)
         
         anomalies = []
         warnings = []
@@ -150,38 +151,51 @@ class AnalyticsService:
         member_ids = self._filter_member_ids_by_month(member_ids, filters)
         active_members = [m for m in active_members if m.id in member_ids]
         
-        checkins_30d = self.db.query(Checkin).filter(
+        checkins_query = self.db.query(Checkin).filter(
             Checkin.member_id.in_(member_ids),
-            Checkin.checkin_time >= thirty_days_ago
-        ).count()
+            Checkin.checkin_time >= period_start
+        )
+        if start_date and end_date:
+            checkins_query = checkins_query.filter(Checkin.checkin_time < period_end)
+        checkins_current = checkins_query.count()
         
-        checkins_prev_30d = self.db.query(Checkin).filter(
+        checkins_prev_query = self.db.query(Checkin).filter(
             Checkin.member_id.in_(member_ids),
-            Checkin.checkin_time >= sixty_days_ago,
-            Checkin.checkin_time < thirty_days_ago
-        ).count()
+            Checkin.checkin_time >= ref_start,
+            Checkin.checkin_time < period_start
+        )
+        checkins_prev = checkins_prev_query.count()
         
-        if checkins_prev_30d > 0:
-            checkin_change = (checkins_30d - checkins_prev_30d) / checkins_prev_30d
+        if checkins_prev > 0:
+            checkin_change = (checkins_current - checkins_prev) / checkins_prev
             if abs(checkin_change) > 0.5:
+                period_label = f"{period_start} 至 {period_end - timedelta(days=1)}" if start_date and end_date else "近30天"
                 anomalies.append({
                     "type": "checkin_volume",
                     "severity": "high" if abs(checkin_change) > 0.5 else "medium",
-                    "message": f"近30天签到量环比{checkins_prev_30d}天{ '上升' if checkin_change > 0 else '下降' }{abs(checkin_change)*100:.1f}%",
+                    "message": f"{period_label}签到量环比{ '上升' if checkin_change > 0 else '下降' }{abs(checkin_change)*100:.1f}%",
                     "value": checkin_change
                 })
         
         churned_count = 0
         susp_map = self._get_member_suspensions(member_ids)
+        churn_threshold_date = period_end - timedelta(days=30) if start_date and end_date else today - timedelta(days=30)
         
         for member in active_members:
-            last_checkin = self.db.query(Checkin).filter(
+            last_checkin_query = self.db.query(Checkin).filter(
                 Checkin.member_id == member.id
-            ).order_by(Checkin.checkin_time.desc()).first()
+            )
+            if start_date and end_date:
+                last_checkin_query = last_checkin_query.filter(Checkin.checkin_time < period_end)
+            last_checkin = last_checkin_query.order_by(Checkin.checkin_time.desc()).first()
             
             if last_checkin:
-                days_inactive = (today - last_checkin.checkin_time.date()).days
-                if not self._is_member_suspended(member.id, datetime.combine(today, datetime.min.time()), susp_map):
+                last_date = last_checkin.checkin_time.date()
+                reference_date = period_end - timedelta(days=1) if start_date and end_date else today
+                days_inactive = (reference_date - last_date).days
+                
+                check_suspend_date = datetime.combine(reference_date, datetime.min.time())
+                if not self._is_member_suspended(member.id, check_suspend_date, susp_map):
                     if days_inactive > 30:
                         churned_count += 1
         
@@ -194,16 +208,22 @@ class AnalyticsService:
                 "value": churn_rate
             })
         
-        cancelled_bookings = self.db.query(Booking).filter(
+        cancelled_query = self.db.query(Booking).filter(
             Booking.member_id.in_(member_ids),
-            Booking.booking_date >= thirty_days_ago,
+            Booking.booking_date >= period_start,
             Booking.status == 'cancelled'
-        ).count()
+        )
+        if start_date and end_date:
+            cancelled_query = cancelled_query.filter(Booking.booking_date < period_end)
+        cancelled_bookings = cancelled_query.count()
         
-        total_bookings = self.db.query(Booking).filter(
+        total_bookings_query = self.db.query(Booking).filter(
             Booking.member_id.in_(member_ids),
-            Booking.booking_date >= thirty_days_ago
-        ).count()
+            Booking.booking_date >= period_start
+        )
+        if start_date and end_date:
+            total_bookings_query = total_bookings_query.filter(Booking.booking_date < period_end)
+        total_bookings = total_bookings_query.count()
         
         if total_bookings > 0:
             cancel_rate = cancelled_bookings / total_bookings
@@ -215,16 +235,20 @@ class AnalyticsService:
                     "value": cancel_rate
                 })
         
-        avg_rating = self.db.query(func.avg(Feedback.rating)).filter(
+        rating_query = self.db.query(func.avg(Feedback.rating)).filter(
             Feedback.member_id.in_(member_ids),
-            Feedback.feedback_date >= thirty_days_ago
-        ).scalar()
+            Feedback.feedback_date >= period_start
+        )
+        if start_date and end_date:
+            rating_query = rating_query.filter(Feedback.feedback_date < period_end)
+        avg_rating = rating_query.scalar()
         
         if avg_rating and avg_rating < 3:
+            period_label = f"{period_start} 至 {period_end - timedelta(days=1)}" if start_date and end_date else "近30天"
             anomalies.append({
                 "type": "feedback_rating",
                 "severity": "medium",
-                "message": f"近30天会员平均评分{avg_rating:.1f}分，低于3分",
+                "message": f"{period_label}会员平均评分{avg_rating:.1f}分，低于3分",
                 "value": avg_rating
             })
         
@@ -237,7 +261,7 @@ class AnalyticsService:
             "warnings": warnings,
             "summary_stats": {
                 "active_members": len(active_members),
-                "checkins_30d": checkins_30d,
+                "checkins_30d": checkins_current,
                 "churn_rate": churn_rate,
                 "avg_rating": float(avg_rating) if avg_rating else None
             }
@@ -345,6 +369,13 @@ class AnalyticsService:
         else:
             date_start = datetime.now().date() - timedelta(days=30)
         
+        member_type_ids = filters.get('member_type_ids')
+        member_subquery = None
+        if member_type_ids:
+            member_subquery = self.db.query(Member.id).filter(
+                Member.member_type_id.in_(member_type_ids)
+            ).subquery()
+        
         query = self.db.query(
             Course.id,
             Course.name,
@@ -361,6 +392,8 @@ class AnalyticsService:
             query = query.filter(Booking.store_id.in_(filters['store_ids']))
         if filters.get('coach_ids'):
             query = query.filter(Booking.coach_id.in_(filters['coach_ids']))
+        if member_type_ids and member_subquery is not None:
+            query = query.filter(Booking.member_id.in_(member_subquery))
         
         query = query.filter(
             Booking.booking_date >= date_start

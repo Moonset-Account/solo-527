@@ -17,7 +17,7 @@ import {
   generateMockChurnWarning
 } from './mockData';
 
-const USE_MOCK = true;
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true' ? true : false;
 
 const api = axios.create({
   baseURL: '/api',
