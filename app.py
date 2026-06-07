@@ -464,6 +464,9 @@ chart_section = html.Div(
                                             {"name": "总等待(分)", "id": "total_wait_time"},
                                             {"name": "是否异常", "id": "is_anomaly"},
                                             {"name": "异常原因", "id": "anomaly_reason"},
+                                            {"name": "运营注释", "id": "annotation"},
+                                            {"name": "注释人", "id": "annotation_author"},
+                                            {"name": "注释时间", "id": "annotation_time"},
                                         ],
                                         page_size=10,
                                         style_table={"overflowX": "auto"},
@@ -473,6 +476,10 @@ chart_section = html.Div(
                                             {
                                                 "if": {"filter_query": "{is_anomaly} = True"},
                                                 "backgroundColor": "#fff3cd"
+                                            },
+                                            {
+                                                "if": {"column_id": "annotation", "filter_query": "{annotation} != ''"},
+                                                "backgroundColor": "#d4edda"
                                             }
                                         ],
                                         row_selectable="multi",
@@ -494,6 +501,7 @@ app.layout = html.Div(
     [
         dcc.Store(id="data-store"),
         dcc.Store(id="filtered-data-store"),
+        dcc.Store(id="refresh-trigger", data=0),
         sidebar,
         html.Div(
             [
@@ -682,17 +690,20 @@ app.layout = html.Div(
      Input("date-filter", "start_date"),
      Input("date-filter", "end_date"),
      Input("exclude-anomalies", "value"),
-     Input("refresh-btn", "n_clicks")]
+     Input("refresh-btn", "n_clicks"),
+     Input("refresh-trigger", "data")]
 )
 def update_filtered_data(dept_values, doctor_values, time_slot_values, 
                         patient_type_values, start_date, end_date,
-                        exclude_anomalies, refresh_clicks):
+                        exclude_anomalies, refresh_clicks, refresh_trigger):
     """更新筛选后的数据"""
     global df
     ctx = callback_context
     
-    if ctx.triggered and "refresh-btn" in ctx.triggered[0]["prop_id"]:
-        df = load_and_prepare_data()
+    if ctx.triggered:
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger_id in ["refresh-btn", "refresh-trigger"]:
+            df = load_and_prepare_data()
     
     exclude = exclude_anomalies is not None and "exclude" in exclude_anomalies
     
@@ -706,14 +717,36 @@ def update_filtered_data(dept_values, doctor_values, time_slot_values,
         exclude_anomalies=exclude
     )
     
+    annotations = load_annotations()
+    filtered["annotation"] = filtered["visit_id"].map(
+        lambda x: annotations.get(x, {}).get("comment", "") if x in annotations else ""
+    )
+    filtered["annotation_author"] = filtered["visit_id"].map(
+        lambda x: annotations.get(x, {}).get("author", "") if x in annotations else ""
+    )
+    filtered["annotation_time"] = filtered["visit_id"].map(
+        lambda x: annotations.get(x, {}).get("created_at", "") if x in annotations else ""
+    )
+    
     summary_parts = [
         f"样本量: {len(filtered)}",
         f"科室: {len(dept_values) if dept_values else '全部'}",
         f"医生: {len(doctor_values) if doctor_values else '全部'}"
     ]
+    
+    permission_config = load_permission_config()
+    if permission_config.get("current_role", "admin") != "admin":
+        role_display = {
+            "dept_head": "科室主任",
+            "doctor": "医生",
+            "analyst": "运营分析"
+        }
+        summary_parts.append(f"角色: {role_display.get(permission_config['current_role'], permission_config['current_role'])}")
+    
     summary = " | ".join(summary_parts)
     
-    filtered["reg_time_str"] = filtered["reg_time"].dt.strftime("%Y-%m-%d %H:%M")
+    if "reg_time" in filtered.columns:
+        filtered["reg_time_str"] = pd.to_datetime(filtered["reg_time"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
     filtered["is_anomaly"] = filtered["is_anomaly"].astype(str)
     
     return filtered.to_dict("records"), summary
@@ -843,7 +876,8 @@ def update_sample_table(filtered_data, show_anomalies_clicks, current_data):
     display_cols = [
         "visit_id", "dept_name", "doctor_name", "patient_type",
         "time_slot", "reg_time_str", "wait_分诊_叫号",
-        "total_wait_time", "is_anomaly", "anomaly_reason"
+        "total_wait_time", "is_anomaly", "anomaly_reason",
+        "annotation", "annotation_author", "annotation_time"
     ]
     
     for col in display_cols:
@@ -999,17 +1033,19 @@ def toggle_annotation_modal(add_click, close_click, save_click, is_open, selecte
 @app.callback(
     Output("toast", "children", allow_duplicate=True),
     Output("toast", "is_open", allow_duplicate=True),
+    Output("refresh-trigger", "data", allow_duplicate=True),
     Input("save-annotation-btn", "n_clicks"),
     [State("sample-table", "selected_rows"),
      State("sample-table", "data"),
      State("annotation-content", "value"),
-     State("annotation-author", "value")],
+     State("annotation-author", "value"),
+     State("refresh-trigger", "data")],
     prevent_initial_call=True
 )
-def save_annotation(save_click, selected_rows, table_data, content, author):
+def save_annotation(save_click, selected_rows, table_data, content, author, current_trigger):
     """保存注释"""
     if not save_click or not selected_rows or not table_data or not content:
-        return "", False
+        return "", False, dash.no_update
     
     selected_visits = [table_data[i]["visit_id"] for i in selected_rows]
     count = 0
@@ -1017,7 +1053,7 @@ def save_annotation(save_click, selected_rows, table_data, content, author):
         add_annotation(visit_id, content, author)
         count += 1
     
-    return dbc.Toast(f"已为 {count} 个样本保存注释！", header="成功", icon="success"), True
+    return dbc.Toast(f"已为 {count} 个样本保存注释！", header="成功", icon="success"), True, current_trigger + 1
 
 @app.callback(
     Output("schedule-modal", "is_open", allow_duplicate=True),
@@ -1046,18 +1082,20 @@ def save_schedule_settings(save_click, frequency, format_type, email):
 
 @app.callback(
     Output("permission-modal", "is_open", allow_duplicate=True),
+    Output("refresh-trigger", "data"),
     Input("apply-permission-btn", "n_clicks"),
     [State("permission-role", "value"),
      State("permission-desensitize", "value"),
      State("permission-export", "value"),
      State("dept-filter", "value"),
-     State("doctor-filter", "value")],
+     State("doctor-filter", "value"),
+     State("refresh-trigger", "data")],
     prevent_initial_call=True
 )
-def apply_permission_settings(apply_click, role, desensitize, allow_export, dept_filter, doctor_filter):
+def apply_permission_settings(apply_click, role, desensitize, allow_export, dept_filter, doctor_filter, current_trigger):
     """应用权限设置"""
     if not apply_click:
-        return dash.no_update
+        return dash.no_update, dash.no_update
     
     config = {
         "current_role": role,
@@ -1072,7 +1110,7 @@ def apply_permission_settings(apply_click, role, desensitize, allow_export, dept
     permission_config = config
     df = load_and_prepare_data()
     
-    return False
+    return False, current_trigger + 1
 
 @app.callback(
     Output("export-btn", "disabled"),
