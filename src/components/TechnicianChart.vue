@@ -7,6 +7,7 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
 
 const props = defineProps({ data: { type: Array, default: () => [] } })
+const emit = defineEmits(['drill'])
 const chartRef = ref(null)
 let svg = null
 let tooltip = null
@@ -84,6 +85,7 @@ const renderChart = (width, height, margin) => {
         d3.select(this).attr('opacity', 1)
         tooltip.transition().duration(500).style('opacity', 0)
       })
+      .on('click', () => emit('drill', d))
       .transition()
       .duration(600)
       .delay(i * 80)
@@ -117,6 +119,7 @@ const renderChart = (width, height, margin) => {
         d3.select(this).attr('opacity', 1)
         tooltip.transition().duration(500).style('opacity', 0)
       })
+      .on('click', () => emit('drill', d))
       .transition()
       .duration(600)
       .delay(i * 80 + 200)

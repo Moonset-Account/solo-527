@@ -126,7 +126,7 @@
             </h3>
             <span class="card-hint">按日期统计，区分计划/突发</span>
           </div>
-          <TrendChart :data="trendData" />
+          <TrendChart :data="trendData" @drill="handleDrillDate" />
         </el-card>
       </el-col>
     </el-row>
@@ -153,7 +153,7 @@
             </h3>
             <span class="card-hint">平均修复时间对比</span>
           </div>
-          <TechnicianChart :data="byTechnician" />
+          <TechnicianChart :data="byTechnician" @drill="handleDrillTechnician" />
         </el-card>
       </el-col>
     </el-row>
@@ -168,7 +168,7 @@
             </h3>
             <span class="card-hint">按成本排序</span>
           </div>
-          <SparePartsChart :data="spareParts" />
+          <SparePartsChart :data="spareParts" @drill="handleDrillSparePart" />
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -328,7 +328,10 @@ const filters = ref({
   shift: null,
   type: null,
   category: null,
-  equipmentId: null
+  equipmentId: null,
+  technician: null,
+  partId: null,
+  date: null
 })
 
 const activeFilter = ref(null)
@@ -411,13 +414,20 @@ const loadWorkOrders = async () => {
     const query = new URLSearchParams()
     query.append('page', workOrderPage.value)
     query.append('pageSize', workOrderPageSize.value)
-    if (dateRange.value[0]) query.append('startDate', dateRange.value[0])
-    if (dateRange.value[1]) query.append('endDate', dateRange.value[1])
+    if (filters.value.date) {
+      query.append('startDate', filters.value.date)
+      query.append('endDate', filters.value.date)
+    } else {
+      if (dateRange.value[0]) query.append('startDate', dateRange.value[0])
+      if (dateRange.value[1]) query.append('endDate', dateRange.value[1])
+    }
     if (filters.value.lineId) query.append('lineId', filters.value.lineId)
     if (filters.value.shift) query.append('shift', filters.value.shift)
     if (filters.value.type) query.append('type', filters.value.type)
     if (filters.value.category) query.append('category', filters.value.category)
     if (filters.value.equipmentId) query.append('equipmentId', filters.value.equipmentId)
+    if (filters.value.technician) query.append('technician', filters.value.technician)
+    if (filters.value.partId) query.append('partId', filters.value.partId)
     
     const res = await fetch(`/api/workorders?${query.toString()}`)
     const data = await res.json()
@@ -442,7 +452,7 @@ const applyFilters = () => {
 
 const resetFilters = () => {
   dateRange.value = [dayjs().subtract(30, 'day').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
-  filters.value = { lineId: null, shift: null, type: null, category: null, equipmentId: null }
+  filters.value = { lineId: null, shift: null, type: null, category: null, equipmentId: null, technician: null, partId: null, date: null }
   activeFilter.value = null
   applyFilters()
 }
@@ -469,9 +479,33 @@ const handleDrillEquipment = (item) => {
   loadWorkOrders()
 }
 
+const handleDrillTechnician = (item) => {
+  filters.value.technician = item.technician
+  activeFilter.value = `维修人: ${item.technician}`
+  workOrderPage.value = 1
+  loadWorkOrders()
+}
+
+const handleDrillSparePart = (item) => {
+  filters.value.partId = item.partId
+  activeFilter.value = `备件: ${item.partName}`
+  workOrderPage.value = 1
+  loadWorkOrders()
+}
+
+const handleDrillDate = (item) => {
+  filters.value.date = item.date
+  activeFilter.value = `日期: ${item.date}`
+  workOrderPage.value = 1
+  loadWorkOrders()
+}
+
 const clearDrillFilter = () => {
   filters.value.category = null
   filters.value.equipmentId = null
+  filters.value.technician = null
+  filters.value.partId = null
+  filters.value.date = null
   activeFilter.value = null
   loadWorkOrders()
 }
@@ -486,12 +520,20 @@ const viewDetail = async (row) => {
 
 const exportWorkOrders = () => {
   const query = new URLSearchParams()
-  if (dateRange.value[0]) query.append('startDate', dateRange.value[0])
-  if (dateRange.value[1]) query.append('endDate', dateRange.value[1])
+  if (filters.value.date) {
+    query.append('startDate', filters.value.date)
+    query.append('endDate', filters.value.date)
+  } else {
+    if (dateRange.value[0]) query.append('startDate', dateRange.value[0])
+    if (dateRange.value[1]) query.append('endDate', dateRange.value[1])
+  }
   if (filters.value.lineId) query.append('lineId', filters.value.lineId)
+  if (filters.value.shift) query.append('shift', filters.value.shift)
   if (filters.value.type) query.append('type', filters.value.type)
   if (filters.value.category) query.append('category', filters.value.category)
   if (filters.value.equipmentId) query.append('equipmentId', filters.value.equipmentId)
+  if (filters.value.technician) query.append('technician', filters.value.technician)
+  if (filters.value.partId) query.append('partId', filters.value.partId)
   window.open(`/api/export/csv/workorders?${query.toString()}`, '_blank')
 }
 

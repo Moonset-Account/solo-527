@@ -20,14 +20,16 @@ const loadProcessedData = () => {
     const workOrders = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'cleaned_work_orders.json'), 'utf8'))
     const alarms = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'alarms.json'), 'utf8'))
     const production = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'production.json'), 'utf8'))
-    return { aggregated, workOrders, alarms, production }
+    const equipmentStatus = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'equipment_status.json'), 'utf8'))
+    return { aggregated, workOrders, alarms, production, equipmentStatus }
   } catch (e) {
     console.error('数据加载失败，尝试重新生成...', e.message)
-    const { generateDateRange, generateWorkOrders, generateAlarms, generateProduction } = require('../data/generator/generateData')
+    const { generateDateRange, generateWorkOrders, generateAlarms, generateProduction, generateEquipmentStatus } = require('../data/generator/generateData')
     const dates = generateDateRange(90)
     const rawWO = generateWorkOrders(dates)
     const alarmsData = generateAlarms(rawWO)
     const productionData = generateProduction(dates, rawWO)
+    const equipmentStatusData = generateEquipmentStatus(dates, rawWO)
     const cleanedWO = etl.cleanWorkOrders(rawWO)
     
     const aggregated = {
@@ -53,8 +55,9 @@ const loadProcessedData = () => {
     fs.writeFileSync(path.join(DATA_DIR, 'cleaned_work_orders.json'), JSON.stringify(cleanedWO, null, 2))
     fs.writeFileSync(path.join(DATA_DIR, 'alarms.json'), JSON.stringify(alarmsData, null, 2))
     fs.writeFileSync(path.join(DATA_DIR, 'production.json'), JSON.stringify(productionData, null, 2))
+    fs.writeFileSync(path.join(DATA_DIR, 'equipment_status.json'), JSON.stringify(equipmentStatusData, null, 2))
     
-    return { aggregated, workOrders: cleanedWO, alarms: alarmsData, production: productionData }
+    return { aggregated, workOrders: cleanedWO, alarms: alarmsData, production: productionData, equipmentStatus: equipmentStatusData }
   }
 }
 
@@ -155,6 +158,7 @@ app.get('/api/workorders', (req, res) => {
   if (filters.shift) filtered = filtered.filter(wo => wo.shift === filters.shift)
   if (filters.type) filtered = filtered.filter(wo => wo.type === filters.type)
   if (filters.technician) filtered = filtered.filter(wo => wo.technician === filters.technician)
+  if (filters.partId) filtered = filtered.filter(wo => wo.partsUsed.some(p => p.partId === filters.partId))
   
   const total = filtered.length
   const start = (page - 1) * pageSize
@@ -269,13 +273,27 @@ app.get('/api/export/csv/downtime-summary', (req, res) => {
   res.end()
 })
 
+app.get('/api/equipment-status', (req, res) => {
+  const { equipmentStatus } = getCachedData()
+  let filtered = equipmentStatus
+  const { equipmentId, lineId, startDate, endDate } = req.query
+  
+  if (equipmentId) filtered = filtered.filter(e => e.equipmentId === equipmentId)
+  if (lineId) filtered = filtered.filter(e => e.lineId === lineId)
+  if (startDate) filtered = filtered.filter(e => e.date >= startDate)
+  if (endDate) filtered = filtered.filter(e => e.date <= endDate)
+  
+  res.json(filtered)
+})
+
 app.post('/api/refresh', (req, res) => {
   invalidateCache()
   const data = getCachedData()
   res.json({
     status: 'refreshed',
     updateTime: data.aggregated.config.updateTime,
-    workOrderCount: data.workOrders.length
+    workOrderCount: data.workOrders.length,
+    equipmentStatusCount: data.equipmentStatus.length
   })
 })
 

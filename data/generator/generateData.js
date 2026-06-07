@@ -88,7 +88,9 @@ const generateWorkOrders = (dates) => {
           laborCost: (duration / 60) * 150,
           totalCost: partsCost + (duration / 60) * 150,
           status: 'completed',
-          notes: isPlanned ? '按计划执行维护' : '',
+          notes: isPlanned 
+            ? pick(['按计划执行定期维护', '更换易损件，检查设备状态', '润滑保养，清理积尘', '精度校准，参数优化'])
+            : pick(['更换损坏轴承', '修复电气线路', '更换传感器', '调整液压系统压力', '紧固松动部件', '清理堵塞', '更换密封圈', '程序复位重启']),
           createdAt: startTime.format('YYYY-MM-DD HH:mm:ss')
         })
         id++

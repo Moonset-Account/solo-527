@@ -11,6 +11,8 @@ const props = defineProps({
   data: { type: Array, default: () => [] }
 })
 
+const emit = defineEmits(['drill'])
+
 const chartRef = ref(null)
 let svg = null
 let tooltip = null
@@ -130,16 +132,27 @@ const renderChart = (width, height, margin) => {
        if (!d) return
        
        const xPos = x(new Date(d.date))
+       
        focus.select('line').attr('transform', `translate(${xPos},0)`)
        
        tooltip.transition().duration(200).style('opacity', 0.9)
        tooltip.html(`
          <strong>${dayjs(d.date).format('MM-DD')}</strong><br/>
          <span style="color:#ef4444">●</span> 突发: ${Math.round(d.unplannedMinutes / 6) / 10}h (${d.unplannedCount}次)<br/>
-         <span style="color:#3b82f6">●</span> 计划: ${Math.round(d.plannedMinutes / 6) / 10}h (${d.plannedCount}次)
+         <span style="color:#3b82f6">●</span> 计划: ${Math.round(d.plannedMinutes / 6) / 10}h (${d.plannedCount}次)<br/>
+         <span style="color:#9ca3af;font-size:11px">点击查看当日工单</span>
        `)
        .style('left', (event.offsetX + 15) + 'px')
        .style('top', (event.offsetY - 10) + 'px')
+     })
+     .on('click', function(event) {
+       const [mx] = d3.pointer(event)
+       const x0 = x.invert(mx - margin.left)
+       const i = bisect(data, x0, 1)
+       const d0 = data[i - 1]
+       const d1 = data[i]
+       const d = x0 - new Date(d0?.date || 0) > new Date(d1?.date || 0) - x0 ? d1 : d0
+       if (d) emit('drill', d)
      })
   
   g.append('g')
