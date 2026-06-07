@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { SystemStatus } from '@/types'
-import { fetchSystemStatus } from '@/api/mockApi'
+import { fetchSystemStatus } from '@/api/aggregateApi'
 
 interface SystemState {
   status: SystemStatus | null

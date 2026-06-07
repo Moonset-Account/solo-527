@@ -15,7 +15,7 @@ import {
   generateConstructionSites,
   generateComplaintData,
   generateTrafficData,
-} from './dataGenerator'
+} from '@/mock/dataGenerator'
 
 interface CacheEntry<T> {
   data: T

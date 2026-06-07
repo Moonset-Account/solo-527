@@ -32,6 +32,14 @@ const {
 } = storeToRefs(dataStore)
 const { stationMap } = storeToRefs(dataStore)
 
+const stationNames = computed(() => {
+  const names = new Map<string, string>()
+  stationMap.value.forEach((station, id) => {
+    names.set(id, station.name)
+  })
+  return names
+})
+
 const avgAqi = computed(() => {
   const values = Array.from(latestReadings.value.values()).map(r => r.aqi).filter(v => v > 0)
   return values.length > 0 ? Math.round(d3.mean(values)!) : 0
@@ -131,7 +139,7 @@ watch(() => criteria.value.timeRange, () => {
               <TimeSeriesChart
                 :data="timeSeries"
                 :pollutants="criteria.pollutants"
-                :station-names="stationMap"
+                :station-names="stationNames"
               />
             </div>
           </div>

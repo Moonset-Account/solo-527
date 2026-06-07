@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/dataStore'
 import { storeToRefs } from 'pinia'
 import HeaderBar from '@/components/HeaderBar.vue'
-import { exportData } from '@/api/mockApi'
+import { exportData } from '@/api/aggregateApi'
 import { POLLUTANT_CONFIG, DISTRICTS } from '@/types'
 
 const router = useRouter()
