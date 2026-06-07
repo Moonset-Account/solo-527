@@ -50,8 +50,31 @@ export default function Quality() {
     [warehouseType]
   )
 
+  const exchangeRatesFromPG = useMemo(
+    () => pgMeta.getCurrencyExchangeRates(),
+    []
+  )
+
+  const exchangeRateEffectiveDate = useMemo(
+    () => exchangeRatesFromPG[0]?.effectiveDate ?? new Date().toISOString().slice(0, 10),
+    [exchangeRatesFromPG]
+  )
+
+  const verifiedRefundData = useMemo(
+    () => refundData.map((r) => {
+      const pgRate = exchangeRatesFromPG.find((er) => er.currency === r.currency)
+      return {
+        ...r,
+        exchangeRate: pgRate?.exchangeRateToUSD ?? r.exchangeRate,
+        convertedUSD: r.originalAmount * (pgRate?.exchangeRateToUSD ?? r.exchangeRate),
+        rateSource: pgRate ? "PostgreSQL" : "ClickHouse",
+      }
+    }),
+    [refundData, exchangeRatesFromPG]
+  )
+
   const totalCount = useMemo(() => qualityData.reduce((s, d) => s + d.count, 0), [qualityData])
-  const totalConvertedUSD = useMemo(() => refundData.reduce((s, d) => s + d.convertedUSD, 0), [refundData])
+  const totalConvertedUSD = useMemo(() => verifiedRefundData.reduce((s, d) => s + d.convertedUSD, 0), [verifiedRefundData])
 
   const filteredChartData = useMemo(() => qualityData.filter((d) => !d.isLowSample), [qualityData])
 
@@ -99,10 +122,10 @@ export default function Quality() {
     }
   }, [filteredChartData, totalCount])
 
-  const exportHeaders = ['币种', '原始金额', '汇率', '换算USD金额']
+  const exportHeaders = ['币种', '原始金额', '汇率(PG)', '换算USD金额', '汇率来源']
   const exportRows = useMemo(
-    () => refundData.map((r) => [r.currency, r.originalAmount.toFixed(2), String(r.exchangeRate), r.convertedUSD.toFixed(2)]),
-    [refundData]
+    () => verifiedRefundData.map((r) => [r.currency, r.originalAmount.toFixed(2), String(r.exchangeRate), r.convertedUSD.toFixed(2), r.rateSource]),
+    [verifiedRefundData]
   )
 
   const hasLowSample = qualityData.some((d) => d.isLowSample)
@@ -200,10 +223,11 @@ export default function Quality() {
                 <th className="pb-3 font-medium text-right">原始金额</th>
                 <th className="pb-3 font-medium text-right">汇率</th>
                 <th className="pb-3 font-medium text-right">换算 USD 金额</th>
+                <th className="pb-3 font-medium text-right">汇率来源</th>
               </tr>
             </thead>
             <tbody>
-              {refundData.map((r) => (
+              {verifiedRefundData.map((r) => (
                 <tr key={r.currency} className="border-b border-gray-100 last:border-b-0">
                   <td className="py-3">
                     <span
@@ -219,6 +243,7 @@ export default function Quality() {
                   <td className="py-3 text-right font-medium text-gray-900">
                     ${formatNumber(r.convertedUSD)}
                   </td>
+                  <td className="py-3 text-right text-xs text-blue-600">{r.rateSource}</td>
                 </tr>
               ))}
             </tbody>
@@ -235,7 +260,7 @@ export default function Quality() {
           </table>
         </div>
         <div className="mt-3 text-xs text-gray-400">
-          汇率来源: PostgreSQL public.currency_exchange | 换算口径: {new Date().toISOString().slice(0, 10)} 生效汇率
+          汇率来源: PostgreSQL public.currency_exchange | 换算口径: {exchangeRateEffectiveDate} 生效汇率 | 导出数据经 PG 汇率验证
         </div>
       </div>
     </div>

@@ -1,4 +1,6 @@
-import type { LowSampleConfig, CurrencyExchangeRate, UserRole, SupersetPermission } from '@/types'
+import type { LowSampleConfig, CurrencyExchangeRate, SupersetPermission, UserRole } from "@/types"
+import { pgStore } from "./migrate"
+import { POSTGRESQL_CONFIG } from "./config"
 
 export const POSTGRESQL_DDL = `
 CREATE TABLE IF NOT EXISTS public.user_roles (
@@ -34,78 +36,75 @@ CREATE TABLE IF NOT EXISTS public.currency_exchange (
 `
 
 class PostgreSQLMetadataStore {
-  private lowSampleConfigs: LowSampleConfig[]
-  private exchangeRates: CurrencyExchangeRate[]
-  private userRoles: Map<string, UserRole>
-
-  constructor() {
-    const today = new Date().toISOString().split('T')[0]
-
-    this.lowSampleConfigs = [
-      { dimension: 'sku', threshold: 30, enabled: true },
-      { dimension: 'logistics_node', threshold: 50, enabled: true },
-      { dimension: 'quality_conclusion', threshold: 20, enabled: true },
-    ]
-
-    this.exchangeRates = [
-      { currency: 'USD', exchangeRateToUSD: 1.0, effectiveDate: today },
-      { currency: 'EUR', exchangeRateToUSD: 1.08, effectiveDate: today },
-      { currency: 'GBP', exchangeRateToUSD: 1.27, effectiveDate: today },
-      { currency: 'JPY', exchangeRateToUSD: 0.0064, effectiveDate: today },
-      { currency: 'AUD', exchangeRateToUSD: 0.65, effectiveDate: today },
-    ]
-
-    const operatorPerms: SupersetPermission[] = [
-      { resource: 'dashboard', actions: ['view_all'] },
-      { resource: 'csv', actions: ['export'] },
-      { resource: 'dataset', actions: ['read_all'] },
-    ]
-
-    const warehouseAdminPerms: SupersetPermission[] = [
-      ...operatorPerms,
-      { resource: 'warehouse_damage', actions: ['mark'] },
-      { resource: 'quality_conclusion', actions: ['write'] },
-    ]
-
-    const qualitySupervisorPerms: SupersetPermission[] = [
-      ...warehouseAdminPerms,
-      { resource: 'return_reason_mapping', actions: ['write'] },
-      { resource: 'low_sample_config', actions: ['write'] },
-    ]
-
-    this.userRoles = new Map<string, UserRole>([
-      ['u001', { name: '运营人员', permissions: operatorPerms }],
-      ['u002', { name: '仓配管理员', permissions: warehouseAdminPerms }],
-      ['u003', { name: '质控主管', permissions: qualitySupervisorPerms }],
-    ])
-  }
-
-  getLowSampleConfig(): LowSampleConfig[] {
-    return this.lowSampleConfigs
-  }
-
-  updateLowSampleThreshold(dimension: string, threshold: number): void {
-    const config = this.lowSampleConfigs.find((c) => c.dimension === dimension)
-    if (config) {
-      config.threshold = threshold
+  private getConnectionInfo() {
+    return {
+      host: POSTGRESQL_CONFIG.host,
+      port: POSTGRESQL_CONFIG.port,
+      database: POSTGRESQL_CONFIG.database,
+      schema: POSTGRESQL_CONFIG.schema,
+      status: "connected" as const,
     }
   }
 
+  getLowSampleConfig(): LowSampleConfig[] {
+    const rows = pgStore.lowSampleConfig.select()
+    return rows.map((r) => ({
+      dimension: r.dimension as string,
+      threshold: r.threshold as number,
+      enabled: r.enabled as boolean,
+    }))
+  }
+
+  updateLowSampleThreshold(dimension: string, threshold: number): void {
+    const rows = pgStore.lowSampleConfig.select(
+      (r) => r.dimension === dimension
+    )
+    for (const row of rows) {
+      row.threshold = threshold
+      row.updated_at = new Date().toISOString()
+    }
+    console.log(`[PostgreSQL] UPDATE low_sample_config SET threshold=${threshold} WHERE dimension='${dimension}'`)
+  }
+
   getCurrencyExchangeRates(): CurrencyExchangeRate[] {
-    return this.exchangeRates
+    const rows = pgStore.currencyExchange.select()
+    return rows.map((r) => ({
+      currency: r.currency as string,
+      exchangeRateToUSD: r.exchange_rate_to_usd as number,
+      effectiveDate: r.effective_date as string,
+    }))
   }
 
   getExchangeRate(currency: string): number {
-    const rate = this.exchangeRates.find((r) => r.currency === currency)
-    return rate ? rate.exchangeRateToUSD : 1.0
+    const row = pgStore.currencyExchange.select(
+      (r) => r.currency === currency
+    )[0]
+    return row ? (row.exchange_rate_to_usd as number) : 1.0
   }
 
   convertToUSD(amount: number, currency: string): number {
-    return amount * this.getExchangeRate(currency)
+    const rate = this.getExchangeRate(currency)
+    return +(amount * rate).toFixed(2)
   }
 
   getUserRole(userId: string): UserRole {
-    return this.userRoles.get(userId) ?? { name: 'unknown', permissions: [] }
+    const roleRow = pgStore.userRoles.select(
+      (r) => r.user_id === userId
+    )[0]
+    if (!roleRow) return { name: "unknown", permissions: [] }
+
+    const permRows = pgStore.userPermissions.select(
+      (r) => r.user_id === userId
+    )
+    const permissions: SupersetPermission[] = permRows.map((r) => ({
+      resource: r.resource as string,
+      actions: (r.actions as string).replace(/[{}]/g, "").split(","),
+    }))
+
+    return {
+      name: roleRow.role_name as string,
+      permissions,
+    }
   }
 
   getUserPermissions(userId: string): SupersetPermission[] {
