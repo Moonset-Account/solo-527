@@ -12,12 +12,13 @@ import {
   Plus,
   Loader2,
   X,
+  RefreshCw,
 } from 'lucide-react';
+import Papa from 'papaparse';
 import ReactECharts from 'echarts-for-react';
 import PageContainer from '../components/layout/PageContainer';
 import { INDICATORS, WATER_QUALITY_GRADES } from '../utils/constants';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
-import { runQualityCheck, measurementsToCSV } from '../utils/dataService';
+import { runQualityCheck } from '../utils/dataService';
 import { api } from '../utils/apiClient';
 import { useQualityCheck } from '../hooks/useData';
 import type { QualityCheckResult } from '../types';
@@ -56,27 +57,41 @@ export default function DataManagement() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
       setImportFile(file);
-      generatePreview();
+      parseCSVFile(file);
     }
   };
 
-  const generatePreview = () => {
-    const preview = Array(5).fill(null).map((_, i) => ({
-      采样时间: new Date(Date.now() - i * 86400000).toLocaleString('zh-CN'),
-      站点名称: MOCK_SITES[i % MOCK_SITES.length].name,
-      水温: (15 + Math.random() * 10).toFixed(1),
-      pH: (6.5 + Math.random() * 2).toFixed(2),
-      溶解氧: (5 + Math.random() * 5).toFixed(2),
-      氨氮: (0.2 + Math.random() * 1).toFixed(3),
-      状态: Math.random() > 0.1 ? '正常' : '异常',
-    }));
-    setImportPreview(preview);
+  const parseCSVFile = (file: File) => {
+    setImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      complete: (results) => {
+        const data = results.data as any[];
+        if (data.length > 0) {
+          setImportPreview(data);
+        } else {
+          setImportPreview([]);
+        }
+        setImporting(false);
+      },
+      error: (error) => {
+        console.error('CSV 解析失败:', error);
+        setImportResult({
+          success: false,
+          message: 'CSV 文件解析失败，请检查文件格式',
+        });
+        setImporting(false);
+      },
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setImportFile(e.target.files[0]);
-      generatePreview();
+      const file = e.target.files[0];
+      setImportFile(file);
+      parseCSVFile(file);
     }
   };
 
@@ -140,17 +155,12 @@ export default function DataManagement() {
       actions={
         <button
           onClick={() => {
-            const csv = measurementsToCSV(MOCK_MEASUREMENTS, MOCK_SITES);
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'water_quality_data.csv';
-            link.click();
+            api.measurements.exportCSV();
           }}
           className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 transition-colors"
         >
           <Download className="w-4 h-4" />
-          导出示例数据
+          导出全部数据
         </button>
       }
     >
