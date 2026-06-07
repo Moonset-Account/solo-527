@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 from datetime import datetime, timedelta
 
-from dash import Dash, dcc, html, Input, Output, State, callback_context, dash_table
+from dash import Dash, dcc, html, Input, Output, State, callback_context, dash_table, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
@@ -33,28 +33,25 @@ server = app.server
 app.title = "医院检验样本时效看板"
 
 
-def load_and_process_data():
+def load_raw_data():
+    """加载原始数据（不做处理）"""
     samples_raw = get_samples_df()
     returns_raw = get_returns_df()
     thresholds_raw = get_thresholds_df()
-    
-    df = process_full_pipeline(samples_raw, thresholds_raw, returns_raw)
-    return df, returns_raw, thresholds_raw
+    return samples_raw, returns_raw, thresholds_raw
 
 
-df_global, returns_global, thresholds_global = load_and_process_data()
-
-
-def get_date_range():
-    if df_global is not None and not df_global.empty:
-        min_date = df_global['collected_at'].min().date()
-        max_date = df_global['collected_at'].max().date()
+def get_initial_date_range():
+    samples_raw, _, _ = load_raw_data()
+    if samples_raw is not None and not samples_raw.empty:
+        min_date = samples_raw['collected_at'].min().date()
+        max_date = samples_raw['collected_at'].max().date()
         return min_date, max_date
     today = datetime.now().date()
     return today - timedelta(days=30), today
 
 
-min_date, max_date = get_date_range()
+min_date, max_date = get_initial_date_range()
 
 
 navbar = dbc.NavbarSimple(
@@ -192,6 +189,8 @@ sample_modal = dbc.Modal(
 )
 
 app.layout = dbc.Container([
+    dcc.Store(id='threshold-version', data=1),
+    dcc.Store(id='cached-thresholds', data=None),
     navbar,
     filter_card,
     kpi_row,
@@ -204,6 +203,19 @@ app.layout = dbc.Container([
 ], fluid=True, className="px-4")
 
 
+def process_data_with_current_thresholds(start_date, end_date, sample_types, priorities, departments):
+    """使用当前阈值配置处理数据"""
+    samples_raw = get_samples_df(start_date, end_date, sample_types, priorities, departments)
+    returns_raw = get_returns_df(start_date, end_date)
+    thresholds_raw = get_thresholds_df()
+    
+    if samples_raw is None or samples_raw.empty:
+        return pd.DataFrame(), pd.DataFrame(), thresholds_raw
+    
+    df = process_full_pipeline(samples_raw, thresholds_raw, returns_raw)
+    return df, returns_raw, thresholds_raw
+
+
 @app.callback(
     Output('kpi-cards-row', 'children'),
     Output('tabs-content', 'children'),
@@ -214,17 +226,22 @@ app.layout = dbc.Container([
     Input('department-dropdown', 'value'),
     Input('quick-filters', 'value'),
     Input('main-tabs', 'active_tab'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_dashboard(start_date, end_date, sample_types, priorities, departments, quick_filters, active_tab):
+def update_dashboard(start_date, end_date, sample_types, priorities, departments, quick_filters, active_tab, threshold_version):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, returns_raw, thresholds_current = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -234,7 +251,7 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
         only_returned=only_returned
     )
     
-    returns_filtered = returns_global.copy()
+    returns_filtered = returns_raw.copy()
     if not returns_filtered.empty and not df_filtered.empty:
         returns_filtered = returns_filtered[returns_filtered['sample_id'].isin(df_filtered['sample_id'])]
     
@@ -261,7 +278,7 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
     tab_content = html.Div()
     
     if active_tab == "overview-tab":
-        timeout_summary = get_timeout_summary(df_filtered, thresholds_global)
+        timeout_summary = get_timeout_summary(df_filtered, thresholds_current)
         
         tab_content = dbc.Row([
             dbc.Col([
@@ -368,12 +385,18 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
         ], className="g-3")
     
     elif active_tab == "threshold-tab":
-        th_df = thresholds_global.copy()
+        th_df = get_thresholds_df()
         
         tab_content = dbc.Row([
             dbc.Col([
                 html.H6("超时阈值配置（按样本类型和优先级设置各环节阈值）", className="mb-3 fw-bold"),
-                html.Div(id="threshold-config-message"),
+                html.Div([
+                    dbc.Alert(
+                        "💡 修改阈值后，超时率、异常样本列表和导出报告将自动使用新阈值重新计算", 
+                        color="info", 
+                        dismissable=True
+                    )
+                ], id="threshold-config-message"),
                 dash_table.DataTable(
                     id='threshold-table',
                     data=th_df.to_dict('records'),
@@ -399,9 +422,15 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
                     ]
                 ),
                 html.Div([
-                    html.Small("💡 说明：点击阈值(分钟)列的数值可直接修改，修改后会实时生效。", 
+                    html.Small("💡 说明：点击阈值(分钟)列的数值可直接修改，修改后点击下方「保存阈值配置」按钮生效。", 
                               className="text-muted")
-                ], className="mt-2")
+                ], className="mt-2"),
+                dbc.Button(
+                    "💾 保存阈值配置", 
+                    id="save-thresholds-btn", 
+                    color="primary", 
+                    className="mt-3"
+                ),
             ], md=12)
         ], className="g-3")
     
@@ -418,17 +447,22 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_boxplot(selected_type, start_date, end_date, sample_types, priorities, departments, quick_filters):
+def update_boxplot(selected_type, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, _, _ = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -479,17 +513,22 @@ def update_boxplot(selected_type, start_date, end_date, sample_types, priorities
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_trend(freq, start_date, end_date, sample_types, priorities, departments, quick_filters):
+def update_trend(freq, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, _, _ = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -510,17 +549,22 @@ def update_trend(freq, start_date, end_date, sample_types, priorities, departmen
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_abnormal_table(start_date, end_date, sample_types, priorities, departments, quick_filters):
+def update_abnormal_table(start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, _, _ = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -593,9 +637,10 @@ def update_abnormal_table(start_date, end_date, sample_types, priorities, depart
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=True
 )
-def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters):
+def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
     ctx = callback_context
     if not ctx.triggered:
         return False, html.Div()
@@ -614,8 +659,12 @@ def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, returns_raw, thresholds_current = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -636,9 +685,9 @@ def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_
     selected_sample = abnormal_samples.iloc[[selected_rows[0]]]
     sample_id = selected_sample.iloc[0]['sample_id']
     
-    sample_returns = returns_global[returns_global['sample_id'] == sample_id] if not returns_global.empty else pd.DataFrame()
+    sample_returns = returns_raw[returns_raw['sample_id'] == sample_id] if not returns_raw.empty else pd.DataFrame()
     
-    timeline_fig = create_sample_timeline(selected_sample, thresholds_global)
+    timeline_fig = create_sample_timeline(selected_sample, thresholds_current)
     
     sample_info = selected_sample.iloc[0]
     
@@ -715,15 +764,19 @@ def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_
 
 
 @app.callback(
+    Output('threshold-version', 'data'),
     Output('threshold-config-message', 'children'),
-    Input('threshold-table', 'data'),
+    Input('save-thresholds-btn', 'n_clicks'),
+    State('threshold-table', 'data'),
+    State('threshold-version', 'data'),
     prevent_initial_call=True
 )
-def update_threshold_config(rows):
-    if not rows:
-        return html.Div()
+def save_threshold_config(n_clicks, rows, current_version):
+    if not n_clicks or not rows:
+        return no_update, no_update
     
     try:
+        updated_count = 0
         for row in rows:
             sample_type = None
             priority = None
@@ -750,13 +803,25 @@ def update_threshold_config(rows):
                 try:
                     new_threshold_int = int(float(new_threshold))
                     if new_threshold_int > 0:
-                        update_threshold(sample_type, priority, stage_name, new_threshold_int)
+                        success = update_threshold(sample_type, priority, stage_name, new_threshold_int)
+                        if success:
+                            updated_count += 1
                 except (ValueError, TypeError):
                     pass
         
-        return dbc.Alert("✅ 阈值配置已更新", color="success", duration=3000, dismissable=True)
+        new_version = current_version + 1
+        
+        message = dbc.Alert(
+            f"✅ 阈值配置已保存！已更新 {updated_count} 条配置。所有页面将使用新阈值重新计算。", 
+            color="success", 
+            duration=5000, 
+            dismissable=True
+        )
+        
+        return new_version, message
+        
     except Exception as e:
-        return dbc.Alert(f"❌ 更新失败: {str(e)}", color="danger", duration=5000, dismissable=True)
+        return no_update, dbc.Alert(f"❌ 保存失败: {str(e)}", color="danger", duration=5000, dismissable=True)
 
 
 @app.callback(
@@ -768,9 +833,10 @@ def update_threshold_config(rows):
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
+    Input('threshold-version', 'data'),
     prevent_initial_call=True
 )
-def export_report(n_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters):
+def export_report(n_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
     if not n_clicks:
         return None
     
@@ -780,8 +846,12 @@ def export_report(n_clicks, start_date, end_date, sample_types, priorities, depa
     only_timeout = 'timeout' in (quick_filters or [])
     only_returned = 'returned' in (quick_filters or [])
     
+    df_processed, returns_raw, thresholds_current = process_data_with_current_thresholds(
+        start_dt, end_dt, sample_types, priorities, departments
+    )
+    
     df_filtered = filter_by_criteria(
-        df_global,
+        df_processed,
         start_date=start_dt,
         end_date=end_dt,
         sample_types=sample_types,
@@ -791,7 +861,7 @@ def export_report(n_clicks, start_date, end_date, sample_types, priorities, depa
         only_returned=only_returned
     )
     
-    returns_filtered = returns_global.copy()
+    returns_filtered = returns_raw.copy()
     if not returns_filtered.empty and not df_filtered.empty:
         returns_filtered = returns_filtered[returns_filtered['sample_id'].isin(df_filtered['sample_id'])]
     
@@ -805,7 +875,7 @@ def export_report(n_clicks, start_date, end_date, sample_types, priorities, depa
         only_timeout=only_timeout,
         only_returned=only_returned,
         returns_df=returns_filtered,
-        thresholds_df=thresholds_global
+        thresholds_df=thresholds_current
     )
     
     filename = generate_export_filename()
@@ -816,5 +886,5 @@ def export_report(n_clicks, start_date, end_date, sample_types, priorities, depa
 if __name__ == '__main__':
     port = int(os.getenv('DASH_PORT', 8050))
     host = os.getenv('DASH_HOST', '0.0.0.0')
-    debug = os.getenv('DASH_DEBUG', 'True').lower() == 'true'
+    debug = os.getenv('DASH_DEBUG', 'False').lower() == 'true'
     app.run(host=host, port=port, debug=debug)

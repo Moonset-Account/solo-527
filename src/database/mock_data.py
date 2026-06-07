@@ -192,6 +192,12 @@ def get_threshold_configs():
     return pd.DataFrame(configs)
 
 
+import os
+from src.database.connection import (
+    USE_MOCK_DATA, fetch_samples_from_db, fetch_thresholds_from_db, 
+    fetch_returns_from_db, update_threshold_in_db
+)
+
 _mock_samples_df = None
 _mock_returns_df = None
 _mock_thresholds_df = None
@@ -204,36 +210,81 @@ def initialize_mock_data():
     return _mock_samples_df, _mock_returns_df, _mock_thresholds_df
 
 
-def get_samples_df():
-    if _mock_samples_df is None:
-        initialize_mock_data()
-    return _mock_samples_df.copy()
+def get_samples_df(start_date=None, end_date=None, sample_types=None, 
+                   priorities=None, departments=None):
+    if USE_MOCK_DATA:
+        global _mock_samples_df
+        if _mock_samples_df is None:
+            initialize_mock_data()
+        df = _mock_samples_df.copy()
+        
+        if start_date:
+            df = df[df['collected_at'] >= pd.to_datetime(start_date)]
+        if end_date:
+            df = df[df['collected_at'] <= pd.to_datetime(end_date)]
+        if sample_types and len(sample_types) > 0:
+            df = df[df['sample_type'].isin(sample_types)]
+        if priorities and len(priorities) > 0:
+            df = df[df['priority'].isin(priorities)]
+        if departments and len(departments) > 0:
+            df = df[df['requesting_department'].isin(departments)]
+        
+        return df
+    else:
+        df = fetch_samples_from_db(start_date, end_date, sample_types, priorities, departments)
+        if df is None:
+            return pd.DataFrame()
+        return df
 
 
-def get_returns_df():
-    if _mock_returns_df is None:
-        initialize_mock_data()
-    return _mock_returns_df.copy()
+def get_returns_df(start_date=None, end_date=None):
+    if USE_MOCK_DATA:
+        global _mock_returns_df
+        if _mock_returns_df is None:
+            initialize_mock_data()
+        df = _mock_returns_df.copy()
+        
+        if start_date and 'return_time' in df.columns:
+            df = df[df['return_time'] >= pd.to_datetime(start_date)]
+        if end_date and 'return_time' in df.columns:
+            df = df[df['return_time'] <= pd.to_datetime(end_date)]
+        
+        return df
+    else:
+        df = fetch_returns_from_db(start_date, end_date)
+        if df is None:
+            return pd.DataFrame()
+        return df
 
 
 def get_thresholds_df():
-    if _mock_thresholds_df is None:
-        initialize_mock_data()
-    return _mock_thresholds_df.copy()
+    if USE_MOCK_DATA:
+        global _mock_thresholds_df
+        if _mock_thresholds_df is None:
+            initialize_mock_data()
+        return _mock_thresholds_df.copy()
+    else:
+        df = fetch_thresholds_from_db()
+        if df is None:
+            return get_threshold_configs()
+        return df
 
 
 def update_threshold(sample_type, priority, stage_name, new_threshold):
     global _mock_thresholds_df
-    if _mock_thresholds_df is None:
-        initialize_mock_data()
     
-    mask = (
-        (_mock_thresholds_df['sample_type'] == sample_type) &
-        (_mock_thresholds_df['priority'] == priority) &
-        (_mock_thresholds_df['stage_name'] == stage_name)
-    )
-    _mock_thresholds_df.loc[mask, 'threshold_minutes'] = new_threshold
-    
-    DEFAULT_THRESHOLDS[sample_type][priority][stage_name] = new_threshold
-    
-    return True
+    if USE_MOCK_DATA:
+        if _mock_thresholds_df is None:
+            initialize_mock_data()
+        
+        mask = (
+            (_mock_thresholds_df['sample_type'] == sample_type) &
+            (_mock_thresholds_df['priority'] == priority) &
+            (_mock_thresholds_df['stage_name'] == stage_name)
+        )
+        _mock_thresholds_df.loc[mask, 'threshold_minutes'] = new_threshold
+        DEFAULT_THRESHOLDS[sample_type][priority][stage_name] = new_threshold
+        return True
+    else:
+        success = update_threshold_in_db(sample_type, priority, stage_name, new_threshold)
+        return success
