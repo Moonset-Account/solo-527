@@ -28,6 +28,8 @@
 	let annotationText: Record<string, string> = {};
 	let savingAnnotation: string | null = null;
 	let saveSuccess: string | null = null;
+	let canAnnotate = false;
+	let loadError: string | null = null;
 
 	async function handleFileSelect(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -87,16 +89,24 @@
 
 	async function loadAnomalies() {
 		loadingAnomalies = true;
+		loadError = null;
 		try {
 			const res = await fetch('/api/anomalies');
+			if (!res.ok) {
+				const err = await res.json();
+				loadError = err.error || '无法加载异常数据';
+				return;
+			}
 			const data = await res.json();
 			anomalyRecords = data.records || [];
 			anomalyStats = data.byReason || {};
+			canAnnotate = data.canAnnotate || false;
 			annotationText = {};
 			anomalyRecords.forEach((r) => {
 				annotationText[r.visitId] = r.anomalyReason || '';
 			});
 		} catch (e) {
+			loadError = '加载异常数据失败';
 			console.error('Failed to load anomalies:', e);
 		} finally {
 			loadingAnomalies = false;
@@ -422,7 +432,13 @@
 					</div>
 				</div>
 
-				{#if loadingAnomalies}
+				{#if loadError}
+					<div class="text-center py-12 text-gray-500">
+						<XCircle class="w-12 h-12 mx-auto mb-3 text-red-300" />
+						<p class="text-red-600">{loadError}</p>
+						<p class="text-sm text-gray-400 mt-1">公开版仅支持查看异常统计，完整标注功能需管理员权限</p>
+					</div>
+				{:else if loadingAnomalies}
 					<div class="text-center py-12 text-gray-500">
 						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-3" />
 						<p>加载中...</p>
@@ -441,9 +457,13 @@
 									<th class="text-left py-3 px-3 font-medium text-gray-600">科室</th>
 									<th class="text-left py-3 px-3 font-medium text-gray-600">总等待</th>
 									<th class="text-left py-3 px-3 font-medium text-gray-600">异常类型</th>
-									<th class="text-left py-3 px-3 font-medium text-gray-600">标注说明</th>
+									{#if canAnnotate}
+										<th class="text-left py-3 px-3 font-medium text-gray-600">标注说明</th>
+									{/if}
 									<th class="text-left py-3 px-3 font-medium text-gray-600">状态</th>
-									<th class="text-left py-3 px-3 font-medium text-gray-600">操作</th>
+									{#if canAnnotate}
+										<th class="text-left py-3 px-3 font-medium text-gray-600">操作</th>
+									{/if}
 								</tr>
 							</thead>
 							<tbody>
@@ -457,14 +477,16 @@
 												{record.anomalyReason || '未知异常'}
 											</span>
 										</td>
-										<td class="py-3 px-3">
-											<input
-												type="text"
-												class="w-36 text-xs border border-gray-200 rounded px-2 py-1"
-												placeholder="添加标注..."
-												bind:value={annotationText[record.visitId]}
-											/>
-										</td>
+										{#if canAnnotate}
+											<td class="py-3 px-3">
+												<input
+													type="text"
+													class="w-36 text-xs border border-gray-200 rounded px-2 py-1"
+													placeholder="添加标注..."
+													bind:value={annotationText[record.visitId]}
+												/>
+											</td>
+										{/if}
 										<td class="py-3 px-3">
 											<span
 												class="px-2 py-0.5 rounded text-xs {record.isAnomaly
@@ -474,31 +496,33 @@
 												{record.isAnomaly ? '异常' : '已排除'}
 											</span>
 										</td>
-										<td class="py-3 px-3">
-											<div class="flex items-center space-x-2">
-												<button
-													class="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 flex items-center space-x-1"
-													on:click={() => saveAnnotation(record)}
-													disabled={savingAnnotation === record.visitId}
-												>
-													{#if savingAnnotation === record.visitId}
-														<span>保存中...</span>
-													{:else if saveSuccess === record.visitId}
-														<span class="text-green-600">✓ 已保存</span>
-													{:else}
-														<Save class="w-3 h-3" />
-														<span>保存</span>
-													{/if}
-												</button>
-												<button
-													class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-													on:click={() => toggleAnomaly(record)}
-													disabled={savingAnnotation === record.visitId}
-												>
-													{record.isAnomaly ? '排除' : '标记'}
-												</button>
-											</div>
-										</td>
+										{#if canAnnotate}
+											<td class="py-3 px-3">
+												<div class="flex items-center space-x-2">
+													<button
+														class="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 flex items-center space-x-1"
+														on:click={() => saveAnnotation(record)}
+														disabled={savingAnnotation === record.visitId}
+													>
+														{#if savingAnnotation === record.visitId}
+															<span>保存中...</span>
+														{:else if saveSuccess === record.visitId}
+															<span class="text-green-600">✓ 已保存</span>
+														{:else}
+															<Save class="w-3 h-3" />
+															<span>保存</span>
+														{/if}
+													</button>
+													<button
+														class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+														on:click={() => toggleAnomaly(record)}
+														disabled={savingAnnotation === record.visitId}
+													>
+														{record.isAnomaly ? '排除' : '标记'}
+													</button>
+												</div>
+											</td>
+										{/if}
 									</tr>
 								{/each}
 							</tbody>

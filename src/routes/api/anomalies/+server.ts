@@ -15,6 +15,7 @@ export const GET: RequestHandler = async () => {
 	return json({
 		records,
 		total: records.length,
+		canAnnotate: checkPermission(role, 'annotate_anomalies'),
 		byReason: records.reduce((acc, r) => {
 			const reason = r.anomalyReason || '未知异常';
 			acc[reason] = (acc[reason] || 0) + 1;

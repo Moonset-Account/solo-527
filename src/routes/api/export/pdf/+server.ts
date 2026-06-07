@@ -1,5 +1,12 @@
 import type { RequestHandler } from './$types';
-import { getAllRecords } from '$lib/server/db';
+import {
+	getAllRecords,
+	isUsingDuckDB,
+	queryWithDuckDB,
+	buildWhereClause,
+	getDuckDBOverview,
+	getDuckDBDepartmentStats
+} from '$lib/server/db';
 import {
 	filterRecords,
 	calculateOverview,
@@ -9,7 +16,31 @@ import {
 } from '$lib/analytics';
 import { desensitizeRecords, getCurrentUserRole, checkPermission } from '$lib/server/security';
 import { metricDefinitions } from '$lib/dictionary';
-import type { FilterParams } from '$types';
+import type { FilterParams, VisitRecord } from '$types';
+
+function duckDBRowToRecord(row: any): VisitRecord {
+	return {
+		visitId: row.visitId,
+		department: row.department,
+		doctor: row.doctor,
+		patientType: row.patientType,
+		timeSlot: row.timeSlot,
+		registerTime: row.registerTime ? new Date(row.registerTime) : null,
+		checkInTime: row.checkInTime ? new Date(row.checkInTime) : null,
+		triageTime: row.triageTime ? new Date(row.triageTime) : null,
+		callTime: row.callTime ? new Date(row.callTime) : null,
+		paymentTime: row.paymentTime ? new Date(row.paymentTime) : null,
+		pickupTime: row.pickupTime ? new Date(row.pickupTime) : null,
+		waitCheckIn: row.waitCheckIn,
+		waitTriage: row.waitTriage,
+		waitCall: row.waitCall,
+		waitPayment: row.waitPayment,
+		waitPickup: row.waitPickup,
+		totalWait: row.totalWait,
+		isAnomaly: Boolean(row.isAnomaly),
+		anomalyReason: row.anomalyReason || undefined
+	};
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	const role = getCurrentUserRole();
@@ -28,13 +59,34 @@ export const POST: RequestHandler = async ({ request }) => {
 		includeDefinitions?: boolean;
 	};
 
-	let records = await getAllRecords();
-	records = filterRecords(records, filters);
-	records = desensitizeRecords(records, role);
-
+	let records: VisitRecord[];
+	let overview;
+	let deptCompare;
+	const useDuckDB = isUsingDuckDB();
 	const selectedNodes = filters.processNodes as string[] | undefined;
-	const overview = calculateOverview(records, selectedNodes);
-	const deptCompare = calculateDepartmentComparison(records);
+
+	if (useDuckDB) {
+		const { sql: whereSql, params } = buildWhereClause(filters);
+		const rows = await queryWithDuckDB(`SELECT * FROM visits ${whereSql}`, params);
+		records = rows.map(duckDBRowToRecord);
+
+		if (!selectedNodes) {
+			const duckOverview = await getDuckDBOverview(filters);
+			const duckDept = await getDuckDBDepartmentStats(filters);
+			overview = duckOverview || calculateOverview(records, selectedNodes);
+			deptCompare = duckDept.length > 0 ? duckDept : calculateDepartmentComparison(records);
+		} else {
+			overview = calculateOverview(records, selectedNodes);
+			deptCompare = calculateDepartmentComparison(records);
+		}
+	} else {
+		records = await getAllRecords();
+		records = filterRecords(records, filters);
+		overview = calculateOverview(records, selectedNodes);
+		deptCompare = calculateDepartmentComparison(records);
+	}
+
+	records = desensitizeRecords(records, role);
 
 	const pdfContent = generatePDFContent(overview, deptCompare, includeCharts, includeDefinitions, filters);
 

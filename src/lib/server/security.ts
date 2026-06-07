@@ -31,8 +31,8 @@ export function desensitizeRecord(record: VisitRecord, role: UserRole): VisitRec
 		...record,
 		visitId: hashValue(record.visitId),
 		doctor: getDoctorCode(record.doctor),
-		anomalyReason: undefined,
-		isAnomaly: false
+		anomalyReason: record.anomalyReason ? '数据异常' : undefined,
+		isAnomaly: record.isAnomaly
 	};
 
 	const roleStr = role as string;
@@ -83,7 +83,9 @@ export function checkPermission(role: UserRole, permission: string): boolean {
 		public: [
 			'view_analytics',
 			'view_dictionary',
-			'export_csv'
+			'export_csv',
+			'export_pdf',
+			'view_anomalies'
 		],
 		manager: [
 			'view_analytics',

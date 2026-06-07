@@ -1,5 +1,28 @@
 import type { VisitRecord, FilterParams } from '$types';
 import { generateMockData } from '$lib/mockData';
+import { calculateWaitMinutes } from '$lib/analytics';
+
+function precomputeWaitTimes(record: VisitRecord): VisitRecord {
+	const waitCheckIn = calculateWaitMinutes(record.registerTime, record.checkInTime);
+	const waitTriage = calculateWaitMinutes(record.checkInTime, record.triageTime);
+	const waitCall = calculateWaitMinutes(record.triageTime, record.callTime);
+	const waitPayment = calculateWaitMinutes(record.callTime, record.paymentTime);
+	const waitPickup = calculateWaitMinutes(record.paymentTime, record.pickupTime);
+
+	const totalWait = [waitCheckIn, waitTriage, waitCall, waitPayment, waitPickup]
+		.filter((w): w is number => w !== null)
+		.reduce((sum, w) => sum + w, 0);
+
+	return {
+		...record,
+		waitCheckIn: waitCheckIn ?? undefined,
+		waitTriage: waitTriage ?? undefined,
+		waitCall: waitCall ?? undefined,
+		waitPayment: waitPayment ?? undefined,
+		waitPickup: waitPickup ?? undefined,
+		totalWait: totalWait || undefined
+	};
+}
 
 function convertBigInts(obj: any): any {
 	if (obj === null || obj === undefined) return obj;
@@ -60,6 +83,36 @@ async function tryInitDuckDB() {
 	}
 }
 
+export function buildWhereClause(filters?: Partial<FilterParams>): { sql: string; params: any[] } {
+	let whereClauses: string[] = [];
+	let params: any[] = [];
+
+	if (filters?.departments && filters.departments.length > 0) {
+		whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
+		params.push(...filters.departments);
+	}
+	if (filters?.doctors && filters.doctors.length > 0) {
+		whereClauses.push(`doctor IN (${filters.doctors.map(() => '?').join(',')})`);
+		params.push(...filters.doctors);
+	}
+	if (filters?.timeSlots && filters.timeSlots.length > 0) {
+		whereClauses.push(`timeSlot IN (${filters.timeSlots.map(() => '?').join(',')})`);
+		params.push(...filters.timeSlots);
+	}
+	if (filters?.patientTypes && filters.patientTypes.length > 0) {
+		whereClauses.push(`patientType IN (${filters.patientTypes.map(() => '?').join(',')})`);
+		params.push(...filters.patientTypes);
+	}
+	if (filters?.excludeAnomalies) {
+		whereClauses.push('isAnomaly = false');
+	}
+
+	return {
+		sql: whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '',
+		params
+	};
+}
+
 async function loadDataToDuckDB(records: VisitRecord[]) {
 	if (!duckDb) return;
 
@@ -70,7 +123,8 @@ async function loadDataToDuckDB(records: VisitRecord[]) {
 			const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
 			const values: any[] = [];
 
-			for (const record of batch) {
+			for (const rec of batch) {
+				const record = precomputeWaitTimes(rec);
 				values.push(
 					record.visitId,
 					record.department,
@@ -119,18 +173,7 @@ export async function getDuckDBDepartmentStats(filters?: Partial<FilterParams>):
 	if (!useDuckDB || !duckDb) return [];
 
 	try {
-		let whereClauses: string[] = [];
-		let params: any[] = [];
-
-		if (filters?.departments && filters.departments.length > 0) {
-			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
-			params.push(...filters.departments);
-		}
-		if (filters?.excludeAnomalies) {
-			whereClauses.push('isAnomaly = false');
-		}
-
-		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+		const { sql: whereSql, params } = buildWhereClause(filters);
 
 		const result = await duckDb.all(`
 			SELECT
@@ -154,18 +197,7 @@ export async function getDuckDBOverview(filters?: Partial<FilterParams>): Promis
 	if (!useDuckDB || !duckDb) return null;
 
 	try {
-		let whereClauses: string[] = [];
-		let params: any[] = [];
-
-		if (filters?.departments && filters.departments.length > 0) {
-			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
-			params.push(...filters.departments);
-		}
-		if (filters?.excludeAnomalies) {
-			whereClauses.push('isAnomaly = false');
-		}
-
-		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+		const { sql: whereSql, params } = buildWhereClause(filters);
 
 		const results = await duckDb.all(`
 			SELECT
@@ -194,18 +226,7 @@ export async function getDuckDBIntradayTrend(filters?: Partial<FilterParams>): P
 	if (!useDuckDB || !duckDb) return [];
 
 	try {
-		let whereClauses: string[] = [];
-		let params: any[] = [];
-
-		if (filters?.departments && filters.departments.length > 0) {
-			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
-			params.push(...filters.departments);
-		}
-		if (filters?.excludeAnomalies) {
-			whereClauses.push('isAnomaly = false');
-		}
-
-		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+		const { sql: whereSql, params } = buildWhereClause(filters);
 
 		const result = await duckDb.all(`
 			SELECT
