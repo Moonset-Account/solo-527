@@ -268,8 +268,18 @@ modal_sample_detail = dbc.Modal([
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H2("❄️ 冷链疫苗温度合规分析平台", className="text-primary mt-4 mb-4"),
-            html.P("疾控中心仓库复盘专用 · 时序数据智能分析", className="text-muted")
+            html.Div([
+                html.H2("❄️ 冷链疫苗温度合规分析平台", className="text-primary mt-4 mb-1 d-inline"),
+                html.Span([
+                    dbc.Badge(
+                        "🗄️ 数据来源: TimescaleDB" if db.is_available() else "💾 数据来源: 内置模拟数据",
+                        color="success" if db.is_available() else "warning",
+                        className="ms-3 align-middle"
+                    )
+                ]),
+                html.P("疾控中心仓库复盘专用 · 时序数据智能分析", className="text-muted mb-0"),
+                html.P(id="db-status-detail", className="small text-muted", children=""),
+            ])
         ])
     ]),
     dbc.Row([
@@ -389,9 +399,12 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
         (~df["review_status"].isin(["pending", "appealed"]))
     )
     total_count = len(df)
-    valid_count = df["is_valid_for_ranking"].sum()
+    valid_count = ranking_mask.sum()
     avg_compliance = df[ranking_mask]["compliance_rate"].mean() if ranking_mask.sum() > 0 else 0
-    pending_count = total_count - valid_count + df[df["review_status"].isin(["pending", "appealed"])].shape[0]
+    
+    pending_sample_mask = ~df["is_valid_for_ranking"]
+    pending_review_mask = df["review_status"].isin(["pending", "appealed"])
+    pending_count = int(pending_sample_mask.sum() + pending_review_mask.sum() - (pending_sample_mask & pending_review_mask).sum())
     
     kpi_total = dbc.CardBody([
         html.H6("总运输批次", className="card-subtitle mb-2 text-muted"),
@@ -823,18 +836,21 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
                     dbc.CardBody([
                         html.Div([
                             html.Img(
-                                src=f"/static/photos/BOX00000{(int(box_id.replace('BOX', '')) % 5) + 1}.jpg",
+                                src=shipment["signoff_photo_url"],
                                 style={
                                     "width": "100%",
-                                    "maxHeight": "400px",
+                                    "maxHeight": "450px",
                                     "objectFit": "contain",
                                     "border": "1px solid #dee2e6",
                                     "borderRadius": "4px"
                                 },
                                 alt=f"签收照片 - {box_id}"
                             ),
-                            html.P(f"签收单号: {box_id} | 时间: {shipment['signoff_time'].strftime('%Y-%m-%d %H:%M')}", 
-                                   className="text-center text-muted mt-2 small")
+                            html.P([
+                                html.Strong("签收单号: "), box_id,
+                                html.Span("  |  ", className="text-muted"),
+                                html.Strong("签收时间: "), shipment["signoff_time"].strftime("%Y-%m-%d %H:%M")
+                            ], className="text-center text-muted mt-2 small")
                         ])
                     ]),
                     id="photo-collapse",

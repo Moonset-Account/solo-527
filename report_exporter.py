@@ -122,26 +122,26 @@ class ReportExporter:
     @staticmethod
     def _create_summary_sheet(df_results: pd.DataFrame) -> pd.DataFrame:
         total = len(df_results)
-        valid_count = df_results["is_valid_for_ranking"].sum()
-        pending_count = total - valid_count
         ranking_mask = (
             df_results["is_valid_for_ranking"] & 
             (~df_results["review_status"].isin(["pending", "appealed"]))
         )
+        valid_count = ranking_mask.sum()
+        pending_sample_count = (~df_results["is_valid_for_ranking"]).sum()
+        pending_review_count = df_results["review_status"].isin(["pending", "appealed"]).sum()
         avg_compliance = df_results[ranking_mask]["compliance_rate"].mean() if ranking_mask.sum() > 0 else 0
-        over_temp_total = df_results["over_temp_duration_hours"].sum()
-        under_temp_total = df_results["under_temp_duration_hours"].sum()
-        pending_review = df_results[df_results["review_status"].isin(["pending", "appealed"])].shape[0]
+        over_temp_total = df_results[ranking_mask]["over_temp_duration_hours"].sum()
+        under_temp_total = df_results[ranking_mask]["under_temp_duration_hours"].sum()
         
         summary_data = [
             ["统计项", "数值"],
             ["总运输批次", total],
-            ["有效统计批次（样本≥3）", valid_count],
-            ["待复核批次（样本<3）", pending_count],
-            ["平均合规率", f"{avg_compliance:.2f}%"],
-            ["累计超温时长（小时）", f"{over_temp_total:.2f}"],
-            ["累计低温时长（小时）", f"{under_temp_total:.2f}"],
-            ["待申诉复核批次", pending_review]
+            ["有效统计批次（样本≥3，排除复核中）", int(valid_count)],
+            ["待复核批次（样本不足）", int(pending_sample_count)],
+            ["申诉/复核中批次", int(pending_review_count)],
+            ["平均合规率（仅有效批次）", f"{avg_compliance:.2f}%"],
+            ["累计超温时长（小时，仅有效）", f"{over_temp_total:.2f}"],
+            ["累计低温时长（小时，仅有效）", f"{under_temp_total:.2f}"]
         ]
         return pd.DataFrame(summary_data[1:], columns=summary_data[0])
     
