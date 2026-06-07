@@ -29,8 +29,8 @@ server = app.server
 DATA_PATH = "data/mock_visit_data.parquet"
 DATA_UPDATE_TIME = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def load_and_prepare_data():
-    """加载并准备数据"""
+def load_raw_data():
+    """加载原始未脱敏数据"""
     try:
         df = load_data(DATA_PATH)
     except:
@@ -38,15 +38,19 @@ def load_and_prepare_data():
         save_data(df, DATA_PATH)
     df = calculate_wait_times(df)
     df = detect_anomalies(df)
-    
-    permission_config = load_permission_config()
-    df = apply_permission_filter(df, permission_config)
-    
     return df
 
-df = load_and_prepare_data()
+def load_and_prepare_data():
+    """加载并准备数据（应用权限过滤和脱敏）"""
+    df = load_raw_data()
+    permission_config = load_permission_config()
+    df = apply_permission_filter(df, permission_config)
+    return df
+
+raw_df = load_raw_data()
 permission_config = load_permission_config()
 schedule_config = load_schedule_config()
+df = apply_permission_filter(raw_df.copy(), permission_config)
 
 app.title = "医院门诊等待时间分析工作台"
 
@@ -79,7 +83,14 @@ def get_filter_options():
     
     return depts, doctors, time_slots, patient_types, date_min, date_max
 
+def get_raw_options():
+    """获取原始未脱敏的选项（用于权限选择器）"""
+    raw_depts = sorted(raw_df["dept_name"].unique().tolist())
+    raw_doctors = sorted(raw_df["doctor_name"].unique().tolist())
+    return raw_depts, raw_doctors
+
 depts, doctors, time_slots, patient_types, date_min, date_max = get_filter_options()
+raw_depts, raw_doctors = get_raw_options()
 
 wait_options = [
     {"label": "挂号→签到", "value": "wait_挂号_签到"},
@@ -690,7 +701,7 @@ app.layout = html.Div(
                                 dbc.Label("选择管理科室（科室主任必填）"),
                                 dcc.Dropdown(
                                     id="permission-dept",
-                                    options=[{"label": d, "value": d} for d in depts],
+                                    options=[{"label": d, "value": d} for d in raw_depts],
                                     multi=True,
                                     placeholder="请选择科室..."
                                 )
@@ -704,7 +715,7 @@ app.layout = html.Div(
                                 dbc.Label("选择医生（医生视图必填）"),
                                 dcc.Dropdown(
                                     id="permission-doctor",
-                                    options=[{"label": d, "value": d} for d in doctors],
+                                    options=[{"label": d, "value": d} for d in raw_doctors],
                                     multi=True,
                                     placeholder="请选择医生..."
                                 )
