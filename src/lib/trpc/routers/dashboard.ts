@@ -57,10 +57,21 @@ export const dashboardRouter = router({
       z.object({
         date: z.string().default(format(new Date(), "yyyy-MM-dd")),
         teamIds: z.array(z.string()).optional().nullable(),
+        dateRange: z
+          .object({
+            start: z.string(),
+            end: z.string(),
+          })
+          .optional()
+          .nullable(),
       })
     )
     .query(async ({ input }) => {
-      return generateTeamWorkload(input.teamIds ?? undefined, input.date);
+      return generateTeamWorkload(
+        input.teamIds ?? undefined,
+        input.date,
+        input.dateRange ?? undefined
+      );
     }),
 
   getTimeoutTrend: protectedProcedure
@@ -84,10 +95,14 @@ export const dashboardRouter = router({
           })
           .optional()
           .nullable(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
     .query(async ({ input }) => {
-      return generateTagDistribution(input.dateRange ?? undefined);
+      return generateTagDistribution(
+        input.dateRange ?? undefined,
+        input.teamIds ?? undefined
+      );
     }),
 
   getStaffRanking: protectedProcedure

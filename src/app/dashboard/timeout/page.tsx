@@ -1,21 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TimeoutTrendChart } from "@/components/charts/TimeoutTrendChart";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
+import { exportToCSV } from "@/lib/export";
+import { format } from "date-fns";
 import { AlertTriangle, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TimeoutPage() {
   const { teamIds } = useFilterStore();
   const [days, setDays] = useState(7);
+  const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: timeoutTrend = [] } = trpc.dashboard.getTimeoutTrend.useQuery({
     days,
     teamIds: teamIds.length > 0 ? teamIds : undefined,
   });
+
+  const handleExport = useCallback(() => {
+    const exportData = timeoutTrend.map((t) => ({
+      时间: t.time,
+      平均等待秒数: t.avgWaitTime,
+      超时报案数: t.timeoutCount,
+      超时率: `${(t.timeoutRate * 100).toFixed(2)}%`,
+      会话总量: t.sessionCount,
+    }));
+    exportToCSV(exportData, `超时趋势数据_${today}_近${days}天.csv`);
+  }, [timeoutTrend, today, days]);
 
   const avgWaitTime =
     timeoutTrend.length > 0
@@ -37,7 +51,11 @@ export default function TimeoutPage() {
     .slice(0, 5);
 
   return (
-    <DashboardLayout title="超时趋势" subtitle="监控等待时长和超时率变化趋势">
+    <DashboardLayout
+      title="超时趋势"
+      subtitle="监控等待时长和超时率变化趋势"
+      onExport={handleExport}
+    >
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { trpc } from "@/lib/trpc/client";
+import { exportToCSV } from "@/lib/export";
+import { format } from "date-fns";
 import {
   History,
   ArrowLeftRight,
@@ -17,14 +19,65 @@ import { cn } from "@/lib/utils";
 
 export default function HistoryPage() {
   const [selectedChange, setSelectedChange] = useState<string | null>(null);
+  const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: scheduleChanges = [] } =
     trpc.dashboard.getScheduleChanges.useQuery();
+
+  const handleExport = useCallback(() => {
+    const allChanges = [
+      ...scheduleChanges,
+      {
+        id: "change-3",
+        scheduleId: "sch-staff-8-2024-01-14",
+        beforeSnapshot: {
+          startHour: 16,
+          endHour: 24,
+          shiftType: "night",
+        } as Record<string, unknown>,
+        afterSnapshot: {
+          startHour: 8,
+          endHour: 16,
+          shiftType: "morning",
+        } as Record<string, unknown>,
+        changedBy: "主管-张三",
+        changedAt: new Date(Date.now() - 259200000).toISOString(),
+        reason: "员工身体不适，调整班次",
+      },
+      {
+        id: "change-4",
+        scheduleId: "sch-staff-15-2024-01-13",
+        beforeSnapshot: {
+          startHour: 14,
+          endHour: 22,
+          shiftType: "afternoon",
+        } as Record<string, unknown>,
+        afterSnapshot: {
+          startHour: 16,
+          endHour: 24,
+          shiftType: "night",
+        } as Record<string, unknown>,
+        changedBy: "主管-张三",
+        changedAt: new Date(Date.now() - 345600000).toISOString(),
+        reason: "晚班人手不足",
+      },
+    ];
+
+    const exportData = allChanges.map((c) => ({
+      调班原因: c.reason || "",
+      操作人: c.changedBy,
+      操作时间: formatDateTime(c.changedAt),
+      调整前班次: `${(c.beforeSnapshot as Record<string, number>).startHour}:00 - ${(c.beforeSnapshot as Record<string, number>).endHour}:00`,
+      调整后班次: `${(c.afterSnapshot as Record<string, number>).startHour}:00 - ${(c.afterSnapshot as Record<string, number>).endHour}:00`,
+    }));
+    exportToCSV(exportData, `调班历史记录_${today}.csv`);
+  }, [scheduleChanges, today]);
 
   return (
     <DashboardLayout
       title="调班历史"
       subtitle="查看历史调班记录与版本对比"
+      onExport={handleExport}
     >
       <div className="space-y-6 animate-fade-in">
         <div className="grid grid-cols-3 gap-4">
@@ -266,6 +319,7 @@ export default function HistoryPage() {
               <p className="text-sm">选择左侧调班记录查看版本对比</p>
             </div>
           )}
+        </div>
         </div>
       </div>
     </DashboardLayout>

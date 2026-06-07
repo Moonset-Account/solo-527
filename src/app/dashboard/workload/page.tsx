@@ -1,18 +1,21 @@
 "use client";
 
+import { useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { WorkloadHeatmap } from "@/components/charts/WorkloadHeatmap";
 import { SchedulePanel } from "@/components/charts/SchedulePanel";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
+import { exportToCSV } from "@/lib/export";
 import { format } from "date-fns";
 
 export default function WorkloadPage() {
-  const { teamIds } = useFilterStore();
+  const { teamIds, dateRange } = useFilterStore();
   const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: workload = [] } = trpc.dashboard.getTeamWorkload.useQuery({
     teamIds: teamIds.length > 0 ? teamIds : undefined,
+    dateRange,
   });
 
   const { data: schedules = [] } = trpc.dashboard.getSchedules.useQuery({
@@ -20,8 +23,24 @@ export default function WorkloadPage() {
     teamIds: teamIds.length > 0 ? teamIds : undefined,
   });
 
+  const handleExport = useCallback(() => {
+    const exportData = workload.map((w) => ({
+      班组: w.teamName,
+      时段: `${w.hour}:00`,
+      负载率: `${w.workload}%`,
+      会话量: w.sessionCount,
+      平均等待秒数: w.avgWaitTime,
+      在岗人数: w.staffOnDuty,
+    }));
+    exportToCSV(exportData, `班组负载数据_${today}.csv`);
+  }, [workload, today]);
+
   return (
-    <DashboardLayout title="班组负载" subtitle="实时监控各班组负载情况，支持调整排班">
+    <DashboardLayout
+      title="班组负载"
+      subtitle="实时监控各班组负载情况，支持调整排班"
+      onExport={handleExport}
+    >
       <div className="space-y-6 animate-fade-in">
         <div className="grid grid-cols-4 gap-4">
           {["客服一组", "客服二组", "客服三组", "VIP专属组"].map((team, idx) => {

@@ -1,17 +1,32 @@
 "use client";
 
+import { useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { TagDistributionChart } from "@/components/charts/TagDistributionChart";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
+import { exportToCSV } from "@/lib/export";
+import { format } from "date-fns";
 import { Tags, TrendingUp, TrendingDown } from "lucide-react";
 
 export default function TagsPage() {
   const { dateRange, teamIds } = useFilterStore();
+  const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: tagDistribution = [] } = trpc.dashboard.getTagDistribution.useQuery({
     dateRange,
+    teamIds: teamIds.length > 0 ? teamIds : undefined,
   });
+
+  const handleExport = useCallback(() => {
+    const exportData = tagDistribution.map((t) => ({
+      问题标签: t.tagName,
+      分类: t.category || "",
+      会话量: t.count,
+      占比: `${t.percentage}%`,
+    }));
+    exportToCSV(exportData, `标签分布数据_${today}.csv`);
+  }, [tagDistribution, today]);
 
   const total = tagDistribution.reduce((sum, t) => sum + t.count, 0);
   const topTag = tagDistribution[0];
@@ -21,7 +36,11 @@ export default function TagsPage() {
   );
 
   return (
-    <DashboardLayout title="标签分布" subtitle="分析会话问题类型分布，优化知识库">
+    <DashboardLayout
+      title="标签分布"
+      subtitle="分析会话问题类型分布，优化知识库"
+      onExport={handleExport}
+    >
       <div className="space-y-6 animate-fade-in">
         <div className="grid grid-cols-4 gap-4">
           <div className="card">

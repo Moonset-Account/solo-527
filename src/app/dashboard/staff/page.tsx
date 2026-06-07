@@ -1,18 +1,38 @@
 "use client";
 
+import { useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StaffRankingTable } from "@/components/charts/StaffRankingTable";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
+import { exportToCSV } from "@/lib/export";
+import { format } from "date-fns";
 import { Users, Trophy, Star, Clock, ArrowRightLeft } from "lucide-react";
 
 export default function StaffPage() {
   const { teamIds } = useFilterStore();
+  const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: staffRanking = [] } = trpc.dashboard.getStaffRanking.useQuery({
     teamIds: teamIds.length > 0 ? teamIds : undefined,
     includeProbation: true,
   });
+
+  const handleExport = useCallback(() => {
+    const exportData = staffRanking.map((s, idx) => ({
+      排名: idx + 1,
+      客服姓名: s.staffName,
+      是否试用期: s.isProbation ? "是" : "否",
+      会话量: s.sessionCount,
+      平均等待秒数: s.avgWaitTime,
+      平均通话秒数: s.avgDuration,
+      转接率: `${(s.transferRate * 100).toFixed(2)}%`,
+      质检分: s.avgQualityScore,
+      满意度: s.satisfaction,
+      综合负载分: s.workloadScore,
+    }));
+    exportToCSV(exportData, `人员绩效排名_${today}.csv`);
+  }, [staffRanking, today]);
 
   const formalStaff = staffRanking.filter((s) => !s.isProbation);
   const probationStaff = staffRanking.filter((s) => s.isProbation);
@@ -20,7 +40,11 @@ export default function StaffPage() {
   const top3 = formalStaff.slice(0, 3);
 
   return (
-    <DashboardLayout title="人员对比" subtitle="多维度对比客服人员绩效表现">
+    <DashboardLayout
+      title="人员对比"
+      subtitle="多维度对比客服人员绩效表现"
+      onExport={handleExport}
+    >
       <div className="space-y-6 animate-fade-in">
         <div className="grid grid-cols-4 gap-4">
           <div className="card">

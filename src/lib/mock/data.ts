@@ -43,27 +43,58 @@ const tagNames = [
 
 const categories = ["账户", "订单", "商品", "服务", "技术"];
 
-export function generateTeamWorkload(teamIds?: string[], date?: string): TeamWorkload[] {
+export function generateTeamWorkload(
+  teamIds?: string[],
+  date?: string,
+  dateRange?: { start: string; end: string }
+): TeamWorkload[] {
   const data: TeamWorkload[] = [];
-  const teams = teamIds?.length 
-    ? mockTeams.filter(t => teamIds.includes(t.id)) 
+  const teams = teamIds?.length
+    ? mockTeams.filter((t) => teamIds.includes(t.id))
     : mockTeams;
+
+  const referenceDate = date
+    ? new Date(date)
+    : dateRange
+    ? new Date(dateRange.end)
+    : new Date();
+  const dateSeed = referenceDate.getDate();
   
-  const dateSeed = date ? new Date(date).getDate() : new Date().getDate();
-  
+  const rangeFactor = dateRange
+    ? Math.max(
+        0.8,
+        Math.min(
+          1.2,
+          1 +
+            (Math.ceil(
+              (new Date(dateRange.end).getTime() -
+                new Date(dateRange.start).getTime()) /
+                (1000 * 60 * 60 * 24)
+            ) -
+              7) *
+              0.02
+        )
+      )
+    : 1;
+
   for (let hour = 8; hour <= 22; hour++) {
     teams.forEach((team, teamIdx) => {
       const baseLoad = 40 + Math.sin((hour - 8) / 14 * Math.PI) * 30;
       const variation = ((dateSeed * 7 + hour * 3 + teamIdx * 11) % 20) - 10;
       const teamFactor = 1 + (teamIdx - 1.5) * 0.1;
-      let workload = Math.min(100, Math.max(10, baseLoad * teamFactor + variation));
+      let workload = Math.min(
+        100,
+        Math.max(10, baseLoad * teamFactor * rangeFactor + variation)
+      );
 
       data.push({
         teamId: team.id,
         teamName: team.name,
         hour,
         workload: Math.round(workload),
-        sessionCount: Math.round(workload * 2.5 + (dateSeed % 10) * 5),
+        sessionCount: Math.round(
+          workload * 2.5 * rangeFactor + (dateSeed % 10) * 5
+        ),
         avgWaitTime: Math.round(workload * 0.8 + (hour % 5) * 6),
         staffOnDuty: Math.round(3 + workload / 30),
       });
@@ -105,24 +136,44 @@ export function generateTimeoutTrend(days = 7, teamIds?: string[]): TimeoutTrend
   return data;
 }
 
-export function generateTagDistribution(dateRange?: { start: string; end: string }): TagDistribution[] {
+export function generateTagDistribution(
+  dateRange?: { start: string; end: string },
+  teamIds?: string[]
+): TagDistribution[] {
   const startDate = dateRange ? new Date(dateRange.start) : new Date();
   const endDate = dateRange ? new Date(dateRange.end) : new Date();
-  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+  const daysDiff = Math.ceil(
+    (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  const teamFactor = teamIds?.length
+    ? teamIds.length / mockTeams.length
+    : 1;
+
   const baseTotal = 5000;
-  const total = baseTotal + Math.round(daysDiff * 200 + (startDate.getDate() * 13) % 2000);
-  
-  return tagNames.map((tag, idx) => {
-    const weight = 0.6 + ((idx * 7 + startDate.getDate()) % 5) / 10;
-    const count = Math.round((total / tagNames.length) * weight * (1 - idx * 0.03));
-    return {
-      tagName: tag,
-      count,
-      percentage: Math.round((count / total) * 1000) / 10,
-      category: categories[idx % categories.length],
-    };
-  }).sort((a, b) => b.count - a.count);
+  const total = Math.round(
+    (baseTotal + daysDiff * 200 + (startDate.getDate() * 13) % 2000) *
+      teamFactor
+  );
+
+  return tagNames
+    .map((tag, idx) => {
+      const weight = 0.6 + ((idx * 7 + startDate.getDate()) % 5) / 10;
+      const teamShift = teamIds?.length
+        ? teamIds.reduce((sum, id) => sum + id.charCodeAt(6), 0) % 10
+        : 0;
+      const adjustedWeight = weight * (1 + (teamShift - 5) * 0.02);
+      const count = Math.round(
+        (total / tagNames.length) * adjustedWeight * (1 - idx * 0.03)
+      );
+      return {
+        tagName: tag,
+        count,
+        percentage: Math.round((count / total) * 1000) / 10,
+        category: categories[idx % categories.length],
+      };
+    })
+    .sort((a, b) => b.count - a.count);
 }
 
 export function generateStaffRanking(teamIds?: string[]): StaffMetrics[] {

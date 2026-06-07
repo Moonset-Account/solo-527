@@ -30,6 +30,7 @@ export default function DashboardPage() {
 
   const { data: workload = [] } = trpc.dashboard.getTeamWorkload.useQuery({
     teamIds: teamIds.length > 0 ? teamIds : undefined,
+    dateRange,
   });
 
   const { data: timeoutTrend = [] } = trpc.dashboard.getTimeoutTrend.useQuery({
@@ -39,6 +40,7 @@ export default function DashboardPage() {
 
   const { data: tagDistribution = [] } = trpc.dashboard.getTagDistribution.useQuery({
     dateRange,
+    teamIds: teamIds.length > 0 ? teamIds : undefined,
   });
 
   const { data: staffRanking = [] } = trpc.dashboard.getStaffRanking.useQuery({
