@@ -227,7 +227,7 @@ export const useDataStore = defineStore('data', {
         chApi.getAvailability(timeRange),
         chApi.getFaultsByStation(timeRange),
         chApi.getFaultsByHour(timeRange),
-        chApi.getTopAnomalies()
+        chApi.getTopAnomalies(timeRange)
       ])
       
       this.stations = stations
@@ -327,7 +327,7 @@ export const useDataStore = defineStore('data', {
           chApi.getAvailability(timeRange),
           chApi.getFaultsByStation(timeRange),
           chApi.getFaultsByHour(timeRange),
-          chApi.getTopAnomalies()
+          chApi.getTopAnomalies(timeRange)
         ])
         
         this.faultLogs = faults.map(f => ({ 

@@ -358,50 +358,168 @@ export const chApi = {
   
   async getAvailability(timeRange) {
     const [start, end] = timeRange
+    const startTime = start.replace('T', ' ').slice(0, 19)
+    const endTime = end.replace('T', ' ').slice(0, 19)
     return executeQuery(`
-      SELECT * FROM (SELECT 
-        countIf(c.is_offline = 0) as online_total,
-        countIf(c.is_offline = 0 AND c.status = 'fault') as online_faulty,
-        round(online_normal / online_total, 4) as availability_rate
-      FROM dim_charger c)
-    `, { startTime: start, endTime: end })
+      SELECT 
+        online_total,
+        online_faulty,
+        online_normal,
+        round(online_normal / online_total, 4) as availability_rate,
+        offline_count
+      FROM (
+        SELECT 
+          countIf(is_offline = 0) as online_total,
+          countIf(is_offline = 1) as offline_count,
+          countIf(is_offline = 0 AND status = 'fault') as faulty_from_status
+        FROM dim_charger
+      ) c
+      CROSS JOIN (
+        SELECT count(DISTINCT charger_id) as faulty_from_logs
+        FROM fact_fault_log
+        WHERE occur_time >= '${startTime}' AND occur_time <= '${endTime}'
+      ) f
+      ARRAY JOIN (
+        SELECT 
+          faulty_from_status + faulty_from_logs as online_faulty,
+          online_total - (faulty_from_status + faulty_from_logs) as online_normal
+      )
+    `)
   },
   
   async getFaultsByStation(timeRange) {
     const [start, end] = timeRange
+    const startTime = start.replace('T', ' ').slice(0, 19)
+    const endTime = end.replace('T', ' ').slice(0, 19)
     return executeQuery(`
-      SELECT s.station_id, count() as fault_count
-      FROM dim_station s LEFT JOIN fact_fault_log f ON s.station_id = f.station_id
-      WHERE f.occur_time BETWEEN {startTime} AND {endTime}
-      GROUP BY s.station_id
-    `, { startTime: start, endTime: end })
+      SELECT 
+        s.station_id as id,
+        s.station_name as name,
+        s.region,
+        s.address,
+        s.lat,
+        s.lng,
+        count(DISTINCT c.charger_id) as charger_count,
+        countIf(c.is_offline = 0) as online_chargers,
+        countIf(c.is_offline = 1) as offline_chargers,
+        count(DISTINCT f.fault_id) as fault_count,
+        countIf(f.is_resolved = 0) as unresolved_count,
+        round(
+          if(countIf(c.is_offline = 0) > 0,
+            (countIf(c.is_offline = 0) - countIf(c.is_offline = 0 AND c.status = 'fault')) / countIf(c.is_offline = 0),
+            1
+          ), 4
+        ) as availability
+      FROM dim_station s
+      LEFT JOIN dim_charger c ON s.station_id = c.station_id
+      LEFT JOIN fact_fault_log f ON s.station_id = f.station_id 
+        AND f.occur_time >= '${startTime}' 
+        AND f.occur_time <= '${endTime}'
+      GROUP BY s.station_id, s.station_name, s.region, s.address, s.lat, s.lng
+      ORDER BY fault_count DESC
+    `)
   },
   
   async getRepairTimeDistribution(timeRange) {
     const [start, end] = timeRange
+    const startTime = start.replace('T', ' ').slice(0, 19)
+    const endTime = end.replace('T', ' ').slice(0, 19)
     return executeQuery(`
-      SELECT fault_code, quantiles(0.25, 0.5, 0.75)(repair_hours) as q
+      SELECT 
+        fault_code,
+        count() as sample_size,
+        min(repair_hours) as min_hours,
+        max(repair_hours) as max_hours,
+        avg(repair_hours) as avg_hours,
+        quantile(0.25)(repair_hours) as q1,
+        quantile(0.5)(repair_hours) as median,
+        quantile(0.75)(repair_hours) as q3
       FROM fact_repair_order
-      WHERE status = 'completed' AND create_time BETWEEN {startTime} AND {endTime}
+      WHERE status = 'completed' 
+        AND create_time >= '${startTime}' 
+        AND create_time <= '${endTime}'
       GROUP BY fault_code
-    `, { startTime: start, endTime: end })
+      ORDER BY avg_hours DESC
+      LIMIT 10
+    `)
   },
   
   async getFaultsByHour(timeRange) {
     const [start, end] = timeRange
+    const startTime = start.replace('T', ' ').slice(0, 19)
+    const endTime = end.replace('T', ' ').slice(0, 19)
     return executeQuery(`
       SELECT toHour(occur_time) as hour, count() as fault_count
       FROM fact_fault_log
-      WHERE occur_time BETWEEN {startTime} AND {endTime}
+      WHERE occur_time >= '${startTime}' AND occur_time <= '${endTime}'
       GROUP BY hour
-    `, { startTime: start, endTime: end })
+      ORDER BY hour
+    `)
   },
   
-  async getTopAnomalies() {
+  async getTopAnomalies(timeRange) {
+    const [start, end] = timeRange
+    const startTime = start.replace('T', ' ').slice(0, 19)
+    const endTime = end.replace('T', ' ').slice(0, 19)
     return executeQuery(`
-      SELECT 'station' as anomaly_type, station_id as entity_id
-      FROM fact_fault_log WHERE occur_time >= today()
-      GROUP BY station_id ORDER BY count() DESC LIMIT 1
+      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
+      FROM (
+        SELECT 
+          'station' as anomaly_type,
+          s.station_id as entity_id,
+          s.station_name as entity_name,
+          concat(s.station_name, ' 故障频发') as title,
+          concat('已发生 ', toString(count(f.fault_id)), ' 次故障，', toString(countIf(f.is_resolved = 0)), ' 次未处理') as description,
+          if(count(f.fault_id) >= 10, 'critical', 'warning') as level,
+          count(f.fault_id) as metric_value,
+          '故障次数' as metric_label,
+          1 as sort_order
+        FROM dim_station s
+        INNER JOIN fact_fault_log f ON s.station_id = f.station_id
+          AND f.occur_time >= '${startTime}' AND f.occur_time <= '${endTime}'
+        GROUP BY s.station_id, s.station_name
+        ORDER BY count(f.fault_id) DESC
+        LIMIT 1
+      )
+      UNION ALL
+      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
+      FROM (
+        SELECT 
+          'fault_code' as anomaly_type,
+          f.fault_code as entity_id,
+          f.fault_code as entity_name,
+          concat(f.fault_code, ' 故障高发') as title,
+          concat('共发生 ', toString(count()), ' 次') as description,
+          if(max(f.severity) = 'critical', 'critical', 'warning') as level,
+          count() as metric_value,
+          '发生次数' as metric_label,
+          2 as sort_order
+        FROM fact_fault_log f
+        WHERE f.occur_time >= '${startTime}' AND f.occur_time <= '${endTime}'
+        GROUP BY f.fault_code
+        ORDER BY count() DESC
+        LIMIT 1
+      )
+      UNION ALL
+      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
+      FROM (
+        SELECT 
+          'repair' as anomaly_type,
+          'slow_repair' as entity_id,
+          '维修效率' as entity_name,
+          '平均维修耗时过长' as title,
+          concat('平均维修 ', toString(round(avg(r.repair_hours), 1)), ' 小时') as description,
+          if(avg(r.repair_hours) > 3, 'warning', 'info') as level,
+          round(avg(r.repair_hours), 1) as metric_value,
+          '平均小时' as metric_label,
+          3 as sort_order
+        FROM fact_repair_order r
+        WHERE r.status = 'completed' 
+          AND r.create_time >= '${startTime}' AND r.create_time <= '${endTime}'
+        HAVING count() > 0
+        LIMIT 1
+      )
+      ORDER BY sort_order
     `)
   },
   

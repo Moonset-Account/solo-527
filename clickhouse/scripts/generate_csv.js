@@ -193,7 +193,7 @@ const repairOrders = data.repairOrders.map(o => ({
   complete_time: o.complete_time,
   repair_hours: o.repair_hours,
   status: o.status,
-  parts_used: (o.parts_used || []).join(';'),
+  parts_used: '[' + (o.parts_used || []).map(s => `'${s}'`).join(',') + ']',
   remark: o.remark,
   create_time_sys: o.create_time
 }))
@@ -212,8 +212,8 @@ for (let i = 0; i < 50; i++) {
     inspect_time: new Date(Date.now() - i * 86400000 * 3).toISOString(),
     charger_count: station.charger_count,
     fault_found: Math.floor(Math.random() * 3),
-    items_passed: ['外观检查', '接地检测', '漏电测试'].join(';'),
-    items_failed: Math.random() > 0.7 ? '显示屏' : '',
+    items_passed: '[' + ['外观检查', '接地检测', '漏电测试'].map(s => `'${s}'`).join(',') + ']',
+    items_failed: Math.random() > 0.7 ? "['显示屏']" : '[]',
     remark: Math.random() > 0.8 ? '需更换风扇' : '',
     create_time: new Date().toISOString()
   })

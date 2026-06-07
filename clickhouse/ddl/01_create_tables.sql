@@ -204,10 +204,8 @@ AS
 SELECT
     station_id,
     charger_id,
-    maxState(status) as current_status,
-    maxState(is_offline) as is_offline,
-    max(occur_time) as last_fault_time,
-    count() as total_faults
+    count() as total_faults,
+    max(occur_time) as last_fault_time
 FROM fact_fault_log
 GROUP BY station_id, charger_id;
 
