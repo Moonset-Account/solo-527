@@ -119,6 +119,8 @@ def filters_layout():
                 className="filter-breadcrumbs",
                 children=[]
             ),
-            html.Div(id="export-status", style={"marginTop": "12px", "color": "var(--text-secondary)"})
+            html.Div(id="export-status", style={"marginTop": "12px"}),
+            dcc.Interval(id="export-poll-interval", interval=2000, max_intervals=0, disabled=True),
+            dcc.Store(id="current-export-task-id", data=""),
         ]
     )

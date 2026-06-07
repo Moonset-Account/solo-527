@@ -9,6 +9,35 @@ from datetime import datetime, timedelta
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def _init_database_on_startup():
+    try:
+        from data.db.models import db_manager
+        from data.metrics.definitions import REVIEWERS
+
+        if db_manager.is_connected:
+            logger.info("🔧 应用启动：检查数据库...")
+            from data.db.init_db import init_database, get_db_stats
+            init_database(force=False)
+            stats = get_db_stats()
+            if stats.get("review_logs_count", 0) == 0:
+                logger.info("📥 数据库为空，正在导入模拟数据...")
+                from data.db.init_db import import_mock_data
+                import_mock_data(hours=72, count_per_hour=400)
+                stats = get_db_stats()
+            logger.info(f"📊 数据库就绪: {stats}")
+        else:
+            logger.info("ℹ️  数据库未连接，使用内存模拟数据")
+    except Exception as e:
+        logger.warning(f"⚠️  数据库初始化失败: {e}")
+
+
+_init_database_on_startup()
 
 from app.layouts.summary_cards import summary_cards_layout, create_summary_card
 from app.layouts.filters import filters_layout
@@ -384,7 +413,10 @@ def update_appeal_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
 
 
 @app.callback(
-    Output("export-status", "children"),
+    [Output("export-status", "children"),
+     Output("export-poll-interval", "disabled"),
+     Output("export-poll-interval", "max_intervals"),
+     Output("current-export-task-id", "data")],
     [Input("btn-export", "n_clicks")],
     [State("filter-risk-tags", "value"),
      State("filter-queue-types", "value"),
@@ -395,11 +427,11 @@ def update_appeal_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
 )
 def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, granularity):
     if not n_clicks or n_clicks == 0:
-        return ""
-    
+        raise dash.exceptions.PreventUpdate
+
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=24)
-    
+
     filters = {
         "risk_tags": risk_tags,
         "queue_types": queue_types,
@@ -410,10 +442,65 @@ def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, 
         "time_end": time_end.isoformat(),
         "granularity": granularity,
     }
-    
+
     task_id = export_manager.submit_task(filters, "review_logs", "xlsx")
-    
-    return f"✅ 导出任务已提交，任务ID: {task_id[:8]}... 处理完成后可在 exports 目录下载"
+
+    status_ui = html.Div([
+        html.Div([
+            html.Span("📦 导出处理中...", style={"fontWeight": "bold", "color": "#3b82f6", "marginRight": "12px"}),
+            html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+        ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+        html.Div(
+            id="export-progress-bar",
+            style={
+                "height": "8px",
+                "background": "linear-gradient(90deg, #3b82f6, #8b5cf6)",
+                "width": "20%",
+                "borderRadius": "4px",
+                "transition": "width 0.5s ease",
+            }
+        ),
+        html.Span(id="export-progress-text", children="20% 准备数据...", style={"color": "#64748b", "fontSize": "12px", "marginTop": "4px", "display": "block"}),
+    ])
+
+    return status_ui, False, 30, task_id
+
+
+@app.callback(
+    [Output("export-progress-bar", "style"),
+     Output("export-progress-text", "children"),
+     Output("export-poll-interval", "disabled", allow_duplicate=True)],
+    [Input("export-poll-interval", "n_intervals")],
+    [State("current-export-task-id", "data")],
+    prevent_initial_call=True
+)
+def poll_export_status(n_intervals, task_id):
+    if not task_id:
+        return {}, "", True
+
+    status = export_manager.get_status(task_id)
+    if not status:
+        return {"width": "100%", "background": "#ef4444"}, "❌ 任务不存在", True
+
+    progress = status.progress
+    width = f"{min(progress, 100)}%"
+
+    if status.status == "completed":
+        bg = "linear-gradient(90deg, #10b981, #059669)"
+        text = f"✅ 导出完成！文件: {os.path.basename(status.file_path)}"
+        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, True
+    elif status.status == "failed":
+        bg = "linear-gradient(90deg, #ef4444, #dc2626)"
+        text = f"❌ 导出失败: {status.error_message}"
+        return {"width": "100%", "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, True
+    elif status.status == "processing":
+        bg = "linear-gradient(90deg, #3b82f6, #8b5cf6)"
+        stage_text = "查询数据..." if progress < 40 else "生成文件..." if progress < 70 else "写入中..."
+        text = f"{progress}% {stage_text}"
+        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, False
+    else:
+        bg = "linear-gradient(90deg, #f59e0b, #d97706)"
+        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, f"{progress}% 排队中...", False
 
 
 if __name__ == "__main__":
