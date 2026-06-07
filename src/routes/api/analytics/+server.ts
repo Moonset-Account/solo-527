@@ -22,6 +22,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const doctors = url.searchParams.getAll('doctors');
 	const timeSlots = url.searchParams.getAll('timeSlots');
 	const patientTypes = url.searchParams.getAll('patientTypes');
+	const processNodes = url.searchParams.getAll('processNodes');
 	const excludeAnomalies = url.searchParams.get('excludeAnomalies') !== 'false';
 
 	const filters: Partial<FilterParams> = {
@@ -29,6 +30,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		doctors: doctors.length > 0 ? doctors : undefined,
 		timeSlots: timeSlots.length > 0 ? timeSlots : undefined,
 		patientTypes: patientTypes.length > 0 ? (patientTypes as any) : undefined,
+		processNodes: processNodes.length > 0 ? (processNodes as any) : undefined,
 		excludeAnomalies
 	};
 

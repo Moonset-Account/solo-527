@@ -31,6 +31,7 @@
 			filters.doctors?.forEach((d) => params.append('doctors', d));
 			filters.timeSlots?.forEach((t) => params.append('timeSlots', t));
 			filters.patientTypes?.forEach((t) => params.append('patientTypes', t));
+			filters.processNodes?.forEach((n) => params.append('processNodes', n));
 			params.set('excludeAnomalies', String(filters.excludeAnomalies ?? true));
 
 			const res = await fetch(`/api/analytics?${params.toString()}`);

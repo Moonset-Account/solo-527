@@ -42,39 +42,32 @@ export function desensitizeRecords(records: VisitRecord[], role: UserRole): Visi
 	return records.map((r) => desensitizeRecord(r, role));
 }
 
-export function checkPermission(role: UserRole, endpoint: string): boolean {
+export function checkPermission(role: UserRole, permission: string): boolean {
 	const permissions: Record<UserRole, string[]> = {
 		public: [
-			'/api/overview',
-			'/api/intraday-trend',
-			'/api/dictionary',
-			'/api/department-compare'
+			'view_analytics',
+			'view_dictionary',
+			'export_csv'
 		],
 		manager: [
-			'/api/overview',
-			'/api/sankey',
-			'/api/wait-distribution',
-			'/api/department-compare',
-			'/api/intraday-trend',
-			'/api/dictionary',
-			'/api/export/csv',
-			'/api/export/pdf'
+			'view_analytics',
+			'view_dictionary',
+			'export_csv',
+			'export_pdf',
+			'view_anomalies'
 		],
 		analyst: [
-			'/api/overview',
-			'/api/sankey',
-			'/api/wait-distribution',
-			'/api/department-compare',
-			'/api/intraday-trend',
-			'/api/dictionary',
-			'/api/import',
-			'/api/export/csv',
-			'/api/export/pdf',
-			'/api/anomalies'
+			'view_analytics',
+			'view_dictionary',
+			'export_csv',
+			'export_pdf',
+			'import_data',
+			'view_anomalies',
+			'annotate_anomalies'
 		]
 	};
 
-	return permissions[role]?.includes(endpoint) || false;
+	return permissions[role]?.includes(permission) || false;
 }
 
 export function getCurrentUserRole(): UserRole {

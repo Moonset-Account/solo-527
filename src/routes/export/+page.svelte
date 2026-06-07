@@ -41,18 +41,25 @@
 
 		try {
 			const checkedFields = fields.filter((f) => f.checked).map((f) => f.key);
+			const endpoint = exportFormat === 'pdf' ? '/api/export/pdf' : '/api/export/csv';
+			const filename = `wait_time_analysis_${new Date().toISOString().slice(0, 10)}.${exportFormat}`;
 
-			const res = await fetch('/api/export/csv', {
+			const res = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ filters, fields: checkedFields })
+				body: JSON.stringify({
+					filters,
+					fields: exportFormat === 'csv' ? checkedFields : undefined,
+					includeCharts,
+					includeDefinitions
+				})
 			});
 
 			const blob = await res.blob();
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = `wait_time_analysis_${new Date().toISOString().slice(0, 10)}.csv`;
+			a.download = filename;
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);

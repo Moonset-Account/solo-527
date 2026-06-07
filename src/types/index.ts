@@ -14,6 +14,12 @@ export interface VisitRecord {
 	callTime: Date | null;
 	paymentTime: Date | null;
 	pickupTime: Date | null;
+	waitCheckIn?: number;
+	waitTriage?: number;
+	waitCall?: number;
+	waitPayment?: number;
+	waitPickup?: number;
+	totalWait?: number;
 	isAnomaly: boolean;
 	anomalyReason?: string;
 }

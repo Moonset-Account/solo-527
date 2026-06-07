@@ -154,6 +154,23 @@
 			</div>
 
 			<div>
+				<label class="text-sm font-medium text-gray-700 mb-2 block">医生</label>
+				<div class="flex flex-wrap gap-2">
+					{#each doctors as doc}
+						<button
+							class="px-3 py-1.5 text-sm rounded-lg border transition-colors duration-150 {filters
+								.doctors?.includes(doc)
+								? 'bg-primary-50 border-primary-300 text-primary-700'
+								: 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}"
+							on:click={() => toggleDoctor(doc)}
+						>
+							{doc}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<div>
 				<label class="text-sm font-medium text-gray-700 mb-2 block">患者类型</label>
 				<div class="flex flex-wrap gap-2">
 					{#each patientTypes as type}
@@ -168,6 +185,24 @@
 						</button>
 					{/each}
 				</div>
+			</div>
+
+			<div>
+				<label class="text-sm font-medium text-gray-700 mb-2 block">流程节点</label>
+				<div class="flex flex-wrap gap-2">
+					{#each processNodes as node}
+						<button
+							class="px-3 py-1.5 text-sm rounded-lg border transition-colors duration-150 {filters
+								.processNodes?.includes(node)
+								? 'bg-primary-50 border-primary-300 text-primary-700'
+								: 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}"
+							on:click={() => toggleProcessNode(node)}
+						>
+							{node}
+						</button>
+					{/each}
+				</div>
+				<p class="text-xs text-gray-400 mt-1">选择后将仅展示包含所选节点的就诊记录</p>
 			</div>
 
 			<div class="flex items-center justify-between pt-2 border-t border-gray-100">

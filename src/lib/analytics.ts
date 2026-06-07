@@ -75,6 +75,18 @@ export function filterRecords(records: VisitRecord[], params: Partial<FilterPara
 		if (params.patientTypes && params.patientTypes.length > 0) {
 			if (!params.patientTypes.includes(r.patientType)) return false;
 		}
+		if (params.processNodes && params.processNodes.length > 0) {
+			const nodeTimeMap: Record<string, Date | null> = {
+				挂号: r.registerTime,
+				签到: r.checkInTime,
+				分诊: r.triageTime,
+				叫号: r.callTime,
+				缴费: r.paymentTime,
+				取药: r.pickupTime
+			};
+			const hasAllNodes = params.processNodes.every((node) => nodeTimeMap[node] !== null);
+			if (!hasAllNodes) return false;
+		}
 		if (params.dateRange) {
 			if (r.registerTime) {
 				if (r.registerTime < params.dateRange.start) return false;
