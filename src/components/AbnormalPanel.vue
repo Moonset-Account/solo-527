@@ -5,12 +5,12 @@
       <div class="flex items-center gap-2">
         <span class="badge-danger">{{ abnormalSamples.length }}</span>
         <button
-          v-if="!filterStore.excludeAbnormal"
+          v-if="!filterStore.excludeAbnormal && filterStore.excludedTxIds.length === 0"
           class="btn-ghost text-xs"
           :disabled="selectedIds.size === 0"
           @click="excludeSelected"
         >
-          排除选中
+          排除选中 ({{ selectedIds.size }})
         </button>
         <button
           v-else
@@ -31,6 +31,7 @@
             <th class="py-2 px-2">金额</th>
             <th class="py-2 px-2">分类</th>
             <th class="py-2 px-2">异常类型</th>
+            <th class="py-2 px-2">状态</th>
           </tr>
         </thead>
         <tbody>
@@ -38,11 +39,13 @@
             v-for="item in abnormalSamples"
             :key="item.id"
             class="border-b border-surface-border/50 hover:bg-surface/30"
+            :class="{ 'opacity-40': isExcluded(item.id) }"
           >
             <td class="py-2 px-2">
               <input
                 type="checkbox"
                 :checked="selectedIds.has(item.id)"
+                :disabled="isExcluded(item.id)"
                 class="accent-[#00C9A7]"
                 @change="toggleSelect(item.id)"
               />
@@ -56,6 +59,9 @@
                 {{ abnormalLabel(item.abnormalType) }}
               </span>
             </td>
+            <td class="py-2 px-2">
+              <span v-if="isExcluded(item.id)" class="badge-danger text-xs">已排除</span>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -67,13 +73,16 @@
 import { computed, ref } from 'vue'
 import { useDataStore } from '@/stores/data'
 import { useFilterStore } from '@/stores/filter'
-import type { Transaction } from '@/types'
 
 const dataStore = useDataStore()
 const filterStore = useFilterStore()
 
 const abnormalSamples = computed(() => dataStore.abnormalSamples)
 const selectedIds = ref<Set<string>>(new Set())
+
+function isExcluded(id: string): boolean {
+  return filterStore.excludedTxIds.includes(id) || filterStore.excludeAbnormal
+}
 
 function toggleSelect(id: string) {
   if (selectedIds.value.has(id)) {
@@ -84,12 +93,14 @@ function toggleSelect(id: string) {
 }
 
 function excludeSelected() {
-  filterStore.excludeAbnormal = true
+  const ids = Array.from(selectedIds.value)
+  if (ids.length === 0) return
+  filterStore.excludeTxIds(ids)
   selectedIds.value.clear()
 }
 
 function clearExclusion() {
-  filterStore.excludeAbnormal = false
+  filterStore.clearExcludedTxIds()
   selectedIds.value.clear()
 }
 

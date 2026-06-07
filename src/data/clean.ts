@@ -28,6 +28,11 @@ export function cleanTransactions(transactions: Transaction[], filter: FilterSta
     result = result.filter(t => !t.isAbnormal)
   }
 
+  if (filter.excludedTxIds.length > 0) {
+    const excludedSet = new Set(filter.excludedTxIds)
+    result = result.filter(t => !excludedSet.has(t.id))
+  }
+
   result = result.filter(t => !filter.hiddenAccounts.includes(t.account))
   result = result.filter(t => !t.isHidden)
 

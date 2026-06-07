@@ -65,12 +65,6 @@ export interface FilterState {
   excludedTxIds: string[]
 }
 
-export interface DataMeta {
-  updatedAt: string
-  filterSnapshot: FilterState
-  sampleSize: number
-}
-
 export interface CashFlowPoint {
   month: string
   income: number
@@ -91,10 +85,6 @@ export interface CaliberConfig {
   merchantWhitelist: string[]
   dateRange: { start: string; end: string }
 }
-
-export const CATEGORIES = [
-  '收入', '固定支出', '订阅', '购物', '旅行', '信用卡'
-] as const
 
 export const SUB_CATEGORIES: Record<string, string[]> = {
   '收入': ['工资', '奖金', '投资收益', '兼职'],

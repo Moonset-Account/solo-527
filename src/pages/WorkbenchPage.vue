@@ -2,6 +2,7 @@
 import { onMounted, watch } from 'vue'
 import { useDataStore } from '@/stores/data'
 import { useFilterStore } from '@/stores/filter'
+import { usePrivacyStore } from '@/stores/privacy'
 import FilterBar from '@/components/FilterBar.vue'
 import BudgetProgress from '@/components/BudgetProgress.vue'
 import CategoryChart from '@/components/CategoryChart.vue'
@@ -15,8 +16,12 @@ import { Settings } from 'lucide-vue-next'
 
 const dataStore = useDataStore()
 const filterStore = useFilterStore()
+const privacyStore = usePrivacyStore()
 
-onMounted(() => {
+onMounted(async () => {
+  await filterStore.loadOptions()
+  await privacyStore.loadAccounts()
+  privacyStore.syncHiddenAccounts()
   dataStore.refreshAll()
 })
 

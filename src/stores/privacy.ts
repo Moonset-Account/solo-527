@@ -1,38 +1,59 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import type { CategoryRule } from '@/types'
-import { fetchRules, addRule, updateRule, deleteRule } from '@/data/api'
+import { ref, computed } from 'vue'
+import type { CategoryRule, Account } from '@/types'
+import { fetchRules, addRule, updateRule, deleteRule, getAccounts } from '@/data/api'
+import { useFilterStore } from './filter'
 
 export const usePrivacyStore = defineStore('privacy', () => {
   const showPersonalDetails = ref(true)
   const rules = ref<CategoryRule[]>([])
+  const _accounts = ref<Account[]>([])
 
   const sharedRules = ref<CategoryRule[]>([])
   const personalRules = ref<CategoryRule[]>([])
 
-  function loadRules() {
-    rules.value = fetchRules()
+  const personalAccounts = computed<Account[]>(() => {
+    return _accounts.value.filter(a => a.type === 'credit' || a.owner !== '爸爸')
+  })
+
+  function syncHiddenAccounts() {
+    const filterStore = useFilterStore()
+    if (showPersonalDetails.value) {
+      filterStore.setHiddenAccounts([])
+    } else {
+      const hiddenNames = personalAccounts.value.map(a => a.name)
+      filterStore.setHiddenAccounts(hiddenNames)
+    }
+  }
+
+  async function loadRules() {
+    rules.value = await fetchRules()
     sharedRules.value = rules.value.filter(r => r.scope === 'shared')
     personalRules.value = rules.value.filter(r => r.scope === 'personal')
   }
 
+  async function loadAccounts() {
+    _accounts.value = await getAccounts()
+  }
+
   function togglePersonalVisibility() {
     showPersonalDetails.value = !showPersonalDetails.value
+    syncHiddenAccounts()
   }
 
-  function addNewRule(rule: CategoryRule) {
-    addRule(rule)
-    loadRules()
+  async function addNewRule(rule: CategoryRule) {
+    await addRule(rule)
+    await loadRules()
   }
 
-  function editRule(rule: CategoryRule) {
-    updateRule(rule)
-    loadRules()
+  async function editRule(rule: CategoryRule) {
+    await updateRule(rule)
+    await loadRules()
   }
 
-  function removeRule(id: string) {
-    deleteRule(id)
-    loadRules()
+  async function removeRule(id: string) {
+    await deleteRule(id)
+    await loadRules()
   }
 
   return {
@@ -40,7 +61,10 @@ export const usePrivacyStore = defineStore('privacy', () => {
     rules,
     sharedRules,
     personalRules,
+    personalAccounts,
+    syncHiddenAccounts,
     loadRules,
+    loadAccounts,
     togglePersonalVisibility,
     addNewRule,
     editRule,

@@ -40,24 +40,32 @@ export const useDataStore = defineStore('data', () => {
       const filterStore = useFilterStore()
       const filter = filterStore.filterState
 
-      transactions.value = fetchFilteredTransactions(filter)
-      budgetProgress.value = fetchBudgetProgress(filter)
-      categoryBreakdown.value = fetchCategoryBreakdown(filter)
-      cashFlow.value = fetchCashFlow(filter)
-      abnormalSamples.value = fetchAbnormalSamples(filter)
-      subscriptions.value = fetchSubscriptions()
-      dataMeta.value = fetchDataMeta(filter, transactions.value.length)
+      const [txResult, budget, category, cf, abn, subs] = await Promise.all([
+        fetchFilteredTransactions(filter),
+        fetchBudgetProgress(filter),
+        fetchCategoryBreakdown(filter),
+        fetchCashFlow(filter),
+        fetchAbnormalSamples(filter),
+        fetchSubscriptions(),
+      ])
+
+      transactions.value = txResult.data
+      budgetProgress.value = budget
+      categoryBreakdown.value = category
+      cashFlow.value = cf
+      abnormalSamples.value = abn
+      subscriptions.value = subs
+      dataMeta.value = fetchDataMeta(txResult.meta.updatedAt, filter, txResult.meta.sampleSize)
+    } catch (e) {
+      console.error('refreshAll failed:', e)
     } finally {
       isLoading.value = false
     }
   }
 
-  function refreshAbnormalOnly() {
-    const filterStore = useFilterStore()
-    abnormalSamples.value = fetchAbnormalSamples(filterStore.filterState)
-  }
-
-  function toggleSubscription(id: string) {
+  async function toggleSubscription(id: string) {
+    const { toggleSubscriptionHandled } = await import('@/data/api')
+    await toggleSubscriptionHandled(id)
     const sub = subscriptions.value.find(s => s.id === id)
     if (sub) sub.isHandled = !sub.isHandled
   }
@@ -75,7 +83,6 @@ export const useDataStore = defineStore('data', () => {
     totalExpense,
     totalIncome,
     refreshAll,
-    refreshAbnormalOnly,
     toggleSubscription,
   }
 })

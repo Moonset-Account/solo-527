@@ -7,128 +7,115 @@ import type {
   CashFlowPoint,
   CategoryBreakdownItem,
   DataMeta,
+  Account,
 } from '@/types'
-import {
-  getTransactions,
-  getBudgets,
-  getSubscriptions,
-  getRules,
-  getAccounts,
-  getMembers,
-  getAllMerchants,
-  ALL_MONTHS,
-} from './mock'
-import { cleanTransactions, detectAbnormal, aggregateCashFlow, aggregateCategoryBreakdown, computeBudgetProgress } from './clean'
-import { LRUCache, buildCacheKey } from './cache'
 
-const cache = new LRUCache<unknown>(100)
-let dataUpdatedAt = new Date().toISOString()
+const BASE = '/api'
 
-export function getDataUpdatedAt(): string {
-  return dataUpdatedAt
+async function post<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
-export function refreshUpdateTime(): void {
-  dataUpdatedAt = new Date().toISOString()
-  cache.clear()
+async function get<T>(url: string): Promise<T> {
+  const res = await fetch(`${BASE}${url}`)
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
-export function fetchFilteredTransactions(filter: FilterState): Transaction[] {
-  const key = buildCacheKey('tx', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as Transaction[] | null
-  if (cached) return cached
-  const result = cleanTransactions(getTransactions(), filter)
-  cache.set(key, result)
-  return result
+async function patch<T>(url: string): Promise<T> {
+  const res = await fetch(`${BASE}${url}`, { method: 'PATCH' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
-export function fetchBudgetProgress(filter: FilterState): BudgetItem[] {
-  const key = buildCacheKey('budget', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as BudgetItem[] | null
-  if (cached) return cached
-  const txs = fetchFilteredTransactions(filter)
-  const result = computeBudgetProgress(txs, getBudgets())
-  cache.set(key, result)
-  return result
+async function del<T>(url: string): Promise<T> {
+  const res = await fetch(`${BASE}${url}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
-export function fetchCategoryBreakdown(filter: FilterState): CategoryBreakdownItem[] {
-  const key = buildCacheKey('cat', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as CategoryBreakdownItem[] | null
-  if (cached) return cached
-  const txs = fetchFilteredTransactions(filter)
-  const result = aggregateCategoryBreakdown(txs)
-  cache.set(key, result)
-  return result
+async function put<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${url}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.json()
 }
 
-export function fetchCashFlow(filter: FilterState): CashFlowPoint[] {
-  const key = buildCacheKey('cf', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as CashFlowPoint[] | null
-  if (cached) return cached
-  const txs = fetchFilteredTransactions(filter)
-  const result = aggregateCashFlow(txs)
-  cache.set(key, result)
-  return result
+export async function fetchFilteredTransactions(filter: FilterState): Promise<{ data: Transaction[]; meta: { updatedAt: string; sampleSize: number } }> {
+  return post('/transactions', filter)
 }
 
-export function fetchAbnormalSamples(filter: FilterState): Transaction[] {
-  const key = buildCacheKey('abn', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as Transaction[] | null
-  if (cached) return cached
-  const txs = fetchFilteredTransactions({ ...filter, excludeAbnormal: false })
-  const result = detectAbnormal(txs)
-  cache.set(key, result)
-  return result
+export async function fetchBudgetProgress(filter: FilterState): Promise<BudgetItem[]> {
+  return post('/budget-progress', filter)
 }
 
-export function fetchSubscriptions(): Subscription[] {
-  return getSubscriptions()
+export async function fetchCategoryBreakdown(filter: FilterState): Promise<CategoryBreakdownItem[]> {
+  return post('/category-breakdown', filter)
 }
 
-export function fetchRules(): CategoryRule[] {
-  return getRules()
+export async function fetchCashFlow(filter: FilterState): Promise<CashFlowPoint[]> {
+  return post('/cash-flow', filter)
 }
 
-export function updateRule(rule: CategoryRule): void {
-  const rules = getRules()
-  const idx = rules.findIndex(r => r.id === rule.id)
-  if (idx >= 0) rules[idx] = rule
-  refreshUpdateTime()
+export async function fetchAbnormalSamples(filter: FilterState): Promise<Transaction[]> {
+  return post('/abnormal-samples', filter)
 }
 
-export function addRule(rule: CategoryRule): void {
-  getRules().push(rule)
-  refreshUpdateTime()
+export async function fetchSubscriptions(): Promise<Subscription[]> {
+  return get('/subscriptions')
 }
 
-export function deleteRule(id: string): void {
-  const rules = getRules()
-  const idx = rules.findIndex(r => r.id === id)
-  if (idx >= 0) rules.splice(idx, 1)
-  refreshUpdateTime()
+export async function toggleSubscriptionHandled(id: string): Promise<Subscription> {
+  return patch(`/subscriptions/${id}`)
 }
 
-export function toggleSubscriptionHandled(id: string): void {
-  const subs = getSubscriptions()
-  const sub = subs.find(s => s.id === id)
-  if (sub) sub.isHandled = !sub.isHandled
+export async function fetchRules(): Promise<CategoryRule[]> {
+  return get('/rules')
 }
 
-export function fetchDataMeta(filter: FilterState, sampleSize: number): DataMeta {
+export async function addRule(rule: CategoryRule): Promise<CategoryRule> {
+  return post('/rules', rule)
+}
+
+export async function updateRule(rule: CategoryRule): Promise<CategoryRule> {
+  return put(`/rules/${rule.id}`, rule)
+}
+
+export async function deleteRule(id: string): Promise<{ ok: boolean }> {
+  return del(`/rules/${id}`)
+}
+
+export async function fetchMeta(): Promise<{ updatedAt: string }> {
+  return get('/meta')
+}
+
+export async function getAccounts(): Promise<Account[]> {
+  return get('/accounts')
+}
+
+export async function getFilterOptions(): Promise<{
+  accounts: string[]
+  categories: string[]
+  members: string[]
+  months: string[]
+  merchants: string[]
+}> {
+  return get('/filter-options')
+}
+
+export function fetchDataMeta(updatedAt: string, filter: FilterState, sampleSize: number): DataMeta {
   return {
-    updatedAt: dataUpdatedAt,
+    updatedAt,
     filterSnapshot: { ...filter },
     sampleSize,
-  }
-}
-
-export function getFilterOptions() {
-  return {
-    accounts: getAccounts().map(a => a.name),
-    categories: Object.keys({ '收入': [], '固定支出': [], '订阅': [], '购物': [], '旅行': [], '信用卡': [] }),
-    members: getMembers().map(m => m.name),
-    months: ALL_MONTHS,
-    merchants: getAllMerchants(),
   }
 }

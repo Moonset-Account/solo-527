@@ -7,8 +7,9 @@ import { RouterLink } from 'vue-router'
 
 const privacyStore = usePrivacyStore()
 
-onMounted(() => {
-  privacyStore.loadRules()
+onMounted(async () => {
+  await privacyStore.loadAccounts()
+  await privacyStore.loadRules()
 })
 
 const showAddForm = ref(false)

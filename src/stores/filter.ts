@@ -11,8 +11,19 @@ export const useFilterStore = defineStore('filter', () => {
   const merchants = ref<string[]>([])
   const excludeAbnormal = ref(false)
   const hiddenAccounts = ref<string[]>([])
+  const excludedTxIds = ref<string[]>([])
 
-  const options = ref(getFilterOptions())
+  const options = ref<{
+    accounts: string[]
+    categories: string[]
+    members: string[]
+    months: string[]
+    merchants: string[]
+  }>({ accounts: [], categories: [], members: [], months: [], merchants: [] })
+
+  async function loadOptions() {
+    options.value = await getFilterOptions()
+  }
 
   const filterState = computed<FilterState>(() => ({
     accounts: accounts.value,
@@ -22,6 +33,7 @@ export const useFilterStore = defineStore('filter', () => {
     merchants: merchants.value,
     excludeAbnormal: excludeAbnormal.value,
     hiddenAccounts: hiddenAccounts.value,
+    excludedTxIds: excludedTxIds.value,
   }))
 
   const activeFilterCount = computed(() => {
@@ -32,6 +44,7 @@ export const useFilterStore = defineStore('filter', () => {
     if (months.value.length > 0) count++
     if (merchants.value.length > 0) count++
     if (excludeAbnormal.value) count++
+    if (excludedTxIds.value.length > 0) count++
     return count
   })
 
@@ -43,6 +56,8 @@ export const useFilterStore = defineStore('filter', () => {
     if (months.value.length > 0) parts.push(`月份:${months.value.length}项`)
     if (merchants.value.length > 0) parts.push(`商户:${merchants.value.length}项`)
     if (excludeAbnormal.value) parts.push('已排除异常')
+    if (excludedTxIds.value.length > 0) parts.push(`排除${excludedTxIds.value.length}条异常`)
+    if (hiddenAccounts.value.length > 0) parts.push(`隐藏${hiddenAccounts.value.length}账户`)
     return parts.length > 0 ? parts.join(' | ') : '无筛选条件'
   })
 
@@ -55,6 +70,7 @@ export const useFilterStore = defineStore('filter', () => {
       case 'merchants': merchants.value = value as string[]; break
       case 'excludeAbnormal': excludeAbnormal.value = value as boolean; break
       case 'hiddenAccounts': hiddenAccounts.value = value as string[]; break
+      case 'excludedTxIds': excludedTxIds.value = value as string[]; break
     }
   }
 
@@ -66,6 +82,7 @@ export const useFilterStore = defineStore('filter', () => {
     merchants.value = []
     excludeAbnormal.value = false
     hiddenAccounts.value = []
+    excludedTxIds.value = []
   }
 
   function toggleCategoryDrilldown(category: string) {
@@ -84,6 +101,19 @@ export const useFilterStore = defineStore('filter', () => {
     }
   }
 
+  function excludeTxIds(ids: string[]) {
+    excludedTxIds.value = [...new Set([...excludedTxIds.value, ...ids])]
+  }
+
+  function clearExcludedTxIds() {
+    excludedTxIds.value = []
+    excludeAbnormal.value = false
+  }
+
+  function setHiddenAccounts(accounts: string[]) {
+    hiddenAccounts.value = accounts
+  }
+
   return {
     accounts,
     categories,
@@ -92,13 +122,18 @@ export const useFilterStore = defineStore('filter', () => {
     merchants,
     excludeAbnormal,
     hiddenAccounts,
+    excludedTxIds,
     options,
     filterState,
     activeFilterCount,
     filterSummary,
+    loadOptions,
     setFilter,
     clearAll,
     toggleCategoryDrilldown,
     toggleAccount,
+    excludeTxIds,
+    clearExcludedTxIds,
+    setHiddenAccounts,
   }
 })
