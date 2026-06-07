@@ -9,6 +9,8 @@ import type {
   SankeyData,
   FilterState,
   Prescription,
+  PharmacistCompareItem,
+  DepartmentCompareItem,
 } from '@/types';
 import type { DrillDownFilter } from '@/store/useFilterStore';
 import type { WindowHeatmapData } from '@/components/map/PharmacyHeatmap';
@@ -19,6 +21,8 @@ interface OverviewData {
   windowCompare: WindowCompareItem[];
   hourlyPrescriptions: HourlyPrescriptionItem[];
   sankeyData: SankeyData;
+  pharmacistCompare: PharmacistCompareItem[];
+  departmentCompare: DepartmentCompareItem[];
   totalCount: number;
 }
 

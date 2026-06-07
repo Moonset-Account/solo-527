@@ -22,6 +22,10 @@ export function formatPercent(num: number): string {
   return `${(num * 100).toFixed(1)}%`;
 }
 
+export function formatAmount(num: number): string {
+  return `¥${num.toFixed(2)}`;
+}
+
 export function formatDate(date: string | Date): string {
   const d = new Date(date);
   return d.toLocaleDateString('zh-CN', {

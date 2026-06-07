@@ -123,6 +123,26 @@ export interface HourlyPrescriptionItem {
   specialist: number;
 }
 
+export interface PharmacistCompareItem {
+  pharmacistId: string;
+  pharmacistName: string;
+  title: string;
+  totalPrescriptions: number;
+  avgWaitTime: number;
+  avgDispenseTime: number;
+  emergencyRate: number;
+}
+
+export interface DepartmentCompareItem {
+  departmentId: string;
+  departmentName: string;
+  deptCategory: string;
+  totalPrescriptions: number;
+  avgWaitTime: number;
+  emergencyRate: number;
+  avgAmount: number;
+}
+
 export interface SankeyNode {
   name: string;
 }

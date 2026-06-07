@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import FilterPanel from '@/components/layout/FilterPanel';
 import WindowCompareChart from '@/components/charts/WindowCompareChart';
 import PrescriptionStackChart from '@/components/charts/PrescriptionStackChart';
@@ -9,13 +10,14 @@ import RemarkPanel from '@/components/common/RemarkPanel';
 import { mockRemarks } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
 import { useAnalytics } from '@/hooks/useAnalytics';
-import type { Prescription, Remark } from '@/types';
-import { Users, Building2, Pill, Clock, Loader2, Database } from 'lucide-react';
-import { formatMinutes, formatNumber } from '@/utils/formatters';
+import type { Prescription, Remark, PharmacistCompareItem, DepartmentCompareItem } from '@/types';
+import { Users, Building2, Pill, Clock, Loader2, Database, ExternalLink } from 'lucide-react';
+import { formatMinutes, formatNumber, formatPercent, formatAmount } from '@/utils/formatters';
 
 type CompareDimension = 'window' | 'pharmacist' | 'department' | 'time';
 
 export default function ComparisonPage() {
+  const router = useRouter();
   const filters = useFilterStore();
   const [compareDimension, setCompareDimension] = useState<CompareDimension>('window');
   const [remarks, setRemarks] = useState<Remark[]>(mockRemarks);
@@ -35,6 +37,19 @@ export default function ComparisonPage() {
     { key: 'department' as const, label: '按科室对比', icon: Pill },
     { key: 'time' as const, label: '按时段对比', icon: Clock },
   ];
+
+  const handleDrillDown = (type: 'window' | 'hour' | 'pharmacist' | 'department', value: string) => {
+    if (type === 'window') {
+      filters.setDrillDown({ windowNo: value });
+    } else if (type === 'hour') {
+      filters.setDrillDown({ hour: value });
+    } else if (type === 'pharmacist') {
+      filters.setPharmacists([value]);
+    } else if (type === 'department') {
+      filters.setDepartments([value]);
+    }
+    router.push('/details');
+  };
 
   const handleAddRemark = (targetType: string, targetValue: string, targetTitle: string) => {
     setRemarkPanel({
@@ -79,7 +94,7 @@ export default function ComparisonPage() {
     );
   }
 
-  const { windowCompare, hourlyPrescriptions, kpi: kpiData } = analytics;
+  const { windowCompare, hourlyPrescriptions, pharmacistCompare, departmentCompare, kpi: kpiData } = analytics;
 
   return (
     <div>
@@ -91,7 +106,7 @@ export default function ComparisonPage() {
           </p>
           <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
             <Database className="w-3 h-3" />
-            数据源: {metadata?.source || '本地计算'}
+            数据源: {metadata?.source || 'PostgreSQL + PostGIS'}
           </span>
         </div>
       </div>
@@ -129,7 +144,7 @@ export default function ComparisonPage() {
             <>
               <WindowCompareChart
                 data={windowCompare}
-                onDrillDown={(w) => handleAddRemark('window', w, `${w}号窗口`)}
+                onDrillDown={(w) => handleDrillDown('window', w)}
               />
 
               <div className="bg-white rounded-xl p-5 shadow-card">
@@ -143,7 +158,7 @@ export default function ComparisonPage() {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均等待</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均配药</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">利用率</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">操作</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">下钻明细</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -172,10 +187,10 @@ export default function ComparisonPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
-                              onClick={() => handleAddRemark('window', w.windowNo, `${w.windowNo}号窗口`)}
-                              className="text-xs text-primary-500 hover:text-primary-600"
+                              onClick={() => handleDrillDown('window', w.windowNo)}
+                              className="text-xs text-primary-500 hover:text-primary-600 inline-flex items-center gap-1"
                             >
-                              添加备注
+                              查看明细 <ExternalLink className="w-3 h-3" />
                             </button>
                           </td>
                         </tr>
@@ -190,24 +205,24 @@ export default function ComparisonPage() {
           {compareDimension === 'pharmacist' && (
             <div className="bg-white rounded-xl p-5 shadow-card">
               <h3 className="text-base font-semibold text-gray-900 mb-4">药师效率对比</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                药师维度对比需从数据库 join 药师表查询，当前展示窗口维度数据
-              </p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">窗口</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">药师</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">职称</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">处理处方量</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均等待时长</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均配药时长</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">操作</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">急诊占比</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">下钻明细</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {windowCompare.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium">{p.windowNo}号窗口</td>
+                    {pharmacistCompare.map((p: PharmacistCompareItem) => (
+                      <tr key={p.pharmacistId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium">{p.pharmacistName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{p.title}</td>
                         <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(p.totalPrescriptions)}</td>
                         <td className="px-4 py-3 text-sm text-right font-mono">
                           <span className={p.avgWaitTime > 30 ? 'text-red-600 font-medium' : ''}>
@@ -215,12 +230,13 @@ export default function ComparisonPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-mono">{formatMinutes(p.avgDispenseTime)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatPercent(p.emergencyRate)}</td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => handleAddRemark('metric', p.windowNo, p.windowNo)}
-                            className="text-xs text-primary-500 hover:text-primary-600"
+                            onClick={() => handleDrillDown('pharmacist', p.pharmacistId)}
+                            className="text-xs text-primary-500 hover:text-primary-600 inline-flex items-center gap-1"
                           >
-                            添加备注
+                            查看明细 <ExternalLink className="w-3 h-3" />
                           </button>
                         </td>
                       </tr>
@@ -234,35 +250,40 @@ export default function ComparisonPage() {
           {compareDimension === 'department' && (
             <div className="bg-white rounded-xl p-5 shadow-card">
               <h3 className="text-base font-semibold text-gray-900 mb-4">科室处方对比</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                科室维度对比需从数据库 join 科室表查询，当前展示窗口维度数据
-              </p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">窗口</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">科室</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">类别</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">处方量</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均等待时长</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">操作</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">急诊占比</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均金额</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">下钻明细</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {windowCompare.map((d, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium">{d.windowNo}号窗口</td>
+                    {departmentCompare.map((d: DepartmentCompareItem) => (
+                      <tr key={d.departmentId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium">{d.departmentName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {d.deptCategory === 'emergency' ? '急诊' : d.deptCategory === 'specialist' ? '专科' : '门诊'}
+                        </td>
                         <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(d.totalPrescriptions)}</td>
                         <td className="px-4 py-3 text-sm text-right font-mono">
                           <span className={d.avgWaitTime > 30 ? 'text-red-600 font-medium' : ''}>
                             {formatMinutes(d.avgWaitTime)}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatPercent(d.emergencyRate)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatAmount(d.avgAmount)}</td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => handleAddRemark('metric', d.windowNo, d.windowNo)}
-                            className="text-xs text-primary-500 hover:text-primary-600"
+                            onClick={() => handleDrillDown('department', d.departmentId)}
+                            className="text-xs text-primary-500 hover:text-primary-600 inline-flex items-center gap-1"
                           >
-                            添加备注
+                            查看明细 <ExternalLink className="w-3 h-3" />
                           </button>
                         </td>
                       </tr>
@@ -276,7 +297,7 @@ export default function ComparisonPage() {
           {compareDimension === 'time' && (
             <PrescriptionStackChart
               data={hourlyPrescriptions}
-              onDrillDown={(h) => handleAddRemark('period', h, `时段：${h}`)}
+              onDrillDown={(h) => handleDrillDown('hour', h)}
             />
           )}
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import BottleneckSankeyChart from '@/components/charts/BottleneckSankeyChart';
 import FilterPanel from '@/components/layout/FilterPanel';
 import WaitDistributionChart from '@/components/charts/WaitDistributionChart';
@@ -10,10 +11,11 @@ import { mockRemarks } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Prescription, Remark } from '@/types';
-import { Clock, AlertTriangle, TrendingUp, Activity, Loader2, Database } from 'lucide-react';
+import { Clock, AlertTriangle, TrendingUp, Activity, Loader2, Database, ExternalLink } from 'lucide-react';
 import { formatMinutes, formatPercent } from '@/utils/formatters';
 
 export default function BottleneckPage() {
+  const router = useRouter();
   const filters = useFilterStore();
   const [remarks, setRemarks] = useState<Remark[]>(mockRemarks);
   const [remarkPanel, setRemarkPanel] = useState({
@@ -25,6 +27,15 @@ export default function BottleneckPage() {
   });
 
   const { data: analytics, loading, metadata } = useAnalytics(filters, filters.drillDown);
+
+  const handleDrillDown = (type: 'processNode' | 'waitTime', value: string) => {
+    if (type === 'processNode') {
+      filters.setDrillDown({ processNode: value });
+    } else if (type === 'waitTime') {
+      filters.setDrillDown({ waitTimeRange: value });
+    }
+    router.push('/details');
+  };
 
   const handleAddRemark = (targetType: string, targetValue: string, targetTitle: string) => {
     setRemarkPanel({
@@ -149,11 +160,14 @@ export default function BottleneckPage() {
 
           <BottleneckSankeyChart
             data={sankeyData}
-            onDrillDown={(node) => handleAddRemark('metric', node, `节点分析：${node}`)}
+            onDrillDown={(node) => handleDrillDown('processNode', node)}
           />
 
           <div className="grid grid-cols-2 gap-6">
-            <WaitDistributionChart data={waitDistribution} />
+            <WaitDistributionChart
+              data={waitDistribution}
+              onDrillDown={(range) => handleDrillDown('waitTime', range)}
+            />
 
             <div className="bg-white rounded-xl p-5 shadow-card">
               <h3 className="text-base font-semibold text-gray-900 mb-4">瓶颈环节识别</h3>

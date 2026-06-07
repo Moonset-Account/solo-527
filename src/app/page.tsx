@@ -131,6 +131,7 @@ export default function HomePage() {
                   {filters.drillDown.waitTimeRange && `等待时长 ${filters.drillDown.waitTimeRange}`}
                   {filters.drillDown.windowNo && `${filters.drillDown.windowNo}号窗口`}
                   {filters.drillDown.hour && `时段 ${filters.drillDown.hour}`}
+                  {filters.drillDown.processNode && `流程节点 ${filters.drillDown.processNode}`}
                 </span>
               </div>
               <button

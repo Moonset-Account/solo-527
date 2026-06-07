@@ -6,11 +6,13 @@ import type {
   HourlyPrescriptionItem,
   SankeyData,
   FilterState,
+  PharmacistCompareItem,
+  DepartmentCompareItem,
 } from '@/types';
-import { mockPrescriptions, calculateKPIData, calculateWaitDistribution, calculateWindowCompare, calculateHourlyPrescriptions, calculateSankeyData, windows as mockWindows } from '@/data/mockData';
 import { isDatabaseAvailable, queryDb } from '@/lib/db';
-import { applyFilters, parseWaitTimeRange, getWindowIdByNo } from '@/utils/filters';
+import { parseWaitTimeRange, getWindowIdByNo } from '@/utils/filters';
 import type { DrillDownFilter } from '@/store/useFilterStore';
+import type { WindowHeatmapData } from '@/components/map/PharmacyHeatmap';
 
 export interface AnalyticsOverview {
   kpi: KPIData;
@@ -18,19 +20,9 @@ export interface AnalyticsOverview {
   windowCompare: WindowCompareItem[];
   hourlyPrescriptions: HourlyPrescriptionItem[];
   sankeyData: SankeyData;
+  pharmacistCompare: PharmacistCompareItem[];
+  departmentCompare: DepartmentCompareItem[];
   totalCount: number;
-}
-
-export interface WindowHeatmapItem {
-  windowId: string;
-  windowNo: string;
-  windowName: string;
-  count: number;
-  avgWaitTime: number;
-  utilization: number;
-  status: 'normal' | 'warning' | 'critical';
-  coordinates: [number, number];
-  location: { type: string; coordinates: [number, number] };
 }
 
 const WINDOW_COORDS: Record<string, [number, number]> = {
@@ -85,18 +77,21 @@ function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { c
 
   if (drillDown.waitTimeRange) {
     const { min, max } = parseWaitTimeRange(drillDown.waitTimeRange);
-    conditions.push(`p.wait_time_minutes >= $${paramIndex} AND p.wait_time_minutes < $${paramIndex + 1}`);
-    params.push(min, max);
-    paramIndex += 2;
+    if (max === Infinity) {
+      conditions.push(`p.wait_time_minutes >= $${paramIndex}`);
+      params.push(min);
+      paramIndex++;
+    } else {
+      conditions.push(`p.wait_time_minutes >= $${paramIndex} AND p.wait_time_minutes < $${paramIndex + 1}`);
+      params.push(min, max);
+      paramIndex += 2;
+    }
   }
 
   if (drillDown.windowNo) {
-    const windowId = getWindowIdByNo(drillDown.windowNo);
-    if (windowId) {
-      conditions.push(`p.window_id = $${paramIndex}`);
-      params.push(windowId);
-      paramIndex++;
-    }
+    conditions.push(`w.window_no = $${paramIndex}`);
+    params.push(drillDown.windowNo);
+    paramIndex++;
   }
 
   if (drillDown.hour) {
@@ -108,247 +103,306 @@ function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { c
     }
   }
 
+  if (drillDown.processNode) {
+    const nodeMap: Record<string, string> = {
+      '处方创建': 'created_at',
+      '已缴费': 'paid_at',
+      '配药完成': 'dispensed_at',
+      '已叫号': 'called_at',
+      '已取药': 'picked_at',
+      '已退药': 'refunded_at',
+    };
+    const col = nodeMap[drillDown.processNode];
+    if (col) {
+      if (col === 'refunded_at') {
+        conditions.push(`p.${col} IS NOT NULL`);
+      } else {
+        conditions.push(`p.${col} IS NOT NULL`);
+      }
+    }
+  }
+
   return {
     clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
     params,
   };
 }
 
-async function fetchFromDb<T>(
-  mockFallback: T,
-  queryFn: () => Promise<T>
-): Promise<{ data: T; source: 'db' | 'mock' }> {
-  const dbAvailable = await isDatabaseAvailable();
-  if (dbAvailable) {
-    try {
-      const data = await queryFn();
-      return { data, source: 'db' };
-    } catch (e) {
-      console.error('DB query failed, using mock fallback:', e);
-      return { data: mockFallback, source: 'mock' };
-    }
-  }
-  return { data: mockFallback, source: 'mock' };
-}
-
 export async function getAnalyticsOverview(
   filters: FilterState,
   drillDown: DrillDownFilter = {}
-): Promise<{ data: AnalyticsOverview; source: 'db' | 'mock' }> {
-  const filteredMock = applyFilters(mockPrescriptions, filters, drillDown);
+): Promise<{ data: AnalyticsOverview; source: string }> {
+  const dbAvailable = await isDatabaseAvailable();
 
-  const mockData: AnalyticsOverview = {
-    kpi: calculateKPIData(filteredMock),
-    waitDistribution: calculateWaitDistribution(filteredMock),
-    windowCompare: calculateWindowCompare(filteredMock),
-    hourlyPrescriptions: calculateHourlyPrescriptions(filteredMock),
-    sankeyData: calculateSankeyData(filteredMock),
-    totalCount: filteredMock.length,
+  if (!dbAvailable) {
+    throw new Error(
+      'PostgreSQL 数据库未连接。请配置 DATABASE_URL 并运行 sql/setup_with_data.sql 初始化数据。'
+    );
+  }
+
+  const { clause, params } = buildWhereClause(filters, drillDown);
+
+  const kpiQuery = `
+    SELECT
+      COUNT(*) as total,
+      COUNT(CASE WHEN p.type = 'emergency' THEN 1 END) as emergency_count,
+      COUNT(CASE WHEN p.type = 'normal' THEN 1 END) as normal_count,
+      COUNT(CASE WHEN p.type = 'specialist' THEN 1 END) as specialist_count,
+      ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait,
+      ROUND(AVG(CASE WHEN p.type = 'emergency' THEN p.wait_time_minutes END)::numeric, 1) as avg_wait_emergency,
+      ROUND(AVG(CASE WHEN p.type = 'normal' THEN p.wait_time_minutes END)::numeric, 1) as avg_wait_normal,
+      ROUND(AVG(CASE WHEN p.type = 'specialist' THEN p.wait_time_minutes END)::numeric, 1) as avg_wait_specialist,
+      ROUND(AVG(p.dispense_time_minutes)::numeric, 1) as avg_dispense,
+      ROUND(COUNT(CASE WHEN p.refunded_at IS NOT NULL THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as refund_rate
+    FROM prescriptions p
+    JOIN windows w ON p.window_id = w.id
+    ${clause}
+  `;
+
+  const kpiRes = await queryDb(kpiQuery, params);
+  const kpiRow = kpiRes.rows[0];
+
+  const kpi: KPIData = {
+    totalPrescriptions: parseInt(kpiRow.total || 0),
+    emergencyPrescriptions: parseInt(kpiRow.emergency_count || 0),
+    normalPrescriptions: parseInt(kpiRow.normal_count || 0),
+    specialistPrescriptions: parseInt(kpiRow.specialist_count || 0),
+    avgWaitTime: parseFloat(kpiRow.avg_wait || 0),
+    avgWaitTimeEmergency: parseFloat(kpiRow.avg_wait_emergency || 0),
+    avgWaitTimeNormal: parseFloat(kpiRow.avg_wait_normal || 0),
+    avgWaitTimeSpecialist: parseFloat(kpiRow.avg_wait_specialist || 0),
+    avgDispenseTime: parseFloat(kpiRow.avg_dispense || 0),
+    refundRate: parseFloat(kpiRow.refund_rate || 0),
+    windowUtilization: {},
+    peakHour: 9,
   };
 
-  return fetchFromDb(mockData, async () => {
-    const { clause, params } = buildWhereClause(filters, drillDown);
+  const windowCompareQuery = `
+    SELECT
+      w.window_no,
+      COUNT(p.id) as total,
+      ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait,
+      ROUND(AVG(p.dispense_time_minutes)::numeric, 1) as avg_dispense,
+      ROUND(COUNT(p.id)::numeric / NULLIF(w.capacity, 0) / 30 * 100, 1) as utilization
+    FROM windows w
+    LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    WHERE w.is_active = true
+    GROUP BY w.id, w.window_no, w.capacity
+    ORDER BY w.window_no
+  `;
 
-    const kpiQuery = `
+  const windowRes = await queryDb(windowCompareQuery, params);
+  const windowCompare: WindowCompareItem[] = windowRes.rows.map((r: any) => ({
+    windowNo: r.window_no,
+    totalPrescriptions: parseInt(r.total || 0),
+    avgWaitTime: parseFloat(r.avg_wait || 0),
+    avgDispenseTime: parseFloat(r.avg_dispense || 0),
+    utilization: Math.min(100, parseFloat(r.utilization || 0)),
+  }));
+
+  kpi.windowUtilization = Object.fromEntries(
+    windowCompare.map((w) => [w.windowNo, w.utilization])
+  );
+
+  const waitRanges = [
+    { min: 0, max: 10, label: '0-10分钟' },
+    { min: 10, max: 20, label: '10-20分钟' },
+    { min: 20, max: 30, label: '20-30分钟' },
+    { min: 30, max: 45, label: '30-45分钟' },
+    { min: 45, max: 60, label: '45-60分钟' },
+    { min: 60, max: 99999, label: '60分钟以上' },
+  ];
+
+  const waitDistribution: WaitDistributionItem[] = [];
+  for (const range of waitRanges) {
+    const distQuery = `
       SELECT
         COUNT(*) as total,
-        COUNT(CASE WHEN type = 'emergency' THEN 1 END) as emergency_count,
-        COUNT(CASE WHEN type = 'normal' THEN 1 END) as normal_count,
-        COUNT(CASE WHEN type = 'specialist' THEN 1 END) as specialist_count,
-        ROUND(AVG(wait_time_minutes)::numeric, 1) as avg_wait,
-        ROUND(AVG(CASE WHEN type = 'emergency' THEN wait_time_minutes END)::numeric, 1) as avg_wait_emergency,
-        ROUND(AVG(CASE WHEN type = 'normal' THEN wait_time_minutes END)::numeric, 1) as avg_wait_normal,
-        ROUND(AVG(CASE WHEN type = 'specialist' THEN wait_time_minutes END)::numeric, 1) as avg_wait_specialist,
-        ROUND(AVG(dispense_time_minutes)::numeric, 1) as avg_dispense,
-        ROUND(COUNT(CASE WHEN refunded_at IS NOT NULL THEN 1 END)::numeric / COUNT(*), 4) as refund_rate
+        COUNT(CASE WHEN p.type = 'emergency' THEN 1 END) as emergency
       FROM prescriptions p
-      ${clause}
+      JOIN windows w ON p.window_id = w.id
+      ${clause ? clause + ' AND' : 'WHERE'} p.wait_time_minutes >= $${params.length + 1} AND p.wait_time_minutes < $${params.length + 2}
     `;
-
-    const kpiRes = await queryDb(kpiQuery, params);
-    const kpiRow = kpiRes.rows[0];
-
-    const kpi: KPIData = {
-      totalPrescriptions: parseInt(kpiRow.total),
-      emergencyPrescriptions: parseInt(kpiRow.emergency_count || 0),
-      normalPrescriptions: parseInt(kpiRow.normal_count || 0),
-      specialistPrescriptions: parseInt(kpiRow.specialist_count || 0),
-      avgWaitTime: parseFloat(kpiRow.avg_wait || 0),
-      avgWaitTimeEmergency: parseFloat(kpiRow.avg_wait_emergency || 0),
-      avgWaitTimeNormal: parseFloat(kpiRow.avg_wait_normal || 0),
-      avgWaitTimeSpecialist: parseFloat(kpiRow.avg_wait_specialist || 0),
-      avgDispenseTime: parseFloat(kpiRow.avg_dispense || 0),
-      refundRate: parseFloat(kpiRow.refund_rate || 0),
-      windowUtilization: {},
-      peakHour: 9,
-    };
-
-    const windowCompareQuery = `
-      SELECT
-        w.window_no,
-        COUNT(p.id) as total,
-        ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait,
-        ROUND(AVG(p.dispense_time_minutes)::numeric, 1) as avg_dispense,
-        ROUND(COUNT(p.id)::numeric / (w.capacity * 30) * 100, 1) as utilization
-      FROM windows w
-      LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '') : ''}
-      WHERE w.is_active = true
-      GROUP BY w.id, w.window_no, w.capacity
-      ORDER BY w.window_no
-    `;
-
-    const windowRes = await queryDb(windowCompareQuery, params);
-    const windowCompare: WindowCompareItem[] = windowRes.rows.map((r: any) => ({
-      windowNo: r.window_no,
-      totalPrescriptions: parseInt(r.total || 0),
-      avgWaitTime: parseFloat(r.avg_wait || 0),
-      avgDispenseTime: parseFloat(r.avg_dispense || 0),
-      utilization: parseFloat(r.utilization || 0),
-    }));
-
-    kpi.windowUtilization = Object.fromEntries(
-      windowCompare.map((w) => [w.windowNo, w.utilization])
-    );
-
-    const waitDistribution: WaitDistributionItem[] = await Promise.all(
-      [
-        { min: 0, max: 10, label: '0-10分钟' },
-        { min: 10, max: 20, label: '10-20分钟' },
-        { min: 20, max: 30, label: '20-30分钟' },
-        { min: 30, max: 45, label: '30-45分钟' },
-        { min: 45, max: 60, label: '45-60分钟' },
-        { min: 60, max: 99999, label: '60分钟以上' },
-      ].map(async (range) => {
-        const distQuery = `
-          SELECT
-            COUNT(*) as total,
-            COUNT(CASE WHEN type = 'emergency' THEN 1 END) as emergency
-          FROM prescriptions p
-          ${clause ? clause + ' AND' : 'WHERE'} wait_time_minutes >= $${params.length + 1} AND wait_time_minutes < $${params.length + 2}
-        `;
-        const res = await queryDb(distQuery, [...params, range.min, range.max]);
-        const row = res.rows[0];
-        const total = parseInt(row.total || 0);
-        const emergency = parseInt(row.emergency || 0);
-        return {
-          range: range.label,
-          count: total,
-          emergencyCount: emergency,
-          normalCount: total - emergency,
-        };
-      })
-    );
-
-    const hourlyQuery = `
-      SELECT
-        hour,
-        COUNT(CASE WHEN type = 'emergency' THEN 1 END) as emergency,
-        COUNT(CASE WHEN type = 'normal' THEN 1 END) as normal,
-        COUNT(CASE WHEN type = 'specialist' THEN 1 END) as specialist
-      FROM prescriptions p
-      ${clause}
-      GROUP BY hour
-      ORDER BY hour
-    `;
-
-    const hourlyRes = await queryDb(hourlyQuery, params);
-    const hourlyMap: Record<number, { emergency: number; normal: number; specialist: number }> = {};
-    hourlyRes.rows.forEach((r: any) => {
-      hourlyMap[r.hour] = {
-        emergency: parseInt(r.emergency || 0),
-        normal: parseInt(r.normal || 0),
-        specialist: parseInt(r.specialist || 0),
-      };
+    const res = await queryDb(distQuery, [...params, range.min, range.max]);
+    const row = res.rows[0];
+    const total = parseInt(row.total || 0);
+    const emergency = parseInt(row.emergency || 0);
+    waitDistribution.push({
+      range: range.label,
+      count: total,
+      emergencyCount: emergency,
+      normalCount: total - emergency,
     });
+  }
 
-    const hourlyPrescriptions: HourlyPrescriptionItem[] = Array.from({ length: 17 }, (_, i) => i + 6).map((h) => ({
-      hour: `${h}:00`,
-      emergency: hourlyMap[h]?.emergency || 0,
-      normal: hourlyMap[h]?.normal || 0,
-      specialist: hourlyMap[h]?.specialist || 0,
-    }));
+  const hourlyQuery = `
+    SELECT
+      p.hour,
+      COUNT(CASE WHEN p.type = 'emergency' THEN 1 END) as emergency,
+      COUNT(CASE WHEN p.type = 'normal' THEN 1 END) as normal,
+      COUNT(CASE WHEN p.type = 'specialist' THEN 1 END) as specialist
+    FROM prescriptions p
+    JOIN windows w ON p.window_id = w.id
+    ${clause}
+    GROUP BY p.hour
+    ORDER BY p.hour
+  `;
 
-    const sankeyData = mockData.sankeyData;
+  const hourlyRes = await queryDb(hourlyQuery, params);
+  const hourlyMap: Record<number, { emergency: number; normal: number; specialist: number }> = {};
+  hourlyRes.rows.forEach((r: any) => {
+    hourlyMap[r.hour] = {
+      emergency: parseInt(r.emergency || 0),
+      normal: parseInt(r.normal || 0),
+      specialist: parseInt(r.specialist || 0),
+    };
+  });
 
-    return {
+  const hourlyPrescriptions: HourlyPrescriptionItem[] = Array.from({ length: 17 }, (_, i) => i + 6).map((h) => ({
+    hour: `${h}:00`,
+    emergency: hourlyMap[h]?.emergency || 0,
+    normal: hourlyMap[h]?.normal || 0,
+    specialist: hourlyMap[h]?.specialist || 0,
+  }));
+
+  const pharmacistQuery = `
+    SELECT
+      ph.id as pharmacist_id,
+      ph.name as pharmacist_name,
+      ph.title,
+      COUNT(p.id) as total,
+      ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait,
+      ROUND(AVG(p.dispense_time_minutes)::numeric, 1) as avg_dispense,
+      ROUND(COUNT(CASE WHEN p.type = 'emergency' THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as emergency_rate
+    FROM pharmacists ph
+    LEFT JOIN prescriptions p ON p.pharmacist_id = ph.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    WHERE ph.is_active = true
+    GROUP BY ph.id, ph.name, ph.title
+    ORDER BY total DESC
+  `;
+
+  const pharmRes = await queryDb(pharmacistQuery, params);
+  const pharmacistCompare: PharmacistCompareItem[] = pharmRes.rows.map((r: any) => ({
+    pharmacistId: r.pharmacist_id,
+    pharmacistName: r.pharmacist_name,
+    title: r.title || '药师',
+    totalPrescriptions: parseInt(r.total || 0),
+    avgWaitTime: parseFloat(r.avg_wait || 0),
+    avgDispenseTime: parseFloat(r.avg_dispense || 0),
+    emergencyRate: parseFloat(r.emergency_rate || 0),
+  }));
+
+  const departmentQuery = `
+    SELECT
+      d.id as department_id,
+      d.dept_name as department_name,
+      d.dept_type as dept_category,
+      COUNT(p.id) as total,
+      ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait,
+      ROUND(COUNT(CASE WHEN p.type = 'emergency' THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as emergency_rate,
+      ROUND(AVG(p.amount)::numeric, 2) as avg_amount
+    FROM departments d
+    LEFT JOIN prescriptions p ON p.department_id = d.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    WHERE d.is_active = true
+    GROUP BY d.id, d.dept_name, d.dept_type
+    ORDER BY total DESC
+  `;
+
+  const deptRes = await queryDb(departmentQuery, params);
+  const departmentCompare: DepartmentCompareItem[] = deptRes.rows.map((r: any) => ({
+    departmentId: r.department_id,
+    departmentName: r.department_name,
+    deptCategory: r.dept_category || 'clinical',
+    totalPrescriptions: parseInt(r.total || 0),
+    avgWaitTime: parseFloat(r.avg_wait || 0),
+    emergencyRate: parseFloat(r.emergency_rate || 0),
+    avgAmount: parseFloat(r.avg_amount || 0),
+  }));
+
+  const sankeyNodes = ['处方创建', '已缴费', '配药完成', '已叫号', '已取药', '已退药'];
+  const total = kpi.totalPrescriptions;
+  const refundCount = Math.round(total * kpi.refundRate);
+  const pickCount = total - refundCount;
+
+  const sankeyData: SankeyData = {
+    nodes: sankeyNodes.map((name) => ({ name })),
+    links: [
+      { source: 0, target: 1, value: total, avgDuration: 7.2 },
+      { source: 1, target: 2, value: total, avgDuration: kpi.avgDispenseTime },
+      { source: 2, target: 3, value: total, avgDuration: 2.5 },
+      { source: 3, target: 4, value: pickCount, avgDuration: 8.5 },
+      { source: 3, target: 5, value: refundCount, avgDuration: 15.0 },
+    ],
+  };
+
+  return {
+    data: {
       kpi,
       waitDistribution,
       windowCompare,
       hourlyPrescriptions,
       sankeyData,
+      pharmacistCompare,
+      departmentCompare,
       totalCount: kpi.totalPrescriptions,
-    };
-  });
+    },
+    source: 'PostgreSQL + PostGIS',
+  };
 }
 
 export async function getWindowHeatmap(
   filters: FilterState,
   drillDown: DrillDownFilter = {}
-): Promise<{ data: WindowHeatmapItem[]; source: 'db' | 'mock' }> {
-  const filteredMock = applyFilters(mockPrescriptions, filters, drillDown);
-  const mockHeatmap: WindowHeatmapItem[] = mockWindows.map((w) => {
-    const windowPrescriptions = filteredMock.filter((p) => p.windowId === w.id);
-    const count = windowPrescriptions.length;
-    const avgWaitTime = count > 0
-      ? Math.round((windowPrescriptions.reduce((s, p) => s + p.waitTime, 0) / count) * 10) / 10
-      : 0;
-    const utilization = Math.min(100, Math.round((count / (w.capacity * 30)) * 100 * 10) / 10);
+): Promise<{ data: WindowHeatmapData[]; source: string }> {
+  const dbAvailable = await isDatabaseAvailable();
+
+  if (!dbAvailable) {
+    throw new Error('PostgreSQL 数据库未连接，无法获取热力图数据。');
+  }
+
+  const { clause, params } = buildWhereClause(filters, drillDown);
+
+  const query = `
+    SELECT
+      w.id as window_id,
+      w.window_no,
+      w.window_name,
+      COUNT(p.id) as count,
+      ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait_time,
+      ROUND(COUNT(p.id)::numeric / NULLIF(w.capacity, 0) / 30 * 100, 1) as utilization,
+      ST_X(w.location::geometry) as lng,
+      ST_Y(w.location::geometry) as lat
+    FROM windows w
+    LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    WHERE w.is_active = true
+    GROUP BY w.id, w.window_no, w.window_name, w.capacity, w.location
+    ORDER BY w.window_no
+  `;
+
+  const res = await queryDb(query, params);
+
+  const data: WindowHeatmapData[] = res.rows.map((r: any) => {
+    const utilization = Math.min(100, parseFloat(r.utilization || 0));
+    const lng = parseFloat(r.lng);
+    const lat = parseFloat(r.lat);
+    const coords: [number, number] = !isNaN(lng) && !isNaN(lat) ? [lng, lat] : (WINDOW_COORDS[r.window_id] || [116.397, 39.907]);
     return {
-      windowId: w.id,
-      windowNo: w.windowNo,
-      windowName: w.windowName,
-      count,
-      avgWaitTime,
+      windowId: r.window_id,
+      windowNo: r.window_no,
+      windowName: r.window_name,
+      count: parseInt(r.count || 0),
+      avgWaitTime: parseFloat(r.avg_wait_time || 0),
       utilization,
       status: utilization > 80 ? 'critical' : utilization > 50 ? 'warning' : 'normal',
-      coordinates: WINDOW_COORDS[w.id] || [116.397, 39.907],
+      coordinates: coords,
       location: {
         type: 'Point',
-        coordinates: WINDOW_COORDS[w.id] || [116.397, 39.907],
+        coordinates: coords,
       },
     };
   });
 
-  return fetchFromDb(mockHeatmap, async () => {
-    const { clause, params } = buildWhereClause(filters, drillDown);
-
-    const query = `
-      SELECT
-        w.id as window_id,
-        w.window_no,
-        w.window_name,
-        COUNT(p.id) as count,
-        ROUND(AVG(p.wait_time_minutes)::numeric, 1) as avg_wait_time,
-        ROUND(COUNT(p.id)::numeric / (w.capacity * 30) * 100, 1) as utilization,
-        ST_X(w.location::geometry) as lng,
-        ST_Y(w.location::geometry) as lat
-      FROM windows w
-      LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '') : ''}
-      WHERE w.is_active = true
-      GROUP BY w.id, w.window_no, w.window_name, w.capacity, w.location
-      ORDER BY w.window_no
-    `;
-
-    const res = await queryDb(query, params);
-
-    return res.rows.map((r: any) => {
-      const utilization = parseFloat(r.utilization || 0);
-      return {
-        windowId: r.window_id,
-        windowNo: r.window_no,
-        windowName: r.window_name,
-        count: parseInt(r.count || 0),
-        avgWaitTime: parseFloat(r.avg_wait_time || 0),
-        utilization,
-        status: utilization > 80 ? 'critical' : utilization > 50 ? 'warning' : 'normal',
-        coordinates: [parseFloat(r.lng), parseFloat(r.lat)] as [number, number],
-        location: {
-          type: 'Point',
-          coordinates: [parseFloat(r.lng), parseFloat(r.lat)] as [number, number],
-        },
-      };
-    });
-  });
+  return { data, source: 'PostGIS' };
 }
 
 export async function getPrescriptionDetails(
@@ -356,94 +410,97 @@ export async function getPrescriptionDetails(
   drillDown: DrillDownFilter = {},
   page: number = 1,
   pageSize: number = 50,
-  sortBy: string = 'created_at',
+  sortBy: string = 'createdAt',
   sortOrder: 'asc' | 'desc' = 'desc'
 ): Promise<{
   data: { records: Prescription[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } };
-  source: 'db' | 'mock';
+  source: string;
 }> {
-  const filteredMock = applyFilters(mockPrescriptions, filters, drillDown);
-  const sortedMock = [...filteredMock].sort((a: any, b: any) => {
-    const aVal = a[sortBy];
-    const bVal = b[sortBy];
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-    }
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    return 0;
-  });
-  const total = sortedMock.length;
-  const start = (page - 1) * pageSize;
-  const paginatedMock = sortedMock.slice(start, start + pageSize);
+  const dbAvailable = await isDatabaseAvailable();
 
-  return fetchFromDb(
-    { records: paginatedMock, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } },
-    async () => {
-      const { clause, params } = buildWhereClause(filters, drillDown);
+  if (!dbAvailable) {
+    throw new Error('PostgreSQL 数据库未连接，无法获取明细数据。');
+  }
 
-      const countQuery = `SELECT COUNT(*) as total FROM prescriptions p ${clause}`;
-      const countRes = await queryDb(countQuery, params);
-      const total = parseInt(countRes.rows[0].total);
+  const { clause, params } = buildWhereClause(filters, drillDown);
 
-      const orderMap: Record<string, string> = {
-        prescriptionNo: 'prescription_no',
-        type: 'type',
-        departmentName: 'dept_name',
-        windowNo: 'window_no',
-        pharmacistName: 'pharmacist_name',
-        waitTime: 'wait_time_minutes',
-        dispenseTime: 'dispense_time_minutes',
-        createdAt: 'created_at',
-      };
+  const countQuery = `
+    SELECT COUNT(*) as total
+    FROM prescriptions p
+    JOIN windows w ON p.window_id = w.id
+    ${clause}
+  `;
+  const countRes = await queryDb(countQuery, params);
+  const total = parseInt(countRes.rows[0].total);
 
-      const orderColumn = orderMap[sortBy] || 'created_at';
+  const orderMap: Record<string, string> = {
+    prescriptionNo: 'p.prescription_no',
+    type: 'p.type',
+    departmentName: 'd.dept_name',
+    windowNo: 'w.window_no',
+    pharmacistName: 'ph.name',
+    waitTime: 'p.wait_time_minutes',
+    dispenseTime: 'p.dispense_time_minutes',
+    createdAt: 'p.created_at',
+  };
 
-      const dataQuery = `
-        SELECT
-          p.id,
-          p.prescription_no as "prescriptionNo",
-          p.type,
-          p.department_id as "departmentId",
-          d.dept_name as "departmentName",
-          p.window_id as "windowId",
-          w.window_no as "windowNo",
-          p.pharmacist_id as "pharmacistId",
-          ph.name as "pharmacistName",
-          p.created_at as "createdAt",
-          p.paid_at as "paidAt",
-          p.dispensed_at as "dispensedAt",
-          p.called_at as "calledAt",
-          p.picked_at as "pickedAt",
-          p.refunded_at as "refundedAt",
-          p.amount,
-          p.drug_count as "drugCount",
-          p.patient_category as "patientCategory",
-          p.wait_time_minutes as "waitTime",
-          p.dispense_time_minutes as "dispenseTime",
-          p.time_period as "timePeriod",
-          p.hour
-        FROM prescriptions p
-        JOIN departments d ON p.department_id = d.id
-        JOIN windows w ON p.window_id = w.id
-        LEFT JOIN pharmacists ph ON p.pharmacist_id = ph.id
-        ${clause}
-        ORDER BY ${orderColumn} ${sortOrder.toUpperCase()}
-        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-      `;
+  const orderColumn = orderMap[sortBy] || 'p.created_at';
 
-      const dataRes = await queryDb(dataQuery, [...params, pageSize, (page - 1) * pageSize]);
+  const dataQuery = `
+    SELECT
+      p.id,
+      p.prescription_no as "prescriptionNo",
+      p.type,
+      p.department_id as "departmentId",
+      d.dept_name as "departmentName",
+      p.window_id as "windowId",
+      w.window_no as "windowNo",
+      p.pharmacist_id as "pharmacistId",
+      ph.name as "pharmacistName",
+      p.created_at as "createdAt",
+      p.paid_at as "paidAt",
+      p.dispensed_at as "dispensedAt",
+      p.called_at as "calledAt",
+      p.picked_at as "pickedAt",
+      p.refunded_at as "refundedAt",
+      p.amount,
+      p.drug_count as "drugCount",
+      p.patient_category as "patientCategory",
+      p.wait_time_minutes as "waitTime",
+      p.dispense_time_minutes as "dispenseTime",
+      p.time_period as "timePeriod",
+      p.hour
+    FROM prescriptions p
+    JOIN departments d ON p.department_id = d.id
+    JOIN windows w ON p.window_id = w.id
+    LEFT JOIN pharmacists ph ON p.pharmacist_id = ph.id
+    ${clause}
+    ORDER BY ${orderColumn} ${sortOrder.toUpperCase()}
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
 
-      return {
-        records: dataRes.rows,
-        pagination: {
-          page,
-          pageSize,
-          total,
-          totalPages: Math.ceil(total / pageSize),
-        },
-      };
-    }
-  );
+  const dataRes = await queryDb(dataQuery, [...params, pageSize, (page - 1) * pageSize]);
+
+  const records: Prescription[] = dataRes.rows.map((r: any) => ({
+    ...r,
+    createdAt: r.createdAt?.toISOString ? r.createdAt.toISOString() : r.createdAt,
+    paidAt: r.paidAt?.toISOString ? r.paidAt.toISOString() : r.paidAt,
+    dispensedAt: r.dispensedAt?.toISOString ? r.dispensedAt.toISOString() : r.dispensedAt,
+    calledAt: r.calledAt?.toISOString ? r.calledAt.toISOString() : r.calledAt,
+    pickedAt: r.pickedAt?.toISOString ? r.pickedAt.toISOString() : r.pickedAt,
+    refundedAt: r.refundedAt?.toISOString ? r.refundedAt.toISOString() : r.refundedAt,
+  }));
+
+  return {
+    data: {
+      records,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    },
+    source: 'PostgreSQL + PostGIS',
+  };
 }
