@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, Index, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -178,12 +178,12 @@ def init_timescaledb(db_url=None):
     Base.metadata.create_all(engine)
     
     with engine.connect() as conn:
-        conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb;")
-        conn.execute("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);")
-        conn.execute("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);")
-        conn.execute("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);")
-        conn.execute("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);")
-        conn.execute("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);")
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
+        conn.execute(text("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);"))
         conn.commit()
     
     Session = sessionmaker(bind=engine)

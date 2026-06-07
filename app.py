@@ -81,7 +81,13 @@ app.layout = dbc.Container([
                 dbc.Tab(label='口径说明', tab_id='metrics')
             ], id='main-tabs', active_tab='overview'),
             
-            html.Div(id='tab-content', className='mt-4')
+            html.Div(id='overview-content', className='mt-4'),
+            html.Div(id='heatmap-content', className='mt-4'),
+            html.Div(id='alarm-content', className='mt-4'),
+            html.Div(id='location-content', className='mt-4'),
+            html.Div(id='customer-content', className='mt-4'),
+            html.Div(id='detail-content', className='mt-4'),
+            html.Div(id='metrics-content', className='mt-4')
         ], width=9)
     ]),
     
@@ -630,9 +636,173 @@ def generate_metrics_tab():
 
 
 @app.callback(
-    Output('tab-content', 'children'),
-    [Input('main-tabs', 'active_tab'),
-     Input('apply-filter', 'n_clicks')],
+    [Output('overview-content', 'style'),
+     Output('heatmap-content', 'style'),
+     Output('alarm-content', 'style'),
+     Output('location-content', 'style'),
+     Output('customer-content', 'style'),
+     Output('detail-content', 'style'),
+     Output('metrics-content', 'style')],
+    [Input('main-tabs', 'active_tab')]
+)
+def toggle_tab_visibility(active_tab):
+    hidden = {'display': 'none'}
+    visible = {'display': 'block'}
+    return (
+        visible if active_tab == 'overview' else hidden,
+        visible if active_tab == 'heatmap' else hidden,
+        visible if active_tab == 'alarm' else hidden,
+        visible if active_tab == 'location' else hidden,
+        visible if active_tab == 'customer' else hidden,
+        visible if active_tab == 'detail' else hidden,
+        visible if active_tab == 'metrics' else hidden
+    )
+
+
+@app.callback(
+    Output('overview-content', 'children'),
+    [Input('apply-filter', 'n_clicks')],
+    [State('zone-filter', 'value'),
+     State('date-range', 'start_date'),
+     State('date-range', 'end_date'),
+     State('exclude-alarm-inbound', 'value')]
+)
+def render_overview(n_clicks, zone_ids, start_date, end_date, exclude_alarm):
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    return html.Div([
+        generate_kpi_cards(zone_ids, start_dt, end_dt),
+        generate_overview_charts(zone_ids, start_dt, end_dt, exclude_alarm)
+    ])
+
+
+@app.callback(
+    Output('heatmap-content', 'children'),
+    [Input('apply-filter', 'n_clicks'),
+     Input('heatmap-zone-select', 'value'),
+     Input('heatmap-date', 'date')],
+    [State('zone-filter', 'value'),
+     State('date-range', 'start_date'),
+     State('date-range', 'end_date')]
+)
+def render_heatmap(n_clicks, selected_zone, selected_date, zone_ids, start_date, end_date):
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    
+    controls = html.Div([
+        dbc.Row([
+            dbc.Col([
+                html.Label('选择温区查看热力图：'),
+                dcc.Dropdown(
+                    id='heatmap-zone-select',
+                    options=[{'label': row.zone_name, 'value': row.id} for _, row in zones_df.iterrows()],
+                    value=selected_zone if selected_zone else (zone_ids[0] if zone_ids else None),
+                    className='mb-3'
+                )
+            ], width=6),
+            dbc.Col([
+                html.Label('选择日期：'),
+                dcc.DatePickerSingle(
+                    id='heatmap-date',
+                    date=selected_date if selected_date else datetime.now().strftime('%Y-%m-%d'),
+                    display_format='YYYY-MM-DD',
+                    className='mb-3'
+                )
+            ], width=6)
+        ])
+    ])
+    
+    if not selected_zone:
+        heatmap_chart = html.Div('请选择温区')
+    else:
+        heatmap_data = ds.get_heatmap_data(selected_zone, selected_date)
+        
+        if heatmap_data.empty:
+            heatmap_chart = html.Div('暂无数据')
+        else:
+            heatmap_data['rack_key'] = heatmap_data['aisle'] + '-' + heatmap_data['rack']
+            heatmap_data['y_label'] = 'L' + heatmap_data['level'].astype(str) + '-P' + heatmap_data['position'].astype(str)
+            
+            pivot_data = heatmap_data.pivot_table(
+                index='y_label',
+                columns='rack_key',
+                values='quantity',
+                fill_value=0
+            )
+            
+            fig = go.Figure(data=go.Heatmap(
+                z=pivot_data.values,
+                x=pivot_data.columns,
+                y=pivot_data.index,
+                colorscale='RdYlGn_r',
+                text=heatmap_data.pivot_table(
+                    index='y_label',
+                    columns='rack_key',
+                    values='location_code',
+                    aggfunc='first'
+                ).values,
+                hovertemplate='库位: %{text}<br>占用: %{z} 托盘<extra></extra>'
+            ))
+            
+            fig.update_layout(
+                title=f'{zones_df[zones_df["id"] == selected_zone]["zone_name"].iloc[0]} 库位热力图',
+                xaxis_title='通道-货架',
+                yaxis_title='层-位置',
+                height=600
+            )
+            
+            heatmap_chart = html.Div([
+                dcc.Graph(figure=fig),
+                html.H5('库位说明', className='mt-3'),
+                html.P('颜色越深表示该库位占用的托盘数越多，绿色表示空闲，红色表示占用较多')
+            ])
+    
+    return html.Div([controls, html.Hr(), heatmap_chart])
+
+
+@app.callback(
+    Output('alarm-content', 'children'),
+    [Input('apply-filter', 'n_clicks')],
+    [State('zone-filter', 'value'),
+     State('date-range', 'start_date'),
+     State('date-range', 'end_date')]
+)
+def render_alarm(n_clicks, zone_ids, start_date, end_date):
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    return generate_alarm_tab(zone_ids, start_dt, end_dt)
+
+
+@app.callback(
+    Output('location-content', 'children'),
+    [Input('apply-filter', 'n_clicks')],
+    [State('zone-filter', 'value'),
+     State('date-range', 'start_date'),
+     State('date-range', 'end_date')]
+)
+def render_location(n_clicks, zone_ids, start_date, end_date):
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    return generate_location_tab(zone_ids, start_dt, end_dt)
+
+
+@app.callback(
+    Output('customer-content', 'children'),
+    [Input('apply-filter', 'n_clicks')],
+    [State('zone-filter', 'value'),
+     State('date-range', 'start_date'),
+     State('date-range', 'end_date')]
+)
+def render_customer(n_clicks, zone_ids, start_date, end_date):
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    return generate_customer_tab(zone_ids, start_dt, end_dt)
+
+
+@app.callback(
+    Output('detail-content', 'children'),
+    [Input('apply-filter', 'n_clicks'),
+     Input('detail-tabs', 'active_tab')],
     [State('zone-filter', 'value'),
      State('customer-filter', 'value'),
      State('product-filter', 'value'),
@@ -640,31 +810,134 @@ def generate_metrics_tab():
      State('date-range', 'end_date'),
      State('exclude-alarm-inbound', 'value')]
 )
-def render_tab_content(active_tab, n_clicks, zone_ids, customers, products, start_date, end_date, exclude_alarm):
+def render_detail(n_clicks, active_tab, zone_ids, customers, products, start_date, end_date, exclude_alarm):
     start_dt = pd.to_datetime(start_date)
     end_dt = pd.to_datetime(end_date)
     
-    if active_tab == 'overview':
-        return html.Div([
-            generate_kpi_cards(zone_ids, start_dt, end_dt),
-            generate_overview_charts(zone_ids, start_dt, end_dt, exclude_alarm)
-        ])
-    elif active_tab == 'heatmap':
-        default_zone = zone_ids[0] if zone_ids else None
-        default_date = datetime.now().strftime('%Y-%m-%d')
-        return generate_heatmap_tab_content(zone_ids, start_dt, end_dt, default_zone, default_date)
-    elif active_tab == 'alarm':
-        return generate_alarm_tab(zone_ids, start_dt, end_dt)
-    elif active_tab == 'location':
-        return generate_location_tab(zone_ids, start_dt, end_dt)
-    elif active_tab == 'customer':
-        return generate_customer_tab(zone_ids, start_dt, end_dt)
-    elif active_tab == 'detail':
-        return generate_detail_tab_content(zone_ids, customers, products, start_dt, end_dt, exclude_alarm, 'batch-detail')
-    elif active_tab == 'metrics':
-        return generate_metrics_tab()
+    tabs = dbc.Tabs([
+        dbc.Tab(label='批次明细', tab_id='batch-detail'),
+        dbc.Tab(label='入库明细', tab_id='inbound-detail'),
+        dbc.Tab(label='出库明细', tab_id='outbound-detail'),
+        dbc.Tab(label='开门记录', tab_id='door-detail'),
+        dbc.Tab(label='温度记录', tab_id='temp-detail')
+    ], id='detail-tabs', active_tab=active_tab if active_tab else 'batch-detail')
     
-    return html.Div('请选择标签页')
+    current_tab = active_tab if active_tab else 'batch-detail'
+    
+    if current_tab == 'batch-detail':
+        batches = ds.get_batches(zone_ids, customers, products, None, start_dt, end_dt)
+        if batches.empty:
+            detail_content = html.Div('暂无批次数据')
+        else:
+            display_cols = ['batch_number', 'customer', 'product_type', 'product_name', 
+                            'quantity', 'zone_name', 'inbound_time', 'is_active']
+            display_df = batches[display_cols].copy()
+            display_df['inbound_time'] = pd.to_datetime(display_df['inbound_time']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            detail_content = dash_table.DataTable(
+                columns=[{'name': col, 'id': col} for col in display_cols],
+                data=display_df.to_dict('records'),
+                page_size=20,
+                filter_action='native',
+                sort_action='native',
+                style_table={'overflowX': 'auto'},
+                row_selectable='single'
+            )
+    
+    elif current_tab == 'inbound-detail':
+        inbound = ds.get_inbound_records(zone_ids, start_dt, end_dt, include_alarm_period=not exclude_alarm)
+        if inbound.empty:
+            detail_content = html.Div('暂无入库数据')
+        else:
+            display_cols = ['inbound_time', 'batch_number', 'customer', 'product_type', 
+                            'zone_name', 'quantity', 'temperature_on_arrival', 'is_during_alarm']
+            display_df = inbound[display_cols].copy()
+            display_df['inbound_time'] = pd.to_datetime(display_df['inbound_time']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            detail_content = dash_table.DataTable(
+                columns=[{'name': col, 'id': col} for col in display_cols],
+                data=display_df.to_dict('records'),
+                page_size=20,
+                filter_action='native',
+                sort_action='native',
+                style_table={'overflowX': 'auto'},
+                style_data_conditional=[
+                    {
+                        'if': {'filter_query': '{is_during_alarm} = true'},
+                        'backgroundColor': '#ffcccc'
+                    }
+                ]
+            )
+    
+    elif current_tab == 'outbound-detail':
+        outbound = ds.get_outbound_records(zone_ids, start_dt, end_dt)
+        if outbound.empty:
+            detail_content = html.Div('暂无出库数据')
+        else:
+            display_cols = ['outbound_time', 'batch_number', 'customer', 'product_type', 
+                            'zone_name', 'quantity', 'temperature_on_departure']
+            display_df = outbound[display_cols].copy()
+            display_df['outbound_time'] = pd.to_datetime(display_df['outbound_time']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            detail_content = dash_table.DataTable(
+                columns=[{'name': col, 'id': col} for col in display_cols],
+                data=display_df.to_dict('records'),
+                page_size=20,
+                filter_action='native',
+                sort_action='native',
+                style_table={'overflowX': 'auto'}
+            )
+    
+    elif current_tab == 'door-detail':
+        door_events = ds.get_door_events(zone_ids, start_dt, end_dt)
+        if door_events.empty:
+            detail_content = html.Div('暂无开门记录')
+        else:
+            display_cols = ['event_time', 'zone_name', 'door_id', 'event_type', 'duration_seconds', 'operator']
+            display_df = door_events[display_cols].copy()
+            display_df['event_time'] = pd.to_datetime(display_df['event_time']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            detail_content = dash_table.DataTable(
+                columns=[{'name': col, 'id': col} for col in display_cols],
+                data=display_df.to_dict('records'),
+                page_size=20,
+                filter_action='native',
+                sort_action='native',
+                style_table={'overflowX': 'auto'}
+            )
+    
+    elif current_tab == 'temp-detail':
+        temp_readings = ds.get_temperature_readings(zone_ids, start_dt, end_dt)
+        if temp_readings.empty:
+            detail_content = html.Div('暂无温度记录')
+        else:
+            temp_readings = temp_readings.head(1000)
+            display_cols = ['time', 'zone_name', 'temperature', 'humidity']
+            display_df = temp_readings[display_cols].copy()
+            display_df['time'] = pd.to_datetime(display_df['time']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            detail_content = dash_table.DataTable(
+                columns=[{'name': col, 'id': col} for col in display_cols],
+                data=display_df.to_dict('records'),
+                page_size=20,
+                filter_action='native',
+                sort_action='native',
+                style_table={'overflowX': 'auto'}
+            )
+    else:
+        detail_content = html.Div('请选择明细类型')
+    
+    return html.Div([tabs, html.Hr(), detail_content])
+
+
+@app.callback(
+    Output('metrics-content', 'children'),
+    [Input('main-tabs', 'active_tab')]
+)
+def render_metrics(active_tab):
+    if active_tab == 'metrics':
+        return generate_metrics_tab()
+    return html.Div()
 
 
 @app.callback(
