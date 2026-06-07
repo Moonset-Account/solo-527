@@ -1,0 +1,19 @@
+{
+  "name": "training-load-backend",
+  "version": "1.0.0",
+  "description": "运动训练负荷可视化系统后端",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
