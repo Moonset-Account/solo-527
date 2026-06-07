@@ -7,7 +7,7 @@ const etl = require('../data/etl/run_etl')
 const config = require('../data/config/metrics_config')
 
 const app = express()
-const PORT = 3001
+const PORT = 8787
 
 app.use(cors())
 app.use(express.json())
@@ -280,11 +280,11 @@ app.post('/api/refresh', (req, res) => {
 })
 
 app.get('/api/dashboard/all', (req, res) => {
-  const { aggregated, workOrders } = getCachedData()
+  const { aggregated, workOrders, production } = getCachedData()
   const filters = req.query
   
   res.json({
-    kpi: etl.getKpiSummary(workOrders, JSON.parse(fs.production || '[]'), filters),
+    kpi: etl.getKpiSummary(workOrders, production, filters),
     byCategory: etl.aggregateDowntimeByCategory(workOrders, filters),
     byLine: etl.aggregateDowntimeByLine(workOrders, filters),
     byEquipment: etl.aggregateDowntimeByEquipment(workOrders, filters).slice(0, 10),
