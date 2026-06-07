@@ -16,8 +16,13 @@ export async function GET(req: NextRequest) {
   const paginated = filtered.slice(start, start + pageSize);
   const validation = validateRecords(filtered);
 
+  const sanitized = paginated.map((r) => {
+    const { userHash, ...rest } = r;
+    return rest;
+  });
+
   return jsonResponse({
-    records: paginated,
+    records: sanitized,
     total: filtered.length,
     page,
     pageSize,

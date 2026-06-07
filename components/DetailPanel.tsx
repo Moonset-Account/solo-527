@@ -140,7 +140,7 @@ export default function DetailPanel() {
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <InfoItem label="处理客服" value={record.agentId} />
-              <InfoItem label="用户标识" value={record.userHash.slice(0, 16) + "..."} />
+              <InfoItem label="重复用户" value={record.isRepeatUser ? "是（已脱敏）" : "否"} />
             </div>
           </div>
         </div>
