@@ -1,53 +1,51 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
-import { Eye, Leaf, TrendingDown, Clock, MapPin, BarChart3, Download, RefreshCw, FileText, ShieldCheck } from 'lucide-vue-next'
-import { useDataStore } from '@/stores/data'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { Eye, Leaf, TrendingDown, Clock, MapPin, BarChart3, Download, RefreshCw, FileText, ShieldCheck, Loader2 } from 'lucide-vue-next'
 import { createBarChart } from '@/utils/charts'
-import { ClickHouseService } from '@/data/query-service'
+import { api } from '@/services/api'
 import NavBar from '@/components/NavBar.vue'
 
-const dataStore = useDataStore()
 const chartRef = ref<HTMLElement | null>(null)
 const isRefreshing = ref(false)
 const downloading = ref(false)
+const loading = ref(true)
+const lastSQL = ref('')
 
-const publicData = computed(() => dataStore.getAggregatedPublicData())
+const publicData = ref<any>(null)
+const districtChartData = ref<Array<{ label: string; value: number }>>([])
 
-const districtChartData = computed(() => {
-  return publicData.value.districtStats.map(d => ({
-    label: d.district.slice(0, 3),
-    value: d.normalRate
-  }))
-})
-
-const reportData = computed(() => ClickHouseService.queryPublicAggregatedReport())
-
-const lastUpdateTime = ref(new Date().toLocaleString('zh-CN'))
+async function loadPublicData() {
+  loading.value = true
+  try {
+    const res = await api.public.getReport()
+    publicData.value = res.data
+    lastSQL.value = res.sql
+    districtChartData.value = (res.data.districts || []).map((d: any) => ({
+      label: d.district.slice(0, 3),
+      value: d.normalRate
+    }))
+  } catch (e) {
+    console.error('Failed to load public report from ClickHouse API:', e)
+  } finally {
+    loading.value = false
+  }
+}
 
 function refreshData() {
   isRefreshing.value = true
-  setTimeout(() => {
-    lastUpdateTime.value = new Date().toLocaleString('zh-CN')
-    isRefreshing.value = false
-  }, 1000)
+  loadPublicData().finally(() => { isRefreshing.value = false })
 }
 
 function downloadReport() {
   downloading.value = true
-
-  setTimeout(() => {
-    const csv = ClickHouseService.generatePublicReportCSV()
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `垃圾分类运营公开报表_${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    downloading.value = false
-  }, 500)
+  const url = api.public.downloadCSV()
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `垃圾分类运营公开报表_${new Date().toISOString().split('T')[0]}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => { downloading.value = false }, 500)
 }
 
 function drawChart() {
@@ -58,7 +56,8 @@ function drawChart() {
 
 let resizeObserver: ResizeObserver | null = null
 
-onMounted(() => {
+onMounted(async () => {
+  await loadPublicData()
   setTimeout(() => {
     drawChart()
     resizeObserver = new ResizeObserver(drawChart)
@@ -90,7 +89,7 @@ watch(districtChartData, () => {
             城市垃圾分类运营数据
           </h1>
           <p class="text-gray-500">
-            数据已脱敏聚合处理 · 最后更新: {{ lastUpdateTime }}
+            数据已脱敏聚合处理 · ClickHouse 实时查询
             <button
               class="ml-2 inline-flex items-center text-teal-600 hover:text-teal-700"
               :class="{ 'animate-spin': isRefreshing }"
@@ -118,7 +117,7 @@ watch(districtChartData, () => {
               <MapPin class="w-6 h-6 text-teal-600" />
             </div>
             <p class="text-sm text-gray-500 mb-1">投放点总数</p>
-            <p class="text-3xl font-bold text-gray-900">{{ publicData.totalBins }}</p>
+            <p class="text-3xl font-bold text-gray-900">{{ publicData?.summary?.totalBins || '-' }}</p>
             <p class="text-xs text-gray-400 mt-1">个桶点</p>
           </div>
 
@@ -127,7 +126,7 @@ watch(districtChartData, () => {
               <Leaf class="w-6 h-6 text-green-600" />
             </div>
             <p class="text-sm text-gray-500 mb-1">正常运行率</p>
-            <p class="text-3xl font-bold text-green-600">{{ publicData.normalRate }}%</p>
+            <p class="text-3xl font-bold text-green-600">{{ publicData?.summary?.normalRate || '-' }}%</p>
             <p class="text-xs text-gray-400 mt-1">运行良好</p>
           </div>
 
@@ -136,7 +135,7 @@ watch(districtChartData, () => {
               <TrendingDown class="w-6 h-6 text-orange-600" />
             </div>
             <p class="text-sm text-gray-500 mb-1">平均误投率</p>
-            <p class="text-3xl font-bold text-orange-600">{{ publicData.avgMisuseRate }}%</p>
+            <p class="text-3xl font-bold text-orange-600">{{ publicData?.summary?.avgMisuseRate || '-' }}%</p>
             <p class="text-xs text-gray-400 mt-1">仅审核通过数据</p>
           </div>
 
@@ -145,7 +144,7 @@ watch(districtChartData, () => {
               <Clock class="w-6 h-6 text-blue-600" />
             </div>
             <p class="text-sm text-gray-500 mb-1">清运准时率</p>
-            <p class="text-3xl font-bold text-blue-600">{{ publicData.onTimeRate }}%</p>
+            <p class="text-3xl font-bold text-blue-600">{{ publicData?.summary?.onTimeRate || '-' }}%</p>
             <p class="text-xs text-gray-400 mt-1">排除节假日停运</p>
           </div>
         </div>
@@ -171,7 +170,7 @@ watch(districtChartData, () => {
             </div>
             <div class="space-y-3">
               <div
-                v-for="(district, index) in [...publicData.districtStats].sort((a, b) => b.normalRate - a.normalRate)"
+                v-for="(district, index) in [...(publicData?.districts || [])].sort((a, b) => b.normalRate - a.normalRate)"
                 :key="district.district"
                 class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors"
               >
@@ -208,7 +207,7 @@ watch(districtChartData, () => {
             <h4 class="text-sm font-semibold text-gray-900 mb-3">各行政区误投率</h4>
             <div class="space-y-2">
               <div
-                v-for="d in reportData.districts"
+                v-for="d in (publicData?.districts || [])"
                 :key="d.district"
                 class="flex items-center justify-between text-sm"
               >
@@ -222,7 +221,7 @@ watch(districtChartData, () => {
             <h4 class="text-sm font-semibold text-gray-900 mb-3">各行政区清运准时率</h4>
             <div class="space-y-2">
               <div
-                v-for="d in reportData.districts"
+                v-for="d in (publicData?.districts || [])"
                 :key="d.district"
                 class="flex items-center justify-between text-sm"
               >
@@ -236,7 +235,7 @@ watch(districtChartData, () => {
             <h4 class="text-sm font-semibold text-gray-900 mb-3">各行政区桶点数</h4>
             <div class="space-y-2">
               <div
-                v-for="d in reportData.districts"
+                v-for="d in (publicData?.districts || [])"
                 :key="d.district"
                 class="flex items-center justify-between text-sm"
               >

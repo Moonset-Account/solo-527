@@ -2,27 +2,33 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as d3 from 'd3'
-import { Search, Filter, Info, TrendingUp, MapPin } from 'lucide-vue-next'
+import { Search, Filter, Info, TrendingUp, MapPin, Database, Loader2 } from 'lucide-vue-next'
 import NavBar from '@/components/NavBar.vue'
-import { useDataStore } from '@/stores/data'
-import { getGeoHash, queryByBbox, buildSpatialIndex } from '@/utils/geohash'
-import type { BinPoint, BinPointStatus } from '@/types'
+import { api } from '@/services/api'
+import { getGeoHash } from '@/utils/geohash'
+import type { BinPointStatus } from '@/types'
 
-const dataStore = useDataStore()
 const router = useRouter()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
 const searchQuery = ref('')
 const selectedStatus = ref<BinPointStatus | 'all'>('all')
 const selectedDistrict = ref<string>('all')
-const selectedBinPoint = ref<BinPoint | null>(null)
+const selectedBinPoint = ref<any>(null)
 const showSidebar = ref(true)
 const mapReady = ref(false)
+const loading = ref(true)
+const lastSQL = ref('')
+
+const binPoints = ref<any[]>([])
+const districts = ref<string[]>([])
+const statsData = ref({ total: 0, normal: 0, warning: 0, full: 0, abnormal: 0 })
 
 let svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null
 let g: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
 let zoom: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
 let projection: d3.GeoProjection | null = null
+let cachedGeoJson: any = null
 
 const statusColors: Record<BinPointStatus, string> = {
   normal: '#10b981',
@@ -38,36 +44,24 @@ const statusLabels: Record<BinPointStatus, string> = {
   abnormal: '异常'
 }
 
-const districts = computed(() => {
-  const set = new Set<string>()
-  dataStore.communities.forEach(c => set.add(c.district))
-  return Array.from(set)
-})
-
 const filteredBinPoints = computed(() => {
-  let points = dataStore.binPoints
+  let points = binPoints.value
 
   if (selectedStatus.value !== 'all') {
     points = points.filter(p => p.status === selectedStatus.value)
   }
 
   if (selectedDistrict.value !== 'all') {
-    const communityIds = new Set(
-      dataStore.communities
-        .filter(c => c.district === selectedDistrict.value)
-        .map(c => c.id)
-    )
-    points = points.filter(p => communityIds.has(p.communityId))
+    points = points.filter(p => p.district === selectedDistrict.value)
   }
 
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
     points = points.filter(p => {
-      const community = dataStore.getCommunityById(p.communityId)
       return (
         p.name.toLowerCase().includes(q) ||
-        p.gridCode.toLowerCase().includes(q) ||
-        community?.name.toLowerCase().includes(q)
+        p.grid_code.toLowerCase().includes(q) ||
+        p.communityName?.toLowerCase().includes(q)
       )
     })
   }
@@ -75,64 +69,32 @@ const filteredBinPoints = computed(() => {
   return points
 })
 
-const stats = computed(() => {
-  const points = dataStore.binPoints
-  return {
-    total: points.length,
-    normal: points.filter(p => p.status === 'normal').length,
-    warning: points.filter(p => p.status === 'warning').length,
-    full: points.filter(p => p.status === 'full').length,
-    abnormal: points.filter(p => p.status === 'abnormal').length
+async function loadData() {
+  loading.value = true
+  try {
+    const [binRes, statsRes, geoRes] = await Promise.all([
+      api.binpoints.list(),
+      api.binpoints.getStats(),
+      api.spatial.getDistrictsGeoJson()
+    ])
+
+    binPoints.value = binRes.data
+    statsData.value = statsRes.data
+    cachedGeoJson = geoRes.data
+    lastSQL.value = binRes.sql
+
+    const districtSet = new Set<string>()
+    binPoints.value.forEach(b => { if (b.district) districtSet.add(b.district) })
+    districts.value = Array.from(districtSet)
+  } catch (e) {
+    console.error('Failed to load data from ClickHouse API:', e)
+  } finally {
+    loading.value = false
   }
-})
-
-function buildGeoJson() {
-  const districtMap = new Map<string, { name: string; bins: BinPoint[] }>()
-
-  dataStore.communities.forEach(c => {
-    const bins = dataStore.getBinPointsByCommunity(c.id)
-    if (!districtMap.has(c.district)) {
-      districtMap.set(c.district, { name: c.district, bins: [] })
-    }
-    districtMap.get(c.district)!.bins.push(...bins)
-  })
-
-  const features: any[] = []
-
-  districtMap.forEach((data, districtName) => {
-    const bins = data.bins
-    if (bins.length === 0) return
-
-    const lngs = bins.map(b => b.lng)
-    const lats = bins.map(b => b.lat)
-    const minLng = Math.min(...lngs) - 0.005
-    const maxLng = Math.max(...lngs) + 0.005
-    const minLat = Math.min(...lats) - 0.004
-    const maxLat = Math.max(...lats) + 0.004
-
-    const ring: [number, number][] = [
-      [minLng, minLat],
-      [maxLng, minLat],
-      [maxLng, maxLat],
-      [minLng, maxLat],
-      [minLng, minLat]
-    ]
-
-    features.push({
-      type: 'Feature',
-      properties: { name: districtName, id: `district-${districtName}` },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [ring]
-      }
-    })
-  })
-
-  return { type: 'FeatureCollection' as const, features }
 }
 
 function initMap() {
-  if (!mapContainer.value) return
+  if (!mapContainer.value || !cachedGeoJson) return
 
   const rect = mapContainer.value.getBoundingClientRect()
   const width = rect.width
@@ -157,19 +119,15 @@ function initMap() {
 
   g = svg.append('g')
 
-  const geoJson = buildGeoJson()
-
   projection = d3.geoMercator()
-    .fitSize([width - 40, height - 40], geoJson as any)
-
-  projection.translate([20, 20])
+    .fitExtent([[20, 20], [width - 20, height - 20]], cachedGeoJson)
 
   const path = d3.geoPath().projection(projection!)
 
   g.append('g')
     .attr('class', 'districts')
     .selectAll('path')
-    .data(geoJson.features)
+    .data(cachedGeoJson.features)
     .enter()
     .append('path')
     .attr('d', path as any)
@@ -188,10 +146,10 @@ function initMap() {
       d3.select(this).attr('fill-opacity', 1).attr('stroke-width', 1.5)
     })
     .append('title')
-    .text((d: any) => d.properties.name)
+    .text((d: any) => `${d.properties.name} (${d.properties.binCount}个桶点)`)
 
   g.selectAll('.district-label')
-    .data(geoJson.features)
+    .data(cachedGeoJson.features)
     .enter()
     .append('text')
     .attr('class', 'district-label')
@@ -234,14 +192,14 @@ function drawBinPoints() {
 
     pointG.append('circle')
       .attr('r', 14)
-      .attr('fill', statusColors[bin.status])
+      .attr('fill', statusColors[bin.status as BinPointStatus])
       .attr('fill-opacity', 0.15)
 
     if (bin.status !== 'normal') {
       pointG.append('circle')
         .attr('r', 14)
         .attr('fill', 'none')
-        .attr('stroke', statusColors[bin.status])
+        .attr('stroke', statusColors[bin.status as BinPointStatus])
         .attr('stroke-width', 1)
         .attr('stroke-opacity', 0.4)
         .attr('class', 'pulse-ring')
@@ -249,12 +207,12 @@ function drawBinPoints() {
 
     pointG.append('circle')
       .attr('r', 5)
-      .attr('fill', statusColors[bin.status])
+      .attr('fill', statusColors[bin.status as BinPointStatus])
       .attr('stroke', '#fff')
       .attr('stroke-width', 1.5)
 
     pointG.append('title')
-      .text(`${bin.name}\n社区: ${dataStore.getCommunityById(bin.communityId)?.name || '未知'}\n状态: ${statusLabels[bin.status]}\n满载率: ${bin.fillLevel}%\nGeoHash: ${getGeoHash(bin.lng, bin.lat, 6)}`)
+      .text(`${bin.name}\n社区: ${bin.communityName || '未知'}\n状态: ${statusLabels[bin.status as BinPointStatus] || bin.status}\n满载率: ${bin.fill_level}%\nGeoHash: ${bin.geo_hash?.substring(0, 6) || getGeoHash(bin.lng, bin.lat, 6)}`)
   })
 }
 
@@ -263,8 +221,8 @@ function handleResize() {
   initMap()
 }
 
-function getBinPointCommunity(bin: BinPoint) {
-  return dataStore.getCommunityById(bin.communityId)
+function getBinPointCommunity(bin: any) {
+  return bin.communityName || '未知'
 }
 
 function closeDetail() {
@@ -276,6 +234,7 @@ watch(filteredBinPoints, () => {
 })
 
 onMounted(async () => {
+  await loadData()
   await nextTick()
   setTimeout(() => {
     initMap()
@@ -330,19 +289,19 @@ onUnmounted(() => {
           </h3>
           <div class="grid grid-cols-2 gap-2">
             <div class="bg-gray-50 rounded-lg p-2 text-center">
-              <p class="text-xl font-bold text-gray-900">{{ stats.total }}</p>
+              <p class="text-xl font-bold text-gray-900">{{ statsData.total }}</p>
               <p class="text-xs text-gray-500">总桶点数</p>
             </div>
             <div class="bg-green-50 rounded-lg p-2 text-center">
-              <p class="text-xl font-bold text-green-600">{{ stats.normal }}</p>
+              <p class="text-xl font-bold text-green-600">{{ statsData.normal }}</p>
               <p class="text-xs text-green-600">正常</p>
             </div>
             <div class="bg-amber-50 rounded-lg p-2 text-center">
-              <p class="text-xl font-bold text-amber-600">{{ stats.warning }}</p>
+              <p class="text-xl font-bold text-amber-600">{{ statsData.warning }}</p>
               <p class="text-xs text-amber-600">预警</p>
             </div>
             <div class="bg-red-50 rounded-lg p-2 text-center">
-              <p class="text-xl font-bold text-red-600">{{ stats.full + stats.abnormal }}</p>
+              <p class="text-xl font-bold text-red-600">{{ statsData.full + statsData.abnormal }}</p>
               <p class="text-xs text-red-600">异常</p>
             </div>
           </div>
@@ -366,19 +325,19 @@ onUnmounted(() => {
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-900 truncate">{{ bin.name }}</p>
                   <p class="text-xs text-gray-500 truncate">
-                    {{ getBinPointCommunity(bin)?.name }} · {{ bin.gridCode }}
+                    {{ bin.communityName || '未知' }} · {{ bin.grid_code }}
                   </p>
                   <div class="flex items-center gap-2 mt-1">
                     <div class="flex-1 bg-gray-100 rounded-full h-1.5">
                       <div
                         class="h-1.5 rounded-full transition-all"
                         :style="{
-                          width: `${bin.fillLevel}%`,
-                          backgroundColor: statusColors[bin.status]
+                          width: `${bin.fill_level}%`,
+                          backgroundColor: statusColors[bin.status as BinPointStatus]
                         }"
                       />
                     </div>
-                    <span class="text-xs text-gray-500">{{ bin.fillLevel }}%</span>
+                    <span class="text-xs text-gray-500">{{ bin.fill_level }}%</span>
                   </div>
                 </div>
               </div>
@@ -388,6 +347,13 @@ onUnmounted(() => {
       </div>
 
       <div class="flex-1 relative" style="min-height: 400px">
+        <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
+          <div class="text-center">
+            <Loader2 class="w-8 h-8 text-teal-600 animate-spin mx-auto mb-2" />
+            <p class="text-sm text-gray-600">正在从 ClickHouse 加载数据...</p>
+          </div>
+        </div>
+
         <div ref="mapContainer" class="absolute inset-0" />
 
         <button
@@ -396,6 +362,11 @@ onUnmounted(() => {
         >
           <Filter class="w-5 h-5 text-gray-600" />
         </button>
+
+        <div v-if="lastSQL" class="absolute top-4 left-16 z-10 px-2 py-1 bg-teal-50 border border-teal-200 rounded text-xs text-teal-700 max-w-sm truncate">
+          <Database class="w-3 h-3 inline mr-1" />
+          {{ lastSQL.substring(0, 80) }}...
+        </div>
 
         <div class="absolute bottom-4 right-4 z-10 bg-white rounded-lg shadow-md p-3">
           <h4 class="text-xs font-semibold text-gray-900 mb-2">图例</h4>
@@ -417,7 +388,7 @@ onUnmounted(() => {
                 <div>
                   <h3 class="font-bold text-gray-900">{{ selectedBinPoint.name }}</h3>
                   <p class="text-sm text-gray-600">
-                    {{ getBinPointCommunity(selectedBinPoint)?.name }}
+                    {{ selectedBinPoint.communityName || '未知' }}
                   </p>
                 </div>
                 <button
@@ -434,24 +405,24 @@ onUnmounted(() => {
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-500">运行状态</span>
                 <span :class="`badge-${selectedBinPoint.status === 'normal' ? 'success' : selectedBinPoint.status === 'warning' ? 'warning' : 'danger'}`">
-                  {{ statusLabels[selectedBinPoint.status] }}
+                  {{ statusLabels[selectedBinPoint.status as BinPointStatus] || selectedBinPoint.status }}
                 </span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-500">满载率</span>
-                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.fillLevel }}%</span>
+                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.fill_level }}%</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-500">垃圾桶数量</span>
-                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.binCount }} 个</span>
+                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.bin_count }} 个</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-500">空间索引</span>
-                <span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ getGeoHash(selectedBinPoint.lng, selectedBinPoint.lat, 6) }}</span>
+                <span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ (selectedBinPoint.geo_hash || '').substring(0, 6) || getGeoHash(selectedBinPoint.lng, selectedBinPoint.lat, 6) }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-500">网格编码</span>
-                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.gridCode }}</span>
+                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.grid_code }}</span>
               </div>
             </div>
             <div class="p-4 border-t border-gray-100 bg-gray-50">
