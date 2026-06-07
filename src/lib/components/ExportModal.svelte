@@ -11,6 +11,9 @@
 	let exportType: 'aggregated' | 'detailed' = 'aggregated';
 	let format: 'csv' | 'xlsx' = 'csv';
 	let previewData: any = null;
+	let currentRole: 'operator' | 'admin' = 'operator';
+
+	$: isAdmin = currentRole === 'admin';
 
 	async function handlePreview() {
 		loading = true;
@@ -20,7 +23,8 @@
 				...$filters,
 				exportType,
 				format,
-				includeDetails: exportType === 'detailed'
+				includeDetails: exportType === 'detailed',
+				userRole: currentRole
 			};
 			previewData = await fetchExport(request);
 		} catch (e: any) {
@@ -45,6 +49,14 @@
 		error = '';
 		onClose();
 	}
+
+	function handleRoleChange(e: Event) {
+		currentRole = (e.target as HTMLSelectElement).value as 'operator' | 'admin';
+		if (!isAdmin) {
+			exportType = 'aggregated';
+		}
+		previewData = null;
+	}
 </script>
 
 {#if isOpen}
@@ -61,6 +73,22 @@
 
 			<div class="p-5 space-y-4">
 				<div>
+					<label for="user-role" class="block text-sm font-medium text-gray-700 mb-2">当前角色（模拟测试）</label>
+					<select
+						id="user-role"
+						value={currentRole}
+						on:change={handleRoleChange}
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+					>
+						<option value="operator">运营人员（仅聚合导出）</option>
+						<option value="admin">管理员（可导出明细）</option>
+					</select>
+					<p class="text-xs text-gray-500 mt-1">
+						{isAdmin ? '✅ 管理员权限：可导出报名明细，未成年人数据自动聚合' : '🔒 运营权限：仅可导出聚合数据'}
+					</p>
+				</div>
+
+				<div>
 					<span id="export-type-label" class="block text-sm font-medium text-gray-700 mb-2">导出类型</span>
 					<div class="flex gap-4" role="radiogroup" aria-labelledby="export-type-label">
 						<label class="flex items-center gap-2 cursor-pointer">
@@ -72,15 +100,17 @@
 							/>
 							<span class="text-sm">聚合数据（推荐）</span>
 						</label>
-						<label class="flex items-center gap-2 cursor-pointer">
+						<label class={`flex items-center gap-2 cursor-pointer ${!isAdmin ? 'opacity-50' : ''}`}>
 							<input
 								type="radio"
 								bind:group={exportType}
 								value="detailed"
 								class="text-primary-600 focus:ring-primary-500"
-								disabled
+								disabled={!isAdmin}
 							/>
-							<span class="text-sm text-gray-400">明细数据（需管理员权限）</span>
+							<span class={`text-sm ${!isAdmin ? 'text-gray-400' : ''}`}>
+								明细数据（需管理员权限）
+							</span>
 						</label>
 					</div>
 				</div>
@@ -108,6 +138,10 @@
 							<span class="font-mono font-medium">{previewData.sampleSize}</span>
 						</div>
 						<div class="flex items-center justify-between text-sm">
+							<span class="text-gray-600">导出类型</span>
+							<span class="font-medium">{previewData.isAggregated ? '聚合数据' : '明细数据'}</span>
+						</div>
+						<div class="flex items-center justify-between text-sm">
 							<span class="text-gray-600">包含未成年人数据</span>
 							<span class={previewData.hasMinorData ? 'text-yellow-600' : 'text-green-600'}>
 								{previewData.hasMinorData ? '⚠️ 是（已自动聚合）' : '否'}
@@ -121,6 +155,11 @@
 						{#if previewData.hasMinorData}
 							<div class="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm">
 								🔒 根据隐私保护规定，未成年人数据已自动聚合，不包含个人可识别信息。
+							</div>
+						{/if}
+						{#if !previewData.isAggregated && previewData.minorDataAggregated}
+							<div class="bg-purple-50 border border-purple-200 text-purple-700 px-3 py-2 rounded text-sm">
+								👤 成年人明细已完整导出，未成年人数据已按年龄段聚合展示。
 							</div>
 						{/if}
 					</div>

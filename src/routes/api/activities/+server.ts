@@ -6,46 +6,55 @@ import type { FunnelRequest } from '$lib/types';
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const body: Partial<FunnelRequest> = await request.json();
-		const { startDate, endDate, activityTypes, communities, channels, weather } = body;
+		const { startDate, endDate, activityTypes, communities, ageGroups, channels, weather } = body;
 
 		const whereClauses: string[] = [];
-		const params: any[] = [];
+		const baseParams: any[] = [];
 		let paramIndex = 1;
 
 		if (startDate && endDate) {
 			whereClauses.push(`a.start_time BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
-			params.push(startDate, endDate);
+			baseParams.push(startDate, endDate);
 			paramIndex += 2;
 		}
 
 		if (activityTypes && activityTypes.length > 0) {
 			const placeholders = activityTypes.map((_, i) => `$${paramIndex + i}`).join(', ');
 			whereClauses.push(`a.type IN (${placeholders})`);
-			params.push(...activityTypes);
+			baseParams.push(...activityTypes);
 			paramIndex += activityTypes.length;
 		}
 
 		if (communities && communities.length > 0) {
 			const placeholders = communities.map((_, i) => `$${paramIndex + i}`).join(', ');
 			whereClauses.push(`a.community_name IN (${placeholders})`);
-			params.push(...communities);
+			baseParams.push(...communities);
 			paramIndex += communities.length;
 		}
 
 		if (channels && channels.length > 0) {
 			const placeholders = channels.map((_, i) => `$${paramIndex + i}`).join(', ');
 			whereClauses.push(`r.channel IN (${placeholders})`);
-			params.push(...channels);
+			baseParams.push(...channels);
 			paramIndex += channels.length;
 		}
 
 		if (weather && weather.length > 0) {
 			const placeholders = weather.map((_, i) => `$${paramIndex + i}`).join(', ');
 			whereClauses.push(`a.weather IN (${placeholders})`);
-			params.push(...weather);
+			baseParams.push(...weather);
 			paramIndex += weather.length;
 		}
 
+		let ageJoin = '';
+		let ageParams: string[] = [];
+		if (ageGroups && ageGroups.length > 0) {
+			const placeholders = ageGroups.map((_, i) => `$${paramIndex + i}`).join(', ');
+			ageJoin = `JOIN users u ON r.user_id = u.user_id AND u.age_group IN (${placeholders})`;
+			ageParams = [...ageGroups];
+		}
+
+		const queryParams = [...baseParams, ...ageParams];
 		const whereSql = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
 
 		const sql = `
@@ -62,6 +71,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				COUNT(DISTINCT f.feedback_id) as feedback_count
 			FROM activities a
 			LEFT JOIN registrations r ON a.activity_id = r.activity_id
+			${ageJoin}
 			LEFT JOIN feedbacks f ON r.reg_id = f.reg_id
 			${whereSql}
 			GROUP BY a.activity_id, a.name, a.type, a.start_time, a.community_name, a.weather
@@ -69,7 +79,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			LIMIT 50
 		`;
 
-		const activities = await query(sql, params);
+		const activities = await query(sql, queryParams);
 
 		return json({
 			activities: activities.map(a => ({

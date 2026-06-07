@@ -73,6 +73,7 @@ export interface ExportRequest extends FunnelRequest {
 	format: 'csv' | 'xlsx';
 	includeDetails: boolean;
 	exportType: 'aggregated' | 'detailed';
+	userRole?: 'operator' | 'admin';
 }
 
 export interface User {
