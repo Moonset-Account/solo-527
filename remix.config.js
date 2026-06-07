@@ -5,6 +5,7 @@ export default {
   serverBuildPath: "build/index.js",
   serverPort: 399,
   ignoredRouteFiles: [".*"],
+  postcss: true,
   future: {
     v3_fetcherPersist: true,
     v3_relativeSplatPath: true,

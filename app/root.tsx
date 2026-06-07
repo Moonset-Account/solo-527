@@ -1,4 +1,5 @@
 import { Links, Meta, Outlet, Scripts, LiveReload } from "@remix-run/react";
+import stylesheet from "./styles.css";
 
 export const meta = () => {
   return [{ title: "医美咨询转化分析" }];
@@ -6,7 +7,7 @@ export const meta = () => {
 
 export const links = () => {
   return [
-    { rel: "stylesheet", href: "/app/styles.css" },
+    { rel: "stylesheet", href: stylesheet },
     { rel: "preconnect", href: "https://fonts.googleapis.com" },
     { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
     {
@@ -18,14 +19,14 @@ export const links = () => {
 
 export default function App() {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" className="dark">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
-      <body className="bg-[#0F172A]">
+      <body className="bg-[#0F172A] text-slate-200 min-h-screen">
         <Outlet />
         <Scripts />
         {process.env.NODE_ENV === "development" && <LiveReload />}
