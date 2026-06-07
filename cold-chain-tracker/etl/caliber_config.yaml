@@ -1,0 +1,45 @@
+temperature:
+  valid_range: [-40, 50]
+  spike_threshold: 5
+  spike_window_seconds: 60
+  gap_threshold_seconds: 300
+  interpolation_method: linear
+
+door:
+  max_duration_seconds: 180
+  unauthorized_during_transit: true
+
+arrival:
+  delay_threshold_minutes: 30
+  severe_delay_threshold_minutes: 120
+
+calibration:
+  deviation_threshold_celsius: 0.5
+  warning_threshold_celsius: 0.3
+  validity_days: 90
+
+exception:
+  severity_rules:
+    temp_exceeded:
+      low: "duration < 10min AND deviation < 2°C"
+      medium: "duration < 30min OR deviation < 5°C"
+      high: "duration < 60min OR deviation < 10°C"
+      critical: "duration >= 60min AND deviation >= 10°C"
+    unauthorized_door:
+      low: "duration < 1min"
+      medium: "duration < 5min"
+      high: "duration < 15min"
+      critical: "duration >= 15min"
+
+aggregation:
+  default_granularity: hour
+  supported_granularities:
+    - minute
+    - hour
+    - day
+    - week
+    - month
+
+data_retention:
+  raw_data_days: 365
+  aggregated_data_days: 730

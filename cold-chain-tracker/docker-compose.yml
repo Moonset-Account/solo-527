@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: cold-chain-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-cold_chain}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cold-chain-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cold-chain-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cold-chain-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cold-chain-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cold-chain-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cold-chain-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cold-chain-net
+    restart: unless-stopped
+
+  etl:
+    build:
+      context: ./etl
+      dockerfile: Dockerfile
+    container_name: cold-chain-etl
+    env_file:
+      - .env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - cold-chain-net
+    restart: "no"
+
+networks:
+  cold-chain-net:
+    driver: bridge
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
+    driver: local
+  redis_data:
+    driver: local

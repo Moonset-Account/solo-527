@@ -1,0 +1,122 @@
+[
+  {
+    "vehicle_id": "V0001",
+    "plate_number": "京U30754",
+    "vehicle_type": "冷冻车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0002",
+    "plate_number": "京W63941",
+    "vehicle_type": "恒温车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0003",
+    "plate_number": "京W65661",
+    "vehicle_type": "冷藏车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0004",
+    "plate_number": "京K82008",
+    "vehicle_type": "冷藏车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0005",
+    "plate_number": "京W97358",
+    "vehicle_type": "冷藏车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0006",
+    "plate_number": "京U81699",
+    "vehicle_type": "恒温车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0007",
+    "plate_number": "京C68167",
+    "vehicle_type": "冷藏车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0008",
+    "plate_number": "京F87148",
+    "vehicle_type": "冷冻车",
+    "status": "空闲"
+  },
+  {
+    "vehicle_id": "V0009",
+    "plate_number": "京Y51318",
+    "vehicle_type": "恒温车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0010",
+    "plate_number": "京R47414",
+    "vehicle_type": "恒温车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0011",
+    "plate_number": "京L81761",
+    "vehicle_type": "恒温车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0012",
+    "plate_number": "京W65829",
+    "vehicle_type": "冷冻车",
+    "status": "空闲"
+  },
+  {
+    "vehicle_id": "V0013",
+    "plate_number": "京T74428",
+    "vehicle_type": "冷冻车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0014",
+    "plate_number": "京H74635",
+    "vehicle_type": "冷藏车",
+    "status": "维修中"
+  },
+  {
+    "vehicle_id": "V0015",
+    "plate_number": "京C58455",
+    "vehicle_type": "恒温车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0016",
+    "plate_number": "京R79461",
+    "vehicle_type": "恒温车",
+    "status": "空闲"
+  },
+  {
+    "vehicle_id": "V0017",
+    "plate_number": "京M66298",
+    "vehicle_type": "冷冻车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0018",
+    "plate_number": "京K81187",
+    "vehicle_type": "冷藏车",
+    "status": "运行中"
+  },
+  {
+    "vehicle_id": "V0019",
+    "plate_number": "京H54081",
+    "vehicle_type": "冷冻车",
+    "status": "装载中"
+  },
+  {
+    "vehicle_id": "V0020",
+    "plate_number": "京C48713",
+    "vehicle_type": "冷藏车",
+    "status": "空闲"
+  }
+]

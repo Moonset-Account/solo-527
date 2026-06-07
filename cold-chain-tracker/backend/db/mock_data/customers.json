@@ -1,0 +1,182 @@
+[
+  {
+    "customer_id": "CU0001",
+    "name": "华润万家",
+    "contact": "王军",
+    "region": "东北"
+  },
+  {
+    "customer_id": "CU0002",
+    "name": "永辉超市",
+    "contact": "王强",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0003",
+    "name": "盒马鲜生",
+    "contact": "李军",
+    "region": "华南"
+  },
+  {
+    "customer_id": "CU0004",
+    "name": "京东物流",
+    "contact": "李强",
+    "region": "东北"
+  },
+  {
+    "customer_id": "CU0005",
+    "name": "顺丰冷运",
+    "contact": "吴军",
+    "region": "东北"
+  },
+  {
+    "customer_id": "CU0006",
+    "name": "国药物流",
+    "contact": "杨伟",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0007",
+    "name": "上药集团",
+    "contact": "张杰",
+    "region": "华北"
+  },
+  {
+    "customer_id": "CU0008",
+    "name": "九州通",
+    "contact": "黄艳",
+    "region": "华北"
+  },
+  {
+    "customer_id": "CU0009",
+    "name": "双汇冷链",
+    "contact": "陈敏",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0010",
+    "name": "光明乳业",
+    "contact": "吴军",
+    "region": "华东"
+  },
+  {
+    "customer_id": "CU0011",
+    "name": "伊利集团",
+    "contact": "杨洋",
+    "region": "华东"
+  },
+  {
+    "customer_id": "CU0012",
+    "name": "蒙牛乳业",
+    "contact": "王丽",
+    "region": "东北"
+  },
+  {
+    "customer_id": "CU0013",
+    "name": "正大集团",
+    "contact": "周强",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0014",
+    "name": "万纬物流",
+    "contact": "杨洋",
+    "region": "华东"
+  },
+  {
+    "customer_id": "CU0015",
+    "name": "普洛斯",
+    "contact": "黄敏",
+    "region": "华南"
+  },
+  {
+    "customer_id": "CU0016",
+    "name": "中粮集团",
+    "contact": "张丽",
+    "region": "华东"
+  },
+  {
+    "customer_id": "CU0017",
+    "name": "雨润集团",
+    "contact": "赵洋",
+    "region": "华南"
+  },
+  {
+    "customer_id": "CU0018",
+    "name": "大润发",
+    "contact": "赵芳",
+    "region": "华中"
+  },
+  {
+    "customer_id": "CU0019",
+    "name": "沃尔玛中国",
+    "contact": "吴杰",
+    "region": "华北"
+  },
+  {
+    "customer_id": "CU0020",
+    "name": "山姆会员店",
+    "contact": "王勇",
+    "region": "华中"
+  },
+  {
+    "customer_id": "CU0021",
+    "name": "叮咚买菜",
+    "contact": "刘洋",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0022",
+    "name": "每日优鲜",
+    "contact": "周丽",
+    "region": "西北"
+  },
+  {
+    "customer_id": "CU0023",
+    "name": "美团优选",
+    "contact": "黄勇",
+    "region": "西南"
+  },
+  {
+    "customer_id": "CU0024",
+    "name": "朴朴超市",
+    "contact": "杨洋",
+    "region": "华北"
+  },
+  {
+    "customer_id": "CU0025",
+    "name": "钱大妈",
+    "contact": "赵丽",
+    "region": "华南"
+  },
+  {
+    "customer_id": "CU0026",
+    "name": "百胜中国",
+    "contact": "刘伟",
+    "region": "华南"
+  },
+  {
+    "customer_id": "CU0027",
+    "name": "麦当劳中国",
+    "contact": "张军",
+    "region": "西南"
+  },
+  {
+    "customer_id": "CU0028",
+    "name": "星巴克中国",
+    "contact": "李勇",
+    "region": "华东"
+  },
+  {
+    "customer_id": "CU0029",
+    "name": "喜茶",
+    "contact": "陈敏",
+    "region": "西南"
+  },
+  {
+    "customer_id": "CU0030",
+    "name": "奈雪的茶",
+    "contact": "黄伟",
+    "region": "华北"
+  }
+]

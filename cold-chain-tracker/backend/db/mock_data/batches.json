@@ -1,0 +1,802 @@
+[
+  {
+    "batch_id": "B00001",
+    "route_id": "R00011",
+    "product_name": "新冠疫苗",
+    "quantity": 1446,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00002",
+    "route_id": "R00009",
+    "product_name": "冷藏果汁",
+    "quantity": 2144,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00003",
+    "route_id": "R00039",
+    "product_name": "速冻虾仁",
+    "quantity": 3360,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00004",
+    "route_id": "R00006",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2652,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00005",
+    "route_id": "R00017",
+    "product_name": "冷藏酸奶",
+    "quantity": 1323,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00006",
+    "route_id": "R00038",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 2639,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00007",
+    "route_id": "R00003",
+    "product_name": "胰岛素注射液",
+    "quantity": 3980,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00008",
+    "route_id": "R00019",
+    "product_name": "冷藏蛋糕",
+    "quantity": 3663,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00009",
+    "route_id": "R00026",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 1971,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00010",
+    "route_id": "R00007",
+    "product_name": "速冻虾仁",
+    "quantity": 2394,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00011",
+    "route_id": "R00021",
+    "product_name": "速冻水饺",
+    "quantity": 3611,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00012",
+    "route_id": "R00013",
+    "product_name": "冷鲜牛肉",
+    "quantity": 4380,
+    "required_temp_min": -1,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00013",
+    "route_id": "R00005",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2161,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00014",
+    "route_id": "R00021",
+    "product_name": "新鲜草莓",
+    "quantity": 2611,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00015",
+    "route_id": "R00012",
+    "product_name": "新鲜草莓",
+    "quantity": 3175,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00016",
+    "route_id": "R00022",
+    "product_name": "速冻虾仁",
+    "quantity": 2185,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00017",
+    "route_id": "R00017",
+    "product_name": "冷藏巧克力",
+    "quantity": 3025,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00018",
+    "route_id": "R00023",
+    "product_name": "冷藏酸奶",
+    "quantity": 1234,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00019",
+    "route_id": "R00032",
+    "product_name": "冰淇淋",
+    "quantity": 4401,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00020",
+    "route_id": "R00019",
+    "product_name": "鲜牛奶",
+    "quantity": 3237,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00021",
+    "route_id": "R00016",
+    "product_name": "冷藏巧克力",
+    "quantity": 3471,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00022",
+    "route_id": "R00039",
+    "product_name": "冷切拼盘",
+    "quantity": 3216,
+    "required_temp_min": 0,
+    "required_temp_max": 5
+  },
+  {
+    "batch_id": "B00023",
+    "route_id": "R00028",
+    "product_name": "新鲜草莓",
+    "quantity": 3643,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00024",
+    "route_id": "R00027",
+    "product_name": "鲜牛奶",
+    "quantity": 4577,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00025",
+    "route_id": "R00034",
+    "product_name": "冰淇淋",
+    "quantity": 356,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00026",
+    "route_id": "R00039",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 4057,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00027",
+    "route_id": "R00034",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 3042,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00028",
+    "route_id": "R00024",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2548,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00029",
+    "route_id": "R00025",
+    "product_name": "速冻虾仁",
+    "quantity": 2729,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00030",
+    "route_id": "R00025",
+    "product_name": "新鲜草莓",
+    "quantity": 115,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00031",
+    "route_id": "R00045",
+    "product_name": "冷藏酸奶",
+    "quantity": 278,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00032",
+    "route_id": "R00030",
+    "product_name": "冷藏巧克力",
+    "quantity": 4904,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00033",
+    "route_id": "R00035",
+    "product_name": "速冻水饺",
+    "quantity": 979,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00034",
+    "route_id": "R00023",
+    "product_name": "冷藏酸奶",
+    "quantity": 1888,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00035",
+    "route_id": "R00033",
+    "product_name": "胰岛素注射液",
+    "quantity": 3536,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00036",
+    "route_id": "R00021",
+    "product_name": "速冻蔬菜",
+    "quantity": 3340,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00037",
+    "route_id": "R00002",
+    "product_name": "新冠疫苗",
+    "quantity": 120,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00038",
+    "route_id": "R00014",
+    "product_name": "新鲜草莓",
+    "quantity": 4888,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00039",
+    "route_id": "R00026",
+    "product_name": "冷藏酸奶",
+    "quantity": 563,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00040",
+    "route_id": "R00021",
+    "product_name": "冷藏果汁",
+    "quantity": 703,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00041",
+    "route_id": "R00012",
+    "product_name": "冷藏蛋糕",
+    "quantity": 4005,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00042",
+    "route_id": "R00007",
+    "product_name": "冷鲜牛肉",
+    "quantity": 2882,
+    "required_temp_min": -1,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00043",
+    "route_id": "R00010",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 3341,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00044",
+    "route_id": "R00029",
+    "product_name": "速冻蔬菜",
+    "quantity": 2908,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00045",
+    "route_id": "R00022",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 2009,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00046",
+    "route_id": "R00013",
+    "product_name": "冷鲜牛肉",
+    "quantity": 1880,
+    "required_temp_min": -1,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00047",
+    "route_id": "R00049",
+    "product_name": "胰岛素注射液",
+    "quantity": 784,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00048",
+    "route_id": "R00048",
+    "product_name": "冷藏果汁",
+    "quantity": 1149,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00049",
+    "route_id": "R00039",
+    "product_name": "冷藏巧克力",
+    "quantity": 2630,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00050",
+    "route_id": "R00017",
+    "product_name": "冷藏果汁",
+    "quantity": 68,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00051",
+    "route_id": "R00033",
+    "product_name": "冰淇淋",
+    "quantity": 4809,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00052",
+    "route_id": "R00023",
+    "product_name": "新冠疫苗",
+    "quantity": 1882,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00053",
+    "route_id": "R00024",
+    "product_name": "新冠疫苗",
+    "quantity": 2101,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00054",
+    "route_id": "R00050",
+    "product_name": "鲜牛奶",
+    "quantity": 2433,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00055",
+    "route_id": "R00015",
+    "product_name": "冷藏巧克力",
+    "quantity": 1525,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00056",
+    "route_id": "R00026",
+    "product_name": "胰岛素注射液",
+    "quantity": 3344,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00057",
+    "route_id": "R00022",
+    "product_name": "速冻虾仁",
+    "quantity": 2987,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00058",
+    "route_id": "R00043",
+    "product_name": "新冠疫苗",
+    "quantity": 4176,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00059",
+    "route_id": "R00040",
+    "product_name": "新冠疫苗",
+    "quantity": 3473,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00060",
+    "route_id": "R00021",
+    "product_name": "冷藏巧克力",
+    "quantity": 868,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00061",
+    "route_id": "R00023",
+    "product_name": "新鲜草莓",
+    "quantity": 2579,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00062",
+    "route_id": "R00007",
+    "product_name": "速冻蔬菜",
+    "quantity": 3486,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00063",
+    "route_id": "R00003",
+    "product_name": "速冻虾仁",
+    "quantity": 1062,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00064",
+    "route_id": "R00026",
+    "product_name": "速冻蔬菜",
+    "quantity": 642,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00065",
+    "route_id": "R00033",
+    "product_name": "新冠疫苗",
+    "quantity": 1775,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00066",
+    "route_id": "R00048",
+    "product_name": "冷切拼盘",
+    "quantity": 1353,
+    "required_temp_min": 0,
+    "required_temp_max": 5
+  },
+  {
+    "batch_id": "B00067",
+    "route_id": "R00021",
+    "product_name": "速冻蔬菜",
+    "quantity": 2105,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00068",
+    "route_id": "R00015",
+    "product_name": "冷藏果汁",
+    "quantity": 704,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00069",
+    "route_id": "R00037",
+    "product_name": "冷鲜牛肉",
+    "quantity": 2795,
+    "required_temp_min": -1,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00070",
+    "route_id": "R00019",
+    "product_name": "冷藏巧克力",
+    "quantity": 2334,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00071",
+    "route_id": "R00005",
+    "product_name": "冷切拼盘",
+    "quantity": 1281,
+    "required_temp_min": 0,
+    "required_temp_max": 5
+  },
+  {
+    "batch_id": "B00072",
+    "route_id": "R00028",
+    "product_name": "冰淇淋",
+    "quantity": 2617,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00073",
+    "route_id": "R00030",
+    "product_name": "新鲜草莓",
+    "quantity": 4734,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00074",
+    "route_id": "R00048",
+    "product_name": "新鲜草莓",
+    "quantity": 4310,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00075",
+    "route_id": "R00038",
+    "product_name": "速冻水饺",
+    "quantity": 943,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00076",
+    "route_id": "R00012",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2120,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00077",
+    "route_id": "R00033",
+    "product_name": "新冠疫苗",
+    "quantity": 4342,
+    "required_temp_min": -25,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00078",
+    "route_id": "R00021",
+    "product_name": "冰淇淋",
+    "quantity": 586,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00079",
+    "route_id": "R00023",
+    "product_name": "冷藏酸奶",
+    "quantity": 1939,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00080",
+    "route_id": "R00034",
+    "product_name": "冷藏蛋糕",
+    "quantity": 963,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00081",
+    "route_id": "R00009",
+    "product_name": "冷鲜牛肉",
+    "quantity": 2743,
+    "required_temp_min": -1,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00082",
+    "route_id": "R00007",
+    "product_name": "冷藏果汁",
+    "quantity": 710,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00083",
+    "route_id": "R00023",
+    "product_name": "速冻水饺",
+    "quantity": 1107,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00084",
+    "route_id": "R00027",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 126,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00085",
+    "route_id": "R00038",
+    "product_name": "速冻水饺",
+    "quantity": 2624,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00086",
+    "route_id": "R00020",
+    "product_name": "鲜牛奶",
+    "quantity": 298,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00087",
+    "route_id": "R00030",
+    "product_name": "冷藏酸奶",
+    "quantity": 2291,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  },
+  {
+    "batch_id": "B00088",
+    "route_id": "R00036",
+    "product_name": "冷切拼盘",
+    "quantity": 4691,
+    "required_temp_min": 0,
+    "required_temp_max": 5
+  },
+  {
+    "batch_id": "B00089",
+    "route_id": "R00035",
+    "product_name": "冰鲜三文鱼",
+    "quantity": 3320,
+    "required_temp_min": -2,
+    "required_temp_max": 2
+  },
+  {
+    "batch_id": "B00090",
+    "route_id": "R00030",
+    "product_name": "冰淇淋",
+    "quantity": 2055,
+    "required_temp_min": -25,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00091",
+    "route_id": "R00012",
+    "product_name": "胰岛素注射液",
+    "quantity": 2266,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00092",
+    "route_id": "R00003",
+    "product_name": "冷切拼盘",
+    "quantity": 4115,
+    "required_temp_min": 0,
+    "required_temp_max": 5
+  },
+  {
+    "batch_id": "B00093",
+    "route_id": "R00013",
+    "product_name": "新鲜草莓",
+    "quantity": 744,
+    "required_temp_min": 0,
+    "required_temp_max": 4
+  },
+  {
+    "batch_id": "B00094",
+    "route_id": "R00026",
+    "product_name": "冷藏巧克力",
+    "quantity": 2375,
+    "required_temp_min": 12,
+    "required_temp_max": 18
+  },
+  {
+    "batch_id": "B00095",
+    "route_id": "R00030",
+    "product_name": "速冻虾仁",
+    "quantity": 1318,
+    "required_temp_min": -20,
+    "required_temp_max": -18
+  },
+  {
+    "batch_id": "B00096",
+    "route_id": "R00025",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2799,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00097",
+    "route_id": "R00030",
+    "product_name": "速冻蔬菜",
+    "quantity": 3511,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00098",
+    "route_id": "R00036",
+    "product_name": "冷藏蛋糕",
+    "quantity": 2909,
+    "required_temp_min": 2,
+    "required_temp_max": 8
+  },
+  {
+    "batch_id": "B00099",
+    "route_id": "R00040",
+    "product_name": "速冻水饺",
+    "quantity": 98,
+    "required_temp_min": -18,
+    "required_temp_max": -15
+  },
+  {
+    "batch_id": "B00100",
+    "route_id": "R00024",
+    "product_name": "冷藏酸奶",
+    "quantity": 4330,
+    "required_temp_min": 2,
+    "required_temp_max": 6
+  }
+]

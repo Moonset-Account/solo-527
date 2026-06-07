@@ -1,0 +1,42 @@
+[
+  {
+    "run_id": "ETL0001",
+    "etl_name": "temperature_readings_etl",
+    "started_at": "2026-06-07 11:00:00",
+    "completed_at": "2026-06-07 11:22:00",
+    "rows_processed": 47200,
+    "status": "success"
+  },
+  {
+    "run_id": "ETL0002",
+    "etl_name": "door_events_etl",
+    "started_at": "2026-06-07 05:00:00",
+    "completed_at": "2026-06-07 05:44:00",
+    "rows_processed": 36696,
+    "status": "success"
+  },
+  {
+    "run_id": "ETL0003",
+    "etl_name": "exceptions_etl",
+    "started_at": "2026-06-07 19:00:00",
+    "completed_at": "2026-06-07 19:52:00",
+    "rows_processed": 1824,
+    "status": "success"
+  },
+  {
+    "run_id": "ETL0004",
+    "etl_name": "calibrations_etl",
+    "started_at": "2026-06-07 14:00:00",
+    "completed_at": "2026-06-07 14:24:00",
+    "rows_processed": 10911,
+    "status": "success"
+  },
+  {
+    "run_id": "ETL0005",
+    "etl_name": "deliveries_etl",
+    "started_at": "2026-06-07 06:00:00",
+    "completed_at": "2026-06-07 06:15:00",
+    "rows_processed": 10536,
+    "status": "running"
+  }
+]

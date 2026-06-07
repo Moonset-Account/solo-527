@@ -1,0 +1,1402 @@
+[
+  {
+    "box_id": "BX00001",
+    "batch_id": "B00081",
+    "vehicle_id": "V0012",
+    "probe_id": "P00001",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00002",
+    "batch_id": "B00011",
+    "vehicle_id": "V0014",
+    "probe_id": "P00002",
+    "current_temp": -16.2
+  },
+  {
+    "box_id": "BX00003",
+    "batch_id": "B00041",
+    "vehicle_id": "V0019",
+    "probe_id": "P00003",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00004",
+    "batch_id": "B00028",
+    "vehicle_id": "V0001",
+    "probe_id": "P00004",
+    "current_temp": 2.6
+  },
+  {
+    "box_id": "BX00005",
+    "batch_id": "B00005",
+    "vehicle_id": "V0019",
+    "probe_id": "P00005",
+    "current_temp": 4.9
+  },
+  {
+    "box_id": "BX00006",
+    "batch_id": "B00061",
+    "vehicle_id": "V0007",
+    "probe_id": "P00006",
+    "current_temp": 2.4
+  },
+  {
+    "box_id": "BX00007",
+    "batch_id": "B00064",
+    "vehicle_id": "V0018",
+    "probe_id": "P00007",
+    "current_temp": -16.9
+  },
+  {
+    "box_id": "BX00008",
+    "batch_id": "B00099",
+    "vehicle_id": "V0017",
+    "probe_id": "P00008",
+    "current_temp": -17.8
+  },
+  {
+    "box_id": "BX00009",
+    "batch_id": "B00015",
+    "vehicle_id": "V0020",
+    "probe_id": "P00009",
+    "current_temp": 3.1
+  },
+  {
+    "box_id": "BX00010",
+    "batch_id": "B00041",
+    "vehicle_id": "V0009",
+    "probe_id": "P00010",
+    "current_temp": 3.7
+  },
+  {
+    "box_id": "BX00011",
+    "batch_id": "B00077",
+    "vehicle_id": "V0003",
+    "probe_id": "P00011",
+    "current_temp": -21.1
+  },
+  {
+    "box_id": "BX00012",
+    "batch_id": "B00041",
+    "vehicle_id": "V0016",
+    "probe_id": "P00012",
+    "current_temp": 5.4
+  },
+  {
+    "box_id": "BX00013",
+    "batch_id": "B00090",
+    "vehicle_id": "V0001",
+    "probe_id": "P00013",
+    "current_temp": -22.2
+  },
+  {
+    "box_id": "BX00014",
+    "batch_id": "B00043",
+    "vehicle_id": "V0002",
+    "probe_id": "P00014",
+    "current_temp": 1.7
+  },
+  {
+    "box_id": "BX00015",
+    "batch_id": "B00082",
+    "vehicle_id": "V0001",
+    "probe_id": "P00015",
+    "current_temp": 7.3
+  },
+  {
+    "box_id": "BX00016",
+    "batch_id": "B00030",
+    "vehicle_id": "V0015",
+    "probe_id": "P00016",
+    "current_temp": 3.6
+  },
+  {
+    "box_id": "BX00017",
+    "batch_id": "B00084",
+    "vehicle_id": "V0015",
+    "probe_id": "P00017",
+    "current_temp": 0.2
+  },
+  {
+    "box_id": "BX00018",
+    "batch_id": "B00007",
+    "vehicle_id": "V0013",
+    "probe_id": "P00018",
+    "current_temp": 3.1
+  },
+  {
+    "box_id": "BX00019",
+    "batch_id": "B00072",
+    "vehicle_id": "V0002",
+    "probe_id": "P00019",
+    "current_temp": -22.3
+  },
+  {
+    "box_id": "BX00020",
+    "batch_id": "B00066",
+    "vehicle_id": "V0004",
+    "probe_id": "P00020",
+    "current_temp": 1.6
+  },
+  {
+    "box_id": "BX00021",
+    "batch_id": "B00083",
+    "vehicle_id": "V0009",
+    "probe_id": "P00021",
+    "current_temp": -17.6
+  },
+  {
+    "box_id": "BX00022",
+    "batch_id": "B00045",
+    "vehicle_id": "V0015",
+    "probe_id": "P00022",
+    "current_temp": -1.9
+  },
+  {
+    "box_id": "BX00023",
+    "batch_id": "B00059",
+    "vehicle_id": "V0004",
+    "probe_id": "P00023",
+    "current_temp": -24.1
+  },
+  {
+    "box_id": "BX00024",
+    "batch_id": "B00090",
+    "vehicle_id": "V0017",
+    "probe_id": "P00024",
+    "current_temp": -18.9
+  },
+  {
+    "box_id": "BX00025",
+    "batch_id": "B00056",
+    "vehicle_id": "V0013",
+    "probe_id": "P00025",
+    "current_temp": 6.9
+  },
+  {
+    "box_id": "BX00026",
+    "batch_id": "B00047",
+    "vehicle_id": "V0012",
+    "probe_id": "P00026",
+    "current_temp": 6.0
+  },
+  {
+    "box_id": "BX00027",
+    "batch_id": "B00067",
+    "vehicle_id": "V0018",
+    "probe_id": "P00027",
+    "current_temp": -15.6
+  },
+  {
+    "box_id": "BX00028",
+    "batch_id": "B00028",
+    "vehicle_id": "V0011",
+    "probe_id": "P00028",
+    "current_temp": 6.5
+  },
+  {
+    "box_id": "BX00029",
+    "batch_id": "B00074",
+    "vehicle_id": "V0019",
+    "probe_id": "P00029",
+    "current_temp": 2.4
+  },
+  {
+    "box_id": "BX00030",
+    "batch_id": "B00089",
+    "vehicle_id": "V0006",
+    "probe_id": "P00030",
+    "current_temp": -0.1
+  },
+  {
+    "box_id": "BX00031",
+    "batch_id": "B00042",
+    "vehicle_id": "V0002",
+    "probe_id": "P00031",
+    "current_temp": 0.1
+  },
+  {
+    "box_id": "BX00032",
+    "batch_id": "B00011",
+    "vehicle_id": "V0008",
+    "probe_id": "P00032",
+    "current_temp": -15.7
+  },
+  {
+    "box_id": "BX00033",
+    "batch_id": "B00023",
+    "vehicle_id": "V0012",
+    "probe_id": "P00033",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00034",
+    "batch_id": "B00081",
+    "vehicle_id": "V0020",
+    "probe_id": "P00034",
+    "current_temp": 1.4
+  },
+  {
+    "box_id": "BX00035",
+    "batch_id": "B00049",
+    "vehicle_id": "V0019",
+    "probe_id": "P00035",
+    "current_temp": 17.1
+  },
+  {
+    "box_id": "BX00036",
+    "batch_id": "B00070",
+    "vehicle_id": "V0020",
+    "probe_id": "P00036",
+    "current_temp": 14.2
+  },
+  {
+    "box_id": "BX00037",
+    "batch_id": "B00001",
+    "vehicle_id": "V0009",
+    "probe_id": "P00037",
+    "current_temp": -19.1
+  },
+  {
+    "box_id": "BX00038",
+    "batch_id": "B00004",
+    "vehicle_id": "V0002",
+    "probe_id": "P00038",
+    "current_temp": 7.5
+  },
+  {
+    "box_id": "BX00039",
+    "batch_id": "B00073",
+    "vehicle_id": "V0002",
+    "probe_id": "P00039",
+    "current_temp": 0.7
+  },
+  {
+    "box_id": "BX00040",
+    "batch_id": "B00045",
+    "vehicle_id": "V0007",
+    "probe_id": "P00040",
+    "current_temp": 0.4
+  },
+  {
+    "box_id": "BX00041",
+    "batch_id": "B00062",
+    "vehicle_id": "V0002",
+    "probe_id": "P00041",
+    "current_temp": -17.6
+  },
+  {
+    "box_id": "BX00042",
+    "batch_id": "B00048",
+    "vehicle_id": "V0005",
+    "probe_id": "P00042",
+    "current_temp": 6.3
+  },
+  {
+    "box_id": "BX00043",
+    "batch_id": "B00081",
+    "vehicle_id": "V0018",
+    "probe_id": "P00043",
+    "current_temp": 0.8
+  },
+  {
+    "box_id": "BX00044",
+    "batch_id": "B00048",
+    "vehicle_id": "V0008",
+    "probe_id": "P00044",
+    "current_temp": 4.7
+  },
+  {
+    "box_id": "BX00045",
+    "batch_id": "B00007",
+    "vehicle_id": "V0003",
+    "probe_id": "P00045",
+    "current_temp": 5.5
+  },
+  {
+    "box_id": "BX00046",
+    "batch_id": "B00062",
+    "vehicle_id": "V0014",
+    "probe_id": "P00046",
+    "current_temp": -15.3
+  },
+  {
+    "box_id": "BX00047",
+    "batch_id": "B00063",
+    "vehicle_id": "V0007",
+    "probe_id": "P00047",
+    "current_temp": -18.5
+  },
+  {
+    "box_id": "BX00048",
+    "batch_id": "B00093",
+    "vehicle_id": "V0020",
+    "probe_id": "P00048",
+    "current_temp": 3.2
+  },
+  {
+    "box_id": "BX00049",
+    "batch_id": "B00091",
+    "vehicle_id": "V0016",
+    "probe_id": "P00049",
+    "current_temp": 2.8
+  },
+  {
+    "box_id": "BX00050",
+    "batch_id": "B00049",
+    "vehicle_id": "V0018",
+    "probe_id": "P00050",
+    "current_temp": 12.9
+  },
+  {
+    "box_id": "BX00051",
+    "batch_id": "B00097",
+    "vehicle_id": "V0014",
+    "probe_id": "P00051",
+    "current_temp": -16.7
+  },
+  {
+    "box_id": "BX00052",
+    "batch_id": "B00039",
+    "vehicle_id": "V0009",
+    "probe_id": "P00052",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00053",
+    "batch_id": "B00096",
+    "vehicle_id": "V0010",
+    "probe_id": "P00053",
+    "current_temp": 3.4
+  },
+  {
+    "box_id": "BX00054",
+    "batch_id": "B00059",
+    "vehicle_id": "V0017",
+    "probe_id": "P00054",
+    "current_temp": -23.4
+  },
+  {
+    "box_id": "BX00055",
+    "batch_id": "B00070",
+    "vehicle_id": "V0013",
+    "probe_id": "P00055",
+    "current_temp": 14.2
+  },
+  {
+    "box_id": "BX00056",
+    "batch_id": "B00055",
+    "vehicle_id": "V0016",
+    "probe_id": "P00056",
+    "current_temp": 15.8
+  },
+  {
+    "box_id": "BX00057",
+    "batch_id": "B00047",
+    "vehicle_id": "V0004",
+    "probe_id": "P00057",
+    "current_temp": 6.3
+  },
+  {
+    "box_id": "BX00058",
+    "batch_id": "B00007",
+    "vehicle_id": "V0003",
+    "probe_id": "P00058",
+    "current_temp": 2.5
+  },
+  {
+    "box_id": "BX00059",
+    "batch_id": "B00019",
+    "vehicle_id": "V0004",
+    "probe_id": "P00059",
+    "current_temp": -19.1
+  },
+  {
+    "box_id": "BX00060",
+    "batch_id": "B00029",
+    "vehicle_id": "V0019",
+    "probe_id": "P00060",
+    "current_temp": -19.9
+  },
+  {
+    "box_id": "BX00061",
+    "batch_id": "B00048",
+    "vehicle_id": "V0015",
+    "probe_id": "P00061",
+    "current_temp": 6.6
+  },
+  {
+    "box_id": "BX00062",
+    "batch_id": "B00047",
+    "vehicle_id": "V0020",
+    "probe_id": "P00062",
+    "current_temp": 5.9
+  },
+  {
+    "box_id": "BX00063",
+    "batch_id": "B00025",
+    "vehicle_id": "V0015",
+    "probe_id": "P00063",
+    "current_temp": -18.6
+  },
+  {
+    "box_id": "BX00064",
+    "batch_id": "B00073",
+    "vehicle_id": "V0016",
+    "probe_id": "P00064",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00065",
+    "batch_id": "B00096",
+    "vehicle_id": "V0018",
+    "probe_id": "P00065",
+    "current_temp": 2.7
+  },
+  {
+    "box_id": "BX00066",
+    "batch_id": "B00097",
+    "vehicle_id": "V0012",
+    "probe_id": "P00066",
+    "current_temp": -16.0
+  },
+  {
+    "box_id": "BX00067",
+    "batch_id": "B00078",
+    "vehicle_id": "V0013",
+    "probe_id": "P00067",
+    "current_temp": -20.6
+  },
+  {
+    "box_id": "BX00068",
+    "batch_id": "B00026",
+    "vehicle_id": "V0004",
+    "probe_id": "P00068",
+    "current_temp": -1.6
+  },
+  {
+    "box_id": "BX00069",
+    "batch_id": "B00075",
+    "vehicle_id": "V0001",
+    "probe_id": "P00069",
+    "current_temp": -16.7
+  },
+  {
+    "box_id": "BX00070",
+    "batch_id": "B00036",
+    "vehicle_id": "V0011",
+    "probe_id": "P00070",
+    "current_temp": -17.7
+  },
+  {
+    "box_id": "BX00071",
+    "batch_id": "B00094",
+    "vehicle_id": "V0017",
+    "probe_id": "P00071",
+    "current_temp": 15.0
+  },
+  {
+    "box_id": "BX00072",
+    "batch_id": "B00068",
+    "vehicle_id": "V0001",
+    "probe_id": "P00072",
+    "current_temp": 7.2
+  },
+  {
+    "box_id": "BX00073",
+    "batch_id": "B00076",
+    "vehicle_id": "V0006",
+    "probe_id": "P00073",
+    "current_temp": 2.4
+  },
+  {
+    "box_id": "BX00074",
+    "batch_id": "B00098",
+    "vehicle_id": "V0016",
+    "probe_id": "P00074",
+    "current_temp": 7.8
+  },
+  {
+    "box_id": "BX00075",
+    "batch_id": "B00097",
+    "vehicle_id": "V0016",
+    "probe_id": "P00075",
+    "current_temp": -15.1
+  },
+  {
+    "box_id": "BX00076",
+    "batch_id": "B00052",
+    "vehicle_id": "V0007",
+    "probe_id": "P00076",
+    "current_temp": -23.7
+  },
+  {
+    "box_id": "BX00077",
+    "batch_id": "B00021",
+    "vehicle_id": "V0018",
+    "probe_id": "P00077",
+    "current_temp": 17.8
+  },
+  {
+    "box_id": "BX00078",
+    "batch_id": "B00045",
+    "vehicle_id": "V0009",
+    "probe_id": "P00078",
+    "current_temp": 0.8
+  },
+  {
+    "box_id": "BX00079",
+    "batch_id": "B00096",
+    "vehicle_id": "V0005",
+    "probe_id": "P00079",
+    "current_temp": 6.2
+  },
+  {
+    "box_id": "BX00080",
+    "batch_id": "B00028",
+    "vehicle_id": "V0019",
+    "probe_id": "P00080",
+    "current_temp": 3.0
+  },
+  {
+    "box_id": "BX00081",
+    "batch_id": "B00067",
+    "vehicle_id": "V0006",
+    "probe_id": "P00081",
+    "current_temp": -17.6
+  },
+  {
+    "box_id": "BX00082",
+    "batch_id": "B00011",
+    "vehicle_id": "V0016",
+    "probe_id": "P00082",
+    "current_temp": -15.6
+  },
+  {
+    "box_id": "BX00083",
+    "batch_id": "B00053",
+    "vehicle_id": "V0004",
+    "probe_id": "P00083",
+    "current_temp": -15.3
+  },
+  {
+    "box_id": "BX00084",
+    "batch_id": "B00060",
+    "vehicle_id": "V0018",
+    "probe_id": "P00084",
+    "current_temp": 17.9
+  },
+  {
+    "box_id": "BX00085",
+    "batch_id": "B00092",
+    "vehicle_id": "V0005",
+    "probe_id": "P00085",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00086",
+    "batch_id": "B00089",
+    "vehicle_id": "V0019",
+    "probe_id": "P00086",
+    "current_temp": -0.2
+  },
+  {
+    "box_id": "BX00087",
+    "batch_id": "B00091",
+    "vehicle_id": "V0012",
+    "probe_id": "P00087",
+    "current_temp": 6.3
+  },
+  {
+    "box_id": "BX00088",
+    "batch_id": "B00087",
+    "vehicle_id": "V0003",
+    "probe_id": "P00088",
+    "current_temp": 4.5
+  },
+  {
+    "box_id": "BX00089",
+    "batch_id": "B00069",
+    "vehicle_id": "V0018",
+    "probe_id": "P00089",
+    "current_temp": 1.8
+  },
+  {
+    "box_id": "BX00090",
+    "batch_id": "B00050",
+    "vehicle_id": "V0020",
+    "probe_id": "P00090",
+    "current_temp": 7.4
+  },
+  {
+    "box_id": "BX00091",
+    "batch_id": "B00047",
+    "vehicle_id": "V0008",
+    "probe_id": "P00091",
+    "current_temp": 2.7
+  },
+  {
+    "box_id": "BX00092",
+    "batch_id": "B00037",
+    "vehicle_id": "V0017",
+    "probe_id": "P00092",
+    "current_temp": -17.1
+  },
+  {
+    "box_id": "BX00093",
+    "batch_id": "B00004",
+    "vehicle_id": "V0014",
+    "probe_id": "P00093",
+    "current_temp": 7.3
+  },
+  {
+    "box_id": "BX00094",
+    "batch_id": "B00044",
+    "vehicle_id": "V0016",
+    "probe_id": "P00094",
+    "current_temp": -15.2
+  },
+  {
+    "box_id": "BX00095",
+    "batch_id": "B00100",
+    "vehicle_id": "V0011",
+    "probe_id": "P00095",
+    "current_temp": 2.6
+  },
+  {
+    "box_id": "BX00096",
+    "batch_id": "B00057",
+    "vehicle_id": "V0008",
+    "probe_id": "P00096",
+    "current_temp": -19.9
+  },
+  {
+    "box_id": "BX00097",
+    "batch_id": "B00068",
+    "vehicle_id": "V0002",
+    "probe_id": "P00097",
+    "current_temp": 3.6
+  },
+  {
+    "box_id": "BX00098",
+    "batch_id": "B00069",
+    "vehicle_id": "V0010",
+    "probe_id": "P00098",
+    "current_temp": 1.8
+  },
+  {
+    "box_id": "BX00099",
+    "batch_id": "B00091",
+    "vehicle_id": "V0009",
+    "probe_id": "P00099",
+    "current_temp": 2.2
+  },
+  {
+    "box_id": "BX00100",
+    "batch_id": "B00005",
+    "vehicle_id": "V0017",
+    "probe_id": "P00100",
+    "current_temp": 4.0
+  },
+  {
+    "box_id": "BX00101",
+    "batch_id": "B00030",
+    "vehicle_id": "V0018",
+    "probe_id": "P00101",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00102",
+    "batch_id": "B00003",
+    "vehicle_id": "V0002",
+    "probe_id": "P00102",
+    "current_temp": -18.7
+  },
+  {
+    "box_id": "BX00103",
+    "batch_id": "B00070",
+    "vehicle_id": "V0010",
+    "probe_id": "P00103",
+    "current_temp": 15.8
+  },
+  {
+    "box_id": "BX00104",
+    "batch_id": "B00050",
+    "vehicle_id": "V0010",
+    "probe_id": "P00104",
+    "current_temp": 3.3
+  },
+  {
+    "box_id": "BX00105",
+    "batch_id": "B00062",
+    "vehicle_id": "V0015",
+    "probe_id": "P00105",
+    "current_temp": -15.9
+  },
+  {
+    "box_id": "BX00106",
+    "batch_id": "B00017",
+    "vehicle_id": "V0005",
+    "probe_id": "P00106",
+    "current_temp": 18.0
+  },
+  {
+    "box_id": "BX00107",
+    "batch_id": "B00084",
+    "vehicle_id": "V0018",
+    "probe_id": "P00107",
+    "current_temp": -1.7
+  },
+  {
+    "box_id": "BX00108",
+    "batch_id": "B00090",
+    "vehicle_id": "V0016",
+    "probe_id": "P00108",
+    "current_temp": -22.8
+  },
+  {
+    "box_id": "BX00109",
+    "batch_id": "B00021",
+    "vehicle_id": "V0016",
+    "probe_id": "P00109",
+    "current_temp": 17.7
+  },
+  {
+    "box_id": "BX00110",
+    "batch_id": "B00098",
+    "vehicle_id": "V0010",
+    "probe_id": "P00110",
+    "current_temp": 6.8
+  },
+  {
+    "box_id": "BX00111",
+    "batch_id": "B00057",
+    "vehicle_id": "V0009",
+    "probe_id": "P00111",
+    "current_temp": -18.3
+  },
+  {
+    "box_id": "BX00112",
+    "batch_id": "B00022",
+    "vehicle_id": "V0018",
+    "probe_id": "P00112",
+    "current_temp": 3.2
+  },
+  {
+    "box_id": "BX00113",
+    "batch_id": "B00001",
+    "vehicle_id": "V0005",
+    "probe_id": "P00113",
+    "current_temp": -20.5
+  },
+  {
+    "box_id": "BX00114",
+    "batch_id": "B00082",
+    "vehicle_id": "V0010",
+    "probe_id": "P00114",
+    "current_temp": 6.0
+  },
+  {
+    "box_id": "BX00115",
+    "batch_id": "B00079",
+    "vehicle_id": "V0019",
+    "probe_id": "P00115",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00116",
+    "batch_id": "B00077",
+    "vehicle_id": "V0001",
+    "probe_id": "P00116",
+    "current_temp": -18.0
+  },
+  {
+    "box_id": "BX00117",
+    "batch_id": "B00100",
+    "vehicle_id": "V0001",
+    "probe_id": "P00117",
+    "current_temp": 2.4
+  },
+  {
+    "box_id": "BX00118",
+    "batch_id": "B00049",
+    "vehicle_id": "V0005",
+    "probe_id": "P00118",
+    "current_temp": 13.9
+  },
+  {
+    "box_id": "BX00119",
+    "batch_id": "B00018",
+    "vehicle_id": "V0016",
+    "probe_id": "P00119",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00120",
+    "batch_id": "B00068",
+    "vehicle_id": "V0002",
+    "probe_id": "P00120",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00121",
+    "batch_id": "B00085",
+    "vehicle_id": "V0016",
+    "probe_id": "P00121",
+    "current_temp": -16.3
+  },
+  {
+    "box_id": "BX00122",
+    "batch_id": "B00036",
+    "vehicle_id": "V0005",
+    "probe_id": "P00122",
+    "current_temp": -17.3
+  },
+  {
+    "box_id": "BX00123",
+    "batch_id": "B00011",
+    "vehicle_id": "V0016",
+    "probe_id": "P00123",
+    "current_temp": -17.5
+  },
+  {
+    "box_id": "BX00124",
+    "batch_id": "B00078",
+    "vehicle_id": "V0006",
+    "probe_id": "P00124",
+    "current_temp": -22.6
+  },
+  {
+    "box_id": "BX00125",
+    "batch_id": "B00041",
+    "vehicle_id": "V0017",
+    "probe_id": "P00125",
+    "current_temp": 3.6
+  },
+  {
+    "box_id": "BX00126",
+    "batch_id": "B00004",
+    "vehicle_id": "V0014",
+    "probe_id": "P00126",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00127",
+    "batch_id": "B00066",
+    "vehicle_id": "V0009",
+    "probe_id": "P00127",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00128",
+    "batch_id": "B00092",
+    "vehicle_id": "V0004",
+    "probe_id": "P00128",
+    "current_temp": 2.3
+  },
+  {
+    "box_id": "BX00129",
+    "batch_id": "B00031",
+    "vehicle_id": "V0010",
+    "probe_id": "P00129",
+    "current_temp": 5.3
+  },
+  {
+    "box_id": "BX00130",
+    "batch_id": "B00040",
+    "vehicle_id": "V0005",
+    "probe_id": "P00130",
+    "current_temp": 3.6
+  },
+  {
+    "box_id": "BX00131",
+    "batch_id": "B00099",
+    "vehicle_id": "V0012",
+    "probe_id": "P00131",
+    "current_temp": -16.6
+  },
+  {
+    "box_id": "BX00132",
+    "batch_id": "B00088",
+    "vehicle_id": "V0013",
+    "probe_id": "P00132",
+    "current_temp": 4.1
+  },
+  {
+    "box_id": "BX00133",
+    "batch_id": "B00067",
+    "vehicle_id": "V0015",
+    "probe_id": "P00133",
+    "current_temp": -16.4
+  },
+  {
+    "box_id": "BX00134",
+    "batch_id": "B00066",
+    "vehicle_id": "V0001",
+    "probe_id": "P00134",
+    "current_temp": 0.0
+  },
+  {
+    "box_id": "BX00135",
+    "batch_id": "B00069",
+    "vehicle_id": "V0019",
+    "probe_id": "P00135",
+    "current_temp": 4.0
+  },
+  {
+    "box_id": "BX00136",
+    "batch_id": "B00007",
+    "vehicle_id": "V0002",
+    "probe_id": "P00136",
+    "current_temp": 7.1
+  },
+  {
+    "box_id": "BX00137",
+    "batch_id": "B00079",
+    "vehicle_id": "V0009",
+    "probe_id": "P00137",
+    "current_temp": 3.7
+  },
+  {
+    "box_id": "BX00138",
+    "batch_id": "B00003",
+    "vehicle_id": "V0019",
+    "probe_id": "P00138",
+    "current_temp": -19.0
+  },
+  {
+    "box_id": "BX00139",
+    "batch_id": "B00047",
+    "vehicle_id": "V0002",
+    "probe_id": "P00139",
+    "current_temp": 4.7
+  },
+  {
+    "box_id": "BX00140",
+    "batch_id": "B00010",
+    "vehicle_id": "V0015",
+    "probe_id": "P00140",
+    "current_temp": -20.0
+  },
+  {
+    "box_id": "BX00141",
+    "batch_id": "B00048",
+    "vehicle_id": "V0017",
+    "probe_id": "P00141",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00142",
+    "batch_id": "B00041",
+    "vehicle_id": "V0011",
+    "probe_id": "P00142",
+    "current_temp": 2.1
+  },
+  {
+    "box_id": "BX00143",
+    "batch_id": "B00092",
+    "vehicle_id": "V0013",
+    "probe_id": "P00143",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00144",
+    "batch_id": "B00093",
+    "vehicle_id": "V0003",
+    "probe_id": "P00144",
+    "current_temp": 0.3
+  },
+  {
+    "box_id": "BX00145",
+    "batch_id": "B00005",
+    "vehicle_id": "V0011",
+    "probe_id": "P00145",
+    "current_temp": 2.6
+  },
+  {
+    "box_id": "BX00146",
+    "batch_id": "B00017",
+    "vehicle_id": "V0001",
+    "probe_id": "P00146",
+    "current_temp": 17.0
+  },
+  {
+    "box_id": "BX00147",
+    "batch_id": "B00047",
+    "vehicle_id": "V0006",
+    "probe_id": "P00147",
+    "current_temp": 3.0
+  },
+  {
+    "box_id": "BX00148",
+    "batch_id": "B00007",
+    "vehicle_id": "V0001",
+    "probe_id": "P00148",
+    "current_temp": 4.1
+  },
+  {
+    "box_id": "BX00149",
+    "batch_id": "B00030",
+    "vehicle_id": "V0006",
+    "probe_id": "P00149",
+    "current_temp": 1.7
+  },
+  {
+    "box_id": "BX00150",
+    "batch_id": "B00075",
+    "vehicle_id": "V0017",
+    "probe_id": "P00150",
+    "current_temp": -15.6
+  },
+  {
+    "box_id": "BX00151",
+    "batch_id": "B00032",
+    "vehicle_id": "V0017",
+    "probe_id": "P00151",
+    "current_temp": 16.7
+  },
+  {
+    "box_id": "BX00152",
+    "batch_id": "B00051",
+    "vehicle_id": "V0016",
+    "probe_id": "P00152",
+    "current_temp": -18.1
+  },
+  {
+    "box_id": "BX00153",
+    "batch_id": "B00088",
+    "vehicle_id": "V0013",
+    "probe_id": "P00153",
+    "current_temp": 2.8
+  },
+  {
+    "box_id": "BX00154",
+    "batch_id": "B00027",
+    "vehicle_id": "V0014",
+    "probe_id": "P00154",
+    "current_temp": 1.0
+  },
+  {
+    "box_id": "BX00155",
+    "batch_id": "B00017",
+    "vehicle_id": "V0001",
+    "probe_id": "P00155",
+    "current_temp": 13.9
+  },
+  {
+    "box_id": "BX00156",
+    "batch_id": "B00034",
+    "vehicle_id": "V0007",
+    "probe_id": "P00156",
+    "current_temp": 2.8
+  },
+  {
+    "box_id": "BX00157",
+    "batch_id": "B00006",
+    "vehicle_id": "V0006",
+    "probe_id": "P00157",
+    "current_temp": -0.9
+  },
+  {
+    "box_id": "BX00158",
+    "batch_id": "B00058",
+    "vehicle_id": "V0016",
+    "probe_id": "P00158",
+    "current_temp": -15.3
+  },
+  {
+    "box_id": "BX00159",
+    "batch_id": "B00053",
+    "vehicle_id": "V0013",
+    "probe_id": "P00159",
+    "current_temp": -22.3
+  },
+  {
+    "box_id": "BX00160",
+    "batch_id": "B00003",
+    "vehicle_id": "V0005",
+    "probe_id": "P00160",
+    "current_temp": -19.7
+  },
+  {
+    "box_id": "BX00161",
+    "batch_id": "B00059",
+    "vehicle_id": "V0014",
+    "probe_id": "P00161",
+    "current_temp": -18.5
+  },
+  {
+    "box_id": "BX00162",
+    "batch_id": "B00017",
+    "vehicle_id": "V0001",
+    "probe_id": "P00162",
+    "current_temp": 14.6
+  },
+  {
+    "box_id": "BX00163",
+    "batch_id": "B00028",
+    "vehicle_id": "V0009",
+    "probe_id": "P00163",
+    "current_temp": 6.4
+  },
+  {
+    "box_id": "BX00164",
+    "batch_id": "B00043",
+    "vehicle_id": "V0009",
+    "probe_id": "P00164",
+    "current_temp": 1.0
+  },
+  {
+    "box_id": "BX00165",
+    "batch_id": "B00095",
+    "vehicle_id": "V0013",
+    "probe_id": "P00165",
+    "current_temp": -19.8
+  },
+  {
+    "box_id": "BX00166",
+    "batch_id": "B00053",
+    "vehicle_id": "V0010",
+    "probe_id": "P00166",
+    "current_temp": -16.7
+  },
+  {
+    "box_id": "BX00167",
+    "batch_id": "B00066",
+    "vehicle_id": "V0006",
+    "probe_id": "P00167",
+    "current_temp": 1.1
+  },
+  {
+    "box_id": "BX00168",
+    "batch_id": "B00070",
+    "vehicle_id": "V0016",
+    "probe_id": "P00168",
+    "current_temp": 16.1
+  },
+  {
+    "box_id": "BX00169",
+    "batch_id": "B00013",
+    "vehicle_id": "V0010",
+    "probe_id": "P00169",
+    "current_temp": 2.3
+  },
+  {
+    "box_id": "BX00170",
+    "batch_id": "B00063",
+    "vehicle_id": "V0018",
+    "probe_id": "P00170",
+    "current_temp": -18.6
+  },
+  {
+    "box_id": "BX00171",
+    "batch_id": "B00071",
+    "vehicle_id": "V0020",
+    "probe_id": "P00171",
+    "current_temp": 4.3
+  },
+  {
+    "box_id": "BX00172",
+    "batch_id": "B00007",
+    "vehicle_id": "V0016",
+    "probe_id": "P00172",
+    "current_temp": 7.1
+  },
+  {
+    "box_id": "BX00173",
+    "batch_id": "B00051",
+    "vehicle_id": "V0011",
+    "probe_id": "P00173",
+    "current_temp": -23.4
+  },
+  {
+    "box_id": "BX00174",
+    "batch_id": "B00040",
+    "vehicle_id": "V0009",
+    "probe_id": "P00174",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00175",
+    "batch_id": "B00066",
+    "vehicle_id": "V0016",
+    "probe_id": "P00175",
+    "current_temp": 2.3
+  },
+  {
+    "box_id": "BX00176",
+    "batch_id": "B00091",
+    "vehicle_id": "V0016",
+    "probe_id": "P00176",
+    "current_temp": 3.8
+  },
+  {
+    "box_id": "BX00177",
+    "batch_id": "B00097",
+    "vehicle_id": "V0020",
+    "probe_id": "P00177",
+    "current_temp": -17.8
+  },
+  {
+    "box_id": "BX00178",
+    "batch_id": "B00056",
+    "vehicle_id": "V0016",
+    "probe_id": "P00178",
+    "current_temp": 3.7
+  },
+  {
+    "box_id": "BX00179",
+    "batch_id": "B00007",
+    "vehicle_id": "V0006",
+    "probe_id": "P00179",
+    "current_temp": 4.4
+  },
+  {
+    "box_id": "BX00180",
+    "batch_id": "B00059",
+    "vehicle_id": "V0016",
+    "probe_id": "P00180",
+    "current_temp": -20.1
+  },
+  {
+    "box_id": "BX00181",
+    "batch_id": "B00091",
+    "vehicle_id": "V0002",
+    "probe_id": "P00181",
+    "current_temp": 6.6
+  },
+  {
+    "box_id": "BX00182",
+    "batch_id": "B00006",
+    "vehicle_id": "V0001",
+    "probe_id": "P00182",
+    "current_temp": -1.5
+  },
+  {
+    "box_id": "BX00183",
+    "batch_id": "B00027",
+    "vehicle_id": "V0020",
+    "probe_id": "P00183",
+    "current_temp": 0.2
+  },
+  {
+    "box_id": "BX00184",
+    "batch_id": "B00004",
+    "vehicle_id": "V0003",
+    "probe_id": "P00184",
+    "current_temp": 2.2
+  },
+  {
+    "box_id": "BX00185",
+    "batch_id": "B00077",
+    "vehicle_id": "V0016",
+    "probe_id": "P00185",
+    "current_temp": -16.0
+  },
+  {
+    "box_id": "BX00186",
+    "batch_id": "B00067",
+    "vehicle_id": "V0003",
+    "probe_id": "P00186",
+    "current_temp": -15.5
+  },
+  {
+    "box_id": "BX00187",
+    "batch_id": "B00049",
+    "vehicle_id": "V0016",
+    "probe_id": "P00187",
+    "current_temp": 16.9
+  },
+  {
+    "box_id": "BX00188",
+    "batch_id": "B00027",
+    "vehicle_id": "V0016",
+    "probe_id": "P00188",
+    "current_temp": 1.3
+  },
+  {
+    "box_id": "BX00189",
+    "batch_id": "B00025",
+    "vehicle_id": "V0016",
+    "probe_id": "P00189",
+    "current_temp": -22.7
+  },
+  {
+    "box_id": "BX00190",
+    "batch_id": "B00021",
+    "vehicle_id": "V0002",
+    "probe_id": "P00190",
+    "current_temp": 16.4
+  },
+  {
+    "box_id": "BX00191",
+    "batch_id": "B00075",
+    "vehicle_id": "V0016",
+    "probe_id": "P00191",
+    "current_temp": -15.3
+  },
+  {
+    "box_id": "BX00192",
+    "batch_id": "B00062",
+    "vehicle_id": "V0010",
+    "probe_id": "P00192",
+    "current_temp": -16.3
+  },
+  {
+    "box_id": "BX00193",
+    "batch_id": "B00031",
+    "vehicle_id": "V0011",
+    "probe_id": "P00193",
+    "current_temp": 3.3
+  },
+  {
+    "box_id": "BX00194",
+    "batch_id": "B00084",
+    "vehicle_id": "V0020",
+    "probe_id": "P00194",
+    "current_temp": -0.1
+  },
+  {
+    "box_id": "BX00195",
+    "batch_id": "B00048",
+    "vehicle_id": "V0006",
+    "probe_id": "P00195",
+    "current_temp": 4.0
+  },
+  {
+    "box_id": "BX00196",
+    "batch_id": "B00043",
+    "vehicle_id": "V0002",
+    "probe_id": "P00196",
+    "current_temp": -0.5
+  },
+  {
+    "box_id": "BX00197",
+    "batch_id": "B00055",
+    "vehicle_id": "V0020",
+    "probe_id": "P00197",
+    "current_temp": 13.1
+  },
+  {
+    "box_id": "BX00198",
+    "batch_id": "B00032",
+    "vehicle_id": "V0009",
+    "probe_id": "P00198",
+    "current_temp": 17.1
+  },
+  {
+    "box_id": "BX00199",
+    "batch_id": "B00011",
+    "vehicle_id": "V0002",
+    "probe_id": "P00199",
+    "current_temp": -15.9
+  },
+  {
+    "box_id": "BX00200",
+    "batch_id": "B00055",
+    "vehicle_id": "V0017",
+    "probe_id": "P00200",
+    "current_temp": 12.0
+  }
+]

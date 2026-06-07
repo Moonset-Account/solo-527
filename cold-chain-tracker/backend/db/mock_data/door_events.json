@@ -1,0 +1,5002 @@
+[
+  {
+    "event_id": "DE000001",
+    "vehicle_id": "V0012",
+    "box_id": "BX00184",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 13:32:00",
+    "location_lat": 39.42771,
+    "location_lng": 78.638368,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000002",
+    "vehicle_id": "V0013",
+    "box_id": "BX00088",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 02:22:00",
+    "location_lat": 50.361695,
+    "location_lng": 88.914186,
+    "duration_seconds": 283
+  },
+  {
+    "event_id": "DE000003",
+    "vehicle_id": "V0017",
+    "box_id": "BX00158",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 20:03:00",
+    "location_lat": 51.897828,
+    "location_lng": 122.605984,
+    "duration_seconds": 405
+  },
+  {
+    "event_id": "DE000004",
+    "vehicle_id": "V0011",
+    "box_id": "BX00049",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 19:39:00",
+    "location_lat": 48.311534,
+    "location_lng": 84.077795,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000005",
+    "vehicle_id": "V0019",
+    "box_id": "BX00090",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 08:41:00",
+    "location_lat": 30.403529,
+    "location_lng": 84.49569,
+    "duration_seconds": 198
+  },
+  {
+    "event_id": "DE000006",
+    "vehicle_id": "V0014",
+    "box_id": "BX00129",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 02:47:00",
+    "location_lat": 43.515559,
+    "location_lng": 119.787988,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000007",
+    "vehicle_id": "V0008",
+    "box_id": "BX00148",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 14:13:00",
+    "location_lat": 22.619064,
+    "location_lng": 86.531116,
+    "duration_seconds": 364
+  },
+  {
+    "event_id": "DE000008",
+    "vehicle_id": "V0011",
+    "box_id": "BX00199",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 12:48:00",
+    "location_lat": 21.969209,
+    "location_lng": 119.690684,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000009",
+    "vehicle_id": "V0013",
+    "box_id": "BX00017",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 21:05:00",
+    "location_lat": 45.851987,
+    "location_lng": 122.76801,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000010",
+    "vehicle_id": "V0008",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 19:48:00",
+    "location_lat": 37.961141,
+    "location_lng": 130.608599,
+    "duration_seconds": 361
+  },
+  {
+    "event_id": "DE000011",
+    "vehicle_id": "V0014",
+    "box_id": "BX00091",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 09:06:00",
+    "location_lat": 32.763985,
+    "location_lng": 89.078887,
+    "duration_seconds": 203
+  },
+  {
+    "event_id": "DE000012",
+    "vehicle_id": "V0015",
+    "box_id": "BX00056",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 14:05:00",
+    "location_lat": 45.083929,
+    "location_lng": 134.304521,
+    "duration_seconds": 144
+  },
+  {
+    "event_id": "DE000013",
+    "vehicle_id": "V0012",
+    "box_id": "BX00190",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 18:24:00",
+    "location_lat": 39.587444,
+    "location_lng": 107.287109,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000014",
+    "vehicle_id": "V0002",
+    "box_id": "BX00121",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 00:54:00",
+    "location_lat": 45.322447,
+    "location_lng": 117.157541,
+    "duration_seconds": 343
+  },
+  {
+    "event_id": "DE000015",
+    "vehicle_id": "V0019",
+    "box_id": "BX00124",
+    "event_type": "close",
+    "occurred_at": "2026-05-23 13:45:00",
+    "location_lat": 52.997475,
+    "location_lng": 84.971333,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000016",
+    "vehicle_id": "V0005",
+    "box_id": "BX00180",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 03:11:00",
+    "location_lat": 36.072113,
+    "location_lng": 91.796778,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000017",
+    "vehicle_id": "V0007",
+    "box_id": "BX00085",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 15:49:00",
+    "location_lat": 40.585746,
+    "location_lng": 116.725738,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000018",
+    "vehicle_id": "V0007",
+    "box_id": "BX00119",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 12:47:00",
+    "location_lat": 31.003185,
+    "location_lng": 96.001052,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000019",
+    "vehicle_id": "V0007",
+    "box_id": "BX00027",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 01:43:00",
+    "location_lat": 52.199863,
+    "location_lng": 132.03422,
+    "duration_seconds": 296
+  },
+  {
+    "event_id": "DE000020",
+    "vehicle_id": "V0016",
+    "box_id": "BX00133",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 20:33:00",
+    "location_lat": 31.442694,
+    "location_lng": 118.023249,
+    "duration_seconds": 501
+  },
+  {
+    "event_id": "DE000021",
+    "vehicle_id": "V0019",
+    "box_id": "BX00143",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 00:53:00",
+    "location_lat": 19.839408,
+    "location_lng": 98.015274,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000022",
+    "vehicle_id": "V0012",
+    "box_id": "BX00008",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 15:03:00",
+    "location_lat": 24.304655,
+    "location_lng": 108.54832,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000023",
+    "vehicle_id": "V0018",
+    "box_id": "BX00033",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 09:10:00",
+    "location_lat": 20.923154,
+    "location_lng": 104.231834,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000024",
+    "vehicle_id": "V0017",
+    "box_id": "BX00189",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 21:49:00",
+    "location_lat": 21.732593,
+    "location_lng": 81.989215,
+    "duration_seconds": 437
+  },
+  {
+    "event_id": "DE000025",
+    "vehicle_id": "V0011",
+    "box_id": "BX00060",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 22:30:00",
+    "location_lat": 37.046107,
+    "location_lng": 111.098169,
+    "duration_seconds": 382
+  },
+  {
+    "event_id": "DE000026",
+    "vehicle_id": "V0008",
+    "box_id": "BX00107",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 12:30:00",
+    "location_lat": 52.183614,
+    "location_lng": 104.166408,
+    "duration_seconds": 545
+  },
+  {
+    "event_id": "DE000027",
+    "vehicle_id": "V0005",
+    "box_id": "BX00181",
+    "event_type": "open",
+    "occurred_at": "2026-05-17 06:20:00",
+    "location_lat": 25.014218,
+    "location_lng": 106.21932,
+    "duration_seconds": 476
+  },
+  {
+    "event_id": "DE000028",
+    "vehicle_id": "V0008",
+    "box_id": "BX00119",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 14:27:00",
+    "location_lat": 45.358593,
+    "location_lng": 74.988042,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000029",
+    "vehicle_id": "V0017",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 09:39:00",
+    "location_lat": 43.430329,
+    "location_lng": 133.261675,
+    "duration_seconds": 468
+  },
+  {
+    "event_id": "DE000030",
+    "vehicle_id": "V0004",
+    "box_id": "BX00029",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 14:50:00",
+    "location_lat": 40.70604,
+    "location_lng": 99.421052,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000031",
+    "vehicle_id": "V0012",
+    "box_id": "BX00193",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 04:08:00",
+    "location_lat": 33.681403,
+    "location_lng": 125.60831,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000032",
+    "vehicle_id": "V0002",
+    "box_id": "BX00065",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 14:31:00",
+    "location_lat": 47.593861,
+    "location_lng": 126.728261,
+    "duration_seconds": 349
+  },
+  {
+    "event_id": "DE000033",
+    "vehicle_id": "V0009",
+    "box_id": "BX00071",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 13:48:00",
+    "location_lat": 33.074778,
+    "location_lng": 99.887005,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000034",
+    "vehicle_id": "V0011",
+    "box_id": "BX00095",
+    "event_type": "close",
+    "occurred_at": "2026-05-23 10:01:00",
+    "location_lat": 40.267262,
+    "location_lng": 107.02457,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000035",
+    "vehicle_id": "V0017",
+    "box_id": "BX00188",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 02:01:00",
+    "location_lat": 26.70893,
+    "location_lng": 95.284502,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000036",
+    "vehicle_id": "V0009",
+    "box_id": "BX00151",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 13:07:00",
+    "location_lat": 36.665362,
+    "location_lng": 111.4765,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000037",
+    "vehicle_id": "V0006",
+    "box_id": "BX00050",
+    "event_type": "open",
+    "occurred_at": "2026-05-08 06:52:00",
+    "location_lat": 48.696555,
+    "location_lng": 93.252814,
+    "duration_seconds": 188
+  },
+  {
+    "event_id": "DE000038",
+    "vehicle_id": "V0019",
+    "box_id": "BX00040",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 10:49:00",
+    "location_lat": 28.278068,
+    "location_lng": 104.100111,
+    "duration_seconds": 244
+  },
+  {
+    "event_id": "DE000039",
+    "vehicle_id": "V0020",
+    "box_id": "BX00037",
+    "event_type": "open",
+    "occurred_at": "2026-05-21 00:05:00",
+    "location_lat": 23.988468,
+    "location_lng": 134.23301,
+    "duration_seconds": 543
+  },
+  {
+    "event_id": "DE000040",
+    "vehicle_id": "V0004",
+    "box_id": "BX00191",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 00:54:00",
+    "location_lat": 22.440244,
+    "location_lng": 105.361745,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000041",
+    "vehicle_id": "V0020",
+    "box_id": "BX00051",
+    "event_type": "close",
+    "occurred_at": "2026-05-04 06:27:00",
+    "location_lat": 23.281077,
+    "location_lng": 132.207117,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000042",
+    "vehicle_id": "V0019",
+    "box_id": "BX00185",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 21:00:00",
+    "location_lat": 47.821924,
+    "location_lng": 78.240528,
+    "duration_seconds": 224
+  },
+  {
+    "event_id": "DE000043",
+    "vehicle_id": "V0009",
+    "box_id": "BX00161",
+    "event_type": "close",
+    "occurred_at": "2026-05-08 11:42:00",
+    "location_lat": 37.600774,
+    "location_lng": 87.452922,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000044",
+    "vehicle_id": "V0003",
+    "box_id": "BX00009",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 08:05:00",
+    "location_lat": 28.273604,
+    "location_lng": 120.597411,
+    "duration_seconds": 507
+  },
+  {
+    "event_id": "DE000045",
+    "vehicle_id": "V0017",
+    "box_id": "BX00173",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 15:01:00",
+    "location_lat": 42.899386,
+    "location_lng": 103.121176,
+    "duration_seconds": 32
+  },
+  {
+    "event_id": "DE000046",
+    "vehicle_id": "V0018",
+    "box_id": "BX00133",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 06:57:00",
+    "location_lat": 38.60521,
+    "location_lng": 128.881471,
+    "duration_seconds": 574
+  },
+  {
+    "event_id": "DE000047",
+    "vehicle_id": "V0011",
+    "box_id": "BX00158",
+    "event_type": "close",
+    "occurred_at": "2026-06-02 11:40:00",
+    "location_lat": 52.816905,
+    "location_lng": 81.384449,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000048",
+    "vehicle_id": "V0017",
+    "box_id": "BX00066",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 13:48:00",
+    "location_lat": 20.724366,
+    "location_lng": 93.620698,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000049",
+    "vehicle_id": "V0004",
+    "box_id": "BX00147",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 02:47:00",
+    "location_lat": 31.4653,
+    "location_lng": 102.464163,
+    "duration_seconds": 114
+  },
+  {
+    "event_id": "DE000050",
+    "vehicle_id": "V0006",
+    "box_id": "BX00200",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 11:32:00",
+    "location_lat": 48.070671,
+    "location_lng": 101.472237,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000051",
+    "vehicle_id": "V0020",
+    "box_id": "BX00070",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 21:28:00",
+    "location_lat": 29.749923,
+    "location_lng": 93.271077,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000052",
+    "vehicle_id": "V0007",
+    "box_id": "BX00080",
+    "event_type": "close",
+    "occurred_at": "2026-06-02 08:25:00",
+    "location_lat": 49.892554,
+    "location_lng": 90.828272,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000053",
+    "vehicle_id": "V0012",
+    "box_id": "BX00063",
+    "event_type": "open",
+    "occurred_at": "2026-05-08 20:24:00",
+    "location_lat": 21.700263,
+    "location_lng": 119.127589,
+    "duration_seconds": 177
+  },
+  {
+    "event_id": "DE000054",
+    "vehicle_id": "V0005",
+    "box_id": "BX00080",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 01:29:00",
+    "location_lat": 29.206113,
+    "location_lng": 122.596619,
+    "duration_seconds": 108
+  },
+  {
+    "event_id": "DE000055",
+    "vehicle_id": "V0020",
+    "box_id": "BX00088",
+    "event_type": "open",
+    "occurred_at": "2026-05-04 14:01:00",
+    "location_lat": 45.383622,
+    "location_lng": 94.090439,
+    "duration_seconds": 541
+  },
+  {
+    "event_id": "DE000056",
+    "vehicle_id": "V0011",
+    "box_id": "BX00055",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 06:45:00",
+    "location_lat": 29.025322,
+    "location_lng": 100.738125,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000057",
+    "vehicle_id": "V0010",
+    "box_id": "BX00146",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 13:06:00",
+    "location_lat": 37.687717,
+    "location_lng": 98.343899,
+    "duration_seconds": 58
+  },
+  {
+    "event_id": "DE000058",
+    "vehicle_id": "V0002",
+    "box_id": "BX00141",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 16:40:00",
+    "location_lat": 50.901219,
+    "location_lng": 108.841637,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000059",
+    "vehicle_id": "V0005",
+    "box_id": "BX00121",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 19:09:00",
+    "location_lat": 48.342863,
+    "location_lng": 122.171341,
+    "duration_seconds": 130
+  },
+  {
+    "event_id": "DE000060",
+    "vehicle_id": "V0010",
+    "box_id": "BX00043",
+    "event_type": "open",
+    "occurred_at": "2026-05-04 15:39:00",
+    "location_lat": 50.441997,
+    "location_lng": 80.579985,
+    "duration_seconds": 280
+  },
+  {
+    "event_id": "DE000061",
+    "vehicle_id": "V0013",
+    "box_id": "BX00089",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 19:49:00",
+    "location_lat": 48.409117,
+    "location_lng": 99.214379,
+    "duration_seconds": 495
+  },
+  {
+    "event_id": "DE000062",
+    "vehicle_id": "V0020",
+    "box_id": "BX00026",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 11:01:00",
+    "location_lat": 47.080126,
+    "location_lng": 93.45899,
+    "duration_seconds": 373
+  },
+  {
+    "event_id": "DE000063",
+    "vehicle_id": "V0011",
+    "box_id": "BX00030",
+    "event_type": "close",
+    "occurred_at": "2026-05-23 19:58:00",
+    "location_lat": 27.31867,
+    "location_lng": 81.954758,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000064",
+    "vehicle_id": "V0007",
+    "box_id": "BX00004",
+    "event_type": "close",
+    "occurred_at": "2026-05-10 21:49:00",
+    "location_lat": 32.009357,
+    "location_lng": 118.415277,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000065",
+    "vehicle_id": "V0009",
+    "box_id": "BX00051",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 19:35:00",
+    "location_lat": 42.664416,
+    "location_lng": 91.225678,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000066",
+    "vehicle_id": "V0004",
+    "box_id": "BX00117",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 13:39:00",
+    "location_lat": 37.313898,
+    "location_lng": 101.047027,
+    "duration_seconds": 393
+  },
+  {
+    "event_id": "DE000067",
+    "vehicle_id": "V0019",
+    "box_id": "BX00041",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 08:26:00",
+    "location_lat": 28.307806,
+    "location_lng": 100.010084,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000068",
+    "vehicle_id": "V0013",
+    "box_id": "BX00196",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 21:16:00",
+    "location_lat": 45.56925,
+    "location_lng": 131.854072,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000069",
+    "vehicle_id": "V0008",
+    "box_id": "BX00169",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 18:43:00",
+    "location_lat": 29.448194,
+    "location_lng": 83.565235,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000070",
+    "vehicle_id": "V0008",
+    "box_id": "BX00103",
+    "event_type": "close",
+    "occurred_at": "2026-05-13 11:45:00",
+    "location_lat": 40.826711,
+    "location_lng": 90.63335,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000071",
+    "vehicle_id": "V0004",
+    "box_id": "BX00042",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 21:57:00",
+    "location_lat": 24.83231,
+    "location_lng": 105.6306,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000072",
+    "vehicle_id": "V0005",
+    "box_id": "BX00145",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 20:22:00",
+    "location_lat": 43.053446,
+    "location_lng": 94.494281,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000073",
+    "vehicle_id": "V0002",
+    "box_id": "BX00004",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 08:14:00",
+    "location_lat": 35.952684,
+    "location_lng": 128.133985,
+    "duration_seconds": 339
+  },
+  {
+    "event_id": "DE000074",
+    "vehicle_id": "V0020",
+    "box_id": "BX00109",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 12:38:00",
+    "location_lat": 40.183862,
+    "location_lng": 90.544013,
+    "duration_seconds": 128
+  },
+  {
+    "event_id": "DE000075",
+    "vehicle_id": "V0015",
+    "box_id": "BX00009",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 23:45:00",
+    "location_lat": 40.531011,
+    "location_lng": 78.819987,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000076",
+    "vehicle_id": "V0014",
+    "box_id": "BX00149",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 09:02:00",
+    "location_lat": 44.099637,
+    "location_lng": 117.813364,
+    "duration_seconds": 343
+  },
+  {
+    "event_id": "DE000077",
+    "vehicle_id": "V0002",
+    "box_id": "BX00117",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 02:46:00",
+    "location_lat": 51.485508,
+    "location_lng": 127.194753,
+    "duration_seconds": 567
+  },
+  {
+    "event_id": "DE000078",
+    "vehicle_id": "V0001",
+    "box_id": "BX00171",
+    "event_type": "open",
+    "occurred_at": "2026-06-05 18:26:00",
+    "location_lat": 35.092656,
+    "location_lng": 100.958885,
+    "duration_seconds": 433
+  },
+  {
+    "event_id": "DE000079",
+    "vehicle_id": "V0014",
+    "box_id": "BX00069",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 10:38:00",
+    "location_lat": 22.66213,
+    "location_lng": 117.093902,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000080",
+    "vehicle_id": "V0012",
+    "box_id": "BX00094",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 22:32:00",
+    "location_lat": 19.523724,
+    "location_lng": 93.207691,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000081",
+    "vehicle_id": "V0014",
+    "box_id": "BX00046",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 04:38:00",
+    "location_lat": 26.341162,
+    "location_lng": 86.522319,
+    "duration_seconds": 265
+  },
+  {
+    "event_id": "DE000082",
+    "vehicle_id": "V0013",
+    "box_id": "BX00019",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 02:33:00",
+    "location_lat": 22.540869,
+    "location_lng": 104.539169,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000083",
+    "vehicle_id": "V0004",
+    "box_id": "BX00138",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 10:55:00",
+    "location_lat": 48.323655,
+    "location_lng": 95.014067,
+    "duration_seconds": 290
+  },
+  {
+    "event_id": "DE000084",
+    "vehicle_id": "V0002",
+    "box_id": "BX00023",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 07:19:00",
+    "location_lat": 42.485969,
+    "location_lng": 129.079551,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000085",
+    "vehicle_id": "V0009",
+    "box_id": "BX00149",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 11:04:00",
+    "location_lat": 52.327733,
+    "location_lng": 116.318125,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000086",
+    "vehicle_id": "V0016",
+    "box_id": "BX00025",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 06:50:00",
+    "location_lat": 23.220714,
+    "location_lng": 73.565174,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000087",
+    "vehicle_id": "V0006",
+    "box_id": "BX00043",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 21:51:00",
+    "location_lat": 39.792384,
+    "location_lng": 109.37407,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000088",
+    "vehicle_id": "V0016",
+    "box_id": "BX00159",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 06:19:00",
+    "location_lat": 49.451457,
+    "location_lng": 111.881637,
+    "duration_seconds": 270
+  },
+  {
+    "event_id": "DE000089",
+    "vehicle_id": "V0009",
+    "box_id": "BX00036",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 11:17:00",
+    "location_lat": 42.205984,
+    "location_lng": 100.994656,
+    "duration_seconds": 493
+  },
+  {
+    "event_id": "DE000090",
+    "vehicle_id": "V0015",
+    "box_id": "BX00183",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 01:31:00",
+    "location_lat": 19.844686,
+    "location_lng": 107.401114,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000091",
+    "vehicle_id": "V0019",
+    "box_id": "BX00096",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 21:23:00",
+    "location_lat": 21.395319,
+    "location_lng": 108.296263,
+    "duration_seconds": 241
+  },
+  {
+    "event_id": "DE000092",
+    "vehicle_id": "V0012",
+    "box_id": "BX00005",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 03:59:00",
+    "location_lat": 46.192042,
+    "location_lng": 85.422004,
+    "duration_seconds": 510
+  },
+  {
+    "event_id": "DE000093",
+    "vehicle_id": "V0001",
+    "box_id": "BX00050",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 17:06:00",
+    "location_lat": 42.436378,
+    "location_lng": 113.100539,
+    "duration_seconds": 29
+  },
+  {
+    "event_id": "DE000094",
+    "vehicle_id": "V0020",
+    "box_id": "BX00157",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 03:23:00",
+    "location_lat": 51.391419,
+    "location_lng": 101.277657,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000095",
+    "vehicle_id": "V0004",
+    "box_id": "BX00170",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 19:40:00",
+    "location_lat": 25.945121,
+    "location_lng": 123.995528,
+    "duration_seconds": 36
+  },
+  {
+    "event_id": "DE000096",
+    "vehicle_id": "V0006",
+    "box_id": "BX00005",
+    "event_type": "close",
+    "occurred_at": "2026-05-08 19:43:00",
+    "location_lat": 21.390835,
+    "location_lng": 83.985997,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000097",
+    "vehicle_id": "V0001",
+    "box_id": "BX00141",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 23:55:00",
+    "location_lat": 38.539564,
+    "location_lng": 89.707915,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000098",
+    "vehicle_id": "V0013",
+    "box_id": "BX00055",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 07:02:00",
+    "location_lat": 36.907626,
+    "location_lng": 121.459802,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000099",
+    "vehicle_id": "V0009",
+    "box_id": "BX00126",
+    "event_type": "open",
+    "occurred_at": "2026-05-31 09:04:00",
+    "location_lat": 29.093181,
+    "location_lng": 120.593036,
+    "duration_seconds": 502
+  },
+  {
+    "event_id": "DE000100",
+    "vehicle_id": "V0012",
+    "box_id": "BX00068",
+    "event_type": "open",
+    "occurred_at": "2026-05-16 15:52:00",
+    "location_lat": 42.651977,
+    "location_lng": 105.753581,
+    "duration_seconds": 436
+  },
+  {
+    "event_id": "DE000101",
+    "vehicle_id": "V0010",
+    "box_id": "BX00098",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 03:29:00",
+    "location_lat": 22.719301,
+    "location_lng": 116.430336,
+    "duration_seconds": 513
+  },
+  {
+    "event_id": "DE000102",
+    "vehicle_id": "V0018",
+    "box_id": "BX00061",
+    "event_type": "open",
+    "occurred_at": "2026-05-05 15:18:00",
+    "location_lat": 25.243746,
+    "location_lng": 83.031385,
+    "duration_seconds": 435
+  },
+  {
+    "event_id": "DE000103",
+    "vehicle_id": "V0016",
+    "box_id": "BX00168",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 10:24:00",
+    "location_lat": 29.500854,
+    "location_lng": 86.482686,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000104",
+    "vehicle_id": "V0009",
+    "box_id": "BX00196",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 14:50:00",
+    "location_lat": 36.09887,
+    "location_lng": 94.975778,
+    "duration_seconds": 563
+  },
+  {
+    "event_id": "DE000105",
+    "vehicle_id": "V0016",
+    "box_id": "BX00116",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 23:51:00",
+    "location_lat": 20.168544,
+    "location_lng": 106.798221,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000106",
+    "vehicle_id": "V0012",
+    "box_id": "BX00151",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 21:02:00",
+    "location_lat": 39.183189,
+    "location_lng": 73.977445,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000107",
+    "vehicle_id": "V0001",
+    "box_id": "BX00099",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 04:56:00",
+    "location_lat": 24.526888,
+    "location_lng": 116.05641,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000108",
+    "vehicle_id": "V0001",
+    "box_id": "BX00093",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 04:10:00",
+    "location_lat": 40.47818,
+    "location_lng": 86.179588,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000109",
+    "vehicle_id": "V0002",
+    "box_id": "BX00042",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 04:54:00",
+    "location_lat": 22.913844,
+    "location_lng": 101.807613,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000110",
+    "vehicle_id": "V0019",
+    "box_id": "BX00128",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 07:58:00",
+    "location_lat": 22.290638,
+    "location_lng": 122.984024,
+    "duration_seconds": 83
+  },
+  {
+    "event_id": "DE000111",
+    "vehicle_id": "V0007",
+    "box_id": "BX00134",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 06:37:00",
+    "location_lat": 30.516261,
+    "location_lng": 123.852282,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000112",
+    "vehicle_id": "V0005",
+    "box_id": "BX00175",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 13:03:00",
+    "location_lat": 35.535147,
+    "location_lng": 78.0257,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000113",
+    "vehicle_id": "V0001",
+    "box_id": "BX00046",
+    "event_type": "close",
+    "occurred_at": "2026-05-11 01:00:00",
+    "location_lat": 32.136457,
+    "location_lng": 87.092062,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000114",
+    "vehicle_id": "V0013",
+    "box_id": "BX00068",
+    "event_type": "open",
+    "occurred_at": "2026-05-23 10:48:00",
+    "location_lat": 29.862133,
+    "location_lng": 112.306122,
+    "duration_seconds": 378
+  },
+  {
+    "event_id": "DE000115",
+    "vehicle_id": "V0020",
+    "box_id": "BX00023",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 02:14:00",
+    "location_lat": 28.656758,
+    "location_lng": 101.788779,
+    "duration_seconds": 593
+  },
+  {
+    "event_id": "DE000116",
+    "vehicle_id": "V0001",
+    "box_id": "BX00046",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 22:56:00",
+    "location_lat": 18.789814,
+    "location_lng": 94.743327,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000117",
+    "vehicle_id": "V0006",
+    "box_id": "BX00078",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 06:38:00",
+    "location_lat": 35.595946,
+    "location_lng": 109.998932,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000118",
+    "vehicle_id": "V0014",
+    "box_id": "BX00059",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 07:10:00",
+    "location_lat": 19.494679,
+    "location_lng": 105.179765,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000119",
+    "vehicle_id": "V0020",
+    "box_id": "BX00022",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 20:16:00",
+    "location_lat": 48.887404,
+    "location_lng": 111.693497,
+    "duration_seconds": 314
+  },
+  {
+    "event_id": "DE000120",
+    "vehicle_id": "V0001",
+    "box_id": "BX00100",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 18:27:00",
+    "location_lat": 41.821818,
+    "location_lng": 94.615586,
+    "duration_seconds": 261
+  },
+  {
+    "event_id": "DE000121",
+    "vehicle_id": "V0011",
+    "box_id": "BX00023",
+    "event_type": "open",
+    "occurred_at": "2026-05-16 20:51:00",
+    "location_lat": 30.171299,
+    "location_lng": 130.270928,
+    "duration_seconds": 5
+  },
+  {
+    "event_id": "DE000122",
+    "vehicle_id": "V0004",
+    "box_id": "BX00105",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 04:07:00",
+    "location_lat": 50.44248,
+    "location_lng": 108.920155,
+    "duration_seconds": 585
+  },
+  {
+    "event_id": "DE000123",
+    "vehicle_id": "V0020",
+    "box_id": "BX00025",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 10:18:00",
+    "location_lat": 50.83388,
+    "location_lng": 80.179916,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000124",
+    "vehicle_id": "V0013",
+    "box_id": "BX00197",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 14:36:00",
+    "location_lat": 40.789407,
+    "location_lng": 111.650102,
+    "duration_seconds": 250
+  },
+  {
+    "event_id": "DE000125",
+    "vehicle_id": "V0009",
+    "box_id": "BX00012",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 01:27:00",
+    "location_lat": 22.543446,
+    "location_lng": 133.387117,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000126",
+    "vehicle_id": "V0017",
+    "box_id": "BX00166",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 10:33:00",
+    "location_lat": 36.822454,
+    "location_lng": 114.374037,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000127",
+    "vehicle_id": "V0011",
+    "box_id": "BX00118",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 03:10:00",
+    "location_lat": 31.40488,
+    "location_lng": 94.582529,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000128",
+    "vehicle_id": "V0002",
+    "box_id": "BX00057",
+    "event_type": "open",
+    "occurred_at": "2026-05-04 17:18:00",
+    "location_lat": 29.720946,
+    "location_lng": 100.165086,
+    "duration_seconds": 236
+  },
+  {
+    "event_id": "DE000129",
+    "vehicle_id": "V0003",
+    "box_id": "BX00139",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 05:54:00",
+    "location_lat": 24.039242,
+    "location_lng": 113.056483,
+    "duration_seconds": 288
+  },
+  {
+    "event_id": "DE000130",
+    "vehicle_id": "V0003",
+    "box_id": "BX00179",
+    "event_type": "close",
+    "occurred_at": "2026-05-26 03:04:00",
+    "location_lat": 43.401592,
+    "location_lng": 125.305132,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000131",
+    "vehicle_id": "V0002",
+    "box_id": "BX00050",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 00:51:00",
+    "location_lat": 32.65301,
+    "location_lng": 113.836286,
+    "duration_seconds": 211
+  },
+  {
+    "event_id": "DE000132",
+    "vehicle_id": "V0013",
+    "box_id": "BX00103",
+    "event_type": "close",
+    "occurred_at": "2026-05-31 02:56:00",
+    "location_lat": 20.402918,
+    "location_lng": 84.811941,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000133",
+    "vehicle_id": "V0010",
+    "box_id": "BX00090",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 01:37:00",
+    "location_lat": 27.288592,
+    "location_lng": 116.985854,
+    "duration_seconds": 443
+  },
+  {
+    "event_id": "DE000134",
+    "vehicle_id": "V0012",
+    "box_id": "BX00028",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 12:07:00",
+    "location_lat": 30.234232,
+    "location_lng": 101.780552,
+    "duration_seconds": 294
+  },
+  {
+    "event_id": "DE000135",
+    "vehicle_id": "V0013",
+    "box_id": "BX00082",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 22:38:00",
+    "location_lat": 32.35909,
+    "location_lng": 108.72228,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000136",
+    "vehicle_id": "V0013",
+    "box_id": "BX00144",
+    "event_type": "open",
+    "occurred_at": "2026-05-23 20:04:00",
+    "location_lat": 46.022716,
+    "location_lng": 108.19281,
+    "duration_seconds": 272
+  },
+  {
+    "event_id": "DE000137",
+    "vehicle_id": "V0007",
+    "box_id": "BX00138",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 00:48:00",
+    "location_lat": 31.155758,
+    "location_lng": 123.148376,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000138",
+    "vehicle_id": "V0008",
+    "box_id": "BX00172",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 05:49:00",
+    "location_lat": 31.558206,
+    "location_lng": 110.09431,
+    "duration_seconds": 364
+  },
+  {
+    "event_id": "DE000139",
+    "vehicle_id": "V0001",
+    "box_id": "BX00041",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 00:03:00",
+    "location_lat": 42.328844,
+    "location_lng": 110.947595,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000140",
+    "vehicle_id": "V0003",
+    "box_id": "BX00083",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 03:46:00",
+    "location_lat": 46.382166,
+    "location_lng": 90.956393,
+    "duration_seconds": 531
+  },
+  {
+    "event_id": "DE000141",
+    "vehicle_id": "V0020",
+    "box_id": "BX00033",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 00:45:00",
+    "location_lat": 43.938568,
+    "location_lng": 121.802256,
+    "duration_seconds": 448
+  },
+  {
+    "event_id": "DE000142",
+    "vehicle_id": "V0007",
+    "box_id": "BX00113",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 01:39:00",
+    "location_lat": 22.035154,
+    "location_lng": 123.760667,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000143",
+    "vehicle_id": "V0002",
+    "box_id": "BX00108",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 06:27:00",
+    "location_lat": 49.015723,
+    "location_lng": 97.430766,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000144",
+    "vehicle_id": "V0006",
+    "box_id": "BX00121",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 08:56:00",
+    "location_lat": 30.573214,
+    "location_lng": 85.849339,
+    "duration_seconds": 346
+  },
+  {
+    "event_id": "DE000145",
+    "vehicle_id": "V0011",
+    "box_id": "BX00144",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 05:56:00",
+    "location_lat": 42.969878,
+    "location_lng": 111.840546,
+    "duration_seconds": 461
+  },
+  {
+    "event_id": "DE000146",
+    "vehicle_id": "V0019",
+    "box_id": "BX00108",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 23:02:00",
+    "location_lat": 46.78565,
+    "location_lng": 134.083089,
+    "duration_seconds": 546
+  },
+  {
+    "event_id": "DE000147",
+    "vehicle_id": "V0005",
+    "box_id": "BX00153",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 23:03:00",
+    "location_lat": 40.904473,
+    "location_lng": 95.681373,
+    "duration_seconds": 435
+  },
+  {
+    "event_id": "DE000148",
+    "vehicle_id": "V0019",
+    "box_id": "BX00195",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 19:10:00",
+    "location_lat": 47.310271,
+    "location_lng": 78.255179,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000149",
+    "vehicle_id": "V0001",
+    "box_id": "BX00020",
+    "event_type": "close",
+    "occurred_at": "2026-05-27 14:44:00",
+    "location_lat": 41.964633,
+    "location_lng": 84.880797,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000150",
+    "vehicle_id": "V0013",
+    "box_id": "BX00009",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 02:19:00",
+    "location_lat": 41.058402,
+    "location_lng": 116.785619,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000151",
+    "vehicle_id": "V0015",
+    "box_id": "BX00149",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 23:20:00",
+    "location_lat": 47.14391,
+    "location_lng": 82.181599,
+    "duration_seconds": 524
+  },
+  {
+    "event_id": "DE000152",
+    "vehicle_id": "V0019",
+    "box_id": "BX00064",
+    "event_type": "open",
+    "occurred_at": "2026-06-01 17:34:00",
+    "location_lat": 41.876254,
+    "location_lng": 100.981288,
+    "duration_seconds": 55
+  },
+  {
+    "event_id": "DE000153",
+    "vehicle_id": "V0009",
+    "box_id": "BX00093",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 19:29:00",
+    "location_lat": 45.016895,
+    "location_lng": 80.672662,
+    "duration_seconds": 220
+  },
+  {
+    "event_id": "DE000154",
+    "vehicle_id": "V0018",
+    "box_id": "BX00134",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 17:12:00",
+    "location_lat": 32.773639,
+    "location_lng": 89.26154,
+    "duration_seconds": 8
+  },
+  {
+    "event_id": "DE000155",
+    "vehicle_id": "V0020",
+    "box_id": "BX00197",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 06:52:00",
+    "location_lat": 39.30698,
+    "location_lng": 87.604375,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000156",
+    "vehicle_id": "V0003",
+    "box_id": "BX00017",
+    "event_type": "open",
+    "occurred_at": "2026-05-31 23:08:00",
+    "location_lat": 44.884526,
+    "location_lng": 95.482707,
+    "duration_seconds": 168
+  },
+  {
+    "event_id": "DE000157",
+    "vehicle_id": "V0014",
+    "box_id": "BX00044",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 02:47:00",
+    "location_lat": 40.892659,
+    "location_lng": 109.734008,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000158",
+    "vehicle_id": "V0013",
+    "box_id": "BX00106",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 17:31:00",
+    "location_lat": 38.239578,
+    "location_lng": 109.986732,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000159",
+    "vehicle_id": "V0001",
+    "box_id": "BX00037",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 16:20:00",
+    "location_lat": 33.475901,
+    "location_lng": 103.767882,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000160",
+    "vehicle_id": "V0001",
+    "box_id": "BX00053",
+    "event_type": "close",
+    "occurred_at": "2026-05-10 17:11:00",
+    "location_lat": 24.135443,
+    "location_lng": 96.943046,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000161",
+    "vehicle_id": "V0007",
+    "box_id": "BX00015",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 18:17:00",
+    "location_lat": 36.869889,
+    "location_lng": 86.862773,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000162",
+    "vehicle_id": "V0009",
+    "box_id": "BX00090",
+    "event_type": "open",
+    "occurred_at": "2026-06-02 19:12:00",
+    "location_lat": 35.563203,
+    "location_lng": 131.572431,
+    "duration_seconds": 277
+  },
+  {
+    "event_id": "DE000163",
+    "vehicle_id": "V0009",
+    "box_id": "BX00064",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 01:28:00",
+    "location_lat": 19.777081,
+    "location_lng": 110.210355,
+    "duration_seconds": 321
+  },
+  {
+    "event_id": "DE000164",
+    "vehicle_id": "V0008",
+    "box_id": "BX00152",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 04:16:00",
+    "location_lat": 40.062087,
+    "location_lng": 81.533865,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000165",
+    "vehicle_id": "V0003",
+    "box_id": "BX00198",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 10:58:00",
+    "location_lat": 35.765835,
+    "location_lng": 97.034261,
+    "duration_seconds": 439
+  },
+  {
+    "event_id": "DE000166",
+    "vehicle_id": "V0020",
+    "box_id": "BX00153",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 17:30:00",
+    "location_lat": 34.920558,
+    "location_lng": 94.388168,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000167",
+    "vehicle_id": "V0009",
+    "box_id": "BX00137",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 02:30:00",
+    "location_lat": 27.042432,
+    "location_lng": 91.596761,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000168",
+    "vehicle_id": "V0015",
+    "box_id": "BX00153",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 13:46:00",
+    "location_lat": 35.832696,
+    "location_lng": 121.18723,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000169",
+    "vehicle_id": "V0001",
+    "box_id": "BX00189",
+    "event_type": "close",
+    "occurred_at": "2026-05-13 02:09:00",
+    "location_lat": 42.62208,
+    "location_lng": 94.563716,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000170",
+    "vehicle_id": "V0018",
+    "box_id": "BX00191",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 23:43:00",
+    "location_lat": 30.176782,
+    "location_lng": 103.235941,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000171",
+    "vehicle_id": "V0009",
+    "box_id": "BX00106",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 16:36:00",
+    "location_lat": 47.560651,
+    "location_lng": 93.60118,
+    "duration_seconds": 233
+  },
+  {
+    "event_id": "DE000172",
+    "vehicle_id": "V0018",
+    "box_id": "BX00048",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 19:19:00",
+    "location_lat": 48.570669,
+    "location_lng": 97.875595,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000173",
+    "vehicle_id": "V0003",
+    "box_id": "BX00123",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 16:49:00",
+    "location_lat": 25.126342,
+    "location_lng": 110.443203,
+    "duration_seconds": 185
+  },
+  {
+    "event_id": "DE000174",
+    "vehicle_id": "V0009",
+    "box_id": "BX00112",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 09:07:00",
+    "location_lat": 27.262334,
+    "location_lng": 74.370698,
+    "duration_seconds": 220
+  },
+  {
+    "event_id": "DE000175",
+    "vehicle_id": "V0015",
+    "box_id": "BX00091",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 13:13:00",
+    "location_lat": 40.597829,
+    "location_lng": 108.400638,
+    "duration_seconds": 41
+  },
+  {
+    "event_id": "DE000176",
+    "vehicle_id": "V0012",
+    "box_id": "BX00065",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 13:54:00",
+    "location_lat": 35.900081,
+    "location_lng": 90.198693,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000177",
+    "vehicle_id": "V0013",
+    "box_id": "BX00067",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 03:35:00",
+    "location_lat": 26.078995,
+    "location_lng": 103.69718,
+    "duration_seconds": 267
+  },
+  {
+    "event_id": "DE000178",
+    "vehicle_id": "V0015",
+    "box_id": "BX00164",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 21:25:00",
+    "location_lat": 51.643556,
+    "location_lng": 105.664884,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000179",
+    "vehicle_id": "V0018",
+    "box_id": "BX00150",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 20:38:00",
+    "location_lat": 20.743916,
+    "location_lng": 107.595229,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000180",
+    "vehicle_id": "V0011",
+    "box_id": "BX00021",
+    "event_type": "close",
+    "occurred_at": "2026-05-11 01:20:00",
+    "location_lat": 44.35314,
+    "location_lng": 106.459339,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000181",
+    "vehicle_id": "V0019",
+    "box_id": "BX00044",
+    "event_type": "open",
+    "occurred_at": "2026-05-01 23:09:00",
+    "location_lat": 49.690908,
+    "location_lng": 113.235252,
+    "duration_seconds": 562
+  },
+  {
+    "event_id": "DE000182",
+    "vehicle_id": "V0009",
+    "box_id": "BX00147",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 05:12:00",
+    "location_lat": 45.375637,
+    "location_lng": 73.60426,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000183",
+    "vehicle_id": "V0003",
+    "box_id": "BX00066",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 15:45:00",
+    "location_lat": 20.246864,
+    "location_lng": 116.82722,
+    "duration_seconds": 433
+  },
+  {
+    "event_id": "DE000184",
+    "vehicle_id": "V0008",
+    "box_id": "BX00062",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 10:16:00",
+    "location_lat": 35.85349,
+    "location_lng": 132.680241,
+    "duration_seconds": 310
+  },
+  {
+    "event_id": "DE000185",
+    "vehicle_id": "V0017",
+    "box_id": "BX00179",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 16:06:00",
+    "location_lat": 50.386421,
+    "location_lng": 93.674331,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000186",
+    "vehicle_id": "V0001",
+    "box_id": "BX00084",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 08:10:00",
+    "location_lat": 52.079593,
+    "location_lng": 123.691969,
+    "duration_seconds": 38
+  },
+  {
+    "event_id": "DE000187",
+    "vehicle_id": "V0002",
+    "box_id": "BX00081",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 18:49:00",
+    "location_lat": 20.218977,
+    "location_lng": 134.97062,
+    "duration_seconds": 522
+  },
+  {
+    "event_id": "DE000188",
+    "vehicle_id": "V0001",
+    "box_id": "BX00106",
+    "event_type": "open",
+    "occurred_at": "2026-05-21 02:27:00",
+    "location_lat": 51.723267,
+    "location_lng": 129.395205,
+    "duration_seconds": 457
+  },
+  {
+    "event_id": "DE000189",
+    "vehicle_id": "V0006",
+    "box_id": "BX00127",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 00:04:00",
+    "location_lat": 32.763281,
+    "location_lng": 90.051905,
+    "duration_seconds": 330
+  },
+  {
+    "event_id": "DE000190",
+    "vehicle_id": "V0020",
+    "box_id": "BX00070",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 10:16:00",
+    "location_lat": 24.113244,
+    "location_lng": 90.372698,
+    "duration_seconds": 253
+  },
+  {
+    "event_id": "DE000191",
+    "vehicle_id": "V0012",
+    "box_id": "BX00145",
+    "event_type": "close",
+    "occurred_at": "2026-05-24 18:52:00",
+    "location_lat": 27.518339,
+    "location_lng": 107.865084,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000192",
+    "vehicle_id": "V0005",
+    "box_id": "BX00180",
+    "event_type": "close",
+    "occurred_at": "2026-05-09 09:30:00",
+    "location_lat": 43.811085,
+    "location_lng": 106.419182,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000193",
+    "vehicle_id": "V0004",
+    "box_id": "BX00097",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 09:19:00",
+    "location_lat": 38.728689,
+    "location_lng": 114.951041,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000194",
+    "vehicle_id": "V0001",
+    "box_id": "BX00130",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 01:37:00",
+    "location_lat": 31.136402,
+    "location_lng": 124.207595,
+    "duration_seconds": 295
+  },
+  {
+    "event_id": "DE000195",
+    "vehicle_id": "V0006",
+    "box_id": "BX00069",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 12:25:00",
+    "location_lat": 47.221831,
+    "location_lng": 107.563742,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000196",
+    "vehicle_id": "V0019",
+    "box_id": "BX00089",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 23:15:00",
+    "location_lat": 51.745151,
+    "location_lng": 123.430257,
+    "duration_seconds": 251
+  },
+  {
+    "event_id": "DE000197",
+    "vehicle_id": "V0015",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 11:58:00",
+    "location_lat": 51.961478,
+    "location_lng": 95.219698,
+    "duration_seconds": 563
+  },
+  {
+    "event_id": "DE000198",
+    "vehicle_id": "V0010",
+    "box_id": "BX00195",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 04:40:00",
+    "location_lat": 46.088659,
+    "location_lng": 79.415165,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000199",
+    "vehicle_id": "V0005",
+    "box_id": "BX00081",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 04:11:00",
+    "location_lat": 35.092038,
+    "location_lng": 93.448876,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000200",
+    "vehicle_id": "V0018",
+    "box_id": "BX00059",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 02:58:00",
+    "location_lat": 21.908197,
+    "location_lng": 128.973276,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000201",
+    "vehicle_id": "V0016",
+    "box_id": "BX00113",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 19:47:00",
+    "location_lat": 28.340305,
+    "location_lng": 90.677965,
+    "duration_seconds": 153
+  },
+  {
+    "event_id": "DE000202",
+    "vehicle_id": "V0017",
+    "box_id": "BX00104",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 08:35:00",
+    "location_lat": 35.948043,
+    "location_lng": 89.060001,
+    "duration_seconds": 175
+  },
+  {
+    "event_id": "DE000203",
+    "vehicle_id": "V0001",
+    "box_id": "BX00174",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 23:07:00",
+    "location_lat": 23.733993,
+    "location_lng": 125.259148,
+    "duration_seconds": 287
+  },
+  {
+    "event_id": "DE000204",
+    "vehicle_id": "V0004",
+    "box_id": "BX00003",
+    "event_type": "close",
+    "occurred_at": "2026-05-31 15:37:00",
+    "location_lat": 18.644064,
+    "location_lng": 116.226744,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000205",
+    "vehicle_id": "V0016",
+    "box_id": "BX00081",
+    "event_type": "close",
+    "occurred_at": "2026-05-07 03:56:00",
+    "location_lat": 46.681211,
+    "location_lng": 111.989178,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000206",
+    "vehicle_id": "V0020",
+    "box_id": "BX00083",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 13:35:00",
+    "location_lat": 49.8505,
+    "location_lng": 128.996175,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000207",
+    "vehicle_id": "V0014",
+    "box_id": "BX00129",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 21:27:00",
+    "location_lat": 48.471144,
+    "location_lng": 133.164615,
+    "duration_seconds": 340
+  },
+  {
+    "event_id": "DE000208",
+    "vehicle_id": "V0006",
+    "box_id": "BX00034",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 03:38:00",
+    "location_lat": 23.347494,
+    "location_lng": 104.535679,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000209",
+    "vehicle_id": "V0010",
+    "box_id": "BX00013",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 02:48:00",
+    "location_lat": 31.849762,
+    "location_lng": 84.275334,
+    "duration_seconds": 141
+  },
+  {
+    "event_id": "DE000210",
+    "vehicle_id": "V0014",
+    "box_id": "BX00122",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 00:28:00",
+    "location_lat": 31.780286,
+    "location_lng": 97.958375,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000211",
+    "vehicle_id": "V0015",
+    "box_id": "BX00052",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 04:20:00",
+    "location_lat": 40.686926,
+    "location_lng": 104.200695,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000212",
+    "vehicle_id": "V0006",
+    "box_id": "BX00063",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 15:54:00",
+    "location_lat": 37.835391,
+    "location_lng": 93.200391,
+    "duration_seconds": 269
+  },
+  {
+    "event_id": "DE000213",
+    "vehicle_id": "V0019",
+    "box_id": "BX00188",
+    "event_type": "close",
+    "occurred_at": "2026-05-10 09:22:00",
+    "location_lat": 30.538714,
+    "location_lng": 113.112561,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000214",
+    "vehicle_id": "V0013",
+    "box_id": "BX00010",
+    "event_type": "close",
+    "occurred_at": "2026-06-01 01:41:00",
+    "location_lat": 48.497714,
+    "location_lng": 126.521602,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000215",
+    "vehicle_id": "V0005",
+    "box_id": "BX00154",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 13:31:00",
+    "location_lat": 29.471897,
+    "location_lng": 133.479593,
+    "duration_seconds": 233
+  },
+  {
+    "event_id": "DE000216",
+    "vehicle_id": "V0018",
+    "box_id": "BX00033",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 06:47:00",
+    "location_lat": 18.664155,
+    "location_lng": 108.173821,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000217",
+    "vehicle_id": "V0009",
+    "box_id": "BX00169",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 11:15:00",
+    "location_lat": 38.006201,
+    "location_lng": 131.615631,
+    "duration_seconds": 532
+  },
+  {
+    "event_id": "DE000218",
+    "vehicle_id": "V0011",
+    "box_id": "BX00103",
+    "event_type": "open",
+    "occurred_at": "2026-05-08 22:45:00",
+    "location_lat": 47.115566,
+    "location_lng": 118.630855,
+    "duration_seconds": 86
+  },
+  {
+    "event_id": "DE000219",
+    "vehicle_id": "V0004",
+    "box_id": "BX00108",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 02:50:00",
+    "location_lat": 32.037998,
+    "location_lng": 132.77048,
+    "duration_seconds": 400
+  },
+  {
+    "event_id": "DE000220",
+    "vehicle_id": "V0014",
+    "box_id": "BX00079",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 21:11:00",
+    "location_lat": 23.595034,
+    "location_lng": 83.342665,
+    "duration_seconds": 462
+  },
+  {
+    "event_id": "DE000221",
+    "vehicle_id": "V0001",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 08:03:00",
+    "location_lat": 32.75911,
+    "location_lng": 99.773792,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000222",
+    "vehicle_id": "V0010",
+    "box_id": "BX00004",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 03:21:00",
+    "location_lat": 24.262071,
+    "location_lng": 128.027143,
+    "duration_seconds": 204
+  },
+  {
+    "event_id": "DE000223",
+    "vehicle_id": "V0007",
+    "box_id": "BX00147",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 18:36:00",
+    "location_lat": 24.954825,
+    "location_lng": 102.741168,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000224",
+    "vehicle_id": "V0013",
+    "box_id": "BX00097",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 08:37:00",
+    "location_lat": 27.072597,
+    "location_lng": 83.098111,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000225",
+    "vehicle_id": "V0015",
+    "box_id": "BX00054",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 15:52:00",
+    "location_lat": 39.106363,
+    "location_lng": 73.821886,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000226",
+    "vehicle_id": "V0012",
+    "box_id": "BX00164",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 15:30:00",
+    "location_lat": 33.453074,
+    "location_lng": 115.834752,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000227",
+    "vehicle_id": "V0002",
+    "box_id": "BX00120",
+    "event_type": "close",
+    "occurred_at": "2026-05-08 17:18:00",
+    "location_lat": 28.538302,
+    "location_lng": 121.093418,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000228",
+    "vehicle_id": "V0002",
+    "box_id": "BX00172",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 08:24:00",
+    "location_lat": 34.666362,
+    "location_lng": 100.067546,
+    "duration_seconds": 18
+  },
+  {
+    "event_id": "DE000229",
+    "vehicle_id": "V0006",
+    "box_id": "BX00195",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 05:52:00",
+    "location_lat": 40.276393,
+    "location_lng": 104.985702,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000230",
+    "vehicle_id": "V0013",
+    "box_id": "BX00017",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 13:29:00",
+    "location_lat": 23.687373,
+    "location_lng": 89.894652,
+    "duration_seconds": 259
+  },
+  {
+    "event_id": "DE000231",
+    "vehicle_id": "V0010",
+    "box_id": "BX00052",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 02:15:00",
+    "location_lat": 26.538356,
+    "location_lng": 73.935129,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000232",
+    "vehicle_id": "V0004",
+    "box_id": "BX00158",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 08:32:00",
+    "location_lat": 47.196167,
+    "location_lng": 86.760243,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000233",
+    "vehicle_id": "V0002",
+    "box_id": "BX00001",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 12:18:00",
+    "location_lat": 28.588476,
+    "location_lng": 75.812044,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000234",
+    "vehicle_id": "V0014",
+    "box_id": "BX00130",
+    "event_type": "open",
+    "occurred_at": "2026-05-05 02:57:00",
+    "location_lat": 46.975363,
+    "location_lng": 80.391262,
+    "duration_seconds": 235
+  },
+  {
+    "event_id": "DE000235",
+    "vehicle_id": "V0009",
+    "box_id": "BX00043",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 05:24:00",
+    "location_lat": 19.486638,
+    "location_lng": 73.473669,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000236",
+    "vehicle_id": "V0004",
+    "box_id": "BX00150",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 00:48:00",
+    "location_lat": 42.8753,
+    "location_lng": 74.098122,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000237",
+    "vehicle_id": "V0018",
+    "box_id": "BX00184",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 03:44:00",
+    "location_lat": 32.461835,
+    "location_lng": 93.076857,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000238",
+    "vehicle_id": "V0004",
+    "box_id": "BX00012",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 09:19:00",
+    "location_lat": 23.148791,
+    "location_lng": 133.004382,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000239",
+    "vehicle_id": "V0017",
+    "box_id": "BX00119",
+    "event_type": "close",
+    "occurred_at": "2026-05-26 10:39:00",
+    "location_lat": 40.483131,
+    "location_lng": 77.774764,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000240",
+    "vehicle_id": "V0019",
+    "box_id": "BX00044",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 18:43:00",
+    "location_lat": 24.221696,
+    "location_lng": 102.604726,
+    "duration_seconds": 434
+  },
+  {
+    "event_id": "DE000241",
+    "vehicle_id": "V0010",
+    "box_id": "BX00037",
+    "event_type": "open",
+    "occurred_at": "2026-05-04 18:43:00",
+    "location_lat": 24.354933,
+    "location_lng": 114.12592,
+    "duration_seconds": 152
+  },
+  {
+    "event_id": "DE000242",
+    "vehicle_id": "V0019",
+    "box_id": "BX00105",
+    "event_type": "close",
+    "occurred_at": "2026-05-07 13:02:00",
+    "location_lat": 28.926278,
+    "location_lng": 95.571049,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000243",
+    "vehicle_id": "V0003",
+    "box_id": "BX00017",
+    "event_type": "close",
+    "occurred_at": "2026-05-11 10:25:00",
+    "location_lat": 35.935428,
+    "location_lng": 120.837561,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000244",
+    "vehicle_id": "V0016",
+    "box_id": "BX00094",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 14:24:00",
+    "location_lat": 44.393628,
+    "location_lng": 95.260745,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000245",
+    "vehicle_id": "V0016",
+    "box_id": "BX00025",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 01:13:00",
+    "location_lat": 29.50658,
+    "location_lng": 122.580924,
+    "duration_seconds": 116
+  },
+  {
+    "event_id": "DE000246",
+    "vehicle_id": "V0001",
+    "box_id": "BX00118",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 22:08:00",
+    "location_lat": 28.121386,
+    "location_lng": 90.340386,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000247",
+    "vehicle_id": "V0016",
+    "box_id": "BX00121",
+    "event_type": "open",
+    "occurred_at": "2026-05-21 12:40:00",
+    "location_lat": 19.226416,
+    "location_lng": 97.093395,
+    "duration_seconds": 285
+  },
+  {
+    "event_id": "DE000248",
+    "vehicle_id": "V0008",
+    "box_id": "BX00122",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 00:50:00",
+    "location_lat": 23.738917,
+    "location_lng": 99.615626,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000249",
+    "vehicle_id": "V0003",
+    "box_id": "BX00092",
+    "event_type": "close",
+    "occurred_at": "2026-05-13 06:11:00",
+    "location_lat": 19.336049,
+    "location_lng": 77.777991,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000250",
+    "vehicle_id": "V0010",
+    "box_id": "BX00005",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 02:58:00",
+    "location_lat": 41.673905,
+    "location_lng": 84.671197,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000251",
+    "vehicle_id": "V0007",
+    "box_id": "BX00093",
+    "event_type": "close",
+    "occurred_at": "2026-05-23 13:00:00",
+    "location_lat": 37.154144,
+    "location_lng": 93.066339,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000252",
+    "vehicle_id": "V0014",
+    "box_id": "BX00097",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 05:02:00",
+    "location_lat": 50.280938,
+    "location_lng": 103.748795,
+    "duration_seconds": 105
+  },
+  {
+    "event_id": "DE000253",
+    "vehicle_id": "V0017",
+    "box_id": "BX00095",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 06:26:00",
+    "location_lat": 33.844164,
+    "location_lng": 93.114287,
+    "duration_seconds": 593
+  },
+  {
+    "event_id": "DE000254",
+    "vehicle_id": "V0020",
+    "box_id": "BX00131",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 19:25:00",
+    "location_lat": 41.272819,
+    "location_lng": 81.24764,
+    "duration_seconds": 6
+  },
+  {
+    "event_id": "DE000255",
+    "vehicle_id": "V0005",
+    "box_id": "BX00194",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 06:47:00",
+    "location_lat": 41.828544,
+    "location_lng": 126.100045,
+    "duration_seconds": 445
+  },
+  {
+    "event_id": "DE000256",
+    "vehicle_id": "V0016",
+    "box_id": "BX00102",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 14:54:00",
+    "location_lat": 23.787985,
+    "location_lng": 114.694678,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000257",
+    "vehicle_id": "V0008",
+    "box_id": "BX00061",
+    "event_type": "close",
+    "occurred_at": "2026-05-26 02:26:00",
+    "location_lat": 27.801934,
+    "location_lng": 92.936165,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000258",
+    "vehicle_id": "V0009",
+    "box_id": "BX00102",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 09:44:00",
+    "location_lat": 40.210488,
+    "location_lng": 89.632429,
+    "duration_seconds": 64
+  },
+  {
+    "event_id": "DE000259",
+    "vehicle_id": "V0012",
+    "box_id": "BX00084",
+    "event_type": "open",
+    "occurred_at": "2026-05-23 08:15:00",
+    "location_lat": 22.242876,
+    "location_lng": 77.600274,
+    "duration_seconds": 60
+  },
+  {
+    "event_id": "DE000260",
+    "vehicle_id": "V0012",
+    "box_id": "BX00166",
+    "event_type": "open",
+    "occurred_at": "2026-05-01 17:19:00",
+    "location_lat": 22.000034,
+    "location_lng": 115.883378,
+    "duration_seconds": 116
+  },
+  {
+    "event_id": "DE000261",
+    "vehicle_id": "V0018",
+    "box_id": "BX00119",
+    "event_type": "open",
+    "occurred_at": "2026-06-02 04:00:00",
+    "location_lat": 38.875487,
+    "location_lng": 104.050046,
+    "duration_seconds": 538
+  },
+  {
+    "event_id": "DE000262",
+    "vehicle_id": "V0014",
+    "box_id": "BX00178",
+    "event_type": "open",
+    "occurred_at": "2026-05-21 04:35:00",
+    "location_lat": 20.230016,
+    "location_lng": 125.675057,
+    "duration_seconds": 365
+  },
+  {
+    "event_id": "DE000263",
+    "vehicle_id": "V0016",
+    "box_id": "BX00103",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 11:01:00",
+    "location_lat": 49.654814,
+    "location_lng": 86.538535,
+    "duration_seconds": 538
+  },
+  {
+    "event_id": "DE000264",
+    "vehicle_id": "V0019",
+    "box_id": "BX00074",
+    "event_type": "close",
+    "occurred_at": "2026-05-10 10:48:00",
+    "location_lat": 31.978753,
+    "location_lng": 94.380167,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000265",
+    "vehicle_id": "V0010",
+    "box_id": "BX00166",
+    "event_type": "close",
+    "occurred_at": "2026-05-27 09:38:00",
+    "location_lat": 51.251034,
+    "location_lng": 102.086269,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000266",
+    "vehicle_id": "V0003",
+    "box_id": "BX00165",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 13:54:00",
+    "location_lat": 33.027971,
+    "location_lng": 102.429186,
+    "duration_seconds": 7
+  },
+  {
+    "event_id": "DE000267",
+    "vehicle_id": "V0008",
+    "box_id": "BX00018",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 21:08:00",
+    "location_lat": 47.323527,
+    "location_lng": 95.511148,
+    "duration_seconds": 436
+  },
+  {
+    "event_id": "DE000268",
+    "vehicle_id": "V0007",
+    "box_id": "BX00033",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 20:00:00",
+    "location_lat": 50.658103,
+    "location_lng": 133.726918,
+    "duration_seconds": 374
+  },
+  {
+    "event_id": "DE000269",
+    "vehicle_id": "V0010",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 07:03:00",
+    "location_lat": 33.3892,
+    "location_lng": 79.190728,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000270",
+    "vehicle_id": "V0006",
+    "box_id": "BX00046",
+    "event_type": "close",
+    "occurred_at": "2026-05-09 03:13:00",
+    "location_lat": 44.148657,
+    "location_lng": 98.165334,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000271",
+    "vehicle_id": "V0004",
+    "box_id": "BX00167",
+    "event_type": "close",
+    "occurred_at": "2026-05-31 06:30:00",
+    "location_lat": 45.46286,
+    "location_lng": 95.136108,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000272",
+    "vehicle_id": "V0010",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-27 03:43:00",
+    "location_lat": 21.701692,
+    "location_lng": 90.953263,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000273",
+    "vehicle_id": "V0011",
+    "box_id": "BX00124",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 05:26:00",
+    "location_lat": 30.281898,
+    "location_lng": 97.07761,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000274",
+    "vehicle_id": "V0011",
+    "box_id": "BX00171",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 11:21:00",
+    "location_lat": 24.16399,
+    "location_lng": 110.254172,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000275",
+    "vehicle_id": "V0015",
+    "box_id": "BX00143",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 17:58:00",
+    "location_lat": 19.989953,
+    "location_lng": 115.430828,
+    "duration_seconds": 423
+  },
+  {
+    "event_id": "DE000276",
+    "vehicle_id": "V0020",
+    "box_id": "BX00026",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 14:58:00",
+    "location_lat": 51.049559,
+    "location_lng": 87.689814,
+    "duration_seconds": 321
+  },
+  {
+    "event_id": "DE000277",
+    "vehicle_id": "V0014",
+    "box_id": "BX00084",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 01:21:00",
+    "location_lat": 47.094703,
+    "location_lng": 102.320981,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000278",
+    "vehicle_id": "V0009",
+    "box_id": "BX00112",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 09:29:00",
+    "location_lat": 18.5905,
+    "location_lng": 125.020459,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000279",
+    "vehicle_id": "V0009",
+    "box_id": "BX00154",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 07:03:00",
+    "location_lat": 20.182589,
+    "location_lng": 130.386161,
+    "duration_seconds": 250
+  },
+  {
+    "event_id": "DE000280",
+    "vehicle_id": "V0017",
+    "box_id": "BX00054",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 05:23:00",
+    "location_lat": 41.92319,
+    "location_lng": 101.086406,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000281",
+    "vehicle_id": "V0012",
+    "box_id": "BX00143",
+    "event_type": "close",
+    "occurred_at": "2026-05-31 19:32:00",
+    "location_lat": 36.956626,
+    "location_lng": 89.389094,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000282",
+    "vehicle_id": "V0004",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-24 16:48:00",
+    "location_lat": 50.694069,
+    "location_lng": 123.52258,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000283",
+    "vehicle_id": "V0020",
+    "box_id": "BX00033",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 15:51:00",
+    "location_lat": 51.51952,
+    "location_lng": 81.673599,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000284",
+    "vehicle_id": "V0012",
+    "box_id": "BX00035",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 06:30:00",
+    "location_lat": 40.912303,
+    "location_lng": 84.790635,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000285",
+    "vehicle_id": "V0006",
+    "box_id": "BX00058",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 18:37:00",
+    "location_lat": 27.758916,
+    "location_lng": 86.035643,
+    "duration_seconds": 369
+  },
+  {
+    "event_id": "DE000286",
+    "vehicle_id": "V0020",
+    "box_id": "BX00033",
+    "event_type": "close",
+    "occurred_at": "2026-05-09 15:13:00",
+    "location_lat": 38.04193,
+    "location_lng": 91.678206,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000287",
+    "vehicle_id": "V0012",
+    "box_id": "BX00068",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 08:18:00",
+    "location_lat": 34.304479,
+    "location_lng": 79.822402,
+    "duration_seconds": 573
+  },
+  {
+    "event_id": "DE000288",
+    "vehicle_id": "V0003",
+    "box_id": "BX00114",
+    "event_type": "open",
+    "occurred_at": "2026-06-05 03:50:00",
+    "location_lat": 45.535057,
+    "location_lng": 112.848704,
+    "duration_seconds": 13
+  },
+  {
+    "event_id": "DE000289",
+    "vehicle_id": "V0015",
+    "box_id": "BX00014",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 16:31:00",
+    "location_lat": 34.668167,
+    "location_lng": 74.642046,
+    "duration_seconds": 337
+  },
+  {
+    "event_id": "DE000290",
+    "vehicle_id": "V0003",
+    "box_id": "BX00177",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 22:02:00",
+    "location_lat": 20.778702,
+    "location_lng": 82.152498,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000291",
+    "vehicle_id": "V0019",
+    "box_id": "BX00090",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 15:20:00",
+    "location_lat": 20.172632,
+    "location_lng": 77.299087,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000292",
+    "vehicle_id": "V0007",
+    "box_id": "BX00088",
+    "event_type": "close",
+    "occurred_at": "2026-05-24 08:10:00",
+    "location_lat": 34.746767,
+    "location_lng": 102.598385,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000293",
+    "vehicle_id": "V0015",
+    "box_id": "BX00126",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 20:41:00",
+    "location_lat": 24.237853,
+    "location_lng": 99.151327,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000294",
+    "vehicle_id": "V0015",
+    "box_id": "BX00062",
+    "event_type": "open",
+    "occurred_at": "2026-05-11 12:44:00",
+    "location_lat": 26.062241,
+    "location_lng": 112.863812,
+    "duration_seconds": 106
+  },
+  {
+    "event_id": "DE000295",
+    "vehicle_id": "V0016",
+    "box_id": "BX00032",
+    "event_type": "open",
+    "occurred_at": "2026-05-11 02:50:00",
+    "location_lat": 41.189729,
+    "location_lng": 119.036735,
+    "duration_seconds": 158
+  },
+  {
+    "event_id": "DE000296",
+    "vehicle_id": "V0007",
+    "box_id": "BX00092",
+    "event_type": "open",
+    "occurred_at": "2026-05-01 09:26:00",
+    "location_lat": 19.430659,
+    "location_lng": 118.548966,
+    "duration_seconds": 347
+  },
+  {
+    "event_id": "DE000297",
+    "vehicle_id": "V0002",
+    "box_id": "BX00141",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 00:11:00",
+    "location_lat": 35.255094,
+    "location_lng": 81.277332,
+    "duration_seconds": 280
+  },
+  {
+    "event_id": "DE000298",
+    "vehicle_id": "V0011",
+    "box_id": "BX00073",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 07:11:00",
+    "location_lat": 20.68395,
+    "location_lng": 120.206389,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000299",
+    "vehicle_id": "V0009",
+    "box_id": "BX00193",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 08:16:00",
+    "location_lat": 41.614754,
+    "location_lng": 113.13449,
+    "duration_seconds": 175
+  },
+  {
+    "event_id": "DE000300",
+    "vehicle_id": "V0004",
+    "box_id": "BX00189",
+    "event_type": "close",
+    "occurred_at": "2026-05-27 05:06:00",
+    "location_lat": 39.820486,
+    "location_lng": 98.369494,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000301",
+    "vehicle_id": "V0002",
+    "box_id": "BX00016",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 05:26:00",
+    "location_lat": 50.078058,
+    "location_lng": 98.128194,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000302",
+    "vehicle_id": "V0006",
+    "box_id": "BX00141",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 21:50:00",
+    "location_lat": 41.748651,
+    "location_lng": 93.525148,
+    "duration_seconds": 268
+  },
+  {
+    "event_id": "DE000303",
+    "vehicle_id": "V0010",
+    "box_id": "BX00102",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 00:02:00",
+    "location_lat": 35.797482,
+    "location_lng": 80.516938,
+    "duration_seconds": 287
+  },
+  {
+    "event_id": "DE000304",
+    "vehicle_id": "V0004",
+    "box_id": "BX00119",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 15:13:00",
+    "location_lat": 38.260133,
+    "location_lng": 75.051734,
+    "duration_seconds": 410
+  },
+  {
+    "event_id": "DE000305",
+    "vehicle_id": "V0010",
+    "box_id": "BX00063",
+    "event_type": "close",
+    "occurred_at": "2026-05-24 05:20:00",
+    "location_lat": 46.49328,
+    "location_lng": 117.445512,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000306",
+    "vehicle_id": "V0017",
+    "box_id": "BX00135",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 03:57:00",
+    "location_lat": 38.963211,
+    "location_lng": 74.386317,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000307",
+    "vehicle_id": "V0004",
+    "box_id": "BX00135",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 04:52:00",
+    "location_lat": 48.271826,
+    "location_lng": 104.773151,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000308",
+    "vehicle_id": "V0018",
+    "box_id": "BX00198",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 13:37:00",
+    "location_lat": 42.922951,
+    "location_lng": 132.066008,
+    "duration_seconds": 508
+  },
+  {
+    "event_id": "DE000309",
+    "vehicle_id": "V0006",
+    "box_id": "BX00099",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 21:06:00",
+    "location_lat": 24.118025,
+    "location_lng": 91.771581,
+    "duration_seconds": 288
+  },
+  {
+    "event_id": "DE000310",
+    "vehicle_id": "V0001",
+    "box_id": "BX00067",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 06:27:00",
+    "location_lat": 19.90121,
+    "location_lng": 85.947821,
+    "duration_seconds": 315
+  },
+  {
+    "event_id": "DE000311",
+    "vehicle_id": "V0003",
+    "box_id": "BX00048",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 04:53:00",
+    "location_lat": 35.213209,
+    "location_lng": 74.831236,
+    "duration_seconds": 164
+  },
+  {
+    "event_id": "DE000312",
+    "vehicle_id": "V0005",
+    "box_id": "BX00138",
+    "event_type": "open",
+    "occurred_at": "2026-05-08 03:07:00",
+    "location_lat": 33.926888,
+    "location_lng": 85.129544,
+    "duration_seconds": 185
+  },
+  {
+    "event_id": "DE000313",
+    "vehicle_id": "V0006",
+    "box_id": "BX00193",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 19:59:00",
+    "location_lat": 23.571851,
+    "location_lng": 76.77244,
+    "duration_seconds": 386
+  },
+  {
+    "event_id": "DE000314",
+    "vehicle_id": "V0011",
+    "box_id": "BX00185",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 21:13:00",
+    "location_lat": 26.662617,
+    "location_lng": 96.000876,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000315",
+    "vehicle_id": "V0020",
+    "box_id": "BX00007",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 15:08:00",
+    "location_lat": 34.418728,
+    "location_lng": 88.529815,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000316",
+    "vehicle_id": "V0009",
+    "box_id": "BX00139",
+    "event_type": "close",
+    "occurred_at": "2026-05-15 10:20:00",
+    "location_lat": 31.238195,
+    "location_lng": 88.819604,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000317",
+    "vehicle_id": "V0018",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 04:23:00",
+    "location_lat": 43.655414,
+    "location_lng": 106.091289,
+    "duration_seconds": 12
+  },
+  {
+    "event_id": "DE000318",
+    "vehicle_id": "V0007",
+    "box_id": "BX00063",
+    "event_type": "open",
+    "occurred_at": "2026-05-11 22:24:00",
+    "location_lat": 49.619542,
+    "location_lng": 116.472773,
+    "duration_seconds": 43
+  },
+  {
+    "event_id": "DE000319",
+    "vehicle_id": "V0002",
+    "box_id": "BX00041",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 14:46:00",
+    "location_lat": 48.431273,
+    "location_lng": 82.964958,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000320",
+    "vehicle_id": "V0012",
+    "box_id": "BX00181",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 10:33:00",
+    "location_lat": 26.858049,
+    "location_lng": 77.423089,
+    "duration_seconds": 81
+  },
+  {
+    "event_id": "DE000321",
+    "vehicle_id": "V0005",
+    "box_id": "BX00027",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 23:53:00",
+    "location_lat": 42.182357,
+    "location_lng": 107.032108,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000322",
+    "vehicle_id": "V0017",
+    "box_id": "BX00071",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 01:06:00",
+    "location_lat": 44.754973,
+    "location_lng": 77.556529,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000323",
+    "vehicle_id": "V0008",
+    "box_id": "BX00130",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 10:49:00",
+    "location_lat": 30.201275,
+    "location_lng": 75.672869,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000324",
+    "vehicle_id": "V0002",
+    "box_id": "BX00159",
+    "event_type": "open",
+    "occurred_at": "2026-06-01 22:58:00",
+    "location_lat": 38.137924,
+    "location_lng": 117.258333,
+    "duration_seconds": 532
+  },
+  {
+    "event_id": "DE000325",
+    "vehicle_id": "V0012",
+    "box_id": "BX00137",
+    "event_type": "close",
+    "occurred_at": "2026-06-04 02:30:00",
+    "location_lat": 40.329843,
+    "location_lng": 82.89865,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000326",
+    "vehicle_id": "V0007",
+    "box_id": "BX00034",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 03:30:00",
+    "location_lat": 30.851995,
+    "location_lng": 80.403521,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000327",
+    "vehicle_id": "V0008",
+    "box_id": "BX00067",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 03:00:00",
+    "location_lat": 31.13441,
+    "location_lng": 86.405071,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000328",
+    "vehicle_id": "V0005",
+    "box_id": "BX00023",
+    "event_type": "close",
+    "occurred_at": "2026-06-02 13:23:00",
+    "location_lat": 42.520954,
+    "location_lng": 91.566435,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000329",
+    "vehicle_id": "V0017",
+    "box_id": "BX00102",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 18:04:00",
+    "location_lat": 31.721594,
+    "location_lng": 77.523892,
+    "duration_seconds": 121
+  },
+  {
+    "event_id": "DE000330",
+    "vehicle_id": "V0004",
+    "box_id": "BX00107",
+    "event_type": "close",
+    "occurred_at": "2026-05-19 15:59:00",
+    "location_lat": 21.894681,
+    "location_lng": 74.895684,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000331",
+    "vehicle_id": "V0011",
+    "box_id": "BX00011",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 23:15:00",
+    "location_lat": 21.360342,
+    "location_lng": 134.800874,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000332",
+    "vehicle_id": "V0006",
+    "box_id": "BX00072",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 02:25:00",
+    "location_lat": 20.108826,
+    "location_lng": 93.781978,
+    "duration_seconds": 313
+  },
+  {
+    "event_id": "DE000333",
+    "vehicle_id": "V0014",
+    "box_id": "BX00190",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 03:07:00",
+    "location_lat": 25.243678,
+    "location_lng": 125.152601,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000334",
+    "vehicle_id": "V0017",
+    "box_id": "BX00183",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 22:03:00",
+    "location_lat": 44.113947,
+    "location_lng": 113.933947,
+    "duration_seconds": 301
+  },
+  {
+    "event_id": "DE000335",
+    "vehicle_id": "V0002",
+    "box_id": "BX00080",
+    "event_type": "open",
+    "occurred_at": "2026-05-09 19:32:00",
+    "location_lat": 28.38464,
+    "location_lng": 86.262289,
+    "duration_seconds": 268
+  },
+  {
+    "event_id": "DE000336",
+    "vehicle_id": "V0012",
+    "box_id": "BX00022",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 22:06:00",
+    "location_lat": 47.886198,
+    "location_lng": 74.013208,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000337",
+    "vehicle_id": "V0011",
+    "box_id": "BX00182",
+    "event_type": "close",
+    "occurred_at": "2026-05-22 02:06:00",
+    "location_lat": 29.203725,
+    "location_lng": 110.114581,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000338",
+    "vehicle_id": "V0003",
+    "box_id": "BX00045",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 01:03:00",
+    "location_lat": 45.054168,
+    "location_lng": 100.452857,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000339",
+    "vehicle_id": "V0002",
+    "box_id": "BX00191",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 05:10:00",
+    "location_lat": 47.694158,
+    "location_lng": 89.899081,
+    "duration_seconds": 425
+  },
+  {
+    "event_id": "DE000340",
+    "vehicle_id": "V0008",
+    "box_id": "BX00125",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 20:07:00",
+    "location_lat": 31.73778,
+    "location_lng": 106.043671,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000341",
+    "vehicle_id": "V0013",
+    "box_id": "BX00196",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 20:19:00",
+    "location_lat": 40.167396,
+    "location_lng": 75.280692,
+    "duration_seconds": 355
+  },
+  {
+    "event_id": "DE000342",
+    "vehicle_id": "V0009",
+    "box_id": "BX00048",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 13:05:00",
+    "location_lat": 26.328098,
+    "location_lng": 98.245204,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000343",
+    "vehicle_id": "V0003",
+    "box_id": "BX00036",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 03:56:00",
+    "location_lat": 37.322136,
+    "location_lng": 129.094723,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000344",
+    "vehicle_id": "V0002",
+    "box_id": "BX00142",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 13:22:00",
+    "location_lat": 29.789261,
+    "location_lng": 126.652705,
+    "duration_seconds": 350
+  },
+  {
+    "event_id": "DE000345",
+    "vehicle_id": "V0020",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 20:23:00",
+    "location_lat": 43.301478,
+    "location_lng": 80.693396,
+    "duration_seconds": 326
+  },
+  {
+    "event_id": "DE000346",
+    "vehicle_id": "V0010",
+    "box_id": "BX00057",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 23:14:00",
+    "location_lat": 20.847681,
+    "location_lng": 89.995706,
+    "duration_seconds": 511
+  },
+  {
+    "event_id": "DE000347",
+    "vehicle_id": "V0001",
+    "box_id": "BX00038",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 04:38:00",
+    "location_lat": 43.327787,
+    "location_lng": 95.043371,
+    "duration_seconds": 330
+  },
+  {
+    "event_id": "DE000348",
+    "vehicle_id": "V0006",
+    "box_id": "BX00198",
+    "event_type": "close",
+    "occurred_at": "2026-05-26 13:07:00",
+    "location_lat": 28.366946,
+    "location_lng": 108.007778,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000349",
+    "vehicle_id": "V0014",
+    "box_id": "BX00094",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 03:58:00",
+    "location_lat": 45.987175,
+    "location_lng": 102.697173,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000350",
+    "vehicle_id": "V0004",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 07:49:00",
+    "location_lat": 21.612935,
+    "location_lng": 112.253838,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000351",
+    "vehicle_id": "V0009",
+    "box_id": "BX00034",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 11:59:00",
+    "location_lat": 49.099194,
+    "location_lng": 117.857137,
+    "duration_seconds": 206
+  },
+  {
+    "event_id": "DE000352",
+    "vehicle_id": "V0006",
+    "box_id": "BX00105",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 13:25:00",
+    "location_lat": 36.152112,
+    "location_lng": 95.279287,
+    "duration_seconds": 222
+  },
+  {
+    "event_id": "DE000353",
+    "vehicle_id": "V0020",
+    "box_id": "BX00001",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 03:26:00",
+    "location_lat": 52.955746,
+    "location_lng": 125.318433,
+    "duration_seconds": 598
+  },
+  {
+    "event_id": "DE000354",
+    "vehicle_id": "V0007",
+    "box_id": "BX00117",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 03:50:00",
+    "location_lat": 42.72978,
+    "location_lng": 105.90297,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000355",
+    "vehicle_id": "V0002",
+    "box_id": "BX00103",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 21:16:00",
+    "location_lat": 25.596656,
+    "location_lng": 93.648398,
+    "duration_seconds": 235
+  },
+  {
+    "event_id": "DE000356",
+    "vehicle_id": "V0010",
+    "box_id": "BX00170",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 12:00:00",
+    "location_lat": 47.864826,
+    "location_lng": 130.751405,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000357",
+    "vehicle_id": "V0013",
+    "box_id": "BX00079",
+    "event_type": "open",
+    "occurred_at": "2026-05-04 13:04:00",
+    "location_lat": 46.892623,
+    "location_lng": 89.208628,
+    "duration_seconds": 233
+  },
+  {
+    "event_id": "DE000358",
+    "vehicle_id": "V0015",
+    "box_id": "BX00081",
+    "event_type": "close",
+    "occurred_at": "2026-05-29 21:31:00",
+    "location_lat": 50.625038,
+    "location_lng": 80.317184,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000359",
+    "vehicle_id": "V0004",
+    "box_id": "BX00049",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 21:10:00",
+    "location_lat": 19.267911,
+    "location_lng": 78.787916,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000360",
+    "vehicle_id": "V0018",
+    "box_id": "BX00105",
+    "event_type": "close",
+    "occurred_at": "2026-06-01 07:55:00",
+    "location_lat": 38.741861,
+    "location_lng": 118.541895,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000361",
+    "vehicle_id": "V0007",
+    "box_id": "BX00158",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 22:03:00",
+    "location_lat": 52.616197,
+    "location_lng": 114.528135,
+    "duration_seconds": 251
+  },
+  {
+    "event_id": "DE000362",
+    "vehicle_id": "V0015",
+    "box_id": "BX00066",
+    "event_type": "open",
+    "occurred_at": "2026-05-17 04:06:00",
+    "location_lat": 44.385097,
+    "location_lng": 86.786641,
+    "duration_seconds": 235
+  },
+  {
+    "event_id": "DE000363",
+    "vehicle_id": "V0005",
+    "box_id": "BX00051",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 07:18:00",
+    "location_lat": 35.501584,
+    "location_lng": 88.314657,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000364",
+    "vehicle_id": "V0002",
+    "box_id": "BX00005",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 05:20:00",
+    "location_lat": 23.221765,
+    "location_lng": 89.446172,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000365",
+    "vehicle_id": "V0005",
+    "box_id": "BX00159",
+    "event_type": "close",
+    "occurred_at": "2026-06-01 05:16:00",
+    "location_lat": 30.635177,
+    "location_lng": 127.540424,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000366",
+    "vehicle_id": "V0006",
+    "box_id": "BX00056",
+    "event_type": "open",
+    "occurred_at": "2026-05-30 08:52:00",
+    "location_lat": 40.788325,
+    "location_lng": 133.558948,
+    "duration_seconds": 283
+  },
+  {
+    "event_id": "DE000367",
+    "vehicle_id": "V0011",
+    "box_id": "BX00082",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 16:07:00",
+    "location_lat": 25.166257,
+    "location_lng": 76.838918,
+    "duration_seconds": 8
+  },
+  {
+    "event_id": "DE000368",
+    "vehicle_id": "V0013",
+    "box_id": "BX00197",
+    "event_type": "open",
+    "occurred_at": "2026-05-19 22:46:00",
+    "location_lat": 22.243678,
+    "location_lng": 112.533209,
+    "duration_seconds": 521
+  },
+  {
+    "event_id": "DE000369",
+    "vehicle_id": "V0013",
+    "box_id": "BX00117",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 22:17:00",
+    "location_lat": 21.022624,
+    "location_lng": 77.258296,
+    "duration_seconds": 159
+  },
+  {
+    "event_id": "DE000370",
+    "vehicle_id": "V0006",
+    "box_id": "BX00146",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 09:56:00",
+    "location_lat": 48.828636,
+    "location_lng": 93.218184,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000371",
+    "vehicle_id": "V0006",
+    "box_id": "BX00050",
+    "event_type": "open",
+    "occurred_at": "2026-05-16 00:54:00",
+    "location_lat": 27.794452,
+    "location_lng": 96.445057,
+    "duration_seconds": 138
+  },
+  {
+    "event_id": "DE000372",
+    "vehicle_id": "V0005",
+    "box_id": "BX00145",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 01:39:00",
+    "location_lat": 18.77568,
+    "location_lng": 86.589667,
+    "duration_seconds": 23
+  },
+  {
+    "event_id": "DE000373",
+    "vehicle_id": "V0013",
+    "box_id": "BX00073",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 16:39:00",
+    "location_lat": 30.817837,
+    "location_lng": 122.707532,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000374",
+    "vehicle_id": "V0009",
+    "box_id": "BX00016",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 05:09:00",
+    "location_lat": 50.514284,
+    "location_lng": 104.712294,
+    "duration_seconds": 72
+  },
+  {
+    "event_id": "DE000375",
+    "vehicle_id": "V0009",
+    "box_id": "BX00015",
+    "event_type": "open",
+    "occurred_at": "2026-05-20 22:58:00",
+    "location_lat": 41.549463,
+    "location_lng": 90.132101,
+    "duration_seconds": 558
+  },
+  {
+    "event_id": "DE000376",
+    "vehicle_id": "V0013",
+    "box_id": "BX00098",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 14:20:00",
+    "location_lat": 26.119191,
+    "location_lng": 76.121529,
+    "duration_seconds": 446
+  },
+  {
+    "event_id": "DE000377",
+    "vehicle_id": "V0015",
+    "box_id": "BX00050",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 06:25:00",
+    "location_lat": 45.361741,
+    "location_lng": 100.158457,
+    "duration_seconds": 429
+  },
+  {
+    "event_id": "DE000378",
+    "vehicle_id": "V0008",
+    "box_id": "BX00169",
+    "event_type": "open",
+    "occurred_at": "2026-05-28 19:21:00",
+    "location_lat": 32.926647,
+    "location_lng": 103.475751,
+    "duration_seconds": 185
+  },
+  {
+    "event_id": "DE000379",
+    "vehicle_id": "V0019",
+    "box_id": "BX00068",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 20:48:00",
+    "location_lat": 33.448701,
+    "location_lng": 123.155445,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000380",
+    "vehicle_id": "V0009",
+    "box_id": "BX00160",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 23:58:00",
+    "location_lat": 36.471742,
+    "location_lng": 86.767806,
+    "duration_seconds": 116
+  },
+  {
+    "event_id": "DE000381",
+    "vehicle_id": "V0013",
+    "box_id": "BX00090",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 09:56:00",
+    "location_lat": 31.260339,
+    "location_lng": 111.537033,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000382",
+    "vehicle_id": "V0012",
+    "box_id": "BX00166",
+    "event_type": "open",
+    "occurred_at": "2026-05-31 15:55:00",
+    "location_lat": 48.332829,
+    "location_lng": 116.055676,
+    "duration_seconds": 39
+  },
+  {
+    "event_id": "DE000383",
+    "vehicle_id": "V0003",
+    "box_id": "BX00126",
+    "event_type": "close",
+    "occurred_at": "2026-05-17 19:44:00",
+    "location_lat": 44.636639,
+    "location_lng": 81.988886,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000384",
+    "vehicle_id": "V0011",
+    "box_id": "BX00169",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 22:48:00",
+    "location_lat": 34.743921,
+    "location_lng": 116.599457,
+    "duration_seconds": 561
+  },
+  {
+    "event_id": "DE000385",
+    "vehicle_id": "V0019",
+    "box_id": "BX00110",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 12:57:00",
+    "location_lat": 28.030946,
+    "location_lng": 81.586765,
+    "duration_seconds": 354
+  },
+  {
+    "event_id": "DE000386",
+    "vehicle_id": "V0012",
+    "box_id": "BX00127",
+    "event_type": "open",
+    "occurred_at": "2026-05-05 02:23:00",
+    "location_lat": 40.562047,
+    "location_lng": 89.85011,
+    "duration_seconds": 167
+  },
+  {
+    "event_id": "DE000387",
+    "vehicle_id": "V0010",
+    "box_id": "BX00136",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 00:17:00",
+    "location_lat": 51.301421,
+    "location_lng": 93.554722,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000388",
+    "vehicle_id": "V0013",
+    "box_id": "BX00181",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 02:33:00",
+    "location_lat": 37.485345,
+    "location_lng": 108.734893,
+    "duration_seconds": 285
+  },
+  {
+    "event_id": "DE000389",
+    "vehicle_id": "V0016",
+    "box_id": "BX00184",
+    "event_type": "open",
+    "occurred_at": "2026-06-01 17:04:00",
+    "location_lat": 48.230747,
+    "location_lng": 81.23511,
+    "duration_seconds": 413
+  },
+  {
+    "event_id": "DE000390",
+    "vehicle_id": "V0020",
+    "box_id": "BX00195",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 02:41:00",
+    "location_lat": 18.217291,
+    "location_lng": 87.296305,
+    "duration_seconds": 248
+  },
+  {
+    "event_id": "DE000391",
+    "vehicle_id": "V0006",
+    "box_id": "BX00112",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 23:10:00",
+    "location_lat": 31.631143,
+    "location_lng": 80.180668,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000392",
+    "vehicle_id": "V0012",
+    "box_id": "BX00140",
+    "event_type": "open",
+    "occurred_at": "2026-05-27 15:36:00",
+    "location_lat": 31.362005,
+    "location_lng": 122.481612,
+    "duration_seconds": 38
+  },
+  {
+    "event_id": "DE000393",
+    "vehicle_id": "V0004",
+    "box_id": "BX00198",
+    "event_type": "close",
+    "occurred_at": "2026-05-26 00:36:00",
+    "location_lat": 28.106218,
+    "location_lng": 125.887416,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000394",
+    "vehicle_id": "V0011",
+    "box_id": "BX00194",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 11:27:00",
+    "location_lat": 40.555861,
+    "location_lng": 103.03733,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000395",
+    "vehicle_id": "V0012",
+    "box_id": "BX00151",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 08:55:00",
+    "location_lat": 28.654412,
+    "location_lng": 79.948336,
+    "duration_seconds": 583
+  },
+  {
+    "event_id": "DE000396",
+    "vehicle_id": "V0009",
+    "box_id": "BX00091",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 00:22:00",
+    "location_lat": 44.8575,
+    "location_lng": 132.934152,
+    "duration_seconds": 329
+  },
+  {
+    "event_id": "DE000397",
+    "vehicle_id": "V0011",
+    "box_id": "BX00148",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 07:07:00",
+    "location_lat": 49.780484,
+    "location_lng": 81.248576,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000398",
+    "vehicle_id": "V0015",
+    "box_id": "BX00071",
+    "event_type": "close",
+    "occurred_at": "2026-05-28 02:41:00",
+    "location_lat": 47.049735,
+    "location_lng": 74.905514,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000399",
+    "vehicle_id": "V0012",
+    "box_id": "BX00187",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 16:54:00",
+    "location_lat": 39.038478,
+    "location_lng": 114.803404,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000400",
+    "vehicle_id": "V0012",
+    "box_id": "BX00143",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 16:10:00",
+    "location_lat": 45.432251,
+    "location_lng": 87.482002,
+    "duration_seconds": 202
+  },
+  {
+    "event_id": "DE000401",
+    "vehicle_id": "V0004",
+    "box_id": "BX00136",
+    "event_type": "close",
+    "occurred_at": "2026-05-08 16:02:00",
+    "location_lat": 43.290249,
+    "location_lng": 112.864903,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000402",
+    "vehicle_id": "V0017",
+    "box_id": "BX00025",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 16:20:00",
+    "location_lat": 49.24109,
+    "location_lng": 110.927707,
+    "duration_seconds": 22
+  },
+  {
+    "event_id": "DE000403",
+    "vehicle_id": "V0005",
+    "box_id": "BX00059",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 11:21:00",
+    "location_lat": 34.589954,
+    "location_lng": 96.008238,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000404",
+    "vehicle_id": "V0010",
+    "box_id": "BX00050",
+    "event_type": "close",
+    "occurred_at": "2026-05-07 23:20:00",
+    "location_lat": 36.903179,
+    "location_lng": 73.398826,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000405",
+    "vehicle_id": "V0005",
+    "box_id": "BX00185",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 18:53:00",
+    "location_lat": 27.321291,
+    "location_lng": 84.390862,
+    "duration_seconds": 298
+  },
+  {
+    "event_id": "DE000406",
+    "vehicle_id": "V0012",
+    "box_id": "BX00106",
+    "event_type": "close",
+    "occurred_at": "2026-06-01 18:11:00",
+    "location_lat": 24.691552,
+    "location_lng": 99.788094,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000407",
+    "vehicle_id": "V0019",
+    "box_id": "BX00045",
+    "event_type": "open",
+    "occurred_at": "2026-05-28 13:23:00",
+    "location_lat": 25.757104,
+    "location_lng": 76.111988,
+    "duration_seconds": 175
+  },
+  {
+    "event_id": "DE000408",
+    "vehicle_id": "V0003",
+    "box_id": "BX00082",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 04:56:00",
+    "location_lat": 50.166973,
+    "location_lng": 114.043213,
+    "duration_seconds": 440
+  },
+  {
+    "event_id": "DE000409",
+    "vehicle_id": "V0007",
+    "box_id": "BX00059",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 12:36:00",
+    "location_lat": 39.975691,
+    "location_lng": 89.611942,
+    "duration_seconds": 390
+  },
+  {
+    "event_id": "DE000410",
+    "vehicle_id": "V0001",
+    "box_id": "BX00139",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 11:06:00",
+    "location_lat": 47.263724,
+    "location_lng": 82.686862,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000411",
+    "vehicle_id": "V0006",
+    "box_id": "BX00200",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 09:46:00",
+    "location_lat": 36.68697,
+    "location_lng": 78.623462,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000412",
+    "vehicle_id": "V0004",
+    "box_id": "BX00197",
+    "event_type": "close",
+    "occurred_at": "2026-06-01 15:25:00",
+    "location_lat": 49.831956,
+    "location_lng": 118.519469,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000413",
+    "vehicle_id": "V0007",
+    "box_id": "BX00172",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 13:08:00",
+    "location_lat": 42.046434,
+    "location_lng": 127.706314,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000414",
+    "vehicle_id": "V0018",
+    "box_id": "BX00137",
+    "event_type": "close",
+    "occurred_at": "2026-05-11 03:18:00",
+    "location_lat": 32.187564,
+    "location_lng": 100.572323,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000415",
+    "vehicle_id": "V0016",
+    "box_id": "BX00195",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 02:57:00",
+    "location_lat": 33.036544,
+    "location_lng": 100.77253,
+    "duration_seconds": 562
+  },
+  {
+    "event_id": "DE000416",
+    "vehicle_id": "V0010",
+    "box_id": "BX00003",
+    "event_type": "open",
+    "occurred_at": "2026-05-17 13:48:00",
+    "location_lat": 33.076397,
+    "location_lng": 96.819573,
+    "duration_seconds": 49
+  },
+  {
+    "event_id": "DE000417",
+    "vehicle_id": "V0003",
+    "box_id": "BX00121",
+    "event_type": "close",
+    "occurred_at": "2026-05-02 02:09:00",
+    "location_lat": 25.095174,
+    "location_lng": 107.108702,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000418",
+    "vehicle_id": "V0015",
+    "box_id": "BX00036",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 17:29:00",
+    "location_lat": 18.925308,
+    "location_lng": 125.813629,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000419",
+    "vehicle_id": "V0005",
+    "box_id": "BX00177",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 01:12:00",
+    "location_lat": 44.176836,
+    "location_lng": 80.931353,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000420",
+    "vehicle_id": "V0010",
+    "box_id": "BX00100",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 21:43:00",
+    "location_lat": 27.926371,
+    "location_lng": 112.985707,
+    "duration_seconds": 497
+  },
+  {
+    "event_id": "DE000421",
+    "vehicle_id": "V0015",
+    "box_id": "BX00120",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 04:37:00",
+    "location_lat": 50.879234,
+    "location_lng": 88.69136,
+    "duration_seconds": 97
+  },
+  {
+    "event_id": "DE000422",
+    "vehicle_id": "V0019",
+    "box_id": "BX00127",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 20:30:00",
+    "location_lat": 44.2475,
+    "location_lng": 134.27039,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000423",
+    "vehicle_id": "V0015",
+    "box_id": "BX00116",
+    "event_type": "close",
+    "occurred_at": "2026-05-25 03:45:00",
+    "location_lat": 50.115701,
+    "location_lng": 73.849852,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000424",
+    "vehicle_id": "V0007",
+    "box_id": "BX00037",
+    "event_type": "open",
+    "occurred_at": "2026-05-08 11:20:00",
+    "location_lat": 42.267721,
+    "location_lng": 102.336335,
+    "duration_seconds": 194
+  },
+  {
+    "event_id": "DE000425",
+    "vehicle_id": "V0003",
+    "box_id": "BX00181",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 00:19:00",
+    "location_lat": 41.030002,
+    "location_lng": 127.719203,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000426",
+    "vehicle_id": "V0011",
+    "box_id": "BX00034",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 05:36:00",
+    "location_lat": 32.563699,
+    "location_lng": 105.227374,
+    "duration_seconds": 540
+  },
+  {
+    "event_id": "DE000427",
+    "vehicle_id": "V0007",
+    "box_id": "BX00085",
+    "event_type": "open",
+    "occurred_at": "2026-05-15 09:09:00",
+    "location_lat": 28.811009,
+    "location_lng": 89.163319,
+    "duration_seconds": 511
+  },
+  {
+    "event_id": "DE000428",
+    "vehicle_id": "V0010",
+    "box_id": "BX00095",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 20:10:00",
+    "location_lat": 47.777655,
+    "location_lng": 73.530645,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000429",
+    "vehicle_id": "V0007",
+    "box_id": "BX00157",
+    "event_type": "close",
+    "occurred_at": "2026-05-13 10:07:00",
+    "location_lat": 43.034267,
+    "location_lng": 82.189711,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000430",
+    "vehicle_id": "V0020",
+    "box_id": "BX00122",
+    "event_type": "open",
+    "occurred_at": "2026-05-23 23:05:00",
+    "location_lat": 28.532601,
+    "location_lng": 117.35835,
+    "duration_seconds": 479
+  },
+  {
+    "event_id": "DE000431",
+    "vehicle_id": "V0006",
+    "box_id": "BX00104",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 10:42:00",
+    "location_lat": 45.908475,
+    "location_lng": 98.943686,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000432",
+    "vehicle_id": "V0019",
+    "box_id": "BX00125",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 16:28:00",
+    "location_lat": 21.036932,
+    "location_lng": 121.83731,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000433",
+    "vehicle_id": "V0001",
+    "box_id": "BX00127",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 09:31:00",
+    "location_lat": 47.032811,
+    "location_lng": 113.485415,
+    "duration_seconds": 188
+  },
+  {
+    "event_id": "DE000434",
+    "vehicle_id": "V0019",
+    "box_id": "BX00104",
+    "event_type": "open",
+    "occurred_at": "2026-05-28 13:33:00",
+    "location_lat": 43.450523,
+    "location_lng": 93.683476,
+    "duration_seconds": 593
+  },
+  {
+    "event_id": "DE000435",
+    "vehicle_id": "V0005",
+    "box_id": "BX00162",
+    "event_type": "close",
+    "occurred_at": "2026-05-20 14:05:00",
+    "location_lat": 41.521551,
+    "location_lng": 119.124551,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000436",
+    "vehicle_id": "V0012",
+    "box_id": "BX00175",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 10:17:00",
+    "location_lat": 45.08853,
+    "location_lng": 133.744,
+    "duration_seconds": 36
+  },
+  {
+    "event_id": "DE000437",
+    "vehicle_id": "V0003",
+    "box_id": "BX00144",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 11:46:00",
+    "location_lat": 21.725838,
+    "location_lng": 103.856384,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000438",
+    "vehicle_id": "V0016",
+    "box_id": "BX00063",
+    "event_type": "open",
+    "occurred_at": "2026-06-03 14:50:00",
+    "location_lat": 29.11725,
+    "location_lng": 124.058514,
+    "duration_seconds": 71
+  },
+  {
+    "event_id": "DE000439",
+    "vehicle_id": "V0015",
+    "box_id": "BX00146",
+    "event_type": "close",
+    "occurred_at": "2026-05-06 17:02:00",
+    "location_lat": 48.214555,
+    "location_lng": 92.923796,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000440",
+    "vehicle_id": "V0018",
+    "box_id": "BX00147",
+    "event_type": "open",
+    "occurred_at": "2026-05-28 14:58:00",
+    "location_lat": 41.554984,
+    "location_lng": 93.162671,
+    "duration_seconds": 364
+  },
+  {
+    "event_id": "DE000441",
+    "vehicle_id": "V0019",
+    "box_id": "BX00036",
+    "event_type": "close",
+    "occurred_at": "2026-05-08 02:46:00",
+    "location_lat": 26.245388,
+    "location_lng": 121.554909,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000442",
+    "vehicle_id": "V0011",
+    "box_id": "BX00039",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 01:46:00",
+    "location_lat": 22.047235,
+    "location_lng": 84.508384,
+    "duration_seconds": 557
+  },
+  {
+    "event_id": "DE000443",
+    "vehicle_id": "V0013",
+    "box_id": "BX00106",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 04:19:00",
+    "location_lat": 30.743195,
+    "location_lng": 125.288404,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000444",
+    "vehicle_id": "V0006",
+    "box_id": "BX00116",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 12:19:00",
+    "location_lat": 52.570297,
+    "location_lng": 101.563814,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000445",
+    "vehicle_id": "V0005",
+    "box_id": "BX00077",
+    "event_type": "open",
+    "occurred_at": "2026-05-25 05:10:00",
+    "location_lat": 40.525739,
+    "location_lng": 109.965345,
+    "duration_seconds": 121
+  },
+  {
+    "event_id": "DE000446",
+    "vehicle_id": "V0015",
+    "box_id": "BX00181",
+    "event_type": "open",
+    "occurred_at": "2026-05-21 19:13:00",
+    "location_lat": 38.769517,
+    "location_lng": 121.739797,
+    "duration_seconds": 398
+  },
+  {
+    "event_id": "DE000447",
+    "vehicle_id": "V0004",
+    "box_id": "BX00163",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 22:43:00",
+    "location_lat": 18.398158,
+    "location_lng": 93.750376,
+    "duration_seconds": 306
+  },
+  {
+    "event_id": "DE000448",
+    "vehicle_id": "V0013",
+    "box_id": "BX00031",
+    "event_type": "open",
+    "occurred_at": "2026-06-02 23:47:00",
+    "location_lat": 29.752818,
+    "location_lng": 110.395516,
+    "duration_seconds": 86
+  },
+  {
+    "event_id": "DE000449",
+    "vehicle_id": "V0004",
+    "box_id": "BX00062",
+    "event_type": "open",
+    "occurred_at": "2026-05-18 09:38:00",
+    "location_lat": 48.128256,
+    "location_lng": 91.709645,
+    "duration_seconds": 74
+  },
+  {
+    "event_id": "DE000450",
+    "vehicle_id": "V0009",
+    "box_id": "BX00133",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 00:20:00",
+    "location_lat": 32.729355,
+    "location_lng": 88.737908,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000451",
+    "vehicle_id": "V0017",
+    "box_id": "BX00127",
+    "event_type": "close",
+    "occurred_at": "2026-05-07 19:13:00",
+    "location_lat": 48.632674,
+    "location_lng": 92.691872,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000452",
+    "vehicle_id": "V0014",
+    "box_id": "BX00015",
+    "event_type": "open",
+    "occurred_at": "2026-05-22 05:27:00",
+    "location_lat": 22.914743,
+    "location_lng": 128.950922,
+    "duration_seconds": 485
+  },
+  {
+    "event_id": "DE000453",
+    "vehicle_id": "V0014",
+    "box_id": "BX00144",
+    "event_type": "open",
+    "occurred_at": "2026-05-07 05:38:00",
+    "location_lat": 22.262791,
+    "location_lng": 74.232931,
+    "duration_seconds": 564
+  },
+  {
+    "event_id": "DE000454",
+    "vehicle_id": "V0016",
+    "box_id": "BX00180",
+    "event_type": "close",
+    "occurred_at": "2026-05-05 09:07:00",
+    "location_lat": 20.587023,
+    "location_lng": 95.408086,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000455",
+    "vehicle_id": "V0001",
+    "box_id": "BX00053",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 23:10:00",
+    "location_lat": 45.7371,
+    "location_lng": 121.329263,
+    "duration_seconds": 332
+  },
+  {
+    "event_id": "DE000456",
+    "vehicle_id": "V0017",
+    "box_id": "BX00070",
+    "event_type": "open",
+    "occurred_at": "2026-05-16 23:44:00",
+    "location_lat": 18.060379,
+    "location_lng": 109.142786,
+    "duration_seconds": 469
+  },
+  {
+    "event_id": "DE000457",
+    "vehicle_id": "V0017",
+    "box_id": "BX00011",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 13:12:00",
+    "location_lat": 51.613913,
+    "location_lng": 75.857706,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000458",
+    "vehicle_id": "V0007",
+    "box_id": "BX00003",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 13:20:00",
+    "location_lat": 27.04548,
+    "location_lng": 78.373267,
+    "duration_seconds": 536
+  },
+  {
+    "event_id": "DE000459",
+    "vehicle_id": "V0018",
+    "box_id": "BX00136",
+    "event_type": "close",
+    "occurred_at": "2026-05-01 07:31:00",
+    "location_lat": 41.615734,
+    "location_lng": 98.883428,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000460",
+    "vehicle_id": "V0006",
+    "box_id": "BX00162",
+    "event_type": "close",
+    "occurred_at": "2026-05-16 10:04:00",
+    "location_lat": 36.959595,
+    "location_lng": 109.167726,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000461",
+    "vehicle_id": "V0010",
+    "box_id": "BX00121",
+    "event_type": "open",
+    "occurred_at": "2026-05-01 17:49:00",
+    "location_lat": 41.264926,
+    "location_lng": 119.322864,
+    "duration_seconds": 359
+  },
+  {
+    "event_id": "DE000462",
+    "vehicle_id": "V0016",
+    "box_id": "BX00101",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 21:10:00",
+    "location_lat": 52.637863,
+    "location_lng": 113.389043,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000463",
+    "vehicle_id": "V0005",
+    "box_id": "BX00161",
+    "event_type": "open",
+    "occurred_at": "2026-05-26 07:40:00",
+    "location_lat": 48.308769,
+    "location_lng": 115.397462,
+    "duration_seconds": 202
+  },
+  {
+    "event_id": "DE000464",
+    "vehicle_id": "V0006",
+    "box_id": "BX00090",
+    "event_type": "open",
+    "occurred_at": "2026-05-31 12:25:00",
+    "location_lat": 44.946021,
+    "location_lng": 130.143845,
+    "duration_seconds": 378
+  },
+  {
+    "event_id": "DE000465",
+    "vehicle_id": "V0018",
+    "box_id": "BX00012",
+    "event_type": "close",
+    "occurred_at": "2026-05-21 02:44:00",
+    "location_lat": 49.452847,
+    "location_lng": 132.742851,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000466",
+    "vehicle_id": "V0002",
+    "box_id": "BX00046",
+    "event_type": "open",
+    "occurred_at": "2026-05-24 03:00:00",
+    "location_lat": 39.029529,
+    "location_lng": 121.6206,
+    "duration_seconds": 301
+  },
+  {
+    "event_id": "DE000467",
+    "vehicle_id": "V0017",
+    "box_id": "BX00054",
+    "event_type": "close",
+    "occurred_at": "2026-06-05 06:42:00",
+    "location_lat": 49.484851,
+    "location_lng": 109.003623,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000468",
+    "vehicle_id": "V0008",
+    "box_id": "BX00198",
+    "event_type": "close",
+    "occurred_at": "2026-06-02 13:54:00",
+    "location_lat": 42.712957,
+    "location_lng": 130.993366,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000469",
+    "vehicle_id": "V0011",
+    "box_id": "BX00191",
+    "event_type": "open",
+    "occurred_at": "2026-05-01 13:12:00",
+    "location_lat": 44.453911,
+    "location_lng": 124.317358,
+    "duration_seconds": 479
+  },
+  {
+    "event_id": "DE000470",
+    "vehicle_id": "V0004",
+    "box_id": "BX00091",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 01:45:00",
+    "location_lat": 35.515593,
+    "location_lng": 78.188304,
+    "duration_seconds": 185
+  },
+  {
+    "event_id": "DE000471",
+    "vehicle_id": "V0010",
+    "box_id": "BX00032",
+    "event_type": "close",
+    "occurred_at": "2026-05-04 09:33:00",
+    "location_lat": 21.510871,
+    "location_lng": 101.493582,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000472",
+    "vehicle_id": "V0010",
+    "box_id": "BX00016",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 11:28:00",
+    "location_lat": 19.171043,
+    "location_lng": 117.515573,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000473",
+    "vehicle_id": "V0012",
+    "box_id": "BX00040",
+    "event_type": "open",
+    "occurred_at": "2026-05-02 06:28:00",
+    "location_lat": 47.475069,
+    "location_lng": 114.938353,
+    "duration_seconds": 505
+  },
+  {
+    "event_id": "DE000474",
+    "vehicle_id": "V0018",
+    "box_id": "BX00030",
+    "event_type": "close",
+    "occurred_at": "2026-05-12 06:06:00",
+    "location_lat": 46.148213,
+    "location_lng": 115.729105,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000475",
+    "vehicle_id": "V0019",
+    "box_id": "BX00004",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 22:34:00",
+    "location_lat": 21.356532,
+    "location_lng": 128.115441,
+    "duration_seconds": 506
+  },
+  {
+    "event_id": "DE000476",
+    "vehicle_id": "V0017",
+    "box_id": "BX00094",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 22:54:00",
+    "location_lat": 22.799095,
+    "location_lng": 103.324681,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000477",
+    "vehicle_id": "V0003",
+    "box_id": "BX00086",
+    "event_type": "open",
+    "occurred_at": "2026-06-01 17:37:00",
+    "location_lat": 38.397736,
+    "location_lng": 93.901665,
+    "duration_seconds": 368
+  },
+  {
+    "event_id": "DE000478",
+    "vehicle_id": "V0018",
+    "box_id": "BX00002",
+    "event_type": "close",
+    "occurred_at": "2026-05-10 06:48:00",
+    "location_lat": 22.972037,
+    "location_lng": 109.790651,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000479",
+    "vehicle_id": "V0016",
+    "box_id": "BX00031",
+    "event_type": "open",
+    "occurred_at": "2026-05-29 12:07:00",
+    "location_lat": 38.154532,
+    "location_lng": 115.865125,
+    "duration_seconds": 406
+  },
+  {
+    "event_id": "DE000480",
+    "vehicle_id": "V0008",
+    "box_id": "BX00034",
+    "event_type": "open",
+    "occurred_at": "2026-05-13 09:51:00",
+    "location_lat": 32.225991,
+    "location_lng": 77.62106,
+    "duration_seconds": 332
+  },
+  {
+    "event_id": "DE000481",
+    "vehicle_id": "V0010",
+    "box_id": "BX00090",
+    "event_type": "open",
+    "occurred_at": "2026-05-17 12:42:00",
+    "location_lat": 18.107167,
+    "location_lng": 134.474123,
+    "duration_seconds": 78
+  },
+  {
+    "event_id": "DE000482",
+    "vehicle_id": "V0007",
+    "box_id": "BX00128",
+    "event_type": "open",
+    "occurred_at": "2026-05-12 14:33:00",
+    "location_lat": 20.605074,
+    "location_lng": 130.790969,
+    "duration_seconds": 448
+  },
+  {
+    "event_id": "DE000483",
+    "vehicle_id": "V0012",
+    "box_id": "BX00073",
+    "event_type": "close",
+    "occurred_at": "2026-05-30 01:53:00",
+    "location_lat": 32.70326,
+    "location_lng": 109.836524,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000484",
+    "vehicle_id": "V0006",
+    "box_id": "BX00106",
+    "event_type": "open",
+    "occurred_at": "2026-06-02 21:16:00",
+    "location_lat": 42.626747,
+    "location_lng": 115.119419,
+    "duration_seconds": 155
+  },
+  {
+    "event_id": "DE000485",
+    "vehicle_id": "V0003",
+    "box_id": "BX00124",
+    "event_type": "close",
+    "occurred_at": "2026-05-14 09:50:00",
+    "location_lat": 29.789514,
+    "location_lng": 92.719095,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000486",
+    "vehicle_id": "V0001",
+    "box_id": "BX00123",
+    "event_type": "open",
+    "occurred_at": "2026-05-14 10:46:00",
+    "location_lat": 35.920495,
+    "location_lng": 124.775815,
+    "duration_seconds": 473
+  },
+  {
+    "event_id": "DE000487",
+    "vehicle_id": "V0007",
+    "box_id": "BX00190",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 12:09:00",
+    "location_lat": 20.428984,
+    "location_lng": 74.948336,
+    "duration_seconds": 216
+  },
+  {
+    "event_id": "DE000488",
+    "vehicle_id": "V0005",
+    "box_id": "BX00061",
+    "event_type": "close",
+    "occurred_at": "2026-05-18 16:30:00",
+    "location_lat": 43.568451,
+    "location_lng": 132.292558,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000489",
+    "vehicle_id": "V0019",
+    "box_id": "BX00130",
+    "event_type": "close",
+    "occurred_at": "2026-05-03 00:41:00",
+    "location_lat": 41.145895,
+    "location_lng": 121.866292,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000490",
+    "vehicle_id": "V0018",
+    "box_id": "BX00027",
+    "event_type": "close",
+    "occurred_at": "2026-06-02 14:03:00",
+    "location_lat": 22.295207,
+    "location_lng": 91.097986,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000491",
+    "vehicle_id": "V0013",
+    "box_id": "BX00032",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 09:24:00",
+    "location_lat": 32.844962,
+    "location_lng": 95.756033,
+    "duration_seconds": 55
+  },
+  {
+    "event_id": "DE000492",
+    "vehicle_id": "V0009",
+    "box_id": "BX00046",
+    "event_type": "open",
+    "occurred_at": "2026-05-11 10:13:00",
+    "location_lat": 24.833948,
+    "location_lng": 109.377938,
+    "duration_seconds": 141
+  },
+  {
+    "event_id": "DE000493",
+    "vehicle_id": "V0018",
+    "box_id": "BX00064",
+    "event_type": "close",
+    "occurred_at": "2026-06-03 08:26:00",
+    "location_lat": 24.241788,
+    "location_lng": 77.843961,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000494",
+    "vehicle_id": "V0006",
+    "box_id": "BX00187",
+    "event_type": "open",
+    "occurred_at": "2026-05-06 23:26:00",
+    "location_lat": 40.888636,
+    "location_lng": 106.485171,
+    "duration_seconds": 360
+  },
+  {
+    "event_id": "DE000495",
+    "vehicle_id": "V0011",
+    "box_id": "BX00179",
+    "event_type": "open",
+    "occurred_at": "2026-06-04 01:47:00",
+    "location_lat": 19.122897,
+    "location_lng": 134.30493,
+    "duration_seconds": 251
+  },
+  {
+    "event_id": "DE000496",
+    "vehicle_id": "V0009",
+    "box_id": "BX00023",
+    "event_type": "open",
+    "occurred_at": "2026-05-10 13:21:00",
+    "location_lat": 24.316028,
+    "location_lng": 115.716903,
+    "duration_seconds": 451
+  },
+  {
+    "event_id": "DE000497",
+    "vehicle_id": "V0008",
+    "box_id": "BX00018",
+    "event_type": "open",
+    "occurred_at": "2026-05-31 16:10:00",
+    "location_lat": 46.590724,
+    "location_lng": 85.987835,
+    "duration_seconds": 41
+  },
+  {
+    "event_id": "DE000498",
+    "vehicle_id": "V0007",
+    "box_id": "BX00134",
+    "event_type": "open",
+    "occurred_at": "2026-05-03 13:03:00",
+    "location_lat": 28.681789,
+    "location_lng": 103.288533,
+    "duration_seconds": 564
+  },
+  {
+    "event_id": "DE000499",
+    "vehicle_id": "V0017",
+    "box_id": "BX00119",
+    "event_type": "close",
+    "occurred_at": "2026-05-13 19:50:00",
+    "location_lat": 21.437816,
+    "location_lng": 105.846436,
+    "duration_seconds": null
+  },
+  {
+    "event_id": "DE000500",
+    "vehicle_id": "V0005",
+    "box_id": "BX00128",
+    "event_type": "open",
+    "occurred_at": "2026-05-05 05:33:00",
+    "location_lat": 44.444875,
+    "location_lng": 96.185408,
+    "duration_seconds": 539
+  }
+]

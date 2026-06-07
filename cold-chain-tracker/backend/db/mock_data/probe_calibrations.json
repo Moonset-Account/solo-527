@@ -1,0 +1,452 @@
+[
+  {
+    "calibration_id": "CAL0001",
+    "probe_id": "P00137",
+    "box_id": "BX00137",
+    "calibrated_at": "2026-04-12 00:00:00",
+    "next_calibration_due": "2026-09-15 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.828
+  },
+  {
+    "calibration_id": "CAL0002",
+    "probe_id": "P00050",
+    "box_id": "BX00050",
+    "calibrated_at": "2026-04-12 00:00:00",
+    "next_calibration_due": "2026-06-25 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": -0.871
+  },
+  {
+    "calibration_id": "CAL0003",
+    "probe_id": "P00199",
+    "box_id": "BX00199",
+    "calibrated_at": "2026-04-20 00:00:00",
+    "next_calibration_due": "2026-07-10 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.506
+  },
+  {
+    "calibration_id": "CAL0004",
+    "probe_id": "P00056",
+    "box_id": "BX00056",
+    "calibrated_at": "2026-04-14 00:00:00",
+    "next_calibration_due": "2026-09-11 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.386
+  },
+  {
+    "calibration_id": "CAL0005",
+    "probe_id": "P00021",
+    "box_id": "BX00021",
+    "calibrated_at": "2026-04-11 00:00:00",
+    "next_calibration_due": "2026-07-24 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.113
+  },
+  {
+    "calibration_id": "CAL0006",
+    "probe_id": "P00040",
+    "box_id": "BX00040",
+    "calibrated_at": "2026-04-08 00:00:00",
+    "next_calibration_due": "2026-08-26 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.254
+  },
+  {
+    "calibration_id": "CAL0007",
+    "probe_id": "P00189",
+    "box_id": "BX00189",
+    "calibrated_at": "2026-04-22 00:00:00",
+    "next_calibration_due": "2026-08-22 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.426
+  },
+  {
+    "calibration_id": "CAL0008",
+    "probe_id": "P00124",
+    "box_id": "BX00124",
+    "calibrated_at": "2026-05-13 00:00:00",
+    "next_calibration_due": "2026-09-09 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.581
+  },
+  {
+    "calibration_id": "CAL0009",
+    "probe_id": "P00149",
+    "box_id": "BX00149",
+    "calibrated_at": "2026-05-07 00:00:00",
+    "next_calibration_due": "2026-06-18 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": -0.643
+  },
+  {
+    "calibration_id": "CAL0010",
+    "probe_id": "P00169",
+    "box_id": "BX00169",
+    "calibrated_at": "2026-05-16 00:00:00",
+    "next_calibration_due": "2026-09-24 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.812
+  },
+  {
+    "calibration_id": "CAL0011",
+    "probe_id": "P00025",
+    "box_id": "BX00025",
+    "calibrated_at": "2026-04-02 00:00:00",
+    "next_calibration_due": "2026-05-16 00:00:00",
+    "status": "expired",
+    "deviation_celsius": 0.877
+  },
+  {
+    "calibration_id": "CAL0012",
+    "probe_id": "P00025",
+    "box_id": "BX00025",
+    "calibrated_at": "2026-05-19 00:00:00",
+    "next_calibration_due": "2026-07-28 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.027
+  },
+  {
+    "calibration_id": "CAL0013",
+    "probe_id": "P00116",
+    "box_id": "BX00116",
+    "calibrated_at": "2026-04-01 00:00:00",
+    "next_calibration_due": "2026-05-24 00:00:00",
+    "status": "expired",
+    "deviation_celsius": -0.285
+  },
+  {
+    "calibration_id": "CAL0014",
+    "probe_id": "P00074",
+    "box_id": "BX00074",
+    "calibrated_at": "2026-05-04 00:00:00",
+    "next_calibration_due": "2026-10-24 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.232
+  },
+  {
+    "calibration_id": "CAL0015",
+    "probe_id": "P00158",
+    "box_id": "BX00158",
+    "calibrated_at": "2026-04-05 00:00:00",
+    "next_calibration_due": "2026-08-23 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -1.259
+  },
+  {
+    "calibration_id": "CAL0016",
+    "probe_id": "P00026",
+    "box_id": "BX00026",
+    "calibrated_at": "2026-05-18 00:00:00",
+    "next_calibration_due": "2026-06-25 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": -1.26
+  },
+  {
+    "calibration_id": "CAL0017",
+    "probe_id": "P00197",
+    "box_id": "BX00197",
+    "calibrated_at": "2026-04-25 00:00:00",
+    "next_calibration_due": "2026-07-05 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": 0.907
+  },
+  {
+    "calibration_id": "CAL0018",
+    "probe_id": "P00146",
+    "box_id": "BX00146",
+    "calibrated_at": "2026-05-14 00:00:00",
+    "next_calibration_due": "2026-11-05 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -1.054
+  },
+  {
+    "calibration_id": "CAL0019",
+    "probe_id": "P00189",
+    "box_id": "BX00189",
+    "calibrated_at": "2026-05-06 00:00:00",
+    "next_calibration_due": "2026-10-30 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.433
+  },
+  {
+    "calibration_id": "CAL0020",
+    "probe_id": "P00082",
+    "box_id": "BX00082",
+    "calibrated_at": "2026-05-06 00:00:00",
+    "next_calibration_due": "2026-07-24 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.407
+  },
+  {
+    "calibration_id": "CAL0021",
+    "probe_id": "P00025",
+    "box_id": "BX00025",
+    "calibrated_at": "2026-04-20 00:00:00",
+    "next_calibration_due": "2026-08-12 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.784
+  },
+  {
+    "calibration_id": "CAL0022",
+    "probe_id": "P00044",
+    "box_id": "BX00044",
+    "calibrated_at": "2026-04-27 00:00:00",
+    "next_calibration_due": "2026-10-19 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.956
+  },
+  {
+    "calibration_id": "CAL0023",
+    "probe_id": "P00006",
+    "box_id": "BX00006",
+    "calibrated_at": "2026-05-05 00:00:00",
+    "next_calibration_due": "2026-07-11 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.051
+  },
+  {
+    "calibration_id": "CAL0024",
+    "probe_id": "P00182",
+    "box_id": "BX00182",
+    "calibrated_at": "2026-05-17 00:00:00",
+    "next_calibration_due": "2026-06-20 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": 0.56
+  },
+  {
+    "calibration_id": "CAL0025",
+    "probe_id": "P00099",
+    "box_id": "BX00099",
+    "calibrated_at": "2026-04-12 00:00:00",
+    "next_calibration_due": "2026-07-29 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.309
+  },
+  {
+    "calibration_id": "CAL0026",
+    "probe_id": "P00053",
+    "box_id": "BX00053",
+    "calibrated_at": "2026-04-25 00:00:00",
+    "next_calibration_due": "2026-09-11 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -1.164
+  },
+  {
+    "calibration_id": "CAL0027",
+    "probe_id": "P00084",
+    "box_id": "BX00084",
+    "calibrated_at": "2026-04-21 00:00:00",
+    "next_calibration_due": "2026-09-20 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.329
+  },
+  {
+    "calibration_id": "CAL0028",
+    "probe_id": "P00052",
+    "box_id": "BX00052",
+    "calibrated_at": "2026-04-07 00:00:00",
+    "next_calibration_due": "2026-05-31 00:00:00",
+    "status": "expired",
+    "deviation_celsius": 1.036
+  },
+  {
+    "calibration_id": "CAL0029",
+    "probe_id": "P00088",
+    "box_id": "BX00088",
+    "calibrated_at": "2026-05-05 00:00:00",
+    "next_calibration_due": "2026-09-02 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.939
+  },
+  {
+    "calibration_id": "CAL0030",
+    "probe_id": "P00058",
+    "box_id": "BX00058",
+    "calibrated_at": "2026-05-05 00:00:00",
+    "next_calibration_due": "2026-06-04 00:00:00",
+    "status": "expired",
+    "deviation_celsius": -0.027
+  },
+  {
+    "calibration_id": "CAL0031",
+    "probe_id": "P00011",
+    "box_id": "BX00011",
+    "calibrated_at": "2026-05-17 00:00:00",
+    "next_calibration_due": "2026-10-10 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -1.259
+  },
+  {
+    "calibration_id": "CAL0032",
+    "probe_id": "P00060",
+    "box_id": "BX00060",
+    "calibrated_at": "2026-05-12 00:00:00",
+    "next_calibration_due": "2026-10-03 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.351
+  },
+  {
+    "calibration_id": "CAL0033",
+    "probe_id": "P00139",
+    "box_id": "BX00139",
+    "calibrated_at": "2026-04-30 00:00:00",
+    "next_calibration_due": "2026-09-17 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.765
+  },
+  {
+    "calibration_id": "CAL0034",
+    "probe_id": "P00187",
+    "box_id": "BX00187",
+    "calibrated_at": "2026-04-02 00:00:00",
+    "next_calibration_due": "2026-06-28 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": 1.367
+  },
+  {
+    "calibration_id": "CAL0035",
+    "probe_id": "P00105",
+    "box_id": "BX00105",
+    "calibrated_at": "2026-04-13 00:00:00",
+    "next_calibration_due": "2026-06-09 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": 0.231
+  },
+  {
+    "calibration_id": "CAL0036",
+    "probe_id": "P00004",
+    "box_id": "BX00004",
+    "calibrated_at": "2026-05-06 00:00:00",
+    "next_calibration_due": "2026-08-30 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.896
+  },
+  {
+    "calibration_id": "CAL0037",
+    "probe_id": "P00173",
+    "box_id": "BX00173",
+    "calibrated_at": "2026-04-17 00:00:00",
+    "next_calibration_due": "2026-06-26 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": -0.165
+  },
+  {
+    "calibration_id": "CAL0038",
+    "probe_id": "P00161",
+    "box_id": "BX00161",
+    "calibrated_at": "2026-05-10 00:00:00",
+    "next_calibration_due": "2026-10-09 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -1.229
+  },
+  {
+    "calibration_id": "CAL0039",
+    "probe_id": "P00178",
+    "box_id": "BX00178",
+    "calibrated_at": "2026-04-08 00:00:00",
+    "next_calibration_due": "2026-06-28 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": -1.431
+  },
+  {
+    "calibration_id": "CAL0040",
+    "probe_id": "P00059",
+    "box_id": "BX00059",
+    "calibrated_at": "2026-05-04 00:00:00",
+    "next_calibration_due": "2026-07-09 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.768
+  },
+  {
+    "calibration_id": "CAL0041",
+    "probe_id": "P00092",
+    "box_id": "BX00092",
+    "calibrated_at": "2026-04-30 00:00:00",
+    "next_calibration_due": "2026-08-20 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.844
+  },
+  {
+    "calibration_id": "CAL0042",
+    "probe_id": "P00191",
+    "box_id": "BX00191",
+    "calibrated_at": "2026-05-18 00:00:00",
+    "next_calibration_due": "2026-07-22 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.216
+  },
+  {
+    "calibration_id": "CAL0043",
+    "probe_id": "P00034",
+    "box_id": "BX00034",
+    "calibrated_at": "2026-04-19 00:00:00",
+    "next_calibration_due": "2026-05-24 00:00:00",
+    "status": "expired",
+    "deviation_celsius": -0.002
+  },
+  {
+    "calibration_id": "CAL0044",
+    "probe_id": "P00108",
+    "box_id": "BX00108",
+    "calibrated_at": "2026-04-17 00:00:00",
+    "next_calibration_due": "2026-07-29 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.956
+  },
+  {
+    "calibration_id": "CAL0045",
+    "probe_id": "P00199",
+    "box_id": "BX00199",
+    "calibrated_at": "2026-05-06 00:00:00",
+    "next_calibration_due": "2026-08-08 00:00:00",
+    "status": "valid",
+    "deviation_celsius": -0.99
+  },
+  {
+    "calibration_id": "CAL0046",
+    "probe_id": "P00087",
+    "box_id": "BX00087",
+    "calibrated_at": "2026-04-02 00:00:00",
+    "next_calibration_due": "2026-08-03 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.377
+  },
+  {
+    "calibration_id": "CAL0047",
+    "probe_id": "P00124",
+    "box_id": "BX00124",
+    "calibrated_at": "2026-04-09 00:00:00",
+    "next_calibration_due": "2026-08-11 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.204
+  },
+  {
+    "calibration_id": "CAL0048",
+    "probe_id": "P00164",
+    "box_id": "BX00164",
+    "calibrated_at": "2026-04-18 00:00:00",
+    "next_calibration_due": "2026-06-15 00:00:00",
+    "status": "due_soon",
+    "deviation_celsius": 0.456
+  },
+  {
+    "calibration_id": "CAL0049",
+    "probe_id": "P00115",
+    "box_id": "BX00115",
+    "calibrated_at": "2026-05-13 00:00:00",
+    "next_calibration_due": "2026-08-18 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 0.657
+  },
+  {
+    "calibration_id": "CAL0050",
+    "probe_id": "P00102",
+    "box_id": "BX00102",
+    "calibrated_at": "2026-04-24 00:00:00",
+    "next_calibration_due": "2026-07-16 00:00:00",
+    "status": "valid",
+    "deviation_celsius": 1.102
+  }
+]
