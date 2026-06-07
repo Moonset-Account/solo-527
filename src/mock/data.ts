@@ -223,9 +223,14 @@ export const mockNotes: ManualNote[] = [
   },
 ]
 
+const surveys = ['用户满意度调研 Q2', '产品使用反馈调研', '品牌认知度调研', '用户画像调研']
+const questionGroups = ['基本信息题组', '产品使用题组', '满意度评价题组', '开放建议题组', '行为偏好题组']
+
 export function getMockComparisonData(dimension: string): ComparisonData[] {
   const dimMap: Record<string, { id: string; name: string }[]> = {
+    survey: surveys.map((name, i) => ({ id: `s${i + 1}`, name })),
     channel: channels.map((name, i) => ({ id: `c${i + 1}`, name })),
+    questionGroup: questionGroups.map((name, i) => ({ id: `g${i + 1}`, name })),
     region: regions.map((name, i) => ({ id: `r${i + 1}`, name })),
     device: devices.map((name, i) => ({ id: `d${i + 1}`, name })),
   }
@@ -235,10 +240,14 @@ export function getMockComparisonData(dimension: string): ComparisonData[] {
     dimensionValue: item.name,
     metrics: {
       totalSamples: 5000 + Math.floor(Math.random() * 20000),
+      validSamples: 4500 + Math.floor(Math.random() * 18000),
       anomalyRate: 0.05 + Math.random() * 0.1,
       avgDuration: 200 + Math.floor(Math.random() * 200),
       skipRate: 0.03 + Math.random() * 0.08,
       duplicateRate: 0.01 + Math.random() * 0.05,
+      ipAbnormalRate: 0.02 + Math.random() * 0.06,
+      deviceAbnormalRate: 0.01 + Math.random() * 0.04,
+      qualityMarkRate: 0.03 + Math.random() * 0.07,
     },
   }))
 }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import * as d3 from 'd3'
-import { BarChart3, RefreshCw } from 'lucide-vue-next'
+import { BarChart3, RefreshCw, Database, Clock as ClockIcon, Filter } from 'lucide-vue-next'
 import { useQualityStore } from '@/stores/quality'
+import { useFilterStore } from '@/stores/filter'
 import CardContainer from '@/components/layout/CardContainer.vue'
 import DimensionFilter from '@/components/filters/DimensionFilter.vue'
 import { formatNumber, formatPercent, formatDuration } from '@/utils/format'
@@ -10,16 +11,24 @@ import { METRIC_DEFINITIONS } from '@/utils/constants'
 import type { DimensionType, MetricKey } from '@/types'
 
 const qualityStore = useQualityStore()
+const filterStore = useFilterStore()
+
+const timeRangeText = computed(() => `${filterStore.timeRange.start} ~ ${filterStore.timeRange.end}`)
+const dimensionText = computed(() => {
+  const dim = dimensions.find(d => d.type === compareDimension.value)
+  return dim?.name || '全部'
+})
 
 const compareDimension = ref<DimensionType>('channel')
 const selectedMetrics = ref<MetricKey[]>(['anomalyRate', 'avgDuration', 'skipRate'])
 const chartContainerRef = ref<HTMLDivElement | null>(null)
 
 const dimensions: { type: DimensionType; name: string }[] = [
+  { type: 'survey', name: '按问卷对比' },
   { type: 'channel', name: '按渠道对比' },
+  { type: 'questionGroup', name: '按题组对比' },
   { type: 'region', name: '按地区对比' },
   { type: 'device', name: '按设备对比' },
-  { type: 'survey', name: '按问卷对比' },
 ]
 
 const displayMetrics = computed(() => {
@@ -177,6 +186,30 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6 animate-fade-in">
+    <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <Database class="w-4 h-4 text-survey-primary" />
+        <span class="text-sm font-medium text-survey-text-primary">当前数据口径</span>
+      </div>
+      <div class="flex flex-wrap gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <ClockIcon class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">时间窗口:</span>
+          <span class="text-survey-text-primary font-medium">{{ timeRangeText }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Filter class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">对比维度:</span>
+          <span class="text-survey-secondary font-medium">{{ dimensionText }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Database class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">数据来源:</span>
+          <span class="text-survey-text-primary font-medium">ClickHouse 聚合查询</span>
+        </div>
+      </div>
+    </div>
+
     <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
       <div class="flex flex-wrap items-center gap-4">
         <div class="flex items-center gap-2">

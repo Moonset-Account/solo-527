@@ -36,6 +36,10 @@ const routes = [
     component: Specs,
     meta: { title: '口径说明' },
   },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({

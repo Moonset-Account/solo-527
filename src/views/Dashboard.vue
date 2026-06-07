@@ -1,23 +1,65 @@
 <script setup lang="ts">
-import { Users, AlertTriangle, Clock, Repeat, Activity, Shield } from 'lucide-vue-next'
+import { Users, AlertTriangle, Clock, Repeat, Activity, Shield, Database, Clock as ClockIcon, Filter } from 'lucide-vue-next'
 import { useQualityStore } from '@/stores/quality'
+import { useFilterStore } from '@/stores/filter'
 import KpiCard from '@/components/common/KpiCard.vue'
 import CardContainer from '@/components/layout/CardContainer.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
 import TrendLineChart from '@/components/charts/TrendLineChart.vue'
 import { formatNumber, formatPercent, formatDuration } from '@/utils/format'
 import { useRouter } from 'vue-router'
+import type { FunnelData } from '@/types'
+import { computed } from 'vue'
 
 const qualityStore = useQualityStore()
+const filterStore = useFilterStore()
 const router = useRouter()
 
-function goToDetails() {
-  router.push('/details')
+const timeRangeText = computed(() => `${filterStore.timeRange.start} ~ ${filterStore.timeRange.end}`)
+
+function goToDetails(stage?: FunnelData) {
+  const query: Record<string, string> = {}
+  if (stage) {
+    const stageMap: Record<string, string> = {
+      submitted: '',
+      valid: '',
+      quality_pass: 'qualityMark=pass',
+      anomaly: 'anomalyType=duration',
+    }
+    if (stage.stageCode === 'anomaly') {
+      query.anomalyType = 'duration'
+    }
+  }
+  router.push({ path: '/details', query })
 }
 </script>
 
 <template>
   <div class="space-y-6 animate-fade-in">
+    <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <Database class="w-4 h-4 text-survey-primary" />
+        <span class="text-sm font-medium text-survey-text-primary">当前数据口径</span>
+      </div>
+      <div class="flex flex-wrap gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <ClockIcon class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">时间窗口:</span>
+          <span class="text-survey-text-primary font-medium">{{ timeRangeText }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Filter class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">筛选条件:</span>
+          <span class="text-survey-secondary font-medium">全部样本（无筛选）</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <Database class="w-4 h-4 text-survey-text-muted" />
+          <span class="text-survey-text-muted">数据来源:</span>
+          <span class="text-survey-text-primary font-medium">ClickHouse 原始记录 (sample_quality_raw)</span>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <KpiCard
         title="总样本量"
@@ -73,6 +115,9 @@ function goToDetails() {
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <CardContainer title="样本转化漏斗">
+        <template #header-actions>
+          <span class="text-xs text-survey-text-muted">点击漏斗阶段可下钻明细</span>
+        </template>
         <FunnelChart
           :data="qualityStore.funnelData"
           :height="320"
@@ -81,6 +126,11 @@ function goToDetails() {
       </CardContainer>
 
       <CardContainer title="异常趋势（近30天）">
+        <template #header-actions>
+          <span class="text-xs px-2 py-0.5 rounded bg-survey-primary/20 text-survey-primary">
+            ClickHouse 聚合查询
+          </span>
+        </template>
         <TrendLineChart :data="qualityStore.trendData" />
       </CardContainer>
     </div>
@@ -102,7 +152,8 @@ function goToDetails() {
               <tr
                 v-for="channel in qualityStore.channelRanking.slice(0, 5)"
                 :key="channel.channelId"
-                class="border-b border-survey-border/50 hover:bg-survey-surface-hover/50"
+                class="border-b border-survey-border/50 hover:bg-survey-surface-hover/50 cursor-pointer"
+                @click="router.push({ path: '/details', query: { channel: channel.channelId })"
               >
                 <td class="py-2.5 px-3 text-survey-text-primary">{{ channel.channelName }}</td>
                 <td class="py-2.5 px-3 text-right font-mono text-survey-text-primary">{{ formatNumber(channel.totalSamples) }}</td>
