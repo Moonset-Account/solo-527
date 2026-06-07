@@ -1,0 +1,96 @@
+{
+  "metrics": {
+    "total_visitors": {
+      "name": "访客总量",
+      "definition": "统计周期内通过闸机的访客记录总数，去重以 pass_id 为准",
+      "calculation": "COUNT(DISTINCT pass_id)",
+      "timeGranularity": ["hour", "day", "week"]
+    },
+    "abnormal_rate": {
+      "name": "异常放行率",
+      "definition": "异常放行记录数 / 总访客记录数 * 100%",
+      "calculation": "SUM(CASE WHEN is_abnormal = 1 THEN 1 ELSE 0 END) / COUNT(*)",
+      "warningThreshold": 5,
+      "criticalThreshold": 15
+    },
+    "peak_hour": {
+      "name": "高峰时段",
+      "definition": "访客量最高的小时区间",
+      "calculation": "按小时分组取 MAX(count)"
+    },
+    "missing_data_flag": {
+      "name": "缺失数据标记",
+      "definition": "连续15分钟无闸机数据上传标记为数据缺失",
+      "calculation": "时间差判断 + 插值标记"
+    }
+  },
+  "dimensions": {
+    "enterprise": { "label": "被访企业", "field": "enterprise_id" },
+    "gate": { "label": "入口", "field": "gate_id" },
+    "visitorType": { "label": "访客类型", "field": "visitor_type" },
+    "timeRange": { "label": "时段", "field": "pass_time" },
+    "lane": { "label": "车道", "field": "lane_id" }
+  },
+  "enterprises": [
+    { "id": "e001", "name": "华为数字技术", "industry": "通信", "building": "A1" },
+    { "id": "e002", "name": "比亚迪新能源", "industry": "汽车", "building": "B2" },
+    { "id": "e003", "name": "腾讯云计算", "industry": "互联网", "building": "C3" },
+    { "id": "e004", "name": "大疆创新科技", "industry": "无人机", "building": "D1" },
+    { "id": "e005", "name": "迈瑞医疗电子", "industry": "医疗", "building": "E2" },
+    { "id": "e006", "name": "顺丰物流总部", "industry": "物流", "building": "F1" },
+    { "id": "e007", "name": "招商银行科技部", "industry": "金融", "building": "G3" },
+    { "id": "e008", "name": "平安科技", "industry": "保险", "building": "H2" },
+    { "id": "e009", "name": "中芯国际", "industry": "半导体", "building": "I1" },
+    { "id": "e010", "name": "OPPO广东移动", "industry": "消费电子", "building": "J2" },
+    { "id": "e011", "name": "VIVO移动通信", "industry": "消费电子", "building": "K1" },
+    { "id": "e012", "name": "创维集团", "industry": "家电", "building": "L3" },
+    { "id": "e013", "name": "康佳集团", "industry": "家电", "building": "M2" },
+    { "id": "e014", "name": "长城计算机", "industry": "计算机", "building": "N1" },
+    { "id": "e015", "name": "深南电路", "industry": "电子元件", "building": "O2" },
+    { "id": "e016", "name": "欣旺达电子", "industry": "电池", "building": "P1" },
+    { "id": "e017", "name": "汇顶科技", "industry": "芯片", "building": "Q3" },
+    { "id": "e018", "name": "深信服科技", "industry": "网络安全", "building": "R2" },
+    { "id": "e019", "name": "金蝶软件", "industry": "企业软件", "building": "S1" },
+    { "id": "e020", "name": "顺丰航空", "industry": "航空物流", "building": "T2" }
+  ],
+  "gates": [
+    { "id": "g001", "name": "东门", "laneCount": 3, "isVehicle": true },
+    { "id": "g002", "name": "西门", "laneCount": 3, "isVehicle": true },
+    { "id": "g003", "name": "南门", "laneCount": 2, "isVehicle": true },
+    { "id": "g004", "name": "北门", "laneCount": 2, "isVehicle": true },
+    { "id": "g005", "name": "人行A口", "laneCount": 4, "isVehicle": false },
+    { "id": "g006", "name": "人行B口", "laneCount": 3, "isVehicle": false }
+  ],
+  "lanes": [
+    { "id": "l001", "gateId": "g001", "name": "东门1车道", "direction": "in" },
+    { "id": "l002", "gateId": "g001", "name": "东门2车道", "direction": "in" },
+    { "id": "l003", "gateId": "g001", "name": "东门3车道", "direction": "out" },
+    { "id": "l004", "gateId": "g002", "name": "西门1车道", "direction": "in" },
+    { "id": "l005", "gateId": "g002", "name": "西门2车道", "direction": "out" },
+    { "id": "l006", "gateId": "g002", "name": "西门3车道", "direction": "out" },
+    { "id": "l007", "gateId": "g003", "name": "南门1车道", "direction": "in" },
+    { "id": "l008", "gateId": "g003", "name": "南门2车道", "direction": "out" },
+    { "id": "l009", "gateId": "g004", "name": "北门1车道", "direction": "in" },
+    { "id": "l010", "gateId": "g004", "name": "北门2车道", "direction": "out" }
+  ],
+  "visitorTypes": [
+    { "id": "vt001", "name": "商务访客" },
+    { "id": "vt002", "name": "面试人员" },
+    { "id": "vt003", "name": "供应商" },
+    { "id": "vt004", "name": "施工人员" },
+    { "id": "vt005", "name": "访客预约" },
+    { "id": "vt006", "name": "临时访客" }
+  ],
+  "abnormalReasons": [
+    "未预约强行闯入",
+    "车牌识别失败人工放行",
+    "证件过期",
+    "预约信息与实际不符",
+    "非工作时间进入",
+    "携带违禁物品",
+    "未携带有效证件",
+    "预约已过期",
+    "被访企业未确认",
+    "体温异常"
+  ]
+}
