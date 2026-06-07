@@ -9,6 +9,7 @@ import type { WeeklyReportData } from '@/types';
 export default function Report() {
   const loadData = useDataStore((s) => s.loadData);
   const isDataLoaded = useDataStore((s) => s.isDataLoaded);
+  const refreshFilters = useDataStore((s) => s.refreshFilters);
   const generateWeeklyReport = useDataStore((s) => s.generateWeeklyReport);
   const [report, setReport] = useState<WeeklyReportData | null>(null)
   const loadInitiated = useRef(false)
@@ -19,6 +20,12 @@ export default function Report() {
       loadData()
     }
   }, [isDataLoaded, loadData])
+
+  useEffect(() => {
+    if (isDataLoaded) {
+      refreshFilters()
+    }
+  }, [isDataLoaded, refreshFilters])
 
   useEffect(() => {
     if (isDataLoaded && !report) {

@@ -258,9 +258,9 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         : 0
 
     const avgAvailability =
-      state.filteredStations.length > 0
-        ? state.filteredStations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
-          state.filteredStations.length
+      thisWeekFiltered.stations.length > 0
+        ? thisWeekFiltered.stations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
+          thisWeekFiltered.stations.length
         : 0
 
     const prevAvgAvailability =
@@ -274,15 +274,16 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         ? Math.round(((avgAvailability - prevAvgAvailability) / prevAvgAvailability) * 10000) / 100
         : 0
 
-    const criticalAlerts = state.alerts.filter((a) => a.severity === 'critical').length
+    const thisWeekAlerts = computeAlerts(thisWeekFiltered.stations)
+    const criticalAlerts = thisWeekAlerts.filter((a) => a.severity === 'critical').length
 
-    const sortedByDeviation = [...state.filteredStations]
+    const sortedByDeviation = [...thisWeekFiltered.stations]
       .sort((a, b) => Math.abs(b.netFlow) - Math.abs(a.netFlow))
       .slice(0, 3)
 
     const avgNetFlow =
-      state.filteredStations.length > 0
-        ? state.filteredStations.reduce((sum, s) => sum + Math.abs(s.netFlow), 0) / state.filteredStations.length
+      thisWeekFiltered.stations.length > 0
+        ? thisWeekFiltered.stations.reduce((sum, s) => sum + Math.abs(s.netFlow), 0) / thisWeekFiltered.stations.length
         : 0
 
     const anomalies = sortedByDeviation.map((s) => ({
@@ -297,8 +298,8 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     return {
       weekStart: weekStart.toISOString().slice(0, 10),
       weekEnd: weekEnd.toISOString().slice(0, 10),
-      totalRides: state.filteredRides.length,
-      totalDispatches: state.filteredDispatches.length,
+      totalRides: thisWeekFiltered.rides.length,
+      totalDispatches: thisWeekFiltered.dispatches.length,
       avgAvailability,
       criticalAlerts,
       ridesWoW,
