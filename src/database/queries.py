@@ -88,7 +88,7 @@ class QueryLayer:
                 return pd.DataFrame()
 
             filtered['time_bucket'] = filtered['queue_start_time'].apply(
-                lambda x: self.time_slicer.get_time_bucket(x, bucket_minutes)
+                lambda x: self.time_slicer.get_time_bucket(x, bucket_minutes).strftime('%H:%M')
             )
 
             pivot = filtered.pivot_table(

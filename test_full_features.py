@@ -63,7 +63,15 @@ try:
     # 测试热力图数据查询
     heatmap_data = query_layer.get_window_heatmap_data(test_date)
     assert not heatmap_data.empty, '热力图数据为空'
-    print(f'   ✓ 窗口热力图查询: {heatmap_data.shape[0]-1} 个窗口')
+    
+    time_columns = [c for c in heatmap_data.columns if c != 'window_id']
+    assert len(time_columns) > 0, '热力图缺少时间列'
+    for col in time_columns:
+        assert isinstance(col, str), f'时间列名必须是字符串，得到 {type(col)}'
+        assert ':' in col, f'时间列格式应为 HH:MM，得到 {col}'
+    
+    print(f'   ✓ 窗口热力图查询: {heatmap_data.shape[0]} 个窗口')
+    print(f'   ✓ 热力图时间桶格式正确: 字符串 HH:MM（示例: {time_columns[0]}）')
     
     # 测试窗口聚合查询
     agg_metrics = query_layer.get_window_aggregate_metrics(

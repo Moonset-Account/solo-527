@@ -177,7 +177,7 @@ def create_heatmap_figure(selected_date, selected_floor, selected_time_slot):
     
     fig = go.Figure(data=go.Heatmap(
         z=heatmap_data.values,
-        x=[t.strftime('%H:%M') for t in heatmap_data.columns],
+        x=list(heatmap_data.columns),
         y=heatmap_data.index,
         colorscale='RdYlGn_r',
         colorbar_title='平均等待时间(分钟)',
@@ -929,17 +929,17 @@ def refresh_cache(n_clicks):
         if success:
             status = html.Span([
                 html.I(className='fas fa-check-circle me-1'),
-                f'缓存已刷新（含连续聚合视图）({now})'
+                f'内存缓存已刷新，连续聚合视图已更新 ({now})'
             ], className='text-success')
         else:
             status = html.Span([
                 html.I(className='fas fa-exclamation-triangle me-1'),
-                f'缓存已刷新，但数据库视图刷新异常: {msg}'
+                f'内存缓存已刷新，但连续聚合视图刷新失败: {msg}'
             ], className='text-warning')
     else:
         status = html.Span([
             html.I(className='fas fa-check-circle me-1'),
-            f'缓存已刷新（模拟数据模式）({now})'
+            f'内存缓存已刷新（模拟数据模式）({now})'
         ], className='text-success')
     
     return status, now
