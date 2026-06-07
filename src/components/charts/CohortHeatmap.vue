@@ -33,7 +33,7 @@ function renderChart() {
 
   const maxPeriods = d3.max(props.data, d => d.cells.length) || 1
   const xLabels = Array.from({ length: maxPeriods }, (_, i) => `第${i + 1}期`)
-  const yLabels = props.data.map(d => d.cohortPeriod)
+  const yLabels = props.data.map(d => d.cohort)
 
   const x = d3.scaleBand()
     .domain(xLabels)
@@ -80,9 +80,9 @@ function renderChart() {
   props.data.forEach(d => {
     d.cells.forEach(cell => {
       flatData.push({
-        cohort: d.cohortPeriod,
-        period: `第${cell.period}期`,
-        periodNum: cell.period,
+        cohort: d.cohort,
+        period: cell.period,
+        periodNum: cell.periodNum,
         value: cell.retentionRate,
         sampleSize: cell.sampleSize,
         lowSample: cell.lowSample

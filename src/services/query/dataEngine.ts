@@ -1,6 +1,6 @@
 import type { QueryContext } from './queryContext'
 import { calculateDataScale } from './queryContext'
-import { checkLowSample } from '@/utils/privacy'
+import { isLowSample } from '@/utils/privacy'
 import { STORES, CHRONIC_LABELS, MEMBER_TIERS } from '@/utils/constants'
 import type {
   CoreMetric,
@@ -64,14 +64,14 @@ export function generateCoreMetrics(ctx: QueryContext): CoreMetric[] {
       name: '活跃会员数',
       value: Math.floor(baseMembers * (0.85 + rand() * 0.1)),
       sampleSize: baseMembers,
-      lowSample: checkLowSample(baseMembers),
+      lowSample: isLowSample(baseMembers),
       trend: 3.2 + rand() * 4,
     },
     {
       name: '复购率',
       value: Math.min(85, baseRepurchase + (rand() - 0.5) * 5),
       sampleSize: baseMembers,
-      lowSample: checkLowSample(baseMembers),
+      lowSample: isLowSample(baseMembers),
       trend: 1.5 + rand() * 3,
       unit: '%',
     },
@@ -79,7 +79,7 @@ export function generateCoreMetrics(ctx: QueryContext): CoreMetric[] {
       name: '平均客单价',
       value: baseAvgOrder + (rand() - 0.5) * 20,
       sampleSize: baseMembers,
-      lowSample: checkLowSample(baseMembers),
+      lowSample: isLowSample(baseMembers),
       trend: -2 + rand() * 3,
       unit: '¥',
     },
@@ -87,7 +87,7 @@ export function generateCoreMetrics(ctx: QueryContext): CoreMetric[] {
       name: '优惠券核销率',
       value: Math.min(95, baseCouponRate + (rand() - 0.5) * 8),
       sampleSize: baseMembers,
-      lowSample: checkLowSample(baseMembers),
+      lowSample: isLowSample(baseMembers),
       trend: 4.5 + rand() * 5,
       unit: '%',
     },
@@ -125,7 +125,7 @@ export function generateCohortData(ctx: QueryContext): CohortData[] {
         periodNum: p + 1,
         retentionRate: retention,
         sampleSize: cellSample,
-        lowSample: checkLowSample(cellSample),
+        lowSample: isLowSample(cellSample),
       })
     }
 
@@ -162,7 +162,7 @@ export function generateFunnelData(ctx: QueryContext): FunnelStep[] {
       name: step.name,
       value,
       sampleSize,
-      lowSample: checkLowSample(sampleSize),
+      lowSample: isLowSample(sampleSize),
       conversionRate: i === 0 ? 100 : Math.floor((value / (baseSample * steps[0].baseRate)) * 100),
     }
   })
@@ -188,7 +188,7 @@ export function generatePriceTrend(ctx: QueryContext): PriceTrendPoint[] {
       date,
       avgOrderValue: basePrice * trendFactor * (0.95 + rand() * 0.1),
       sampleSize,
-      lowSample: checkLowSample(sampleSize),
+      lowSample: isLowSample(sampleSize),
     }
   })
 }
@@ -221,7 +221,7 @@ export function generateStoreRank(ctx: QueryContext): StoreRankItem[] {
       repurchaseRate: baseRate,
       orderCount: Math.floor(baseSample * (3 + rand() * 5)),
       sampleSize: baseSample,
-      lowSample: checkLowSample(baseSample),
+      lowSample: isLowSample(baseSample),
     }
   })
 
@@ -258,7 +258,7 @@ export function generateMedicineComparison(ctx: QueryContext): MedicineCompariso
       afterActivity: Math.floor(baseSales * (1 + growth / 100)),
       growthRate: growth,
       sampleSize,
-      lowSample: checkLowSample(sampleSize),
+      lowSample: isLowSample(sampleSize),
     }
   })
 }
@@ -285,7 +285,7 @@ export function generatePrescriptionRanges(ctx: QueryContext): PrescriptionRange
       range: r.range,
       memberCount: count,
       percentage: r.pct * 100,
-      lowSample: checkLowSample(count),
+      lowSample: isLowSample(count),
     }
   })
 }

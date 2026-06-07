@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
-let svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null
+let svg: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
 let resizeObserver: ResizeObserver | null = null
 
 function renderChart() {
@@ -24,11 +24,12 @@ function renderChart() {
 
   d3.select(chartRef.value).selectAll('svg').remove()
 
-  svg = d3.select(chartRef.value)
+  const svgRoot = d3.select(chartRef.value)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', containerHeight)
-    .append('g')
+
+  svg = svgRoot.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
   const x = d3.scaleBand()

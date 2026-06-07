@@ -3,8 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import Inspector from 'unplugin-vue-dev-locator/vite'
 import traeBadgePlugin from 'vite-plugin-trae-solo-badge'
+import { apiServerPlugin } from './vite.plugin.api'
 
-// https://vite.dev/config/
 export default defineConfig({
   build: {
     sourcemap: 'hidden',
@@ -12,6 +12,7 @@ export default defineConfig({
   plugins: [
     vue(),
     Inspector(),
+    apiServerPlugin(),
     traeBadgePlugin({
       variant: 'dark',
       position: 'bottom-right',
@@ -24,7 +25,10 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'), // ✅ 定义 @ = src
+      '@': path.resolve(__dirname, './src'),
     },
+  },
+  server: {
+    port: 5194,
   },
 })

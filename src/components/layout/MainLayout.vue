@@ -16,7 +16,8 @@ onMounted(() => {
     router.push('/login')
     return
   }
-  dataStore.loadAllData()
+  dataStore.init()
+  dataStore.refreshAll()
 })
 </script>
 

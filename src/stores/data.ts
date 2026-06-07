@@ -101,7 +101,7 @@ export const useDataStore = defineStore('data', () => {
       sampleSize: result.sampleSize,
       lowSample: result.lowSample,
     })
-    return result.data
+    return result.data as T
   }
 
   async function loadCoreMetrics() {
@@ -109,7 +109,7 @@ export const useDataStore = defineStore('data', () => {
     error.value = null
     try {
       const result = await queryCoreMetrics(currentFilter.value)
-      coreMetrics.value = wrapResult(result)
+      coreMetrics.value = wrapResult(result) as CoreMetric[]
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
       console.error('[DataStore] loadCoreMetrics error', e)
@@ -124,7 +124,7 @@ export const useDataStore = defineStore('data', () => {
     try {
       const queryParams = { ...currentFilter.value, ...params }
       const result = await queryCohortData(queryParams)
-      cohortData.value = wrapResult(result)
+      cohortData.value = wrapResult(result) as CohortData[]
       console.log('[DataStore] Cohort data loaded', {
         cohorts: cohortData.value.length,
         sampleSize: cohortData.value[0]?.cells[0]?.sampleSize,
@@ -143,7 +143,7 @@ export const useDataStore = defineStore('data', () => {
     error.value = null
     try {
       const result = await queryFunnelData({ ...currentFilter.value, activityId })
-      funnelData.value = wrapResult(result)
+      funnelData.value = wrapResult(result) as FunnelStep[]
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
       console.error('[DataStore] loadFunnelData error', e)
@@ -157,7 +157,7 @@ export const useDataStore = defineStore('data', () => {
     error.value = null
     try {
       const result = await queryPriceTrend(currentFilter.value)
-      priceTrend.value = wrapResult(result)
+      priceTrend.value = wrapResult(result) as PriceTrendPoint[]
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
       console.error('[DataStore] loadPriceTrend error', e)
@@ -171,7 +171,7 @@ export const useDataStore = defineStore('data', () => {
     error.value = null
     try {
       const result = await queryStoreRank(currentFilter.value)
-      storeRank.value = wrapResult(result)
+      storeRank.value = wrapResult(result) as StoreRankItem[]
       console.log('[DataStore] Store rank loaded', {
         count: storeRank.value.length,
         stores: storeRank.value.map(s => s.storeName),
@@ -193,7 +193,7 @@ export const useDataStore = defineStore('data', () => {
         activityId,
         targetCategories: categories,
       })
-      medicineComparison.value = wrapResult(result)
+      medicineComparison.value = wrapResult(result) as MedicineComparison[]
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
       console.error('[DataStore] loadMedicineComparison error', e)
@@ -207,7 +207,7 @@ export const useDataStore = defineStore('data', () => {
     error.value = null
     try {
       const result = await queryPrescriptionRangeStats(currentFilter.value)
-      prescriptionRanges.value = wrapResult(result)
+      prescriptionRanges.value = wrapResult(result) as PrescriptionRangeStat[]
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
       console.error('[DataStore] loadPrescriptionRanges error', e)

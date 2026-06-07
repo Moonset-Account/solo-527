@@ -66,13 +66,14 @@ export function generateCohortData(): CohortData[] {
       const retention = Math.max(5, 60 - i * randomFloat(5, 10))
       const sampleSize = Math.floor(baseSize * (retention / 100))
       cells.push({
-        period: i + 1,
+        period: `第${i + 1}月`,
+        periodNum: i + 1,
         retentionRate: parseFloat(retention.toFixed(1)),
         sampleSize,
         lowSample: sampleSize < 10
       })
     }
-    return { cohortPeriod: month, cells }
+    return { cohort: month, periodCount: cells.length, cells }
   })
 }
 

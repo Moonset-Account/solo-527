@@ -29,21 +29,23 @@ export interface PrivacyRule {
 export interface CoreMetric {
   name: string
   value: number
-  unit: string
-  trend: number
+  unit?: string
+  trend?: number
   sampleSize: number
   lowSample: boolean
 }
 
 export interface CohortCell {
-  period: number
+  period: string
+  periodNum: number
   retentionRate: number
   sampleSize: number
   lowSample: boolean
 }
 
 export interface CohortData {
-  cohortPeriod: string
+  cohort: string
+  periodCount: number
   cells: CohortCell[]
 }
 
