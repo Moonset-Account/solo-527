@@ -103,7 +103,21 @@ INSERT INTO analytics.sku_return_stats (sku, product_name, total_orders, return_
 ('SKU-007','智能手表替换表带',25,3,12.0,1,'[{"reason":"不喜欢","count":2},{"reason":"颜色差异","count":1}]','all'),
 ('SKU-008','Type-C 转接头套装',18,2,11.1,1,'[{"reason":"功能异常","count":1},{"reason":"与描述不符","count":1}]','all'),
 ('SKU-009','车载手机支架 磁吸式',12,1,8.3,1,'[{"reason":"不喜欢","count":1}]','all'),
-('SKU-010','运动臂包 防水大屏',8,1,12.5,1,'[{"reason":"尺寸不合","count":1}]','all');
+('SKU-010','运动臂包 防水大屏',8,1,12.5,1,'[{"reason":"尺寸不合","count":1}]','all'),
+('SKU-001','无线蓝牙耳机 Pro',210,32,15.2,0,'[{"reason":"商品破损","count":14},{"reason":"与描述不符","count":10},{"reason":"功能异常","count":8}]','overseas'),
+('SKU-002','USB-C 快充数据线 1.5m',180,16,8.9,0,'[{"reason":"与描述不符","count":7},{"reason":"功能异常","count":5},{"reason":"物流太慢","count":4}]','overseas'),
+('SKU-003','手机钢化膜 高清防指纹',260,42,16.2,0,'[{"reason":"商品破损","count":20},{"reason":"尺寸不合","count":14},{"reason":"不喜欢","count":8}]','overseas'),
+('SKU-004','硅胶手机壳 防摔气囊',120,8,6.7,0,'[{"reason":"尺码不合适","count":4},{"reason":"颜色差异","count":3},{"reason":"不喜欢","count":1}]','overseas'),
+('SKU-005','便携式充电宝 20000mAh',22,3,13.6,1,'[{"reason":"功能异常","count":2},{"reason":"物流太慢","count":1}]','overseas'),
+('SKU-006','蓝牙音箱 迷你防水',10,1,10.0,1,'[{"reason":"商品破损","count":1}]','overseas'),
+('SKU-001','无线蓝牙耳机 Pro',110,13,11.8,0,'[{"reason":"商品破损","count":5},{"reason":"与描述不符","count":4},{"reason":"功能异常","count":4}]','domestic'),
+('SKU-002','USB-C 快充数据线 1.5m',100,6,6.0,0,'[{"reason":"功能异常","count":3},{"reason":"与描述不符","count":2},{"reason":"不喜欢","count":1}]','domestic'),
+('SKU-003','手机钢化膜 高清防指纹',150,19,12.7,0,'[{"reason":"商品破损","count":10},{"reason":"尺寸不合","count":6},{"reason":"不喜欢","count":3}]','domestic'),
+('SKU-004','硅胶手机壳 防摔气囊',230,20,8.7,0,'[{"reason":"尺码不合适","count":9},{"reason":"颜色差异","count":7},{"reason":"不喜欢","count":4}]','domestic'),
+('SKU-005','便携式充电宝 20000mAh',168,12,7.1,0,'[{"reason":"功能异常","count":5},{"reason":"与描述不符","count":4},{"reason":"不喜欢","count":3}]','domestic'),
+('SKU-006','蓝牙音箱 迷你防水',140,17,12.1,0,'[{"reason":"商品破损","count":7},{"reason":"功能异常","count":6},{"reason":"与描述不符","count":4}]','domestic'),
+('SKU-007','智能手表替换表带',15,2,13.3,1,'[{"reason":"不喜欢","count":1},{"reason":"颜色差异","count":1}]','domestic'),
+('SKU-008','Type-C 转接头套装',8,1,12.5,1,'[{"reason":"功能异常","count":1}]','domestic');
 
 INSERT INTO analytics.logistics_node_stats (node, avg_delay_hours, delay_rate, return_rate, order_count, is_low_sample, warehouse_type) VALUES
 ('国内揽收',3.2,8.5,4.2,420,0,'all'),
@@ -115,7 +129,18 @@ INSERT INTO analytics.logistics_node_stats (node, avg_delay_hours, delay_rate, r
 ('尾程派送',8.2,15.6,8.3,340,0,'all'),
 ('退货揽收',2.8,6.3,3.5,45,1,'all'),
 ('退货质检',1.5,3.2,2.8,15,1,'all'),
-('海外退货点',6.7,14.2,7.9,8,1,'all');
+('海外退货点',6.7,14.2,7.9,8,1,'all'),
+('出口清关',22.1,30.5,14.8,200,0,'overseas'),
+('国际干线运输',28.3,38.2,18.1,180,0,'overseas'),
+('目的国清关',14.6,22.1,11.2,190,0,'overseas'),
+('海外仓入库',6.2,14.5,7.9,220,0,'overseas'),
+('尾程派送',9.5,17.8,9.6,210,0,'overseas'),
+('海外退货点',8.1,16.3,8.5,5,1,'overseas'),
+('国内揽收',3.5,9.1,4.5,220,0,'domestic'),
+('国内分拨',4.5,11.3,5.6,200,0,'domestic'),
+('退货揽收',3.0,6.8,3.8,25,1,'domestic'),
+('退货质检',1.8,3.5,2.5,8,1,'domestic'),
+('二次上架',2.1,4.2,2.0,180,0,'domestic');
 
 INSERT INTO analytics.quality_conclusion_stats (conclusion, conclusion_label, count, percentage, total_refund_usd, is_low_sample, warehouse_type, category) VALUES
 ('warehouse_damage','仓库破损',520,18.5,28600.00,0,'all','warehouse'),
@@ -125,11 +150,37 @@ INSERT INTO analytics.quality_conclusion_stats (conclusion, conclusion_label, co
 ('consumer_wrong_size','尺码不符',520,18.5,15600.00,0,'all','consumer'),
 ('consumer_changed_mind','改变主意',380,13.5,7600.00,0,'all','consumer'),
 ('quality_defect','质量缺陷',18,0.6,900.00,1,'all','other'),
-('other','其他',300,10.7,6000.00,0,'all','other');
+('other','其他',300,10.7,6000.00,0,'all','other'),
+('warehouse_damage','仓库破损',310,20.2,17050.00,0,'overseas','warehouse'),
+('transport_damage','运输损坏',280,18.3,13440.00,0,'overseas','warehouse'),
+('wrong_item','发错货',8,0.5,384.00,1,'overseas','warehouse'),
+('consumer_dissatisfied','不满意',380,24.8,13300.00,0,'overseas','consumer'),
+('consumer_wrong_size','尺码不符',260,17.0,7800.00,0,'overseas','consumer'),
+('consumer_changed_mind','改变主意',180,11.7,3600.00,0,'overseas','consumer'),
+('quality_defect','质量缺陷',10,0.7,500.00,1,'overseas','other'),
+('other','其他',220,14.4,4400.00,0,'overseas','other'),
+('warehouse_damage','仓库破损',210,16.8,11550.00,0,'domestic','warehouse'),
+('transport_damage','运输损坏',100,8.0,4800.00,0,'domestic','warehouse'),
+('wrong_item','发错货',4,0.3,192.00,1,'domestic','warehouse'),
+('consumer_dissatisfied','不满意',300,24.0,10500.00,0,'domestic','consumer'),
+('consumer_wrong_size','尺码不符',260,20.8,7800.00,0,'domestic','consumer'),
+('consumer_changed_mind','改变主意',200,16.0,4000.00,0,'domestic','consumer'),
+('quality_defect','质量缺陷',8,0.6,400.00,1,'domestic','other'),
+('other','其他',80,6.4,1600.00,0,'domestic','other');
 
 INSERT INTO analytics.refund_by_currency (currency, original_amount, converted_usd, exchange_rate, warehouse_type) VALUES
 ('USD',85200.00,85200.00,1.0,'all'),
 ('EUR',42800.00,46224.00,1.08,'all'),
 ('GBP',28500.00,36195.00,1.27,'all'),
 ('JPY',8200000.00,52480.00,0.0064,'all'),
-('AUD',22000.00,14300.00,0.65,'all');
+('AUD',22000.00,14300.00,0.65,'all'),
+('USD',62000.00,62000.00,1.0,'overseas'),
+('EUR',32000.00,34560.00,1.08,'overseas'),
+('GBP',22000.00,27940.00,1.27,'overseas'),
+('JPY',6100000.00,39040.00,0.0064,'overseas'),
+('AUD',15000.00,9750.00,0.65,'overseas'),
+('USD',23200.00,23200.00,1.0,'domestic'),
+('EUR',10800.00,11664.00,1.08,'domestic'),
+('GBP',6500.00,8255.00,1.27,'domestic'),
+('JPY',2100000.00,13440.00,0.0064,'domestic'),
+('AUD',7000.00,4550.00,0.65,'domestic');

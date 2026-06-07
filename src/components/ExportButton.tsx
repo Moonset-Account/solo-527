@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react'
+import { Download, AlertTriangle } from 'lucide-react'
 import { supersetClient } from '@/api/superset'
 import { useState } from 'react'
 
@@ -12,15 +12,19 @@ interface ExportButtonProps {
 export default function ExportButton({ filename, headers, rows, label = '导出 CSV' }: ExportButtonProps) {
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [source, setSource] = useState<string | null>(null)
 
   const handleExport = async () => {
     setExporting(true)
     setError(null)
+    setSource(null)
 
     const stringRows = rows.map((row) => row.map(String))
     const result = await supersetClient.exportCSV(filename, headers, stringRows)
 
-    if (!result.success) {
+    if (result.success) {
+      setSource(result.source ?? 'unknown')
+    } else {
       setError(result.error ?? '导出失败')
     }
 
@@ -37,8 +41,16 @@ export default function ExportButton({ filename, headers, rows, label = '导出 
         <Download size={14} />
         {exporting ? '导出中...' : label}
       </button>
+      {source && (
+        <span className={`text-xs ${source === 'local_fallback' ? 'text-yellow-600' : 'text-green-600'}`}>
+          {source === 'superset_api' ? 'Superset 导出' : source === 'local_fallback' ? '本地降级导出' : source}
+        </span>
+      )}
       {error && (
-        <span className="text-xs text-red-500">{error}</span>
+        <span className="inline-flex items-center gap-1 text-xs text-red-500">
+          <AlertTriangle size={12} />
+          {error}
+        </span>
       )}
     </div>
   )

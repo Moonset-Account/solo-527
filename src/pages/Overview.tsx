@@ -50,6 +50,8 @@ export default function Overview() {
     [warehouseType]
   )
 
+  const queryMeta = useMemo(() => supersetClient.getQueryMeta(`trend_${warehouseType}`), [warehouseType])
+
   const lowSampleConfig = useMemo(() => pgMeta.getLowSampleConfig(), [])
 
   const kpiValues = getKPIValues(kpi)
@@ -111,7 +113,7 @@ export default function Overview() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">
-            数据源: ClickHouse analytics | 缓存: 60s
+            数据源: {queryMeta?.source.source === 'superset_api' ? 'Superset → ClickHouse' : 'InMemory (降级)'} | 缓存: 60s
           </span>
           {lowSampleConfig.filter((c) => c.enabled).map((c) => (
             <span key={c.dimension} className="text-xs text-gray-400">

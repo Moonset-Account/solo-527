@@ -1,3 +1,20 @@
+CREATE DATABASE superset_meta;
+
+\c superset_meta;
+
+CREATE TABLE IF NOT EXISTS public.ab_user (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(64) NOT NULL UNIQUE,
+  password VARCHAR(256) NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  email VARCHAR(256) NOT NULL UNIQUE,
+  first_name VARCHAR(64),
+  last_name VARCHAR(64),
+  created_on TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+\c return_dashboard;
+
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(32) NOT NULL UNIQUE,

@@ -25,7 +25,6 @@ class ClickHouseClient implements DatabaseClient {
       if (res.ok) {
         this.status = "connected"
         this.lastPingAt = new Date().toISOString()
-        console.log(`[ClickHouse] Connected to ${CLICKHOUSE_CONFIG.host}:${CLICKHOUSE_CONFIG.port}`)
         return true
       }
     } catch {
@@ -63,7 +62,6 @@ class PostgreSQLClient implements DatabaseClient {
       if (res.ok || res.status === 403 || res.status === 401) {
         this.status = "connected"
         this.lastPingAt = new Date().toISOString()
-        console.log(`[PostgreSQL] Connected to ${POSTGRESQL_CONFIG.host}:${POSTGRESQL_CONFIG.port}`)
         return true
       }
     } catch {
@@ -101,7 +99,6 @@ class SupersetApiClient implements DatabaseClient {
       if (res.ok) {
         this.status = "connected"
         this.lastPingAt = new Date().toISOString()
-        console.log(`[Superset] Connected to ${SUPERSET_CONFIG.baseUrl}`)
         return true
       }
     } catch {
@@ -121,45 +118,6 @@ class SupersetApiClient implements DatabaseClient {
       database: "superset",
       lastPingAt: this.lastPingAt,
     }
-  }
-
-  async queryDataset(datasetName: string, queryParams: Record<string, string>): Promise<unknown[]> {
-    if (this.status === "connected") {
-      try {
-        const url = `${SUPERSET_CONFIG.baseUrl}/api/${SUPERSET_CONFIG.apiVersion}/dataset/${datasetName}/query`
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(queryParams),
-        })
-        if (res.ok) {
-          const json = await res.json()
-          return json.data?.records ?? []
-        }
-      } catch {
-        console.warn(`[Superset] API query failed for ${datasetName}, falling back to local`)
-      }
-    }
-    return []
-  }
-
-  async exportDatasetCSV(datasetName: string, queryParams: Record<string, string>): Promise<Blob | null> {
-    if (this.status === "connected") {
-      try {
-        const url = `${SUPERSET_CONFIG.baseUrl}/api/${SUPERSET_CONFIG.apiVersion}/dataset/${datasetName}/export`
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(queryParams),
-        })
-        if (res.ok) {
-          return await res.blob()
-        }
-      } catch {
-        console.warn(`[Superset] CSV export API failed for ${datasetName}, falling back to local`)
-      }
-    }
-    return null
   }
 }
 
