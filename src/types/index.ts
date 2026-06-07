@@ -22,8 +22,10 @@ export interface Order {
   riderArriveTime?: string
   pickupTime: string
   deliverTime?: string
+  refundTime?: string
   prepDuration: number
   waitDuration?: number
+  refundDuration?: number
   isTimeout: boolean
   timeoutReason?: string
   weather: string
@@ -57,6 +59,9 @@ export interface Rectification {
 export interface Metrics {
   avgPrepTime: number
   avgWaitTime: number
+  avgRefundTime: number
+  avgAcceptTime: number
+  avgTotalTime: number
   orderCount: number
   timeoutRate: number
   refundRate: number

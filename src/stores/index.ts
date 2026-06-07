@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Merchant, Order, Rectification, DistrictHeatData, FilterOptions } from '@/types'
 import type { Metrics, ReasonAggregation, TrendDataPoint } from '@/types'
 import { ClickHouseService } from '@/services/clickhouse'
@@ -11,6 +11,16 @@ export const useAppStore = defineStore('app', () => {
   const selectedMerchantId = ref<string | null>(null)
   const merchantOrders = ref<Order[]>([])
   const merchantRectifications = ref<Rectification[]>([])
+  const overallMetrics = ref<Metrics>({
+    avgPrepTime: 0,
+    avgWaitTime: 0,
+    avgRefundTime: 0,
+    avgAcceptTime: 0,
+    avgTotalTime: 0,
+    orderCount: 0,
+    timeoutRate: 0,
+    refundRate: 0
+  })
   const isLoading = ref(false)
 
   const filterOptions = ref<FilterOptions>({
@@ -48,19 +58,24 @@ export const useAppStore = defineStore('app', () => {
     return merchantOrders.value.filter(o => o.hasDataGap)
   })
 
-  const overallMetrics = computed(() => {
-    return calculateMetrics(
-      merchants.value.flatMap(m =>
-        merchantOrders.value.filter(o => o.merchantId === m.id)
-      )
-    )
-  })
-
   const sortedMerchants = computed(() => {
     return [...merchants.value].sort(
       (a, b) => b.avgPrepTime + b.avgWaitTime - (a.avgPrepTime + a.avgWaitTime)
     )
   })
+
+  async function loadOverallMetrics() {
+    try {
+      overallMetrics.value = await ClickHouseService.queryOverallMetrics({
+        startTime: filterOptions.value.timeRange.start,
+        endTime: filterOptions.value.timeRange.end,
+        weather: filterOptions.value.weather,
+        timePeriod: filterOptions.value.timePeriod
+      })
+    } catch (e) {
+      console.error('Failed to load overall metrics:', e)
+    }
+  }
 
   async function loadMerchants() {
     isLoading.value = true
@@ -123,6 +138,7 @@ export const useAppStore = defineStore('app', () => {
   async function refreshData() {
     await loadMerchants()
     await loadDistrictHeat()
+    await loadOverallMetrics()
     if (selectedMerchantId.value) {
       await loadMerchantOrders(selectedMerchantId.value)
     }
@@ -136,6 +152,7 @@ export const useAppStore = defineStore('app', () => {
   async function initialize() {
     await loadMerchants()
     await loadDistrictHeat()
+    await loadOverallMetrics()
   }
 
   return {
@@ -146,13 +163,13 @@ export const useAppStore = defineStore('app', () => {
     merchantOrders,
     merchantRectifications,
     isLoading,
+    overallMetrics,
     selectedMerchant,
     merchantMetrics,
     timeoutReasons,
     trendData,
     abnormalOrders,
     dataGapOrders,
-    overallMetrics,
     sortedMerchants,
     setSelectedMerchant,
     updateFilter,
@@ -161,6 +178,7 @@ export const useAppStore = defineStore('app', () => {
     initialize,
     loadMerchants,
     loadDistrictHeat,
-    loadMerchantOrders
+    loadMerchantOrders,
+    loadOverallMetrics
   }
 })

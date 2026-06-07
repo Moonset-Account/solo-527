@@ -79,6 +79,9 @@ export function generateMockOrders(merchantId: string, count: number = 120): Ord
     const deliverTime = new Date(pickupTime.getTime() + 10 * 60000 + Math.random() * 20 * 60000)
 
     const hasRefund = Math.random() < 0.06
+    const refundTime = hasRefund
+      ? new Date(createTime.getTime() + 15 * 60000 + Math.random() * 60 * 60000)
+      : undefined
 
     const raw: OrderRaw = {
       id: `order_${merchantId}_${i}`,
@@ -90,6 +93,7 @@ export function generateMockOrders(merchantId: string, count: number = 120): Ord
       riderArriveTime: riderArriveTime?.toISOString(),
       pickupTime: pickupTime.toISOString(),
       deliverTime: deliverTime.toISOString(),
+      refundTime: refundTime?.toISOString(),
       weather: weathers[Math.floor(Math.random() * weathers.length)],
       timePeriod: periods[Math.floor(Math.random() * periods.length)],
       riderRemark: riderRemarks[Math.floor(Math.random() * riderRemarks.length)],

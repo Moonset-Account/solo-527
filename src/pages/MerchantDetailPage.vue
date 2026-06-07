@@ -415,6 +415,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
+import { ClickHouseService } from '@/services/clickhouse'
 import { WEATHER_OPTIONS, TIME_PERIOD_OPTIONS } from '@/constants'
 import { formatTime, formatDateTime, exportToCSV, generateTrendData } from '@/utils/dataProcessor'
 import BaseChart from '@/components/BaseChart.vue'
@@ -460,18 +461,45 @@ const dateRange = ref<[string, string]>([
 const selectedWeather = ref<string[]>([])
 const selectedPeriod = ref<string[]>([])
 
-const mockOrderTimes = {
-  create: '2024-01-15 12:00:00',
-  accept: '2024-01-15 12:01:00',
-  prep: '2024-01-15 12:02:00',
-  rider: '2024-01-15 12:07:00',
-  pickup: '2024-01-15 12:12:00'
+const avgTimeline = ref({
+  avgAcceptTime: 1,
+  avgPrepStartTime: 2,
+  avgRiderArriveTime: 7,
+  avgPickupTime: 12
+})
+
+const mockOrderTimes = computed(() => {
+  const base = new Date()
+  base.setHours(12, 0, 0, 0)
+  return {
+    create: base.toISOString(),
+    accept: new Date(base.getTime() + avgTimeline.value.avgAcceptTime * 60000).toISOString(),
+    prep: new Date(base.getTime() + avgTimeline.value.avgPrepStartTime * 60000).toISOString(),
+    rider: new Date(base.getTime() + avgTimeline.value.avgRiderArriveTime * 60000).toISOString(),
+    pickup: new Date(base.getTime() + avgTimeline.value.avgPickupTime * 60000).toISOString()
+  }
+})
+
+async function loadAvgTimeline() {
+  const merchantId = route.params.id as string
+  if (!merchantId) return
+  try {
+    avgTimeline.value = await ClickHouseService.queryOrderTimelineAvg(merchantId, {
+      startTime: dateRange.value[0],
+      endTime: dateRange.value[1],
+      weather: selectedWeather.value,
+      timePeriod: selectedPeriod.value
+    })
+  } catch (e) {
+    console.error('Failed to load avg timeline:', e)
+  }
 }
 
 onMounted(async () => {
   const merchantId = route.params.id as string
   await store.initialize()
   store.setSelectedMerchant(merchantId)
+  await loadAvgTimeline()
 })
 
 watch(
@@ -655,6 +683,7 @@ async function handleDateChange(val: [string, string] | null) {
     await store.updateFilter({
       timeRange: { start: val[0], end: val[1] }
     })
+    await loadAvgTimeline()
   }
 }
 
@@ -663,6 +692,7 @@ async function handleFilterChange() {
     weather: selectedWeather.value,
     timePeriod: selectedPeriod.value
   })
+  await loadAvgTimeline()
 }
 
 function handleTrendDaysChange() {
@@ -672,5 +702,6 @@ function handleTrendDaysChange() {
 async function refreshMerchantData() {
   const merchantId = route.params.id as string
   await store.loadMerchantOrders(merchantId)
+  await loadAvgTimeline()
 }
 </script>

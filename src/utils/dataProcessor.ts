@@ -42,6 +42,7 @@ export interface OrderRaw {
   riderArriveTime?: string
   pickupTime?: string
   deliverTime?: string
+  refundTime?: string
   weather: string
   timePeriod: string
   riderRemark?: string
@@ -60,8 +61,10 @@ export function cleanOrderData(raw: OrderRaw): Order {
     riderArriveTime: raw.riderArriveTime ? normalizeTimestamp(raw.riderArriveTime) : undefined,
     pickupTime: raw.pickupTime ? normalizeTimestamp(raw.pickupTime) : '',
     deliverTime: raw.deliverTime ? normalizeTimestamp(raw.deliverTime) : undefined,
+    refundTime: raw.refundTime ? normalizeTimestamp(raw.refundTime) : undefined,
     prepDuration: 0,
     waitDuration: undefined,
+    refundDuration: undefined,
     isTimeout: false,
     timeoutReason: undefined,
     weather: raw.weather,
@@ -82,6 +85,10 @@ export function cleanOrderData(raw: OrderRaw): Order {
     result.hasDataGap = true
   }
 
+  if (result.hasRefund && result.refundTime) {
+    result.refundDuration = diffMinutes(result.refundTime, result.createTime)
+  }
+
   result.isTimeout =
     result.prepDuration > THRESHOLDS.PREP_TIMEOUT ||
     (result.waitDuration !== undefined && result.waitDuration > THRESHOLDS.WAIT_TIMEOUT)
@@ -96,6 +103,8 @@ export function cleanOrderData(raw: OrderRaw): Order {
 export function calculateMetrics(orders: Order[]): Metrics {
   const prepOrders = orders.filter(o => o.prepDuration !== undefined && o.prepDuration > 0)
   const waitOrders = orders.filter(o => o.waitDuration !== undefined && !o.hasDataGap)
+  const refundOrders = orders.filter(o => o.refundDuration !== undefined && o.hasRefund)
+  const acceptOrders = orders.filter(o => o.acceptTime && o.createTime)
 
   const avgPrepTime = prepOrders.length > 0
     ? Math.round(prepOrders.reduce((sum, o) => sum + o.prepDuration, 0) / prepOrders.length)
@@ -105,12 +114,30 @@ export function calculateMetrics(orders: Order[]): Metrics {
     ? Math.round(waitOrders.reduce((sum, o) => sum + (o.waitDuration || 0), 0) / waitOrders.length)
     : 0
 
+  const avgRefundTime = refundOrders.length > 0
+    ? Math.round(refundOrders.reduce((sum, o) => sum + (o.refundDuration || 0), 0) / refundOrders.length)
+    : 0
+
+  const avgAcceptTime = acceptOrders.length > 0
+    ? Math.round(acceptOrders.reduce((sum, o) => {
+        const diff = (new Date(o.acceptTime).getTime() - new Date(o.createTime).getTime()) / 60000
+        return sum + Math.max(0, diff)
+      }, 0) / acceptOrders.length)
+    : 0
+
+  const avgTotalTime = orders.length > 0
+    ? Math.round(orders.reduce((sum, o) => sum + o.prepDuration + (o.waitDuration || 0), 0) / orders.length)
+    : 0
+
   const timeoutCount = orders.filter(o => o.isTimeout).length
   const refundCount = orders.filter(o => o.hasRefund).length
 
   return {
     avgPrepTime,
     avgWaitTime,
+    avgRefundTime,
+    avgAcceptTime,
+    avgTotalTime,
     orderCount: orders.length,
     timeoutRate: orders.length > 0 ? +(timeoutCount / orders.length * 100).toFixed(1) : 0,
     refundRate: orders.length > 0 ? +(refundCount / orders.length * 100).toFixed(1) : 0
