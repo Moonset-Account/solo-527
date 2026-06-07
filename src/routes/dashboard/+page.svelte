@@ -29,7 +29,7 @@
 		}
 
 		try {
-			kpiData = getKPISummary();
+			kpiData = await getKPISummary();
 			anomalyDurationData = getAnomalyDurationStats();
 			responsibilityData = getResponsibilitySegments();
 			recentAnomalies = get(filteredAnomalies).slice(0, 5);

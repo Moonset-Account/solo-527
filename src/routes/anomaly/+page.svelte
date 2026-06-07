@@ -68,9 +68,9 @@
 		}
 
 		try {
-			vehicleOptions = getVehicleOptions();
-			customerOptions = getCustomerOptions();
-			routeOptions = getRouteOptions();
+			vehicleOptions = await getVehicleOptions();
+			customerOptions = await getCustomerOptions();
+			routeOptions = await getRouteOptions();
 			anomalies = get(filteredAnomaliesStore);
 			anomalyDurationData = getAnomalyDurationStats();
 			responsibilityData = getResponsibilitySegments();
@@ -94,7 +94,8 @@
 		}
 	}
 
-	function resolveAnomaly(anomaly: AnomalyRecord) {
+	function resolveAnomaly(anomaly: AnomalyRecord | null) {
+		if (!anomaly) return;
 		anomaly.resolved = true;
 		anomaly.resolvedAt = new Date().toISOString();
 		showToast('异常已标记为处理', 'success');

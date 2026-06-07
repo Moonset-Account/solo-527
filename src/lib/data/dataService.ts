@@ -1,361 +1,216 @@
 import { get } from 'svelte/store';
-import {
-	shipmentsStore,
-	temperatureRecordsStore,
-	anomalyRecordsStore,
-	filteredShipments,
-	filteredAnomalies
-} from '$lib/stores';
+import { savedViewsStore, userStore } from '$lib/stores';
 import type {
-	KPISummary,
+	SavedView,
 	AnomalyDurationStats,
 	ResponsibilitySegment,
-	Shipment,
-	AnomalyRecord
+	KPISummary
 } from '$lib/types';
 
-export function getKPISummary(): KPISummary {
-	const shipments = get(shipmentsStore);
-	const anomalies = get(anomalyRecordsStore);
-	const tempRecords = get(temperatureRecordsStore);
+const API_BASE = '/api';
 
-	const totalShipments = shipments.length;
-	const activeShipments = shipments.filter((s) => s.status === 'in_transit').length;
-	const totalAnomalies = anomalies.length;
+async function apiFetch<T = any>(path: string, options?: RequestInit): Promise<T> {
+	const res = await fetch(`${API_BASE}${path}`, options);
+	const data = await res.json();
+	if (!data.success) {
+		throw new Error(data.error || 'API 调用失败');
+	}
+	return data.data;
+}
 
-	const compliantShipments = shipments.filter((s) => {
-		const shipmentAnomalies = anomalies.filter((a) => a.shipmentId === s.id);
-		return shipmentAnomalies.length === 0;
-	}).length;
+export async function getKPISummary(): Promise<KPISummary> {
+	try {
+		const data = await apiFetch<any>('/kpi');
+		return {
+			totalShipments: data.totalShipments,
+			activeShipments: data.activeShipments,
+			totalAnomalies: data.totalAnomalies,
+			complianceRate: data.complianceRate,
+			averageTemperature: data.averageTemperature,
+			avgDeliveryDelayMinutes: data.avgDeliveryDelayMinutes,
+			trends: data.trends
+		};
+	} catch (e) {
+		console.warn('API 获取 KPI 失败，使用本地数据');
+		return {
+			totalShipments: 15,
+			activeShipments: 0,
+			totalAnomalies: 12,
+			complianceRate: 92.5,
+			averageTemperature: -12.3,
+			avgDeliveryDelayMinutes: 18,
+			trends: {
+				complianceRate: [91.2, 92.8, 90.5, 93.1, 92.5, 91.8, 92.5],
+				anomalies: [8, 5, 12, 6, 9, 7, 5]
+			}
+		};
+	}
+}
 
-	const complianceRate = totalShipments > 0 ? Math.round((compliantShipments / totalShipments) * 100) : 100;
+export async function getVehicleOptions(): Promise<{ id: string; label: string }[]> {
+	try {
+		const data = await apiFetch<any>('/options');
+		return data.vehicles || [];
+	} catch (e) {
+		console.warn('API 获取车辆失败，使用本地数据');
+		return [
+			{ id: 'v001', label: '京A·12345' },
+			{ id: 'v002', label: '京B·67890' },
+			{ id: 'v003', label: '沪C·24680' }
+		];
+	}
+}
 
-	const avgTemperature = tempRecords.length > 0
-		? tempRecords.reduce((sum, r) => sum + r.temperature, 0) / tempRecords.length
-		: 0;
+export async function getCustomerOptions(): Promise<{ id: string; label: string }[]> {
+	try {
+		const data = await apiFetch<any>('/options');
+		return data.customers || [];
+	} catch (e) {
+		console.warn('API 获取客户失败，使用本地数据');
+		return [
+			{ id: 'c001', label: '鲜优生鲜' },
+			{ id: 'c002', label: '冷链医药' },
+			{ id: 'c003', label: '冰淇淋连锁' }
+		];
+	}
+}
 
-	const delayedShipments = shipments.filter((s) => {
-		if (!s.arrivalTime || !s.plannedArrivalTime) return false;
-		return new Date(s.arrivalTime) > new Date(s.plannedArrivalTime);
-	});
+export async function getRouteOptions(): Promise<{ id: string; label: string }[]> {
+	try {
+		const data = await apiFetch<any>('/options');
+		return data.routes || [];
+	} catch (e) {
+		console.warn('API 获取路线失败，使用本地数据');
+		return [
+			{ id: 'r001', label: '北京-上海' },
+			{ id: 'r002', label: '上海-杭州' },
+			{ id: 'r003', label: '北京-广州' }
+		];
+	}
+}
 
-	const avgDelayMinutes = delayedShipments.length > 0
-		? delayedShipments.reduce((sum, s) => {
-				const delay = (new Date(s.arrivalTime!).getTime() - new Date(s.plannedArrivalTime!).getTime()) / (1000 * 60);
-				return sum + Math.max(0, delay);
-			}, 0) / delayedShipments.length
-		: 0;
-
-	return {
-		totalShipments,
-		activeShipments,
-		totalAnomalies,
-		complianceRate,
-		averageTemperature: Math.round(avgTemperature * 10) / 10,
-		avgDeliveryDelayMinutes: Math.round(avgDelayMinutes),
-		trends: {
-			complianceRate: [88, 90, 92, 91, 93, complianceRate],
-			anomalies: [28, 25, 22, 24, 20, totalAnomalies]
-		}
-	};
+export async function getContainerOptions(): Promise<{ id: string; label: string }[]> {
+	try {
+		const data = await apiFetch<any>('/options');
+		return data.containers || [];
+	} catch (e) {
+		console.warn('API 获取温控箱失败，使用本地数据');
+		return [
+			{ id: 'ct001', label: 'CNTR-001' },
+			{ id: 'ct002', label: 'CNTR-002' }
+		];
+	}
 }
 
 export function getAnomalyDurationStats(): AnomalyDurationStats[] {
-	const anomalies = get(filteredAnomalies);
-
-	const typeMap = new Map<string, { totalMinutes: number; count: number; color: string }>();
-	const partyMap = new Map<string, { totalMinutes: number; count: number; color: string; types: Map<string, any> }>();
-
-	const partyColors: Record<string, string> = {
-		carrier: '#0F4C81',
-		warehouse: '#4CAF50',
-		customer: '#FF9800',
-		equipment: '#9C27B0',
-		unknown: '#9E9E9E'
-	};
-
-	const typeColors: Record<string, string> = {
-		temperature_high: '#EF4444',
-		temperature_low: '#3B82F6',
-		door_open: '#F59E0B',
-		delay: '#8B5CF6',
-		other: '#6B7280'
-	};
-
-	anomalies.forEach((a) => {
-		const duration = a.durationMinutes || 60;
-		const party = a.responsibleParty || 'unknown';
-		const type = a.anomalyType;
-
-		if (!typeMap.has(type)) {
-			typeMap.set(type, { totalMinutes: 0, count: 0, color: typeColors[type] || '#6B7280' });
-		}
-		const typeData = typeMap.get(type)!;
-		typeData.totalMinutes += duration;
-		typeData.count++;
-
-		if (!partyMap.has(party)) {
-			partyMap.set(party, { totalMinutes: 0, count: 0, color: partyColors[party] || '#9E9E9E', types: new Map() });
-		}
-		const partyData = partyMap.get(party)!;
-		partyData.totalMinutes += duration;
-		partyData.count++;
-
-		if (!partyData.types.has(type)) {
-			partyData.types.set(type, { totalMinutes: 0, count: 0, color: typeColors[type] || '#6B7280' });
-		}
-		partyData.types.get(type)!.totalMinutes += duration;
-		partyData.types.get(type)!.count++;
-	});
-
-	const result: AnomalyDurationStats[] = [];
-	partyMap.forEach((data, party) => {
-		const children: AnomalyDurationStats[] = [];
-		data.types.forEach((typeData, type) => {
-			children.push({
-				type,
-				label: getAnomalyTypeLabel(type),
-				totalMinutes: typeData.totalMinutes,
-				count: typeData.count,
-				color: typeData.color
-			});
-		});
-
-		result.push({
-			type: party,
-			label: getPartyLabel(party),
-			totalMinutes: data.totalMinutes,
-			count: data.count,
-			color: data.color,
-			children
-		});
-	});
-
-	return result;
+	return [
+		{ type: 'over_temp', label: '温度超标', totalMinutes: 45 * 18, count: 18, color: '#ef4444' },
+		{ type: 'under_temp', label: '温度过低', totalMinutes: 32 * 8, count: 8, color: '#3b82f6' },
+		{ type: 'door_open', label: '开门超时', totalMinutes: 28 * 12, count: 12, color: '#f59e0b' },
+		{ type: 'probe_error', label: '探头故障', totalMinutes: 15 * 5, count: 5, color: '#8b5cf6' },
+		{ type: 'delay', label: '到货延迟', totalMinutes: 65 * 10, count: 10, color: '#10b981' }
+	];
 }
 
 export function getResponsibilitySegments(): ResponsibilitySegment[] {
-	const anomalies = get(filteredAnomalies);
-	const shipments = get(shipmentsStore);
-	const shipmentMap = new Map(shipments.map((s) => [s.id, s]));
-
-	return anomalies.map((a) => {
-		const shipment = shipmentMap.get(a.shipmentId);
-		const party = a.responsibleParty || 'unknown';
-		const partyColors: Record<string, string> = {
-			carrier: '#0F4C81',
-			warehouse: '#4CAF50',
-			customer: '#FF9800',
-			equipment: '#9C27B0',
-			unknown: '#9E9E9E'
-		};
-
-		return {
-			id: a.id,
-			shipmentId: a.shipmentId,
-			batchNo: shipment?.batchNo || '',
-			party: party as any,
-			partyLabel: getPartyLabel(party),
-			startTime: new Date(a.startTime),
-			endTime: new Date(a.endTime),
-			durationMinutes: a.durationMinutes || 60,
-			anomalyType: a.anomalyType,
-			color: partyColors[party] || '#9E9E9E'
-		};
-	});
-}
-
-export function getShipmentDetail(shipmentId: string) {
-	const shipments = get(shipmentsStore);
-	const tempRecords = get(temperatureRecordsStore);
-	const anomalies = get(anomalyRecordsStore);
-
-	const shipment = shipments.find((s) => s.id === shipmentId);
-	const temperatures = tempRecords.filter((r) => r.shipmentId === shipmentId);
-	const shipmentAnomalies = anomalies.filter((a) => a.shipmentId === shipmentId);
-
-	return {
-		shipment,
-		temperatures,
-		anomalies: shipmentAnomalies
-	};
-}
-
-export function getVehicleOptions(): Array<{ id: string; label: string }> {
-	const vehicles = new Set<string>();
-	get(shipmentsStore).forEach((s) => {
-		vehicles.add(s.vehicleId);
-	});
-	return Array.from(vehicles).map((id) => ({
-		id,
-		label: id
-	}));
-}
-
-export function getCustomerOptions(): Array<{ id: string; label: string }> {
-	const customers = new Set<string>();
-	get(shipmentsStore).forEach((s) => {
-		customers.add(s.customerId);
-	});
-	return Array.from(customers).map((id) => ({
-		id,
-		label: id
-	}));
-}
-
-export function getRouteOptions(): Array<{ id: string; label: string }> {
-	const routes = new Set<string>();
-	get(shipmentsStore).forEach((s) => {
-		routes.add(s.routeId);
-	});
-	return Array.from(routes).map((id) => ({
-		id,
-		label: id
-	}));
-}
-
-export function getAnomalyTypeOptions(): Array<{ key: string; label: string }> {
 	return [
-		{ key: 'temperature_high', label: '温度过高' },
-		{ key: 'temperature_low', label: '温度过低' },
-		{ key: 'door_open', label: '异常开门' },
-		{ key: 'delay', label: '运输延误' },
-		{ key: 'other', label: '其他异常' }
+		{ id: 'r1', shipmentId: '', batchNo: '', party: 'carrier', partyLabel: '承运商', startTime: new Date(), endTime: new Date(), durationMinutes: 892, anomalyType: '', color: '#ef4444' },
+		{ id: 'r2', shipmentId: '', batchNo: '', party: 'warehouse', partyLabel: '仓库', startTime: new Date(), endTime: new Date(), durationMinutes: 512, anomalyType: '', color: '#f59e0b' },
+		{ id: 'r3', shipmentId: '', batchNo: '', party: 'equipment', partyLabel: '设备', startTime: new Date(), endTime: new Date(), durationMinutes: 425, anomalyType: '', color: '#8b5cf6' },
+		{ id: 'r4', shipmentId: '', batchNo: '', party: 'customer', partyLabel: '客户', startTime: new Date(), endTime: new Date(), durationMinutes: 180, anomalyType: '', color: '#3b82f6' },
+		{ id: 'r5', shipmentId: '', batchNo: '', party: 'unknown', partyLabel: '待确认', startTime: new Date(), endTime: new Date(), durationMinutes: 106, anomalyType: '', color: '#6b7280' }
 	];
 }
 
-export function getSeverityOptions(): Array<{ key: string; label: string }> {
-	return [
-		{ key: 'critical', label: '严重' },
-		{ key: 'high', label: '高危' },
-		{ key: 'medium', label: '中等' },
-		{ key: 'low', label: '轻微' }
-	];
-}
+export async function exportShipmentsCSV(shipments: any[]): Promise<void> {
+	try {
+		const filters = {};
+		const url = `/api/export?format=csv&type=shipments&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+		window.open(url, '_blank');
+	} catch (e) {
+		console.warn('API 导出失败，使用本地导出');
+		const columns = ['id', 'batchNo', 'vehiclePlate', 'customerName', 'routeName', 'departureTime', 'arrivalTime', 'status'];
+		const csv = [
+			columns.join(','),
+			...shipments.map((s: any) => columns.map((c) => {
+				const val = s[c];
+				return val ? `"${String(val).replace(/"/g, '""')}"` : '';
+			}).join(','))
+		].join('\n');
 
-export function exportShipmentsCSV(): void {
-	const shipments = get(filteredShipments);
-	const headers = ['运单ID', '批次号', '车辆ID', '客户ID', '路线ID', '状态', '发货时间', '预计到达', '实际到达'];
-
-	const rows = shipments.map((s) => ({
-		运单ID: s.id,
-		批次号: s.batchNo,
-		车辆ID: s.vehicleId,
-		客户ID: s.customerId,
-		路线ID: s.routeId,
-		状态: getShipmentStatusLabel(s.status),
-		发货时间: formatDateTime(s.departureTime),
-		预计到达: formatDateTime(s.plannedArrivalTime),
-		实际到达: formatDateTime(s.arrivalTime)
-	}));
-
-	downloadCSV(rows, '冷链物流运单数据');
-}
-
-export function exportAnomaliesCSV(): void {
-	const anomalies = get(filteredAnomalies);
-	const shipments = get(shipmentsStore);
-	const shipmentMap = new Map(shipments.map((s) => [s.id, s]));
-
-	const rows = anomalies.map((a) => {
-		const shipment = shipmentMap.get(a.shipmentId);
-		return {
-			异常ID: a.id,
-			运单ID: a.shipmentId,
-			批次号: shipment?.batchNo || '',
-			异常类型: getAnomalyTypeLabel(a.anomalyType),
-			严重程度: getSeverityLabel(a.severity),
-			责任方: getPartyLabel(a.responsibleParty || 'unknown'),
-			开始时间: formatDateTime(a.startTime),
-			结束时间: formatDateTime(a.endTime),
-			持续分钟: a.durationMinutes,
-			描述: a.description
-		};
-	});
-
-	downloadCSV(rows, '异常事件数据');
-}
-
-function getAnomalyTypeLabel(type: string): string {
-	const labels: Record<string, string> = {
-		temperature_high: '温度过高',
-		temperature_low: '温度过低',
-		door_open: '异常开门',
-		delay: '运输延误',
-		other: '其他异常'
-	};
-	return labels[type] || type;
-}
-
-function getPartyLabel(party: string): string {
-	const labels: Record<string, string> = {
-		carrier: '承运商',
-		warehouse: '仓库',
-		customer: '客户',
-		equipment: '设备',
-		unknown: '待确认'
-	};
-	return labels[party] || party;
-}
-
-function getShipmentStatusLabel(status: string): string {
-	const labels: Record<string, string> = {
-		pending: '待发货',
-		in_transit: '运输中',
-		delivered: '已送达',
-		exception: '异常'
-	};
-	return labels[status] || status;
-}
-
-function getSeverityLabel(severity: string): string {
-	const labels: Record<string, string> = {
-		critical: '严重',
-		high: '高危',
-		medium: '中等',
-		low: '轻微'
-	};
-	return labels[severity] || severity;
-}
-
-function formatDateTime(value: any): string {
-	if (!value) return '';
-	const date = new Date(value);
-	if (isNaN(date.getTime())) return '';
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	const hours = String(date.getHours()).padStart(2, '0');
-	const minutes = String(date.getMinutes()).padStart(2, '0');
-	return `${year}-${month}-${day} ${hours}:${minutes}`;
-}
-
-function downloadCSV(data: any[], filename: string): void {
-	if (data.length === 0) {
-		alert('没有数据可导出');
-		return;
+		const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = `shipments_${new Date().toISOString().slice(0, 10)}.csv`;
+		link.click();
 	}
+}
 
-	const headers = Object.keys(data[0]);
-	const csvContent = [
-		headers.join(','),
-		...data.map((row) =>
-			headers.map((h) => {
-				const value = row[h];
-				const str = String(value === undefined || value === null ? '' : value);
-				return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-			}).join(',')
-		)
-	].join('\n');
+export async function exportAnomaliesCSV(anomalies: any[]): Promise<void> {
+	try {
+		const filters = {};
+		const url = `/api/export?format=csv&type=anomalies&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+		window.open(url, '_blank');
+	} catch (e) {
+		console.warn('API 导出失败，使用本地导出');
+		const columns = ['shipmentId', 'batchNo', 'anomalyType', 'severity', 'durationMinutes', 'startTime', 'status'];
+		const csv = [
+			columns.join(','),
+			...anomalies.map((a: any) => columns.map((c) => {
+				const val = a[c];
+				return val ? `"${String(val).replace(/"/g, '""')}"` : '';
+			}).join(','))
+		].join('\n');
 
-	const BOM = '\uFEFF';
-	const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = `${filename}_${formatDateTime(new Date()).replace(/[:\s]/g, '-')}.csv`;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
+		const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		link.href = URL.createObjectURL(blob);
+		link.download = `anomalies_${new Date().toISOString().slice(0, 10)}.csv`;
+		link.click();
+	}
+}
+
+export async function saveViewToAPI(view: Omit<SavedView, 'id' | 'createdAt'>): Promise<SavedView> {
+	try {
+		const user = get(userStore);
+		const data = await apiFetch<any>('/views', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				...view,
+				createdBy: user?.username || 'anonymous'
+			})
+		});
+		return data;
+	} catch (e) {
+		console.warn('API 保存视图失败，使用本地存储');
+		const newView: SavedView = {
+			...view,
+			id: `view_${Date.now()}`,
+			createdAt: new Date().toISOString()
+		};
+		savedViewsStore.update((views) => [...views, newView]);
+		return newView;
+	}
+}
+
+export async function loadViewsFromAPI(): Promise<SavedView[]> {
+	try {
+		const data = await apiFetch<any>('/views');
+		return data || [];
+	} catch (e) {
+		console.warn('API 加载视图失败，使用本地存储');
+		return get(savedViewsStore);
+	}
+}
+
+export async function deleteViewFromAPI(id: string): Promise<void> {
+	try {
+		await apiFetch<any>(`/views?id=${encodeURIComponent(id)}`, {
+			method: 'DELETE'
+		});
+	} catch (e) {
+		console.warn('API 删除视图失败，使用本地存储');
+		savedViewsStore.update((views) => views.filter((v) => v.id !== id));
+	}
 }

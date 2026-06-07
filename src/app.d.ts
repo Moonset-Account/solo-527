@@ -37,6 +37,7 @@ declare module 'papaparse' {
 		header?: boolean;
 		delimiter?: string;
 		skipEmptyLines?: boolean;
+		preview?: number;
 		complete?: (results: ParseResult<T>) => void;
 		error?: (error: any) => void;
 		step?: (results: ParseResult<T>, parser: any) => void;
