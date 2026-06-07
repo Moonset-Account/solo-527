@@ -8,6 +8,7 @@ import type {
   FilterOptions,
   AnomalyAnnotation,
   MetricDefinition,
+  CandidateExperience,
 } from '../../shared/types.js';
 
 const STAGE_LABELS: Record<StageName, string> = {
@@ -54,6 +55,11 @@ function buildFilterWhere(filters: FilterParams, tableAlias?: string): { sql: st
     const placeholders = filters.stages.map(() => '?').join(',');
     conditions.push(`${prefix}id IN (SELECT candidate_id FROM pipeline_stages WHERE stage IN (${placeholders}))`);
     params.push(...filters.stages);
+  }
+
+  if (filters.interviewerScope) {
+    conditions.push(`${prefix}id IN (SELECT candidate_id FROM interviews WHERE interviewer_id = ?)`);
+    params.push(filters.interviewerScope);
   }
 
   if (filters.dateRange && filters.dateRange.start && filters.dateRange.end) {
@@ -238,15 +244,6 @@ export function getChannelMetrics(filters: FilterParams): ChannelMetrics[] {
     '猎头': 8000,
   };
 
-  const satisfactionMap: Record<string, number> = {
-    '猎聘': 4.1,
-    'BOSS直聘': 4.3,
-    '内推': 4.6,
-    '官网': 3.9,
-    '拉勾': 4.0,
-    '猎头': 4.2,
-  };
-
   const results: ChannelMetrics[] = [];
 
   for (const [channel, candIds] of channelGroups) {
@@ -289,6 +286,14 @@ export function getChannelMetrics(filters: FilterParams): ChannelMetrics[] {
       stageTimings[row.stage] = Math.round(row.avg_hours * 10) / 10;
     }
 
+    const satisfactionRow = db.prepare(
+      `SELECT AVG(satisfaction_score) as avg_score, COUNT(*) as cnt FROM interviews WHERE candidate_id IN (${placeholders}) AND satisfaction_score IS NOT NULL`
+    ).get(...candIds) as { avg_score: number | null; cnt: number };
+
+    const avgSatisfaction = satisfactionRow.avg_score !== null
+      ? Math.round(satisfactionRow.avg_score * 10) / 10
+      : 0;
+
     results.push({
       channel,
       totalApplied,
@@ -296,7 +301,8 @@ export function getChannelMetrics(filters: FilterParams): ChannelMetrics[] {
       avgTimeToHire,
       costPerHire,
       stageTimings,
-      satisfactionScore: satisfactionMap[channel] || 4.0,
+      satisfactionScore: avgSatisfaction || 4.0,
+      avgSatisfaction,
     });
   }
 
@@ -438,4 +444,47 @@ export function createAnnotation(annotation: Omit<AnomalyAnnotation, 'id' | 'cre
 
 export function getMetricDefinitions(): MetricDefinition[] {
   return db.prepare('SELECT * FROM metric_definitions ORDER BY id').all() as MetricDefinition[];
+}
+
+export function getCandidateExperience(filters: FilterParams): CandidateExperience {
+  const { sql: whereSql, params } = buildFilterWhere(filters, 'c');
+  const candidateIds = db.prepare(
+    `SELECT c.id FROM candidates c WHERE 1=1${whereSql}`
+  ).all(...params) as { id: string }[];
+
+  const idList = candidateIds.map(c => c.id);
+  if (idList.length === 0) {
+    return {
+      avgSatisfaction: 0,
+      totalFeedbacks: 0,
+      satisfactionDistribution: {},
+      avgFeedbackDelayHours: 0,
+    };
+  }
+
+  const placeholders = idList.map(() => '?').join(',');
+
+  const stats = db.prepare(
+    `SELECT AVG(satisfaction_score) as avg_score, COUNT(*) as cnt FROM interviews WHERE candidate_id IN (${placeholders}) AND satisfaction_score IS NOT NULL`
+  ).get(...idList) as { avg_score: number | null; cnt: number };
+
+  const distributionRows = db.prepare(
+    `SELECT ROUND(satisfaction_score) as score_bucket, COUNT(*) as cnt FROM interviews WHERE candidate_id IN (${placeholders}) AND satisfaction_score IS NOT NULL GROUP BY ROUND(satisfaction_score) ORDER BY score_bucket`
+  ).all(...idList) as { score_bucket: number; cnt: number }[];
+
+  const satisfactionDistribution: Record<string, number> = {};
+  for (const row of distributionRows) {
+    satisfactionDistribution[String(row.score_bucket)] = row.cnt;
+  }
+
+  const delayStats = db.prepare(
+    `SELECT AVG((julianday(feedback_submitted_at) - julianday(interview_date)) * 24) as avg_hours FROM interviews WHERE candidate_id IN (${placeholders}) AND feedback_submitted_at IS NOT NULL`
+  ).get(...idList) as { avg_hours: number | null };
+
+  return {
+    avgSatisfaction: stats.avg_score !== null ? Math.round(stats.avg_score * 10) / 10 : 0,
+    totalFeedbacks: stats.cnt,
+    satisfactionDistribution,
+    avgFeedbackDelayHours: delayStats.avg_hours !== null ? Math.round(delayStats.avg_hours * 10) / 10 : 0,
+  };
 }

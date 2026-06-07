@@ -24,8 +24,8 @@ const defaultFilters: FilterParams = {
   channels: [],
   stages: [],
   dateRange: {
-    start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    end: new Date().toISOString().split("T")[0],
+    start: "2025-01-01",
+    end: "2025-12-31",
   },
 };
 

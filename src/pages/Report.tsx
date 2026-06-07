@@ -13,6 +13,25 @@ const stageLabels: Record<string, string> = {
   hired: "入职",
 };
 
+function FilterSummary({ filters }: { filters: import("@/types").FilterParams }) {
+  const items: { label: string; value: string }[] = [];
+
+  if (filters.positions.length > 0) items.push({ label: "职位", value: filters.positions.join(", ") });
+  if (filters.departments.length > 0) items.push({ label: "部门", value: filters.departments.join(", ") });
+  if (filters.recruiters.length > 0) items.push({ label: "招聘官", value: filters.recruiters.join(", ") });
+  if (filters.channels.length > 0) items.push({ label: "渠道", value: filters.channels.join(", ") });
+  if (filters.stages.length > 0) items.push({ label: "阶段", value: filters.stages.map((s) => stageLabels[s] || s).join(", ") });
+  items.push({ label: "时间", value: `${filters.dateRange.start} ~ ${filters.dateRange.end}` });
+
+  return (
+    <div className="space-y-2 text-xs text-slate-400">
+      {items.map(({ label, value }) => (
+        <div key={label}>{label}: <span className="text-slate-300">{value}</span></div>
+      ))}
+    </div>
+  );
+}
+
 export default function Report() {
   const { filters } = useAppStore();
   const previewRef = useRef<HTMLDivElement>(null);
@@ -156,20 +175,7 @@ export default function Report() {
 
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold text-white mb-3">筛选概要</h3>
-          <div className="space-y-2 text-xs text-slate-400">
-            {filters.positions.length > 0 && (
-              <div>职位: <span className="text-slate-300">{filters.positions.join(", ")}</span></div>
-            )}
-            {filters.departments.length > 0 && (
-              <div>部门: <span className="text-slate-300">{filters.departments.join(", ")}</span></div>
-            )}
-            {filters.channels.length > 0 && (
-              <div>渠道: <span className="text-slate-300">{filters.channels.join(", ")}</span></div>
-            )}
-            <div>
-              时间: <span className="text-slate-300 data-font">{filters.dateRange.start} ~ {filters.dateRange.end}</span>
-            </div>
-          </div>
+          <FilterSummary filters={filters} />
         </div>
       </div>
 
@@ -179,7 +185,7 @@ export default function Report() {
           className="bg-primary-dark border border-accent-cyan/10 rounded-lg p-8 min-h-[600px]"
           style={{ maxWidth: "210mm" }}
         >
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-xl font-bold text-white mb-2">招聘流程效率报告</h1>
             <p className="text-sm text-slate-400 data-font">
               {filters.dateRange.start} ~ {filters.dateRange.end}
@@ -187,6 +193,11 @@ export default function Report() {
                 <span className="ml-2 text-xs text-warning-yellow">（数据已脱敏）</span>
               )}
             </p>
+          </div>
+
+          <div className="mb-6 px-4 py-3 bg-secondary-bg/40 border border-accent-cyan/10 rounded-lg">
+            <h4 className="text-xs font-semibold text-slate-400 mb-2">筛选口径</h4>
+            <FilterSummary filters={filters} />
           </div>
 
           {modules.funnel && funnelData && (

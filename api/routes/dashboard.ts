@@ -9,6 +9,7 @@ import {
   getAnnotations,
   createAnnotation,
   getMetricDefinitions,
+  getCandidateExperience,
 } from '../services/aggregation.js';
 import { cache, generateCacheKey } from '../middleware/cache.js';
 import { desensitizeMiddleware } from '../middleware/desensitize.js';
@@ -36,6 +37,20 @@ function parseFilterParams(query: Record<string, unknown>): FilterParams {
   };
 }
 
+function applyRoleFilter(filters: FilterParams, req: Request): FilterParams {
+  const f = { ...filters, dateRange: { ...filters.dateRange } };
+
+  if (req.userRole === 'recruiting_manager' && req.userDepartment) {
+    f.departments = [req.userDepartment];
+  }
+
+  if (req.userRole === 'interviewer' && req.userId) {
+    f.interviewerScope = req.userId;
+  }
+
+  return f;
+}
+
 function buildApiResponse<T>(data: T, filters: FilterParams, cacheHit: boolean): ApiResponse<T> {
   return {
     data,
@@ -48,7 +63,8 @@ function buildApiResponse<T>(data: T, filters: FilterParams, cacheHit: boolean):
 }
 
 router.get('/funnel', desensitizeMiddleware, (req: Request, res: Response) => {
-  const filters = parseFilterParams(req.query as Record<string, unknown>);
+  const rawFilters = parseFilterParams(req.query as Record<string, unknown>);
+  const filters = applyRoleFilter(rawFilters, req);
   const cacheKey = generateCacheKey('/funnel', filters);
 
   const cached = cache.get(cacheKey);
@@ -63,7 +79,8 @@ router.get('/funnel', desensitizeMiddleware, (req: Request, res: Response) => {
 });
 
 router.get('/stage-duration', desensitizeMiddleware, (req: Request, res: Response) => {
-  const filters = parseFilterParams(req.query as Record<string, unknown>);
+  const rawFilters = parseFilterParams(req.query as Record<string, unknown>);
+  const filters = applyRoleFilter(rawFilters, req);
   const cacheKey = generateCacheKey('/stage-duration', filters);
 
   const cached = cache.get(cacheKey);
@@ -78,7 +95,8 @@ router.get('/stage-duration', desensitizeMiddleware, (req: Request, res: Respons
 });
 
 router.get('/channels', desensitizeMiddleware, (req: Request, res: Response) => {
-  const filters = parseFilterParams(req.query as Record<string, unknown>);
+  const rawFilters = parseFilterParams(req.query as Record<string, unknown>);
+  const filters = applyRoleFilter(rawFilters, req);
   const cacheKey = generateCacheKey('/channels', filters);
 
   const cached = cache.get(cacheKey);
@@ -93,14 +111,8 @@ router.get('/channels', desensitizeMiddleware, (req: Request, res: Response) => 
 });
 
 router.get('/workload', desensitizeMiddleware, (req: Request, res: Response) => {
-  const filters = parseFilterParams(req.query as Record<string, unknown>);
-
-  if (req.userRole === 'interviewer' && req.userId) {
-    filters.recruiters = undefined;
-  }
-  if (req.userRole === 'recruiting_manager' && req.userDepartment) {
-    filters.departments = [req.userDepartment];
-  }
+  const rawFilters = parseFilterParams(req.query as Record<string, unknown>);
+  const filters = applyRoleFilter(rawFilters, req);
 
   const cacheKey = generateCacheKey('/workload', filters);
 
@@ -148,6 +160,22 @@ router.get('/metrics/definitions', (req: Request, res: Response) => {
   const data = getMetricDefinitions();
   cache.set(cacheKey, data);
   res.json(buildApiResponse(data, { dateRange: { start: '', end: '' } }, false));
+});
+
+router.get('/candidate-experience', desensitizeMiddleware, (req: Request, res: Response) => {
+  const rawFilters = parseFilterParams(req.query as Record<string, unknown>);
+  const filters = applyRoleFilter(rawFilters, req);
+  const cacheKey = generateCacheKey('/candidate-experience', filters);
+
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    res.json(buildApiResponse(cached, filters, true));
+    return;
+  }
+
+  const data = getCandidateExperience(filters);
+  cache.set(cacheKey, data);
+  res.json(buildApiResponse(data, filters, false));
 });
 
 router.get('/annotations', desensitizeMiddleware, (req: Request, res: Response) => {

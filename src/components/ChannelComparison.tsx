@@ -31,6 +31,7 @@ export default function ChannelComparison() {
     申请量: ch.totalApplied,
     转化率: Number(ch.conversionRate.toFixed(1)),
     平均周期: ch.avgTimeToHire,
+    满意度: ch.avgSatisfaction || ch.satisfactionScore,
   }));
 
   return (
@@ -53,9 +54,10 @@ export default function ChannelComparison() {
             wrapperStyle={{ fontSize: 12 }}
             formatter={(value: string) => <span style={{ color: "#94a3b8" }}>{value}</span>}
           />
-          <Bar dataKey="申请量" fill="#00E5CC" radius={[4, 4, 0, 0]} barSize={16} />
-          <Bar dataKey="转化率" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={16} />
-          <Bar dataKey="平均周期" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={16} />
+          <Bar dataKey="申请量" fill="#00E5CC" radius={[4, 4, 0, 0]} barSize={14} />
+          <Bar dataKey="转化率" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={14} />
+          <Bar dataKey="平均周期" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={14} />
+          <Bar dataKey="满意度" fill="#10B981" radius={[4, 4, 0, 0]} barSize={14} />
         </BarChart>
       </ResponsiveContainer>
     </div>

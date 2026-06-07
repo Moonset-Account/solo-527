@@ -6,6 +6,7 @@ export interface FilterParams {
   recruiters: string[];
   channels: string[];
   stages: string[];
+  interviewerScope?: string;
   dateRange: { start: string; end: string };
 }
 
@@ -27,6 +28,7 @@ export interface ChannelMetrics {
   costPerHire: number;
   stageTimings: Record<string, number>;
   satisfactionScore: number;
+  avgSatisfaction: number;
 }
 
 export interface InterviewerLoad {
@@ -64,6 +66,13 @@ export interface FilterOptions {
   recruiters: string[];
   channels: string[];
   stages: string[];
+}
+
+export interface CandidateExperience {
+  avgSatisfaction: number;
+  totalFeedbacks: number;
+  satisfactionDistribution: Record<string, number>;
+  avgFeedbackDelayHours: number;
 }
 
 export interface ApiResponse<T> {

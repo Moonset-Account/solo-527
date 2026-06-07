@@ -1,11 +1,12 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { useAppStore } from "@/store";
-import type { FunnelStage } from "@/types";
+import type { FunnelStage, CandidateExperience } from "@/types";
 
 export default function KPICards() {
   const { filters } = useAppStore();
   const { data, loading } = useApi<FunnelStage[]>("/funnel", filters);
+  const { data: experienceData } = useApi<CandidateExperience>("/candidate-experience", filters);
 
   if (loading) {
     return (
@@ -32,7 +33,7 @@ export default function KPICards() {
 
   const avgHiringCycleDays = data.reduce((sum, s) => sum + (s.avgDaysInStage || 0), 0);
 
-  const candidateSatisfaction = 4.2;
+  const candidateSatisfaction = experienceData?.avgSatisfaction ?? 0;
 
   const cards = [
     {
@@ -48,7 +49,7 @@ export default function KPICards() {
     },
     {
       label: "候选人满意度",
-      value: candidateSatisfaction.toFixed(1),
+      value: candidateSatisfaction > 0 ? candidateSatisfaction.toFixed(1) : "--",
       trend: 0.8,
     },
   ];
