@@ -3,7 +3,8 @@ import { ref, computed, watch } from 'vue'
 import dayjs from 'dayjs'
 import type { Device, EnergyReading, Alert, EnergyStats, Dimension, TimeRange, Tenant, Floor, Building, HolidayMode } from '../types'
 import { mockDevices, generateEnergyReadings, mockAlerts, mockTimeOfUsePrices, mockFloors, mockTenants, mockBuildings } from '../mock'
-import { calculateEnergyStats } from '../utils'
+import { calculateEnergyStats, allocateByArea, allocateByPeople, allocateByUsageRatio, allocateEven } from '../utils'
+import type { AllocationMethod, AllocationResult } from '../types'
 
 function generateReadingsByTimeRange(timeRange: TimeRange): EnergyReading[] {
   let hours = 24
@@ -189,6 +190,65 @@ export const useEnergyStore = defineStore('energy', () => {
     baseReadings.value = generateReadingsByTimeRange(selectedTimeRange.value)
   }
 
+  function getStatsByDateRange(startDate: string, endDate: string): EnergyStats {
+    const allReadings = importedReadings.value.length > 0 ? importedReadings.value : baseReadings.value
+    const start = dayjs(startDate).startOf('day')
+    const end = dayjs(endDate).endOf('day')
+    
+    const filtered = allReadings.filter(r => {
+      const t = dayjs(r.timestamp)
+      return t.isAfter(start) && t.isBefore(end) && !r.isOffline
+    })
+    
+    return calculateEnergyStats(filtered, mockTimeOfUsePrices)
+  }
+
+  function getTenantUsageByDateRange(startDate: string, endDate: string): Record<string, number> {
+    const usageMap: Record<string, number> = {}
+    const allReadings = importedReadings.value.length > 0 ? importedReadings.value : baseReadings.value
+    const start = dayjs(startDate).startOf('day')
+    const end = dayjs(endDate).endOf('day')
+    
+    tenants.value.forEach(tenant => {
+      const floorDevices = devices.value.filter(d => d.floorId === tenant.floorId && d.type === 'electricity')
+      const deviceIds = floorDevices.map(d => d.id)
+      
+      const tenantReadings = allReadings.filter(r => 
+        deviceIds.includes(r.deviceId) && 
+        !r.isOffline &&
+        dayjs(r.timestamp).isAfter(start) &&
+        dayjs(r.timestamp).isBefore(end)
+      )
+      
+      usageMap[tenant.id] = tenantReadings.reduce((sum, r) => sum + r.value, 0)
+    })
+    
+    return usageMap
+  }
+
+  function getCustomAllocationResult(
+    startDate: string, 
+    endDate: string, 
+    method: AllocationMethod, 
+    commonEnergy: number
+  ): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+    const usageMap = getTenantUsageByDateRange(startDate, endDate)
+    const currentTenants = tenants.value
+    
+    switch (method) {
+      case 'by_area':
+        return allocateByArea(commonEnergy, currentTenants, usageMap)
+      case 'by_people':
+        return allocateByPeople(commonEnergy, currentTenants, usageMap)
+      case 'by_usage_ratio':
+        return allocateByUsageRatio(commonEnergy, currentTenants, usageMap)
+      case 'even':
+        return allocateEven(commonEnergy, currentTenants, usageMap)
+      default:
+        return allocateByArea(commonEnergy, currentTenants, usageMap)
+    }
+  }
+
   watch(selectedTimeRange, () => {
     baseReadings.value = generateReadingsByTimeRange(selectedTimeRange.value)
   })
@@ -225,6 +285,9 @@ export const useEnergyStore = defineStore('energy', () => {
     updateHolidayMode,
     acknowledgeAlert,
     resolveAlert,
-    refreshData
+    refreshData,
+    getStatsByDateRange,
+    getTenantUsageByDateRange,
+    getCustomAllocationResult
   }
 })

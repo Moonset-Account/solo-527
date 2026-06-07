@@ -2,9 +2,9 @@
 import { ref, computed } from 'vue'
 import { useEnergyStore } from '@/stores/energy'
 import { useAllocationStore } from '@/stores/allocation'
-import { formatNumber, formatDate, exportToCSV, export2DToCSV, getTimeRangeText } from '@/utils'
+import { formatNumber, formatDate, exportToCSV, export2DToCSV } from '@/utils'
 import { FileText, Download, Calendar, Layers, Eye, FileSpreadsheet, FileJson } from 'lucide-vue-next'
-import type { Dimension, ReportConfig } from '@/types'
+import type { Dimension, ReportConfig, AllocationMethod, AllocationResult, EnergyStats } from '@/types'
 
 const energyStore = useEnergyStore()
 const allocationStore = useAllocationStore()
@@ -19,6 +19,8 @@ const reportConfig = ref<ReportConfig>({
 })
 
 const showPreview = ref(false)
+const previewStats = ref<EnergyStats | null>(null)
+const previewAllocation = ref<Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[]>([])
 
 const dimensions = [
   { value: 'building', label: '楼栋维度' },
@@ -39,17 +41,59 @@ const timeWindow = computed(() => {
   return `${reportConfig.value.startTime} 至 ${reportConfig.value.endTime}`
 })
 
-const sampleCount = computed(() => ({
-  valid: energyStore.stats.sampleCount,
-  total: energyStore.stats.totalSamples,
-  rate: ((energyStore.stats.sampleCount / energyStore.stats.totalSamples) * 100).toFixed(1)
-}))
+const sampleCount = computed(() => {
+  if (previewStats.value) {
+    return {
+      valid: previewStats.value.sampleCount,
+      total: previewStats.value.totalSamples,
+      rate: ((previewStats.value.sampleCount / Math.max(previewStats.value.totalSamples, 1)) * 100).toFixed(1)
+    }
+  }
+  return {
+    valid: energyStore.stats.sampleCount,
+    total: energyStore.stats.totalSamples,
+    rate: ((energyStore.stats.sampleCount / Math.max(energyStore.stats.totalSamples, 1)) * 100).toFixed(1)
+  }
+})
+
+const currentAllocationRule = computed(() => {
+  return allocationStore.rules.find(r => r.id === reportConfig.value.allocationRuleId) || allocationStore.activeRule
+})
+
+const totalAllocated = computed(() => {
+  return previewAllocation.value.reduce((sum, r) => sum + r.allocatedEnergy, 0)
+})
+
+const totalTenantUsage = computed(() => {
+  return previewAllocation.value.reduce((sum, r) => sum + r.tenantUsage, 0)
+})
+
+const grandTotal = computed(() => {
+  return totalAllocated.value + totalTenantUsage.value
+})
 
 function generateReport() {
+  previewStats.value = energyStore.getStatsByDateRange(
+    reportConfig.value.startTime,
+    reportConfig.value.endTime
+  )
+  
+  if (reportConfig.value.includeAllocation && currentAllocationRule.value) {
+    previewAllocation.value = energyStore.getCustomAllocationResult(
+      reportConfig.value.startTime,
+      reportConfig.value.endTime,
+      currentAllocationRule.value.method as AllocationMethod,
+      allocationStore.commonEnergy
+    )
+  } else {
+    previewAllocation.value = []
+  }
+  
   showPreview.value = true
 }
 
 function downloadCSV() {
+  const stats = previewStats.value || energyStore.stats
   const reportData = [
     {
       '报告标题': reportConfig.value.title,
@@ -58,13 +102,13 @@ function downloadCSV() {
       '有效样本数': sampleCount.value.valid,
       '总样本数': sampleCount.value.total,
       '样本完整率': `${sampleCount.value.rate}%`,
-      '总能耗(kWh)': formatNumber(energyStore.stats.total),
-      '尖峰能耗(kWh)': formatNumber(energyStore.stats.critical),
-      '峰时段能耗(kWh)': formatNumber(energyStore.stats.peak),
-      '平时段能耗(kWh)': formatNumber(energyStore.stats.flat),
-      '谷时段能耗(kWh)': formatNumber(energyStore.stats.valley),
+      '总能耗(kWh)': formatNumber(stats.total),
+      '尖峰能耗(kWh)': formatNumber(stats.critical),
+      '峰时段能耗(kWh)': formatNumber(stats.peak),
+      '平时段能耗(kWh)': formatNumber(stats.flat),
+      '谷时段能耗(kWh)': formatNumber(stats.valley),
       '是否包含分摊': reportConfig.value.includeAllocation ? '是' : '否',
-      '分摊规则': allocationStore.activeRule?.name || '无',
+      '分摊规则': currentAllocationRule.value?.name || '无',
       '生成时间': new Date().toLocaleString('zh-CN')
     }
   ]
@@ -73,29 +117,34 @@ function downloadCSV() {
 
 function downloadAllocationCSV() {
   const rows: (string | number)[][] = []
+  const results = previewAllocation.value.length > 0 ? previewAllocation.value : allocationStore.results
+  const rule = currentAllocationRule.value
   
   rows.push(['楼宇能耗对账单'])
   rows.push([''])
   
   rows.push(['【账单基本信息】'])
-  rows.push(['时间窗口', getTimeRangeText(energyStore.selectedTimeRange)])
+  rows.push(['时间窗口', timeWindow.value])
   rows.push(['分析维度', dimensions.find(d => d.value === reportConfig.value.dimension)?.label || '楼栋维度'])
-  rows.push(['有效样本量', energyStore.stats.sampleCount])
-  rows.push(['总样本量', energyStore.stats.totalSamples])
-  rows.push(['样本完整率', `${((energyStore.stats.sampleCount / Math.max(energyStore.stats.totalSamples, 1)) * 100).toFixed(1)}%`])
-  rows.push(['分摊口径', allocationStore.activeRule?.name || '按面积分摊'])
-  rows.push(['分摊规则说明', allocationStore.activeRule?.method === 'by_area' ? '按各租户租赁面积占比分摊' :
-                allocationStore.activeRule?.method === 'by_people' ? '按各租户员工人数占比分摊' :
-                allocationStore.activeRule?.method === 'by_usage_ratio' ? '按各租户能耗用量占比分摊' : '平均分摊至所有租户'])
+  rows.push(['有效样本量', sampleCount.value.valid])
+  rows.push(['总样本量', sampleCount.value.total])
+  rows.push(['样本完整率', `${sampleCount.value.rate}%`])
+  rows.push(['分摊口径', rule?.name || '按面积分摊'])
+  rows.push(['分摊规则说明', 
+    rule?.method === 'by_area' ? '按各租户租赁面积占比分摊' :
+    rule?.method === 'by_people' ? '按各租户员工人数占比分摊' :
+    rule?.method === 'by_usage_ratio' ? '按各租户能耗用量占比分摊' : '平均分摊至所有租户'
+  ])
   rows.push(['公共区域总能耗(kWh)', formatNumber(allocationStore.commonEnergy)])
   
   if (energyStore.holidayMode) {
     rows.push([''])
-    rows.push(['【节假日模式配置】'])
+    rows.push(['【节假日模式配置（已纳入分摊口径）】'])
     rows.push(['工作日开始时间', energyStore.holidayMode.workdayStart])
     rows.push(['工作日结束时间', energyStore.holidayMode.workdayEnd])
     rows.push(['周末能耗降低比例', `${energyStore.holidayMode.weekendReduction}%`])
     rows.push(['节假日能耗降低比例', `${energyStore.holidayMode.holidayReduction}%`])
+    rows.push(['说明', '公共区域能耗已按节假日模式进行折算后参与分摊'])
   }
   
   rows.push([''])
@@ -105,7 +154,7 @@ function downloadAllocationCSV() {
     '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊公式'
   ])
   
-  allocationStore.results.forEach((r, idx) => {
+  results.forEach((r, idx) => {
     const tenant = energyStore.tenants.find(t => t.id === r.tenantId)
     rows.push([
       idx + 1,
@@ -125,15 +174,16 @@ function downloadAllocationCSV() {
     '合计', '', '',
     energyStore.tenants.reduce((sum, t) => sum + t.area, 0),
     energyStore.tenants.reduce((sum, t) => sum + t.peopleCount, 0),
-    formatNumber(allocationStore.totalTenantUsage),
-    formatNumber(allocationStore.totalAllocated),
-    formatNumber(allocationStore.grandTotal),
+    formatNumber(totalTenantUsage.value > 0 ? totalTenantUsage.value : allocationStore.totalTenantUsage),
+    formatNumber(totalAllocated.value > 0 ? totalAllocated.value : allocationStore.totalAllocated),
+    formatNumber(grandTotal.value > 0 ? grandTotal.value : allocationStore.grandTotal),
     ''
   ])
   
   rows.push([''])
   rows.push(['【数据质量说明】'])
   rows.push(['* 离线设备数据已排除，不参与统计计算'])
+  rows.push(['* 公共能耗已按节假日模式折算后参与分摊'])
   rows.push(['* 本报告生成时间：', new Date().toLocaleString('zh-CN')])
   
   export2DToCSV(rows, '租户能耗对账单')
@@ -206,6 +256,18 @@ function downloadAllocationCSV() {
               >
                 <option v-for="dim in dimensions" :key="dim.value" :value="dim.value">
                   {{ dim.label }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm text-slate-400 mb-1">分摊规则</label>
+              <select
+                v-model="reportConfig.allocationRuleId"
+                class="w-full bg-bg-tertiary border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-brand-500"
+              >
+                <option v-for="rule in allocationStore.rules" :key="rule.id" :value="rule.id">
+                  {{ rule.name }}
                 </option>
               </select>
             </div>
@@ -294,8 +356,8 @@ function downloadAllocationCSV() {
                 </p>
               </div>
               <div>
-                <p class="text-xs text-slate-400">生成时间</p>
-                <p class="text-sm text-slate-200 font-medium mt-1">{{ new Date().toLocaleString('zh-CN') }}</p>
+                <p class="text-xs text-slate-400">分摊规则</p>
+                <p class="text-sm text-slate-200 font-medium mt-1">{{ currentAllocationRule?.name }}</p>
               </div>
             </div>
 
@@ -312,57 +374,94 @@ function downloadAllocationCSV() {
                 <tbody>
                   <tr>
                     <td>尖峰时段</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.critical) }}</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.critical / energyStore.stats.total * 100, 1) }}%</td>
+                    <td class="font-mono">{{ formatNumber(previewStats?.critical ?? energyStore.stats.critical) }}</td>
+                    <td class="font-mono">{{ formatNumber((previewStats?.critical ?? energyStore.stats.critical) / (previewStats?.total ?? energyStore.stats.total) * 100, 1) }}%</td>
                   </tr>
                   <tr>
                     <td>峰时段</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.peak) }}</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.peak / energyStore.stats.total * 100, 1) }}%</td>
+                    <td class="font-mono">{{ formatNumber(previewStats?.peak ?? energyStore.stats.peak) }}</td>
+                    <td class="font-mono">{{ formatNumber((previewStats?.peak ?? energyStore.stats.peak) / (previewStats?.total ?? energyStore.stats.total) * 100, 1) }}%</td>
                   </tr>
                   <tr>
                     <td>平时段</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.flat) }}</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.flat / energyStore.stats.total * 100, 1) }}%</td>
+                    <td class="font-mono">{{ formatNumber(previewStats?.flat ?? energyStore.stats.flat) }}</td>
+                    <td class="font-mono">{{ formatNumber((previewStats?.flat ?? energyStore.stats.flat) / (previewStats?.total ?? energyStore.stats.total) * 100, 1) }}%</td>
                   </tr>
                   <tr>
                     <td>谷时段</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.valley) }}</td>
-                    <td class="font-mono">{{ formatNumber(energyStore.stats.valley / energyStore.stats.total * 100, 1) }}%</td>
+                    <td class="font-mono">{{ formatNumber(previewStats?.valley ?? energyStore.stats.valley) }}</td>
+                    <td class="font-mono">{{ formatNumber((previewStats?.valley ?? energyStore.stats.valley) / (previewStats?.total ?? energyStore.stats.total) * 100, 1) }}%</td>
                   </tr>
                   <tr class="bg-bg-tertiary/30">
                     <td class="font-medium">合计</td>
-                    <td class="font-mono font-medium text-white">{{ formatNumber(energyStore.stats.total) }}</td>
+                    <td class="font-mono font-medium text-white">{{ formatNumber(previewStats?.total ?? energyStore.stats.total) }}</td>
                     <td class="font-mono">100%</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div v-if="reportConfig.includeAllocation">
+            <div v-if="reportConfig.includeAllocation && previewAllocation.length > 0">
               <h4 class="text-sm font-medium text-white mb-3">二、租户分摊说明</h4>
               <div class="p-4 bg-bg-tertiary/30 rounded-lg">
                 <p class="text-sm text-slate-300 mb-2">
-                  <strong>分摊口径：</strong>{{ allocationStore.activeRule?.name }}
+                  <strong>分摊口径：</strong>{{ currentAllocationRule?.name }}
                 </p>
                 <p class="text-sm text-slate-300 mb-2">
                   <strong>公共区域总能耗：</strong>{{ formatNumber(allocationStore.commonEnergy) }} kWh
                 </p>
+                <p class="text-sm text-slate-300 mb-2">
+                  <strong>节假日模式：</strong>
+                  工作日 {{ energyStore.holidayMode.workdayStart }}-{{ energyStore.holidayMode.workdayEnd }}，
+                  周末降低 {{ energyStore.holidayMode.weekendReduction }}%，
+                  节假日降低 {{ energyStore.holidayMode.holidayReduction }}%
+                  <span class="text-status-info">（已纳入分摊口径）</span>
+                </p>
                 <p class="text-sm text-slate-300">
                   <strong>分摊规则：</strong>
-                  <template v-if="allocationStore.activeRule?.method === 'by_area'">
+                  <template v-if="currentAllocationRule?.method === 'by_area'">
                     按各租户租赁面积占比分摊，总面积 {{ formatNumber(energyStore.tenants.reduce((sum, t) => sum + t.area, 0)) }} ㎡
                   </template>
-                  <template v-else-if="allocationStore.activeRule?.method === 'by_people'">
+                  <template v-else-if="currentAllocationRule?.method === 'by_people'">
                     按各租户员工人数占比分摊，总人数 {{ energyStore.tenants.reduce((sum, t) => sum + t.peopleCount, 0) }} 人
                   </template>
-                  <template v-else-if="allocationStore.activeRule?.method === 'by_usage_ratio'">
-                    按各租户自耗用量比例分摊，总自耗 {{ formatNumber(allocationStore.totalTenantUsage) }} kWh
+                  <template v-else-if="currentAllocationRule?.method === 'by_usage_ratio'">
+                    按各租户自耗用量比例分摊，总自耗 {{ formatNumber(totalTenantUsage) }} kWh
                   </template>
-                  <template v-else-if="allocationStore.activeRule?.method === 'even'">
+                  <template v-else-if="currentAllocationRule?.method === 'even'">
                     平均分摊至所有租户，共 {{ energyStore.tenants.length }} 户
                   </template>
                 </p>
+              </div>
+
+              <div class="mt-4">
+                <h5 class="text-sm font-medium text-white mb-2">租户分摊明细</h5>
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>租户名称</th>
+                      <th>楼层</th>
+                      <th>自耗(kWh)</th>
+                      <th>分摊(kWh)</th>
+                      <th>总计(kWh)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in previewAllocation" :key="r.tenantId">
+                      <td>{{ r.tenantName }}</td>
+                      <td>{{ energyStore.tenants.find(t => t.id === r.tenantId)?.floorId.replace('flr-00', '') }}F</td>
+                      <td class="font-mono">{{ formatNumber(r.tenantUsage) }}</td>
+                      <td class="font-mono">{{ formatNumber(r.allocatedEnergy) }}</td>
+                      <td class="font-mono font-medium">{{ formatNumber(r.totalEnergy) }}</td>
+                    </tr>
+                    <tr class="bg-bg-tertiary/30">
+                      <td class="font-medium" colspan="2">合计</td>
+                      <td class="font-mono">{{ formatNumber(totalTenantUsage) }}</td>
+                      <td class="font-mono">{{ formatNumber(totalAllocated) }}</td>
+                      <td class="font-mono font-medium text-white">{{ formatNumber(grandTotal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -371,7 +470,6 @@ function downloadAllocationCSV() {
               <div class="p-4 bg-status-warning/10 border border-status-warning/20 rounded-lg">
                 <p class="text-sm text-status-warning">
                   <strong>注意：</strong>本报告统计周期内共有 {{ sampleCount.total - sampleCount.valid }} 条数据因设备离线被排除，
-                  涉及设备：3F 中央空调（离线 12 小时）、2F 总水表（数据不稳定）。
                   建议运维人员尽快检查设备连接状态，确保后续数据完整性。
                 </p>
               </div>
