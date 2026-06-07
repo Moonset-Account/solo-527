@@ -9,12 +9,44 @@ class TimescaleDBService:
         self.engine = None
         self._connect()
     
+    def _try_auto_init(self):
+        """尝试自动初始化数据库（如果不存在）"""
+        try:
+            from backend.db_init import (
+                check_postgres_available,
+                database_exists,
+                init_database
+            )
+            
+            if not check_postgres_available():
+                return False
+            
+            if not database_exists():
+                print("air_quality 数据库不存在，正在自动初始化...")
+                return init_database(force=False)
+            return True
+        except Exception as e:
+            print(f"自动初始化数据库失败: {e}")
+            return False
+    
     def _connect(self):
         try:
             self.engine = create_engine(Config.DATABASE_URL, pool_pre_ping=True)
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
         except Exception as e:
+            if 'database "air_quality" does not exist' in str(e).lower():
+                print("检测到 air_quality 数据库不存在，尝试自动初始化...")
+                if self._try_auto_init():
+                    try:
+                        self.engine = create_engine(Config.DATABASE_URL, pool_pre_ping=True)
+                        with self.engine.connect() as conn:
+                            conn.execute(text("SELECT 1"))
+                        print("✅ 数据库自动初始化成功，已连接")
+                        return
+                    except Exception as e2:
+                        print(f"自动初始化后连接仍失败: {e2}")
+            
             print(f"Warning: Failed to connect to TimescaleDB: {e}")
             self.engine = None
     
