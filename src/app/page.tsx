@@ -91,19 +91,14 @@ export default function Dashboard() {
     window.location.reload();
   };
 
-  const totalInteractions = useMemo(() => {
-    return platformMetrics.reduce(
-      (sum, p) => sum + p.likes + p.shares + p.comments,
-      0
-    );
+  const interactionRateRange = useMemo(() => {
+    if (platformMetrics.length === 0) return { min: 0, max: 0 };
+    const rates = platformMetrics.map(p => p.avgInteractionRate);
+    return {
+      min: Math.min(...rates),
+      max: Math.max(...rates),
+    };
   }, [platformMetrics]);
-
-  const avgInteractionRate = useMemo(() => {
-    const totalPrimary = platformMetrics.reduce((sum, p) => sum + p.primaryMetricTotal, 0);
-    return totalPrimary > 0
-      ? Number(((totalInteractions / totalPrimary) * 100).toFixed(2))
-      : 0;
-  }, [platformMetrics, totalInteractions]);
 
   const hasData = processedData.sampleSize > 0;
 
@@ -164,7 +159,7 @@ export default function Dashboard() {
                 <p className="text-sm text-gray-500 mb-4">
                   微信公众号使用「阅读量」为核心指标，抖音/B站使用「播放量」，微博/小红书使用「曝光量」
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                   <StatCard
                     label="内容总数"
                     value={processedData.sampleSize}
@@ -176,7 +171,7 @@ export default function Dashboard() {
                       </svg>
                     }
                   />
-                  {platformMetrics.slice(0, 4).map((metric) => (
+                  {platformMetrics.map((metric) => (
                     <PlatformMetricCard key={metric.platform} metric={metric} />
                   ))}
                 </div>
@@ -190,14 +185,21 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <PlatformFunnelChart data={platformFunnelData} />
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">平台互动转化对比</h3>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-800">平台互动转化对比</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        各平台按独立口径计算，互动率 = (点赞+转发+评论)/核心指标
+                      </p>
+                    </div>
+                  </div>
                   <div className="space-y-5">
                     {platformMetrics.map((metric) => (
                       <div key={metric.platform}>
                         <div className="flex items-center justify-between text-sm mb-2">
                           <span className="font-medium text-gray-700">{metric.platformLabel}</span>
-                          <span className="text-gray-500">
-                            核心指标: {metric.primaryMetricName}
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                            {metric.primaryMetricName}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-sm mb-1">
@@ -211,19 +213,24 @@ export default function Dashboard() {
                           />
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-1">
+                          <span>{metric.sampleSize} 篇内容</span>
                           <span>{metric.primaryMetricTotal.toLocaleString()} {metric.primaryMetricName}</span>
-                          <span>{(metric.likes + metric.shares + metric.comments).toLocaleString()} 互动</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-2">加权平均互动率</div>
-                    <div className="text-3xl font-bold text-gray-900">
-                      {avgInteractionRate}%
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      基于各平台核心口径加权计算
+                  <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <div className="text-sm font-medium text-amber-800">口径隔离说明</div>
+                        <div className="text-xs text-amber-700 mt-1">
+                          各平台核心指标口径不同（阅读量/播放量/曝光量），不计算跨平台加权平均值，
+                          互动率区间 {interactionRateRange.min}% ~ {interactionRateRange.max}%
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

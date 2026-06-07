@@ -383,7 +383,7 @@ export function getPlatformAggregatedMetrics(items: ContentItem[]): PlatformAggr
     });
   });
 
-  return result.sort((a, b) => b.primaryMetricTotal - a.primaryMetricTotal);
+  return result.sort((a, b) => a.platform.localeCompare(b.platform));
 }
 
 export function getPlatformInteractionFunnel(items: ContentItem[]): PlatformFunnelData[] {
@@ -425,5 +425,5 @@ export function getPlatformInteractionFunnel(items: ContentItem[]): PlatformFunn
     });
   });
 
-  return result;
+  return result.sort((a, b) => a.platform.localeCompare(b.platform));
 }
