@@ -441,16 +441,16 @@ def update_dashboard(start_date, end_date, sample_types, priorities, departments
     Output('boxplot-graph', 'figure'),
     Output('boxplot-stats-table', 'children'),
     Input('boxplot-sample-type', 'value'),
+    Input('threshold-version', 'data'),
     State('date-range-picker', 'start_date'),
     State('date-range-picker', 'end_date'),
     State('sample-type-dropdown', 'value'),
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
-    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_boxplot(selected_type, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
+def update_boxplot(selected_type, threshold_version, start_date, end_date, sample_types, priorities, departments, quick_filters):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
@@ -507,16 +507,16 @@ def update_boxplot(selected_type, start_date, end_date, sample_types, priorities
 @app.callback(
     Output('trend-graph', 'figure'),
     Input('trend-freq', 'value'),
+    Input('threshold-version', 'data'),
     State('date-range-picker', 'start_date'),
     State('date-range-picker', 'end_date'),
     State('sample-type-dropdown', 'value'),
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
-    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_trend(freq, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
+def update_trend(freq, threshold_version, start_date, end_date, sample_types, priorities, departments, quick_filters):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
@@ -543,16 +543,16 @@ def update_trend(freq, start_date, end_date, sample_types, priorities, departmen
 
 @app.callback(
     Output('abnormal-samples-table', 'children'),
+    Input('threshold-version', 'data'),
     State('date-range-picker', 'start_date'),
     State('date-range-picker', 'end_date'),
     State('sample-type-dropdown', 'value'),
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
-    Input('threshold-version', 'data'),
     prevent_initial_call=False
 )
-def update_abnormal_table(start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
+def update_abnormal_table(threshold_version, start_date, end_date, sample_types, priorities, departments, quick_filters):
     start_dt = pd.to_datetime(start_date) if start_date else None
     end_dt = pd.to_datetime(end_date) + timedelta(days=1) if end_date else None
     
@@ -631,16 +631,16 @@ def update_abnormal_table(start_date, end_date, sample_types, priorities, depart
     Output('sample-modal-body', 'children'),
     Input('abnormal-table-clickable', 'selected_rows'),
     Input('close-modal', 'n_clicks'),
+    Input('threshold-version', 'data'),
     State('date-range-picker', 'start_date'),
     State('date-range-picker', 'end_date'),
     State('sample-type-dropdown', 'value'),
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
-    Input('threshold-version', 'data'),
     prevent_initial_call=True
 )
-def open_sample_modal(selected_rows, close_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
+def open_sample_modal(selected_rows, close_clicks, threshold_version, start_date, end_date, sample_types, priorities, departments, quick_filters):
     ctx = callback_context
     if not ctx.triggered:
         return False, html.Div()
@@ -827,16 +827,16 @@ def save_threshold_config(n_clicks, rows, current_version):
 @app.callback(
     Output("download-excel", "data"),
     Input("export-btn", "n_clicks"),
+    Input('threshold-version', 'data'),
     State('date-range-picker', 'start_date'),
     State('date-range-picker', 'end_date'),
     State('sample-type-dropdown', 'value'),
     State('priority-dropdown', 'value'),
     State('department-dropdown', 'value'),
     State('quick-filters', 'value'),
-    Input('threshold-version', 'data'),
     prevent_initial_call=True
 )
-def export_report(n_clicks, start_date, end_date, sample_types, priorities, departments, quick_filters, threshold_version):
+def export_report(n_clicks, threshold_version, start_date, end_date, sample_types, priorities, departments, quick_filters):
     if not n_clicks:
         return None
     
