@@ -2,7 +2,11 @@ import { useFilterStore } from "@/stores/filterStore"
 import { Filter, X, RotateCcw } from "lucide-react"
 
 const SHIFTS = ["早班", "中班", "晚班"]
-const SLOTS = Array.from({ length: 12 }, (_, i) => `格口A${String(i + 1).padStart(2, "0")}`)
+const SLOTS = Array.from({ length: 60 }, (_, i) => {
+  const row = String.fromCharCode(65 + Math.floor(i / 12))
+  const num = String((i % 12) + 1).padStart(2, "0")
+  return { id: `${row}${num}`, label: `格口${row}${num}` }
+})
 const ROUTES = ["北京线路", "上海线路", "广州线路", "成都线路", "武汉线路", "西安线路", "杭州线路", "深圳线路"]
 const DEVICES = ["分拣机1", "分拣机2", "分拣机3", "分拣机4", "分拣机5", "分拣机6"]
 
@@ -48,7 +52,7 @@ export default function FilterBar() {
         className="bg-[#151930] border border-[#2a3050] rounded-lg px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-blue-info/50"
       >
         <option value="">全部格口</option>
-        {SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
+        {SLOTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
       </select>
 
       <select
@@ -90,7 +94,7 @@ export default function FilterBar() {
           )}
           {store.slot && (
             <span className="inline-flex items-center gap-1 bg-blue-info/10 text-blue-info text-xs px-2 py-1 rounded-md">
-              {store.slot}
+              格口{store.slot}
               <X size={10} className="cursor-pointer" onClick={() => store.setSlot("")} />
             </span>
           )}

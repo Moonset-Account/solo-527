@@ -138,16 +138,14 @@ async def api_metrics():
 
 @app.post("/api/export", response_model=ExportTaskResponse)
 async def api_export(req: ExportRequest):
-    summary_rows = query(
-        "SELECT COALESCE(SUM(total_count),0) as total, COALESCE(SUM(error_count),0) as errors FROM hourly_sort_stats"
-    )
-    total = int(summary_rows[0]["total"])
-    errors = int(summary_rows[0]["errors"])
     task_id = create_export_task(
-        {"records": [], "alarms": [], "start_date": None, "end_date": None},
         start_time=req.start_time,
         end_time=req.end_time,
         data_type=req.data_type,
+        shift=req.shift,
+        slot=req.slot,
+        route=req.route,
+        device=req.device,
     )
     return ExportTaskResponse(task_id=task_id, status="处理中")
 

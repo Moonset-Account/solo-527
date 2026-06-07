@@ -107,6 +107,10 @@ class ExportRequest(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     data_type: str = "summary"
+    shift: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
+    device: Optional[str] = None
 
 
 class ExportTaskResponse(BaseModel):

@@ -181,7 +181,7 @@ def compute_trend(start_time: str = None, end_time: str = None,
 
     alarm_where, alarm_params = _alarm_filter(start_time, end_time, device)
     alarm_sql = f"""
-        SELECT a.device_id as device, a.alarm_type,
+        SELECT a.device_id, a.alarm_type,
                a.alarm_start, a.alarm_end, a.duration_minutes
         FROM device_alarms a{alarm_where}
         ORDER BY a.alarm_start

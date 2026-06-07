@@ -10,31 +10,35 @@ DB_CONFIG = {
     "password": os.environ.get("DB_PASSWORD", ""),
 }
 
-_pool = None
 
-
-def get_conn():
-    global _pool
-    if _pool is None or _pool.closed:
-        _pool = psycopg2.connect(**DB_CONFIG)
-    if _pool.closed:
-        _pool = psycopg2.connect(**DB_CONFIG)
-    return _pool
+def _connect():
+    return psycopg2.connect(**DB_CONFIG)
 
 
 def query(sql: str, params: tuple = None) -> list[dict]:
-    conn = get_conn()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute(sql, params)
-    rows = cur.fetchall()
-    cur.close()
-    conn.rollback()
-    return [dict(r) for r in rows]
+    conn = _connect()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+        cur.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def execute(sql: str, params: tuple = None):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(sql, params)
-    conn.commit()
-    cur.close()
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        conn.commit()
+        cur.close()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

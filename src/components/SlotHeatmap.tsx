@@ -48,7 +48,7 @@ export default function SlotHeatmap() {
       textStyle: { color: "#e4e4e7", fontSize: 12 },
       formatter: (params: any) => {
         const val = params.value[2]
-        return `<strong>${data.slots[params.value[1]]}</strong><br/>` +
+        return `<strong>格口${data.slots[params.value[1]]}</strong><br/>` +
           `${sampledPeriods[params.value[0]]}<br/>` +
           `错分率: <span style="color:#f59e0b">${val}%</span>`
       },
@@ -63,7 +63,7 @@ export default function SlotHeatmap() {
     },
     yAxis: {
       type: "category" as const,
-      data: data.slots,
+      data: data.slots.map(s => `格口${s}`),
       axisLine: { lineStyle: { color: "#2a3050" } },
       axisLabel: { color: "#71717a", fontSize: 10 },
       axisTick: { show: false },
