@@ -1,152 +1,266 @@
 import {
-	DISTRICTS,
-	PLANT_TYPES,
-	TASK_TYPES,
-	TEAMS,
-	PEST_TYPES,
 	DISTRICT_AREAS,
-	formatDate,
 	type TaskRecord,
 	type WeatherRecord,
 	type PestRecord
 } from './types';
 
-class SeededRandom {
-	private seed: number;
-	constructor(seed: number) { this.seed = seed; }
-	next(): number {
-		this.seed = (this.seed * 16807 + 0) % 2147483647;
-		return (this.seed - 1) / 2147483646;
-	}
-	rand(min: number, max: number): number {
-		return min + this.next() * (max - min);
-	}
-	pick<T>(arr: T[]): T {
-		return arr[Math.floor(this.next() * arr.length)];
-	}
-	int(min: number, max: number): number {
-		return Math.floor(this.rand(min, max + 1));
-	}
+type WRow = [string, string, number, number, number, string];
+const W: WRow[] = [
+	['2025-05-01','城东片区',1.2,23.5,52,'晴'],
+	['2025-05-01','城西片区',0.8,23.0,50,'晴'],
+	['2025-05-01','城南片区',1.5,24.0,54,'晴'],
+	['2025-05-01','城北片区',0.5,22.5,48,'晴'],
+	['2025-05-01','中心片区',1.0,24.5,51,'晴'],
+	['2025-05-02','城东片区',2.0,24.0,55,'晴'],
+	['2025-05-02','城西片区',1.5,23.5,53,'晴'],
+	['2025-05-02','城南片区',2.5,24.5,58,'小雨'],
+	['2025-05-02','城北片区',1.0,23.0,50,'晴'],
+	['2025-05-02','中心片区',1.8,25.0,54,'晴'],
+	['2025-05-03','城东片区',28.5,17.0,90,'大雨'],
+	['2025-05-03','城西片区',32.0,16.5,92,'大雨'],
+	['2025-05-03','城南片区',25.0,17.5,88,'大雨'],
+	['2025-05-03','城北片区',30.5,16.0,91,'大雨'],
+	['2025-05-03','中心片区',22.0,18.0,86,'大雨'],
+	['2025-05-04','城东片区',14.0,19.0,82,'中雨'],
+	['2025-05-04','城西片区',11.0,19.5,78,'中雨'],
+	['2025-05-04','城南片区',16.5,18.5,84,'中雨'],
+	['2025-05-04','城北片区',12.0,20.0,80,'中雨'],
+	['2025-05-04','中心片区',10.5,20.5,76,'中雨'],
+	['2025-05-05','城东片区',0.3,26.0,45,'晴'],
+	['2025-05-05','城西片区',0.5,25.5,47,'晴'],
+	['2025-05-05','城南片区',0.2,27.0,43,'晴'],
+	['2025-05-05','城北片区',0.8,25.0,49,'晴'],
+	['2025-05-05','中心片区',0.4,27.5,44,'晴'],
+	['2025-05-06','城东片区',1.0,25.5,50,'晴'],
+	['2025-05-06','城西片区',0.6,26.0,48,'晴'],
+	['2025-05-06','城南片区',1.5,25.0,53,'晴'],
+	['2025-05-06','城北片区',0.4,26.5,46,'晴'],
+	['2025-05-06','中心片区',0.8,27.0,49,'晴'],
+	['2025-05-07','城东片区',6.0,21.0,72,'小雨'],
+	['2025-05-07','城西片区',4.5,21.5,68,'小雨'],
+	['2025-05-07','城南片区',8.0,20.0,78,'小雨'],
+	['2025-05-07','城北片区',3.5,22.0,65,'晴'],
+	['2025-05-07','中心片区',5.5,21.5,70,'小雨'],
+	['2025-05-08','城东片区',0.2,28.0,42,'晴'],
+	['2025-05-08','城西片区',0.3,27.5,44,'晴'],
+	['2025-05-08','城南片区',0.1,29.0,40,'晴'],
+	['2025-05-08','城北片区',0.5,27.0,46,'晴'],
+	['2025-05-08','中心片区',0.2,29.5,41,'晴'],
+	['2025-05-09','城东片区',0.0,34.0,35,'高温'],
+	['2025-05-09','城西片区',0.0,33.5,36,'高温'],
+	['2025-05-09','城南片区',0.0,35.0,33,'高温'],
+	['2025-05-09','城北片区',0.0,33.0,37,'高温'],
+	['2025-05-09','中心片区',0.0,35.5,32,'高温'],
+	['2025-05-10','城东片区',35.0,16.0,94,'大雨'],
+	['2025-05-10','城西片区',28.0,17.0,90,'大雨'],
+	['2025-05-10','城南片区',40.0,15.5,96,'大雨'],
+	['2025-05-10','城北片区',32.0,16.5,92,'大雨'],
+	['2025-05-10','中心片区',26.0,18.0,88,'大雨'],
+	['2025-05-11','城东片区',0.5,25.0,50,'晴'],
+	['2025-05-11','城西片区',0.3,26.0,48,'晴'],
+	['2025-05-11','城南片区',0.8,24.5,52,'晴'],
+	['2025-05-11','城北片区',0.2,26.5,46,'晴'],
+	['2025-05-11','中心片区',0.4,27.0,49,'晴'],
+	['2025-05-12','城东片区',1.5,24.0,55,'晴'],
+	['2025-05-12','城西片区',2.0,23.5,57,'晴'],
+	['2025-05-12','城南片区',1.0,25.0,53,'晴'],
+	['2025-05-12','城北片区',0.8,24.5,51,'晴'],
+	['2025-05-12','中心片区',1.2,25.5,54,'晴'],
+	['2025-05-13','城东片区',18.0,18.0,85,'中雨'],
+	['2025-05-13','城西片区',14.0,19.0,80,'中雨'],
+	['2025-05-13','城南片区',20.0,17.5,87,'中雨'],
+	['2025-05-13','城北片区',15.0,18.5,82,'中雨'],
+	['2025-05-13','中心片区',12.0,20.0,78,'中雨'],
+	['2025-05-14','城东片区',0.3,27.0,44,'晴'],
+	['2025-05-14','城西片区',0.5,26.5,46,'晴'],
+	['2025-05-14','城南片区',0.2,28.0,42,'晴'],
+	['2025-05-14','城北片区',0.6,26.0,48,'晴'],
+	['2025-05-14','中心片区',0.4,28.5,43,'晴'],
+	['2025-05-15','城东片区',0.8,25.5,49,'晴'],
+	['2025-05-15','城西片区',0.3,26.0,47,'晴'],
+	['2025-05-15','城南片区',1.0,25.0,51,'晴'],
+	['2025-05-15','城北片区',0.5,26.5,48,'晴'],
+	['2025-05-15','中心片区',0.2,27.0,45,'晴'],
+];
+
+type TRow = [string, string, string, string, string, string, string | null, string, number, boolean, string | null, string | null];
+const T: TRow[] = [
+	['T00001','城东片区','乔木','浇水','班组A','2025-05-01','2025-05-01','completed',1.2,false,null,null],
+	['T00002','城东片区','灌木','修剪','班组B','2025-05-01','2025-05-01','completed',1.2,false,null,null],
+	['T00003','城西片区','草坪','浇水','班组C','2025-05-01','2025-04-30','completed',0.8,false,null,null],
+	['T00004','城南片区','花卉','施肥','班组D','2025-05-01','2025-05-01','completed',1.5,false,null,null],
+	['T00005','城北片区','乔木','巡检','班组E','2025-05-01','2025-05-01','completed',0.5,true,null,'photo_6.jpg'],
+	['T00006','中心片区','绿篱','修剪','班组A','2025-05-01','2025-05-01','completed',1.0,false,null,null],
+	['T00007','城东片区','草坪','除草','班组C','2025-05-01','2025-05-01','completed',1.2,false,null,null],
+	['T00008','城西片区','乔木','浇水','班组D','2025-05-01','2025-05-01','completed',0.8,false,null,null],
+
+	['T00009','城东片区','乔木','浇水','班组A','2025-05-02','2025-05-02','completed',2.0,false,null,null],
+	['T00010','城西片区','灌木','修剪','班组B','2025-05-02','2025-05-01','completed',1.5,false,null,null],
+	['T00011','城南片区','花卉','病虫害防治','班组C','2025-05-02',null,'pending',2.5,false,null,null],
+	['T00012','城北片区','乔木','浇水','班组D','2025-05-02','2025-05-02','completed',1.0,false,null,null],
+	['T00013','中心片区','绿篱','施肥','班组E','2025-05-02','2025-05-02','completed',1.8,false,null,null],
+	['T00014','城东片区','攀援植物','修剪','班组A','2025-05-02','2025-05-02','completed',2.0,false,null,null],
+	['T00015','城西片区','草坪','除草','班组C','2025-05-02',null,'overdue',1.5,false,null,null],
+	['T00016','城南片区','乔木','巡检','班组D','2025-05-02','2025-05-02','completed',2.5,true,null,'photo_17.jpg'],
+
+	['T00017','城东片区','乔木','浇水','班组A','2025-05-03',null,'rain_delayed',28.5,false,null,null],
+	['T00018','城东片区','灌木','修剪','班组B','2025-05-03','2025-05-04','rain_delayed',28.5,false,null,null],
+	['T00019','城西片区','草坪','浇水','班组C','2025-05-03',null,'rain_delayed',32.0,false,null,null],
+	['T00020','城西片区','乔木','施肥','班组D','2025-05-03','2025-05-04','rain_delayed',32.0,false,null,null],
+	['T00021','城南片区','花卉','浇水','班组E','2025-05-03',null,'rain_delayed',25.0,false,null,null],
+	['T00022','城北片区','乔木','修剪','班组A','2025-05-03','2025-05-04','rain_delayed',30.5,false,null,null],
+	['T00023','中心片区','绿篱','浇水','班组B','2025-05-03',null,'rain_delayed',22.0,false,null,null],
+	['T00024','城东片区','草坪','病虫害防治','班组C','2025-05-03',null,'rain_delayed',28.5,false,null,null],
+	['T00025','城西片区','灌木','除草','班组E','2025-05-03','2025-05-05','rain_delayed',32.0,false,null,null],
+	['T00026','城南片区','乔木','巡检','班组A','2025-05-03',null,'rain_delayed',25.0,true,null,'photo_27.jpg'],
+
+	['T00027','城东片区','乔木','浇水','班组A','2025-05-04','2025-05-04','completed',14.0,false,null,null],
+	['T00028','城西片区','灌木','浇水','班组B','2025-05-04',null,'rain_delayed',11.0,false,null,null],
+	['T00029','城南片区','花卉','施肥','班组C','2025-05-04','2025-05-05','rain_delayed',16.5,false,null,null],
+	['T00030','城北片区','乔木','修剪','班组D','2025-05-04','2025-05-04','completed',12.0,false,null,null],
+	['T00031','中心片区','绿篱','浇水','班组E','2025-05-04','2025-05-05','rain_delayed',10.5,false,null,null],
+	['T00032','城东片区','草坪','病虫害防治','班组B','2025-05-04','2025-05-05','completed',14.0,true,'蚜虫',null],
+	['T00033','城西片区','乔木','巡检','班组A','2025-05-04','2025-05-04','completed',11.0,true,null,'photo_34.jpg'],
+
+	['T00034','城东片区','乔木','浇水','班组A','2025-05-05','2025-05-05','completed',0.3,false,null,null],
+	['T00035','城东片区','灌木','病虫害防治','班组B','2025-05-05','2025-05-05','completed',0.3,true,'蚜虫',null],
+	['T00036','城东片区','花卉','病虫害防治','班组C','2025-05-05','2025-05-06','completed',0.3,true,'蚜虫',null],
+	['T00037','城东片区','乔木','修剪','班组D','2025-05-05','2025-05-04','completed',0.3,false,null,null],
+	['T00038','城西片区','草坪','浇水','班组E','2025-05-05','2025-05-05','completed',0.5,false,null,null],
+	['T00039','城南片区','乔木','浇水','班组A','2025-05-05','2025-05-05','completed',0.2,false,null,null],
+	['T00040','城南片区','灌木','病虫害防治','班组B','2025-05-05','2025-05-05','completed',0.2,true,'红蜘蛛',null],
+	['T00041','城北片区','花卉','施肥','班组C','2025-05-05','2025-05-05','completed',0.8,false,null,null],
+	['T00042','中心片区','绿篱','修剪','班组D','2025-05-05',null,'overdue',0.4,false,null,null],
+	['T00043','城东片区','攀援植物','浇水','班组E','2025-05-05','2025-05-05','completed',0.3,false,null,null],
+	['T00044','城西片区','乔木','病虫害防治','班组A','2025-05-05','2025-05-05','completed',0.5,true,'白粉病',null],
+
+	['T00045','城东片区','乔木','浇水','班组A','2025-05-06','2025-05-06','completed',1.0,false,null,null],
+	['T00046','城西片区','灌木','修剪','班组B','2025-05-06','2025-05-06','completed',0.6,false,null,null],
+	['T00047','城南片区','草坪','浇水','班组C','2025-05-06','2025-05-06','completed',1.5,false,null,null],
+	['T00048','城南片区','花卉','病虫害防治','班组D','2025-05-06','2025-05-06','completed',1.5,true,'红蜘蛛',null],
+	['T00049','城北片区','乔木','施肥','班组E','2025-05-06',null,'overdue',0.4,false,null,null],
+	['T00050','中心片区','绿篱','浇水','班组A','2025-05-06','2025-05-06','completed',0.8,false,null,null],
+	['T00051','城东片区','灌木','病虫害防治','班组C','2025-05-06','2025-05-06','completed',1.0,true,'蚜虫',null],
+	['T00052','城西片区','乔木','巡检','班组D','2025-05-06','2025-05-06','completed',0.6,true,null,'photo_53.jpg'],
+
+	['T00053','城东片区','乔木','浇水','班组A','2025-05-07','2025-05-07','completed',6.0,false,null,null],
+	['T00054','城西片区','灌木','修剪','班组B','2025-05-07','2025-05-07','completed',4.5,false,null,null],
+	['T00055','城南片区','花卉','浇水','班组C','2025-05-07','2025-05-08','rain_delayed',8.0,false,null,null],
+	['T00056','城北片区','乔木','浇水','班组D','2025-05-07','2025-05-07','completed',3.5,false,null,null],
+	['T00057','中心片区','绿篱','病虫害防治','班组E','2025-05-07','2025-05-07','completed',5.5,true,'煤污病',null],
+	['T00058','城东片区','草坪','除草','班组A','2025-05-07','2025-05-07','completed',6.0,false,null,null],
+	['T00059','城西片区','乔木','施肥','班组C','2025-05-07',null,'overdue',4.5,false,null,null],
+
+	['T00060','城东片区','乔木','浇水','班组A','2025-05-08','2025-05-08','completed',0.2,false,null,null],
+	['T00061','城西片区','灌木','病虫害防治','班组B','2025-05-08','2025-05-08','completed',0.3,true,'白粉病',null],
+	['T00062','城西片区','乔木','修剪','班组C','2025-05-08','2025-05-07','completed',0.3,false,null,null],
+	['T00063','城南片区','草坪','浇水','班组D','2025-05-08','2025-05-08','completed',0.1,false,null,null],
+	['T00064','城北片区','花卉','施肥','班组E','2025-05-08','2025-05-08','completed',0.5,false,null,null],
+	['T00065','中心片区','绿篱','浇水','班组A','2025-05-08','2025-05-08','completed',0.2,false,null,null],
+	['T00066','城东片区','攀援植物','病虫害防治','班组D','2025-05-08','2025-05-08','completed',0.2,true,'红蜘蛛',null],
+	['T00067','城西片区','草坪','除草','班组E','2025-05-08',null,'overdue',0.3,false,null,null],
+	['T00068','城南片区','乔木','巡检','班组A','2025-05-08','2025-05-08','completed',0.1,true,null,'photo_69.jpg'],
+
+	['T00069','城东片区','乔木','浇水','班组A','2025-05-09','2025-05-09','completed',0.0,false,null,null],
+	['T00070','城西片区','灌木','修剪','班组B','2025-05-09',null,'overdue',0.0,false,null,null],
+	['T00071','城南片区','草坪','浇水','班组C','2025-05-09','2025-05-09','completed',0.0,false,null,null],
+	['T00072','城北片区','乔木','浇水','班组D','2025-05-09','2025-05-09','completed',0.0,false,null,null],
+	['T00073','中心片区','绿篱','病虫害防治','班组E','2025-05-09','2025-05-09','completed',0.0,true,'天牛',null],
+	['T00074','中心片区','花卉','浇水','班组A','2025-05-09',null,'overdue',0.0,false,null,null],
+	['T00075','城东片区','灌木','施肥','班组C','2025-05-09','2025-05-09','completed',0.0,false,null,null],
+	['T00076','城西片区','乔木','病虫害防治','班组D','2025-05-09','2025-05-09','completed',0.0,true,'锈病',null],
+	['T00077','城南片区','乔木','巡检','班组E','2025-05-09','2025-05-09','completed',0.0,true,null,'photo_78.jpg'],
+
+	['T00078','城东片区','乔木','浇水','班组A','2025-05-10',null,'rain_delayed',35.0,false,null,null],
+	['T00079','城东片区','灌木','浇水','班组B','2025-05-10','2025-05-11','rain_delayed',35.0,false,null,null],
+	['T00080','城西片区','草坪','浇水','班组C','2025-05-10',null,'rain_delayed',28.0,false,null,null],
+	['T00081','城西片区','乔木','施肥','班组D','2025-05-10','2025-05-11','rain_delayed',28.0,false,null,null],
+	['T00082','城南片区','花卉','浇水','班组E','2025-05-10',null,'rain_delayed',40.0,false,null,null],
+	['T00083','城北片区','乔木','浇水','班组A','2025-05-10',null,'rain_delayed',32.0,false,null,null],
+	['T00084','中心片区','绿篱','浇水','班组B','2025-05-10','2025-05-11','rain_delayed',26.0,false,null,null],
+	['T00085','城东片区','草坪','修剪','班组C','2025-05-10','2025-05-12','rain_delayed',35.0,false,null,null],
+	['T00086','城西片区','灌木','病虫害防治','班组D','2025-05-10','2025-05-11','rain_delayed',28.0,false,null,null],
+	['T00087','城南片区','乔木','除草','班组E','2025-05-10',null,'rain_delayed',40.0,false,null,null],
+	['T00088','城北片区','花卉','浇水','班组A','2025-05-10','2025-05-11','rain_delayed',32.0,false,null,null],
+	['T00089','中心片区','乔木','巡检','班组C','2025-05-10',null,'rain_delayed',26.0,true,null,'photo_90.jpg'],
+
+	['T00090','城东片区','乔木','浇水','班组A','2025-05-11','2025-05-11','completed',0.5,false,null,null],
+	['T00091','城西片区','灌木','修剪','班组B','2025-05-11','2025-05-11','completed',0.3,false,null,null],
+	['T00092','城南片区','草坪','浇水','班组C','2025-05-11','2025-05-11','completed',0.8,false,null,null],
+	['T00093','城北片区','乔木','病虫害防治','班组D','2025-05-11','2025-05-11','completed',0.2,true,'介壳虫',null],
+	['T00094','中心片区','绿篱','浇水','班组E','2025-05-11','2025-05-11','completed',0.4,false,null,null],
+	['T00095','城东片区','花卉','施肥','班组A','2025-05-11','2025-05-11','completed',0.5,false,null,null],
+	['T00096','城西片区','乔木','浇水','班组C','2025-05-11',null,'overdue',0.3,false,null,null],
+	['T00097','城南片区','灌木','修剪','班组D','2025-05-11','2025-05-11','completed',0.8,false,null,null],
+	['T00098','城北片区','草坪','除草','班组E','2025-05-11','2025-05-11','completed',0.2,false,null,null],
+	['T00099','中心片区','乔木','病虫害防治','班组B','2025-05-11','2025-05-11','completed',0.4,true,'叶斑病',null],
+
+	['T00100','城东片区','乔木','浇水','班组A','2025-05-12','2025-05-12','completed',1.5,false,null,null],
+	['T00101','城西片区','灌木','浇水','班组B','2025-05-12','2025-05-12','completed',2.0,false,null,null],
+	['T00102','城南片区','草坪','施肥','班组C','2025-05-12','2025-05-12','completed',1.0,false,null,null],
+	['T00103','城北片区','乔木','修剪','班组D','2025-05-12','2025-05-11','completed',0.8,false,null,null],
+	['T00104','中心片区','绿篱','浇水','班组E','2025-05-12','2025-05-12','completed',1.2,false,null,null],
+	['T00105','城东片区','灌木','病虫害防治','班组C','2025-05-12','2025-05-12','completed',1.5,true,'蚜虫',null],
+	['T00106','城西片区','乔木','巡检','班组A','2025-05-12','2025-05-12','completed',2.0,true,null,'photo_107.jpg'],
+	['T00107','城南片区','花卉','浇水','班组D','2025-05-12',null,'overdue',1.0,false,null,null],
+	['T00108','城北片区','攀援植物','修剪','班组E','2025-05-12','2025-05-12','completed',0.8,false,null,null],
+
+	['T00109','城东片区','乔木','浇水','班组A','2025-05-13','2025-05-14','rain_delayed',18.0,false,null,null],
+	['T00110','城西片区','灌木','浇水','班组B','2025-05-13',null,'rain_delayed',14.0,false,null,null],
+	['T00111','城南片区','草坪','浇水','班组C','2025-05-13','2025-05-14','rain_delayed',20.0,false,null,null],
+	['T00112','城北片区','乔木','施肥','班组D','2025-05-13','2025-05-14','rain_delayed',15.0,false,null,null],
+	['T00113','中心片区','绿篱','浇水','班组E','2025-05-13',null,'rain_delayed',12.0,false,null,null],
+	['T00114','城东片区','花卉','病虫害防治','班组A','2025-05-13','2025-05-14','rain_delayed',18.0,true,'蚜虫',null],
+	['T00115','城西片区','乔木','修剪','班组C','2025-05-13','2025-05-14','rain_delayed',14.0,false,null,null],
+	['T00116','城南片区','灌木','除草','班组D','2025-05-13',null,'rain_delayed',20.0,false,null,null],
+	['T00117','城北片区','草坪','病虫害防治','班组E','2025-05-13','2025-05-14','rain_delayed',15.0,true,'介壳虫',null],
+
+	['T00118','城东片区','乔木','浇水','班组A','2025-05-14','2025-05-14','completed',0.3,false,null,null],
+	['T00119','城西片区','灌木','修剪','班组B','2025-05-14','2025-05-14','completed',0.5,false,null,null],
+	['T00120','城南片区','草坪','浇水','班组C','2025-05-14','2025-05-14','completed',0.2,false,null,null],
+	['T00121','城北片区','乔木','病虫害防治','班组D','2025-05-14','2025-05-14','completed',0.6,true,'叶斑病',null],
+	['T00122','中心片区','绿篱','浇水','班组E','2025-05-14','2025-05-14','completed',0.4,false,null,null],
+	['T00123','城东片区','花卉','施肥','班组A','2025-05-14','2025-05-14','completed',0.3,false,null,null],
+	['T00124','城西片区','乔木','浇水','班组C','2025-05-14',null,'overdue',0.5,false,null,null],
+	['T00125','中心片区','花卉','病虫害防治','班组B','2025-05-14','2025-05-14','completed',0.4,true,'煤污病',null],
+	['T00126','城南片区','乔木','巡检','班组D','2025-05-14','2025-05-14','completed',0.2,true,null,'photo_127.jpg'],
+
+	['T00127','城东片区','乔木','浇水','班组A','2025-05-15',null,'pending',0.8,false,null,null],
+	['T00128','城西片区','灌木','修剪','班组B','2025-05-15',null,'pending',0.3,false,null,null],
+	['T00129','城南片区','草坪','浇水','班组C','2025-05-15',null,'pending',1.0,false,null,null],
+	['T00130','城北片区','乔木','施肥','班组D','2025-05-15',null,'pending',0.5,false,null,null],
+	['T00131','中心片区','绿篱','浇水','班组E','2025-05-15',null,'pending',0.2,false,null,null],
+];
+
+function expandWeather(rows: WRow[]): WeatherRecord[] {
+	return rows.map(([record_date, district, rainfall_mm, temperature, humidity, weather_type]) =>
+		({ record_date, district, rainfall_mm, temperature, humidity, weather_type })
+	);
 }
 
-const RNG = new SeededRandom(42);
-const FIXED_START = new Date(2025, 4, 1);
-const DATA_DAYS = 60;
-
-function fixedDate(offset: number): string {
-	const d = new Date(FIXED_START);
-	d.setDate(d.getDate() + offset);
-	return formatDate(d);
-}
-
-function buildWeatherRecords(): WeatherRecord[] {
-	const records: WeatherRecord[] = [];
-	for (let i = 0; i < DATA_DAYS; i++) {
-		const dateStr = fixedDate(i);
-		for (const district of DISTRICTS) {
-			const isRainy = RNG.next() < 0.25;
-			const rainfall = isRainy ? RNG.rand(5, 60) : RNG.rand(0, 4);
-			const temp = RNG.rand(15, 35);
-			const humidity = isRainy ? RNG.rand(70, 95) : RNG.rand(40, 70);
-			let weather_type: string;
-			if (rainfall > 30) weather_type = '大雨';
-			else if (rainfall > 10) weather_type = '中雨';
-			else if (rainfall > 3) weather_type = '小雨';
-			else if (temp > 32) weather_type = '高温';
-			else weather_type = '晴';
-			records.push({
-				record_date: dateStr,
-				district,
-				rainfall_mm: Math.round(rainfall * 10) / 10,
-				temperature: Math.round(temp * 10) / 10,
-				humidity: Math.round(humidity * 10) / 10,
-				weather_type
-			});
-		}
-	}
-	return records;
-}
-
-function buildTaskRecords(weatherRecords: WeatherRecord[]): TaskRecord[] {
-	const records: TaskRecord[] = [];
-	let id = 1;
-	const weatherMap = new Map<string, WeatherRecord>();
-	for (const w of weatherRecords) {
-		weatherMap.set(`${w.record_date}|${w.district}`, w);
-	}
-	for (let i = 0; i < DATA_DAYS; i++) {
-		const dateStr = fixedDate(i);
-		const tasksPerDay = RNG.int(15, 35);
-		for (let t = 0; t < tasksPerDay; t++) {
-			const district = RNG.pick(DISTRICTS);
-			const plantType = RNG.pick(PLANT_TYPES);
-			const taskType = RNG.pick(TASK_TYPES);
-			const team = RNG.pick(TEAMS);
-			const wKey = `${dateStr}|${district}`;
-			const weatherOnDate = weatherMap.get(wKey);
-			const rainfall = weatherOnDate ? weatherOnDate.rainfall_mm : 0;
-			const isHeavyRain = rainfall >= 10;
-			let status: TaskRecord['status'];
-			let completedDate: string | null = null;
-			const isPestTask = taskType === '病虫害防治';
-			const hasPestIssue = isPestTask && RNG.next() < 0.4;
-			const pestType = hasPestIssue ? RNG.pick(PEST_TYPES) : null;
-			if (i >= DATA_DAYS - 2) {
-				status = 'pending';
-			} else if (isHeavyRain && RNG.next() < 0.7) {
-				status = 'rain_delayed';
-				if (i + 1 < DATA_DAYS && RNG.next() < 0.6) {
-					completedDate = fixedDate(i + 1);
-				}
-			} else if (RNG.next() < 0.12) {
-				status = 'overdue';
-			} else {
-				status = 'completed';
-				completedDate = RNG.next() < 0.3 ? fixedDate(Math.max(0, i - 1)) : dateStr;
-			}
-			records.push({
-				id: `T${String(id++).padStart(5, '0')}`,
-				district,
-				plant_type: plantType,
-				task_type: taskType,
-				team,
-				planned_date: dateStr,
-				completed_date: completedDate,
-				status,
-				rainfall_mm: Math.round(rainfall * 10) / 10,
-				pest_issue: hasPestIssue,
-				pest_type: pestType,
-				photo_url: taskType === '巡检' ? `photo_${id}.jpg` : null
-			});
-		}
-	}
-	return records;
+function expandTasks(rows: TRow[]): TaskRecord[] {
+	return rows.map(([id, district, plant_type, task_type, team, planned_date, completed_date, status, rainfall_mm, pest_issue, pest_type, photo_url]) =>
+		({ id, district, plant_type, task_type, team, planned_date, completed_date, status: status as TaskRecord['status'], rainfall_mm, pest_issue, pest_type, photo_url })
+	);
 }
 
 function derivePestRecords(tasks: TaskRecord[]): PestRecord[] {
-	const records: PestRecord[] = [];
-	let id = 1;
-	for (const task of tasks) {
-		if (!task.pest_issue || !task.pest_type) continue;
-		const severityRoll = RNG.next();
-		let severity: PestRecord['severity'];
-		if (severityRoll < 0.5) severity = 'low';
-		else if (severityRoll < 0.85) severity = 'medium';
-		else severity = 'high';
-		records.push({
-			id: `P${String(id++).padStart(5, '0')}`,
-			district: task.district,
-			pest_type: task.pest_type,
-			severity,
-			found_date: task.planned_date,
-			plant_type: task.plant_type
-		});
-	}
-	return records;
+	let pid = 1;
+	return tasks
+		.filter((t) => t.pest_issue && t.pest_type)
+		.map((t) => ({
+			id: `P${String(pid++).padStart(5, '0')}`,
+			district: t.district,
+			pest_type: t.pest_type!,
+			severity: t.status === 'overdue' ? 'high' : t.status === 'rain_delayed' ? 'medium' : 'low',
+			found_date: t.planned_date,
+			plant_type: t.plant_type
+		}));
 }
 
-const _weatherRecords = buildWeatherRecords();
-const _taskRecords = buildTaskRecords(_weatherRecords);
+const _weatherRecords = expandWeather(W);
+const _taskRecords = expandTasks(T);
 const _pestRecords = derivePestRecords(_taskRecords);
 
 export const FIXED_TASK_RECORDS: readonly TaskRecord[] = Object.freeze(_taskRecords);

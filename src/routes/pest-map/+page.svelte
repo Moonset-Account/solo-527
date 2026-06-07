@@ -21,38 +21,39 @@
 
 	let pestMapRawData: any[] = $state([]);
 	let pestTrendRawData: any[] = $state([]);
+	let trendDates: string[] = $state([]);
 
 	async function loadMap() {
 		try {
 			const data = await queryPestMap($filterStore);
 			pestMapRawData = data;
-			const districtData: Record<string, { count: number; high: number; medium: number; low: number }> = {};
+			const keyData: Record<string, { count: number; district: string; pest_type: string }> = {};
 			for (const r of data) {
-				const d = r.district as string;
-				if (!districtData[d]) districtData[d] = { count: 0, high: 0, medium: 0, low: 0 };
-				districtData[d].count += Number(r.count);
-				if (r.severity === 'high') districtData[d].high += Number(r.count);
-				else if (r.severity === 'medium') districtData[d].medium += Number(r.count);
-				else districtData[d].low += Number(r.count);
+				const key = `${r.district}|${r.pest_type}`;
+				if (!keyData[key]) keyData[key] = { count: 0, district: r.district as string, pest_type: r.pest_type as string };
+				keyData[key].count += Number(r.count);
 			}
-			const scatterData = Object.entries(districtData).map(([name, v]) => ({
-				name,
-				value: [...(districtCoords[name] || [116.38, 39.92]), v.count],
-				high: v.high,
-				medium: v.medium,
-				low: v.low,
-				district: name
-			}));
+			const scatterData = Object.entries(keyData).map(([, v]) => {
+				const base = districtCoords[v.district] || [116.38, 39.92];
+				const jitterX = (v.pest_type.charCodeAt(0) % 5 - 2) * 0.012;
+				const jitterY = (v.pest_type.charCodeAt(1) % 5 - 2) * 0.008;
+				return {
+					name: `${v.district}·${v.pest_type}`,
+					value: [base[0] + jitterX, base[1] + jitterY, v.count],
+					district: v.district,
+					pestType: v.pest_type
+				};
+			});
 			mapOption = {
 				tooltip: {
 					formatter: (params: any) => {
 						const d = params.data;
 						if (!d) return '';
-						return `<b>${d.name}</b><br/>病虫害总数: ${d.value[2]}<br/>严重: ${d.high} | 中等: ${d.medium} | 轻微: ${d.low}<br/>严重度: ${(d.value[2] / (DISTRICT_AREAS[d.name] || 100)).toFixed(2)}/亩<br/><span style="color:#219EBC">点击下钻查看该片区病虫害防治任务</span>`;
+						return `<b>${d.district} · ${d.pestType}</b><br/>报告数: ${d.value[2]}<br/><span style="color:#219EBC">点击下钻查看该片区+虫害类型明细</span>`;
 					}
 				},
 				visualMap: {
-					min: 0, max: 80, left: 10, bottom: 10,
+					min: 0, max: 10, left: 10, bottom: 10,
 					text: ['高', '低'], textStyle: { fontSize: 10 },
 					inRange: { color: ['#40916C', '#E9C46A', '#E76F51'] },
 					calculable: true
@@ -63,9 +64,9 @@
 					type: 'scatter',
 					coordinateSystem: 'cartesian2d',
 					data: scatterData,
-					symbolSize: (val: number[]) => Math.max(20, val[2] * 1.5),
-					itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' },
-					label: { show: true, formatter: '{b}', fontSize: 10, position: 'top' },
+					symbolSize: (val: number[]) => Math.max(18, val[2] * 8),
+					itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.15)' },
+					label: { show: true, formatter: '{b}', fontSize: 9, position: 'top' },
 					emphasis: { itemStyle: { borderColor: '#1B4332', borderWidth: 2 } }
 				}]
 			};
@@ -100,7 +101,8 @@
 		try {
 			const data = await queryPestTrend($filterStore);
 			pestTrendRawData = data;
-			const dates = [...new Set(data.map((d: any) => d.date))].sort();
+			const dates = [...new Set(data.map((d: any) => String(d.date)))].sort();
+			trendDates = dates;
 			const districts = [...new Set(data.map((d: any) => d.district))];
 			const series = districts.map((dist) => ({
 				name: dist,
@@ -108,11 +110,11 @@
 				stack: 'total',
 				areaStyle: { opacity: 0.3 },
 				data: dates.map((dt) => {
-					const found = data.find((d: any) => d.date === dt && d.district === dist);
+					const found = data.find((d: any) => String(d.date) === dt && d.district === dist);
 					return found ? Number(found.count) : 0;
 				}),
 				smooth: true,
-				symbolSize: 3,
+				symbolSize: 4,
 				lineStyle: { width: 1.5 }
 			}));
 			trendOption = {
@@ -138,30 +140,44 @@
 	}
 
 	function onMapClick(params: any) {
-		if (!params.data || !params.data.district) return;
-		const district = params.data.district;
-		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
-		goto(`/detail?${params_.toString()}`);
+		if (!params.data || !params.data.district || !params.data.pestType) return;
+		const p = new URLSearchParams({
+			district: params.data.district,
+			taskType: '病虫害防治',
+			pestType: params.data.pestType
+		});
+		goto(`/detail?${p.toString()}`);
 	}
 
 	function onDistClick(params: any) {
 		if (!params.name) return;
-		const params_ = new URLSearchParams({ taskType: '病虫害防治', pestType: params.name });
-		goto(`/detail?${params_.toString()}`);
+		const p = new URLSearchParams({
+			taskType: '病虫害防治',
+			pestType: params.name
+		});
+		goto(`/detail?${p.toString()}`);
 	}
 
 	function onTrendClick(params: any) {
 		if (!params.dataIndex && params.dataIndex !== 0) return;
 		const district = params.seriesName;
 		if (!district) return;
-		const dates = [...new Set(pestTrendRawData.map((d: any) => String(d.date)))].sort();
-		const clickedDate = dates[params.dataIndex];
-		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
+		const clickedDate = trendDates[params.dataIndex];
+		const p = new URLSearchParams({
+			district,
+			taskType: '病虫害防治'
+		});
 		if (clickedDate) {
-			params_.set('dateFrom', clickedDate.slice(0, 10));
-			params_.set('dateTo', clickedDate.slice(0, 10));
+			p.set('dateFrom', clickedDate.slice(0, 10));
+			p.set('dateTo', clickedDate.slice(0, 10));
 		}
-		goto(`/detail?${params_.toString()}`);
+		const pestTypesInDistrict = pestMapRawData
+			.filter((r: any) => r.district === district)
+			.map((r: any) => r.pest_type as string);
+		if (pestTypesInDistrict.length === 1) {
+			p.set('pestType', pestTypesInDistrict[0]);
+		}
+		goto(`/detail?${p.toString()}`);
 	}
 
 	onMount(() => {
@@ -177,12 +193,12 @@
 <div class="space-y-5">
 	<div class="flex items-center justify-between">
 		<h1 class="text-lg font-bold text-[#1B4332] font-serif">病虫害地图</h1>
-		<div class="text-[10px] text-gray-400">严重度 = 片区病虫害报告数 / 片区养护面积(亩) | 点击片区/虫害类型下钻到明细</div>
+		<div class="text-[10px] text-gray-400">点击散点=片区+虫害类型下钻 | 饼图=虫害类型下钻 | 趋势=片区+日期下钻</div>
 	</div>
 
 	<div class="grid grid-cols-3 gap-4">
 		<div class="col-span-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">片区病虫害热力分布 <span class="text-[10px] font-normal text-gray-400">（点击片区下钻）</span></h2>
+			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">片区×虫害类型分布 <span class="text-[10px] font-normal text-gray-400">（点击气泡下钻）</span></h2>
 			<Chart option={mapOption} onclick={onMapClick} class="w-full" style="height: 360px" />
 		</div>
 		<div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -192,7 +208,7 @@
 	</div>
 
 	<div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-		<h2 class="text-sm font-semibold text-[#1B4332] mb-3">病虫害报告时间趋势（按片区堆叠） <span class="text-[10px] font-normal text-gray-400">（点击线段下钻该片区）</span></h2>
+		<h2 class="text-sm font-semibold text-[#1B4332] mb-3">病虫害报告时间趋势（按片区堆叠） <span class="text-[10px] font-normal text-gray-400">（点击数据点下钻该片区+日期）</span></h2>
 		<Chart option={trendOption} onclick={onTrendClick} class="w-full" style="height: 280px" />
 	</div>
 </div>
