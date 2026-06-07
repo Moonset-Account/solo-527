@@ -35,27 +35,40 @@ async function executeQuery(sql, params = {}) {
     return mockQuery(sql, params)
   }
   
-  const url = `${CH_HTTP_ENDPOINT}/?database=${CH_DATABASE}&query=`
   const queryWithParams = substituteParams(sql, params)
+  const fullQuery = queryWithParams + ' FORMAT JSON'
+  
+  console.debug('[ClickHouse] 执行查询:', queryWithParams.slice(0, 100) + '...')
   
   try {
-    const response = await fetch(url + encodeURIComponent(queryWithParams + ' FORMAT JSON'), {
-      method: 'GET',
-      headers: {
-        'X-ClickHouse-User': CH_USER,
-        'X-ClickHouse-Key': CH_PASSWORD,
-        'Content-Type': 'application/json'
-      }
+    const url = `${CH_HTTP_ENDPOINT}/`
+    const body = fullQuery
+    
+    const headers = {
+      'Content-Type': 'text/plain',
+      'X-ClickHouse-Database': CH_DATABASE,
+      'X-ClickHouse-User': CH_USER
+    }
+    if (CH_PASSWORD) {
+      headers['X-ClickHouse-Key'] = CH_PASSWORD
+    }
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body
     })
     
     if (!response.ok) {
-      throw new Error(`ClickHouse query failed: ${response.statusText}`)
+      const errorText = await response.text()
+      throw new Error(`ClickHouse query failed (${response.status}): ${errorText.slice(0, 200)}`)
     }
     
     const result = await response.json()
-    return result.data || []
+    return result.data || result || []
   } catch (err) {
-    console.error('ClickHouse 查询失败:', err)
+    console.error('ClickHouse 查询失败:', err.message)
+    console.error('  SQL:', queryWithParams.slice(0, 200))
     throw err
   }
 }

@@ -12,8 +12,11 @@
       </div>
       <div class="header-right">
         <div class="status-info" v-if="!store.isLoading">
-          <span class="status-dot online"></span>
-          <span class="status-text">数据已连接</span>
+          <span class="status-dot" :class="dataSourceClass"></span>
+          <span class="status-text">{{ dataSourceText }}</span>
+          <span class="datasource-badge" :class="dataSourceBadgeClass">
+            {{ dataSourceBadge }}
+          </span>
           <span class="status-time">{{ lastUpdateStr }}</span>
         </div>
         <div class="status-info loading" v-else>
@@ -139,6 +142,29 @@ const lastUpdateStr = computed(() => {
   return d.toLocaleString('zh-CN')
 })
 
+const dataSourceClass = computed(() => {
+  if (store.dataSource === 'clickhouse') return 'online'
+  if (store.dataSource === 'mock-fallback') return 'warning'
+  return 'mock'
+})
+
+const dataSourceText = computed(() => {
+  if (store.dataSource === 'clickhouse') return 'ClickHouse 已连接'
+  if (store.dataSource === 'mock-fallback') return 'ClickHouse 失败，已回退到 Mock'
+  return '前端 Mock 数据'
+})
+
+const dataSourceBadge = computed(() => {
+  if (store.dataSource === 'clickhouse') return 'CH'
+  return 'Mock'
+})
+
+const dataSourceBadgeClass = computed(() => {
+  if (store.dataSource === 'clickhouse') return 'ch'
+  if (store.dataSource === 'mock-fallback') return 'warning'
+  return 'mock'
+})
+
 function getAvailSeverity(rate) {
   if (rate >= 0.9) return 'success'
   if (rate >= 0.75) return 'warning'
@@ -240,6 +266,34 @@ onMounted(() => {
   }
 }
 
+.datasource-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-family: $font-mono;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  &.ch {
+    background: rgba(255, 200, 0, 0.15);
+    color: #FFC800;
+    border: 1px solid rgba(255, 200, 0, 0.3);
+  }
+  
+  &.mock {
+    background: rgba(139, 148, 158, 0.15);
+    color: $text-secondary;
+    border: 1px solid rgba(139, 148, 158, 0.3);
+  }
+  
+  &.warning {
+    background: rgba(250, 173, 20, 0.15);
+    color: $warning;
+    border: 1px solid rgba(250, 173, 20, 0.3);
+  }
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -248,6 +302,17 @@ onMounted(() => {
   box-shadow: 0 0 8px $success;
   
   &.online {
+    animation: pulse 2s infinite;
+  }
+  
+  &.mock {
+    background: $text-muted;
+    box-shadow: 0 0 8px $text-muted;
+  }
+  
+  &.warning {
+    background: $warning;
+    box-shadow: 0 0 8px $warning;
     animation: pulse 2s infinite;
   }
 }
