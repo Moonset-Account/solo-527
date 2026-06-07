@@ -1,5 +1,7 @@
 import { useStore } from '@/store/useStore'
-import { generateSKURanking, generateSKUDetail } from '@/mock/data'
+import { clickhouse } from '@/api/clickhouse'
+import { supersetClient } from '@/api/superset'
+import { pgMeta } from '@/api/postgresql'
 import { X, AlertTriangle } from 'lucide-react'
 import EChartsWrapper from '@/components/EChartsWrapper'
 import { useMemo } from 'react'
@@ -22,8 +24,23 @@ export default function SKURanking() {
   const selectedSKU = useStore((s) => s.selectedSKU)
   const setSelectedSKU = useStore((s) => s.setSelectedSKU)
 
-  const ranking = useMemo(() => generateSKURanking(warehouseType), [warehouseType])
-  const detail = useMemo(() => selectedSKU ? generateSKUDetail(selectedSKU) : null, [selectedSKU])
+  const skuThreshold = useMemo(
+    () => pgMeta.getLowSampleConfig().find((c) => c.dimension === 'sku')?.threshold ?? 30,
+    []
+  )
+
+  const ranking = useMemo(
+    () => supersetClient.query(
+      `sku_${warehouseType}`,
+      () => clickhouse.getSKURanking(warehouseType, skuThreshold)
+    ),
+    [warehouseType, skuThreshold]
+  )
+
+  const detail = useMemo(
+    () => selectedSKU ? clickhouse.getSKUDetail(selectedSKU) : null,
+    [selectedSKU]
+  )
 
   const reasonChartOption = useMemo<EChartsOption>(() => {
     if (!detail) return {}
@@ -68,9 +85,13 @@ export default function SKURanking() {
 
   return (
     <div className="relative">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-gray-800">SKU 退货率排名</h1>
-        <p className="mt-1 text-sm text-gray-400">样本量不足的 SKU 不参与排名</p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">SKU 退货率排名</h1>
+          <p className="mt-1 text-sm text-gray-400">
+            样本量不足的 SKU 不参与排名（阈值: {skuThreshold} 单） | 数据源: ClickHouse
+          </p>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg bg-white shadow-sm">
@@ -89,7 +110,7 @@ export default function SKURanking() {
           </thead>
           <tbody>
             {ranking.map((item, idx) => (
-              <tr key={item.sku} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+              <tr key={item.sku} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${item.isLowSample ? 'bg-yellow-50/30' : ''}`}>
                 <td className="px-4 py-3 text-sm">
                   {item.isLowSample ? (
                     <span className="text-gray-400">--</span>

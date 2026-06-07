@@ -1,5 +1,8 @@
 import { useStore } from '@/store/useStore'
-import { generateLogisticsCorrelation } from '@/mock/data'
+import { clickhouse } from '@/api/clickhouse'
+import { supersetClient } from '@/api/superset'
+import { pgMeta } from '@/api/postgresql'
+import { AlertTriangle } from 'lucide-react'
 import EChartsWrapper from '@/components/EChartsWrapper'
 import { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
@@ -22,29 +25,76 @@ function computeLinearRegression(data: { x: number; y: number }[]) {
 export default function Logistics() {
   const warehouseType = useStore((s) => s.warehouseType)
 
-  const logisticsData = useMemo(
-    () => generateLogisticsCorrelation(warehouseType),
-    [warehouseType]
+  const logisticsThreshold = useMemo(
+    () => pgMeta.getLowSampleConfig().find((c) => c.dimension === 'logistics_node')?.threshold ?? 50,
+    []
   )
 
+  const logisticsData = useMemo(
+    () => supersetClient.query(
+      `logistics_${warehouseType}`,
+      () => clickhouse.getLogisticsCorrelation(warehouseType, logisticsThreshold)
+    ),
+    [warehouseType, logisticsThreshold]
+  )
+
+  const rankedData = useMemo(() => {
+    const normal = logisticsData.filter((d) => !d.isLowSample)
+    const lowSample = logisticsData.filter((d) => d.isLowSample)
+    return [...normal, ...lowSample]
+  }, [logisticsData])
+
   const chartOption = useMemo<EChartsOption>(() => {
-    const scatterData = logisticsData.map((d) => [d.delayRate, d.returnRate, d.orderCount, d.node, d.avgDelayHours])
+    const normalData = logisticsData.filter((d) => !d.isLowSample)
+    const lowSampleData = logisticsData.filter((d) => d.isLowSample)
 
     const regression = computeLinearRegression(
-      logisticsData.map((d) => ({ x: d.delayRate, y: d.returnRate }))
+      normalData.map((d) => ({ x: d.delayRate, y: d.returnRate }))
     )
 
     const xMin = 0
     const xMax = Math.max(...logisticsData.map((d) => d.delayRate), 40)
 
+    const series: EChartsOption['series'] = [
+      {
+        name: '正常节点',
+        type: 'scatter',
+        data: normalData.map((d) => [d.delayRate, d.returnRate, d.orderCount, d.node, d.avgDelayHours]),
+        symbolSize: (val: number[]) => Math.sqrt(val[2]) * 2,
+        markLine: normalData.length >= 2 ? {
+          silent: true,
+          lineStyle: { type: 'dashed', color: '#999', width: 2 },
+          data: [
+            [
+              { coord: [xMin, regression.slope * xMin + regression.intercept] },
+              { coord: [xMax, regression.slope * xMax + regression.intercept] },
+            ],
+          ],
+          label: { formatter: '趋势线', position: 'insideEndTop' },
+        } : undefined,
+      },
+    ]
+
+    if (lowSampleData.length > 0) {
+      series.push({
+        name: '低样本节点',
+        type: 'scatter',
+        data: lowSampleData.map((d) => [d.delayRate, d.returnRate, d.orderCount, d.node, d.avgDelayHours]),
+        symbolSize: (val: number[]) => Math.sqrt(val[2]) * 2,
+        itemStyle: { color: '#F5A623', opacity: 0.5 },
+      })
+    }
+
     return {
       tooltip: {
         formatter: (params: any) => {
           const [delayRate, returnRate, orderCount, node, avgDelay] = params.data
-          return `<strong>${node}</strong><br/>延误率: ${delayRate}%<br/>退货率: ${returnRate}%<br/>订单量: ${orderCount}<br/>平均延误时长: ${avgDelay}小时`
+          const isLow = lowSampleData.some((d) => d.node === node)
+          return `<strong>${node}</strong>${isLow ? ' <span style="color:#F5A623">[低样本]</span>' : ''}<br/>延误率: ${delayRate}%<br/>退货率: ${returnRate}%<br/>订单量: ${orderCount}<br/>平均延误时长: ${avgDelay}小时`
         },
       },
-      grid: { left: 60, right: 40, top: 40, bottom: 60 },
+      legend: { data: lowSampleData.length > 0 ? ['正常节点', '低样本节点'] : ['正常节点'], top: 10 },
+      grid: { left: 60, right: 40, top: 50, bottom: 60 },
       xAxis: {
         name: '延误率 (%)',
         nameLocation: 'middle',
@@ -67,44 +117,39 @@ export default function Logistics() {
         top: 'center',
         itemWidth: 12,
         itemHeight: 120,
+        seriesIndex: 0,
       },
-      series: [
-        {
-          type: 'scatter',
-          data: scatterData,
-          symbolSize: (val: number[]) => Math.sqrt(val[2]) * 2,
-          markLine: {
-            silent: true,
-            lineStyle: { type: 'dashed', color: '#999', width: 2 },
-            data: [
-              [
-                { coord: [xMin, regression.slope * xMin + regression.intercept] },
-                { coord: [xMax, regression.slope * xMax + regression.intercept] },
-              ],
-            ],
-            label: { formatter: '趋势线', position: 'insideEndTop' },
-          },
-        },
-      ],
+      series,
     }
   }, [logisticsData])
 
   const tableRows = useMemo(() => {
-    return logisticsData
+    return rankedData
       .map((d) => ({
         ...d,
         impactIndex: +(d.delayRate * d.returnRate / 100).toFixed(2),
       }))
-      .sort((a, b) => b.impactIndex - a.impactIndex)
-  }, [logisticsData])
+      .sort((a, b) => {
+        if (a.isLowSample && !b.isLowSample) return 1
+        if (!a.isLowSample && b.isLowSample) return -1
+        return b.impactIndex - a.impactIndex
+      })
+  }, [rankedData])
 
-  const maxImpact = tableRows.length > 0 ? tableRows[0].impactIndex : 1
+  const maxImpact = useMemo(() => {
+    const normalRows = tableRows.filter((r) => !r.isLowSample)
+    return normalRows.length > 0 ? normalRows[0].impactIndex : (tableRows.length > 0 ? tableRows[0].impactIndex : 1)
+  }, [tableRows])
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">物流延误关联分析</h1>
-        <p className="mt-1 text-sm text-gray-500">分析物流节点延误率与退货率的关联关系</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">物流延误关联分析</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            分析物流节点延误率与退货率的关联关系 | 低样本阈值: {logisticsThreshold} 单 | 数据源: ClickHouse
+          </p>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-5">
@@ -127,23 +172,36 @@ export default function Logistics() {
             </thead>
             <tbody>
               {tableRows.map((row) => {
-                const color = row.impactIndex > 5 ? 'text-accent-red' : row.impactIndex >= 2 ? 'text-accent-orange' : 'text-accent-green'
-                const bgColor = row.impactIndex > 5 ? 'bg-accent-red' : row.impactIndex >= 2 ? 'bg-accent-orange' : 'bg-accent-green'
-                const barWidth = (row.impactIndex / maxImpact) * 100
+                const isLow = row.isLowSample
+                const color = isLow ? 'text-accent-yellow' : row.impactIndex > 5 ? 'text-accent-red' : row.impactIndex >= 2 ? 'text-accent-orange' : 'text-accent-green'
+                const bgColor = isLow ? 'bg-accent-yellow' : row.impactIndex > 5 ? 'bg-accent-red' : row.impactIndex >= 2 ? 'bg-accent-orange' : 'bg-accent-green'
+                const barWidth = isLow ? 0 : (row.impactIndex / maxImpact) * 100
                 return (
-                  <tr key={row.node} className="border-b border-gray-100">
-                    <td className="py-3 pr-4 text-gray-800">{row.node}</td>
+                  <tr key={row.node} className={`border-b border-gray-100 ${isLow ? 'bg-yellow-50/30' : ''}`}>
+                    <td className="py-3 pr-4 text-gray-800">
+                      {row.node}
+                      {isLow && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-700">
+                          <AlertTriangle size={10} />
+                          样本不足
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 pr-4 text-gray-600">{row.avgDelayHours}</td>
                     <td className="py-3 pr-4 text-gray-600">{row.delayRate}%</td>
                     <td className="py-3 pr-4 text-gray-600">{row.returnRate}%</td>
                     <td className="py-3 pr-4 text-gray-600">{row.orderCount}</td>
                     <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 overflow-hidden rounded bg-gray-100">
-                          <div className={`h-full rounded ${bgColor} transition-all duration-300`} style={{ width: `${barWidth}%` }} />
+                      {isLow ? (
+                        <span className="text-xs text-yellow-600">不参与排名</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 flex-1 overflow-hidden rounded bg-gray-100">
+                            <div className={`h-full rounded ${bgColor} transition-all duration-300`} style={{ width: `${barWidth}%` }} />
+                          </div>
+                          <span className={`min-w-[40px] text-right font-semibold ${color}`}>{row.impactIndex}</span>
                         </div>
-                        <span className={`min-w-[40px] text-right font-semibold ${color}`}>{row.impactIndex}</span>
-                      </div>
+                      )}
                     </td>
                   </tr>
                 )

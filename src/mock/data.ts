@@ -276,6 +276,7 @@ export function generateSKUDetail(
       delayRate,
       returnRate,
       orderCount: Math.floor(50 + rand() * 300),
+      isLowSample: false,
     }
   })
 
@@ -290,6 +291,7 @@ export function generateSKUDetail(
       count: warehouseDamageCount,
       percentage: roundTo((warehouseDamageCount / returnCount) * 100, 1),
       totalRefundUSD: roundTo(warehouseDamageCount * (15 + rand() * 35), 2),
+      isLowSample: false,
     },
     {
       conclusion: "consumer_reason",
@@ -297,6 +299,7 @@ export function generateSKUDetail(
       count: consumerReasonCount,
       percentage: roundTo((consumerReasonCount / returnCount) * 100, 1),
       totalRefundUSD: roundTo(consumerReasonCount * (10 + rand() * 25), 2),
+      isLowSample: false,
     },
     {
       conclusion: "other",
@@ -304,6 +307,7 @@ export function generateSKUDetail(
       count: otherCount,
       percentage: roundTo((otherCount / returnCount) * 100, 1),
       totalRefundUSD: roundTo(otherCount * (8 + rand() * 20), 2),
+      isLowSample: false,
     },
   ]
 
@@ -384,6 +388,7 @@ export function generateLogisticsCorrelation(warehouseType: WarehouseType): Logi
       delayRate,
       returnRate,
       orderCount: Math.floor(100 + rand() * 500),
+      isLowSample: false,
     }
   })
 }
@@ -419,6 +424,7 @@ export function generateQualityDistribution(warehouseType: WarehouseType): Quali
       count: warehouseDamageCount,
       percentage: warehouseDamagePct,
       totalRefundUSD: avgRefundPerOrder(warehouseDamageCount),
+      isLowSample: false,
     },
     {
       conclusion: "consumer_reason",
@@ -426,6 +432,7 @@ export function generateQualityDistribution(warehouseType: WarehouseType): Quali
       count: consumerReasonCount,
       percentage: consumerReasonPct,
       totalRefundUSD: avgRefundPerOrder(consumerReasonCount),
+      isLowSample: false,
     },
     {
       conclusion: "other",
@@ -433,6 +440,7 @@ export function generateQualityDistribution(warehouseType: WarehouseType): Quali
       count: otherCount,
       percentage: otherPct,
       totalRefundUSD: avgRefundPerOrder(otherCount),
+      isLowSample: false,
     },
   ]
 }

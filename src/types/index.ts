@@ -30,6 +30,7 @@ export interface LogisticsNodeStats {
   delayRate: number
   returnRate: number
   orderCount: number
+  isLowSample: boolean
 }
 
 export interface QualityConclusionStats {
@@ -38,6 +39,7 @@ export interface QualityConclusionStats {
   count: number
   percentage: number
   totalRefundUSD: number
+  isLowSample: boolean
 }
 
 export interface RefundByCurrency {
@@ -66,3 +68,41 @@ export interface KPIData {
 }
 
 export type WarehouseType = "all" | "overseas" | "domestic"
+
+export interface SupersetDataset {
+  id: string
+  name: string
+  schema: string
+  tableName: string
+  database: { id: number; name: string; backend: "clickhouse" | "postgresql" }
+  columns: { name: string; type: string; isFilterable: boolean }[]
+}
+
+export interface SupersetCacheEntry<T> {
+  key: string
+  data: T
+  createdAt: number
+  ttlMs: number
+}
+
+export interface SupersetPermission {
+  resource: string
+  actions: string[]
+}
+
+export interface UserRole {
+  name: string
+  permissions: SupersetPermission[]
+}
+
+export interface LowSampleConfig {
+  dimension: string
+  threshold: number
+  enabled: boolean
+}
+
+export interface CurrencyExchangeRate {
+  currency: string
+  exchangeRateToUSD: number
+  effectiveDate: string
+}

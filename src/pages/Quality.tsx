@@ -1,8 +1,12 @@
 import { useMemo } from 'react'
 import type { EChartsOption } from 'echarts'
 import { useStore } from '@/store/useStore'
-import { generateQualityDistribution, generateRefundReport } from '@/mock/data'
+import { clickhouse } from '@/api/clickhouse'
+import { supersetClient } from '@/api/superset'
+import { pgMeta } from '@/api/postgresql'
+import { AlertTriangle } from 'lucide-react'
 import EChartsWrapper from '@/components/EChartsWrapper'
+import ExportButton from '@/components/ExportButton'
 
 const CONCLUSION_CONFIG: Record<string, { color: string; border: string; label: string }> = {
   warehouse_damage: { color: '#E74C3C', border: 'border-l-red-500', label: '仓库破损' },
@@ -25,14 +29,34 @@ function formatNumber(n: number): string {
 export default function Quality() {
   const warehouseType = useStore((s) => s.warehouseType)
 
-  const qualityData = useMemo(() => generateQualityDistribution(warehouseType), [warehouseType])
-  const refundData = useMemo(() => generateRefundReport(warehouseType), [warehouseType])
+  const qualityThreshold = useMemo(
+    () => pgMeta.getLowSampleConfig().find((c) => c.dimension === 'quality_conclusion')?.threshold ?? 20,
+    []
+  )
+
+  const qualityData = useMemo(
+    () => supersetClient.query(
+      `quality_${warehouseType}`,
+      () => clickhouse.getQualityDistribution(warehouseType, qualityThreshold)
+    ),
+    [warehouseType, qualityThreshold]
+  )
+
+  const refundData = useMemo(
+    () => supersetClient.query(
+      `refund_${warehouseType}`,
+      () => clickhouse.getRefundReport(warehouseType)
+    ),
+    [warehouseType]
+  )
 
   const totalCount = useMemo(() => qualityData.reduce((s, d) => s + d.count, 0), [qualityData])
   const totalConvertedUSD = useMemo(() => refundData.reduce((s, d) => s + d.convertedUSD, 0), [refundData])
 
+  const filteredChartData = useMemo(() => qualityData.filter((d) => !d.isLowSample), [qualityData])
+
   const chartOption = useMemo<EChartsOption>(() => {
-    const pieData = qualityData.map((d) => ({
+    const pieData = filteredChartData.map((d) => ({
       name: CONCLUSION_CONFIG[d.conclusion]?.label ?? d.conclusionLabel,
       value: d.count,
       itemStyle: { color: CONCLUSION_CONFIG[d.conclusion]?.color ?? '#999' },
@@ -73,14 +97,35 @@ export default function Quality() {
         },
       ],
     }
-  }, [qualityData, totalCount])
+  }, [filteredChartData, totalCount])
+
+  const exportHeaders = ['币种', '原始金额', '汇率', '换算USD金额']
+  const exportRows = useMemo(
+    () => refundData.map((r) => [r.currency, r.originalAmount.toFixed(2), String(r.exchangeRate), r.convertedUSD.toFixed(2)]),
+    [refundData]
+  )
+
+  const hasLowSample = qualityData.some((d) => d.isLowSample)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">质检结论分析</h1>
-        <p className="mt-1 text-sm text-gray-500">仓库破损与消费者原因分层统计</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">质检结论分析</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            仓库破损与消费者原因分层统计 | 低样本阈值: {qualityThreshold} 件 | 数据源: ClickHouse + PostgreSQL
+          </p>
+        </div>
       </div>
+
+      {hasLowSample && (
+        <div className="flex items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-2.5">
+          <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0" />
+          <span className="text-sm text-yellow-700">
+            部分质检结论样本量不足（&lt;{qualityThreshold}件），已从图表和排名中排除，仅显示提示
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-4">
@@ -96,15 +141,21 @@ export default function Quality() {
             return (
               <div
                 key={d.conclusion}
-                className={`bg-white rounded-xl shadow-sm p-4 border-l-4 ${cfg.border}`}
+                className={`bg-white rounded-xl shadow-sm p-4 border-l-4 ${cfg.border} ${d.isLowSample ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex items-center">
                     <span
                       className="inline-block w-3 h-3 rounded-full mr-2"
                       style={{ backgroundColor: cfg.color }}
                     />
                     <span className="text-sm font-medium text-gray-700">{cfg.label}</span>
+                    {d.isLowSample && (
+                      <span className="ml-2 inline-flex items-center gap-1 rounded bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-700">
+                        <AlertTriangle size={10} />
+                        样本不足
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-gray-400">
                     占比 {d.percentage}%
@@ -131,9 +182,16 @@ export default function Quality() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          退款金额报表（按币种换算为 USD）
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            退款金额报表（按币种换算为 USD）
+          </h2>
+          <ExportButton
+            filename={`退款报表_${warehouseType}_${new Date().toISOString().slice(0, 10)}.csv`}
+            headers={exportHeaders}
+            rows={exportRows}
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -175,6 +233,9 @@ export default function Quality() {
               </tr>
             </tfoot>
           </table>
+        </div>
+        <div className="mt-3 text-xs text-gray-400">
+          汇率来源: PostgreSQL public.currency_exchange | 换算口径: {new Date().toISOString().slice(0, 10)} 生效汇率
         </div>
       </div>
     </div>
