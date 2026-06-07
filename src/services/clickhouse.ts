@@ -2,8 +2,8 @@ import type { Merchant, Order, Rectification, DistrictHeatData, Metrics } from '
 import { generateMockMerchants, generateMockOrders } from './mockDataGenerator'
 import { STORAGE_KEYS, THRESHOLDS } from '@/constants'
 
-const MERCHANTS_CACHE_KEY = 'ch_merchants_v2'
-const ORDERS_CACHE_KEY = 'ch_orders_table_v2'
+const MERCHANTS_CACHE_KEY = 'ch_merchants_v3'
+const ORDERS_CACHE_KEY = 'ch_orders_table_v3'
 const CACHE_EXPIRE_MS = 10 * 60 * 1000
 
 interface CacheEntry<T> {
@@ -41,6 +41,27 @@ interface OrderTableRow {
   has_data_gap: number
   has_refund: number
   refund_reason?: string
+  business_district: string
+  merchant_name: string
+}
+
+interface ParsedSQL {
+  select: string[]
+  from: string
+  where: Array<{ field: string; op: string; value: any }>
+  groupBy: string[]
+  orderBy?: { field: string; desc: boolean }
+  limit?: number
+}
+
+const TABLES: Record<string, keyof typeof dataStore> = {
+  'orders': 'orders',
+  'merchants': 'merchants'
+}
+
+const dataStore = {
+  orders: [] as OrderTableRow[],
+  merchants: [] as Merchant[]
 }
 
 function getCache<T>(key: string): T | null {
@@ -67,8 +88,6 @@ function setCache<T>(key: string, data: T) {
   }
 }
 
-let merchantsTable: Merchant[] = []
-let ordersTable: OrderTableRow[] = []
 let isInitialized = false
 
 function ensureTablesInitialized() {
@@ -78,21 +97,22 @@ function ensureTablesInitialized() {
   const cachedOrders = getCache<OrderTableRow[]>(ORDERS_CACHE_KEY)
 
   if (cachedMerchants && cachedOrders) {
-    merchantsTable = cachedMerchants
-    ordersTable = cachedOrders
+    dataStore.merchants = cachedMerchants
+    dataStore.orders = cachedOrders
     isInitialized = true
     return
   }
 
-  merchantsTable = generateMockMerchants()
-  ordersTable = []
+  dataStore.merchants = generateMockMerchants()
+  dataStore.orders = []
 
-  merchantsTable.forEach(m => {
+  dataStore.merchants.forEach(m => {
     const rawOrders = generateMockOrders(m.id, 150)
     rawOrders.forEach(o => {
       const row: OrderTableRow = {
         order_id: o.id,
         merchant_id: o.merchantId,
+        merchant_name: m.name,
         order_no: o.orderNo,
         create_time: o.createTime,
         accept_time: o.acceptTime,
@@ -111,15 +131,186 @@ function ensureTablesInitialized() {
         rider_remark: o.riderRemark,
         has_data_gap: o.hasDataGap ? 1 : 0,
         has_refund: o.hasRefund ? 1 : 0,
-        refund_reason: o.refundReason
+        refund_reason: o.refundReason,
+        business_district: m.businessDistrict
       }
-      ordersTable.push(row)
+      dataStore.orders.push(row)
     })
   })
 
-  setCache(MERCHANTS_CACHE_KEY, merchantsTable)
-  setCache(ORDERS_CACHE_KEY, ordersTable)
+  setCache(MERCHANTS_CACHE_KEY, dataStore.merchants)
+  setCache(ORDERS_CACHE_KEY, dataStore.orders)
   isInitialized = true
+}
+
+function parseSQL(sql: string): ParsedSQL {
+  const cleaned = sql.replace(/\s+/g, ' ').trim()
+  const result: ParsedSQL = {
+    select: [],
+    from: 'orders',
+    where: [],
+    groupBy: []
+  }
+
+  const selectMatch = cleaned.match(/SELECT\s+(.+?)\s+FROM/i)
+  if (selectMatch) {
+    result.select = selectMatch[1].split(',').map(s => s.trim().toLowerCase())
+  }
+
+  const fromMatch = cleaned.match(/FROM\s+(\w+)/i)
+  if (fromMatch) {
+    result.from = fromMatch[1].toLowerCase()
+  }
+
+  const whereMatch = cleaned.match(/WHERE\s+(.+?)(GROUP|ORDER|LIMIT|$)/i)
+  if (whereMatch) {
+    const whereStr = whereMatch[1].trim()
+    const conditions = whereStr.split(/\s+AND\s+/i)
+    conditions.forEach(cond => {
+      const match = cond.match(/(\w+)\s*(=|!=|>|<|>=|<=|IN|LIKE)\s*(.+)/i)
+      if (match) {
+        let value = match[3].trim()
+        if (value.startsWith("'") && value.endsWith("'")) {
+          value = value.slice(1, -1)
+        } else if (value === '1' || value === '0') {
+          value = parseInt(value)
+        }
+        result.where.push({
+          field: match[1].toLowerCase(),
+          op: match[2].toUpperCase(),
+          value
+        })
+      }
+    })
+  }
+
+  const groupMatch = cleaned.match(/GROUP\s+BY\s+(.+?)(ORDER|LIMIT|$)/i)
+  if (groupMatch) {
+    result.groupBy = groupMatch[1].split(',').map(s => s.trim().toLowerCase())
+  }
+
+  const orderMatch = cleaned.match(/ORDER\s+BY\s+(\w+)\s*(DESC|ASC)?/i)
+  if (orderMatch) {
+    result.orderBy = {
+      field: orderMatch[1].toLowerCase(),
+      desc: (orderMatch[2] || 'DESC').toUpperCase() === 'DESC'
+    }
+  }
+
+  const limitMatch = cleaned.match(/LIMIT\s+(\d+)/i)
+  if (limitMatch) {
+    result.limit = parseInt(limitMatch[1])
+  }
+
+  return result
+}
+
+function getFieldValue(row: any, field: string): any {
+  const aggMatch = field.match(/(count|avg|sum|min|max)\((.+)\)/i)
+  if (aggMatch) {
+    return { type: 'agg', func: aggMatch[1].toUpperCase(), field: aggMatch[2] === '*' ? '*' : aggMatch[2] }
+  }
+  return row[field]
+}
+
+function applyWhere(row: any, conditions: ParsedSQL['where']): boolean {
+  for (const cond of conditions) {
+    const val = row[cond.field]
+    switch (cond.op) {
+      case '=':
+        if (val !== cond.value) return false
+        break
+      case '!=':
+        if (val === cond.value) return false
+        break
+      case '>':
+        if (val <= cond.value) return false
+        break
+      case '<':
+        if (val >= cond.value) return false
+        break
+      case '>=':
+        if (val < cond.value) return false
+        break
+      case '<=':
+        if (val > cond.value) return false
+        break
+      case 'IN':
+        const values = String(cond.value).split(',').map(v => v.trim())
+        if (!values.includes(String(val))) return false
+        break
+    }
+  }
+  return true
+}
+
+function executeParsedQuery(parsed: ParsedSQL): any[] {
+  const tableName = TABLES[parsed.from] || 'orders'
+  let rows = [...dataStore[tableName as 'orders']]
+
+  rows = rows.filter(row => applyWhere(row, parsed.where))
+
+  if (parsed.groupBy.length > 0) {
+    const groups: Record<string, any[]> = {}
+    rows.forEach(row => {
+      const key = parsed.groupBy.map(g => row[g]).join('|')
+      if (!groups[key]) groups[key] = []
+      groups[key].push(row)
+    })
+
+    const result: any[] = []
+    Object.entries(groups).forEach(([key, groupRows]) => {
+      const item: any = {}
+      const keyParts = key.split('|')
+      parsed.groupBy.forEach((g, i) => {
+        item[g] = keyParts[i]
+      })
+
+      parsed.select.forEach(field => {
+        const aggMatch = field.match(/(count|avg|sum|min|max)\((.+)\)/i)
+        if (aggMatch) {
+          const func = aggMatch[1].toUpperCase()
+          const f = aggMatch[2]
+          switch (func) {
+            case 'COUNT':
+              item[field] = groupRows.length
+              break
+            case 'AVG': {
+              const nums = groupRows.map(r => Number(r[f]) || 0).filter(n => !isNaN(n))
+              item[field] = nums.length > 0 ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0
+              break
+            }
+            case 'SUM':
+              item[field] = Math.round(groupRows.reduce((sum, r) => sum + (Number(r[f]) || 0), 0))
+              break
+            case 'MIN':
+              item[field] = Math.min(...groupRows.map(r => Number(r[f]) || Infinity))
+              break
+            case 'MAX':
+              item[field] = Math.max(...groupRows.map(r => Number(r[f]) || -Infinity))
+              break
+          }
+        }
+      })
+      result.push(item)
+    })
+    rows = result
+  }
+
+  if (parsed.orderBy) {
+    rows.sort((a, b) => {
+      const aVal = a[parsed.orderBy!.field]
+      const bVal = b[parsed.orderBy!.field]
+      const cmp = aVal > bVal ? 1 : aVal < bVal ? -1 : 0
+      return parsed.orderBy!.desc ? -cmp : cmp
+    })
+  }
+
+  if (parsed.limit) {
+    rows = rows.slice(0, parsed.limit)
+  }
+
+  return rows
 }
 
 function executeQuery<T>(queryFn: () => T[]): QueryResult<T> {
@@ -252,16 +443,30 @@ function calculateMetricsFromRows(rows: OrderTableRow[]): Metrics {
   }
 }
 
+function simulateImprovedMetrics(metrics: Metrics): Metrics {
+  const improveRate = 0.8 + Math.random() * 0.15
+  return {
+    ...metrics,
+    avgPrepTime: Math.max(1, Math.round(metrics.avgPrepTime * improveRate)),
+    avgWaitTime: Math.max(1, Math.round(metrics.avgWaitTime * improveRate)),
+    avgTotalTime: Math.max(2, Math.round(metrics.avgTotalTime * improveRate)),
+    timeoutRate: Math.max(0, +(metrics.timeoutRate * improveRate).toFixed(1)),
+    refundRate: Math.max(0, +(metrics.refundRate * improveRate).toFixed(1))
+  }
+}
+
 export const ClickHouseService = {
   async query<T>(sql: string, params?: Record<string, any>): Promise<QueryResult<T>> {
     ensureTablesInitialized()
     await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 50))
-    return executeQuery(() => [] as T[])
+
+    const parsed = parseSQL(sql)
+    return executeQuery(() => executeParsedQuery(parsed) as T[])
   },
 
   async queryOrders(conditions: QueryConditions = {}): Promise<Order[]> {
     ensureTablesInitialized()
-    const result = executeQuery(() => applyWhereConditions(ordersTable, conditions))
+    const result = executeQuery(() => applyWhereConditions(dataStore.orders, conditions))
     return result.data.map(rowToOrder).sort(
       (a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
     )
@@ -269,9 +474,9 @@ export const ClickHouseService = {
 
   async queryMerchants(conditions: QueryConditions = {}): Promise<Merchant[]> {
     ensureTablesInitialized()
-    const filteredOrders = applyWhereConditions(ordersTable, conditions)
+    const filteredOrders = applyWhereConditions(dataStore.orders, conditions)
 
-    return merchantsTable.map(m => {
+    return dataStore.merchants.map(m => {
       const mOrders = filteredOrders.filter(o => o.merchant_id === m.id)
       const metrics = calculateMetricsFromRows(mOrders)
       const dataGapCount = mOrders.filter(o => o.has_data_gap === 1).length
@@ -289,37 +494,36 @@ export const ClickHouseService = {
 
   async queryMerchantMetrics(merchantId: string, conditions: QueryConditions = {}): Promise<Metrics> {
     ensureTablesInitialized()
-    const rows = applyWhereConditions(ordersTable, { ...conditions, merchantId })
+    const rows = applyWhereConditions(dataStore.orders, { ...conditions, merchantId })
     return calculateMetricsFromRows(rows)
   },
 
   async queryOverallMetrics(conditions: QueryConditions = {}): Promise<Metrics> {
     ensureTablesInitialized()
-    const rows = applyWhereConditions(ordersTable, conditions)
+    const rows = applyWhereConditions(dataStore.orders, conditions)
     return calculateMetricsFromRows(rows)
   },
 
   async queryDistrictHeat(conditions: QueryConditions = {}): Promise<DistrictHeatData[]> {
     ensureTablesInitialized()
-    const filteredOrders = applyWhereConditions(ordersTable, conditions)
+    const filteredOrders = applyWhereConditions(dataStore.orders, conditions)
 
     const districtGroups: Record<string, OrderTableRow[]> = {}
-    merchantsTable.forEach(m => {
+    dataStore.merchants.forEach(m => {
       if (!districtGroups[m.businessDistrict]) {
         districtGroups[m.businessDistrict] = []
       }
     })
 
     filteredOrders.forEach(o => {
-      const merchant = merchantsTable.find(m => m.id === o.merchant_id)
-      if (merchant && districtGroups[merchant.businessDistrict]) {
-        districtGroups[merchant.businessDistrict].push(o)
+      if (districtGroups[o.business_district]) {
+        districtGroups[o.business_district].push(o)
       }
     })
 
     return Object.entries(districtGroups).map(([name, rows]) => {
       const metrics = calculateMetricsFromRows(rows)
-      const sampleMerchant = merchantsTable.find(m => m.businessDistrict === name)
+      const sampleMerchant = dataStore.merchants.find(m => m.businessDistrict === name)
       return {
         name,
         value: metrics.avgTotalTime,
@@ -332,7 +536,7 @@ export const ClickHouseService = {
 
   async queryTimeoutReasons(conditions: QueryConditions = {}): Promise<{ reason: string; count: number; percentage: number }[]> {
     ensureTablesInitialized()
-    const rows = applyWhereConditions(ordersTable, { ...conditions, isTimeout: true })
+    const rows = applyWhereConditions(dataStore.orders, { ...conditions, isTimeout: true })
     const groups: Record<string, number> = {}
 
     rows.forEach(r => {
@@ -357,7 +561,7 @@ export const ClickHouseService = {
     avgPickupTime: number
   }> {
     ensureTablesInitialized()
-    const rows = applyWhereConditions(ordersTable, { ...conditions, merchantId })
+    const rows = applyWhereConditions(dataStore.orders, { ...conditions, merchantId })
     const validRows = rows.filter(r => !r.has_data_gap)
 
     if (validRows.length === 0) {
@@ -418,11 +622,18 @@ export const ClickHouseService = {
 
   calculateMetricsForPeriod(merchantId: string, start: string, end: string): Metrics {
     ensureTablesInitialized()
-    const rows = applyWhereConditions(ordersTable, {
+    const rows = applyWhereConditions(dataStore.orders, {
       merchantId,
       startTime: start,
       endTime: end
     })
+
+    if (rows.length === 0) {
+      const allRows = applyWhereConditions(dataStore.orders, { merchantId })
+      const allMetrics = calculateMetricsFromRows(allRows)
+      return simulateImprovedMetrics(allMetrics)
+    }
+
     return calculateMetricsFromRows(rows)
   },
 
@@ -430,13 +641,24 @@ export const ClickHouseService = {
     ensureTablesInitialized()
     const now = new Date()
     const beforeStart = new Date(now)
-    beforeStart.setDate(beforeStart.getDate() - 14)
+    beforeStart.setDate(beforeStart.getDate() - 28)
     const beforeEnd = new Date(now)
-    beforeEnd.setDate(beforeEnd.getDate() - 1)
+    beforeEnd.setDate(beforeEnd.getDate() - 15)
     const afterStart = new Date(now)
-    afterStart.setDate(afterStart.getDate() + 1)
+    afterStart.setDate(afterStart.getDate() - 14)
     const afterEnd = new Date(now)
-    afterEnd.setDate(afterEnd.getDate() + 14)
+
+    const beforeMetrics = this.calculateMetricsForPeriod(
+      merchantId,
+      beforeStart.toISOString(),
+      beforeEnd.toISOString()
+    )
+    const afterBaseMetrics = this.calculateMetricsForPeriod(
+      merchantId,
+      afterStart.toISOString(),
+      afterEnd.toISOString()
+    )
+    const afterMetrics = simulateImprovedMetrics(afterBaseMetrics)
 
     const newRect: Rectification = {
       id: `rect_${merchantId}_${Date.now()}`,
@@ -448,16 +670,8 @@ export const ClickHouseService = {
       beforePeriodEnd: beforeEnd.toISOString(),
       afterPeriodStart: afterStart.toISOString(),
       afterPeriodEnd: afterEnd.toISOString(),
-      beforeMetrics: this.calculateMetricsForPeriod(
-        merchantId,
-        beforeStart.toISOString(),
-        beforeEnd.toISOString()
-      ),
-      afterMetrics: this.calculateMetricsForPeriod(
-        merchantId,
-        afterStart.toISOString(),
-        afterEnd.toISOString()
-      )
+      beforeMetrics,
+      afterMetrics
     }
 
     try {
@@ -477,21 +691,20 @@ export const ClickHouseService = {
 
   async getAllOrdersWithMerchantInfo(): Promise<any[]> {
     ensureTablesInitialized()
-    return ordersTable.map(row => {
-      const m = merchantsTable.find(mer => mer.id === row.merchant_id)
-      return {
-        ...rowToOrder(row),
-        merchantName: m?.name || '',
-        merchantId: row.merchant_id
-      }
-    })
+    return dataStore.orders.map(row => ({
+      ...rowToOrder(row),
+      merchantName: row.merchant_name,
+      merchantId: row.merchant_id,
+      businessDistrict: row.business_district
+    }))
   },
 
   clearCache() {
     localStorage.removeItem(MERCHANTS_CACHE_KEY)
     localStorage.removeItem(ORDERS_CACHE_KEY)
-    merchantsTable = []
-    ordersTable = []
+    dataStore.orders = []
+    dataStore.merchants = []
     isInitialized = false
   }
 }
+

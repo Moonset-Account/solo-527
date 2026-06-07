@@ -69,7 +69,7 @@
       </el-button>
     </div>
 
-    <div class="grid grid-cols-5 gap-4 mb-5">
+    <div class="grid grid-cols-6 gap-4 mb-5">
       <div class="stat-card col-span-1">
         <div class="text-center">
           <div class="text-xs text-[#86909C] mb-1">接单→备餐开始</div>
@@ -86,6 +86,15 @@
             {{ metrics.avgWaitTime }}<span class="text-sm font-normal">分钟</span>
           </div>
           <div class="text-xs text-[#86909C] mt-1">骑手等待时长</div>
+        </div>
+      </div>
+      <div class="stat-card col-span-1">
+        <div class="text-center">
+          <div class="text-xs text-[#86909C] mb-1">下单→退款</div>
+          <div class="stat-value text-[#86909C]">
+            {{ metrics.avgRefundTime || '-' }}<span class="text-sm font-normal" v-if="metrics.avgRefundTime">分钟</span>
+          </div>
+          <div class="text-xs text-[#86909C] mt-1">退款响应时长</div>
         </div>
       </div>
       <div class="stat-card col-span-1">
@@ -278,6 +287,12 @@
                     :class="order.waitDuration && order.waitDuration > 10 ? 'text-[#FF7D00]' : 'text-[#00B42A]'"
                   >
                     {{ order.waitDuration !== undefined ? order.waitDuration + ' 分钟' : '不计入统计' }}
+                  </span>
+                </div>
+                <div v-if="order.hasRefund && order.refundDuration" class="flex items-center gap-2">
+                  <span class="text-[#86909C]">退款时长：</span>
+                  <span class="font-medium text-[#F53F3F]">
+                    {{ order.refundDuration }} 分钟
                   </span>
                 </div>
                 <div v-if="order.timeoutReason" class="flex items-center gap-2">
