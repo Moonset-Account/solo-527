@@ -147,6 +147,13 @@ class AnomalyDetector:
         if df.empty:
             return df
         
+        df = df.copy()
+        
+        if 'is_abnormal' not in df.columns:
+            df['is_abnormal'] = False
+        if 'abnormal_reason' not in df.columns:
+            df['abnormal_reason'] = ''
+        
         df = self.detect_large_orders(df)
         
         if remove_large:
@@ -156,6 +163,8 @@ class AnomalyDetector:
         
         if remove_extreme:
             df.loc[df['is_extreme_wait'] == True, 'is_abnormal'] = True
+        
+        df['is_outage_affected'] = False
         
         if outages_df is not None and not outages_df.empty:
             df = self.mark_outage_orders(df, outages_df)
