@@ -17,19 +17,35 @@
   let refundData = [];
   let productData = [];
 
-  let viewMode = 'all';
+  let loadError = null;
 
   async function fetchData() {
     loading = true;
+    loadError = null;
     const query = $filterQueryString;
     
     try {
       const [summaryRes, funnelRes, heatmapRes, refundRes, productsRes] = await Promise.all([
-        fetch(`/api/summary?${query}`).then(r => r.json()),
-        fetch(`/api/funnel?${query}`).then(r => r.json()),
-        fetch(`/api/heatmap?${query}`).then(r => r.json()),
-        fetch(`/api/refund?${query}`).then(r => r.json()),
-        fetch(`/api/products?${query}`).then(r => r.json())
+        fetch('/api/summary?' + query).then(r => {
+          if (!r.ok) throw new Error('API错误: ' + r.status);
+          return r.json();
+        }),
+        fetch('/api/funnel?' + query).then(r => {
+          if (!r.ok) throw new Error('API错误: ' + r.status);
+          return r.json();
+        }),
+        fetch('/api/heatmap?' + query).then(r => {
+          if (!r.ok) throw new Error('API错误: ' + r.status);
+          return r.json();
+        }),
+        fetch('/api/refund?' + query).then(r => {
+          if (!r.ok) throw new Error('API错误: ' + r.status);
+          return r.json();
+        }),
+        fetch('/api/products?' + query).then(r => {
+          if (!r.ok) throw new Error('API错误: ' + r.status);
+          return r.json();
+        })
       ]);
 
       summaryData = summaryRes.summary;
@@ -41,6 +57,7 @@
       productData = productsRes;
     } catch (error) {
       console.error('数据加载失败:', error);
+      loadError = error.message;
     } finally {
       loading = false;
     }
@@ -50,118 +67,8 @@
     fetchData();
   }
 
-  function generateMockData() {
-    summaryData = {
-      metrics: {
-        watch_uv: 125680,
-        interaction_rate: 28.5,
-        cart_add_rate: 12.3,
-        conversion_rate: 4.2,
-        gmv: 2589600,
-        refund_rate: 8.7
-      },
-      anomalies: [
-        {
-          type: 'warning',
-          metric: '转化率',
-          value: '4.2%',
-          message: '转化率低于行业平均水平5%',
-          suggestion: '建议优化商品讲解话术，增加限时优惠'
-        },
-        {
-          type: 'danger',
-          metric: '退款率',
-          value: '8.7%',
-          message: '退款率接近预警阈值10%',
-          suggestion: '建议检查商品质量问题，优化详情页描述'
-        }
-      ]
-    };
-
-    fulfillmentData = [
-      { product_type: 'spot', fulfillment_rate: 94.5, total_orders: 3256 },
-      { product_type: 'preorder', fulfillment_rate: 82.3, total_orders: 1892 }
-    ];
-
-    dimensions = {
-      anchors: [
-        { anchor_id: 'a001', anchor_name: '小美' },
-        { anchor_id: 'a002', anchor_name: '阿杰' },
-        { anchor_id: 'a003', anchor_name: '薇薇' },
-        { anchor_id: 'a004', anchor_name: '大壮' },
-        { anchor_id: 'a005', anchor_name: '晓晓' }
-      ],
-      products: [
-        { product_id: 'p001', product_name: '保湿精华液', product_type: 'spot' },
-        { product_id: 'p002', product_name: '限定口红礼盒', product_type: 'preorder' },
-        { product_id: 'p003', product_name: '运动T恤', product_type: 'spot' },
-        { product_id: 'p004', product_name: '设计师联名卫衣', product_type: 'preorder' },
-        { product_id: 'p005', product_name: '零食大礼包', product_type: 'spot' },
-        { product_id: 'p006', product_name: '进口坚果礼盒', product_type: 'preorder' },
-        { product_id: 'p007', product_name: '无线蓝牙耳机', product_type: 'spot' },
-        { product_id: 'p008', product_name: '智能手环Pro', product_type: 'preorder' },
-        { product_id: 'p009', product_name: '家用扫地机器人', product_type: 'spot' },
-        { product_id: 'p010', product_name: '空气净化器', product_type: 'preorder' }
-      ],
-      activities: [
-        { activity_id: 'act001', activity_name: '618大促' },
-        { activity_id: 'act002', activity_name: '品牌日' },
-        { activity_id: 'act003', activity_name: '新品首发' },
-        { activity_id: 'act004', activity_name: '日常直播' }
-      ]
-    };
-
-    funnelData = [
-      { name: '观看', value: 125680 },
-      { name: '互动', value: 35820 },
-      { name: '加购', value: 15460 },
-      { name: '下单', value: 5280 },
-      { name: '成交', value: 4820 }
-    ];
-
-    heatmapData = [];
-    const timeSlots = ['00-02', '02-04', '04-06', '06-08', '08-10', '10-12', 
-                       '12-14', '14-16', '16-18', '18-20', '20-22', '22-24'];
-    for (let i = 0; i < timeSlots.length; i++) {
-      for (let j = 0; j < 24; j++) {
-        const base = i >= 9 ? 80 : i >= 6 ? 50 : 20;
-        heatmapData.push({
-          time_slot: timeSlots[i],
-          time_bucket: j * 30,
-          total_orders: Math.floor(base * (0.5 + Math.random()))
-        });
-      }
-    }
-
-    refundData = [
-      { refund_reason: 'quality', count: 156, amount: 45800 },
-      { refund_reason: 'description', count: 124, amount: 36200 },
-      { refund_reason: 'size', count: 98, amount: 28500 },
-      { refund_reason: 'price', count: 87, amount: 25400 },
-      { refund_reason: 'delivery', count: 76, amount: 22100 },
-      { refund_reason: 'damage', count: 45, amount: 13200 },
-      { refund_reason: 'regret', count: 112, amount: 32800 },
-      { refund_reason: 'other', count: 58, amount: 16900 }
-    ];
-
-    productData = [
-      { product_id: 'p009', product_name: '家用扫地机器人', product_type: 'spot', product_category: '家电', gmv: 589600, order_count: 656, refund_count: 42 },
-      { product_id: 'p010', product_name: '空气净化器', product_type: 'preorder', product_category: '家电', gmv: 423500, order_count: 326, refund_count: 38 },
-      { product_id: 'p008', product_name: '智能手环Pro', product_type: 'preorder', product_category: '数码', gmv: 358200, order_count: 718, refund_count: 52 },
-      { product_id: 'p007', product_name: '无线蓝牙耳机', product_type: 'spot', product_category: '数码', gmv: 298500, order_count: 1498, refund_count: 124 },
-      { product_id: 'p002', product_name: '限定口红礼盒', product_type: 'preorder', product_category: '美妆', gmv: 245600, order_count: 821, refund_count: 76 },
-      { product_id: 'p004', product_name: '设计师联名卫衣', product_type: 'preorder', product_category: '服饰', gmv: 218900, order_count: 610, refund_count: 58 },
-      { product_id: 'p001', product_name: '保湿精华液', product_type: 'spot', product_category: '美妆', gmv: 186400, order_count: 1456, refund_count: 98 },
-      { product_id: 'p006', product_name: '进口坚果礼盒', product_type: 'preorder', product_category: '食品', gmv: 125800, order_count: 749, refund_count: 45 },
-      { product_id: 'p003', product_name: '运动T恤', product_type: 'spot', product_category: '服饰', gmv: 98600, order_count: 1108, refund_count: 72 },
-      { product_id: 'p005', product_name: '零食大礼包', product_type: 'spot', product_category: '食品', gmv: 64500, order_count: 948, refund_count: 36 }
-    ];
-
-    loading = false;
-  }
-
   onMount(() => {
-    generateMockData();
+    fetchData();
   });
 </script>
 
@@ -188,6 +95,18 @@
       <div class="loading-state">
         <div class="spinner"></div>
         <p>数据加载中...</p>
+      </div>
+    {:else if loadError}
+      <div class="error-state">
+        <div class="error-icon">⚠️</div>
+        <h3>数据加载失败</h3>
+        <p class="error-message">{loadError}</p>
+        <div class="setup-hint">
+          <p>请先运行以下命令初始化数据：</p>
+          <pre><code>npm run generate:data
+npm run clean:data</code></pre>
+          <button class="retry-btn" on:click={fetchData}>重试加载</button>
+        </div>
       </div>
     {:else}
       <AnomalySummary data={summaryData} fulfillment={fulfillmentData} />
@@ -326,6 +245,76 @@
     .chart-row {
       grid-template-columns: 1fr;
     }
+  }
+
+  .error-state {
+    background: #fff;
+    border-radius: 12px;
+    padding: 48px 32px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .error-state h3 {
+    font-size: 20px;
+    color: #d32f2f;
+    margin: 0 0 12px 0;
+  }
+
+  .error-message {
+    color: #666;
+    margin: 0 0 24px 0;
+    font-size: 14px;
+  }
+
+  .setup-hint {
+    background: #f5f7fa;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .setup-hint p {
+    color: #333;
+    margin: 0 0 12px 0;
+    font-weight: 500;
+  }
+
+  .setup-hint pre {
+    background: #1a1a2e;
+    color: #4ade80;
+    padding: 12px 16px;
+    border-radius: 6px;
+    text-align: left;
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    overflow-x: auto;
+  }
+
+  .setup-hint code {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  }
+
+  .retry-btn {
+    padding: 10px 24px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .retry-btn:hover {
+    background: #5a67d8;
   }
 
   @media (max-width: 768px) {

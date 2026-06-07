@@ -50,15 +50,19 @@ function randomChoice(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function pad(num, len) {
+  return String(num).padStart(len, '0');
+}
+
 function generateSessionData() {
   const sessions = [];
   let sessionId = 1;
   
   for (let day = 1; day <= 7; day++) {
-    const date = `2024-06-${String(day).padStart(2, '0')}';
+    const date = '2024-06-' + pad(day, 2);
     for (const slot of timeSlots) {
-      const baseViewers = slot >= '18-20' || slot >= '20-22' ? 5000 : slot >= '12-14' ? 3000 : 1000;
-      const viewerCount = randomInt(baseViewers * 0.8, baseViewers * 1.2);
+      const baseViewers = slot >= '18-20' ? 5000 : slot >= '12-14' ? 3000 : 1000;
+      const viewerCount = randomInt(Math.floor(baseViewers * 0.8), Math.floor(baseViewers * 1.2));
       
       for (let i = 0; i < viewerCount; i++) {
         const anchor = randomChoice(anchors);
@@ -88,16 +92,20 @@ function generateSessionData() {
           }
           
           if (product.type === 'spot') {
-            isFulfilled = Math.random() < 0.95;
+            isFulfilled = Math.random() < 0.95 ? 1 : 0;
           } else {
-            isFulfilled = Math.random() < 0.85;
+            isFulfilled = Math.random() < 0.85 ? 1 : 0;
           }
         }
         
+        const sid = 's' + pad(sessionId, 8);
+        const uid = 'u' + pad(randomInt(1, 50000), 8);
+        const oid = hasOrder ? 'o' + pad(sessionId, 8) : null;
+        
         sessions.push({
-          session_id: `s${String(sessionId).padStart(8, '0')}`,
-          user_id: `u${String(randomInt(1, 50000)).padStart(8, '0')}`,
-          date,
+          session_id: sid,
+          user_id: uid,
+          date: date,
           time_slot: slot,
           anchor_id: anchor.id,
           anchor_name: anchor.name,
@@ -114,7 +122,7 @@ function generateSessionData() {
           has_cart_add: hasCartAdd ? 1 : 0,
           has_order: hasOrder ? 1 : 0,
           order_amount: orderAmount,
-          order_id: hasOrder ? `o${String(sessionId).padStart(8, '0')}' : null,
+          order_id: oid,
           has_refund: hasRefund ? 1 : 0,
           refund_amount: refundAmount,
           refund_reason: refundReason,
@@ -132,13 +140,14 @@ function generatePresentationSlots() {
   let slotId = 1;
   
   for (let day = 1; day <= 7; day++) {
-    const date = `2024-06-${String(day).padStart(2, '0')}';
+    const date = '2024-06-' + pad(day, 2);
     for (const anchor of anchors) {
       const presentationCount = randomInt(8, 15);
       for (let i = 0; i < presentationCount; i++) {
         const product = randomChoice(products);
         const source = randomChoice(sources);
-        const startMinute = randomInt(0, 12 * 60);
+        const timeSlot = randomChoice(timeSlots);
+        const startMinute = randomInt(0, 11 * 60);
         const duration = randomInt(180, 600);
         const viewersPeak = randomInt(500, 5000);
         const interactions = randomInt(50, 500);
@@ -146,15 +155,18 @@ function generatePresentationSlots() {
         const orders = randomInt(5, 100);
         const gmv = orders * product.price * randomInt(1, 3);
         
+        const psid = 'ps' + pad(slotId, 8);
+        
         slots.push({
-          slot_id: `ps${String(slotId).padStart(8, '0')}`,
-          date,
+          slot_id: psid,
+          date: date,
           anchor_id: anchor.id,
           anchor_name: anchor.name,
           product_id: product.id,
           product_name: product.name,
           product_type: product.type,
           source_channel: source,
+          time_slot: timeSlot,
           start_minute: startMinute,
           duration_seconds: duration,
           viewers_peak: viewersPeak,
@@ -173,11 +185,11 @@ function generatePresentationSlots() {
 console.log('生成直播间会话数据...');
 const sessions = generateSessionData();
 fs.writeFileSync(path.join(dataDir, 'raw_sessions.json'), JSON.stringify(sessions, null, 2));
-console.log(`生成 ${sessions.length} 条会话记录`);
+console.log('生成 ' + sessions.length + ' 条会话记录');
 
 console.log('生成商品讲解时段数据...');
 const presentationSlots = generatePresentationSlots();
 fs.writeFileSync(path.join(dataDir, 'raw_presentation_slots.json'), JSON.stringify(presentationSlots, null, 2));
-console.log(`生成 ${presentationSlots.length} 条讲解时段记录`);
+console.log('生成 ' + presentationSlots.length + ' 条讲解时段记录');
 
 console.log('数据生成完成！');

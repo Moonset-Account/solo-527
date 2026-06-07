@@ -12,7 +12,7 @@ const db = new duckdb.Database(path.join(dataDir, 'analytics.db'));
 function loadJSON(filename) {
   const filePath = path.join(dataDir, filename);
   if (!fs.existsSync(filePath)) {
-    console.error(`文件不存在: ${filePath}`);
+    console.error('文件不存在: ' + filePath);
     return [];
   }
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -39,7 +39,7 @@ function cleanSessions(sessions) {
     }
   }
   
-  console.log(`原始数据: ${sessions.length} 条，清洗后: ${deduplicated.length} 条`);
+  console.log('原始数据: ' + sessions.length + ' 条，清洗后: ' + deduplicated.length + ' 条');
   return deduplicated;
 }
 
@@ -53,7 +53,7 @@ function cleanPresentationSlots(slots) {
     return true;
   });
   
-  console.log(`原始数据: ${slots.length} 条，清洗后: ${cleaned.length} 条`);
+  console.log('原始数据: ' + slots.length + ' 条，清洗后: ' + cleaned.length + ' 条');
   return cleaned;
 }
 
@@ -88,7 +88,7 @@ function createTables() {
       has_refund INTEGER,
       refund_amount DECIMAL,
       refund_reason VARCHAR,
-      is_fulfilled BOOLEAN
+      is_fulfilled INTEGER
     );
     
     CREATE TABLE presentation_slots (
@@ -100,6 +100,7 @@ function createTables() {
       product_name VARCHAR,
       product_type VARCHAR,
       source_channel VARCHAR,
+      time_slot VARCHAR,
       start_minute INTEGER,
       duration_seconds INTEGER,
       viewers_peak INTEGER,
@@ -114,9 +115,14 @@ function createTables() {
     CREATE INDEX idx_sessions_product ON sessions(product_id);
     CREATE INDEX idx_sessions_type ON sessions(product_type);
     CREATE INDEX idx_sessions_source ON sessions(source_channel);
+    CREATE INDEX idx_sessions_slot ON sessions(time_slot);
+    
     CREATE INDEX idx_slots_date ON presentation_slots(date);
     CREATE INDEX idx_slots_anchor ON presentation_slots(anchor_id);
+    CREATE INDEX idx_slots_product ON presentation_slots(product_id);
     CREATE INDEX idx_slots_source ON presentation_slots(source_channel);
+    CREATE INDEX idx_slots_slot ON presentation_slots(time_slot);
+    CREATE INDEX idx_slots_type ON presentation_slots(product_type);
   `);
 }
 
@@ -155,22 +161,19 @@ function insertSessions(sessions) {
       s.has_refund,
       s.refund_amount,
       s.refund_reason,
-      s.is_fulfilled ? 1 : 0
+      s.is_fulfilled
     );
   }
   db.exec('COMMIT');
-  console.log(`插入 ${sessions.length} 条会话数据`);
+  console.log('插入 ' + sessions.length + ' 条会话数据');
 }
 
 function insertPresentationSlots(slots) {
   console.log('插入讲解时段数据到DuckDB...');
   
-  const sources = ['推荐页', '关注页', '搜索', '分享', '其他'];
-  const randomSource = () => sources[Math.floor(Math.random() * sources.length)];
-  
   const stmt = db.prepare(`
     INSERT INTO presentation_slots VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
   
@@ -184,7 +187,8 @@ function insertPresentationSlots(slots) {
       s.product_id,
       s.product_name,
       s.product_type,
-      s.source_channel || randomSource(),
+      s.source_channel,
+      s.time_slot,
       s.start_minute,
       s.duration_seconds,
       s.viewers_peak,
@@ -195,7 +199,7 @@ function insertPresentationSlots(slots) {
     );
   }
   db.exec('COMMIT');
-  console.log(`插入 ${slots.length} 条讲解时段数据`);
+  console.log('插入 ' + slots.length + ' 条讲解时段数据');
 }
 
 function runAnalytics() {
@@ -203,7 +207,7 @@ function runAnalytics() {
   
   db.all('SELECT COUNT(*) as total FROM sessions', (err, res) => {
     if (err) console.error(err);
-    console.log(`总会话数: ${res[0].total}`);
+    console.log('总会话数: ' + res[0].total);
   });
   
   db.all('SELECT product_type, COUNT(*) as cnt FROM sessions GROUP BY product_type', (err, res) => {
@@ -237,6 +241,16 @@ function runAnalytics() {
   `, (err, res) => {
     if (err) console.error(err);
     console.log('履约表现（分类型）:', res);
+  });
+  
+  db.all('SELECT COUNT(*) as total FROM presentation_slots', (err, res) => {
+    if (err) console.error(err);
+    console.log('总讲解时段数: ' + res[0].total);
+  });
+  
+  db.all('SELECT DISTINCT time_slot FROM presentation_slots LIMIT 5', (err, res) => {
+    if (err) console.error(err);
+    console.log('讲解时段示例:', res);
   });
 }
 
@@ -272,7 +286,7 @@ async function main() {
     setTimeout(() => {
       console.log('\n数据清洗完成！');
       db.close();
-    }, 1000);
+    }, 1500);
   } catch (error) {
     console.error('清洗失败:', error);
     process.exit(1);
