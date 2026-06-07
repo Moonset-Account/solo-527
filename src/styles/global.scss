@@ -1,0 +1,34 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f2f5;
+}
+
+:root {
+  --primary-color: #1890ff;
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --error-color: #f5222d;
+  --minor-color: #52c41a;
+  --medical-color: #faad14;
+  --suspend-color: #f5222d;
+}
+
+.card-shadow {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
