@@ -1,5 +1,76 @@
 export type DowntimeType = 'planned' | 'unplanned'
 
+export interface EquipmentRuntimeRaw {
+  id: string
+  equipmentId: string
+  productionLine: string
+  shift: string
+  timestamp: string
+  status: 'running' | 'stopped' | 'maintenance'
+  duration: number
+}
+
+export interface AlarmRecordRaw {
+  id: string
+  equipmentId: string
+  alarmType: string
+  faultType: string
+  alarmTime: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+}
+
+export interface MaintenanceOrderRaw {
+  id: string
+  equipmentId: string
+  faultType: string
+  downtimeType: DowntimeType
+  maintenancePerson: string
+  startTime: string
+  endTime: string
+  repairDuration: number
+}
+
+export interface ShiftGroupRaw {
+  id: string
+  shiftName: string
+  leader: string
+  members: string[]
+  scheduleDate: string
+}
+
+export interface ProductionOutputRaw {
+  id: string
+  productionLine: string
+  shift: string
+  date: string
+  output: number
+  target: number
+}
+
+export interface SparePartConsumptionRaw {
+  id: string
+  workOrderId: string
+  partName: string
+  quantity: number
+  unitCost: number
+  consumedAt: string
+}
+
+export interface CleaningLog {
+  source: string
+  inputCount: number
+  outputCount: number
+  droppedCount: number
+  timestamp: string
+  rules: string[]
+}
+
+export interface CleaningPipelineResult {
+  records: DowntimeRecord[]
+  logs: CleaningLog[]
+  completedAt: string
+}
+
 export interface FilterState {
   equipmentIds: string[]
   productionLines: string[]

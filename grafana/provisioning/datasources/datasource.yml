@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: DowntimePostgres
+    type: postgres
+    url: localhost:5432
+    database: downtime_db
+    user: grafana_reader
+    secureJsonData:
+      password: '${GRAFANA_DB_PASSWORD}'
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: true

@@ -9,7 +9,7 @@ import type {
   SparePartFaultMatrix,
   MaintenancePersonStats,
 } from '@/types'
-import { getMockRecords } from '@/data/mock'
+import { cleanDowntimeData } from '@/data/clean'
 import { getCache, setCache } from './cache'
 import dayjs from 'dayjs'
 
@@ -32,8 +32,8 @@ export function getFilteredRecords(filters: FilterState): DowntimeRecord[] {
   const cached = getCache<DowntimeRecord[]>(cacheKey, filters as unknown as Record<string, unknown>)
   if (cached) return cached.data
 
-  const allRecords = getMockRecords()
-  const filtered = applyFilters(allRecords, filters)
+  const pipelineResult = cleanDowntimeData()
+  const filtered = applyFilters(pipelineResult.records, filters)
   setCache(cacheKey, filtered, filters as unknown as Record<string, unknown>)
   return filtered
 }

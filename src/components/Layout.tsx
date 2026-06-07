@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, Wrench, Package, Activity } from 'lucide-react'
+import { BarChart3, Wrench, Package, Activity, Database } from 'lucide-react'
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: '停机总览', icon: BarChart3 },
   { path: '/analysis', label: '停机分析', icon: Wrench },
   { path: '/spare-parts', label: '备件关联', icon: Package },
+  { path: '/pipeline', label: '数据管道', icon: Database },
 ]
 
 export default function Layout() {

@@ -1,4 +1,15 @@
-import type { DowntimeRecord, Annotation, EquipmentOption } from '@/types'
+import type {
+  DowntimeRecord,
+  Annotation,
+  EquipmentOption,
+  EquipmentRuntimeRaw,
+  AlarmRecordRaw,
+  MaintenanceOrderRaw,
+  ShiftGroupRaw,
+  ProductionOutputRaw,
+  SparePartConsumptionRaw,
+} from '@/types'
+import { cleanDowntimeData } from '@/data/clean'
 
 const PRODUCTION_LINES = ['A线', 'B线', 'C线', 'D线']
 const SHIFTS = ['早班', '中班', '夜班']
@@ -22,6 +33,13 @@ const SPARE_PARTS = [
   { partId: 'sp009', partName: '气缸 SC-63', unitCost: 420 },
   { partId: 'sp010', partName: '变频器 2.2kW', unitCost: 1650 },
 ]
+const ALARM_TYPES = ['过载报警', '温度超限', '振动异常', '压力异常', '位置偏差', '通信故障', '电源异常', '安全联锁']
+const SHIFT_LEADERS: Record<string, string[]> = {
+  '早班': ['周组长', '吴组长'],
+  '中班': ['郑组长', '孙组长'],
+  '夜班': ['马组长', '朱组长'],
+}
+const TEAM_MEMBERS = ['工人甲', '工人乙', '工人丙', '工人丁', '工人戊', '工人己', '工人庚', '工人辛', '工人壬', '工人癸']
 
 function seededRandom(seed: number): () => number {
   let s = seed
@@ -31,20 +49,10 @@ function seededRandom(seed: number): () => number {
   }
 }
 
-const rand = seededRandom(42)
-
-function randomInt(min: number, max: number): number {
-  return Math.floor(rand() * (max - min + 1)) + min
-}
-
-function randomChoice<T>(arr: T[]): T {
-  return arr[Math.floor(rand() * arr.length)]
-}
-
-function randomSubset<T>(arr: T[], minSize: number, maxSize: number): T[] {
-  const size = randomInt(minSize, Math.min(maxSize, arr.length))
-  const shuffled = [...arr].sort(() => rand() - 0.5)
-  return shuffled.slice(0, size)
+function makeHelpers(rand: () => number) {
+  const randomInt = (min: number, max: number) => Math.floor(rand() * (max - min + 1)) + min
+  const randomChoice = <T>(arr: T[]) => arr[Math.floor(rand() * arr.length)]
+  return { randomInt, randomChoice }
 }
 
 function generateDateRange(): [string, string] {
@@ -53,63 +61,246 @@ function generateDateRange(): [string, string] {
   return [start.toISOString().split('T')[0], end.toISOString().split('T')[0]]
 }
 
-function generateRecords(): DowntimeRecord[] {
-  const records: DowntimeRecord[] = []
+function generateEquipmentRuntime(): EquipmentRuntimeRaw[] {
+  const rand = seededRandom(101)
+  const { randomInt, randomChoice } = makeHelpers(rand)
+  const records: EquipmentRuntimeRaw[] = []
   const [startDate] = generateDateRange()
   const startMs = new Date(startDate).getTime()
   const rangeMs = 97 * 24 * 60 * 60 * 1000
 
-  for (let i = 0; i < 320; i++) {
+  for (let i = 0; i < 2000; i++) {
     const line = randomChoice(PRODUCTION_LINES)
     const equipName = randomChoice(EQUIPMENT_NAMES[line])
-    const equipId = `${line}-${equipName}`
-    const faultType = randomChoice(FAULT_TYPES)
-    const isPlanned = rand() < 0.35
-    const person = randomChoice(MAINTENANCE_PEOPLE)
     const shift = randomChoice(SHIFTS)
-
-    const eventStartMs = startMs + Math.floor(rand() * rangeMs)
-    const duration = isPlanned
-      ? randomInt(60, 480)
-      : randomInt(15, 360)
-    const maintDuration = Math.floor(duration * (0.6 + rand() * 0.35))
-
-    const startTime = new Date(eventStartMs).toISOString()
-    const endTime = new Date(eventStartMs + duration * 60 * 1000).toISOString()
-
-    const numParts = randomInt(0, 3)
-    const spareParts = []
-    for (let p = 0; p < numParts; p++) {
-      const part = randomChoice(SPARE_PARTS)
-      spareParts.push({
-        partId: part.partId,
-        partName: part.partName,
-        quantity: randomInt(1, 5),
-        unitCost: part.unitCost,
-      })
-    }
+    const eventMs = startMs + Math.floor(rand() * rangeMs)
+    const r = rand()
+    const status: EquipmentRuntimeRaw['status'] = r < 0.75 ? 'running' : r < 0.90 ? 'stopped' : 'maintenance'
+    const duration = status === 'running' ? randomInt(60, 480) : status === 'stopped' ? randomInt(5, 120) : randomInt(30, 360)
 
     records.push({
-      id: `wo-${String(i + 1).padStart(4, '0')}`,
-      equipmentId: equipId,
-      equipmentName: equipName,
+      id: `er-${String(i + 1).padStart(5, '0')}`,
+      equipmentId: `${line}-${equipName}`,
       productionLine: line,
       shift,
-      faultType,
-      downtimeType: isPlanned ? 'planned' : 'unplanned',
-      startTime,
-      endTime,
+      timestamp: new Date(eventMs).toISOString(),
+      status,
       duration,
-      maintenancePerson: person,
-      maintenanceDuration: maintDuration,
-      spareParts,
     })
   }
 
-  return records.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+  return records.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 }
 
-const MOCK_RECORDS = generateRecords()
+function generateAlarmRecords(): AlarmRecordRaw[] {
+  const rand = seededRandom(202)
+  const { randomChoice } = makeHelpers(rand)
+  const records: AlarmRecordRaw[] = []
+  const [startDate] = generateDateRange()
+  const startMs = new Date(startDate).getTime()
+  const rangeMs = 97 * 24 * 60 * 60 * 1000
+  const severities: AlarmRecordRaw['severity'][] = ['low', 'medium', 'high', 'critical']
+
+  for (let i = 0; i < 495; i++) {
+    const line = randomChoice(PRODUCTION_LINES)
+    const equipName = randomChoice(EQUIPMENT_NAMES[line])
+    const alarmMs = startMs + Math.floor(rand() * rangeMs)
+
+    records.push({
+      id: `al-${String(i + 1).padStart(5, '0')}`,
+      equipmentId: `${line}-${equipName}`,
+      alarmType: randomChoice(ALARM_TYPES),
+      faultType: randomChoice(FAULT_TYPES),
+      alarmTime: new Date(alarmMs).toISOString(),
+      severity: randomChoice(severities),
+    })
+  }
+
+  for (let i = 495; i < 500; i++) {
+    const alarmMs = startMs + Math.floor(rand() * rangeMs)
+    records.push({
+      id: `al-${String(i + 1).padStart(5, '0')}`,
+      equipmentId: `X线-UNKNOWN-${String(i - 494).padStart(2, '0')}`,
+      alarmType: randomChoice(ALARM_TYPES),
+      faultType: randomChoice(FAULT_TYPES),
+      alarmTime: new Date(alarmMs).toISOString(),
+      severity: randomChoice(severities),
+    })
+  }
+
+  return records.sort((a, b) => a.alarmTime.localeCompare(b.alarmTime))
+}
+
+function generateMaintenanceOrders(): MaintenanceOrderRaw[] {
+  const rand = seededRandom(303)
+  const { randomInt, randomChoice } = makeHelpers(rand)
+  const records: MaintenanceOrderRaw[] = []
+  const [startDate] = generateDateRange()
+  const startMs = new Date(startDate).getTime()
+  const rangeMs = 97 * 24 * 60 * 60 * 1000
+
+  for (let i = 0; i < 315; i++) {
+    const line = randomChoice(PRODUCTION_LINES)
+    const equipName = randomChoice(EQUIPMENT_NAMES[line])
+    const faultType = randomChoice(FAULT_TYPES)
+    const isPlanned = rand() < 0.35
+    const person = randomChoice(MAINTENANCE_PEOPLE)
+    const eventStartMs = startMs + Math.floor(rand() * rangeMs)
+    const duration = isPlanned ? randomInt(60, 480) : randomInt(15, 360)
+    const startTime = new Date(eventStartMs).toISOString()
+    const endTime = new Date(eventStartMs + duration * 60 * 1000).toISOString()
+
+    records.push({
+      id: `wo-${String(i + 1).padStart(4, '0')}`,
+      equipmentId: `${line}-${equipName}`,
+      faultType,
+      downtimeType: isPlanned ? 'planned' : 'unplanned',
+      maintenancePerson: person,
+      startTime,
+      endTime,
+      repairDuration: Math.floor(duration * (0.6 + rand() * 0.35)),
+    })
+  }
+
+  for (let i = 315; i < 318; i++) {
+    const line = randomChoice(PRODUCTION_LINES)
+    const equipName = randomChoice(EQUIPMENT_NAMES[line])
+    const eventStartMs = startMs + Math.floor(rand() * rangeMs)
+    const duration = randomInt(15, 360)
+    records.push({
+      id: `wo-${String(i + 1).padStart(4, '0')}`,
+      equipmentId: `${line}-${equipName}`,
+      faultType: randomChoice(FAULT_TYPES),
+      downtimeType: 'unplanned',
+      maintenancePerson: '',
+      startTime: new Date(eventStartMs).toISOString(),
+      endTime: new Date(eventStartMs + duration * 60 * 1000).toISOString(),
+      repairDuration: duration,
+    })
+  }
+
+  for (let i = 318; i < 320; i++) {
+    const line = randomChoice(PRODUCTION_LINES)
+    const equipName = randomChoice(EQUIPMENT_NAMES[line])
+    const eventStartMs = startMs + Math.floor(rand() * rangeMs)
+    records.push({
+      id: `wo-${String(i + 1).padStart(4, '0')}`,
+      equipmentId: `${line}-${equipName}`,
+      faultType: randomChoice(FAULT_TYPES),
+      downtimeType: 'unplanned',
+      maintenancePerson: randomChoice(MAINTENANCE_PEOPLE),
+      startTime: new Date(eventStartMs).toISOString(),
+      endTime: '',
+      repairDuration: 0,
+    })
+  }
+
+  return records.sort((a, b) => a.startTime.localeCompare(b.startTime))
+}
+
+function generateShiftGroups(): ShiftGroupRaw[] {
+  const rand = seededRandom(404)
+  const { randomInt, randomChoice } = makeHelpers(rand)
+  const records: ShiftGroupRaw[] = []
+  const [startDate] = generateDateRange()
+  const startMs = new Date(startDate).getTime()
+
+  for (let d = 0; d < 30; d++) {
+    const dateStr = new Date(startMs + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    for (const shift of SHIFTS) {
+      const leader = randomChoice(SHIFT_LEADERS[shift])
+      const memberCount = randomInt(4, 8)
+      const shuffled = [...TEAM_MEMBERS].sort(() => rand() - 0.5)
+      const members = shuffled.slice(0, memberCount)
+      records.push({
+        id: `sg-${String(records.length + 1).padStart(4, '0')}`,
+        shiftName: shift,
+        leader,
+        members,
+        scheduleDate: dateStr,
+      })
+    }
+  }
+
+  return records
+}
+
+function generateProductionOutput(): ProductionOutputRaw[] {
+  const rand = seededRandom(505)
+  const { randomInt } = makeHelpers(rand)
+  const records: ProductionOutputRaw[] = []
+  const [startDate] = generateDateRange()
+  const startMs = new Date(startDate).getTime()
+
+  for (let d = 0; d < 30; d++) {
+    const dateStr = new Date(startMs + d * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    for (const line of PRODUCTION_LINES) {
+      for (const shift of SHIFTS) {
+        const target = randomInt(800, 1200)
+        const output = Math.floor(target * (0.7 + rand() * 0.35))
+        records.push({
+          id: `po-${String(records.length + 1).padStart(4, '0')}`,
+          productionLine: line,
+          shift,
+          date: dateStr,
+          output,
+          target,
+        })
+      }
+    }
+  }
+
+  return records
+}
+
+function generateSparePartConsumption(): SparePartConsumptionRaw[] {
+  const rand = seededRandom(606)
+  const { randomInt, randomChoice } = makeHelpers(rand)
+  const records: SparePartConsumptionRaw[] = []
+  const [startDate] = generateDateRange()
+  const startMs = new Date(startDate).getTime()
+  const rangeMs = 97 * 24 * 60 * 60 * 1000
+
+  for (let i = 0; i < 245; i++) {
+    const workOrderId = `wo-${String(randomInt(1, 320)).padStart(4, '0')}`
+    const part = randomChoice(SPARE_PARTS)
+    const quantity = randomInt(1, 5)
+    const consumedMs = startMs + Math.floor(rand() * rangeMs)
+    records.push({
+      id: `spc-${String(i + 1).padStart(5, '0')}`,
+      workOrderId,
+      partName: part.partName,
+      quantity,
+      unitCost: part.unitCost,
+      consumedAt: new Date(consumedMs).toISOString(),
+    })
+  }
+
+  for (let i = 245; i < 250; i++) {
+    const part = randomChoice(SPARE_PARTS)
+    const quantity = randomInt(1, 5)
+    const consumedMs = startMs + Math.floor(rand() * rangeMs)
+    records.push({
+      id: `spc-${String(i + 1).padStart(5, '0')}`,
+      workOrderId: `wo-${String(randomInt(9000, 9999)).padStart(4, '0')}`,
+      partName: part.partName,
+      quantity,
+      unitCost: part.unitCost,
+      consumedAt: new Date(consumedMs).toISOString(),
+    })
+  }
+
+  return records.sort((a, b) => a.consumedAt.localeCompare(b.consumedAt))
+}
+
+const EQUIPMENT_RUNTIME_RAW = generateEquipmentRuntime()
+const ALARM_RECORDS_RAW = generateAlarmRecords()
+const MAINTENANCE_ORDERS_RAW = generateMaintenanceOrders()
+const SHIFT_GROUPS_RAW = generateShiftGroups()
+const PRODUCTION_OUTPUT_RAW = generateProductionOutput()
+const SPARE_PART_CONSUMPTION_RAW = generateSparePartConsumption()
+
+const PIPELINE_RESULT = cleanDowntimeData()
 
 const DEFAULT_ANNOTATIONS: Annotation[] = [
   {
@@ -139,7 +330,7 @@ const DEFAULT_ANNOTATIONS: Annotation[] = [
 ]
 
 export function getMockRecords(): DowntimeRecord[] {
-  return MOCK_RECORDS
+  return PIPELINE_RESULT.records
 }
 
 export function getDefaultAnnotations(): Annotation[] {
@@ -174,4 +365,28 @@ export function getMaintenancePeople(): string[] {
 
 export function getDateRange(): [string, string] {
   return generateDateRange()
+}
+
+export function getEquipmentRuntimeRaw(): EquipmentRuntimeRaw[] {
+  return EQUIPMENT_RUNTIME_RAW
+}
+
+export function getAlarmRecordsRaw(): AlarmRecordRaw[] {
+  return ALARM_RECORDS_RAW
+}
+
+export function getMaintenanceOrdersRaw(): MaintenanceOrderRaw[] {
+  return MAINTENANCE_ORDERS_RAW
+}
+
+export function getShiftGroupsRaw(): ShiftGroupRaw[] {
+  return SHIFT_GROUPS_RAW
+}
+
+export function getProductionOutputRaw(): ProductionOutputRaw[] {
+  return PRODUCTION_OUTPUT_RAW
+}
+
+export function getSparePartConsumptionRaw(): SparePartConsumptionRaw[] {
+  return SPARE_PART_CONSUMPTION_RAW
 }

@@ -7,6 +7,7 @@ import DrillDownPanel from '@/components/DrillDownPanel'
 import AnnotationModal from '@/components/AnnotationModal'
 import LastUpdated from '@/components/LastUpdated'
 import ExportButton from '@/components/ExportButton'
+import DataPipelineStatus from '@/components/DataPipelineStatus'
 import { useState } from 'react'
 import { useAnnotationStore } from '@/store/annotationStore'
 import { MessageSquarePlus } from 'lucide-react'
@@ -43,6 +44,8 @@ export default function Dashboard() {
         <TrendChart onPointClick={(date) => setAnnotationDate(date)} />
 
         <DrillDownPanel />
+
+        <DataPipelineStatus />
 
         {annotations.length > 0 && (
           <div className="bg-base-800 rounded-lg border border-base-600/30 p-4">

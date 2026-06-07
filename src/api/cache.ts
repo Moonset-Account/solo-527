@@ -1,4 +1,5 @@
 import type { CacheEntry } from '@/types'
+import { cleanDowntimeData } from '@/data/clean'
 
 const cache = new Map<string, CacheEntry<unknown>>()
 const DEFAULT_TTL = 5 * 60 * 1000
@@ -49,4 +50,13 @@ export function getLastUpdateTime(): string {
     minute: '2-digit',
     second: '2-digit',
   })
+}
+
+export function getETLInfo(): { completedAt: string; recordCount: number; logCount: number } {
+  const result = cleanDowntimeData()
+  return {
+    completedAt: result.completedAt,
+    recordCount: result.records.length,
+    logCount: result.logs.length,
+  }
 }
