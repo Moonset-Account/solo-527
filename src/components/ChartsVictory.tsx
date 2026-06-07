@@ -1,5 +1,5 @@
 import { VictoryChart, VictoryLine, VictoryArea, VictoryAxis, VictoryTooltip, VictoryLegend, VictoryTheme, VictoryVoronoiContainer } from 'victory';
-import type { TrainingData, RecoveryData, FilterState } from '../../../shared/types';
+import type { TrainingData, RecoveryData, FilterState } from '@shared/types';
 import { EmptyState, LoadingState } from './EmptyStates';
 
 const COLORS = ['#38BDF8', '#F97316', '#10B981', '#A855F7', '#EC4899'];
@@ -45,7 +45,16 @@ export function WorkloadChart({ trainingData, filters, isLoading }: WorkloadChar
   return (
     <div className="w-full h-80">
       <VictoryChart
-        theme={VictoryTheme.material}
+        theme={{
+          ...VictoryTheme.material,
+          axis: {
+            style: {
+              grid: { stroke: '#334155', strokeDasharray: '4,4' },
+              axis: { stroke: '#475569' },
+              tickLabels: { fill: '#94A3B8', fontSize: 11 },
+            },
+          },
+        }}
         height={320}
         padding={{ top: 30, right: 30, bottom: 40, left: 50 }}
         containerComponent={
@@ -64,15 +73,6 @@ export function WorkloadChart({ trainingData, filters, isLoading }: WorkloadChar
             }
           />
         }
-        theme={{
-          axis: {
-            style: {
-              grid: { stroke: '#334155', strokeDasharray: '4,4' },
-              axis: { stroke: '#475569' },
-              tickLabels: { fill: '#94A3B8', fontSize: 11 },
-            },
-          },
-        }}
         scale={{ x: 'time' }}
       >
         <VictoryLegend
@@ -132,7 +132,16 @@ export function RecoveryChart({ recoveryData, isLoading }: RecoveryChartProps) {
   return (
     <div className="w-full h-64">
       <VictoryChart
-        theme={VictoryTheme.material}
+        theme={{
+          ...VictoryTheme.material,
+          axis: {
+            style: {
+              grid: { stroke: '#334155', strokeDasharray: '4,4' },
+              axis: { stroke: '#475569' },
+              tickLabels: { fill: '#94A3B8', fontSize: 11 },
+            },
+          },
+        }}
         height={260}
         padding={{ top: 20, right: 20, bottom: 30, left: 40 }}
         containerComponent={
@@ -149,15 +158,6 @@ export function RecoveryChart({ recoveryData, isLoading }: RecoveryChartProps) {
             }
           />
         }
-        theme={{
-          axis: {
-            style: {
-              grid: { stroke: '#334155', strokeDasharray: '4,4' },
-              axis: { stroke: '#475569' },
-              tickLabels: { fill: '#94A3B8', fontSize: 11 },
-            },
-          },
-        }}
         scale={{ x: 'time' }}
         domain={{ y: [0, 100] }}
       >

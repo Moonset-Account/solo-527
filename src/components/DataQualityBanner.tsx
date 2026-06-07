@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle, XCircle, Info, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import type { DataQualityStatus } from '../../../shared/types';
+import type { DataQualityStatus } from '@shared/types';
 import { useUIStore } from '../store';
 
 interface DataQualityBannerProps {

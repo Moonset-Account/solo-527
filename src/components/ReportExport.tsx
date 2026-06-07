@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, FileText, Table, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import type { TrainingData, RecoveryData, StrengthData, FilterState } from '../../../shared/types';
+import type { TrainingData, RecoveryData, StrengthData, FilterState } from '@shared/types';
 
 interface ReportExportProps {
   filters: FilterState;

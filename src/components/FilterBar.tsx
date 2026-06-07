@@ -3,7 +3,7 @@ import { Filter, ChevronDown, Save, RotateCcw, Users, Calendar, Activity, Target
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFilterStore, useAuthStore } from '../store';
 import { useAthletes, useSports, useExercises } from '../hooks/useData';
-import type { FilterState } from '../../../shared/types';
+import type { FilterState } from '@shared/types';
 
 const TIME_WINDOWS: { value: FilterState['timeWindow']; label: string }[] = [
   { value: 'day', label: '日' },

@@ -7,7 +7,7 @@ import type {
   RadarData,
   DataQualityStatus,
   FilterState,
-} from '../../../shared/types';
+} from '@shared/types';
 
 const API_BASE = '/api';
 

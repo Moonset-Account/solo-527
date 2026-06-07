@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -13,10 +13,12 @@ model User {
   passwordHash  String
   role          String
   name          String
-  athleteId     String?
+  athleteId     String?         @unique
   athlete       Athlete?        @relation(fields: [athleteId], references: [id])
   filterPresets FilterPreset[]
   createdAt     DateTime        @default(now())
+
+  @@index([role])
 }
 
 model Athlete {
@@ -32,6 +34,8 @@ model Athlete {
   recovery   RecoveryData[]
   injuries   InjuryRecord[]
   createdAt  DateTime         @default(now())
+
+  @@index([sport])
 }
 
 model TrainingData {
@@ -99,6 +103,7 @@ model InjuryRecord {
   createdAt   DateTime @default(now())
 
   @@index([athleteId])
+  @@index([status])
 }
 
 model FilterPreset {
@@ -109,6 +114,8 @@ model FilterPreset {
   isDefault Boolean  @default(false)
   filters   String
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model EtlLog {
@@ -121,4 +128,5 @@ model EtlLog {
   finishedAt       DateTime?
 
   @@index([status])
+  @@index([startedAt])
 }

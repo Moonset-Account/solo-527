@@ -1,6 +1,6 @@
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
-import type { RadarData, StrengthData, Athlete } from '../../../shared/types';
+import type { RadarData, StrengthData, Athlete } from '@shared/types';
 import { EmptyState, LoadingState } from './EmptyStates';
 import { useMemo } from 'react';
 

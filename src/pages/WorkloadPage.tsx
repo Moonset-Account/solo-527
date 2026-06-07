@@ -18,7 +18,7 @@ export function WorkloadPage() {
     acc[d.sessionType].total += d.loadScore;
     acc[d.sessionType].count += 1;
     return acc;
-  }, {});
+  }, {} as Record<string, { total: number; count: number }>);
 
   const sessionTypes = Object.entries(avgLoadBySession).map(([type, data]) => ({
     type,

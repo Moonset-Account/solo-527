@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, FilterState, FilterPreset } from '../../shared/types';
+import type { User, FilterState, FilterPreset } from '@shared/types';
 
 interface AuthState {
   user: User | null;
