@@ -19,6 +19,7 @@
 	let drilldownTaskType = $state('');
 	let drilldownDateFrom = $state('');
 	let drilldownDateTo = $state('');
+	let drilldownPestType = $state('');
 
 	const statusLabels: Record<string, { text: string; class: string }> = {
 		completed: { text: '已完成', class: 'bg-green-100 text-green-700' },
@@ -50,6 +51,9 @@
 		}
 		if (drilldownDateFrom) {
 			filter.dateRange = [drilldownDateFrom, drilldownDateTo || drilldownDateFrom];
+		}
+		if (drilldownPestType) {
+			filter.pestType = drilldownPestType;
 		}
 		return filter;
 	}
@@ -95,6 +99,9 @@
 		if (p.has('dateTo')) {
 			drilldownDateTo = p.get('dateTo') || '';
 		}
+		if (p.has('pestType')) {
+			drilldownPestType = p.get('pestType') || '';
+		}
 	}
 
 	function clearDrilldown() {
@@ -103,6 +110,7 @@
 		drilldownTaskType = '';
 		drilldownDateFrom = '';
 		drilldownDateTo = '';
+		drilldownPestType = '';
 		statusFilter = '';
 		page_num = 0;
 	}
@@ -119,6 +127,7 @@
 		const dtt = drilldownTaskType;
 		const df = drilldownDateFrom;
 		const dto = drilldownDateTo;
+		const dpt = drilldownPestType;
 		const p = page_num;
 		loadRecords();
 	});
@@ -136,11 +145,12 @@
 	}
 
 	let drilldownInfo = $derived(
-		drilldownDistrict || drilldownTeam || drilldownTaskType || drilldownDateFrom
+		drilldownDistrict || drilldownTeam || drilldownTaskType || drilldownDateFrom || drilldownPestType
 			? `下钻筛选: ${[
 				drilldownDistrict ? `片区=${drilldownDistrict}` : '',
 				drilldownTeam ? `班组=${drilldownTeam}` : '',
 				drilldownTaskType ? `任务类型=${drilldownTaskType}` : '',
+				drilldownPestType ? `虫害类型=${drilldownPestType}` : '',
 				drilldownDateFrom ? `日期=${drilldownDateFrom}${drilldownDateTo && drilldownDateTo !== drilldownDateFrom ? `~${drilldownDateTo}` : ''}` : ''
 			].filter(Boolean).join(' | ')}`
 			: ''
@@ -237,6 +247,9 @@
 											<span class="font-medium text-gray-600">任务详情</span>
 											<div class="mt-1 text-gray-500">
 												病虫害问题: {record.pest_issue ? '是 ⚠️' : '无'}<br/>
+												{#if record.pest_type}
+													虫害类型: {record.pest_type}<br/>
+												{/if}
 												巡检照片: {record.photo_url ? '有' : '无'}
 											</div>
 										</div>

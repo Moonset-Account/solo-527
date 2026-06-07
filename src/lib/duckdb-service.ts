@@ -32,7 +32,7 @@ export async function loadMockData(): Promise<void> {
 		CREATE TABLE IF NOT EXISTS maintenance_tasks (
 			id VARCHAR, district VARCHAR, plant_type VARCHAR, task_type VARCHAR,
 			team VARCHAR, planned_date DATE, completed_date DATE, status VARCHAR,
-			rainfall_mm DOUBLE, pest_issue BOOLEAN, photo_url VARCHAR
+			rainfall_mm DOUBLE, pest_issue BOOLEAN, pest_type VARCHAR, photo_url VARCHAR
 		);
 		CREATE TABLE IF NOT EXISTS weather_records (
 			record_date DATE, district VARCHAR, rainfall_mm DOUBLE,
@@ -51,7 +51,7 @@ export async function loadMockData(): Promise<void> {
 		await conn!.query(`INSERT INTO maintenance_tasks VALUES (
 			'${r.id}','${r.district}','${r.plant_type}','${r.task_type}','${r.team}',
 			'${r.planned_date}',${r.completed_date ? `'${r.completed_date}'` : 'NULL'},
-			'${r.status}',${r.rainfall_mm},${r.pest_issue},${r.photo_url ? `'${r.photo_url}'` : 'NULL'}
+			'${r.status}',${r.rainfall_mm},${r.pest_issue},${r.pest_type ? `'${r.pest_type}'` : 'NULL'},${r.photo_url ? `'${r.photo_url}'` : 'NULL'}
 		)`);
 	}
 	for (const r of data.weatherRecords) {
@@ -69,6 +69,7 @@ export async function loadMockData(): Promise<void> {
 
 export interface DetailFilter extends FilterState {
 	statuses?: string[];
+	pestType?: string;
 }
 
 function buildWhere(filter: DetailFilter): string {
@@ -86,6 +87,9 @@ function buildWhere(filter: DetailFilter): string {
 	}
 	if (filter.statuses && filter.statuses.length > 0) {
 		clauses.push(`status IN (${filter.statuses.map((s) => `'${s}'`).join(',')})`);
+	}
+	if (filter.pestType) {
+		clauses.push(`pest_type = '${filter.pestType}'`);
 	}
 	return clauses.length > 0 ? 'WHERE ' + clauses.join(' AND ') : '';
 }
@@ -252,7 +256,7 @@ export async function queryTeamComparison(filter: FilterState) {
 }
 
 export async function queryTeamEfficiency(filter: FilterState) {
-	const w = buildWhere(filter);
+	const w = buildWhere({ ...filter, statuses: ['completed', 'overdue', 'rain_delayed'] });
 	const sql = `
 		SELECT
 			team,
@@ -261,7 +265,6 @@ export async function queryTeamEfficiency(filter: FilterState) {
 				THEN DATE_DIFF('day', planned_date::DATE, completed_date::DATE)
 				ELSE NULL END) as avg_duration
 		FROM maintenance_tasks ${w}
-		WHERE status IN ('completed', 'overdue', 'rain_delayed')
 		GROUP BY team;
 	`;
 	return runQuery(sql);

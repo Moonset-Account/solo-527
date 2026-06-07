@@ -17,6 +17,7 @@ export interface TaskRecord {
 	status: 'completed' | 'overdue' | 'rain_delayed' | 'pending';
 	rainfall_mm: number;
 	pest_issue: boolean;
+	pest_type: string | null;
 	photo_url: string | null;
 }
 
@@ -85,7 +86,7 @@ export function formatDate(d: Date): string {
 }
 
 export function daysAgo(n: number): string {
-	const d = new Date();
-	d.setDate(d.getDate() - n);
+	const d = new Date(2025, 4, 1);
+	d.setDate(d.getDate() + (59 - n));
 	return formatDate(d);
 }

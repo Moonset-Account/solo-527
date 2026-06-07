@@ -30,13 +30,18 @@ class SeededRandom {
 }
 
 const RNG = new SeededRandom(42);
+const FIXED_START = new Date(2025, 4, 1);
+
+function fixedDate(offset: number): string {
+	const d = new Date(FIXED_START);
+	d.setDate(d.getDate() + offset);
+	return formatDate(d);
+}
 
 function generateWeatherRecords(days: number): WeatherRecord[] {
 	const records: WeatherRecord[] = [];
-	for (let i = days; i >= 0; i--) {
-		const d = new Date();
-		d.setDate(d.getDate() - i);
-		const dateStr = formatDate(d);
+	for (let i = 0; i < days; i++) {
+		const dateStr = fixedDate(i);
 		for (const district of DISTRICTS) {
 			const isRainy = RNG.next() < 0.25;
 			const rainfall = isRainy ? RNG.rand(5, 60) : RNG.rand(0, 4);
@@ -68,10 +73,8 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 	for (const w of weatherRecords) {
 		weatherMap.set(`${w.record_date}|${w.district}`, w);
 	}
-	for (let i = days; i >= 0; i--) {
-		const d = new Date();
-		d.setDate(d.getDate() - i);
-		const dateStr = formatDate(d);
+	for (let i = 0; i < days; i++) {
+		const dateStr = fixedDate(i);
 		const tasksPerDay = RNG.int(15, 35);
 		for (let t = 0; t < tasksPerDay; t++) {
 			const district = RNG.pick(DISTRICTS);
@@ -86,22 +89,19 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 			let completedDate: string | null = null;
 			const isPestTask = taskType === '病虫害防治';
 			const hasPestIssue = isPestTask && RNG.next() < 0.4;
-			if (i <= 1) {
+			const pestType = hasPestIssue ? RNG.pick(PEST_TYPES) : null;
+			if (i >= days - 2) {
 				status = 'pending';
 			} else if (isHeavyRain && RNG.next() < 0.7) {
 				status = 'rain_delayed';
-				const newDate = new Date(d);
-				newDate.setDate(newDate.getDate() + 1);
-				if (RNG.next() < 0.6) {
-					completedDate = formatDate(newDate);
+				if (i + 1 < days && RNG.next() < 0.6) {
+					completedDate = fixedDate(i + 1);
 				}
 			} else if (RNG.next() < 0.12) {
 				status = 'overdue';
 			} else {
 				status = 'completed';
-				const compDate = new Date(d);
-				if (RNG.next() < 0.3) compDate.setDate(compDate.getDate() - 1);
-				completedDate = formatDate(compDate);
+				completedDate = RNG.next() < 0.3 ? fixedDate(Math.max(0, i - 1)) : dateStr;
 			}
 			records.push({
 				id: `T${String(id++).padStart(5, '0')}`,
@@ -114,6 +114,7 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 				status,
 				rainfall_mm: Math.round(rainfall * 10) / 10,
 				pest_issue: hasPestIssue,
+				pest_type: pestType,
 				photo_url: taskType === '巡检' ? `photo_${id}.jpg` : null
 			});
 		}
@@ -124,10 +125,8 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 function generatePestRecords(days: number): PestRecord[] {
 	const records: PestRecord[] = [];
 	let id = 1;
-	for (let i = days; i >= 0; i--) {
-		const d = new Date();
-		d.setDate(d.getDate() - i);
-		const dateStr = formatDate(d);
+	for (let i = 0; i < days; i++) {
+		const dateStr = fixedDate(i);
 		const count = RNG.int(0, 5);
 		for (let c = 0; c < count; c++) {
 			const district = RNG.pick(DISTRICTS);

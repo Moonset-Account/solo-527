@@ -19,9 +19,13 @@
 		'中心片区': [116.38, 39.92]
 	};
 
+	let pestMapRawData: any[] = $state([]);
+	let pestTrendRawData: any[] = $state([]);
+
 	async function loadMap() {
 		try {
 			const data = await queryPestMap($filterStore);
+			pestMapRawData = data;
 			const districtData: Record<string, { count: number; high: number; medium: number; low: number }> = {};
 			for (const r of data) {
 				const d = r.district as string;
@@ -36,7 +40,8 @@
 				value: [...(districtCoords[name] || [116.38, 39.92]), v.count],
 				high: v.high,
 				medium: v.medium,
-				low: v.low
+				low: v.low,
+				district: name
 			}));
 			mapOption = {
 				tooltip: {
@@ -94,6 +99,7 @@
 	async function loadTrend() {
 		try {
 			const data = await queryPestTrend($filterStore);
+			pestTrendRawData = data;
 			const dates = [...new Set(data.map((d: any) => d.date))].sort();
 			const districts = [...new Set(data.map((d: any) => d.district))];
 			const series = districts.map((dist) => ({
@@ -132,15 +138,15 @@
 	}
 
 	function onMapClick(params: any) {
-		if (!params.data || !params.data.name) return;
-		const district = params.data.name;
+		if (!params.data || !params.data.district) return;
+		const district = params.data.district;
 		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
 		goto(`/detail?${params_.toString()}`);
 	}
 
 	function onDistClick(params: any) {
 		if (!params.name) return;
-		const params_ = new URLSearchParams({ taskType: '病虫害防治' });
+		const params_ = new URLSearchParams({ taskType: '病虫害防治', pestType: params.name });
 		goto(`/detail?${params_.toString()}`);
 	}
 
@@ -148,7 +154,13 @@
 		if (!params.dataIndex && params.dataIndex !== 0) return;
 		const district = params.seriesName;
 		if (!district) return;
+		const dates = [...new Set(pestTrendRawData.map((d: any) => String(d.date)))].sort();
+		const clickedDate = dates[params.dataIndex];
 		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
+		if (clickedDate) {
+			params_.set('dateFrom', clickedDate.slice(0, 10));
+			params_.set('dateTo', clickedDate.slice(0, 10));
+		}
 		goto(`/detail?${params_.toString()}`);
 	}
 
