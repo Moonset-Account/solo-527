@@ -75,29 +75,27 @@ def get_events_from_db(filters: dict = None) -> pd.DataFrame:
     base_query = """
     SELECT 
         de.event_id,
+        de.event_time,
         de.equipment_id,
         e.equipment_name,
         e.line_id,
         pl.line_name,
-        pl.workshop,
         de.fault_code,
         ft.fault_name,
-        ft.category as fault_category,
-        ft.description as fault_description,
-        ft.suggestion as fault_suggestion,
+        ft.fault_category,
+        ft.fault_description,
+        ft.fault_suggestion,
         de.shift_id,
         s.shift_name,
-        de.start_time,
-        de.end_time,
         de.duration_minutes,
         de.breakdown_type,
         de.description,
-        DATE(de.start_time) as date
-    FROM downtime_event de
+        DATE(de.event_time) as date
+    FROM downtime_events de
     LEFT JOIN equipment e ON de.equipment_id = e.equipment_id
-    LEFT JOIN production_line pl ON e.line_id = pl.line_id
-    LEFT JOIN fault_type ft ON de.fault_code = ft.fault_code
-    LEFT JOIN shift s ON de.shift_id = s.shift_id
+    LEFT JOIN production_lines pl ON e.line_id = pl.line_id
+    LEFT JOIN fault_types ft ON de.fault_code = ft.fault_code
+    LEFT JOIN shifts s ON de.shift_id = s.shift_id
     WHERE 1=1
     """
     
@@ -105,10 +103,10 @@ def get_events_from_db(filters: dict = None) -> pd.DataFrame:
     params = []
     
     if filters.get('start_date'):
-        where_clauses.append("DATE(de.start_time) >= %s")
+        where_clauses.append("DATE(de.event_time) >= %s")
         params.append(filters['start_date'])
     if filters.get('end_date'):
-        where_clauses.append("DATE(de.start_time) <= %s")
+        where_clauses.append("DATE(de.event_time) <= %s")
         params.append(filters['end_date'])
     if filters.get('line_ids'):
         placeholders = ",".join(["%s"] * len(filters['line_ids']))
@@ -152,24 +150,25 @@ def get_work_orders_from_db(filters: dict = None) -> pd.DataFrame:
     SELECT 
         wo.order_id,
         wo.event_id,
-        wo.person_id,
-        rp.person_name,
-        rp.skill_level,
-        rp.team,
-        wo.create_time,
+        wo.event_time,
+        wo.equipment_id,
+        wo.fault_code,
+        wo.report_time,
+        wo.start_time,
         wo.complete_time,
-        wo.repair_duration,
-        wo.status,
-        wo.labor_cost
-    FROM work_order wo
-    LEFT JOIN repair_person rp ON wo.person_id = rp.person_id
+        wo.repair_duration_minutes as repair_duration,
+        wo.repair_person as person_name,
+        wo.repair_action,
+        wo.root_cause,
+        wo.status
+    FROM maintenance_work_orders wo
     WHERE wo.event_id IN (%s)
     """ % ",".join(["%s"] * len(event_ids))
     
     result = execute_query(query, tuple(event_ids))
     
     if filters.get('repair_persons'):
-        result = result[result['person_id'].isin(filters['repair_persons'])]
+        result = result[result['person_name'].isin(filters['repair_persons'])]
     
     return result
 
@@ -187,19 +186,21 @@ def get_spare_parts_from_db(filters: dict = None) -> pd.DataFrame:
     SELECT 
         spu.usage_id,
         spu.order_id,
-        wo.event_id,
-        de.fault_code,
+        spu.event_id,
+        spu.event_time,
+        spu.equipment_id,
+        spu.fault_code,
         ft.fault_name,
         spu.part_id,
         sp.part_name,
         spu.quantity,
-        sp.unit_price,
+        spu.unit_price,
         spu.total_cost
-    FROM spare_part_usage spu
-    LEFT JOIN work_order wo ON spu.order_id = wo.order_id
-    LEFT JOIN downtime_event de ON wo.event_id = de.event_id
-    LEFT JOIN fault_type ft ON de.fault_code = ft.fault_code
-    LEFT JOIN spare_part sp ON spu.part_id = sp.part_id
+    FROM spare_part_usages spu
+    LEFT JOIN maintenance_work_orders wo ON spu.order_id = wo.order_id
+    LEFT JOIN downtime_events de ON wo.event_id = de.event_id
+    LEFT JOIN fault_types ft ON spu.fault_code = ft.fault_code
+    LEFT JOIN spare_parts sp ON spu.part_id = sp.part_id
     WHERE spu.order_id IN (%s)
     """ % ",".join(["%s"] * len(order_ids))
     

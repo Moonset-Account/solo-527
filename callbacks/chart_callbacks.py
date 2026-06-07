@@ -57,6 +57,8 @@ def build_filters_from_state(filter_state, drilldown_state=None):
                     filters["shift_ids"] = [value] if not isinstance(value, list) else value
                 elif key == "drilldown_person":
                     filters["repair_persons"] = [value] if isinstance(value, str) else value
+                elif key == "drilldown_part_name":
+                    filters["part_names"] = [value] if isinstance(value, str) else value
     
     return filters
 

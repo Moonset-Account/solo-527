@@ -90,7 +90,11 @@ def _get_work_orders_mock(filters: Optional[Dict] = None) -> pd.DataFrame:
     orders = orders[orders["event_id"].isin(event_ids)]
     
     if filters and filters.get("repair_persons"):
-        orders = orders[orders["person_id"].isin(filters["repair_persons"])]
+        persons = filters["repair_persons"]
+        if persons and isinstance(persons, list) and persons[0].startswith("P"):
+            orders = orders[orders["person_id"].isin(persons)]
+        else:
+            orders = orders[orders["person_name"].isin(persons)]
     
     return handle_empty_data(orders)
 
@@ -119,6 +123,9 @@ def _get_spare_part_usages_mock(filters: Optional[Dict] = None) -> pd.DataFrame:
     order_ids = orders["order_id"].tolist()
     usages = data["spare_part_usages"].copy()
     usages = usages[usages["order_id"].isin(order_ids)]
+    
+    if filters and filters.get("part_names"):
+        usages = usages[usages["part_name"].isin(filters["part_names"])]
     
     return handle_empty_data(usages)
 

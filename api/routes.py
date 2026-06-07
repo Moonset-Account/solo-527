@@ -247,13 +247,32 @@ def _build_filters_from_params(params):
         ('shift_ids', 'shift_ids'),
         ('fault_codes', 'fault_codes'),
         ('repair_persons', 'repair_persons'),
+        ('part_names', 'part_names'),
     ]:
         value = params.get(param_name)
         if value:
             if isinstance(value, str):
-                filters[key] = json.loads(value)
+                if ',' in value:
+                    items = [v.strip() for v in value.split(',')]
+                else:
+                    try:
+                        items = json.loads(value)
+                        if not isinstance(items, list):
+                            items = [items]
+                    except (json.JSONDecodeError, TypeError):
+                        items = [value]
+            elif isinstance(value, list):
+                items = value
             else:
-                filters[key] = value
+                items = [value]
+            
+            if key in ['line_ids', 'equipment_ids', 'shift_ids']:
+                try:
+                    items = [int(item) if str(item).isdigit() else item for item in items]
+                except (ValueError, TypeError):
+                    pass
+            
+            filters[key] = items
     
     if params.get('breakdown_type'):
         filters['breakdown_type'] = params['breakdown_type']
