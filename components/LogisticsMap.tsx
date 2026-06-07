@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import mapboxgl from 'mapbox-gl'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import type { StationAggregate, PathAggregate, FilterParams } from '@/lib/types'
-import { getDelayColor } from '@/lib/utils/business'
+import FallbackMap from './FallbackMap'
 
 interface LogisticsMapProps {
   stations: StationAggregate[]
@@ -15,9 +15,16 @@ interface LogisticsMapProps {
   selectedPathId?: string
 }
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1IjoiZGVtby11c2VyIiwiYSI6Im1hcGJveC1kZW1vIn0.demo-token'
+const VALID_TOKEN_PREFIX = 'pk.'
 
-export default function LogisticsMap({
+function isValidMapboxToken(token: string | undefined): boolean {
+  if (!token) return false
+  if (!token.startsWith(VALID_TOKEN_PREFIX)) return false
+  if (token.includes('demo') || token.includes('demo-token') || token.includes('placeholder')) return false
+  return token.length > 30
+}
+
+function MapboxMapComponent({
   stations,
   paths,
   onStationClick,
@@ -26,49 +33,69 @@ export default function LogisticsMap({
   selectedStationId,
   selectedPathId,
 }: LogisticsMapProps) {
+  const mapboxgl = require('mapbox-gl')
   const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<mapboxgl.Map | null>(null)
-  const markersRef = useRef<Record<string, mapboxgl.Marker>>({})
+  const map = useRef<any>(null)
+  const markersRef = useRef<Record<string, any>>({})
   const pathLayersRef = useRef<string[]>([])
   const [isMapLoaded, setIsMapLoaded] = useState(false)
+  const [mapError, setMapError] = useState(false)
+
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  mapboxgl.accessToken = token || ''
+
+  const getDelayColor = (durationMinutes: number) => {
+    if (durationMinutes <= 30) return '#10b981'
+    if (durationMinutes <= 60) return '#f59e0b'
+    if (durationMinutes <= 120) return '#ef4444'
+    return '#7c2d12'
+  }
 
   useEffect(() => {
-    if (!mapContainer.current) return
+    if (!mapContainer.current || mapError) return
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [108.9, 34.3],
-      zoom: 3.8,
-      minZoom: 3,
-      maxZoom: 12,
-    })
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [108.9, 34.3],
+        zoom: 3.8,
+        minZoom: 3,
+        maxZoom: 12,
+      })
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
-    map.current.addControl(new mapboxgl.ScaleControl({ maxWidth: 150, unit: 'metric' }), 'bottom-left')
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right')
+      map.current.addControl(new mapboxgl.ScaleControl({ maxWidth: 150, unit: 'metric' }), 'bottom-left')
 
-    map.current.on('load', () => {
-      setIsMapLoaded(true)
-    })
+      map.current.on('load', () => {
+        setIsMapLoaded(true)
+      })
 
-    map.current.on('moveend', () => {
-      if (map.current && onBoundsChange) {
-        const bounds = map.current.getBounds()
-        if (bounds) {
-          onBoundsChange({
-            minLng: bounds.getWest(),
-            maxLng: bounds.getEast(),
-            minLat: bounds.getSouth(),
-            maxLat: bounds.getNorth(),
-          })
+      map.current.on('error', () => {
+        setMapError(true)
+      })
+
+      map.current.on('moveend', () => {
+        if (map.current && onBoundsChange) {
+          const bounds = map.current.getBounds()
+          if (bounds) {
+            onBoundsChange({
+              minLng: bounds.getWest(),
+              maxLng: bounds.getEast(),
+              minLat: bounds.getSouth(),
+              maxLat: bounds.getNorth(),
+            })
+          }
         }
-      }
-    })
+      })
+    } catch (e) {
+      setMapError(true)
+    }
 
     return () => {
       map.current?.remove()
     }
-  }, [onBoundsChange])
+  }, [onBoundsChange, mapError])
 
   const renderStations = useCallback(() => {
     if (!map.current || !isMapLoaded) return
@@ -112,9 +139,9 @@ export default function LogisticsMap({
       const marker = new mapboxgl.Marker(el)
         .setLngLat([station.location.lng, station.location.lat])
         .setPopup(popup)
-        .addTo(map.current!)
+        .addTo(map.current)
 
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', (e: Event) => {
         e.stopPropagation()
         onStationClick?.(station)
       })
@@ -127,11 +154,11 @@ export default function LogisticsMap({
     if (!map.current || !isMapLoaded) return
 
     pathLayersRef.current.forEach(layerId => {
-      if (map.current!.getLayer(layerId)) {
-        map.current!.removeLayer(layerId)
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId)
       }
-      if (map.current!.getSource(layerId)) {
-        map.current!.removeSource(layerId)
+      if (map.current.getSource(layerId)) {
+        map.current.removeSource(layerId)
       }
     })
     pathLayersRef.current = []
@@ -143,7 +170,7 @@ export default function LogisticsMap({
       const width = isSelected ? 6 : (path.isDelayed ? 4 : 2)
       const opacity = isSelected ? 0.9 : 0.6
 
-      const geojson: GeoJSON.Feature<GeoJSON.LineString> = {
+      const geojson: any = {
         type: 'Feature',
         properties: {
           id: path.id,
@@ -157,12 +184,12 @@ export default function LogisticsMap({
         },
       }
 
-      map.current!.addSource(layerId, {
+      map.current.addSource(layerId, {
         type: 'geojson',
         data: geojson,
       })
 
-      map.current!.addLayer({
+      map.current.addLayer({
         id: layerId,
         type: 'line',
         source: layerId,
@@ -177,18 +204,18 @@ export default function LogisticsMap({
         },
       })
 
-      map.current!.on('click', layerId, (e) => {
+      map.current.on('click', layerId, (e: any) => {
         e.originalEvent.stopPropagation()
         onPathClick?.(path)
       })
 
-      map.current!.on('mouseenter', layerId, () => {
+      map.current.on('mouseenter', layerId, () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = 'pointer'
         }
       })
 
-      map.current!.on('mouseleave', layerId, () => {
+      map.current.on('mouseleave', layerId, () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = ''
         }
@@ -205,6 +232,20 @@ export default function LogisticsMap({
   useEffect(() => {
     renderPaths()
   }, [renderPaths])
+
+  if (mapError) {
+    return (
+      <FallbackMap
+        stations={stations}
+        paths={paths}
+        onStationClick={onStationClick}
+        onPathClick={onPathClick}
+        onBoundsChange={onBoundsChange}
+        selectedStationId={selectedStationId}
+        selectedPathId={selectedPathId}
+      />
+    )
+  }
 
   return (
     <div className="relative w-full h-full">
@@ -245,4 +286,34 @@ export default function LogisticsMap({
       </div>
     </div>
   )
+}
+
+export default function LogisticsMap(props: LogisticsMapProps) {
+  const hasValidToken = useMemo(() => {
+    return isValidMapboxToken(process.env.NEXT_PUBLIC_MAPBOX_TOKEN)
+  }, [])
+
+  const [useMapbox, setUseMapbox] = useState(hasValidToken)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    setHydrated(true)
+    if (!hasValidToken) {
+      setUseMapbox(false)
+    }
+  }, [hasValidToken])
+
+  if (!hydrated) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg">
+        <div className="text-gray-400 text-sm">加载地图...</div>
+      </div>
+    )
+  }
+
+  if (!useMapbox) {
+    return <FallbackMap {...props} />
+  }
+
+  return <MapboxMapComponent {...props} />
 }

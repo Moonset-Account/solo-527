@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'waybillId is required' }, { status: 400 })
   }
 
-  const data = getWaybillWithDetails(waybillId)
+  const data = await getWaybillWithDetails(waybillId)
 
   if (!data) {
     return NextResponse.json({ error: 'Waybill not found' }, { status: 404 })

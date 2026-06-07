@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import { getStations, getVehicles, getLoadingTeams } from '@/lib/services/dataService'
 
 export async function GET() {
-  const stations = getStations()
-  const vehicles = getVehicles()
-  const teams = getLoadingTeams()
+  const stations = await getStations()
+  const vehicles = await getVehicles()
+  const teams = await getLoadingTeams()
 
   return NextResponse.json({
     stations,

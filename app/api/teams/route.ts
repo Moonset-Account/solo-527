@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
   const role = (searchParams.get('role') || 'viewer') as any
   const permission = getDefaultPermission(role)
   
-  let data = getLoadingTeamPerformance(params)
+  let data = await getLoadingTeamPerformance(params)
 
   if (!permission.canViewDetails) {
-    data = data.map(t => ({
+    data = data.map((t: any) => ({
       ...t,
       totalWaybills: t.isLowSample ? -1 : t.totalWaybills,
       delayedWaybills: t.isLowSample ? -1 : t.delayedWaybills,

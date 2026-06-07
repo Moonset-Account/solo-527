@@ -14,12 +14,18 @@ export async function GET(request: NextRequest) {
     teamIds: searchParams.get('teamIds')?.split(',').filter(Boolean) || undefined,
     delayCategories: searchParams.get('delayCategories')?.split(',').filter(Boolean) || undefined,
     minDelayMinutes: searchParams.get('minDelayMinutes') ? Number(searchParams.get('minDelayMinutes')) : undefined,
+    spatialBounds: searchParams.get('minLng') ? {
+      minLng: Number(searchParams.get('minLng')),
+      maxLng: Number(searchParams.get('maxLng')),
+      minLat: Number(searchParams.get('minLat')),
+      maxLat: Number(searchParams.get('maxLat')),
+    } : undefined,
   }
 
   const role = (searchParams.get('role') || 'viewer') as any
   const permission = getDefaultPermission(role)
   
-  let data = getStationAggregates(params)
+  let data = await getStationAggregates(params)
 
   if (!permission.canViewDetails) {
     data = data.map(s => ({
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest) {
   const { params, role = 'viewer' } = body
   
   const permission = getDefaultPermission(role as any)
-  let data = getStationAggregates(params)
+  let data = await getStationAggregates(params)
 
   if (!permission.canViewDetails) {
     data = data.map(s => ({

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const role = (searchParams.get('role') || 'viewer') as any
   const permission = getDefaultPermission(role)
 
-  const data = getExceptions(params, permission)
+  const data = await getExceptions(params, permission)
 
   return NextResponse.json({ data, permission })
 }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   const { params, role = 'viewer' } = body
   
   const permission = getDefaultPermission(role as any)
-  const data = getExceptions(params, permission)
+  const data = await getExceptions(params, permission)
 
   return NextResponse.json({ data, permission })
 }

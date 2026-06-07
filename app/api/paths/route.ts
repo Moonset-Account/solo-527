@@ -19,15 +19,15 @@ export async function GET(request: NextRequest) {
   const permission = getDefaultPermission(role)
 
   if (pathId) {
-    const details = getPathDetails(pathId, params)
+    const details = await getPathDetails(pathId, params)
     if (!permission.canViewDetails) {
-      const sanitized = details.map(d => ({
+      const sanitized = details.map((d: any) => ({
         waybill: {
           id: d.waybill.id,
           status: d.waybill.status,
           priority: d.waybill.priority,
         },
-        delays: d.delays.map(delay => ({
+        delays: d.delays.map((delay: any) => ({
           stationId: delay.stationId,
           durationMinutes: delay.durationMinutes,
           isDelayed: delay.isDelayed,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: details, permission })
   }
 
-  const paths = getPathAggregates(params)
+  const paths = await getPathAggregates(params)
   return NextResponse.json({ data: paths, permission })
 }
 
@@ -49,11 +49,11 @@ export async function POST(request: NextRequest) {
   const permission = getDefaultPermission(role as any)
 
   if (pathId) {
-    const details = getPathDetails(pathId, params)
+    const details = await getPathDetails(pathId, params)
     if (!permission.canViewDetails) {
-      const sanitized = details.map(d => ({
+      const sanitized = details.map((d: any) => ({
         waybill: { id: d.waybill.id, status: d.waybill.status },
-        delays: d.delays.map(delay => ({
+        delays: d.delays.map((delay: any) => ({
           stationId: delay.stationId,
           durationMinutes: delay.durationMinutes,
           isDelayed: delay.isDelayed,
@@ -64,6 +64,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: details, permission })
   }
 
-  const paths = getPathAggregates(params)
+  const paths = await getPathAggregates(params)
   return NextResponse.json({ data: paths, permission })
 }
