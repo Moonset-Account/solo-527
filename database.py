@@ -279,17 +279,11 @@ class ColdChainDatabase:
             conn.commit()
 
 
-def get_database(init_sample_data: bool = True) -> ColdChainDatabase:
+def get_database() -> ColdChainDatabase:
     """
     获取数据库连接（强制 TimescaleDB）
-    如果数据库为空，自动导入示例数据
+    - 连接失败直接抛出异常
+    - 数据库为空不自动灌入数据，由上层提示用户
     """
     db = ColdChainDatabase()
-    
-    if init_sample_data and db.is_empty():
-        print("[TimescaleDB] 数据库为空，正在导入示例数据...")
-        from data_generator import generate_demo_data
-        df_shipments, df_samples, _ = generate_demo_data()
-        db.import_sample_data(df_shipments, df_samples)
-    
     return db

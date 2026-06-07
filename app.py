@@ -16,40 +16,54 @@ from database import get_database
 db = None
 df_shipments = pd.DataFrame()
 df_samples = pd.DataFrame()
+df_compliance = pd.DataFrame()
+df_cleaned = pd.DataFrame()
+calculator = None
 db_error = None
 db_status = "连接中..."
+data_ready = False
 
 try:
-    db = get_database(init_sample_data=True)
+    db = get_database()
     df_shipments, df_samples = db.load_data()
-    db_status = "✓ TimescaleDB 已连接"
+    
+    if len(df_shipments) == 0 or len(df_samples) == 0:
+        db_error = "数据库表为空，请先导入冷链运输数据"
+        db_status = "✗ 数据库为空"
+        print("[数据库] 表为空，等待用户导入数据")
+    else:
+        default_threshold = ThresholdConfig()
+        calculator = ComplianceCalculator(
+            min_temp=default_threshold.min_temp,
+            max_temp=default_threshold.max_temp,
+            min_samples=default_threshold.min_sample_count
+        )
+        compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
+        df_compliance = calculator.results_to_dataframe(compliance_results)
+        df_cleaned_all = []
+        for r in compliance_results:
+            for d in r.removed_details:
+                d["box_id"] = r.box_id
+                d["batch_no"] = r.batch_no
+                d["route"] = r.route
+                df_cleaned_all.append(d)
+        df_cleaned = pd.DataFrame(df_cleaned_all)
+        db_status = "✓ TimescaleDB 已连接"
+        data_ready = True
+        print(f"[数据库] 加载成功: {len(df_shipments)} 条运输, {len(df_samples)} 条采样")
+
 except Exception as e:
     db_error = str(e)
-    db_status = f"✗ TimescaleDB 连接失败: {str(e)[:50]}..."
+    db_status = f"✗ 连接失败: {str(e)[:40]}..."
     print(f"[数据库错误] {e}")
 
 default_threshold = ThresholdConfig()
-
-calculator = ComplianceCalculator(
-    min_temp=default_threshold.min_temp,
-    max_temp=default_threshold.max_temp,
-    min_samples=default_threshold.min_sample_count
-)
-
-if len(df_shipments) > 0 and len(df_samples) > 0:
-    compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
-    df_compliance = calculator.results_to_dataframe(compliance_results)
-    df_cleaned_all = []
-    for r in compliance_results:
-        for d in r.removed_details:
-            d["box_id"] = r.box_id
-            d["batch_no"] = r.batch_no
-            d["route"] = r.route
-            df_cleaned_all.append(d)
-    df_cleaned = pd.DataFrame(df_cleaned_all)
-else:
-    df_compliance = pd.DataFrame()
-    df_cleaned = pd.DataFrame()
+if calculator is None:
+    calculator = ComplianceCalculator(
+        min_temp=default_threshold.min_temp,
+        max_temp=default_threshold.max_temp,
+        min_samples=default_threshold.min_sample_count
+    )
 
 app = dash.Dash(
     __name__, 
@@ -136,8 +150,8 @@ sidebar = dbc.Card([
         html.H6("时间范围筛选"),
         dcc.DatePickerRange(
             id="date-range-picker",
-            start_date=df_compliance["signoff_time"].min().date(),
-            end_date=df_compliance["signoff_time"].max().date(),
+            start_date=None,
+            end_date=None,
             display_format="YYYY-MM-DD",
             className="mb-3 w-100"
         ),
@@ -145,7 +159,7 @@ sidebar = dbc.Card([
             dbc.Label("路线筛选"),
             dcc.Dropdown(
                 id="route-filter",
-                options=[{"label": r, "value": r} for r in sorted(df_compliance["route"].unique())],
+                options=[],
                 multi=True,
                 placeholder="选择路线...",
                 className="mb-3"
@@ -155,9 +169,7 @@ sidebar = dbc.Card([
             dbc.Label("站点筛选"),
             dcc.Dropdown(
                 id="station-filter",
-                options=[{"label": s, "value": s} for s in sorted(
-                    pd.concat([df_compliance["from_station"], df_compliance["to_station"]]).unique()
-                )],
+                options=[],
                 multi=True,
                 placeholder="选择站点...",
                 className="mb-3"
@@ -353,7 +365,11 @@ def update_threshold_preview(min_temp, max_temp):
         Output("compliance-table-chart", "figure"),
         Output("cleaned-data-table", "children"),
         Output("sample-warning-badge", "children"),
-        Output("sample-warning-badge", "style")
+        Output("sample-warning-badge", "style"),
+        Output("route-filter", "options"),
+        Output("station-filter", "options"),
+        Output("date-range-picker", "start_date"),
+        Output("date-range-picker", "end_date")
     ],
     [
         Input("min-temp-input", "value"),
@@ -365,72 +381,113 @@ def update_threshold_preview(min_temp, max_temp):
         Input("station-filter", "value"),
         Input("status-filter", "value"),
         Input("refresh-btn", "n_clicks")
+    ],
+    [
+        State("route-filter", "options"),
+        State("station-filter", "options")
     ]
 )
 def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date, 
-                       routes, stations, statuses, n_clicks):
+                       routes, stations, statuses, n_clicks,
+                       current_route_options, current_station_options):
     
     global calculator, compliance_results, df_compliance, df_cleaned
-    global db, df_shipments, df_samples
+    global db, df_shipments, df_samples, data_ready
     
     ctx = callback_context
     triggered = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else ""
     
-    if triggered in ["min-temp-input", "max-temp-input", "min-samples-input"]:
-        calculator = ComplianceCalculator(
-            min_temp=min_temp or 2.0,
-            max_temp=max_temp or 8.0,
-            min_samples=min_samples or 3
-        )
-        compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
-        df_compliance = calculator.results_to_dataframe(compliance_results)
-        df_cleaned_all = []
-        for r in compliance_results:
-            for d in r.removed_details:
-                d["box_id"] = r.box_id
-                d["batch_no"] = r.batch_no
-                d["route"] = r.route
-                df_cleaned_all.append(d)
-        df_cleaned = pd.DataFrame(df_cleaned_all)
-    elif triggered == "refresh-btn":
+    if triggered == "refresh-btn":
         try:
-            db = get_database(init_sample_data=False)
+            db = get_database()
             df_shipments, df_samples = db.load_data()
+            
+            if len(df_shipments) > 0 and len(df_samples) > 0:
+                data_ready = True
+                calculator = ComplianceCalculator(
+                    min_temp=min_temp or 2.0,
+                    max_temp=max_temp or 8.0,
+                    min_samples=min_samples or 3
+                )
+                compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
+                df_compliance = calculator.results_to_dataframe(compliance_results)
+                df_cleaned_all = []
+                for r in compliance_results:
+                    for d in r.removed_details:
+                        d["box_id"] = r.box_id
+                        d["batch_no"] = r.batch_no
+                        d["route"] = r.route
+                        df_cleaned_all.append(d)
+                df_cleaned = pd.DataFrame(df_cleaned_all)
+            else:
+                data_ready = False
+                df_compliance = pd.DataFrame()
+                df_cleaned = pd.DataFrame()
         except Exception as e:
             print(f"刷新失败: {e}")
-        calculator = ComplianceCalculator(
-            min_temp=min_temp or 2.0,
-            max_temp=max_temp or 8.0,
-            min_samples=min_samples or 3
-        )
-        compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
-        df_compliance = calculator.results_to_dataframe(compliance_results)
-        df_cleaned_all = []
-        for r in compliance_results:
-            for d in r.removed_details:
-                d["box_id"] = r.box_id
-                d["batch_no"] = r.batch_no
-                d["route"] = r.route
-                df_cleaned_all.append(d)
-        df_cleaned = pd.DataFrame(df_cleaned_all)
+            data_ready = False
+            df_compliance = pd.DataFrame()
+            df_cleaned = pd.DataFrame()
+    
+    elif triggered in ["min-temp-input", "max-temp-input", "min-samples-input"]:
+        if data_ready and len(df_shipments) > 0 and len(df_samples) > 0:
+            calculator = ComplianceCalculator(
+                min_temp=min_temp or 2.0,
+                max_temp=max_temp or 8.0,
+                min_samples=min_samples or 3
+            )
+            compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
+            df_compliance = calculator.results_to_dataframe(compliance_results)
+            df_cleaned_all = []
+            for r in compliance_results:
+                for d in r.removed_details:
+                    d["box_id"] = r.box_id
+                    d["batch_no"] = r.batch_no
+                    d["route"] = r.route
+                    df_cleaned_all.append(d)
+            df_cleaned = pd.DataFrame(df_cleaned_all)
+    
+    if len(df_compliance) == 0:
+        empty_fig = create_empty_fig("请先配置 TimescaleDB 并导入数据")
+        empty_kpi = dbc.CardBody([
+            html.H6("-", className="card-subtitle mb-2 text-muted"),
+            html.H3("-", className="card-title text-secondary"),
+            html.P("等待数据", className="card-text small")
+        ])
+        return empty_kpi, empty_kpi, empty_kpi, empty_kpi, empty_fig, empty_fig, empty_fig, empty_fig, html.P(""), "", {"display": "none"}, [], [], None, None
+    
+    route_options = current_route_options
+    station_options = current_station_options
+    new_start_date = start_date
+    new_end_date = end_date
+    
+    if triggered == "refresh-btn" or not current_route_options:
+        if "route" in df_compliance.columns:
+            route_options = [{"label": r, "value": r} for r in sorted(df_compliance["route"].unique())]
+        if all(col in df_compliance.columns for col in ["from_station", "to_station"]):
+            all_stations = pd.concat([df_compliance["from_station"], df_compliance["to_station"]]).unique()
+            station_options = [{"label": s, "value": s} for s in sorted(all_stations)]
+        if "signoff_time" in df_compliance.columns and not start_date:
+            new_start_date = df_compliance["signoff_time"].min().date()
+            new_end_date = df_compliance["signoff_time"].max().date()
     
     df = df_compliance.copy()
     
-    if start_date:
-        df = df[df["signoff_time"] >= pd.to_datetime(start_date)]
-    if end_date:
-        df = df[df["signoff_time"] <= pd.to_datetime(end_date) + timedelta(days=1)]
+    if "signoff_time" in df.columns and start_date:
+        df = df[pd.to_datetime(df["signoff_time"]) >= pd.to_datetime(start_date)]
+    if "signoff_time" in df.columns and end_date:
+        df = df[pd.to_datetime(df["signoff_time"]) <= pd.to_datetime(end_date) + timedelta(days=1)]
     
-    if routes:
+    if "route" in df.columns and routes:
         df = df[df["route"].isin(routes)]
     
-    if stations:
+    if all(col in df.columns for col in ["from_station", "to_station"]) and stations:
         df = df[df["from_station"].isin(stations) | df["to_station"].isin(stations)]
     
-    if statuses:
+    if all(col in df.columns for col in ["is_valid_for_ranking", "review_status"]) and statuses:
         mask = pd.Series([False] * len(df))
         if "normal" in statuses:
-            mask = mask | ((df["is_valid_for_ranking"]) & (df["review_status"].isin(["none", "resolved"])))
+            mask = mask | (df["is_valid_for_ranking"] & df["review_status"].isin(["none", "resolved"]))
         if "pending" in statuses:
             mask = mask | (~df["is_valid_for_ranking"])
         if "appealed" in statuses:
@@ -439,17 +496,25 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
             mask = mask | (df["review_status"] == "pending")
         df = df[mask]
     
-    ranking_mask = (
-        df["is_valid_for_ranking"] & 
-        (~df["review_status"].isin(["pending", "appealed"]))
-    )
-    total_count = len(df)
-    valid_count = ranking_mask.sum()
-    avg_compliance = df[ranking_mask]["compliance_rate"].mean() if ranking_mask.sum() > 0 else 0
+    ranking_mask = pd.Series([True] * len(df))
+    if all(col in df.columns for col in ["is_valid_for_ranking", "review_status"]):
+        ranking_mask = (
+            df["is_valid_for_ranking"] & 
+            (~df["review_status"].isin(["pending", "appealed"]))
+        )
     
-    pending_sample_mask = ~df["is_valid_for_ranking"]
-    pending_review_mask = df["review_status"].isin(["pending", "appealed"])
-    pending_count = int(pending_sample_mask.sum() + pending_review_mask.sum() - (pending_sample_mask & pending_review_mask).sum())
+    total_count = len(df)
+    valid_count = int(ranking_mask.sum())
+    avg_compliance = df[ranking_mask]["compliance_rate"].mean() if "compliance_rate" in df.columns and ranking_mask.sum() > 0 else 0
+    
+    pending_sample_count = 0
+    pending_review_count = 0
+    if "is_valid_for_ranking" in df.columns:
+        pending_sample_count = int((~df["is_valid_for_ranking"]).sum())
+    if "review_status" in df.columns:
+        pending_review_count = int(df["review_status"].isin(["pending", "appealed"]).sum())
+    
+    pending_count = pending_sample_count + pending_review_count
     
     kpi_total = dbc.CardBody([
         html.H6("总运输批次", className="card-subtitle mb-2 text-muted"),
@@ -482,23 +547,53 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
     
     cleaned_table = create_cleaned_data_table(df_cleaned, df)
     
-    warning_pending = len(df) - df["is_valid_for_ranking"].sum()
+    warning_pending = 0
+    if "is_valid_for_ranking" in df.columns:
+        warning_pending = int((~df["is_valid_for_ranking"]).sum())
     warning_style = {"display": "inline-block"} if warning_pending > 0 else {"display": "none"}
     warning_text = f"⚠️ {warning_pending} 个批次样本量不足，待复核"
     
-    return kpi_total, kpi_valid, kpi_compliance, kpi_pending, fig_overtime, fig_route, fig_station, fig_table, cleaned_table, warning_text, warning_style
+    return kpi_total, kpi_valid, kpi_compliance, kpi_pending, fig_overtime, fig_route, fig_station, fig_table, cleaned_table, warning_text, warning_style, route_options, station_options, new_start_date, new_end_date
+
+
+def create_empty_fig(message: str = "暂无数据"):
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message,
+        xref="paper", yref="paper",
+        x=0.5, y=0.5,
+        showarrow=False,
+        font=dict(size=20, color="#95a5a6")
+    )
+    fig.update_layout(
+        height=350,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
 
 
 def create_overtime_trend_chart(df):
     if len(df) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无运输数据")
+    
+    required_cols = ["signoff_time", "is_valid_for_ranking", "review_status", 
+                     "over_temp_duration_hours", "under_temp_duration_hours", "compliance_rate"]
+    for col in required_cols:
+        if col not in df.columns:
+            return create_empty_fig(f"缺少列: {col}")
     
     df_daily = df.copy()
-    df_daily["date"] = df_daily["signoff_time"].dt.date
+    df_daily["date"] = pd.to_datetime(df_daily["signoff_time"]).dt.date
     df_daily = df_daily[
         df_daily["is_valid_for_ranking"] & 
         (~df_daily["review_status"].isin(["pending", "appealed"]))
     ]
+    
+    if len(df_daily) == 0:
+        return create_empty_fig("暂无有效统计数据")
     
     daily_stats = df_daily.groupby("date").agg({
         "over_temp_duration_hours": "sum",
@@ -549,7 +644,13 @@ def create_overtime_trend_chart(df):
 
 def create_route_distribution_chart(df):
     if len(df) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无运输数据")
+    
+    required_cols = ["route", "is_valid_for_ranking", "review_status", 
+                     "compliance_rate", "shipment_id"]
+    for col in required_cols:
+        if col not in df.columns:
+            return create_empty_fig(f"缺少列: {col}")
     
     df_ranking = df[
         df["is_valid_for_ranking"] & 
@@ -557,7 +658,7 @@ def create_route_distribution_chart(df):
     ]
     
     if len(df_ranking) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无有效统计数据")
     
     route_stats = df_ranking.groupby("route").agg({
         "compliance_rate": "mean",
@@ -592,7 +693,13 @@ def create_route_distribution_chart(df):
 
 def create_station_comparison_chart(df):
     if len(df) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无运输数据")
+    
+    required_cols = ["from_station", "to_station", "is_valid_for_ranking", 
+                     "review_status", "compliance_rate", "shipment_id"]
+    for col in required_cols:
+        if col not in df.columns:
+            return create_empty_fig(f"缺少列: {col}")
     
     df_ranking = df[
         df["is_valid_for_ranking"] & 
@@ -600,7 +707,7 @@ def create_station_comparison_chart(df):
     ]
     
     if len(df_ranking) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无有效统计数据")
     
     from_stats = df_ranking.groupby("from_station").agg({
         "compliance_rate": "mean",
@@ -653,7 +760,14 @@ def create_station_comparison_chart(df):
 
 def create_compliance_table_chart(df, min_samples):
     if len(df) == 0:
-        return go.Figure()
+        return create_empty_fig("暂无运输数据")
+    
+    required_cols = ["box_id", "batch_no", "route", "to_station", "signoff_time",
+                     "sample_count", "compliance_rate", "is_valid_for_ranking",
+                     "review_status", "anomaly_count", "removed_count"]
+    for col in required_cols:
+        if col not in df.columns:
+            return create_empty_fig(f"缺少列: {col}")
     
     df_display = df.copy()
     df_display = df_display.sort_values("compliance_rate", ascending=False)
@@ -679,7 +793,7 @@ def create_compliance_table_chart(df, min_samples):
         df_display["batch_no"],
         df_display["route"],
         df_display["to_station"],
-        df_display["signoff_time"].dt.strftime("%m-%d %H:%M"),
+        pd.to_datetime(df_display["signoff_time"]).dt.strftime("%m-%d %H:%M"),
         df_display["sample_count"].astype(str),
         df_display["compliance_display"],
         df_display["status_label"],
@@ -729,11 +843,19 @@ def create_cleaned_data_table(df_cleaned_all, df_filtered):
     if len(df_cleaned_all) == 0 or len(df_filtered) == 0:
         return html.P("暂无被剔除的数据", className="text-muted")
     
+    if "box_id" not in df_filtered.columns or "box_id" not in df_cleaned_all.columns:
+        return html.P("数据格式错误：缺少 box_id 列", className="text-muted")
+    
     relevant_boxes = df_filtered["box_id"].unique()
     df_filtered_cleaned = df_cleaned_all[df_cleaned_all["box_id"].isin(relevant_boxes)]
     
     if len(df_filtered_cleaned) == 0:
         return html.P("暂无被剔除的数据", className="text-muted")
+    
+    required_cols = ["box_id", "batch_no", "timestamp", "temperature", "reason"]
+    for col in required_cols:
+        if col not in df_filtered_cleaned.columns:
+            return html.P(f"数据格式错误：缺少 {col} 列", className="text-muted")
     
     df_display = df_filtered_cleaned.head(100).copy()
     df_display["temperature"] = df_display["temperature"].apply(
@@ -789,23 +911,37 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
     
     if triggered == "compliance-table-chart" and clickData:
         point = clickData["points"][0]
-        row_idx = point.get("row")
         
-        if row_idx is None:
+        cell_values = point.get("cell_values", [])
+        if not cell_values or len(cell_values) == 0:
             return is_open, None
         
-        box_id = point["cell_values"][0]
+        box_id = str(cell_values[0])
         
-        shipment = df_shipments[df_shipments["box_id"] == box_id].iloc[0]
-        samples = df_samples[df_samples["box_id"] == box_id].copy()
-        samples = samples.sort_values("timestamp")
+        if len(df_shipments) == 0 or "box_id" not in df_shipments.columns:
+            return True, html.Div([
+                html.H5("数据未就绪", className="text-warning"),
+                html.P("请先确保 TimescaleDB 已连接并导入数据")
+            ])
         
-        cleaned_samples, _ = calculator.cleaner.clean_samples(samples)
-        valid_samples = cleaned_samples[~cleaned_samples["is_cleaned"]]
+        shipment_matches = df_shipments[df_shipments["box_id"] == box_id]
+        if len(shipment_matches) == 0:
+            return True, html.Div([
+                html.H5("未找到该批次数据", className="text-warning"),
+                html.P(f"箱号: {box_id}")
+            ])
+        
+        shipment = shipment_matches.iloc[0]
+        samples = df_samples[df_samples["box_id"] == box_id].copy() if len(df_samples) > 0 else pd.DataFrame()
+        if len(samples) > 0 and "timestamp" in samples.columns:
+            samples = samples.sort_values("timestamp")
+        
+        cleaned_samples, _ = calculator.cleaner.clean_samples(samples) if len(samples) > 0 else (pd.DataFrame(), None)
+        valid_samples = cleaned_samples[~cleaned_samples["is_cleaned"]] if len(cleaned_samples) > 0 else pd.DataFrame()
         
         fig = go.Figure()
         
-        if len(valid_samples) > 0:
+        if len(valid_samples) > 0 and all(col in valid_samples.columns for col in ["timestamp", "temperature"]):
             fig.add_trace(go.Scatter(
                 x=valid_samples["timestamp"],
                 y=valid_samples["temperature"],
@@ -815,17 +951,18 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
                 marker=dict(size=6)
             ))
         
-        cleaned_visible = cleaned_samples[cleaned_samples["is_cleaned"]]
-        if len(cleaned_visible) > 0:
-            fig.add_trace(go.Scatter(
-                x=cleaned_visible["timestamp"],
-                y=cleaned_visible["temperature"].apply(lambda x: x if pd.notna(x) and abs(x) < 50 else None),
-                mode="markers",
-                name="已剔除",
-                marker=dict(size=10, color="#e74c3c", symbol="x"),
-                text=cleaned_visible["cleaned_reason"],
-                hoverinfo="text+x+y"
-            ))
+        if len(cleaned_samples) > 0 and all(col in cleaned_samples.columns for col in ["timestamp", "temperature", "is_cleaned", "cleaned_reason"]):
+            cleaned_visible = cleaned_samples[cleaned_samples["is_cleaned"]]
+            if len(cleaned_visible) > 0:
+                fig.add_trace(go.Scatter(
+                    x=cleaned_visible["timestamp"],
+                    y=cleaned_visible["temperature"].apply(lambda x: x if pd.notna(x) and abs(x) < 50 else None),
+                    mode="markers",
+                    name="已剔除",
+                    marker=dict(size=10, color="#e74c3c", symbol="x"),
+                    text=cleaned_visible["cleaned_reason"],
+                    hoverinfo="text+x+y"
+                ))
         
         fig.add_hrect(
             y0=min_temp, y1=max_temp,
@@ -881,7 +1018,7 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
                     dbc.CardBody([
                         html.Div([
                             html.Img(
-                                src=shipment["signoff_photo_url"],
+                                src=shipment.get("signoff_photo_url", "/static/photos/BOX001.jpg"),
                                 style={
                                     "width": "100%",
                                     "maxHeight": "450px",
@@ -889,12 +1026,14 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
                                     "border": "1px solid #dee2e6",
                                     "borderRadius": "4px"
                                 },
-                                alt=f"签收照片 - {box_id}"
+                                alt=f"签收照片 - {box_id}",
+                                onError="this.src='/static/photos/BOX001.jpg'"
                             ),
                             html.P([
                                 html.Strong("签收单号: "), box_id,
                                 html.Span("  |  ", className="text-muted"),
-                                html.Strong("签收时间: "), shipment["signoff_time"].strftime("%Y-%m-%d %H:%M")
+                                html.Strong("签收时间: "), 
+                                shipment["signoff_time"].strftime("%Y-%m-%d %H:%M") if pd.notna(shipment.get("signoff_time")) else "未知"
                             ], className="text-center text-muted mt-2 small")
                         ])
                     ]),
