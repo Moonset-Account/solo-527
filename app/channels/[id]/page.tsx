@@ -64,23 +64,28 @@ export default function ChannelDetailPage() {
   const handleMarkSample = async (sampleId: string, action: 'approve' | 'reject') => {
     try {
       const actionType = action === 'approve' ? 'approved' : 'rejected';
-      const res = await fetch('/api/review-queue/batch', {
+      const res = await fetch('/api/review-queue/single', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ids: [sampleId], 
+          sampleId, 
           action: actionType, 
           reviewer: '调研经理' 
         }),
       });
       
-      if (res.ok) {
+      const result = await res.json();
+      
+      if (result.success) {
         await refreshAll();
         await fetchData();
-        showToast(action === 'approve' ? '样本已通过，渠道质量分已更新' : '样本已标记无效');
+        showToast(result.message);
+      } else {
+        showToast(result.error || '操作失败');
       }
     } catch (error) {
       console.error('标记样本失败:', error);
+      showToast('操作失败，请重试');
     }
   };
 

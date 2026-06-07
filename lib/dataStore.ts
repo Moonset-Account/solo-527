@@ -402,3 +402,74 @@ export function getAbnormalSamples(channelId?: string): Sample[] {
   }
   return samples.filter(s => s.abnormalTypes.length > 0);
 }
+
+export function reviewSingleSampleBySampleId(
+  sampleId: string,
+  action: 'approved' | 'rejected',
+  reviewer: string = '调研经理'
+): { processedCount: number; updatedChannelIds: string[] } {
+  const store = getStore();
+  const now = new Date().toISOString();
+  const nowStr = now.replace('T', ' ').slice(0, 19);
+  
+  const reviewItem = store.reviewQueue.find(r => r.sampleId === sampleId && r.status === 'pending');
+  
+  if (!reviewItem) {
+    return { processedCount: 0, updatedChannelIds: [] };
+  }
+  
+  const channelId = reviewItem.channelId;
+  
+  store.reviewQueue = store.reviewQueue.map(item => {
+    if (item.id === reviewItem.id) {
+      return {
+        ...item,
+        status: action,
+        reviewer,
+        reviewedAt: nowStr,
+      };
+    }
+    return item;
+  });
+  
+  store.samples = store.samples.map(sample => {
+    if (sample.id === sampleId) {
+      return {
+        ...sample,
+        status: action,
+      };
+    }
+    return sample;
+  });
+  
+  const updatedChannelIds: string[] = [];
+  store.channels = store.channels.map(channel => {
+    if (channel.id === channelId) {
+      const channelSamples = store.samples.filter(s => s.channelId === channel.id);
+      const pendingCount = channelSamples.filter(s => s.status === 'pending').length;
+      
+      const updated = {
+        ...channel,
+        pendingReview: pendingCount,
+        fastAnswerCount: channelSamples.filter(s => s.abnormalTypes.includes('fast_answer') && s.status !== 'rejected').length,
+        duplicateSubmissionCount: channelSamples.filter(s => s.abnormalTypes.includes('duplicate_submission') && s.status !== 'rejected').length,
+        deviceConcentrationCount: channelSamples.filter(s => s.abnormalTypes.includes('device_concentration') && s.status !== 'rejected').length,
+        skipAbnormalCount: channelSamples.filter(s => s.abnormalTypes.includes('skip_abnormal') && s.status !== 'rejected').length,
+        openCopyCount: channelSamples.filter(s => s.abnormalTypes.includes('open_copy') && s.status !== 'rejected').length,
+        updatedAt: nowStr,
+      };
+      
+      updated.qualityScore = calculateQualityScore(updated, store.samples);
+      updatedChannelIds.push(channel.id);
+      return updated;
+    }
+    return channel;
+  });
+  
+  saveStore();
+  
+  return {
+    processedCount: 1,
+    updatedChannelIds,
+  };
+}

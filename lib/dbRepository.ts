@@ -337,3 +337,93 @@ export async function getSampleByIdDB(id: string): Promise<Sample | null> {
   `, [id]);
   return result.rows[0] || null;
 }
+
+export async function reviewSingleSampleBySampleIdDB(
+  sampleId: string,
+  action: 'approved' | 'rejected',
+  reviewer: string = '调研经理'
+): Promise<{ processedCount: number; updatedChannelIds: string[] }> {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const queueResult = await client.query(`
+      SELECT id, channel_id FROM review_queue 
+      WHERE sample_id = $1 AND status = 'pending'
+      LIMIT 1
+    `, [sampleId]);
+    
+    if (queueResult.rows.length === 0) {
+      await client.query('COMMIT');
+      return { processedCount: 0, updatedChannelIds: [] };
+    }
+    
+    const queueId = queueResult.rows[0].id;
+    const channelId = queueResult.rows[0].channel_id;
+    
+    await client.query(`
+      UPDATE review_queue
+      SET 
+        status = $1,
+        reviewer = $2,
+        reviewed_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [action, reviewer, queueId]);
+    
+    await client.query(`
+      UPDATE samples
+      SET status = $1
+      WHERE id = $2
+    `, [action, sampleId]);
+    
+    await client.query(`
+      WITH channel_stats AS (
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+          COUNT(*) FILTER (WHERE status != 'rejected' AND 'fast_answer' = ANY(abnormal_types)) as fast_count,
+          COUNT(*) FILTER (WHERE status != 'rejected' AND 'duplicate_submission' = ANY(abnormal_types)) as duplicate_count,
+          COUNT(*) FILTER (WHERE status != 'rejected' AND 'device_concentration' = ANY(abnormal_types)) as device_count,
+          COUNT(*) FILTER (WHERE status != 'rejected' AND 'skip_abnormal' = ANY(abnormal_types)) as skip_count,
+          COUNT(*) FILTER (WHERE status != 'rejected' AND 'open_copy' = ANY(abnormal_types)) as open_count,
+          COUNT(*) FILTER (WHERE status = 'rejected') as rejected_count
+        FROM samples
+        WHERE channel_id = $1
+      )
+      UPDATE channels
+      SET 
+        total_samples = cs.total,
+        pending_review = cs.pending_count,
+        fast_answer_count = cs.fast_count,
+        duplicate_submission_count = cs.duplicate_count,
+        device_concentration_count = cs.device_count,
+        skip_abnormal_count = cs.skip_count,
+        open_copy_count = cs.open_count,
+        quality_score = ROUND(
+          100 
+          - (cs.rejected_count::float / NULLIF(cs.total, 0) * 40)
+          - (cs.pending_count::float / NULLIF(cs.total, 0) * 10)
+          - (
+              (cs.fast_count * 0.5 + cs.duplicate_count * 1.5 + cs.device_count * 1 + cs.skip_count * 0.8 + cs.open_count * 1.2) 
+              / NULLIF(cs.total, 0) * 30
+            )
+        ),
+        updated_at = CURRENT_TIMESTAMP
+      FROM channel_stats cs
+      WHERE id = $1
+    `, [channelId]);
+    
+    await client.query('COMMIT');
+    
+    return {
+      processedCount: 1,
+      updatedChannelIds: [channelId],
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}

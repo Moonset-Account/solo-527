@@ -7,11 +7,17 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') || undefined;
     const channelId = searchParams.get('channelId') || undefined;
 
-    const queue = await dataAccess.getReviewQueue(status, channelId);
+    const [queue, pendingCount] = await Promise.all([
+      dataAccess.getReviewQueue(status, channelId),
+      dataAccess.getPendingReviewCount(),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: queue,
+      data: {
+        items: queue,
+        pendingCount,
+      },
     });
   } catch (error) {
     console.error('获取复核队列失败:', error);
