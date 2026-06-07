@@ -182,6 +182,11 @@ onMounted(() => {
   qualityStore.loadComparisonData(compareDimension.value)
   nextTick(() => drawChart())
 })
+
+watch(() => qualityStore.timeWindow, () => {
+  qualityStore.loadComparisonData(compareDimension.value)
+  nextTick(() => drawChart())
+})
 </script>
 
 <template>

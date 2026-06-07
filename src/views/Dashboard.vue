@@ -63,7 +63,7 @@ function goToDetails(stage?: FunnelData) {
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <KpiCard
         title="总样本量"
-        :value="formatNumber(qualityStore.metrics.totalSamples)"
+        :value="formatNumber(qualityStore.scaledMetrics.totalSamples)"
         unit="份"
         trend="up"
         trend-value="+12.5%"
@@ -72,7 +72,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="有效样本量"
-        :value="formatNumber(qualityStore.metrics.validSamples)"
+        :value="formatNumber(qualityStore.scaledMetrics.validSamples)"
         unit="份"
         trend="up"
         trend-value="+8.3%"
@@ -81,7 +81,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="异常率"
-        :value="formatPercent(qualityStore.metrics.anomalyRate)"
+        :value="formatPercent(qualityStore.scaledMetrics.anomalyRate)"
         trend="down"
         trend-value="-2.1%"
         :icon="AlertTriangle"
@@ -89,7 +89,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="平均答题时长"
-        :value="formatDuration(qualityStore.metrics.avgDuration)"
+        :value="formatDuration(qualityStore.scaledMetrics.avgDuration)"
         trend="flat"
         trend-value="持平"
         :icon="Clock"
@@ -97,7 +97,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="跳题率"
-        :value="formatPercent(qualityStore.metrics.skipRate)"
+        :value="formatPercent(qualityStore.scaledMetrics.skipRate)"
         trend="down"
         trend-value="-1.2%"
         :icon="Activity"
@@ -105,7 +105,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="重复提交率"
-        :value="formatPercent(qualityStore.metrics.duplicateRate)"
+        :value="formatPercent(qualityStore.scaledMetrics.duplicateRate)"
         trend="up"
         trend-value="+0.5%"
         :icon="Repeat"
@@ -119,19 +119,19 @@ function goToDetails(stage?: FunnelData) {
           <span class="text-xs text-survey-text-muted">点击漏斗阶段可下钻明细</span>
         </template>
         <FunnelChart
-          :data="qualityStore.funnelData"
+          :data="qualityStore.scaledFunnelData"
           :height="320"
           @stage-click="goToDetails"
         />
       </CardContainer>
 
-      <CardContainer title="异常趋势（近30天）">
+      <CardContainer title="异常趋势">
         <template #header-actions>
           <span class="text-xs px-2 py-0.5 rounded bg-survey-primary/20 text-survey-primary">
-            ClickHouse 聚合查询
+            线上问卷样本质量监控 · 原始记录
           </span>
         </template>
-        <TrendLineChart :data="qualityStore.trendData" />
+        <TrendLineChart :data="qualityStore.scaledTrendData" />
       </CardContainer>
     </div>
 
@@ -153,7 +153,7 @@ function goToDetails(stage?: FunnelData) {
                 v-for="channel in qualityStore.channelRanking.slice(0, 5)"
                 :key="channel.channelId"
                 class="border-b border-survey-border/50 hover:bg-survey-surface-hover/50 cursor-pointer"
-                @click="router.push({ path: '/details', query: { channel: channel.channelId })"
+                @click="router.push({ path: '/details', query: { channel: channel.channelId } })"
               >
                 <td class="py-2.5 px-3 text-survey-text-primary">{{ channel.channelName }}</td>
                 <td class="py-2.5 px-3 text-right font-mono text-survey-text-primary">{{ formatNumber(channel.totalSamples) }}</td>

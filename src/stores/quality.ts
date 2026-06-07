@@ -32,7 +32,10 @@ export interface SampleFilter {
   surveyId?: string
 }
 
+export type TimeWindow = '24h' | '7d' | '30d' | '90d'
+
 export const useQualityStore = defineStore('quality', () => {
+  const timeWindow = ref<TimeWindow>('30d')
   const metrics = ref<QualityMetrics>(mockQualityMetrics)
   const funnelData = ref<FunnelData[]>(mockFunnelData)
   const trendData = ref<TrendDataPoint[]>(mockTrendData)
@@ -43,6 +46,13 @@ export const useQualityStore = defineStore('quality', () => {
   const selectedSample = ref<AnomalySample | null>(null)
   const comparisonData = ref<ComparisonData[]>([])
   const activeFilter = ref<SampleFilter>({})
+
+  const timeWindowMultiplier: Record<TimeWindow, number> = {
+    '24h': 0.08,
+    '7d': 0.25,
+    '30d': 1,
+    '90d': 2.8,
+  }
 
   const anomalySamples = computed(() => {
     let result = [...allAnomalySamples.value]
@@ -92,18 +102,64 @@ export const useQualityStore = defineStore('quality', () => {
       const markNames: Record<string, string> = { pass: '通过', warning: '警告', fail: '不通过' }
       parts.push(`质检: ${markNames[f.qualityMark] || f.qualityMark}`)
     }
+    if (f.surveyId) {
+      const surveyNames: Record<string, string> = {
+        s1: '用户满意度调研 Q2',
+        s2: '产品使用反馈调研',
+        s3: '品牌认知度调研',
+        s4: 'NPS 净推荐值调研',
+      }
+      parts.push(`问卷: ${surveyNames[f.surveyId] || f.surveyId}`)
+    }
     return parts.length > 0 ? parts.join(' | ') : '全部样本'
   })
 
-  const totalSamples = computed(() => metrics.value.totalSamples)
+  const totalSamples = computed(() => Math.floor(metrics.value.totalSamples * timeWindowMultiplier[timeWindow.value]))
   const anomalyRate = computed(() => metrics.value.anomalyRate)
+  const scaledMetrics = computed(() => {
+    const m = timeWindowMultiplier[timeWindow.value]
+    return {
+      ...metrics.value,
+      totalSamples: Math.floor(metrics.value.totalSamples * m),
+      validSamples: Math.floor(metrics.value.validSamples * m),
+    }
+  })
+  const scaledFunnelData = computed(() => {
+    const m = timeWindowMultiplier[timeWindow.value]
+    return funnelData.value.map(f => ({
+      ...f,
+      count: Math.floor(f.count * m),
+    }))
+  })
+  const scaledTrendData = computed(() => {
+    const days = timeWindow.value === '24h' ? 1 : timeWindow.value === '7d' ? 7 : timeWindow.value === '30d' ? 30 : 90
+    const m = timeWindowMultiplier[timeWindow.value]
+    return trendData.value.slice(-days).map(t => ({
+      ...t,
+      totalSamples: Math.floor(t.totalSamples * m),
+      anomalyCount: Math.floor(t.anomalyCount * m),
+    }))
+  })
+
+  function setTimeWindow(window: TimeWindow) {
+    timeWindow.value = window
+  }
 
   function setActiveFilter(filter: SampleFilter) {
     activeFilter.value = { ...filter }
   }
 
   function loadComparisonData(dimension: string) {
-    comparisonData.value = getMockComparisonData(dimension)
+    const data = getMockComparisonData(dimension)
+    const m = timeWindowMultiplier[timeWindow.value]
+    comparisonData.value = data.map(d => ({
+      ...d,
+      metrics: {
+        ...d.metrics,
+        totalSamples: d.metrics.totalSamples ? Math.floor(d.metrics.totalSamples * m) : undefined,
+        validSamples: d.metrics.validSamples ? Math.floor(d.metrics.validSamples * m) : undefined,
+      },
+    }))
   }
 
   function selectSample(sample: AnomalySample | null) {
@@ -123,9 +179,13 @@ export const useQualityStore = defineStore('quality', () => {
   }
 
   return {
+    timeWindow,
     metrics,
+    scaledMetrics,
     funnelData,
+    scaledFunnelData,
     trendData,
+    scaledTrendData,
     anomalyMatrix,
     channelRanking,
     questionGroupDurations,
@@ -137,6 +197,7 @@ export const useQualityStore = defineStore('quality', () => {
     filterDescription,
     totalSamples,
     anomalyRate,
+    setTimeWindow,
     setActiveFilter,
     loadComparisonData,
     selectSample,

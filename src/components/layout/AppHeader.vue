@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFilterStore } from '@/stores/filter'
-import { Calendar, RefreshCw, Download, Settings, ChevronDown, Check } from 'lucide-vue-next'
+import { useQualityStore, type TimeWindow } from '@/stores/quality'
+import { Calendar, RefreshCw, Download, Settings, ChevronDown, Check, Database } from 'lucide-vue-next'
 import dayjs from 'dayjs'
 
 const route = useRoute()
 const filterStore = useFilterStore()
+const qualityStore = useQualityStore()
 
 const showDatePicker = ref(false)
 
-const timePresets = [
+const timePresets: { key: TimeWindow; label: string; days: number }[] = [
   { key: '24h', label: '近 24 小时', days: 1 },
   { key: '7d', label: '近 7 天', days: 7 },
   { key: '30d', label: '近 30 天', days: 30 },
   { key: '90d', label: '近 90 天', days: 90 },
 ]
 
-const selectedPreset = ref('30d')
+const selectedPreset = computed(() => qualityStore.timeWindow)
 
 const pageTitle = computed(() => (route.meta?.title as string) || '样本质量监控')
 
@@ -26,11 +28,11 @@ const timeRangeText = computed(() => {
   return `${start} ~ ${end}`
 })
 
-function selectPreset(key: string, days: number) {
-  selectedPreset.value = key
+function selectPreset(key: TimeWindow, days: number) {
   const end = dayjs().format('YYYY-MM-DD')
   const start = dayjs().subtract(days, 'day').format('YYYY-MM-DD')
   filterStore.setTimeRange(start, end)
+  qualityStore.setTimeWindow(key)
   showDatePicker.value = false
 }
 
