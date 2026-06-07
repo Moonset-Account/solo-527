@@ -3,20 +3,31 @@ import { mergeDuplicateRepairs } from './merger.js'
 export function calcAvailability(chargers, faultLogs, timeRange = null) {
   const onlineChargers = chargers.filter(c => !c.is_offline)
   
-  let faultsInRange = timeRange 
-    ? faultLogs.filter(f => {
-        const t = new Date(f.occur_time).getTime()
-        return t >= timeRange[0] && t <= timeRange[1]
-      })
-    : faultLogs
+  let faultsInRange = faultLogs
+  
+  if (timeRange && timeRange[0] && timeRange[1]) {
+    const start = new Date(timeRange[0]).getTime()
+    const end = new Date(timeRange[1]).getTime()
+    
+    faultsInRange = faultLogs.filter(f => {
+      const t = new Date(f.occur_time).getTime()
+      return t >= start && t <= end
+    })
+  }
   
   const mergedFaults = mergeDuplicateRepairs(faultsInRange)
   
-  const faultyChargerIds = new Set(
+  const faultsFromLogs = new Set(
     mergedFaults
       .filter(f => onlineChargers.some(c => c.id === f.charger_id))
       .map(f => f.charger_id)
   )
+  
+  const faultsFromStatus = new Set(
+    onlineChargers.filter(c => c.status === 'fault').map(c => c.id)
+  )
+  
+  const faultyChargerIds = new Set([...faultsFromLogs, ...faultsFromStatus])
   
   const onlineNormal = onlineChargers.filter(c => !faultyChargerIds.has(c.id)).length
   const onlineTotal = onlineChargers.length
@@ -26,7 +37,9 @@ export function calcAvailability(chargers, faultLogs, timeRange = null) {
     online_normal: onlineNormal,
     online_faulty: onlineTotal - onlineNormal,
     online_total: onlineTotal,
-    offline_count: chargers.filter(c => c.is_offline).length
+    offline_count: chargers.filter(c => c.is_offline).length,
+    faults_from_logs: faultsFromLogs.size,
+    faults_from_status: faultsFromStatus.size
   }
 }
 
