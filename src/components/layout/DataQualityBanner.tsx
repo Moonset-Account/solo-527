@@ -1,47 +1,97 @@
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, AlertCircle, Database, RefreshCw } from 'lucide-react';
 import { useMetaStore, useUIStore } from '@/store';
+import { api } from '@/services/api';
+import { useState } from 'react';
 
 export default function DataQualityBanner() {
-  const { dataQuality } = useMetaStore();
+  const { dataQuality, setDataQuality } = useMetaStore();
   const { showDataQualityWarning, setShowDataQualityWarning } = useUIStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!showDataQualityWarning || !dataQuality) return null;
 
-  const hasIssues = dataQuality.isUpdateFailed || dataQuality.completeness < 90;
-  if (!hasIssues) return null;
+  const hasCriticalIssues = dataQuality.isUpdateFailed || dataQuality.completeness < 80;
+  const hasWarnings = !hasCriticalIssues && (dataQuality.completeness < 95 || dataQuality.missingFields.length > 0);
+  
+  if (!hasCriticalIssues && !hasWarnings) return null;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const data = await api.getDataQualityReport();
+      setDataQuality(data);
+    } catch (error) {
+      console.error('Failed to refresh data quality:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const bgColor = hasCriticalIssues ? 'bg-red-50' : 'bg-amber-50';
+  const borderColor = hasCriticalIssues ? 'border-red-200' : 'border-amber-200';
+  const textColor = hasCriticalIssues ? 'text-red-800' : 'text-amber-800';
+  const subTextColor = hasCriticalIssues ? 'text-red-700' : 'text-amber-700';
+  const iconColor = hasCriticalIssues ? 'text-red-600' : 'text-amber-600';
+  const Icon = hasCriticalIssues ? AlertCircle : AlertTriangle;
 
   return (
-    <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+    <div className={`${bgColor} border-b ${borderColor} px-6 py-3`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="text-sm font-medium text-amber-800">
-              数据质量警告
-            </span>
-            {dataQuality.isUpdateFailed && (
-              <span className="text-sm text-amber-700">
-                • 数据更新失败: {dataQuality.errorMessage || '未知错误'}
+          <Icon className={`w-5 h-5 ${iconColor} flex-shrink-0 animate-pulse-slow`} />
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className={`text-sm font-semibold ${textColor}`}>
+                {hasCriticalIssues ? '❌ 数据质量严重警告' : '⚠️ 数据质量提醒'}
               </span>
-            )}
-            {dataQuality.completeness < 90 && (
-              <span className="text-sm text-amber-700">
-                • 数据完整度仅 {dataQuality.completeness.toFixed(1)}%，部分分析可能不准确
-              </span>
-            )}
-            {dataQuality.missingFields.length > 0 && (
-              <span className="text-sm text-amber-700">
-                • 缺失字段: {dataQuality.missingFields.map(f => f.field).join(', ')}
-              </span>
-            )}
+              {dataQuality.isUpdateFailed && (
+                <span className={`text-sm ${subTextColor} font-medium`}>
+                  数据更新失败：{dataQuality.errorMessage || '请检查数据源连接'}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              {dataQuality.completeness < 95 && (
+                <span className={subTextColor}>
+                  <Database className="w-3 h-3 inline mr-1" />
+                  数据完整度：<span className="font-semibold">{dataQuality.completeness.toFixed(1)}%</span>
+                  {dataQuality.completeness < 80 ? '（严重缺失，分析结果不可靠）' : '（部分缺失，请注意甄别）'}
+                </span>
+              )}
+              {dataQuality.missingFields.length > 0 && (
+                <span className={subTextColor}>
+                  缺失字段：{dataQuality.missingFields.map(f => 
+                    `${f.field} (${f.missingCount}条)`
+                  ).join('、')}
+                </span>
+              )}
+              {dataQuality.sampleSize && dataQuality.sampleSize.length > 0 && (
+                <span className={subTextColor}>
+                  样本量：{dataQuality.sampleSize.map(s => 
+                    `${s.dimension.replace('_records', '')}: ${s.count.toLocaleString()}`
+                  ).join(' | ')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => setShowDataQualityWarning(false)}
-          className="p-1 hover:bg-amber-100 rounded transition-colors"
-        >
-          <X className="w-4 h-4 text-amber-600" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`p-2 rounded-lg transition-colors ${hasCriticalIssues ? 'hover:bg-red-100' : 'hover:bg-amber-100'} disabled:opacity-50`}
+            title="刷新数据质量"
+          >
+            <RefreshCw className={`w-4 h-4 ${iconColor} ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => setShowDataQualityWarning(false)}
+            className={`p-2 rounded-lg transition-colors ${hasCriticalIssues ? 'hover:bg-red-100' : 'hover:bg-amber-100'}`}
+            title="暂时隐藏"
+          >
+            <X className={`w-4 h-4 ${iconColor}`} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Search, X, Save } from 'lucide-react';
+import { Search, X, Save, Trash2 } from 'lucide-react';
 import { api } from '@/services/api';
+import { storage } from '@/utils/storage';
 import { useFilterStore, useMetaStore } from '@/store';
 import type { SavedFilter } from '@shared/types';
 
@@ -39,10 +40,17 @@ export default function FilterBar() {
 
   const loadSavedFilters = async () => {
     try {
+      const localFilters = storage.getSavedFilters();
+      if (localFilters.length > 0) {
+        setSavedFilters(localFilters);
+        return;
+      }
       const filters = await api.getSavedFilters();
       setSavedFilters(filters);
     } catch (error) {
       console.error('Failed to load saved filters:', error);
+      const localFilters = storage.getSavedFilters();
+      setSavedFilters(localFilters);
     }
   };
 
@@ -57,12 +65,29 @@ export default function FilterBar() {
     };
     
     try {
-      await api.saveFilter(filterName, filters);
+      const saved = storage.saveFilter(filterName, filters);
+      setSavedFilters(prev => [saved, ...prev.slice(0, 19)]);
       setFilterName('');
       setShowSaveDialog(false);
-      loadSavedFilters();
+      
+      try {
+        await api.saveFilter(filterName, filters);
+      } catch (e) {
+        console.log('Backend save failed, using local storage only');
+      }
     } catch (error) {
       console.error('Failed to save filter:', error);
+    }
+  };
+
+  const handleDeleteFilter = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      storage.deleteFilter(id);
+      setSavedFilters(prev => prev.filter(f => f.id !== id));
+    } catch (error) {
+      console.error('Failed to delete filter:', error);
     }
   };
 
@@ -117,18 +142,42 @@ export default function FilterBar() {
         </select>
 
         {savedFilters.length > 0 && (
-          <select
-            onChange={(e) => {
-              const filter = savedFilters.find(f => f.id === e.target.value);
-              if (filter) applySavedFilter(filter);
-            }}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-blue-50"
-          >
-            <option value="">已保存筛选</option>
-            {savedFilters.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              onChange={(e) => {
+                const filter = savedFilters.find(f => f.id === e.target.value);
+                if (filter) applySavedFilter(filter);
+                e.target.value = '';
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-blue-50"
+            >
+              <option value="">已保存筛选</option>
+              {savedFilters.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            <div className="flex flex-wrap gap-1 max-w-xs">
+              {savedFilters.slice(0, 3).map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs group"
+                >
+                  <span
+                    className="cursor-pointer hover:underline"
+                    onClick={() => applySavedFilter(f)}
+                  >
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={(e) => handleDeleteFilter(f.id, e)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className="flex-1" />
