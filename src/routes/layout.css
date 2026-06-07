@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+@theme {
+	--font-sans: 'Noto Sans SC', sans-serif;
+	--font-serif: 'Noto Serif SC', serif;
+	--color-forest: #1B4332;
+	--color-forest-light: #40916C;
+	--color-accent: #E76F51;
+	--color-rain: #219EBC;
+}
+
+body {
+	font-family: 'Noto Sans SC', sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #d1d5db;
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #9ca3af;
+}
