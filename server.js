@@ -5,6 +5,7 @@ import express from "express";
 import morgan from "morgan";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { mkdirSync, existsSync } from "node:fs";
 import apiRoutes from "./server/routes/api.js";
 import { initCache } from "./server/services/cache.js";
 
@@ -12,6 +13,11 @@ installGlobals();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const exportDir = join(__dirname, "exports");
+if (!existsSync(exportDir)) {
+  mkdirSync(exportDir, { recursive: true });
+}
 
 const viteDevServer =
   process.env.NODE_ENV === "production"
@@ -29,7 +35,7 @@ const remixHandler = createRequestHandler({
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8787;
 
 app.use(compression());
 
@@ -49,16 +55,22 @@ if (viteDevServer) {
 }
 
 app.use(express.static("build/client", { maxAge: "1h" }));
+app.use("/exports", express.static(exportDir));
 app.use(express.json());
 
 initCache().catch(console.error);
 
 app.use("/api", apiRoutes);
 
+app.get("/login", (req, res) => {
+  res.redirect("/");
+});
+
 app.all("*", remixHandler);
 
 app.listen(PORT, () => {
   console.log(`✅ 服务器运行在 http://localhost:${PORT}`);
+  console.log(`✅ 灌溉仪表盘: http://localhost:${PORT}`);
 });
 
 export default app;

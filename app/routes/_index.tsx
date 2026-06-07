@@ -269,37 +269,33 @@ export default function Dashboard() {
 
   const handleExport = useCallback(
     (exportType: string) => {
-      if (dataSource === "live") {
-        fetch("/api/export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: exportType, filters }),
+      fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: exportType, filters }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            const typeLabel = exportTypes.find((t) => t.type === exportType)?.label || exportType;
+            const newTask: ExportTask = {
+              id: data.taskId,
+              type: exportType,
+              typeLabel,
+              status: "processing",
+              progress: 10,
+              createdAt: new Date(),
+            };
+            setExportTasks((prev) => [newTask, ...prev]);
+            setShowExportPanel(true);
+          }
         })
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.success) {
-              const typeLabel = exportTypes.find((t) => t.type === exportType)?.label || exportType;
-              const newTask: ExportTask = {
-                id: data.taskId,
-                type: exportType,
-                typeLabel,
-                status: "processing",
-                progress: 10,
-                createdAt: new Date(),
-              };
-              setExportTasks((prev) => [newTask, ...prev]);
-              setShowExportPanel(true);
-            }
-          })
-          .catch(() => {
-            simulateExport(exportType);
-          });
-      } else {
-        simulateExport(exportType);
-      }
+        .catch(() => {
+          simulateExport(exportType);
+        });
       setShowExportMenu(false);
     },
-    [dataSource, filters, exportTypes, simulateExport]
+    [filters, exportTypes, simulateExport]
   );
 
   useEffect(() => {
@@ -310,13 +306,13 @@ export default function Dashboard() {
       if (activeCount === 0) return;
 
       const timer = setInterval(() => {
-        if (dataSource === "live") {
-          exportTasks
-            .filter((t) => t.status === "processing")
-            .forEach((task) => {
-              fetch(`/api/export/${task.id}`)
-                .then((r) => r.json())
-                .then((data) => {
+        exportTasks
+          .filter((t) => t.status === "processing" || t.status === "pending")
+          .forEach((task) => {
+            fetch(`/api/export/${task.id}`)
+              .then((r) => r.json())
+              .then((data) => {
+                if (data && data.id) {
                   setExportTasks((prev) =>
                     prev.map((t) =>
                       t.id === task.id
@@ -324,21 +320,21 @@ export default function Dashboard() {
                             ...t,
                             status: data.status,
                             progress: data.progress,
-                            filePath: data.filePath,
+                            filePath: data.publicPath,
                             error: data.error,
                           }
                         : t
                     )
                   );
-                })
-                .catch(() => {});
-            });
-        }
-      }, 2000);
+                }
+              })
+              .catch(() => {});
+          });
+      }, 1500);
 
       return () => clearInterval(timer);
     }
-  }, [exportTasks, dataSource]);
+  }, [exportTasks]);
 
   const getStatusText = (task: ExportTask) => {
     switch (task.status) {
@@ -476,13 +472,16 @@ export default function Dashboard() {
                         {task.createdAt.toLocaleTimeString("zh-CN")}
                       </p>
                     </div>
-                    {task.status === "completed" && (
-                      <button
-                        onClick={() => alert(`文件已生成: ${task.filePath}\n\n演示模式下此为模拟，连接数据库后可真实下载`)}
+                    {task.status === "completed" && task.filePath && (
+                      <a
+                        href={task.filePath}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded hover:bg-green-600 transition-colors"
                       >
                         ⬇️ 下载
-                      </button>
+                      </a>
                     )}
                   </div>
                 ))

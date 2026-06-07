@@ -9,7 +9,8 @@ import {
   getFilterOptions,
 } from "../services/aggregator.js";
 import { deleteCachePattern } from "../services/cache.js";
-import { createExportTask, getExportTaskStatus, getAllExportTasks } from "../services/export.js";
+import { createExportTask, getExportTaskStatus, getAllExportTasks, getExportFilePath } from "../services/export.js";
+import { createReadStream, existsSync } from "fs";
 
 const router = Router();
 
@@ -126,11 +127,27 @@ router.post("/export", async (req, res) => {
     if (!validTypes.includes(type)) {
       return res.status(400).json({ error: "无效的导出类型", validTypes });
     }
-    const taskId = await createExportTask(type, filters || {});
-    res.json({ success: true, taskId, message: "导出任务已创建" });
+    const result = await createExportTask(type, filters || {});
+    res.json({ success: true, taskId: result.taskId, fileName: result.fileName, message: "导出任务已创建" });
   } catch (err) {
     console.error("创建导出任务失败:", err);
     res.status(500).json({ error: "创建导出任务失败", details: err.message });
+  }
+});
+
+router.get("/export/file/:fileName", async (req, res) => {
+  try {
+    const { fileName } = req.params;
+    const filePath = getExportFilePath(fileName);
+    if (!filePath) {
+      return res.status(404).json({ error: "文件不存在" });
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    createReadStream(filePath).pipe(res);
+  } catch (err) {
+    console.error("下载文件失败:", err);
+    res.status(500).json({ error: "下载文件失败" });
   }
 });
 
