@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Play, Trash2, Power, Download, Calendar, Clock, BarChart3, ChevronDown, ChevronUp, FileSpreadsheet } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Play, Trash2, Power, Download, Calendar, Clock, BarChart3, ChevronDown, ChevronUp, FileSpreadsheet, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { ScheduledReport, ReportHistory, FilterState } from '@/types';
 import * as XLSX from 'xlsx';
@@ -36,11 +36,20 @@ export default function ScheduledReportModal() {
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [generatingReportId, setGeneratingReportId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [newReport, setNewReport] = useState({
     name: '',
     frequency: 'weekly' as 'daily' | 'weekly' | 'monthly',
     email: ''
   });
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   const handleCreateReport = () => {
     if (!newReport.name.trim()) return;
@@ -55,10 +64,14 @@ export default function ScheduledReportModal() {
     setShowCreateForm(false);
   };
 
-  const handleRunNow = (reportId: string) => {
+  const handleRunNow = async (reportId: string, reportName: string) => {
+    setGeneratingReportId(reportId);
+    await new Promise(resolve => setTimeout(resolve, 500));
     const result = runReportNow(reportId);
+    setGeneratingReportId(null);
     if (result) {
       setExpandedReportId(reportId);
+      setSuccessMessage(`「${reportName}」报表生成成功！样本量: ${result.sampleCount}，均价: ${result.avgRent}元/月`);
     }
   };
 
@@ -165,6 +178,13 @@ export default function ScheduledReportModal() {
             </button>
           </div>
 
+          {successMessage && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-xs text-green-400">
+              <CheckCircle2 className="w-4 h-4" />
+              {successMessage}
+            </div>
+          )}
+
           {showCreateForm && (
             <div className="bg-workbench-bg rounded-lg p-4 space-y-3 border border-workbench-border">
               <div className="text-xs font-medium text-workbench-text">创建定时报表</div>
@@ -259,11 +279,16 @@ export default function ScheduledReportModal() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleRunNow(report.id)}
-                        className="p-2 rounded-lg hover:bg-cyan-600/20 text-cyan-400 hover:text-cyan-300 transition-colors"
+                        onClick={() => handleRunNow(report.id, report.name)}
+                        disabled={generatingReportId === report.id}
+                        className="p-2 rounded-lg hover:bg-cyan-600/20 text-cyan-400 hover:text-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         title="立即生成"
                       >
-                        <Play className="w-4 h-4" />
+                        {generatingReportId === report.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => toggleScheduledReport(report.id)}
@@ -301,26 +326,32 @@ export default function ScheduledReportModal() {
                       ) : (
                         <div className="divide-y divide-workbench-border/50">
                           {report.history.map((item, idx) => (
-                            <div key={item.id} className="px-4 py-3 flex items-center justify-between hover:bg-workbench-surface/50 transition-colors">
+                            <div key={item.id} className={`px-4 py-3 flex items-center justify-between transition-colors ${idx === 0 ? 'bg-cyan-500/5' : 'hover:bg-workbench-surface/50'}`}>
                               <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 rounded-full bg-cyan-600/20 flex items-center justify-center text-xs font-medium text-cyan-400">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${idx === 0 ? 'bg-cyan-500 text-white' : 'bg-cyan-600/20 text-cyan-400'}`}>
                                   #{report.history.length - idx}
                                 </div>
                                 <div>
-                                  <div className="text-xs text-workbench-text font-medium">
+                                  <div className="text-xs text-workbench-text font-medium flex items-center gap-2">
                                     {new Date(item.generatedAt).toLocaleString('zh-CN')}
+                                    {idx === 0 && (
+                                      <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 text-[10px] rounded">最新</span>
+                                    )}
                                   </div>
                                   <div className="text-xs text-workbench-text-muted mt-0.5 flex items-center gap-3">
-                                    <span>样本: <span className="text-cyan-400">{item.sampleCount}</span></span>
-                                    <span>异常: <span className="text-orange-400">{item.anomalyCount}</span></span>
-                                    <span>均价: <span className="text-green-400">{item.avgRent}</span>元/月</span>
-                                    <span>中位数: <span className="text-blue-400">{item.medianRent}</span>元/月</span>
+                                    <span>样本: <span className="text-cyan-400 font-medium">{item.sampleCount}</span></span>
+                                    <span>异常: <span className="text-orange-400 font-medium">{item.anomalyCount}</span></span>
+                                    <span>均价: <span className="text-green-400 font-medium">{item.avgRent}</span>元/月</span>
+                                    <span>中位数: <span className="text-blue-400 font-medium">{item.medianRent}</span>元/月</span>
+                                    <span className="text-workbench-text-muted">
+                                      数据更新: {new Date(item.dataUpdateTime).toLocaleDateString('zh-CN')}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
                               <button
                                 onClick={() => handleExportHistory(report, item)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-workbench-surface border border-workbench-border hover:border-cyan-500 text-workbench-text text-xs rounded-lg transition-colors"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs rounded-lg transition-colors"
                               >
                                 <Download className="w-3.5 h-3.5" />
                                 导出Excel
