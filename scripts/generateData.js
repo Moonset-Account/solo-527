@@ -95,8 +95,8 @@ function generateSessionData() {
         }
         
         sessions.push({
-          session_id: `s${String(sessionId).padStart(8, '0')}',
-          user_id: `u${String(randomInt(1, 50000)).padStart(8, '0')}',
+          session_id: `s${String(sessionId).padStart(8, '0')}`,
+          user_id: `u${String(randomInt(1, 50000)).padStart(8, '0')}`,
           date,
           time_slot: slot,
           anchor_id: anchor.id,
@@ -137,6 +137,7 @@ function generatePresentationSlots() {
       const presentationCount = randomInt(8, 15);
       for (let i = 0; i < presentationCount; i++) {
         const product = randomChoice(products);
+        const source = randomChoice(sources);
         const startMinute = randomInt(0, 12 * 60);
         const duration = randomInt(180, 600);
         const viewersPeak = randomInt(500, 5000);
@@ -146,13 +147,14 @@ function generatePresentationSlots() {
         const gmv = orders * product.price * randomInt(1, 3);
         
         slots.push({
-          slot_id: `ps${String(slotId).padStart(8, '0')}',
+          slot_id: `ps${String(slotId).padStart(8, '0')}`,
           date,
           anchor_id: anchor.id,
           anchor_name: anchor.name,
           product_id: product.id,
           product_name: product.name,
           product_type: product.type,
+          source_channel: source,
           start_minute: startMinute,
           duration_seconds: duration,
           viewers_peak: viewersPeak,

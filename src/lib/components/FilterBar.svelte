@@ -80,6 +80,23 @@
   </div>
 
   <div class="filter-section">
+    <label>商品</label>
+    <div class="filter-tags">
+      {#each dimensions.products as product}
+        <button 
+          class="filter-tag small {$filters.productIds.includes(product.PRODUCT_ID || product.product_id) ? 'active' : ''}"
+          on:click={() => toggleFilter('product', product.PRODUCT_ID || product.product_id)}
+        >
+          {product.PRODUCT_NAME || product.product_name}
+          <span class="product-type-tag {(product.PRODUCT_TYPE || product.product_type) === 'preorder' ? 'preorder' : 'spot'}">
+            {(product.PRODUCT_TYPE || product.product_type) === 'preorder' ? '预售' : '现货'}
+          </span>
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="filter-section">
     <label>时段</label>
     <div class="filter-tags">
       {#each DIMENSIONS.time_slot.values as slot}
@@ -182,6 +199,35 @@
   .filter-tag.small {
     padding: 4px 10px;
     font-size: 12px;
+  }
+
+  .product-type-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    margin-left: 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .product-type-tag.spot {
+    background: rgba(46, 125, 50, 0.15);
+    color: #2e7d32;
+  }
+
+  .product-type-tag.preorder {
+    background: rgba(21, 101, 192, 0.15);
+    color: #1565c0;
+  }
+
+  .filter-tag.active .product-type-tag.spot {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+
+  .filter-tag.active .product-type-tag.preorder {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
   }
 
   .filter-actions {

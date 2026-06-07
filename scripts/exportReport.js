@@ -110,8 +110,8 @@ function exportFulfillmentReport() {
       SELECT
         product_type,
         COUNT(*) as total_orders,
-        SUM(CASE WHEN is_fulfilled = true THEN 1 ELSE 0 END) as fulfilled_orders,
-        ROUND(SUM(CASE WHEN is_fulfilled = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as fulfillment_rate
+        SUM(CASE WHEN is_fulfilled = 1 OR is_fulfilled = true THEN 1 ELSE 0 END) as fulfilled_orders,
+        ROUND(SUM(CASE WHEN is_fulfilled = 1 OR is_fulfilled = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as fulfillment_rate
       FROM sessions
       WHERE has_order = 1
       GROUP BY product_type

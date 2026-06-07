@@ -61,7 +61,10 @@ function createTables() {
   console.log('创建数据库表...');
   
   db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
+    DROP TABLE IF EXISTS sessions;
+    DROP TABLE IF EXISTS presentation_slots;
+    
+    CREATE TABLE sessions (
       session_id VARCHAR PRIMARY KEY,
       user_id VARCHAR,
       date DATE,
@@ -88,7 +91,7 @@ function createTables() {
       is_fulfilled BOOLEAN
     );
     
-    CREATE TABLE IF NOT EXISTS presentation_slots (
+    CREATE TABLE presentation_slots (
       slot_id VARCHAR PRIMARY KEY,
       date DATE,
       anchor_id VARCHAR,
@@ -96,6 +99,7 @@ function createTables() {
       product_id VARCHAR,
       product_name VARCHAR,
       product_type VARCHAR,
+      source_channel VARCHAR,
       start_minute INTEGER,
       duration_seconds INTEGER,
       viewers_peak INTEGER,
@@ -105,12 +109,14 @@ function createTables() {
       gmv DECIMAL
     );
     
-    CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
-    CREATE INDEX IF NOT EXISTS idx_sessions_anchor ON sessions(anchor_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_product ON sessions(product_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_type ON sessions(product_type);
-    CREATE INDEX IF NOT EXISTS idx_slots_date ON presentation_slots(date);
-    CREATE INDEX IF NOT EXISTS idx_slots_anchor ON presentation_slots(anchor_id);
+    CREATE INDEX idx_sessions_date ON sessions(date);
+    CREATE INDEX idx_sessions_anchor ON sessions(anchor_id);
+    CREATE INDEX idx_sessions_product ON sessions(product_id);
+    CREATE INDEX idx_sessions_type ON sessions(product_type);
+    CREATE INDEX idx_sessions_source ON sessions(source_channel);
+    CREATE INDEX idx_slots_date ON presentation_slots(date);
+    CREATE INDEX idx_slots_anchor ON presentation_slots(anchor_id);
+    CREATE INDEX idx_slots_source ON presentation_slots(source_channel);
   `);
 }
 
@@ -118,8 +124,8 @@ function insertSessions(sessions) {
   console.log('插入会话数据到DuckDB...');
   
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO sessions VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    INSERT INTO sessions VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
   
@@ -149,7 +155,7 @@ function insertSessions(sessions) {
       s.has_refund,
       s.refund_amount,
       s.refund_reason,
-      s.is_fulfilled
+      s.is_fulfilled ? 1 : 0
     );
   }
   db.exec('COMMIT');
@@ -159,9 +165,12 @@ function insertSessions(sessions) {
 function insertPresentationSlots(slots) {
   console.log('插入讲解时段数据到DuckDB...');
   
+  const sources = ['推荐页', '关注页', '搜索', '分享', '其他'];
+  const randomSource = () => sources[Math.floor(Math.random() * sources.length)];
+  
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO presentation_slots VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    INSERT INTO presentation_slots VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
   
@@ -175,6 +184,7 @@ function insertPresentationSlots(slots) {
       s.product_id,
       s.product_name,
       s.product_type,
+      s.source_channel || randomSource(),
       s.start_minute,
       s.duration_seconds,
       s.viewers_peak,
@@ -214,6 +224,20 @@ function runAnalytics() {
     if (err) console.error(err);
     console.log('核心指标:', res[0]);
   });
+  
+  db.all(`
+    SELECT 
+      product_type,
+      COUNT(*) as total_orders,
+      SUM(CASE WHEN is_fulfilled = 1 THEN 1 ELSE 0 END) as fulfilled,
+      ROUND(SUM(CASE WHEN is_fulfilled = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as fulfillment_rate
+    FROM sessions
+    WHERE has_order = 1
+    GROUP BY product_type
+  `, (err, res) => {
+    if (err) console.error(err);
+    console.log('履约表现（分类型）:', res);
+  });
 }
 
 async function main() {
@@ -245,7 +269,10 @@ async function main() {
     
     runAnalytics();
     
-    console.log('\n数据清洗完成！');
+    setTimeout(() => {
+      console.log('\n数据清洗完成！');
+      db.close();
+    }, 1000);
   } catch (error) {
     console.error('清洗失败:', error);
     process.exit(1);

@@ -91,7 +91,18 @@
         { anchor_id: 'a004', anchor_name: '大壮' },
         { anchor_id: 'a005', anchor_name: '晓晓' }
       ],
-      products: [],
+      products: [
+        { product_id: 'p001', product_name: '保湿精华液', product_type: 'spot' },
+        { product_id: 'p002', product_name: '限定口红礼盒', product_type: 'preorder' },
+        { product_id: 'p003', product_name: '运动T恤', product_type: 'spot' },
+        { product_id: 'p004', product_name: '设计师联名卫衣', product_type: 'preorder' },
+        { product_id: 'p005', product_name: '零食大礼包', product_type: 'spot' },
+        { product_id: 'p006', product_name: '进口坚果礼盒', product_type: 'preorder' },
+        { product_id: 'p007', product_name: '无线蓝牙耳机', product_type: 'spot' },
+        { product_id: 'p008', product_name: '智能手环Pro', product_type: 'preorder' },
+        { product_id: 'p009', product_name: '家用扫地机器人', product_type: 'spot' },
+        { product_id: 'p010', product_name: '空气净化器', product_type: 'preorder' }
+      ],
       activities: [
         { activity_id: 'act001', activity_name: '618大促' },
         { activity_id: 'act002', activity_name: '品牌日' },
