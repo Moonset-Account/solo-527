@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Filter, RotateCcw, ChevronDown, Bike, Wrench, Clock, CloudSun } from 'lucide-react'
+import { Filter, RotateCcw, ChevronDown, Bike, Wrench, Clock, CloudSun, Route as RouteIcon } from 'lucide-react'
 import { useFilterStore } from '@/store/filterStore'
 import { useDataStore } from '@/store/dataStore'
 import type { TimePeriod, VehicleStatus, DispatchStatusFilter } from '@/types'
@@ -34,9 +34,11 @@ const WEATHER_OPTIONS = [
 
 export default function FilterPanel() {
   const stations = useDataStore((s) => s.stations)
+  const routes = useDataStore((s) => s.routes)
   const refreshFilters = useDataStore((s) => s.refreshFilters)
 
   const stationIds = useFilterStore((s) => s.stationIds)
+  const routeIds = useFilterStore((s) => s.routeIds)
   const timePeriod = useFilterStore((s) => s.timePeriod)
   const customTimeRange = useFilterStore((s) => s.customTimeRange)
   const vehicleStatus = useFilterStore((s) => s.vehicleStatus)
@@ -45,6 +47,7 @@ export default function FilterPanel() {
   const repairExcludedCount = useFilterStore((s) => s.repairExcludedCount)
 
   const setStationIds = useFilterStore((s) => s.setStationIds)
+  const setRouteIds = useFilterStore((s) => s.setRouteIds)
   const setTimePeriod = useFilterStore((s) => s.setTimePeriod)
   const setCustomTimeRange = useFilterStore((s) => s.setCustomTimeRange)
   const setVehicleStatus = useFilterStore((s) => s.setVehicleStatus)
@@ -53,6 +56,7 @@ export default function FilterPanel() {
   const resetFilters = useFilterStore((s) => s.resetFilters)
 
   const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
+  const [routeDropdownOpen, setRouteDropdownOpen] = useState(false)
 
   const handleStationToggle = useCallback(
     (id: string) => {
@@ -62,6 +66,16 @@ export default function FilterPanel() {
       setStationIds(next)
     },
     [stationIds, setStationIds],
+  )
+
+  const handleRouteToggle = useCallback(
+    (id: string) => {
+      const next = routeIds.includes(id)
+        ? routeIds.filter((r) => r !== id)
+        : [...routeIds, id]
+      setRouteIds(next)
+    },
+    [routeIds, setRouteIds],
   )
 
   const handleWeatherToggle = useCallback(
@@ -76,7 +90,7 @@ export default function FilterPanel() {
 
   useEffect(() => {
     refreshFilters()
-  }, [stationIds, timePeriod, customTimeRange, vehicleStatus, dispatchStatus, weatherConditions, refreshFilters])
+  }, [stationIds, routeIds, timePeriod, customTimeRange, vehicleStatus, dispatchStatus, weatherConditions, refreshFilters])
 
   return (
     <div className="w-64 bg-[#22252d] border-r border-[#2a2d35] p-4 flex flex-col gap-5 overflow-y-auto" style={{ fontFamily: "'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif" }}>
@@ -119,6 +133,43 @@ export default function FilterPanel() {
                   {station.name}
                 </label>
               ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <RouteIcon className="w-3.5 h-3.5" />
+          线路
+        </h4>
+        <div className="relative">
+          <button
+            onClick={() => setRouteDropdownOpen(!routeDropdownOpen)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#2a2d35] text-sm text-gray-300 hover:bg-[#32353d] transition-colors"
+          >
+            <span>{routeIds.length === 0 ? '全部线路' : `已选 ${routeIds.length} 条线路`}</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${routeDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {routeDropdownOpen && (
+            <div className="absolute z-10 mt-1 w-full bg-[#2a2d35] rounded-lg border border-[#3a3d45] shadow-lg max-h-48 overflow-y-auto">
+              {routes.map((route) => (
+                <label
+                  key={route.id}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-[#32353d] cursor-pointer text-sm text-gray-300"
+                >
+                  <input
+                    type="checkbox"
+                    checked={routeIds.includes(route.id)}
+                    onChange={() => handleRouteToggle(route.id)}
+                    className="w-3.5 h-3.5 rounded accent-[#00e5c7]"
+                  />
+                  {route.originName} → {route.destName}
+                </label>
+              ))}
+              {routes.length === 0 && (
+                <div className="px-3 py-2 text-sm text-gray-500">暂无线路数据</div>
+              )}
             </div>
           )}
         </div>

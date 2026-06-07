@@ -31,6 +31,7 @@ export default function Dashboard() {
     isDataLoaded,
     refreshFilters,
     filterState.stationIds,
+    filterState.routeIds,
     filterState.timePeriod,
     filterState.vehicleStatus,
     filterState.dispatchStatus,

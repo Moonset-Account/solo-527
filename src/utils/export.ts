@@ -72,6 +72,7 @@ export async function exportAsPDF(elementId: string, filename: string, nullCount
 
 export function getFilterDescription(filters: FilterState): string {
   const stations = useDataStore.getState().stations;
+  const routes = useDataStore.getState().routes;
   const stationNameMap = new Map(stations.map((s) => [s.id, s.name]));
   const parts: string[] = [];
 
@@ -80,6 +81,16 @@ export function getFilterDescription(filters: FilterState): string {
     parts.push(`站点:${names}`);
   } else {
     parts.push('站点:全部');
+  }
+
+  if (filters.routeIds.length > 0) {
+    const routeLabels = filters.routeIds.map((rid) => {
+      const route = routes.find((r) => r.id === rid)
+      return route ? `${route.originName}→${route.destName}` : rid
+    }).join(',')
+    parts.push(`线路:${routeLabels}`);
+  } else {
+    parts.push('线路:全部');
   }
 
   parts.push(`时段:${timePeriodLabels[filters.timePeriod] ?? filters.timePeriod}`);

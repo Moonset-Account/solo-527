@@ -7,6 +7,7 @@ import type {
   AggregatedStation,
   FilterState,
   StationAlert,
+  Route,
 } from '@/types'
 import { stations as mockStations } from '@/data/mock/stations'
 import { rides as mockRides } from '@/data/mock/rides'
@@ -117,6 +118,27 @@ export async function runETL() {
   }
 }
 
+export function deriveRoutes(
+  rides: Ride[],
+  stationMap: Map<string, string>,
+): Route[] {
+  const seen = new Set<string>()
+  const routes: Route[] = []
+  for (const r of rides) {
+    const key = `${r.originStationId}->${r.destStationId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    routes.push({
+      id: key,
+      originId: r.originStationId,
+      originName: stationMap.get(r.originStationId) ?? r.originStationId,
+      destId: r.destStationId,
+      destName: stationMap.get(r.destStationId) ?? r.destStationId,
+    })
+  }
+  return routes
+}
+
 export function applyFilters(
   data: {
     stations: AggregatedStation[]
@@ -133,6 +155,12 @@ export function applyFilters(
   if (filters.stationIds.length > 0) {
     stations = stations.filter((s) =>
       filters.stationIds.includes(s.id),
+    )
+  }
+
+  if (filters.routeIds.length > 0) {
+    rides = rides.filter((r) =>
+      filters.routeIds.includes(`${r.originStationId}->${r.destStationId}`),
     )
   }
 
@@ -185,6 +213,8 @@ export function applyFilters(
       bikesInRepair: 0,
     }))
   }
+
+  stations = computeFlows(stations, rides)
 
   return { stations, rides, dispatches, repairs, weather }
 }

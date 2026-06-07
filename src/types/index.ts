@@ -106,3 +106,11 @@ export interface CacheEntry<T> {
   timestamp: number
   ttl: number
 }
+
+export interface Route {
+  id: string
+  originId: string
+  originName: string
+  destId: string
+  destName: string
+}

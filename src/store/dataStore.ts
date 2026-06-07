@@ -7,8 +7,9 @@ import {
   Weather,
   StationAlert,
   WeeklyReportData,
+  Route,
 } from '@/types'
-import { runETL, applyFilters, computeAlerts, computeFlows } from '@/data/etl'
+import { runETL, applyFilters, computeAlerts, computeFlows, deriveRoutes } from '@/data/etl'
 import { getCache, setCache, clearCache } from '@/data/cache'
 import { useFilterStore } from '@/store/filterStore'
 
@@ -18,6 +19,7 @@ interface DataStoreState {
   dispatches: Dispatch[]
   repairs: RepairRecord[]
   weather: Weather[]
+  routes: Route[]
   alerts: StationAlert[]
   filteredStations: AggregatedStation[]
   filteredRides: Ride[]
@@ -42,6 +44,7 @@ const defaultState: DataStoreState = {
   dispatches: [],
   repairs: [],
   weather: [],
+  routes: [],
   alerts: [],
   filteredStations: [],
   filteredRides: [],
@@ -67,12 +70,15 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     }>('etl_result')
     if (cachedData && cachedData.stations.length > 0) {
       const stationsWithFlows = computeFlows(cachedData.stations, cachedData.rides)
+      const stationMap = new Map(cachedData.stations.map((s) => [s.id, s.name]))
+      const routes = deriveRoutes(cachedData.rides, stationMap)
       set({
         stations: stationsWithFlows,
         rides: cachedData.rides,
         dispatches: cachedData.dispatches,
         repairs: cachedData.repairs,
         weather: cachedData.weather,
+        routes,
         filteredStations: stationsWithFlows,
         filteredRides: cachedData.rides,
         filteredDispatches: cachedData.dispatches,
@@ -99,6 +105,7 @@ export const useDataStore = create<DataStore>()((set, get) => ({
         dispatches: result.dispatches,
         repairs: result.repairs,
         weather: result.weather,
+        routes: deriveRoutes(result.rides, new Map(result.stations.map((s) => [s.id, s.name]))),
         filteredStations: result.stations,
         filteredRides: result.rides,
         filteredDispatches: result.dispatches,
@@ -154,26 +161,65 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     weekEnd.setDate(weekStart.getDate() + 6)
     weekEnd.setHours(23, 59, 59, 999)
 
+    const prevWeekStart = new Date(weekStart)
+    prevWeekStart.setDate(weekStart.getDate() - 7)
+    const prevWeekEnd = new Date(weekEnd)
+    prevWeekEnd.setDate(weekEnd.getDate() - 7)
+
+    const weekStartMs = weekStart.getTime()
+    const weekEndMs = weekEnd.getTime()
+    const prevWeekStartMs = prevWeekStart.getTime()
+    const prevWeekEndMs = prevWeekEnd.getTime()
+
+    const thisWeekRides = state.rides.filter((r) => {
+      const t = new Date(r.startTime).getTime()
+      return t >= weekStartMs && t <= weekEndMs
+    })
+    const prevWeekRides = state.rides.filter((r) => {
+      const t = new Date(r.startTime).getTime()
+      return t >= prevWeekStartMs && t <= prevWeekEndMs
+    })
+
+    const ridesWoW =
+      prevWeekRides.length > 0
+        ? Math.round(((thisWeekRides.length - prevWeekRides.length) / prevWeekRides.length) * 10000) / 100
+        : 0
+
+    const ridesYoY = Math.round(((thisWeekRides.length - prevWeekRides.length) / Math.max(prevWeekRides.length, 1)) * 10000) / 100
+
     const avgAvailability =
       state.filteredStations.length > 0
         ? state.filteredStations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
           state.filteredStations.length
         : 0
 
-    const criticalAlerts = state.alerts.filter((a) => a.severity === 'critical').length
+    const prevAvgAvailability =
+      state.stations.length > 0
+        ? state.stations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
+          state.stations.length
+        : 0
 
-    const mockWoW = Math.round((Math.random() * 10 + 5) * 100) / 100
-    const mockYoY = Math.round((Math.random() * 10 + 5) * 100) / 100
+    const availabilityWoW =
+      prevAvgAvailability > 0
+        ? Math.round(((avgAvailability - prevAvgAvailability) / prevAvgAvailability) * 10000) / 100
+        : 0
+
+    const criticalAlerts = state.alerts.filter((a) => a.severity === 'critical').length
 
     const sortedByDeviation = [...state.filteredStations]
       .sort((a, b) => Math.abs(b.netFlow) - Math.abs(a.netFlow))
       .slice(0, 3)
 
+    const avgNetFlow =
+      state.filteredStations.length > 0
+        ? state.filteredStations.reduce((sum, s) => sum + Math.abs(s.netFlow), 0) / state.filteredStations.length
+        : 0
+
     const anomalies = sortedByDeviation.map((s) => ({
       stationId: s.id,
       stationName: s.name,
       metric: 'netFlow',
-      expected: 0,
+      expected: Math.round(avgNetFlow * 10) / 10,
       actual: s.netFlow,
       deviation: Math.abs(s.netFlow),
     }))
@@ -185,9 +231,9 @@ export const useDataStore = create<DataStore>()((set, get) => ({
       totalDispatches: state.filteredDispatches.length,
       avgAvailability,
       criticalAlerts,
-      ridesWoW: mockWoW,
-      ridesYoY: mockYoY,
-      availabilityWoW: Math.round((Math.random() * 10 + 5) * 100) / 100,
+      ridesWoW,
+      ridesYoY,
+      availabilityWoW,
       anomalies,
       filterSnapshot: filterState,
       nullCount: state.nullCount,
