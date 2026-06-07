@@ -227,13 +227,7 @@ def create_anomaly_duration_chart(anomaly_df: pd.DataFrame) -> go.Figure:
     
     agg_df = anomaly_df.copy()
     agg_df['duration_hours'] = agg_df['duration_minutes'] / 60
-    
-    type_agg = agg_df.groupby('anomaly_type').agg({
-        'duration_minutes': ['sum', 'count', 'mean'],
-        'anomaly_id': 'count'
-    }).reset_index()
-    type_agg.columns = ['异常类型', '总时长(分钟)', '异常次数', '平均时长(分钟)', 'count']
-    
+
     color_map = {
         '高温异常': '#e74c3c',
         '低温异常': '#3498db',
@@ -242,26 +236,35 @@ def create_anomaly_duration_chart(anomaly_df: pd.DataFrame) -> go.Figure:
         '设备故障': '#e67e22',
         '延误送达': '#1abc9c'
     }
-    
+
+    per_type = anomaly_df.groupby('anomaly_type').agg(
+        anomaly_ids=('anomaly_id', lambda x: '||'.join(x)),
+        total_duration=('duration_minutes', 'sum'),
+        count=('anomaly_id', 'count'),
+        avg_duration=('duration_minutes', 'mean')
+    ).reset_index()
+
     fig = go.Figure()
-    
+
     fig.add_trace(go.Bar(
-        x=type_agg['异常类型'],
-        y=type_agg['总时长(分钟)'] / 60,
+        x=per_type['anomaly_type'],
+        y=per_type['total_duration'] / 60,
         marker=dict(
-            color=[color_map.get(t, '#95a5a6') for t in type_agg['异常类型']]
+            color=[color_map.get(t, '#95a5a6') for t in per_type['anomaly_type']]
         ),
-        text=type_agg.apply(
-            lambda x: f'{x["总时长(分钟)"]/60:.1f}小时<br>({x["异常次数"]}次)',
+        customdata=per_type['anomaly_ids'],
+        text=per_type.apply(
+            lambda x: f'{x["total_duration"]/60:.1f}小时<br>({x["count"]}次)',
             axis=1
         ),
         textposition='outside',
-        hovertext=type_agg.apply(
+        hovertext=per_type.apply(
             lambda x: f"""
-            异常类型: {x['异常类型']}<br>
-            总时长: {x['总时长(分钟)']/60:.1f}小时<br>
-            异常次数: {x['异常次数']}<br>
-            平均时长: {x['平均时长(分钟)']:.1f}分钟
+            异常类型: {x['anomaly_type']}<br>
+            总时长: {x['total_duration']/60:.1f}小时<br>
+            异常次数: {x['count']}<br>
+            平均时长: {x['avg_duration']:.1f}分钟<br>
+            点击可追溯具体异常
             """,
             axis=1
         ),
@@ -289,29 +292,31 @@ def create_responsibility_segment_chart(anomaly_df: pd.DataFrame) -> go.Figure:
         fig.update_layout(title="责任段分析 - 无数据", template="plotly_white")
         return fig
     
-    seg_agg = anomaly_df.groupby('responsible_segment').agg({
-        'anomaly_id': 'count',
-        'duration_minutes': 'sum'
-    }).reset_index()
-    seg_agg.columns = ['责任段', '异常数量', '总时长(分钟)']
-    seg_agg = seg_agg.sort_values('异常数量', ascending=True)
-    
+    seg_agg = anomaly_df.groupby('responsible_segment').agg(
+        anomaly_ids=('anomaly_id', lambda x: '||'.join(x)),
+        anomaly_count=('anomaly_id', 'count'),
+        total_duration=('duration_minutes', 'sum')
+    ).reset_index()
+    seg_agg = seg_agg.sort_values('anomaly_count', ascending=True)
+
     colors = ['#3498db', '#e74c3c', '#f39c12', '#27ae60', '#9b59b6', '#1abc9c']
-    
+
     fig = go.Figure()
-    
+
     fig.add_trace(go.Bar(
-        y=seg_agg['责任段'],
-        x=seg_agg['异常数量'],
+        y=seg_agg['responsible_segment'],
+        x=seg_agg['anomaly_count'],
         orientation='h',
         marker=dict(color=colors[:len(seg_agg)]),
-        text=seg_agg['异常数量'],
+        customdata=seg_agg['anomaly_ids'],
+        text=seg_agg['anomaly_count'],
         textposition='outside',
         hovertext=seg_agg.apply(
             lambda x: f"""
-            责任段: {x['责任段']}<br>
-            异常数量: {x['异常数量']}<br>
-            总时长: {x['总时长(分钟)']/60:.1f}小时
+            责任段: {x['responsible_segment']}<br>
+            异常数量: {x['anomaly_count']}<br>
+            总时长: {x['total_duration']/60:.1f}小时<br>
+            点击可追溯具体异常
             """,
             axis=1
         ),
@@ -339,24 +344,25 @@ def create_severity_pie_chart(anomaly_df: pd.DataFrame) -> go.Figure:
         fig.update_layout(title="严重程度分布 - 无数据", template="plotly_white")
         return fig
     
-    sev_agg = anomaly_df.groupby('severity').agg({
-        'anomaly_id': 'count'
-    }).reset_index()
-    sev_agg.columns = ['严重程度', '数量']
-    
+    sev_agg = anomaly_df.groupby('severity').agg(
+        anomaly_ids=('anomaly_id', lambda x: '||'.join(x)),
+        count=('anomaly_id', 'count')
+    ).reset_index()
+
     color_map = {'高': '#e74c3c', '中': '#f39c12', '低': '#27ae60'}
-    
+
     fig = go.Figure(data=[go.Pie(
-        labels=sev_agg['严重程度'],
-        values=sev_agg['数量'],
+        labels=sev_agg['severity'],
+        values=sev_agg['count'],
         hole=0.4,
         marker=dict(
-            colors=[color_map.get(s, '#95a5a6') for s in sev_agg['严重程度']]
+            colors=[color_map.get(s, '#95a5a6') for s in sev_agg['severity']]
         ),
+        customdata=sev_agg['anomaly_ids'],
         textinfo='label+percent',
         textposition='outside',
         hovertext=sev_agg.apply(
-            lambda x: f'严重程度: {x["严重程度"]}<br>数量: {x["数量"]}',
+            lambda x: f'严重程度: {x["severity"]}<br>数量: {x["count"]}<br>点击可追溯具体异常',
             axis=1
         ),
         hoverinfo='text'

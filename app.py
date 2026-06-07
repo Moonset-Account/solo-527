@@ -182,7 +182,7 @@ def build_main_dashboard():
                 ], md=12)
             ])
         ], label="📍 路线与温度", tab_id="tab-route-temp"),
-        
+
         dbc.Tab([
             html.Br(),
             dbc.Row([
@@ -233,7 +233,7 @@ def build_main_dashboard():
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader("📋 异常明细列表（点击异常类型可快速筛选）"),
+                        dbc.CardHeader("📋 异常明细列表（点击行可追溯，图表点击柱子/扇区也可追溯）"),
                         dbc.CardBody([
                             dash_table.DataTable(
                                 id='anomaly-list-table',
@@ -256,7 +256,7 @@ def build_main_dashboard():
                 ], md=12)
             ])
         ], label="⚠️ 异常分析", tab_id="tab-anomalies"),
-        
+
         dbc.Tab([
             html.Br(),
             html.Div([
@@ -333,7 +333,7 @@ def build_main_dashboard():
                 ], md=12)
             ])
         ], label="📋 原始数据追溯", tab_id="tab-raw-data"),
-        
+
         dbc.Tab([
             html.Br(),
             html.Div([
@@ -354,7 +354,7 @@ def build_main_dashboard():
                             ])
                         ])
                     ], className="mb-3"),
-                    
+
                     dbc.Card([
                         dbc.CardHeader("🔧 脏数据处理规则"),
                         dbc.CardBody([
@@ -368,7 +368,7 @@ def build_main_dashboard():
                         ])
                     ])
                 ], md=6),
-                
+
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader("📊 数据聚合逻辑"),
@@ -382,7 +382,7 @@ def build_main_dashboard():
                             ])
                         ])
                     ], className="mb-3"),
-                    
+
                     dbc.Card([
                         dbc.CardHeader("📤 导出与状态保留"),
                         dbc.CardBody([
@@ -398,7 +398,7 @@ def build_main_dashboard():
                 ], md=6)
             ])
         ], label="📚 数据说明", tab_id="tab-data-docs")
-        
+
     ], id='main-tabs', active_tab='tab-route-temp')
 
 
@@ -407,7 +407,7 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.H2("❄️ 冷链物流温控追踪分析系统", className="text-center"),
-            html.P("质量管理人员专用 - 数据口径统一 · 多视角切换 · 异常可追溯", 
+            html.P("质量管理人员专用 - 数据口径统一 · 多视角切换 · 异常可追溯",
                    className="text-center text-muted")
         ])
     ]),
@@ -417,16 +417,15 @@ app.layout = dbc.Container([
     build_filter_summary(),
     build_kpi_section(),
     build_main_dashboard(),
-    
+
     dcc.Store(id='current-filters-store', data={}),
     dcc.Store(id='filtered-data-store', data={}),
     dcc.Store(id='selected-anomaly-store', data=None),
-    dcc.Store(id='auto-filter-anomaly', data=False),
-    dcc.Store(id='trace-anomaly-trigger', data=0),
-    
+    dcc.Store(id='trace-anomaly-trigger', data=None),
+
     html.Footer([
         html.Hr(),
-        html.P("冷链物流温控追踪系统 v1.0 | 数据口径定义见【数据说明】页", 
+        html.P("冷链物流温控追踪系统 v1.0 | 数据口径定义见【数据说明】页",
                className="text-center text-muted small")
     ])
 ], fluid=True, className="dashboard-container")
@@ -475,20 +474,18 @@ def apply_or_reset_filters(apply_clicks, reset_clicks, vehicles, routes, batches
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
-    
+
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
     if trigger_id == 'btn-reset-filters':
-        empty_filtered = serialize_for_store(raw_data)
-        empty_filters = {}
-        return empty_filters, empty_filtered, None, None, None, None, None, min_date.date(), max_date.date()
-    
+        return {}, {}, None, None, None, None, None, min_date.date(), max_date.date()
+
     date_range_tuple = None
     if start_date and end_date:
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date) + timedelta(days=1) - timedelta(seconds=1)
         date_range_tuple = (start_dt, end_dt)
-    
+
     filtered = apply_filters(
         raw_data,
         vehicles=vehicles,
@@ -498,7 +495,7 @@ def apply_or_reset_filters(apply_clicks, reset_clicks, vehicles, routes, batches
         customers=customers,
         date_range=date_range_tuple
     )
-    
+
     serializable_filters = {
         'vehicles': vehicles,
         'routes': routes,
@@ -508,11 +505,39 @@ def apply_or_reset_filters(apply_clicks, reset_clicks, vehicles, routes, batches
         'start_date': start_date,
         'end_date': end_date
     }
-    
+
     serialized_data = serialize_for_store(filtered)
-    
+
     no_change = dash.no_update
     return serializable_filters, serialized_data, no_change, no_change, no_change, no_change, no_change, no_change, no_change
+
+
+@app.callback(
+    [Output('selected-anomaly-store', 'data'),
+     Output('trace-anomaly-trigger', 'data')],
+    [Input('anomaly-selector-dropdown', 'value'),
+     Input('current-filters-store', 'data'),
+     Input('btn-clear-trace', 'n_clicks')],
+    [State('anomaly-selector-quick', 'value')]
+)
+def sync_anomaly_trace_state(dropdown_val, filters, clear_btn, quick_val):
+    ctx = callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == 'btn-clear-trace':
+        return None, None
+
+    if trigger_id == 'current-filters-store' and not filters:
+        return None, None
+
+    active = dropdown_val or quick_val
+    if active:
+        return active, 'raw'
+
+    return None, None
 
 
 @app.callback(
@@ -526,11 +551,11 @@ def update_filter_summary(filters, data_store):
     temp_df = data['temperature_records']
     shipment_df = data['shipment_info']
     anomaly_df = data['anomaly_records']
-    
+
     summary = get_filter_summary(filters or {}, data)
-    
+
     parts = [html.Strong("📊 当前筛选结果：")]
-    
+
     filter_parts = []
     if filters.get('vehicles'):
         filter_parts.append(f"车辆: {len(filters['vehicles'])}个")
@@ -542,20 +567,20 @@ def update_filter_summary(filters, data_store):
         filter_parts.append(f"温控箱: {len(filters['containers'])}个")
     if filters.get('customers'):
         filter_parts.append(f"客户: {len(filters['customers'])}个")
-    
+
     if filter_parts:
         parts.append(html.Span(" | ".join(filter_parts), className="ms-2"))
-    
+
     parts.append(html.Span(f" | 样本量: {summary.get('total_records', 0)}条温度记录 / "
                            f"{summary.get('total_batches', 0)}个批次 / "
-                           f"{summary.get('total_anomalies', 0)}个异常", 
+                           f"{summary.get('total_anomalies', 0)}个异常",
                            className="ms-2"))
-    
+
     if summary.get('date_range'):
         parts.append(html.Span(f" | 时间窗口: {summary['date_range']['start'].strftime('%Y-%m-%d')} "
                                f"至 {summary['date_range']['end'].strftime('%Y-%m-%d')}",
                                className="ms-2"))
-    
+
     return parts, {'display': 'block'}
 
 
@@ -568,17 +593,16 @@ def update_probe_warning(data_store):
     data = get_data_from_store_or_raw(data_store)
     temp_df = data['temperature_records']
     shipment_df = data['shipment_info']
-    
+
     if temp_df.empty:
         return [], {'display': 'none'}
-    
+
     uncalibrated_batches = temp_df[~temp_df['probe_calibrated']]['batch_id'].unique()
     if len(uncalibrated_batches) == 0:
         return [], {'display': 'none'}
-    
-    shipment_filtered = shipment_df[shipment_df['batch_id'].isin(uncalibrated_batches)]
+
     probe_info = temp_df[~temp_df['probe_calibrated']][['batch_id', 'probe_id', 'probe_last_calibration']].drop_duplicates('batch_id')
-    
+
     warning_parts = [
         html.Strong("⚠️ 温度探头校准提示："),
         html.Span(f"当前筛选范围内有 {len(uncalibrated_batches)} 个批次使用了未校准的温度探头，",
@@ -586,7 +610,7 @@ def update_probe_warning(data_store):
         html.Span("分析温度异常时请注意排除探头偏差因素，相关批次：", className="ms-1"),
         html.Span(", ".join(uncalibrated_batches.tolist()), className="ms-1 fw-bold")
     ]
-    
+
     return warning_parts, {'display': 'block'}
 
 
@@ -599,9 +623,9 @@ def update_kpi_cards(data_store):
     temp_df = data['temperature_records']
     shipment_df = data['shipment_info']
     anomaly_df = data['anomaly_records']
-    
+
     kpis = create_kpi_cards(shipment_df, temp_df, anomaly_df)
-    
+
     cards = []
     for key, kpi in kpis.items():
         card = dbc.Col([
@@ -618,7 +642,7 @@ def update_kpi_cards(data_store):
             ])
         ], md=2, className="mb-2")
         cards.append(card)
-    
+
     return cards
 
 
@@ -634,10 +658,10 @@ def update_route_and_temp_charts(data_store, selected_batch, selected_anomaly):
     temp_df = data['temperature_records']
     shipment_df = data['shipment_info']
     anomaly_df = data['anomaly_records']
-    
+
     route_fig = create_route_map(temp_df, selected_batch)
     temp_fig = create_temperature_curve(temp_df, shipment_df, anomaly_df, selected_batch, selected_anomaly)
-    
+
     return route_fig, temp_fig
 
 
@@ -649,26 +673,26 @@ def update_route_and_temp_charts(data_store, selected_batch, selected_anomaly):
 def update_selected_batch_info(selected_batch, data_store):
     if selected_batch == 'ALL' or not selected_batch:
         return "当前显示所有批次数据，选择单个批次可查看详细路线和温度曲线"
-    
+
     data = get_data_from_store_or_raw(data_store)
     shipment_df = data['shipment_info']
     temp_df = data['temperature_records']
-    
+
     shipment = shipment_df[shipment_df['batch_id'] == selected_batch]
     if shipment.empty:
         return ""
-    
+
     s = shipment.iloc[0]
     batch_temp = temp_df[temp_df['batch_id'] == selected_batch]
-    
+
     calibrated = batch_temp['probe_calibrated'].iloc[0] if len(batch_temp) > 0 else True
     probe_id = batch_temp['probe_id'].iloc[0] if len(batch_temp) > 0 else '-'
-    
+
     info = (f"批次 {selected_batch} | {s.get('product_type', '')} | "
             f"目标温度: {s.get('target_temp_min', '')}~{s.get('target_temp_max', '')}°C | "
             f"路线: {s.get('route_name', '')} | "
             f"探头: {probe_id} {'✅ 已校准' if calibrated else '❌ 未校准 ⚠️'}")
-    
+
     return info
 
 
@@ -683,12 +707,12 @@ def update_anomaly_charts(data_store):
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records']
     door_df = data['door_events']
-    
+
     duration_fig = create_anomaly_duration_chart(anomaly_df)
     segment_fig = create_responsibility_segment_chart(anomaly_df)
     severity_fig = create_severity_pie_chart(anomaly_df)
     door_fig = create_door_event_timeline(door_df)
-    
+
     return duration_fig, segment_fig, severity_fig, door_fig
 
 
@@ -700,16 +724,16 @@ def update_anomaly_charts(data_store):
 def update_anomaly_detail_table(data_store):
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records'].copy()
-    
+
     for col in ['start_time', 'end_time']:
         if col in anomaly_df.columns and pd.api.types.is_datetime64_any_dtype(anomaly_df[col]):
             anomaly_df[col] = anomaly_df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     anomaly_display_cols = ['anomaly_id', 'batch_id', 'anomaly_type', 'start_time', 'end_time',
                             'duration_minutes', 'severity', 'responsible_segment', 'root_cause', 'resolved']
     anomaly_cols = [{'name': c, 'id': c} for c in anomaly_display_cols if c in anomaly_df.columns]
     anomaly_data = anomaly_df[anomaly_display_cols].to_dict('records') if not anomaly_df.empty else []
-    
+
     return anomaly_cols, anomaly_data
 
 
@@ -722,79 +746,112 @@ def update_anomaly_detail_table(data_store):
 def update_anomaly_analysis_widgets(data_store):
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records'].copy()
-    
+
     dropdown_options = []
     for _, a in anomaly_df.iterrows():
         label = f"{a['anomaly_id']} | {a['anomaly_type']} | {a['batch_id']} | {a['severity']}危"
         dropdown_options.append({'label': label, 'value': a['anomaly_id']})
-    
+
     for col in ['start_time', 'end_time']:
         if col in anomaly_df.columns and pd.api.types.is_datetime64_any_dtype(anomaly_df[col]):
             anomaly_df[col] = anomaly_df[col].dt.strftime('%Y-%m-%d %H:%M')
-    
+
     display_cols = ['anomaly_id', 'batch_id', 'anomaly_type', 'start_time', 'end_time',
                     'duration_minutes', 'severity', 'responsible_segment', 'root_cause']
     table_cols = [{'name': c, 'id': c} for c in display_cols if c in anomaly_df.columns]
     table_data = anomaly_df[display_cols].to_dict('records') if not anomaly_df.empty else []
-    
+
     return dropdown_options, table_cols, table_data
 
 
 @app.callback(
     [Output('main-tabs', 'active_tab'),
      Output('detail-batch-selector', 'value'),
-     Output('anomaly-selector-dropdown', 'value'),
-     Output('anomaly-list-table', 'selected_rows')],
+     Output('anomaly-selector-dropdown', 'value')],
     [Input('btn-anomaly-trace-chart', 'n_clicks'),
      Input('btn-anomaly-trace-raw', 'n_clicks'),
      Input('btn-anomaly-trace-route', 'n_clicks'),
      Input('anomaly-list-table', 'selected_rows'),
-     Input('btn-trace-to-chart', 'n_clicks')],
+     Input('btn-trace-to-chart', 'n_clicks'),
+     Input('btn-trace-to-table', 'n_clicks'),
+     Input('anomaly-duration-graph', 'clickData'),
+     Input('responsibility-segment-graph', 'clickData'),
+     Input('severity-pie-graph', 'clickData')],
     [State('anomaly-selector-quick', 'value'),
      State('anomaly-selector-dropdown', 'value'),
      State('filtered-data-store', 'data'),
      State('anomaly-list-table', 'data')]
 )
 def handle_all_anomaly_trace(btn_chart, btn_raw, btn_route, selected_rows,
-                              trace_chart_btn,
+                              trace_chart_btn, trace_table_btn,
+                              duration_click, segment_click, severity_click,
                               quick_dropdown, raw_dropdown, data_store, table_data):
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
-    
+
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
+
     active_anomaly = None
     target_tab = 'tab-anomalies'
     target_batch = 'ALL'
-    
-    if trigger_id == 'anomaly-list-table' and selected_rows and len(selected_rows) > 0:
+
+    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-raw', 'btn-anomaly-trace-route']:
+        active_anomaly = quick_dropdown
+    elif trigger_id == 'anomaly-list-table' and selected_rows and len(selected_rows) > 0:
         if table_data and selected_rows[0] < len(table_data):
             active_anomaly = table_data[selected_rows[0]].get('anomaly_id')
-    elif trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-raw', 'btn-anomaly-trace-route']:
-        active_anomaly = quick_dropdown
     elif trigger_id == 'btn-trace-to-chart':
         active_anomaly = raw_dropdown
-    
+    elif trigger_id == 'btn-trace-to-table':
+        active_anomaly = raw_dropdown
+    elif trigger_id in ['anomaly-duration-graph', 'responsibility-segment-graph', 'severity-pie-graph']:
+        data = get_data_from_store_or_raw(data_store)
+        anomaly_df = data['anomaly_records']
+        if anomaly_df.empty:
+            raise dash.exceptions.PreventUpdate
+
+        clicked_ids = None
+        if trigger_id == 'anomaly-duration-graph' and duration_click:
+            clicked_ids = duration_click['points'][0].get('customdata')
+        elif trigger_id == 'responsibility-segment-graph' and segment_click:
+            clicked_ids = segment_click['points'][0].get('customdata')
+        elif trigger_id == 'severity-pie-graph' and severity_click:
+            clicked_ids = severity_click['points'][0].get('customdata')
+
+        if not clicked_ids:
+            raise dash.exceptions.PreventUpdate
+
+        first_id = clicked_ids.split('||')[0]
+        active_anomaly = first_id
+
     if not active_anomaly:
         raise dash.exceptions.PreventUpdate
-    
+
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records']
     anomaly = anomaly_df[anomaly_df['anomaly_id'] == active_anomaly]
-    
+
     if anomaly.empty:
         raise dash.exceptions.PreventUpdate
-    
+
     batch_id = anomaly.iloc[0]['batch_id']
     target_batch = batch_id
-    
-    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-route', 'btn-trace-to-chart']:
+
+    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-route']:
         target_tab = 'tab-route-temp'
     elif trigger_id == 'btn-anomaly-trace-raw':
         target_tab = 'tab-raw-data'
-    
-    return target_tab, target_batch, active_anomaly, []
+    elif trigger_id == 'btn-trace-to-chart':
+        target_tab = 'tab-route-temp'
+    elif trigger_id == 'btn-trace-to-table':
+        target_tab = 'tab-raw-data'
+    elif trigger_id in ['anomaly-duration-graph', 'responsibility-segment-graph', 'severity-pie-graph']:
+        target_tab = 'tab-raw-data'
+    elif trigger_id == 'anomaly-list-table':
+        target_tab = 'tab-raw-data'
+
+    return target_tab, target_batch, active_anomaly
 
 
 @app.callback(
@@ -806,15 +863,15 @@ def handle_all_anomaly_trace(btn_chart, btn_raw, btn_route, selected_rows,
 def export_report(n_clicks, filters, data_store):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
-    
+
     data = get_data_from_store_or_raw(data_store)
     temp_df = data['temperature_records']
     shipment_df = data['shipment_info']
     anomaly_df = data['anomaly_records']
     door_df = data['door_events']
-    
+
     batch_agg = aggregate_by_batch(temp_df, shipment_df) if not temp_df.empty and not shipment_df.empty else pd.DataFrame()
-    
+
     filter_str_parts = []
     if filters:
         if filters.get('vehicles'):
@@ -823,11 +880,11 @@ def export_report(n_clicks, filters, data_store):
             filter_str_parts.append(f"路线{len(filters['routes'])}个")
         if filters.get('batches'):
             filter_str_parts.append(f"批次{len(filters['batches'])}个")
-    
+
     filter_str = "_".join(filter_str_parts) if filter_str_parts else "全部数据"
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"冷链温控报告_{filter_str}_{timestamp}.xlsx"
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         summary_df = pd.DataFrame([
@@ -839,7 +896,7 @@ def export_report(n_clicks, filters, data_store):
             {'项目': '样本时间范围', '值': f"{temp_df['timestamp'].min() if not temp_df.empty else '-'} 至 {temp_df['timestamp'].max() if not temp_df.empty else '-'}"}
         ])
         summary_df.to_excel(writer, sheet_name='导出说明', index=False)
-        
+
         if not temp_df.empty:
             temp_df.to_excel(writer, sheet_name='温度记录', index=False)
         if not anomaly_df.empty:
@@ -848,7 +905,7 @@ def export_report(n_clicks, filters, data_store):
             batch_agg.to_excel(writer, sheet_name='批次汇总', index=False)
         if not door_df.empty:
             door_df.to_excel(writer, sheet_name='开门记录', index=False)
-    
+
     output.seek(0)
     return dcc.send_bytes(output.getvalue(), filename)
 
@@ -860,44 +917,16 @@ def export_report(n_clicks, filters, data_store):
 def update_anomaly_dropdown(data_store):
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records']
-    
+
     if anomaly_df.empty:
         return []
-    
+
     options = []
     for _, a in anomaly_df.iterrows():
         label = f"{a['anomaly_id']} | {a['anomaly_type']} | {a['batch_id']} | {a['severity']}危"
         options.append({'label': label, 'value': a['anomaly_id']})
-    
+
     return options
-
-
-@app.callback(
-    [Output('selected-anomaly-store', 'data'),
-     Output('auto-filter-anomaly', 'data')],
-    [Input('anomaly-selector-dropdown', 'value'),
-     Input('anomaly-selector-quick', 'value'),
-     Input('btn-clear-trace', 'n_clicks')]
-)
-def sync_anomaly_stores(dropdown_val, quick_val, clear_btn):
-    ctx = callback_context
-    if not ctx.triggered:
-        raise dash.exceptions.PreventUpdate
-    
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    if trigger_id == 'btn-clear-trace':
-        return None, False
-    
-    active = dropdown_val or quick_val
-    
-    if trigger_id == 'anomaly-selector-quick' and quick_val:
-        return quick_val, True
-    
-    if trigger_id == 'anomaly-selector-dropdown' and dropdown_val:
-        return dropdown_val, False
-    
-    return None, False
 
 
 @app.callback(
@@ -905,39 +934,35 @@ def sync_anomaly_stores(dropdown_val, quick_val, clear_btn):
      Output('anomaly-trace-panel', 'style'),
      Output('temp-table-stats', 'children')],
     [Input('selected-anomaly-store', 'data'),
-     Input('filtered-data-store', 'data'),
-     Input('btn-trace-to-table', 'n_clicks')],
-    [State('anomaly-selector-dropdown', 'value')]
+     Input('filtered-data-store', 'data')]
 )
-def update_anomaly_trace_panel(selected_anomaly_id, data_store, trace_table_btn, dropdown_anomaly):
+def update_anomaly_trace_panel(selected_anomaly_id, data_store):
     data = get_data_from_store_or_raw(data_store)
     anomaly_df = data['anomaly_records']
     temp_df = data['temperature_records']
-    
-    active_anomaly = selected_anomaly_id or dropdown_anomaly
-    
+
     stats_text = f"共 {len(temp_df)} 条温度记录"
-    
-    if not active_anomaly or anomaly_df.empty:
+
+    if not selected_anomaly_id or anomaly_df.empty:
         return [], {'display': 'none'}, stats_text
-    
-    anomaly = anomaly_df[anomaly_df['anomaly_id'] == active_anomaly]
+
+    anomaly = anomaly_df[anomaly_df['anomaly_id'] == selected_anomaly_id]
     if anomaly.empty:
         return [], {'display': 'none'}, stats_text
-    
+
     a = anomaly.iloc[0]
-    
+
     start_time = pd.to_datetime(a['start_time'])
     end_time = pd.to_datetime(a['end_time'])
-    
+
     temp_in_range = temp_df[
-        (temp_df['timestamp'] >= start_time) & 
+        (temp_df['timestamp'] >= start_time) &
         (temp_df['timestamp'] <= end_time) &
         (temp_df['batch_id'] == a['batch_id'])
     ]
-    
+
     stats_text = f"异常时间段内: {len(temp_in_range)} 条记录 / 全部: {len(temp_df)} 条"
-    
+
     panel_content = dbc.Card([
         dbc.CardHeader([
             html.Strong("🔍 正在追溯异常："),
@@ -949,7 +974,7 @@ def update_anomaly_trace_panel(selected_anomaly_id, data_store, trace_table_btn,
                     html.Div([
                         html.Strong("批次："), a['batch_id'],
                         html.Br(),
-                        html.Strong("异常类型："), 
+                        html.Strong("异常类型："),
                         html.Span(a['anomaly_type'], className=f"status-indicator status-{'danger' if a['severity'] == '高' else 'warning'} ms-1"),
                         html.Br(),
                         html.Strong("严重程度："), a['severity'],
@@ -985,7 +1010,7 @@ def update_anomaly_trace_panel(selected_anomaly_id, data_store, trace_table_btn,
             ])
         ])
     ], className="border-danger")
-    
+
     return panel_content, {'display': 'block'}, stats_text
 
 
@@ -993,60 +1018,35 @@ def update_anomaly_trace_panel(selected_anomaly_id, data_store, trace_table_btn,
     [Output('raw-temp-table', 'columns'),
      Output('raw-temp-table', 'data')],
     [Input('filtered-data-store', 'data'),
-     Input('btn-trace-to-table', 'n_clicks'),
-     Input('btn-clear-trace', 'n_clicks'),
-     Input('selected-anomaly-store', 'data'),
-     Input('auto-filter-anomaly', 'data')],
-    [State('anomaly-selector-dropdown', 'value')]
+     Input('trace-anomaly-trigger', 'data')],
+    [State('selected-anomaly-store', 'data')]
 )
-def update_raw_temp_table_with_trace(data_store, trace_btn, clear_btn, store_anomaly, auto_filter, dropdown_anomaly):
-    ctx = callback_context
+def update_raw_temp_table(data_store, trace_trigger, selected_anomaly):
     data = get_data_from_store_or_raw(data_store)
     temp_df = data['temperature_records'].copy()
     anomaly_df = data['anomaly_records']
-    
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
-    
-    should_filter = False
-    active_anomaly = None
-    
-    if trigger_id == 'btn-trace-to-table':
-        active_anomaly = dropdown_anomaly or store_anomaly
-        should_filter = True
-    elif trigger_id == 'btn-clear-trace':
-        should_filter = False
-        active_anomaly = None
-    elif trigger_id == 'selected-anomaly-store' and store_anomaly and auto_filter:
-        active_anomaly = store_anomaly
-        should_filter = True
-    elif trigger_id == 'auto-filter-anomaly' and auto_filter and store_anomaly:
-        active_anomaly = store_anomaly
-        should_filter = True
-    elif store_anomaly and auto_filter:
-        active_anomaly = store_anomaly
-        should_filter = True
-    
-    if should_filter and active_anomaly and not anomaly_df.empty:
-        anomaly = anomaly_df[anomaly_df['anomaly_id'] == active_anomaly]
+
+    if trace_trigger == 'raw' and selected_anomaly and not anomaly_df.empty:
+        anomaly = anomaly_df[anomaly_df['anomaly_id'] == selected_anomaly]
         if not anomaly.empty:
             a = anomaly.iloc[0]
             start_time = pd.to_datetime(a['start_time'])
             end_time = pd.to_datetime(a['end_time'])
             temp_df = temp_df[
-                (temp_df['timestamp'] >= start_time) & 
+                (temp_df['timestamp'] >= start_time) &
                 (temp_df['timestamp'] <= end_time) &
                 (temp_df['batch_id'] == a['batch_id'])
             ]
-    
+
     for col in ['timestamp', 'probe_last_calibration']:
         if col in temp_df.columns and pd.api.types.is_datetime64_any_dtype(temp_df[col]):
             temp_df[col] = temp_df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     temp_display_cols = ['record_id', 'batch_id', 'vehicle_id', 'container_id', 'timestamp',
                          'temperature', 'probe_id', 'probe_calibrated', 'door_open', 'data_quality']
     temp_cols = [{'name': c, 'id': c} for c in temp_display_cols if c in temp_df.columns]
     temp_data = temp_df[temp_display_cols].to_dict('records') if not temp_df.empty else []
-    
+
     return temp_cols, temp_data
 
 
