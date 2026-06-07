@@ -29,7 +29,7 @@ export default function SatisfactionMatrix() {
 
     data.forEach((d) => {
       const point = {
-        value: [d.total_sales, d.avg_score, d.sample_count],
+        value: [d.total_sales, d.avg_score ?? 0, d.sample_count],
         dish_id: d.dish_id,
         dish_name: d.dish_name,
         window_name: d.window_name,
@@ -38,6 +38,9 @@ export default function SatisfactionMatrix() {
         cost: d.cost,
         profit_rate: d.profit_rate,
         sample_count: d.sample_count,
+        avg_score: d.avg_score,
+        supplier_change_day_score: d.supplier_change_day_score,
+        supplier_change_dates: d.supplier_change_dates,
       };
 
       if (d.sample_count < SAMPLE_THRESHOLD) {
@@ -60,20 +63,28 @@ export default function SatisfactionMatrix() {
         formatter: (params: any) => {
           const d = params.data;
           let tags = '';
-          if (d.dish_id && data.find((x) => x.dish_id === d.dish_id)?.supplier_changed) {
-            tags += '<br/><span style="color:#D97706">◆ 供应商更换日</span>';
+          const found = d.dish_id ? data.find((x) => x.dish_id === d.dish_id) : null;
+          if (found?.supplier_changed) {
+            tags += '<br/><span style="color:#D97706">◆ 供应商更换日（评分已排除更换日，不与历史混算）</span>';
+            if (d.supplier_change_day_score != null) {
+              tags += `<br/><span style="color:#D97706">更换日评分：${d.supplier_change_day_score}</span>`;
+            }
+            if (d.supplier_change_dates?.length) {
+              tags += `<br/><span style="color:#D97706">更换日期：${d.supplier_change_dates.join('、')}</span>`;
+            }
           }
-          if (d.dish_id && data.find((x) => x.dish_id === d.dish_id)?.batch_recalled) {
+          if (found?.batch_recalled) {
             tags += '<br/><span style="color:#7C3AED">▲ 食材批次召回</span>';
           }
           if (d.value && d.value[2] < SAMPLE_THRESHOLD) {
             tags += '<br/><span style="color:#9CA3AF">⚠ 样本不足（不参与低分排行）</span>';
           }
+          const scoreLabel = found?.supplier_changed ? '历史评分（不含更换日）' : '评分';
           return `<strong>${d.dish_name || ''}</strong><br/>
 窗口：${d.window_name || ''}<br/>
 菜系：${d.cuisine_type || ''}<br/>
 销量：${d.value ? d.value[0] : ''}<br/>
-评分：${d.value ? d.value[1] : ''}<br/>
+${scoreLabel}：${d.avg_score ?? '-'}<br/>
 样本量：${d.value ? d.value[2] : ''}<br/>
 退餐率：${d.return_rate}%<br/>
 成本：¥${d.cost} | 毛利率：${d.profit_rate}%${tags}`;
@@ -190,7 +201,7 @@ export default function SatisfactionMatrix() {
         </div>
       </div>
       <div ref={chartRef} style={{ width: '100%', height: '400px' }} />
-      <p className="text-xs text-zinc-400 mt-2">气泡大小代表样本量，点击菜品可查看评分趋势。样本不足（&lt;{SAMPLE_THRESHOLD}）的菜品不参与低分排行。</p>
+      <p className="text-xs text-zinc-400 mt-2">气泡大小代表样本量，点击菜品可查看评分趋势。供应商更换日评分已排除，不与历史口味评价混算。样本不足（&lt;{SAMPLE_THRESHOLD}）的菜品不参与低分排行。</p>
     </div>
   );
 }

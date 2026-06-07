@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-import sqlite3
-import json
+import psycopg2
+import psycopg2.extras
 import csv
 import io
 from datetime import date, timedelta
 import random
+import os
 
 app = FastAPI(title="食堂菜品满意度分析API")
 
@@ -18,11 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = "canteen.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://xingyaolei@localhost:5432/canteen")
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
     return conn
 
 def init_db():
@@ -30,63 +31,70 @@ def init_db():
     c = conn.cursor()
 
     c.execute('''CREATE TABLE IF NOT EXISTS windows (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        location TEXT
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        location VARCHAR(200)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS dishes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
         window_id INTEGER REFERENCES windows(id),
-        cuisine_type TEXT NOT NULL,
-        cost REAL NOT NULL,
-        price REAL NOT NULL
+        cuisine_type VARCHAR(50) NOT NULL,
+        cost DECIMAL(10,2) NOT NULL,
+        price DECIMAL(10,2) NOT NULL
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS daily_dish_stats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         dish_id INTEGER REFERENCES dishes(id),
-        stat_date TEXT NOT NULL,
-        supply_batch TEXT,
+        stat_date DATE NOT NULL,
+        supply_batch VARCHAR(100),
         sales_count INTEGER DEFAULT 0,
         sample_count INTEGER DEFAULT 0,
-        avg_score REAL,
+        avg_score DECIMAL(3,2),
         return_count INTEGER DEFAULT 0,
         UNIQUE(dish_id, stat_date)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS return_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         dish_id INTEGER REFERENCES dishes(id),
-        return_date TEXT NOT NULL,
-        reason TEXT NOT NULL,
+        return_date DATE NOT NULL,
+        reason VARCHAR(200) NOT NULL,
         window_id INTEGER REFERENCES windows(id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS supplier_changes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         window_id INTEGER REFERENCES windows(id),
-        change_date TEXT NOT NULL,
-        old_supplier TEXT,
-        new_supplier TEXT
+        change_date DATE NOT NULL,
+        old_supplier VARCHAR(200),
+        new_supplier VARCHAR(200)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS batch_recalls (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        batch_id TEXT NOT NULL,
-        ingredient_name TEXT NOT NULL,
-        recall_date TEXT NOT NULL
+        id SERIAL PRIMARY KEY,
+        batch_id VARCHAR(100) NOT NULL UNIQUE,
+        ingredient_name VARCHAR(200) NOT NULL,
+        recall_date DATE NOT NULL
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS batch_dish_relations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        batch_id TEXT REFERENCES batch_recalls(batch_id),
+        id SERIAL PRIMARY KEY,
+        batch_id VARCHAR(100) REFERENCES batch_recalls(batch_id),
         dish_id INTEGER REFERENCES dishes(id)
     )''')
 
-    c.execute("SELECT COUNT(*) as cnt FROM windows")
-    if c.fetchone()["cnt"] == 0:
+    c.execute("CREATE INDEX IF NOT EXISTS idx_dishes_window ON dishes(window_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_dish_date ON daily_dish_stats(dish_id, stat_date)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_return_records_dish ON return_records(dish_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_return_records_window_date ON return_records(window_id, return_date)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_supplier_changes_window ON supplier_changes(window_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_batch_dish_batch ON batch_dish_relations(batch_id)")
+
+    c.execute("SELECT COUNT(*) FROM windows")
+    if c.fetchone()[0] == 0:
         seed_data(c)
 
     conn.commit()
@@ -102,9 +110,8 @@ def seed_data(c):
         ("窗口F-素食", "三层西区"),
     ]
     for w in windows:
-        c.execute("INSERT INTO windows (name, location) VALUES (?, ?)", w)
+        c.execute("INSERT INTO windows (name, location) VALUES (%s, %s)", w)
 
-    cuisines = ["川菜", "粤菜", "湘菜", "面食", "快餐", "素食"]
     dishes_data = [
         ("麻辣豆腐", 1, "川菜", 3.5, 8.0),
         ("回锅肉", 1, "川菜", 8.0, 15.0),
@@ -132,14 +139,13 @@ def seed_data(c):
         ("素三鲜饺", 6, "素食", 4.0, 9.0),
     ]
     for d in dishes_data:
-        c.execute("INSERT INTO dishes (name, window_id, cuisine_type, cost, price) VALUES (?, ?, ?, ?, ?)", d)
+        c.execute("INSERT INTO dishes (name, window_id, cuisine_type, cost, price) VALUES (%s, %s, %s, %s, %s)", d)
 
     random.seed(42)
     base_date = date(2025, 1, 1)
     batches = [f"BATCH-{i:03d}" for i in range(1, 31)]
     for day_offset in range(90):
         d = base_date + timedelta(days=day_offset)
-        date_str = d.isoformat()
         for dish_id in range(1, 25):
             sales = random.randint(30, 200)
             sample = random.randint(max(5, sales // 4), sales)
@@ -147,8 +153,8 @@ def seed_data(c):
             returns = random.randint(0, max(1, sales // 10))
             batch = random.choice(batches)
             c.execute(
-                "INSERT INTO daily_dish_stats (dish_id, stat_date, supply_batch, sales_count, sample_count, avg_score, return_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (dish_id, date_str, batch, sales, sample, score, returns),
+                "INSERT INTO daily_dish_stats (dish_id, stat_date, supply_batch, sales_count, sample_count, avg_score, return_count) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (dish_id, d, batch, sales, sample, score, returns),
             )
 
     return_reasons = [
@@ -157,14 +163,13 @@ def seed_data(c):
     ]
     for day_offset in range(90):
         d = base_date + timedelta(days=day_offset)
-        date_str = d.isoformat()
         for _ in range(random.randint(5, 20)):
             dish_id = random.randint(1, 24)
             reason = random.choice(return_reasons)
             window_id = ((dish_id - 1) // 4) + 1
             c.execute(
-                "INSERT INTO return_records (dish_id, return_date, reason, window_id) VALUES (?, ?, ?, ?)",
-                (dish_id, date_str, reason, window_id),
+                "INSERT INTO return_records (dish_id, return_date, reason, window_id) VALUES (%s, %s, %s, %s)",
+                (dish_id, d, reason, window_id),
             )
 
     supplier_changes_data = [
@@ -174,7 +179,7 @@ def seed_data(c):
         (5, "2025-02-28", "大众快餐供应", "品质快餐供应链"),
     ]
     for sc in supplier_changes_data:
-        c.execute("INSERT INTO supplier_changes (window_id, change_date, old_supplier, new_supplier) VALUES (?, ?, ?, ?)", sc)
+        c.execute("INSERT INTO supplier_changes (window_id, change_date, old_supplier, new_supplier) VALUES (%s, %s, %s, %s)", sc)
 
     batch_recalls_data = [
         ("BATCH-005", "猪肉", "2025-02-10"),
@@ -182,7 +187,7 @@ def seed_data(c):
         ("BATCH-018", "食用油", "2025-03-20"),
     ]
     for br in batch_recalls_data:
-        c.execute("INSERT INTO batch_recalls (batch_id, ingredient_name, recall_date) VALUES (?, ?, ?)", br)
+        c.execute("INSERT INTO batch_recalls (batch_id, ingredient_name, recall_date) VALUES (%s, %s, %s)", br)
 
     batch_dish_map = {
         "BATCH-005": [2, 3, 4, 9, 10, 11, 17, 18],
@@ -191,12 +196,33 @@ def seed_data(c):
     }
     for batch_id, dish_ids in batch_dish_map.items():
         for did in dish_ids:
-            c.execute("INSERT INTO batch_dish_relations (batch_id, dish_id) VALUES (?, ?)", (batch_id, did))
+            c.execute("INSERT INTO batch_dish_relations (batch_id, dish_id) VALUES (%s, %s)", (batch_id, did))
 
 
 @app.on_event("startup")
 def startup():
     init_db()
+
+
+def _apply_time_period(conditions, params, time_period, date_col="dds.stat_date"):
+    if not time_period:
+        return
+    conn2 = get_db()
+    c2 = conn2.cursor()
+    c2.execute("SELECT MAX(stat_date) FROM daily_dish_stats")
+    row = c2.fetchone()
+    conn2.close()
+    latest_date = row[0] if row and row[0] else date.today()
+    if time_period == "week":
+        start = latest_date - timedelta(days=7)
+    elif time_period == "month":
+        start = latest_date - timedelta(days=30)
+    elif time_period == "quarter":
+        start = latest_date - timedelta(days=90)
+    else:
+        return
+    conditions.append(f"{date_col} >= %s")
+    params.append(start)
 
 
 @app.get("/api/filters/options")
@@ -205,20 +231,24 @@ def get_filter_options():
     c = conn.cursor()
 
     c.execute("SELECT id, name FROM windows ORDER BY id")
-    windows = [{"id": str(r["id"]), "name": r["name"]} for r in c.fetchall()]
+    windows = [{"id": str(r[0]), "name": r[1]} for r in c.fetchall()]
 
     c.execute("SELECT DISTINCT cuisine_type FROM dishes ORDER BY cuisine_type")
-    cuisines = [r["cuisine_type"] for r in c.fetchall()]
+    cuisines = [r[0] for r in c.fetchall()]
 
     c.execute("SELECT DISTINCT supply_batch FROM daily_dish_stats ORDER BY supply_batch")
-    batches = [r["supply_batch"] for r in c.fetchall()]
+    batches = [r[0] for r in c.fetchall()]
 
-    c.execute("SELECT MIN(cost) as min_cost, MAX(cost) as max_cost FROM dishes")
+    c.execute("SELECT MIN(cost), MAX(cost) FROM dishes")
     row = c.fetchone()
-    cost_range = {"min": row["min_cost"], "max": row["max_cost"]}
+    cost_range = {"min": float(row[0]) if row[0] else 0, "max": float(row[1]) if row[1] else 20}
+
+    c.execute("SELECT MIN(stat_date), MAX(stat_date) FROM daily_dish_stats")
+    date_row = c.fetchone()
+    date_range = {"min": date_row[0].isoformat() if date_row[0] else None, "max": date_row[1].isoformat() if date_row[1] else None}
 
     conn.close()
-    return {"windows": windows, "cuisines": cuisines, "batches": batches, "cost_range": cost_range}
+    return {"windows": windows, "cuisines": cuisines, "batches": batches, "cost_range": cost_range, "date_range": date_range}
 
 
 @app.get("/api/dishes/satisfaction")
@@ -239,40 +269,28 @@ def get_satisfaction(
     params = []
 
     if window_id:
-        conditions.append("d.window_id = ?")
+        conditions.append("d.window_id = %s")
         params.append(int(window_id))
     if cuisine_type:
-        conditions.append("d.cuisine_type = ?")
+        conditions.append("d.cuisine_type = %s")
         params.append(cuisine_type)
     if cost_min is not None:
-        conditions.append("d.cost >= ?")
+        conditions.append("d.cost >= %s")
         params.append(cost_min)
     if cost_max is not None:
-        conditions.append("d.cost <= ?")
+        conditions.append("d.cost <= %s")
         params.append(cost_max)
     if supply_batch:
-        conditions.append("dds.supply_batch = ?")
+        conditions.append("dds.supply_batch = %s")
         params.append(supply_batch)
     if date_from:
-        conditions.append("dds.stat_date >= ?")
+        conditions.append("dds.stat_date >= %s")
         params.append(date_from)
     if date_to:
-        conditions.append("dds.stat_date <= ?")
+        conditions.append("dds.stat_date <= %s")
         params.append(date_to)
 
-    if time_period:
-        today = date.today()
-        if time_period == "week":
-            start = (today - timedelta(days=7)).isoformat()
-        elif time_period == "month":
-            start = (today - timedelta(days=30)).isoformat()
-        elif time_period == "quarter":
-            start = (today - timedelta(days=90)).isoformat()
-        else:
-            start = None
-        if start:
-            conditions.append("dds.stat_date >= ?")
-            params.append(start)
+    _apply_time_period(conditions, params, time_period)
 
     where_clause = ""
     if conditions:
@@ -283,45 +301,55 @@ def get_satisfaction(
            d.cuisine_type, d.cost, d.price,
            SUM(dds.sales_count) as total_sales,
            SUM(dds.sample_count) as sample_count,
-           ROUND(AVG(dds.avg_score), 2) as avg_score,
+           ROUND(CAST(AVG(CASE WHEN sc.change_date IS NULL THEN dds.avg_score ELSE NULL END) AS NUMERIC), 2) as avg_score,
+           ROUND(CAST(AVG(CASE WHEN sc.change_date IS NOT NULL THEN dds.avg_score ELSE NULL END) AS NUMERIC), 2) as supplier_change_day_score,
            SUM(dds.return_count) as return_count,
            CASE WHEN SUM(dds.sales_count) > 0
-                THEN ROUND(CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) * 100, 2)
+                THEN ROUND(CAST(CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) * 100 AS NUMERIC), 2)
                 ELSE 0 END as return_rate,
-           ROUND((d.price - d.cost) / d.price * 100, 2) as profit_rate
+           ROUND(CAST((d.price - d.cost) / d.price * 100 AS NUMERIC), 2) as profit_rate
     FROM dishes d
     JOIN windows w ON d.window_id = w.id
     JOIN daily_dish_stats dds ON d.id = dds.dish_id
+    LEFT JOIN supplier_changes sc ON d.window_id = sc.window_id AND dds.stat_date = sc.change_date
     {where_clause}
-    GROUP BY d.id
+    GROUP BY d.id, d.name, w.name, d.cuisine_type, d.cost, d.price
     ORDER BY avg_score ASC
     """
     c.execute(query, params)
-    rows = c.fetchall()
+    columns = [desc[0] for desc in c.description]
+    rows = [dict(zip(columns, row)) for row in c.fetchall()]
 
     result = []
     for r in rows:
         dish_id = r["dish_id"]
-        c.execute("SELECT COUNT(*) as cnt FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = ?", (dish_id,))
-        supplier_changed = c.fetchone()["cnt"] > 0
+        c.execute("SELECT COUNT(*) FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = %s", (dish_id,))
+        supplier_changed = c.fetchone()[0] > 0
 
-        c.execute("SELECT COUNT(*) as cnt FROM batch_dish_relations WHERE dish_id = ?", (dish_id,))
-        batch_recalled = c.fetchone()["cnt"] > 0
+        c.execute("SELECT COUNT(*) FROM batch_dish_relations WHERE dish_id = %s", (dish_id,))
+        batch_recalled = c.fetchone()[0] > 0
+
+        supplier_change_dates_list = []
+        if supplier_changed:
+            c.execute("SELECT change_date FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = %s", (dish_id,))
+            supplier_change_dates_list = [row[0].isoformat() if hasattr(row[0], 'isoformat') else str(row[0]) for row in c.fetchall()]
 
         result.append({
             "dish_id": str(dish_id),
             "dish_name": r["dish_name"],
             "window_name": r["window_name"],
             "cuisine_type": r["cuisine_type"],
-            "avg_score": r["avg_score"],
+            "avg_score": float(r["avg_score"]) if r["avg_score"] is not None else None,
+            "supplier_change_day_score": float(r["supplier_change_day_score"]) if r["supplier_change_day_score"] is not None else None,
             "total_sales": r["total_sales"],
             "sample_count": r["sample_count"],
             "return_count": r["return_count"],
             "return_rate": r["return_rate"],
-            "cost": r["cost"],
-            "profit_rate": r["profit_rate"],
+            "cost": float(r["cost"]),
+            "profit_rate": float(r["profit_rate"]),
             "supplier_changed": supplier_changed,
             "batch_recalled": batch_recalled,
+            "supplier_change_dates": supplier_change_dates_list,
         })
 
     conn.close()
@@ -332,6 +360,8 @@ def get_satisfaction(
 def get_return_reasons(
     window_id: str = Query(None),
     cuisine_type: str = Query(None),
+    time_period: str = Query(None),
+    supply_batch: str = Query(None),
     date_from: str = Query(None),
     date_to: str = Query(None),
 ):
@@ -342,17 +372,22 @@ def get_return_reasons(
     params = []
 
     if window_id:
-        conditions.append("rr.window_id = ?")
+        conditions.append("rr.window_id = %s")
         params.append(int(window_id))
     if date_from:
-        conditions.append("rr.return_date >= ?")
+        conditions.append("rr.return_date >= %s")
         params.append(date_from)
     if date_to:
-        conditions.append("rr.return_date <= ?")
+        conditions.append("rr.return_date <= %s")
         params.append(date_to)
     if cuisine_type:
-        conditions.append("d.cuisine_type = ?")
+        conditions.append("d.cuisine_type = %s")
         params.append(cuisine_type)
+    if supply_batch:
+        conditions.append("EXISTS (SELECT 1 FROM daily_dish_stats dds WHERE dds.dish_id = rr.dish_id AND dds.stat_date = rr.return_date AND dds.supply_batch = %s)")
+        params.append(supply_batch)
+
+    _apply_time_period(conditions, params, time_period, date_col="rr.return_date")
 
     where_clause = ""
     if conditions:
@@ -369,13 +404,13 @@ def get_return_reasons(
     c.execute(query, params)
     rows = c.fetchall()
 
-    total = sum(r["count"] for r in rows)
+    total = sum(r[1] for r in rows)
     result = []
     for r in rows:
         result.append({
-            "reason": r["reason"],
-            "count": r["count"],
-            "ratio": round(r["count"] / total * 100, 2) if total > 0 else 0,
+            "reason": r[0],
+            "count": r[1],
+            "ratio": round(r[1] / total * 100, 2) if total > 0 else 0,
         })
 
     conn.close()
@@ -395,13 +430,13 @@ def get_return_details(
     params = []
 
     if reason:
-        conditions.append("rr.reason = ?")
+        conditions.append("rr.reason = %s")
         params.append(reason)
     if window_id:
-        conditions.append("rr.window_id = ?")
+        conditions.append("rr.window_id = %s")
         params.append(int(window_id))
     if date:
-        conditions.append("rr.return_date = ?")
+        conditions.append("rr.return_date = %s")
         params.append(date)
 
     where_clause = ""
@@ -421,7 +456,7 @@ def get_return_details(
     c.execute(query, params)
     rows = c.fetchall()
 
-    result = [{"dish_name": r["dish_name"], "window_name": r["window_name"], "date": r["date"], "reason": r["reason"], "count": r["count"]} for r in rows]
+    result = [{"dish_name": r[0], "window_name": r[1], "date": r[2].isoformat() if hasattr(r[2], 'isoformat') else str(r[2]), "reason": r[3], "count": r[4]} for r in rows]
 
     conn.close()
     return result
@@ -433,6 +468,10 @@ def get_cost_profits(
     cuisine_type: str = Query(None),
     cost_min: float = Query(None),
     cost_max: float = Query(None),
+    time_period: str = Query(None),
+    supply_batch: str = Query(None),
+    date_from: str = Query(None),
+    date_to: str = Query(None),
 ):
     conn = get_db()
     c = conn.cursor()
@@ -441,17 +480,28 @@ def get_cost_profits(
     params = []
 
     if window_id:
-        conditions.append("d.window_id = ?")
+        conditions.append("d.window_id = %s")
         params.append(int(window_id))
     if cuisine_type:
-        conditions.append("d.cuisine_type = ?")
+        conditions.append("d.cuisine_type = %s")
         params.append(cuisine_type)
     if cost_min is not None:
-        conditions.append("d.cost >= ?")
+        conditions.append("d.cost >= %s")
         params.append(cost_min)
     if cost_max is not None:
-        conditions.append("d.cost <= ?")
+        conditions.append("d.cost <= %s")
         params.append(cost_max)
+    if supply_batch:
+        conditions.append("dds.supply_batch = %s")
+        params.append(supply_batch)
+    if date_from:
+        conditions.append("dds.stat_date >= %s")
+        params.append(date_from)
+    if date_to:
+        conditions.append("dds.stat_date <= %s")
+        params.append(date_to)
+
+    _apply_time_period(conditions, params, time_period)
 
     where_clause = ""
     if conditions:
@@ -459,18 +509,18 @@ def get_cost_profits(
 
     query = f"""
     SELECT d.id as dish_id, d.name as dish_name, d.cost,
-           ROUND((d.price - d.cost) / d.price * 100, 2) as profit_rate,
+           ROUND(CAST((d.price - d.cost) / d.price * 100 AS NUMERIC), 2) as profit_rate,
            COALESCE(SUM(dds.sales_count), 0) as sales
     FROM dishes d
     LEFT JOIN daily_dish_stats dds ON d.id = dds.dish_id
     {where_clause}
-    GROUP BY d.id
+    GROUP BY d.id, d.name, d.cost, d.price
     ORDER BY d.cost ASC
     """
     c.execute(query, params)
     rows = c.fetchall()
 
-    result = [{"dish_id": str(r["dish_id"]), "dish_name": r["dish_name"], "cost": r["cost"], "profit_rate": r["profit_rate"], "sales": r["sales"]} for r in rows]
+    result = [{"dish_id": str(r[0]), "dish_name": r[1], "cost": float(r[2]), "profit_rate": float(r[3]), "sales": r[4]} for r in rows]
 
     conn.close()
     return result
@@ -481,6 +531,7 @@ def get_abnormal_dishes(
     window_id: str = Query(None),
     cuisine_type: str = Query(None),
     supply_batch: str = Query(None),
+    time_period: str = Query(None),
 ):
     conn = get_db()
     c = conn.cursor()
@@ -489,14 +540,16 @@ def get_abnormal_dishes(
     params = []
 
     if window_id:
-        conditions.append("d.window_id = ?")
+        conditions.append("d.window_id = %s")
         params.append(int(window_id))
     if cuisine_type:
-        conditions.append("d.cuisine_type = ?")
+        conditions.append("d.cuisine_type = %s")
         params.append(cuisine_type)
     if supply_batch:
-        conditions.append("dds.supply_batch = ?")
+        conditions.append("dds.supply_batch = %s")
         params.append(supply_batch)
+
+    _apply_time_period(conditions, params, time_period)
 
     where_clause = ""
     if conditions:
@@ -505,65 +558,70 @@ def get_abnormal_dishes(
     query = f"""
     SELECT d.id as dish_id, d.name as dish_name, w.name as window_name,
            d.cuisine_type, d.cost,
-           ROUND(AVG(dds.avg_score), 2) as avg_score,
+           ROUND(CAST(AVG(CASE WHEN sc.change_date IS NULL THEN dds.avg_score ELSE NULL END) AS NUMERIC), 2) as avg_score,
            SUM(dds.sample_count) as sample_count,
            CASE WHEN SUM(dds.sales_count) > 0
-                THEN ROUND(CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) * 100, 2)
+                THEN ROUND(CAST(CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) * 100 AS NUMERIC), 2)
                 ELSE 0 END as return_rate,
-           ROUND((d.price - d.cost) / d.price * 100, 2) as profit_rate
+           ROUND(CAST((d.price - d.cost) / d.price * 100 AS NUMERIC), 2) as profit_rate
     FROM dishes d
     JOIN windows w ON d.window_id = w.id
     JOIN daily_dish_stats dds ON d.id = dds.dish_id
+    LEFT JOIN supplier_changes sc ON d.window_id = sc.window_id AND dds.stat_date = sc.change_date
     {where_clause}
-    GROUP BY d.id
-    HAVING AVG(dds.avg_score) < 3.5 OR (SUM(dds.sales_count) > 0 AND CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) > 0.08) OR (d.price - d.cost) / d.price < 0.3
+    GROUP BY d.id, d.name, w.name, d.cuisine_type, d.cost, d.price
+    HAVING AVG(CASE WHEN sc.change_date IS NULL THEN dds.avg_score ELSE NULL END) < 3.5
+        OR (SUM(dds.sales_count) > 0 AND CAST(SUM(dds.return_count) AS FLOAT) / SUM(dds.sales_count) > 0.08)
+        OR (d.price - d.cost) / d.price < 0.3
     ORDER BY avg_score ASC
     """
     c.execute(query, params)
-    rows = c.fetchall()
+    columns = [desc[0] for desc in c.description]
+    rows = [dict(zip(columns, row)) for row in c.fetchall()]
 
     result = []
     for r in rows:
         dish_id = r["dish_id"]
+        avg_score = float(r["avg_score"]) if r["avg_score"] is not None else 0
         abnormal_types = []
-        if r["avg_score"] < 3.5:
+        if avg_score < 3.5:
             abnormal_types.append("评分偏低")
-        if r["return_rate"] > 8:
+        if float(r["return_rate"]) > 8:
             abnormal_types.append("退餐率偏高")
-        if r["profit_rate"] < 30:
+        if float(r["profit_rate"]) < 30:
             abnormal_types.append("毛利率偏低")
 
-        c.execute("SELECT COUNT(*) as cnt FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = ?", (dish_id,))
-        supplier_changed = c.fetchone()["cnt"] > 0
+        c.execute("SELECT COUNT(*) FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = %s", (dish_id,))
+        supplier_changed = c.fetchone()[0] > 0
 
-        c.execute("SELECT COUNT(*) as cnt FROM batch_dish_relations WHERE dish_id = ?", (dish_id,))
-        batch_recalled = c.fetchone()["cnt"] > 0
+        c.execute("SELECT COUNT(*) FROM batch_dish_relations WHERE dish_id = %s", (dish_id,))
+        batch_recalled = c.fetchone()[0] > 0
 
         recall_batch_id = None
         supplier_change_date = None
 
         if batch_recalled:
-            c.execute("SELECT batch_id FROM batch_dish_relations WHERE dish_id = ? LIMIT 1", (dish_id,))
+            c.execute("SELECT batch_id FROM batch_dish_relations WHERE dish_id = %s LIMIT 1", (dish_id,))
             br = c.fetchone()
             if br:
-                recall_batch_id = br["batch_id"]
+                recall_batch_id = br[0]
 
         if supplier_changed:
-            c.execute("SELECT change_date FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = ? LIMIT 1", (dish_id,))
+            c.execute("SELECT change_date FROM supplier_changes sc JOIN dishes d ON d.window_id = sc.window_id WHERE d.id = %s LIMIT 1", (dish_id,))
             sc_row = c.fetchone()
             if sc_row:
-                supplier_change_date = sc_row["change_date"]
+                supplier_change_date = sc_row[0].isoformat() if hasattr(sc_row[0], 'isoformat') else str(sc_row[0])
 
         result.append({
             "dish_id": str(dish_id),
             "dish_name": r["dish_name"],
             "window_name": r["window_name"],
             "cuisine_type": r["cuisine_type"],
-            "avg_score": r["avg_score"],
+            "avg_score": avg_score,
             "sample_count": r["sample_count"],
-            "return_rate": r["return_rate"],
-            "cost": r["cost"],
-            "profit_rate": r["profit_rate"],
+            "return_rate": float(r["return_rate"]),
+            "cost": float(r["cost"]),
+            "profit_rate": float(r["profit_rate"]),
             "abnormal_type": abnormal_types,
             "supplier_changed": supplier_changed,
             "batch_recalled": batch_recalled,
@@ -585,7 +643,7 @@ def get_supplier_changes():
         ORDER BY sc.change_date DESC
     """)
     rows = c.fetchall()
-    result = [{"id": str(r["id"]), "window_id": str(r["window_id"]), "window_name": r["window_name"], "change_date": r["change_date"], "old_supplier": r["old_supplier"], "new_supplier": r["new_supplier"]} for r in rows]
+    result = [{"id": str(r[0]), "window_id": str(r[2]), "window_name": r[1], "change_date": r[3].isoformat() if hasattr(r[3], 'isoformat') else str(r[3]), "old_supplier": r[4], "new_supplier": r[5]} for r in rows]
     conn.close()
     return result
 
@@ -595,7 +653,7 @@ def create_supplier_change(data: dict):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO supplier_changes (window_id, change_date, old_supplier, new_supplier) VALUES (?, ?, ?, ?)",
+        "INSERT INTO supplier_changes (window_id, change_date, old_supplier, new_supplier) VALUES (%s, %s, %s, %s)",
         (data["window_id"], data["change_date"], data.get("old_supplier", ""), data.get("new_supplier", "")),
     )
     conn.commit()
@@ -611,13 +669,13 @@ def get_batch_recalls():
     rows = c.fetchall()
     result = []
     for r in rows:
-        c.execute("SELECT d.id, d.name FROM batch_dish_relations bdr JOIN dishes d ON bdr.dish_id = d.id WHERE bdr.batch_id = ?", (r["batch_id"],))
-        affected = [{"id": str(dr["id"]), "name": dr["name"]} for dr in c.fetchall()]
+        c.execute("SELECT d.id, d.name FROM batch_dish_relations bdr JOIN dishes d ON bdr.dish_id = d.id WHERE bdr.batch_id = %s", (r[1],))
+        affected = [{"id": str(dr[0]), "name": dr[1]} for dr in c.fetchall()]
         result.append({
-            "id": str(r["id"]),
-            "batch_id": r["batch_id"],
-            "ingredient_name": r["ingredient_name"],
-            "recall_date": r["recall_date"],
+            "id": str(r[0]),
+            "batch_id": r[1],
+            "ingredient_name": r[2],
+            "recall_date": r[3].isoformat() if hasattr(r[3], 'isoformat') else str(r[3]),
             "affected_dishes": affected,
         })
     conn.close()
@@ -629,12 +687,12 @@ def create_batch_recall(data: dict):
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO batch_recalls (batch_id, ingredient_name, recall_date) VALUES (?, ?, ?)",
+        "INSERT INTO batch_recalls (batch_id, ingredient_name, recall_date) VALUES (%s, %s, %s)",
         (data["batch_id"], data["ingredient_name"], data["recall_date"]),
     )
     for dish_id in data.get("affected_dish_ids", []):
         c.execute(
-            "INSERT INTO batch_dish_relations (batch_id, dish_id) VALUES (?, ?)",
+            "INSERT INTO batch_dish_relations (batch_id, dish_id) VALUES (%s, %s)",
             (data["batch_id"], int(dish_id)),
         )
     conn.commit()
@@ -651,14 +709,14 @@ def get_dish_trend(
     conn = get_db()
     c = conn.cursor()
 
-    conditions = ["dds.dish_id = ?"]
+    conditions = ["dds.dish_id = %s"]
     params = [dish_id]
 
     if date_from:
-        conditions.append("dds.stat_date >= ?")
+        conditions.append("dds.stat_date >= %s")
         params.append(date_from)
     if date_to:
-        conditions.append("dds.stat_date <= ?")
+        conditions.append("dds.stat_date <= %s")
         params.append(date_to)
 
     where_clause = "WHERE " + " AND ".join(conditions)
@@ -671,27 +729,27 @@ def get_dish_trend(
     """, params)
     rows = c.fetchall()
 
-    dates = [r["stat_date"] for r in rows]
-    scores = [r["avg_score"] for r in rows]
+    dates = [r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0]) for r in rows]
+    scores = [float(r[1]) if r[1] is not None else None for r in rows]
 
-    c.execute("SELECT window_id FROM dishes WHERE id = ?", (dish_id,))
+    c.execute("SELECT window_id FROM dishes WHERE id = %s", (dish_id,))
     win_row = c.fetchone()
     supplier_change_dates = []
     if win_row:
-        c.execute("SELECT change_date FROM supplier_changes WHERE window_id = ?", (win_row["window_id"],))
-        supplier_change_dates = [r["change_date"] for r in c.fetchall()]
+        c.execute("SELECT change_date FROM supplier_changes WHERE window_id = %s", (win_row[0],))
+        supplier_change_dates = [r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0]) for r in c.fetchall()]
 
-    c.execute("SELECT batch_id FROM batch_dish_relations WHERE dish_id = ?", (dish_id,))
-    recall_batches = [r["batch_id"] for r in c.fetchall()]
+    c.execute("SELECT batch_id FROM batch_dish_relations WHERE dish_id = %s", (dish_id,))
+    recall_batches = [r[0] for r in c.fetchall()]
     recall_dates = []
     for batch_id in recall_batches:
-        c.execute("SELECT recall_date FROM batch_recalls WHERE batch_id = ?", (batch_id,))
+        c.execute("SELECT recall_date FROM batch_recalls WHERE batch_id = %s", (batch_id,))
         for r in c.fetchall():
-            recall_dates.append(r["recall_date"])
+            recall_dates.append(r[0].isoformat() if hasattr(r[0], 'isoformat') else str(r[0]))
 
-    c.execute("SELECT name FROM dishes WHERE id = ?", (dish_id,))
+    c.execute("SELECT name FROM dishes WHERE id = %s", (dish_id,))
     dish_name_row = c.fetchone()
-    dish_name = dish_name_row["name"] if dish_name_row else "未知"
+    dish_name = dish_name_row[0] if dish_name_row else "未知"
 
     conn.close()
     return {
@@ -723,33 +781,18 @@ def export_report(
         supply_batch=supply_batch,
     )
 
-    if format == "csv":
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=[
-            "dish_id", "dish_name", "window_name", "cuisine_type",
-            "avg_score", "total_sales", "sample_count", "return_count",
-            "return_rate", "cost", "profit_rate", "supplier_changed", "batch_recalled"
-        ])
-        writer.writeheader()
-        writer.writerows(data)
-        output.seek(0)
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=satisfaction_report.csv"},
-        )
-    else:
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=[
-            "dish_id", "dish_name", "window_name", "cuisine_type",
-            "avg_score", "total_sales", "sample_count", "return_count",
-            "return_rate", "cost", "profit_rate", "supplier_changed", "batch_recalled"
-        ])
-        writer.writeheader()
-        writer.writerows(data)
-        output.seek(0)
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=satisfaction_report.csv"},
-        )
+    output = io.StringIO()
+    fieldnames = [
+        "dish_id", "dish_name", "window_name", "cuisine_type",
+        "avg_score", "supplier_change_day_score", "total_sales", "sample_count", "return_count",
+        "return_rate", "cost", "profit_rate", "supplier_changed", "batch_recalled"
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+    writer.writeheader()
+    writer.writerows(data)
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=satisfaction_report.csv"},
+    )

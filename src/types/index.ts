@@ -14,7 +14,8 @@ export interface DishSatisfaction {
   dish_name: string;
   window_name: string;
   cuisine_type: string;
-  avg_score: number;
+  avg_score: number | null;
+  supplier_change_day_score: number | null;
   total_sales: number;
   sample_count: number;
   return_count: number;
@@ -23,6 +24,7 @@ export interface DishSatisfaction {
   profit_rate: number;
   supplier_changed: boolean;
   batch_recalled: boolean;
+  supplier_change_dates: string[];
 }
 
 export interface ReturnReason {
@@ -95,4 +97,5 @@ export interface FilterOptions {
   cuisines: string[];
   batches: string[];
   cost_range: { min: number; max: number };
+  date_range: { min: string | null; max: string | null };
 }
