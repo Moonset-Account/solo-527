@@ -120,7 +120,7 @@ export const useEnergyStore = defineStore('energy', () => {
       )
       
       const totalUsage = tenantReadings.reduce((sum, r) => sum + r.value, 0)
-      usageMap[tenant.id] = totalUsage > 0 ? totalUsage : 500 + Math.random() * 500
+      usageMap[tenant.id] = totalUsage > 0 ? totalUsage : 0
     })
     
     return usageMap

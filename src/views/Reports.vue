@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useEnergyStore } from '@/stores/energy'
 import { useAllocationStore } from '@/stores/allocation'
-import { formatNumber, formatDate, exportToCSV, getTimeRangeText } from '@/utils'
+import { formatNumber, formatDate, exportToCSV, export2DToCSV, getTimeRangeText } from '@/utils'
 import { FileText, Download, Calendar, Layers, Eye, FileSpreadsheet, FileJson } from 'lucide-vue-next'
 import type { Dimension, ReportConfig } from '@/types'
 
@@ -72,37 +72,71 @@ function downloadCSV() {
 }
 
 function downloadAllocationCSV() {
-  const metaData = [
-    { '项': '时间窗口', '值': getTimeRangeText(energyStore.selectedTimeRange) },
-    { '项': '分析维度', '值': dimensions.find(d => d.value === reportConfig.value.dimension)?.label || '楼栋维度' },
-    { '项': '有效样本量', '值': energyStore.stats.sampleCount },
-    { '项': '总样本量', '值': energyStore.stats.totalSamples },
-    { '项': '分摊口径', '值': allocationStore.activeRule?.name || '按面积分摊' },
-    { '项': '公共区域总能耗', '值': `${formatNumber(allocationStore.commonEnergy)} kWh` },
-    { '项': '生成时间', '值': new Date().toLocaleString('zh-CN') },
-    { '项': '', '值': '' }
-  ]
+  const rows: (string | number)[][] = []
   
-  const data = allocationStore.results.map(r => {
+  rows.push(['楼宇能耗对账单'])
+  rows.push([''])
+  
+  rows.push(['【账单基本信息】'])
+  rows.push(['时间窗口', getTimeRangeText(energyStore.selectedTimeRange)])
+  rows.push(['分析维度', dimensions.find(d => d.value === reportConfig.value.dimension)?.label || '楼栋维度'])
+  rows.push(['有效样本量', energyStore.stats.sampleCount])
+  rows.push(['总样本量', energyStore.stats.totalSamples])
+  rows.push(['样本完整率', `${((energyStore.stats.sampleCount / Math.max(energyStore.stats.totalSamples, 1)) * 100).toFixed(1)}%`])
+  rows.push(['分摊口径', allocationStore.activeRule?.name || '按面积分摊'])
+  rows.push(['分摊规则说明', allocationStore.activeRule?.method === 'by_area' ? '按各租户租赁面积占比分摊' :
+                allocationStore.activeRule?.method === 'by_people' ? '按各租户员工人数占比分摊' :
+                allocationStore.activeRule?.method === 'by_usage_ratio' ? '按各租户能耗用量占比分摊' : '平均分摊至所有租户'])
+  rows.push(['公共区域总能耗(kWh)', formatNumber(allocationStore.commonEnergy)])
+  
+  if (energyStore.holidayMode) {
+    rows.push([''])
+    rows.push(['【节假日模式配置】'])
+    rows.push(['工作日开始时间', energyStore.holidayMode.workdayStart])
+    rows.push(['工作日结束时间', energyStore.holidayMode.workdayEnd])
+    rows.push(['周末能耗降低比例', `${energyStore.holidayMode.weekendReduction}%`])
+    rows.push(['节假日能耗降低比例', `${energyStore.holidayMode.holidayReduction}%`])
+  }
+  
+  rows.push([''])
+  rows.push(['【租户能耗明细】'])
+  rows.push([
+    '序号', '租户名称', '所在楼层', '租赁面积(㎡)', '员工人数',
+    '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊公式'
+  ])
+  
+  allocationStore.results.forEach((r, idx) => {
     const tenant = energyStore.tenants.find(t => t.id === r.tenantId)
-    return {
-      '租户名称': r.tenantName,
-      '所在楼层': tenant?.floorId.replace('flr-00', '') + 'F' || '-',
-      '租赁面积(㎡)': tenant?.area || 0,
-      '员工人数': tenant?.peopleCount || 0,
-      '统计周期': r.period,
-      '租户自耗(kWh)': formatNumber(r.tenantUsage),
-      '公共分摊(kWh)': formatNumber(r.allocatedEnergy),
-      '总能耗(kWh)': formatNumber(r.totalEnergy),
-      '分摊公式': r.formula
-    }
+    rows.push([
+      idx + 1,
+      r.tenantName,
+      tenant?.floorId.replace('flr-00', '') + 'F' || '-',
+      tenant?.area || 0,
+      tenant?.peopleCount || 0,
+      formatNumber(r.tenantUsage),
+      formatNumber(r.allocatedEnergy),
+      formatNumber(r.totalEnergy),
+      r.formula
+    ])
   })
   
-  const summary = [
-    { '租户名称': '', '所在楼层': '', '租赁面积(㎡)': '', '员工人数': '', '统计周期': '合计', '租户自耗(kWh)': formatNumber(allocationStore.totalTenantUsage), '公共分摊(kWh)': formatNumber(allocationStore.totalAllocated), '总能耗(kWh)': formatNumber(allocationStore.grandTotal), '分摊公式': '' }
-  ]
+  rows.push([''])
+  rows.push([
+    '合计', '', '',
+    energyStore.tenants.reduce((sum, t) => sum + t.area, 0),
+    energyStore.tenants.reduce((sum, t) => sum + t.peopleCount, 0),
+    formatNumber(allocationStore.totalTenantUsage),
+    formatNumber(allocationStore.totalAllocated),
+    formatNumber(allocationStore.grandTotal),
+    ''
+  ])
   
-  exportToCSV([...metaData, ...data, ...summary], '租户能耗对账单')
+  rows.push([''])
+  rows.push(['【数据质量说明】'])
+  rows.push(['* 离线设备数据已排除，不参与统计计算'])
+  rows.push(['* 本报告生成时间：', new Date().toLocaleString('zh-CN')])
+  
+  export2DToCSV(rows, '租户能耗对账单')
 }
 </script>
 

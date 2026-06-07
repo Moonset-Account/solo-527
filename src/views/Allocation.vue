@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useAllocationStore } from '@/stores/allocation'
 import { useEnergyStore } from '@/stores/energy'
-import { formatNumber, getTimeRangeText } from '@/utils'
+import { formatNumber, getTimeRangeText, export2DToCSV } from '@/utils'
 import { Settings, Calculator, FileDown, ChevronDown, ChevronUp, Clock } from 'lucide-vue-next'
 import type { AllocationMethod } from '@/types'
 import { ElMessage } from 'element-plus'
@@ -41,34 +41,71 @@ function getTenantById(tenantId: string) {
 }
 
 function exportResults() {
-  const csvContent = [
-    ['时间窗口', getTimeRangeText(energyStore.selectedTimeRange)],
-    ['样本量', energyStore.stats.sampleCount],
-    ['分摊口径', allocationStore.activeRule?.name || '按面积分摊'],
-    [''],
-    ['租户名称', '所在楼层', '租户面积(㎡)', '员工人数', '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊公式'],
-    ...allocationStore.results.map(r => {
-      const tenant = getTenantById(r.tenantId)
-      return [
-        r.tenantName,
-        tenant?.floorId.replace('flr-00', '') + 'F' || '-',
-        tenant?.area || 0,
-        tenant?.peopleCount || 0,
-        r.tenantUsage.toFixed(2),
-        r.allocatedEnergy.toFixed(2),
-        r.totalEnergy.toFixed(2),
-        r.formula
-      ]
-    })
-  ].map(row => row.join(',')).join('\n')
-
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `租户能耗对账单_${energyStore.selectedTimeRange}_${new Date().toISOString().split('T')[0]}.csv`
-  link.click()
-  URL.revokeObjectURL(link.href)
-  ElMessage.success('对账单已导出，包含时间窗口、样本量、分摊口径')
+  const rows: (string | number)[][] = []
+  
+  rows.push(['楼宇能耗对账单'])
+  rows.push([''])
+  
+  rows.push(['【账单基本信息】'])
+  rows.push(['时间窗口', getTimeRangeText(energyStore.selectedTimeRange)])
+  rows.push(['有效样本量', energyStore.stats.sampleCount])
+  rows.push(['总样本量', energyStore.stats.totalSamples])
+  rows.push(['样本完整率', `${((energyStore.stats.sampleCount / Math.max(energyStore.stats.totalSamples, 1)) * 100).toFixed(1)}%`])
+  rows.push(['分摊口径', allocationStore.activeRule?.name || '按面积分摊'])
+  rows.push(['分摊规则说明', allocationStore.activeRule?.method === 'by_area' ? '按各租户租赁面积占比分摊' :
+                allocationStore.activeRule?.method === 'by_people' ? '按各租户员工人数占比分摊' :
+                allocationStore.activeRule?.method === 'by_usage_ratio' ? '按各租户能耗用量占比分摊' : '平均分摊至所有租户'])
+  rows.push(['公共区域总能耗(kWh)', formatNumber(allocationStore.commonEnergy)])
+  
+  if (energyStore.holidayMode) {
+    rows.push([''])
+    rows.push(['【节假日模式配置】'])
+    rows.push(['工作日开始时间', energyStore.holidayMode.workdayStart])
+    rows.push(['工作日结束时间', energyStore.holidayMode.workdayEnd])
+    rows.push(['周末能耗降低比例', `${energyStore.holidayMode.weekendReduction}%`])
+    rows.push(['节假日能耗降低比例', `${energyStore.holidayMode.holidayReduction}%`])
+  }
+  
+  rows.push([''])
+  rows.push(['【租户能耗明细】'])
+  rows.push([
+    '序号', '租户名称', '所在楼层', '租户面积(㎡)', '员工人数',
+    '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊公式'
+  ])
+  
+  allocationStore.results.forEach((r, idx) => {
+    const tenant = getTenantById(r.tenantId)
+    rows.push([
+      idx + 1,
+      r.tenantName,
+      tenant?.floorId.replace('flr-00', '') + 'F' || '-',
+      tenant?.area || 0,
+      tenant?.peopleCount || 0,
+      formatNumber(r.tenantUsage),
+      formatNumber(r.allocatedEnergy),
+      formatNumber(r.totalEnergy),
+      r.formula
+    ])
+  })
+  
+  rows.push([''])
+  rows.push([
+    '合计', '', '',
+    energyStore.tenants.reduce((sum, t) => sum + t.area, 0),
+    energyStore.tenants.reduce((sum, t) => sum + t.peopleCount, 0),
+    formatNumber(allocationStore.totalTenantUsage),
+    formatNumber(allocationStore.totalAllocated),
+    formatNumber(allocationStore.grandTotal),
+    ''
+  ])
+  
+  rows.push([''])
+  rows.push(['【数据质量说明】'])
+  rows.push(['* 离线设备数据已排除，不参与统计计算'])
+  rows.push(['* 本报告生成时间：', new Date().toLocaleString('zh-CN')])
+  
+  export2DToCSV(rows, `租户能耗对账单_${energyStore.selectedTimeRange}`)
+  ElMessage.success('对账单已导出，包含时间窗口、样本量、分摊口径、节假日配置')
 }
 </script>
 

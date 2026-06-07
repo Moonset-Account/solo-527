@@ -24,7 +24,7 @@ const tabs = [
 const uploadFile = ref<File | null>(null)
 const uploadProgress = ref(0)
 const isUploading = ref(false)
-const importResult = ref<{ readings: number; devices: number; tenants: number; floors: number } | null>(null)
+const importResult = ref<{ readings: number; devices: number; tenants: number; floors: number; holiday: boolean } | null>(null)
 
 const holidayMode = ref<HolidayMode>({
   workdayStart: energyStore.holidayMode.workdayStart,
@@ -141,6 +141,18 @@ async function parseFloors(data: any[]): Promise<Floor[]> {
   return floors
 }
 
+async function parseHolidayMode(data: any[]): Promise<HolidayMode | null> {
+  if (data.length === 0) return null
+  
+  const row = data[0]
+  return {
+    workdayStart: row['工作日开始'] || row['workday_start'] || '08:00',
+    workdayEnd: row['工作日结束'] || row['workday_end'] || '18:00',
+    weekendReduction: parseInt(row['周末降低比例'] || row['weekend_reduction'] || '30'),
+    holidayReduction: parseInt(row['节假日降低比例'] || row['holiday_reduction'] || '50')
+  }
+}
+
 async function startUpload() {
   if (!uploadFile.value) return
   
@@ -166,50 +178,67 @@ async function startUpload() {
     let devicesCount = 0
     let tenantsCount = 0
     let floorsCount = 0
+    let holidayImported = false
     
     if (headerKeys.some(k => k.includes('读数') || k.includes('value') || k.includes('reading'))) {
       const readings = await parseEnergyReadings(parsedData)
       energyStore.importReadings(readings)
       readingsCount = readings.length
     }
-    uploadProgress.value = 60
+    uploadProgress.value = 55
     await nextTick()
     
     if (headerKeys.some(k => k.includes('楼层号') || k.includes('floor_number')) &&
-        headerKeys.some(k => k.includes('面积') || k.includes('area'))) {
+        headerKeys.some(k => k.includes('面积') || k.includes('area')) &&
+        !headerKeys.some(k => k.includes('工作日') || k.includes('workday'))) {
       const floors = await parseFloors(parsedData)
       energyStore.importFloors(floors)
       floorsCount = floors.length
     }
-    uploadProgress.value = 70
+    uploadProgress.value = 65
     await nextTick()
     
     if (headerKeys.some(k => k.includes('名称') || k.includes('name')) && 
         headerKeys.some(k => k.includes('类型') || k.includes('type')) &&
         !headerKeys.some(k => k.includes('面积') || k.includes('area')) &&
-        !headerKeys.some(k => k.includes('人数') || k.includes('people'))) {
+        !headerKeys.some(k => k.includes('人数') || k.includes('people')) &&
+        !headerKeys.some(k => k.includes('工作日') || k.includes('workday'))) {
       const devices = await parseDevices(parsedData)
       energyStore.importDevices(devices)
       devicesCount = devices.length
     }
-    uploadProgress.value = 85
+    uploadProgress.value = 75
     await nextTick()
     
     if (headerKeys.some(k => k.includes('面积') || k.includes('area')) && 
         (headerKeys.some(k => k.includes('人数') || k.includes('people')) ||
-         headerKeys.some(k => k.includes('联系人') || k.includes('contact')))) {
+         headerKeys.some(k => k.includes('联系人') || k.includes('contact'))) &&
+        !headerKeys.some(k => k.includes('工作日') || k.includes('workday'))) {
       const tenants = await parseTenants(parsedData)
       energyStore.importTenants(tenants)
       tenantsCount = tenants.length
     }
+    uploadProgress.value = 85
+    await nextTick()
+    
+    if (headerKeys.some(k => k.includes('工作日') || k.includes('workday')) ||
+        headerKeys.some(k => k.includes('周末') || k.includes('weekend')) ||
+        headerKeys.some(k => k.includes('节假日') || k.includes('holiday'))) {
+      const holiday = await parseHolidayMode(parsedData)
+      if (holiday) {
+        energyStore.updateHolidayMode(holiday)
+        holidayMode.value = { ...holiday }
+        holidayImported = true
+      }
+    }
     uploadProgress.value = 100
     await nextTick()
     
-    importResult.value = { readings: readingsCount, devices: devicesCount, tenants: tenantsCount, floors: floorsCount }
+    importResult.value = { readings: readingsCount, devices: devicesCount, tenants: tenantsCount, floors: floorsCount, holiday: holidayImported }
     
-    const totalImported = readingsCount + devicesCount + tenantsCount + floorsCount
+    const totalImported = readingsCount + devicesCount + tenantsCount + floorsCount + (holidayImported ? 1 : 0)
     if (totalImported > 0) {
-      ElMessage.success(`成功导入 ${totalImported} 条数据`)
+      ElMessage.success(`成功导入 ${totalImported} 项数据`)
     } else {
       ElMessage.warning('未识别到可导入的数据，请检查文件格式')
     }
@@ -488,7 +517,7 @@ async function startUpload() {
                 <CheckCircle class="w-5 h-5" />
                 <span class="text-sm font-medium">导入完成</span>
               </div>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
                 <div v-if="importResult.readings > 0" class="text-center p-2 bg-brand-500/10 rounded">
                   <div class="text-lg font-mono font-bold text-brand-400">{{ importResult.readings }}</div>
                   <div class="text-xs text-slate-400">条读数</div>
@@ -504,6 +533,10 @@ async function startUpload() {
                 <div v-if="importResult.tenants > 0" class="text-center p-2 bg-status-info/10 rounded">
                   <div class="text-lg font-mono font-bold text-status-info">{{ importResult.tenants }}</div>
                   <div class="text-xs text-slate-400">个租户</div>
+                </div>
+                <div v-if="importResult.holiday" class="text-center p-2 bg-status-danger/10 rounded">
+                  <div class="text-lg font-mono font-bold text-status-danger">✓</div>
+                  <div class="text-xs text-slate-400">节假日</div>
                 </div>
               </div>
               <p class="text-xs text-slate-500 mt-2">

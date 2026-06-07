@@ -46,7 +46,7 @@ const defaultTenantUsageMap: Record<string, number> = {
 
 export function getTenantUsage(tenantId: string, usageMap?: Record<string, number>): number {
   const map = usageMap || defaultTenantUsageMap
-  return map[tenantId] || 500 + Math.random() * 500
+  return map[tenantId] || 0
 }
 
 export function allocateByArea(commonEnergy: number, tenants: Tenant[], usageMap?: Record<string, number>): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
@@ -89,6 +89,7 @@ export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[], us
   return tenants.map((t, idx) => {
     const tenantUsage = usages[idx]
     const allocatedEnergy = totalUsage > 0 ? (tenantUsage / totalUsage) * commonEnergy : 0
+    const note = tenantUsage === 0 ? '（无匹配读数数据，按零用量计算）' : ''
     return {
       tenantId: t.id,
       tenantName: t.name,
@@ -96,7 +97,7 @@ export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[], us
       allocatedEnergy,
       tenantUsage,
       totalEnergy: tenantUsage + allocatedEnergy,
-      formula: `公共能耗 × (租户自耗 ${tenantUsage.toFixed(1)}kWh / 总自耗 ${totalUsage.toFixed(1)}kWh)`
+      formula: `公共能耗 × (租户自耗 ${tenantUsage.toFixed(1)}kWh / 总自耗 ${totalUsage.toFixed(1)}kWh)${note}`
     }
   })
 }
@@ -236,6 +237,19 @@ export function exportToCSV(data: any[], filename: string): void {
     headers.join(','),
     ...data.map(row => headers.map(h => `"${row[h] ?? ''}"`).join(','))
   ].join('\n')
+
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${filename}_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
+  link.click()
+  URL.revokeObjectURL(link.href)
+}
+
+export function export2DToCSV(rows: (string | number)[][], filename: string): void {
+  const csvContent = rows.map(row => 
+    row.map(cell => `"${cell ?? ''}"`).join(',')
+  ).join('\n')
 
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
