@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { MeasurementQuery, DataSource } from '../types';
+import type { MeasurementQuery, DataSource, User } from '../types';
+import { api } from '../utils/apiClient';
 
 interface FilterState {
   query: MeasurementQuery;
@@ -30,41 +31,78 @@ export const useFilterStore = create<FilterState>((set) => ({
 }));
 
 interface AuthState {
-  user: {
-    id: string;
-    username: string;
-    role: 'admin' | 'researcher';
-    organization: string;
-  } | null;
+  user: User | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  isLoading: boolean;
+  error: string | null;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    id: 'user-1',
-    username: 'admin',
-    role: 'admin',
-    organization: '市环境监测中心站',
-  },
-  isAuthenticated: true,
-  login: (username, password) => {
-    if (username && password) {
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
+
+  login: async (username: string, password: string) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const result = await api.auth.login(username, password);
+
+      if (result.success && result.data) {
+        const { user, token } = result.data as { user: User; token: string };
+        api.setToken(token);
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return true;
+      } else {
+        set({
+          error: result.error || '登录失败',
+          isLoading: false,
+        });
+        return false;
+      }
+    } catch (error) {
       set({
-        user: {
-          id: 'user-1',
-          username,
-          role: username === 'admin' ? 'admin' : 'researcher',
-          organization: '市环境监测中心站',
-        },
-        isAuthenticated: true,
+        error: '网络错误，请稍后重试',
+        isLoading: false,
       });
-      return true;
+      return false;
     }
-    return false;
   },
-  logout: () => {
-    set({ user: null, isAuthenticated: false });
+
+  logout: async () => {
+    try {
+      await api.auth.logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    api.clearToken();
+    set({
+      user: null,
+      isAuthenticated: false,
+      error: null,
+    });
+  },
+
+  clearError: () => {
+    set({ error: null });
   },
 }));
+
+export function initAuthFromStorage() {
+  const token = api.getToken();
+  if (token) {
+    api.auth.me().then((result) => {
+      if (!result.success) {
+        api.clearToken();
+      }
+    });
+  }
+}

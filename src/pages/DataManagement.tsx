@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Upload,
   Database,
@@ -10,12 +10,15 @@ import {
   BookOpen,
   Download,
   Plus,
+  Loader2,
+  X,
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import PageContainer from '../components/layout/PageContainer';
 import { INDICATORS, WATER_QUALITY_GRADES } from '../utils/constants';
 import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
 import { runQualityCheck, measurementsToCSV } from '../utils/dataService';
+import { api } from '../utils/apiClient';
 import type { QualityCheckResult } from '../types';
 
 export default function DataManagement() {
@@ -24,6 +27,13 @@ export default function DataManagement() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    success: boolean;
+    message?: string;
+    imported?: number;
+    skipped?: number;
+  } | null>(null);
 
   useMemo(() => {
     const result = runQualityCheck(MOCK_MEASUREMENTS, MOCK_SITES);
@@ -71,6 +81,37 @@ export default function DataManagement() {
       generatePreview();
     }
   };
+
+  const handleConfirmImport = useCallback(async () => {
+    if (importPreview.length === 0) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const result = await api.measurements.import(importPreview);
+      setImportResult({
+        success: result.success,
+        message: result.message,
+        imported: result.imported,
+        skipped: result.skipped,
+      });
+
+      if (result.success) {
+        setImportPreview([]);
+        setImportFile(null);
+        const qualityResult = runQualityCheck(MOCK_MEASUREMENTS, MOCK_SITES);
+        setQualityCheck(qualityResult);
+      }
+    } catch (error) {
+      setImportResult({
+        success: false,
+        message: '导入失败，请重试',
+      });
+    } finally {
+      setImporting(false);
+    }
+  }, [importPreview]);
 
   const sampleCountChart = qualityCheck
     ? {
@@ -294,6 +335,45 @@ export default function DataManagement() {
             )}
           </div>
 
+          {importResult && (
+            <div
+              className={`p-4 rounded-lg flex items-center gap-3 ${
+                importResult.success
+                  ? 'bg-emerald-50 border border-emerald-200'
+                  : 'bg-rose-50 border border-rose-200'
+              }`}
+            >
+              {importResult.success ? (
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              ) : (
+                <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+              )}
+              <div className="flex-1">
+                <p
+                  className={`text-sm font-medium ${
+                    importResult.success ? 'text-emerald-800' : 'text-rose-800'
+                  }`}
+                >
+                  {importResult.message}
+                </p>
+                {importResult.success && importResult.imported !== undefined && (
+                  <p className="text-xs text-emerald-600 mt-0.5">
+                    成功导入 {importResult.imported} 条
+                    {importResult.skipped && importResult.skipped > 0
+                      ? `，跳过 ${importResult.skipped} 条`
+                      : ''}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setImportResult(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {importPreview.length > 0 && (
             <div className="bg-white rounded-xl shadow-card border border-slate-100 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -303,8 +383,22 @@ export default function DataManagement() {
                     <CheckCircle className="w-4 h-4" />
                     共 {importPreview.length} 条数据校验通过
                   </span>
-                  <button className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 transition-colors">
-                    确认导入
+                  <button
+                    onClick={handleConfirmImport}
+                    disabled={importing}
+                    className="px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        导入中...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        确认导入
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

@@ -1,59 +1,93 @@
-import express, { type Request, type Response } from 'express';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../../src/utils/mockData.js';
+import express, { type Response } from 'express';
+import { getSites, getSiteById, addSite } from '../db/index.js';
+import { authMiddleware, getOrganizationFilter, adminOnly, type AuthenticatedRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', (req: Request, res: Response) => {
+router.use(authMiddleware);
+
+router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { riverSection, organization, type } = req.query;
-    
-    let sites = [...MOCK_SITES];
-    
-    if (riverSection) {
-      sites = sites.filter(s => s.riverSection === riverSection);
-    }
-    if (organization) {
-      sites = sites.filter(s => s.organization === organization);
-    }
-    if (type) {
-      sites = sites.filter(s => s.type === type);
-    }
+    const orgFilter = getOrganizationFilter(req);
+    const sites = getSites(orgFilter || undefined);
     
     res.json({
       success: true,
       data: sites,
+      total: sites.length,
     });
   } catch (error) {
+    console.error('[Sites] Get error:', error);
     res.status(500).json({
       success: false,
-      error: '获取采样点列表失败',
+      error: '获取采样点失败',
     });
   }
 });
 
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const site = MOCK_SITES.find(s => s.id === req.params.id);
+    const orgFilter = getOrganizationFilter(req);
+    const site = getSiteById(req.params.id);
+    
     if (!site) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: '采样点不存在',
       });
+      return;
     }
-    
-    const siteMeasurements = MOCK_MEASUREMENTS.filter(m => m.siteId === site.id).slice(0, 50);
-    
+
+    if (orgFilter && site.organization !== orgFilter) {
+      res.status(403).json({
+        success: false,
+        error: '无权访问该采样点',
+      });
+      return;
+    }
+
     res.json({
       success: true,
-      data: {
-        site,
-        recentMeasurements: siteMeasurements,
-      },
+      data: site,
     });
   } catch (error) {
+    console.error('[Sites] Get by id error:', error);
     res.status(500).json({
       success: false,
       error: '获取采样点详情失败',
+    });
+  }
+});
+
+router.post('/', adminOnly, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const orgFilter = getOrganizationFilter(req);
+    const siteData = req.body;
+
+    if (orgFilter && siteData.organization && siteData.organization !== orgFilter) {
+      res.status(403).json({
+        success: false,
+        error: '只能在所属机构下创建采样点',
+      });
+      return;
+    }
+
+    if (orgFilter) {
+      siteData.organization = orgFilter;
+    }
+
+    const newSite = addSite(siteData);
+
+    res.json({
+      success: true,
+      data: newSite,
+      message: '采样点创建成功',
+    });
+  } catch (error) {
+    console.error('[Sites] Create error:', error);
+    res.status(500).json({
+      success: false,
+      error: '创建采样点失败',
     });
   }
 });

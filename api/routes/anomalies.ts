@@ -1,68 +1,74 @@
-import express, { type Request, type Response } from 'express';
-import { MOCK_MEASUREMENTS, MOCK_SITES, MOCK_ANOMALY_NOTES } from '../../src/utils/mockData.js';
+import express, { type Response } from 'express';
+import { getMeasurements, getAnomalyNotes, addAnomalyNote } from '../db/index.js';
+import { authMiddleware, getOrganizationFilter, type AuthenticatedRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', (req: Request, res: Response) => {
+router.use(authMiddleware);
+
+router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
+    const orgFilter = getOrganizationFilter(req);
     const limit = Number(req.query.limit) || 50;
     const offset = Number(req.query.offset) || 0;
-    
-    const anomalies = MOCK_MEASUREMENTS
-      .filter(m => m.isAnomaly)
-      .slice(offset, offset + limit)
-      .map(m => {
-        const site = MOCK_SITES.find(s => s.id === m.siteId);
-        const notes = MOCK_ANOMALY_NOTES.filter(n => n.measurementId === m.id);
-        return {
-          ...m,
-          siteName: site?.name,
-          siteCode: site?.code,
-          riverSection: site?.riverSection,
-          notes,
-        };
-      });
+
+    const result = getMeasurements({
+      organizations: orgFilter ? [orgFilter] : undefined,
+      onlyAnomalies: true,
+      limit,
+      offset,
+    });
 
     res.json({
       success: true,
-      data: anomalies,
-      total: MOCK_MEASUREMENTS.filter(m => m.isAnomaly).length,
+      data: result.data,
+      total: result.total,
     });
   } catch (error) {
+    console.error('[Anomalies] Get error:', error);
     res.status(500).json({
       success: false,
-      error: '获取异常点失败',
+      error: '获取异常数据失败',
     });
   }
 });
 
-router.post('/:id/note', (req: Request, res: Response) => {
+router.get('/:measurementId/notes', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { content, userId, userName } = req.body;
-    
-    if (!content) {
-      return res.status(400).json({
-        success: false,
-        error: '备注内容不能为空',
-      });
-    }
-
-    const note = {
-      id: Math.random().toString(36).substring(2, 15),
-      measurementId: req.params.id,
-      userId: userId || 'user-1',
-      userName: userName || 'admin',
-      content,
-      createdAt: new Date().toISOString(),
-    };
-
-    MOCK_ANOMALY_NOTES.push(note);
+    const notes = getAnomalyNotes(req.params.measurementId);
 
     res.json({
       success: true,
-      data: note,
+      data: notes,
     });
   } catch (error) {
+    console.error('[Anomalies] Get notes error:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取异常备注失败',
+    });
+  }
+});
+
+router.post('/:measurementId/notes', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { content } = req.body;
+    const user = req.user!;
+
+    const newNote = addAnomalyNote({
+      measurementId: req.params.measurementId,
+      userId: user.id,
+      userName: user.username,
+      content,
+    });
+
+    res.json({
+      success: true,
+      data: newNote,
+      message: '备注添加成功',
+    });
+  } catch (error) {
+    console.error('[Anomalies] Add note error:', error);
     res.status(500).json({
       success: false,
       error: '添加备注失败',

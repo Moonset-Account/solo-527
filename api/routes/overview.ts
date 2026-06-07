@@ -1,17 +1,29 @@
-import express, { type Request, type Response } from 'express';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../../src/utils/mockData.js';
+import express, { type Response } from 'express';
+import { getSites, getMeasurements } from '../db/index.js';
+import { authMiddleware, getOrganizationFilter, type AuthenticatedRequest } from '../middleware/auth.js';
 import { calculateOverviewStats } from '../../src/utils/dataService.js';
 
 const router = express.Router();
 
-router.get('/', (req: Request, res: Response) => {
+router.use(authMiddleware);
+
+router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const stats = calculateOverviewStats(MOCK_SITES, MOCK_MEASUREMENTS);
+    const orgFilter = getOrganizationFilter(req);
+    const sites = getSites(orgFilter || undefined);
+    const result = getMeasurements({
+      organizations: orgFilter ? [orgFilter] : undefined,
+      limit: 10000,
+    });
+
+    const stats = calculateOverviewStats(sites, result.data);
+
     res.json({
       success: true,
       data: stats,
     });
   } catch (error) {
+    console.error('[Overview] Get error:', error);
     res.status(500).json({
       success: false,
       error: '获取总览数据失败',

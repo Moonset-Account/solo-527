@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Map,
@@ -6,7 +6,9 @@ import {
   Database,
   FileDown,
   Droplets,
-  Settings,
+  LogOut,
+  Shield,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useFilterStore';
 
@@ -20,7 +22,13 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="w-60 bg-slate-900 text-white min-h-screen flex flex-col">
@@ -63,16 +71,34 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-700">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-sm font-bold">
+        <div className="flex items-center gap-3 px-2 mb-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-sm font-bold shadow-lg">
             {user?.username.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.username}</p>
-            <p className="text-xs text-slate-400 truncate">{user?.organization}</p>
+            <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+              <Building2 className="w-3 h-3" />
+              {user?.organization}
+            </p>
           </div>
-          <button className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700">
-            <Settings className="w-4 h-4" />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+            user?.role === 'admin' 
+              ? 'bg-amber-500/20 text-amber-300' 
+              : 'bg-cyan-500/20 text-cyan-300'
+          }`}>
+            <Shield className="w-3 h-3" />
+            {user?.role === 'admin' ? '管理员' : '研究员'}
+          </span>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-700 transition-colors"
+            title="退出登录"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            退出
           </button>
         </div>
       </div>
