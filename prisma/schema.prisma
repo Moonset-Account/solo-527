@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Team {
+  id           String  @id @default(uuid())
+  name         String
+  supervisorId String?
+  staffs       Staff[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Staff {
+  id               String     @id @default(uuid())
+  name             String
+  teamId           String
+  team             Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  role             String     // agent, supervisor, admin
+  isProbation      Boolean    @default(false)
+  probationEndDate DateTime?
+  avatar           String?
+  schedules        Schedule[]
+  sessions         Session[]
+  leaveRecords     LeaveRecord[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Schedule {
+  id              String             @id @default(uuid())
+  staffId         String
+  staff           Staff              @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  date            DateTime
+  startHour       Int
+  endHour         Int
+  shiftType       String             // morning, afternoon, night, flexible
+  changes         ScheduleChange[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([staffId, date])
+}
+
+model ScheduleChange {
+  id              String   @id @default(uuid())
+  scheduleId      String
+  schedule        Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  beforeSnapshot  Json
+  afterSnapshot   Json
+  changedBy       String
+  changedAt       DateTime @default(now())
+  reason          String?
+}
+
+model Session {
+  id              String        @id @default(uuid())
+  staffId         String
+  staff           Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startTime       DateTime
+  endTime         DateTime
+  waitSeconds     Int           @default(0)
+  durationSeconds Int           @default(0)
+  isTransferred   Boolean       @default(false)
+  transferTo      String?
+  satisfaction    Int?          // 1-5
+  tags            SessionTag[]
+  qualityRecord   QualityRecord?
+  createdAt       DateTime      @default(now())
+}
+
+model SessionTag {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tagName   String
+  category  String?
+
+  @@index([tagName])
+}
+
+model QualityRecord {
+  id            String  @id @default(uuid())
+  sessionId     String  @unique
+  session       Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  score         Int     // 0-100
+  graderId      String
+  comments      String?
+  isRestricted  Boolean @default(false)
+  gradedAt      DateTime @default(now())
+}
+
+model LeaveRecord {
+  id         String   @id @default(uuid())
+  staffId    String
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startDate  DateTime
+  endDate    DateTime
+  leaveType  String   // annual, sick, personal, other
+  status     String   // pending, approved, rejected
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
