@@ -63,7 +63,7 @@ function goToDetails(stage?: FunnelData) {
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <KpiCard
         title="总样本量"
-        :value="formatNumber(qualityStore.scaledMetrics.totalSamples)"
+        :value="formatNumber(qualityStore.metrics.totalSamples)"
         unit="份"
         trend="up"
         trend-value="+12.5%"
@@ -72,7 +72,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="有效样本量"
-        :value="formatNumber(qualityStore.scaledMetrics.validSamples)"
+        :value="formatNumber(qualityStore.metrics.validSamples)"
         unit="份"
         trend="up"
         trend-value="+8.3%"
@@ -81,7 +81,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="异常率"
-        :value="formatPercent(qualityStore.scaledMetrics.anomalyRate)"
+        :value="formatPercent(qualityStore.metrics.anomalyRate)"
         trend="down"
         trend-value="-2.1%"
         :icon="AlertTriangle"
@@ -89,7 +89,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="平均答题时长"
-        :value="formatDuration(qualityStore.scaledMetrics.avgDuration)"
+        :value="formatDuration(qualityStore.metrics.avgDuration)"
         trend="flat"
         trend-value="持平"
         :icon="Clock"
@@ -97,7 +97,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="跳题率"
-        :value="formatPercent(qualityStore.scaledMetrics.skipRate)"
+        :value="formatPercent(qualityStore.metrics.skipRate)"
         trend="down"
         trend-value="-1.2%"
         :icon="Activity"
@@ -105,7 +105,7 @@ function goToDetails(stage?: FunnelData) {
       />
       <KpiCard
         title="重复提交率"
-        :value="formatPercent(qualityStore.scaledMetrics.duplicateRate)"
+        :value="formatPercent(qualityStore.metrics.duplicateRate)"
         trend="up"
         trend-value="+0.5%"
         :icon="Repeat"
@@ -119,7 +119,7 @@ function goToDetails(stage?: FunnelData) {
           <span class="text-xs text-survey-text-muted">点击漏斗阶段可下钻明细</span>
         </template>
         <FunnelChart
-          :data="qualityStore.scaledFunnelData"
+          :data="qualityStore.funnelData"
           :height="320"
           @stage-click="goToDetails"
         />
@@ -131,7 +131,7 @@ function goToDetails(stage?: FunnelData) {
             线上问卷样本质量监控 · 原始记录
           </span>
         </template>
-        <TrendLineChart :data="qualityStore.scaledTrendData" />
+        <TrendLineChart :data="qualityStore.trendData" />
       </CardContainer>
     </div>
 

@@ -12,6 +12,7 @@ import type {
   Dimension,
   ComparisonData,
 } from '@/types'
+import dayjs from 'dayjs'
 
 export const mockDimensions: Dimension[] = [
   { id: 's1', name: '用户满意度调研 Q2', type: 'survey', code: 'SAT-Q2-2024' },
@@ -41,188 +42,430 @@ const channels = ['微信朋友圈', '微博推广', '抖音信息流', '小红�
 const channelIds = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6']
 const regions = ['华东地区', '华南地区', '华北地区', '华中地区', '西南地区']
 const devices = ['iOS', 'Android', 'PC 端', 'H5 移动端']
-const questionGroups = ['基本信息题组', '产品使用题组', '满意度评价题组', '开放建议题组']
-const qualityMarks: ('pass' | 'warning' | 'fail')[] = ['pass', 'warning', 'fail']
-const anomalyNames: Record<string, string> = {
-  duration: '时长异常',
-  skip: '跳题异常',
-  ip: 'IP异常',
-  device: '设备异常',
-  duplicate: '重复提交',
-  quality: '质检不通过',
+
+interface RawSampleRecord {
+  id: number
+  surveyIdx: number
+  channelIdx: number
+  regionIdx: number
+  deviceIdx: number
+  duration: number
+  skipCount: number
+  anomalyTypes: string[]
+  qualityMark: 'pass' | 'warning' | 'fail'
+  offsetHours: number
+  hasNote: boolean
+  groupDurations: Record<string, number>
 }
 
-export const mockQualityMetrics: QualityMetrics = {
-  totalSamples: 128563,
-  validSamples: 115207,
-  anomalyRate: 0.078,
-  avgDuration: 342,
-  skipRate: 0.052,
-  duplicateRate: 0.023,
-  ipAbnormalRate: 0.031,
-  deviceAbnormalRate: 0.018,
-  qualityMarkRate: 0.045,
-}
-
-export const mockFunnelData: FunnelData[] = [
-  { stage: '提交样本', stageCode: 'submitted', count: 128563, conversionRate: 1.0, dropRate: 0 },
-  { stage: '去重后样本', stageCode: 'deduped', count: 125612, conversionRate: 0.977, dropRate: 0.023 },
-  { stage: '有效样本', stageCode: 'valid', count: 115207, conversionRate: 0.917, dropRate: 0.083 },
-  { stage: '质检通过', stageCode: 'quality_pass', count: 109447, conversionRate: 0.95, dropRate: 0.05 },
-  { stage: '最终入库', stageCode: 'final', count: 108672, conversionRate: 0.993, dropRate: 0.007 },
-]
-
-export const mockTrendData: TrendDataPoint[] = Array.from({ length: 30 }, (_, i) => {
-  const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const total = 4000 + Math.floor(i * 80) + (i % 7 === 0 ? 800 : 0)
-  const anomalyCount = Math.floor(total * (0.06 + (i % 5) * 0.01))
-  return {
-    date,
-    totalSamples: total,
-    anomalyCount,
-    anomalyRate: anomalyCount / total,
+function seededRandom(seed: number): () => number {
+  let s = seed
+  return () => {
+    s = (s * 9301 + 49297) % 233280
+    return s / 233280
   }
-})
+}
 
-export const mockChannelRanking: ChannelRanking[] = [
-  { rank: 1, channelId: 'c6', channelName: 'APP 弹窗', totalSamples: 42156, qualityScore: 96, anomalyRate: 0.042, avgDuration: 368, trend: 'flat' },
-  { rank: 2, channelId: 'c5', channelName: '短信推送', totalSamples: 28342, qualityScore: 94, anomalyRate: 0.058, avgDuration: 352, trend: 'up' },
-  { rank: 3, channelId: 'c1', channelName: '微信朋友圈', totalSamples: 21567, qualityScore: 89, anomalyRate: 0.087, avgDuration: 325, trend: 'down' },
-  { rank: 4, channelId: 'c2', channelName: '微博推广', totalSamples: 15823, qualityScore: 85, anomalyRate: 0.102, avgDuration: 312, trend: 'down' },
-  { rank: 5, channelId: 'c4', channelName: '小红书', totalSamples: 12456, qualityScore: 82, anomalyRate: 0.118, avgDuration: 338, trend: 'up' },
-  { rank: 6, channelId: 'c3', channelName: '抖音信息流', totalSamples: 8219, qualityScore: 76, anomalyRate: 0.156, avgDuration: 298, trend: 'up' },
-]
+function buildRawSamples(): RawSampleRecord[] {
+  const rand = seededRandom(20240607)
+  const samples: RawSampleRecord[] = []
+  let id = 1
 
-export const mockQuestionGroupDurations: QuestionGroupDuration[] = [
-  { groupId: 'g1', groupName: '基本信息题组', min: 12, q1: 25, median: 38, q3: 52, max: 95, mean: 40, outliers: [120, 145, 8] },
-  { groupId: 'g2', groupName: '产品使用题组', min: 35, q1: 58, median: 85, q3: 120, max: 210, mean: 92, outliers: [280, 310, 22] },
-  { groupId: 'g3', groupName: '满意度评价题组', min: 20, q1: 42, median: 65, q3: 95, max: 160, mean: 68, outliers: [220, 12] },
-  { groupId: 'g4', groupName: '开放建议题组', min: 45, q1: 80, median: 125, q3: 180, max: 320, mean: 135, outliers: [450, 520, 25] },
-]
+  const channelQualityBias: Record<number, number> = {
+    0: 0.12,
+    1: 0.15,
+    2: 0.22,
+    3: 0.18,
+    4: 0.07,
+    5: 0.05,
+  }
+  const channelVolumeBias: Record<number, number> = {
+    0: 1.0,
+    1: 0.75,
+    2: 0.4,
+    3: 0.6,
+    4: 1.3,
+    5: 2.0,
+  }
 
-const baseSamples = [
-  { id: 1, survey: 0, channel: 0, region: 0, device: 0, duration: 42, anomalies: ['duration', 'quality'], quality: 'fail', skip: 12 },
-  { id: 2, survey: 0, channel: 0, region: 0, device: 1, duration: 385, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 3, survey: 0, channel: 1, region: 1, device: 0, duration: 312, anomalies: ['skip'], quality: 'warning', skip: 8 },
-  { id: 4, survey: 0, channel: 2, region: 2, device: 2, duration: 28, anomalies: ['duration', 'skip'], quality: 'fail', skip: 15 },
-  { id: 5, survey: 1, channel: 2, region: 0, device: 1, duration: 295, anomalies: ['duplicate'], quality: 'warning', skip: 0 },
-  { id: 6, survey: 1, channel: 3, region: 3, device: 0, duration: 520, anomalies: [], quality: 'pass', skip: 2 },
-  { id: 7, survey: 1, channel: 3, region: 1, device: 3, duration: 45, anomalies: ['duration', 'quality'], quality: 'fail', skip: 10 },
-  { id: 8, survey: 1, channel: 4, region: 4, device: 1, duration: 368, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 9, survey: 2, channel: 4, region: 2, device: 2, duration: 256, anomalies: ['ip'], quality: 'warning', skip: 3 },
-  { id: 10, survey: 2, channel: 5, region: 0, device: 0, duration: 412, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 11, survey: 2, channel: 5, region: 3, device: 1, duration: 18, anomalies: ['duration', 'skip', 'quality'], quality: 'fail', skip: 18 },
-  { id: 12, survey: 2, channel: 0, region: 1, device: 3, duration: 338, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 13, survey: 3, channel: 1, region: 4, device: 0, duration: 288, anomalies: ['device'], quality: 'warning', skip: 2 },
-  { id: 14, survey: 3, channel: 2, region: 2, device: 1, duration: 375, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 15, survey: 3, channel: 3, region: 0, device: 2, duration: 52, anomalies: ['duration', 'quality'], quality: 'fail', skip: 9 },
-  { id: 16, survey: 0, channel: 4, region: 3, device: 0, duration: 298, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 17, survey: 1, channel: 5, region: 4, device: 1, duration: 445, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 18, survey: 2, channel: 1, region: 0, device: 3, duration: 35, anomalies: ['duration'], quality: 'warning', skip: 7 },
-  { id: 19, survey: 3, channel: 0, region: 1, device: 0, duration: 362, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 20, survey: 0, channel: 3, region: 2, device: 1, duration: 68, anomalies: ['duration', 'ip'], quality: 'warning', skip: 5 },
-  { id: 21, survey: 1, channel: 4, region: 3, device: 2, duration: 402, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 22, survey: 2, channel: 2, region: 4, device: 0, duration: 25, anomalies: ['duration', 'quality'], quality: 'fail', skip: 12 },
-  { id: 23, survey: 3, channel: 1, region: 0, device: 1, duration: 315, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 24, survey: 0, channel: 5, region: 1, device: 3, duration: 278, anomalies: ['skip'], quality: 'warning', skip: 6 },
-  { id: 25, survey: 1, channel: 2, region: 2, device: 0, duration: 392, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 26, survey: 2, channel: 3, region: 3, device: 1, duration: 48, anomalies: ['duration', 'duplicate'], quality: 'warning', skip: 8 },
-  { id: 27, survey: 3, channel: 4, region: 4, device: 2, duration: 356, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 28, survey: 0, channel: 1, region: 0, device: 0, duration: 322, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 29, survey: 1, channel: 0, region: 1, device: 1, duration: 38, anomalies: ['duration', 'quality'], quality: 'fail', skip: 11 },
-  { id: 30, survey: 2, channel: 4, region: 2, device: 3, duration: 268, anomalies: [], quality: 'pass', skip: 2 },
-  { id: 31, survey: 3, channel: 5, region: 3, device: 0, duration: 415, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 32, survey: 0, channel: 2, region: 4, device: 1, duration: 72, anomalies: ['duration', 'ip'], quality: 'warning', skip: 4 },
-  { id: 33, survey: 1, channel: 3, region: 0, device: 2, duration: 308, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 34, survey: 2, channel: 1, region: 1, device: 0, duration: 22, anomalies: ['duration', 'skip', 'quality'], quality: 'fail', skip: 16 },
-  { id: 35, survey: 3, channel: 2, region: 2, device: 1, duration: 388, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 36, survey: 0, channel: 4, region: 3, device: 3, duration: 295, anomalies: ['device'], quality: 'warning', skip: 1 },
-  { id: 37, survey: 1, channel: 5, region: 4, device: 0, duration: 432, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 38, survey: 2, channel: 0, region: 0, device: 1, duration: 58, anomalies: ['duration'], quality: 'warning', skip: 6 },
-  { id: 39, survey: 3, channel: 3, region: 1, device: 2, duration: 345, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 40, survey: 0, channel: 3, region: 2, device: 0, duration: 312, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 41, survey: 1, channel: 1, region: 3, device: 1, duration: 30, anomalies: ['duration', 'quality'], quality: 'fail', skip: 13 },
-  { id: 42, survey: 2, channel: 5, region: 4, device: 3, duration: 372, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 43, survey: 3, channel: 4, region: 0, device: 0, duration: 285, anomalies: ['skip'], quality: 'warning', skip: 7 },
-  { id: 44, survey: 0, channel: 2, region: 1, device: 1, duration: 458, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 45, survey: 1, channel: 4, region: 2, device: 2, duration: 42, anomalies: ['duration', 'duplicate'], quality: 'fail', skip: 9 },
-  { id: 46, survey: 2, channel: 3, region: 3, device: 0, duration: 328, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 47, survey: 3, channel: 1, region: 4, device: 1, duration: 365, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 48, survey: 0, channel: 5, region: 0, device: 2, duration: 85, anomalies: ['duration', 'ip'], quality: 'warning', skip: 3 },
-  { id: 49, survey: 1, channel: 0, region: 1, device: 3, duration: 398, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 50, survey: 2, channel: 2, region: 2, device: 0, duration: 18, anomalies: ['duration', 'quality'], quality: 'fail', skip: 14 },
-  { id: 51, survey: 3, channel: 0, region: 3, device: 1, duration: 342, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 52, survey: 0, channel: 1, region: 4, device: 0, duration: 275, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 53, survey: 1, channel: 2, region: 0, device: 1, duration: 55, anomalies: ['duration'], quality: 'warning', skip: 5 },
-  { id: 54, survey: 2, channel: 4, region: 1, device: 2, duration: 318, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 55, survey: 3, channel: 5, region: 2, device: 3, duration: 405, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 56, survey: 0, channel: 3, region: 3, device: 0, duration: 36, anomalies: ['duration', 'quality'], quality: 'fail', skip: 10 },
-  { id: 57, survey: 1, channel: 3, region: 4, device: 1, duration: 382, anomalies: [], quality: 'pass', skip: 0 },
-  { id: 58, survey: 2, channel: 1, region: 0, device: 2, duration: 298, anomalies: ['duplicate'], quality: 'warning', skip: 0 },
-  { id: 59, survey: 3, channel: 2, region: 1, device: 0, duration: 335, anomalies: [], quality: 'pass', skip: 1 },
-  { id: 60, survey: 0, channel: 4, region: 2, device: 1, duration: 78, anomalies: ['duration', 'skip'], quality: 'warning', skip: 7 },
-]
+  for (let day = 0; day < 90; day++) {
+    const dayMultiplier = 0.7 + (day / 90) * 0.6
+    const weekdayBias = (day % 7 === 0 || day % 7 === 6) ? 0.6 : 1.0
 
-export const mockAnomalySamples: AnomalySample[] = baseSamples.map(s => ({
-  sampleId: `SAMPLE-${String(20240601000 + s.id).padStart(12, '0')}`,
-  surveyId: surveyIds[s.survey],
-  surveyName: surveys[s.survey],
-  channelId: channelIds[s.channel],
-  channelName: channels[s.channel],
-  region: regions[s.region],
-  deviceType: devices[s.device],
-  duration: s.duration,
-  skipCount: s.skip,
-  totalQuestions: 25,
-  anomalyTypes: s.anomalies,
-  qualityMark: s.quality,
-  submitTime: new Date(Date.now() - (s.id * 3600 * 1000)).toISOString(),
-  hasNote: [1, 4, 7, 11, 15, 22, 29, 34, 45, 50, 56].includes(s.id),
-}))
+    for (let s = 0; s < 4; s++) {
+      for (let c = 0; c < 6; c++) {
+        const baseCount = Math.floor(12 * channelVolumeBias[c] * dayMultiplier * weekdayBias)
 
-export const mockAnomalyMatrix: AnomalyMatrixCell[] = [
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 892, rate: 0.041, level: 'medium' },
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 567, rate: 0.026, level: 'medium' },
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 345, rate: 0.016, level: 'low' },
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'device', anomalyTypeName: '设备异常', count: 234, rate: 0.011, level: 'low' },
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 456, rate: 0.021, level: 'medium' },
-  { channelId: 'c1', channelName: '微信朋友圈', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 678, rate: 0.031, level: 'high' },
+        for (let i = 0; i < baseCount; i++) {
+          const r = rand()
+          const regionIdx = Math.floor(rand() * 5)
+          const deviceIdx = Math.floor(rand() * 4)
+          const isAnomaly = r < channelQualityBias[c]
+          const offsetHours = day * 24 + Math.floor(rand() * 24)
 
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 723, rate: 0.046, level: 'medium' },
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 489, rate: 0.031, level: 'medium' },
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 267, rate: 0.017, level: 'low' },
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'device', anomalyTypeName: '设备异常', count: 189, rate: 0.012, level: 'low' },
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 378, rate: 0.024, level: 'medium' },
-  { channelId: 'c2', channelName: '微博推广', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 567, rate: 0.036, level: 'high' },
+          let duration: number
+          let skipCount: number
+          let anomalyTypes: string[] = []
+          let qualityMark: 'pass' | 'warning' | 'fail'
 
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 534, rate: 0.065, level: 'high' },
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 389, rate: 0.047, level: 'high' },
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 234, rate: 0.028, level: 'medium' },
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'device', anomalyTypeName: '设备异常', count: 156, rate: 0.019, level: 'low' },
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 278, rate: 0.034, level: 'medium' },
-  { channelId: 'c3', channelName: '抖音信息流', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 456, rate: 0.055, level: 'critical' },
+          if (isAnomaly) {
+            const anomalyKind = Math.floor(rand() * 4)
+            if (anomalyKind === 0) {
+              duration = 15 + Math.floor(rand() * 45)
+              anomalyTypes = ['duration']
+              skipCount = 2 + Math.floor(rand() * 6)
+              qualityMark = rand() < 0.6 ? 'fail' : 'warning'
+              if (rand() < 0.4) anomalyTypes.push('quality')
+              if (rand() < 0.3) anomalyTypes.push('skip')
+            } else if (anomalyKind === 1) {
+              duration = 200 + Math.floor(rand() * 150)
+              skipCount = 8 + Math.floor(rand() * 12)
+              anomalyTypes = ['skip']
+              qualityMark = 'warning'
+              if (rand() < 0.3) anomalyTypes.push('quality')
+            } else if (anomalyKind === 2) {
+              duration = 180 + Math.floor(rand() * 200)
+              skipCount = 1 + Math.floor(rand() * 4)
+              anomalyTypes = rand() < 0.5 ? ['ip'] : ['duplicate']
+              qualityMark = 'warning'
+            } else {
+              duration = 250 + Math.floor(rand() * 180)
+              skipCount = 2 + Math.floor(rand() * 5)
+              anomalyTypes = ['device']
+              qualityMark = 'warning'
+            }
+          } else {
+            duration = 280 + Math.floor(rand() * 180)
+            skipCount = Math.floor(rand() * 3)
+            anomalyTypes = []
+            qualityMark = 'pass'
+          }
 
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 445, rate: 0.036, level: 'medium' },
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 378, rate: 0.030, level: 'medium' },
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 189, rate: 0.015, level: 'low' },
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'device', anomalyTypeName: '设备异常', count: 134, rate: 0.011, level: 'low' },
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 223, rate: 0.018, level: 'low' },
-  { channelId: 'c4', channelName: '小红书', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 345, rate: 0.028, level: 'medium' },
+          const groupDurations = {
+            g1: Math.max(15, Math.floor(duration * 0.12 + rand() * 15)),
+            g2: Math.max(25, Math.floor(duration * 0.28 + rand() * 30)),
+            g3: Math.max(20, Math.floor(duration * 0.22 + rand() * 25)),
+            g4: Math.max(30, Math.floor(duration * 0.38 + rand() * 40)),
+          }
 
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 534, rate: 0.019, level: 'low' },
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 423, rate: 0.015, level: 'low' },
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 267, rate: 0.009, level: 'low' },
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'device', anomalyTypeName: '设备异常', count: 178, rate: 0.006, level: 'low' },
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 312, rate: 0.011, level: 'low' },
-  { channelId: 'c5', channelName: '短信推送', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 389, rate: 0.014, level: 'low' },
+          samples.push({
+            id: id++,
+            surveyIdx: s,
+            channelIdx: c,
+            regionIdx,
+            deviceIdx,
+            duration,
+            skipCount,
+            anomalyTypes,
+            qualityMark,
+            offsetHours,
+            hasNote: isAnomaly && rand() < 0.15,
+            groupDurations,
+          })
+        }
+      }
+    }
+  }
 
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'duration', anomalyTypeName: '时长异常', count: 623, rate: 0.015, level: 'low' },
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'skip', anomalyTypeName: '跳题异常', count: 456, rate: 0.011, level: 'low' },
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'ip', anomalyTypeName: 'IP异常', count: 289, rate: 0.007, level: 'low' },
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'device', anomalyTypeName: '设备异常', count: 198, rate: 0.005, level: 'low' },
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'duplicate', anomalyTypeName: '重复提交', count: 356, rate: 0.008, level: 'low' },
-  { channelId: 'c6', channelName: 'APP 弹窗', anomalyType: 'quality', anomalyTypeName: '质检不通过', count: 423, rate: 0.010, level: 'low' },
-]
+  return samples
+}
+
+const rawSamples = buildRawSamples()
+
+function toAnomalySample(raw: RawSampleRecord): AnomalySample {
+  return {
+    sampleId: `SAMPLE-${String(2024060700000 + raw.id).padStart(12, '0')}`,
+    surveyId: surveyIds[raw.surveyIdx],
+    surveyName: surveys[raw.surveyIdx],
+    channelId: channelIds[raw.channelIdx],
+    channelName: channels[raw.channelIdx],
+    region: regions[raw.regionIdx],
+    deviceType: devices[raw.deviceIdx],
+    duration: raw.duration,
+    skipCount: raw.skipCount,
+    totalQuestions: 25,
+    anomalyTypes: raw.anomalyTypes,
+    qualityMark: raw.qualityMark,
+    submitTime: dayjs().subtract(raw.offsetHours, 'hour').toISOString(),
+    hasNote: raw.hasNote,
+  }
+}
+
+export function getRawSamplesByTimeWindow(windowDays: number): RawSampleRecord[] {
+  const maxHours = windowDays * 24
+  return rawSamples.filter(s => s.offsetHours <= maxHours)
+}
+
+export function buildAnomalySamples(windowDays: number): AnomalySample[] {
+  return getRawSamplesByTimeWindow(windowDays)
+    .filter(s => s.anomalyTypes.length > 0 || s.qualityMark !== 'pass')
+    .map(toAnomalySample)
+}
+
+export function buildQualityMetrics(windowDays: number): QualityMetrics {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const total = data.length
+  const valid = data.filter(s => s.qualityMark !== 'fail').length
+  const anomaly = data.filter(s => s.anomalyTypes.length > 0).length
+  const totalDuration = data.reduce((sum, s) => sum + s.duration, 0)
+  const skipTotal = data.filter(s => s.skipCount > 5).length
+  const dupTotal = data.filter(s => s.anomalyTypes.includes('duplicate')).length
+  const ipTotal = data.filter(s => s.anomalyTypes.includes('ip')).length
+  const deviceTotal = data.filter(s => s.anomalyTypes.includes('device')).length
+  const markTotal = data.filter(s => s.qualityMark !== 'pass').length
+
+  return {
+    totalSamples: total,
+    validSamples: valid,
+    anomalyRate: total > 0 ? anomaly / total : 0,
+    avgDuration: total > 0 ? Math.floor(totalDuration / total) : 0,
+    skipRate: total > 0 ? skipTotal / total : 0,
+    duplicateRate: total > 0 ? dupTotal / total : 0,
+    ipAbnormalRate: total > 0 ? ipTotal / total : 0,
+    deviceAbnormalRate: total > 0 ? deviceTotal / total : 0,
+    qualityMarkRate: total > 0 ? markTotal / total : 0,
+  }
+}
+
+export function buildFunnelData(windowDays: number): FunnelData[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const total = data.length
+  const deduped = total - Math.floor(total * 0.023)
+  const valid = data.filter(s => s.qualityMark !== 'fail').length
+  const qPass = data.filter(s => s.qualityMark === 'pass').length
+  const final = Math.floor(qPass * 0.993)
+
+  return [
+    { stage: '提交样本', stageCode: 'submitted', count: total, conversionRate: 1.0, dropRate: 0 },
+    { stage: '去重后样本', stageCode: 'deduped', count: deduped, conversionRate: total > 0 ? deduped / total : 0, dropRate: total > 0 ? (total - deduped) / total : 0 },
+    { stage: '有效样本', stageCode: 'valid', count: valid, conversionRate: total > 0 ? valid / total : 0, dropRate: total > 0 ? (total - valid) / total : 0 },
+    { stage: '质检通过', stageCode: 'quality_pass', count: qPass, conversionRate: valid > 0 ? qPass / valid : 0, dropRate: valid > 0 ? (valid - qPass) / valid : 0 },
+    { stage: '最终入库', stageCode: 'final', count: final, conversionRate: qPass > 0 ? final / qPass : 0, dropRate: qPass > 0 ? (qPass - final) / qPass : 0 },
+  ]
+}
+
+export function buildTrendData(windowDays: number): TrendDataPoint[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const byDay: Record<string, RawSampleRecord[]> = {}
+
+  for (const s of data) {
+    const date = dayjs().subtract(s.offsetHours, 'hour').format('YYYY-MM-DD')
+    if (!byDay[date]) byDay[date] = []
+    byDay[date].push(s)
+  }
+
+  return Object.entries(byDay)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, list]) => {
+      const total = list.length
+      const anomaly = list.filter(s => s.anomalyTypes.length > 0).length
+      return {
+        date,
+        totalSamples: total,
+        anomalyCount: anomaly,
+        anomalyRate: total > 0 ? anomaly / total : 0,
+      }
+    })
+}
+
+export function buildChannelRanking(windowDays: number): ChannelRanking[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const byChannel: Record<number, RawSampleRecord[]> = {}
+
+  for (const s of data) {
+    if (!byChannel[s.channelIdx]) byChannel[s.channelIdx] = []
+    byChannel[s.channelIdx].push(s)
+  }
+
+  const qualityScores: Record<number, number> = {
+    5: 96,
+    4: 94,
+    0: 89,
+    1: 85,
+    3: 82,
+    2: 76,
+  }
+  const trends: Record<number, 'up' | 'down' | 'flat'> = {
+    5: 'flat',
+    4: 'up',
+    0: 'down',
+    1: 'down',
+    3: 'up',
+    2: 'up',
+  }
+
+  const ranking = Object.entries(byChannel).map(([idx, list]) => {
+    const c = parseInt(idx)
+    const total = list.length
+    const anomaly = list.filter(s => s.anomalyTypes.length > 0).length
+    const avgDur = list.reduce((sum, s) => sum + s.duration, 0) / total
+    return {
+      channelIdx: c,
+      channelId: channelIds[c],
+      channelName: channels[c],
+      totalSamples: total,
+      anomalyRate: total > 0 ? anomaly / total : 0,
+      avgDuration: Math.floor(avgDur),
+      qualityScore: qualityScores[c],
+      trend: trends[c],
+    }
+  })
+
+  ranking.sort((a, b) => b.qualityScore - a.qualityScore)
+  return ranking.map((r, i) => ({ ...r, rank: i + 1 }))
+}
+
+export function buildAnomalyMatrix(windowDays: number): AnomalyMatrixCell[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const matrix: AnomalyMatrixCell[] = []
+  const anomalyKinds = [
+    { key: 'duration', name: '时长异常' },
+    { key: 'skip', name: '跳题异常' },
+    { key: 'ip', name: 'IP异常' },
+    { key: 'device', name: '设备异常' },
+    { key: 'duplicate', name: '重复提交' },
+    { key: 'quality', name: '质检不通过' },
+  ]
+
+  for (let c = 0; c < 6; c++) {
+    const channelSamples = data.filter(s => s.channelIdx === c)
+    const total = channelSamples.length
+
+    for (const ak of anomalyKinds) {
+      const count = channelSamples.filter(s => s.anomalyTypes.includes(ak.key)).length
+      const rate = total > 0 ? count / total : 0
+      let level: 'low' | 'medium' | 'high' | 'critical' = 'low'
+      if (rate > 0.04) level = 'medium'
+      if (rate > 0.06) level = 'high'
+      if (rate > 0.08) level = 'critical'
+
+      matrix.push({
+        channelId: channelIds[c],
+        channelName: channels[c],
+        anomalyType: ak.key,
+        anomalyTypeName: ak.name,
+        count,
+        rate,
+        level,
+      })
+    }
+  }
+
+  return matrix
+}
+
+export function buildQuestionGroupDurations(windowDays: number): QuestionGroupDuration[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const groupIds = ['g1', 'g2', 'g3', 'g4']
+  const groupNames = ['基本信息题组', '产品使用题组', '满意度评价题组', '开放建议题组']
+
+  return groupIds.map((gid, i) => {
+    const allDurs = data.map(s => s.groupDurations[gid]).filter(Boolean)
+    allDurs.sort((a, b) => a - b)
+    const len = allDurs.length
+
+    const q1Idx = Math.floor(len * 0.25)
+    const medIdx = Math.floor(len * 0.5)
+    const q3Idx = Math.floor(len * 0.75)
+    const q1 = allDurs[q1Idx]
+    const median = allDurs[medIdx]
+    const q3 = allDurs[q3Idx]
+    const iqr = q3 - q1
+    const lower = q1 - 1.5 * iqr
+    const upper = q3 + 1.5 * iqr
+
+    const outliers = allDurs.filter(d => d < lower || d > upper)
+    const normalDurs = allDurs.filter(d => d >= lower && d <= upper)
+
+    return {
+      groupId: gid,
+      groupName: groupNames[i],
+      min: normalDurs[0] || 0,
+      q1,
+      median,
+      q3,
+      max: normalDurs[normalDurs.length - 1] || 0,
+      mean: Math.floor(normalDurs.reduce((a, b) => a + b, 0) / normalDurs.length),
+      outliers: outliers.slice(0, 5),
+    }
+  })
+}
+
+export function buildComparisonData(dimension: string, windowDays: number): ComparisonData[] {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const dimConfig: Record<string, { count: number; getName: (i: number) => string }> = {
+    survey: { count: 4, getName: (i: number) => surveys[i] },
+    channel: { count: 6, getName: (i: number) => channels[i] },
+    questionGroup: { count: 4, getName: (i: number) => ['基本信息题组', '产品使用题组', '满意度评价题组', '开放建议题组'][i] },
+    region: { count: 5, getName: (i: number) => regions[i] },
+    device: { count: 4, getName: (i: number) => devices[i] },
+  }
+
+  const cfg = dimConfig[dimension]
+  if (!cfg) return []
+
+  const results: ComparisonData[] = []
+
+  for (let i = 0; i < cfg.count; i++) {
+    let list: RawSampleRecord[]
+    if (dimension === 'survey') list = data.filter(s => s.surveyIdx === i)
+    else if (dimension === 'channel') list = data.filter(s => s.channelIdx === i)
+    else if (dimension === 'region') list = data.filter(s => s.regionIdx === i)
+    else if (dimension === 'device') list = data.filter(s => s.deviceIdx === i)
+    else if (dimension === 'questionGroup') {
+      list = data
+      const gid = `g${i + 1}`
+      const total = list.length
+      const valid = list.filter(s => s.qualityMark !== 'fail').length
+      const skipCount = list.filter(s => s.groupDurations[gid] < 10).length
+      results.push({
+        dimension,
+        dimensionValue: cfg.getName(i),
+        metrics: {
+          totalSamples: total,
+          validSamples: valid,
+          anomalyRate: total > 0 ? list.filter(s => s.anomalyTypes.length > 0).length / total : 0,
+          avgDuration: Math.floor(list.reduce((sum, s) => sum + s.groupDurations[gid], 0) / total),
+          skipRate: total > 0 ? skipCount / total : 0,
+          duplicateRate: 0,
+          ipAbnormalRate: 0,
+          deviceAbnormalRate: 0,
+          qualityMarkRate: total > 0 ? list.filter(s => s.qualityMark !== 'pass').length / total : 0,
+        },
+      })
+      continue
+    } else {
+      list = []
+    }
+
+    const total = list.length
+    const valid = list.filter(s => s.qualityMark !== 'fail').length
+    const anomaly = list.filter(s => s.anomalyTypes.length > 0).length
+    const skip = list.filter(s => s.skipCount > 5).length
+    const dup = list.filter(s => s.anomalyTypes.includes('duplicate')).length
+    const ipAbn = list.filter(s => s.anomalyTypes.includes('ip')).length
+    const devAbn = list.filter(s => s.anomalyTypes.includes('device')).length
+    const qMark = list.filter(s => s.qualityMark !== 'pass').length
+
+    results.push({
+      dimension,
+      dimensionValue: cfg.getName(i),
+      metrics: {
+        totalSamples: total,
+        validSamples: valid,
+        anomalyRate: total > 0 ? anomaly / total : 0,
+        avgDuration: total > 0 ? Math.floor(list.reduce((sum, s) => sum + s.duration, 0) / total) : 0,
+        skipRate: total > 0 ? skip / total : 0,
+        duplicateRate: total > 0 ? dup / total : 0,
+        ipAbnormalRate: total > 0 ? ipAbn / total : 0,
+        deviceAbnormalRate: total > 0 ? devAbn / total : 0,
+        qualityMarkRate: total > 0 ? qMark / total : 0,
+      },
+    })
+  }
+
+  return results
+}
 
 export function getMockAnswerTrajectory(sampleId: string): AnswerTrajectory[] {
   const questions = [
@@ -237,11 +480,12 @@ export function getMockAnswerTrajectory(sampleId: string): AnswerTrajectory[] {
     { id: 'q9', title: '您有什么改进建议？', groupId: 'g4' },
     { id: 'q10', title: '其他想说的话？', groupId: 'g4' },
   ]
+  const sampleNum = parseInt(sampleId.slice(-4))
+  const isFast = sampleNum % 7 < 2
   let time = 0
-  const isFastSample = sampleId.endsWith('001') || sampleId.endsWith('004') || sampleId.endsWith('007')
   return questions.map((q, i) => {
-    const baseDuration = isFastSample ? 2 + Math.floor(Math.random() * 5) : 8 + Math.floor(Math.random() * 35)
-    const isSkipped = isFastSample && i > 5
+    const baseDuration = isFast ? 2 + Math.floor((sampleNum + i) % 6) : 8 + Math.floor((sampleNum + i) % 35)
+    const isSkipped = isFast && i > 5
     const start = time
     time += baseDuration
     return {
@@ -252,7 +496,7 @@ export function getMockAnswerTrajectory(sampleId: string): AnswerTrajectory[] {
       endTime: time,
       duration: baseDuration,
       isSkipped,
-      answerValue: isSkipped ? '' : ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
+      answerValue: isSkipped ? '' : ['A', 'B', 'C', 'D'][(sampleNum + i) % 4],
     }
   })
 }
@@ -276,7 +520,7 @@ export const mockNotes: ManualNote[] = [
   {
     noteId: 'n1',
     targetType: 'sample',
-    targetId: 'SAMPLE-20240601000001',
+    targetId: 'SAMPLE-2024060700001',
     content: '该样本答题时长异常短（42秒），且选项高度一致，判定为无效样本，已标记剔除。',
     tags: ['无效样本', '机器人'],
     author: '张三',
@@ -286,7 +530,7 @@ export const mockNotes: ManualNote[] = [
   {
     noteId: 'n2',
     targetType: 'sample',
-    targetId: 'SAMPLE-20240601000004',
+    targetId: 'SAMPLE-2024060700004',
     content: '答题时长28秒，跳题15道，确认无效，已进入黑名单。',
     tags: ['无效样本', '高跳题率'],
     author: '李四',
@@ -306,7 +550,7 @@ export const mockNotes: ManualNote[] = [
   {
     noteId: 'n4',
     targetType: 'sample',
-    targetId: 'SAMPLE-20240601000011',
+    targetId: 'SAMPLE-2024060700011',
     content: '测谎题未通过，逻辑矛盾，已标记。',
     tags: ['质检不通过', '逻辑矛盾'],
     author: '张三',
@@ -314,47 +558,3 @@ export const mockNotes: ManualNote[] = [
     updateTime: '2024-06-13 16:45:00',
   },
 ]
-
-export function getMockComparisonData(dimension: string): ComparisonData[] {
-  const dimMap: Record<string, { id: string; name: string; metrics: Partial<QualityMetrics> }[]> = {
-    survey: [
-      { id: 's1', name: '用户满意度调研 Q2', metrics: { totalSamples: 42567, validSamples: 38987, anomalyRate: 0.068, avgDuration: 356, skipRate: 0.048, duplicateRate: 0.021, ipAbnormalRate: 0.028, deviceAbnormalRate: 0.016, qualityMarkRate: 0.042 } },
-      { id: 's2', name: '产品使用反馈调研', metrics: { totalSamples: 35234, validSamples: 32156, anomalyRate: 0.082, avgDuration: 328, skipRate: 0.056, duplicateRate: 0.025, ipAbnormalRate: 0.033, deviceAbnormalRate: 0.019, qualityMarkRate: 0.048 } },
-      { id: 's3', name: '品牌认知度调研', metrics: { totalSamples: 28756, validSamples: 25432, anomalyRate: 0.091, avgDuration: 298, skipRate: 0.062, duplicateRate: 0.028, ipAbnormalRate: 0.036, deviceAbnormalRate: 0.021, qualityMarkRate: 0.052 } },
-      { id: 's4', name: 'NPS 净推荐值调研', metrics: { totalSamples: 22006, validSamples: 18632, anomalyRate: 0.075, avgDuration: 385, skipRate: 0.042, duplicateRate: 0.018, ipAbnormalRate: 0.024, deviceAbnormalRate: 0.014, qualityMarkRate: 0.038 } },
-    ],
-    channel: [
-      { id: 'c1', name: '微信朋友圈', metrics: { totalSamples: 21567, validSamples: 19678, anomalyRate: 0.087, avgDuration: 325, skipRate: 0.058, duplicateRate: 0.026, ipAbnormalRate: 0.035, deviceAbnormalRate: 0.020, qualityMarkRate: 0.051 } },
-      { id: 'c2', name: '微博推广', metrics: { totalSamples: 15823, validSamples: 14215, anomalyRate: 0.102, avgDuration: 312, skipRate: 0.065, duplicateRate: 0.029, ipAbnormalRate: 0.038, deviceAbnormalRate: 0.022, qualityMarkRate: 0.056 } },
-      { id: 'c3', name: '抖音信息流', metrics: { totalSamples: 8219, validSamples: 7123, anomalyRate: 0.156, avgDuration: 298, skipRate: 0.089, duplicateRate: 0.041, ipAbnormalRate: 0.052, deviceAbnormalRate: 0.031, qualityMarkRate: 0.078 } },
-      { id: 'c4', name: '小红书', metrics: { totalSamples: 12456, validSamples: 11234, anomalyRate: 0.118, avgDuration: 338, skipRate: 0.072, duplicateRate: 0.033, ipAbnormalRate: 0.041, deviceAbnormalRate: 0.025, qualityMarkRate: 0.062 } },
-      { id: 'c5', name: '短信推送', metrics: { totalSamples: 28342, validSamples: 26125, anomalyRate: 0.058, avgDuration: 352, skipRate: 0.039, duplicateRate: 0.016, ipAbnormalRate: 0.021, deviceAbnormalRate: 0.013, qualityMarkRate: 0.032 } },
-      { id: 'c6', name: 'APP 弹窗', metrics: { totalSamples: 42156, validSamples: 39876, anomalyRate: 0.042, avgDuration: 368, skipRate: 0.032, duplicateRate: 0.012, ipAbnormalRate: 0.015, deviceAbnormalRate: 0.009, qualityMarkRate: 0.025 } },
-    ],
-    questionGroup: [
-      { id: 'g1', name: '基本信息题组', metrics: { totalSamples: 128563, validSamples: 125000, anomalyRate: 0.028, avgDuration: 38, skipRate: 0.015, duplicateRate: 0, ipAbnormalRate: 0, deviceAbnormalRate: 0, qualityMarkRate: 0.012 } },
-      { id: 'g2', name: '产品使用题组', metrics: { totalSamples: 125000, validSamples: 120000, anomalyRate: 0.042, avgDuration: 85, skipRate: 0.038, duplicateRate: 0, ipAbnormalRate: 0, deviceAbnormalRate: 0, qualityMarkRate: 0.028 } },
-      { id: 'g3', name: '满意度评价题组', metrics: { totalSamples: 120000, validSamples: 117500, anomalyRate: 0.035, avgDuration: 65, skipRate: 0.028, duplicateRate: 0, ipAbnormalRate: 0, deviceAbnormalRate: 0, qualityMarkRate: 0.035 } },
-      { id: 'g4', name: '开放建议题组', metrics: { totalSamples: 115000, validSamples: 110000, anomalyRate: 0.056, avgDuration: 125, skipRate: 0.085, duplicateRate: 0, ipAbnormalRate: 0, deviceAbnormalRate: 0, qualityMarkRate: 0.048 } },
-    ],
-    region: [
-      { id: 'r1', name: '华东地区', metrics: { totalSamples: 38567, validSamples: 35234, anomalyRate: 0.072, avgDuration: 352, skipRate: 0.048, duplicateRate: 0.022, ipAbnormalRate: 0.025, deviceAbnormalRate: 0.016, qualityMarkRate: 0.041 } },
-      { id: 'r2', name: '华南地区', metrics: { totalSamples: 32145, validSamples: 29087, anomalyRate: 0.085, avgDuration: 338, skipRate: 0.055, duplicateRate: 0.026, ipAbnormalRate: 0.032, deviceAbnormalRate: 0.019, qualityMarkRate: 0.048 } },
-      { id: 'r3', name: '华北地区', metrics: { totalSamples: 25678, validSamples: 23123, anomalyRate: 0.078, avgDuration: 345, skipRate: 0.051, duplicateRate: 0.024, ipAbnormalRate: 0.028, deviceAbnormalRate: 0.017, qualityMarkRate: 0.045 } },
-      { id: 'r4', name: '华中地区', metrics: { totalSamples: 18234, validSamples: 16234, anomalyRate: 0.081, avgDuration: 328, skipRate: 0.058, duplicateRate: 0.025, ipAbnormalRate: 0.030, deviceAbnormalRate: 0.018, qualityMarkRate: 0.046 } },
-      { id: 'r5', name: '西南地区', metrics: { totalSamples: 13939, validSamples: 11529, anomalyRate: 0.092, avgDuration: 315, skipRate: 0.062, duplicateRate: 0.028, ipAbnormalRate: 0.035, deviceAbnormalRate: 0.020, qualityMarkRate: 0.052 } },
-    ],
-    device: [
-      { id: 'd1', name: 'iOS', metrics: { totalSamples: 48567, validSamples: 44234, anomalyRate: 0.065, avgDuration: 365, skipRate: 0.042, duplicateRate: 0.018, ipAbnormalRate: 0.022, deviceAbnormalRate: 0.012, qualityMarkRate: 0.036 } },
-      { id: 'd2', name: 'Android', metrics: { totalSamples: 52345, validSamples: 47567, anomalyRate: 0.082, avgDuration: 328, skipRate: 0.056, duplicateRate: 0.025, ipAbnormalRate: 0.032, deviceAbnormalRate: 0.020, qualityMarkRate: 0.048 } },
-      { id: 'd3', name: 'PC 端', metrics: { totalSamples: 18234, validSamples: 16543, anomalyRate: 0.076, avgDuration: 385, skipRate: 0.052, duplicateRate: 0.022, ipAbnormalRate: 0.030, deviceAbnormalRate: 0.018, qualityMarkRate: 0.045 } },
-      { id: 'd4', name: 'H5 移动端', metrics: { totalSamples: 9417, validSamples: 6863, anomalyRate: 0.105, avgDuration: 285, skipRate: 0.068, duplicateRate: 0.035, ipAbnormalRate: 0.045, deviceAbnormalRate: 0.028, qualityMarkRate: 0.062 } },
-    ],
-  }
-  const items = dimMap[dimension] || []
-  return items.map(item => ({
-    dimension,
-    dimensionValue: item.name,
-    metrics: item.metrics,
-  }))
-}

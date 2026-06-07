@@ -11,14 +11,14 @@ import type {
   ComparisonData,
 } from '@/types'
 import {
-  mockQualityMetrics,
-  mockFunnelData,
-  mockAnomalyMatrix,
-  mockChannelRanking,
-  mockQuestionGroupDurations,
-  mockAnomalySamples,
-  mockTrendData,
-  getMockComparisonData,
+  buildQualityMetrics,
+  buildFunnelData,
+  buildTrendData,
+  buildAnomalyMatrix,
+  buildChannelRanking,
+  buildQuestionGroupDurations,
+  buildComparisonData,
+  buildAnomalySamples,
   getMockAnswerTrajectory,
   getMockQualityCheckHits,
 } from '@/mock/data'
@@ -34,25 +34,28 @@ export interface SampleFilter {
 
 export type TimeWindow = '24h' | '7d' | '30d' | '90d'
 
+const windowDaysMap: Record<TimeWindow, number> = {
+  '24h': 1,
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+}
+
 export const useQualityStore = defineStore('quality', () => {
   const timeWindow = ref<TimeWindow>('30d')
-  const metrics = ref<QualityMetrics>(mockQualityMetrics)
-  const funnelData = ref<FunnelData[]>(mockFunnelData)
-  const trendData = ref<TrendDataPoint[]>(mockTrendData)
-  const anomalyMatrix = ref<AnomalyMatrixCell[]>(mockAnomalyMatrix)
-  const channelRanking = ref<ChannelRanking[]>(mockChannelRanking)
-  const questionGroupDurations = ref<QuestionGroupDuration[]>(mockQuestionGroupDurations)
-  const allAnomalySamples = ref<AnomalySample[]>(mockAnomalySamples)
   const selectedSample = ref<AnomalySample | null>(null)
   const comparisonData = ref<ComparisonData[]>([])
   const activeFilter = ref<SampleFilter>({})
 
-  const timeWindowMultiplier: Record<TimeWindow, number> = {
-    '24h': 0.08,
-    '7d': 0.25,
-    '30d': 1,
-    '90d': 2.8,
-  }
+  const currentWindowDays = computed(() => windowDaysMap[timeWindow.value])
+
+  const metrics = computed<QualityMetrics>(() => buildQualityMetrics(currentWindowDays.value))
+  const funnelData = computed<FunnelData[]>(() => buildFunnelData(currentWindowDays.value))
+  const trendData = computed<TrendDataPoint[]>(() => buildTrendData(currentWindowDays.value))
+  const anomalyMatrix = computed<AnomalyMatrixCell[]>(() => buildAnomalyMatrix(currentWindowDays.value))
+  const channelRanking = computed<ChannelRanking[]>(() => buildChannelRanking(currentWindowDays.value))
+  const questionGroupDurations = computed<QuestionGroupDuration[]>(() => buildQuestionGroupDurations(currentWindowDays.value))
+  const allAnomalySamples = computed<AnomalySample[]>(() => buildAnomalySamples(currentWindowDays.value))
 
   const anomalySamples = computed(() => {
     let result = [...allAnomalySamples.value]
@@ -114,32 +117,8 @@ export const useQualityStore = defineStore('quality', () => {
     return parts.length > 0 ? parts.join(' | ') : '全部样本'
   })
 
-  const totalSamples = computed(() => Math.floor(metrics.value.totalSamples * timeWindowMultiplier[timeWindow.value]))
+  const totalSamples = computed(() => metrics.value.totalSamples)
   const anomalyRate = computed(() => metrics.value.anomalyRate)
-  const scaledMetrics = computed(() => {
-    const m = timeWindowMultiplier[timeWindow.value]
-    return {
-      ...metrics.value,
-      totalSamples: Math.floor(metrics.value.totalSamples * m),
-      validSamples: Math.floor(metrics.value.validSamples * m),
-    }
-  })
-  const scaledFunnelData = computed(() => {
-    const m = timeWindowMultiplier[timeWindow.value]
-    return funnelData.value.map(f => ({
-      ...f,
-      count: Math.floor(f.count * m),
-    }))
-  })
-  const scaledTrendData = computed(() => {
-    const days = timeWindow.value === '24h' ? 1 : timeWindow.value === '7d' ? 7 : timeWindow.value === '30d' ? 30 : 90
-    const m = timeWindowMultiplier[timeWindow.value]
-    return trendData.value.slice(-days).map(t => ({
-      ...t,
-      totalSamples: Math.floor(t.totalSamples * m),
-      anomalyCount: Math.floor(t.anomalyCount * m),
-    }))
-  })
 
   function setTimeWindow(window: TimeWindow) {
     timeWindow.value = window
@@ -150,16 +129,7 @@ export const useQualityStore = defineStore('quality', () => {
   }
 
   function loadComparisonData(dimension: string) {
-    const data = getMockComparisonData(dimension)
-    const m = timeWindowMultiplier[timeWindow.value]
-    comparisonData.value = data.map(d => ({
-      ...d,
-      metrics: {
-        ...d.metrics,
-        totalSamples: d.metrics.totalSamples ? Math.floor(d.metrics.totalSamples * m) : undefined,
-        validSamples: d.metrics.validSamples ? Math.floor(d.metrics.validSamples * m) : undefined,
-      },
-    }))
+    comparisonData.value = buildComparisonData(dimension, currentWindowDays.value)
   }
 
   function selectSample(sample: AnomalySample | null) {
@@ -181,11 +151,8 @@ export const useQualityStore = defineStore('quality', () => {
   return {
     timeWindow,
     metrics,
-    scaledMetrics,
     funnelData,
-    scaledFunnelData,
     trendData,
-    scaledTrendData,
     anomalyMatrix,
     channelRanking,
     questionGroupDurations,
@@ -197,6 +164,7 @@ export const useQualityStore = defineStore('quality', () => {
     filterDescription,
     totalSamples,
     anomalyRate,
+    currentWindowDays,
     setTimeWindow,
     setActiveFilter,
     loadComparisonData,
