@@ -1,10 +1,11 @@
 import { createClient } from '@clickhouse/client'
+import type { Transaction, BudgetItem, CashFlowPoint, CategoryBreakdownItem } from './types.js'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
 export const clickhouse = createClient({
-  url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
+  host: process.env.CLICKHOUSE_HOST || 'http://localhost:8123',
   username: process.env.CLICKHOUSE_USER || 'default',
   password: process.env.CLICKHOUSE_PASSWORD || '',
   database: process.env.CLICKHOUSE_DATABASE || 'family_budget',
@@ -14,7 +15,8 @@ let _connected = false
 
 export async function checkClickHouse(): Promise<boolean> {
   try {
-    await clickhouse.ping()
+    const rs = await clickhouse.query({ query: 'SELECT 1 AS ok', format: 'JSONEachRow' })
+    await rs.json()
     _connected = true
     return true
   } catch {
@@ -51,6 +53,85 @@ function buildConditions(filter: Partial<QueryFilter>, extra: string[] = []): st
   return conditions.length > 0 ? conditions : ['1=1']
 }
 
+interface RawTransactionRow {
+  id: string
+  date: string
+  amount: number
+  category: string
+  sub_category: string
+  merchant: string
+  account: string
+  member: string
+  type: string
+  is_abnormal: number
+  abnormal_type: string | null
+  is_hidden: number
+}
+
+function mapTransactionRow(row: RawTransactionRow): Transaction {
+  return {
+    id: row.id,
+    date: row.date,
+    amount: Number(row.amount),
+    category: row.category,
+    subCategory: row.sub_category,
+    merchant: row.merchant,
+    account: row.account,
+    member: row.member,
+    type: row.type as Transaction['type'],
+    isAbnormal: row.is_abnormal === 1,
+    abnormalType: row.abnormal_type as Transaction['abnormalType'],
+    isHidden: row.is_hidden === 1,
+  }
+}
+
+interface RawBudgetRow {
+  category: string
+  budgetAmount: number
+  spentAmount: number
+  period: string
+}
+
+function mapBudgetRow(row: RawBudgetRow): BudgetItem {
+  return {
+    category: row.category,
+    budgetAmount: Number(row.budgetAmount),
+    spentAmount: Number(row.spentAmount),
+    period: row.period,
+  }
+}
+
+interface RawCashFlowRow {
+  month: string
+  income: number
+  expense: number
+  net: number
+}
+
+function mapCashFlowRow(row: RawCashFlowRow): CashFlowPoint {
+  return {
+    month: row.month,
+    income: Number(row.income),
+    expense: Number(row.expense),
+    net: Number(row.net),
+  }
+}
+
+interface RawCategoryBreakdownRow {
+  category: string
+  amount: number
+  percentage: number
+}
+
+function mapCategoryBreakdownRow(row: RawCategoryBreakdownRow): CategoryBreakdownItem {
+  return {
+    category: row.category,
+    amount: Number(row.amount),
+    percentage: Number(row.percentage),
+    subCategories: [],
+  }
+}
+
 async function safeQuery<T>(label: string, sql: string): Promise<T[] | null> {
   if (!_connected) return null
   try {
@@ -62,12 +143,14 @@ async function safeQuery<T>(label: string, sql: string): Promise<T[] | null> {
   }
 }
 
-export async function queryTransactions(filter: QueryFilter): Promise<unknown[] | null> {
+export async function queryTransactions(filter: QueryFilter): Promise<Transaction[] | null> {
   const conditions = buildConditions(filter)
-  return safeQuery('queryTransactions', `SELECT * FROM transactions WHERE ${conditions.join(' AND ')} ORDER BY date`)
+  const rows = await safeQuery<RawTransactionRow>('queryTransactions', `SELECT * FROM transactions WHERE ${conditions.join(' AND ')} ORDER BY date`)
+  if (!rows) return null
+  return rows.map(mapTransactionRow)
 }
 
-export async function queryBudgetProgress(filter: QueryFilter): Promise<unknown[] | null> {
+export async function queryBudgetProgress(filter: QueryFilter): Promise<BudgetItem[] | null> {
   const currentMonth = '202506'
   const conditions = buildConditions(filter, [`toYYYYMM(date) = '${currentMonth}'`, `type != 'income'`])
   const sql = `
@@ -81,10 +164,12 @@ export async function queryBudgetProgress(filter: QueryFilter): Promise<unknown[
     ) t ON b.category = t.category
     GROUP BY b.category, b.budget_amount
   `
-  return safeQuery('queryBudgetProgress', sql)
+  const rows = await safeQuery<RawBudgetRow>('queryBudgetProgress', sql)
+  if (!rows) return null
+  return rows.map(mapBudgetRow)
 }
 
-export async function queryCategoryBreakdown(filter: QueryFilter): Promise<unknown[] | null> {
+export async function queryCategoryBreakdown(filter: QueryFilter): Promise<CategoryBreakdownItem[] | null> {
   const conditions = buildConditions(filter, [`type != 'income'`])
   const sql = `
     SELECT category, SUM(amount) AS amount,
@@ -94,10 +179,12 @@ export async function queryCategoryBreakdown(filter: QueryFilter): Promise<unkno
     GROUP BY category
     ORDER BY amount DESC
   `
-  return safeQuery('queryCategoryBreakdown', sql)
+  const rows = await safeQuery<RawCategoryBreakdownRow>('queryCategoryBreakdown', sql)
+  if (!rows) return null
+  return rows.map(mapCategoryBreakdownRow)
 }
 
-export async function queryCashFlow(filter: QueryFilter): Promise<unknown[] | null> {
+export async function queryCashFlow(filter: QueryFilter): Promise<CashFlowPoint[] | null> {
   const conditions = buildConditions(filter)
   const sql = `
     SELECT formatDateTime(date, '%Y-%m') AS month,
@@ -109,12 +196,16 @@ export async function queryCashFlow(filter: QueryFilter): Promise<unknown[] | nu
     GROUP BY month
     ORDER BY month
   `
-  return safeQuery('queryCashFlow', sql)
+  const rows = await safeQuery<RawCashFlowRow>('queryCashFlow', sql)
+  if (!rows) return null
+  return rows.map(mapCashFlowRow)
 }
 
-export async function queryAbnormalSamples(filter: Partial<QueryFilter>): Promise<unknown[] | null> {
+export async function queryAbnormalSamples(filter: Partial<QueryFilter>): Promise<Transaction[] | null> {
   const conditions = buildConditions(filter, [`is_abnormal = 1`])
-  return safeQuery('queryAbnormalSamples', `SELECT * FROM transactions WHERE ${conditions.join(' AND ')} ORDER BY date`)
+  const rows = await safeQuery<RawTransactionRow>('queryAbnormalSamples', `SELECT * FROM transactions WHERE ${conditions.join(' AND ')} ORDER BY date`)
+  if (!rows) return null
+  return rows.map(mapTransactionRow)
 }
 
 export async function queryFilterOptions(): Promise<{

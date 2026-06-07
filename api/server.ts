@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import type { FilterState, CategoryRule, Transaction } from './types.js'
+import type { FilterState, CategoryRule } from './types.js'
 import { transactions as mockTransactions, budgets, subscriptions, rules, accounts, members, allMerchants, allMonths } from './mock.js'
 import { cleanTransactions, detectAbnormal, aggregateCashFlow, aggregateCategoryBreakdown, computeBudgetProgress } from './clean.js'
 import { checkClickHouse, isClickHouseConnected, queryTransactions, queryBudgetProgress, queryCategoryBreakdown, queryCashFlow, queryAbnormalSamples, queryFilterOptions as chQueryFilterOptions } from './clickhouse.js'
