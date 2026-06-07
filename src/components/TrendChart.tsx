@@ -16,7 +16,7 @@ export default function TrendChart() {
     fetchTrend(filter)
       .then(setData)
       .finally(() => setLoading(false))
-  }, [filter.dateStart, filter.dateEnd, filter.shift, filter.granularity])
+  }, [filter.dateStart, filter.dateEnd, filter.shift, filter.slot, filter.route, filter.device, filter.granularity])
 
   if (!data) {
     return (

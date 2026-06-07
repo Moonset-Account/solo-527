@@ -17,14 +17,14 @@ from models import (
     AlarmCorrelationRequest, AlarmCorrelationResponse,
     ExportRequest, ExportTaskResponse,
 )
-from mock_data import generate_mock_data
 from services import (
     compute_summary, compute_trend, compute_heatmap,
     compute_shift_rank, compute_alarm_correlation,
 )
 from export import create_export_task, get_export_task, get_export_csv
+from db.database import query
 
-app = FastAPI(title="物流分拣差错率分析系统", version="1.0.0")
+app = FastAPI(title="物流分拣差错率分析系统", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,8 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-mock_data = generate_mock_data(days=30)
 
 METRICS_CONFIG = None
 
@@ -55,11 +53,12 @@ def _load_metrics():
 @app.post("/api/summary", response_model=SummaryResponse)
 async def api_summary(req: SummaryRequest):
     result = compute_summary(
-        mock_data,
         start_time=req.start_time,
         end_time=req.end_time,
         shift=req.shift,
         device=req.device,
+        slot=req.slot,
+        route=req.route,
     )
     return result
 
@@ -67,11 +66,13 @@ async def api_summary(req: SummaryRequest):
 @app.post("/api/trend", response_model=TrendResponse)
 async def api_trend(req: TrendRequest):
     result = compute_trend(
-        mock_data,
         start_time=req.start_time,
         end_time=req.end_time,
         granularity=req.granularity,
         shift=req.shift,
+        slot=req.slot,
+        route=req.route,
+        device=req.device,
     )
     return result
 
@@ -79,10 +80,13 @@ async def api_trend(req: TrendRequest):
 @app.post("/api/heatmap", response_model=HeatmapResponse)
 async def api_heatmap(req: HeatmapRequest):
     result = compute_heatmap(
-        mock_data,
         start_time=req.start_time,
         end_time=req.end_time,
         metric=req.metric,
+        shift=req.shift,
+        slot=req.slot,
+        route=req.route,
+        device=req.device,
     )
     return result
 
@@ -90,9 +94,12 @@ async def api_heatmap(req: HeatmapRequest):
 @app.post("/api/shift-rank", response_model=ShiftRankResponse)
 async def api_shift_rank(req: ShiftRankRequest):
     result = compute_shift_rank(
-        mock_data,
         start_time=req.start_time,
         end_time=req.end_time,
+        shift=req.shift,
+        slot=req.slot,
+        route=req.route,
+        device=req.device,
     )
     return result
 
@@ -100,9 +107,12 @@ async def api_shift_rank(req: ShiftRankRequest):
 @app.post("/api/alarm-correlation", response_model=AlarmCorrelationResponse)
 async def api_alarm_correlation(req: AlarmCorrelationRequest):
     result = compute_alarm_correlation(
-        mock_data,
         start_time=req.start_time,
         end_time=req.end_time,
+        shift=req.shift,
+        slot=req.slot,
+        route=req.route,
+        device=req.device,
     )
     return result
 
@@ -110,13 +120,31 @@ async def api_alarm_correlation(req: AlarmCorrelationRequest):
 @app.get("/api/metrics")
 async def api_metrics():
     config = _load_metrics()
-    return config
+    raw = config.get("metrics", {})
+    result = []
+    for key, val in raw.items():
+        result.append({
+            "key": key,
+            "name": val.get("name", key),
+            "formula": val.get("formula", ""),
+            "description": val.get("description", ""),
+            "unit": val.get("unit", ""),
+            "threshold_warning": val.get("threshold_warning", 0),
+            "threshold_critical": val.get("threshold_critical", 0),
+            "category": val.get("category", ""),
+        })
+    return {"metrics": result}
 
 
 @app.post("/api/export", response_model=ExportTaskResponse)
 async def api_export(req: ExportRequest):
+    summary_rows = query(
+        "SELECT COALESCE(SUM(total_count),0) as total, COALESCE(SUM(error_count),0) as errors FROM hourly_sort_stats"
+    )
+    total = int(summary_rows[0]["total"])
+    errors = int(summary_rows[0]["errors"])
     task_id = create_export_task(
-        mock_data,
+        {"records": [], "alarms": [], "start_date": None, "end_date": None},
         start_time=req.start_time,
         end_time=req.end_time,
         data_type=req.data_type,
@@ -148,4 +176,9 @@ async def api_export_download(task_id: str):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "message": "物流分拣差错率分析系统运行正常"}
+    try:
+        query("SELECT 1")
+        db_status = "connected"
+    except Exception:
+        db_status = "disconnected"
+    return {"status": "ok", "message": "物流分拣差错率分析系统运行正常", "database": db_status}

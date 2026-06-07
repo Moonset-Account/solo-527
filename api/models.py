@@ -7,6 +7,8 @@ class SummaryRequest(BaseModel):
     end_time: Optional[str] = None
     shift: Optional[str] = None
     device: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
 
 
 class SummaryResponse(BaseModel):
@@ -25,6 +27,9 @@ class TrendRequest(BaseModel):
     end_time: Optional[str] = None
     granularity: Optional[str] = "hour"
     shift: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
+    device: Optional[str] = None
 
 
 class TrendResponse(BaseModel):
@@ -39,6 +44,10 @@ class HeatmapRequest(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     metric: Optional[str] = "error_rate"
+    shift: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
+    device: Optional[str] = None
 
 
 class HeatmapResponse(BaseModel):
@@ -50,6 +59,10 @@ class HeatmapResponse(BaseModel):
 class ShiftRankRequest(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
+    shift: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
+    device: Optional[str] = None
 
 
 class ShiftRankItem(BaseModel):
@@ -68,6 +81,10 @@ class ShiftRankResponse(BaseModel):
 class AlarmCorrelationRequest(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
+    shift: Optional[str] = None
+    slot: Optional[str] = None
+    route: Optional[str] = None
+    device: Optional[str] = None
 
 
 class SankeyNode(BaseModel):

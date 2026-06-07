@@ -135,7 +135,8 @@ def generate_mock_data(days: int = 30) -> dict:
 
 
 def filter_records(data: dict, start_time: str = None, end_time: str = None,
-                   shift: str = None, device: str = None) -> list[dict]:
+                   shift: str = None, device: str = None,
+                   slot: str = None, route: str = None) -> list[dict]:
     records = data["records"]
     if start_time:
         st = datetime.fromisoformat(start_time)
@@ -147,6 +148,10 @@ def filter_records(data: dict, start_time: str = None, end_time: str = None,
         records = [r for r in records if r["shift"] == shift]
     if device:
         records = [r for r in records if r["device"] == device]
+    if slot:
+        records = [r for r in records if r["slot"] == slot]
+    if route:
+        records = [r for r in records if r["route"] == route]
     return records
 
 

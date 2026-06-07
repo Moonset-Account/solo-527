@@ -6,13 +6,13 @@ import type { ShiftRankData } from "@/types"
 import { Users, AlertTriangle } from "lucide-react"
 
 export default function ShiftRankChart() {
-  const { dateStart, dateEnd } = useFilterStore()
+  const { dateStart, dateEnd, shift, slot, route, device } = useFilterStore()
   const [data, setData] = useState<ShiftRankData | null>(null)
 
   useEffect(() => {
-    fetchShiftRank({ dateStart, dateEnd })
+    fetchShiftRank({ dateStart, dateEnd, shift, slot, route, device })
       .then(setData)
-  }, [dateStart, dateEnd])
+  }, [dateStart, dateEnd, shift, slot, route, device])
 
   if (!data) {
     return (

@@ -6,13 +6,13 @@ import type { HeatmapData } from "@/types"
 import { Grid3X3 } from "lucide-react"
 
 export default function SlotHeatmap() {
-  const { dateStart, dateEnd, shift } = useFilterStore()
+  const { dateStart, dateEnd, shift, slot, route, device } = useFilterStore()
   const [data, setData] = useState<HeatmapData | null>(null)
 
   useEffect(() => {
-    fetchHeatmap({ dateStart, dateEnd, shift })
+    fetchHeatmap({ dateStart, dateEnd, shift, slot, route, device })
       .then(setData)
-  }, [dateStart, dateEnd, shift])
+  }, [dateStart, dateEnd, shift, slot, route, device])
 
   if (!data) {
     return (

@@ -6,13 +6,13 @@ import type { AlarmCorrelationData } from "@/types"
 import { GitBranch, AlertTriangle } from "lucide-react"
 
 export default function AlarmCorrelationChart() {
-  const { dateStart, dateEnd } = useFilterStore()
+  const { dateStart, dateEnd, shift, slot, route, device } = useFilterStore()
   const [data, setData] = useState<AlarmCorrelationData | null>(null)
 
   useEffect(() => {
-    fetchAlarmCorrelation({ dateStart, dateEnd })
+    fetchAlarmCorrelation({ dateStart, dateEnd, shift, slot, route, device })
       .then(setData)
-  }, [dateStart, dateEnd])
+  }, [dateStart, dateEnd, shift, slot, route, device])
 
   if (!data) {
     return (
