@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createRequestHandler } from '@remix-run/express';
 import { initializeDatabase, closePool } from './api/data/pgDatabase.js';
+import { redisCache } from './api/data/redisCache.js';
 import dashboardRoutes from './api/routes/dashboard.js';
 import exportRoutes from './api/routes/exports.js';
 import authRoutes from './api/routes/auth.js';
@@ -29,7 +30,7 @@ app.get('/api/health', async (_req, res) => {
     message: 'ok',
     dataCleanStatus: cleanResult,
     database: 'postgresql',
-    cache: process.env.REDIS_URL ? 'redis' : 'memory',
+    cache: redisCache.isConnected() ? 'redis' : 'memory',
     framework: 'remix+express',
   });
 });
@@ -55,6 +56,9 @@ async function start() {
   try {
     await initializeDatabase();
     console.log('PostgreSQL database initialized');
+
+    await redisCache.ready();
+    console.log('Redis cache status:', redisCache.isConnected() ? 'connected' : 'fallback to memory');
 
     app.listen(PORT, () => {
       console.log(`Server listening on http://localhost:${PORT}`);

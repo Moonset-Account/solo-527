@@ -8,42 +8,64 @@ interface MemoryEntry {
 class RedisCache {
   private client: Redis | null = null;
   private memoryStore = new Map<string, MemoryEntry>();
-  private connected = false;
+  private _connected = false;
+  private connectPromise: Promise<void> | null = null;
 
   constructor() {
+    this.connectPromise = this.init();
+  }
+
+  private async init(): Promise<void> {
+    const url = process.env.REDIS_URL || 'redis://localhost:6379';
     try {
-      this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-        lazyConnect: true,
-        maxRetriesPerRequest: 1,
-        retryStrategy: () => null,
+      this.client = new Redis(url, {
+        maxRetriesPerRequest: 3,
+        retryStrategy(times) {
+          if (times > 5) return null;
+          return Math.min(times * 200, 2000);
+        },
+        connectTimeout: 5000,
+        commandTimeout: 3000,
       });
 
-      this.client.on('error', () => {
-        if (this.connected) {
-          console.warn('Redis connection lost, falling back to in-memory cache');
-        }
-        this.connected = false;
-        this.client = null;
+      this.client.on('error', (err) => {
+        console.warn('Redis error:', err.message);
       });
 
-      this.client.on('connect', () => {
-        this.connected = true;
+      this.client.on('ready', () => {
+        this._connected = true;
+        console.log('Redis cache connected:', url.replace(/\/\/.*@/, '//***@'));
       });
 
-      this.client.connect().catch(() => {
-        console.warn('Redis unavailable, using in-memory cache fallback');
-        this.connected = false;
-        this.client = null;
+      this.client.on('close', () => {
+        this._connected = false;
       });
+
+      this.client.on('reconnecting', () => {
+        this._connected = false;
+      });
+
+      await this.client.ping();
+      this._connected = true;
     } catch {
-      console.warn('Redis unavailable, using in-memory cache fallback');
-      this.connected = false;
+      console.warn('Redis unavailable at', url, '— using in-memory cache fallback');
+      this._connected = false;
       this.client = null;
     }
   }
 
+  async ready(): Promise<void> {
+    if (this.connectPromise) {
+      await this.connectPromise;
+    }
+  }
+
+  isConnected(): boolean {
+    return this._connected;
+  }
+
   async get<T>(key: string): Promise<T | null> {
-    if (this.client && this.connected) {
+    if (this.client && this._connected) {
       try {
         const raw = await this.client.get(key);
         if (raw === null) return null;
@@ -56,7 +78,7 @@ class RedisCache {
   }
 
   async set<T>(key: string, data: T, ttlMs?: number): Promise<void> {
-    if (this.client && this.connected) {
+    if (this.client && this._connected) {
       try {
         const serialized = JSON.stringify(data);
         if (ttlMs) {
@@ -74,7 +96,7 @@ class RedisCache {
   }
 
   async del(key: string): Promise<void> {
-    if (this.client && this.connected) {
+    if (this.client && this._connected) {
       try {
         await this.client.del(key);
         return;
@@ -87,7 +109,7 @@ class RedisCache {
   }
 
   async invalidate(pattern: string): Promise<void> {
-    if (this.client && this.connected) {
+    if (this.client && this._connected) {
       try {
         const keys = await this.client.keys(`${pattern}*`);
         if (keys.length > 0) {
@@ -103,7 +125,7 @@ class RedisCache {
   }
 
   async clear(): Promise<void> {
-    if (this.client && this.connected) {
+    if (this.client && this._connected) {
       try {
         await this.client.flushdb();
         return;
@@ -113,10 +135,6 @@ class RedisCache {
       }
     }
     this.memoryStore.clear();
-  }
-
-  isConnected(): boolean {
-    return this.connected;
   }
 
   private getFromMemory<T>(key: string): T | null {
