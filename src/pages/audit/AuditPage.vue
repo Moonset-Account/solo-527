@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Image, Check, X, Filter, Clock, AlertCircle, User } from 'lucide-vue-next'
+import { Image, Check, X, Filter, Clock, AlertCircle, User, FileText, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import { useDataStore } from '@/stores/data'
 import { useUserStore } from '@/stores/user'
+import { ClickHouseService } from '@/data/query-service'
 import type { InspectionPhoto, AuditStatus } from '@/types'
 import NavBar from '@/components/NavBar.vue'
 
@@ -14,6 +15,7 @@ const selectedPhoto = ref<InspectionPhoto | null>(null)
 const showRejectModal = ref(false)
 const rejectReason = ref('')
 const selectedCommunity = ref<string>('all')
+const showRejectLog = ref(false)
 
 const rejectReasons = [
   '照片模糊，无法识别',
@@ -23,6 +25,8 @@ const rejectReasons = [
   '光线过暗，无法判断',
   '其他原因'
 ]
+
+const rejectLogs = computed(() => ClickHouseService.queryAuditLogsWithRejectReason({ limit: 100 }))
 
 const filteredPhotos = computed(() => {
   let photos = dataStore.inspectionPhotos
@@ -109,16 +113,69 @@ function handleBatchApprove() {
             <Image class="w-7 h-7 text-amber-500" />
             照片审核中心
           </h1>
-          <p class="text-gray-500 mt-1">审核巡查照片，确保数据质量</p>
+          <p class="text-gray-500 mt-1">审核巡查照片，驳回时必须记录原因</p>
         </div>
-        <button
-          v-if="activeTab === 'pending' && stats.pending > 0"
-          class="btn-success"
-          @click="handleBatchApprove"
-        >
-          <Check class="w-4 h-4 mr-1" />
-          批量通过前10条
-        </button>
+        <div class="flex gap-2">
+          <button
+            class="btn-secondary"
+            @click="showRejectLog = !showRejectLog"
+          >
+            <FileText class="w-4 h-4 mr-1" />
+            驳回记录
+            <component :is="showRejectLog ? ChevronUp : ChevronDown" class="w-4 h-4 ml-1" />
+          </button>
+          <button
+            v-if="activeTab === 'pending' && stats.pending > 0"
+            class="btn-success"
+            @click="handleBatchApprove"
+          >
+            <Check class="w-4 h-4 mr-1" />
+            批量通过前10条
+          </button>
+        </div>
+      </div>
+
+      <div v-if="showRejectLog" class="card p-4 mb-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <AlertCircle class="w-4 h-4 text-red-500" />
+          驳回原因记录（最近 {{ rejectLogs.length }} 条）
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">审核时间</th>
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">桶点</th>
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">社区</th>
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">上传人</th>
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">审核人</th>
+                <th class="text-left py-2 px-3 text-gray-500 font-medium">驳回原因</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="log in rejectLogs.slice(0, 20)"
+                :key="log.id"
+                class="border-b border-gray-50 hover:bg-gray-50"
+              >
+                <td class="py-2 px-3 text-gray-600">{{ new Date(log.auditTime).toLocaleString('zh-CN') }}</td>
+                <td class="py-2 px-3 text-gray-900 font-medium">{{ log.binName }}</td>
+                <td class="py-2 px-3 text-gray-600">{{ log.communityName }}</td>
+                <td class="py-2 px-3 text-gray-600">{{ log.uploader }}</td>
+                <td class="py-2 px-3 text-gray-600">{{ log.auditor }}</td>
+                <td class="py-2 px-3">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded text-xs">
+                    <AlertCircle class="w-3 h-3" />
+                    {{ log.rejectReason }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+          驳回数据保留但不计入排名统计，仅审核通过的数据进入社区排名
+        </p>
       </div>
 
       <div class="grid grid-cols-3 gap-4 mb-6">
@@ -273,7 +330,7 @@ function handleBatchApprove() {
       >
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
           <h3 class="text-lg font-bold text-gray-900 mb-2">驳回照片</h3>
-          <p class="text-sm text-gray-500 mb-4">请选择驳回原因</p>
+          <p class="text-sm text-gray-500 mb-4">请选择驳回原因（驳回原因将永久记录）</p>
 
           <div class="space-y-2 mb-4">
             <button

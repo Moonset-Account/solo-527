@@ -14,9 +14,12 @@ import type {
 } from '@/types'
 import { initMockData, type MockData } from '@/data/mockData'
 
+const MOCK_DATA_VERSION = 2
+
 function loadMockData(): MockData {
   const cached = localStorage.getItem('mockData')
-  if (cached) {
+  const version = localStorage.getItem('mockDataVersion')
+  if (cached && version === String(MOCK_DATA_VERSION)) {
     try {
       return JSON.parse(cached)
     } catch {
@@ -25,6 +28,7 @@ function loadMockData(): MockData {
   }
   const data = initMockData()
   localStorage.setItem('mockData', JSON.stringify(data))
+  localStorage.setItem('mockDataVersion', String(MOCK_DATA_VERSION))
   return data
 }
 
@@ -270,6 +274,7 @@ export const useDataStore = defineStore('data', () => {
       users: users.value
     }
     localStorage.setItem('mockData', JSON.stringify(data))
+    localStorage.setItem('mockDataVersion', String(MOCK_DATA_VERSION))
   }
 
   function resetData() {
@@ -286,6 +291,7 @@ export const useDataStore = defineStore('data', () => {
     cityGeoJson.value = data.cityGeoJson
     users.value = data.users
     localStorage.setItem('mockData', JSON.stringify(data))
+    localStorage.setItem('mockDataVersion', String(MOCK_DATA_VERSION))
   }
 
   return {

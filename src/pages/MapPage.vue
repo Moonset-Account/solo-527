@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as d3 from 'd3'
-import { Search, Filter, Info, TrendingUp, AlertTriangle, MapPin } from 'lucide-vue-next'
+import { Search, Filter, Info, TrendingUp, MapPin } from 'lucide-vue-next'
 import NavBar from '@/components/NavBar.vue'
 import { useDataStore } from '@/stores/data'
+import { getGeoHash, queryByBbox, buildSpatialIndex } from '@/utils/geohash'
 import type { BinPoint, BinPointStatus } from '@/types'
 
 const dataStore = useDataStore()
@@ -16,10 +17,12 @@ const selectedStatus = ref<BinPointStatus | 'all'>('all')
 const selectedDistrict = ref<string>('all')
 const selectedBinPoint = ref<BinPoint | null>(null)
 const showSidebar = ref(true)
+const mapReady = ref(false)
 
-let svg: any = null
-let g: any = null
-let zoom: any = null
+let svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null
+let g: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
+let zoom: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
+let projection: d3.GeoProjection | null = null
 
 const statusColors: Record<BinPointStatus, string> = {
   normal: '#10b981',
@@ -83,42 +86,85 @@ const stats = computed(() => {
   }
 })
 
+function buildGeoJson() {
+  const districtMap = new Map<string, { name: string; bins: BinPoint[] }>()
+
+  dataStore.communities.forEach(c => {
+    const bins = dataStore.getBinPointsByCommunity(c.id)
+    if (!districtMap.has(c.district)) {
+      districtMap.set(c.district, { name: c.district, bins: [] })
+    }
+    districtMap.get(c.district)!.bins.push(...bins)
+  })
+
+  const features: any[] = []
+
+  districtMap.forEach((data, districtName) => {
+    const bins = data.bins
+    if (bins.length === 0) return
+
+    const lngs = bins.map(b => b.lng)
+    const lats = bins.map(b => b.lat)
+    const minLng = Math.min(...lngs) - 0.005
+    const maxLng = Math.max(...lngs) + 0.005
+    const minLat = Math.min(...lats) - 0.004
+    const maxLat = Math.max(...lats) + 0.004
+
+    const ring: [number, number][] = [
+      [minLng, minLat],
+      [maxLng, minLat],
+      [maxLng, maxLat],
+      [minLng, maxLat],
+      [minLng, minLat]
+    ]
+
+    features.push({
+      type: 'Feature',
+      properties: { name: districtName, id: `district-${districtName}` },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [ring]
+      }
+    })
+  })
+
+  return { type: 'FeatureCollection' as const, features }
+}
+
 function initMap() {
   if (!mapContainer.value) return
 
-  const width = mapContainer.value.clientWidth
-  const height = mapContainer.value.clientHeight
+  const rect = mapContainer.value.getBoundingClientRect()
+  const width = rect.width
+  const height = rect.height
+
+  if (width === 0 || height === 0) return
+
+  d3.select(mapContainer.value).selectAll('svg').remove()
 
   svg = d3.select(mapContainer.value)
     .append('svg')
     .attr('width', width)
     .attr('height', height)
 
-  zoom = d3.zoom()
-    .scaleExtent([0.5, 8])
-    .on('zoom', (event: any) => {
-      g.attr('transform', event.transform)
+  zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.5, 12])
+    .on('zoom', (event) => {
+      if (g) g.attr('transform', event.transform)
     })
 
-  svg.call(zoom)
+  svg.call(zoom!)
 
   g = svg.append('g')
 
-  drawMap()
-  drawBinPoints()
-}
+  const geoJson = buildGeoJson()
 
-function drawMap() {
-  const geoJson = dataStore.cityGeoJson as any
-  if (!geoJson || !geoJson.features.length) return
+  projection = d3.geoMercator()
+    .fitSize([width - 40, height - 40], geoJson as any)
 
-  const width = mapContainer.value?.clientWidth || 800
-  const height = mapContainer.value?.clientHeight || 600
+  projection.translate([20, 20])
 
-  const projection = d3.geoMercator()
-    .fitSize([width, height], geoJson)
-
-  const path = d3.geoPath().projection(projection)
+  const path = d3.geoPath().projection(projection!)
 
   g.append('g')
     .attr('class', 'districts')
@@ -127,24 +173,19 @@ function drawMap() {
     .enter()
     .append('path')
     .attr('d', path as any)
-    .attr('fill', (d: any) => {
-      const index = d.properties.id.split('-')[1]
+    .attr('fill', (_d: any, i: number) => {
       const colors = ['#ecfdf5', '#f0fdf4', '#dcfce7', '#d1fae5', '#a7f3d0', '#6ee7b7']
-      return colors[parseInt(index) % colors.length]
+      return colors[i % colors.length]
     })
     .attr('stroke', '#10b981')
-    .attr('stroke-width', 1)
-    .attr('stroke-opacity', 0.3)
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.4)
     .style('cursor', 'pointer')
-    .on('mouseover', function(this: any, _event: any, _d: any) {
-      d3.select(this)
-        .attr('fill-opacity', 0.8)
-        .attr('stroke-width', 2)
+    .on('mouseover', function(this: any) {
+      d3.select(this).attr('fill-opacity', 0.7).attr('stroke-width', 3)
     })
     .on('mouseout', function(this: any) {
-      d3.select(this)
-        .attr('fill-opacity', 1)
-        .attr('stroke-width', 1)
+      d3.select(this).attr('fill-opacity', 1).attr('stroke-width', 1.5)
     })
     .append('title')
     .text((d: any) => d.properties.name)
@@ -156,154 +197,70 @@ function drawMap() {
     .attr('class', 'district-label')
     .attr('transform', (d: any) => {
       const centroid = path.centroid(d as any)
-      return `translate(${centroid[0]}, ${centroid[1]})`
+      return centroid ? `translate(${centroid[0]}, ${centroid[1]})` : ''
     })
     .attr('text-anchor', 'middle')
     .attr('dy', '0.35em')
     .attr('fill', '#065f46')
-    .attr('font-size', '11px')
-    .attr('font-weight', '500')
+    .attr('font-size', '13px')
+    .attr('font-weight', '600')
     .attr('pointer-events', 'none')
     .text((d: any) => d.properties.name)
+
+  drawBinPoints()
+
+  mapReady.value = true
 }
 
 function drawBinPoints() {
-  const geoJson = dataStore.cityGeoJson as any
-  const width = mapContainer.value?.clientWidth || 800
-  const height = mapContainer.value?.clientHeight || 600
+  if (!g || !projection) return
 
-  const projection = d3.geoMercator()
-    .fitSize([width, height], geoJson)
+  g.select('.bin-points').remove()
 
   const pointsGroup = g.append('g').attr('class', 'bin-points')
+  const points = filteredBinPoints.value
 
-  const updatePoints = () => {
-    const points = filteredBinPoints.value
+  points.forEach(bin => {
+    const pos = projection!([bin.lng, bin.lat])
+    if (!pos) return
 
-    const circles = pointsGroup.selectAll('.bin-point')
-      .data(points, (d: any) => d.id)
-
-    circles.exit().remove()
-
-    const enter = circles.enter()
-      .append('g')
+    const pointG = pointsGroup.append('g')
       .attr('class', 'bin-point')
-      .attr('transform', (d: any) => {
-        const [x, y] = projection([d.lng, d.lat]) || [0, 0]
-        return `translate(${x}, ${y})`
-      })
+      .attr('transform', `translate(${pos[0]}, ${pos[1]})`)
       .style('cursor', 'pointer')
-      .on('click', (_event: any, d: BinPoint) => {
-        selectedBinPoint.value = d
+      .on('click', () => {
+        selectedBinPoint.value = bin
       })
 
-    enter.append('circle')
-      .attr('r', 0)
-      .attr('fill', (d: any) => statusColors[d.status])
-      .attr('fill-opacity', 0.3)
-      .attr('class', 'pulse-ring')
-      .transition()
-      .duration(500)
-      .attr('r', 12)
+    pointG.append('circle')
+      .attr('r', 14)
+      .attr('fill', statusColors[bin.status])
+      .attr('fill-opacity', 0.15)
 
-    enter.append('circle')
-      .attr('r', 0)
-      .attr('fill', (d: any) => statusColors[d.status])
+    if (bin.status !== 'normal') {
+      pointG.append('circle')
+        .attr('r', 14)
+        .attr('fill', 'none')
+        .attr('stroke', statusColors[bin.status])
+        .attr('stroke-width', 1)
+        .attr('stroke-opacity', 0.4)
+        .attr('class', 'pulse-ring')
+    }
+
+    pointG.append('circle')
+      .attr('r', 5)
+      .attr('fill', statusColors[bin.status])
       .attr('stroke', '#fff')
-      .attr('stroke-width', 2)
-      .transition()
-      .duration(500)
-      .attr('r', 6)
+      .attr('stroke-width', 1.5)
 
-    enter.selectAll('circle')
-      .on('mouseover', function(this: any) {
-        d3.select(this.parentNode).raise()
-        d3.select(this.parentNode).select('circle:last-child')
-          .transition()
-          .duration(200)
-          .attr('r', 8)
-      })
-      .on('mouseout', function(this: any) {
-        d3.select(this.parentNode).select('circle:last-child')
-          .transition()
-          .duration(200)
-          .attr('r', 6)
-      })
-
-    enter.append('title')
-      .text((d: any) => {
-        const comm = dataStore.getCommunityById(d.communityId)
-        return `${d.name}\n社区: ${comm?.name || '未知'}\n状态: ${statusLabels[d.status]}\n满载率: ${d.fillLevel}%`
-      })
-  }
-
-  updatePoints()
-
-  watch(filteredBinPoints, () => {
-    const points = filteredBinPoints.value
-    const circles = pointsGroup.selectAll('.bin-point')
-      .data(points, (d: any) => d.id)
-
-    circles.exit().remove()
-
-    const enter = circles.enter()
-      .append('g')
-      .attr('class', 'bin-point')
-      .attr('transform', (d: any) => {
-        const [x, y] = projection([d.lng, d.lat]) || [0, 0]
-        return `translate(${x}, ${y})`
-      })
-      .style('cursor', 'pointer')
-      .on('click', (_event: any, d: BinPoint) => {
-        selectedBinPoint.value = d
-      })
-
-    enter.append('circle')
-      .attr('r', 12)
-      .attr('fill', (d: any) => statusColors[d.status])
-      .attr('fill-opacity', 0.3)
-      .attr('class', 'pulse-ring')
-
-    enter.append('circle')
-      .attr('r', 6)
-      .attr('fill', (d: any) => statusColors[d.status])
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 2)
-
-    enter.selectAll('circle')
-      .on('mouseover', function(this: any) {
-        d3.select(this.parentNode).raise()
-        d3.select(this.parentNode).select('circle:last-child')
-          .transition()
-          .duration(200)
-          .attr('r', 8)
-      })
-      .on('mouseout', function(this: any) {
-        d3.select(this.parentNode).select('circle:last-child')
-          .transition()
-          .duration(200)
-          .attr('r', 6)
-      })
-
-    enter.append('title')
-      .text((d: any) => {
-        const comm = dataStore.getCommunityById(d.communityId)
-        return `${d.name}\n社区: ${comm?.name || '未知'}\n状态: ${statusLabels[d.status]}\n满载率: ${d.fillLevel}%`
-      })
-  }, { deep: true })
+    pointG.append('title')
+      .text(`${bin.name}\n社区: ${dataStore.getCommunityById(bin.communityId)?.name || '未知'}\n状态: ${statusLabels[bin.status]}\n满载率: ${bin.fillLevel}%\nGeoHash: ${getGeoHash(bin.lng, bin.lat, 6)}`)
+  })
 }
 
 function handleResize() {
-  if (!mapContainer.value || !svg) return
-
-  const width = mapContainer.value.clientWidth
-  const height = mapContainer.value.clientHeight
-
-  svg.attr('width', width).attr('height', height)
-
-  g.selectAll('*').remove()
-  drawMap()
-  drawBinPoints()
+  if (!mapContainer.value) return
+  initMap()
 }
 
 function getBinPointCommunity(bin: BinPoint) {
@@ -314,11 +271,16 @@ function closeDetail() {
   selectedBinPoint.value = null
 }
 
-onMounted(() => {
+watch(filteredBinPoints, () => {
+  if (mapReady.value) drawBinPoints()
+})
+
+onMounted(async () => {
+  await nextTick()
   setTimeout(() => {
     initMap()
     window.addEventListener('resize', handleResize)
-  }, 100)
+  }, 200)
 })
 
 onUnmounted(() => {
@@ -327,10 +289,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col">
+  <div class="h-screen bg-gray-50 flex flex-col overflow-hidden">
     <NavBar />
 
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex overflow-hidden" style="min-height: 0">
       <div
         v-if="showSidebar"
         class="w-72 bg-white border-r border-gray-100 flex flex-col flex-shrink-0"
@@ -393,7 +355,7 @@ onUnmounted(() => {
           </h3>
           <div class="space-y-2">
             <div
-              v-for="bin in filteredBinPoints.slice(0, 20)"
+              v-for="bin in filteredBinPoints.slice(0, 30)"
               :key="bin.id"
               class="p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
               :class="{ 'ring-2 ring-teal-500 bg-teal-50': selectedBinPoint?.id === bin.id }"
@@ -425,7 +387,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="flex-1 relative">
+      <div class="flex-1 relative" style="min-height: 400px">
         <div ref="mapContainer" class="absolute inset-0" />
 
         <button
@@ -484,14 +446,12 @@ onUnmounted(() => {
                 <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.binCount }} 个</span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-sm text-gray-500">网格编码</span>
-                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.gridCode }}</span>
+                <span class="text-sm text-gray-500">空间索引</span>
+                <span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{{ getGeoHash(selectedBinPoint.lng, selectedBinPoint.lat, 6) }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-sm text-gray-500">最后更新</span>
-                <span class="text-sm text-gray-600">
-                  {{ new Date(selectedBinPoint.lastUpdate).toLocaleString('zh-CN') }}
-                </span>
+                <span class="text-sm text-gray-500">网格编码</span>
+                <span class="text-sm font-medium text-gray-900">{{ selectedBinPoint.gridCode }}</span>
               </div>
             </div>
             <div class="p-4 border-t border-gray-100 bg-gray-50">

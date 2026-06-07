@@ -52,7 +52,7 @@ export function generateCommunities(): Community[] {
   return communityNames.map((name, index) => ({
     id: `comm-${String(index + 1).padStart(3, '0')}`,
     name,
-    district: randomChoice(districts),
+    district: districts[index % districts.length],
     householdCount: randomInt(500, 3000)
   }))
 }
@@ -64,9 +64,19 @@ export function generateBinPoints(communities: Community[]): BinPoint[] {
   const baseLng = 116.4074
   const baseLat = 39.9042
 
+  const districtCenters: Record<string, { lng: number; lat: number }> = {}
+  districts.forEach((d, i) => {
+    const angle = (i / districts.length) * Math.PI * 2
+    districtCenters[d] = {
+      lng: baseLng + Math.cos(angle) * 0.06,
+      lat: baseLat + Math.sin(angle) * 0.04
+    }
+  })
+
   communities.forEach((comm, commIndex) => {
-    const commLng = baseLng + (commIndex % 5 - 2) * 0.08 + randomRange(-0.02, 0.02)
-    const commLat = baseLat + (Math.floor(commIndex / 5) - 1) * 0.06 + randomRange(-0.02, 0.02)
+    const center = districtCenters[comm.district]
+    const commLng = center.lng + (commIndex % 3 - 1) * 0.008 + randomRange(-0.003, 0.003)
+    const commLat = center.lat + (Math.floor(commIndex / 3) % 3 - 1) * 0.006 + randomRange(-0.003, 0.003)
 
     const count = randomInt(3, 8)
     for (let i = 0; i < count; i++) {
@@ -77,8 +87,8 @@ export function generateBinPoints(communities: Community[]): BinPoint[] {
         id: `bin-${String(id).padStart(5, '0')}`,
         communityId: comm.id,
         name: randomChoice(binPointNames),
-        lng: commLng + randomRange(-0.015, 0.015),
-        lat: commLat + randomRange(-0.01, 0.01),
+        lng: commLng + randomRange(-0.004, 0.004),
+        lat: commLat + randomRange(-0.003, 0.003),
         status,
         binCount: randomInt(2, 6),
         gridCode: randomChoice(gridCodes),
