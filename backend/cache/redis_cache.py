@@ -2,7 +2,11 @@ import redis
 import json
 from datetime import timedelta
 from typing import Optional, Any
-from backend.db.database import settings
+
+try:
+    from backend.db.database import settings
+except ImportError:
+    from db.database import settings
 
 class RedisCache:
     def __init__(self):

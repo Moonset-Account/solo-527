@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.api.routes import router as analytics_router
+try:
+    from backend.api.routes import router as analytics_router
+except ImportError:
+    from api.routes import router as analytics_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

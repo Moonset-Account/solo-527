@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Select, DatePicker, Button, Space, Form } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import { useFilterStore } from '@/store/useFilterStore';
 import { apiService } from '@/services/api';
 import { FilterOptions } from '@/types';
 
-const { RangePicker } = DatePicker;
+const { MonthPicker } = DatePicker;
 
 const FilterBar: React.FC = () => {
-  const { filters, setMemberTypes, setStores, setCoaches, setCourses, resetFilters } = useFilterStore();
+  const { filters, setMemberTypes, setStores, setCoaches, setCourses, setMonth, resetFilters } = useFilterStore();
   const [options, setOptions] = useState<FilterOptions | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,14 +28,27 @@ const FilterBar: React.FC = () => {
     }
   };
 
+  const handleMonthChange = (date: any) => {
+    setMonth(date ? date.format('YYYY-MM') : undefined);
+  };
+
   return (
     <div className="filter-bar">
       <Form layout="inline">
+        <Form.Item label="月份">
+          <MonthPicker
+            placeholder="全部月份"
+            style={{ width: 160 }}
+            onChange={handleMonthChange}
+            allowClear
+          />
+        </Form.Item>
+
         <Form.Item label="会员类型">
           <Select
             mode="multiple"
             placeholder="全部"
-            style={{ width: 180 }}
+            style={{ width: 160 }}
             value={filters.memberTypeIds}
             onChange={setMemberTypes}
             loading={loading}
@@ -51,7 +63,7 @@ const FilterBar: React.FC = () => {
           <Select
             mode="multiple"
             placeholder="全部"
-            style={{ width: 180 }}
+            style={{ width: 160 }}
             value={filters.storeIds}
             onChange={setStores}
             loading={loading}
@@ -66,7 +78,7 @@ const FilterBar: React.FC = () => {
           <Select
             mode="multiple"
             placeholder="全部"
-            style={{ width: 200 }}
+            style={{ width: 180 }}
             value={filters.coachIds}
             onChange={setCoaches}
             loading={loading}
@@ -83,7 +95,7 @@ const FilterBar: React.FC = () => {
           <Select
             mode="multiple"
             placeholder="全部"
-            style={{ width: 200 }}
+            style={{ width: 180 }}
             value={filters.courseIds}
             onChange={setCourses}
             loading={loading}

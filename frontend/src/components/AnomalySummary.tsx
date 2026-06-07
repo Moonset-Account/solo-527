@@ -58,7 +58,7 @@ const AnomalySummary: React.FC = () => {
         <div className="card-title">
           <WarningOutlined style={{ color: '#faad14', marginRight: 8 }} />
           异常摘要
-          {data?.warnings?.length > 0 && (
+          {data && data.warnings && data.warnings.length > 0 && (
             <span className="warning-badge">{data.warnings.length} 条提示</span>
           )}
         </div>
@@ -111,7 +111,7 @@ const AnomalySummary: React.FC = () => {
         </Col>
       </Row>
 
-      {data?.anomalies?.length === 0 ? (
+      {data && data.anomalies && data.anomalies.length === 0 ? (
         <Alert
           message="数据正常"
           description="当前未检测到异常指标，所有数据均在正常范围内。"

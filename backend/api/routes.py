@@ -5,9 +5,14 @@ from typing import List, Optional
 from pydantic import BaseModel
 from io import BytesIO
 
-from backend.db.database import get_db
-from backend.api.analytics_service import AnalyticsService
-from backend.export.export_service import ExportService
+try:
+    from backend.db.database import get_db
+    from backend.api.analytics_service import AnalyticsService
+    from backend.export.export_service import ExportService
+except ImportError:
+    from db.database import get_db
+    from api.analytics_service import AnalyticsService
+    from export.export_service import ExportService
 
 router = APIRouter(prefix="/api", tags=["analytics"])
 

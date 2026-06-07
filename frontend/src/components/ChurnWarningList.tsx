@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Spin, Tag, Statistic, Row, Col, Input } from 'antd';
-import { DownloadOutlined, WarningOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Spin, Tag, Statistic, Row, Col } from 'antd';
+import { DownloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { useFilterStore } from '@/store/useFilterStore';
 import { apiService } from '@/services/api';
 import { ChurnWarningResponse, ChurnMember } from '@/types';
-
-const { Search } = Input;
 
 const ChurnWarningList: React.FC = () => {
   const { filters } = useFilterStore();
   const [data, setData] = useState<ChurnWarningResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     loadData();
@@ -43,11 +40,7 @@ const ChurnWarningList: React.FC = () => {
     return <Tag color={colorMap[level]}>{level}</Tag>;
   };
 
-  const filteredMembers = data?.members?.filter(m => 
-    m.name.includes(searchText) || 
-    m.member_type.includes(searchText) ||
-    m.store.includes(searchText)
-  ) || [];
+  const members = data?.members || [];
 
   const columns = [
     {
@@ -60,27 +53,6 @@ const ChurnWarningList: React.FC = () => {
       title: '姓名',
       dataIndex: 'name',
       key: 'name',
-      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: any) => (
-        <div style={{ padding: 8 }}>
-          <Search
-            placeholder="搜索姓名"
-            value={selectedKeys[0]}
-            onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-            onPressEnter={confirm}
-            style={{ marginBottom: 8, display: 'block' }}
-          />
-          <Space>
-            <Button type="primary" onClick={confirm} size="small">
-              确定
-            </Button>
-            <Button onClick={clearFilters} size="small">
-              重置
-            </Button>
-          </Space>
-        </div>
-      ),
-      onFilter: (value: any, record: ChurnMember) => 
-        record.name.includes(value as string),
     },
     {
       title: '会员类型',
@@ -199,7 +171,7 @@ const ChurnWarningList: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={filteredMembers}
+        dataSource={members}
         pagination={{ pageSize: 10, showSizeChanger: true }}
         rowKey="member_id"
         size="middle"

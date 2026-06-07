@@ -4,7 +4,8 @@ import {
   RetentionCohortResponse,
   CourseHeatmapResponse,
   CoachLoadResponse,
-  ChurnWarningResponse
+  ChurnWarningResponse,
+  FilterState
 } from '@/types';
 
 export const mockFilterOptions: FilterOptions = {
@@ -42,361 +43,258 @@ export const mockFilterOptions: FilterOptions = {
   ],
 };
 
-export const mockAnomalySummary: AnomalySummary = {
-  anomalies: [
-    {
-      type: "checkin_volume",
-      severity: "high",
-      message: "近30天签到量环比30天下降52.3%，需关注会员活跃情况",
-      value: -0.523
-    },
-    {
+export const generateMockAnomalySummary = (filters: FilterState): AnomalySummary => {
+  const baseMembers = 386;
+  const baseCheckins = 2847;
+  
+  const storeMultiplier = filters.storeIds?.length ? 0.4 + Math.random() * 0.3 : 1;
+  const typeMultiplier = filters.memberTypeIds?.length ? 0.3 + Math.random() * 0.4 : 1;
+  const coachMultiplier = filters.coachIds?.length ? 0.2 + Math.random() * 0.5 : 1;
+  const monthMultiplier = filters.month ? 0.6 + Math.random() * 0.4 : 1;
+  
+  const multiplier = storeMultiplier * typeMultiplier * coachMultiplier * monthMultiplier;
+  
+  const activeMembers = Math.floor(baseMembers * multiplier);
+  const checkins30d = Math.floor(baseCheckins * multiplier);
+  
+  const hasAnomaly = Math.random() > 0.5;
+  const churnRate = hasAnomaly ? 0.12 + Math.random() * 0.1 : 0.05 + Math.random() * 0.08;
+  const avgRating = 3.8 + Math.random() * 0.8;
+  
+  const anomalies: any[] = [];
+  
+  if (churnRate > 0.15) {
+    anomalies.push({
       type: "churn_rate",
-      severity: "medium",
-      message: "当前月流失率达15.8%，接近20%警戒线",
-      value: 0.158
-    },
-    {
-      type: "booking_cancel",
-      severity: "medium",
-      message: "近30天课程取消率达28.5%，建议优化课程安排",
-      value: 0.285
-    },
-  ],
-  warnings: [],
-  summary_stats: {
-    active_members: 386,
-    checkins_30d: 2847,
-    churn_rate: 0.158,
-    avg_rating: 4.2
+      severity: churnRate > 0.2 ? "high" : "medium",
+      message: `当前月流失率达${(churnRate * 100).toFixed(1)}%，${churnRate > 0.2 ? '超过' : '接近'}20%警戒线`,
+      value: churnRate
+    });
   }
+  
+  if (Math.random() > 0.6) {
+    const change = (Math.random() - 0.5) * 0.8;
+    if (Math.abs(change) > 0.3) {
+      anomalies.push({
+        type: "checkin_volume",
+        severity: Math.abs(change) > 0.5 ? "high" : "medium",
+        message: `近30天签到量环比{change > 0 ? '上升' : '下降'}${Math.abs(change * 100).toFixed(1)}%`,
+        value: change
+      });
+    }
+  }
+  
+  const warnings: string[] = [];
+  if (activeMembers < 30) {
+    warnings.push(`样本量不足（当前${activeMembers}人，建议不少于30人）`);
+  }
+  
+  return {
+    anomalies,
+    warnings,
+    summary_stats: {
+      active_members: activeMembers,
+      checkins_30d: checkins30d,
+      churn_rate: parseFloat(churnRate.toFixed(3)),
+      avg_rating: parseFloat(avgRating.toFixed(1))
+    }
+  };
 };
 
-export const mockRetentionCohort: RetentionCohortResponse = {
-  cohort_data: [
-    {
-      cohort_month: "2024-01",
-      cohort_size: 85,
-      retention: [1.0, 0.68, 0.52, 0.45, 0.38, 0.32, 0.28],
-      sample_warning: false
-    },
-    {
-      cohort_month: "2024-02",
-      cohort_size: 72,
-      retention: [1.0, 0.72, 0.58, 0.48, 0.42, 0.35, null],
-      sample_warning: false
-    },
-    {
-      cohort_month: "2024-03",
-      cohort_size: 93,
-      retention: [1.0, 0.75, 0.62, 0.53, 0.44, null, null],
-      sample_warning: false
-    },
-    {
-      cohort_month: "2024-04",
-      cohort_size: 68,
-      retention: [1.0, 0.70, 0.55, 0.46, null, null, null],
-      sample_warning: false
-    },
-    {
-      cohort_month: "2024-05",
-      cohort_size: 45,
-      retention: [1.0, 0.78, 0.60, null, null, null, null],
-      sample_warning: true
-    },
-    {
-      cohort_month: "2024-06",
-      cohort_size: 23,
-      retention: [1.0, 0.65, null, null, null, null, null],
-      sample_warning: true
-    },
-  ],
-  warnings: ["2024-05组样本量不足（当前45人，建议不少于30人）", "2024-06组样本量不足（当前23人，建议不少于30人）"],
-  months: 6
+export const generateMockRetentionCohort = (filters: FilterState, months: number = 6): RetentionCohortResponse => {
+  const storeFilter = filters.storeIds?.length || 0;
+  const typeFilter = filters.memberTypeIds?.length || 0;
+  const coachFilter = filters.coachIds?.length || 0;
+  const monthFilter = filters.month ? 1 : 0;
+  
+  const filterIntensity = (storeFilter * 0.3 + typeFilter * 0.3 + coachFilter * 0.2 + monthFilter * 0.2);
+  const sizeMultiplier = Math.max(0.2, 1 - filterIntensity * 0.5);
+  
+  const baseSizes = [85, 72, 93, 68, 45, 23];
+  const cohort_data = [];
+  const warnings: string[] = [];
+  
+  const cohortCount = Math.min(6, Math.max(3, 7 - Math.floor(filterIntensity * 3)));
+  
+  for (let i = 0; i < cohortCount; i++) {
+    const cohortSize = Math.floor(baseSizes[i] * sizeMultiplier * (0.8 + Math.random() * 0.4));
+    const retention: (number | null)[] = [];
+    
+    const baseRetention = 1 - filterIntensity * 0.1;
+    
+    for (let j = 0; j <= months; j++) {
+      if (j >= cohortCount - i) {
+        retention.push(null);
+      } else {
+        const decay = Math.pow(0.75 + Math.random() * 0.1, j);
+        const rate = Math.max(0, Math.min(1, baseRetention * decay * (0.9 + Math.random() * 0.2)));
+        retention.push(parseFloat(rate.toFixed(3)));
+      }
+    }
+    
+    const sample_warning = cohortSize < 30;
+    if (sample_warning) {
+      warnings.push(`2024-0${i + 1}组样本量不足（当前${cohortSize}人，建议不少于30人）`);
+    }
+    
+    cohort_data.push({
+      cohort_month: `2024-0${i + 1}`,
+      cohort_size: cohortSize,
+      retention,
+      sample_warning
+    });
+  }
+  
+  return {
+    cohort_data,
+    warnings,
+    months
+  };
 };
 
-export const mockCourseHeatmap: CourseHeatmapResponse = {
-  courses: [
-    {
-      course_id: 2,
-      name: "动感单车",
-      category: "有氧",
-      total_bookings: 428,
-      capacity: 30,
-      booking_rate: 0.85,
-      checkin_rate: 0.92,
-      cancel_rate: 0.08,
-      hot_score: 0.88
-    },
-    {
-      course_id: 4,
-      name: "HIIT燃脂",
-      category: "有氧",
-      total_bookings: 356,
-      capacity: 25,
-      booking_rate: 0.82,
-      checkin_rate: 0.88,
-      cancel_rate: 0.12,
-      hot_score: 0.82
-    },
-    {
-      course_id: 1,
-      name: "瑜伽基础",
-      category: "瑜伽",
-      total_bookings: 312,
-      capacity: 20,
-      booking_rate: 0.78,
-      checkin_rate: 0.85,
-      cancel_rate: 0.15,
-      hot_score: 0.76
-    },
-    {
-      course_id: 6,
-      name: "拳击课",
-      category: "格斗",
-      total_bookings: 198,
-      capacity: 10,
-      booking_rate: 0.88,
-      checkin_rate: 0.75,
-      cancel_rate: 0.25,
-      hot_score: 0.74
-    },
-    {
-      course_id: 3,
-      name: "力量训练",
-      category: "力量",
-      total_bookings: 275,
-      capacity: 15,
-      booking_rate: 0.72,
-      checkin_rate: 0.80,
-      cancel_rate: 0.20,
-      hot_score: 0.72
-    },
-    {
-      course_id: 5,
-      name: "普拉提",
-      category: "瑜伽",
-      total_bookings: 156,
-      capacity: 12,
-      booking_rate: 0.65,
-      checkin_rate: 0.82,
-      cancel_rate: 0.18,
-      hot_score: 0.68
-    },
-    {
-      course_id: 7,
-      name: "游泳课",
-      category: "水上",
-      total_bookings: 134,
-      capacity: 15,
-      booking_rate: 0.58,
-      checkin_rate: 0.75,
-      cancel_rate: 0.25,
-      hot_score: 0.60
-    },
-  ],
-  warnings: []
+export const generateMockCourseHeatmap = (filters: FilterState): CourseHeatmapResponse => {
+  const baseCourses = [
+    { course_id: 2, name: "动感单车", category: "有氧", capacity: 30, base_score: 0.88 },
+    { course_id: 4, name: "HIIT燃脂", category: "有氧", capacity: 25, base_score: 0.82 },
+    { course_id: 1, name: "瑜伽基础", category: "瑜伽", capacity: 20, base_score: 0.76 },
+    { course_id: 6, name: "拳击课", category: "格斗", capacity: 10, base_score: 0.74 },
+    { course_id: 3, name: "力量训练", category: "力量", capacity: 15, base_score: 0.72 },
+    { course_id: 5, name: "普拉提", category: "瑜伽", capacity: 12, base_score: 0.68 },
+    { course_id: 7, name: "游泳课", category: "水上", capacity: 15, base_score: 0.60 },
+  ];
+  
+  let filteredCourses = baseCourses;
+  if (filters.courseIds?.length) {
+    filteredCourses = baseCourses.filter(c => filters.courseIds!.includes(c.course_id));
+  }
+  
+  const storeMultiplier = filters.storeIds?.length ? 0.5 + Math.random() * 0.3 : 1;
+  const coachMultiplier = filters.coachIds?.length ? 0.4 + Math.random() * 0.4 : 1;
+  const monthMultiplier = filters.month ? 0.7 + Math.random() * 0.3 : 1;
+  
+  const courses = filteredCourses.map(c => {
+    const multiplier = storeMultiplier * coachMultiplier * monthMultiplier;
+    const totalBookings = Math.floor((150 + Math.random() * 300) * multiplier);
+    const hotScore = Math.min(1, c.base_score * (0.9 + Math.random() * 0.2));
+    const bookingRate = Math.min(1, hotScore * (0.9 + Math.random() * 0.15));
+    const checkinRate = 0.7 + Math.random() * 0.25;
+    const cancelRate = 0.05 + Math.random() * 0.25;
+    
+    return {
+      course_id: c.course_id,
+      name: c.name,
+      category: c.category,
+      total_bookings: totalBookings,
+      capacity: c.capacity,
+      booking_rate: parseFloat(bookingRate.toFixed(3)),
+      checkin_rate: parseFloat(checkinRate.toFixed(3)),
+      cancel_rate: parseFloat(cancelRate.toFixed(3)),
+      hot_score: parseFloat(hotScore.toFixed(3))
+    };
+  }).sort((a, b) => b.hot_score - a.hot_score);
+  
+  const warnings: string[] = [];
+  if (courses.length < 3) {
+    warnings.push(`样本量不足（当前${courses.length}门课程，建议不少于3门）`);
+  }
+  
+  return {
+    courses,
+    warnings
+  };
 };
 
-export const mockCoachLoad: CoachLoadResponse = {
-  coaches: [
-    {
-      coach_id: 1,
-      name: "张教练",
-      level: "资深",
-      store: "朝阳旗舰店",
-      weekly_hours: 28.5,
-      student_count: 32,
-      pt_conversion: 0.45,
-      retention_rate: 0.82
-    },
-    {
-      coach_id: 2,
-      name: "李教练",
-      level: "高级",
-      store: "海淀分店",
-      weekly_hours: 24.0,
-      student_count: 28,
-      pt_conversion: 0.38,
-      retention_rate: 0.75
-    },
-    {
-      coach_id: 3,
-      name: "王教练",
-      level: "中级",
-      store: "浦东分店",
-      weekly_hours: 18.5,
-      student_count: 22,
-      pt_conversion: 0.32,
-      retention_rate: 0.68
-    },
-    {
-      coach_id: 4,
-      name: "刘教练",
-      level: "高级",
-      store: "朝阳旗舰店",
-      weekly_hours: 32.0,
-      student_count: 35,
-      pt_conversion: 0.52,
-      retention_rate: 0.88
-    },
-    {
-      coach_id: 5,
-      name: "陈教练",
-      level: "中级",
-      store: "海淀分店",
-      weekly_hours: 15.0,
-      student_count: 18,
-      pt_conversion: 0.28,
-      retention_rate: 0.62
-    },
-    {
-      coach_id: 6,
-      name: "杨教练",
-      level: "初级",
-      store: "浦东分店",
-      weekly_hours: 12.0,
-      student_count: 12,
-      pt_conversion: 0.20,
-      retention_rate: 0.55
-    },
-    {
-      coach_id: 7,
-      name: "赵教练",
-      level: "资深",
-      store: "朝阳旗舰店",
-      weekly_hours: 26.5,
-      student_count: 30,
-      pt_conversion: 0.48,
-      retention_rate: 0.80
-    },
-    {
-      coach_id: 8,
-      name: "黄教练",
-      level: "高级",
-      store: "海淀分店",
-      weekly_hours: 22.0,
-      student_count: 25,
-      pt_conversion: 0.35,
-      retention_rate: 0.72
-    },
-    {
-      coach_id: 9,
-      name: "周教练",
-      level: "中级",
-      store: "浦东分店",
-      weekly_hours: 16.5,
-      student_count: 20,
-      pt_conversion: 0.30,
-      retention_rate: 0.65
-    },
-    {
-      coach_id: 10,
-      name: "吴教练",
-      level: "初级",
-      store: "朝阳旗舰店",
-      weekly_hours: 10.0,
-      student_count: 10,
-      pt_conversion: 0.18,
-      retention_rate: 0.50
-    },
-  ],
-  warnings: []
+export const generateMockCoachLoad = (filters: FilterState): CoachLoadResponse => {
+  const baseCoaches = [
+    { coach_id: 1, name: "张教练", level: "资深", store: "朝阳旗舰店", base_hours: 28.5, base_students: 32 },
+    { coach_id: 2, name: "李教练", level: "高级", store: "海淀分店", base_hours: 24.0, base_students: 28 },
+    { coach_id: 3, name: "王教练", level: "中级", store: "浦东分店", base_hours: 18.5, base_students: 22 },
+    { coach_id: 4, name: "刘教练", level: "高级", store: "朝阳旗舰店", base_hours: 32.0, base_students: 35 },
+    { coach_id: 5, name: "陈教练", level: "中级", store: "海淀分店", base_hours: 15.0, base_students: 18 },
+    { coach_id: 6, name: "杨教练", level: "初级", store: "浦东分店", base_hours: 12.0, base_students: 12 },
+    { coach_id: 7, name: "赵教练", level: "资深", store: "朝阳旗舰店", base_hours: 26.5, base_students: 30 },
+    { coach_id: 8, name: "黄教练", level: "高级", store: "海淀分店", base_hours: 22.0, base_students: 25 },
+    { coach_id: 9, name: "周教练", level: "中级", store: "浦东分店", base_hours: 16.5, base_students: 20 },
+    { coach_id: 10, name: "吴教练", level: "初级", store: "朝阳旗舰店", base_hours: 10.0, base_students: 10 },
+  ];
+  
+  let filteredCoaches = baseCoaches;
+  if (filters.coachIds?.length) {
+    filteredCoaches = baseCoaches.filter(c => filters.coachIds!.includes(c.coach_id));
+  }
+  if (filters.storeIds?.length) {
+    const storeNames = mockFilterOptions.stores.filter(s => filters.storeIds!.includes(s.id)).map(s => s.name);
+    filteredCoaches = filteredCoaches.filter(c => storeNames.includes(c.store));
+  }
+  
+  const monthMultiplier = filters.month ? 0.7 + Math.random() * 0.4 : 1;
+  const typeMultiplier = filters.memberTypeIds?.length ? 0.6 + Math.random() * 0.3 : 1;
+  
+  const coaches = filteredCoaches.map(c => {
+    const multiplier = monthMultiplier * typeMultiplier;
+    return {
+      coach_id: c.coach_id,
+      name: c.name,
+      level: c.level,
+      store: c.store,
+      weekly_hours: parseFloat((c.base_hours * multiplier).toFixed(1)),
+      student_count: Math.floor(c.base_students * multiplier),
+      pt_conversion: parseFloat((0.15 + Math.random() * 0.4).toFixed(3)),
+      retention_rate: parseFloat((0.45 + Math.random() * 0.45).toFixed(3))
+    };
+  });
+  
+  const warnings: string[] = [];
+  if (coaches.length < 3) {
+    warnings.push(`样本量不足（当前${coaches.length}位教练，建议不少于3位）`);
+  }
+  
+  return {
+    coaches,
+    warnings
+  };
 };
 
-export const mockChurnWarning: ChurnWarningResponse = {
-  high_risk_count: 12,
-  medium_risk_count: 28,
-  low_risk_count: 45,
-  members: [
-    {
-      member_id: 1001,
-      name: "王伟",
-      member_type: "年卡",
-      store: "朝阳旗舰店",
-      join_date: "2024-01-15",
-      last_checkin: "2024-05-20",
-      days_inactive: 35,
-      avg_weekly_freq: 2.8,
-      risk_level: "高风险"
-    },
-    {
-      member_id: 1045,
-      name: "李娜",
-      member_type: "私教会员",
-      store: "海淀分店",
-      join_date: "2024-02-20",
-      last_checkin: "2024-05-25",
-      days_inactive: 30,
-      avg_weekly_freq: 3.2,
-      risk_level: "高风险"
-    },
-    {
-      member_id: 1089,
-      name: "张强",
-      member_type: "季卡",
-      store: "浦东分店",
-      join_date: "2024-03-10",
-      last_checkin: "2024-05-28",
-      days_inactive: 27,
-      avg_weekly_freq: 2.1,
-      risk_level: "高风险"
-    },
-    {
-      member_id: 1123,
-      name: "刘芳",
-      member_type: "年卡",
-      store: "朝阳旗舰店",
-      join_date: "2024-01-08",
-      last_checkin: "2024-06-02",
-      days_inactive: 22,
-      avg_weekly_freq: 1.8,
-      risk_level: "中风险"
-    },
-    {
-      member_id: 1156,
-      name: "陈明",
-      member_type: "月卡",
-      store: "海淀分店",
-      join_date: "2024-04-01",
-      last_checkin: "2024-06-05",
-      days_inactive: 19,
-      avg_weekly_freq: 1.5,
-      risk_level: "中风险"
-    },
-    {
-      member_id: 1189,
-      name: "杨丽",
-      member_type: "季卡",
-      store: "浦东分店",
-      join_date: "2024-03-15",
-      last_checkin: "2024-06-08",
-      days_inactive: 16,
-      avg_weekly_freq: 1.2,
-      risk_level: "中风险"
-    },
-    {
-      member_id: 1201,
-      name: "赵磊",
-      member_type: "月卡",
-      store: "朝阳旗舰店",
-      join_date: "2024-05-01",
-      last_checkin: "2024-06-10",
-      days_inactive: 14,
-      avg_weekly_freq: 0.8,
-      risk_level: "低风险"
-    },
-    {
-      member_id: 1234,
-      name: "黄敏",
-      member_type: "年卡",
-      store: "海淀分店",
-      join_date: "2024-02-10",
-      last_checkin: "2024-06-12",
-      days_inactive: 12,
-      avg_weekly_freq: 2.5,
-      risk_level: "低风险"
-    },
-  ],
-  warnings: []
+export const generateMockChurnWarning = (filters: FilterState, limit: number = 100): ChurnWarningResponse => {
+  const baseMembers = [
+    { member_id: 1001, name: "王伟", member_type: "年卡", store: "朝阳旗舰店", join_date: "2024-01-15", last_checkin: "2024-05-20", days_inactive: 35, avg_weekly_freq: 2.8, risk_level: "高风险" as const },
+    { member_id: 1045, name: "李娜", member_type: "私教会员", store: "海淀分店", join_date: "2024-02-20", last_checkin: "2024-05-25", days_inactive: 30, avg_weekly_freq: 3.2, risk_level: "高风险" as const },
+    { member_id: 1089, name: "张强", member_type: "季卡", store: "浦东分店", join_date: "2024-03-10", last_checkin: "2024-05-28", days_inactive: 27, avg_weekly_freq: 2.1, risk_level: "高风险" as const },
+    { member_id: 1123, name: "刘芳", member_type: "年卡", store: "朝阳旗舰店", join_date: "2024-01-08", last_checkin: "2024-06-02", days_inactive: 22, avg_weekly_freq: 1.8, risk_level: "中风险" as const },
+    { member_id: 1156, name: "陈明", member_type: "月卡", store: "海淀分店", join_date: "2024-04-01", last_checkin: "2024-06-05", days_inactive: 19, avg_weekly_freq: 1.5, risk_level: "中风险" as const },
+    { member_id: 1189, name: "杨丽", member_type: "季卡", store: "浦东分店", join_date: "2024-03-15", last_checkin: "2024-06-08", days_inactive: 16, avg_weekly_freq: 1.2, risk_level: "中风险" as const },
+    { member_id: 1201, name: "赵磊", member_type: "月卡", store: "朝阳旗舰店", join_date: "2024-05-01", last_checkin: "2024-06-10", days_inactive: 14, avg_weekly_freq: 0.8, risk_level: "低风险" as const },
+    { member_id: 1234, name: "黄敏", member_type: "年卡", store: "海淀分店", join_date: "2024-02-10", last_checkin: "2024-06-12", days_inactive: 12, avg_weekly_freq: 2.5, risk_level: "低风险" as const },
+    { member_id: 1267, name: "周杰", member_type: "私教会员", store: "浦东分店", join_date: "2024-01-20", last_checkin: "2024-06-13", days_inactive: 11, avg_weekly_freq: 3.0, risk_level: "低风险" as const },
+    { member_id: 1290, name: "吴婷", member_type: "季卡", store: "朝阳旗舰店", join_date: "2024-03-05", last_checkin: "2024-06-14", days_inactive: 10, avg_weekly_freq: 1.9, risk_level: "低风险" as const },
+  ];
+  
+  let filteredMembers = [...baseMembers];
+  
+  if (filters.storeIds?.length) {
+    const storeNames = mockFilterOptions.stores.filter(s => filters.storeIds!.includes(s.id)).map(s => s.name);
+    filteredMembers = filteredMembers.filter(m => storeNames.includes(m.store));
+  }
+  
+  if (filters.memberTypeIds?.length) {
+    const typeNames = mockFilterOptions.memberTypes.filter(t => filters.memberTypeIds!.includes(t.id)).map(t => t.name);
+    filteredMembers = filteredMembers.filter(m => typeNames.includes(m.member_type));
+  }
+  
+  const highRisk = filteredMembers.filter(m => m.risk_level === "高风险");
+  const mediumRisk = filteredMembers.filter(m => m.risk_level === "中风险");
+  const lowRisk = filteredMembers.filter(m => m.risk_level === "低风险");
+  
+  const warnings: string[] = [];
+  if (filteredMembers.length < 10) {
+    warnings.push(`样本量不足（当前${filteredMembers.length}人，建议不少于10人）`);
+  }
+  
+  return {
+    high_risk_count: highRisk.length,
+    medium_risk_count: mediumRisk.length,
+    low_risk_count: lowRisk.length,
+    members: filteredMembers.slice(0, limit),
+    warnings
+  };
 };

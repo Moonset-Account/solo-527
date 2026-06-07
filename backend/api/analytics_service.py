@@ -2,11 +2,17 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, case
 from typing import List, Dict, Optional, Tuple
-from backend.db.models import Member, Checkin, Booking, Coach, Course, Store, \
-    MemberType, Suspension, PTPurchase, Feedback, BodyMeasurement
-from backend.cache.redis_cache import cache
+
+try:
+    from backend.db.models import Member, Checkin, Booking, Coach, Course, Store, \
+        MemberType, Suspension, PTPurchase, Feedback, BodyMeasurement
+    from backend.cache.redis_cache import cache
+except ImportError:
+    from db.models import Member, Checkin, Booking, Coach, Course, Store, \
+        MemberType, Suspension, PTPurchase, Feedback, BodyMeasurement
+    from cache.redis_cache import cache
 
 MIN_SAMPLE_SIZE = 30
 
@@ -57,6 +63,23 @@ class AnalyticsService:
             if start <= check_date <= end:
                 return True
         return False
+    
+    def _apply_month_filter(self, query, date_column, filters: Dict):
+        if filters.get('month'):
+            try:
+                year, month = map(int, filters['month'].split('-'))
+                start_date = datetime(year, month, 1).date()
+                if month == 12:
+                    end_date = datetime(year + 1, 1, 1).date()
+                else:
+                    end_date = datetime(year, month + 1, 1).date()
+                query = query.filter(
+                    date_column >= start_date,
+                    date_column < end_date
+                )
+            except (ValueError, AttributeError):
+                pass
+        return query
     
     def get_anomaly_summary(self, filters: Dict) -> Dict:
         cache_key = cache.generate_key("anomaly_summary", **filters)
@@ -267,9 +290,9 @@ class AnalyticsService:
             Course.category,
             Course.capacity,
             func.count(Booking.id).label('total_bookings'),
-            func.sum(func.case((Booking.status == 'checked_in', 1), else_=0)).label('checked_in'),
-            func.sum(func.case((Booking.status == 'cancelled', 1), else_=0)).label('cancelled')
-        ).join(Booking, Course.id == Booking.course_id, isouter=True)
+            func.sum(case((Booking.status == 'checked_in', 1), else_=0)).label('checked_in'),
+            func.sum(case((Booking.status == 'cancelled', 1), else_=0)).label('cancelled')
+        ).select_from(Course).join(Booking, Course.id == Booking.course_id, isouter=True)
         
         if filters.get('course_ids'):
             query = query.filter(Course.id.in_(filters['course_ids']))
