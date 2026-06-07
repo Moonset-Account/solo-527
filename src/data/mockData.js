@@ -256,6 +256,31 @@ const generateEquipmentUsage = (weatherRecords) => {
   return usage
 }
 
+const generateCheckins = (registrations) => {
+  const checkins = []
+  let id = 1
+  
+  registrations.filter(r => r.checkinCount > 0).forEach(reg => {
+    const checkinDate = reg.registerDate
+    const isMinor = reg.ageGroupId !== '18+'
+    
+    checkins.push({
+      id: `chk-${id++}`,
+      registrationId: reg.id,
+      sessionId: reg.sessionId,
+      projectId: reg.projectId,
+      coachId: reg.coachId,
+      ageGroupId: reg.ageGroupId,
+      checkinDate,
+      checkinTime: `${randomInt(8, 10)}:${String(randomInt(0, 59)).padStart(2, '0')}`,
+      isMinor,
+      status: 'checked_in'
+    })
+  })
+  
+  return checkins
+}
+
 let cachedMockData = null
 
 export const mockData = {
@@ -271,6 +296,9 @@ export const mockData = {
   get weatherRecords() {
     return this.getData().weatherRecords
   },
+  get checkins() {
+    return this.getData().checkins
+  },
   getData() {
     if (!cachedMockData) {
       try {
@@ -278,10 +306,11 @@ export const mockData = {
         const registrations = generateRegistrations(weatherRecords)
         const incidents = generateIncidents(weatherRecords)
         const equipmentUsage = generateEquipmentUsage(weatherRecords)
-        cachedMockData = { registrations, incidents, equipmentUsage, weatherRecords }
+        const checkins = generateCheckins(registrations)
+        cachedMockData = { registrations, incidents, equipmentUsage, weatherRecords, checkins }
       } catch (error) {
         console.error('Failed to generate mock data:', error)
-        cachedMockData = { registrations: [], incidents: [], equipmentUsage: [], weatherRecords: [] }
+        cachedMockData = { registrations: [], incidents: [], equipmentUsage: [], weatherRecords: [], checkins: [] }
       }
     }
     return cachedMockData

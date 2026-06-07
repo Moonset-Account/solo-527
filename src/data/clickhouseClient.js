@@ -98,12 +98,8 @@ class ClickHouseClient {
       cancelByReason: `
         SELECT
             r.cancelReasonId,
-            count() as count,
-            groupArray(DISTINCT r.weatherId) as weatherIds
+            count() as count
         FROM ${TABLES.REGISTRATIONS} r
-        LEFT JOIN ${TABLES.WEATHER} w 
-            ON r.sessionId = w.sessionId 
-            AND r.registerDate = w.date
         LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
         ${whereClause ? whereClause + ' AND' : 'WHERE'} r.cancelled = 1 
             AND r.cancelReasonId IS NOT NULL
@@ -152,8 +148,7 @@ class ClickHouseClient {
             count() as total,
             sum(if(i.level = 'minor', 1, 0)) as minor,
             sum(if(i.level = 'medical', 1, 0)) as medical,
-            sum(if(i.level = 'suspend', 1, 0)) as suspend,
-            groupArray(DISTINCT i.coachId) as coachIds
+            sum(if(i.level = 'suspend', 1, 0)) as suspend
         FROM ${TABLES.INCIDENTS} i
         LEFT JOIN ${TABLES.WEATHER} w 
             ON i.sessionId = w.sessionId 
@@ -171,10 +166,8 @@ class ClickHouseClient {
             sum(e.useCount) as useCount,
             sum(e.damageCount) as damageCount,
             sum(e.lossCount) as lossCount,
-            sum(e.totalWear) as totalWear,
-            groupArray(DISTINCT e.coachId) as coachIds
+            sum(e.totalWear) as totalWear
         FROM ${TABLES.EQUIPMENT_USAGE} e
-        LEFT JOIN ${TABLES.COACHES} co ON e.coachId = co.id
         ${whereClauseEquip}
         GROUP BY e.projectId, e.equipmentId
         ORDER BY totalWear DESC
@@ -187,8 +180,7 @@ class ClickHouseClient {
             sum(r.confirmCount) as confirmCount,
             count(DISTINCT c.registrationId) as checkinCount,
             sum(r.completeCount) as completeCount,
-            sum(r.cancelled) as cancelCount,
-            groupArray(DISTINCT r.coachId) as coachIds
+            sum(r.cancelled) as cancelCount
         FROM ${TABLES.REGISTRATIONS} r
         LEFT JOIN ${TABLES.CHECKINS} c 
             ON r.id = c.registrationId 
@@ -561,6 +553,8 @@ class ClickHouseClient {
     const ageStats = {}
     const minorAggregate = { registerCount: 0, confirmCount: 0, checkinCount: 0, completeCount: 0, cancelCount: 0, groupCount: 0 }
     
+    const checkinRegIds = new Set(filteredCheckins.map(c => c.registrationId))
+    
     filteredRegs.forEach(r => {
       const ageId = r.ageGroupId
       const ageGroup = AGE_GROUPS.find(a => a.id === ageId)
@@ -578,9 +572,11 @@ class ClickHouseClient {
       }
       ageStats[ageId].registerCount += r.registerCount
       ageStats[ageId].confirmCount += r.confirmCount
-      ageStats[ageId].checkinCount += r.checkinCount
       ageStats[ageId].completeCount += r.completeCount
       ageStats[ageId].cancelCount += r.cancelled
+      if (checkinRegIds.has(r.id)) {
+        ageStats[ageId].checkinCount += 1
+      }
     })
     
     Object.values(ageStats).forEach(s => {
