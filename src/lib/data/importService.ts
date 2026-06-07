@@ -51,6 +51,7 @@ export async function importTemperatureData(
 		try {
 			const record: Partial<TemperatureRecord> = {};
 
+			record.id = `temp_${Date.now()}_${i}`;
 			record.shipmentId = String(row[reversedMapping.shipmentId] || '').trim();
 			if (!record.shipmentId) {
 				errors.push('运单ID不能为空');
@@ -79,6 +80,13 @@ export async function importTemperatureData(
 				}
 			} else {
 				errors.push('温度值不能为空');
+			}
+
+			if (reversedMapping.humidity && row[reversedMapping.humidity] !== undefined) {
+				const hum = parseFloat(row[reversedMapping.humidity]);
+				if (!isNaN(hum)) {
+					record.humidity = hum;
+				}
 			}
 
 			if (reversedMapping.latitude && row[reversedMapping.latitude] !== undefined) {
@@ -122,7 +130,12 @@ export async function importTemperatureData(
 				result.filledMissing++;
 			}
 
-			record.probeCalibrationDate = new Date().toISOString().split('T')[0];
+			if (reversedMapping.probeCalibrationDate && row[reversedMapping.probeCalibrationDate]) {
+				record.probeCalibrationDate = new Date(row[reversedMapping.probeCalibrationDate]);
+			}
+
+			record.calibrationDeviation = 0;
+			record.createdAt = new Date();
 
 			if (errors.length === 0) {
 				newRecords.push(record as TemperatureRecord);

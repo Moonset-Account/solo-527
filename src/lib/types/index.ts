@@ -60,10 +60,14 @@ export interface Shipment {
 export interface TemperatureRecord {
 	id: string;
 	shipmentId: string;
+	batchNo: string;
 	probeId: string;
 	timestamp: Date;
 	temperature: number;
 	humidity?: number;
+	latitude?: number;
+	longitude?: number;
+	doorOpen?: boolean;
 	probeCalibrated: boolean;
 	probeCalibrationDate?: Date;
 	calibrationDeviation: number;
@@ -90,9 +94,17 @@ export interface DoorEvent {
 	createdAt: Date;
 }
 
+export interface AnomalyAnnotation {
+	id: string;
+	text: string;
+	createdAt: string;
+	createdBy: string;
+}
+
 export interface AnomalyRecord {
 	id: string;
 	shipmentId: string;
+	batchNo: string;
 	startTime: Date;
 	endTime: Date;
 	durationMinutes: number;
@@ -100,7 +112,12 @@ export interface AnomalyRecord {
 	severity: 'low' | 'medium' | 'high' | 'critical';
 	responsibleParty: 'carrier' | 'warehouse' | 'customer' | 'equipment' | 'unknown';
 	status: 'pending' | 'confirmed' | 'resolved';
+	resolved: boolean;
+	resolvedAt?: string;
+	probeCalibrated: boolean;
+	description: string;
 	annotation?: string;
+	annotations?: AnomalyAnnotation[];
 	createdAt: Date;
 }
 

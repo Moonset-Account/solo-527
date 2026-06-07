@@ -283,14 +283,7 @@ export function generateMockData(): {
 		});
 
 		const probe = randomFromArray(probes.filter((p) => p.isActive));
-		const tempRecords = generateTemperatureRecords(
-			shipmentId,
-			probe,
-			departureTime,
-			arrivalTime,
-			hasAnomaly
-		);
-		temperatureRecords.push(...tempRecords);
+		const batchNo = `BATCH-${202406}${String(i + 1).padStart(4, '0')}`;
 
 		const locRecords = generateLocationRecords(shipmentId, route, departureTime, arrivalTime);
 		locationRecords.push(...locRecords);
@@ -298,9 +291,22 @@ export function generateMockData(): {
 		const events = generateDoorEvents(shipmentId, departureTime, arrivalTime);
 		doorEvents.push(...events);
 
+		const tempRecords = generateTemperatureRecords(
+			shipmentId,
+			batchNo,
+			probe,
+			departureTime,
+			arrivalTime,
+			hasAnomaly,
+			locRecords,
+			events
+		);
+		temperatureRecords.push(...tempRecords);
+
 		if (hasAnomaly) {
 			const anomalies = generateAnomalyRecords(
 				shipmentId,
+				`BATCH-${202406}${String(i + 1).padStart(4, '0')}`,
 				departureTime,
 				arrivalTime,
 				tempRecords
@@ -527,10 +533,13 @@ export function generateMockData(): {
 
 function generateTemperatureRecords(
 	shipmentId: string,
+	batchNo: string,
 	probe: Probe,
 	startTime: Date,
 	endTime: Date,
-	hasAnomaly: boolean
+	hasAnomaly: boolean,
+	locationRecords: LocationRecord[],
+	doorEvents: DoorEvent[]
 ): TemperatureRecord[] {
 	const records: TemperatureRecord[] = [];
 	const intervalMs = 5 * 60 * 1000;
@@ -557,13 +566,34 @@ function generateTemperatureRecords(
 
 		const isCalibrated = !!(probe.lastCalibrationDate && probe.calibrationDeviation <= 0.5);
 
+		const nearestLocation = locationRecords.reduce((nearest, loc) => {
+			const diff = Math.abs(loc.timestamp.getTime() - currentTime.getTime());
+			const nearestDiff = Math.abs(nearest.timestamp.getTime() - currentTime.getTime());
+			return diff < nearestDiff ? loc : nearest;
+		}, locationRecords[0]);
+
+		const isDoorOpen = doorEvents.some((event) => {
+			if (event.eventType !== 'open') return false;
+			const closeEvent = doorEvents.find(
+				(e) => e.eventType === 'close' && e.timestamp.getTime() > event.timestamp.getTime()
+			);
+			return (
+				currentTime.getTime() >= event.timestamp.getTime() &&
+				(!closeEvent || currentTime.getTime() <= closeEvent.timestamp.getTime())
+			);
+		});
+
 		records.push({
 			id: `${shipmentId}-t${String(idCounter++).padStart(5, '0')}`,
 			shipmentId,
+			batchNo,
 			probeId: probe.id,
 			timestamp: new Date(currentTime),
 			temperature: Math.round(temp * 10) / 10,
 			humidity: Math.round(randomBetween(40, 70) * 10) / 10,
+			latitude: nearestLocation?.latitude,
+			longitude: nearestLocation?.longitude,
+			doorOpen: isDoorOpen,
 			probeCalibrated: isCalibrated,
 			probeCalibrationDate: probe.lastCalibrationDate,
 			calibrationDeviation: probe.calibrationDeviation,
@@ -653,6 +683,7 @@ function generateDoorEvents(shipmentId: string, startTime: Date, endTime: Date):
 
 function generateAnomalyRecords(
 	shipmentId: string,
+	batchNo: string,
 	startTime: Date,
 	endTime: Date,
 	tempRecords: TemperatureRecord[]
@@ -662,12 +693,13 @@ function generateAnomalyRecords(
 		type: 'over_temp' | 'under_temp' | 'door_open' | 'probe_error' | 'delay';
 		severity: 'low' | 'medium' | 'high' | 'critical';
 		party: 'carrier' | 'warehouse' | 'customer' | 'equipment' | 'unknown';
+		description: string;
 	}> = [
-		{ type: 'over_temp', severity: 'high', party: 'carrier' },
-		{ type: 'door_open', severity: 'medium', party: 'warehouse' },
-		{ type: 'under_temp', severity: 'medium', party: 'equipment' },
-		{ type: 'probe_error', severity: 'low', party: 'equipment' },
-		{ type: 'delay', severity: 'medium', party: 'carrier' }
+		{ type: 'over_temp', severity: 'high', party: 'carrier', description: '运输过程中箱内温度超过上限阈值' },
+		{ type: 'door_open', severity: 'medium', party: 'warehouse', description: '装卸货过程中箱门开启时间过长' },
+		{ type: 'under_temp', severity: 'medium', party: 'equipment', description: '制冷设备故障导致温度过低' },
+		{ type: 'probe_error', severity: 'low', party: 'equipment', description: '温度探头数据异常' },
+		{ type: 'delay', severity: 'medium', party: 'carrier', description: '运输时间超过计划时长' }
 	];
 
 	const selected = randomFromArray(anomalyTypes);
@@ -676,24 +708,32 @@ function generateAnomalyRecords(
 	const anomalyStart = new Date(startTime.getTime() + startOffset);
 	const anomalyEnd = new Date(anomalyStart.getTime() + duration * 60 * 1000);
 
+	const uncalibratedProbe = tempRecords.some((r) => !r.probeCalibrated);
+	const hasResolved = Math.random() > 0.5;
+
 	anomalies.push({
 		id: `${shipmentId}-a001`,
 		shipmentId,
+		batchNo,
 		startTime: anomalyStart,
 		endTime: anomalyEnd,
 		durationMinutes: Math.round(duration),
 		anomalyType: selected.type,
 		severity: selected.severity,
 		responsibleParty: selected.party,
-		status: 'pending',
+		status: hasResolved ? 'resolved' : 'pending',
+		resolved: hasResolved,
+		resolvedAt: hasResolved ? new Date(anomalyEnd.getTime() + 3600000).toISOString() : undefined,
+		probeCalibrated: !uncalibratedProbe,
+		description: selected.description,
 		createdAt: anomalyEnd
 	});
 
-	const uncalibratedProbe = tempRecords.some((r) => !r.probeCalibrated);
 	if (uncalibratedProbe && Math.random() > 0.5) {
 		anomalies.push({
 			id: `${shipmentId}-a002`,
 			shipmentId,
+			batchNo,
 			startTime: startTime,
 			endTime: endTime,
 			durationMinutes: Math.round(
@@ -703,6 +743,9 @@ function generateAnomalyRecords(
 			severity: 'low',
 			responsibleParty: 'equipment',
 			status: 'pending',
+			resolved: false,
+			probeCalibrated: false,
+			description: '温度探头校准过期，数据仅供参考',
 			annotation: '温度探头校准过期，数据仅供参考',
 			createdAt: endTime
 		});
