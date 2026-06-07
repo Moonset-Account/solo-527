@@ -89,7 +89,9 @@ def create_route_map(temp_df: pd.DataFrame, selected_batch: Optional[str] = None
 
 def create_temperature_curve(temp_df: pd.DataFrame, 
                               shipment_df: pd.DataFrame,
-                              selected_batch: Optional[str] = None) -> go.Figure:
+                              anomaly_df: Optional[pd.DataFrame] = None,
+                              selected_batch: Optional[str] = None,
+                              highlight_anomaly_id: Optional[str] = None) -> go.Figure:
     if temp_df.empty:
         fig = go.Figure()
         fig.update_layout(title="温度曲线 - 无数据", template="plotly_white")
@@ -150,6 +152,30 @@ def create_temperature_curve(temp_df: pd.DataFrame,
                 annotation_position='top right'
             )
     
+    if anomaly_df is not None and not anomaly_df.empty:
+        plot_anomalies = anomaly_df.copy()
+        if selected_batch and selected_batch != 'ALL':
+            plot_anomalies = plot_anomalies[plot_anomalies['batch_id'] == selected_batch]
+        
+        for _, anomaly in plot_anomalies.iterrows():
+            is_highlight = (highlight_anomaly_id and anomaly['anomaly_id'] == highlight_anomaly_id)
+            fill_color = 'rgba(231, 76, 60, 0.3)' if is_highlight else 'rgba(231, 76, 60, 0.15)'
+            border_width = 2 if is_highlight else 0
+            
+            fig.add_vrect(
+                x0=anomaly['start_time'],
+                x1=anomaly['end_time'],
+                fillcolor=fill_color,
+                line=dict(color='#e74c3c', width=border_width),
+                layer='below',
+                annotation_text=f"{anomaly['anomaly_type']}<br>{anomaly['severity']}危",
+                annotation_position='top left',
+                annotation=dict(
+                    font=dict(size=10, color='white' if is_highlight else '#7f8c8d'),
+                    bgcolor='#e74c3c' if is_highlight else None
+                )
+            )
+    
     door_open_points = plot_df[plot_df['door_open']]
     if not door_open_points.empty:
         fig.add_trace(go.Scatter(
@@ -172,7 +198,7 @@ def create_temperature_curve(temp_df: pd.DataFrame,
     
     fig.update_layout(
         title=dict(
-            text="🌡️ 箱内温度变化曲线",
+            text="🌡️ 箱内温度变化曲线 (红色区域为异常时间段)",
             font=dict(size=16, color='#2c3e50')
         ),
         xaxis_title="时间",

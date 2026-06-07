@@ -539,7 +539,6 @@ def apply_filters(data: Dict[str, pd.DataFrame],
     
     result = {k: v.copy() for k, v in data.items()}
     
-    temp_df = result['temperature_records']
     shipment_df = result['shipment_info']
     
     filter_mask = pd.Series(True, index=shipment_df.index)
@@ -560,21 +559,60 @@ def apply_filters(data: Dict[str, pd.DataFrame],
     
     if date_range:
         start_date, end_date = date_range
-        if 'timestamp' in temp_df.columns:
-            temp_mask = (temp_df['timestamp'] >= start_date) & (temp_df['timestamp'] <= end_date)
-            temp_df = temp_df[temp_mask]
+        
+        shipment_time_mask = pd.Series(True, index=filtered_shipment.index)
+        if 'departure_time' in filtered_shipment.columns and 'arrival_time' in filtered_shipment.columns:
+            shipment_time_mask = (
+                (filtered_shipment['departure_time'] <= end_date) & 
+                (filtered_shipment['arrival_time'] >= start_date)
+            )
+        filtered_shipment = filtered_shipment[shipment_time_mask]
+        filtered_batch_ids = filtered_shipment['batch_id'].unique()
+        
+        if 'temperature_records' in result:
+            temp_df = result['temperature_records']
+            if 'timestamp' in temp_df.columns:
+                temp_mask = (temp_df['timestamp'] >= start_date) & (temp_df['timestamp'] <= end_date)
+                result['temperature_records'] = temp_df[temp_mask & temp_df['batch_id'].isin(filtered_batch_ids)]
+        
+        if 'door_events' in result:
+            door_df = result['door_events']
+            if 'door_open_time' in door_df.columns and 'door_close_time' in door_df.columns:
+                door_mask = (
+                    (door_df['door_open_time'] <= end_date) & 
+                    (door_df['door_close_time'] >= start_date)
+                )
+                result['door_events'] = door_df[door_mask & door_df['batch_id'].isin(filtered_batch_ids)]
+            elif 'door_open_time' in door_df.columns:
+                door_mask = (door_df['door_open_time'] >= start_date) & (door_df['door_open_time'] <= end_date)
+                result['door_events'] = door_df[door_mask & door_df['batch_id'].isin(filtered_batch_ids)]
+        
+        if 'anomaly_records' in result:
+            anomaly_df = result['anomaly_records']
+            if 'start_time' in anomaly_df.columns and 'end_time' in anomaly_df.columns:
+                anomaly_mask = (
+                    (anomaly_df['start_time'] <= end_date) & 
+                    (anomaly_df['end_time'] >= start_date)
+                )
+                result['anomaly_records'] = anomaly_df[anomaly_mask & anomaly_df['batch_id'].isin(filtered_batch_ids)]
+            elif 'start_time' in anomaly_df.columns:
+                anomaly_mask = (anomaly_df['start_time'] >= start_date) & (anomaly_df['start_time'] <= end_date)
+                result['anomaly_records'] = anomaly_df[anomaly_mask & anomaly_df['batch_id'].isin(filtered_batch_ids)]
+    else:
+        if 'temperature_records' in result:
+            result['temperature_records'] = result['temperature_records'][
+                result['temperature_records']['batch_id'].isin(filtered_batch_ids)
+            ]
+        if 'door_events' in result:
+            result['door_events'] = result['door_events'][
+                result['door_events']['batch_id'].isin(filtered_batch_ids)
+            ]
+        if 'anomaly_records' in result:
+            result['anomaly_records'] = result['anomaly_records'][
+                result['anomaly_records']['batch_id'].isin(filtered_batch_ids)
+            ]
     
     result['shipment_info'] = filtered_shipment
-    result['temperature_records'] = temp_df[temp_df['batch_id'].isin(filtered_batch_ids)]
-    
-    if 'door_events' in result:
-        result['door_events'] = result['door_events'][
-            result['door_events']['batch_id'].isin(filtered_batch_ids)
-        ]
-    if 'anomaly_records' in result:
-        result['anomaly_records'] = result['anomaly_records'][
-            result['anomaly_records']['batch_id'].isin(filtered_batch_ids)
-        ]
     
     return result
 
