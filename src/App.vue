@@ -73,6 +73,7 @@
           <FunnelChart
             :funnel-data="funnelData.funnelData"
             :cancel-by-reason="funnelData.cancelByReason"
+            :cancel-by-weather="funnelData.cancelByWeather"
             :total-cancelled="funnelData.totalCancelled"
             :cancel-rate="funnelData.cancelRate"
           />
@@ -97,6 +98,13 @@
             :matrix="equipmentData.matrix"
           />
         </div>
+
+        <div class="grid-item">
+          <WeatherAnalysis
+            :incident-by-weather="weatherAnalysis.incidentByWeather"
+            :cancel-by-weather="weatherAnalysis.cancelByWeather"
+          />
+        </div>
       </div>
     </main>
 
@@ -116,8 +124,9 @@ import FunnelChart from '@/components/FunnelChart.vue'
 import IncidentTimeline from '@/components/IncidentTimeline.vue'
 import EquipmentHeatmap from '@/components/EquipmentHeatmap.vue'
 import AgeGroupStats from '@/components/AgeGroupStats.vue'
+import WeatherAnalysis from '@/components/WeatherAnalysis.vue'
 import { useDashboardStore } from '@/store/useDashboardStore'
-import { getFunnelData, getIncidentTimeline, getEquipmentHeatmap, getAgeGroupStats, getExportData } from '@/data/queryService'
+import { getUnifiedDashboardData, getExportData } from '@/data/queryService'
 import { exportToExcel } from '@/utils/exportUtils'
 import { USER_ROLES } from '@/data/constants'
 
@@ -170,6 +179,13 @@ const ageStats = reactive({
   }
 })
 
+const weatherAnalysis = reactive({
+  incidentByWeather: {},
+  cancelByWeather: []
+})
+
+let unifiedDataSource = null
+
 const overviewStats = computed(() => {
   const totalRegister = funnelData.funnelData[0]?.count || 0
   const totalCheckin = funnelData.funnelData[2]?.count || 0
@@ -188,17 +204,14 @@ const loadAllData = async () => {
   setLoading(true)
   
   try {
-    const [funnel, incidents, equipment, ages] = await Promise.all([
-      getFunnelData(filters),
-      getIncidentTimeline(filters),
-      getEquipmentHeatmap(filters),
-      getAgeGroupStats(filters)
-    ])
+    const unifiedData = await getUnifiedDashboardData(filters)
+    unifiedDataSource = unifiedData
     
-    Object.assign(funnelData, funnel)
-    Object.assign(incidentData, incidents)
-    Object.assign(equipmentData, equipment)
-    Object.assign(ageStats, ages)
+    Object.assign(funnelData, unifiedData.funnel)
+    Object.assign(incidentData, unifiedData.incidents)
+    Object.assign(equipmentData, unifiedData.equipment)
+    Object.assign(ageStats, unifiedData.ageStats)
+    Object.assign(weatherAnalysis, unifiedData.weatherAnalysis || { incidentByWeather: {}, cancelByWeather: [] })
   } catch (error) {
     console.error('Failed to load data:', error)
   } finally {

@@ -1,14 +1,14 @@
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import dayjs from 'dayjs'
-import { INCIDENT_LEVELS, CAMP_SESSIONS, SPORTS_PROJECTS, COACHES } from '@/data/constants'
+import { INCIDENT_LEVELS, CAMP_SESSIONS, SPORTS_PROJECTS, COACHES, WEATHER_TYPES, CANCEL_REASONS } from '@/data/constants'
 
 const formatDate = (date) => dayjs(date).format('YYYY-MM-DD')
 
 const getLabel = (arr, id) => arr.find(item => item.id === id)?.name || id
 
 export const exportToExcel = async (exportData) => {
-  const { funnel, incidents, equipment, ageStats, exportTime, filters } = exportData
+  const { funnel, incidents, equipment, ageStats, weatherAnalysis, exportTime, filters } = exportData
   
   const wb = XLSX.utils.book_new()
   
@@ -50,7 +50,7 @@ export const exportToExcel = async (exportData) => {
   XLSX.utils.book_append_sheet(wb, funnelWs, '漏斗数据')
   
   const incidentSheetData = [
-    ['日期', '时间', '级别', '标题', '描述', '涉及未成年人', '涉及成年人', '是否有照片']
+    ['日期', '时间', '级别', '标题', '描述', '涉及未成年人', '涉及成年人', '是否有照片', '当时天气', '气温', '风力']
   ]
   incidents.timeline.forEach(day => {
     day.events.forEach(event => {
@@ -62,7 +62,10 @@ export const exportToExcel = async (exportData) => {
         event.description,
         event.minorCount,
         event.adultCount,
-        event.hasPhoto ? '是' : '否'
+        event.hasPhoto ? '是' : '否',
+        event.weather ? getLabel(WEATHER_TYPES, event.weather.weatherId) : '',
+        event.weather?.temperature || '',
+        event.weather?.windSpeed || ''
       ])
     })
   })
@@ -111,6 +114,39 @@ export const exportToExcel = async (exportData) => {
   })
   const ageWs = XLSX.utils.aoa_to_sheet(ageSheetData)
   XLSX.utils.book_append_sheet(wb, ageWs, '年龄段统计')
+  
+  if (weatherAnalysis) {
+    const weatherSheetData = [
+      ['天气与安全分析']
+    ]
+    weatherSheetData.push([])
+    weatherSheetData.push(['天气导致取消分布'])
+    weatherSheetData.push(['天气类型', '取消人数'])
+    if (weatherAnalysis.cancelByWeather) {
+      weatherAnalysis.cancelByWeather.forEach(item => {
+        weatherSheetData.push([
+          getLabel(WEATHER_TYPES, item.weatherId),
+          item.count
+        ])
+      })
+    }
+    weatherSheetData.push([])
+    weatherSheetData.push(['天气与安全事件关联'])
+    weatherSheetData.push(['天气类型', '总事件数', '轻微', '医疗介入', '停课'])
+    if (weatherAnalysis.incidentByWeather) {
+      Object.entries(weatherAnalysis.incidentByWeather).forEach(([weatherId, data]) => {
+        weatherSheetData.push([
+          getLabel(WEATHER_TYPES, weatherId),
+          data.total,
+          data.minor,
+          data.medical,
+          data.suspend
+        ])
+      })
+    }
+    const weatherWs = XLSX.utils.aoa_to_sheet(weatherSheetData)
+    XLSX.utils.book_append_sheet(wb, weatherWs, '天气分析')
+  }
   
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
   const data = new Blob([excelBuffer], { type: 'application/octet-stream' })

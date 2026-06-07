@@ -16,18 +16,34 @@
         <h4>取消原因分布</h4>
         <div class="reason-list">
           <div
-            v-for="reason in cancelByReason"
+            v-for="reason in displayCancelReasons"
             :key="reason.reasonId"
             class="reason-item"
           >
-            <span class="reason-name">{{ reason.reason }}</span>
+            <span class="reason-name">{{ reason.reasonName }}</span>
             <div class="reason-bar">
               <div
                 class="reason-fill"
+                :class="{ 'weather-fill': reason.isWeather }"
                 :style="{ width: getReasonBarWidth(reason.count) + '%' }"
               ></div>
             </div>
             <span class="reason-count">{{ reason.count }}</span>
+          </div>
+        </div>
+
+        <div v-if="displayWeatherCancels.length > 0" class="weather-reasons">
+          <h4>天气原因细分</h4>
+          <div class="weather-list">
+            <div
+              v-for="weather in displayWeatherCancels"
+              :key="weather.weatherId"
+              class="weather-item"
+            >
+              <span class="weather-icon">{{ getWeatherIcon(weather.weatherId) }}</span>
+              <span class="weather-name">{{ getWeatherName(weather.weatherId) }}</span>
+              <span class="weather-count">{{ weather.count }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -38,6 +54,7 @@
 <script setup>
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import * as d3 from 'd3'
+import { CANCEL_REASONS, WEATHER_TYPES } from '@/data/constants'
 
 const props = defineProps({
   funnelData: {
@@ -45,6 +62,10 @@ const props = defineProps({
     default: () => []
   },
   cancelByReason: {
+    type: Array,
+    default: () => []
+  },
+  cancelByWeather: {
     type: Array,
     default: () => []
   },
@@ -59,13 +80,40 @@ const props = defineProps({
 })
 
 const funnelRef = ref(null)
+
+const displayCancelReasons = computed(() => {
+  return props.cancelByReason.map(item => {
+    const reason = CANCEL_REASONS.find(r => r.id === item.reasonId)
+    return {
+      reasonId: item.reasonId,
+      reasonName: reason?.name || item.reasonId,
+      count: item.count,
+      isWeather: item.reasonId === 'weather'
+    }
+  }).sort((a, b) => b.count - a.count)
+})
+
+const displayWeatherCancels = computed(() => {
+  return props.cancelByWeather || []
+})
+
 const maxCancelCount = computed(() => {
-  if (props.cancelByReason.length === 0) return 1
-  return Math.max(...props.cancelByReason.map(r => r.count))
+  if (displayCancelReasons.value.length === 0) return 1
+  return Math.max(...displayCancelReasons.value.map(r => r.count))
 })
 
 const getReasonBarWidth = (count) => {
   return (count / maxCancelCount.value) * 100
+}
+
+const getWeatherIcon = (weatherId) => {
+  const weather = WEATHER_TYPES.find(w => w.id === weatherId)
+  return weather?.icon || '🌤️'
+}
+
+const getWeatherName = (weatherId) => {
+  const weather = WEATHER_TYPES.find(w => w.id === weatherId)
+  return weather?.name || weatherId
 }
 
 const drawFunnel = () => {
@@ -267,6 +315,10 @@ watch(
     background: linear-gradient(90deg, #faad14, #f5222d);
     border-radius: 8px;
     transition: width 0.3s ease;
+
+    &.weather-fill {
+      background: linear-gradient(90deg, #1890ff, #722ed1);
+    }
   }
 
   .reason-count {
@@ -276,6 +328,49 @@ watch(
     color: #303133;
     font-weight: 500;
     flex-shrink: 0;
+  }
+}
+
+.weather-reasons {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #303133;
+  }
+}
+
+.weather-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weather-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f0f5ff;
+  border-radius: 6px;
+
+  .weather-icon {
+    font-size: 16px;
+  }
+
+  .weather-name {
+    flex: 1;
+    font-size: 12px;
+    color: #606266;
+  }
+
+  .weather-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1890ff;
   }
 }
 </style>

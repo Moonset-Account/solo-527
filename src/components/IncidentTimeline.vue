@@ -55,6 +55,10 @@
                   <div class="event-title">{{ event.title }}</div>
                   <div class="event-desc">{{ event.description }}</div>
                   <div class="event-meta">
+                    <span v-if="event.weather" class="meta-item weather-badge">
+                      <span class="weather-icon">{{ getWeatherIcon(event.weather.weatherId) }}</span>
+                      {{ getWeatherName(event.weather.weatherId) }}
+                    </span>
                     <span v-if="event.minorCount > 0" class="meta-item minor-badge">
                       <el-icon><User /></el-icon>
                       未成年人 {{ event.minorCount }} 人
@@ -101,6 +105,15 @@
           <label>涉及人员：</label>
           <span>未成年人 {{ currentEvent.minorCount }} 人，成年人 {{ currentEvent.adultCount }} 人</span>
         </div>
+        <div v-if="currentEvent.weather" class="detail-row">
+          <label>当时天气：</label>
+          <span class="weather-detail">
+            <span class="weather-icon">{{ getWeatherIcon(currentEvent.weather.weatherId) }}</span>
+            {{ getWeatherName(currentEvent.weather.weatherId) }}
+            <span v-if="currentEvent.weather.temperature">，{{ currentEvent.weather.temperature }}°C</span>
+            <span v-if="currentEvent.weather.windSpeed">，风力 {{ currentEvent.weather.windSpeed }} 级</span>
+          </span>
+        </div>
         <div v-if="canViewPhotos && currentEvent.hasPhoto" class="detail-row photo-row">
           <label>现场照片：</label>
           <div class="photo-placeholder">
@@ -122,7 +135,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { INCIDENT_LEVELS } from '@/data/constants'
+import { INCIDENT_LEVELS, WEATHER_TYPES } from '@/data/constants'
 import { useDashboardStore } from '@/store/useDashboardStore'
 
 const props = defineProps({
@@ -164,6 +177,16 @@ const getLevelTagType = (level) => {
     suspend: 'danger'
   }
   return map[level] || 'info'
+}
+
+const getWeatherIcon = (weatherId) => {
+  const weather = WEATHER_TYPES.find(w => w.id === weatherId)
+  return weather?.icon || '🌤️'
+}
+
+const getWeatherName = (weatherId) => {
+  const weather = WEATHER_TYPES.find(w => w.id === weatherId)
+  return weather?.name || weatherId
 }
 </script>
 
@@ -404,6 +427,17 @@ const getLevelTagType = (level) => {
         color: #f5222d;
       }
     }
+
+    &.weather-badge {
+      color: #1890ff;
+      background: #e6f7ff;
+      padding: 2px 8px;
+      border-radius: 10px;
+
+      .weather-icon {
+        font-size: 14px;
+      }
+    }
   }
 }
 
@@ -456,6 +490,16 @@ const getLevelTagType = (level) => {
     align-items: center;
     gap: 6px;
     color: #f5222d;
+  }
+
+  .weather-detail {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .weather-icon {
+      font-size: 18px;
+    }
   }
 }
 </style>
