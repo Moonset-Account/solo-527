@@ -7,12 +7,16 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from data_generator import generate_demo_data
+from data_generator import generate_demo_data, ThresholdConfig
 from compliance_engine import ComplianceCalculator
 from report_exporter import ReportExporter
+from database import get_database
 
 
-df_shipments, df_samples, default_threshold = generate_demo_data()
+db = get_database()
+df_shipments, df_samples = db.load_data()
+
+default_threshold = ThresholdConfig()
 
 calculator = ComplianceCalculator(
     min_temp=default_threshold.min_temp,
@@ -31,7 +35,12 @@ for r in compliance_results:
         df_cleaned_all.append(d)
 df_cleaned = pd.DataFrame(df_cleaned_all)
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+app = dash.Dash(
+    __name__, 
+    external_stylesheets=[dbc.themes.FLATLY],
+    assets_folder="static",
+    assets_url_path="/static"
+)
 app.title = "冷链疫苗温度合规分析平台"
 server = app.server
 
@@ -175,30 +184,10 @@ sidebar = dbc.Card([
 
 main_content = dbc.Col([
     dbc.Row([
-        dbc.Col(create_kpi_card(
-            "总运输批次",
-            f"{len(df_compliance)}",
-            "近60天数据",
-            "primary"
-        ), md=3),
-        dbc.Col(create_kpi_card(
-            "有效统计批次",
-            f"{df_compliance['is_valid_for_ranking'].sum()}",
-            f"样本≥{default_threshold.min_sample_count}次",
-            "success"
-        ), md=3),
-        dbc.Col(create_kpi_card(
-            "平均合规率",
-            f"{df_compliance[df_compliance['is_valid_for_ranking']]['compliance_rate'].mean():.1f}%",
-            "有效批次均值",
-            "info"
-        ), md=3),
-        dbc.Col(create_kpi_card(
-            "待复核批次",
-            f"{len(df_compliance) - df_compliance['is_valid_for_ranking'].sum()}",
-            "样本不足或申诉中",
-            "warning"
-        ), md=3)
+        dbc.Col(dbc.Card(id="kpi-total", className="h-100 shadow-sm"), md=3),
+        dbc.Col(dbc.Card(id="kpi-valid", className="h-100 shadow-sm"), md=3),
+        dbc.Col(dbc.Card(id="kpi-compliance", className="h-100 shadow-sm"), md=3),
+        dbc.Col(dbc.Card(id="kpi-pending", className="h-100 shadow-sm"), md=3)
     ], className="mb-4"),
     
     dbc.Row([
@@ -302,6 +291,10 @@ def update_threshold_preview(min_temp, max_temp):
 
 @app.callback(
     [
+        Output("kpi-total", "children"),
+        Output("kpi-valid", "children"),
+        Output("kpi-compliance", "children"),
+        Output("kpi-pending", "children"),
         Output("overtime-trend-chart", "figure"),
         Output("route-distribution-chart", "figure"),
         Output("station-comparison-chart", "figure"),
@@ -326,11 +319,30 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
                        routes, stations, statuses, n_clicks):
     
     global calculator, compliance_results, df_compliance, df_cleaned
+    global db, df_shipments, df_samples
     
     ctx = callback_context
     triggered = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else ""
     
-    if triggered in ["min-temp-input", "max-temp-input", "min-samples-input", "refresh-btn"]:
+    if triggered in ["min-temp-input", "max-temp-input", "min-samples-input"]:
+        calculator = ComplianceCalculator(
+            min_temp=min_temp or 2.0,
+            max_temp=max_temp or 8.0,
+            min_samples=min_samples or 3
+        )
+        compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
+        df_compliance = calculator.results_to_dataframe(compliance_results)
+        df_cleaned_all = []
+        for r in compliance_results:
+            for d in r.removed_details:
+                d["box_id"] = r.box_id
+                d["batch_no"] = r.batch_no
+                d["route"] = r.route
+                df_cleaned_all.append(d)
+        df_cleaned = pd.DataFrame(df_cleaned_all)
+    elif triggered == "refresh-btn":
+        db = get_database(force_new=False)
+        df_shipments, df_samples = db.load_data()
         calculator = ComplianceCalculator(
             min_temp=min_temp or 2.0,
             max_temp=max_temp or 8.0,
@@ -372,6 +384,39 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
             mask = mask | (df["review_status"] == "pending")
         df = df[mask]
     
+    ranking_mask = (
+        df["is_valid_for_ranking"] & 
+        (~df["review_status"].isin(["pending", "appealed"]))
+    )
+    total_count = len(df)
+    valid_count = df["is_valid_for_ranking"].sum()
+    avg_compliance = df[ranking_mask]["compliance_rate"].mean() if ranking_mask.sum() > 0 else 0
+    pending_count = total_count - valid_count + df[df["review_status"].isin(["pending", "appealed"])].shape[0]
+    
+    kpi_total = dbc.CardBody([
+        html.H6("总运输批次", className="card-subtitle mb-2 text-muted"),
+        html.H3(f"{total_count}", className="card-title text-primary"),
+        html.P("筛选范围内", className="card-text small")
+    ])
+    
+    kpi_valid = dbc.CardBody([
+        html.H6("有效统计批次", className="card-subtitle mb-2 text-muted"),
+        html.H3(f"{int(valid_count)}", className="card-title text-success"),
+        html.P(f"样本≥{min_samples or 3}次，排除复核中", className="card-text small")
+    ])
+    
+    kpi_compliance = dbc.CardBody([
+        html.H6("平均合规率", className="card-subtitle mb-2 text-muted"),
+        html.H3(f"{avg_compliance:.1f}%", className="card-title text-info"),
+        html.P("有效批次均值", className="card-text small")
+    ])
+    
+    kpi_pending = dbc.CardBody([
+        html.H6("待复核批次", className="card-subtitle mb-2 text-muted"),
+        html.H3(f"{int(pending_count)}", className="card-title text-warning"),
+        html.P("样本不足或申诉中", className="card-text small")
+    ])
+    
     fig_overtime = create_overtime_trend_chart(df)
     fig_route = create_route_distribution_chart(df)
     fig_station = create_station_comparison_chart(df)
@@ -379,11 +424,11 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
     
     cleaned_table = create_cleaned_data_table(df_cleaned, df)
     
-    pending_count = len(df) - df["is_valid_for_ranking"].sum()
-    warning_style = {"display": "inline-block"} if pending_count > 0 else {"display": "none"}
-    warning_text = f"⚠️ {pending_count} 个批次样本量不足，待复核"
+    warning_pending = len(df) - df["is_valid_for_ranking"].sum()
+    warning_style = {"display": "inline-block"} if warning_pending > 0 else {"display": "none"}
+    warning_text = f"⚠️ {warning_pending} 个批次样本量不足，待复核"
     
-    return fig_overtime, fig_route, fig_station, fig_table, cleaned_table, warning_text, warning_style
+    return kpi_total, kpi_valid, kpi_compliance, kpi_pending, fig_overtime, fig_route, fig_station, fig_table, cleaned_table, warning_text, warning_style
 
 
 def create_overtime_trend_chart(df):
@@ -392,7 +437,10 @@ def create_overtime_trend_chart(df):
     
     df_daily = df.copy()
     df_daily["date"] = df_daily["signoff_time"].dt.date
-    df_daily = df_daily[df_daily["is_valid_for_ranking"]]
+    df_daily = df_daily[
+        df_daily["is_valid_for_ranking"] & 
+        (~df_daily["review_status"].isin(["pending", "appealed"]))
+    ]
     
     daily_stats = df_daily.groupby("date").agg({
         "over_temp_duration_hours": "sum",
@@ -445,7 +493,10 @@ def create_route_distribution_chart(df):
     if len(df) == 0:
         return go.Figure()
     
-    df_ranking = df[df["is_valid_for_ranking"]]
+    df_ranking = df[
+        df["is_valid_for_ranking"] & 
+        (~df["review_status"].isin(["pending", "appealed"]))
+    ]
     
     if len(df_ranking) == 0:
         return go.Figure()
@@ -485,7 +536,10 @@ def create_station_comparison_chart(df):
     if len(df) == 0:
         return go.Figure()
     
-    df_ranking = df[df["is_valid_for_ranking"]]
+    df_ranking = df[
+        df["is_valid_for_ranking"] & 
+        (~df["review_status"].isin(["pending", "appealed"]))
+    ]
     
     if len(df_ranking) == 0:
         return go.Figure()
@@ -753,8 +807,40 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
                 html.Strong(f"复核状态: "),
                 result_row["review_note"] if result_row["review_note"] else "无申诉"
             ], color="info" if result_row["review_status"] == "none" else "warning"),
-            dbc.Button("📷 查看签收照片", color="secondary", size="sm", className="mt-2", disabled=True),
-            html.Span(" （演示数据，照片功能需接入实际存储）", className="text-muted small")
+            
+            html.H6("📷 签收照片", className="mt-4 mb-3"),
+            dbc.Card([
+                dbc.CardHeader([
+                    dbc.Button(
+                        "展开/收起照片",
+                        id="photo-toggle-btn",
+                        color="link",
+                        size="sm",
+                        className="p-0 text-decoration-none"
+                    )
+                ]),
+                dbc.Collapse(
+                    dbc.CardBody([
+                        html.Div([
+                            html.Img(
+                                src=f"/static/photos/BOX00000{(int(box_id.replace('BOX', '')) % 5) + 1}.jpg",
+                                style={
+                                    "width": "100%",
+                                    "maxHeight": "400px",
+                                    "objectFit": "contain",
+                                    "border": "1px solid #dee2e6",
+                                    "borderRadius": "4px"
+                                },
+                                alt=f"签收照片 - {box_id}"
+                            ),
+                            html.P(f"签收单号: {box_id} | 时间: {shipment['signoff_time'].strftime('%Y-%m-%d %H:%M')}", 
+                                   className="text-center text-muted mt-2 small")
+                        ])
+                    ]),
+                    id="photo-collapse",
+                    is_open=True
+                )
+            ])
         ])
         
         content = html.Div([
@@ -766,6 +852,16 @@ def display_sample_detail(clickData, n_clicks, is_open, min_temp, max_temp):
         return True, content
     
     return is_open, None
+
+
+@app.callback(
+    Output("photo-collapse", "is_open"),
+    Input("photo-toggle-btn", "n_clicks"),
+    State("photo-collapse", "is_open"),
+    prevent_initial_call=True
+)
+def toggle_photo(n_clicks, is_open):
+    return not is_open
 
 
 @app.callback(

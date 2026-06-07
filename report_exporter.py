@@ -69,7 +69,10 @@ class ReportExporter:
             df_summary = ReportExporter._create_summary_sheet(df_results)
             df_summary.to_excel(writer, sheet_name="汇总概览", index=False)
             
-            df_ranking = df_results[df_results["is_valid_for_ranking"]].copy()
+            df_ranking = df_results[
+                df_results["is_valid_for_ranking"] & 
+                (~df_results["review_status"].isin(["pending", "appealed"]))
+            ].copy()
             df_ranking = df_ranking.sort_values("compliance_rate", ascending=False)
             df_ranking_display = ReportExporter._format_results_for_display(df_ranking)
             df_ranking_display.to_excel(writer, sheet_name="合规排名", index=False)
@@ -100,18 +103,32 @@ class ReportExporter:
                 'border': 1
             })
             
-            for sheet_name in writer.sheets:
-                worksheet = writer.sheets[sheet_name]
-                worksheet.set_column(0, 20, 15)
-                for col_num, value in enumerate(writer.sheets[sheet_name].row_values(0)):
-                    worksheet.write(0, col_num, value, header_format)
+            sheet_dataframes = {
+                "汇总概览": df_summary,
+                "合规排名": df_ranking_display,
+                "待复核批次": df_pending_display,
+                "申诉复核": df_review_display,
+            }
+            if df_cleaned is not None and len(df_cleaned) > 0:
+                sheet_dataframes["剔除数据明细"] = df_cleaned_display
+            
+            for sheet_name, df_sheet in sheet_dataframes.items():
+                if sheet_name in writer.sheets:
+                    worksheet = writer.sheets[sheet_name]
+                    worksheet.set_column(0, len(df_sheet.columns) - 1, 15)
+                    for col_num, value in enumerate(df_sheet.columns):
+                        worksheet.write(0, col_num, value, header_format)
     
     @staticmethod
     def _create_summary_sheet(df_results: pd.DataFrame) -> pd.DataFrame:
         total = len(df_results)
         valid_count = df_results["is_valid_for_ranking"].sum()
         pending_count = total - valid_count
-        avg_compliance = df_results[df_results["is_valid_for_ranking"]]["compliance_rate"].mean()
+        ranking_mask = (
+            df_results["is_valid_for_ranking"] & 
+            (~df_results["review_status"].isin(["pending", "appealed"]))
+        )
+        avg_compliance = df_results[ranking_mask]["compliance_rate"].mean() if ranking_mask.sum() > 0 else 0
         over_temp_total = df_results["over_temp_duration_hours"].sum()
         under_temp_total = df_results["under_temp_duration_hours"].sum()
         pending_review = df_results[df_results["review_status"].isin(["pending", "appealed"])].shape[0]

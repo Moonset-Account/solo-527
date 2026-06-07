@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-from scipy import stats
+from scipy import stats as scipy_stats
 
 
 @dataclass
@@ -65,7 +65,7 @@ class TimeSeriesCleaner:
         
         valid_temps = df[~df["is_cleaned"]]["temperature"]
         if len(valid_temps) > 10:
-            z_scores = np.abs(stats.zscore(valid_temps))
+            z_scores = np.abs(scipy_stats.zscore(valid_temps))
             outlier_mask = z_scores > 3
             outlier_indices = valid_temps[outlier_mask].index
             df.loc[outlier_indices, "is_cleaned"] = True
