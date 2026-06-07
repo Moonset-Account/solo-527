@@ -35,43 +35,85 @@ export function getTimeRangeText(range: string): string {
   }
 }
 
+const tenantUsageMap: Record<string, number> = {
+  'ten-001': 320.5,
+  'ten-002': 856.2,
+  'ten-003': 2150.8,
+  'ten-004': 680.3,
+  'ten-005': 3200.5,
+  'ten-006': 4100.2
+}
+
+export function getTenantUsage(tenantId: string): number {
+  return tenantUsageMap[tenantId] || 500 + Math.random() * 500
+}
+
 export function allocateByArea(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
   const totalArea = tenants.reduce((sum, t) => sum + t.area, 0)
-  return tenants.map(t => ({
-    tenantId: t.id,
-    tenantName: t.name,
-    commonEnergy,
-    allocatedEnergy: (t.area / totalArea) * commonEnergy,
-    tenantUsage: Math.random() * 1000 + 500,
-    totalEnergy: 0,
-    formula: `公共能耗 × (租户面积 ${t.area}㎡ / 总面积 ${totalArea}㎡)`
-  })).map(r => ({ ...r, totalEnergy: r.tenantUsage + r.allocatedEnergy }))
+  return tenants.map(t => {
+    const tenantUsage = getTenantUsage(t.id)
+    const allocatedEnergy = (t.area / totalArea) * commonEnergy
+    return {
+      tenantId: t.id,
+      tenantName: t.name,
+      commonEnergy,
+      allocatedEnergy,
+      tenantUsage,
+      totalEnergy: tenantUsage + allocatedEnergy,
+      formula: `公共能耗 × (租户面积 ${t.area}㎡ / 总面积 ${totalArea}㎡)`
+    }
+  })
 }
 
 export function allocateByPeople(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
   const totalPeople = tenants.reduce((sum, t) => sum + t.peopleCount, 0)
-  return tenants.map(t => ({
-    tenantId: t.id,
-    tenantName: t.name,
-    commonEnergy,
-    allocatedEnergy: (t.peopleCount / totalPeople) * commonEnergy,
-    tenantUsage: Math.random() * 1000 + 500,
-    totalEnergy: 0,
-    formula: `公共能耗 × (租户人数 ${t.peopleCount}人 / 总人数 ${totalPeople}人)`
-  })).map(r => ({ ...r, totalEnergy: r.tenantUsage + r.allocatedEnergy }))
+  return tenants.map(t => {
+    const tenantUsage = getTenantUsage(t.id)
+    const allocatedEnergy = (t.peopleCount / totalPeople) * commonEnergy
+    return {
+      tenantId: t.id,
+      tenantName: t.name,
+      commonEnergy,
+      allocatedEnergy,
+      tenantUsage,
+      totalEnergy: tenantUsage + allocatedEnergy,
+      formula: `公共能耗 × (租户人数 ${t.peopleCount}人 / 总人数 ${totalPeople}人)`
+    }
+  })
+}
+
+export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+  const usages = tenants.map(t => getTenantUsage(t.id))
+  const totalUsage = usages.reduce((sum, u) => sum + u, 0)
+  return tenants.map((t, idx) => {
+    const tenantUsage = usages[idx]
+    const allocatedEnergy = (tenantUsage / totalUsage) * commonEnergy
+    return {
+      tenantId: t.id,
+      tenantName: t.name,
+      commonEnergy,
+      allocatedEnergy,
+      tenantUsage,
+      totalEnergy: tenantUsage + allocatedEnergy,
+      formula: `公共能耗 × (租户自耗 ${tenantUsage.toFixed(1)}kWh / 总自耗 ${totalUsage.toFixed(1)}kWh)`
+    }
+  })
 }
 
 export function allocateEven(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
   const perTenant = commonEnergy / tenants.length
-  return tenants.map(t => ({
-    tenantId: t.id,
-    tenantName: t.name,
-    commonEnergy,
-    allocatedEnergy: perTenant,
-    tenantUsage: Math.random() * 1000 + 500,
-    totalEnergy: 0,
-    formula: `公共能耗 / 租户数量 (${tenants.length}户)`
-  })).map(r => ({ ...r, totalEnergy: r.tenantUsage + r.allocatedEnergy }))
+  return tenants.map(t => {
+    const tenantUsage = getTenantUsage(t.id)
+    return {
+      tenantId: t.id,
+      tenantName: t.name,
+      commonEnergy,
+      allocatedEnergy: perTenant,
+      tenantUsage,
+      totalEnergy: tenantUsage + perTenant,
+      formula: `公共能耗 ${commonEnergy.toFixed(1)}kWh ÷ 租户数量 (${tenants.length}户) = ${perTenant.toFixed(1)}kWh/户`
+    }
+  })
 }
 
 export function calculateEnergyStats(readings: EnergyReading[], touPrices: TimeOfUsePrice[]): EnergyStats {

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AllocationRule, AllocationResult, AllocationMethod } from '../types'
 import { mockAllocationRules, mockTenants } from '../mock'
-import { allocateByArea, allocateByPeople, allocateEven } from '../utils'
+import { allocateByArea, allocateByPeople, allocateByUsageRatio, allocateEven } from '../utils'
 
 export const useAllocationStore = defineStore('allocation', () => {
   const rules = ref<AllocationRule[]>(mockAllocationRules)
@@ -24,6 +24,9 @@ export const useAllocationStore = defineStore('allocation', () => {
         break
       case 'by_people':
         allocationResults = allocateByPeople(commonEnergy.value, mockTenants)
+        break
+      case 'by_usage_ratio':
+        allocationResults = allocateByUsageRatio(commonEnergy.value, mockTenants)
         break
       case 'even':
         allocationResults = allocateEven(commonEnergy.value, mockTenants)

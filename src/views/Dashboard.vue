@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, watch } from 'vue'
 import { Zap, Droplets, Wind, Building2, Clock, AlertCircle } from 'lucide-vue-next'
 import { useEnergyStore } from '@/stores/energy'
 import MetricCard from '@/components/common/MetricCard.vue'
 import EnergyLineChart from '@/components/charts/EnergyLineChart.vue'
 import { aggregateByHour, formatNumber, getDeviceTypeLabel, getStatusLabel } from '@/utils'
 import type { Dimension, TimeRange } from '@/types'
+import { mockFloors, mockTenants, mockDevices } from '@/mock'
+import { ElMessage } from 'element-plus'
 
 const energyStore = useEnergyStore()
-
-const selectedDimension = ref<Dimension>('building')
-const selectedTimeRange = ref<TimeRange>('day')
 
 const dimensions = [
   { value: 'building', label: '楼栋' },
@@ -26,6 +25,28 @@ const timeRanges = [
   { value: 'quarter', label: '本季度' },
   { value: 'year', label: '本年' }
 ]
+
+function selectTimeRange(range: TimeRange) {
+  energyStore.selectedTimeRange = range
+  ElMessage.info(`已切换至${timeRanges.find(r => r.value === range)?.label}数据`)
+}
+
+function selectDimension(dim: Dimension) {
+  energyStore.selectedDimension = dim
+  if (dim === 'floor') {
+    energyStore.selectedDimensionId = 'flr-001'
+  } else if (dim === 'tenant') {
+    energyStore.selectedDimensionId = 'ten-001'
+  } else if (dim === 'device') {
+    energyStore.selectedDimensionId = 'dev-001'
+  }
+  const dimLabel = dimensions.find(d => d.value === dim)?.label
+  ElMessage.info(`已切换至${dimLabel}维度`)
+}
+
+watch(() => energyStore.selectedTimeRange, () => {
+  energyStore.refreshData()
+})
 
 const electricityData = computed(() => {
   const readings = energyStore.getReadingsByDeviceType('electricity')
@@ -60,12 +81,15 @@ const totalHVAC = computed(() =>
     .reduce((sum, r) => sum + r.value, 0)
 )
 
-const deviceStats = computed(() => ({
-  total: energyStore.devices.length,
-  online: energyStore.onlineDevices.length,
-  offline: energyStore.offlineDevices.length,
-  warning: energyStore.warningDevices.length
-}))
+const deviceStats = computed(() => {
+  const filtered = energyStore.filteredDevices
+  return {
+    total: filtered.length,
+    online: filtered.filter(d => d.status === 'online').length,
+    offline: filtered.filter(d => d.status === 'offline').length,
+    warning: filtered.filter(d => d.status === 'warning').length
+  }
+})
 </script>
 
 <template>
@@ -76,9 +100,9 @@ const deviceStats = computed(() => ({
           <button
             v-for="range in timeRanges"
             :key="range.value"
-            @click="selectedTimeRange = range.value as TimeRange"
+            @click="selectTimeRange(range.value as TimeRange)"
             class="px-3 py-1.5 text-sm rounded-md transition-colors"
-            :class="selectedTimeRange === range.value
+            :class="energyStore.selectedTimeRange === range.value
               ? 'bg-brand-600 text-white'
               : 'text-slate-400 hover:text-slate-200'"
           >
@@ -90,15 +114,45 @@ const deviceStats = computed(() => ({
           <button
             v-for="dim in dimensions"
             :key="dim.value"
-            @click="selectedDimension = dim.value as Dimension"
+            @click="selectDimension(dim.value as Dimension)"
             class="px-3 py-1.5 text-sm rounded-md transition-colors"
-            :class="selectedDimension === dim.value
+            :class="energyStore.selectedDimension === dim.value
               ? 'bg-brand-600 text-white'
               : 'text-slate-400 hover:text-slate-200'"
           >
             {{ dim.label }}
           </button>
         </div>
+
+        <select
+          v-if="energyStore.selectedDimension === 'floor'"
+          v-model="energyStore.selectedDimensionId"
+          class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
+        >
+          <option v-for="floor in mockFloors" :key="floor.id" :value="floor.id">
+            {{ floor.name }}
+          </option>
+        </select>
+
+        <select
+          v-if="energyStore.selectedDimension === 'tenant'"
+          v-model="energyStore.selectedDimensionId"
+          class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
+        >
+          <option v-for="tenant in mockTenants" :key="tenant.id" :value="tenant.id">
+            {{ tenant.name }}
+          </option>
+        </select>
+
+        <select
+          v-if="energyStore.selectedDimension === 'device'"
+          v-model="energyStore.selectedDimensionId"
+          class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
+        >
+          <option v-for="device in mockDevices" :key="device.id" :value="device.id">
+            {{ device.name }}
+          </option>
+        </select>
       </div>
 
       <div class="flex items-center gap-2 text-sm text-slate-400">
@@ -199,13 +253,13 @@ const deviceStats = computed(() => ({
             </div>
           </div>
           
-          <div v-if="energyStore.offlineDevices.length > 0" class="space-y-2">
+          <div v-if="deviceStats.offline > 0" class="space-y-2">
             <div class="flex items-center gap-2 text-sm text-status-danger mb-2">
               <AlertCircle class="w-4 h-4" />
               <span>离线设备列表</span>
             </div>
             <div
-              v-for="device in energyStore.offlineDevices"
+              v-for="device in energyStore.filteredDevices.filter(d => d.status === 'offline')"
               :key="device.id"
               class="flex items-center justify-between p-2 bg-status-danger/10 rounded-lg border border-status-danger/20"
             >

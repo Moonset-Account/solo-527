@@ -4,14 +4,28 @@ import { useEnergyStore } from '@/stores/energy'
 import { mockTimeOfUsePrices } from '@/mock'
 import PeakValleyPie from '@/components/charts/PeakValleyPie.vue'
 import HourlyBarChart from '@/components/charts/HourlyBarChart.vue'
-import { formatNumber, aggregateByHour } from '@/utils'
-import { Edit3, Save, DollarSign } from 'lucide-vue-next'
-import type { TimeOfUsePrice } from '@/types'
+import { formatNumber, aggregateByHour, getTimeRangeText } from '@/utils'
+import { Edit3, Save, DollarSign, Clock } from 'lucide-vue-next'
+import type { TimeOfUsePrice, TimeRange } from '@/types'
+import { ElMessage } from 'element-plus'
 
 const energyStore = useEnergyStore()
 
 const isEditing = ref(false)
 const touPrices = ref<TimeOfUsePrice[]>([...mockTimeOfUsePrices])
+
+const timeRanges = [
+  { value: 'day', label: '今日' },
+  { value: 'week', label: '本周' },
+  { value: 'month', label: '本月' },
+  { value: 'quarter', label: '本季度' },
+  { value: 'year', label: '本年' }
+]
+
+function selectTimeRange(range: TimeRange) {
+  energyStore.selectedTimeRange = range
+  ElMessage.info(`已切换至${timeRanges.find(r => r.value === range)?.label}数据`)
+}
 
 const pieData = computed(() => {
   const stats = energyStore.stats
@@ -64,6 +78,28 @@ function updatePrice(index: number, field: keyof TimeOfUsePrice, value: any) {
 
 <template>
   <div class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 bg-bg-secondary rounded-lg p-1 border border-slate-700/50">
+          <button
+            v-for="range in timeRanges"
+            :key="range.value"
+            @click="selectTimeRange(range.value as TimeRange)"
+            class="px-3 py-1.5 text-sm rounded-md transition-colors"
+            :class="energyStore.selectedTimeRange === range.value
+              ? 'bg-brand-600 text-white'
+              : 'text-slate-400 hover:text-slate-200'"
+          >
+            {{ range.label }}
+          </button>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-sm text-slate-400">
+        <Clock class="w-4 h-4" />
+        <span>统计周期: {{ getTimeRangeText(energyStore.selectedTimeRange) }}</span>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="card p-5">
         <p class="text-sm text-slate-400 mb-2">尖峰时段电费</p>

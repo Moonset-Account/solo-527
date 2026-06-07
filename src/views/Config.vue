@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { mockDevices, mockTenants, mockFloors, mockBuildings } from '@/mock'
-import { Upload, Calendar, Building2, Users, Zap, Droplets, Wind, Settings as SettingsIcon } from 'lucide-vue-next'
-import { formatDateTime } from '@/utils'
+import { useEnergyStore } from '@/stores/energy'
+import { useAllocationStore } from '@/stores/allocation'
+import { Upload, Calendar, Building2, Users, Zap, Droplets, Wind, Settings as SettingsIcon, CheckCircle } from 'lucide-vue-next'
+import { formatDateTime, getTenantUsage } from '@/utils'
+import type { EnergyReading, Device, Tenant } from '@/types'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+const energyStore = useEnergyStore()
+const allocationStore = useAllocationStore()
 
 const activeTab = ref('devices')
 
@@ -17,6 +24,7 @@ const tabs = [
 const uploadFile = ref<File | null>(null)
 const uploadProgress = ref(0)
 const isUploading = ref(false)
+const importResult = ref<{ readings: number; devices: number; tenants: number } | null>(null)
 
 const holidayMode = ref({
   workdayStart: '08:00',
@@ -29,22 +37,157 @@ function handleFileUpload(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
     uploadFile.value = target.files[0]
+    importResult.value = null
   }
 }
 
-function startUpload() {
+function parseCSV(content: string): any[] {
+  const lines = content.trim().split('\n')
+  if (lines.length < 2) return []
+  
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+  const data: any[] = []
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim())
+    const row: any = {}
+    headers.forEach((header, idx) => {
+      row[header] = values[idx]
+    })
+    data.push(row)
+  }
+  
+  return data
+}
+
+async function parseEnergyReadings(data: any[]): Promise<EnergyReading[]> {
+  const readings: EnergyReading[] = []
+  const now = new Date()
+  
+  data.forEach((row, idx) => {
+    const deviceId = row['设备编号'] || row['device_id'] || row['deviceid'] || `dev-import-${idx}`
+    const timestamp = row['时间'] || row['timestamp'] || row['time'] || new Date(now.getTime() - idx * 3600000).toISOString()
+    const value = parseFloat(row['读数'] || row['value'] || row['reading'] || '0')
+    const isOffline = (row['是否离线'] || row['is_offline'] || row['offline'] || 'false') === 'true' ||
+                      (row['质量'] || row['quality'] || '') === 'bad'
+    
+    readings.push({
+      id: `import-${Date.now()}-${idx}`,
+      deviceId,
+      timestamp: new Date(timestamp).toISOString(),
+      value: isNaN(value) ? 0 : value,
+      quality: isOffline ? 'bad' : 'good',
+      isOffline
+    })
+  })
+  
+  return readings
+}
+
+async function parseDevices(data: any[]): Promise<Device[]> {
+  const devices: Device[] = []
+  
+  data.forEach((row, idx) => {
+    const type = (row['类型'] || row['type'] || 'electricity').toLowerCase() as Device['type']
+    devices.push({
+      id: row['编号'] || row['id'] || `dev-new-${idx}`,
+      floorId: row['楼层'] || row['floor_id'] || 'flr-001',
+      type: ['electricity', 'water', 'hvac'].includes(type) ? type : 'electricity',
+      name: row['名称'] || row['name'] || `导入设备${idx + 1}`,
+      status: (row['状态'] || row['status'] || 'online') as Device['status'],
+      lastOnline: row['最后在线'] || row['last_online'] || new Date().toISOString(),
+      location: row['位置'] || row['location'] || '已导入'
+    })
+  })
+  
+  return devices
+}
+
+async function parseTenants(data: any[]): Promise<Tenant[]> {
+  const tenants: Tenant[] = []
+  
+  data.forEach((row, idx) => {
+    tenants.push({
+      id: row['编号'] || row['id'] || `ten-new-${idx}`,
+      floorId: row['楼层'] || row['floor_id'] || 'flr-001',
+      name: row['名称'] || row['name'] || `导入租户${idx + 1}`,
+      area: parseFloat(row['面积'] || row['area'] || '100'),
+      peopleCount: parseInt(row['人数'] || row['people_count'] || '10'),
+      contact: row['联系人'] || row['contact'] || ''
+    })
+  })
+  
+  return tenants
+}
+
+async function startUpload() {
   if (!uploadFile.value) return
   
   isUploading.value = true
   uploadProgress.value = 0
+  importResult.value = null
   
-  const interval = setInterval(() => {
-    uploadProgress.value += 10
-    if (uploadProgress.value >= 100) {
-      clearInterval(interval)
-      isUploading.value = false
+  try {
+    const text = await uploadFile.value.text()
+    uploadProgress.value = 30
+    await nextTick()
+    
+    const parsedData = parseCSV(text)
+    uploadProgress.value = 50
+    await nextTick()
+    
+    if (parsedData.length === 0) {
+      throw new Error('文件内容为空或格式不正确')
     }
-  }, 300)
+    
+    const headerKeys = Object.keys(parsedData[0]).map(k => k.toLowerCase())
+    let readingsCount = 0
+    let devicesCount = 0
+    let tenantsCount = 0
+    
+    if (headerKeys.some(k => k.includes('读数') || k.includes('value') || k.includes('reading'))) {
+      const readings = await parseEnergyReadings(parsedData)
+      energyStore.importReadings(readings)
+      readingsCount = readings.length
+    }
+    uploadProgress.value = 70
+    await nextTick()
+    
+    if (headerKeys.some(k => k.includes('名称') || k.includes('name')) && 
+        headerKeys.some(k => k.includes('类型') || k.includes('type')) &&
+        !headerKeys.some(k => k.includes('面积') || k.includes('area'))) {
+      const devices = await parseDevices(parsedData)
+      energyStore.importDevices(devices)
+      devicesCount = devices.length
+    }
+    uploadProgress.value = 85
+    await nextTick()
+    
+    if (headerKeys.some(k => k.includes('面积') || k.includes('area') || k.includes('人数') || k.includes('people'))) {
+      const tenants = await parseTenants(parsedData)
+      tenantsCount = tenants.length
+      ElMessage.info(`已解析 ${tenants.length} 条租户数据，可直接用于分摊计算`)
+    }
+    uploadProgress.value = 100
+    await nextTick()
+    
+    importResult.value = { readings: readingsCount, devices: devicesCount, tenants: tenantsCount }
+    
+    const totalImported = readingsCount + devicesCount + tenantsCount
+    if (totalImported > 0) {
+      ElMessage.success(`成功导入 ${totalImported} 条数据`)
+    } else {
+      ElMessage.warning('未识别到可导入的数据，请检查文件格式')
+    }
+    
+  } catch (error) {
+    console.error('Import error:', error)
+    ElMessage.error(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  } finally {
+    setTimeout(() => {
+      isUploading.value = false
+    }, 500)
+  }
 }
 </script>
 
@@ -299,6 +442,29 @@ function startUpload() {
                 ></div>
               </div>
               <p class="text-xs text-slate-400">导入中... {{ uploadProgress }}%</p>
+            </div>
+            <div v-else-if="importResult" class="space-y-2">
+              <div class="flex items-center gap-2 text-status-success">
+                <CheckCircle class="w-5 h-5" />
+                <span class="text-sm font-medium">导入完成</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-3">
+                <div v-if="importResult.readings > 0" class="text-center p-2 bg-brand-500/10 rounded">
+                  <div class="text-lg font-mono font-bold text-brand-400">{{ importResult.readings }}</div>
+                  <div class="text-xs text-slate-400">条读数</div>
+                </div>
+                <div v-if="importResult.devices > 0" class="text-center p-2 bg-status-success/10 rounded">
+                  <div class="text-lg font-mono font-bold text-status-success">{{ importResult.devices }}</div>
+                  <div class="text-xs text-slate-400">台设备</div>
+                </div>
+                <div v-if="importResult.tenants > 0" class="text-center p-2 bg-status-info/10 rounded">
+                  <div class="text-lg font-mono font-bold text-status-info">{{ importResult.tenants }}</div>
+                  <div class="text-xs text-slate-400">个租户</div>
+                </div>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">
+                数据已同步至看板，可返回首页查看效果
+              </p>
             </div>
             <button
               v-else
