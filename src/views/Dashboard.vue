@@ -185,6 +185,45 @@
       </el-col>
     </el-row>
 
+    <el-card class="chart-card" shadow="never">
+      <div class="card-header">
+        <h3 class="card-title">
+          <el-icon><Cpu /></el-icon>
+          设备运行状态追溯
+        </h3>
+        <span class="card-hint">最近设备运行记录，可追溯工单</span>
+        <span class="update-time">更新时间: {{ updateTime ? dayjs(updateTime).format('YYYY-MM-DD HH:mm') : '-' }}</span>
+      </div>
+      <el-table :data="equipmentStatus.slice(0, 20)" stripe size="small" style="width: 100%">
+        <el-table-column prop="date" label="日期" width="110" />
+        <el-table-column prop="equipmentName" label="设备" width="150" />
+        <el-table-column prop="lineName" label="产线" width="130" />
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.availability >= 0.9 ? 'success' : row.availability >= 0.7 ? 'warning' : 'danger'" size="small">
+              {{ row.availability >= 0.9 ? '正常' : row.availability >= 0.7 ? '预警' : '异常' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="运行(时)" width="90" align="right">
+          <template #default="{ row }">{{ (row.runtimeMinutes / 60).toFixed(1) }}</template>
+        </el-table-column>
+        <el-table-column label="停机(时)" width="90" align="right">
+          <template #default="{ row }">{{ (row.downtimeMinutes / 60).toFixed(1) }}</template>
+        </el-table-column>
+        <el-table-column prop="workOrderCount" label="工单数量" width="90" align="center" />
+        <el-table-column label="MTBF(时)" width="90" align="right">
+          <template #default="{ row }">{{ row.mtbf || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="MTTR(分)" width="90" align="right">
+          <template #default="{ row }">{{ row.mttr || '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="availability" label="可用率" width="90" align="right">
+          <template #default="{ row }">{{ (row.availability * 100).toFixed(1) }}%</template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-card class="table-card" shadow="never">
       <div class="card-header">
         <h3 class="card-title">
@@ -196,6 +235,15 @@
           </span>
         </h3>
         <div class="header-actions">
+          <el-alert 
+            v-if="activeFilter && workOrderTotal > 0" 
+            :title="`已筛选出 ${workOrderTotal} 条工单，点击工单号或详情按钮查看报警和备注`" 
+            type="info" 
+            size="small" 
+            :closable="false" 
+            show-icon
+            style="margin-right: 12px;"
+          />
           <el-button size="small" @click="exportWorkOrders">
             <el-icon><Download /></el-icon>
             导出CSV
@@ -255,9 +303,12 @@
             <span style="font-size: 12px; color: #666;" :title="row.notes">{{ row.notes || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="viewDetail(row)">详情</el-button>
+            <el-button type="primary" size="small" @click="viewDetail(row)">
+              <el-icon><View /></el-icon>
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -376,6 +427,8 @@ const byEquipment = ref([])
 const byTechnician = ref([])
 const spareParts = ref([])
 const trendData = ref([])
+const equipmentStatus = ref([])
+const updateTime = ref('')
 
 const workOrderItems = ref([])
 const workOrderTotal = ref(0)
@@ -436,6 +489,8 @@ const loadDashboardData = async () => {
     byTechnician.value = data.byTechnician
     spareParts.value = data.spareParts
     trendData.value = data.trend
+    equipmentStatus.value = data.equipmentStatusSummary || []
+    updateTime.value = data.updateTime
   } catch (e) {
     console.error('加载数据失败', e)
   }
@@ -584,6 +639,16 @@ const viewDetail = async (row) => {
   } catch (e) {}
 }
 
+const openWorkOrderById = async (workOrderId) => {
+  try {
+    const res = await fetch(`/api/workorders/${workOrderId}`)
+    currentWorkOrder.value = await res.json()
+    detailVisible.value = true
+  } catch (e) {
+    console.error('打开工单详情失败', e)
+  }
+}
+
 const exportWorkOrders = () => {
   const query = new URLSearchParams()
   if (filters.value.date) {
@@ -661,9 +726,21 @@ onMounted(() => {
   flex-direction: column;
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .card-hint {
   font-size: 12px;
   color: #9ca3af;
+}
+
+.update-time {
+  font-size: 12px;
+  color: #6b7280;
+  margin-left: auto;
 }
 
 .filter-tag {

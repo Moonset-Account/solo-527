@@ -6,6 +6,23 @@ const config = require('../config/metrics_config')
 const loadRawData = () => {
   const rawDir = path.join(__dirname, '../raw')
   
+  if (!fs.existsSync(path.join(rawDir, 'work_orders.json'))) {
+    console.log('原始数据不存在，正在生成...')
+    const { generateDateRange, generateWorkOrders, generateAlarms, generateProduction, generateEquipmentStatus } = require('../generator/generateData')
+    const dates = generateDateRange(90)
+    const workOrders = generateWorkOrders(dates)
+    const alarms = generateAlarms(workOrders)
+    const production = generateProduction(dates, workOrders)
+    const equipmentStatus = generateEquipmentStatus(dates, workOrders)
+    
+    if (!fs.existsSync(rawDir)) fs.mkdirSync(rawDir, { recursive: true })
+    fs.writeFileSync(path.join(rawDir, 'work_orders.json'), JSON.stringify(workOrders, null, 2))
+    fs.writeFileSync(path.join(rawDir, 'alarms.json'), JSON.stringify(alarms, null, 2))
+    fs.writeFileSync(path.join(rawDir, 'production.json'), JSON.stringify(production, null, 2))
+    fs.writeFileSync(path.join(rawDir, 'equipment_status.json'), JSON.stringify(equipmentStatus, null, 2))
+    console.log('原始数据生成完成！')
+  }
+  
   const workOrders = JSON.parse(fs.readFileSync(path.join(rawDir, 'work_orders.json'), 'utf8'))
   const alarms = JSON.parse(fs.readFileSync(path.join(rawDir, 'alarms.json'), 'utf8'))
   const production = JSON.parse(fs.readFileSync(path.join(rawDir, 'production.json'), 'utf8'))
