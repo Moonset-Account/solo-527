@@ -88,17 +88,35 @@ GRANT ALL PRIVILEGES ON DATABASE book_recycling TO postgres;
 
 ### 2. 启动后端服务
 
+**方式一：使用启动脚本（推荐）**
+```bash
+# 确保脚本有执行权限（只需执行一次）
+chmod +x start-backend.sh start-frontend.sh
+
+# 启动后端
+./start-backend.sh
+```
+
+**方式二：手动启动（无需脚本权限）**
 ```bash
 cd backend
 
 # 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
+python3 -m venv venv
+source venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
 
-# 生成测试数据
+# 初始化数据库表
+python -c "
+from app.core.database import engine, Base
+from app.models import Book, RecycleRecord, PricingHistory, SaleRecord
+Base.metadata.create_all(bind=engine)
+print('数据库表创建完成')
+"
+
+# 生成测试数据（可选）
 python data/seed_data.py
 
 # 启动服务
@@ -109,6 +127,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 3. 启动前端服务
 
+**方式一：使用启动脚本**
+```bash
+./start-frontend.sh
+```
+
+**方式二：手动启动（无需脚本权限）**
 ```bash
 cd frontend
 
