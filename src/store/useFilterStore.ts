@@ -1,13 +1,23 @@
 import { create } from 'zustand';
 import type { FilterState, PrescriptionType, TimePeriod } from '@/types';
 
+export interface DrillDownFilter {
+  waitTimeRange?: string;
+  windowNo?: string;
+  hour?: string;
+  processNode?: string;
+}
+
 interface FilterStore extends FilterState {
+  drillDown: DrillDownFilter;
   setDateRange: (start: string, end: string) => void;
   setWindows: (windows: string[]) => void;
   setPharmacists: (pharmacists: string[]) => void;
   setDepartments: (departments: string[]) => void;
   setPrescriptionTypes: (types: PrescriptionType[]) => void;
   setTimePeriods: (periods: TimePeriod[]) => void;
+  setDrillDown: (filter: DrillDownFilter) => void;
+  clearDrillDown: () => void;
   resetFilters: () => void;
 }
 
@@ -24,12 +34,15 @@ export const useFilterStore = create<FilterStore>((set) => ({
   departments: [],
   prescriptionTypes: [],
   timePeriods: [],
+  drillDown: {},
   setDateRange: (start, end) => set({ dateRange: { start, end } }),
   setWindows: (windows) => set({ windows }),
   setPharmacists: (pharmacists) => set({ pharmacists }),
   setDepartments: (departments) => set({ departments }),
   setPrescriptionTypes: (prescriptionTypes) => set({ prescriptionTypes }),
   setTimePeriods: (timePeriods) => set({ timePeriods }),
+  setDrillDown: (drillDown) => set({ drillDown }),
+  clearDrillDown: () => set({ drillDown: {} }),
   resetFilters: () =>
     set({
       windows: [],
@@ -37,5 +50,6 @@ export const useFilterStore = create<FilterStore>((set) => ({
       departments: [],
       prescriptionTypes: [],
       timePeriods: [],
+      drillDown: {},
     }),
 }));

@@ -11,8 +11,9 @@ import {
   calculateKPIData,
 } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
+import { applyFilters } from '@/utils/filters';
 import type { Prescription, Remark } from '@/types';
-import { FileText, Clock, Pill, AlertTriangle, Download } from 'lucide-react';
+import { FileText, Clock, Pill, AlertTriangle, Download, X } from 'lucide-react';
 import { formatNumber, formatPercent } from '@/utils/formatters';
 
 export default function DetailsPage() {
@@ -34,14 +35,7 @@ export default function DetailsPage() {
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
 
   const filteredPrescriptions = useMemo(() => {
-    return mockPrescriptions.filter((p) => {
-      if (filters.windows.length > 0 && !filters.windows.includes(p.windowId)) return false;
-      if (filters.pharmacists.length > 0 && !filters.pharmacists.includes(p.pharmacistId)) return false;
-      if (filters.departments.length > 0 && !filters.departments.includes(p.departmentId)) return false;
-      if (filters.prescriptionTypes.length > 0 && !filters.prescriptionTypes.includes(p.type)) return false;
-      if (filters.timePeriods.length > 0 && !filters.timePeriods.includes(p.timePeriod)) return false;
-      return true;
-    });
+    return applyFilters(mockPrescriptions, filters, filters.drillDown);
   }, [filters]);
 
   const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
@@ -100,6 +94,27 @@ export default function DetailsPage() {
         </div>
 
         <div className="flex-1 space-y-6">
+          {Object.keys(filters.drillDown).length > 0 && (
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <AlertTriangle className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                <span className="text-sm text-primary-700">
+                  当前下钻筛选：
+                  {filters.drillDown.waitTimeRange && `等待时长 ${filters.drillDown.waitTimeRange}`}
+                  {filters.drillDown.windowNo && `${filters.drillDown.windowNo}号窗口`}
+                  {filters.drillDown.hour && `时段 ${filters.drillDown.hour}`}
+                </span>
+              </div>
+              <button
+                onClick={() => filters.clearDrillDown()}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 flex-shrink-0"
+              >
+                <X className="w-3 h-3" />
+                清除下钻
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-4 gap-4">
             <KPICard
               title="筛选结果"

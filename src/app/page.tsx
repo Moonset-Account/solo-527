@@ -15,6 +15,7 @@ import WindowCompareChart from '@/components/charts/WindowCompareChart';
 import PrescriptionStackChart from '@/components/charts/PrescriptionStackChart';
 import FilterPanel from '@/components/layout/FilterPanel';
 import RemarkPanel from '@/components/common/RemarkPanel';
+import PharmacyHeatmap from '@/components/map/PharmacyHeatmap';
 import {
   mockPrescriptions,
   mockRemarks,
@@ -25,6 +26,7 @@ import {
 } from '@/data/mockData';
 import { formatMinutes, formatPercent, formatNumber } from '@/utils/formatters';
 import { useFilterStore } from '@/store/useFilterStore';
+import { applyFilters } from '@/utils/filters';
 import type { Prescription, Remark } from '@/types';
 
 export default function HomePage() {
@@ -47,14 +49,7 @@ export default function HomePage() {
   const filters = useFilterStore();
 
   const filteredPrescriptions = useMemo(() => {
-    return mockPrescriptions.filter((p) => {
-      if (filters.windows.length > 0 && !filters.windows.includes(p.windowId)) return false;
-      if (filters.pharmacists.length > 0 && !filters.pharmacists.includes(p.pharmacistId)) return false;
-      if (filters.departments.length > 0 && !filters.departments.includes(p.departmentId)) return false;
-      if (filters.prescriptionTypes.length > 0 && !filters.prescriptionTypes.includes(p.type)) return false;
-      if (filters.timePeriods.length > 0 && !filters.timePeriods.includes(p.timePeriod)) return false;
-      return true;
-    });
+    return applyFilters(mockPrescriptions, filters, filters.drillDown);
   }, [filters]);
 
   const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
@@ -62,7 +57,14 @@ export default function HomePage() {
   const windowCompare = useMemo(() => calculateWindowCompare(filteredPrescriptions), [filteredPrescriptions]);
   const hourlyPrescriptions = useMemo(() => calculateHourlyPrescriptions(filteredPrescriptions), [filteredPrescriptions]);
 
-  const handleDrillDown = () => {
+  const handleDrillDown = (type: 'waitTime' | 'window' | 'hour', value: string) => {
+    if (type === 'waitTime') {
+      filters.setDrillDown({ waitTimeRange: value });
+    } else if (type === 'window') {
+      filters.setDrillDown({ windowNo: value });
+    } else if (type === 'hour') {
+      filters.setDrillDown({ hour: value });
+    }
     router.push('/details');
   };
 
@@ -100,6 +102,26 @@ export default function HomePage() {
         </div>
 
         <div className="flex-1 space-y-6">
+          {Object.keys(filters.drillDown).length > 0 && (
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-primary-600" />
+                <span className="text-sm text-primary-700">
+                  当前下钻筛选：
+                  {filters.drillDown.waitTimeRange && `等待时长 ${filters.drillDown.waitTimeRange}`}
+                  {filters.drillDown.windowNo && `${filters.drillDown.windowNo}号窗口`}
+                  {filters.drillDown.hour && `时段 ${filters.drillDown.hour}`}
+                </span>
+              </div>
+              <button
+                onClick={() => filters.clearDrillDown()}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                清除下钻
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-4 gap-4">
             <KPICard
               title="总处方量"
@@ -108,7 +130,7 @@ export default function HomePage() {
               trend={5.2}
               icon={<FileText className="w-5 h-5" />}
               color="blue"
-              onClick={handleDrillDown}
+              onClick={() => router.push('/details')}
             />
             <KPICard
               title="平均等待时长"
@@ -118,7 +140,7 @@ export default function HomePage() {
               icon={<Clock className="w-5 h-5" />}
               color="orange"
               warning={kpiData.avgWaitTime > 25}
-              onClick={handleDrillDown}
+              onClick={() => router.push('/details')}
             />
             <KPICard
               title="配药效率"
@@ -127,7 +149,7 @@ export default function HomePage() {
               trend={-3.1}
               icon={<Pill className="w-5 h-5" />}
               color="green"
-              onClick={handleDrillDown}
+              onClick={() => router.push('/details')}
             />
             <KPICard
               title="退药率"
@@ -136,7 +158,7 @@ export default function HomePage() {
               icon={<AlertTriangle className="w-5 h-5" />}
               color="red"
               warning={kpiData.refundRate > 0.03}
-              onClick={handleDrillDown}
+              onClick={() => router.push('/details')}
             />
           </div>
 
@@ -171,11 +193,24 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-            <WaitDistributionChart data={waitDistribution} onDrillDown={handleDrillDown} />
-            <WindowCompareChart data={windowCompare} onDrillDown={handleDrillDown} />
+            <WaitDistributionChart
+              data={waitDistribution}
+              onDrillDown={(range) => handleDrillDown('waitTime', range)}
+            />
+            <WindowCompareChart
+              data={windowCompare}
+              onDrillDown={(windowNo) => handleDrillDown('window', windowNo)}
+            />
           </div>
 
-          <PrescriptionStackChart data={hourlyPrescriptions} onDrillDown={handleDrillDown} />
+          <PrescriptionStackChart
+            data={hourlyPrescriptions}
+            onDrillDown={(hour) => handleDrillDown('hour', hour)}
+          />
+
+          <PharmacyHeatmap
+            onWindowClick={(windowNo) => handleDrillDown('window', windowNo)}
+          />
 
           <div className="bg-white rounded-xl p-5 shadow-card">
             <div className="flex items-center justify-between mb-4">

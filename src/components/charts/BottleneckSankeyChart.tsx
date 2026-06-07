@@ -22,7 +22,7 @@ export default function BottleneckSankeyChart({ data, onDrillDown }: Props) {
 
     const colors = ['#165DFF', '#00B42A', '#FF7D00', '#722ED1', '#F53F3F', '#86909C'];
 
-    const option: echarts.EChartsOption = {
+    const option = {
       tooltip: {
         trigger: 'item',
         triggerOn: 'mousemove',
@@ -48,11 +48,11 @@ export default function BottleneckSankeyChart({ data, onDrillDown }: Props) {
       series: [
         {
           type: 'sankey',
-          layout: 'none' as any,
+          layout: 'none',
           emphasis: {
-            focus: 'adjacency' as any,
+            focus: 'adjacency',
           },
-          nodeAlign: 'left' as any,
+          nodeAlign: 'left',
           data: data.nodes.map((node, index) => ({
             ...node,
             itemStyle: {
@@ -82,7 +82,7 @@ export default function BottleneckSankeyChart({ data, onDrillDown }: Props) {
       ],
     };
 
-    chartInstance.current.setOption(option);
+    chartInstance.current.setOption(option as any);
 
     const handleClick = (params: any) => {
       if (onDrillDown && params.name) {

@@ -17,6 +17,7 @@ import {
   calculateKPIData,
 } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
+import { applyFilters } from '@/utils/filters';
 import type { Prescription, Remark } from '@/types';
 import { Users, Building2, Pill, Clock } from 'lucide-react';
 import { formatMinutes, formatNumber } from '@/utils/formatters';
@@ -36,14 +37,7 @@ export default function ComparisonPage() {
   });
 
   const filteredPrescriptions = useMemo(() => {
-    return mockPrescriptions.filter((p) => {
-      if (filters.windows.length > 0 && !filters.windows.includes(p.windowId)) return false;
-      if (filters.pharmacists.length > 0 && !filters.pharmacists.includes(p.pharmacistId)) return false;
-      if (filters.departments.length > 0 && !filters.departments.includes(p.departmentId)) return false;
-      if (filters.prescriptionTypes.length > 0 && !filters.prescriptionTypes.includes(p.type)) return false;
-      if (filters.timePeriods.length > 0 && !filters.timePeriods.includes(p.timePeriod)) return false;
-      return true;
-    });
+    return applyFilters(mockPrescriptions, filters, filters.drillDown);
   }, [filters]);
 
   const windowCompare = useMemo(() => calculateWindowCompare(filteredPrescriptions), [filteredPrescriptions]);
