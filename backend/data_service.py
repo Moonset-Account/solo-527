@@ -318,6 +318,9 @@ class DataService:
         }
     
     def verify_aggregation(self, filters: Dict[str, Any], sample_size: int = 5) -> Dict[str, Any]:
+        if not self.use_mock and db_service.is_connected():
+            return self._verify_aggregation_db(filters, sample_size)
+        
         raw_data = self.get_air_quality_raw(filters)
         hourly_data = self.get_air_quality_hourly(filters)
         
@@ -339,7 +342,7 @@ class DataService:
         
         verification = {
             'valid': True,
-            'sample_time': sample_hour.isoformat(),
+            'sample_time': sample_hour.isoformat() if hasattr(sample_hour, 'isoformat') else str(sample_hour),
             'sample_station_id': int(sample_station),
             'raw_record_count': len(raw_sample),
             'hourly_record_count': int(hourly_sample['record_count'].iloc[0]),
@@ -351,7 +354,7 @@ class DataService:
             if pollutant in raw_sample.columns:
                 raw_mean = raw_sample[pollutant].mean()
                 hourly_mean = hourly_sample[f'{pollutant}_avg'].iloc[0]
-                diff = abs(raw_mean - hourly_mean) if pd.notna(raw_mean) and pd.notna(hourly_mean) else None
+                diff = abs(float(raw_mean) - float(hourly_mean)) if pd.notna(raw_mean) and pd.notna(hourly_mean) else None
                 
                 verification['pollutant_checks'][pollutant] = {
                     'raw_mean': float(raw_mean) if pd.notna(raw_mean) else None,
@@ -362,11 +365,118 @@ class DataService:
         
         raw_records_sample = raw_sample.head(sample_size).to_dict('records')
         for r in raw_records_sample:
-            r['timestamp'] = r['timestamp'].isoformat()
+            if isinstance(r.get('timestamp'), (pd.Timestamp, datetime)):
+                r['timestamp'] = r['timestamp'].isoformat()
         
         verification['raw_records_sample'] = raw_records_sample
         
         return verification
+    
+    def _verify_aggregation_db(self, filters: Dict[str, Any], sample_size: int = 5) -> Dict[str, Any]:
+        """真实数据库下用SQL直接验证，避免时区和数据类型问题"""
+        from sqlalchemy import text
+        
+        try:
+            engine = db_service.engine
+            with engine.connect() as conn:
+                sample = conn.execute(text("""
+                    SELECT hour_bucket, station_id, pm25_avg, o3_avg, record_count
+                    FROM air_quality_hourly
+                    ORDER BY hour_bucket DESC
+                    LIMIT 1
+                """)).fetchone()
+            
+            if not sample:
+                return {'valid': False, 'error': 'No hourly data in database'}
+            
+            hour_bucket, station_id, agg_pm25_avg, agg_o3_avg, agg_record_count = sample
+            hour_bucket_str = hour_bucket.isoformat() if hasattr(hour_bucket, 'isoformat') else str(hour_bucket)
+            
+            next_hour = hour_bucket + timedelta(hours=1)
+            
+            with engine.connect() as conn:
+                raw_result = conn.execute(text("""
+                    SELECT COUNT(*) as cnt, AVG(pm25) as avg_pm25, AVG(o3) as avg_o3
+                    FROM air_quality_raw
+                    WHERE station_id = :station_id
+                      AND timestamp >= :hour_bucket
+                      AND timestamp < :next_hour
+                """), {
+                    'station_id': station_id,
+                    'hour_bucket': hour_bucket,
+                    'next_hour': next_hour
+                }).fetchone()
+            
+            raw_count, raw_pm25_avg, raw_o3_avg = raw_result
+            
+            with engine.connect() as conn:
+                raw_samples = conn.execute(text("""
+                    SELECT timestamp, station_id, pm25, o3, is_anomaly
+                    FROM air_quality_raw
+                    WHERE station_id = :station_id
+                      AND timestamp >= :hour_bucket
+                      AND timestamp < :next_hour
+                    ORDER BY timestamp
+                    LIMIT :sample_size
+                """), {
+                    'station_id': station_id,
+                    'hour_bucket': hour_bucket,
+                    'next_hour': next_hour,
+                    'sample_size': sample_size
+                }).fetchall()
+            
+            raw_records_sample = []
+            for row in raw_samples:
+                ts = row[0]
+                raw_records_sample.append({
+                    'timestamp': ts.isoformat() if hasattr(ts, 'isoformat') else str(ts),
+                    'station_id': int(row[1]),
+                    'pm25': float(row[2]) if row[2] is not None else None,
+                    'o3': float(row[3]) if row[3] is not None else None,
+                    'is_anomaly': bool(row[4]) if row[4] is not None else False
+                })
+            
+            count_match = int(raw_count) == int(agg_record_count)
+            
+            pm25_diff = None
+            pm25_match = True
+            if raw_pm25_avg is not None and agg_pm25_avg is not None:
+                pm25_diff = abs(float(raw_pm25_avg) - float(agg_pm25_avg))
+                pm25_match = pm25_diff < 0.01
+            
+            o3_diff = None
+            o3_match = True
+            if raw_o3_avg is not None and agg_o3_avg is not None:
+                o3_diff = abs(float(raw_o3_avg) - float(agg_o3_avg))
+                o3_match = o3_diff < 0.01
+            
+            return {
+                'valid': True,
+                'mode': 'timescaledb',
+                'sample_time': hour_bucket_str,
+                'sample_station_id': int(station_id),
+                'raw_record_count': int(raw_count),
+                'hourly_record_count': int(agg_record_count),
+                'count_match': count_match,
+                'pollutant_checks': {
+                    'pm25': {
+                        'raw_mean': float(raw_pm25_avg) if raw_pm25_avg is not None else None,
+                        'hourly_mean': float(agg_pm25_avg) if agg_pm25_avg is not None else None,
+                        'difference': float(pm25_diff) if pm25_diff is not None else None,
+                        'match': pm25_match
+                    },
+                    'o3': {
+                        'raw_mean': float(raw_o3_avg) if raw_o3_avg is not None else None,
+                        'hourly_mean': float(agg_o3_avg) if agg_o3_avg is not None else None,
+                        'difference': float(o3_diff) if o3_diff is not None else None,
+                        'match': o3_match
+                    }
+                },
+                'raw_records_sample': raw_records_sample
+            }
+            
+        except Exception as e:
+            return {'valid': False, 'error': str(e)}
     
     def get_hourly_profile(self, filters: Dict[str, Any], pollutant: str = 'pm25') -> pd.DataFrame:
         raw_data = self.get_air_quality_raw(filters)
