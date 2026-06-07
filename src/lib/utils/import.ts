@@ -24,8 +24,8 @@ const TABLE_HEADER_MAP: Record<string, string[]> = {
   ]
 }
 
-export async function parseCSV(file: File): Promise<ImportResult> {
-  return new Promise<ImportResult>((resolve) => {
+export async function parseCSV(file: File): Promise<{ result: ImportResult; validRows: Record<string, unknown>[] }> {
+  return new Promise<{ result: ImportResult; validRows: Record<string, unknown>[] }>((resolve) => {
     Papa.parse<Record<string, unknown>>(file, {
       header: true,
       skipEmptyLines: true,
@@ -34,24 +34,30 @@ export async function parseCSV(file: File): Promise<ImportResult> {
         const tableName = assignToTable(results.data, headers)
         if (!tableName) {
           resolve({
-            table_name: '',
-            total_rows: results.data.length,
-            success_rows: 0,
-            error_rows: results.data.length,
-            errors: [{ row: 0, field: '', message: '无法识别数据表类型，请检查列头' }]
+            result: {
+              table_name: '',
+              total_rows: results.data.length,
+              success_rows: 0,
+              error_rows: results.data.length,
+              errors: [{ row: 0, field: '', message: '无法识别数据表类型，请检查列头' }]
+            },
+            validRows: []
           })
           return
         }
-        const validated = validateImportData(tableName, results.data)
-        resolve(validated)
+        const { importResult, validRows } = validateImportDataWithRows(tableName, results.data)
+        resolve({ result: importResult, validRows })
       },
       error: (err: Error) => {
         resolve({
-          table_name: '',
-          total_rows: 0,
-          success_rows: 0,
-          error_rows: 0,
-          errors: [{ row: 0, field: '', message: `CSV解析失败: ${err.message}` }]
+          result: {
+            table_name: '',
+            total_rows: 0,
+            success_rows: 0,
+            error_rows: 0,
+            errors: [{ row: 0, field: '', message: `CSV解析失败: ${err.message}` }]
+          },
+          validRows: []
         })
       }
     })
@@ -62,6 +68,13 @@ export function validateImportData(
   tableName: string,
   data: Record<string, unknown>[]
 ): ImportResult {
+  return validateImportDataWithRows(tableName, data).importResult
+}
+
+function validateImportDataWithRows(
+  tableName: string,
+  data: Record<string, unknown>[]
+): { importResult: ImportResult; validRows: Record<string, unknown>[] } {
   const errors: Array<{ row: number; field: string; message: string }> = []
   const tableFields = dataDictionary.filter((e) => e.table_name === tableName)
   const requiredFields = tableFields.filter((e) => e.is_required)
@@ -121,12 +134,19 @@ export function validateImportData(
   }
 
   return {
-    table_name: tableName,
-    total_rows: data.length,
-    success_rows: validRows.length,
-    error_rows: data.length - validRows.length,
-    errors
+    importResult: {
+      table_name: tableName,
+      total_rows: data.length,
+      success_rows: validRows.length,
+      error_rows: data.length - validRows.length,
+      errors
+    },
+    validRows
   }
+}
+
+export function getValidRows(result: ImportResult & { _validRows?: Record<string, unknown>[] }): Record<string, unknown>[] {
+  return result._validRows || []
 }
 
 export function assignToTable(

@@ -1,13 +1,30 @@
 <script lang="ts">
+	import '../app.css';
 	import { page } from '$app/stores';
-	import { getUserRole, setUserRole } from '$lib/stores/index.svelte';
 	import { exportToPDF } from '$lib/utils/export';
+	import { onMount } from 'svelte';
 	import type { UserRole } from '$lib/types';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	let exporting = $state(false);
+	let mounted = $state(false);
+
+	let currentRole = $state<UserRole>({
+		role_id: 'analyst',
+		role_name: '数据分析师',
+		accessible_warehouses: [],
+		accessible_suppliers: [],
+		accessible_sku_categories: []
+	});
+
+	onMount(() => {
+		import('$lib/stores/index.svelte').then((mod) => {
+			currentRole = mod.getUserRole();
+		});
+		mounted = true;
+	});
 
 	async function handleExport() {
 		const contentIdMap: Record<string, string> = {
@@ -63,10 +80,10 @@
 		{ role_id: 'analyst', role_name: '数据分析师' }
 	];
 
-	let currentRole = $state(getUserRole());
 	let sidebarCollapsed = $state(false);
 
-	function onRoleChange(e: Event) {
+	async function onRoleChange(e: Event) {
+		const { setUserRole } = await import('$lib/stores/index.svelte');
 		const select = e.target as HTMLSelectElement;
 		const found = roles.find((r) => r.role_id === select.value);
 		if (found) {

@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import * as echarts from 'echarts';
 
 	let { data }: { data: Array<{ sku_id: string; sku_name: string; batch_no: string; turnover_rate: number; avg_age_days: number; current_qty: number; rank_type: 'top' | 'bottom' }> } = $props();
 
 	let activeTab = $state<'top' | 'bottom'>('top');
 	let chartContainer: HTMLDivElement;
-	let chartInstance: echarts.ECharts | null = null;
+	let chartInstance: any = null;
 
 	const filteredData = $derived.by(() => {
 		const items = data.filter((d) => d.rank_type === activeTab);
@@ -94,13 +93,15 @@
 	});
 
 	onMount(() => {
-		if (chartContainer) {
-			chartInstance = echarts.init(chartContainer);
-			if (filteredData.length > 0) {
-				chartInstance.setOption(getOption(filteredData));
+		import('echarts').then((echarts) => {
+			if (chartContainer) {
+				chartInstance = echarts.init(chartContainer);
+				if (filteredData.length > 0) {
+					chartInstance.setOption(getOption(filteredData));
+				}
+				window.addEventListener('resize', handleResize);
 			}
-			window.addEventListener('resize', handleResize);
-		}
+		});
 
 		return () => {
 			window.removeEventListener('resize', handleResize);
@@ -113,21 +114,17 @@
 <div class="flex flex-col w-full">
 	<div class="flex gap-2 mb-3">
 		<button
-			class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-			class:bg-[#FF6B35]={activeTab === 'top'}
-			class:text-white={activeTab === 'top'}
-			class:bg-gray-100={activeTab !== 'top'}
-			class:text-gray-600={activeTab !== 'top'}
+			class="tab-toggle"
+			class:tab-top-active={activeTab === 'top'}
+			class:tab-inactive={activeTab !== 'top'}
 			onclick={() => (activeTab = 'top')}
 		>
 			周转最快 TOP 10
 		</button>
 		<button
-			class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-			class:bg-[#EF4444]={activeTab === 'bottom'}
-			class:text-white={activeTab === 'bottom'}
-			class:bg-gray-100={activeTab !== 'bottom'}
-			class:text-gray-600={activeTab !== 'bottom'}
+			class="tab-toggle"
+			class:tab-bottom-active={activeTab === 'bottom'}
+			class:tab-inactive={activeTab !== 'bottom'}
 			onclick={() => (activeTab = 'bottom')}
 		>
 			周转最慢 BOTTOM 10
@@ -135,3 +132,28 @@
 	</div>
 	<div bind:this={chartContainer} style="min-height: 360px;"></div>
 </div>
+
+<style>
+	.tab-toggle {
+		padding: 6px 16px;
+		border-radius: 8px;
+		font-size: 14px;
+		font-weight: 500;
+		transition: all 0.15s ease;
+		border: none;
+		cursor: pointer;
+		font-family: var(--font-body);
+	}
+	.tab-inactive {
+		background-color: #f3f4f6;
+		color: #4b5563;
+	}
+	.tab-top-active {
+		background-color: #FF6B35;
+		color: #ffffff;
+	}
+	.tab-bottom-active {
+		background-color: #EF4444;
+		color: #ffffff;
+	}
+</style>

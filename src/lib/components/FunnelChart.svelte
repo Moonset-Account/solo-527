@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import * as echarts from 'echarts';
 
 	let { data }: { data: { total_inbound: number; current_inventory: number; effective_turnover: number; fast_turnover: number } | null } = $props();
 
 	let chartContainer: HTMLDivElement;
-	let chartInstance: echarts.ECharts | null = null;
+	let chartInstance: any = null;
 
 	function getOption(d: NonNullable<typeof data>) {
 		const stages = [
@@ -92,13 +91,15 @@
 	});
 
 	onMount(() => {
-		if (chartContainer) {
-			chartInstance = echarts.init(chartContainer);
-			if (data) {
-				chartInstance.setOption(getOption(data));
+		import('echarts').then((echarts) => {
+			if (chartContainer) {
+				chartInstance = echarts.init(chartContainer);
+				if (data) {
+					chartInstance.setOption(getOption(data));
+				}
+				window.addEventListener('resize', handleResize);
 			}
-			window.addEventListener('resize', handleResize);
-		}
+		});
 
 		return () => {
 			window.removeEventListener('resize', handleResize);

@@ -1,8 +1,28 @@
 <script lang="ts">
 	import { parseCSV } from '$lib/utils/import'
 	import { dataDictionary } from '$lib/data/data-dictionary'
-	import { getUserRole, setUserRole } from '$lib/stores/index.svelte'
-	import type { DataDictionaryEntry, ImportResult, UserRole } from '$lib/types'
+	import { onMount } from 'svelte'
+	import type { DataDictionaryEntry, ImportResult, UserRole, InboundRecord, OutboundRecord, InventoryAgeRecord, ReturnRecord, SafetyStockRecord } from '$lib/types'
+
+	let setInboundData: (d: InboundRecord[]) => void = () => {}
+	let setOutboundData: (d: OutboundRecord[]) => void = () => {}
+	let setInventoryAgeData: (d: InventoryAgeRecord[]) => void = () => {}
+	let setReturnData: (d: ReturnRecord[]) => void = () => {}
+	let setSafetyStockData: (d: SafetyStockRecord[]) => void = () => {}
+	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] })
+	let setUserRole: (r: UserRole) => void = () => {}
+
+	onMount(() => {
+		import('$lib/stores/index.svelte').then((stores) => {
+			setInboundData = stores.setInboundData
+			setOutboundData = stores.setOutboundData
+			setInventoryAgeData = stores.setInventoryAgeData
+			setReturnData = stores.setReturnData
+			setSafetyStockData = stores.setSafetyStockData
+			getUserRole = stores.getUserRole
+			setUserRole = stores.setUserRole
+		})
+	})
 
 	type TabKey = 'import' | 'dictionary' | 'missing' | 'permission'
 
@@ -123,10 +143,17 @@
 		}, 200)
 
 		try {
-			const result = await parseCSV(file)
+			const { result, validRows } = await parseCSV(file)
 			clearInterval(interval)
 			uploadProgress = 100
 			importResult = result
+			if (result.success_rows > 0 && validRows.length > 0) {
+				if (result.table_name === 'inbound_records') setInboundData(validRows as unknown as InboundRecord[])
+				else if (result.table_name === 'outbound_records') setOutboundData(validRows as unknown as OutboundRecord[])
+				else if (result.table_name === 'inventory_age_records') setInventoryAgeData(validRows as unknown as InventoryAgeRecord[])
+				else if (result.table_name === 'return_records') setReturnData(validRows as unknown as ReturnRecord[])
+				else if (result.table_name === 'safety_stock_records') setSafetyStockData(validRows as unknown as SafetyStockRecord[])
+			}
 		} catch {
 			clearInterval(interval)
 			uploadProgress = 0

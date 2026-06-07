@@ -1,8 +1,16 @@
 <script lang="ts">
 	import { computeWeeklyReport, detectAnomalies } from '$lib/utils/analytics'
-	import { getFilter } from '$lib/stores/index.svelte'
+	import { onMount } from 'svelte'
 	import { exportToPDF, exportToImage } from '$lib/utils/export'
-	import type { WeeklyReport } from '$lib/types'
+	import type { WeeklyReport, FilterState } from '$lib/types'
+
+	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } })
+
+	onMount(() => {
+		import('$lib/stores/index.svelte').then((stores) => {
+			getFilter = stores.getFilter
+		})
+	})
 
 	let reports = $state<WeeklyReport[]>([])
 	let selectedReport = $state<WeeklyReport | null>(null)

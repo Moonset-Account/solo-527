@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import * as echarts from 'echarts';
 
 	let { data }: { data: Array<{ age_bucket: string; batch_no: string; quantity: number }> } = $props();
 
 	let chartContainer: HTMLDivElement;
-	let chartInstance: echarts.ECharts | null = null;
+	let chartInstance: any = null;
 
 	const ageBucketOrder = ['0-30', '30-60', '60-90', '90-180', '180+'];
 	const palette = ['#1B2A4A', '#3B5998', '#5B7FCC', '#FF6B35', '#FF9A6C', '#2ECDA7', '#6DD5B3', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -81,13 +80,15 @@
 	});
 
 	onMount(() => {
-		if (chartContainer) {
-			chartInstance = echarts.init(chartContainer);
-			if (data.length > 0) {
-				chartInstance.setOption(getOption(data));
+		import('echarts').then((echarts) => {
+			if (chartContainer) {
+				chartInstance = echarts.init(chartContainer);
+				if (data.length > 0) {
+					chartInstance.setOption(getOption(data));
+				}
+				window.addEventListener('resize', handleResize);
 			}
-			window.addEventListener('resize', handleResize);
-		}
+		});
 
 		return () => {
 			window.removeEventListener('resize', handleResize);

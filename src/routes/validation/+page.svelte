@@ -1,8 +1,16 @@
 <script lang="ts">
 	import { computeFunnelData, computeTurnoverRanking, detectAnomalies } from '$lib/utils/analytics'
-	import { getFilter } from '$lib/stores/index.svelte'
+	import { onMount } from 'svelte'
 	import { exportToCSV } from '$lib/utils/export'
-	import type { ValidationRule, DrillDownPath } from '$lib/types'
+	import type { ValidationRule, DrillDownPath, FilterState } from '$lib/types'
+
+	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } })
+
+	onMount(() => {
+		import('$lib/stores/index.svelte').then((stores) => {
+			getFilter = stores.getFilter
+		})
+	})
 
 	interface ValidationResult {
 		metric: string

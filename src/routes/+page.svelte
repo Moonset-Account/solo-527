@@ -18,6 +18,7 @@
 		allWarehousePositions,
 		allBatchNos
 	} from '$lib/data/mock-data';
+	import { onMount } from 'svelte';
 	import type {
 		FunnelData,
 		TurnoverRanking,
@@ -41,6 +42,7 @@
 	let nearExpiryAlerts = $state<NearExpiryAlert[]>([]);
 	let anomalies = $state<AnomalyPoint[]>([]);
 	let loading = $state(true);
+	let mounted = $state(false);
 
 	const ageBucketOptions = ['0-30', '30-60', '60-90', '90-180', '180+'];
 
@@ -82,13 +84,20 @@
 		refreshData({});
 	}
 
-	$effect(() => {
+	onMount(() => {
+		mounted = true;
 		const filter = getFilter();
 		refreshData(filter);
 	});
 </script>
 
 <div class="dashboard">
+	{#if !mounted}
+		<div class="loading-state">
+			<div class="spinner"></div>
+			<span>数据加载中...</span>
+		</div>
+	{:else}
 	<section class="filter-section">
 		<div class="card filter-card">
 			<div class="card-header">
@@ -238,6 +247,7 @@
 				</div>
 			</section>
 		</div>
+	{/if}
 	{/if}
 </div>
 
