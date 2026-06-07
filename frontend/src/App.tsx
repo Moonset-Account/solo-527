@@ -73,7 +73,7 @@ export default function App() {
   }, [filters]);
 
   const kpiStats = (() => {
-    const normalOrders = heatmap.filter(d => !d.is_late_checkout);
+    const normalOrders = heatmap.filter(d => !d.is_late_checkout && !d.is_vip);
     const vipOrders = heatmap.filter(d => d.is_vip);
     const lateOrders = heatmap.filter(d => d.is_late_checkout);
     const avgNormal = normalOrders.length

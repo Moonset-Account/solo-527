@@ -109,8 +109,8 @@ def weekly_report_export(filters: FilterParams = Depends(build_filters), db: Ses
     ws1 = wb.active
     ws1.title = "保洁员绩效"
     perf = get_cleaner_performance(db, filters)
-    perf_headers = ["保洁员", "班次", "总工单", "平均时长(min)", "VIP平均时长", "普通平均时长",
-                    "返工次数", "返工率%", "VIP返工率%", "普通返工率%", "换班次数", "平均返工距查房(min)"]
+    perf_headers = ["保洁员", "班次", "总工单", "VIP工单", "普通工单", "平均时长(min)", "VIP平均时长", "普通平均时长",
+                    "返工次数", "返工率%", "VIP返工率%", "普通返工率%", "换班次数", "交接转出时长", "接手转入时长", "平均返工距查房(min)"]
     ws1.append(perf_headers)
     for col in range(1, len(perf_headers) + 1):
         cell = ws1.cell(row=1, column=col)
@@ -120,10 +120,11 @@ def weekly_report_export(filters: FilterParams = Depends(build_filters), db: Ses
         cell.border = thin_border
     for p in perf:
         ws1.append([
-            p.cleaner_name, p.shift, p.total_orders, p.avg_duration,
-            p.avg_duration_vip, p.avg_duration_normal,
+            p.cleaner_name, p.shift, p.total_orders, p.vip_orders, p.normal_orders,
+            p.avg_duration, p.avg_duration_vip, p.avg_duration_normal,
             p.rework_count, p.rework_rate, p.rework_rate_vip, p.rework_rate_normal,
-            p.handover_count, p.avg_minutes_after_inspection,
+            p.handover_count, p.handover_from_duration_total, p.handover_to_duration_total,
+            p.avg_minutes_after_inspection,
         ])
 
     ws2 = wb.create_sheet("楼层热力图")

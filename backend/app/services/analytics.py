@@ -236,6 +236,13 @@ def get_work_orders_detail(db: Session, filters: FilterParams) -> list:
 
 def get_cleaner_performance(db: Session, filters: FilterParams) -> List[CleanerPerformance]:
     cleaners = db.query(Cleaner).filter(Cleaner.is_active == True).all()
+    all_handovers = db.query(ShiftHandover).all()
+    handover_map: dict = {}
+    for h in all_handovers:
+        if h.work_order_id not in handover_map:
+            handover_map[h.work_order_id] = []
+        handover_map[h.work_order_id].append(h)
+
     results = []
 
     for c in cleaners:
@@ -247,26 +254,91 @@ def get_cleaner_performance(db: Session, filters: FilterParams) -> List[CleanerP
             .filter(WorkOrder.cleaning_duration.isnot(None))
         )
         query = apply_filters(query, c_filters)
-        orders = query.all()
+        primary_orders = query.all()
 
-        if not orders:
-            continue
+        primary_order_ids = {o.id for o in primary_orders}
 
-        order_ids = [o.id for o in orders]
-        reworks = db.query(Rework).filter(Rework.work_order_id.in_(order_ids)).all()
-        handovers = db.query(ShiftHandover).filter(
-            (ShiftHandover.from_cleaner_id == c.id) | (ShiftHandover.to_cleaner_id == c.id)
-        ).filter(ShiftHandover.work_order_id.in_(order_ids)).all()
+        takeover_order_ids = set()
+        for h in all_handovers:
+            if h.to_cleaner_id == c.id and h.work_order_id not in primary_order_ids:
+                takeover_order_ids.add(h.work_order_id)
 
-        vip_orders = [o for o in orders if o.is_vip]
-        normal_orders = [o for o in orders if not o.is_vip]
+        takeover_orders = []
+        if takeover_order_ids:
+            takeover_orders = db.query(WorkOrder).filter(
+                WorkOrder.id.in_(takeover_order_ids),
+                WorkOrder.is_late_checkout == False,
+                WorkOrder.cleaning_duration.isnot(None),
+            ).all()
+            if filters.start_date:
+                takeover_orders = [o for o in takeover_orders if o.date >= filters.start_date]
+            if filters.end_date:
+                takeover_orders = [o for o in takeover_orders if o.date <= filters.end_date]
+            if filters.floor:
+                room_ids = {o.room_id for o in takeover_orders}
+                rooms = db.query(Room).filter(Room.id.in_(room_ids)).all()
+                floor_rooms = {r.id for r in rooms if r.floor == filters.floor}
+                takeover_orders = [o for o in takeover_orders if o.room_id in floor_rooms]
+            if filters.shift:
+                takeover_orders = [o for o in takeover_orders if o.shift == filters.shift]
+            if filters.is_vip is not None:
+                takeover_orders = [o for o in takeover_orders if o.is_vip == filters.is_vip]
 
-        all_dur = [o.cleaning_duration for o in orders if o.cleaning_duration]
-        vip_dur = [o.cleaning_duration for o in vip_orders if o.cleaning_duration]
-        normal_dur = [o.cleaning_duration for o in normal_orders if o.cleaning_duration]
+        effective_vip_dur = []
+        effective_normal_dur = []
+        handover_from_total = 0.0
+        handover_to_total = 0.0
+        handover_count = 0
 
+        for o in primary_orders:
+            h_list = handover_map.get(o.id, [])
+            involved = [h for h in h_list if h.from_cleaner_id == c.id or h.to_cleaner_id == c.id]
+            if involved:
+                for h in involved:
+                    if h.from_cleaner_id == c.id and h.from_duration is not None:
+                        dur = h.from_duration
+                        handover_from_total += dur
+                        handover_count += 1
+                        if o.is_vip:
+                            effective_vip_dur.append(dur)
+                        else:
+                            effective_normal_dur.append(dur)
+                    if h.to_cleaner_id == c.id and h.to_duration is not None:
+                        dur = h.to_duration
+                        handover_to_total += dur
+                        handover_count += 1
+                        if o.is_vip:
+                            effective_vip_dur.append(dur)
+                        else:
+                            effective_normal_dur.append(dur)
+            else:
+                if o.cleaning_duration is not None:
+                    if o.is_vip:
+                        effective_vip_dur.append(o.cleaning_duration)
+                    else:
+                        effective_normal_dur.append(o.cleaning_duration)
+
+        for o in takeover_orders:
+            h_list = handover_map.get(o.id, [])
+            for h in h_list:
+                if h.to_cleaner_id == c.id and h.to_duration is not None:
+                    dur = h.to_duration
+                    handover_to_total += dur
+                    handover_count += 1
+                    if o.is_vip:
+                        effective_vip_dur.append(dur)
+                    else:
+                        effective_normal_dur.append(dur)
+
+        all_effective_dur = effective_vip_dur + effective_normal_dur
+
+        all_order_ids = list(primary_order_ids | takeover_order_ids)
+        reworks = db.query(Rework).filter(Rework.work_order_id.in_(all_order_ids)).all() if all_order_ids else []
         vip_rework = sum(1 for r in reworks if r.is_vip)
         normal_rework = sum(1 for r in reworks if not r.is_vip)
+
+        vip_order_count = len([o for o in primary_orders if o.is_vip]) + len([o for o in takeover_orders if o.is_vip])
+        normal_order_count = len([o for o in primary_orders if not o.is_vip]) + len([o for o in takeover_orders if not o.is_vip])
 
         mins_after = [r.minutes_after_inspection for r in reworks if r.minutes_after_inspection is not None]
 
@@ -274,15 +346,19 @@ def get_cleaner_performance(db: Session, filters: FilterParams) -> List[CleanerP
             cleaner_id=c.id,
             cleaner_name=c.name,
             shift=c.shift,
-            total_orders=len(orders),
-            avg_duration=round(sum(all_dur) / len(all_dur), 1) if all_dur else None,
-            avg_duration_vip=round(sum(vip_dur) / len(vip_dur), 1) if vip_dur else None,
-            avg_duration_normal=round(sum(normal_dur) / len(normal_dur), 1) if normal_dur else None,
+            total_orders=len(primary_orders) + len(takeover_orders),
+            vip_orders=vip_order_count,
+            normal_orders=normal_order_count,
+            avg_duration=round(sum(all_effective_dur) / len(all_effective_dur), 1) if all_effective_dur else None,
+            avg_duration_vip=round(sum(effective_vip_dur) / len(effective_vip_dur), 1) if effective_vip_dur else None,
+            avg_duration_normal=round(sum(effective_normal_dur) / len(effective_normal_dur), 1) if effective_normal_dur else None,
             rework_count=len(reworks),
-            rework_rate=round(len(reworks) / len(orders) * 100, 1) if orders else None,
-            rework_rate_vip=round(vip_rework / len(vip_orders) * 100, 1) if vip_orders else None,
-            rework_rate_normal=round(normal_rework / len(normal_orders) * 100, 1) if normal_orders else None,
-            handover_count=len(handovers),
+            rework_rate=round(len(reworks) / (len(primary_orders) + len(takeover_orders)) * 100, 1) if (len(primary_orders) + len(takeover_orders)) else None,
+            rework_rate_vip=round(vip_rework / vip_order_count * 100, 1) if vip_order_count else None,
+            rework_rate_normal=round(normal_rework / normal_order_count * 100, 1) if normal_order_count else None,
+            handover_count=handover_count,
+            handover_from_duration_total=round(handover_from_total, 1) if handover_from_total else None,
+            handover_to_duration_total=round(handover_to_total, 1) if handover_to_total else None,
             avg_minutes_after_inspection=round(sum(mins_after) / len(mins_after), 1) if mins_after else None,
         ))
 

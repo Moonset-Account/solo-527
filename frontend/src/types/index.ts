@@ -33,6 +33,8 @@ export interface CleanerPerformance {
   cleaner_name: string;
   shift: string;
   total_orders: number;
+  vip_orders: number;
+  normal_orders: number;
   avg_duration: number | null;
   avg_duration_vip: number | null;
   avg_duration_normal: number | null;
@@ -41,6 +43,8 @@ export interface CleanerPerformance {
   rework_rate_vip: number | null;
   rework_rate_normal: number | null;
   handover_count: number;
+  handover_from_duration_total: number | null;
+  handover_to_duration_total: number | null;
   avg_minutes_after_inspection: number | null;
 }
 

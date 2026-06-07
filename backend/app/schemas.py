@@ -146,6 +146,8 @@ class CleanerPerformance(BaseModel):
     cleaner_name: str
     shift: str
     total_orders: int
+    vip_orders: int = 0
+    normal_orders: int = 0
     avg_duration: Optional[float] = None
     avg_duration_vip: Optional[float] = None
     avg_duration_normal: Optional[float] = None
@@ -154,4 +156,6 @@ class CleanerPerformance(BaseModel):
     rework_rate_vip: Optional[float] = None
     rework_rate_normal: Optional[float] = None
     handover_count: int = 0
+    handover_from_duration_total: Optional[float] = None
+    handover_to_duration_total: Optional[float] = None
     avg_minutes_after_inspection: Optional[float] = None
