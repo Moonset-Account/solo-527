@@ -1,9 +1,10 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
-import type { FilterState, TaskRecord, WeatherRecord, PestRecord, Annotation } from './types';
+import type { FilterState } from './types';
 import { generateMockData } from './mock-data';
 
 let db: duckdb.AsyncDuckDB | null = null;
 let conn: duckdb.AsyncDuckDBConnection | null = null;
+let dataLoaded = false;
 
 async function initDB(): Promise<duckdb.AsyncDuckDB> {
 	if (db && conn) return db;
@@ -25,11 +26,8 @@ export async function ensureDB() {
 }
 
 export async function loadMockData(): Promise<void> {
+	if (dataLoaded) return;
 	const d = await initDB();
-	await d.registerFileText('maintenance_tasks.csv', '');
-	await d.registerFileText('weather_records.csv', '');
-	await d.registerFileText('pest_records.csv', '');
-	const data = generateMockData(60);
 	await conn!.query(`
 		CREATE TABLE IF NOT EXISTS maintenance_tasks (
 			id VARCHAR, district VARCHAR, plant_type VARCHAR, task_type VARCHAR,
@@ -48,6 +46,7 @@ export async function loadMockData(): Promise<void> {
 			id VARCHAR, task_id VARCHAR, content TEXT, author VARCHAR, created_at TIMESTAMP
 		);
 	`);
+	const data = generateMockData(60);
 	for (const r of data.taskRecords) {
 		await conn!.query(`INSERT INTO maintenance_tasks VALUES (
 			'${r.id}','${r.district}','${r.plant_type}','${r.task_type}','${r.team}',
@@ -65,9 +64,14 @@ export async function loadMockData(): Promise<void> {
 			'${r.id}','${r.district}','${r.pest_type}','${r.severity}','${r.found_date}','${r.plant_type}'
 		)`);
 	}
+	dataLoaded = true;
 }
 
-function buildWhere(filter: FilterState): string {
+export interface DetailFilter extends FilterState {
+	statuses?: string[];
+}
+
+function buildWhere(filter: DetailFilter): string {
 	const clauses: string[] = [];
 	if (filter.districts.length > 0)
 		clauses.push(`district IN (${filter.districts.map((d) => `'${d}'`).join(',')})`);
@@ -75,107 +79,15 @@ function buildWhere(filter: FilterState): string {
 		clauses.push(`plant_type IN (${filter.plantTypes.map((p) => `'${p}'`).join(',')})`);
 	if (filter.taskTypes.length > 0)
 		clauses.push(`task_type IN (${filter.taskTypes.map((t) => `'${t}'`).join(',')})`);
-	if (filter.teams.length > 0) clauses.push(`team IN (${filter.teams.map((t) => `'${t}'`).join(',')})`);
+	if (filter.teams.length > 0)
+		clauses.push(`team IN (${filter.teams.map((t) => `'${t}'`).join(',')})`);
 	if (filter.dateRange[0] && filter.dateRange[1]) {
 		clauses.push(`planned_date BETWEEN '${filter.dateRange[0]}' AND '${filter.dateRange[1]}'`);
 	}
+	if (filter.statuses && filter.statuses.length > 0) {
+		clauses.push(`status IN (${filter.statuses.map((s) => `'${s}'`).join(',')})`);
+	}
 	return clauses.length > 0 ? 'WHERE ' + clauses.join(' AND ') : '';
-}
-
-export async function queryOverviewMetrics(filter: FilterState) {
-	await ensureDB();
-	const w = buildWhere(filter);
-	const sql = `
-		SELECT
-			COUNT(*) as total_tasks,
-			SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed_tasks,
-			SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END) as overdue_tasks,
-			SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END) as rain_delayed_tasks,
-			ROUND(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as completion_rate,
-			ROUND(SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as overdue_rate,
-			ROUND(SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as rain_delayed_rate
-		FROM maintenance_tasks ${w};
-	`;
-	const result = await conn!.query(sql);
-	return result.toArray()[0];
-}
-
-export async function queryCompletionTrend(filter: FilterState, groupBy: 'day' | 'week' | 'month' = 'day') {
-	await ensureDB();
-	const w = buildWhere(filter);
-	const trunc = groupBy === 'month' ? 'month' : groupBy === 'week' ? 'week' : 'day';
-	const sql = `
-		SELECT
-			DATE_TRUNC('${trunc}', planned_date) as period,
-			COUNT(*) as total,
-			SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
-			SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END) as overdue,
-			SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END) as rain_delayed
-		FROM maintenance_tasks ${w}
-		GROUP BY DATE_TRUNC('${trunc}', planned_date)
-		ORDER BY period;
-	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
-}
-
-export async function queryWeatherCorrelation(filter: FilterState) {
-	await ensureDB();
-	const w = buildWhere(filter).replace('plant_type', 'm.plant_type').replace('task_type', 'm.task_type');
-	const joinClause = filter.dateRange[0] && filter.dateRange[1]
-		? `AND m.planned_date BETWEEN '${filter.dateRange[0]}' AND '${filter.dateRange[1]}'`
-		: '';
-	const sql = `
-		SELECT
-			w.record_date as date,
-			AVG(w.rainfall_mm) as avg_rainfall,
-			ROUND(SUM(CASE WHEN m.status='overdue' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(m.id)::DOUBLE, 0) * 100, 1) as overdue_rate,
-			ROUND(SUM(CASE WHEN m.status='rain_delayed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(m.id)::DOUBLE, 0) * 100, 1) as rain_delayed_rate,
-			COUNT(m.id) as task_count
-		FROM weather_records w
-		LEFT JOIN maintenance_tasks m ON w.record_date = m.planned_date AND w.district = m.district
-			${joinClause}
-			${filter.districts.length > 0 ? `AND m.district IN (${filter.districts.map((d) => `'${d}'`).join(',')})` : ''}
-			${filter.teams.length > 0 ? `AND m.team IN (${filter.teams.map((t) => `'${t}'`).join(',')})` : ''}
-		GROUP BY w.record_date
-		ORDER BY w.record_date;
-	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
-}
-
-export async function queryPestMap(filter: FilterState) {
-	await ensureDB();
-	const w = buildWhere(filter).replace('plant_type', 'p.plant_type');
-	const sql = `
-		SELECT
-			p.district,
-			p.pest_type,
-			p.severity,
-			COUNT(*) as count,
-			MIN(p.found_date) as first_found,
-			MAX(p.found_date) as last_found
-		FROM pest_records p
-		${w.replace('task_type', "'all'").replace("team = ", "1=1 AND 2=2 --").replace('planned_date', 'found_date')}
-		GROUP BY p.district, p.pest_type, p.severity
-		ORDER BY count DESC;
-	`;
-	const wherePest = buildWhereForPest(filter);
-	const sqlFixed = `
-		SELECT
-			district,
-			pest_type,
-			severity,
-			COUNT(*) as count,
-			MIN(found_date) as first_found,
-			MAX(found_date) as last_found
-		FROM pest_records
-		${wherePest}
-		GROUP BY district, pest_type, severity
-		ORDER BY count DESC;
-	`;
-	const result = await conn!.query(sqlFixed);
-	return result.toArray();
 }
 
 function buildWhereForPest(filter: FilterState): string {
@@ -190,8 +102,111 @@ function buildWhereForPest(filter: FilterState): string {
 	return clauses.length > 0 ? 'WHERE ' + clauses.join(' AND ') : '';
 }
 
-export async function queryPestTrend(filter: FilterState) {
+function toPlain(obj: any): any {
+	if (obj === null || obj === undefined) return obj;
+	if (typeof obj === 'bigint') return Number(obj);
+	if (Array.isArray(obj)) return obj.map(toPlain);
+	if (typeof obj === 'object') {
+		const result: any = {};
+		for (const key of Object.keys(obj)) {
+			result[key] = toPlain(obj[key]);
+		}
+		return result;
+	}
+	return obj;
+}
+
+async function runQuery(sql: string): Promise<any[]> {
 	await ensureDB();
+	const result = await conn!.query(sql);
+	return result.toArray().map(toPlain);
+}
+
+export async function queryOverviewMetrics(filter: FilterState) {
+	const w = buildWhere(filter);
+	const sql = `
+		SELECT
+			COUNT(*) as total_tasks,
+			SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed_tasks,
+			SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END) as overdue_tasks,
+			SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END) as rain_delayed_tasks,
+			ROUND(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as completion_rate,
+			ROUND(SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as overdue_rate,
+			ROUND(SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*)::DOUBLE, 0) * 100, 1) as rain_delayed_rate
+		FROM maintenance_tasks ${w};
+	`;
+	return (await runQuery(sql))[0];
+}
+
+export async function queryCompletionTrend(filter: FilterState, groupBy: 'day' | 'week' | 'month' = 'day') {
+	const w = buildWhere(filter);
+	const trunc = groupBy === 'month' ? 'month' : groupBy === 'week' ? 'week' : 'day';
+	const sql = `
+		SELECT
+			DATE_TRUNC('${trunc}', planned_date) as period,
+			COUNT(*) as total,
+			SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+			SUM(CASE WHEN status='overdue' THEN 1 ELSE 0 END) as overdue,
+			SUM(CASE WHEN status='rain_delayed' THEN 1 ELSE 0 END) as rain_delayed
+		FROM maintenance_tasks ${w}
+		GROUP BY DATE_TRUNC('${trunc}', planned_date)
+		ORDER BY period;
+	`;
+	return runQuery(sql);
+}
+
+export async function queryWeatherCorrelation(filter: FilterState) {
+	const joinClauses: string[] = [];
+	joinClauses.push(`w.record_date = m.planned_date`);
+	joinClauses.push(`w.district = m.district`);
+	if (filter.dateRange[0] && filter.dateRange[1]) {
+		joinClauses.push(`m.planned_date BETWEEN '${filter.dateRange[0]}' AND '${filter.dateRange[1]}'`);
+	}
+	if (filter.districts.length > 0) {
+		joinClauses.push(`m.district IN (${filter.districts.map((d) => `'${d}'`).join(',')})`);
+	}
+	if (filter.teams.length > 0) {
+		joinClauses.push(`m.team IN (${filter.teams.map((t) => `'${t}'`).join(',')})`);
+	}
+	if (filter.plantTypes.length > 0) {
+		joinClauses.push(`m.plant_type IN (${filter.plantTypes.map((p) => `'${p}'`).join(',')})`);
+	}
+	if (filter.taskTypes.length > 0) {
+		joinClauses.push(`m.task_type IN (${filter.taskTypes.map((t) => `'${t}'`).join(',')})`);
+	}
+	const sql = `
+		SELECT
+			w.record_date as date,
+			AVG(w.rainfall_mm) as avg_rainfall,
+			ROUND(SUM(CASE WHEN m.status='overdue' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(m.id)::DOUBLE, 0) * 100, 1) as overdue_rate,
+			ROUND(SUM(CASE WHEN m.status='rain_delayed' THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(m.id)::DOUBLE, 0) * 100, 1) as rain_delayed_rate,
+			COUNT(m.id) as task_count
+		FROM weather_records w
+		LEFT JOIN maintenance_tasks m ON ${joinClauses.join(' AND ')}
+		GROUP BY w.record_date
+		ORDER BY w.record_date;
+	`;
+	return runQuery(sql);
+}
+
+export async function queryPestMap(filter: FilterState) {
+	const w = buildWhereForPest(filter);
+	const sql = `
+		SELECT
+			district,
+			pest_type,
+			severity,
+			COUNT(*) as count,
+			MIN(found_date) as first_found,
+			MAX(found_date) as last_found
+		FROM pest_records ${w}
+		GROUP BY district, pest_type, severity
+		ORDER BY count DESC;
+	`;
+	return runQuery(sql);
+}
+
+export async function queryPestTrend(filter: FilterState) {
 	const w = buildWhereForPest(filter);
 	const sql = `
 		SELECT
@@ -202,12 +217,10 @@ export async function queryPestTrend(filter: FilterState) {
 		GROUP BY found_date, district
 		ORDER BY found_date;
 	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
 export async function queryPestDistribution(filter: FilterState) {
-	await ensureDB();
 	const w = buildWhereForPest(filter);
 	const sql = `
 		SELECT pest_type, COUNT(*) as count
@@ -215,12 +228,10 @@ export async function queryPestDistribution(filter: FilterState) {
 		GROUP BY pest_type
 		ORDER BY count DESC;
 	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
 export async function queryTeamComparison(filter: FilterState) {
-	await ensureDB();
 	const w = buildWhere(filter);
 	const sql = `
 		SELECT
@@ -237,12 +248,10 @@ export async function queryTeamComparison(filter: FilterState) {
 		GROUP BY team
 		ORDER BY team;
 	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
 export async function queryTeamEfficiency(filter: FilterState) {
-	await ensureDB();
 	const w = buildWhere(filter);
 	const sql = `
 		SELECT
@@ -255,12 +264,10 @@ export async function queryTeamEfficiency(filter: FilterState) {
 		WHERE status IN ('completed', 'overdue', 'rain_delayed')
 		GROUP BY team;
 	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
-export async function queryDetailRecords(filter: FilterState, page = 0, pageSize = 50) {
-	await ensureDB();
+export async function queryDetailRecords(filter: DetailFilter, page = 0, pageSize = 50) {
 	const w = buildWhere(filter);
 	const offset = page * pageSize;
 	const sql = `
@@ -268,39 +275,27 @@ export async function queryDetailRecords(filter: FilterState, page = 0, pageSize
 		ORDER BY planned_date DESC, district
 		LIMIT ${pageSize} OFFSET ${offset};
 	`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
-export async function queryDetailCount(filter: FilterState) {
-	await ensureDB();
+export async function queryDetailCount(filter: DetailFilter) {
 	const w = buildWhere(filter);
 	const sql = `SELECT COUNT(*) as total FROM maintenance_tasks ${w};`;
-	const result = await conn!.query(sql);
-	return result.toArray()[0].total;
+	const rows = await runQuery(sql);
+	return rows[0].total;
 }
 
 export async function queryAnnotations(taskId: string) {
-	await ensureDB();
 	const sql = `SELECT * FROM annotations WHERE task_id = '${taskId}' ORDER BY created_at DESC;`;
-	const result = await conn!.query(sql);
-	return result.toArray();
+	return runQuery(sql);
 }
 
 export async function insertAnnotation(taskId: string, content: string, author: string) {
 	await ensureDB();
 	const id = `A${Date.now()}`;
-	const sql = `INSERT INTO annotations VALUES ('${id}', '${taskId}', '${content}', '${author}', CURRENT_TIMESTAMP);`;
+	const escapedContent = content.replace(/'/g, "''");
+	const escapedAuthor = author.replace(/'/g, "''");
+	const sql = `INSERT INTO annotations VALUES ('${id}', '${taskId}', '${escapedContent}', '${escapedAuthor}', CURRENT_TIMESTAMP);`;
 	await conn!.query(sql);
 	return id;
-}
-
-export async function queryTaskByStatus(filter: FilterState, statuses: string[]) {
-	await ensureDB();
-	const w = buildWhere(filter);
-	const statusClause = `status IN (${statuses.map((s) => `'${s}'`).join(',')})`;
-	const whereClause = w ? w + ' AND ' + statusClause : 'WHERE ' + statusClause;
-	const sql = `SELECT * FROM maintenance_tasks ${whereClause} ORDER BY planned_date DESC;`;
-	const result = await conn!.query(sql);
-	return result.toArray();
 }

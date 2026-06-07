@@ -3,10 +3,11 @@
 	import * as echarts from 'echarts';
 	import type { EChartsOption } from 'echarts';
 
-	let { option, class: className = '', style = '' }: {
+	let { option, class: className = '', style = '', onclick }: {
 		option: EChartsOption;
 		class?: string;
 		style?: string;
+		onclick?: (params: any) => void;
 	} = $props();
 
 	let chartEl: HTMLDivElement;
@@ -15,6 +16,9 @@
 	onMount(() => {
 		chart = echarts.init(chartEl);
 		chart.setOption(option);
+		if (onclick) {
+			chart.on('click', (params) => onclick(params));
+		}
 		const ro = new ResizeObserver(() => chart?.resize());
 		ro.observe(chartEl);
 		return () => {

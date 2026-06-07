@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { filterStore } from '$lib/stores';
 	import { queryPestMap, queryPestTrend, queryPestDistribution } from '$lib/duckdb-service';
 	import Chart from '$lib/components/Chart.svelte';
@@ -16,12 +17,6 @@
 		'城南片区': [116.38, 39.82],
 		'城北片区': [116.38, 40.02],
 		'中心片区': [116.38, 39.92]
-	};
-
-	const severityColors: Record<string, string> = {
-		low: '#40916C',
-		medium: '#E9C46A',
-		high: '#E76F51'
 	};
 
 	async function loadMap() {
@@ -48,7 +43,7 @@
 					formatter: (params: any) => {
 						const d = params.data;
 						if (!d) return '';
-						return `<b>${d.name}</b><br/>病虫害总数: ${d.value[2]}<br/>严重: ${d.high} | 中等: ${d.medium} | 轻微: ${d.low}<br/>严重度: ${(d.value[2] / (DISTRICT_AREAS[d.name] || 100)).toFixed(2)}/亩`;
+						return `<b>${d.name}</b><br/>病虫害总数: ${d.value[2]}<br/>严重: ${d.high} | 中等: ${d.medium} | 轻微: ${d.low}<br/>严重度: ${(d.value[2] / (DISTRICT_AREAS[d.name] || 100)).toFixed(2)}/亩<br/><span style="color:#219EBC">点击下钻查看该片区病虫害防治任务</span>`;
 					}
 				},
 				visualMap: {
@@ -65,7 +60,8 @@
 					data: scatterData,
 					symbolSize: (val: number[]) => Math.max(20, val[2] * 1.5),
 					itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' },
-					label: { show: true, formatter: '{b}', fontSize: 10, position: 'top' }
+					label: { show: true, formatter: '{b}', fontSize: 10, position: 'top' },
+					emphasis: { itemStyle: { borderColor: '#1B4332', borderWidth: 2 } }
 				}]
 			};
 		} catch (e) {
@@ -86,7 +82,8 @@
 					itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
 					label: { show: true, fontSize: 10 },
 					data: data.map((d: any) => ({ name: d.pest_type, value: Number(d.count) })),
-					color: ['#1B4332', '#40916C', '#219EBC', '#E9C46A', '#E76F51', '#264653', '#A7C957', '#6A994E']
+					color: ['#1B4332', '#40916C', '#219EBC', '#E9C46A', '#E76F51', '#264653', '#A7C957', '#6A994E'],
+					emphasis: { itemStyle: { borderColor: '#1B4332', borderWidth: 2 } }
 				}]
 			};
 		} catch (e) {
@@ -134,6 +131,27 @@
 		await Promise.all([loadMap(), loadDistribution(), loadTrend()]);
 	}
 
+	function onMapClick(params: any) {
+		if (!params.data || !params.data.name) return;
+		const district = params.data.name;
+		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
+		goto(`/detail?${params_.toString()}`);
+	}
+
+	function onDistClick(params: any) {
+		if (!params.name) return;
+		const params_ = new URLSearchParams({ taskType: '病虫害防治' });
+		goto(`/detail?${params_.toString()}`);
+	}
+
+	function onTrendClick(params: any) {
+		if (!params.dataIndex && params.dataIndex !== 0) return;
+		const district = params.seriesName;
+		if (!district) return;
+		const params_ = new URLSearchParams({ district, taskType: '病虫害防治' });
+		goto(`/detail?${params_.toString()}`);
+	}
+
 	onMount(() => {
 		loadAll();
 	});
@@ -147,22 +165,22 @@
 <div class="space-y-5">
 	<div class="flex items-center justify-between">
 		<h1 class="text-lg font-bold text-[#1B4332] font-serif">病虫害地图</h1>
-		<div class="text-[10px] text-gray-400">严重度 = 片区病虫害报告数 / 片区养护面积(亩)</div>
+		<div class="text-[10px] text-gray-400">严重度 = 片区病虫害报告数 / 片区养护面积(亩) | 点击片区/虫害类型下钻到明细</div>
 	</div>
 
 	<div class="grid grid-cols-3 gap-4">
 		<div class="col-span-2 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">片区病虫害热力分布</h2>
-			<Chart option={mapOption} class="w-full" style="height: 360px" />
+			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">片区病虫害热力分布 <span class="text-[10px] font-normal text-gray-400">（点击片区下钻）</span></h2>
+			<Chart option={mapOption} onclick={onMapClick} class="w-full" style="height: 360px" />
 		</div>
 		<div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">虫害类型分布</h2>
-			<Chart option={distOption} class="w-full" style="height: 360px" />
+			<h2 class="text-sm font-semibold text-[#1B4332] mb-3">虫害类型分布 <span class="text-[10px] font-normal text-gray-400">（点击下钻）</span></h2>
+			<Chart option={distOption} onclick={onDistClick} class="w-full" style="height: 360px" />
 		</div>
 	</div>
 
 	<div class="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-		<h2 class="text-sm font-semibold text-[#1B4332] mb-3">病虫害报告时间趋势（按片区堆叠）</h2>
-		<Chart option={trendOption} class="w-full" style="height: 280px" />
+		<h2 class="text-sm font-semibold text-[#1B4332] mb-3">病虫害报告时间趋势（按片区堆叠） <span class="text-[10px] font-normal text-gray-400">（点击线段下钻该片区）</span></h2>
+		<Chart option={trendOption} onclick={onTrendClick} class="w-full" style="height: 280px" />
 	</div>
 </div>

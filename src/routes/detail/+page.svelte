@@ -1,20 +1,24 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { filterStore } from '$lib/stores';
-	import { queryDetailRecords, queryDetailCount } from '$lib/duckdb-service';
+	import { queryDetailRecords, queryDetailCount, type DetailFilter } from '$lib/duckdb-service';
 	import AnnotationModal from '$lib/components/AnnotationModal.svelte';
-	import { MessageSquare, Camera, ChevronLeft, ChevronRight, Image } from 'lucide-svelte';
+	import { MessageSquare, ChevronLeft, ChevronRight, Image } from 'lucide-svelte';
 
 	let records: any[] = $state([]);
 	let totalCount = $state(0);
-	let page = $state(0);
+	let page_num = $state(0);
 	let pageSize = 30;
 	let totalPages = $state(0);
 	let annotationTaskId = $state('');
 	let expandedRow = $state('');
 	let statusFilter = $state('');
-	let sortField = $state('planned_date');
-	let sortDir = $state('desc');
+	let drilldownDistrict = $state('');
+	let drilldownTeam = $state('');
+	let drilldownTaskType = $state('');
+	let drilldownDateFrom = $state('');
+	let drilldownDateTo = $state('');
 
 	const statusLabels: Record<string, { text: string; class: string }> = {
 		completed: { text: '已完成', class: 'bg-green-100 text-green-700' },
@@ -23,14 +27,38 @@
 		pending: { text: '待执行', class: 'bg-gray-100 text-gray-600' }
 	};
 
+	function buildDetailFilter(): DetailFilter {
+		const filter: DetailFilter = {
+			...$filterStore,
+			districts: [...$filterStore.districts],
+			plantTypes: [...$filterStore.plantTypes],
+			taskTypes: [...$filterStore.taskTypes],
+			teams: [...$filterStore.teams],
+			dateRange: [...$filterStore.dateRange]
+		};
+		if (statusFilter) {
+			filter.statuses = [statusFilter];
+		}
+		if (drilldownDistrict) {
+			filter.districts = [drilldownDistrict];
+		}
+		if (drilldownTeam) {
+			filter.teams = [drilldownTeam];
+		}
+		if (drilldownTaskType) {
+			filter.taskTypes = [drilldownTaskType];
+		}
+		if (drilldownDateFrom) {
+			filter.dateRange = [drilldownDateFrom, drilldownDateTo || drilldownDateFrom];
+		}
+		return filter;
+	}
+
 	async function loadRecords() {
 		try {
-			let filter = { ...$filterStore };
-			if (statusFilter) {
-				filter = { ...filter, taskTypes: [...filter.taskTypes] };
-			}
+			const filter = buildDetailFilter();
 			const [data, count] = await Promise.all([
-				queryDetailRecords(filter, page, pageSize),
+				queryDetailRecords(filter, page_num, pageSize),
 				queryDetailCount(filter)
 			]);
 			records = data;
@@ -43,21 +71,55 @@
 
 	function goToPage(p: number) {
 		if (p >= 0 && p < totalPages) {
-			page = p;
+			page_num = p;
 		}
 	}
 
+	function parseUrlParams() {
+		const p = $page.url.searchParams;
+		if (p.has('status')) {
+			statusFilter = p.get('status') || '';
+		}
+		if (p.has('district')) {
+			drilldownDistrict = p.get('district') || '';
+		}
+		if (p.has('team')) {
+			drilldownTeam = p.get('team') || '';
+		}
+		if (p.has('taskType')) {
+			drilldownTaskType = p.get('taskType') || '';
+		}
+		if (p.has('dateFrom')) {
+			drilldownDateFrom = p.get('dateFrom') || '';
+		}
+		if (p.has('dateTo')) {
+			drilldownDateTo = p.get('dateTo') || '';
+		}
+	}
+
+	function clearDrilldown() {
+		drilldownDistrict = '';
+		drilldownTeam = '';
+		drilldownTaskType = '';
+		drilldownDateFrom = '';
+		drilldownDateTo = '';
+		statusFilter = '';
+		page_num = 0;
+	}
+
 	onMount(() => {
-		loadRecords();
+		parseUrlParams();
 	});
 
 	$effect(() => {
 		const f = $filterStore;
-		page = 0;
-		loadRecords();
-	});
-
-	$effect(() => {
+		const sf = statusFilter;
+		const dd = drilldownDistrict;
+		const dt = drilldownTeam;
+		const dtt = drilldownTaskType;
+		const df = drilldownDateFrom;
+		const dto = drilldownDateTo;
+		const p = page_num;
 		loadRecords();
 	});
 
@@ -72,6 +134,17 @@
 	function closeAnnotation() {
 		annotationTaskId = '';
 	}
+
+	let drilldownInfo = $derived(
+		drilldownDistrict || drilldownTeam || drilldownTaskType || drilldownDateFrom
+			? `下钻筛选: ${[
+				drilldownDistrict ? `片区=${drilldownDistrict}` : '',
+				drilldownTeam ? `班组=${drilldownTeam}` : '',
+				drilldownTaskType ? `任务类型=${drilldownTaskType}` : '',
+				drilldownDateFrom ? `日期=${drilldownDateFrom}${drilldownDateTo && drilldownDateTo !== drilldownDateFrom ? `~${drilldownDateTo}` : ''}` : ''
+			].filter(Boolean).join(' | ')}`
+			: ''
+	);
 </script>
 
 <div class="space-y-4">
@@ -82,7 +155,7 @@
 				{#each ['', 'overdue', 'rain_delayed', 'completed'] as s}
 					<button
 						class="px-2.5 py-1 rounded text-[10px] transition-colors cursor-pointer {statusFilter === s ? 'bg-[#1B4332] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
-						onclick={() => { statusFilter = s; page = 0; }}
+						onclick={() => { statusFilter = s; page_num = 0; }}
 					>
 						{s === '' ? '全部' : statusLabels[s]?.text || s}
 					</button>
@@ -91,6 +164,18 @@
 			<span class="text-xs text-gray-400">共 {totalCount} 条</span>
 		</div>
 	</div>
+
+	{#if drilldownInfo}
+		<div class="flex items-center justify-between bg-[#1B4332]/5 border border-[#1B4332]/10 rounded-lg px-4 py-2">
+			<span class="text-xs text-[#1B4332]">{drilldownInfo}</span>
+			<button
+				onclick={clearDrilldown}
+				class="text-[10px] text-[#E76F51] hover:underline cursor-pointer"
+			>
+				清除下钻
+			</button>
+		</div>
+	{/if}
 
 	<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
 		<div class="overflow-x-auto">
@@ -186,32 +271,32 @@
 
 		<div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
 			<div class="text-xs text-gray-500">
-				第 {page + 1} / {totalPages || 1} 页
+				第 {page_num + 1} / {totalPages || 1} 页
 			</div>
 			<div class="flex gap-1">
 				<button
-					onclick={() => goToPage(page - 1)}
-					disabled={page <= 0}
+					onclick={() => goToPage(page_num - 1)}
+					disabled={page_num <= 0}
 					class="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 cursor-pointer"
 				>
 					<ChevronLeft size={16} />
 				</button>
 				{#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-					const start = Math.max(0, Math.min(page - 2, totalPages - 5));
+					const start = Math.max(0, Math.min(page_num - 2, totalPages - 5));
 					return start + i;
 				}) as p}
 					{#if p < totalPages}
 						<button
 							onclick={() => goToPage(p)}
-							class="w-7 h-7 rounded text-[10px] transition-colors cursor-pointer {page === p ? 'bg-[#1B4332] text-white' : 'bg-white text-gray-600 hover:bg-gray-200'}"
+							class="w-7 h-7 rounded text-[10px] transition-colors cursor-pointer {page_num === p ? 'bg-[#1B4332] text-white' : 'bg-white text-gray-600 hover:bg-gray-200'}"
 						>
 							{p + 1}
 						</button>
 					{/if}
 				{/each}
 				<button
-					onclick={() => goToPage(page + 1)}
-					disabled={page >= totalPages - 1}
+					onclick={() => goToPage(page_num + 1)}
+					disabled={page_num >= totalPages - 1}
 					class="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 cursor-pointer"
 				>
 					<ChevronRight size={16} />
