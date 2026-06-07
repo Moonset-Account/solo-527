@@ -19,6 +19,7 @@ from api.calibrations import calibrations_bp, init_calibration_routes
 from api.temperature import temperature_bp, init_temperature_routes
 from api.export_api import export_bp, init_export_routes
 from api.etl_status_api import etl_status_bp, init_etl_status_routes
+from api.customers_api import customers_bp, init_customer_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,7 @@ def create_app(config=None):
     init_temperature_routes(query_service)
     init_export_routes(query_service)
     init_etl_status_routes(etl_service)
+    init_customer_routes(query_service)
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(vehicles_bp)
@@ -58,6 +60,7 @@ def create_app(config=None):
     app.register_blueprint(temperature_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(etl_status_bp)
+    app.register_blueprint(customers_bp)
 
     @app.route("/health", methods=["GET"])
     def health_check():

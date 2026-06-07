@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from services.query import QueryService
+from api.filter_helpers import parse_common_filters
 
 exceptions_bp = Blueprint("exceptions", __name__)
 
@@ -16,22 +17,7 @@ def init_exception_routes(qs: QueryService):
 
 @exceptions_bp.route("/api/exceptions", methods=["GET"])
 def get_exceptions():
-    filters = {}
-    exception_type = request.args.get("exception_type")
-    severity = request.args.get("severity")
-    vehicle_id = request.args.get("vehicle_id")
-    date_start = request.args.get("date_start")
-    date_end = request.args.get("date_end")
-    if exception_type:
-        filters["exception_type"] = exception_type
-    if severity:
-        filters["severity"] = severity
-    if vehicle_id:
-        filters["vehicle_id"] = vehicle_id
-    if date_start:
-        filters["date_start"] = date_start
-    if date_end:
-        filters["date_end"] = date_end
+    filters = parse_common_filters()
     page = int(request.args.get("page", 1))
     page_size = int(request.args.get("page_size", request.args.get("per_page", 50)))
     result = query_service.get_exceptions(filters=filters or None, page=page, page_size=page_size)
@@ -45,22 +31,7 @@ def get_exceptions():
 
 @exceptions_bp.route("/api/exceptions/duration", methods=["GET"])
 def get_exception_duration():
-    filters = {}
-    exception_type = request.args.get("exception_type")
-    severity = request.args.get("severity")
-    vehicle_id = request.args.get("vehicle_id")
-    date_start = request.args.get("date_start")
-    date_end = request.args.get("date_end")
-    if exception_type:
-        filters["exception_type"] = exception_type
-    if severity:
-        filters["severity"] = severity
-    if vehicle_id:
-        filters["vehicle_id"] = vehicle_id
-    if date_start:
-        filters["date_start"] = date_start
-    if date_end:
-        filters["date_end"] = date_end
+    filters = parse_common_filters()
     result = query_service.get_exception_duration(filters=filters or None)
     return {
         "code": 200,

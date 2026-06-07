@@ -182,3 +182,15 @@ class QueryService:
         result = self.models.get_etl_status()
         self.cache.set(cache_key, result, ttl=30)
         return result
+
+    def get_customers(self, filters=None, page=1, page_size=100):
+        cache_key = self.cache.generate_cache_key("customers", {
+            "filters": str(filters), "page": page, "page_size": page_size,
+        })
+        result = self.cache.get(cache_key)
+        if result is not None:
+            return result
+        data, total = self.models.get_customers(filters, page, page_size)
+        result = {"data": data, "total": total, "page": page, "page_size": page_size}
+        self.cache.set(cache_key, result)
+        return result

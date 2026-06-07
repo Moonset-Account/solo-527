@@ -45,8 +45,8 @@ export const useFilterStore = defineStore('filter', () => {
   const filterParams = computed(() => {
     const params = {}
     if (dateRange.value) {
-      params.start_date = dateRange.value[0]
-      params.end_date = dateRange.value[1]
+      params.date_start = dateRange.value[0]
+      params.date_end = dateRange.value[1]
     }
     if (selectedVehicle.value.length) params.vehicle_id = selectedVehicle.value.join(',')
     if (selectedRoute.value.length) params.route_id = selectedRoute.value.join(',')

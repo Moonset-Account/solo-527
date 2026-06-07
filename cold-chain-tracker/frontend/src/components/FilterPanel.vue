@@ -54,7 +54,7 @@
         <div class="filter-group">
           <label>客户</label>
           <select multiple v-model="store.selectedCustomer" class="filter-select">
-            <option v-for="c in customerOptions" :key="c" :value="c">{{ c }}</option>
+            <option v-for="c in customerOptions" :key="c.customer_id" :value="c.name">{{ c.name }}</option>
           </select>
         </div>
         <div class="filter-actions">
@@ -94,19 +94,18 @@ function applyFilters() {
 
 onMounted(async () => {
   try {
-    const [vehicles, routes, batches] = await Promise.all([
+    const [vehicles, routes, batches, customers] = await Promise.all([
       api.get('/vehicles', { params: { page_size: 100 } }),
       api.get('/routes', { params: { page_size: 100 } }),
-      api.get('/batches', { params: { page_size: 100 } })
+      api.get('/batches', { params: { page_size: 100 } }),
+      api.get('/customers', { params: { page_size: 100 } })
     ])
     vehicleOptions.value = vehicles.data || []
     routeOptions.value = routes.data || []
     batchOptions.value = batches.data || []
-    const customers = new Set()
-    batchOptions.value.forEach(b => { if (b.customer) customers.add(b.customer) })
-    customerOptions.value = [...customers]
+    customerOptions.value = customers.data || []
   } catch {
-    // silences
+    // silently
   }
 })
 </script>

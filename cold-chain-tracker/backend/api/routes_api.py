@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from services.query import QueryService
+from api.filter_helpers import parse_common_filters
 
 routes_bp = Blueprint("routes", __name__)
 
@@ -16,25 +17,16 @@ def init_route_routes(qs: QueryService):
 
 @routes_bp.route("/api/routes", methods=["GET"])
 def get_routes():
-    filters = {}
+    filters = parse_common_filters()
     status = request.args.get("status")
-    vehicle_id = request.args.get("vehicle_id")
     origin = request.args.get("origin")
     destination = request.args.get("destination")
-    date_start = request.args.get("date_start")
-    date_end = request.args.get("date_end")
     if status:
         filters["status"] = status
-    if vehicle_id:
-        filters["vehicle_id"] = vehicle_id
     if origin:
         filters["origin"] = origin
     if destination:
         filters["destination"] = destination
-    if date_start:
-        filters["date_start"] = date_start
-    if date_end:
-        filters["date_end"] = date_end
     page = int(request.args.get("page", 1))
     page_size = int(request.args.get("page_size", request.args.get("per_page", 50)))
     result = query_service.get_routes(filters=filters or None, page=page, page_size=page_size)

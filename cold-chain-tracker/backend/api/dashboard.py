@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from services.query import QueryService
+from api.filter_helpers import parse_common_filters
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -16,8 +17,9 @@ def init_dashboard_routes(qs: QueryService):
 
 @dashboard_bp.route("/api/overview", methods=["GET"])
 def get_overview():
-    date_start = request.args.get("date_start")
-    date_end = request.args.get("date_end")
+    filters = parse_common_filters()
+    date_start = filters.get("date_start")
+    date_end = filters.get("date_end")
     date_range = None
     if date_start and date_end:
         date_range = (date_start, date_end)
@@ -32,9 +34,10 @@ def get_overview():
 
 @dashboard_bp.route("/api/trends", methods=["GET"])
 def get_trends():
+    filters = parse_common_filters()
     granularity = request.args.get("granularity", "day")
-    date_start = request.args.get("date_start")
-    date_end = request.args.get("date_end")
+    date_start = filters.get("date_start")
+    date_end = filters.get("date_end")
     date_range = None
     if date_start and date_end:
         date_range = (date_start, date_end)

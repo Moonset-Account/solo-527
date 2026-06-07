@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from services.query import QueryService
+from api.filter_helpers import parse_common_filters
 
 batches_bp = Blueprint("batches", __name__)
 
@@ -16,15 +17,12 @@ def init_batch_routes(qs: QueryService):
 
 @batches_bp.route("/api/batches", methods=["GET"])
 def get_batches():
-    filters = {}
+    filters = parse_common_filters()
     product_name = request.args.get("product_name")
-    route_id = request.args.get("route_id")
     temp_min = request.args.get("temp_min")
     temp_max = request.args.get("temp_max")
     if product_name:
         filters["product_name"] = product_name
-    if route_id:
-        filters["route_id"] = route_id
     if temp_min:
         filters["temp_min"] = float(temp_min)
     if temp_max:

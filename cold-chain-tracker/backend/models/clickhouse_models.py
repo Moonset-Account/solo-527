@@ -151,6 +151,56 @@ class ClickHouseModels:
             })
         return result
 
+    def _split_ids(self, val):
+        if not val:
+            return []
+        if isinstance(val, list):
+            return val
+        return [v.strip() for v in str(val).split(",") if v.strip()]
+
+    def _filter_vehicles_by_route_ids(self, data, route_ids):
+        routes = self._mock_data.get("routes", [])
+        vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in route_ids}
+        return [v for v in data if v["vehicle_id"] in vehicle_ids]
+
+    def _filter_vehicles_by_batch_ids(self, data, batch_ids):
+        batches = self._mock_data.get("batches", [])
+        routes = self._mock_data.get("routes", [])
+        route_ids = {b["route_id"] for b in batches if b["batch_id"] in batch_ids}
+        vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in route_ids}
+        return [v for v in data if v["vehicle_id"] in vehicle_ids]
+
+    def _filter_vehicles_by_box_ids(self, data, box_ids):
+        boxes = self._mock_data.get("temperature_boxes", [])
+        vehicle_ids = {b["vehicle_id"] for b in boxes if b["box_id"] in box_ids}
+        return [v for v in data if v["vehicle_id"] in vehicle_ids]
+
+    def _filter_vehicles_by_customer(self, data, customers):
+        batches = self._mock_data.get("batches", [])
+        deliveries = self._mock_data.get("deliveries", [])
+        customer_data = self._mock_data.get("customers", [])
+        cust_ids = set()
+        for c in customer_data:
+            if c["name"] in customers:
+                cust_ids.add(c["customer_id"])
+        batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+        routes = self._mock_data.get("routes", [])
+        route_ids = {b["route_id"] for b in batches if b["batch_id"] in batch_ids}
+        vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in route_ids}
+        return [v for v in data if v["vehicle_id"] in vehicle_ids]
+
+    def _filter_vehicles_by_date(self, data, date_start, date_end):
+        if not date_start and not date_end:
+            return data
+        routes = self._mock_data.get("routes", [])
+        vehicle_ids = set()
+        for r in routes:
+            dep = r.get("planned_departure", "")
+            if dep:
+                if (not date_start or dep >= date_start) and (not date_end or dep <= date_end):
+                    vehicle_ids.add(r["vehicle_id"])
+        return [v for v in data if v["vehicle_id"] in vehicle_ids]
+
     def get_vehicles(self, filters=None, page=1, page_size=50):
         data = self._mock_data.get("vehicles", [])
         if filters:
@@ -158,6 +208,25 @@ class ClickHouseModels:
                 data = [v for v in data if v["status"] == filters["status"]]
             if filters.get("vehicle_type"):
                 data = [v for v in data if v["vehicle_type"] == filters["vehicle_type"]]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                data = [v for v in data if v["vehicle_id"] in vehicle_ids]
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
+                data = self._filter_vehicles_by_route_ids(data, route_ids)
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
+                data = self._filter_vehicles_by_batch_ids(data, batch_ids)
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                data = self._filter_vehicles_by_box_ids(data, box_ids)
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                data = self._filter_vehicles_by_customer(data, customers)
+            date_start = filters.get("date_start")
+            date_end = filters.get("date_end")
+            if date_start or date_end:
+                data = self._filter_vehicles_by_date(data, date_start, date_end)
         paginated, total = self._paginated(data, page, page_size)
         return paginated, total
 
@@ -179,12 +248,33 @@ class ClickHouseModels:
         if filters:
             if filters.get("status"):
                 data = [r for r in data if r["status"] == filters["status"]]
-            if filters.get("vehicle_id"):
-                data = [r for r in data if r["vehicle_id"] == filters["vehicle_id"]]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                data = [r for r in data if r["vehicle_id"] in vehicle_ids]
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
+                data = [r for r in data if r["route_id"] in route_ids]
             if filters.get("origin"):
                 data = [r for r in data if r["origin"] == filters["origin"]]
             if filters.get("destination"):
                 data = [r for r in data if r["destination"] == filters["destination"]]
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
+                batches = self._mock_data.get("batches", [])
+                match_route_ids = {b["route_id"] for b in batches if b["batch_id"] in batch_ids}
+                data = [r for r in data if r["route_id"] in match_route_ids]
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_vehicle_ids = {b["vehicle_id"] for b in boxes if b["box_id"] in box_ids}
+                data = [r for r in data if r["vehicle_id"] in match_vehicle_ids]
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                deliveries = self._mock_data.get("deliveries", [])
+                customer_data = self._mock_data.get("customers", [])
+                cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
+                match_route_ids = {d["route_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+                data = [r for r in data if r["route_id"] in match_route_ids]
             if filters.get("date_start"):
                 data = [r for r in data if r["planned_departure"] >= filters["date_start"]]
             if filters.get("date_end"):
@@ -239,10 +329,39 @@ class ClickHouseModels:
     def get_batches(self, filters=None, page=1, page_size=50):
         data = self._mock_data.get("batches", [])
         if filters:
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
+                data = [b for b in data if b["batch_id"] in batch_ids]
             if filters.get("product_name"):
                 data = [b for b in data if filters["product_name"] in b["product_name"]]
-            if filters.get("route_id"):
-                data = [b for b in data if b["route_id"] == filters["route_id"]]
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
+                data = [b for b in data if b["route_id"] in route_ids]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                routes = self._mock_data.get("routes", [])
+                match_route_ids = {r["route_id"] for r in routes if r["vehicle_id"] in vehicle_ids}
+                data = [b for b in data if b["route_id"] in match_route_ids]
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_batch_ids = {bx["batch_id"] for bx in boxes if bx["box_id"] in box_ids}
+                data = [b for b in data if b["batch_id"] in match_batch_ids]
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                deliveries = self._mock_data.get("deliveries", [])
+                customer_data = self._mock_data.get("customers", [])
+                cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
+                match_batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+                data = [b for b in data if b["batch_id"] in match_batch_ids]
+            if filters.get("date_start"):
+                routes = self._mock_data.get("routes", [])
+                match_route_ids = {r["route_id"] for r in routes if r.get("planned_departure", "") >= filters["date_start"]}
+                data = [b for b in data if b["route_id"] in match_route_ids]
+            if filters.get("date_end"):
+                routes = self._mock_data.get("routes", [])
+                match_route_ids = {r["route_id"] for r in routes if r.get("planned_departure", "") <= filters["date_end"]}
+                data = [b for b in data if b["route_id"] in match_route_ids]
             if filters.get("temp_min"):
                 data = [b for b in data if b["required_temp_min"] >= filters["temp_min"]]
             if filters.get("temp_max"):
@@ -276,8 +395,25 @@ class ClickHouseModels:
                 data = [e for e in data if e["exception_type"] == filters["exception_type"]]
             if filters.get("severity"):
                 data = [e for e in data if e["severity"] == filters["severity"]]
-            if filters.get("vehicle_id"):
-                data = [e for e in data if e["vehicle_id"] == filters["vehicle_id"]]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                data = [e for e in data if e["vehicle_id"] in vehicle_ids]
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
+                data = [e for e in data if e.get("route_id") in route_ids]
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
+                data = [e for e in data if e.get("batch_id") in batch_ids]
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                data = [e for e in data if e.get("box_id") in box_ids]
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                deliveries = self._mock_data.get("deliveries", [])
+                customer_data = self._mock_data.get("customers", [])
+                cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
+                match_batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+                data = [e for e in data if e.get("batch_id") in match_batch_ids]
             if filters.get("date_start"):
                 data = [e for e in data if e["started_at"] >= filters["date_start"]]
             if filters.get("date_end"):
@@ -323,31 +459,44 @@ class ClickHouseModels:
     def get_temperature_curve(self, filters=None, page=1, page_size=200):
         data = self._mock_data.get("temperature_readings", [])
         if filters:
-            if filters.get("vehicle_id"):
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
                 boxes = self._mock_data.get("temperature_boxes", [])
-                vehicle_box_ids = {b["box_id"] for b in boxes if b.get("vehicle_id") == filters["vehicle_id"]}
+                vehicle_box_ids = {b["box_id"] for b in boxes if b.get("vehicle_id") in vehicle_ids}
                 data = [r for r in data if r["box_id"] in vehicle_box_ids]
-            if filters.get("batch_id"):
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
                 boxes = self._mock_data.get("temperature_boxes", [])
-                batch_box_ids = {b["box_id"] for b in boxes if b.get("batch_id") == filters["batch_id"]}
+                batch_box_ids = {b["box_id"] for b in boxes if b.get("batch_id") in batch_ids}
                 data = [r for r in data if r["box_id"] in batch_box_ids]
-            if filters.get("route_id"):
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
                 boxes = self._mock_data.get("temperature_boxes", [])
                 batches_data = {b["batch_id"]: b for b in self._mock_data.get("batches", [])}
                 route_box_ids = set()
                 for box in boxes:
                     batch = batches_data.get(box.get("batch_id"))
-                    if batch and batch.get("route_id") == filters["route_id"]:
+                    if batch and batch.get("route_id") in route_ids:
                         route_box_ids.add(box["box_id"])
                 data = [r for r in data if r["box_id"] in route_box_ids]
-            if filters.get("box_id"):
-                data = [r for r in data if r["box_id"] == filters["box_id"]]
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                data = [r for r in data if r["box_id"] in box_ids]
             if filters.get("probe_id"):
                 data = [r for r in data if r["probe_id"] == filters["probe_id"]]
             if filters.get("date_start"):
                 data = [r for r in data if r["recorded_at"] >= filters["date_start"]]
             if filters.get("date_end"):
                 data = [r for r in data if r["recorded_at"] <= filters["date_end"]]
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                deliveries = self._mock_data.get("deliveries", [])
+                customer_data = self._mock_data.get("customers", [])
+                cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
+                match_batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_box_ids = {b["box_id"] for b in boxes if b.get("batch_id") in match_batch_ids}
+                data = [r for r in data if r["box_id"] in match_box_ids]
         data.sort(key=lambda x: x["recorded_at"])
         exceptions = self._mock_data.get("exceptions", [])
         for r in data:
@@ -374,8 +523,18 @@ class ClickHouseModels:
                 exceptions = [e for e in exceptions if e["exception_type"] == filters["exception_type"]]
             if filters.get("severity"):
                 exceptions = [e for e in exceptions if e["severity"] == filters["severity"]]
-            if filters.get("vehicle_id"):
-                exceptions = [e for e in exceptions if e["vehicle_id"] == filters["vehicle_id"]]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                exceptions = [e for e in exceptions if e["vehicle_id"] in vehicle_ids]
+            route_ids = self._split_ids(filters.get("route_id"))
+            if route_ids:
+                exceptions = [e for e in exceptions if e.get("route_id") in route_ids]
+            batch_ids = self._split_ids(filters.get("batch_id"))
+            if batch_ids:
+                exceptions = [e for e in exceptions if e.get("batch_id") in batch_ids]
+            box_ids = self._split_ids(filters.get("box_id"))
+            if box_ids:
+                exceptions = [e for e in exceptions if e.get("box_id") in box_ids]
 
         duration_by_type = {}
         for exc in exceptions:
@@ -428,3 +587,21 @@ class ClickHouseModels:
 
     def get_etl_status(self):
         return self._mock_data.get("etl_status", [])
+
+    def get_customers(self, filters=None, page=1, page_size=100):
+        data = self._mock_data.get("customers", [])
+        if filters:
+            customers = self._split_ids(filters.get("customer"))
+            if customers:
+                data = [c for c in data if c["name"] in customers]
+            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+            if vehicle_ids:
+                deliveries = self._mock_data.get("deliveries", [])
+                batches = self._mock_data.get("batches", [])
+                routes = self._mock_data.get("routes", [])
+                match_route_ids = {r["route_id"] for r in routes if r["vehicle_id"] in vehicle_ids}
+                match_batch_ids = {b["batch_id"] for b in batches if b["route_id"] in match_route_ids}
+                match_cust_ids = {d["customer_id"] for d in deliveries if d.get("batch_id") in match_batch_ids}
+                data = [c for c in data if c["customer_id"] in match_cust_ids]
+        paginated, total = self._paginated(data, page, page_size)
+        return paginated, total

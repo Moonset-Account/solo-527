@@ -5,25 +5,22 @@ from flask import Blueprint, request
 from services.query import QueryService
 from api.filter_helpers import parse_common_filters
 
-temperature_bp = Blueprint("temperature", __name__)
+customers_bp = Blueprint("customers", __name__)
 
 query_service: QueryService = None
 
 
-def init_temperature_routes(qs: QueryService):
+def init_customer_routes(qs: QueryService):
     global query_service
     query_service = qs
 
 
-@temperature_bp.route("/api/temperature-curve", methods=["GET"])
-def get_temperature_curve():
+@customers_bp.route("/api/customers", methods=["GET"])
+def get_customers():
     filters = parse_common_filters()
-    probe_id = request.args.get("probe_id")
-    if probe_id:
-        filters["probe_id"] = probe_id
     page = int(request.args.get("page", 1))
-    page_size = int(request.args.get("page_size", request.args.get("per_page", 200)))
-    result = query_service.get_temperature_curve(filters=filters or None, page=page, page_size=page_size)
+    page_size = int(request.args.get("page_size", request.args.get("per_page", 100)))
+    result = query_service.get_customers(filters=filters or None, page=page, page_size=page_size)
     return {
         "code": 200,
         "data": result["data"],

@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../utils/api'
 import { formatDatetime, formatPercent } from '../utils/format'
@@ -154,4 +154,5 @@ async function fetchDashboard() {
 }
 
 onMounted(fetchDashboard)
+watch(() => filterStore.filterParams, fetchDashboard, { deep: true })
 </script>

@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Blueprint, request
 
 from services.query import QueryService
+from api.filter_helpers import parse_common_filters
 
 vehicles_bp = Blueprint("vehicles", __name__)
 
@@ -16,7 +17,7 @@ def init_vehicle_routes(qs: QueryService):
 
 @vehicles_bp.route("/api/vehicles", methods=["GET"])
 def get_vehicles():
-    filters = {}
+    filters = parse_common_filters()
     status = request.args.get("status")
     vehicle_type = request.args.get("vehicle_type")
     if status:
