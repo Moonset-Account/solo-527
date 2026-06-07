@@ -29,7 +29,7 @@ TIME_RANGE_OPTIONS = [
 ]
 
 def get_filters_from_state(stations, districts, pollutants, time_range, start_date, end_date, 
-                           exclude_anomalies, hour_range, event_types):
+                           exclude_anomalies, hour_range, event_types, verified_only=False):
     filters = {}
     
     if stations:
@@ -54,6 +54,15 @@ def get_filters_from_state(stations, districts, pollutants, time_range, start_da
     if districts:
         filters['districts'] = districts
     
+    if hour_range and len(hour_range) == 2 and (hour_range[0] != 0 or hour_range[1] != 23):
+        filters['hour_range'] = hour_range
+    
+    if event_types:
+        filters['event_types'] = event_types
+    
+    if verified_only:
+        filters['verified_only'] = True
+    
     return filters
 
 def get_sample_stats(filters):
@@ -74,6 +83,12 @@ def create_layout():
                        for _, row in stations_df.iterrows()]
     
     last_updated = data_service.get_last_updated()
+    
+    air_quality_update = last_updated.get('air_quality', {})
+    if isinstance(air_quality_update, dict):
+        update_time_str = air_quality_update.get('last_updated', '')[:16]
+    else:
+        update_time_str = str(air_quality_update)[:16]
     
     return html.Div([
         dcc.Store(id='filter-state', data={}),
@@ -96,7 +111,7 @@ def create_layout():
                     in_navbar=True,
                     label=[html.I(className='fas fa-download me-2'), '工具'],
                 ),
-                dbc.NavItem(dbc.Badge(f"数据更新: {last_updated['air_quality'][:16]}", color='info', className='ms-2')),
+                dbc.NavItem(dbc.Badge(f"数据更新: {update_time_str}", color='info', className='ms-2')),
             ],
             brand=[html.I(className='fas fa-leaf me-2'), '城市空气质量分析工作台'],
             brand_href='#',
@@ -245,7 +260,7 @@ def create_layout():
                                                 inline=True,
                                                 className='small'
                                             )
-                                        ], width=6),
+                                        ], width=4),
                                         dbc.Col([
                                             html.Label('显示模式', className='small'),
                                             dcc.RadioItems(
@@ -259,7 +274,19 @@ def create_layout():
                                                 inline=True,
                                                 className='small'
                                             )
-                                        ], width=6),
+                                        ], width=4),
+                                        dbc.Col([
+                                            html.Label('叠加数据', className='small'),
+                                            dbc.Checklist(
+                                                id='timeseries-overlay',
+                                                options=[
+                                                    {'label': '车流量', 'value': 'traffic'},
+                                                ],
+                                                value=[],
+                                                inline=True,
+                                                className='small'
+                                            )
+                                        ], width=4),
                                     ])
                                 ])
                             ], className='mt-3')
@@ -412,10 +439,11 @@ def update_filter_state(n_clicks, stations, districts, pollutants, time_range,
                         start_date, end_date, data_options, hour_range, event_types):
     
     exclude_anomalies = 'exclude_anomalies' in (data_options or [])
+    verified_only = 'verified_only' in (data_options or [])
     
     filters = get_filters_from_state(
         stations, districts, pollutants, time_range, start_date, end_date,
-        exclude_anomalies, hour_range, event_types
+        exclude_anomalies, hour_range, event_types, verified_only
     )
     
     stats = get_sample_stats(filters)
@@ -494,10 +522,11 @@ def update_kpi_cards(filters, pollutants):
     Output('timeseries-chart', 'figure'),
     [Input('filter-state', 'data'),
      Input('timeseries-granularity', 'value'),
-     Input('timeseries-mode', 'value')],
+     Input('timeseries-mode', 'value'),
+     Input('timeseries-overlay', 'value')],
     [State('pollutant-selector', 'value')]
 )
-def update_timeseries(filters, granularity, mode, pollutants):
+def update_timeseries(filters, granularity, mode, overlay, pollutants):
     if not filters or not pollutants:
         return go.Figure()
     
@@ -528,7 +557,8 @@ def update_timeseries(filters, granularity, mode, pollutants):
                     y=grouped[col],
                     mode='lines',
                     name=Config.POLLUTANT_NAMES[pollutant],
-                    line=dict(color=colors[i % len(colors)], width=2)
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    yaxis='y1'
                 ))
         elif mode == 'median':
             col = f'{pollutant}_median'
@@ -539,7 +569,8 @@ def update_timeseries(filters, granularity, mode, pollutants):
                     y=grouped[col],
                     mode='lines',
                     name=f'{Config.POLLUTANT_NAMES[pollutant]} (中位数)',
-                    line=dict(color=colors[i % len(colors)], width=2)
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    yaxis='y1'
                 ))
         elif mode == 'range':
             avg_col = f'{pollutant}_avg'
@@ -557,7 +588,8 @@ def update_timeseries(filters, granularity, mode, pollutants):
                     y=grouped[max_col],
                     mode='lines',
                     line=dict(width=0),
-                    showlegend=False
+                    showlegend=False,
+                    yaxis='y1'
                 ))
                 fig.add_trace(go.Scatter(
                     x=grouped[time_col],
@@ -567,17 +599,41 @@ def update_timeseries(filters, granularity, mode, pollutants):
                     fillcolor=f'rgba{tuple(list(px.colors.hex_to_rgb(colors[i % len(colors)])) + [0.2])}',
                     line=dict(width=0),
                     name=f'{Config.POLLUTANT_NAMES[pollutant]} (范围)',
-                    showlegend=True
+                    showlegend=True,
+                    yaxis='y1'
                 ))
                 fig.add_trace(go.Scatter(
                     x=grouped[time_col],
                     y=grouped[avg_col],
                     mode='lines',
                     name=f'{Config.POLLUTANT_NAMES[pollutant]} (均值)',
-                    line=dict(color=colors[i % len(colors)], width=2)
+                    line=dict(color=colors[i % len(colors)], width=2),
+                    yaxis='y1'
                 ))
     
-    event_filters = {k: v for k, v in filters.items() if k in ['start_time', 'end_time', 'districts']}
+    if overlay and 'traffic' in overlay and granularity == 'hourly':
+        traffic_data = data_service.get_traffic_hourly(filters)
+        if not traffic_data.empty:
+            traffic_grouped = traffic_data.groupby('hour_bucket')['vehicle_count_avg'].mean().reset_index()
+            fig.add_trace(go.Scatter(
+                x=traffic_grouped['hour_bucket'],
+                y=traffic_grouped['vehicle_count_avg'],
+                mode='lines',
+                name='平均车流量 (辆/小时)',
+                line=dict(color='rgba(100, 200, 255, 0.7)', width=2, dash='dot'),
+                yaxis='y2'
+            ))
+            fig.update_layout(
+                yaxis2=dict(
+                    title='车流量',
+                    overlaying='y',
+                    side='right',
+                    showgrid=False
+                )
+            )
+    
+    event_filters = {k: v for k, v in filters.items() 
+                     if k in ['start_time', 'end_time', 'districts', 'event_types']}
     events = data_service.get_events(event_filters)
     
     for _, event in events.iterrows():
@@ -597,7 +653,7 @@ def update_timeseries(filters, granularity, mode, pollutants):
         plot_bgcolor='rgba(0,0,0,0)',
         title='污染物浓度时间序列',
         xaxis_title='时间',
-        yaxis_title='浓度',
+        yaxis_title='污染物浓度',
         hovermode='x unified',
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
@@ -904,7 +960,8 @@ def update_events_timeline(filters):
     if not filters:
         return go.Figure()
     
-    event_filters = {k: v for k, v in filters.items() if k in ['start_time', 'end_time', 'districts']}
+    event_filters = {k: v for k, v in filters.items() 
+                     if k in ['start_time', 'end_time', 'districts', 'event_types']}
     events = data_service.get_events(event_filters)
     
     if events.empty:
@@ -953,7 +1010,8 @@ def update_complaints_by_type(filters):
     if not filters:
         return go.Figure()
     
-    complaint_filters = {k: v for k, v in filters.items() if k in ['start_time', 'end_time', 'districts']}
+    complaint_filters = {k: v for k, v in filters.items() 
+                         if k in ['start_time', 'end_time', 'districts', 'verified_only']}
     complaints = data_service.get_complaints(complaint_filters, is_public=True)
     
     if complaints.empty:
@@ -988,7 +1046,8 @@ def update_complaints_table(filters):
     if not filters:
         return html.Div('暂无数据')
     
-    complaint_filters = {k: v for k, v in filters.items() if k in ['start_time', 'end_time', 'districts']}
+    complaint_filters = {k: v for k, v in filters.items() 
+                         if k in ['start_time', 'end_time', 'districts', 'verified_only']}
     complaints = data_service.get_complaints(complaint_filters, is_public=True).head(20)
     
     if complaints.empty:
@@ -1198,9 +1257,15 @@ def download_report(excel_n, csv_n, filters, stats, pollutants, districts, stati
         '排除异常样本': filters.get('exclude_anomalies', False)
     }
     
+    air_quality_update = last_updated.get('air_quality', {})
+    if isinstance(air_quality_update, dict):
+        air_update_str = air_quality_update.get('last_updated', '')[:16]
+    else:
+        air_update_str = str(air_quality_update)[:16]
+    
     report_info = pd.DataFrame([
         {'项目': '报告生成时间', '值': datetime.now().strftime('%Y-%m-%d %H:%M:%S')},
-        {'项目': '数据最后更新', '值': last_updated['air_quality'][:16]},
+        {'项目': '数据最后更新', '值': air_update_str},
         {'项目': '原始样本量', '值': stats.get('raw_records', 0)},
         {'项目': '聚合记录数', '值': stats.get('hourly_records', 0)},
         {'项目': '涉及站点数', '值': stats.get('station_count', 0)},
@@ -1225,7 +1290,32 @@ def download_report(excel_n, csv_n, filters, stats, pollutants, districts, stati
         return dcc.send_bytes(output.getvalue(), f'空气质量报告_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
     
     else:
-        csv_data = hourly.to_csv(index=False)
+        csv_lines = []
+        csv_lines.append('# 城市空气质量分析报告')
+        csv_lines.append(f'# 报告生成时间,{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+        
+        air_quality_update = last_updated.get('air_quality', {})
+        if isinstance(air_quality_update, dict):
+            csv_lines.append(f'# 空气质量数据更新,{air_quality_update.get("last_updated", "")[:16]}')
+            csv_lines.append(f'# 空气质量总记录数,{air_quality_update.get("record_count", 0)}')
+        else:
+            csv_lines.append(f'# 空气质量数据更新,{air_quality_update[:16]}')
+        
+        csv_lines.append(f'# 当前筛选 - 时间范围,{time_range}')
+        csv_lines.append(f'# 当前筛选 - 污染物,{", ".join([Config.POLLUTANT_NAMES[p].split(" ")[0] for p in (pollutants or [])])}')
+        csv_lines.append(f'# 当前筛选 - 行政区,{", ".join(districts) if districts else "全部"}')
+        csv_lines.append(f'# 当前筛选 - 监测站点,{", ".join([stations_name_map.get(s, str(s)) for s in (stations or [])]) if stations else "全部"}')
+        csv_lines.append(f'# 当前筛选 - 排除异常样本,{filters.get("exclude_anomalies", False)}')
+        if filters.get('hour_range'):
+            csv_lines.append(f'# 当前筛选 - 小时范围,{filters["hour_range"][0]}:00 - {filters["hour_range"][1]}:00')
+        
+        csv_lines.append(f'# 样本统计 - 原始样本量,{stats.get("raw_records", 0)}')
+        csv_lines.append(f'# 样本统计 - 聚合记录数,{stats.get("hourly_records", 0)}')
+        csv_lines.append(f'# 样本统计 - 涉及站点数,{stats.get("station_count", 0)}')
+        csv_lines.append('#')
+        
+        csv_lines.append(hourly.to_csv(index=False))
+        csv_data = '\n'.join(csv_lines)
         return dict(content=csv_data, filename=f'空气质量数据_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv')
 
 if __name__ == '__main__':

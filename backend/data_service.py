@@ -4,11 +4,29 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from backend.config import Config
 from backend.mock_data import MockDataStore
+from backend.timescale_db import db_service
 
 class DataService:
     def __init__(self):
         self.mock_store = MockDataStore()
         self.use_mock = Config.USE_MOCK_DATA
+    
+    def _apply_hour_range_filter(self, df: pd.DataFrame, hour_range: List[int], time_col: str = 'timestamp') -> pd.DataFrame:
+        if not hour_range or len(hour_range) != 2:
+            return df
+        start_hour, end_hour = hour_range
+        if time_col in df.columns:
+            df = df[df[time_col].dt.hour.between(start_hour, end_hour)]
+        return df
+    
+    def _apply_district_filter_to_station_data(self, df: pd.DataFrame, districts: List[str]) -> pd.DataFrame:
+        if not districts:
+            return df
+        stations = self.get_stations()
+        filtered_stations = stations[stations['district'].isin(districts)]['station_id'].tolist()
+        if 'station_id' in df.columns:
+            df = df[df['station_id'].isin(filtered_stations)]
+        return df
     
     def _filter_dataframe(self, df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
         result = df.copy()
@@ -25,6 +43,11 @@ class DataService:
         if 'districts' in filters and filters['districts']:
             if 'district' in result.columns:
                 result = result[result['district'].isin(filters['districts'])]
+            elif 'station_id' in result.columns:
+                result = self._apply_district_filter_to_station_data(result, filters['districts'])
+        
+        if 'hour_range' in filters and filters['hour_range']:
+            result = self._apply_hour_range_filter(result, filters['hour_range'], 'timestamp')
         
         if 'exclude_anomalies' in filters and filters['exclude_anomalies']:
             if 'is_anomaly' in result.columns:
@@ -33,16 +56,34 @@ class DataService:
         return result
     
     def get_stations(self, districts: Optional[List[str]] = None) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_stations(districts)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         stations = self.mock_store.stations.copy()
         if districts:
             stations = stations[stations['district'].isin(districts)]
         return stations
     
     def get_air_quality_raw(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_air_quality_raw(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         df = self.mock_store.air_quality.copy()
         return self._filter_dataframe(df, filters)
     
     def get_air_quality_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_air_quality_hourly(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         raw_data = self.get_air_quality_raw(filters)
         
         if raw_data.empty:
@@ -50,6 +91,10 @@ class DataService:
         
         hourly = raw_data.copy()
         hourly['hour_bucket'] = hourly['timestamp'].dt.floor('h')
+        
+        if 'hour_range' in filters and filters['hour_range']:
+            start_hour, end_hour = filters['hour_range']
+            hourly = hourly[hourly['hour_bucket'].dt.hour.between(start_hour, end_hour)]
         
         pollutants = Config.POLLUTANTS
         agg_dict = {}
@@ -73,6 +118,12 @@ class DataService:
         return result
     
     def get_air_quality_daily(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_air_quality_daily(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         raw_data = self.get_air_quality_raw(filters)
         
         if raw_data.empty:
@@ -103,6 +154,12 @@ class DataService:
         return self._filter_dataframe(df, filters)
     
     def get_traffic_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_traffic_hourly(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         raw_data = self.get_traffic_data(filters)
         
         if raw_data.empty:
@@ -110,6 +167,10 @@ class DataService:
         
         hourly = raw_data.copy()
         hourly['hour_bucket'] = hourly['timestamp'].dt.floor('h')
+        
+        if 'hour_range' in filters and filters['hour_range']:
+            start_hour, end_hour = filters['hour_range']
+            hourly = hourly[hourly['hour_bucket'].dt.hour.between(start_hour, end_hour)]
         
         result = hourly.groupby(['hour_bucket', 'station_id']).agg(
             vehicle_count_avg=('vehicle_count', 'mean'),
@@ -121,6 +182,12 @@ class DataService:
         return result
     
     def get_construction_sites(self, districts: Optional[List[str]] = None, active_only: bool = True) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_construction_sites(districts, active_only)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         sites = self.mock_store.construction_sites.copy()
         if districts:
             sites = sites[sites['district'].isin(districts)]
@@ -129,6 +196,12 @@ class DataService:
         return sites
     
     def get_complaints(self, filters: Dict[str, Any], is_public: bool = True) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_complaints(filters, is_public)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         complaints = self.mock_store.complaints.copy()
         
         if 'districts' in filters and filters['districts']:
@@ -143,7 +216,7 @@ class DataService:
         if 'end_time' in filters and filters['end_time'] is not None:
             complaints = complaints[complaints['timestamp'] <= pd.Timestamp(filters['end_time'])]
         
-        if 'verified_only' in filters and filters['verified_only']:
+        if filters.get('verified_only', False):
             complaints = complaints[complaints['is_verified'] == True]
         
         if is_public:
@@ -155,6 +228,12 @@ class DataService:
         return complaints
     
     def get_events(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_events(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         events = self.mock_store.events.copy()
         
         if 'event_types' in filters and filters['event_types']:
@@ -172,6 +251,12 @@ class DataService:
         return events
     
     def get_anomaly_records(self, filters: Dict[str, Any]) -> pd.DataFrame:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_anomaly_records(filters)
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         raw_data = self.get_air_quality_raw(filters)
         anomalies = raw_data[raw_data['is_anomaly'] == True].copy()
         return anomalies
@@ -218,14 +303,27 @@ class DataService:
         return result
     
     def get_last_updated(self) -> Dict[str, Any]:
+        if not self.use_mock and db_service.is_connected():
+            try:
+                return db_service.get_last_updated()
+            except Exception as e:
+                print(f"DB error, falling back to mock: {e}")
+        
         return {
-            'air_quality': self.mock_store.last_updated.isoformat(),
-            'traffic': self.mock_store.last_updated.isoformat(),
-            'complaints': self.mock_store.last_updated.isoformat(),
-            'total_records': {
-                'air_quality': len(self.mock_store.air_quality),
-                'traffic': len(self.mock_store.traffic),
-                'complaints': len(self.mock_store.complaints)
+            'air_quality': {
+                'last_updated': self.mock_store.last_updated.isoformat(),
+                'record_count': len(self.mock_store.air_quality),
+                'source': 'city_monitoring_network'
+            },
+            'traffic': {
+                'last_updated': self.mock_store.last_updated.isoformat(),
+                'record_count': len(self.mock_store.traffic),
+                'source': 'traffic_management_bureau'
+            },
+            'complaints': {
+                'last_updated': self.mock_store.last_updated.isoformat(),
+                'record_count': len(self.mock_store.complaints),
+                'source': 'public_reporting_system'
             }
         }
     
@@ -289,6 +387,10 @@ class DataService:
         data = raw_data.copy()
         data['hour'] = data['timestamp'].dt.hour
         data['weekday'] = data['timestamp'].dt.weekday
+        
+        if 'hour_range' in filters and filters['hour_range']:
+            start_hour, end_hour = filters['hour_range']
+            data = data[data['hour'].between(start_hour, end_hour)]
         
         hourly_profile = data.groupby('hour').agg(
             avg_value=(pollutant, 'mean'),

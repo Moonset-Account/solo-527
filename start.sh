@@ -34,4 +34,4 @@ echo "访问地址: http://localhost:8050"
 echo "按 Ctrl+C 停止服务"
 echo ""
 
-python app.py
+python3 app.py

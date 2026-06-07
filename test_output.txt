@@ -1,0 +1,41 @@
+Warning: Failed to connect to TimescaleDB: (psycopg2.OperationalError) connection to server at "localhost" (::1), port 5432 failed: FATAL:  database "air_quality" does not exist
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+=== 后端服务测试 ===
+
+1. 测试小时范围筛选 [8:00 - 10:00]:
+   获取到的小时: [8, 9, 10]
+   ✅ 小时范围筛选正常工作
+
+2. 测试事件类型筛选:
+   获取到的事件类型: ['污染过程']
+   ✅ 事件类型筛选正常工作
+
+3. 测试行政区筛选:
+   获取到 2 个站点
+   行政区: ['朝阳区', '海淀区']
+   ✅ 行政区筛选正常工作
+
+4. 测试车流量数据:
+   获取到 7210 条聚合记录
+   数据列: ['hour_bucket', 'station_id', 'vehicle_count_avg', 'vehicle_count_sum', 'average_speed_avg', 'record_count']...
+   ✅ 车流量数据正常
+
+5. 测试空数据处理:
+   返回 0 条记录
+   ✅ 空数据处理正常
+
+6. 测试数据可追溯验证:
+   验证有效: True
+   计数匹配: True
+   污染物校验通过: True
+   ✅ 数据可追溯验证正常
+
+7. 测试公众端投诉隐私保护:
+   未核实投诉描述: 待核实投诉详情暂不公开
+   未核实投诉举报人: None
+Traceback (most recent call last):
+  File "/Users/xingyaolei/Desktop/trae-solo-generated-projects/question-153/test_fixes.py", line 78, in <module>
+    assert pd.isna(sample_name), "举报人姓名未脱敏"
+           ^^
+NameError: name 'pd' is not defined. Did you mean: 'id'?
