@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia';
 import type { HeatmapData, FilterState } from '@/types';
-import { generateHeatmapData } from '@/data/mockData';
+import { api, type FilterQuery } from '@/utils/api';
+
+function filtersToQuery(filters: FilterState): FilterQuery {
+  return {
+    startTime: filters.timeRange?.[0]?.toISOString(),
+    endTime: filters.timeRange?.[1]?.toISOString(),
+    entrance: filters.entrance.length ? filters.entrance : undefined,
+    areaId: filters.area.length ? filters.area : undefined,
+    ticketType: filters.ticketType.length ? filters.ticketType : undefined,
+    activity: filters.activity.length ? filters.activity : undefined
+  };
+}
 
 interface HeatmapStore {
   data: HeatmapData[];
@@ -9,7 +20,7 @@ interface HeatmapStore {
   sampleSize: number;
   lastUpdate: Date | null;
   selectedAreaId: string | null;
-  cache: Record<string, { data: HeatmapData[]; sampleSize: number; timestamp: number }>;
+  cached: boolean;
 }
 
 export const useHeatmapStore = defineStore('heatmap', {
@@ -20,30 +31,18 @@ export const useHeatmapStore = defineStore('heatmap', {
     sampleSize: 0,
     lastUpdate: null,
     selectedAreaId: null,
-    cache: {}
+    cached: false
   }),
   actions: {
     async fetchData(filters: FilterState) {
       this.loading = true;
       this.error = null;
-      const cacheKey = JSON.stringify(filters);
-      
       try {
-        const cached = this.cache[cacheKey];
-        const now = Date.now();
-        if (cached && now - cached.timestamp < 60000) {
-          this.data = cached.data;
-          this.sampleSize = cached.sampleSize;
-          this.loading = false;
-          return;
-        }
-
-        await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
-        const result = generateHeatmapData(filters);
-        this.data = result.data;
-        this.sampleSize = result.sampleSize;
-        this.lastUpdate = new Date();
-        this.cache[cacheKey] = { ...result, timestamp: now };
+        const res = await api.getHeatmap(filtersToQuery(filters));
+        this.data = res.data;
+        this.sampleSize = res.data.reduce((s, d) => s + d.visitorCount, 0);
+        this.lastUpdate = new Date(res.updatedAt);
+        this.cached = !!res.cached;
       } catch (e: any) {
         this.error = e.message;
       } finally {
@@ -52,9 +51,6 @@ export const useHeatmapStore = defineStore('heatmap', {
     },
     selectArea(areaId: string | null) {
       this.selectedAreaId = areaId;
-    },
-    clearCache() {
-      this.cache = {};
     }
   }
 });

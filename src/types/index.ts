@@ -1,7 +1,7 @@
 export interface FilterState {
   entrance: string[];
   area: string[];
-  timeRange: { start: Date; end: Date };
+  timeRange: [Date, Date] | null;
   ticketType: string[];
   activity: string[];
 }
@@ -10,23 +10,22 @@ export interface HeatmapData {
   areaId: string;
   areaName: string;
   visitorCount: number;
-  capacity: number;
   density: number;
+  avgQueueTime: number;
+  capacity: number;
   isClosed: boolean;
   coordinates: [number, number][];
 }
 
 export interface QueuePrediction {
-  timestamp: Date;
-  areaId: string;
-  areaName: string;
-  predictedWait: number;
-  lowerBound: number;
-  upperBound: number;
-  confidence: number;
-  actualWait?: number;
-  sampleSize: number;
-  isAnomaly?: boolean;
+  time: string;
+  actualCount: number | null;
+  predictedCount: number | null;
+  confidenceLower: number | null;
+  confidenceUpper: number | null;
+  avgWaitTime: number;
+  isAnomaly: boolean;
+  isHistory: boolean;
 }
 
 export interface TicketAnalysis {
@@ -34,51 +33,57 @@ export interface TicketAnalysis {
   soldCount: number;
   enteredCount: number;
   entryRate: number;
-  avgSpend: number;
-  sampleSize: number;
+  avgPrice: number;
+  totalRevenue: number;
 }
 
 export interface ConversionFunnel {
   stage: string;
-  stageLabel: string;
   count: number;
-  conversionRate: number;
-  sampleSize: number;
+  rate: number;
 }
 
 export interface RawRecord {
   id: string;
-  timestamp: Date;
-  type: 'ticket' | 'gate' | 'parking' | 'consumption';
-  data: Record<string, any>;
+  source: 'ticket' | 'gate' | 'parking' | 'consumption' | 'weather' | 'show';
+  time: string;
+  title: string;
+  description: string;
+  metadata: Record<string, any>;
 }
 
 export interface DataQualityReport {
-  missingValueRate: number;
-  anomalyCount: number;
-  totalSampleSize: number;
-  lastUpdateTime: Date;
-  caliberVersion: string;
-  fieldMissingRates: Record<string, number>;
+  missingRate: number;
+  outlierCount: number;
+  sampleSize: number;
+  updatedAt: string;
+  fieldStats: Array<{
+    fieldName: string;
+    completeness: number;
+    hasOutliers: boolean;
+  }>;
 }
 
-export interface ApiResponse<T> {
-  data: T;
-  filters: FilterState;
-  sampleSize: number;
-  queryTime: number;
-  cacheHit: boolean;
+export interface ClosedAreaNotice {
+  areaId: string;
+  areaName: string;
+  reason: string;
+  capacityReduced: number;
+  startTime: string;
+  endTime: string;
 }
 
 export interface KPIData {
-  realtimeVisitors: number;
+  realtimeVisitor: number;
+  totalCapacity: number;
+  occupancyRate: number;
   avgWaitTime: number;
-  todayEntries: number;
-  foodRevenue: number;
-  visitorChange: number;
-  waitChange: number;
-  entryChange: number;
-  revenueChange: number;
+  ticketSales: number;
+  totalRevenue: number;
+  parkingOccupancy: number;
+  parkingCapacity: number;
+  parkingRate: number;
+  updatedAt: string;
 }
 
 export interface DataCaliber {
@@ -90,13 +95,4 @@ export interface DataCaliber {
   timeWindow: string;
   granularity: string;
   version: string;
-}
-
-export interface ClosedAreaNotice {
-  areaId: string;
-  areaName: string;
-  reason: string;
-  capacityDeducted: number;
-  startTime: Date;
-  endTime: Date;
 }

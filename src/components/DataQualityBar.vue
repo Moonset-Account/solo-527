@@ -2,7 +2,7 @@
 import { Database, AlertTriangle, XCircle, RefreshCcw, Info } from 'lucide-vue-next';
 import { computed } from 'vue';
 import type { DataQualityReport } from '@/types';
-import { CALIBER_VERSION } from '@/data/calibers';
+import { DATA_CALIBERS } from '@/data/calibers';
 import { formatDateTime } from '@/data/cleaner';
 
 interface Props {
@@ -17,15 +17,15 @@ const emit = defineEmits<{
 
 const missingLevel = computed(() => {
   if (!props.report) return 'normal';
-  if (props.report.missingValueRate > 10) return 'danger';
-  if (props.report.missingValueRate > 5) return 'warning';
+  if (props.report.missingRate > 10) return 'danger';
+  if (props.report.missingRate > 5) return 'warning';
   return 'normal';
 });
 
 const anomalyLevel = computed(() => {
   if (!props.report) return 'normal';
-  if (props.report.anomalyCount > 50) return 'danger';
-  if (props.report.anomalyCount > 20) return 'warning';
+  if (props.report.outlierCount > 50) return 'danger';
+  if (props.report.outlierCount > 20) return 'warning';
   return 'normal';
 });
 
@@ -42,31 +42,31 @@ const levelColors: Record<string, { bg: string; text: string; border: string }> 
       <div class="flex items-center gap-2 text-sm">
         <Database class="w-4 h-4 text-slate-400" />
         <span class="text-slate-500">数据口径:</span>
-        <span class="font-medium text-slate-700">{{ CALIBER_VERSION }}</span>
+        <span class="font-medium text-slate-700">v1.0 ({{ DATA_CALIBERS.length }}个指标)</span>
       </div>
 
       <div v-if="report" :class="['flex items-center gap-2 px-3 py-1 rounded-lg border text-sm', levelColors[missingLevel].bg, levelColors[missingLevel].border]">
         <AlertTriangle :class="['w-4 h-4', levelColors[missingLevel].text]" />
         <span class="text-slate-500">缺失值:</span>
-        <span :class="['font-semibold', levelColors[missingLevel].text]">{{ report.missingValueRate.toFixed(1) }}%</span>
+        <span :class="['font-semibold', levelColors[missingLevel].text]">{{ report.missingRate.toFixed(1) }}%</span>
       </div>
 
       <div v-if="report" :class="['flex items-center gap-2 px-3 py-1 rounded-lg border text-sm', levelColors[anomalyLevel].bg, levelColors[anomalyLevel].border]">
         <XCircle :class="['w-4 h-4', levelColors[anomalyLevel].text]" />
         <span class="text-slate-500">异常点:</span>
-        <span :class="['font-semibold', levelColors[anomalyLevel].text]">{{ report.anomalyCount }}</span>
+        <span :class="['font-semibold', levelColors[anomalyLevel].text]">{{ report.outlierCount }}</span>
       </div>
 
       <div v-if="report" class="flex items-center gap-2 text-sm">
         <Info class="w-4 h-4 text-slate-400" />
         <span class="text-slate-500">样本量:</span>
-        <span class="font-medium text-slate-700">{{ report.totalSampleSize.toLocaleString() }}</span>
+        <span class="font-medium text-slate-700">{{ report.sampleSize.toLocaleString() }}</span>
       </div>
 
       <div class="ml-auto flex items-center gap-4">
         <div v-if="report" class="flex items-center gap-2 text-xs text-slate-400">
           <RefreshCcw class="w-3 h-3" />
-          <span>更新于: {{ formatDateTime(report.lastUpdateTime) }}</span>
+          <span>更新于: {{ formatDateTime(new Date(report.updatedAt)) }}</span>
         </div>
         <button
           class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"

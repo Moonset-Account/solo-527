@@ -1,12 +1,24 @@
 import { defineStore } from 'pinia';
-import type { DataQualityReport } from '@/types';
-import { generateDataQualityReport } from '@/data/mockData';
+import type { DataQualityReport, FilterState } from '@/types';
+import { api, type FilterQuery } from '@/utils/api';
+
+function filtersToQuery(filters: FilterState): FilterQuery {
+  return {
+    startTime: filters.timeRange?.[0]?.toISOString(),
+    endTime: filters.timeRange?.[1]?.toISOString(),
+    entrance: filters.entrance.length ? filters.entrance : undefined,
+    areaId: filters.area.length ? filters.area : undefined,
+    ticketType: filters.ticketType.length ? filters.ticketType : undefined,
+    activity: filters.activity.length ? filters.activity : undefined
+  };
+}
 
 interface DataQualityStore {
   report: DataQualityReport | null;
   loading: boolean;
   error: string | null;
   lastFetch: Date | null;
+  cached: boolean;
 }
 
 export const useDataQualityStore = defineStore('dataQuality', {
@@ -14,24 +26,26 @@ export const useDataQualityStore = defineStore('dataQuality', {
     report: null,
     loading: false,
     error: null,
-    lastFetch: null
+    lastFetch: null,
+    cached: false
   }),
   getters: {
     hasMissingValueWarning: (state) => {
-      return state.report ? state.report.missingValueRate > 5 : false;
+      return state.report ? state.report.missingRate > 5 : false;
     },
     hasAnomalyWarning: (state) => {
-      return state.report ? state.report.anomalyCount > 30 : false;
+      return state.report ? state.report.outlierCount > 30 : false;
     }
   },
   actions: {
-    async fetchReport() {
+    async fetchReport(filters: FilterState) {
       this.loading = true;
       this.error = null;
       try {
-        await new Promise(r => setTimeout(r, 100 + Math.random() * 150));
-        this.report = generateDataQualityReport();
-        this.lastFetch = new Date();
+        const res = await api.getDataQuality(filtersToQuery(filters));
+        this.report = res.data;
+        this.lastFetch = new Date(res.updatedAt);
+        this.cached = !!res.cached;
       } catch (e: any) {
         this.error = e.message;
       } finally {

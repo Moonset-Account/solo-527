@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia';
 import type { ConversionFunnel, FilterState } from '@/types';
-import { generateConversionFunnel } from '@/data/mockData';
+import { api, type FilterQuery } from '@/utils/api';
+
+function filtersToQuery(filters: FilterState): FilterQuery {
+  return {
+    startTime: filters.timeRange?.[0]?.toISOString(),
+    endTime: filters.timeRange?.[1]?.toISOString(),
+    entrance: filters.entrance.length ? filters.entrance : undefined,
+    areaId: filters.area.length ? filters.area : undefined,
+    ticketType: filters.ticketType.length ? filters.ticketType : undefined,
+    activity: filters.activity.length ? filters.activity : undefined
+  };
+}
 
 interface ConversionStore {
   data: ConversionFunnel[];
@@ -8,7 +19,7 @@ interface ConversionStore {
   error: string | null;
   sampleSize: number;
   lastUpdate: Date | null;
-  cache: Record<string, { data: ConversionFunnel[]; sampleSize: number; timestamp: number }>;
+  cached: boolean;
 }
 
 export const useConversionStore = defineStore('conversion', {
@@ -18,38 +29,23 @@ export const useConversionStore = defineStore('conversion', {
     error: null,
     sampleSize: 0,
     lastUpdate: null,
-    cache: {}
+    cached: false
   }),
   actions: {
     async fetchData(filters: FilterState) {
       this.loading = true;
       this.error = null;
-      const cacheKey = JSON.stringify(filters);
-
       try {
-        const cached = this.cache[cacheKey];
-        const now = Date.now();
-        if (cached && now - cached.timestamp < 120000) {
-          this.data = cached.data;
-          this.sampleSize = cached.sampleSize;
-          this.loading = false;
-          return;
-        }
-
-        await new Promise(r => setTimeout(r, 150 + Math.random() * 200));
-        const result = generateConversionFunnel(filters);
-        this.data = result.data;
-        this.sampleSize = result.sampleSize;
-        this.lastUpdate = new Date();
-        this.cache[cacheKey] = { ...result, timestamp: now };
+        const res = await api.getConversionFunnel(filtersToQuery(filters));
+        this.data = res.data;
+        this.sampleSize = res.data[0]?.count || 0;
+        this.lastUpdate = new Date(res.updatedAt);
+        this.cached = !!res.cached;
       } catch (e: any) {
         this.error = e.message;
       } finally {
         this.loading = false;
       }
-    },
-    clearCache() {
-      this.cache = {};
     }
   }
 });

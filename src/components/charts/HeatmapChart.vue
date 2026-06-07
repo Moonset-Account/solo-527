@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
 import * as d3 from 'd3';
-import type { HeatmapData, ClosedAreaNotice } from '@/types';
+import type { HeatmapData } from '@/types';
 
 interface Props {
   data: HeatmapData[];
-  closedAreas: ClosedAreaNotice[];
   selectedAreaId: string | null;
 }
 

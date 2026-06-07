@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Filter, RotateCcw, ChevronDown } from 'lucide-vue-next';
 import { useFilterStore } from '@/stores/filter';
-import { ENTRANCES, AREAS, TICKET_TYPES, ACTIVITIES } from '@/data/mockData';
+import { ENTRANCES, AREAS, TICKET_TYPES, ACTIVITIES } from '@/data/constants';
 import { computed, ref } from 'vue';
 
 const emit = defineEmits<{

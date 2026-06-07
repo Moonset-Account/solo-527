@@ -127,7 +127,7 @@ function render() {
       .attr('text-anchor', 'middle')
       .attr('font-size', '9px')
       .attr('fill', '#64748b')
-      .text(`入园${(d.entryRate * 100).toFixed(0)}%`);
+      .text(`入园${d.entryRate.toFixed(0)}%`);
   });
 
   const legend = g.append('g')
@@ -194,15 +194,15 @@ function showTooltip(event: MouseEvent, d: TicketAnalysis) {
     </div>
     <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
       <span style="color: #94a3b8;">入园率</span>
-      <span>${(d.entryRate * 100).toFixed(1)}%</span>
+      <span>${d.entryRate.toFixed(1)}%</span>
     </div>
     <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-      <span style="color: #94a3b8;">客单价</span>
-      <span>¥${d.avgSpend.toFixed(2)}</span>
+      <span style="color: #94a3b8;">平均票价</span>
+      <span>¥${d.avgPrice.toFixed(2)}</span>
     </div>
     <div style="display: flex; justify-content: space-between; gap: 24px;">
-      <span style="color: #94a3b8;">样本量</span>
-      <span>${d.sampleSize.toLocaleString()}</span>
+      <span style="color: #94a3b8;">总营收</span>
+      <span>¥${d.totalRevenue.toLocaleString()}</span>
     </div>
   `);
   tooltip.style('opacity', '1');

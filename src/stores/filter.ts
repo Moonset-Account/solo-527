@@ -1,6 +1,20 @@
 import { defineStore } from 'pinia';
 import type { FilterState } from '@/types';
-import { getDefaultFilters } from '@/data/mockData';
+
+function getDefaultFilters(): FilterState {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(8, 0, 0, 0);
+  const end = new Date(now);
+  end.setHours(20, 0, 0, 0);
+  return {
+    entrance: [],
+    area: [],
+    timeRange: [start, end],
+    ticketType: [],
+    activity: []
+  };
+}
 
 interface FilterStore {
   filters: FilterState;
@@ -17,7 +31,8 @@ export const useFilterStore = defineStore('filter', {
       return state.isolatedStates[viewId] || state.filters;
     },
     timeRangeLabel: (state) => {
-      const { start, end } = state.filters.timeRange;
+      if (!state.filters.timeRange) return '未选择';
+      const [start, end] = state.filters.timeRange;
       return `${start.toLocaleDateString('zh-CN')} ${start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
     }
   },
@@ -29,7 +44,7 @@ export const useFilterStore = defineStore('filter', {
       this.filters.area = area;
     },
     setTimeRange(start: Date, end: Date) {
-      this.filters.timeRange = { start, end };
+      this.filters.timeRange = [start, end];
     },
     setTicketType(ticketType: string[]) {
       this.filters.ticketType = ticketType;

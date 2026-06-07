@@ -76,7 +76,7 @@ function render() {
       .attr('fill', 'white')
       .attr('font-size', '13px')
       .attr('font-weight', '600')
-      .text(d.stageLabel);
+      .text(d.stage);
 
     group.append('text')
       .attr('x', innerWidth / 2)
@@ -84,7 +84,7 @@ function render() {
       .attr('text-anchor', 'middle')
       .attr('fill', 'rgba(255,255,255,0.9)')
       .attr('font-size', '11px')
-      .text(`${d.count.toLocaleString()} 人  (${(d.conversionRate * 100).toFixed(0)}% 转化)`);
+      .text(`${d.count.toLocaleString()} 人  (${d.rate.toFixed(0)}% 转化)`);
 
     if (i < props.data.length - 1) {
       g.append('text')
@@ -93,7 +93,7 @@ function render() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#94a3b8')
         .attr('font-size', '10px')
-        .text(`↓ ${(props.data[i + 1].conversionRate * 100).toFixed(1)}%`);
+        .text(`↓ ${props.data[i + 1].rate.toFixed(1)}%`);
     }
   });
 
@@ -116,18 +116,14 @@ function render() {
 function showTooltip(event: MouseEvent, d: ConversionFunnel) {
   if (!tooltip) return;
   tooltip.html(`
-    <div style="font-weight: 600; margin-bottom: 8px;">${d.stageLabel}</div>
+    <div style="font-weight: 600; margin-bottom: 8px;">${d.stage}</div>
     <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
       <span style="color: #94a3b8;">人数</span>
       <span>${d.count.toLocaleString()} 人</span>
     </div>
-    <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-      <span style="color: #94a3b8;">转化率</span>
-      <span>${(d.conversionRate * 100).toFixed(1)}%</span>
-    </div>
     <div style="display: flex; justify-content: space-between; gap: 24px;">
-      <span style="color: #94a3b8;">样本量</span>
-      <span>${d.sampleSize.toLocaleString()}</span>
+      <span style="color: #94a3b8;">转化率</span>
+      <span>${d.rate.toFixed(1)}%</span>
     </div>
   `);
   tooltip.style('opacity', '1');

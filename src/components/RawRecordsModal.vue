@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { X, Download, ChevronLeft, ChevronRight, Filter, Database, Clock, Layers } from 'lucide-vue-next';
-import type { RawRecord, FilterState } from '@/types';
-import { generateRawRecords } from '@/data/mockData';
+import type { FilterState } from '@/types';
+import { useRawRecordsStore } from '@/stores/rawRecords';
+import { storeToRefs } from 'pinia';
 import { generateCSV, formatDateTime } from '@/data/cleaner';
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
   title: string;
   filters: FilterState;
   areaId?: string;
-  recordType?: string;
+  source?: string;
 }
 
 const props = defineProps<Props>();
@@ -18,39 +19,49 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const page = ref(1);
-const pageSize = 20;
-const loading = ref(false);
-const records = ref<RawRecord[]>([]);
-const total = ref(0);
-const sampleSize = ref(0);
+const rawRecordsStore = useRawRecordsStore();
+const { records, loading, page, pageSize, total, lastUpdate } = storeToRefs(rawRecordsStore);
+
+const localPage = ref(1);
 
 async function fetchData() {
   if (!props.show) return;
-  loading.value = true;
-  try {
-    await new Promise(r => setTimeout(r, 200));
-    const result = generateRawRecords(props.filters, props.areaId, props.recordType, page.value, pageSize);
-    records.value = result.data;
-    total.value = result.total;
-    sampleSize.value = result.sampleSize;
-  } finally {
-    loading.value = false;
-  }
+  await rawRecordsStore.fetchRecords(props.filters, {
+    page: localPage.value,
+    pageSize: pageSize.value,
+    areaId: props.areaId,
+    source: props.source
+  });
 }
 
-watch(() => [props.show, page], () => {
-  fetchData();
-}, { immediate: true });
+watch(() => [props.show, localPage.value], async () => {
+  if (props.show) {
+    await fetchData();
+  }
+}, { immediate: false });
 
-const totalPages = computed(() => Math.ceil(total.value / pageSize));
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    localPage.value = 1;
+    rawRecordsStore.reset();
+  }
+});
+
+async function goToPage(p: number) {
+  if (p < 1 || p > totalPages.value) return;
+  localPage.value = p;
+}
+
+const totalPages = computed(() => Math.ceil(total.value / pageSize.value));
 
 function exportData() {
   const exportData = records.value.map(r => ({
     ID: r.id,
-    时间: formatDateTime(r.timestamp),
-    类型: r.type,
-    ...r.data
+    来源: getTypeLabel(r.source),
+    时间: formatDateTime(new Date(r.time)),
+    标题: r.title,
+    描述: r.description,
+    ...r.metadata
   }));
   generateCSV(exportData, `原始记录_${props.title}`);
 }
@@ -61,8 +72,12 @@ const filterSummary = computed(() => {
   if (props.filters.area.length) parts.push(`区域: ${props.filters.area.join(',')}`);
   if (props.filters.ticketType.length) parts.push(`票种: ${props.filters.ticketType.join(',')}`);
   if (props.filters.activity.length) parts.push(`活动: ${props.filters.activity.join(',')}`);
-  const { start, end } = props.filters.timeRange;
-  parts.push(`时间: ${formatDateTime(start)} ~ ${formatDateTime(end)}`);
+  if (props.areaId) parts.push(`下钻区域: ${props.areaId}`);
+  if (props.source) parts.push(`数据来源: ${getTypeLabel(props.source)}`);
+  if (props.filters.timeRange) {
+    const [start, end] = props.filters.timeRange;
+    parts.push(`时间: ${formatDateTime(start)} ~ ${formatDateTime(end)}`);
+  }
   return parts.join(' | ');
 });
 
@@ -71,7 +86,9 @@ function getTypeIcon(type: string) {
     ticket: '🎫',
     gate: '🚪',
     parking: '🅿️',
-    consumption: '💳'
+    consumption: '💳',
+    weather: '🌤️',
+    show: '🎭'
   };
   return icons[type] || '📋';
 }
@@ -81,7 +98,9 @@ function getTypeLabel(type: string) {
     ticket: '门票',
     gate: '闸机',
     parking: '停车',
-    consumption: '消费'
+    consumption: '消费',
+    weather: '天气',
+    show: '演出'
   };
   return labels[type] || type;
 }
@@ -124,16 +143,16 @@ function getTypeLabel(type: string) {
             <div class="flex items-center gap-2 text-sm">
               <Database class="w-4 h-4 text-teal-600" />
               <span class="text-slate-600">样本量:</span>
-              <span class="font-semibold text-teal-700">{{ sampleSize.toLocaleString() }}</span>
+              <span class="font-semibold text-teal-700">{{ total.toLocaleString() }}</span>
             </div>
             <div class="flex items-center gap-2 text-sm">
               <Layers class="w-4 h-4 text-teal-600" />
               <span class="text-slate-600">当前显示:</span>
               <span class="font-semibold text-teal-700">{{ records.length }} / {{ total }} 条</span>
             </div>
-            <div class="flex items-center gap-2 text-sm">
+            <div v-if="lastUpdate" class="flex items-center gap-2 text-sm">
               <Clock class="w-4 h-4 text-slate-400" />
-              <span class="text-slate-500">时间窗口: {{ Math.round((props.filters.timeRange.end.getTime() - props.filters.timeRange.start.getTime()) / 3600000) }} 小时</span>
+              <span class="text-slate-500">更新时间: {{ formatDateTime(lastUpdate) }}</span>
             </div>
           </div>
 
@@ -141,8 +160,9 @@ function getTypeLabel(type: string) {
             <table class="w-full text-sm">
               <thead class="bg-slate-50 sticky top-0">
                 <tr>
-                  <th class="px-4 py-3 text-left font-medium text-slate-500">类型</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-500">来源</th>
                   <th class="px-4 py-3 text-left font-medium text-slate-500">时间</th>
+                  <th class="px-4 py-3 text-left font-medium text-slate-500">标题</th>
                   <th class="px-4 py-3 text-left font-medium text-slate-500">详情</th>
                 </tr>
               </thead>
@@ -150,29 +170,19 @@ function getTypeLabel(type: string) {
                 <tr v-for="record in records" :key="record.id" class="hover:bg-slate-50 transition-colors">
                   <td class="px-4 py-3">
                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-xs">
-                      <span>{{ getTypeIcon(record.type) }}</span>
-                      <span class="text-slate-600">{{ getTypeLabel(record.type) }}</span>
+                      <span>{{ getTypeIcon(record.source) }}</span>
+                      <span class="text-slate-600">{{ getTypeLabel(record.source) }}</span>
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ formatDateTime(record.timestamp) }}</td>
-                  <td class="px-4 py-3">
-                    <div class="flex flex-wrap gap-x-4 gap-y-1">
-                      <span
-                        v-for="(value, key) in record.data"
-                        :key="key"
-                        class="text-xs"
-                      >
-                        <span class="text-slate-400">{{ key }}:</span>
-                        <span class="text-slate-700 font-medium ml-1">{{ value }}</span>
-                      </span>
-                    </div>
-                  </td>
+                  <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ formatDateTime(new Date(record.time)) }}</td>
+                  <td class="px-4 py-3 text-slate-700 font-medium">{{ record.title }}</td>
+                  <td class="px-4 py-3 text-slate-600">{{ record.description }}</td>
                 </tr>
                 <tr v-if="loading">
-                  <td colspan="3" class="px-4 py-12 text-center text-slate-400">加载中...</td>
+                  <td colspan="4" class="px-4 py-12 text-center text-slate-400">加载中...</td>
                 </tr>
                 <tr v-else-if="!records.length">
-                  <td colspan="3" class="px-4 py-12 text-center text-slate-400">暂无数据</td>
+                  <td colspan="4" class="px-4 py-12 text-center text-slate-400">暂无数据</td>
                 </tr>
               </tbody>
             </table>
@@ -180,20 +190,20 @@ function getTypeLabel(type: string) {
 
           <div class="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50">
             <span class="text-sm text-slate-500">
-              第 {{ page }} / {{ totalPages }} 页
+              第 {{ localPage }} / {{ totalPages }} 页
             </span>
             <div class="flex items-center gap-1">
               <button
                 class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
-                :disabled="page <= 1"
-                @click="page--"
+                :disabled="localPage <= 1"
+                @click="goToPage(localPage - 1)"
               >
                 <ChevronLeft class="w-4 h-4" />
               </button>
               <button
                 class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
-                :disabled="page >= totalPages"
-                @click="page++"
+                :disabled="localPage >= totalPages"
+                @click="goToPage(localPage + 1)"
               >
                 <ChevronRight class="w-4 h-4" />
               </button>

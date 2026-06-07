@@ -23,7 +23,7 @@ function render() {
   const container = containerRef.value;
   const width = container.clientWidth;
   const height = container.clientHeight;
-  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const margin = { top: 20, right: 20, bottom: 40, left: 55 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
@@ -37,8 +37,12 @@ function render() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
-  const xExtent = d3.extent(props.data, d => new Date(d.timestamp)) as [Date, Date];
-  const yMax = d3.max(props.data, d => d.upperBound) || 100;
+  const xExtent = d3.extent(props.data, d => new Date(d.time)) as [Date, Date];
+  const yMax = d3.max(props.data, d => Math.max(
+    d.confidenceUpper || 0,
+    d.actualCount || 0,
+    d.predictedCount || 0
+  )) || 100;
 
   const xScale = d3.scaleTime()
     .domain(xExtent)
@@ -53,8 +57,7 @@ function render() {
     .tickFormat(d => d3.timeFormat('%H:%M')(d as Date));
 
   const yAxis = d3.axisLeft(yScale)
-    .ticks(5)
-    .tickFormat(d => `${d}分钟`);
+    .ticks(5);
 
   g.append('g')
     .attr('transform', `translate(0,${innerHeight})`)
@@ -94,79 +97,83 @@ function render() {
       .text('当前时刻');
   }
 
-  const area = d3.area<QueuePrediction>()
-    .x(d => xScale(new Date(d.timestamp)))
-    .y0(d => yScale(d.lowerBound))
-    .y1(d => yScale(d.upperBound))
-    .curve(d3.curveMonotoneX);
-
-  g.append('path')
-    .datum(props.data)
-    .attr('fill', '#0f766e')
-    .attr('opacity', 0.12)
-    .attr('d', area);
-
-  const linePredicted = d3.line<QueuePrediction>()
-    .x(d => xScale(new Date(d.timestamp)))
-    .y(d => yScale(d.predictedWait))
-    .curve(d3.curveMonotoneX);
-
-  g.append('path')
-    .datum(props.data)
-    .attr('fill', 'none')
-    .attr('stroke', '#0f766e')
-    .attr('stroke-width', 2)
-    .attr('stroke-dasharray', '6,3')
-    .attr('d', linePredicted);
-
-  const actualData = props.data.filter(d => d.actualWait !== undefined);
-  if (actualData.length > 0) {
-    const lineActual = d3.line<QueuePrediction>()
-      .x(d => xScale(new Date(d.timestamp)))
-      .y(d => yScale(d.actualWait!))
+  const predictionData = props.data.filter(d => !d.isHistory);
+  if (predictionData.length > 0) {
+    const area = d3.area<QueuePrediction>()
+      .x(d => xScale(new Date(d.time)))
+      .y0(d => yScale(d.confidenceLower || 0))
+      .y1(d => yScale(d.confidenceUpper || 0))
       .curve(d3.curveMonotoneX);
 
     g.append('path')
-      .datum(actualData)
+      .datum(predictionData)
+      .attr('fill', '#0f766e')
+      .attr('opacity', 0.12)
+      .attr('d', area);
+
+    const linePredicted = d3.line<QueuePrediction>()
+      .x(d => xScale(new Date(d.time)))
+      .y(d => yScale(d.predictedCount || 0))
+      .curve(d3.curveMonotoneX);
+
+    g.append('path')
+      .datum(predictionData)
+      .attr('fill', 'none')
+      .attr('stroke', '#0f766e')
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '6,3')
+      .attr('d', linePredicted);
+  }
+
+  const historyData = props.data.filter(d => d.isHistory && d.actualCount !== null);
+  if (historyData.length > 0) {
+    const lineActual = d3.line<QueuePrediction>()
+      .x(d => xScale(new Date(d.time)))
+      .y(d => yScale(d.actualCount || 0))
+      .curve(d3.curveMonotoneX);
+
+    g.append('path')
+      .datum(historyData)
       .attr('fill', 'none')
       .attr('stroke', '#f59e0b')
       .attr('stroke-width', 2)
       .attr('d', lineActual);
   }
 
-  const circles = g.selectAll('.data-point')
+  g.selectAll('.data-point')
     .data(props.data)
     .enter()
     .append('circle')
     .attr('class', 'data-point')
-    .attr('cx', d => xScale(new Date(d.timestamp)))
-    .attr('cy', d => yScale(d.predictedWait))
+    .attr('cx', d => xScale(new Date(d.time)))
+    .attr('cy', d => yScale(d.isHistory ? (d.actualCount || 0) : (d.predictedCount || 0)))
     .attr('r', d => d.isAnomaly ? 7 : 4)
-    .attr('fill', d => d.isAnomaly ? '#ef4444' : '#0f766e')
+    .attr('fill', d => d.isAnomaly ? '#ef4444' : (d.isHistory ? '#f59e0b' : '#0f766e'))
     .attr('stroke', 'white')
     .attr('stroke-width', d => d.isAnomaly ? 2 : 1)
     .attr('cursor', 'pointer')
-    .on('mouseenter', function(event, d) {
+    .on('mouseenter', function(event, d: any) {
       d3.select(this).attr('r', d.isAnomaly ? 9 : 6);
-      showTooltip(event, d);
+      showTooltip(event, d as QueuePrediction);
     })
     .on('mousemove', function(event) {
       moveTooltip(event);
     })
-    .on('mouseleave', function(event, d) {
+    .on('mouseleave', function(event, d: any) {
       d3.select(this).attr('r', d.isAnomaly ? 7 : 4);
       hideTooltip();
     })
-    .on('click', function(event, d) {
-      if (d.isAnomaly) {
-        emit('anomalyClick', d);
+    .on('click', function(event, d: any) {
+      const point = d as QueuePrediction;
+      if (point.isAnomaly) {
+        emit('anomalyClick', point);
       } else {
-        emit('pointClick', d);
+        emit('pointClick', point);
       }
     });
 
   const legend = g.append('g')
-    .attr('transform', `translate(${innerWidth - 160}, 10)`);
+    .attr('transform', `translate(${innerWidth - 140}, 10)`);
 
   legend.append('line')
     .attr('x1', 0)
@@ -230,33 +237,27 @@ function render() {
 
 function showTooltip(event: MouseEvent, d: QueuePrediction) {
   if (!tooltip) return;
-  const time = new Date(d.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const time = new Date(d.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   const anomalyText = d.isAnomaly ? '<div style="color: #ef4444; font-weight: 600; margin-top: 4px;">⚠️ 检测为异常点</div>' : '';
+  const typeText = d.isHistory ? '历史数据' : '预测数据';
+  const countText = d.isHistory ? (d.actualCount || 0) : (d.predictedCount || 0);
   
   tooltip.html(`
-    <div style="font-weight: 600; margin-bottom: 8px;">${d.areaName} - ${time}</div>
+    <div style="font-weight: 600; margin-bottom: 8px;">${time} - ${typeText}</div>
     <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-      <span style="color: #94a3b8;">预测排队</span>
-      <span>${d.predictedWait} 分钟</span>
+      <span style="color: #94a3b8;">客流人次</span>
+      <span>${countText} 人</span>
     </div>
+    <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
+      <span style="color: #94a3b8;">平均排队</span>
+      <span>${d.avgWaitTime.toFixed(1)} 分钟</span>
+    </div>
+    ${!d.isHistory && d.confidenceLower !== null && d.confidenceUpper !== null ? `
     <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
       <span style="color: #94a3b8;">置信区间</span>
-      <span>${d.lowerBound} ~ ${d.upperBound} 分钟</span>
-    </div>
-    <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-      <span style="color: #94a3b8;">置信度</span>
-      <span>${(d.confidence * 100).toFixed(0)}%</span>
-    </div>
-    ${d.actualWait !== undefined ? `
-    <div style="display: flex; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-      <span style="color: #94a3b8;">实际排队</span>
-      <span style="color: #f59e0b;">${d.actualWait} 分钟</span>
+      <span>${Math.round(d.confidenceLower)} ~ ${Math.round(d.confidenceUpper)} 人</span>
     </div>
     ` : ''}
-    <div style="display: flex; justify-content: space-between; gap: 24px;">
-      <span style="color: #94a3b8;">样本量</span>
-      <span>${d.sampleSize.toLocaleString()}</span>
-    </div>
     ${anomalyText}
   `);
   tooltip.style('opacity', '1');

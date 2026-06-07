@@ -12,7 +12,7 @@ const props = defineProps<Props>();
 const showAll = ref(false);
 
 const totalCapacityDeducted = computed(() => {
-  return props.notices.reduce((sum, n) => sum + n.capacityDeducted, 0);
+  return props.notices.reduce((sum, n) => sum + n.capacityReduced, 0);
 });
 
 const visibleNotices = computed(() => {
@@ -55,9 +55,9 @@ const visibleNotices = computed(() => {
           <div class="flex items-center gap-3 mt-1 text-xs text-amber-600">
             <span class="flex items-center gap-1">
               <Clock class="w-3 h-3" />
-              {{ formatTime(notice.startTime) }} - {{ formatTime(notice.endTime) }}
+              {{ formatTime(new Date(notice.startTime)) }} - {{ formatTime(new Date(notice.endTime)) }}
             </span>
-            <span>容量扣除: {{ notice.capacityDeducted.toLocaleString() }} 人</span>
+            <span>容量扣除: {{ notice.capacityReduced.toLocaleString() }} 人</span>
           </div>
         </div>
       </div>

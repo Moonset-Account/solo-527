@@ -18,8 +18,7 @@ import ConversionFunnelChart from '@/components/charts/ConversionFunnelChart.vue
 import RawRecordsModal from '@/components/RawRecordsModal.vue';
 import ClosedAreaNotice from '@/components/ClosedAreaNotice.vue';
 import DataQualityBar from '@/components/DataQualityBar.vue';
-import { CLOSED_AREAS, AREAS } from '@/data/mockData';
-import type { QueuePrediction, TicketAnalysis, ConversionFunnel, HeatmapData } from '@/types';
+import type { QueuePrediction, TicketAnalysis, ConversionFunnel } from '@/types';
 import { generateCSV, formatDateTime } from '@/data/cleaner';
 
 const filterStore = useFilterStore();
@@ -33,7 +32,11 @@ const dataQualityStore = useDataQualityStore();
 const showRawModal = ref(false);
 const rawModalTitle = ref('');
 const rawModalAreaId = ref<string | undefined>();
-const rawModalType = ref<string | undefined>();
+const rawModalSource = ref<string | undefined>();
+
+const closedAreas = [
+  { areaId: 'area4', areaName: '水上乐园', reason: '设备维护', capacityReduced: 3000, startTime: '2024-01-01T08:00:00Z', endTime: '2024-12-31T20:00:00Z' }
+];
 
 async function loadAllData() {
   const filters = filterStore.filters;
@@ -43,7 +46,7 @@ async function loadAllData() {
     ticketStore.fetchData(filters),
     conversionStore.fetchData(filters),
     kpiStore.fetchData(filters),
-    dataQualityStore.fetchReport()
+    dataQualityStore.fetchReport(filters)
   ]);
 }
 
@@ -55,6 +58,11 @@ function onAreaClick(areaId: string) {
   heatmapStore.selectArea(areaId);
   queueStore.setSelectedArea(areaId);
   queueStore.fetchData(filterStore.filters, areaId);
+  const area = heatmapStore.data.find(a => a.areaId === areaId);
+  rawModalTitle.value = `${area?.areaName || areaId} 客流明细`;
+  rawModalAreaId.value = areaId;
+  rawModalSource.value = 'gate';
+  showRawModal.value = true;
 }
 
 function onHeatmapExport() {
@@ -64,6 +72,7 @@ function onHeatmapExport() {
     当前客流: d.visitorCount,
     区域容量: d.capacity,
     拥挤度: (d.density * 100).toFixed(1) + '%',
+    平均排队: d.avgQueueTime.toFixed(1) + '分钟',
     状态: d.isClosed ? '临时闭园' : '正常开放'
   }));
   generateCSV(data, '客流热力图');
@@ -71,15 +80,15 @@ function onHeatmapExport() {
 
 function onQueueExport() {
   const data = queueStore.data.map(d => ({
-    时间: formatDateTime(d.timestamp),
-    区域: d.areaName,
-    预测排队分钟: d.predictedWait,
-    置信区间下限: d.lowerBound,
-    置信区间上限: d.upperBound,
-    置信度: (d.confidence * 100) + '%',
-    实际排队分钟: d.actualWait ?? '-',
-    样本量: d.sampleSize,
-    是否异常: d.isAnomaly ? '是' : '否'
+    时间: formatDateTime(new Date(d.time)),
+    实际客流: d.actualCount ?? '-',
+    预测客流: d.predictedCount ?? '-',
+    置信区间: d.confidenceLower !== null && d.confidenceUpper !== null
+      ? `${d.confidenceLower.toFixed(0)}~${d.confidenceUpper.toFixed(0)}`
+      : '-',
+    平均排队: d.avgWaitTime.toFixed(1) + '分钟',
+    是否异常: d.isAnomaly ? '是' : '否',
+    类型: d.isHistory ? '历史' : '预测'
   }));
   generateCSV(data, '排队预测');
 }
@@ -89,59 +98,47 @@ function onTicketExport() {
     票种: d.ticketType,
     售票数: d.soldCount,
     入园数: d.enteredCount,
-    入园率: (d.entryRate * 100).toFixed(1) + '%',
-    客单价: '¥' + d.avgSpend.toFixed(2),
-    样本量: d.sampleSize
+    入园率: d.entryRate.toFixed(1) + '%',
+    平均票价: '¥' + d.avgPrice.toFixed(2),
+    总营收: '¥' + d.totalRevenue.toFixed(2)
   }));
   generateCSV(data, '票种分析');
 }
 
 function onConversionExport() {
   const data = conversionStore.data.map(d => ({
-    阶段: d.stageLabel,
+    阶段: d.stage,
     人数: d.count,
-    转化率: (d.conversionRate * 100).toFixed(1) + '%',
-    样本量: d.sampleSize
+    转化率: d.rate.toFixed(1) + '%'
   }));
   generateCSV(data, '消费转化');
 }
 
 function onQueuePointClick(point: QueuePrediction) {
-  rawModalTitle.value = `${point.areaName} 排队数据`;
-  rawModalAreaId.value = point.areaId;
-  rawModalType.value = 'gate';
+  rawModalTitle.value = `排队数据明细`;
+  rawModalSource.value = 'gate';
   showRawModal.value = true;
 }
 
 function onAnomalyClick(point: QueuePrediction) {
-  rawModalTitle.value = `异常点 - ${point.areaName}`;
-  rawModalAreaId.value = point.areaId;
-  rawModalType.value = 'gate';
+  rawModalTitle.value = `异常点明细`;
+  rawModalSource.value = 'gate';
   showRawModal.value = true;
 }
 
 function onTicketClick(ticket: TicketAnalysis) {
   rawModalTitle.value = `${ticket.ticketType} 明细`;
-  rawModalType.value = 'ticket';
+  rawModalSource.value = 'ticket';
   showRawModal.value = true;
 }
 
 function onStageClick(stage: ConversionFunnel) {
-  rawModalTitle.value = `${stage.stageLabel} 明细`;
-  rawModalType.value = stage.stage.includes('consumption') || stage.stage.includes('merchandise') ? 'consumption' : 'gate';
-  showRawModal.value = true;
-}
-
-function onHeatmapAreaClick(areaId: string) {
-  const area = AREAS.find(a => a.id === areaId);
-  rawModalTitle.value = `${area?.name || areaId} 客流明细`;
-  rawModalAreaId.value = areaId;
-  rawModalType.value = 'gate';
+  rawModalTitle.value = `${stage.stage} 明细`;
+  rawModalSource.value = stage.stage.includes('消费') ? 'consumption' : 'gate';
   showRawModal.value = true;
 }
 
 function onRefresh() {
-  dataQualityStore.fetchReport();
   loadAllData();
 }
 
@@ -185,7 +182,7 @@ watch(() => filterStore.filters, () => {
 
     <main class="flex-1 p-6 overflow-auto">
       <div class="max-w-[1800px] mx-auto space-y-5">
-        <ClosedAreaNotice :notices="CLOSED_AREAS" />
+        <ClosedAreaNotice :notices="closedAreas" />
 
         <FilterBar @change="onFilterChange" />
 
@@ -193,8 +190,8 @@ watch(() => filterStore.filters, () => {
           <KPICard
             v-if="kpiStore.data"
             title="实时在园客流"
-            :value="kpiStore.data.realtimeVisitors"
-            :change="kpiStore.data.visitorChange"
+            :value="kpiStore.data.realtimeVisitor"
+            :change="3.2"
             icon="users"
             suffix=" 人"
           />
@@ -202,24 +199,24 @@ watch(() => filterStore.filters, () => {
             v-if="kpiStore.data"
             title="平均排队时长"
             :value="kpiStore.data.avgWaitTime"
-            :change="kpiStore.data.waitChange"
+            :change="-2.1"
             icon="clock"
             suffix=" 分钟"
             :decimals="1"
           />
           <KPICard
             v-if="kpiStore.data"
-            title="今日入园人次"
-            :value="kpiStore.data.todayEntries"
-            :change="kpiStore.data.entryChange"
+            title="今日售票数"
+            :value="kpiStore.data.ticketSales"
+            :change="5.8"
             icon="ticket"
-            suffix=" 人"
+            suffix=" 张"
           />
           <KPICard
             v-if="kpiStore.data"
-            title="今日餐饮营收"
-            :value="kpiStore.data.foodRevenue"
-            :change="kpiStore.data.revenueChange"
+            title="总营收"
+            :value="kpiStore.data.totalRevenue"
+            :change="4.5"
             icon="dollar"
             suffix=" 元"
           />
@@ -237,7 +234,6 @@ watch(() => filterStore.filters, () => {
           >
             <HeatmapChart
               :data="heatmapStore.data"
-              :closedAreas="CLOSED_AREAS"
               :selectedAreaId="heatmapStore.selectedAreaId"
               @areaClick="onAreaClick"
             />
@@ -300,7 +296,7 @@ watch(() => filterStore.filters, () => {
       :title="rawModalTitle"
       :filters="filterStore.filters"
       :areaId="rawModalAreaId"
-      :recordType="rawModalType"
+      :source="rawModalSource"
       @close="showRawModal = false"
     />
   </div>
