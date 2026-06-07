@@ -6,6 +6,7 @@ export interface User {
   role: UserRole
   storeId?: string
   regionId?: string
+  token?: string
   permissions: string[]
 }
 
