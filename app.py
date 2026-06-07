@@ -421,6 +421,7 @@ app.layout = dbc.Container([
     dcc.Store(id='current-filters-store', data={}),
     dcc.Store(id='filtered-data-store', data={}),
     dcc.Store(id='selected-anomaly-store', data=None),
+    dcc.Store(id='auto-filter-anomaly', data=False),
     dcc.Store(id='trace-anomaly-trigger', data=0),
     
     html.Footer([
@@ -452,8 +453,16 @@ def get_current_filter_state(n_clicks, vehicles, routes, batches, containers, cu
 
 @app.callback(
     [Output('current-filters-store', 'data'),
-     Output('filtered-data-store', 'data')],
-    [Input('btn-apply-filters', 'n_clicks')],
+     Output('filtered-data-store', 'data'),
+     Output('filter-vehicles', 'value'),
+     Output('filter-routes', 'value'),
+     Output('filter-batches', 'value'),
+     Output('filter-containers', 'value'),
+     Output('filter-customers', 'value'),
+     Output('filter-date-range', 'start_date'),
+     Output('filter-date-range', 'end_date')],
+    [Input('btn-apply-filters', 'n_clicks'),
+     Input('btn-reset-filters', 'n_clicks')],
     [State('filter-vehicles', 'value'),
      State('filter-routes', 'value'),
      State('filter-batches', 'value'),
@@ -462,7 +471,18 @@ def get_current_filter_state(n_clicks, vehicles, routes, batches, containers, cu
      State('filter-date-range', 'start_date'),
      State('filter-date-range', 'end_date')]
 )
-def apply_filter_changes(n_clicks, vehicles, routes, batches, containers, customers, start_date, end_date):
+def apply_or_reset_filters(apply_clicks, reset_clicks, vehicles, routes, batches, containers, customers, start_date, end_date):
+    ctx = callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if trigger_id == 'btn-reset-filters':
+        empty_filtered = serialize_for_store(raw_data)
+        empty_filters = {}
+        return empty_filters, empty_filtered, None, None, None, None, None, min_date.date(), max_date.date()
+    
     date_range_tuple = None
     if start_date and end_date:
         start_dt = pd.to_datetime(start_date)
@@ -491,27 +511,8 @@ def apply_filter_changes(n_clicks, vehicles, routes, batches, containers, custom
     
     serialized_data = serialize_for_store(filtered)
     
-    return serializable_filters, serialized_data
-
-
-@app.callback(
-    [Output('filter-vehicles', 'value'),
-     Output('filter-routes', 'value'),
-     Output('filter-batches', 'value'),
-     Output('filter-containers', 'value'),
-     Output('filter-customers', 'value'),
-     Output('filter-date-range', 'start_date'),
-     Output('filter-date-range', 'end_date'),
-     Output('filtered-data-store', 'data'),
-     Output('current-filters-store', 'data'),
-     Output('selected-anomaly-store', 'data'),
-     Output('anomaly-selector-dropdown', 'value')],
-    [Input('btn-reset-filters', 'n_clicks')]
-)
-def reset_filters(n_clicks):
-    if n_clicks is None:
-        raise dash.exceptions.PreventUpdate
-    return None, None, None, None, None, min_date.date(), max_date.date(), {}, {}, None, None
+    no_change = dash.no_update
+    return serializable_filters, serialized_data, no_change, no_change, no_change, no_change, no_change, no_change, no_change
 
 
 @app.callback(
@@ -740,21 +741,23 @@ def update_anomaly_analysis_widgets(data_store):
 
 
 @app.callback(
-    [Output('selected-anomaly-store', 'data'),
-     Output('main-tabs', 'active_tab'),
+    [Output('main-tabs', 'active_tab'),
      Output('detail-batch-selector', 'value'),
      Output('anomaly-selector-dropdown', 'value'),
-     Output('anomaly-selector-quick', 'value')],
+     Output('anomaly-list-table', 'selected_rows')],
     [Input('btn-anomaly-trace-chart', 'n_clicks'),
      Input('btn-anomaly-trace-raw', 'n_clicks'),
      Input('btn-anomaly-trace-route', 'n_clicks'),
-     Input('anomaly-list-table', 'selected_rows')],
+     Input('anomaly-list-table', 'selected_rows'),
+     Input('btn-trace-to-chart', 'n_clicks')],
     [State('anomaly-selector-quick', 'value'),
+     State('anomaly-selector-dropdown', 'value'),
      State('filtered-data-store', 'data'),
      State('anomaly-list-table', 'data')]
 )
-def handle_anomaly_quick_trace(btn_chart, btn_raw, btn_route, selected_rows, 
-                                selected_anomaly_id, data_store, table_data):
+def handle_all_anomaly_trace(btn_chart, btn_raw, btn_route, selected_rows,
+                              trace_chart_btn,
+                              quick_dropdown, raw_dropdown, data_store, table_data):
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -768,8 +771,10 @@ def handle_anomaly_quick_trace(btn_chart, btn_raw, btn_route, selected_rows,
     if trigger_id == 'anomaly-list-table' and selected_rows and len(selected_rows) > 0:
         if table_data and selected_rows[0] < len(table_data):
             active_anomaly = table_data[selected_rows[0]].get('anomaly_id')
-    else:
-        active_anomaly = selected_anomaly_id
+    elif trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-raw', 'btn-anomaly-trace-route']:
+        active_anomaly = quick_dropdown
+    elif trigger_id == 'btn-trace-to-chart':
+        active_anomaly = raw_dropdown
     
     if not active_anomaly:
         raise dash.exceptions.PreventUpdate
@@ -784,12 +789,12 @@ def handle_anomaly_quick_trace(btn_chart, btn_raw, btn_route, selected_rows,
     batch_id = anomaly.iloc[0]['batch_id']
     target_batch = batch_id
     
-    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-route']:
+    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-route', 'btn-trace-to-chart']:
         target_tab = 'tab-route-temp'
     elif trigger_id == 'btn-anomaly-trace-raw':
         target_tab = 'tab-raw-data'
     
-    return active_anomaly, target_tab, target_batch, active_anomaly, active_anomaly
+    return target_tab, target_batch, active_anomaly, []
 
 
 @app.callback(
@@ -869,16 +874,12 @@ def update_anomaly_dropdown(data_store):
 
 @app.callback(
     [Output('selected-anomaly-store', 'data'),
-     Output('main-tabs', 'active_tab'),
-     Output('detail-batch-selector', 'value'),
-     Output('anomaly-selector-dropdown', 'value')],
-    [Input('btn-trace-to-chart', 'n_clicks'),
-     Input('btn-clear-trace', 'n_clicks')],
-    [State('anomaly-selector-dropdown', 'value'),
-     State('filtered-data-store', 'data'),
-     State('selected-anomaly-store', 'data')]
+     Output('auto-filter-anomaly', 'data')],
+    [Input('anomaly-selector-dropdown', 'value'),
+     Input('anomaly-selector-quick', 'value'),
+     Input('btn-clear-trace', 'n_clicks')]
 )
-def handle_trace_buttons(trace_btn, clear_btn, selected_anomaly_id, data_store, current_anomaly):
+def sync_anomaly_stores(dropdown_val, quick_val, clear_btn):
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -886,23 +887,17 @@ def handle_trace_buttons(trace_btn, clear_btn, selected_anomaly_id, data_store, 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
     if trigger_id == 'btn-clear-trace':
-        return None, 'tab-raw-data', 'ALL', None
+        return None, False
     
-    if trigger_id == 'btn-trace-to-chart':
-        if not selected_anomaly_id:
-            raise dash.exceptions.PreventUpdate
-        
-        data = get_data_from_store_or_raw(data_store)
-        anomaly_df = data['anomaly_records']
-        anomaly = anomaly_df[anomaly_df['anomaly_id'] == selected_anomaly_id]
-        
-        if anomaly.empty:
-            raise dash.exceptions.PreventUpdate
-        
-        batch_id = anomaly.iloc[0]['batch_id']
-        return selected_anomaly_id, 'tab-route-temp', batch_id, selected_anomaly_id
+    active = dropdown_val or quick_val
     
-    raise dash.exceptions.PreventUpdate
+    if trigger_id == 'anomaly-selector-quick' and quick_val:
+        return quick_val, True
+    
+    if trigger_id == 'anomaly-selector-dropdown' and dropdown_val:
+        return dropdown_val, False
+    
+    return None, False
 
 
 @app.callback(
@@ -999,11 +994,12 @@ def update_anomaly_trace_panel(selected_anomaly_id, data_store, trace_table_btn,
      Output('raw-temp-table', 'data')],
     [Input('filtered-data-store', 'data'),
      Input('btn-trace-to-table', 'n_clicks'),
-     Input('btn-clear-trace', 'n_clicks')],
-    [State('anomaly-selector-dropdown', 'value'),
-     State('selected-anomaly-store', 'data')]
+     Input('btn-clear-trace', 'n_clicks'),
+     Input('selected-anomaly-store', 'data'),
+     Input('auto-filter-anomaly', 'data')],
+    [State('anomaly-selector-dropdown', 'value')]
 )
-def update_raw_temp_table_with_trace(data_store, trace_btn, clear_btn, dropdown_anomaly, store_anomaly):
+def update_raw_temp_table_with_trace(data_store, trace_btn, clear_btn, store_anomaly, auto_filter, dropdown_anomaly):
     ctx = callback_context
     data = get_data_from_store_or_raw(data_store)
     temp_df = data['temperature_records'].copy()
@@ -1011,13 +1007,26 @@ def update_raw_temp_table_with_trace(data_store, trace_btn, clear_btn, dropdown_
     
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
     
+    should_filter = False
     active_anomaly = None
+    
     if trigger_id == 'btn-trace-to-table':
         active_anomaly = dropdown_anomaly or store_anomaly
-    elif trigger_id != 'btn-clear-trace':
+        should_filter = True
+    elif trigger_id == 'btn-clear-trace':
+        should_filter = False
+        active_anomaly = None
+    elif trigger_id == 'selected-anomaly-store' and store_anomaly and auto_filter:
         active_anomaly = store_anomaly
+        should_filter = True
+    elif trigger_id == 'auto-filter-anomaly' and auto_filter and store_anomaly:
+        active_anomaly = store_anomaly
+        should_filter = True
+    elif store_anomaly and auto_filter:
+        active_anomaly = store_anomaly
+        should_filter = True
     
-    if active_anomaly and not anomaly_df.empty and trigger_id != 'btn-clear-trace':
+    if should_filter and active_anomaly and not anomaly_df.empty:
         anomaly = anomaly_df[anomaly_df['anomaly_id'] == active_anomaly]
         if not anomaly.empty:
             a = anomaly.iloc[0]
