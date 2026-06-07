@@ -1,0 +1,40 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.core.database import engine, Base
+from app.api import auth, dashboard, master_data
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="建筑工地隐患整改看板系统 API",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(master_data.router, prefix="/api")
+
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "message": "API is running"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
