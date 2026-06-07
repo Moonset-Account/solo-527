@@ -193,14 +193,27 @@ def get_threshold_configs():
 
 
 import os
-from src.database.connection import (
-    USE_MOCK_DATA, fetch_samples_from_db, fetch_thresholds_from_db, 
-    fetch_returns_from_db, update_threshold_in_db
-)
+from dotenv import load_dotenv
+
+load_dotenv()
 
 _mock_samples_df = None
 _mock_returns_df = None
 _mock_thresholds_df = None
+
+
+def _use_mock_data():
+    """动态获取 USE_MOCK_DATA 配置，避免循环导入"""
+    return os.getenv('USE_MOCK_DATA', 'True').lower() == 'true'
+
+
+def _get_db_functions():
+    """延迟导入数据库函数，避免循环导入"""
+    from src.database.connection import (
+        fetch_samples_from_db, fetch_thresholds_from_db, 
+        fetch_returns_from_db, update_threshold_in_db
+    )
+    return fetch_samples_from_db, fetch_thresholds_from_db, fetch_returns_from_db, update_threshold_in_db
 
 
 def initialize_mock_data():
@@ -212,7 +225,7 @@ def initialize_mock_data():
 
 def get_samples_df(start_date=None, end_date=None, sample_types=None, 
                    priorities=None, departments=None):
-    if USE_MOCK_DATA:
+    if _use_mock_data():
         global _mock_samples_df
         if _mock_samples_df is None:
             initialize_mock_data()
@@ -231,6 +244,7 @@ def get_samples_df(start_date=None, end_date=None, sample_types=None,
         
         return df
     else:
+        fetch_samples_from_db, _, _, _ = _get_db_functions()
         df = fetch_samples_from_db(start_date, end_date, sample_types, priorities, departments)
         if df is None:
             return pd.DataFrame()
@@ -238,7 +252,7 @@ def get_samples_df(start_date=None, end_date=None, sample_types=None,
 
 
 def get_returns_df(start_date=None, end_date=None):
-    if USE_MOCK_DATA:
+    if _use_mock_data():
         global _mock_returns_df
         if _mock_returns_df is None:
             initialize_mock_data()
@@ -251,6 +265,7 @@ def get_returns_df(start_date=None, end_date=None):
         
         return df
     else:
+        _, _, fetch_returns_from_db, _ = _get_db_functions()
         df = fetch_returns_from_db(start_date, end_date)
         if df is None:
             return pd.DataFrame()
@@ -258,12 +273,13 @@ def get_returns_df(start_date=None, end_date=None):
 
 
 def get_thresholds_df():
-    if USE_MOCK_DATA:
+    if _use_mock_data():
         global _mock_thresholds_df
         if _mock_thresholds_df is None:
             initialize_mock_data()
         return _mock_thresholds_df.copy()
     else:
+        _, fetch_thresholds_from_db, _, _ = _get_db_functions()
         df = fetch_thresholds_from_db()
         if df is None:
             return get_threshold_configs()
@@ -273,7 +289,7 @@ def get_thresholds_df():
 def update_threshold(sample_type, priority, stage_name, new_threshold):
     global _mock_thresholds_df
     
-    if USE_MOCK_DATA:
+    if _use_mock_data():
         if _mock_thresholds_df is None:
             initialize_mock_data()
         
@@ -286,5 +302,6 @@ def update_threshold(sample_type, priority, stage_name, new_threshold):
         DEFAULT_THRESHOLDS[sample_type][priority][stage_name] = new_threshold
         return True
     else:
+        _, _, _, update_threshold_in_db = _get_db_functions()
         success = update_threshold_in_db(sample_type, priority, stage_name, new_threshold)
         return success
