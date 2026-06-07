@@ -187,6 +187,33 @@ def build_main_dashboard():
             html.Br(),
             dbc.Row([
                 dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("⚡ 快速追溯异常"),
+                        dbc.CardBody([
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("选择异常："),
+                                    dcc.Dropdown(
+                                        id='anomaly-selector-quick',
+                                        placeholder="从当前筛选范围选择异常...",
+                                        clearable=True
+                                    )
+                                ], md=6),
+                                dbc.Col([
+                                    html.Label("追溯操作："),
+                                    html.Div([
+                                        dbc.Button("📍 查看温度曲线", id='btn-anomaly-trace-chart', color='primary', size='sm', className='me-2'),
+                                        dbc.Button("📋 查看原始记录", id='btn-anomaly-trace-raw', color='info', size='sm', className='me-2'),
+                                        dbc.Button("🗺️ 查看路线", id='btn-anomaly-trace-route', color='success', size='sm')
+                                    ])
+                                ], md=6)
+                            ])
+                        ])
+                    ], className="mb-3")
+                ], md=12)
+            ]),
+            dbc.Row([
+                dbc.Col([
                     dcc.Graph(id='anomaly-duration-graph', config={'displayModeBar': True})
                 ], md=6),
                 dbc.Col([
@@ -201,6 +228,32 @@ def build_main_dashboard():
                 dbc.Col([
                     dcc.Graph(id='door-event-timeline', config={'displayModeBar': True})
                 ], md=8)
+            ]),
+            html.Br(),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("📋 异常明细列表（点击异常类型可快速筛选）"),
+                        dbc.CardBody([
+                            dash_table.DataTable(
+                                id='anomaly-list-table',
+                                page_size=8,
+                                style_table={'overflowX': 'auto', 'fontSize': '12px'},
+                                style_cell={'textAlign': 'left', 'padding': '5px'},
+                                style_header={'backgroundColor': '#f8f9fa', 'fontWeight': 'bold'},
+                                style_data_conditional=[
+                                    {'if': {'filter_query': '{severity} = "高"'},
+                                     'backgroundColor': '#ffebee', 'color': '#c62828'}
+                                ],
+                                filter_action='native',
+                                sort_action='native',
+                                row_selectable='single',
+                                selected_rows=[],
+                                active_cell=None
+                            )
+                        ])
+                    ])
+                ], md=12)
             ])
         ], label="⚠️ 异常分析", tab_id="tab-anomalies"),
         
@@ -448,13 +501,17 @@ def apply_filter_changes(n_clicks, vehicles, routes, batches, containers, custom
      Output('filter-containers', 'value'),
      Output('filter-customers', 'value'),
      Output('filter-date-range', 'start_date'),
-     Output('filter-date-range', 'end_date')],
+     Output('filter-date-range', 'end_date'),
+     Output('filtered-data-store', 'data'),
+     Output('current-filters-store', 'data'),
+     Output('selected-anomaly-store', 'data'),
+     Output('anomaly-selector-dropdown', 'value')],
     [Input('btn-reset-filters', 'n_clicks')]
 )
 def reset_filters(n_clicks):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
-    return None, None, None, None, None, min_date.date(), max_date.date()
+    return None, None, None, None, None, min_date.date(), max_date.date(), {}, {}, None, None
 
 
 @app.callback(
@@ -653,6 +710,86 @@ def update_anomaly_detail_table(data_store):
     anomaly_data = anomaly_df[anomaly_display_cols].to_dict('records') if not anomaly_df.empty else []
     
     return anomaly_cols, anomaly_data
+
+
+@app.callback(
+    [Output('anomaly-selector-quick', 'options'),
+     Output('anomaly-list-table', 'columns'),
+     Output('anomaly-list-table', 'data')],
+    [Input('filtered-data-store', 'data')]
+)
+def update_anomaly_analysis_widgets(data_store):
+    data = get_data_from_store_or_raw(data_store)
+    anomaly_df = data['anomaly_records'].copy()
+    
+    dropdown_options = []
+    for _, a in anomaly_df.iterrows():
+        label = f"{a['anomaly_id']} | {a['anomaly_type']} | {a['batch_id']} | {a['severity']}危"
+        dropdown_options.append({'label': label, 'value': a['anomaly_id']})
+    
+    for col in ['start_time', 'end_time']:
+        if col in anomaly_df.columns and pd.api.types.is_datetime64_any_dtype(anomaly_df[col]):
+            anomaly_df[col] = anomaly_df[col].dt.strftime('%Y-%m-%d %H:%M')
+    
+    display_cols = ['anomaly_id', 'batch_id', 'anomaly_type', 'start_time', 'end_time',
+                    'duration_minutes', 'severity', 'responsible_segment', 'root_cause']
+    table_cols = [{'name': c, 'id': c} for c in display_cols if c in anomaly_df.columns]
+    table_data = anomaly_df[display_cols].to_dict('records') if not anomaly_df.empty else []
+    
+    return dropdown_options, table_cols, table_data
+
+
+@app.callback(
+    [Output('selected-anomaly-store', 'data'),
+     Output('main-tabs', 'active_tab'),
+     Output('detail-batch-selector', 'value'),
+     Output('anomaly-selector-dropdown', 'value'),
+     Output('anomaly-selector-quick', 'value')],
+    [Input('btn-anomaly-trace-chart', 'n_clicks'),
+     Input('btn-anomaly-trace-raw', 'n_clicks'),
+     Input('btn-anomaly-trace-route', 'n_clicks'),
+     Input('anomaly-list-table', 'selected_rows')],
+    [State('anomaly-selector-quick', 'value'),
+     State('filtered-data-store', 'data'),
+     State('anomaly-list-table', 'data')]
+)
+def handle_anomaly_quick_trace(btn_chart, btn_raw, btn_route, selected_rows, 
+                                selected_anomaly_id, data_store, table_data):
+    ctx = callback_context
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
+    
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    active_anomaly = None
+    target_tab = 'tab-anomalies'
+    target_batch = 'ALL'
+    
+    if trigger_id == 'anomaly-list-table' and selected_rows and len(selected_rows) > 0:
+        if table_data and selected_rows[0] < len(table_data):
+            active_anomaly = table_data[selected_rows[0]].get('anomaly_id')
+    else:
+        active_anomaly = selected_anomaly_id
+    
+    if not active_anomaly:
+        raise dash.exceptions.PreventUpdate
+    
+    data = get_data_from_store_or_raw(data_store)
+    anomaly_df = data['anomaly_records']
+    anomaly = anomaly_df[anomaly_df['anomaly_id'] == active_anomaly]
+    
+    if anomaly.empty:
+        raise dash.exceptions.PreventUpdate
+    
+    batch_id = anomaly.iloc[0]['batch_id']
+    target_batch = batch_id
+    
+    if trigger_id in ['btn-anomaly-trace-chart', 'btn-anomaly-trace-route']:
+        target_tab = 'tab-route-temp'
+    elif trigger_id == 'btn-anomaly-trace-raw':
+        target_tab = 'tab-raw-data'
+    
+    return active_anomaly, target_tab, target_batch, active_anomaly, active_anomaly
 
 
 @app.callback(
