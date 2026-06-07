@@ -1,0 +1,360 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>医院门诊等待时间分析报表</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; margin: 20px; color: #333; }
+        .header { background: #1f77b4; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0 0; opacity: 0.9; }
+        .card { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .card h2 { margin-top: 0; color: #1f77b4; font-size: 18px; border-bottom: 2px solid #1f77b4; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #e9ecef; font-weight: bold; }
+        tr:hover { background: #f1f3f4; }
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 15px 0; }
+        .metric-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; text-align: center; }
+        .metric-value { font-size: 28px; font-weight: bold; color: #1f77b4; }
+        .metric-label { font-size: 14px; color: #6c757d; margin-top: 5px; }
+        .anomaly { background: #fff3cd !important; }
+        .footer { text-align: center; color: #6c757d; font-size: 12px; margin-top: 30px; padding-top: 15px; border-top: 1px solid #dee2e6; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; padding: 10px 15px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏥 医院门诊等待时间分析报表</h1>
+        <p>报表类型: 日报表 | 期间: 2025-06-05 | 生成时间: 2026-06-07 20:07:25</p>
+    </div>
+    
+    <div class="card">
+        <h2>📊 核心指标概览</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">214</div>
+                <div class="metric-label">总样本量</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">12</div>
+                <div class="metric-label">异常样本</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">58.0 分钟</div>
+                <div class="metric-label">平均总等待</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">81.4 分钟</div>
+                <div class="metric-label">P95 总等待</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>🏥 各科室等待时间统计</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>科室</th>
+                    <th>样本量</th>
+                    <th>平均总等待(分钟)</th>
+                    <th>中位数(分钟)</th>
+                    <th>分诊→叫号均值(分钟)</th>
+                    <th>异常数</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr class="">
+                    <td>儿科门诊</td>
+                    <td>29</td>
+                    <td>53.93</td>
+                    <td>57.0</td>
+                    <td>18.34</td>
+                    <td>1</td>
+                </tr>
+                
+                <tr class="">
+                    <td>内科门诊</td>
+                    <td>22</td>
+                    <td>56.41</td>
+                    <td>59.0</td>
+                    <td>16.95</td>
+                    <td>1</td>
+                </tr>
+                
+                <tr class="">
+                    <td>口腔科门诊</td>
+                    <td>26</td>
+                    <td>59.88</td>
+                    <td>59.0</td>
+                    <td>16.85</td>
+                    <td>3</td>
+                </tr>
+                
+                <tr class="">
+                    <td>外科门诊</td>
+                    <td>32</td>
+                    <td>55.94</td>
+                    <td>58.0</td>
+                    <td>18.28</td>
+                    <td>1</td>
+                </tr>
+                
+                <tr class="">
+                    <td>妇产科门诊</td>
+                    <td>32</td>
+                    <td>56.03</td>
+                    <td>57.0</td>
+                    <td>17.66</td>
+                    <td>0</td>
+                </tr>
+                
+                <tr class="">
+                    <td>皮肤科门诊</td>
+                    <td>24</td>
+                    <td>64.92</td>
+                    <td>64.0</td>
+                    <td>25.58</td>
+                    <td>2</td>
+                </tr>
+                
+                <tr class="">
+                    <td>眼科门诊</td>
+                    <td>24</td>
+                    <td>58.62</td>
+                    <td>52.5</td>
+                    <td>19.29</td>
+                    <td>3</td>
+                </tr>
+                
+                <tr class="">
+                    <td>耳鼻喉科门诊</td>
+                    <td>25</td>
+                    <td>59.96</td>
+                    <td>57.0</td>
+                    <td>21.88</td>
+                    <td>1</td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>⏰ 时段分布统计</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>时段</th>
+                    <th>样本量</th>
+                    <th>平均总等待(分钟)</th>
+                    <th>中位数(分钟)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>上午(9:00-12:00)</td>
+                    <td>127</td>
+                    <td>59.02</td>
+                    <td>58.0</td>
+                </tr>
+                
+                <tr>
+                    <td>下午(14:30-17:30)</td>
+                    <td>44</td>
+                    <td>56.82</td>
+                    <td>57.0</td>
+                </tr>
+                
+                <tr>
+                    <td>午高峰(13:30-14:30)</td>
+                    <td>10</td>
+                    <td>55.7</td>
+                    <td>43.5</td>
+                </tr>
+                
+                <tr>
+                    <td>早高峰(7:30-9:00)</td>
+                    <td>2</td>
+                    <td>55.5</td>
+                    <td>55.5</td>
+                </tr>
+                
+                <tr>
+                    <td>晚间(17:30-20:00)</td>
+                    <td>31</td>
+                    <td>56.29</td>
+                    <td>60.0</td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+    
+    
+    <div class="card">
+        <h2>⚠️ 异常样本明细</h2>
+        <div class="warning">共发现 12 个异常样本，请重点关注</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>就诊ID</th>
+                    
+                    <th>科室</th>
+                    <th>医生</th>
+                    <th>患者类型</th>
+                    <th>时段</th>
+                    <th>总等待(分钟)</th>
+                    <th>异常原因</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr class="anomaly">
+                    <td>9DDF9BD65211</td>
+                    
+                    <td>口腔科门诊</td>
+                    <td>王伟</td>
+                    <td>普通患者</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>63.0</td>
+                    <td>系统卡顿</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>84B17B74CC9B</td>
+                    
+                    <td>外科门诊</td>
+                    <td>吴涛</td>
+                    <td>普通患者</td>
+                    <td>晚间(17:30-20:00)</td>
+                    <td>91.0</td>
+                    <td>患者迟到</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>7A2CE17A2BF6</td>
+                    
+                    <td>内科门诊</td>
+                    <td>胡丽</td>
+                    <td>普通患者</td>
+                    <td>下午(14:30-17:30)</td>
+                    <td>45.0</td>
+                    <td>系统卡顿</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>76BC7CC0A348</td>
+                    
+                    <td>眼科门诊</td>
+                    <td>黄涛</td>
+                    <td>慢性病患者</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>132.0</td>
+                    <td>设备故障</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>E914B71B4878</td>
+                    
+                    <td>眼科门诊</td>
+                    <td>黄涛</td>
+                    <td>急诊患者</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>44.0</td>
+                    <td>医生临时开会</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>621EAB549D34</td>
+                    
+                    <td>皮肤科门诊</td>
+                    <td>周静</td>
+                    <td>优抚对象</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>103.0</td>
+                    <td>医生临时开会</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>DB591004E891</td>
+                    
+                    <td>皮肤科门诊</td>
+                    <td>马伟</td>
+                    <td>普通患者</td>
+                    <td>下午(14:30-17:30)</td>
+                    <td>125.0</td>
+                    <td>患者迟到</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>4CAC77768F23</td>
+                    
+                    <td>耳鼻喉科门诊</td>
+                    <td>吴静</td>
+                    <td>普通患者</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>165.0</td>
+                    <td>患者迟到</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>39FBC994B66F</td>
+                    
+                    <td>眼科门诊</td>
+                    <td>黄涛</td>
+                    <td>普通患者</td>
+                    <td>午高峰(13:30-14:30)</td>
+                    <td>112.0</td>
+                    <td>医生临时开会</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>72310F24909B</td>
+                    
+                    <td>口腔科门诊</td>
+                    <td>王洋</td>
+                    <td>普通患者</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>100.0</td>
+                    <td>特殊检查</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>B85266B617D7</td>
+                    
+                    <td>口腔科门诊</td>
+                    <td>李强</td>
+                    <td>慢性病患者</td>
+                    <td>晚间(17:30-20:00)</td>
+                    <td>59.0</td>
+                    <td>设备故障</td>
+                </tr>
+                
+                <tr class="anomaly">
+                    <td>835796EA99D9</td>
+                    
+                    <td>儿科门诊</td>
+                    <td>张勇</td>
+                    <td>优抚对象</td>
+                    <td>上午(9:00-12:00)</td>
+                    <td>42.0</td>
+                    <td>医生临时开会</td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+    
+    
+    <div class="footer">
+        <p>此报表为系统自动生成 | 医院门诊等待时间分析工作台</p>
+        <p>如有疑问请联系运营改善小组</p>
+    </div>
+</body>
+</html>

@@ -554,6 +554,13 @@ app.layout = html.Div(
                     [
                         dbc.Form(
                             [
+                                dbc.Switch(
+                                    id="schedule-enabled",
+                                    label="启用定时报表",
+                                    value=False,
+                                    className="mb-3"
+                                ),
+                                html.Hr(),
                                 dbc.Label("报表频率"),
                                 dcc.Dropdown(
                                     id="schedule-frequency",
@@ -583,12 +590,75 @@ app.layout = html.Div(
                                     placeholder="example@hospital.com",
                                     className="mb-3"
                                 ),
+                                html.Hr(),
+                                html.H6("SMTP邮件服务器配置（可选，不填使用模拟模式）"),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("SMTP服务器"),
+                                                dbc.Input(
+                                                    id="smtp-server",
+                                                    placeholder="smtp.hospital.com",
+                                                    className="mb-2"
+                                                ),
+                                            ],
+                                            width=8
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("端口"),
+                                                dbc.Input(
+                                                    id="smtp-port",
+                                                    type="number",
+                                                    placeholder="587",
+                                                    className="mb-2"
+                                                ),
+                                            ],
+                                            width=4
+                                        ),
+                                    ]
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("发件账号"),
+                                                dbc.Input(
+                                                    id="smtp-username",
+                                                    placeholder="report@hospital.com",
+                                                    className="mb-2"
+                                                ),
+                                            ],
+                                            width=6
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                dbc.Label("发件密码"),
+                                                dbc.Input(
+                                                    id="smtp-password",
+                                                    type="password",
+                                                    placeholder="••••••••",
+                                                    className="mb-2"
+                                                ),
+                                            ],
+                                            width=6
+                                        ),
+                                    ]
+                                ),
+                                dbc.Switch(
+                                    id="smtp-tls",
+                                    label="启用TLS加密",
+                                    value=True,
+                                    className="mt-2"
+                                ),
                             ]
                         )
                     ]
                 ),
                 dbc.ModalFooter(
                     [
+                        dbc.Button("立即测试生成", id="test-schedule-btn", color="info", outline=True, className="me-auto"),
                         dbc.Button("取消", id="close-schedule-modal", className="ms-auto"),
                         dbc.Button("保存设置", id="save-schedule-btn", color="primary"),
                     ]
@@ -612,6 +682,35 @@ app.layout = html.Div(
                                 {"label": "🔍 运营分析视图（脱敏聚合）", "value": "analyst"},
                             ],
                             value="admin",
+                            className="mb-3"
+                        ),
+                        html.Hr(),
+                        html.Div(
+                            [
+                                dbc.Label("选择管理科室（科室主任必填）"),
+                                dcc.Dropdown(
+                                    id="permission-dept",
+                                    options=[{"label": d, "value": d} for d in depts],
+                                    multi=True,
+                                    placeholder="请选择科室..."
+                                )
+                            ],
+                            id="permission-dept-container",
+                            style={"display": "none"},
+                            className="mb-3"
+                        ),
+                        html.Div(
+                            [
+                                dbc.Label("选择医生（医生视图必填）"),
+                                dcc.Dropdown(
+                                    id="permission-doctor",
+                                    options=[{"label": d, "value": d} for d in doctors],
+                                    multi=True,
+                                    placeholder="请选择医生..."
+                                )
+                            ],
+                            id="permission-doctor-container",
+                            style={"display": "none"},
                             className="mb-3"
                         ),
                         html.Hr(),
@@ -901,7 +1000,16 @@ def toggle_export_modal(export_click, close_click, confirm_click, is_open):
     return is_open
 
 @app.callback(
-    Output("schedule-modal", "is_open"),
+    [Output("schedule-modal", "is_open"),
+     Output("schedule-enabled", "value"),
+     Output("schedule-frequency", "value"),
+     Output("schedule-format", "value"),
+     Output("schedule-email", "value"),
+     Output("smtp-server", "value"),
+     Output("smtp-port", "value"),
+     Output("smtp-username", "value"),
+     Output("smtp-password", "value"),
+     Output("smtp-tls", "value")],
     [Input("schedule-btn", "n_clicks"),
      Input("close-schedule-modal", "n_clicks"),
      Input("save-schedule-btn", "n_clicks")],
@@ -910,23 +1018,81 @@ def toggle_export_modal(export_click, close_click, confirm_click, is_open):
 def toggle_schedule_modal(schedule_click, close_click, save_click, is_open):
     """切换定时报表模态框"""
     ctx = callback_context
+    trigger_id = ""
+    
     if ctx.triggered:
-        return not is_open
-    return is_open
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if trigger_id == "schedule-btn":
+        config = load_schedule_config()
+        smtp = config.get("smtp", {})
+        return (
+            not is_open,
+            config.get("enabled", False),
+            config.get("frequency", "daily"),
+            config.get("format", "xlsx"),
+            config.get("email", ""),
+            smtp.get("server", ""),
+            smtp.get("port", 587),
+            smtp.get("username", ""),
+            smtp.get("password", ""),
+            smtp.get("use_tls", True)
+        )
+    
+    if trigger_id in ["close-schedule-modal", "save-schedule-btn"]:
+        return (not is_open, dash.no_update, dash.no_update, dash.no_update,
+                dash.no_update, dash.no_update, dash.no_update, dash.no_update,
+                dash.no_update, dash.no_update)
+    
+    return is_open, False, "daily", "xlsx", "", "", 587, "", "", True
 
 @app.callback(
-    Output("permission-modal", "is_open"),
+    [Output("permission-modal", "is_open"),
+     Output("permission-dept-container", "style"),
+     Output("permission-doctor-container", "style"),
+     Output("permission-role", "value"),
+     Output("permission-dept", "value"),
+     Output("permission-doctor", "value"),
+     Output("permission-desensitize", "value"),
+     Output("permission-export", "value")],
     [Input("permission-btn", "n_clicks"),
      Input("close-permission-modal", "n_clicks"),
-     Input("apply-permission-btn", "n_clicks")],
+     Input("apply-permission-btn", "n_clicks"),
+     Input("permission-role", "value")],
     [State("permission-modal", "is_open")]
 )
-def toggle_permission_modal(perm_click, close_click, apply_click, is_open):
-    """切换权限模态框"""
+def toggle_permission_modal(perm_click, close_click, apply_click, role_value, is_open):
+    """切换权限模态框并控制选择器显示"""
     ctx = callback_context
+    trigger_id = ""
+    
     if ctx.triggered:
-        return not is_open
-    return is_open
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if trigger_id == "permission-role":
+        dept_style = {"display": "block"} if role_value == "dept_head" else {"display": "none"}
+        doctor_style = {"display": "block"} if role_value == "doctor" else {"display": "none"}
+        return dash.no_update, dept_style, doctor_style, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    if trigger_id in ["permission-btn", "close-permission-modal", "apply-permission-btn"]:
+        new_is_open = not is_open
+        
+        if trigger_id == "permission-btn":
+            config = load_permission_config()
+            dept_style = {"display": "block"} if config.get("current_role") == "dept_head" else {"display": "none"}
+            doctor_style = {"display": "block"} if config.get("current_role") == "doctor" else {"display": "none"}
+            return (
+                new_is_open, dept_style, doctor_style,
+                config.get("current_role", "admin"),
+                config.get("allowed_depts", []),
+                config.get("allowed_doctors", []),
+                config.get("desensitize", True),
+                config.get("allow_export", True)
+            )
+        
+        return new_is_open, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    
+    return is_open, {"display": "none"}, {"display": "none"}, "admin", [], [], True, True
 
 @app.callback(
     Output("download-data", "data"),
@@ -1057,52 +1223,109 @@ def save_annotation(save_click, selected_rows, table_data, content, author, curr
 
 @app.callback(
     Output("schedule-modal", "is_open", allow_duplicate=True),
+    Output("toast", "children", allow_duplicate=True),
+    Output("toast", "is_open", allow_duplicate=True),
     Input("save-schedule-btn", "n_clicks"),
-    [State("schedule-frequency", "value"),
+    [State("schedule-enabled", "value"),
+     State("schedule-frequency", "value"),
      State("schedule-format", "value"),
-     State("schedule-email", "value")],
+     State("schedule-email", "value"),
+     State("smtp-server", "value"),
+     State("smtp-port", "value"),
+     State("smtp-username", "value"),
+     State("smtp-password", "value"),
+     State("smtp-tls", "value")],
     prevent_initial_call=True
 )
-def save_schedule_settings(save_click, frequency, format_type, email):
+def save_schedule_settings(save_click, enabled, frequency, format_type, email,
+                          smtp_server, smtp_port, smtp_username, smtp_password, smtp_tls):
     """保存定时报表设置"""
     if not save_click:
-        return dash.no_update
+        return dash.no_update, "", False
     
     config = {
+        "enabled": enabled,
         "frequency": frequency,
         "format": format_type,
         "email": email,
-        "enabled": True
+        "smtp": {
+            "server": smtp_server or "smtp.hospital.com",
+            "port": smtp_port or 587,
+            "username": smtp_username or "report@hospital.com",
+            "password": smtp_password or "",
+            "use_tls": smtp_tls
+        }
     }
     save_schedule_config(config)
     global schedule_config
     schedule_config = config
     
-    return False
+    status = "已启用" if enabled else "已禁用"
+    msg = f"定时报表设置已保存！状态：{status}，频率：{frequency}，格式：{format_type}"
+    if email:
+        msg += f"，收件人：{email}"
+    
+    return False, dbc.Toast(msg, header="成功", icon="success"), True
+
+
+@app.callback(
+    Output("toast", "children", allow_duplicate=True),
+    Output("toast", "is_open", allow_duplicate=True),
+    Input("test-schedule-btn", "n_clicks"),
+    [State("schedule-enabled", "value"),
+     State("schedule-frequency", "value"),
+     State("schedule-format", "value"),
+     State("schedule-email", "value")],
+    prevent_initial_call=True
+)
+def test_schedule_report(test_click, enabled, frequency, format_type, email):
+    """测试生成定时报表"""
+    if not test_click:
+        return "", False
+    
+    from scheduler import generate_report_by_config
+    
+    test_config = {
+        "enabled": True,
+        "frequency": frequency,
+        "format": format_type,
+        "email": email
+    }
+    
+    result = generate_report_by_config(test_config)
+    return dbc.Toast(result, header="测试完成", icon="info"), True
 
 @app.callback(
     Output("permission-modal", "is_open", allow_duplicate=True),
     Output("refresh-trigger", "data"),
+    Output("toast", "children", allow_duplicate=True),
+    Output("toast", "is_open", allow_duplicate=True),
     Input("apply-permission-btn", "n_clicks"),
     [State("permission-role", "value"),
      State("permission-desensitize", "value"),
      State("permission-export", "value"),
-     State("dept-filter", "value"),
-     State("doctor-filter", "value"),
+     State("permission-dept", "value"),
+     State("permission-doctor", "value"),
      State("refresh-trigger", "data")],
     prevent_initial_call=True
 )
-def apply_permission_settings(apply_click, role, desensitize, allow_export, dept_filter, doctor_filter, current_trigger):
+def apply_permission_settings(apply_click, role, desensitize, allow_export, perm_depts, perm_doctors, current_trigger):
     """应用权限设置"""
     if not apply_click:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, "", False
+    
+    if role == "dept_head" and (not perm_depts or len(perm_depts) == 0):
+        return dash.no_update, dash.no_update, dbc.Toast("请选择至少一个管理科室！", header="提示", icon="warning"), True
+    
+    if role == "doctor" and (not perm_doctors or len(perm_doctors) == 0):
+        return dash.no_update, dash.no_update, dbc.Toast("请选择至少一个医生！", header="提示", icon="warning"), True
     
     config = {
         "current_role": role,
         "desensitize": desensitize,
         "allow_export": allow_export,
-        "allowed_depts": dept_filter if role == "dept_head" and dept_filter else [],
-        "allowed_doctors": doctor_filter if role == "doctor" and doctor_filter else []
+        "allowed_depts": perm_depts if role == "dept_head" else [],
+        "allowed_doctors": perm_doctors if role == "doctor" else []
     }
     save_permission_config(config)
     
@@ -1110,7 +1333,14 @@ def apply_permission_settings(apply_click, role, desensitize, allow_export, dept
     permission_config = config
     df = load_and_prepare_data()
     
-    return False, current_trigger + 1
+    role_names = {"admin": "管理员", "dept_head": "科室主任", "doctor": "医生", "analyst": "运营分析"}
+    msg = f"权限设置已应用，当前角色：{role_names.get(role, role)}"
+    if role == "dept_head":
+        msg += f"，管理科室：{', '.join(perm_depts)}"
+    elif role == "doctor":
+        msg += f"，医生：{', '.join(perm_doctors)}"
+    
+    return False, current_trigger + 1, dbc.Toast(msg, header="成功", icon="success"), True
 
 @app.callback(
     Output("export-btn", "disabled"),
@@ -1152,4 +1382,4 @@ if __name__ == "__main__":
     print("=" * 60)
     print("访问地址: http://127.0.0.1:8050")
     print("=" * 60)
-    app.run(debug=True, port=8050)
+    app.run(debug=False, port=8050)

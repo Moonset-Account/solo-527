@@ -8,11 +8,13 @@ import time
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import json
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from jinja2 import Template
 
 from data_generator import load_data
 from metrics import calculate_wait_times
@@ -21,6 +23,155 @@ from config_manager import load_schedule_config, save_schedule_config
 
 
 REPORT_DIR = "reports"
+EMAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>医院门诊等待时间分析报表</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; margin: 20px; color: #333; }
+        .header { background: #1f77b4; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0 0; opacity: 0.9; }
+        .card { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .card h2 { margin-top: 0; color: #1f77b4; font-size: 18px; border-bottom: 2px solid #1f77b4; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #e9ecef; font-weight: bold; }
+        tr:hover { background: #f1f3f4; }
+        .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 15px 0; }
+        .metric-card { background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; text-align: center; }
+        .metric-value { font-size: 28px; font-weight: bold; color: #1f77b4; }
+        .metric-label { font-size: 14px; color: #6c757d; margin-top: 5px; }
+        .anomaly { background: #fff3cd !important; }
+        .footer { text-align: center; color: #6c757d; font-size: 12px; margin-top: 30px; padding-top: 15px; border-top: 1px solid #dee2e6; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 15px; margin: 10px 0; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; padding: 10px 15px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏥 医院门诊等待时间分析报表</h1>
+        <p>报表类型: {{ report_type }} | 期间: {{ period }} | 生成时间: {{ generated_at }}</p>
+    </div>
+    
+    <div class="card">
+        <h2>📊 核心指标概览</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.total_samples }}</div>
+                <div class="metric-label">总样本量</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.anomaly_count }}</div>
+                <div class="metric-label">异常样本</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.avg_wait }} 分钟</div>
+                <div class="metric-label">平均总等待</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.p95_wait }} 分钟</div>
+                <div class="metric-label">P95 总等待</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>🏥 各科室等待时间统计</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>科室</th>
+                    <th>样本量</th>
+                    <th>平均总等待(分钟)</th>
+                    <th>中位数(分钟)</th>
+                    <th>分诊→叫号均值(分钟)</th>
+                    <th>异常数</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in dept_stats %}
+                <tr class="{{ 'anomaly' if row['异常数'] > 5 else '' }}">
+                    <td>{{ row['dept_name'] }}</td>
+                    <td>{{ row['visit_id_count'] }}</td>
+                    <td>{{ row['total_wait_time_mean'] }}</td>
+                    <td>{{ row['total_wait_time_median'] }}</td>
+                    <td>{{ row['wait_分诊_叫号_mean'] }}</td>
+                    <td>{{ row['异常数'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>⏰ 时段分布统计</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>时段</th>
+                    <th>样本量</th>
+                    <th>平均总等待(分钟)</th>
+                    <th>中位数(分钟)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in slot_stats %}
+                <tr>
+                    <td>{{ row['time_slot'] }}</td>
+                    <td>{{ row['visit_id_count'] }}</td>
+                    <td>{{ row['total_wait_time_mean'] }}</td>
+                    <td>{{ row['total_wait_time_median'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if anomalies|length > 0 %}
+    <div class="card">
+        <h2>⚠️ 异常样本明细</h2>
+        <div class="warning">共发现 {{ anomalies|length }} 个异常样本，请重点关注</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>就诊ID</th>
+                    {% if is_weekly %}<th>日期</th>{% endif %}
+                    <th>科室</th>
+                    <th>医生</th>
+                    <th>患者类型</th>
+                    <th>时段</th>
+                    <th>总等待(分钟)</th>
+                    <th>异常原因</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in anomalies %}
+                <tr class="anomaly">
+                    <td>{{ row['visit_id'] }}</td>
+                    {% if is_weekly %}<td>{{ row['visit_date'] }}</td>{% endif %}
+                    <td>{{ row['dept_name'] }}</td>
+                    <td>{{ row['doctor_name'] }}</td>
+                    <td>{{ row['patient_type'] }}</td>
+                    <td>{{ row['time_slot'] }}</td>
+                    <td>{{ row['total_wait_time'] }}</td>
+                    <td>{{ row['anomaly_reason'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <div class="footer">
+        <p>此报表为系统自动生成 | 医院门诊等待时间分析工作台</p>
+        <p>如有疑问请联系运营改善小组</p>
+    </div>
+</body>
+</html>
+"""
 
 
 def generate_report_by_config(config: dict = None) -> str:
@@ -40,15 +191,34 @@ def generate_report_by_config(config: dict = None) -> str:
 
 
 def send_email_with_attachment(report_path: str, config: dict) -> bool:
-    """发送带附件的邮件"""
+    """发送带附件的邮件（真实SMTP发送）"""
     email = config.get("email", "")
     if not email:
         print("未配置接收邮箱，跳过邮件发送")
         return False
     
+    smtp_config = config.get("smtp", {
+        "server": "smtp.hospital.com",
+        "port": 587,
+        "username": "report@hospital.com",
+        "password": "",
+        "use_tls": True
+    })
+    
+    if not smtp_config.get("password"):
+        print("SMTP密码未配置，使用控制台模拟发送模式")
+        print(f"{'='*60}")
+        print(f"📧 模拟邮件发送")
+        print(f"{'='*60}")
+        print(f"收件人: {email}")
+        print(f"附件: {report_path}")
+        print(f"主题: 医院门诊等待时间分析报表 - {datetime.now().strftime('%Y-%m-%d')}")
+        print(f"{'='*60}")
+        return True
+    
     try:
         msg = MIMEMultipart()
-        msg["From"] = "hospital_report@hospital.com"
+        msg["From"] = smtp_config.get("username", "hospital_report@hospital.com")
         msg["To"] = email
         msg["Subject"] = f"医院门诊等待时间分析报表 - {datetime.now().strftime('%Y-%m-%d')}"
         
@@ -78,14 +248,75 @@ def send_email_with_attachment(report_path: str, config: dict) -> bool:
             )
             msg.attach(part)
         
-        print(f"模拟邮件已发送到: {email}")
-        print(f"附件: {report_path}")
+        with smtplib.SMTP(smtp_config["server"], smtp_config["port"]) as server:
+            if smtp_config.get("use_tls", True):
+                server.starttls()
+            server.login(smtp_config["username"], smtp_config["password"])
+            server.send_message(msg)
         
+        print(f"✅ 邮件已成功发送到: {email}")
         return True
     
     except Exception as e:
-        print(f"邮件发送失败: {e}")
+        print(f"❌ 邮件发送失败: {e}")
+        print("切换到控制台模拟发送模式...")
+        print(f"收件人: {email}")
+        print(f"附件: {report_path}")
         return False
+
+
+def _generate_html_report(df, report_type: str, period: str, is_weekly: bool = False) -> str:
+    """生成HTML格式报表"""
+    is_anomaly_bool = df["is_anomaly"].astype(str).str.lower() == "true"
+    
+    dept_stats = df.groupby("dept_name").agg({
+        "visit_id": "count",
+        "total_wait_time": ["mean", "median"],
+        "wait_分诊_叫号": ["mean", "median"],
+    }).round(2)
+    dept_stats.columns = ['_'.join(col).strip() for col in dept_stats.columns.values]
+    dept_stats["异常数"] = df.groupby("dept_name").apply(
+        lambda x: (x["is_anomaly"].astype(str).str.lower() == "true").sum()
+    )
+    dept_stats = dept_stats.reset_index().to_dict("records")
+    
+    slot_stats = df.groupby("time_slot").agg({
+        "visit_id": "count",
+        "total_wait_time": ["mean", "median"]
+    }).round(2)
+    slot_stats.columns = ['_'.join(col).strip() for col in slot_stats.columns.values]
+    slot_stats = slot_stats.reset_index().to_dict("records")
+    
+    anomalies = []
+    anomaly_df = df[is_anomaly_bool]
+    if len(anomaly_df) > 0:
+        cols = ["visit_id", "dept_name", "doctor_name", "patient_type", 
+                "time_slot", "total_wait_time", "anomaly_reason"]
+        if is_weekly:
+            cols.insert(1, "visit_date")
+        cols = [c for c in cols if c in anomaly_df.columns]
+        anomalies = anomaly_df[cols].head(50).to_dict("records")
+    
+    metrics = {
+        "total_samples": len(df),
+        "anomaly_count": int(is_anomaly_bool.sum()),
+        "avg_wait": round(df["total_wait_time"].mean(), 1) if "total_wait_time" in df.columns else 0,
+        "p95_wait": round(df["total_wait_time"].quantile(0.95), 1) if "total_wait_time" in df.columns else 0,
+    }
+    
+    template = Template(EMAIL_TEMPLATE)
+    html_content = template.render(
+        report_type=report_type,
+        period=period,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        metrics=metrics,
+        dept_stats=dept_stats,
+        slot_stats=slot_stats,
+        anomalies=anomalies,
+        is_weekly=is_weekly
+    )
+    
+    return html_content
 
 
 def generate_hourly_report(format_type: str = "xlsx") -> str:
@@ -95,6 +326,7 @@ def generate_hourly_report(format_type: str = "xlsx") -> str:
     
     now = datetime.now()
     hour_start = now - timedelta(hours=1)
+    period = hour_start.strftime("%Y-%m-%d %H:00") + " - " + now.strftime("%H:00")
     
     df["reg_time"] = pd.to_datetime(df["reg_time"])
     hourly_df = df[(df["reg_time"] >= hour_start) & (df["reg_time"] < now)]
@@ -107,9 +339,23 @@ def generate_hourly_report(format_type: str = "xlsx") -> str:
     timestamp = now.strftime("%Y%m%d_%H%M")
     report_path = os.path.join(REPORT_DIR, f"hourly_report_{timestamp}.{format_type}")
     
-    if format_type == "xlsx":
+    if format_type == "html":
+        html_content = _generate_html_report(hourly_df, "小时报表", period)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+    elif format_type == "pdf":
+        html_content = _generate_html_report(hourly_df, "小时报表", period)
+        try:
+            import weasyprint
+            weasyprint.HTML(string=html_content).write_pdf(report_path)
+        except ImportError:
+            fallback_path = report_path.replace(".pdf", ".html")
+            with open(fallback_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            return f"weasyprint未安装，已生成HTML格式: {fallback_path}"
+    else:
         with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
-            _write_report_sheets(writer, hourly_df, "小时报表", hour_start.strftime("%Y-%m-%d %H:00"))
+            _write_report_sheets(writer, hourly_df, "小时报表", period)
     
     return f"小时报表已生成: {report_path}"
 
@@ -131,7 +377,21 @@ def generate_daily_report(date: str = None, format_type: str = "xlsx") -> str:
     
     report_path = os.path.join(REPORT_DIR, f"daily_report_{date}.{format_type}")
     
-    if format_type == "xlsx":
+    if format_type == "html":
+        html_content = _generate_html_report(daily_df, "日报表", date)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+    elif format_type == "pdf":
+        html_content = _generate_html_report(daily_df, "日报表", date)
+        try:
+            import weasyprint
+            weasyprint.HTML(string=html_content).write_pdf(report_path)
+        except ImportError:
+            fallback_path = report_path.replace(".pdf", ".html")
+            with open(fallback_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            return f"weasyprint未安装，已生成HTML格式: {fallback_path}"
+    else:
         with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
             _write_report_sheets(writer, daily_df, "日报表", date)
     
@@ -150,25 +410,40 @@ def generate_weekly_report(start_date: str = None, format_type: str = "xlsx") ->
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = start_dt + timedelta(days=6)
     date_range = [d.strftime("%Y-%m-%d") for d in pd.date_range(start_dt, end_dt)]
+    period = f"{start_date} 至 {end_dt.strftime('%Y-%m-%d')}"
     
     weekly_df = df[df["visit_date"].isin(date_range)]
     
     if len(weekly_df) == 0:
-        return f"日期范围 {start_date} - {end_dt.strftime('%Y-%m-%d')} 无数据"
+        return f"日期范围 {period} 无数据"
     
     os.makedirs(REPORT_DIR, exist_ok=True)
     
     report_path = os.path.join(REPORT_DIR, f"weekly_report_{start_date}.{format_type}")
     
-    if format_type == "xlsx":
+    if format_type == "html":
+        html_content = _generate_html_report(weekly_df, "周报表", period, is_weekly=True)
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+    elif format_type == "pdf":
+        html_content = _generate_html_report(weekly_df, "周报表", period, is_weekly=True)
+        try:
+            import weasyprint
+            weasyprint.HTML(string=html_content).write_pdf(report_path)
+        except ImportError:
+            fallback_path = report_path.replace(".pdf", ".html")
+            with open(fallback_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            return f"weasyprint未安装，已生成HTML格式: {fallback_path}"
+    else:
         with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
-            _write_report_sheets(writer, weekly_df, "周报表", f"{start_date} 至 {end_dt.strftime('%Y-%m-%d')}", is_weekly=True)
+            _write_report_sheets(writer, weekly_df, "周报表", period, is_weekly=True)
     
     return f"周报表已生成: {report_path}"
 
 
 def _write_report_sheets(writer, df, report_type: str, period: str, is_weekly: bool = False):
-    """写入报表Sheet"""
+    """写入Excel报表Sheet"""
     is_anomaly_bool = df["is_anomaly"].astype(str).str.lower() == "true"
     
     summary = pd.DataFrame(
@@ -245,8 +520,8 @@ def scheduled_job():
     report_path = generate_report_by_config(config)
     print(report_path)
     
-    if config.get("email") and os.path.exists(report_path.split(": ")[-1] if ": " in report_path else ""):
-        actual_path = report_path.split(": ")[-1] if ": " in report_path else report_path
+    actual_path = report_path.split(": ")[-1] if ": " in report_path and os.path.exists(report_path.split(": ")[-1]) else None
+    if actual_path and config.get("email"):
         if send_email_with_attachment(actual_path, config):
             config["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             save_schedule_config(config)
@@ -273,6 +548,7 @@ def setup_schedule_from_config():
     
     if config.get("email"):
         print(f"报表将发送至: {config['email']}")
+    print(f"报表格式: {config.get('format', 'xlsx')}")
     print()
 
 
@@ -307,12 +583,15 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "daily":
             date = sys.argv[2] if len(sys.argv) > 2 else None
-            print(generate_daily_report(date))
+            fmt = sys.argv[3] if len(sys.argv) > 3 else "xlsx"
+            print(generate_daily_report(date, format_type=fmt))
         elif sys.argv[1] == "weekly":
             start_date = sys.argv[2] if len(sys.argv) > 2 else None
-            print(generate_weekly_report(start_date))
+            fmt = sys.argv[3] if len(sys.argv) > 3 else "xlsx"
+            print(generate_weekly_report(start_date, format_type=fmt))
         elif sys.argv[1] == "hourly":
-            print(generate_hourly_report())
+            fmt = sys.argv[2] if len(sys.argv) > 2 else "xlsx"
+            print(generate_hourly_report(format_type=fmt))
         elif sys.argv[1] == "schedule":
             run_scheduler()
         elif sys.argv[1] == "validate":
@@ -321,11 +600,19 @@ if __name__ == "__main__":
             print_validation_report(report)
         elif sys.argv[1] == "run":
             scheduled_job()
+        elif sys.argv[1] == "test-email":
+            config = load_schedule_config()
+            test_path = generate_daily_report(format_type="html")
+            if ": " in test_path:
+                send_email_with_attachment(test_path.split(": ")[-1], config)
     else:
         print("使用方法:")
-        print("  python scheduler.py daily [date]   - 生成日报表")
-        print("  python scheduler.py weekly [start] - 生成周报表")
-        print("  python scheduler.py hourly         - 生成小时报表")
-        print("  python scheduler.py schedule       - 运行定时任务")
-        print("  python scheduler.py run            - 立即执行一次报表任务")
-        print("  python scheduler.py validate       - 运行验收测试")
+        print("  python scheduler.py daily [date] [format]   - 生成日报表")
+        print("  python scheduler.py weekly [start] [format]  - 生成周报表")
+        print("  python scheduler.py hourly [format]          - 生成小时报表")
+        print("  python scheduler.py schedule                 - 运行定时任务")
+        print("  python scheduler.py run                      - 立即执行一次报表任务")
+        print("  python scheduler.py test-email               - 测试邮件发送")
+        print("  python scheduler.py validate                 - 运行验收测试")
+        print()
+        print("支持格式: xlsx, html, pdf")
