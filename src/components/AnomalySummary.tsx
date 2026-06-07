@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { CheckCircle, AlertTriangle, AlertOctagon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/useDashboardStore';
-import type { Anomaly, AnomalyLevel } from '../../shared/types';
+import type { Anomaly, AnomalyLevel, ViewPerspective } from '../../shared/types';
 
 const levelConfig: Record<AnomalyLevel, { border: string; icon: React.ElementType; badge: string }> = {
   critical: { border: 'border-l-[#EF4444]', icon: AlertOctagon, badge: 'bg-red-500/20 text-red-400' },
@@ -23,7 +23,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
     <button
       type="button"
       onClick={() => {
-        setPerspective(anomaly.relatedView as Parameters<typeof setPerspective>[0]);
+        setPerspective(anomaly.relatedView as ViewPerspective);
         setFilter(anomaly.relatedFilter);
       }}
       className={cn(

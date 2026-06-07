@@ -10,12 +10,14 @@ import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import dashboardRoutes from './routes/dashboard.js'
 import exportRoutes from './routes/exports.js'
-import { cleanData } from './data/clean.js'
+import { getDB, cleanData as dbCleanData } from './data/database.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 dotenv.config()
+
+getDB()
 
 const app: express.Application = express()
 
@@ -30,11 +32,13 @@ app.use('/api/exports', exportRoutes)
 app.use(
   '/api/health',
   (req: Request, res: Response, next: NextFunction): void => {
-    const cleanResult = cleanData()
+    const db = getDB()
+    const cleanResult = dbCleanData(db)
     res.status(200).json({
       success: true,
       message: 'ok',
       dataCleanStatus: cleanResult,
+      database: 'sqlite',
     })
   },
 )

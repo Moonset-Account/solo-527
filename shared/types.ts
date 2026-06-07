@@ -76,7 +76,7 @@ export interface Anomaly {
   metric: string;
   currentValue: number;
   expectedValue: number;
-  relatedView: string;
+  relatedView: ViewPerspective;
   relatedFilter: FilterParams;
 }
 
