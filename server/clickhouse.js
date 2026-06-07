@@ -1,19 +1,22 @@
 import { createClient } from '@clickhouse/client'
-import { randomInt, randomBytes } from 'crypto'
+import { randomInt } from 'crypto'
 
 const CLICKHOUSE_URL = process.env.CLICKHOUSE_URL || 'http://localhost:8123'
 const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER || 'default'
 const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD || ''
 const CLICKHOUSE_DATABASE = process.env.CLICKHOUSE_DATABASE || 'default'
-const ENABLE_FALLBACK = process.env.CLICKHOUSE_FALLBACK !== 'false'
+const CLICKHOUSE_FALLBACK = process.env.CLICKHOUSE_FALLBACK === 'true'
+
+export const DATA_SOURCE = {
+  REAL: 'clickhouse',
+  FALLBACK: 'fallback-mock',
+}
 
 let clickHouseClient = null
 let useFallback = false
+let clickHouseReady = false
+let currentDataSource = DATA_SOURCE.REAL
 let fallbackData = null
-
-function generateStationId(index) {
-  return `ST${String(index + 1).padStart(3, '0')}`
-}
 
 const DISTRICTS = [
   '东城区', '西城区', '朝阳区', '海淀区', '丰台区',
@@ -27,6 +30,10 @@ const STATION_NAMES = [
   '房山', '门头沟', '平谷', '怀柔', '密云',
 ]
 
+function generateStationId(index) {
+  return `ST${String(index + 1).padStart(3, '0')}`
+}
+
 function initFallbackData() {
   if (fallbackData) return
 
@@ -37,8 +44,8 @@ function initFallbackData() {
       id: generateStationId(i),
       name: STATION_NAMES[i % STATION_NAMES.length],
       district,
-      lat: 39.9 + (i - 10) * 0.05 + (Math.random() - 0.5) * 0.04,
-      lng: 116.4 + (i - 10) * 0.06 + (Math.random() - 0.5) * 0.04,
+      lat: 39.9 + (i - 10) * 0.05,
+      lng: 116.4 + (i - 10) * 0.06,
       status: i === 3 || i === 15 ? 'offline' : i === 7 ? 'warning' : 'online',
       lastUpdate: new Date(Date.now() - Math.random() * 15 * 60 * 1000).toISOString(),
     })
@@ -77,29 +84,11 @@ function initFallbackData() {
     }
   }
 
-  const traffic = []
-  for (const district of DISTRICTS) {
-    for (let h = 0; h < 24 * 7; h++) {
-      const time = new Date(Date.now() - (24 * 7 - h) * 60 * 60 * 1000)
-      const hour = time.getHours()
-      const isRushHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)
-      traffic.push({
-        district,
-        timestamp: time.toISOString(),
-        date: time.toISOString().split('T')[0],
-        hour,
-        vehicleCount: Math.round((500 + Math.random() * 2500) * (isRushHour ? 2 : 1)),
-        avgSpeed: parseFloat((isRushHour ? 10 + Math.random() * 20 : 25 + Math.random() * 35).toFixed(1)),
-      })
-    }
-  }
-
-  fallbackData = { stations, readings, traffic }
+  fallbackData = { stations, readings }
+  console.log('[ClickHouse] Fallback mock data initialized (20 stations, 7 days, 5min interval)')
 }
 
 async function connectClickHouse() {
-  initFallbackData()
-
   try {
     clickHouseClient = createClient({
       url: CLICKHOUSE_URL,
@@ -113,84 +102,38 @@ async function connectClickHouse() {
 
     await clickHouseClient.ping()
     console.log('[ClickHouse] Connected successfully')
+    clickHouseReady = true
     useFallback = false
+    currentDataSource = DATA_SOURCE.REAL
     return true
   } catch (err) {
-    console.warn('[ClickHouse] Connection failed, using fallback data:', err.message)
-    if (ENABLE_FALLBACK) {
+    console.error('[ClickHouse] Connection failed:', err.message)
+    if (CLICKHOUSE_FALLBACK) {
+      console.warn('[ClickHouse] Using EXPLICIT fallback mock data (CLICKHOUSE_FALLBACK=true)')
+      console.warn('[ClickHouse] WARNING: All queries will return MOCK data, not real ClickHouse data!')
+      initFallbackData()
       useFallback = true
+      currentDataSource = DATA_SOURCE.FALLBACK
+      return false
     }
-    return false
+    throw new Error(`ClickHouse connection failed: ${err.message}`)
   }
 }
 
-async function queryAirQualityAggregate(query) {
-  if (useFallback || !clickHouseClient) {
-    return runFallbackAggregate(query)
+function getDataSource() {
+  return currentDataSource
+}
+
+function assertClickHouseAvailable() {
+  if (useFallback) return true
+  if (!clickHouseClient || !clickHouseReady) {
+    throw new Error('ClickHouse service is not available')
   }
-
-  const { dimensions = [], metrics = ['avg'], filters = {} } = query
-  const selectFields = []
-  const groupFields = []
-
-  dimensions.forEach(dim => {
-    if (dim === 'station') {
-      selectFields.push('stationId', 'any(stationId) as station_name')
-      groupFields.push('stationId')
-    } else if (dim === 'district') {
-      selectFields.push('district')
-      groupFields.push('district')
-    } else if (dim === 'hour') {
-      selectFields.push('hour')
-      groupFields.push('hour')
-    } else if (dim === 'date') {
-      selectFields.push('date')
-      groupFields.push('date')
-    }
-  })
-
-  const pollutants = filters.pollutants || ['pm25', 'pm10', 'ozone', 'no2', 'aqi']
-  pollutants.forEach(p => {
-    metrics.forEach(m => {
-      if (m === 'avg') selectFields.push(`avg(${p}) as ${p}_avg`)
-      if (m === 'max') selectFields.push(`max(${p}) as ${p}_max`)
-      if (m === 'min') selectFields.push(`min(${p}) as ${p}_min`)
-      if (m === 'count') selectFields.push(`count(${p}) as ${p}_count`)
-    })
-  })
-
-  const whereClauses = []
-  if (filters.timeRange) {
-    whereClauses.push(`timestamp >= '${filters.timeRange.start}'`)
-    whereClauses.push(`timestamp <= '${filters.timeRange.end}'`)
-  }
-  if (filters.districts?.length) {
-    whereClauses.push(`district IN (${filters.districts.map(d => `'${d}'`).join(', ')})`)
-  }
-  if (filters.stations?.length) {
-    whereClauses.push(`stationId IN (${filters.stations.map(s => `'${s}'`).join(', ')})`)
-  }
-
-  const sql = `
-    SELECT ${selectFields.join(', ')}
-    FROM air_quality
-    ${whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : ''}
-    ${groupFields.length ? 'GROUP BY ' + groupFields.join(', ') : ''}
-    ${groupFields.length ? 'ORDER BY ' + groupFields.join(', ') : ''}
-    FORMAT JSON
-  `
-
-  try {
-    const result = await clickHouseClient.query({ query: sql })
-    const data = await result.json()
-    return data.data || []
-  } catch (err) {
-    console.warn('[ClickHouse] Query error, using fallback:', err.message)
-    return runFallbackAggregate(query)
-  }
+  return true
 }
 
 function runFallbackAggregate(query) {
+  if (!fallbackData) return []
   const { dimensions = [], metrics = ['avg'], filters = {} } = query
   let data = [...fallbackData.readings]
 
@@ -258,69 +201,222 @@ function runFallbackAggregate(query) {
   return results
 }
 
-async function getRawReadings(stationIds, start, end) {
-  if (!useFallback && clickHouseClient) {
-    const sql = `
-      SELECT * FROM air_quality
-      WHERE stationId IN (${stationIds.map(s => `'${s}'`).join(', ')})
-        AND timestamp >= '${start}'
-        AND timestamp <= '${end}'
-      ORDER BY timestamp ASC
-      FORMAT JSON
-    `
-    try {
-      const result = await clickHouseClient.query({ query: sql })
-      const data = await result.json()
-      return data.data || []
-    } catch (err) {
-      console.warn('[ClickHouse] Raw query error, using fallback:', err.message)
-    }
+async function queryAirQualityAggregate(query) {
+  assertClickHouseAvailable()
+
+  if (useFallback) {
+    console.warn('[ClickHouse] Using FALLBACK MOCK data for aggregate query')
+    return runFallbackAggregate(query)
   }
 
-  const startTime = new Date(start).getTime()
-  const endTime = new Date(end).getTime()
-  return fallbackData.readings.filter(r =>
-    stationIds.includes(r.stationId) &&
-    new Date(r.timestamp).getTime() >= startTime &&
-    new Date(r.timestamp).getTime() <= endTime
-  ).map(r => ({
-    stationId: r.stationId,
-    timestamp: r.timestamp,
-    pm25: r.pm25,
-    pm10: r.pm10,
-    ozone: r.ozone,
-    no2: r.no2,
-    so2: r.so2,
-    co: r.co,
-    aqi: r.aqi,
-    windDirection: r.windDirection,
-    windSpeed: r.windSpeed,
-    temperature: r.temperature,
-    humidity: r.humidity,
-  }))
+  const { dimensions = [], metrics = ['avg'], filters = {} } = query
+  const selectFields = []
+  const groupFields = []
+
+  dimensions.forEach(dim => {
+    if (dim === 'station') {
+      selectFields.push('stationId', 'any(stationId) as station_name')
+      groupFields.push('stationId')
+    } else if (dim === 'district') {
+      selectFields.push('district')
+      groupFields.push('district')
+    } else if (dim === 'hour') {
+      selectFields.push('hour')
+      groupFields.push('hour')
+    } else if (dim === 'date') {
+      selectFields.push('date')
+      groupFields.push('date')
+    }
+  })
+
+  const pollutants = filters.pollutants || ['pm25', 'pm10', 'ozone', 'no2', 'aqi']
+  pollutants.forEach(p => {
+    metrics.forEach(m => {
+      if (m === 'avg') selectFields.push(`avg(${p}) as ${p}_avg`)
+      if (m === 'max') selectFields.push(`max(${p}) as ${p}_max`)
+      if (m === 'min') selectFields.push(`min(${p}) as ${p}_min`)
+      if (m === 'count') selectFields.push(`count(${p}) as ${p}_count`)
+    })
+  })
+
+  const whereClauses = []
+  if (filters.timeRange) {
+    whereClauses.push(`timestamp >= '${filters.timeRange.start}'`)
+    whereClauses.push(`timestamp <= '${filters.timeRange.end}'`)
+  }
+  if (filters.districts?.length) {
+    whereClauses.push(`district IN (${filters.districts.map(d => `'${d}'`).join(', ')})`)
+  }
+  if (filters.stations?.length) {
+    whereClauses.push(`stationId IN (${filters.stations.map(s => `'${s}'`).join(', ')})`)
+  }
+
+  const sql = `
+    SELECT ${selectFields.join(', ')}
+    FROM air_quality
+    ${whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : ''}
+    ${groupFields.length ? 'GROUP BY ' + groupFields.join(', ') : ''}
+    ${groupFields.length ? 'ORDER BY ' + groupFields.join(', ') : ''}
+    FORMAT JSON
+  `
+
+  try {
+    const result = await clickHouseClient.query({ query: sql })
+    const data = await result.json()
+    return data.data || []
+  } catch (err) {
+    console.error('[ClickHouse] Query error:', err.message)
+    clickHouseReady = false
+    if (CLICKHOUSE_FALLBACK) {
+      console.warn('[ClickHouse] Falling back to MOCK data due to query error')
+      initFallbackData()
+      useFallback = true
+      currentDataSource = DATA_SOURCE.FALLBACK
+      return runFallbackAggregate(query)
+    }
+    throw new Error(`ClickHouse query failed: ${err.message}`)
+  }
 }
 
-function getStations(district) {
-  let stations = [...fallbackData.stations]
-  if (district) stations = stations.filter(s => s.district === district)
-  return stations
+async function getRawReadings(stationIds, start, end) {
+  assertClickHouseAvailable()
+
+  if (useFallback) {
+    console.warn('[ClickHouse] Using FALLBACK MOCK data for raw readings')
+    if (!fallbackData) return []
+    const startTime = new Date(start).getTime()
+    const endTime = new Date(end).getTime()
+    return fallbackData.readings.filter(r =>
+      stationIds.includes(r.stationId) &&
+      new Date(r.timestamp).getTime() >= startTime &&
+      new Date(r.timestamp).getTime() <= endTime
+    ).map(r => ({
+      stationId: r.stationId,
+      timestamp: r.timestamp,
+      pm25: r.pm25,
+      pm10: r.pm10,
+      ozone: r.ozone,
+      no2: r.no2,
+      so2: r.so2,
+      co: r.co,
+      aqi: r.aqi,
+      windDirection: r.windDirection,
+      windSpeed: r.windSpeed,
+      temperature: r.temperature,
+      humidity: r.humidity,
+    }))
+  }
+
+  const sql = `
+    SELECT * FROM air_quality
+    WHERE stationId IN (${stationIds.map(s => `'${s}'`).join(', ')})
+      AND timestamp >= '${start}'
+      AND timestamp <= '${end}'
+    ORDER BY timestamp ASC
+    FORMAT JSON
+  `
+
+  try {
+    const result = await clickHouseClient.query({ query: sql })
+    const data = await result.json()
+    return data.data || []
+  } catch (err) {
+    console.error('[ClickHouse] Raw query error:', err.message)
+    clickHouseReady = false
+    if (CLICKHOUSE_FALLBACK) {
+      console.warn('[ClickHouse] Falling back to MOCK data')
+      initFallbackData()
+      useFallback = true
+      currentDataSource = DATA_SOURCE.FALLBACK
+      const startTime = new Date(start).getTime()
+      const endTime = new Date(end).getTime()
+      return fallbackData?.readings.filter(r =>
+        stationIds.includes(r.stationId) &&
+        new Date(r.timestamp).getTime() >= startTime &&
+        new Date(r.timestamp).getTime() <= endTime
+      ).map(r => ({
+        stationId: r.stationId,
+        timestamp: r.timestamp,
+        pm25: r.pm25,
+        pm10: r.pm10,
+        ozone: r.ozone,
+        no2: r.no2,
+        so2: r.so2,
+        co: r.co,
+        aqi: r.aqi,
+        windDirection: r.windDirection,
+        windSpeed: r.windSpeed,
+        temperature: r.temperature,
+        humidity: r.humidity,
+      })) || []
+    }
+    throw new Error(`ClickHouse raw query failed: ${err.message}`)
+  }
 }
 
-function getSystemStatus() {
-  const stations = fallbackData.stations
-  const onlineCount = stations.filter(s => s.status === 'online' || s.status === 'warning').length
-  return {
-    lastUpdate: new Date().toISOString(),
-    onlineStations: onlineCount,
-    totalStations: stations.length,
-    dataLatency: Math.round(Math.random() * 110 + 10),
+async function getStations(district) {
+  assertClickHouseAvailable()
+
+  if (useFallback) {
+    console.warn('[ClickHouse] Using FALLBACK MOCK data for stations')
+    if (!fallbackData) return []
+    let stations = [...fallbackData.stations]
+    if (district) stations = stations.filter(s => s.district === district)
+    return stations
+  }
+
+  const where = district ? `WHERE district = '${district}'` : ''
+  const sql = `
+    SELECT DISTINCT stationId as id, any(stationName) as name, any(district) as district,
+           any(lat) as lat, any(lng) as lng, any(status) as status, max(timestamp) as lastUpdate
+    FROM air_quality
+    ${where}
+    GROUP BY stationId
+    FORMAT JSON
+  `
+
+  try {
+    const result = await clickHouseClient.query({ query: sql })
+    const data = await result.json()
+    return data.data || []
+  } catch (err) {
+    console.error('[ClickHouse] Stations query error:', err.message)
+    clickHouseReady = false
+    if (CLICKHOUSE_FALLBACK) {
+      console.warn('[ClickHouse] Falling back to MOCK data')
+      initFallbackData()
+      useFallback = true
+      currentDataSource = DATA_SOURCE.FALLBACK
+      let stations = fallbackData?.stations || []
+      if (district) stations = stations.filter(s => s.district === district)
+      return stations
+    }
+    throw new Error(`ClickHouse stations query failed: ${err.message}`)
+  }
+}
+
+async function getSystemStatus() {
+  try {
+    const stations = await getStations()
+    const onlineCount = stations.filter(s => s.status === 'online' || s.status === 'warning').length
+    return {
+      lastUpdate: new Date().toISOString(),
+      onlineStations: onlineCount,
+      totalStations: stations.length,
+      dataLatency: 0,
+      dataSource: getDataSource(),
+    }
+  } catch (err) {
+    throw new Error(`ClickHouse status query failed: ${err.message}`)
   }
 }
 
 function getConnectionStatus() {
   return {
-    redis: !useFallback ? 'connected' : 'fallback',
-    clickhouse: !useFallback ? 'connected' : 'fallback',
+    clickhouse: {
+      status: useFallback ? 'fallback-mock' : (clickHouseReady ? 'connected' : 'disconnected'),
+      dataSource: getDataSource(),
+    },
   }
 }
 
@@ -331,4 +427,5 @@ export {
   getStations,
   getSystemStatus,
   getConnectionStatus,
+  getDataSource,
 }

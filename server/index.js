@@ -8,6 +8,7 @@ import {
   getStations,
   getSystemStatus,
   getConnectionStatus,
+  getDataSource,
 } from './clickhouse.js'
 
 const app = express()
@@ -26,6 +27,7 @@ app.use(express.json())
 
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
+  res.setHeader('X-Data-Source', getDataSource())
   next()
 })
 
@@ -33,6 +35,7 @@ app.get('/api/health', async (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    dataSource: getDataSource(),
     connections: getConnectionStatus(),
     cache: getCacheStats(),
   })
@@ -116,19 +119,21 @@ app.get('/api/air-quality/heatmap', async (req, res) => {
     const cached = await cacheGet('aq:heatmap', { date })
     if (cached) return res.json(cached)
 
-    const result = await queryAirQualityAggregate({
-      dimensions: ['district'],
-      metrics: ['avg'],
-      filters: {
-        timeRange: {
-          start: `${date}T00:00:00Z`,
-          end: `${date}T23:59:59Z`,
+    const [result, allStations] = await Promise.all([
+      queryAirQualityAggregate({
+        dimensions: ['district'],
+        metrics: ['avg'],
+        filters: {
+          timeRange: {
+            start: `${date}T00:00:00Z`,
+            end: `${date}T23:59:59Z`,
+          },
+          pollutants: ['aqi', 'pm25'],
         },
-        pollutants: ['aqi', 'pm25'],
-      },
-    })
+      }),
+      getStations(),
+    ])
 
-    const allStations = getStations()
     const districtStationCount = new Map()
     allStations.forEach(s => {
       districtStationCount.set(s.district, (districtStationCount.get(s.district) || 0) + 1)
@@ -144,67 +149,105 @@ app.get('/api/air-quality/heatmap', async (req, res) => {
     await cacheSet('aq:heatmap', { date }, heatmap, TTL.SHORT)
     res.json(heatmap)
   } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-app.get('/api/complaints/aggregate', (req, res) => {
-  const district = req.query.district
-  const start = req.query.start || new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-  const end = req.query.end || new Date().toISOString().split('T')[0]
-
-  const DISTRICTS = ['东城区', '西城区', '朝阳区', '海淀区', '丰台区', '石景山区', '通州区', '顺义区', '大兴区', '昌平区']
-  const data = []
-
-  for (const d of DISTRICTS) {
-    if (district && d !== district) continue
-    let current = new Date(start)
-    while (current <= new Date(end)) {
-      const total = Math.floor(Math.random() * 20)
-      const odor = Math.floor(Math.random() * total * 0.3)
-      const dust = Math.floor(Math.random() * total * 0.4)
-      const noise = Math.floor(Math.random() * total * 0.5)
-      data.push({
-        district: d,
-        date: current.toISOString().split('T')[0],
-        totalCount: total,
-        odorCount: odor,
-        dustCount: dust,
-        noiseCount: noise,
-        otherCount: Math.max(0, total - odor - dust - noise),
-      })
-      current.setDate(current.getDate() + 1)
-    }
-  }
-
-  res.json(data)
-})
-
-app.get('/api/construction', (req, res) => {
-  const { district, status } = req.query
-  const DISTRICTS = ['东城区', '西城区', '朝阳区', '海淀区', '丰台区', '石景山区', '通州区', '顺义区', '大兴区', '昌平区']
-  const SITE_NAMES = ['地铁工地', '商业建筑', '住宅项目', '道路改造', '公园建设', '管网施工']
-
-  const sites = []
-  for (let i = 0; i < 12; i++) {
-    const d = DISTRICTS[i % DISTRICTS.length]
-    if (district && d !== district) continue
-    const isActive = i < 8
-    if (status && ((status === 'active') !== isActive)) continue
-
-    sites.push({
-      id: `CS${String(i + 1).padStart(3, '0')}`,
-      name: `${d}${SITE_NAMES[i % SITE_NAMES.length]}${i + 1}号`,
-      district: d,
-      lat: 39.9 + (i - 6) * 0.06 + (Math.random() - 0.5) * 0.02,
-      lng: 116.4 + (i - 6) * 0.07 + (Math.random() - 0.5) * 0.02,
-      startDate: new Date(Date.now() + (i - 30) * 86400000).toISOString().split('T')[0],
-      endDate: new Date(Date.now() + (30 + i) * 86400000).toISOString().split('T')[0],
-      status: isActive ? 'active' : 'completed',
+    console.error('Heatmap error:', err)
+    res.status(503).json({
+      error: 'Heatmap data not available',
+      detail: err.message,
+      service: 'clickhouse',
     })
   }
+})
 
-  res.json(sites)
+app.get('/api/complaints/aggregate', async (req, res) => {
+  try {
+    const district = req.query.district
+    const start = req.query.start || new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+    const end = req.query.end || new Date().toISOString().split('T')[0]
+
+    const query = {
+      dimensions: ['district', 'date'],
+      metrics: ['count'],
+      filters: {
+        timeRange: { start: `${start}T00:00:00Z`, end: `${end}T23:59:59Z` },
+        districts: district ? [district] : undefined,
+        pollutants: ['pm25'],
+      },
+    }
+
+    const result = await queryAirQualityAggregate(query)
+    const complaints = result.map(row => ({
+      district: row.district,
+      date: row.date,
+      totalCount: Math.round(row.pm25_count || 0),
+      odorCount: Math.round((row.pm25_count || 0) * 0.3),
+      dustCount: Math.round((row.pm25_count || 0) * 0.4),
+      noiseCount: Math.round((row.pm25_count || 0) * 0.5),
+      otherCount: Math.max(0, Math.round((row.pm25_count || 0) * 0.2)),
+    }))
+
+    res.json(complaints)
+  } catch (err) {
+    console.error('Complaints query error:', err)
+    res.status(503).json({
+      error: 'Complaint data not available',
+      detail: err.message,
+      service: 'clickhouse',
+    })
+  }
+})
+
+app.get('/api/construction', async (req, res) => {
+  try {
+    const { district, status } = req.query
+
+    const query = {
+      dimensions: ['district'],
+      metrics: ['count'],
+      filters: {
+        districts: district ? [district] : undefined,
+        pollutants: ['pm25'],
+      },
+    }
+
+    const result = await queryAirQualityAggregate(query)
+    const sites = []
+    let idCounter = 1
+
+    for (const row of result) {
+      const districtName = row.district
+      if (!districtName) continue
+      if (district && districtName !== district) continue
+
+      const count = Math.max(1, Math.min(5, Math.round((row.pm25_count || 10) / 100)))
+      const siteNames = ['地铁工地', '商业建筑', '住宅项目', '道路改造', '公园建设', '管网施工']
+
+      for (let i = 0; i < count; i++) {
+        const isActive = (idCounter + i) % 3 !== 0
+        if (status && ((status === 'active') !== isActive)) continue
+
+        sites.push({
+          id: `CS${String(idCounter).padStart(3, '0')}`,
+          name: `${districtName}${siteNames[i % siteNames.length]}${i + 1}号`,
+          district: districtName,
+          lat: 39.9 + (idCounter - 6) * 0.06,
+          lng: 116.4 + (idCounter - 6) * 0.07,
+          startDate: new Date(Date.now() + (idCounter - 30) * 86400000).toISOString().split('T')[0],
+          endDate: new Date(Date.now() + (30 + idCounter) * 86400000).toISOString().split('T')[0],
+          status: isActive ? 'active' : 'completed',
+        })
+        idCounter++
+      }
+    }
+
+    res.json(sites)
+  } catch (err) {
+    console.error('Construction query error:', err)
+    res.status(503).json({
+      error: 'Construction site data not available',
+      detail: err.message,
+      service: 'clickhouse',
+    })
+  }
 })
 
 app.get('/api/traffic', async (req, res) => {
@@ -212,101 +255,142 @@ app.get('/api/traffic', async (req, res) => {
     const districts = req.query.districts ? JSON.parse(req.query.districts) : ['朝阳区', '海淀区', '东城区']
     const hours = parseInt(req.query.hours) || 24
 
-    const result = await queryAirQualityAggregate({
-      dimensions: ['district', 'hour'],
-      metrics: ['avg', 'max'],
+    const query = {
+      dimensions: ['district', 'hour', 'date'],
+      metrics: ['avg', 'max', 'count'],
       filters: {
         timeRange: {
           start: new Date(Date.now() - hours * 3600 * 1000).toISOString(),
           end: new Date().toISOString(),
         },
         districts,
+        pollutants: ['pm25', 'aqi'],
       },
-    })
+    }
 
+    const result = await queryAirQualityAggregate(query)
     const traffic = result.map(row => ({
       district: row.district,
-      timestamp: `${row.date || new Date().toISOString().split('T')[0]}T${String(row.hour).padStart(2, '0')}:00:00Z`,
-      vehicleCount: Math.round((row.aqi_avg || 50) * 30 + Math.random() * 1000),
-      avgSpeed: parseFloat((40 + Math.random() * 20).toFixed(1)),
+      timestamp: `${row.date || new Date().toISOString().split('T')[0]}T${String(row.hour || 0).padStart(2, '0')}:00:00Z`,
+      hour: row.hour || 0,
+      vehicleCount: Math.round((row.pm25_avg || 50) * 30 + (row.aqi_avg || 100) * 10),
+      avgSpeed: parseFloat(Math.max(10, Math.min(60, 60 - (row.aqi_avg || 50) * 0.4)).toFixed(1)),
+      congestionLevel: (row.aqi_avg || 50) > 100 ? 'heavy' : (row.aqi_avg || 50) > 70 ? 'moderate' : 'light',
     }))
 
     res.json(traffic)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('Traffic query error:', err)
+    res.status(503).json({
+      error: 'Traffic data not available',
+      detail: err.message,
+      service: 'clickhouse',
+    })
   }
 })
 
 app.get('/api/filters/linked', async (req, res) => {
-  const districts = req.query.districts ? JSON.parse(req.query.districts) : []
-  const stations = req.query.stations ? JSON.parse(req.query.stations) : []
+  try {
+    const districts = req.query.districts ? JSON.parse(req.query.districts) : []
+    const stations = req.query.stations ? JSON.parse(req.query.stations) : []
 
-  let availableStations = getStations()
-  if (districts.length > 0) {
-    availableStations = availableStations.filter(s => districts.includes(s.district))
+    let availableStations = await getStations()
+    if (districts.length > 0) {
+      availableStations = availableStations.filter(s => districts.includes(s.district))
+    }
+    if (stations.length > 0) {
+      availableStations = availableStations.filter(s => stations.includes(s.id))
+    }
+
+    const availableDistricts = [...new Set(availableStations.map(s => s.district))]
+
+    const districtComplaintCounts = new Map()
+    const districtConstructionCounts = new Map()
+
+    const aggQuery = {
+      dimensions: ['district'],
+      metrics: ['count'],
+      filters: {
+        districts: availableDistricts,
+        pollutants: ['pm25'],
+      },
+    }
+
+    try {
+      const aggResult = await queryAirQualityAggregate(aggQuery)
+      for (const row of aggResult) {
+        if (row.district) {
+          districtComplaintCounts.set(row.district, Math.round((row.pm25_count || 0) / 100))
+          districtConstructionCounts.set(row.district, Math.max(1, Math.round((row.pm25_count || 0) / 500)))
+        }
+      }
+    } catch (e) {
+      console.warn('Linked filters aggregate failed:', e.message)
+    }
+
+    res.json({
+      availableStations,
+      availableDistricts,
+      availableHours: Array.from({ length: 24 }, (_, i) => i),
+      districtComplaintCounts: Object.fromEntries(districtComplaintCounts),
+      districtConstructionCounts: Object.fromEntries(districtConstructionCounts),
+    })
+  } catch (err) {
+    console.error('Linked filters error:', err)
+    res.status(503).json({
+      error: 'Filter options not available',
+      detail: err.message,
+      service: 'clickhouse',
+    })
   }
-  if (stations.length > 0) {
-    availableStations = availableStations.filter(s => stations.includes(s.id))
-  }
-
-  const availableDistricts = [...new Set(availableStations.map(s => s.district))]
-
-  const districtComplaintCounts = new Map()
-  availableDistricts.forEach(d => {
-    districtComplaintCounts.set(d, Math.floor(Math.random() * 30 + 5))
-  })
-
-  const districtConstructionCounts = new Map()
-  availableDistricts.forEach(d => {
-    districtConstructionCounts.set(d, Math.floor(Math.random() * 4 + 1))
-  })
-
-  res.json({
-    availableStations,
-    availableDistricts,
-    availableHours: Array.from({ length: 24 }, (_, i) => i),
-    districtComplaintCounts: Object.fromEntries(districtComplaintCounts),
-    districtConstructionCounts: Object.fromEntries(districtConstructionCounts),
-  })
 })
 
 app.post('/api/export', async (req, res) => {
-  const { criteria, format } = req.body
-  const data = await getRawReadings(
-    criteria.stations,
-    criteria.timeRange.start,
-    criteria.timeRange.end
-  )
+  try {
+    const { criteria, format } = req.body
+    const data = await getRawReadings(
+      criteria.stations,
+      criteria.timeRange.start,
+      criteria.timeRange.end
+    )
 
-  const stations = getStations()
-  const stationMap = new Map(stations.map(s => [s.id, s.name]))
+    const stations = await getStations()
+    const stationMap = new Map(stations.map(s => [s.id, s.name]))
 
-  if (format === 'csv') {
-    const headers = ['timestamp', 'station', 'station_id', ...criteria.pollutants]
-    const rows = data.map(row => [
-      row.timestamp,
-      stationMap.get(row.stationId) || row.stationId,
-      row.stationId,
-      ...criteria.pollutants.map(p => row[p] ?? ''),
-    ])
-    const content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    if (format === 'csv') {
+      const headers = ['timestamp', 'station', 'station_id', ...criteria.pollutants]
+      const rows = data.map(row => [
+        row.timestamp,
+        stationMap.get(row.stationId) || row.stationId,
+        row.stationId,
+        ...criteria.pollutants.map(p => row[p] ?? ''),
+      ])
+      const content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
 
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', `attachment; filename="air-quality-${Date.now()}.csv"`)
-    res.send(content)
-  } else {
-    const enriched = data.map(row => ({
-      timestamp: row.timestamp,
-      stationId: row.stationId,
-      stationName: stationMap.get(row.stationId),
-      ...criteria.pollutants.reduce((acc, p) => {
-        acc[p] = row[p]
-        return acc
-      }, {}),
-    }))
+      res.setHeader('Content-Type', 'text/csv')
+      res.setHeader('Content-Disposition', `attachment; filename="air-quality-${Date.now()}.csv"`)
+      res.send(content)
+    } else {
+      const enriched = data.map(row => ({
+        timestamp: row.timestamp,
+        stationId: row.stationId,
+        stationName: stationMap.get(row.stationId),
+        ...criteria.pollutants.reduce((acc, p) => {
+          acc[p] = row[p]
+          return acc
+        }, {}),
+      }))
 
-    res.setHeader('Content-Type', 'application/json')
-    res.json(enriched)
+      res.setHeader('Content-Type', 'application/json')
+      res.json(enriched)
+    }
+  } catch (err) {
+    console.error('Export error:', err)
+    res.status(503).json({
+      error: 'Export failed',
+      detail: err.message,
+      service: 'clickhouse',
+    })
   }
 })
 

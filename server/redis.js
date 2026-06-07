@@ -2,11 +2,12 @@ import Redis from 'ioredis'
 import { createHash } from 'crypto'
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
-const ENABLE_FALLBACK = process.env.REDIS_FALLBACK !== 'false'
+const REDIS_FALLBACK = process.env.REDIS_FALLBACK === 'true'
 
 let redisClient = null
 let fallbackCache = new Map()
-let useFallback = false
+let useFallback = REDIS_FALLBACK
+let redisReady = false
 
 function hashKey(obj) {
   const keys = Object.keys(obj).sort()
@@ -18,39 +19,57 @@ async function connectRedis() {
   try {
     redisClient = new Redis(REDIS_URL, {
       enableReadyCheck: true,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: 1,
       lazyConnect: false,
       retryDelayOnFailover: 100,
+      enableOfflineQueue: false,
     })
 
     redisClient.on('error', (err) => {
-      console.warn('[Redis] Connection error:', err.message)
-      if (ENABLE_FALLBACK && !useFallback) {
-        console.warn('[Redis] Falling back to in-memory cache')
+      console.error('[Redis] Connection error:', err.message)
+      if (REDIS_FALLBACK) {
+        console.warn('[Redis] Falling back to in-memory cache (REDIS_FALLBACK=true)')
         useFallback = true
       }
+      redisReady = false
     })
 
     redisClient.on('connect', () => {
       console.log('[Redis] Connected successfully')
-      useFallback = false
+      useFallback = REDIS_FALLBACK
+      redisReady = true
+    })
+
+    redisClient.on('ready', () => {
+      redisReady = true
     })
 
     await redisClient.ping()
+    redisReady = true
     return true
   } catch (err) {
-    console.warn('[Redis] Failed to connect, using fallback:', err.message)
-    if (ENABLE_FALLBACK) {
+    console.error('[Redis] Failed to connect:', err.message)
+    if (REDIS_FALLBACK) {
+      console.warn('[Redis] Using fallback in-memory cache (REDIS_FALLBACK=true)')
       useFallback = true
+      return false
     }
-    return false
+    throw new Error(`Redis connection failed: ${err.message}`)
   }
+}
+
+function assertRedisAvailable() {
+  if (useFallback) return true
+  if (!redisClient || !redisReady) {
+    throw new Error('Redis service is not available')
+  }
+  return true
 }
 
 async function cacheGet(prefix, params) {
   const key = `${prefix}:${hashKey(params)}`
 
-  if (useFallback || !redisClient) {
+  if (useFallback) {
     const entry = fallbackCache.get(key)
     if (entry && Date.now() - entry.timestamp < entry.ttl) {
       return entry.data
@@ -59,12 +78,15 @@ async function cacheGet(prefix, params) {
     return null
   }
 
+  assertRedisAvailable()
+
   try {
     const data = await redisClient.get(key)
     return data ? JSON.parse(data) : null
   } catch (err) {
-    console.warn('[Redis] Get error:', err.message)
-    return null
+    console.error('[Redis] Get error:', err.message)
+    if (REDIS_FALLBACK) return null
+    throw new Error(`Redis cache get failed: ${err.message}`)
   }
 }
 
@@ -72,7 +94,7 @@ async function cacheSet(prefix, params, data, ttlMs) {
   const key = `${prefix}:${hashKey(params)}`
   const ttlSeconds = Math.ceil(ttlMs / 1000)
 
-  if (useFallback || !redisClient) {
+  if (useFallback) {
     fallbackCache.set(key, { data, timestamp: Date.now(), ttl: ttlMs })
     if (fallbackCache.size > 1000) {
       const oldKeys = Array.from(fallbackCache.keys()).slice(0, 200)
@@ -81,15 +103,19 @@ async function cacheSet(prefix, params, data, ttlMs) {
     return
   }
 
+  assertRedisAvailable()
+
   try {
     await redisClient.set(key, JSON.stringify(data), 'EX', ttlSeconds)
   } catch (err) {
-    console.warn('[Redis] Set error:', err.message)
+    console.error('[Redis] Set error:', err.message)
+    if (REDIS_FALLBACK) return
+    throw new Error(`Redis cache set failed: ${err.message}`)
   }
 }
 
 async function cacheDel(pattern) {
-  if (useFallback || !redisClient) {
+  if (useFallback) {
     for (const key of fallbackCache.keys()) {
       if (key.startsWith(pattern)) {
         fallbackCache.delete(key)
@@ -98,13 +124,17 @@ async function cacheDel(pattern) {
     return
   }
 
+  assertRedisAvailable()
+
   try {
     const keys = await redisClient.keys(`${pattern}*`)
     if (keys.length > 0) {
       await redisClient.del(keys)
     }
   } catch (err) {
-    console.warn('[Redis] Delete error:', err.message)
+    console.error('[Redis] Delete error:', err.message)
+    if (REDIS_FALLBACK) return
+    throw new Error(`Redis cache delete failed: ${err.message}`)
   }
 }
 
@@ -112,6 +142,7 @@ function getCacheStats() {
   return {
     usingFallback: useFallback,
     fallbackSize: fallbackCache.size,
+    redisReady: redisReady && !useFallback,
   }
 }
 
