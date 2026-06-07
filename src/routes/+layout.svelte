@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { getUserRole, setUserRole } from '$stores';
-	import { exportToPDF } from '$utils/export';
+	import { getUserRole, setUserRole } from '$lib/stores/index.svelte';
+	import { exportToPDF } from '$lib/utils/export';
 	import type { UserRole } from '$lib/types';
 	import type { Snippet } from 'svelte';
 

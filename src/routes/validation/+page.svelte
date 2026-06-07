@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { computeFunnelData, computeTurnoverRanking, detectAnomalies } from '$utils/analytics'
-	import { getFilter } from '$stores'
-	import { exportToCSV } from '$utils/export'
+	import { computeFunnelData, computeTurnoverRanking, detectAnomalies } from '$lib/utils/analytics'
+	import { getFilter } from '$lib/stores/index.svelte'
+	import { exportToCSV } from '$lib/utils/export'
 	import type { ValidationRule, DrillDownPath } from '$lib/types'
 
 	interface ValidationResult {

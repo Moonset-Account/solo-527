@@ -3,7 +3,7 @@
 		getFilter,
 		setFilter,
 		resetFilter
-	} from '$stores';
+	} from '$lib/stores/index.svelte';
 	import {
 		computeFunnelData,
 		computeTurnoverRanking,
@@ -11,7 +11,7 @@
 		computeReplenishment,
 		computeNearExpiryAlerts,
 		detectAnomalies
-	} from '$utils/analytics';
+	} from '$lib/utils/analytics';
 	import {
 		allSkuIds,
 		allSupplierIds,

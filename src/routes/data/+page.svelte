@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { parseCSV } from '$utils/import'
+	import { parseCSV } from '$lib/utils/import'
 	import { dataDictionary } from '$lib/data/data-dictionary'
-	import { getUserRole, setUserRole } from '$stores'
+	import { getUserRole, setUserRole } from '$lib/stores/index.svelte'
 	import type { DataDictionaryEntry, ImportResult, UserRole } from '$lib/types'
 
 	type TabKey = 'import' | 'dictionary' | 'missing' | 'permission'

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { computeWeeklyReport, detectAnomalies } from '$utils/analytics'
-	import { getFilter } from '$stores'
-	import { exportToPDF, exportToImage } from '$utils/export'
+	import { computeWeeklyReport, detectAnomalies } from '$lib/utils/analytics'
+	import { getFilter } from '$lib/stores/index.svelte'
+	import { exportToPDF, exportToImage } from '$lib/utils/export'
 	import type { WeeklyReport } from '$lib/types'
 
 	let reports = $state<WeeklyReport[]>([])
