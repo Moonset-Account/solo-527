@@ -215,6 +215,7 @@ export function generateWorkOrders(count: number = 120): WorkOrder[] {
   for (let i = 0; i < count; i++) {
     const building = randomPick(BUILDINGS);
     const supplier = randomPick(SUPPLIERS);
+    const roomNo = `${randomInt(1, 30)}${String.fromCharCode(65 + randomInt(0, 3))}`;
     const createdAt = randomDate(90);
     const isHoliday = isWorkHoliday(createdAt);
     
@@ -224,8 +225,23 @@ export function generateWorkOrders(count: number = 120): WorkOrder[] {
     const completeHours = randomInt(1, 8);
     const completedAt = dayjs(respondedAt).add(completeHours, "hour").toDate();
     
-    const isRepeat = Math.random() < 0.1;
-    const parentOrder = isRepeat && i > 5 ? orders[i - randomInt(3, 8)] : null;
+    const canBeRepeat = i > 10;
+    const isRepeat = canBeRepeat && Math.random() < 0.12;
+    
+    let parentOrder: WorkOrder | null = null;
+    if (isRepeat && canBeRepeat) {
+      const lookBack = Math.min(i - 1, randomInt(5, 20));
+      const candidateOrders = orders.slice(0, i - 1).filter(
+        (o) => o.buildingId === building.id && o.roomNo.startsWith(roomNo.charAt(0) || "")
+      );
+      if (candidateOrders.length > 0) {
+        parentOrder = candidateOrders[randomInt(0, candidateOrders.length - 1)];
+      } else if (orders.slice(0, i - 1).length > 0) {
+        parentOrder = orders[randomInt(0, Math.min(i - 1, lookBack))];
+      }
+    }
+    
+    const finalIsRepeat = isRepeat && parentOrder !== null;
     
     const statusWeights = [0.05, 0.1, 0.15, 0.6, 0.05, 0.05];
     const statuses: WorkOrder["status"][] = [
@@ -270,11 +286,11 @@ export function generateWorkOrders(count: number = 120): WorkOrder[] {
       orderNo: generateOrderNo(),
       buildingId: building.id,
       buildingName: building.name,
-      roomNo: `${randomInt(1, 30)}${String.fromCharCode(65 + randomInt(0, 3))}`,
+      roomNo,
       roomType: randomPick(ROOM_TYPES),
-      repairType: randomPick(REPAIR_TYPES),
-      supplierId: supplier.id,
-      supplierName: supplier.name,
+      repairType: finalIsRepeat && parentOrder ? parentOrder.repairType : randomPick(REPAIR_TYPES),
+      supplierId: finalIsRepeat && parentOrder ? parentOrder.supplierId : supplier.id,
+      supplierName: finalIsRepeat && parentOrder ? parentOrder.supplierName : supplier.name,
       status,
       createdAt,
       respondedAt: status !== "pending" ? respondedAt : undefined,
@@ -283,7 +299,7 @@ export function generateWorkOrders(count: number = 120): WorkOrder[] {
           ? completedAt
           : undefined,
       responseTime: calculateResponseTime(createdAt, respondedAt),
-      isRepeat,
+      isRepeat: finalIsRepeat,
       parentOrderId: parentOrder?.id,
       parentOrderNo: parentOrder?.orderNo,
       isHoliday,
@@ -326,7 +342,7 @@ export function getMetricsSummary(orders: WorkOrder[]): MetricsSummary {
   const nonHolidayOrders = validOrders.filter((o) => !o.isHoliday);
   
   const totalOrders = orders.length;
-  const repeatCount = orders.filter((o) => o.isRepeat).length;
+  const repeatCount = orders.filter((o) => o.isRepeat && o.parentOrderId).length;
   const repeatRate = totalOrders > 0 ? (repeatCount / totalOrders) * 100 : 0;
 
   const responseTimes = nonHolidayOrders

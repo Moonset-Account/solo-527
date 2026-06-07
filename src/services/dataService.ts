@@ -1,18 +1,13 @@
 import { WorkOrder, Supplier, FilterOptions, MetricsSummary, Building } from "@/types";
 import { MOCK_WORK_ORDERS, MOCK_SUPPLIERS, MOCK_BUILDINGS } from "@/mock/data";
 import { calculateResponseTime, isWorkHoliday, formatDuration } from "@/lib/utils";
+import { supplierMetricsCache, buildingMetricsCache } from "@/lib/cache";
 import dayjs from "dayjs";
-
-// 供应商维度缓存（模拟 Redis 缓存）
-const supplierCache = new Map<string, {
-  data: Supplier & MetricsSummary;
-  timestamp: number;
-}>();
-
-const CACHE_TTL = 60 * 60 * 1000; // 1小时
 
 // 工单生命周期清洗服务
 export function cleanWorkOrderLifecycle(orders: WorkOrder[]): WorkOrder[] {
+  const orderIdMap = new Map(orders.map((o) => [o.id, o]));
+
   return orders.map((order) => {
     const cleaned = { ...order };
 
@@ -20,7 +15,16 @@ export function cleanWorkOrderLifecycle(orders: WorkOrder[]): WorkOrder[] {
     cleaned.isHoliday = isWorkHoliday(order.createdAt);
 
     if (order.parentOrderId) {
-      cleaned.isRepeat = true;
+      const parentExists = orderIdMap.has(order.parentOrderId);
+      if (parentExists) {
+        cleaned.isRepeat = true;
+      } else {
+        cleaned.isRepeat = false;
+        cleaned.parentOrderId = undefined;
+        cleaned.parentOrderNo = undefined;
+      }
+    } else {
+      cleaned.isRepeat = false;
     }
 
     return cleaned;
@@ -55,11 +59,11 @@ export function filterWorkOrders(
   });
 }
 
-// 供应商维度聚合（带缓存）
+// 供应商维度聚合（带 LRU 缓存）
 export function getSupplierMetrics(supplierId: string): (Supplier & MetricsSummary) | null {
-  const cached = supplierCache.get(supplierId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+  const cached = supplierMetricsCache.get(supplierId);
+  if (cached) {
+    return cached;
   }
 
   const supplier = MOCK_SUPPLIERS.find((s) => s.id === supplierId);
@@ -69,21 +73,17 @@ export function getSupplierMetrics(supplierId: string): (Supplier & MetricsSumma
   const metrics = calculateMetrics(orders);
 
   const result = { ...supplier, ...metrics };
-
-  supplierCache.set(supplierId, {
-    data: result,
-    timestamp: Date.now(),
-  });
+  supplierMetricsCache.set(supplierId, result);
 
   return result;
 }
 
-// 获取所有供应商指标（带缓存）
+// 获取所有供应商指标（带 LRU 缓存）
 export function getAllSupplierMetrics(): (Supplier & MetricsSummary)[] {
   return MOCK_SUPPLIERS.map((s) => {
     const cached = getSupplierMetrics(s.id);
     return cached || (s as Supplier & MetricsSummary);
-  });
+  }).sort((a, b) => b.repeatRate - a.repeatRate);
 }
 
 // 计算指标汇总
@@ -95,7 +95,7 @@ export function calculateMetrics(orders: WorkOrder[]): MetricsSummary {
   const nonHolidayOrders = validOrders.filter((o) => !o.isHoliday);
 
   const totalOrders = orders.length;
-  const repeatCount = orders.filter((o) => o.isRepeat).length;
+  const repeatCount = orders.filter((o) => o.isRepeat && o.parentOrderId).length;
   const repeatRate = totalOrders > 0 ? (repeatCount / totalOrders) * 100 : 0;
 
   const responseTimes = nonHolidayOrders
@@ -135,13 +135,19 @@ export function calculateMetrics(orders: WorkOrder[]): MetricsSummary {
   };
 }
 
-// PostGIS 点位聚合模拟（按楼栋聚合）
+// PostGIS 点位聚合模拟（按楼栋聚合，带缓存）
 export function aggregateBuildingPoints(orders: WorkOrder[]): (Building & {
   orderCount: number;
   repeatCount: number;
   timeoutCount: number;
   repeatRate: number;
 })[] {
+  const cacheKey = `building_metrics_${orders.length}_${orders[0]?.id || 'empty'}`;
+  const cached = buildingMetricsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const buildingMap = new Map<string, {
     count: number;
     repeat: number;
@@ -151,12 +157,12 @@ export function aggregateBuildingPoints(orders: WorkOrder[]): (Building & {
   orders.forEach((order) => {
     const current = buildingMap.get(order.buildingId) || { count: 0, repeat: 0, timeout: 0 };
     current.count++;
-    if (order.isRepeat) current.repeat++;
+    if (order.isRepeat && order.parentOrderId) current.repeat++;
     if (order.responseTime && order.responseTime > 120 && !order.isHoliday) current.timeout++;
     buildingMap.set(order.buildingId, current);
   });
 
-  return MOCK_BUILDINGS.map((building) => {
+  const result = MOCK_BUILDINGS.map((building) => {
     const stats = buildingMap.get(building.id) || { count: 0, repeat: 0, timeout: 0 };
     return {
       ...building,
@@ -166,6 +172,9 @@ export function aggregateBuildingPoints(orders: WorkOrder[]): (Building & {
       repeatRate: stats.count > 0 ? Math.round((stats.repeat / stats.count) * 1000) / 10 : 0,
     };
   });
+
+  buildingMetricsCache.set(cacheKey, result);
+  return result;
 }
 
 // 复修工单关联查询
@@ -241,5 +250,6 @@ export function preloadSupplierCache() {
   MOCK_SUPPLIERS.forEach((s) => {
     getSupplierMetrics(s.id);
   });
-  console.log("供应商维度缓存已预热完成");
+  const stats = supplierMetricsCache.getStats();
+  console.log(`✓ 供应商维度缓存已预热完成，共 ${stats.size} 条记录`);
 }

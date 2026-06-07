@@ -49,7 +49,7 @@ export interface WorkOrder {
   materials: MaterialItem[];
   photos: string[];
   appealRecords: AppealRecord[];
-  location: {
+  location?: {
     lng: number;
     lat: number;
   };
