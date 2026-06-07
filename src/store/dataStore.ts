@@ -173,18 +173,46 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const prevWeekStartMs = prevWeekStart.getTime()
     const prevWeekEndMs = prevWeekEnd.getTime()
 
-    const thisWeekRides = state.rides.filter((r) => {
-      const t = new Date(r.startTime).getTime()
-      return t >= weekStartMs && t <= weekEndMs
-    })
-    const prevWeekRides = state.rides.filter((r) => {
-      const t = new Date(r.startTime).getTime()
-      return t >= prevWeekStartMs && t <= prevWeekEndMs
-    })
+    const thisWeekFiltered = applyFilters(
+      {
+        stations: state.stations,
+        rides: state.rides.filter((r) => {
+          const t = new Date(r.startTime).getTime()
+          return t >= weekStartMs && t <= weekEndMs
+        }),
+        dispatches: state.dispatches.filter((d) => {
+          const t = new Date(d.dispatchTime).getTime()
+          return t >= weekStartMs && t <= weekEndMs
+        }),
+        repairs: state.repairs,
+        weather: state.weather,
+      },
+      filterState,
+    )
+
+    const prevWeekFiltered = applyFilters(
+      {
+        stations: state.stations,
+        rides: state.rides.filter((r) => {
+          const t = new Date(r.startTime).getTime()
+          return t >= prevWeekStartMs && t <= prevWeekEndMs
+        }),
+        dispatches: state.dispatches.filter((d) => {
+          const t = new Date(d.dispatchTime).getTime()
+          return t >= prevWeekStartMs && t <= prevWeekEndMs
+        }),
+        repairs: state.repairs,
+        weather: state.weather,
+      },
+      filterState,
+    )
+
+    const thisWeekRideCount = thisWeekFiltered.rides.length
+    const prevWeekRideCount = prevWeekFiltered.rides.length
 
     const ridesWoW =
-      prevWeekRides.length > 0
-        ? Math.round(((thisWeekRides.length - prevWeekRides.length) / prevWeekRides.length) * 10000) / 100
+      prevWeekRideCount > 0
+        ? Math.round(((thisWeekRideCount - prevWeekRideCount) / prevWeekRideCount) * 10000) / 100
         : 0
 
     const firstRideDate = state.rides.length > 0
@@ -199,28 +227,34 @@ export const useDataStore = create<DataStore>()((set, get) => ({
     const yoyStartMs = yoyStart.getTime()
     const yoyEndMs = yoyEnd.getTime()
 
-    const yoyPeriodRides = state.rides.filter((r) => {
-      const t = new Date(r.startTime).getTime()
-      return t >= yoyStartMs && t <= yoyEndMs
-    })
+    const yoyFiltered = applyFilters(
+      {
+        stations: state.stations,
+        rides: state.rides.filter((r) => {
+          const t = new Date(r.startTime).getTime()
+          return t >= yoyStartMs && t <= yoyEndMs
+        }),
+        dispatches: state.dispatches.filter((d) => {
+          const t = new Date(d.dispatchTime).getTime()
+          return t >= yoyStartMs && t <= yoyEndMs
+        }),
+        repairs: state.repairs,
+        weather: state.weather,
+      },
+      filterState,
+    )
 
     const ridesYoY =
-      yoyPeriodRides.length > 0
-        ? Math.round(((thisWeekRides.length - yoyPeriodRides.length) / yoyPeriodRides.length) * 10000) / 100
+      yoyFiltered.rides.length > 0
+        ? Math.round(((thisWeekRideCount - yoyFiltered.rides.length) / yoyFiltered.rides.length) * 10000) / 100
         : 0
 
-    const thisWeekDispatches = state.filteredDispatches.filter((d) => {
-      const t = new Date(d.dispatchTime).getTime()
-      return t >= weekStartMs && t <= weekEndMs
-    })
-    const prevWeekDispatches = state.dispatches.filter((d) => {
-      const t = new Date(d.dispatchTime).getTime()
-      return t >= prevWeekStartMs && t <= prevWeekEndMs
-    })
+    const thisWeekDispatchCount = thisWeekFiltered.dispatches.length
+    const prevWeekDispatchCount = prevWeekFiltered.dispatches.length
 
     const dispatchWoW =
-      prevWeekDispatches.length > 0
-        ? Math.round(((thisWeekDispatches.length - prevWeekDispatches.length) / prevWeekDispatches.length) * 10000) / 100
+      prevWeekDispatchCount > 0
+        ? Math.round(((thisWeekDispatchCount - prevWeekDispatchCount) / prevWeekDispatchCount) * 10000) / 100
         : 0
 
     const avgAvailability =
@@ -229,14 +263,10 @@ export const useDataStore = create<DataStore>()((set, get) => ({
           state.filteredStations.length
         : 0
 
-    const prevWeekStations = computeFlows(
-      state.stations,
-      prevWeekRides,
-    )
     const prevAvgAvailability =
-      prevWeekStations.length > 0
-        ? prevWeekStations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
-          prevWeekStations.length
+      prevWeekFiltered.stations.length > 0
+        ? prevWeekFiltered.stations.reduce((sum, s) => sum + s.availableBikesForDispatch, 0) /
+          prevWeekFiltered.stations.length
         : 0
 
     const availabilityWoW =

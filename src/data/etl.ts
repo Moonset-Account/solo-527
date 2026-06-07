@@ -150,21 +150,12 @@ export function applyFilters(
   filters: FilterState,
 ) {
   let { stations, rides, dispatches } = data
-  const { repairs, weather } = data
+  const { weather } = data
 
   if (filters.stationIds.length > 0) {
     stations = stations.filter((s) =>
       filters.stationIds.includes(s.id),
     )
-  }
-
-  if (filters.routeIds.length > 0) {
-    rides = rides.filter((r) =>
-      filters.routeIds.includes(`${r.originStationId}->${r.destStationId}`),
-    )
-  }
-
-  if (filters.stationIds.length > 0) {
     rides = rides.filter(
       (r) =>
         filters.stationIds.includes(r.originStationId) ||
@@ -178,6 +169,9 @@ export function applyFilters(
   }
 
   if (filters.routeIds.length > 0) {
+    rides = rides.filter((r) =>
+      filters.routeIds.includes(`${r.originStationId}->${r.destStationId}`),
+    )
     const routeStationPairs = new Set(
       filters.routeIds.map((rid) => {
         const parts = rid.split('->')
@@ -224,10 +218,19 @@ export function applyFilters(
   }
 
   if (filters.weatherConditions.length > 0) {
-    const weatherMap = new Map(weather.map((w) => [w.id, w.condition]))
+    const weatherByDate = new Map<string, string>()
+    for (const w of weather) {
+      weatherByDate.set(w.date, w.condition)
+    }
     rides = rides.filter((r) => {
-      const condition = weatherMap.get(r.weatherId)
-      return condition != null && filters.weatherConditions.includes(condition as string)
+      const rideDate = r.startTime.slice(0, 10)
+      const condition = weatherByDate.get(rideDate)
+      return condition != null && filters.weatherConditions.includes(condition)
+    })
+    dispatches = dispatches.filter((d) => {
+      const dispatchDate = d.dispatchTime.slice(0, 10)
+      const condition = weatherByDate.get(dispatchDate)
+      return condition != null && filters.weatherConditions.includes(condition)
     })
   }
 
@@ -238,12 +241,31 @@ export function applyFilters(
   }
 
   if (filters.vehicleStatus === 'dispatchable') {
+    rides = rides.filter((r) => {
+      const oDispatchable = stations.find((s) => s.id === r.originStationId)
+      const dDispatchable = stations.find((s) => s.id === r.destStationId)
+      return (oDispatchable?.availableBikesForDispatch ?? 0) > 0 || (dDispatchable?.availableBikesForDispatch ?? 0) > 0
+    })
+    dispatches = dispatches.filter((d) => {
+      const fromStation = stations.find((s) => s.id === d.fromStationId)
+      const toStation = stations.find((s) => s.id === d.toStationId)
+      return (fromStation?.availableBikesForDispatch ?? 0) > 0 || (toStation?.availableBikesForDispatch ?? 0) > 0
+    })
     stations = stations.map((s) => ({
       ...s,
       availableBikes: s.availableBikesForDispatch,
       bikesInRepair: 0,
     }))
   } else if (filters.vehicleStatus === 'in_repair') {
+    const repairStationIds = new Set(
+      stations.filter((s) => s.bikesInRepair > 0).map((s) => s.id),
+    )
+    rides = rides.filter((r) =>
+      repairStationIds.has(r.originStationId) || repairStationIds.has(r.destStationId),
+    )
+    dispatches = dispatches.filter((d) =>
+      repairStationIds.has(d.fromStationId) || repairStationIds.has(d.toStationId),
+    )
     stations = stations
       .filter((s) => s.bikesInRepair > 0)
       .map((s) => ({
@@ -255,7 +277,7 @@ export function applyFilters(
 
   stations = computeFlows(stations, rides)
 
-  return { stations, rides, dispatches, repairs, weather }
+  return { stations, rides, dispatches, repairs: data.repairs, weather }
 }
 
 export function computeAlerts(

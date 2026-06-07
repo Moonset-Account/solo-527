@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, TrendingDown, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useDataStore } from '@/store/dataStore';
 import ExportMenu from '@/components/ExportMenu';
@@ -9,12 +9,13 @@ import type { WeeklyReportData } from '@/types';
 export default function Report() {
   const loadData = useDataStore((s) => s.loadData);
   const isDataLoaded = useDataStore((s) => s.isDataLoaded);
-  const isLoading = useDataStore((s) => s.isLoading);
   const generateWeeklyReport = useDataStore((s) => s.generateWeeklyReport);
   const [report, setReport] = useState<WeeklyReportData | null>(null)
+  const loadInitiated = useRef(false)
 
   useEffect(() => {
-    if (!isDataLoaded) {
+    if (!isDataLoaded && !loadInitiated.current) {
+      loadInitiated.current = true
       loadData()
     }
   }, [isDataLoaded, loadData])
@@ -26,17 +27,13 @@ export default function Report() {
     }
   }, [isDataLoaded, generateWeeklyReport, report])
 
-  if (!isDataLoaded && isLoading) {
+  if (!isDataLoaded) {
     return (
       <div className="min-h-screen bg-[#1a1d23] text-white flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[#00e5c7]" />
         <span className="ml-2 text-white/60">加载数据中...</span>
       </div>
     )
-  }
-
-  if (!isDataLoaded && !isLoading) {
-    return <Navigate to="/dashboard" replace />
   }
 
   if (!report) return null;
