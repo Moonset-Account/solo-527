@@ -35,7 +35,8 @@ export function desensitizeRecord(record: VisitRecord, role: UserRole): VisitRec
 		isAnomaly: false
 	};
 
-	if (role !== 'analyst' && role !== 'manager') {
+	const roleStr = role as string;
+	if (roleStr !== 'analyst' && roleStr !== 'manager') {
 		desensitized.registerTime = record.registerTime
 			? new Date(new Date(record.registerTime).setSeconds(0, 0))
 			: null;
@@ -106,7 +107,7 @@ export function checkPermission(role: UserRole, permission: string): boolean {
 }
 
 export function getCurrentUserRole(): UserRole {
-	return 'analyst';
+	return 'public';
 }
 
 export function validateDataQuality(records: VisitRecord[]): {

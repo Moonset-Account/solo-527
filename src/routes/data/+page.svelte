@@ -24,6 +24,7 @@
 	let anomalyStats: Record<string, number> = {};
 	let loadingAnomalies = false;
 	let selectedReasonFilter = 'all';
+	let selectedStatusFilter = 'all';
 	let annotationText: Record<string, string> = {};
 	let savingAnnotation: string | null = null;
 	let saveSuccess: string | null = null;
@@ -134,9 +135,14 @@
 		await saveAnnotation(record);
 	}
 
-	$: filteredAnomalies = selectedReasonFilter === 'all'
-		? anomalyRecords
-		: anomalyRecords.filter((r) => (r.anomalyReason || '未知异常') === selectedReasonFilter);
+	$: filteredAnomalies = anomalyRecords.filter((r) => {
+		if (selectedReasonFilter !== 'all' && (r.anomalyReason || '未知异常') !== selectedReasonFilter) {
+			return false;
+		}
+		if (selectedStatusFilter === 'anomaly' && !r.isAnomaly) return false;
+		if (selectedStatusFilter === 'excluded' && r.isAnomaly) return false;
+		return true;
+	});
 
 	onMount(() => {
 		loadDictionary();
@@ -396,7 +402,14 @@
 						<span>异常数据列表</span>
 					</h3>
 					<div class="flex items-center space-x-2">
-						<Filter class="w-4 h-4 text-gray-400" />
+						<select
+							class="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
+							bind:value={selectedStatusFilter}
+						>
+							<option value="all">全部状态</option>
+							<option value="anomaly">仅异常</option>
+							<option value="excluded">已排除</option>
+						</select>
 						<select
 							class="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
 							bind:value={selectedReasonFilter}

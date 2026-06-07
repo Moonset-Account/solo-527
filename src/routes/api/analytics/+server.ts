@@ -1,6 +1,12 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { getAllRecords } from '$lib/server/db';
+import {
+	getAllRecords,
+	getDuckDBOverview,
+	getDuckDBDepartmentStats,
+	getDuckDBIntradayTrend,
+	isUsingDuckDB
+} from '$lib/server/db';
 import { desensitizeRecords, getCurrentUserRole } from '$lib/server/security';
 import {
 	filterRecords,
@@ -16,7 +22,8 @@ import type { FilterParams } from '$types';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const role = getCurrentUserRole();
-	let allRecords = await getAllRecords();
+	const allRecords = await getAllRecords();
+	const duckdbAvailable = isUsingDuckDB();
 
 	const departments = url.searchParams.getAll('departments');
 	const doctors = url.searchParams.getAll('doctors');
@@ -39,10 +46,32 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	const selectedNodes = filters.processNodes as string[] | undefined;
 
-	const overview = calculateOverview(filteredRecords, selectedNodes);
+	let overview;
+	let deptCompare;
+	let intraday;
+
+	if (duckdbAvailable && !selectedNodes) {
+		const duckOverview = await getDuckDBOverview(filters);
+		const duckDept = await getDuckDBDepartmentStats(filters);
+		const duckIntraday = await getDuckDBIntradayTrend(filters);
+
+		overview = duckOverview || calculateOverview(filteredRecords, selectedNodes);
+		deptCompare = duckDept.length > 0 ? duckDept : calculateDepartmentComparison(filteredRecords);
+		intraday = duckIntraday.length > 0
+			? duckIntraday.map((d: any) => ({
+					hour: d.hour,
+					timeLabel: `${String(d.hour).padStart(2, '0')}:00`,
+					patientCount: d.patientCount,
+					avgWaitTime: Math.round(d.avgWaitTime || 0)
+				}))
+			: calculateIntradayTrend(filteredRecords);
+	} else {
+		overview = calculateOverview(filteredRecords, selectedNodes);
+		deptCompare = calculateDepartmentComparison(filteredRecords);
+		intraday = calculateIntradayTrend(filteredRecords);
+	}
+
 	const sankey = calculateSankeyData(filteredRecords, selectedNodes);
-	const deptCompare = calculateDepartmentComparison(filteredRecords);
-	const intraday = calculateIntradayTrend(filteredRecords);
 
 	const allWaitTimes = getAllWaitTimes(filteredRecords, selectedNodes);
 	const nodeStats: Record<string, any> = {};
@@ -61,6 +90,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		nodeStats,
 		distributions,
 		recordCount: filteredRecords.length,
-		filters
+		filters,
+		usingDuckDB: duckdbAvailable
 	});
 };

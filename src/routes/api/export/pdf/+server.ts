@@ -32,7 +32,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	records = filterRecords(records, filters);
 	records = desensitizeRecords(records, role);
 
-	const overview = calculateOverview(records);
+	const selectedNodes = filters.processNodes as string[] | undefined;
+	const overview = calculateOverview(records, selectedNodes);
 	const deptCompare = calculateDepartmentComparison(records);
 
 	const pdfContent = generatePDFContent(overview, deptCompare, includeCharts, includeDefinitions, filters);
@@ -71,10 +72,10 @@ function generatePDFContent(
 	pageContent += `BT\n/F1 12 Tf\n50 730 Td\n(一、总体概览) Tj\nET\n`;
 
 	const metrics = [
-		{ label: '总就诊人次', value: overview?.totalVisits || 0 },
-		{ label: '平均总等待时间', value: `${overview?.avgTotalWait || 0} 分钟` },
-		{ label: '中位等待时间', value: `${overview?.medianTotalWait || 0} 分钟` },
-		{ label: 'P95 等待时间', value: `${overview?.p95TotalWait || 0} 分钟` },
+		{ label: '总就诊人次', value: overview?.totalPatients || 0 },
+		{ label: '平均总等待时间', value: `${Math.round(overview?.avgWaitTime || 0)} 分钟` },
+		{ label: '中位等待时间', value: `${Math.round(overview?.medianWaitTime || 0)} 分钟` },
+		{ label: 'P95 等待时间', value: `${Math.round(overview?.p95WaitTime || 0)} 分钟` },
 		{ label: '异常记录数', value: overview?.anomalyCount || 0 }
 	];
 
@@ -91,7 +92,7 @@ function generatePDFContent(
 	const topDepts = [...deptCompare].sort((a, b) => b.avgWaitTime - a.avgWaitTime).slice(0, 5);
 	topDepts.forEach((dept, i) => {
 		const y = yPos - i * 20;
-		pageContent += `BT\n/F1 9 Tf\n70 ${y} Td\n(${i + 1}. ${dept.department}: ${dept.avgWaitTime}分钟 (${dept.visitCount}人次)) Tj\nET\n`;
+		pageContent += `BT\n/F1 9 Tf\n70 ${y} Td\n(${i + 1}. ${dept.department}: ${Math.round(dept.avgWaitTime)}分钟 (${dept.patientCount}人次)) Tj\nET\n`;
 	});
 
 	if (includeDefinitions) {

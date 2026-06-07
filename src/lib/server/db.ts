@@ -1,5 +1,19 @@
-import type { VisitRecord, FilterParams, OverviewStats, DepartmentCompareItem, IntradayTrendPoint } from '$types';
+import type { VisitRecord, FilterParams } from '$types';
 import { generateMockData } from '$lib/mockData';
+
+function convertBigInts(obj: any): any {
+	if (obj === null || obj === undefined) return obj;
+	if (typeof obj === 'bigint') return Number(obj);
+	if (Array.isArray(obj)) return obj.map(convertBigInts);
+	if (typeof obj === 'object') {
+		const result: any = {};
+		for (const key of Object.keys(obj)) {
+			result[key] = convertBigInts(obj[key]);
+		}
+		return result;
+	}
+	return obj;
+}
 
 let inMemoryData: VisitRecord[] = [];
 let isInitialized = false;
@@ -93,48 +107,119 @@ export async function queryWithDuckDB(sql: string, params: any[] = []): Promise<
 		return [];
 	}
 	try {
-		return await duckDb.all(sql, ...params);
+		const result = await duckDb.all(sql, ...params);
+		return convertBigInts(result);
 	} catch (e) {
 		console.warn('DuckDB query failed:', (e as Error).message);
 		return [];
 	}
 }
 
-export async function getDuckDBOverview(): Promise<any> {
+export async function getDuckDBDepartmentStats(filters?: Partial<FilterParams>): Promise<any[]> {
+	if (!useDuckDB || !duckDb) return [];
+
+	try {
+		let whereClauses: string[] = [];
+		let params: any[] = [];
+
+		if (filters?.departments && filters.departments.length > 0) {
+			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
+			params.push(...filters.departments);
+		}
+		if (filters?.excludeAnomalies) {
+			whereClauses.push('isAnomaly = false');
+		}
+
+		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+		const result = await duckDb.all(`
+			SELECT
+				department,
+				CAST(COUNT(*) AS INTEGER) as patientCount,
+				AVG(totalWait) as avgWaitTime,
+				PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY totalWait) as medianWaitTime
+			FROM visits
+			${whereSql}
+			GROUP BY department
+			ORDER BY avgWaitTime DESC
+		`, ...params);
+		return convertBigInts(result);
+	} catch (e) {
+		console.warn('DuckDB department stats query failed:', (e as Error).message);
+		return [];
+	}
+}
+
+export async function getDuckDBOverview(filters?: Partial<FilterParams>): Promise<any | null> {
 	if (!useDuckDB || !duckDb) return null;
 
 	try {
-		const result = await duckDb.all(`
+		let whereClauses: string[] = [];
+		let params: any[] = [];
+
+		if (filters?.departments && filters.departments.length > 0) {
+			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
+			params.push(...filters.departments);
+		}
+		if (filters?.excludeAnomalies) {
+			whereClauses.push('isAnomaly = false');
+		}
+
+		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+		const results = await duckDb.all(`
 			SELECT
-				COUNT(*) as totalRecords,
-				AVG(totalWait) as avgTotalWait,
-				AVG(waitCall) as avgWaitCall,
-				SUM(CASE WHEN isAnomaly THEN 1 ELSE 0 END) as anomalyCount
+				CAST(COUNT(*) AS INTEGER) as totalPatients,
+				AVG(totalWait) as avgWaitTime,
+				PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY totalWait) as medianWaitTime,
+				PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY totalWait) as p95WaitTime,
+				CAST(SUM(CASE WHEN isAnomaly THEN 1 ELSE 0 END) AS INTEGER) as anomalyCount,
+				MIN(registerTime) as minDate,
+				MAX(registerTime) as maxDate
 			FROM visits
-		`);
-		return result[0];
+			${whereSql}
+		`, ...params);
+
+		if (results && results.length > 0) {
+			return convertBigInts(results[0]);
+		}
+		return null;
 	} catch (e) {
 		console.warn('DuckDB overview query failed:', (e as Error).message);
 		return null;
 	}
 }
 
-export async function getDuckDBDepartmentStats(): Promise<any[]> {
+export async function getDuckDBIntradayTrend(filters?: Partial<FilterParams>): Promise<any[]> {
 	if (!useDuckDB || !duckDb) return [];
 
 	try {
-		return await duckDb.all(`
+		let whereClauses: string[] = [];
+		let params: any[] = [];
+
+		if (filters?.departments && filters.departments.length > 0) {
+			whereClauses.push(`department IN (${filters.departments.map(() => '?').join(',')})`);
+			params.push(...filters.departments);
+		}
+		if (filters?.excludeAnomalies) {
+			whereClauses.push('isAnomaly = false');
+		}
+
+		const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+		const result = await duckDb.all(`
 			SELECT
-				department,
-				COUNT(*) as visitCount,
-				AVG(totalWait) as avgWaitTime,
-				PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY totalWait) as medianWaitTime
+				CAST(EXTRACT(HOUR FROM registerTime) AS INTEGER) as hour,
+				CAST(COUNT(*) AS INTEGER) as patientCount,
+				AVG(totalWait) as avgWaitTime
 			FROM visits
-			GROUP BY department
-			ORDER BY avgWaitTime DESC
-		`);
+			${whereSql}
+			GROUP BY EXTRACT(HOUR FROM registerTime)
+			ORDER BY hour
+		`, ...params);
+		return convertBigInts(result);
 	} catch (e) {
-		console.warn('DuckDB department stats query failed:', (e as Error).message);
+		console.warn('DuckDB intraday trend query failed:', (e as Error).message);
 		return [];
 	}
 }
@@ -177,7 +262,7 @@ export async function getAnomalyRecords(): Promise<VisitRecord[]> {
 	if (!isInitialized) {
 		await initData();
 	}
-	return inMemoryData.filter((r) => r.isAnomaly);
+	return inMemoryData.filter((r) => r.isAnomaly || r.anomalyReason);
 }
 
 export async function updateAnomalyAnnotation(visitId: string, annotation: string, isAnomaly: boolean): Promise<void> {
