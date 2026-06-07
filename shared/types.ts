@@ -89,6 +89,15 @@ export interface DataQualityStatus {
     athletes: number;
   };
   etlStatus: 'running' | 'completed' | 'failed' | 'unknown';
+  pendingRawRecords?: number;
+  failedRawRecords?: number;
+  lastEtlError?: string;
+  missingFields?: {
+    trainingHeartRate: number;
+    trainingPace: number;
+    recoverySleep: number;
+    strength1Rm: number;
+  };
 }
 
 export interface RadarData {
