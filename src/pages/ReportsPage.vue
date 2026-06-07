@@ -14,12 +14,17 @@
           end-placeholder="结束日期"
           size="default"
           value-format="YYYY-MM-DD"
+          @change="handleDateChange"
         />
-        <el-button type="primary" @click="exportAllOrders">
+        <el-button :loading="loading" type="primary" @click="exportAllOrders">
           <span class="flex items-center gap-1">
             <Download class="w-4 h-4" />
             导出全量报表
           </span>
+        </el-button>
+        <el-button :loading="loading" @click="refreshData">
+          <RefreshCw class="w-4 h-4 mr-1" />
+          刷新
         </el-button>
       </div>
     </div>
@@ -46,6 +51,9 @@
             <AlertTriangle class="w-5 h-5 text-[#FF7D00]" />
           </div>
         </div>
+        <div class="stat-trend text-[#86909C]">
+          超时率 {{ totalOrders > 0 ? ((timeoutOrders / totalOrders) * 100).toFixed(1) : 0 }}%
+        </div>
       </div>
       <div class="stat-card">
         <div class="flex items-start justify-between">
@@ -57,6 +65,9 @@
             <RotateCcw class="w-5 h-5 text-[#F53F3F]" />
           </div>
         </div>
+        <div class="stat-trend text-[#86909C]">
+          退款率 {{ totalOrders > 0 ? ((refundOrders / totalOrders) * 100).toFixed(1) : 0 }}%
+        </div>
       </div>
       <div class="stat-card">
         <div class="flex items-start justify-between">
@@ -67,6 +78,9 @@
           <div class="w-10 h-10 rounded-lg bg-[#86909C]/10 flex items-center justify-center">
             <AlertCircle class="w-5 h-5 text-[#86909C]" />
           </div>
+        </div>
+        <div class="stat-trend text-[#86909C]">
+          不计入等待均值计算
         </div>
       </div>
     </div>
@@ -135,7 +149,7 @@
           </el-button>
         </div>
       </div>
-      <el-table :data="filteredTimeoutOrders" stripe style="width: 100%" max-height="400">
+      <el-table :data="filteredTimeoutOrders" stripe style="width: 100%" max-height="400" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="160" />
         <el-table-column prop="merchantName" label="商户名称" min-width="180" />
         <el-table-column prop="prepDuration" label="备餐时长" width="100" align="center">
@@ -150,7 +164,7 @@
             <span v-if="row.waitDuration !== undefined" :class="row.waitDuration > 10 ? 'text-[#FF7D00] font-medium' : 'text-[#00B42A]'">
               {{ row.waitDuration }} 分钟
             </span>
-            <span v-else class="text-[#86909C]">-</span>
+            <span v-else class="text-[#86909C]">不计入</span>
           </template>
         </el-table-column>
         <el-table-column prop="timeoutReason" label="超时原因" min-width="140" />
@@ -188,12 +202,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { WEATHER_OPTIONS, TIME_PERIOD_OPTIONS } from '@/constants'
 import { formatDateTime, exportToCSV, aggregateTimeoutReasons } from '@/utils/dataProcessor'
-import { merchantOrdersMap } from '@/services/mockData'
+import { ClickHouseService } from '@/services/clickhouse'
 import BaseChart from '@/components/BaseChart.vue'
 import {
   Download,
@@ -206,7 +220,8 @@ import {
   Cloud,
   Clock,
   FileText,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -217,33 +232,52 @@ const dateRange = ref<[string, string]>([
   new Date().toISOString().split('T')[0]
 ])
 const searchKeyword = ref('')
+const loading = ref(false)
+const allOrders = ref<any[]>([])
 
-const allOrders = computed(() => {
-  const orders: any[] = []
-  store.merchants.forEach(m => {
-    const mOrders = merchantOrdersMap[m.id] || []
-    mOrders.forEach((o: any) => {
-      orders.push({
-        ...o,
-        merchantName: m.name,
-        merchantId: m.id
-      })
+onMounted(async () => {
+  await loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  try {
+    await store.initialize()
+    allOrders.value = await ClickHouseService.getAllOrdersWithMerchantInfo()
+  } finally {
+    loading.value = false
+  }
+}
+
+async function refreshData() {
+  await loadData()
+}
+
+const filteredOrders = computed(() => {
+  let orders = allOrders.value
+  if (dateRange.value && dateRange.value[0] && dateRange.value[1]) {
+    const start = new Date(dateRange.value[0]).getTime()
+    const end = new Date(dateRange.value[1])
+    end.setHours(23, 59, 59, 999)
+    orders = orders.filter(o => {
+      const t = new Date(o.createTime).getTime()
+      return t >= start && t <= end.getTime()
     })
-  })
+  }
   return orders
 })
 
-const totalOrders = computed(() => allOrders.value.length)
-const timeoutOrders = computed(() => allOrders.value.filter(o => o.isTimeout).length)
-const refundOrders = computed(() => allOrders.value.filter(o => o.hasRefund).length)
-const dataGapOrders = computed(() => allOrders.value.filter(o => o.hasDataGap).length)
+const totalOrders = computed(() => filteredOrders.value.length)
+const timeoutOrders = computed(() => filteredOrders.value.filter(o => o.isTimeout).length)
+const refundOrders = computed(() => filteredOrders.value.filter(o => o.hasRefund).length)
+const dataGapOrders = computed(() => filteredOrders.value.filter(o => o.hasDataGap).length)
 
 const allTimeoutReasons = computed(() => {
-  return aggregateTimeoutReasons(allOrders.value)
+  return aggregateTimeoutReasons(filteredOrders.value)
 })
 
 const timeoutOrdersList = computed(() => {
-  return allOrders.value.filter(o => o.isTimeout || o.hasRefund)
+  return filteredOrders.value.filter(o => o.isTimeout || o.hasRefund)
 })
 
 const filteredTimeoutOrders = computed(() => {
@@ -299,7 +333,11 @@ const reasonBarOption = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' }
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any) => {
+        const p = params[0]
+        return `${p.name}<br/>超时订单：${p.value} 单`
+      }
     },
     grid: {
       left: '3%',
@@ -330,7 +368,14 @@ const reasonBarOption = computed(() => {
             borderRadius: [0, 4, 4, 0]
           }
         })),
-        barWidth: 16
+        barWidth: 16,
+        label: {
+          show: true,
+          position: 'right',
+          fontSize: 11,
+          color: '#4E5969',
+          formatter: '{c}单'
+        }
       }
     ]
   }
@@ -338,7 +383,7 @@ const reasonBarOption = computed(() => {
 
 const weatherBarOption = computed(() => {
   const weatherData: Record<string, { count: number; avgPrep: number; avgWait: number }> = {}
-  allOrders.value.forEach(o => {
+  filteredOrders.value.forEach(o => {
     if (!weatherData[o.weather]) {
       weatherData[o.weather] = { count: 0, avgPrep: 0, avgWait: 0 }
     }
@@ -350,9 +395,12 @@ const weatherBarOption = computed(() => {
   })
   Object.keys(weatherData).forEach(k => {
     const d = weatherData[k]
-    d.avgPrep = Math.round(d.avgPrep / d.count)
-    d.avgWait = Math.round(d.avgWait / d.count)
+    d.avgPrep = d.count > 0 ? Math.round(d.avgPrep / d.count) : 0
+    d.avgWait = d.count > 0 ? Math.round(d.avgWait / d.count) : 0
   })
+
+  const weatherOrder = ['sunny', 'rainy', 'hot', 'foggy', 'windy', 'snowy']
+  const sortedKeys = Object.keys(weatherData).sort((a, b) => weatherOrder.indexOf(a) - weatherOrder.indexOf(b))
 
   return {
     tooltip: { trigger: 'axis' },
@@ -364,7 +412,7 @@ const weatherBarOption = computed(() => {
     grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: Object.keys(weatherData).map(k => getWeatherLabel(k)),
+      data: sortedKeys.map(k => getWeatherLabel(k)),
       axisLine: { lineStyle: { color: '#E5E6EB' } },
       axisLabel: { color: '#86909C', fontSize: 12 }
     },
@@ -379,14 +427,14 @@ const weatherBarOption = computed(() => {
       {
         name: '备餐时长',
         type: 'bar',
-        data: Object.values(weatherData).map(d => d.avgPrep),
+        data: sortedKeys.map(k => weatherData[k].avgPrep),
         itemStyle: { color: '#165DFF', borderRadius: [4, 4, 0, 0] },
         barWidth: 20
       },
       {
         name: '等待时长',
         type: 'bar',
-        data: Object.values(weatherData).map(d => d.avgWait),
+        data: sortedKeys.map(k => weatherData[k].avgWait),
         itemStyle: { color: '#FF7D00', borderRadius: [4, 4, 0, 0] },
         barWidth: 20
       }
@@ -396,7 +444,7 @@ const weatherBarOption = computed(() => {
 
 const periodBarOption = computed(() => {
   const periodData: Record<string, { count: number; avgPrep: number; avgWait: number }> = {}
-  allOrders.value.forEach(o => {
+  filteredOrders.value.forEach(o => {
     if (!periodData[o.timePeriod]) {
       periodData[o.timePeriod] = { count: 0, avgPrep: 0, avgWait: 0 }
     }
@@ -408,8 +456,8 @@ const periodBarOption = computed(() => {
   })
   Object.keys(periodData).forEach(k => {
     const d = periodData[k]
-    d.avgPrep = Math.round(d.avgPrep / d.count)
-    d.avgWait = Math.round(d.avgWait / d.count)
+    d.avgPrep = d.count > 0 ? Math.round(d.avgPrep / d.count) : 0
+    d.avgWait = d.count > 0 ? Math.round(d.avgWait / d.count) : 0
   })
 
   const periodOrder = ['breakfast', 'lunch', 'afternoon', 'dinner', 'night', 'other']
@@ -479,10 +527,18 @@ function goToMerchant(id: string) {
 }
 
 function exportAllOrders() {
-  exportToCSV(allOrders.value, '全量订单报表.csv')
+  exportToCSV(filteredOrders.value, '全量订单报表.csv')
 }
 
 function exportTimeoutOrders() {
   exportToCSV(filteredTimeoutOrders.value, '超时订单明细.csv')
+}
+
+async function handleDateChange(val: [string, string] | null) {
+  if (val && val[0] && val[1]) {
+    await store.updateFilter({
+      timeRange: { start: val[0], end: val[1] }
+    })
+  }
 }
 </script>

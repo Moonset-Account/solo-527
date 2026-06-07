@@ -1,17 +1,21 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Merchant, Order, Rectification, DistrictHeatData, FilterOptions } from '@/types'
-import { mockMerchants, mockDistrictHeat, merchantOrdersMap, merchantRectificationsMap } from '@/services/mockData'
+import type { Metrics, ReasonAggregation, TrendDataPoint } from '@/types'
+import { ClickHouseService } from '@/services/clickhouse'
 import { calculateMetrics, aggregateTimeoutReasons, generateTrendData } from '@/utils/dataProcessor'
-import type { ReasonAggregation, TrendDataPoint, Metrics } from '@/types'
 
 export const useAppStore = defineStore('app', () => {
-  const merchants = ref<Merchant[]>(mockMerchants)
-  const districtHeatData = ref<DistrictHeatData[]>(mockDistrictHeat)
+  const merchants = ref<Merchant[]>([])
+  const districtHeatData = ref<DistrictHeatData[]>([])
   const selectedMerchantId = ref<string | null>(null)
+  const merchantOrders = ref<Order[]>([])
+  const merchantRectifications = ref<Rectification[]>([])
+  const isLoading = ref(false)
+
   const filterOptions = ref<FilterOptions>({
     timeRange: {
-      start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       end: new Date().toISOString().split('T')[0]
     },
     weather: [],
@@ -22,28 +26,6 @@ export const useAppStore = defineStore('app', () => {
   const selectedMerchant = computed(() => {
     if (!selectedMerchantId.value) return null
     return merchants.value.find(m => m.id === selectedMerchantId.value) || null
-  })
-
-  const merchantOrders = computed((): Order[] => {
-    if (!selectedMerchantId.value) return []
-    let orders = merchantOrdersMap[selectedMerchantId.value] || []
-    
-    if (filterOptions.value.weather.length > 0) {
-      orders = orders.filter(o => filterOptions.value.weather.includes(o.weather))
-    }
-    if (filterOptions.value.timePeriod.length > 0) {
-      orders = orders.filter(o => filterOptions.value.timePeriod.includes(o.timePeriod))
-    }
-    if (filterOptions.value.hasDataGap !== null) {
-      orders = orders.filter(o => o.hasDataGap === filterOptions.value.hasDataGap)
-    }
-    
-    return orders
-  })
-
-  const merchantRectifications = computed((): Rectification[] => {
-    if (!selectedMerchantId.value) return []
-    return merchantRectificationsMap[selectedMerchantId.value] || []
   })
 
   const merchantMetrics = computed((): Metrics => {
@@ -67,53 +49,93 @@ export const useAppStore = defineStore('app', () => {
   })
 
   const overallMetrics = computed(() => {
-    const allOrders = Object.values(merchantOrdersMap).flat()
-    return calculateMetrics(allOrders)
+    return calculateMetrics(
+      merchants.value.flatMap(m =>
+        merchantOrders.value.filter(o => o.merchantId === m.id)
+      )
+    )
   })
 
   const sortedMerchants = computed(() => {
-    return [...merchants.value].sort((a, b) => (b.avgPrepTime + b.avgWaitTime) - (a.avgPrepTime + a.avgWaitTime))
+    return [...merchants.value].sort(
+      (a, b) => b.avgPrepTime + b.avgWaitTime - (a.avgPrepTime + a.avgWaitTime)
+    )
   })
+
+  async function loadMerchants() {
+    isLoading.value = true
+    try {
+      merchants.value = await ClickHouseService.queryMerchants({
+        startTime: filterOptions.value.timeRange.start,
+        endTime: filterOptions.value.timeRange.end,
+        weather: filterOptions.value.weather,
+        timePeriod: filterOptions.value.timePeriod
+      })
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function loadDistrictHeat() {
+    try {
+      districtHeatData.value = await ClickHouseService.queryDistrictHeat({
+        startTime: filterOptions.value.timeRange.start,
+        endTime: filterOptions.value.timeRange.end,
+        weather: filterOptions.value.weather,
+        timePeriod: filterOptions.value.timePeriod
+      })
+    } catch (e) {
+      console.error('Failed to load district heat:', e)
+    }
+  }
+
+  async function loadMerchantOrders(merchantId: string) {
+    isLoading.value = true
+    try {
+      merchantOrders.value = await ClickHouseService.queryOrders({
+        merchantId,
+        startTime: filterOptions.value.timeRange.start,
+        endTime: filterOptions.value.timeRange.end,
+        weather: filterOptions.value.weather,
+        timePeriod: filterOptions.value.timePeriod
+      })
+      merchantRectifications.value = ClickHouseService.getRectifications(merchantId)
+    } finally {
+      isLoading.value = false
+    }
+  }
 
   function setSelectedMerchant(id: string | null) {
     selectedMerchantId.value = id
+    if (id) {
+      loadMerchantOrders(id)
+    } else {
+      merchantOrders.value = []
+      merchantRectifications.value = []
+    }
   }
 
-  function updateFilter(options: Partial<FilterOptions>) {
+  async function updateFilter(options: Partial<FilterOptions>) {
     filterOptions.value = { ...filterOptions.value, ...options }
+    await refreshData()
+  }
+
+  async function refreshData() {
+    await loadMerchants()
+    await loadDistrictHeat()
+    if (selectedMerchantId.value) {
+      await loadMerchantOrders(selectedMerchantId.value)
+    }
   }
 
   function addRectification(merchantId: string, content: string, operator: string) {
-    const now = new Date()
-    const beforeStart = new Date(now)
-    beforeStart.setDate(beforeStart.getDate() - 14)
-    const beforeEnd = new Date(now)
-    beforeEnd.setDate(beforeEnd.getDate() - 1)
-    const afterStart = new Date(now)
-    afterStart.setDate(afterStart.getDate() + 1)
-    const afterEnd = new Date(now)
-    afterEnd.setDate(afterEnd.getDate() + 14)
+    ClickHouseService.addRectification(merchantId, content, operator)
+    merchantRectifications.value = ClickHouseService.getRectifications(merchantId)
+  }
 
-    const newRect: Rectification = {
-      id: `rect_${merchantId}_${Date.now()}`,
-      merchantId,
-      createTime: now.toISOString(),
-      content,
-      operator,
-      beforePeriodStart: beforeStart.toISOString(),
-      beforePeriodEnd: beforeEnd.toISOString(),
-      afterPeriodStart: afterStart.toISOString(),
-      afterPeriodEnd: afterEnd.toISOString()
-    }
-
-    if (!merchantRectificationsMap[merchantId]) {
-      merchantRectificationsMap[merchantId] = []
-    }
-    merchantRectificationsMap[merchantId].unshift(newRect)
-    
-    if (merchantRectificationsMap[merchantId].length > 3) {
-      merchantRectificationsMap[merchantId] = merchantRectificationsMap[merchantId].slice(0, 3)
-    }
+  async function initialize() {
+    await loadMerchants()
+    await loadDistrictHeat()
   }
 
   return {
@@ -121,9 +143,10 @@ export const useAppStore = defineStore('app', () => {
     districtHeatData,
     selectedMerchantId,
     filterOptions,
-    selectedMerchant,
     merchantOrders,
     merchantRectifications,
+    isLoading,
+    selectedMerchant,
     merchantMetrics,
     timeoutReasons,
     trendData,
@@ -133,6 +156,11 @@ export const useAppStore = defineStore('app', () => {
     sortedMerchants,
     setSelectedMerchant,
     updateFilter,
-    addRectification
+    refreshData,
+    addRectification,
+    initialize,
+    loadMerchants,
+    loadDistrictHeat,
+    loadMerchantOrders
   }
 })

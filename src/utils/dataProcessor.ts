@@ -94,18 +94,18 @@ export function cleanOrderData(raw: OrderRaw): Order {
 }
 
 export function calculateMetrics(orders: Order[]): Metrics {
-  const validOrders = orders.filter(o => !o.hasDataGap)
-  const validWaitOrders = orders.filter(o => o.waitDuration !== undefined && !o.hasDataGap)
+  const prepOrders = orders.filter(o => o.prepDuration !== undefined && o.prepDuration > 0)
+  const waitOrders = orders.filter(o => o.waitDuration !== undefined && !o.hasDataGap)
 
-  const avgPrepTime = validOrders.length > 0
-    ? Math.round(validOrders.reduce((sum, o) => sum + o.prepDuration, 0) / validOrders.length)
+  const avgPrepTime = prepOrders.length > 0
+    ? Math.round(prepOrders.reduce((sum, o) => sum + o.prepDuration, 0) / prepOrders.length)
     : 0
 
-  const avgWaitTime = validWaitOrders.length > 0
-    ? Math.round(validWaitOrders.reduce((sum, o) => sum + (o.waitDuration || 0), 0) / validWaitOrders.length)
+  const avgWaitTime = waitOrders.length > 0
+    ? Math.round(waitOrders.reduce((sum, o) => sum + (o.waitDuration || 0), 0) / waitOrders.length)
     : 0
 
-  const timeoutCount = validOrders.filter(o => o.isTimeout).length
+  const timeoutCount = orders.filter(o => o.isTimeout).length
   const refundCount = orders.filter(o => o.hasRefund).length
 
   return {
@@ -118,7 +118,7 @@ export function calculateMetrics(orders: Order[]): Metrics {
 }
 
 export function aggregateTimeoutReasons(orders: Order[]): ReasonAggregation[] {
-  const validOrders = orders.filter(o => o.isTimeout && !o.hasDataGap && o.timeoutReason)
+  const validOrders = orders.filter(o => o.isTimeout && o.timeoutReason)
   const groups: Record<string, number> = {}
 
   validOrders.forEach(o => {

@@ -31,18 +31,60 @@
       </div>
     </div>
 
+    <div class="flex items-center gap-3 mb-5">
+      <span class="text-sm text-[#86909C]">筛选：</span>
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        size="small"
+        value-format="YYYY-MM-DD"
+        @change="handleDateChange"
+      />
+      <el-select
+        v-model="selectedWeather"
+        multiple
+        placeholder="天气"
+        size="small"
+        style="width: 140px"
+        @change="handleFilterChange"
+      >
+        <el-option v-for="w in WEATHER_OPTIONS" :key="w.value" :label="w.label" :value="w.value" />
+      </el-select>
+      <el-select
+        v-model="selectedPeriod"
+        multiple
+        placeholder="时段"
+        size="small"
+        style="width: 150px"
+        @change="handleFilterChange"
+      >
+        <el-option v-for="p in TIME_PERIOD_OPTIONS" :key="p.value" :label="p.label" :value="p.value" />
+      </el-select>
+      <el-button size="small" :loading="store.isLoading" @click="refreshMerchantData">
+        <RefreshCw class="w-4 h-4 mr-1" />
+        刷新
+      </el-button>
+    </div>
+
     <div class="grid grid-cols-5 gap-4 mb-5">
       <div class="stat-card col-span-1">
         <div class="text-center">
           <div class="text-xs text-[#86909C] mb-1">接单→备餐开始</div>
-          <div class="stat-value text-[#165DFF]">{{ metrics.avgPrepTime }}<span class="text-sm font-normal">分钟</span></div>
+          <div class="stat-value text-[#165DFF]">
+            {{ metrics.avgPrepTime }}<span class="text-sm font-normal">分钟</span>
+          </div>
           <div class="text-xs text-[#86909C] mt-1">商户备餐时长</div>
         </div>
       </div>
       <div class="stat-card col-span-1">
         <div class="text-center">
           <div class="text-xs text-[#86909C] mb-1">骑手到店→取餐</div>
-          <div class="stat-value text-[#FF7D00]">{{ metrics.avgWaitTime }}<span class="text-sm font-normal">分钟</span></div>
+          <div class="stat-value text-[#FF7D00]">
+            {{ metrics.avgWaitTime }}<span class="text-sm font-normal">分钟</span>
+          </div>
           <div class="text-xs text-[#86909C] mt-1">骑手等待时长</div>
         </div>
       </div>
@@ -75,8 +117,11 @@
           <Clock class="w-5 h-5 text-[#165DFF]" />
           订单流转时间轴（平均）
         </h3>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-[#86909C]">时间单位：分钟</span>
+        <div class="flex items-center gap-2" v-if="dataGapOrders.length > 0">
+          <AlertCircle class="w-4 h-4 text-[#FF7D00]" />
+          <span class="text-xs text-[#FF7D00]">
+            {{ dataGapOrders.length }} 条订单缺少骑手到店时间，已排除等待均值
+          </span>
         </div>
       </div>
       <div class="flex items-center justify-between px-8 py-6">
@@ -161,10 +206,6 @@
           <div class="w-3 h-3 rounded bg-[#FF7D00]"></div>
           <span class="text-xs text-[#86909C]">骑手等待阶段</span>
         </div>
-        <div class="flex items-center gap-2" v-if="dataGapOrders.length > 0">
-          <AlertCircle class="w-4 h-4 text-[#FF7D00]" />
-          <span class="text-xs text-[#FF7D00]">{{ dataGapOrders.length }} 条订单缺少骑手到店时间，已排除统计</span>
-        </div>
       </div>
     </div>
 
@@ -176,7 +217,7 @@
               <TrendingUp class="w-5 h-5 text-[#165DFF]" />
               出餐时长趋势
             </h3>
-            <el-radio-group v-model="trendDays" size="small">
+            <el-radio-group v-model="trendDays" size="small" @change="handleTrendDaysChange">
               <el-radio-button :value="7">近7天</el-radio-button>
               <el-radio-button :value="14">近14天</el-radio-button>
               <el-radio-button :value="30">近30天</el-radio-button>
@@ -195,7 +236,11 @@
               <el-tag size="small" @close="filterTimeout = false" v-if="filterTimeout" closable>
                 仅看异常
               </el-tag>
-              <el-button size="small" @click="filterTimeout = !filterTimeout" :type="filterTimeout ? 'primary' : 'default'">
+              <el-button
+                size="small"
+                @click="filterTimeout = !filterTimeout"
+                :type="filterTimeout ? 'primary' : 'default'"
+              >
                 <AlertTriangle class="w-4 h-4 mr-1" />
                 异常订单
               </el-button>
@@ -209,17 +254,17 @@
               :class="getOrderBorderClass(order)"
             >
               <div class="flex items-start justify-between mb-3">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 flex-wrap">
                   <span class="text-sm font-medium text-[#1D2129]">{{ order.orderNo }}</span>
                   <span class="tag tag-info">{{ getWeatherLabel(order.weather) }}</span>
                   <span class="tag tag-info">{{ getPeriodLabel(order.timePeriod) }}</span>
-                  <span v-if="order.hasDataGap" class="tag tag-warning">数据缺口</span>
+                  <span v-if="order.hasDataGap" class="tag tag-warning">数据缺口(无骑手到店时间)</span>
                   <span v-if="order.isTimeout" class="tag tag-danger">超时</span>
                   <span v-if="order.hasRefund" class="tag tag-danger">已退款</span>
                 </div>
                 <span class="text-xs text-[#86909C]">{{ formatDateTime(order.createTime) }}</span>
               </div>
-              <div class="flex items-center gap-6 text-sm">
+              <div class="flex items-center gap-6 text-sm flex-wrap">
                 <div class="flex items-center gap-2">
                   <span class="text-[#86909C]">备餐：</span>
                   <span class="font-medium" :class="order.prepDuration > 15 ? 'text-[#FF7D00]' : 'text-[#00B42A]'">
@@ -228,8 +273,11 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-[#86909C]">等待：</span>
-                  <span class="font-medium" :class="order.waitDuration && order.waitDuration > 10 ? 'text-[#FF7D00]' : 'text-[#00B42A]'">
-                    {{ order.waitDuration !== undefined ? order.waitDuration + ' 分钟' : '-' }}
+                  <span
+                    class="font-medium"
+                    :class="order.waitDuration && order.waitDuration > 10 ? 'text-[#FF7D00]' : 'text-[#00B42A]'"
+                  >
+                    {{ order.waitDuration !== undefined ? order.waitDuration + ' 分钟' : '不计入统计' }}
                   </span>
                 </div>
                 <div v-if="order.timeoutReason" class="flex items-center gap-2">
@@ -243,6 +291,15 @@
                   <span class="text-sm text-[#4E5969]">骑手备注：{{ order.riderRemark }}</span>
                 </div>
               </div>
+              <div v-if="order.refundReason" class="mt-2">
+                <div class="flex items-start gap-2">
+                  <RotateCcw class="w-4 h-4 text-[#F53F3F] mt-0.5 flex-shrink-0" />
+                  <span class="text-sm text-[#F53F3F]">退款原因：{{ order.refundReason }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="filteredOrders.length === 0" class="text-center py-12 text-[#86909C]">
+              暂无订单数据
             </div>
           </div>
         </div>
@@ -255,7 +312,7 @@
               <FileText class="w-5 h-5 text-[#165DFF]" />
               整改记录
             </h3>
-            <span class="text-xs text-[#86909C]">最近3次</span>
+            <span class="text-xs text-[#86909C]">最近{{ rectifications.length }}次</span>
           </div>
           <div class="space-y-4">
             <div
@@ -288,9 +345,12 @@
                   </div>
                 </div>
               </div>
-              <div class="mt-2 flex items-center justify-center">
-                <span class="text-xs text-[#00B42A] font-medium">
+              <div class="mt-2 flex items-center justify-center" v-if="getImprovement(rect) !== 0">
+                <span v-if="getImprovement(rect) > 0" class="text-xs text-[#00B42A] font-medium">
                   ↓ 下降 {{ getImprovement(rect) }}%
+                </span>
+                <span v-else class="text-xs text-[#F53F3F] font-medium">
+                  ↑ 上升 {{ Math.abs(getImprovement(rect)) }}%
                 </span>
               </div>
             </div>
@@ -327,27 +387,38 @@
     <el-dialog v-model="showAddRect" title="添加整改备注" width="500px">
       <el-form :model="rectForm" label-width="80px">
         <el-form-item label="整改内容">
-          <el-input v-model="rectForm.content" type="textarea" :rows="4" placeholder="请输入整改措施和要求" />
+          <el-input
+            v-model="rectForm.content"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入整改措施和要求"
+          />
         </el-form-item>
         <el-form-item label="操作人">
           <el-input v-model="rectForm.operator" placeholder="请输入操作人姓名" />
         </el-form-item>
+        <div class="text-xs text-[#86909C] px-3 pb-2">
+          提示：系统将自动计算整改前 14 天和整改后 14 天的出餐时长进行对比
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showAddRect = false">取消</el-button>
-        <el-button type="primary" @click="submitRectification">提交</el-button>
+        <el-button type="primary" @click="submitRectification" :disabled="!rectForm.content || !rectForm.operator">
+          提交
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { WEATHER_OPTIONS, TIME_PERIOD_OPTIONS } from '@/constants'
-import { formatTime, formatDateTime, exportToCSV } from '@/utils/dataProcessor'
+import { formatTime, formatDateTime, exportToCSV, generateTrendData } from '@/utils/dataProcessor'
 import BaseChart from '@/components/BaseChart.vue'
+import type { Order, Rectification } from '@/types'
 import {
   ArrowLeft,
   MapPin,
@@ -365,9 +436,10 @@ import {
   MessageSquare,
   FileText,
   PieChart,
-  AlertCircle
+  RotateCcw,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-vue-next'
-import type { Order, Rectification } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -381,6 +453,13 @@ const rectForm = ref({
   operator: ''
 })
 
+const dateRange = ref<[string, string]>([
+  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  new Date().toISOString().split('T')[0]
+])
+const selectedWeather = ref<string[]>([])
+const selectedPeriod = ref<string[]>([])
+
 const mockOrderTimes = {
   create: '2024-01-15 12:00:00',
   accept: '2024-01-15 12:01:00',
@@ -389,10 +468,20 @@ const mockOrderTimes = {
   pickup: '2024-01-15 12:12:00'
 }
 
-onMounted(() => {
+onMounted(async () => {
   const merchantId = route.params.id as string
+  await store.initialize()
   store.setSelectedMerchant(merchantId)
 })
+
+watch(
+  () => route.params.id,
+  async (newId) => {
+    if (newId) {
+      store.setSelectedMerchant(newId as string)
+    }
+  }
+)
 
 const merchant = computed(() => store.selectedMerchant)
 const metrics = computed(() => store.merchantMetrics)
@@ -400,11 +489,11 @@ const orders = computed(() => store.merchantOrders)
 const rectifications = computed(() => store.merchantRectifications)
 const timeoutReasons = computed(() => store.timeoutReasons)
 const dataGapOrders = computed(() => store.dataGapOrders)
-const trendData = computed(() => store.trendData)
+const trendData = computed(() => generateTrendData(orders.value, trendDays.value))
 
 const filteredOrders = computed(() => {
-  if (!filterTimeout.value) return orders.value.slice(0, 20)
-  return orders.value.filter(o => o.isTimeout || o.hasRefund || o.hasDataGap).slice(0, 20)
+  if (!filterTimeout.value) return orders.value.slice(0, 30)
+  return orders.value.filter(o => o.isTimeout || o.hasRefund || o.hasDataGap).slice(0, 30)
 })
 
 const trendChartOption = computed(() => {
@@ -453,7 +542,10 @@ const trendChartOption = computed(() => {
         areaStyle: {
           color: {
             type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: 'rgba(22, 93, 255, 0.2)' },
               { offset: 1, color: 'rgba(22, 93, 255, 0.02)' }
@@ -471,7 +563,10 @@ const trendChartOption = computed(() => {
         areaStyle: {
           color: {
             type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
             colorStops: [
               { offset: 0, color: 'rgba(255, 125, 0, 0.2)' },
               { offset: 1, color: 'rgba(255, 125, 0, 0.02)' }
@@ -539,6 +634,7 @@ function getImprovement(rect: Rectification): number {
   if (!rect.beforeMetrics || !rect.afterMetrics) return 0
   const before = rect.beforeMetrics.avgPrepTime + rect.beforeMetrics.avgWaitTime
   const after = rect.afterMetrics.avgPrepTime + rect.afterMetrics.avgWaitTime
+  if (before === 0) return 0
   return Math.round(((before - after) / before) * 100)
 }
 
@@ -552,5 +648,29 @@ function submitRectification() {
 
 function exportOrders() {
   exportToCSV(orders.value, `${merchant.value?.name || '商户'}_订单明细.csv`)
+}
+
+async function handleDateChange(val: [string, string] | null) {
+  if (val && val[0] && val[1]) {
+    await store.updateFilter({
+      timeRange: { start: val[0], end: val[1] }
+    })
+  }
+}
+
+async function handleFilterChange() {
+  await store.updateFilter({
+    weather: selectedWeather.value,
+    timePeriod: selectedPeriod.value
+  })
+}
+
+function handleTrendDaysChange() {
+  // trendDays is reactive, trendData computed will update automatically
+}
+
+async function refreshMerchantData() {
+  const merchantId = route.params.id as string
+  await store.loadMerchantOrders(merchantId)
 }
 </script>
