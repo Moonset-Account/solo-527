@@ -1,6 +1,7 @@
 import {
   ALL_RESERVATIONS,
   ALL_VIOLATIONS,
+  ALL_GATE_ENTRIES,
   AREAS,
   calculateHeatmapData,
   calculateAreaUtilization,
@@ -46,6 +47,7 @@ class MockDataAdapter implements DataAdapter {
     return {
       closedDates: configStore.closedDates,
       examPeriods: configStore.examPeriods,
+      normalThreshold: configStore.normalNoShowThreshold,
     };
   }
 
@@ -75,6 +77,7 @@ class MockDataAdapter implements DataAdapter {
           params.dateRange[0],
           params.dateRange[1],
           config,
+          params.areas,
           params.floors
         );
         resolve(data);
@@ -91,7 +94,9 @@ class MockDataAdapter implements DataAdapter {
           ALL_VIOLATIONS,
           params.dateRange[0],
           params.dateRange[1],
-          config
+          config,
+          params.areas,
+          params.floors
         );
         resolve(data);
       }, 300);
@@ -105,6 +110,7 @@ class MockDataAdapter implements DataAdapter {
         const data = calculateDashboardStats(
           ALL_RESERVATIONS,
           ALL_VIOLATIONS,
+          ALL_GATE_ENTRIES,
           params.dateRange[0],
           params.dateRange[1],
           config,
@@ -165,6 +171,20 @@ class MockDataAdapter implements DataAdapter {
         );
         if (studentId) {
           records = records.filter((v) => v.studentId === studentId);
+        }
+        if (params.areas && params.areas.length > 0) {
+          records = records.filter((v) => {
+            const res = ALL_RESERVATIONS.find(r => r.reservationId === v.reservationId);
+            return res && params.areas?.includes(res.areaId);
+          });
+        }
+        if (params.floors && params.floors.length > 0) {
+          records = records.filter((v) => {
+            const res = ALL_RESERVATIONS.find(r => r.reservationId === v.reservationId);
+            if (!res) return false;
+            const area = AREAS.find(a => a.areaId === res.areaId);
+            return area && params.floors?.includes(area.floor);
+          });
         }
         resolve(records.slice(0, 100));
       }, 300);

@@ -1,5 +1,17 @@
 import { addDays, addHours, setHours, setMinutes, format, eachDayOfInterval, isSameDay } from 'date-fns';
-import type { Area, Reservation, Violation, ClosedDate, ExamPeriod, HeatmapCell, AreaUtilization, ViolationStats, DashboardStats } from '@/types';
+import type {
+  Area,
+  Reservation,
+  Violation,
+  ClosedDate,
+  ExamPeriod,
+  HeatmapCell,
+  AreaUtilization,
+  ViolationStats,
+  DashboardStats,
+  GateEntry,
+  SeatCheckin,
+} from '@/types';
 
 export const AREAS: Area[] = [
   { areaId: 'A1', areaName: '一楼自习区A', floor: 1, totalSeats: 80, description: '开放式自习区' },
@@ -64,13 +76,20 @@ function isDateClosed(date: Date, closedDates: ClosedDate[]): boolean {
   return closedDates.some(cd => isSameDay(cd.date, date));
 }
 
+function getNoShowThresholdForDate(date: Date, examPeriods: ExamPeriod[], normalThreshold: number): number {
+  const examPeriod = examPeriods.find(ep => date >= ep.startDate && date <= ep.endDate);
+  return examPeriod ? examPeriod.noShowThreshold : normalThreshold;
+}
+
 export function generateReservations(
   count: number = 50000,
   closedDates: ClosedDate[] = DEFAULT_CLOSED_DATES,
-  examPeriods: ExamPeriod[] = DEFAULT_EXAM_PERIODS
+  examPeriods: ExamPeriod[] = DEFAULT_EXAM_PERIODS,
+  normalThreshold: number = 3
 ): Reservation[] {
   const reservations: Reservation[] = [];
   const days = eachDayOfInterval({ start: START_DATE, end: END_DATE });
+  const studentViolationCounts: Record<string, number> = {};
   
   for (let i = 0; i < count; i++) {
     const day = randomChoice(days);
@@ -79,22 +98,33 @@ export function generateReservations(
     const duration = randomInt(1, 4);
     const endTime = addHours(startTime, duration);
     const area = randomChoice(AREAS);
+    const studentId = generateStudentId();
     
     if (isDateClosed(day, closedDates) && Math.random() > 0.1) continue;
     
     const isExamWeek = isDateInExamPeriod(day, examPeriods);
+    const threshold = getNoShowThresholdForDate(day, examPeriods, normalThreshold);
+    const currentViolations = studentViolationCounts[studentId] || 0;
+    const isBlocked = currentViolations >= threshold;
     
     let status: Reservation['status'];
     const rand = Math.random();
-    if (isExamWeek) {
+    
+    if (isBlocked) {
+      status = rand < 0.3 ? 'reserved' : 'cancelled';
+    } else if (isExamWeek) {
       status = rand < 0.65 ? 'checked_in' : rand < 0.8 ? 'reserved' : rand < 0.92 ? 'no_show' : 'cancelled';
     } else {
       status = rand < 0.6 ? 'checked_in' : rand < 0.75 ? 'reserved' : rand < 0.9 ? 'no_show' : 'cancelled';
     }
     
+    if (status === 'no_show') {
+      studentViolationCounts[studentId] = (studentViolationCounts[studentId] || 0) + 1;
+    }
+    
     reservations.push({
       reservationId: `RES${String(i + 1).padStart(6, '0')}`,
-      studentId: generateStudentId(),
+      studentId,
       studentName: generateStudentName(),
       areaId: area.areaId,
       seatId: `${area.areaId}-${String(randomInt(1, area.totalSeats)).padStart(3, '0')}`,
@@ -108,13 +138,63 @@ export function generateReservations(
   return reservations.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 }
 
-export function generateViolations(reservations: Reservation[]): Violation[] {
+export function generateGateEntries(reservations: Reservation[], count: number = 80000): GateEntry[] {
+  const entries: GateEntry[] = [];
+  const checkedInStudents = reservations
+    .filter(r => r.status === 'checked_in')
+    .map(r => ({ studentId: r.studentId, time: r.startTime }));
+  
+  for (let i = 0; i < count; i++) {
+    const base = randomChoice(checkedInStudents);
+    const entryTime = base ? new Date(base.time.getTime() - randomInt(0, 30) * 60000) : new Date();
+    entries.push({
+      entryId: `GATE${String(i + 1).padStart(6, '0')}`,
+      studentId: base?.studentId || generateStudentId(),
+      entryTime,
+      gateId: `G${randomInt(1, 4)}`,
+    });
+  }
+  
+  return entries.sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime());
+}
+
+export function generateSeatCheckins(reservations: Reservation[]): SeatCheckin[] {
+  const checkins: SeatCheckin[] = [];
+  const checkedInReservations = reservations.filter(r => r.status === 'checked_in');
+  
+  checkedInReservations.forEach((r, i) => {
+    const lateMinutes = randomInt(0, 45);
+    const isLate = lateMinutes > 30;
+    checkins.push({
+      checkinId: `CHK${String(i + 1).padStart(6, '0')}`,
+      reservationId: r.reservationId,
+      studentId: r.studentId,
+      checkinTime: new Date(r.startTime.getTime() + lateMinutes * 60000),
+      source: Math.random() > 0.3 ? 'seat' : 'gate',
+    });
+  });
+  
+  return checkins.sort((a, b) => b.checkinTime.getTime() - a.checkinTime.getTime());
+}
+
+export function generateViolations(
+  reservations: Reservation[],
+  seatCheckins: SeatCheckin[],
+  examPeriods: ExamPeriod[] = DEFAULT_EXAM_PERIODS,
+  normalThreshold: number = 3
+): Violation[] {
   const violations: Violation[] = [];
-  const noShowReservations = reservations.filter(r => r.status === 'no_show');
-  const violationTypes: Violation['violationType'][] = ['no_show', 'late_checkin', 'early_leave', 'occupancy_timeout'];
   let idx = 0;
   
+  const noShowReservations = reservations.filter(r => r.status === 'no_show');
   for (const res of noShowReservations) {
+    const threshold = getNoShowThresholdForDate(res.startTime, examPeriods, normalThreshold);
+    const studentNoShows = noShowReservations.filter(
+      r => r.studentId === res.studentId && isDateInExamPeriod(res.startTime, examPeriods) === isDateInExamPeriod(r.startTime, examPeriods)
+    ).length;
+    
+    const isExceeded = studentNoShows > threshold;
+    
     violations.push({
       violationId: `VIO${String(idx + 1).padStart(5, '0')}`,
       studentId: res.studentId,
@@ -122,24 +202,49 @@ export function generateViolations(reservations: Reservation[]): Violation[] {
       reservationId: res.reservationId,
       violationType: 'no_show',
       occurTime: res.startTime,
-      status: randomChoice(['pending', 'processed', 'ignored']),
-      remark: '',
+      status: isExceeded ? (Math.random() > 0.3 ? 'processed' : 'pending') : 'ignored',
+      remark: isExceeded ? `爽约${studentNoShows}次，超过阈值${threshold}次` : '在阈值范围内，自动忽略',
     });
     idx++;
   }
   
-  for (let i = 0; i < 500; i++) {
-    const res = randomChoice(reservations);
-    const vType = randomChoice(violationTypes.filter(t => t !== 'no_show'));
+  const lateCheckins = seatCheckins.filter(c => {
+    const res = reservations.find(r => r.reservationId === c.reservationId);
+    if (!res) return false;
+    const diffMinutes = (c.checkinTime.getTime() - res.startTime.getTime()) / 60000;
+    return diffMinutes > 30;
+  });
+  
+  for (const checkin of lateCheckins) {
+    const res = reservations.find(r => r.reservationId === checkin.reservationId);
+    if (!res) continue;
+    
+    const diffMinutes = (checkin.checkinTime.getTime() - res.startTime.getTime()) / 60000;
+    violations.push({
+      violationId: `VIO${String(idx + 1).padStart(5, '0')}`,
+      studentId: checkin.studentId,
+      studentName: res.studentName,
+      reservationId: checkin.reservationId,
+      violationType: 'late_checkin',
+      occurTime: checkin.checkinTime,
+      status: Math.random() > 0.5 ? 'processed' : 'pending',
+      remark: `签到迟到${Math.round(diffMinutes)}分钟`,
+    });
+    idx++;
+  }
+  
+  for (let i = 0; i < 300; i++) {
+    const res = randomChoice(reservations.filter(r => r.status === 'checked_in'));
+    const vType = randomChoice(['early_leave', 'occupancy_timeout']);
     violations.push({
       violationId: `VIO${String(idx + 1).padStart(5, '0')}`,
       studentId: res.studentId,
       studentName: res.studentName,
       reservationId: res.reservationId,
-      violationType: vType,
-      occurTime: res.startTime,
+      violationType: vType as any,
+      occurTime: res.endTime,
       status: randomChoice(['pending', 'processed', 'ignored']),
-      remark: vType === 'late_checkin' ? '迟到超过30分钟' : '',
+      remark: vType === 'early_leave' ? '提前离开超过15分钟' : '超时占用超过30分钟',
     });
     idx++;
   }
@@ -147,14 +252,18 @@ export function generateViolations(reservations: Reservation[]): Violation[] {
   return violations.sort((a, b) => b.occurTime.getTime() - a.occurTime.getTime());
 }
 
+const NORMAL_THRESHOLD = 3;
 const ALL_RESERVATIONS = generateReservations();
-const ALL_VIOLATIONS = generateViolations(ALL_RESERVATIONS);
+const ALL_GATE_ENTRIES = generateGateEntries(ALL_RESERVATIONS);
+const ALL_SEAT_CHECKINS = generateSeatCheckins(ALL_RESERVATIONS);
+const ALL_VIOLATIONS = generateViolations(ALL_RESERVATIONS, ALL_SEAT_CHECKINS);
 
-export { ALL_RESERVATIONS, ALL_VIOLATIONS };
+export { ALL_RESERVATIONS, ALL_GATE_ENTRIES, ALL_SEAT_CHECKINS, ALL_VIOLATIONS, NORMAL_THRESHOLD };
 
 interface AggregationConfig {
   closedDates: ClosedDate[];
   examPeriods: ExamPeriod[];
+  normalThreshold: number;
 }
 
 function filterReservations(
@@ -179,12 +288,32 @@ function filterReservations(
   });
 }
 
-function filterViolations(
+function filterViolationsWithArea(
   violations: Violation[],
+  reservations: Reservation[],
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  areaIds?: string[],
+  floors?: number[]
 ): Violation[] {
-  return violations.filter(v => v.occurTime >= startDate && v.occurTime <= endDate);
+  return violations.filter(v => {
+    const inDateRange = v.occurTime >= startDate && v.occurTime <= endDate;
+    if (!inDateRange) return false;
+    
+    if ((areaIds && areaIds.length > 0) || (floors && floors.length > 0)) {
+      const res = reservations.find(r => r.reservationId === v.reservationId);
+      if (!res) return false;
+      
+      if (areaIds && areaIds.length > 0 && !areaIds.includes(res.areaId)) return false;
+      
+      if (floors && floors.length > 0) {
+        const area = AREAS.find(a => a.areaId === res.areaId);
+        if (!area || !floors.includes(area.floor)) return false;
+      }
+    }
+    
+    return true;
+  });
 }
 
 export function calculateHeatmapData(
@@ -238,14 +367,18 @@ export function calculateAreaUtilization(
   startDate: Date,
   endDate: Date,
   config: AggregationConfig,
+  areaIds?: string[],
   floors?: number[]
 ): AreaUtilization[] {
-  const filteredAreas = floors && floors.length > 0
-    ? AREAS.filter(a => floors.includes(a.floor))
+  let filteredAreas = areaIds && areaIds.length > 0
+    ? AREAS.filter(a => areaIds.includes(a.areaId))
     : AREAS;
+  filteredAreas = floors && floors.length > 0
+    ? filteredAreas.filter(a => floors.includes(a.floor))
+    : filteredAreas;
   
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const filteredReservations = filterReservations(reservations, startDate, endDate, undefined, floors);
+  const filteredReservations = filterReservations(reservations, startDate, endDate, areaIds, floors);
   
   return filteredAreas.map(area => {
     const areaReservations = filteredReservations.filter(r => r.areaId === area.areaId);
@@ -292,18 +425,30 @@ export function calculateViolationStats(
   violations: Violation[],
   startDate: Date,
   endDate: Date,
-  config: AggregationConfig
+  config: AggregationConfig,
+  areaIds?: string[],
+  floors?: number[]
 ): ViolationStats[] {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const filteredReservations = filterReservations(reservations, startDate, endDate);
-  const filteredViolations = filterViolations(violations, startDate, endDate);
+  const filteredReservations = filterReservations(reservations, startDate, endDate, areaIds, floors);
+  const filteredViolations = filterViolationsWithArea(violations, reservations, startDate, endDate, areaIds, floors);
   
   return days.map(day => {
     const dayReservations = filteredReservations.filter(r => isSameDay(r.startTime, day));
     const dayViolations = filteredViolations.filter(v => isSameDay(v.occurTime, day));
     
+    const threshold = getNoShowThresholdForDate(day, config.examPeriods, config.normalThreshold);
     const totalReservations = dayReservations.length;
-    const noShowCount = dayReservations.filter(r => r.status === 'no_show').length;
+    
+    const studentNoShowCounts: Record<string, number> = {};
+    dayReservations.filter(r => r.status === 'no_show').forEach(r => {
+      studentNoShowCounts[r.studentId] = (studentNoShowCounts[r.studentId] || 0) + 1;
+    });
+    
+    const noShowCount = Object.entries(studentNoShowCounts).filter(
+      ([_, count]) => count > 0
+    ).length;
+    
     const noShowRate = totalReservations > 0 ? noShowCount / totalReservations : 0;
     
     const violationByType: Record<string, number> = {
@@ -323,6 +468,7 @@ export function calculateViolationStats(
       totalViolations: dayViolations.length,
       violationByType,
       sampleSize: totalReservations,
+      threshold,
     };
   });
 }
@@ -330,6 +476,7 @@ export function calculateViolationStats(
 export function calculateDashboardStats(
   reservations: Reservation[],
   violations: Violation[],
+  gateEntries: GateEntry[],
   startDate: Date,
   endDate: Date,
   config: AggregationConfig,
@@ -337,16 +484,22 @@ export function calculateDashboardStats(
   floors?: number[]
 ): DashboardStats {
   const filteredReservations = filterReservations(reservations, startDate, endDate, areaIds, floors);
-  const filteredViolations = filterViolations(violations, startDate, endDate);
+  const filteredViolations = filterViolationsWithArea(violations, reservations, startDate, endDate, areaIds, floors);
+  const filteredGateEntries = gateEntries.filter(g => g.entryTime >= startDate && g.entryTime <= endDate);
   
   const today = endDate;
   const todayReservations = filteredReservations.filter(r => isSameDay(r.startTime, today));
-  const todayEntries = todayReservations.filter(r => r.status === 'checked_in').length * 3;
+  const todayEntries = filteredGateEntries.filter(g => isSameDay(g.entryTime, today)).length;
   const todayRes = todayReservations.length;
   
   const totalReservations = filteredReservations.length;
   const checkedInCount = filteredReservations.filter(r => r.status === 'checked_in').length;
-  const noShowCount = filteredReservations.filter(r => r.status === 'no_show').length;
+  
+  const studentNoShowCounts: Record<string, number> = {};
+  filteredReservations.filter(r => r.status === 'no_show').forEach(r => {
+    studentNoShowCounts[r.studentId] = (studentNoShowCounts[r.studentId] || 0) + 1;
+  });
+  const noShowCount = Object.keys(studentNoShowCounts).length;
   
   const checkInRate = totalReservations > 0 ? checkedInCount / totalReservations : 0;
   const noShowRate = totalReservations > 0 ? noShowCount / totalReservations : 0;
@@ -354,19 +507,23 @@ export function calculateDashboardStats(
   const weekDays = eachDayOfInterval({ start: addDays(endDate, -6), end: endDate });
   const weekTrend = weekDays.map(d => {
     const dayRes = filteredReservations.filter(r => isSameDay(r.startTime, d));
+    const dayEntries = filteredGateEntries.filter(g => isSameDay(g.entryTime, d)).length;
     return {
       date: format(d, 'MM-dd'),
-      entries: dayRes.filter(r => r.status === 'checked_in').length * 2 + randomInt(50, 150),
+      entries: dayEntries,
       reservations: dayRes.length,
     };
   });
   
   const areaStats = AREAS.map(area => {
+    if (areaIds && areaIds.length > 0 && !areaIds.includes(area.areaId)) return null;
+    if (floors && floors.length > 0 && !floors.includes(area.floor)) return null;
+    
     const areaRes = filteredReservations.filter(r => r.areaId === area.areaId);
     const areaCheckedIn = areaRes.filter(r => r.status === 'checked_in').length;
     const utilization = area.totalSeats > 0 ? Math.min(0.95, areaCheckedIn / (area.totalSeats * weekDays.length * 0.5)) : 0;
     return { areaName: area.areaName, utilization };
-  }).sort((a, b) => b.utilization - a.utilization).slice(0, 5);
+  }).filter(Boolean) as { areaName: string; utilization: number }[];
   
   return {
     todayEntries,
@@ -374,6 +531,6 @@ export function calculateDashboardStats(
     checkInRate,
     noShowRate,
     weekTrend,
-    topAreas: areaStats,
+    topAreas: areaStats.sort((a, b) => b.utilization - a.utilization).slice(0, 5),
   };
 }

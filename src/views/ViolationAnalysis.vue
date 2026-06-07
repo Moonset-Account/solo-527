@@ -9,7 +9,7 @@ import { dataAdapter } from '@/api/adapter';
 import { maskStudentId, maskStudentName } from '@/utils/dataMasking';
 import type { ViolationStats, Violation } from '@/types';
 import { format } from 'date-fns';
-import { AlertTriangle, Users, Clock, XCircle } from 'lucide-vue-next';
+import { AlertTriangle, Users, Clock, XCircle, Settings } from 'lucide-vue-next';
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
@@ -107,6 +107,7 @@ watch(
     () => filterStore.selectedFloors,
     () => configStore.closedDates,
     () => configStore.examPeriods,
+    () => configStore.normalNoShowThreshold,
   ],
   loadData,
   { deep: true }
@@ -121,6 +122,31 @@ watch(
         <p class="text-slate-500 mt-1">爽约率统计与违规记录管理</p>
       </div>
       <ExportButton :data="exportData" filename="违规记录数据" />
+    </div>
+    
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+          <Settings class="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <p class="text-sm font-medium text-blue-800">当前爽约规则</p>
+          <p class="text-xs text-blue-600 mt-0.5">
+            平日阈值: <strong>{{ configStore.normalNoShowThreshold }}</strong> 次/学期
+            <span class="mx-2">|</span>
+            考试周: 已配置 {{ configStore.examPeriods.length }} 个周期
+            <span class="ml-2 text-xs text-blue-500">
+              ({{ configStore.examPeriods.map(e => `${e.name}:${e.noShowThreshold}次`).join(', ') }})
+            </span>
+          </p>
+        </div>
+      </div>
+      <button 
+        class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        @click="$router.push('/settings')"
+      >
+        修改规则
+      </button>
     </div>
     
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">

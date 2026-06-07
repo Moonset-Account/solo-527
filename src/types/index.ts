@@ -26,6 +26,8 @@ export interface CheckIn {
   source: 'seat' | 'gate';
 }
 
+export type SeatCheckin = CheckIn;
+
 export interface GateEntry {
   entryId: string;
   studentId: string;
@@ -84,6 +86,7 @@ export interface ViolationStats {
   totalViolations: number;
   violationByType: Record<string, number>;
   sampleSize: number;
+  threshold?: number;
 }
 
 export interface DashboardStats {

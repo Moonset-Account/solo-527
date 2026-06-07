@@ -69,6 +69,7 @@ watch(
     () => filterStore.selectedFloors,
     () => configStore.closedDates,
     () => configStore.examPeriods,
+    () => configStore.normalNoShowThreshold,
   ],
   loadData,
   { deep: true }
