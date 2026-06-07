@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Download, ChevronDown, ChevronUp, CheckSquare, Square, AlertTriangle, Info } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { generateDistrictAggregations } from '@/data/mockData';
-import { formatNumber, formatDate, calculateIQR } from '@/utils/dataUtils';
+import { formatNumber } from '@/utils/dataUtils';
 import * as XLSX from 'xlsx';
 
 function TraceVerification({ recordIds }: { recordIds: string[] }) {
@@ -85,7 +85,6 @@ export default function DetailDrawer() {
     setShowDetailDrawer,
     selectedDistrict,
     filteredRecords,
-    allRecords,
     filterState,
     dataUpdateTime,
     userRole,
@@ -153,7 +152,7 @@ export default function DetailDrawer() {
     setAnnotationText('');
   };
 
-  const { q1Rent, medianRent, q3Rent } = districtData || { q1Rent: 0, medianRent: 0, q3Rent: 0 };
+  const { q1Rent, q3Rent } = districtData || { q1Rent: 0, q3Rent: 0 };
   const iqr = q3Rent - q1Rent;
   const lowerBound = q1Rent - filterState.iqrThreshold * iqr;
   const upperBound = q3Rent + filterState.iqrThreshold * iqr;
@@ -250,6 +249,7 @@ export default function DetailDrawer() {
           <div className="p-4">
             <h3 className="text-sm font-medium text-workbench-text-muted mb-3">
               原始记录 ({districtRecords.length} 条)
+              {userRole === 'student' && <span className="ml-2 text-yellow-500/80 text-[10px]">(学生视图，部分字段已脱敏)</span>}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -261,7 +261,9 @@ export default function DetailDrawer() {
                     <th className="text-right py-2 px-2 text-workbench-text-muted font-medium">户型</th>
                     <th className="text-right py-2 px-2 text-workbench-text-muted font-medium">面积</th>
                     <th className="text-center py-2 px-2 text-workbench-text-muted font-medium">状态</th>
-                    <th className="text-left py-2 px-2 text-workbench-text-muted font-medium">注释</th>
+                    {userRole !== 'student' && (
+                      <th className="text-left py-2 px-2 text-workbench-text-muted font-medium">注释</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -276,39 +278,41 @@ export default function DetailDrawer() {
                       <td className="py-2 px-2 text-right text-workbench-text-muted">{record.area}㎡</td>
                       <td className="py-2 px-2 text-center">
                         {record.isAnomaly ? (
-                          <span className="text-orange-400" title={record.anomalyReason}>
+                          <span className="text-orange-400" title={userRole !== 'student' ? record.anomalyReason : '数据异常'}>
                             <AlertTriangle className="w-3 h-3 inline" />
                           </span>
                         ) : (
                           <span className="text-green-500">●</span>
                         )}
                       </td>
-                      <td className="py-2 px-2">
-                        {editingAnnotation === record.id ? (
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={annotationText}
-                              onChange={e => setAnnotationText(e.target.value)}
-                              className="flex-1 px-1 py-0.5 text-xs bg-workbench-bg border border-workbench-border rounded text-workbench-text"
-                              autoFocus
-                            />
+                      {userRole !== 'student' && (
+                        <td className="py-2 px-2">
+                          {editingAnnotation === record.id ? (
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={annotationText}
+                                onChange={e => setAnnotationText(e.target.value)}
+                                className="flex-1 px-1 py-0.5 text-xs bg-workbench-bg border border-workbench-border rounded text-workbench-text"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => saveAnnotation(record.id)}
+                                className="px-1.5 py-0.5 bg-cyan-600 text-white rounded text-xs"
+                              >
+                                保存
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => saveAnnotation(record.id)}
-                              className="px-1.5 py-0.5 bg-cyan-600 text-white rounded text-xs"
+                              onClick={() => startEditAnnotation(record.id, record.annotation)}
+                              className="text-cyan-400 hover:text-cyan-300 text-xs"
                             >
-                              保存
+                              {record.annotation || '+ 添加注释'}
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => startEditAnnotation(record.id, record.annotation)}
-                            className="text-cyan-400 hover:text-cyan-300 text-xs"
-                          >
-                            {record.annotation || '+ 添加注释'}
-                          </button>
-                        )}
-                      </td>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

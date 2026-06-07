@@ -43,7 +43,9 @@ export function detectAnomalies(records: RentalRecord[], threshold = 1.5): Renta
 export function filterRecords(records: RentalRecord[], filter: FilterState): RentalRecord[] {
   return records.filter(r => {
     if (filter.districts.length > 0 && !filter.districts.includes(r.district)) return false;
+    if (filter.communities.length > 0 && !filter.communities.includes(r.community)) return false;
     if (filter.layouts.length > 0 && !filter.layouts.includes(r.layout)) return false;
+    if (filter.months.length > 0 && !filter.months.includes(r.listingDate.substring(0, 7))) return false;
     if (filter.sources.length > 0 && !r.sourcePlatforms.some(s => filter.sources.includes(s))) return false;
     if (r.rent < filter.rentRange[0] || r.rent > filter.rentRange[1]) return false;
     if (r.area < filter.areaRange[0] || r.area > filter.areaRange[1]) return false;

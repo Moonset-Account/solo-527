@@ -1,4 +1,4 @@
-import { Map, BarChart3, User, Clock, Database, Download, Shield } from 'lucide-react';
+import { Map, BarChart3, User, Clock, Database, Download, Shield, Calendar } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { UserRole } from '@/types';
 import * as XLSX from 'xlsx';
@@ -18,7 +18,8 @@ export default function TopNav() {
     mapView,
     setMapView,
     filterState,
-    allRecords
+    allRecords,
+    setShowScheduledReportModal
   } = useAppStore();
 
   const anomalyCount = filteredRecords.filter(r => r.isAnomaly).length;
@@ -157,6 +158,14 @@ export default function TopNav() {
             </button>
           ))}
         </div>
+
+        <button
+          onClick={() => setShowScheduledReportModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-workbench-surface border border-workbench-border hover:border-cyan-500 text-workbench-text text-xs rounded transition-colors"
+        >
+          <Calendar className="w-3.5 h-3.5" />
+          定时报表
+        </button>
 
         <button
           onClick={handleExportAll}

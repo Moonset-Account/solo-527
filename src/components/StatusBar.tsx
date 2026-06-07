@@ -1,5 +1,5 @@
 import { useAppStore } from '@/store/appStore';
-import { Filter, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Filter, AlertTriangle, EyeOff } from 'lucide-react';
 
 export default function StatusBar() {
   const {
@@ -12,7 +12,9 @@ export default function StatusBar() {
   const anomalyCount = filteredRecords.filter(r => r.isAnomaly).length;
 
   const activeFilters = [
+    filterState.months.length > 0 && `月份: ${filterState.months.length}个`,
     filterState.districts.length > 0 && `区域: ${filterState.districts.length}个`,
+    filterState.communities.length > 0 && `小区: ${filterState.communities.length}个`,
     filterState.layouts.length > 0 && `户型: ${filterState.layouts.length}个`,
     filterState.sources.length > 0 && `来源: ${filterState.sources.length}个`,
     filterState.excludeAnomaly && '已排除异常'

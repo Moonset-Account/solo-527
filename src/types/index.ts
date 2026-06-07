@@ -54,7 +54,9 @@ export interface CommunityAggregation {
 
 export interface FilterState {
   districts: string[];
+  communities: string[];
   layouts: string[];
+  months: string[];
   dateRange: [string, string];
   sources: string[];
   rentRange: [number, number];
@@ -64,6 +66,17 @@ export interface FilterState {
   dealCycleRange: [number, number];
   excludeAnomaly: boolean;
   iqrThreshold: number;
+}
+
+export interface ScheduledReport {
+  id: string;
+  name: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  filterState: FilterState;
+  email: string;
+  enabled: boolean;
+  createdAt: string;
+  lastRunAt?: string;
 }
 
 export interface ExportContext {

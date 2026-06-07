@@ -4,6 +4,7 @@ import PriceMap from '@/components/PriceMap';
 import ChartPanel from '@/components/ChartPanel';
 import StatusBar from '@/components/StatusBar';
 import DetailDrawer from '@/components/DetailDrawer';
+import ScheduledReportModal from '@/components/ScheduledReportModal';
 
 export default function WorkbenchPage() {
   return (
@@ -26,6 +27,7 @@ export default function WorkbenchPage() {
       
       <StatusBar />
       <DetailDrawer />
+      <ScheduledReportModal />
     </div>
   );
 }
