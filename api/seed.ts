@@ -1,4 +1,5 @@
 import { getDb } from './database'
+import crypto from 'crypto'
 
 function uuid(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
@@ -10,6 +11,12 @@ function isoNow(): string {
 
 function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 3600000).toISOString()
+}
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex')
+  return `${salt}:${hash}`
 }
 
 export function seedIfEmpty(): void {
@@ -64,6 +71,11 @@ export function seedIfEmpty(): void {
   const insertNote = db.prepare(`
     INSERT INTO processing_notes (id, alert_id, reading_id, note, created_by, created_at)
     VALUES (?, ?, ?, ?, ?, ?)
+  `)
+
+  const insertUser = db.prepare(`
+    INSERT INTO users (id, username, password_hash, display_name, role, pond_scope, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
 
   const seedTx = db.transaction(() => {
@@ -151,6 +163,11 @@ export function seedIfEmpty(): void {
     insertNote.run('note-1', 'alert-2', null, '午后高温导致水温超标，已开启增氧机降温', '张技术员', hoursAgo(4))
     insertNote.run('note-2', 'alert-4', null, '3号塘溶氧传感器疑似故障，需现场检查', '李技术员', hoursAgo(3))
     insertNote.run('note-3', 'alert-2', null, '增氧机开启2小时后水温已恢复至29.2°C', '张技术员', hoursAgo(2))
+
+    insertUser.run('user-1', 'zhangsan', hashPassword('123456'), '张技术员', 'technician', 'pond-1,pond-2', isoNow())
+    insertUser.run('user-2', 'lisi', hashPassword('123456'), '李技术员', 'technician', 'pond-3,pond-4', isoNow())
+    insertUser.run('user-3', 'wangcz', hashPassword('123456'), '王场长', 'manager', null, isoNow())
+    insertUser.run('user-4', 'admin', hashPassword('admin123'), '系统管理员', 'admin', null, isoNow())
   })
 
   seedTx()

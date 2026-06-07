@@ -134,7 +134,7 @@ function exportExcel() {
         </div>
         <div class="bg-[#0D3B47] rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">确认率</div>
-          <div class="text-sm text-gray-200">{{ reportData.ack_rate }}%</div>
+          <div class="text-sm text-gray-200">{{ reportData.ackRate }}%</div>
         </div>
         <div class="bg-[#0D3B47] rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">塘口</div>
@@ -147,32 +147,32 @@ function exportExcel() {
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#00B4D8]" />
-            <span class="text-xs text-gray-400">误报: {{ reportData.judgment_dist.false_alarm }}</span>
+            <span class="text-xs text-gray-400">误报: {{ reportData.judgmentDist.false_alarm }}</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#EF4444]" />
-            <span class="text-xs text-gray-400">真实异常: {{ reportData.judgment_dist.real_anomaly }}</span>
+            <span class="text-xs text-gray-400">真实异常: {{ reportData.judgmentDist.real_anomaly }}</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#F59E0B]" />
-            <span class="text-xs text-gray-400">需现场排查: {{ reportData.judgment_dist.needs_onsite }}</span>
+            <span class="text-xs text-gray-400">需现场排查: {{ reportData.judgmentDist.needs_onsite }}</span>
           </div>
         </div>
         <div class="flex gap-1 mt-3 h-6 rounded overflow-hidden">
           <div
-            v-if="reportData.judgment_dist.false_alarm"
+            v-if="reportData.judgmentDist.false_alarm"
             class="bg-[#00B4D8] transition-all"
-            :style="{ width: `${(reportData.judgment_dist.false_alarm / Math.max(reportData.total, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgmentDist.false_alarm / Math.max(reportData.total, 1)) * 100}%` }"
           />
           <div
-            v-if="reportData.judgment_dist.real_anomaly"
+            v-if="reportData.judgmentDist.real_anomaly"
             class="bg-[#EF4444] transition-all"
-            :style="{ width: `${(reportData.judgment_dist.real_anomaly / Math.max(reportData.total, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgmentDist.real_anomaly / Math.max(reportData.total, 1)) * 100}%` }"
           />
           <div
-            v-if="reportData.judgment_dist.needs_onsite"
+            v-if="reportData.judgmentDist.needs_onsite"
             class="bg-[#F59E0B] transition-all"
-            :style="{ width: `${(reportData.judgment_dist.needs_onsite / Math.max(reportData.total, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgmentDist.needs_onsite / Math.max(reportData.total, 1)) * 100}%` }"
           />
         </div>
       </div>

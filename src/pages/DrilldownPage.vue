@@ -76,7 +76,7 @@ function goBack() {
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">时间戳:</span>
-            <span class="text-gray-300">{{ formatTime(reading.timestamp) }}</span>
+            <span class="text-gray-300">{{ formatTime(reading.ts) }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">数值:</span>

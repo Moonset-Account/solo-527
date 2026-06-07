@@ -100,5 +100,17 @@ export function runMigrations(): void {
 
     CREATE INDEX IF NOT EXISTS idx_pn_alert ON processing_notes (alert_id);
     CREATE INDEX IF NOT EXISTS idx_pn_reading ON processing_notes (reading_id);
+
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'technician',
+      pond_scope TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
   `)
 }

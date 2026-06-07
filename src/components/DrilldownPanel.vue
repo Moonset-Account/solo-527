@@ -97,7 +97,7 @@ async function addNote() {
             <div class="space-y-1.5 text-sm">
               <div class="flex items-center justify-between">
                 <span class="text-gray-500">时间戳</span>
-                <span class="text-gray-300">{{ formatTime(foundReading.timestamp) }}</span>
+                <span class="text-gray-300">{{ formatTime(foundReading.ts) }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-gray-500">数值</span>

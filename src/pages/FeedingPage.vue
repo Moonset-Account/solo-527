@@ -13,7 +13,7 @@ const batches = ref<any[]>([])
 
 async function loadRecords() {
   const data = await fetchFeedingRecords(selectedPond.value)
-  records.value = data.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  records.value = data.sort((a: any, b: any) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
 }
 
 onMounted(async () => {
@@ -21,7 +21,7 @@ onMounted(async () => {
     fetchFeedingRecords(selectedPond.value),
     fetchBatches(),
   ])
-  records.value = recordsData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  records.value = recordsData.sort((a: any, b: any) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
   batches.value = batchesData
 })
 
@@ -76,7 +76,7 @@ function formatTime(iso: string) {
               class="border-b border-[#0D3B47]/50 hover:bg-[#0D3B47]/30 transition-colors"
               :class="{ 'border-l-2 border-l-purple-500': record.strategy_change }"
             >
-              <td class="px-4 py-2.5 text-gray-300">{{ formatTime(record.timestamp) }}</td>
+              <td class="px-4 py-2.5 text-gray-300">{{ formatTime(record.ts) }}</td>
               <td class="px-4 py-2.5 text-gray-300">{{ record.amount }}</td>
               <td class="px-4 py-2.5 text-gray-300">{{ record.feed_type }}</td>
               <td class="px-4 py-2.5">

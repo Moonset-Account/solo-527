@@ -5,8 +5,15 @@ import FeedingPage from '@/pages/FeedingPage.vue'
 import ComparisonPage from '@/pages/ComparisonPage.vue'
 import DrilldownPage from '@/pages/DrilldownPage.vue'
 import ReportsPage from '@/pages/ReportsPage.vue'
+import LoginPage from '@/pages/LoginPage.vue'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginPage,
+    meta: { public: true },
+  },
   {
     path: '/',
     name: 'dashboard',
@@ -42,6 +49,25 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem('auth_token')
+  if (to.meta.public) {
+    if (token && to.name === 'login') {
+      next({ name: 'dashboard' })
+      return
+    }
+    next()
+    return
+  }
+
+  if (!token) {
+    next({ name: 'login' })
+    return
+  }
+
+  next()
 })
 
 export default router

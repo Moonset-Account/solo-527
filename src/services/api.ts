@@ -13,17 +13,103 @@ import type {
 
 const BASE = '/api'
 
+export function getToken(): string | null {
+  return localStorage.getItem('auth_token')
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem('auth_token', token)
+}
+
+export function clearToken(): void {
+  localStorage.removeItem('auth_token')
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
   const res = await fetch(BASE + url, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   })
+  if (res.status === 401) {
+    clearToken()
+    window.location.href = '/login'
+    throw new Error('认证已过期，请重新登录')
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error || `HTTP ${res.status}`)
   }
   const json = await res.json()
   return json.data as T
+}
+
+export interface LoginParams {
+  username: string
+  password: string
+}
+
+export interface UserInfo {
+  id: string
+  username: string
+  displayName: string
+  role: 'technician' | 'manager' | 'admin'
+  pondScope: string[] | null
+}
+
+export interface LoginResult {
+  token: string
+  user: UserInfo
+}
+
+export async function login(params: LoginParams): Promise<LoginResult> {
+  const res = await fetch(BASE + '/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || '登录失败')
+  }
+  const json = await res.json()
+  const data = json.data as LoginResult
+  setToken(data.token)
+  return data
+}
+
+export async function register(params: {
+  username: string
+  password: string
+  displayName: string
+  role?: string
+  pondScope?: string
+}): Promise<LoginResult> {
+  const res = await fetch(BASE + '/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || '注册失败')
+  }
+  const json = await res.json()
+  const data = json.data as LoginResult
+  setToken(data.token)
+  return data
+}
+
+export async function fetchCurrentUser(): Promise<UserInfo> {
+  return fetchJson<UserInfo>('/auth/me')
+}
+
+export async function fetchUsers(): Promise<UserInfo[]> {
+  return fetchJson<UserInfo[]>('/auth/users')
 }
 
 export async function fetchReadings(params: {
@@ -180,5 +266,9 @@ export function getReportCsvUrl(params: {
   if (params.end) qs.set('end', params.end)
   if (params.pondId) qs.set('pondId', params.pondId)
   qs.set('format', 'csv')
+  const token = getToken()
+  if (token) {
+    qs.set('token', token)
+  }
   return BASE + '/reports/export?' + qs.toString()
 }
