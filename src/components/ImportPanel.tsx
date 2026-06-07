@@ -10,6 +10,8 @@ import {
   Download,
   Info,
   Loader2,
+  Database,
+  Send,
 } from 'lucide-react';
 
 interface ImportResult {
@@ -21,6 +23,10 @@ interface ImportResult {
   errors: string[];
   missingReport: any;
   preview: any[];
+  dbWriteExecuted?: boolean;
+  dbWriteSuccess?: number;
+  dbWriteFailed?: number;
+  successfulIds?: string[];
 }
 
 interface ImportPanelProps {
@@ -40,6 +46,8 @@ export default function ImportPanel({
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingWrite, setConfirmingWrite] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -78,9 +86,9 @@ export default function ImportPanel({
   const downloadTemplate = () => {
     let csvContent = '';
     if (importType === 'attendance') {
-      csvContent = '学号,姓名,课程,周次,出勤状态,备注\n';
-      csvContent += '2024001,张三,高等数学,1,present,准时到课\n';
-      csvContent += '2024002,李四,高等数学,1,absent,病假\n';
+      csvContent = '学号,姓名,课程,周次,出勤状态,日期,备注\n';
+      csvContent += '2024001,张三,高等数学,1,present,2024-03-01,准时到课\n';
+      csvContent += '2024002,李四,高等数学,1,absent,2024-03-01,病假\n';
     } else if (importType === 'scores') {
       csvContent = '学号,姓名,课程,周次,作业分数,测验分数,备注\n';
       csvContent += '2024001,张三,高等数学,1,95,88,完成良好\n';
@@ -101,7 +109,7 @@ export default function ImportPanel({
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = async () => {
+  const handlePreview = async () => {
     if (!file) {
       setError('请选择要导入的文件');
       return;
@@ -115,6 +123,7 @@ export default function ImportPanel({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', importType);
+      formData.append('confirmWrite', 'false');
 
       const response = await fetch('/api/import', {
         method: 'POST',
@@ -128,7 +137,6 @@ export default function ImportPanel({
       const data = await response.json();
       if (data.success) {
         setResult(data.data);
-        onImportSuccess?.(data.data);
       } else {
         setError(data.error || '导入失败');
       }
@@ -140,10 +148,48 @@ export default function ImportPanel({
     }
   };
 
+  const handleConfirmWrite = async () => {
+    if (!file) return;
+
+    setIsWriting(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', importType);
+      formData.append('confirmWrite', 'true');
+
+      const response = await fetch('/api/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('入库失败');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setResult(data.data);
+        setConfirmingWrite(false);
+        onImportSuccess?.(data.data);
+      } else {
+        setError(data.error || '入库失败');
+      }
+    } catch (err) {
+      console.error('Write error:', err);
+      setError('入库过程中发生错误，请稍后重试');
+    } finally {
+      setIsWriting(false);
+    }
+  };
+
   const resetForm = () => {
     setFile(null);
     setResult(null);
     setError(null);
+    setConfirmingWrite(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -177,13 +223,14 @@ export default function ImportPanel({
                   key={type.key}
                   onClick={() => {
                     setImportType(type.key as any);
-                    resetForm();
+                    if (!result) resetForm();
                   }}
+                  disabled={!!result && result.dbWriteExecuted}
                   className={`p-4 rounded-xl border-2 transition-all text-center ${
                     importType === type.key
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${result?.dbWriteExecuted ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-1">{type.icon}</div>
                   <p className={`text-sm font-medium ${
@@ -275,7 +322,7 @@ export default function ImportPanel({
               )}
 
               <button
-                onClick={handleImport}
+                onClick={handlePreview}
                 disabled={!file || isImporting}
                 className={`w-full py-3 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
                   !file || isImporting
@@ -286,12 +333,12 @@ export default function ImportPanel({
                 {isImporting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    正在导入...
+                    正在解析数据...
                   </>
                 ) : (
                   <>
                     <Upload className="w-5 h-5" />
-                    开始导入
+                    预览导入数据
                   </>
                 )}
               </button>
@@ -311,15 +358,27 @@ export default function ImportPanel({
                   <p className="text-2xl font-bold text-green-600">
                     {result.successfulRecords}
                   </p>
-                  <p className="text-sm text-gray-500">成功导入</p>
+                  <p className="text-sm text-gray-500">校验通过</p>
                 </div>
                 <div className="p-4 bg-red-50 rounded-xl text-center">
                   <p className="text-2xl font-bold text-red-600">
                     {result.failedRecords}
                   </p>
-                  <p className="text-sm text-gray-500">导入失败</p>
+                  <p className="text-sm text-gray-500">校验失败</p>
                 </div>
               </div>
+
+              {result.dbWriteExecuted && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <p className="font-medium text-green-700 flex items-center gap-2">
+                    <Database className="w-5 h-5" />
+                    数据库写入完成
+                  </p>
+                  <p className="text-sm text-green-600 mt-1">
+                    成功写入 {result.dbWriteSuccess} 条，失败 {result.dbWriteFailed} 条
+                  </p>
+                </div>
+              )}
 
               {result.errors.length > 0 && (
                 <div className="p-4 bg-red-50 rounded-xl">
@@ -353,7 +412,7 @@ export default function ImportPanel({
 
               {result.preview && result.preview.length > 0 && (
                 <div>
-                  <p className="font-medium text-gray-700 mb-2">数据预览</p>
+                  <p className="font-medium text-gray-700 mb-2">数据预览（前 5 条）</p>
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50">
@@ -384,21 +443,83 @@ export default function ImportPanel({
                 </div>
               )}
 
-              <div className="flex gap-3">
-                <button
-                  onClick={resetForm}
-                  className="flex-1 py-3 rounded-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  继续导入
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-5 h-5" />
-                  完成
-                </button>
-              </div>
+              {!result.dbWriteExecuted ? (
+                <div className="space-y-3">
+                  {result.failedRecords > 0 && (
+                    <div className="p-3 bg-amber-50 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      存在校验失败的记录，仅会导入校验通过的数据
+                    </div>
+                  )}
+                  
+                  {confirmingWrite ? (
+                    <div className="p-4 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-700 mb-3">
+                        确认要将校验通过的数据写入数据库吗？此操作不可撤销。
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setConfirmingWrite(false)}
+                          disabled={isWriting}
+                          className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        >
+                          取消
+                        </button>
+                        <button
+                          onClick={handleConfirmWrite}
+                          disabled={isWriting}
+                          className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {isWriting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              写入中...
+                            </>
+                          ) : (
+                            <>
+                              <Database className="w-4 h-4" />
+                              确认入库
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={resetForm}
+                        className="flex-1 py-3 rounded-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        重新导入
+                      </button>
+                      <button
+                        onClick={() => setConfirmingWrite(true)}
+                        disabled={result.successfulRecords === 0}
+                        className="flex-1 py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        <Send className="w-5 h-5" />
+                        确认入库
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={resetForm}
+                    className="flex-1 py-3 rounded-xl font-semibold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    继续导入
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="flex-1 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    完成
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

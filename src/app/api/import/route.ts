@@ -1,22 +1,32 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, checkPermission, ROLES, PERMISSIONS } from '@/lib/auth';
+import { getAuthContext } from '@/lib/middleware-auth';
 import { detectMissingValues } from '@/lib/utils/data-quality';
+import { db } from '@/db';
+import { students, attendance, assignmentSubmissions, quizSubmissions, classes } from '@/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const auth = await getAuthContext(request as any);
     
-    if (!user) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    if (!auth) {
+      return NextResponse.json(
+        { error: '未授权，请先登录', success: false },
+        { status: 401 }
+      );
     }
 
-    if (!checkPermission(user.roles, [ROLES.ADMIN, ROLES.DEAN])) {
-      return NextResponse.json({ error: '权限不足' }, { status: 403 });
+    if (!auth.canImportData) {
+      return NextResponse.json(
+        { error: '权限不足，无法导入数据', success: false },
+        { status: 403 }
+      );
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const importType = formData.get('type') as string;
+    const confirmWrite = formData.get('confirmWrite') === 'true';
 
     if (!file) {
       return NextResponse.json(
@@ -47,6 +57,7 @@ export async function POST(request: Request) {
 
     const missingReport = detectMissingValues(records, headers);
     const errors: string[] = [];
+    const successfulIds: string[] = [];
 
     records.forEach((record, idx) => {
       if (!record['学号'] && !record['studentId']) {
@@ -57,6 +68,127 @@ export async function POST(request: Request) {
       }
     });
 
+    let dbWriteSuccess = 0;
+    let dbWriteFailed = 0;
+
+    if (confirmWrite && errors.length === 0) {
+      try {
+        for (const record of records) {
+          try {
+            const studentId = record['学号'] || record['studentId'] || '';
+            const studentName = record['姓名'] || record['fullName'] || '';
+
+            if (importType === 'students') {
+              const classId = record['班级'] || record['classId'] || auth.permittedClassIds[0];
+              
+              const existingStudent = await db
+                .select()
+                .from(students)
+                .where(eq(students.studentId, studentId))
+                .limit(1);
+
+              if (existingStudent.length === 0) {
+                const latVal = record['纬度'] || record['latitude'];
+                const lngVal = record['经度'] || record['longitude'];
+                await db.insert(students).values({
+                  studentId: studentId,
+                  fullName: studentName,
+                  gender: record['性别'] || record['gender'] || null,
+                  phone: record['手机号'] || record['phone'] || null,
+                  email: record['邮箱'] || record['email'] || null,
+                  address: record['家庭住址'] || record['address'] || null,
+                  latitude: latVal ? String(latVal) : null,
+                  longitude: lngVal ? String(lngVal) : null,
+                  classId: classId,
+                });
+              } else {
+                await db
+                  .update(students)
+                  .set({
+                    fullName: studentName,
+                    gender: record['性别'] || record['gender'] || null,
+                    phone: record['手机号'] || record['phone'] || null,
+                    email: record['邮箱'] || record['email'] || null,
+                  })
+                  .where(eq(students.studentId, studentId));
+              }
+              successfulIds.push(studentId);
+              dbWriteSuccess++;
+            } else if (importType === 'attendance') {
+              const existingStudents = await db
+                .select()
+                .from(students)
+                .where(eq(students.studentId, studentId))
+                .limit(1);
+
+              if (existingStudents.length > 0) {
+                const stu = existingStudents[0];
+                const date = record['日期'] || record['date'] || new Date().toISOString().split('T')[0];
+                const status = record['出勤状态'] || record['status'] || 'present';
+                const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
+                const courseId = record['课程'] || record['courseId'] || null;
+                const classId = record['班级'] || record['classId'] || stu.classId || null;
+
+                await db.insert(attendance).values({
+                  studentId: stu.id,
+                  courseId: courseId,
+                  classId: classId,
+                  date: date,
+                  weekNumber: weekNumber,
+                  status: status,
+                  remarks: record['备注'] || record['remarks'] || null,
+                });
+                successfulIds.push(studentId);
+                dbWriteSuccess++;
+              } else {
+                dbWriteFailed++;
+                errors.push(`学号 ${studentId} 不存在`);
+              }
+            } else if (importType === 'scores') {
+              const existingStudents = await db
+                .select()
+                .from(students)
+                .where(eq(students.studentId, studentId))
+                .limit(1);
+
+              if (existingStudents.length > 0) {
+                const stu = existingStudents[0];
+                const assignmentScore = record['作业分数'] || record['assignmentScore'];
+                const quizScore = record['测验分数'] || record['quizScore'];
+                const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
+
+                if (assignmentScore) {
+                  await db.insert(assignmentSubmissions).values({
+                    studentId: stu.id,
+                    score: assignmentScore,
+                    submittedAt: new Date(),
+                  });
+                }
+
+                if (quizScore) {
+                  await db.insert(quizSubmissions).values({
+                    studentId: stu.id,
+                    totalScore: quizScore,
+                    submittedAt: new Date(),
+                  });
+                }
+                successfulIds.push(studentId);
+                dbWriteSuccess++;
+              } else {
+                dbWriteFailed++;
+                errors.push(`学号 ${studentId} 不存在`);
+              }
+            }
+          } catch (recordError) {
+            dbWriteFailed++;
+            console.error('Record import error:', recordError);
+          }
+        }
+      } catch (dbError) {
+        console.warn('Database write failed, import completed in preview mode:', dbError);
+      }
+    }
+
     const successful = records.length - errors.length;
 
     return NextResponse.json({
@@ -65,13 +197,19 @@ export async function POST(request: Request) {
         importType,
         fileName: file.name,
         totalRecords: records.length,
-        successfulRecords: successful,
-        failedRecords: errors.length,
+        successfulRecords: confirmWrite ? dbWriteSuccess : successful,
+        failedRecords: confirmWrite ? dbWriteFailed + errors.length : errors.length,
         errors,
         missingReport,
         preview: records.slice(0, 5),
+        dbWriteExecuted: confirmWrite,
+        dbWriteSuccess,
+        dbWriteFailed,
+        successfulIds,
       },
-      message: `导入成功 ${successful} 条，失败 ${errors.length} 条`,
+      message: confirmWrite
+        ? `数据库写入成功 ${dbWriteSuccess} 条，失败 ${dbWriteFailed + errors.length} 条`
+        : `预览完成：成功 ${successful} 条，失败 ${errors.length} 条，请确认后执行入库`,
     });
   } catch (error) {
     console.error('Import API error:', error);

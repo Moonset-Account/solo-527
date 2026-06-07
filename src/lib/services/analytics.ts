@@ -37,6 +37,12 @@ export interface StudentMetrics {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+export interface AnomalyData {
+  highRiskStudents: StudentMetrics[];
+  mediumRiskStudents: StudentMetrics[];
+  outlierStudents: StudentMetrics[];
+}
+
 export interface RadarChartData {
   indicators: { name: string; max: number }[];
   series: { name: string; value: number[] }[];
