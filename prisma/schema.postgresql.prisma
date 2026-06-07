@@ -120,7 +120,7 @@ model FilterPreset {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String   @db.VarChar(255)
   isDefault Boolean  @default(false)
-  filters   String   @db.JsonB
+  filters   Json     @db.JsonB
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -133,7 +133,7 @@ model RawDataSource {
   lastSyncAt      DateTime?
   lastSuccessAt   DateTime?
   lastError       String?   @db.Text
-  config          String?   @db.JsonB
+  config          Json?     @db.JsonB
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -145,7 +145,7 @@ model RawDataRecord {
   id          String    @id @default(uuid())
   sourceId    String
   dataType    String    @db.VarChar(50)
-  payload     String    @db.JsonB
+  payload     Json      @db.JsonB
   status      String    @default("pending") @db.VarChar(20)
   error       String?   @db.Text
   processedAt DateTime?
@@ -165,7 +165,7 @@ model EtlLog {
   recordsLoaded    Int       @default(0)
   recordsFailed    Int       @default(0)
   errors           String?   @db.Text
-  missingFields    String?   @db.JsonB
+  missingFields    Json?     @db.JsonB
   startedAt        DateTime  @default(now())
   finishedAt       DateTime?
 
