@@ -151,12 +151,13 @@ def get_overdue_ranking(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     floors: Optional[List[int]] = Query(None),
+    team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard).filter(Hazard.status != 'closed')
-    query = apply_filters(query, db, floors, None, type_ids, levels)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
     
     if start_date:
         query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
@@ -180,13 +181,21 @@ def get_overdue_ranking(
 
 @router.get("/floor-heatmap", response_model=List[FloorHeatmapItem])
 def get_floor_heatmap(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    floors: Optional[List[int]] = Query(None),
     team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard)
-    query = apply_filters(query, db, None, team_ids, type_ids, levels)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
+    
+    if start_date:
+        query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
     
     hazards = query.all()
     
@@ -221,6 +230,7 @@ def get_team_trend(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     floors: Optional[List[int]] = Query(None),
+    team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
@@ -228,7 +238,10 @@ def get_team_trend(
     result = []
     base_date = datetime.utcnow().date()
     
-    teams = db.query(Team).filter(Team.is_active == True).all()
+    teams_query = db.query(Team).filter(Team.is_active == True)
+    if team_ids:
+        teams_query = teams_query.filter(Team.id.in_(team_ids))
+    teams = teams_query.all()
     
     for i in range(days - 1, -1, -1):
         current_date = base_date - timedelta(days=i)
@@ -246,17 +259,24 @@ def get_team_trend(
             if end_date:
                 query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
             
-            count = query.filter(
+            total_count = query.filter(
                 Hazard.discovered_at >= start_dt,
                 Hazard.discovered_at <= end_dt,
             ).count()
             
-            if count > 0 or True:
-                result.append(TeamTrendItem(
-                    date=date_str,
-                    team_id=team.id,
-                    team_name=team.name,
-                    hazard_count=count,
-                ))
+            closed_count = query.filter(
+                Hazard.closed_at >= start_dt,
+                Hazard.closed_at <= end_dt,
+                Hazard.status == 'closed',
+            ).count()
+            
+            if total_count > 0 or closed_count > 0 or True:
+                result.append({
+                    "date": date_str,
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "hazard_count": total_count,
+                    "completed_count": closed_count,
+                })
     
     return result

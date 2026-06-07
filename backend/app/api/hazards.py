@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional, List
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
@@ -15,6 +16,20 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/hazards", tags=["隐患管理"])
+
+
+class SubmitRectificationRequest(BaseModel):
+    description: str
+    photo_ids: Optional[List[str]] = []
+
+
+class ReviewRequest(BaseModel):
+    result: str
+    reason: Optional[str] = None
+
+
+class AppealRequest(BaseModel):
+    reason: str
 
 
 @router.get("", response_model=PaginatedResponse[HazardListItem])
@@ -102,7 +117,10 @@ def get_hazard_detail(
     
     rectification_records = db.query(RectificationRecord).filter(RectificationRecord.hazard_id == hazard_id).order_by(RectificationRecord.created_at.desc()).all()
     appeal_records = db.query(AppealRecord).filter(AppealRecord.hazard_id == hazard_id).order_by(AppealRecord.created_at.desc()).all()
-    discovery_photos = db.query(Attachment).filter(Attachment.hazard_id == hazard_id).all()
+    discovery_photos = db.query(Attachment).filter(
+        Attachment.related_type == "hazard",
+        Attachment.related_id == hazard_id,
+    ).all()
     
     rect_records = []
     for r in rectification_records:
@@ -176,8 +194,7 @@ def get_hazard_detail(
 @router.post("/{hazard_id}/submit-rectification")
 def submit_rectification(
     hazard_id: str,
-    description: str = Query(...),
-    photo_ids: Optional[List[str]] = Query(None),
+    request: SubmitRectificationRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -187,7 +204,7 @@ def submit_rectification(
     
     record = RectificationRecord(
         hazard_id=hazard_id,
-        description=description,
+        description=request.description,
         submitted_by=current_user.full_name,
         submitted_at=datetime.utcnow(),
     )
@@ -202,8 +219,7 @@ def submit_rectification(
 @router.post("/{hazard_id}/review")
 def review_rectification(
     hazard_id: str,
-    result: str = Query(..., description="pass 或 reject"),
-    reason: Optional[str] = Query(None),
+    request: ReviewRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -211,22 +227,22 @@ def review_rectification(
     if not hazard:
         raise HTTPException(status_code=404, detail="隐患不存在")
     
-    if result == "pass":
+    if request.result == "pass":
         hazard.status = "closed"
         hazard.closed_at = datetime.utcnow()
-    elif result == "reject":
+    elif request.result == "reject":
         hazard.status = "in_progress"
-        if reason and hazard.reject_reasons:
-            hazard.reject_reasons = hazard.reject_reasons + [reason]
-        elif reason:
-            hazard.reject_reasons = [reason]
+        if request.reason and hazard.reject_reasons:
+            hazard.reject_reasons = hazard.reject_reasons + [request.reason]
+        elif request.reason:
+            hazard.reject_reasons = [request.reason]
     else:
         raise HTTPException(status_code=400, detail="result 只能是 pass 或 reject")
     
     latest_record = db.query(RectificationRecord).filter(RectificationRecord.hazard_id == hazard_id).order_by(RectificationRecord.created_at.desc()).first()
     if latest_record:
-        latest_record.review_result = result
-        latest_record.review_reason = reason
+        latest_record.review_result = request.result
+        latest_record.review_reason = request.reason
         latest_record.reviewed_by = current_user.full_name
         latest_record.reviewed_at = datetime.utcnow()
     
@@ -237,7 +253,7 @@ def review_rectification(
 @router.post("/{hazard_id}/appeal")
 def submit_appeal(
     hazard_id: str,
-    reason: str = Query(...),
+    request: AppealRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -247,7 +263,7 @@ def submit_appeal(
     
     appeal = AppealRecord(
         hazard_id=hazard_id,
-        reason=reason,
+        reason=request.reason,
         status="pending",
     )
     db.add(appeal)

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
@@ -9,6 +10,11 @@ from app.models import AppealRecord, Hazard, User
 from app.schemas import AppealRecordResponse, PaginatedResponse
 
 router = APIRouter(prefix="/appeals", tags=["申诉处理"])
+
+
+class HandleAppealRequest(BaseModel):
+    result: str
+    remark: Optional[str] = None
 
 
 @router.get("", response_model=PaginatedResponse[AppealRecordResponse])
@@ -36,7 +42,6 @@ def get_appeals(
     
     items = []
     for a in appeals:
-        hazard = db.query(Hazard).filter(Hazard.id == a.hazard_id).first()
         items.append(AppealRecordResponse(
             id=a.id,
             hazard_id=a.hazard_id,
@@ -60,8 +65,7 @@ def get_appeals(
 @router.post("/{appeal_id}/handle")
 def handle_appeal(
     appeal_id: str,
-    result: str = Query(..., description="approved 或 rejected"),
-    remark: Optional[str] = Query(None),
+    request: HandleAppealRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -69,13 +73,13 @@ def handle_appeal(
     if not appeal:
         raise HTTPException(status_code=404, detail="申诉不存在")
     
-    if result not in ["approved", "rejected"]:
+    if request.result not in ["approved", "rejected"]:
         raise HTTPException(status_code=400, detail="result 只能是 approved 或 rejected")
     
-    appeal.status = result
+    appeal.status = request.result
     appeal.handled_by = current_user.full_name
     appeal.handled_at = datetime.utcnow()
-    appeal.handle_remark = remark
+    appeal.handle_remark = request.remark
     
     db.commit()
-    return {"message": "申诉已处理", "appeal_id": appeal_id, "status": result}
+    return {"message": "申诉已处理", "appeal_id": appeal_id, "status": request.result}

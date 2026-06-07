@@ -139,10 +139,6 @@ export const dashboardApi = {
 
   getFloorHeatmap: async (filters: FilterCriteria = {}): Promise<FloorHeatmapItem[]> => {
     const params = buildFilterParams(filters);
-    delete params.statuses;
-    delete params.keyword;
-    delete params.start_date;
-    delete params.end_date;
     const response = await api.get('/dashboard/floor-heatmap', { params });
     return response.data.map((item: any) => ({
       floor: item.floor,
@@ -158,13 +154,12 @@ export const dashboardApi = {
   getTeamTrend: async (days: number = 7, filters: FilterCriteria = {}): Promise<TeamTrendItem[]> => {
     const params = buildFilterParams(filters);
     params.days = days;
-    delete params.team_ids;
     const response = await api.get('/dashboard/team-trend', { params });
     return response.data.map((item: any) => ({
       team: item.team_name,
       teamId: item.team_id,
       date: item.date,
-      completed: 0,
+      completed: item.completed_count || 0,
       total: item.hazard_count,
     }));
   },

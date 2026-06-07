@@ -262,6 +262,7 @@ class TeamTrendItem(BaseModel):
     team_id: str
     team_name: str
     hazard_count: int
+    completed_count: int = 0
 
 
 class FineStatistics(BaseModel):
