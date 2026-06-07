@@ -404,6 +404,7 @@ def api_create_report(request):
 
     report_type = body.get('report_type', 'custom')
     params = body.get('params', {})
+    params['_user_id'] = user.id
 
     report = AsyncReport.objects.create(
         name=f'自定义报表-{timezone.now().strftime("%Y%m%d_%H%M")}',

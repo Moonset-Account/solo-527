@@ -128,8 +128,11 @@ def generate_daily_report():
 @shared_task
 def generate_custom_report(report_id, params):
     from visit_dashboard.models import AsyncReport, VisitRecord, AnomalyAnnotation
-    from visit_dashboard.utils import mask_phone, get_completed_visits
+    from visit_dashboard.utils import mask_phone, get_completed_visits, filter_queryset_by_permission
+    from django.contrib.auth import get_user_model
     import openpyxl
+
+    User = get_user_model()
 
     logger.info(f'Starting custom report generation for report_id={report_id}...')
 
@@ -153,11 +156,19 @@ def generate_custom_report(report_id, params):
         store_id = params.get('store_id')
         date_from = params.get('date_from')
         date_to = params.get('date_to')
+        user_id = params.get('_user_id')
 
         visits = get_completed_visits().select_related(
             'work_order', 'work_order__store', 'work_order__problem_type',
             'work_order__team', 'work_order__handler', 'visitor',
         ).prefetch_related('work_order__refunds', 'work_order__secondary_complaints', 'work_order__annotations')
+
+        if user_id:
+            try:
+                report_user = User.objects.get(id=user_id)
+                visits = filter_queryset_by_permission(visits, report_user, store_field='work_order__store_id')
+            except User.DoesNotExist:
+                logger.warning(f'User {user_id} not found, skipping permission filter')
 
         if store_id:
             visits = visits.filter(work_order__store_id=store_id)

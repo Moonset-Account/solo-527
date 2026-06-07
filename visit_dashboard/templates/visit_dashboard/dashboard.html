@@ -765,9 +765,9 @@
                         const resp = await fetch(`/api/report/${reportId}/status/`);
                         const data = await resp.json();
                         if (data.status === 'completed') {
-                            this.reportStatus = '报表已生成，路径: ' + data.file_path;
+                            this.reportStatus = '报表已生成，路径: ' + (data.file_path || '未知');
                         } else if (data.status === 'failed') {
-                            this.reportStatus = '报表生成失败: ' + data.error_message;
+                            this.reportStatus = '报表生成失败: ' + (data.error_message || '未知错误');
                         } else {
                             setTimeout(poll, 3000);
                         }
