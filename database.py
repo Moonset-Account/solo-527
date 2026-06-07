@@ -3,6 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 Base = declarative_base()
 
@@ -151,18 +154,31 @@ class ManualNote(Base):
     )
 
 
-def init_db(db_url='sqlite:///cold_storage.db'):
+def get_db_url():
+    return os.getenv('DATABASE_URL', 'sqlite:///cold_storage.db')
+
+
+def is_timescaledb_enabled():
+    return os.getenv('TIMESCALEDB_ENABLED', 'false').lower() == 'true'
+
+
+def init_db(db_url=None):
+    if db_url is None:
+        db_url = get_db_url()
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session(), engine
 
 
-def init_timescaledb(db_url='postgresql://postgres:postgres@localhost:5432/cold_storage'):
+def init_timescaledb(db_url=None):
+    if db_url is None:
+        db_url = get_db_url()
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     
     with engine.connect() as conn:
+        conn.execute("CREATE EXTENSION IF NOT EXISTS timescaledb;")
         conn.execute("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);")
         conn.execute("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);")
         conn.execute("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);")

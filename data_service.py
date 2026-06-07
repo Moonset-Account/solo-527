@@ -3,15 +3,22 @@ import numpy as np
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, func
 from database import (
-    init_db, TemperatureZone, Location, TemperatureReading,
+    init_db, init_timescaledb, is_timescaledb_enabled, get_db_url,
+    TemperatureZone, Location, TemperatureReading,
     InventoryBatch, InboundRecord, OutboundRecord, DoorEvent,
     Alarm, ManualNote
 )
 
 
 class DataService:
-    def __init__(self, db_url='sqlite:///cold_storage.db'):
-        self.session, self.engine = init_db(db_url)
+    def __init__(self, db_url=None):
+        if db_url is None:
+            db_url = get_db_url()
+        
+        if is_timescaledb_enabled():
+            self.session, self.engine = init_timescaledb(db_url)
+        else:
+            self.session, self.engine = init_db(db_url)
     
     def get_zones(self):
         zones = self.session.query(TemperatureZone).all()

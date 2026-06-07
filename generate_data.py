@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from database import (
-    init_db, TemperatureZone, Location, TemperatureReading,
+    init_db, init_timescaledb, is_timescaledb_enabled, get_db_url,
+    TemperatureZone, Location, TemperatureReading,
     InventoryBatch, InboundRecord, OutboundRecord, DoorEvent,
     Alarm, ManualNote
 )
@@ -23,7 +24,7 @@ def generate_zones():
 
 def generate_locations(zones):
     locations = []
-    for zone in zones:
+    for zone_idx, zone in enumerate(zones):
         for aisle in ['A', 'B', 'C']:
             for rack in range(1, 4):
                 for level in range(1, 5):
@@ -31,7 +32,7 @@ def generate_locations(zones):
                         loc_code = f"{zone['zone_code']}-{aisle}{rack}-L{level}-P{position}"
                         locations.append({
                             'location_code': loc_code,
-                            'zone_id': None,
+                            'zone_id': zone_idx + 1,
                             'aisle': aisle,
                             'rack': str(rack),
                             'level': level,
@@ -49,6 +50,7 @@ def generate_temperature_readings(zones, start_date, days=30):
     
     while current_time < end_time:
         for zone_idx, zone in enumerate(zones):
+            zone_id = zone.get('id', zone_idx + 1)
             base_temp = (zone['target_temp_min'] + zone['target_temp_max']) / 2
             temp_variation = np.random.normal(0, 0.8)
             temperature = base_temp + temp_variation
@@ -60,7 +62,7 @@ def generate_temperature_readings(zones, start_date, days=30):
             
             readings.append({
                 'time': current_time,
-                'zone_id': zone_idx + 1,
+                'zone_id': zone_id,
                 'temperature': round(temperature, 2),
                 'humidity': round(humidity, 1),
                 'sensor_id': f"SENSOR-{zone['zone_code']}-001"
@@ -79,6 +81,8 @@ def generate_batches(zones, locations, start_date, days=30):
         'CON': ['巧克力', '红酒', '生物制剂', '疫苗']
     }
     
+    location_ids = [loc.get('id', i + 1) for i, loc in enumerate(locations)]
+    
     batches = []
     batch_counter = 1
     
@@ -89,6 +93,7 @@ def generate_batches(zones, locations, start_date, days=30):
         for _ in range(num_batches):
             zone_idx = random.randint(0, len(zones) - 1)
             zone = zones[zone_idx]
+            zone_id = zone.get('id', zone_idx + 1)
             zone_prefix = zone['zone_code'].split('-')[0]
             
             customer = random.choice(customers)
@@ -112,8 +117,8 @@ def generate_batches(zones, locations, start_date, days=30):
                 'product_name': product_name,
                 'quantity': quantity,
                 'unit': 'pallet',
-                'zone_id': zone_idx + 1,
-                'location_id': random.randint(1, len(locations)),
+                'zone_id': zone_id,
+                'location_id': random.choice(location_ids),
                 'inbound_time': inbound_time,
                 'expected_outbound_time': expected_outbound,
                 'actual_outbound_time': actual_outbound,
@@ -128,18 +133,23 @@ def generate_batches(zones, locations, start_date, days=30):
 def generate_inbound_records(batches, alarms):
     inbound_records = []
     
-    for batch in batches:
+    for batch_idx, batch in enumerate(batches):
+        batch_id = batch.get('id', batch_idx + 1)
+        zone_id = batch['zone_id']
+        
         is_during_alarm = False
         for alarm in alarms:
-            if alarm['zone_id'] == batch['zone_id']:
-                if alarm['alarm_start'] <= batch['inbound_time'] <= (alarm['alarm_end'] or alarm['alarm_start'] + timedelta(hours=2)):
+            alarm_zone_id = alarm.get('zone_id')
+            if alarm_zone_id == zone_id:
+                alarm_end = alarm['alarm_end'] or alarm['alarm_start'] + timedelta(hours=2)
+                if alarm['alarm_start'] <= batch['inbound_time'] <= alarm_end:
                     is_during_alarm = True
                     break
         
         inbound_records.append({
             'inbound_time': batch['inbound_time'],
-            'batch_id': batches.index(batch) + 1,
-            'zone_id': batch['zone_id'],
+            'batch_id': batch_id,
+            'zone_id': zone_id,
             'location_id': batch['location_id'],
             'quantity': batch['quantity'],
             'temperature_on_arrival': round(random.uniform(-20, 18), 1),
@@ -153,11 +163,12 @@ def generate_inbound_records(batches, alarms):
 def generate_outbound_records(batches):
     outbound_records = []
     
-    for batch in batches:
+    for batch_idx, batch in enumerate(batches):
         if batch['actual_outbound_time']:
+            batch_id = batch.get('id', batch_idx + 1)
             outbound_records.append({
                 'outbound_time': batch['actual_outbound_time'],
-                'batch_id': batches.index(batch) + 1,
+                'batch_id': batch_id,
                 'zone_id': batch['zone_id'],
                 'location_id': batch['location_id'],
                 'quantity': batch['quantity'],
@@ -176,7 +187,9 @@ def generate_door_events(zones, start_date, days=30):
     while current_time < end_time:
         if random.random() < 0.3:
             zone_idx = random.randint(0, len(zones) - 1)
-            door_id = f"DOOR-{zones[zone_idx]['zone_code']}-{random.randint(1, 3):02d}"
+            zone = zones[zone_idx]
+            zone_id = zone.get('id', zone_idx + 1)
+            door_id = f"DOOR-{zone['zone_code']}-{random.randint(1, 3):02d}"
             
             open_time = current_time
             duration = random.randint(30, 600)
@@ -184,7 +197,7 @@ def generate_door_events(zones, start_date, days=30):
             
             events.append({
                 'event_time': open_time,
-                'zone_id': zone_idx + 1,
+                'zone_id': zone_id,
                 'door_id': door_id,
                 'event_type': 'open',
                 'duration_seconds': None,
@@ -193,7 +206,7 @@ def generate_door_events(zones, start_date, days=30):
             
             events.append({
                 'event_time': close_time,
-                'zone_id': zone_idx + 1,
+                'zone_id': zone_id,
                 'door_id': door_id,
                 'event_type': 'close',
                 'duration_seconds': duration,
@@ -218,6 +231,8 @@ def generate_alarms(zones, start_date, days=30):
     for day in range(days):
         if random.random() < 0.4:
             zone_idx = random.randint(0, len(zones) - 1)
+            zone = zones[zone_idx]
+            zone_id = zone.get('id', zone_idx + 1)
             alarm_type_key = random.choice(list(alarm_types.keys()))
             severity, temp_offset_min, temp_offset_max = alarm_types[alarm_type_key]
             
@@ -230,13 +245,12 @@ def generate_alarms(zones, start_date, days=30):
             duration_hours = random.uniform(0.5, 4)
             alarm_end = alarm_start + timedelta(hours=duration_hours)
             
-            zone = zones[zone_idx]
             base_temp = (zone['target_temp_min'] + zone['target_temp_max']) / 2
             
             alarms.append({
                 'alarm_start': alarm_start,
                 'alarm_end': alarm_end,
-                'zone_id': zone_idx + 1,
+                'zone_id': zone_id,
                 'alarm_type': alarm_type_key,
                 'severity': severity,
                 'description': f"{zone['zone_name']}发生{alarm_type_key}，持续{duration_hours:.1f}小时",
@@ -252,10 +266,11 @@ def generate_manual_notes(alarms, batches):
     notes = []
     
     for i, alarm in enumerate(alarms[:20]):
+        alarm_id = alarm.get('id', i + 1)
         notes.append({
             'created_at': alarm['alarm_end'] or alarm['alarm_start'] + timedelta(hours=1),
             'related_type': 'alarm',
-            'related_id': i + 1,
+            'related_id': alarm_id,
             'note': random.choice([
                 '经排查为冷库门未关严导致，已整改',
                 '压缩机临时故障，已报修恢复',
@@ -268,10 +283,11 @@ def generate_manual_notes(alarms, batches):
         })
     
     for i, batch in enumerate(batches[:10]):
+        batch_id = batch.get('id', i + 1)
         notes.append({
             'created_at': batch['inbound_time'] + timedelta(hours=2),
             'related_type': 'batch',
-            'related_id': i + 1,
+            'related_id': batch_id,
             'note': random.choice([
                 '该批次包装有破损，已单独存放',
                 '客户特殊要求，优先出库',
@@ -285,30 +301,69 @@ def generate_manual_notes(alarms, batches):
     return notes
 
 
+def clear_all_tables(session):
+    print("清空现有数据...")
+    session.query(ManualNote).delete()
+    session.query(DoorEvent).delete()
+    session.query(OutboundRecord).delete()
+    session.query(InboundRecord).delete()
+    session.query(Alarm).delete()
+    session.query(TemperatureReading).delete()
+    session.query(InventoryBatch).delete()
+    session.query(Location).delete()
+    session.query(TemperatureZone).delete()
+    session.commit()
+    print("已清空所有表")
+
+
 def main():
     print("开始生成模拟数据...")
-    session, engine = init_db()
+    db_url = get_db_url()
+    
+    if is_timescaledb_enabled():
+        print(f"使用 TimescaleDB: {db_url}")
+        session, engine = init_timescaledb(db_url)
+    else:
+        print(f"使用 SQLite: {db_url}")
+        session, engine = init_db(db_url)
+    
+    clear_all_tables(session)
     
     start_date = datetime.now() - timedelta(days=30)
     
     zones = generate_zones()
+    zone_objects = []
     for zone_data in zones:
         zone = TemperatureZone(**zone_data)
         session.add(zone)
+        zone_objects.append(zone)
+    session.flush()
+    for i, zone in enumerate(zone_objects):
+        zones[i]['id'] = zone.id
     session.commit()
     print(f"生成 {len(zones)} 个温区")
     
     locations = generate_locations(zones)
+    location_objects = []
     for loc_data in locations:
         loc = Location(**loc_data)
         session.add(loc)
+        location_objects.append(loc)
+    session.flush()
+    for i, loc in enumerate(location_objects):
+        locations[i]['id'] = loc.id
     session.commit()
     print(f"生成 {len(locations)} 个库位")
     
     alarms = generate_alarms(zones, start_date, days=30)
+    alarm_objects = []
     for alarm_data in alarms:
         alarm = Alarm(**alarm_data)
         session.add(alarm)
+        alarm_objects.append(alarm)
+    session.flush()
+    for i, alarm in enumerate(alarm_objects):
+        alarms[i]['id'] = alarm.id
     session.commit()
     print(f"生成 {len(alarms)} 条报警记录")
     
@@ -320,9 +375,14 @@ def main():
     print(f"生成 {len(readings)} 条温度读数")
     
     batches = generate_batches(zones, locations, start_date, days=30)
+    batch_objects = []
     for batch_data in batches:
         batch = InventoryBatch(**batch_data)
         session.add(batch)
+        batch_objects.append(batch)
+    session.flush()
+    for i, batch in enumerate(batch_objects):
+        batches[i]['id'] = batch.id
     session.commit()
     print(f"生成 {len(batches)} 个库存批次")
     
