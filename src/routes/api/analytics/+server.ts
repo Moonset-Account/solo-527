@@ -37,12 +37,14 @@ export const GET: RequestHandler = async ({ url }) => {
 	let filteredRecords = filterRecords(allRecords, filters);
 	filteredRecords = desensitizeRecords(filteredRecords, role);
 
-	const overview = calculateOverview(filteredRecords);
-	const sankey = calculateSankeyData(filteredRecords);
+	const selectedNodes = filters.processNodes as string[] | undefined;
+
+	const overview = calculateOverview(filteredRecords, selectedNodes);
+	const sankey = calculateSankeyData(filteredRecords, selectedNodes);
 	const deptCompare = calculateDepartmentComparison(filteredRecords);
 	const intraday = calculateIntradayTrend(filteredRecords);
 
-	const allWaitTimes = getAllWaitTimes(filteredRecords);
+	const allWaitTimes = getAllWaitTimes(filteredRecords, selectedNodes);
 	const nodeStats: Record<string, any> = {};
 	const distributions: Record<string, any> = {};
 

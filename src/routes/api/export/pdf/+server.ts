@@ -7,11 +7,20 @@ import {
 	calculateDepartmentComparison,
 	calculateIntradayTrend
 } from '$lib/analytics';
-import { desensitizeRecords, getCurrentUserRole } from '$lib/server/security';
+import { desensitizeRecords, getCurrentUserRole, checkPermission } from '$lib/server/security';
 import { metricDefinitions } from '$lib/dictionary';
 import type { FilterParams } from '$types';
 
 export const POST: RequestHandler = async ({ request }) => {
+	const role = getCurrentUserRole();
+
+	if (!checkPermission(role, 'export_pdf')) {
+		return new Response(JSON.stringify({ error: '无权限导出 PDF' }), {
+			status: 403,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
 	const body = await request.json();
 	const { filters, includeCharts = true, includeDefinitions = true } = body as {
 		filters: Partial<FilterParams>;
@@ -19,7 +28,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		includeDefinitions?: boolean;
 	};
 
-	const role = getCurrentUserRole();
 	let records = await getAllRecords();
 	records = filterRecords(records, filters);
 	records = desensitizeRecords(records, role);

@@ -27,12 +27,36 @@ export function desensitizeRecord(record: VisitRecord, role: UserRole): VisitRec
 		return record;
 	}
 
-	return {
+	const desensitized: VisitRecord = {
 		...record,
 		visitId: hashValue(record.visitId),
 		doctor: getDoctorCode(record.doctor),
-		anomalyReason: record.anomalyReason ? '系统标注异常' : undefined
+		anomalyReason: undefined,
+		isAnomaly: false
 	};
+
+	if (role !== 'analyst' && role !== 'manager') {
+		desensitized.registerTime = record.registerTime
+			? new Date(new Date(record.registerTime).setSeconds(0, 0))
+			: null;
+		desensitized.checkInTime = record.checkInTime
+			? new Date(new Date(record.checkInTime).setSeconds(0, 0))
+			: null;
+		desensitized.triageTime = record.triageTime
+			? new Date(new Date(record.triageTime).setSeconds(0, 0))
+			: null;
+		desensitized.callTime = record.callTime
+			? new Date(new Date(record.callTime).setSeconds(0, 0))
+			: null;
+		desensitized.paymentTime = record.paymentTime
+			? new Date(new Date(record.paymentTime).setSeconds(0, 0))
+			: null;
+		desensitized.pickupTime = record.pickupTime
+			? new Date(new Date(record.pickupTime).setSeconds(0, 0))
+			: null;
+	}
+
+	return desensitized;
 }
 
 export function desensitizeRecords(records: VisitRecord[], role: UserRole): VisitRecord[] {
@@ -40,6 +64,17 @@ export function desensitizeRecords(records: VisitRecord[], role: UserRole): Visi
 		return records;
 	}
 	return records.map((r) => desensitizeRecord(r, role));
+}
+
+export function getDesensitizedFields(role: UserRole): string[] {
+	if (role === 'analyst' || role === 'manager') {
+		return ['visitId', 'department', 'doctor', 'patientType', 'timeSlot',
+			'registerTime', 'checkInTime', 'triageTime', 'callTime', 'paymentTime', 'pickupTime',
+			'totalWait', 'isAnomaly', 'anomalyReason'];
+	}
+	return ['visitId', 'department', 'doctor', 'patientType', 'timeSlot',
+		'registerTime', 'checkInTime', 'triageTime', 'callTime', 'paymentTime', 'pickupTime',
+		'totalWait'];
 }
 
 export function checkPermission(role: UserRole, permission: string): boolean {

@@ -26,6 +26,7 @@
 	let selectedReasonFilter = 'all';
 	let annotationText: Record<string, string> = {};
 	let savingAnnotation: string | null = null;
+	let saveSuccess: string | null = null;
 
 	async function handleFileSelect(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -104,8 +105,9 @@
 	async function saveAnnotation(record: VisitRecord) {
 		const visitId = record.visitId;
 		savingAnnotation = visitId;
+		saveSuccess = null;
 		try {
-			await fetch('/api/anomalies', {
+			const res = await fetch('/api/anomalies', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -114,6 +116,12 @@
 					isAnomaly: record.isAnomaly
 				})
 			});
+
+			if (res.ok) {
+				saveSuccess = visitId;
+				setTimeout(() => (saveSuccess = null), 2000);
+				await loadAnomalies();
+			}
 		} catch (e) {
 			console.error('Failed to save annotation:', e);
 		} finally {
@@ -454,7 +462,7 @@
 											</span>
 										</td>
 										<td class="py-3 px-3">
-											<div class="flex space-x-2">
+											<div class="flex items-center space-x-2">
 												<button
 													class="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 flex items-center space-x-1"
 													on:click={() => saveAnnotation(record)}
@@ -462,6 +470,8 @@
 												>
 													{#if savingAnnotation === record.visitId}
 														<span>保存中...</span>
+													{:else if saveSuccess === record.visitId}
+														<span class="text-green-600">✓ 已保存</span>
 													{:else}
 														<Save class="w-3 h-3" />
 														<span>保存</span>
@@ -470,6 +480,7 @@
 												<button
 													class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
 													on:click={() => toggleAnomaly(record)}
+													disabled={savingAnnotation === record.visitId}
 												>
 													{record.isAnomaly ? '排除' : '标记'}
 												</button>
@@ -496,7 +507,8 @@
 				<ul class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
 					<li>系统自动标记：等待时间超过 180 分钟或时间顺序异常</li>
 					<li>可手动排除确认为正常的数据（如特殊病情、VIP 患者等）</li>
-					<li>标注后的数据将在筛选"排除异常"时被过滤</li>
+					<li><strong>标注后立即生效：</strong>保存后仪表盘、分析图表、导出内容会自动排除/包含该数据</li>
+					<li>"排除异常"筛选开启时，所有标记为异常的记录将从统计中移除</li>
 					<li>所有操作均有日志记录，请谨慎修改异常标记</li>
 				</ul>
 			</div>

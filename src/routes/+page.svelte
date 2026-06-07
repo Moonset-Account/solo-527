@@ -40,6 +40,11 @@
 			const res = await fetch(`/api/analytics?${params.toString()}`);
 			const data = await res.json();
 
+			if (data.overview?.dataDateRange) {
+				data.overview.dataDateRange.start = new Date(data.overview.dataDateRange.start);
+				data.overview.dataDateRange.end = new Date(data.overview.dataDateRange.end);
+			}
+
 			overview = data.overview;
 			sankeyData = data.sankey;
 			deptCompare = data.deptCompare;

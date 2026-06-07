@@ -25,19 +25,33 @@ export function getWaitTimeForNode(record: VisitRecord, node: string): number | 
 	}
 }
 
-export function getAllWaitTimes(records: VisitRecord[]): Map<string, number[]> {
+export function getAllWaitTimes(
+	records: VisitRecord[],
+	selectedNodes?: string[]
+): Map<string, number[]> {
 	const waitTimes = new Map<string, number[]>();
-	const nodePairs = ['挂号-签到', '签到-分诊', '分诊-叫号', '叫号-缴费', '缴费-取药'];
+	const allNodePairs = [
+		{ pair: '挂号-签到', nodes: ['挂号', '签到'] },
+		{ pair: '签到-分诊', nodes: ['签到', '分诊'] },
+		{ pair: '分诊-叫号', nodes: ['分诊', '叫号'] },
+		{ pair: '叫号-缴费', nodes: ['叫号', '缴费'] },
+		{ pair: '缴费-取药', nodes: ['缴费', '取药'] }
+	];
 
-	for (const node of nodePairs) {
-		waitTimes.set(node, []);
+	const nodeFilter = selectedNodes && selectedNodes.length > 0 ? selectedNodes : null;
+	const filteredPairs = nodeFilter
+		? allNodePairs.filter((p) => p.nodes.every((n) => nodeFilter.includes(n)))
+		: allNodePairs;
+
+	for (const { pair } of filteredPairs) {
+		waitTimes.set(pair, []);
 	}
 
 	for (const record of records) {
-		for (const node of nodePairs) {
-			const wait = getWaitTimeForNode(record, node);
+		for (const { pair } of filteredPairs) {
+			const wait = getWaitTimeForNode(record, pair);
 			if (wait !== null && wait >= 0) {
-				waitTimes.get(node)!.push(wait);
+				waitTimes.get(pair)!.push(wait);
 			}
 		}
 	}
@@ -100,9 +114,15 @@ export function filterRecords(records: VisitRecord[], params: Partial<FilterPara
 	});
 }
 
-export function calculateSankeyData(records: VisitRecord[]): SankeyData {
+export function calculateSankeyData(
+	records: VisitRecord[],
+	selectedNodes?: string[]
+): SankeyData {
 	const nodeSet = new Set<string>();
 	const linkMap = new Map<string, { source: string; target: string; value: number; totalWait: number }>();
+
+	const allStages = ['挂号', '签到', '分诊', '叫号', '缴费', '取药'];
+	const nodeFilter = selectedNodes && selectedNodes.length > 0 ? selectedNodes : allStages;
 
 	for (const record of records) {
 		const stages: { name: string; time: Date | null }[] = [
@@ -114,7 +134,10 @@ export function calculateSankeyData(records: VisitRecord[]): SankeyData {
 			{ name: '取药', time: record.pickupTime }
 		];
 
-		const validStages = stages.filter((s) => s.time !== null);
+		let validStages = stages.filter((s) => s.time !== null);
+		validStages = validStages.filter((s) => nodeFilter.includes(s.name));
+
+		if (validStages.length < 2) continue;
 
 		for (let i = 0; i < validStages.length - 1; i++) {
 			const source = validStages[i].name;
@@ -267,7 +290,7 @@ export function calculateIntradayTrend(records: VisitRecord[]): IntradayTrendPoi
 	return result;
 }
 
-export function calculateOverview(records: VisitRecord[]): OverviewStats {
+export function calculateOverview(records: VisitRecord[], selectedNodes?: string[]): OverviewStats {
 	const allWaitTimes: number[] = [];
 	const nodeWaits: Map<string, number[]> = new Map();
 	const deptCount: Map<string, number> = new Map();
@@ -276,9 +299,21 @@ export function calculateOverview(records: VisitRecord[]): OverviewStats {
 	let maxDate: Date | null = null;
 	let anomalyCount = 0;
 
-	const nodePairs = ['挂号-签到', '签到-分诊', '分诊-叫号', '叫号-缴费', '缴费-取药'];
-	for (const node of nodePairs) {
-		nodeWaits.set(node, []);
+	const allNodePairs = [
+		{ pair: '挂号-签到', nodes: ['挂号', '签到'] },
+		{ pair: '签到-分诊', nodes: ['签到', '分诊'] },
+		{ pair: '分诊-叫号', nodes: ['分诊', '叫号'] },
+		{ pair: '叫号-缴费', nodes: ['叫号', '缴费'] },
+		{ pair: '缴费-取药', nodes: ['缴费', '取药'] }
+	];
+
+	const nodeFilter = selectedNodes && selectedNodes.length > 0 ? selectedNodes : null;
+	const filteredPairs = nodeFilter
+		? allNodePairs.filter((p) => p.nodes.every((n) => nodeFilter.includes(n)))
+		: allNodePairs;
+
+	for (const { pair } of filteredPairs) {
+		nodeWaits.set(pair, []);
 	}
 
 	for (const record of records) {
@@ -289,10 +324,10 @@ export function calculateOverview(records: VisitRecord[]): OverviewStats {
 			if (!maxDate || record.registerTime > maxDate) maxDate = record.registerTime;
 		}
 
-		for (const node of nodePairs) {
-			const w = getWaitTimeForNode(record, node);
+		for (const { pair } of filteredPairs) {
+			const w = getWaitTimeForNode(record, pair);
 			if (w !== null && w >= 0) {
-				nodeWaits.get(node)!.push(w);
+				nodeWaits.get(pair)!.push(w);
 				allWaitTimes.push(w);
 			}
 		}
