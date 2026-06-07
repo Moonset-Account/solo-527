@@ -10,6 +10,10 @@ const props = defineProps<{
   loading?: boolean;
 }>();
 
+interface ChartDataPoint extends TrendPoint {
+  date: Date;
+}
+
 const chartRef = ref<HTMLElement | null>(null);
 const tooltip = ref<{ x: number; y: number; visible: boolean; content: any }>({
   x: 0, y: 0, visible: false, content: null,
@@ -36,7 +40,7 @@ function renderChart() {
   const g = svg.append('g').attr('transform', `translate(${margin.left}, ${margin.top})`);
 
   const parseTime = d3.isoParse;
-  const data = props.data.map(d => ({ ...d, date: parseTime(d.time)! }));
+  const data: ChartDataPoint[] = props.data.map(d => ({ ...d, date: parseTime(d.time)! }));
 
   const xScale = d3.scaleTime()
     .domain(d3.extent(data, d => d.date) as [Date, Date])
@@ -48,29 +52,31 @@ function renderChart() {
     .range([innerHeight, 0]);
 
   const normalData = data.filter(d => !d.isMissing);
-  const missingSegments: typeof data[] = [];
-  let currentSegment: typeof data = [];
-  for (const d of data) {
+  const missingSegments: ChartDataPoint[][] = [];
+  let currentSegment: ChartDataPoint[] = [];
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i];
     if (d.isMissing) {
       if (currentSegment.length > 0) {
-        missingSegments.push([...currentSegment, d]);
+        const segStart = currentSegment[currentSegment.length - 1];
+        const segEnd = data[i + 1];
+        const segment: ChartDataPoint[] = [...currentSegment, d];
+        if (segEnd) segment.push(segEnd);
+        missingSegments.push(segment);
         currentSegment = [];
       }
     } else {
-      if (missingSegments.length > 0 && currentSegment.length === 0) {
-        missingSegments[missingSegments.length - 1].push(d);
-      }
       currentSegment.push(d);
     }
   }
 
-  const area = d3.area<typeof data[0]>()
+  const area = d3.area<ChartDataPoint>()
     .x(d => xScale(d.date))
     .y0(innerHeight)
     .y1(d => yScale(d.count))
     .curve(d3.curveMonotoneX);
 
-  const line = d3.line<typeof data[0]>()
+  const line = d3.line<ChartDataPoint>()
     .x(d => xScale(d.date))
     .y(d => yScale(d.count))
     .curve(d3.curveMonotoneX);
@@ -110,7 +116,7 @@ function renderChart() {
     }
   }
 
-  const abnormalLine = d3.line<typeof data[0]>()
+  const abnormalLine = d3.line<ChartDataPoint>()
     .x(d => xScale(d.date))
     .y(d => yScale(d.abnormal))
     .curve(d3.curveMonotoneX);
@@ -123,14 +129,14 @@ function renderChart() {
     .attr('opacity', 0.6)
     .attr('d', abnormalLine);
 
-  const points = g.selectAll('.data-point')
-    .data(data.filter(d => d.isPeak || d.remark))
+  const peakPoints = g.selectAll('.peak-point')
+    .data(data.filter(d => d.isPeak))
     .enter()
     .append('g')
-    .attr('class', 'data-point')
+    .attr('class', 'peak-point')
     .attr('transform', d => `translate(${xScale(d.date)}, ${yScale(d.count)})`);
 
-  points.filter(d => d.isPeak)
+  peakPoints
     .append('circle')
     .attr('r', 5)
     .attr('fill', '#EF4444')
@@ -138,7 +144,14 @@ function renderChart() {
     .attr('stroke-width', 2)
     .style('cursor', 'pointer');
 
-  points.filter(d => d.remark)
+  const remarkPoints = g.selectAll('.remark-point')
+    .data(data.filter(d => d.remark))
+    .enter()
+    .append('g')
+    .attr('class', 'remark-point')
+    .attr('transform', d => `translate(${xScale(d.date)}, ${yScale(d.count)})`);
+
+  remarkPoints
     .append('text')
     .attr('y', -12)
     .attr('text-anchor', 'middle')
@@ -178,7 +191,7 @@ function renderChart() {
     .attr('stroke-dasharray', '3,3')
     .style('opacity', 0);
 
-  const bisect = d3.bisector((d: typeof data[0]) => d.date).left;
+  const bisect = d3.bisector<ChartDataPoint, Date>((d) => d.date).left;
 
   mouseG.append('rect')
     .attr('width', innerWidth)

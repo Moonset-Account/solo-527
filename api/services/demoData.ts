@@ -1,12 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import metricsConfig from '../data/metrics.json' assert { type: 'json' };
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const { enterprises, gates, lanes, visitorTypes, abnormalReasons } = metricsConfig as any;
+const { enterprises, gates, lanes, visitorTypes, abnormalReasons } = metricsConfig as {
+  enterprises: Array<{ id: string; name: string }>;
+  gates: Array<{ id: string; name: string; isVehicle: boolean }>;
+  lanes: Array<{ id: string; name: string; gateId: string }>;
+  visitorTypes: Array<{ id: string; name: string }>;
+  abnormalReasons: string[];
+};
 
 const PROVINCE_PREFIXES = ['粤B', '粤A', '沪A', '京A', '浙A', '苏A', '川A', '鄂A'];
 const OPERATORS = ['李安保', '王队长', '张执勤', '刘班长', '陈值班'];
@@ -64,6 +64,8 @@ export interface VisitorRecord {
   id: string;
   passTime: string;
   passTimestamp: number;
+  hourBucket: number;
+  dayBucket: string;
   plateNumber: string;
   idCard: string;
   visitorType: string;
@@ -80,6 +82,7 @@ export interface VisitorRecord {
   abnormalReason?: string;
   remark?: string;
   operator?: string;
+  isMissing?: boolean;
 }
 
 export interface DemoDataset {
@@ -89,30 +92,61 @@ export interface DemoDataset {
     dateRange: { start: string; end: string };
     abnormalCount: number;
     remarkCount: number;
+    missingHours: string[];
   };
+}
+
+function alignToHour(ts: number): number {
+  const d = new Date(ts);
+  d.setMinutes(0, 0, 0);
+  return d.getTime();
+}
+
+function getDayBucket(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${padZero(d.getMonth() + 1)}-${padZero(d.getDate())}`;
 }
 
 export function generateDemoData(): DemoDataset {
   const records: VisitorRecord[] = [];
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
   
   let recordId = 1;
+  const missingHours: string[] = [];
+  
   const missingDay = new Date(startDate.getTime() + 15 * 24 * 60 * 60 * 1000);
+  missingDay.setHours(0, 0, 0, 0);
+  
+  for (let h = 13; h < 14; h++) {
+    const missingHour = new Date(missingDay);
+    missingHour.setHours(h, 0, 0, 0);
+    missingHours.push(missingHour.toISOString());
+  }
+
   const peakDay = new Date(startDate.getTime() + 20 * 24 * 60 * 60 * 1000);
+  peakDay.setHours(0, 0, 0, 0);
   const peakEnterpriseId = 'e003';
 
-  const remarks: Record<string, string> = {};
   const remarkCount = randomInt(40, 60);
+  let remarksAdded = 0;
 
   for (let d = 0; d < 30; d++) {
     const currentDate = new Date(startDate.getTime() + d * 24 * 60 * 60 * 1000);
+    currentDate.setHours(0, 0, 0, 0);
+    
     const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
     const isMissingDay = currentDate.toDateString() === missingDay.toDateString();
     const isPeakDay = currentDate.toDateString() === peakDay.toDateString();
 
     for (let hour = 0; hour < 24; hour++) {
-      if (isMissingDay && hour >= 13 && hour < 14) continue;
+      const hourStart = new Date(currentDate);
+      hourStart.setHours(hour, 0, 0, 0);
+      
+      if (isMissingDay && hour >= 13 && hour < 14) {
+        continue;
+      }
 
       const baseWeight = getVisitorWeight(hour, isWeekend);
       let recordCount = Math.floor(baseWeight * randomInt(40, 80));
@@ -124,22 +158,24 @@ export function generateDemoData(): DemoDataset {
       for (let i = 0; i < recordCount; i++) {
         const minute = randomInt(0, 59);
         const second = randomInt(0, 59);
-        const passTime = new Date(currentDate);
-        passTime.setHours(hour, minute, second);
+        const passTime = new Date(hourStart);
+        passTime.setMinutes(minute, second);
 
         const isAbnormal = Math.random() < (isPeakDay ? 0.08 : 0.03);
         const visitorType = randomChoice(visitorTypes);
         const enterprise = isPeakDay && Math.random() < 0.6 
-          ? enterprises.find(e => e.id === peakEnterpriseId)!
+          ? enterprises.find((e) => e.id === peakEnterpriseId)!
           : randomChoice(enterprises);
         const gate = randomChoice(gates);
-        const gateLanes = lanes.filter(l => l.gateId === gate.id);
+        const gateLanes = lanes.filter((l) => l.gateId === gate.id);
         const lane = gateLanes.length > 0 ? randomChoice(gateLanes) : lanes[0];
 
         const record: VisitorRecord = {
           id: `rec${padZero(recordId, 6)}`,
           passTime: passTime.toISOString(),
           passTimestamp: passTime.getTime(),
+          hourBucket: alignToHour(passTime.getTime()),
+          dayBucket: getDayBucket(passTime.getTime()),
           plateNumber: gate.isVehicle ? generatePlateNumber() : '',
           idCard: generateIdCard(),
           visitorType: visitorType.id,
@@ -160,7 +196,7 @@ export function generateDemoData(): DemoDataset {
           record.abnormalReason = randomChoice(abnormalReasons);
           record.operator = randomChoice(OPERATORS);
           
-          if (Object.keys(remarks).length < remarkCount && Math.random() < 0.3) {
+          if (remarksAdded < remarkCount && Math.random() < 0.3) {
             const remarkTexts = [
               '已电话联系被访企业确认',
               '安保主管现场核实后放行',
@@ -171,7 +207,7 @@ export function generateDemoData(): DemoDataset {
               '高峰期临时增开通道放行',
             ];
             record.remark = randomChoice(remarkTexts);
-            remarks[record.id] = record.remark;
+            remarksAdded++;
           }
         }
 
@@ -192,7 +228,8 @@ export function generateDemoData(): DemoDataset {
         end: today.toISOString(),
       },
       abnormalCount: records.filter(r => r.isAbnormal).length,
-      remarkCount: Object.keys(remarks).length,
+      remarkCount: remarksAdded,
+      missingHours,
     },
   };
 }

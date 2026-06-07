@@ -57,9 +57,8 @@ function renderChart() {
     .range([0, props.data.length * barHeight])
     .padding(0.2);
 
-  const colorScale = d3.scaleLinear()
-    .domain([0, maxTotal])
-    .range(['#1e3a5f', '#3B82F6']);
+  const colorScale = d3.scaleSequential(d3.interpolateBlues)
+    .domain([0, maxTotal]);
 
   const barGroups = g.selectAll('.bar-group')
     .data(props.data)

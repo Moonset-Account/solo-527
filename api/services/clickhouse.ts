@@ -8,7 +8,6 @@ export interface FilterParams {
   gateIds?: string[];
   visitorTypes?: string[];
   laneIds?: string[];
-  search?: string;
 }
 
 function applyFilters(records: VisitorRecord[], params: FilterParams): VisitorRecord[] {
@@ -27,6 +26,18 @@ function applyFilters(records: VisitorRecord[], params: FilterParams): VisitorRe
     if (params.laneIds?.length && !params.laneIds.includes(r.laneId)) return false;
     return true;
   });
+}
+
+function alignToHour(ts: number): number {
+  const d = new Date(ts);
+  d.setMinutes(0, 0, 0);
+  return d.getTime();
+}
+
+function alignToDay(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
 export interface OverviewResult {
@@ -57,15 +68,15 @@ export async function queryOverview(params: FilterParams): Promise<OverviewResul
 
   const hourCounts: Record<number, number> = {};
   for (const r of filtered) {
-    const hour = new Date(r.passTime).getHours();
-    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    const h = alignToHour(r.passTimestamp);
+    hourCounts[h] = (hourCounts[h] || 0) + 1;
   }
 
   let peakHour = 0;
   let peakVisitorCount = 0;
   for (const [h, count] of Object.entries(hourCounts)) {
     if (count > peakVisitorCount) {
-      peakHour = parseInt(h);
+      peakHour = new Date(parseInt(h)).getHours();
       peakVisitorCount = count;
     }
   }
@@ -225,6 +236,7 @@ export async function queryExceptions(
 
 export interface TrendPoint {
   time: string;
+  timestamp: number;
   count: number;
   abnormal: number;
   isMissing: boolean;
@@ -232,22 +244,25 @@ export interface TrendPoint {
   remark?: string;
 }
 
-export async function queryTrend(params: FilterParams, granularity: 'hour' | 'day' = 'hour'): Promise<TrendPoint[]> {
-  const { records } = getDemoDataset();
+export async function queryTrend(
+  params: FilterParams,
+  granularity: 'hour' | 'day' = 'hour'
+): Promise<TrendPoint[]> {
+  const { records, summary } = getDemoDataset();
   const filtered = applyFilters(records, params);
 
   if (filtered.length === 0) return [];
 
-  const minTs = Math.min(...filtered.map(r => r.passTimestamp));
-  const maxTs = Math.max(...filtered.map(r => r.passTimestamp));
-
-  const points: TrendPoint[] = [];
   const bucketMs = granularity === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  const alignFn = granularity === 'hour' ? alignToHour : alignToDay;
+
+  const minTs = alignFn(Math.min(...filtered.map(r => r.passTimestamp)));
+  const maxTs = alignFn(Math.max(...filtered.map(r => r.passTimestamp)));
 
   const dataMap: Record<number, { count: number; abnormal: number; remark?: string }> = {};
 
   for (const r of filtered) {
-    const bucket = Math.floor(r.passTimestamp / bucketMs) * bucketMs;
+    const bucket = alignFn(r.passTimestamp);
     if (!dataMap[bucket]) {
       dataMap[bucket] = { count: 0, abnormal: 0 };
     }
@@ -258,24 +273,35 @@ export async function queryTrend(params: FilterParams, granularity: 'hour' | 'da
     }
   }
 
+  const missingTimestamps = new Set<number>();
+  for (const missingIso of summary.missingHours) {
+    missingTimestamps.add(alignToHour(new Date(missingIso).getTime()));
+  }
+
+  const points: TrendPoint[] = [];
   for (let t = minTs; t <= maxTs; t += bucketMs) {
     const bucketData = dataMap[t];
-    const isMissing = !bucketData || bucketData.count === 0;
+    const isMissing = missingTimestamps.has(t) || (!bucketData && granularity === 'hour');
+    
     points.push({
       time: new Date(t).toISOString(),
+      timestamp: t,
       count: bucketData?.count || 0,
       abnormal: bucketData?.abnormal || 0,
-      isMissing,
+      isMissing: !!isMissing,
       isPeak: false,
       remark: bucketData?.remark,
     });
   }
 
-  const maxCount = Math.max(...points.map(p => p.count));
-  const peakThreshold = maxCount * 0.8;
-  for (const p of points) {
-    if (p.count >= peakThreshold && p.count > 0) {
-      p.isPeak = true;
+  const counts = points.filter(p => !p.isMissing).map(p => p.count);
+  if (counts.length > 0) {
+    const maxCount = Math.max(...counts);
+    const peakThreshold = maxCount * 0.7;
+    for (const p of points) {
+      if (!p.isMissing && p.count >= peakThreshold && p.count > 0) {
+        p.isPeak = true;
+      }
     }
   }
 
@@ -295,4 +321,33 @@ export async function updateRemark(recordId: string, remark: string): Promise<bo
 export async function getExportData(params: FilterParams): Promise<VisitorRecord[]> {
   const { records } = getDemoDataset();
   return applyFilters(records, params);
+}
+
+export interface DimensionData {
+  enterprises: Array<{ id: string; name: string }>;
+  gates: Array<{ id: string; name: string }>;
+  lanes: Array<{ id: string; name: string; gateId: string }>;
+  visitorTypes: Array<{ id: string; name: string }>;
+}
+
+export function getDimensions(): DimensionData {
+  const config = getDemoDataset();
+  const enterpriseSet = new Map<string, string>();
+  const gateSet = new Map<string, string>();
+  const laneSet = new Map<string, { name: string; gateId: string }>();
+  const visitorTypeSet = new Map<string, string>();
+
+  for (const r of config.records) {
+    enterpriseSet.set(r.enterpriseId, r.enterpriseName);
+    gateSet.set(r.gateId, r.gateName);
+    laneSet.set(r.laneId, { name: r.laneName, gateId: r.gateId });
+    visitorTypeSet.set(r.visitorType, r.visitorTypeName);
+  }
+
+  return {
+    enterprises: Array.from(enterpriseSet, ([id, name]) => ({ id, name })),
+    gates: Array.from(gateSet, ([id, name]) => ({ id, name })),
+    lanes: Array.from(laneSet, ([id, data]) => ({ id, name: data.name, gateId: data.gateId })),
+    visitorTypes: Array.from(visitorTypeSet, ([id, name]) => ({ id, name })),
+  };
 }
