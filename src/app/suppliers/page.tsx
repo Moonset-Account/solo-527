@@ -1,18 +1,29 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { getAllSupplierMetrics, preloadSupplierCache } from "@/services/dataService";
+import { useSuppliers } from "@/hooks/useApi";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function SuppliersPage() {
-  useEffect(() => {
-    preloadSupplierCache();
-  }, []);
+  const { data: suppliers, loading } = useSuppliers(true);
 
-  const suppliersWithStats = useMemo(() => {
-    return getAllSupplierMetrics().sort((a, b) => b.repeatRate - a.repeatRate);
-  }, []);
+  const suppliersWithStats = (suppliers || [])
+    .slice()
+    .sort((a: any, b: any) => b.repeatRate - a.repeatRate);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+            <p className="text-slate-600">正在加载供应商数据...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -27,7 +38,7 @@ export default function SuppliersPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {suppliersWithStats.map((supplier, idx) => (
+          {suppliersWithStats.map((supplier: any, idx: number) => (
             <Link
               key={supplier.id}
               href={`/suppliers/${supplier.id}`}
@@ -70,7 +81,7 @@ export default function SuppliersPage() {
                 <div>
                   <p className="text-xs text-slate-500">超时数</p>
                   <p className="text-lg font-bold text-red-600">
-                    {supplier.timeoutCount}
+                    {supplier.timeoutCount || 0}
                   </p>
                 </div>
                 <div>

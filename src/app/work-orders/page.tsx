@@ -6,11 +6,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import FilterBar from "@/components/FilterBar";
 import WorkOrderTable from "@/components/WorkOrderTable";
 import WorkOrderDetail from "@/components/WorkOrderDetail";
-import {
-  getCleanedWorkOrders,
-  filterWorkOrders,
-} from "@/services/dataService";
+import { useWorkOrders, buildExportUrl } from "@/hooks/useApi";
 import { FilterOptions, WorkOrder } from "@/types";
+import { Loader2 } from "lucide-react";
 
 export default function WorkOrdersPage() {
   const searchParams = useSearchParams();
@@ -42,11 +40,8 @@ export default function WorkOrdersPage() {
   const [filters, setFilters] = useState<FilterOptions>(initialFilters);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
 
-  const allOrders = useMemo(() => getCleanedWorkOrders(), []);
-
-  const filteredOrders = useMemo(() => {
-    return filterWorkOrders(allOrders, filters);
-  }, [allOrders, filters]);
+  const { data: workOrders, loading } = useWorkOrders(filters);
+  const exportUrl = buildExportUrl(filters, "xlsx");
 
   const handleOrderClick = (order: WorkOrder) => {
     setSelectedOrder(order);
@@ -63,6 +58,19 @@ export default function WorkOrdersPage() {
     router.replace(`/work-orders?${params.toString()}`);
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+            <p className="text-slate-600">正在加载工单数据...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -71,7 +79,7 @@ export default function WorkOrdersPage() {
             工单管理
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            共 {filteredOrders.length} 条工单记录
+            共 {workOrders?.length || 0} 条工单记录
             {Object.keys(filters).length > 0 && " (已筛选)"}
           </p>
         </div>
@@ -79,13 +87,13 @@ export default function WorkOrdersPage() {
         <FilterBar
           filters={filters}
           onChange={handleFiltersChange}
-          exportData={filteredOrders}
+          exportUrl={exportUrl}
         />
 
         {selectedOrder ? (
           <WorkOrderDetail order={selectedOrder} onClose={() => setSelectedOrder(null)} />
         ) : (
-          <WorkOrderTable orders={filteredOrders} onOrderClick={handleOrderClick} />
+          <WorkOrderTable orders={workOrders || []} onOrderClick={handleOrderClick} />
         )}
       </div>
     </DashboardLayout>

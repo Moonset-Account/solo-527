@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import MetricCard from "@/components/MetricCard";
@@ -14,14 +14,11 @@ import {
 } from "@/components/Charts";
 import FilterBar from "@/components/FilterBar";
 import {
-  getCleanedWorkOrders,
-  filterWorkOrders,
-  calculateMetrics,
-  getTimeoutOrders,
-  getLowRatingOrders,
-  aggregateBuildingPoints,
-  preloadSupplierCache,
-} from "@/services/dataService";
+  useWorkOrders,
+  useMetrics,
+  useBuildings,
+  buildExportUrl,
+} from "@/hooks/useApi";
 import { FilterOptions, WorkOrder, Building } from "@/types";
 import {
   RefreshCw,
@@ -31,35 +28,38 @@ import {
   Calendar,
   ListTodo,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const [filters, setFilters] = useState<FilterOptions>({});
   const router = useRouter();
 
-  useEffect(() => {
-    preloadSupplierCache();
-  }, []);
+  const { data: workOrders, loading: ordersLoading } = useWorkOrders(filters);
+  const { data: metrics, loading: metricsLoading } = useMetrics(filters);
+  const { data: buildingPoints, loading: buildingsLoading } = useBuildings(true);
 
-  const allOrders = useMemo(() => getCleanedWorkOrders(), []);
-
-  const filteredOrders = useMemo(() => {
-    return filterWorkOrders(allOrders, filters);
-  }, [allOrders, filters]);
-
-  const metrics = useMemo(() => calculateMetrics(filteredOrders), [filteredOrders]);
+  const loading = ordersLoading || metricsLoading || buildingsLoading;
 
   const timeoutOrders = useMemo(() => {
-    return getTimeoutOrders(filteredOrders).slice(0, 10);
-  }, [filteredOrders]);
+    return (workOrders || [])
+      .filter(
+        (o) =>
+          o.responseTime !== undefined &&
+          o.responseTime > 120 &&
+          !o.isHoliday &&
+          o.status !== "pending"
+      )
+      .sort((a, b) => (b.responseTime || 0) - (a.responseTime || 0))
+      .slice(0, 10);
+  }, [workOrders]);
 
   const lowRatingOrders = useMemo(() => {
-    return getLowRatingOrders(filteredOrders).slice(0, 10);
-  }, [filteredOrders]);
-
-  const buildingPoints = useMemo(() => {
-    return aggregateBuildingPoints(filteredOrders);
-  }, [filteredOrders]);
+    return (workOrders || [])
+      .filter((o) => o.tenantRating !== undefined && o.tenantRating <= 3)
+      .sort((a, b) => (a.tenantRating || 5) - (b.tenantRating || 5))
+      .slice(0, 10);
+  }, [workOrders]);
 
   const handleOrderClick = (order: WorkOrder) => {
     router.push(`/work-orders/${order.id}`);
@@ -80,9 +80,24 @@ export default function DashboardPage() {
     router.push(`/work-orders?${params.toString()}`);
   };
 
-  const handleBuildingClick = (building: Building) => {
+  const handleBuildingClick = (building: any) => {
     handleDrillDown({ buildingId: building.id });
   };
+
+  const exportUrl = buildExportUrl(filters, "xlsx");
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+            <p className="text-slate-600">正在加载数据...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -111,7 +126,7 @@ export default function DashboardPage() {
         <FilterBar
           filters={filters}
           onChange={setFilters}
-          exportData={filteredOrders}
+          exportUrl={exportUrl}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -121,7 +136,7 @@ export default function DashboardPage() {
           >
             <MetricCard
               title="复修率"
-              value={metrics.repeatRate}
+              value={metrics?.repeatRate || 0}
               unit="%"
               trend={2.3}
               trendLabel="较上月"
@@ -136,7 +151,7 @@ export default function DashboardPage() {
           >
             <MetricCard
               title="平均响应时长"
-              value={metrics.avgResponseTime}
+              value={metrics?.avgResponseTime || 0}
               unit="分钟"
               trend={-8.5}
               trendLabel="较上月"
@@ -148,7 +163,7 @@ export default function DashboardPage() {
           <div className="cursor-pointer">
             <MetricCard
               title="超时率"
-              value={metrics.timeoutRate}
+              value={metrics?.timeoutRate || 0}
               unit="%"
               trend={-1.2}
               trendLabel="较上月"
@@ -160,7 +175,7 @@ export default function DashboardPage() {
           <div className="cursor-pointer">
             <MetricCard
               title="租户平均评分"
-              value={metrics.avgRating}
+              value={metrics?.avgRating || 0}
               unit="分"
               trend={0.3}
               trendLabel="较上月"
@@ -179,21 +194,21 @@ export default function DashboardPage() {
                 <span className="text-xs text-slate-500">点击楼栋可下钻筛选</span>
               </div>
               <BuildingHeatmap
-                buildings={buildingPoints}
-                workOrders={filteredOrders}
+                buildings={buildingPoints || []}
+                workOrders={workOrders || []}
                 height="380px"
                 onBuildingClick={handleBuildingClick}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <RepeatRateTrend orders={filteredOrders} title="复修率趋势" />
-              <ResponseTimeDistribution orders={filteredOrders} title="响应时长分布" />
+              <RepeatRateTrend orders={workOrders || []} title="复修率趋势" />
+              <ResponseTimeDistribution orders={workOrders || []} title="响应时长分布" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <RepairTypeDistribution orders={filteredOrders} title="维修类型分布" />
-              <MaterialsUsage orders={filteredOrders} title="材料消耗明细" />
+              <RepairTypeDistribution orders={workOrders || []} title="维修类型分布" />
+              <MaterialsUsage orders={workOrders || []} title="材料消耗明细" />
             </div>
           </div>
 
@@ -204,7 +219,7 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-slate-900">节假日工单</h3>
               </div>
               <div className="text-center py-4">
-                <p className="text-4xl font-bold text-purple-600">{metrics.holidayOrders}</p>
+                <p className="text-4xl font-bold text-purple-600">{metrics?.holidayOrders || 0}</p>
                 <p className="text-sm text-slate-500 mt-1">单已单独标记，不纳入超时判定</p>
               </div>
               <div className="bg-purple-50 rounded-xl p-3">
@@ -228,7 +243,7 @@ export default function DashboardPage() {
               <>
                 {filters.buildingId && (
                   <span className="px-3 py-1 bg-white rounded-lg text-sm border border-slate-200">
-                    楼栋: {buildingPoints.find((b) => b.id === filters.buildingId)?.name || filters.buildingId}
+                    楼栋: {(buildingPoints || []).find((b: any) => b.id === filters.buildingId)?.name || filters.buildingId}
                   </span>
                 )}
                 {filters.roomType && (

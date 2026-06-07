@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import MetricCard from "@/components/MetricCard";
-import { MOCK_WORK_ORDERS, MOCK_SUPPLIERS, getMetricsSummary } from "@/mock/data";
+import { useSupplierDetail } from "@/hooks/useApi";
 import {
   RepeatRateTrend,
   ResponseTimeDistribution,
   MaterialsUsage,
 } from "@/components/Charts";
-import { RefreshCw, Clock, Star, AlertTriangle } from "lucide-react";
+import { RefreshCw, Clock, Star, AlertTriangle, Loader2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import WorkOrderTable from "@/components/WorkOrderTable";
 
@@ -20,21 +20,35 @@ interface PageProps {
 }
 
 export default function SupplierDetailPage({ params }: PageProps) {
-  const supplier = useMemo(() => {
-    return MOCK_SUPPLIERS.find((s) => s.id === params.id);
-  }, [params.id]);
+  const { data, loading, error } = useSupplierDetail(params.id);
 
-  const supplierOrders = useMemo(() => {
-    return MOCK_WORK_ORDERS.filter((o) => o.supplierId === params.id);
-  }, [params.id]);
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+            <p className="text-slate-600">正在加载供应商详情...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const metrics = useMemo(() => {
-    return getMetricsSummary(supplierOrders);
-  }, [supplierOrders]);
-
-  if (!supplier) {
+  if (error || !data) {
     notFound();
   }
+
+  const supplier = data;
+  const supplierOrders = data.workOrders || [];
+  const metrics = {
+    repeatRate: supplier.repeatRate || 0,
+    avgResponseTime: supplier.avgResponseTime || 0,
+    timeoutRate: supplier.timeoutRate || 0,
+    avgRating: supplier.avgRating || 0,
+    totalOrders: supplier.totalOrders || 0,
+    holidayOrders: supplier.holidayOrders || 0,
+  };
 
   return (
     <DashboardLayout>
@@ -78,7 +92,7 @@ export default function SupplierDetailPage({ params }: PageProps) {
           />
           <MetricCard
             title="超时单数"
-            value={supplier.timeoutCount}
+            value={supplier.timeoutCount || 0}
             unit="单"
             color="red"
             icon={<AlertTriangle className="w-6 h-6" />}

@@ -1,20 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FilterOptions, ROOM_TYPES, REPAIR_TYPES, STATUS_LABELS } from "@/types";
-import { MOCK_BUILDINGS, MOCK_SUPPLIERS } from "@/mock/data";
-import { Filter, Download, X, FileSpreadsheet } from "lucide-react";
-import { cn, exportToCSV } from "@/lib/utils";
-import { WorkOrder } from "@/types";
-import { formatOrdersForExport } from "@/services/dataService";
-import * as XLSX from "xlsx";
-import dayjs from "dayjs";
+import { useBuildings, useSuppliers } from "@/hooks/useApi";
+import { Filter, Download, X, FileSpreadsheet, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FilterBarProps {
   filters: FilterOptions;
   onChange: (filters: FilterOptions) => void;
-  onExport?: () => void;
-  exportData?: WorkOrder[];
+  exportUrl?: string;
 }
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => {
@@ -28,11 +23,13 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => {
 export default function FilterBar({
   filters,
   onChange,
-  onExport,
-  exportData,
+  exportUrl,
 }: FilterBarProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const { data: buildings, loading: buildingsLoading } = useBuildings();
+  const { data: suppliers, loading: suppliersLoading } = useSuppliers();
 
   const handleChange = (key: keyof FilterOptions, value: any) => {
     const newFilters = { ...filters };
@@ -49,19 +46,15 @@ export default function FilterBar({
   };
 
   const handleExportCSV = () => {
-    if (!exportData) return;
-    const data = formatOrdersForExport(exportData);
-    exportToCSV(data, `维修工单_${dayjs().format("YYYYMMDD_HHmm")}`);
+    if (!exportUrl) return;
+    const url = exportUrl.replace("format=xlsx", "format=csv");
+    window.open(url, "_blank");
     setShowExportMenu(false);
   };
 
   const handleExportExcel = () => {
-    if (!exportData) return;
-    const data = formatOrdersForExport(exportData);
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "工单数据");
-    XLSX.writeFile(wb, `维修工单_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
+    if (!exportUrl) return;
+    window.open(exportUrl, "_blank");
     setShowExportMenu(false);
   };
 
@@ -102,7 +95,7 @@ export default function FilterBar({
           <div className="flex items-center gap-2 flex-wrap">
             {filters.buildingId && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs rounded-lg">
-                楼栋: {MOCK_BUILDINGS.find((b) => b.id === filters.buildingId)?.name}
+                楼栋: {buildings?.find((b: any) => b.id === filters.buildingId)?.name || filters.buildingId}
                 <button
                   onClick={() => handleChange("buildingId", undefined)}
                   className="hover:text-slate-900"
@@ -113,7 +106,7 @@ export default function FilterBar({
             )}
             {filters.supplierId && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs rounded-lg">
-                供应商: {MOCK_SUPPLIERS.find((s) => s.id === filters.supplierId)?.name}
+                供应商: {suppliers?.find((s: any) => s.id === filters.supplierId)?.name || filters.supplierId}
                 <button
                   onClick={() => handleChange("supplierId", undefined)}
                   className="hover:text-slate-900"
@@ -182,18 +175,24 @@ export default function FilterBar({
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
               楼栋
             </label>
-            <select
-              value={filters.buildingId || ""}
-              onChange={(e) => handleChange("buildingId", e.target.value || undefined)}
-              className="select text-sm"
-            >
-              <option value="">全部楼栋</option>
-              {MOCK_BUILDINGS.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            {buildingsLoading ? (
+              <div className="select text-sm flex items-center justify-center py-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : (
+              <select
+                value={filters.buildingId || ""}
+                onChange={(e) => handleChange("buildingId", e.target.value || undefined)}
+                className="select text-sm"
+              >
+                <option value="">全部楼栋</option>
+                {(buildings || []).map((b: any) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -236,18 +235,24 @@ export default function FilterBar({
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
               供应商
             </label>
-            <select
-              value={filters.supplierId || ""}
-              onChange={(e) => handleChange("supplierId", e.target.value || undefined)}
-              className="select text-sm"
-            >
-              <option value="">全部供应商</option>
-              {MOCK_SUPPLIERS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            {suppliersLoading ? (
+              <div className="select text-sm flex items-center justify-center py-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : (
+              <select
+                value={filters.supplierId || ""}
+                onChange={(e) => handleChange("supplierId", e.target.value || undefined)}
+                className="select text-sm"
+              >
+                <option value="">全部供应商</option>
+                {(suppliers || []).map((s: any) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
