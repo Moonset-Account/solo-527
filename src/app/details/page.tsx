@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import FilterPanel from '@/components/layout/FilterPanel';
 import DataTable from '@/components/common/DataTable';
 import RemarkPanel from '@/components/common/RemarkPanel';
 import KPICard from '@/components/common/KPICard';
-import {
-  mockPrescriptions,
-  mockRemarks,
-  calculateKPIData,
-} from '@/data/mockData';
+import { mockRemarks } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
-import { applyFilters } from '@/utils/filters';
+import { useDetails, useAnalytics } from '@/hooks/useAnalytics';
 import type { Prescription, Remark } from '@/types';
-import { FileText, Clock, Pill, AlertTriangle, Download, X } from 'lucide-react';
+import { FileText, Clock, Pill, AlertTriangle, Download, X, Loader2, Database } from 'lucide-react';
 import { formatNumber, formatPercent } from '@/utils/formatters';
 
 export default function DetailsPage() {
@@ -33,12 +29,26 @@ export default function DetailsPage() {
     prescription: null,
   });
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
-  const filteredPrescriptions = useMemo(() => {
-    return applyFilters(mockPrescriptions, filters, filters.drillDown);
-  }, [filters]);
+  const { data: details, loading, metadata } = useDetails(filters, filters.drillDown, page, pageSize);
+  const { data: analytics } = useAnalytics(filters, filters.drillDown);
 
-  const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
+  const kpiData = analytics?.kpi || {
+    totalPrescriptions: 0,
+    emergencyPrescriptions: 0,
+    normalPrescriptions: 0,
+    specialistPrescriptions: 0,
+    avgWaitTime: 0,
+    avgWaitTimeEmergency: 0,
+    avgWaitTimeNormal: 0,
+    avgWaitTimeSpecialist: 0,
+    avgDispenseTime: 0,
+    refundRate: 0,
+    windowUtilization: {},
+    peakHour: 9,
+  };
 
   const handleAddRemark = (prescription: Prescription) => {
     setSelectedPrescription(prescription);
@@ -71,15 +81,52 @@ export default function DetailsPage() {
     setRemarks([...remarks, newRemark]);
   };
 
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">处方明细查询</h1>
+              <p className="text-sm text-gray-500">
+                查看原始处方记录，支持下钻分析与添加人工备注
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-6">
+          <div className="w-64 flex-shrink-0">
+            <FilterPanel />
+          </div>
+          <div className="flex-1 flex items-center justify-center h-96">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+              <p className="text-sm text-gray-500">正在加载明细数据...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const records = details?.records || [];
+  const pagination = details?.pagination || { page: 1, pageSize: 50, total: 0, totalPages: 0 };
+
   return (
     <div>
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">处方明细查询</h1>
-            <p className="text-sm text-gray-500">
-              查看原始处方记录，支持下钻分析与添加人工备注
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-gray-500">
+                查看原始处方记录，支持下钻分析与添加人工备注
+              </p>
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                <Database className="w-3 h-3" />
+                数据源: {metadata?.source || '本地计算'}
+              </span>
+            </div>
           </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm">
             <Download className="w-4 h-4" />
@@ -118,7 +165,7 @@ export default function DetailsPage() {
           <div className="grid grid-cols-4 gap-4">
             <KPICard
               title="筛选结果"
-              value={formatNumber(filteredPrescriptions.length)}
+              value={formatNumber(pagination.total)}
               unit="条"
               icon={<FileText className="w-5 h-5" />}
               color="blue"
@@ -146,10 +193,34 @@ export default function DetailsPage() {
           </div>
 
           <DataTable
-            data={filteredPrescriptions}
+            data={records}
             onAddRemark={handleAddRemark}
             onViewDetail={handleViewDetail}
           />
+
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white rounded-xl p-4 shadow-card">
+              <span className="text-sm text-gray-500">
+                共 {pagination.total} 条记录，第 {pagination.page} / {pagination.totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(Math.max(1, pagination.page - 1))}
+                  disabled={pagination.page <= 1}
+                  className="px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setPage(Math.min(pagination.totalPages, pagination.page + 1))}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="px-3 py-1.5 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
 
           {selectedPrescription && (
             <div className="bg-white rounded-xl p-5 shadow-card">

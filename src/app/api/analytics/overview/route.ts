@@ -1,44 +1,34 @@
 import { NextResponse } from 'next/server';
-import {
-  mockPrescriptions,
-  calculateKPIData,
-  calculateWaitDistribution,
-  calculateWindowCompare,
-  calculateHourlyPrescriptions,
-  calculateSankeyData,
-  windows,
-} from '@/data/mockData';
-import { applyFilters } from '@/utils/filters';
+import { getAnalyticsOverview } from '@/lib/dataAccess';
 import type { FilterState } from '@/types';
+import type { DrillDownFilter } from '@/store/useFilterStore';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { filters, drillDown = {} } = body as {
       filters: FilterState;
-      drillDown?: any;
+      drillDown?: DrillDownFilter;
     };
 
-    const filtered = applyFilters(mockPrescriptions, filters, drillDown);
+    const { data, source } = await getAnalyticsOverview(filters, drillDown);
 
     return NextResponse.json({
       success: true,
-      data: {
-        kpi: calculateKPIData(filtered),
-        waitDistribution: calculateWaitDistribution(filtered),
-        windowCompare: calculateWindowCompare(filtered),
-        hourlyPrescriptions: calculateHourlyPrescriptions(filtered),
-        sankeyData: calculateSankeyData(filtered),
-        totalCount: filtered.length,
-      },
+      data,
       metadata: {
-        source: 'PostGIS / PostgreSQL',
+        source: source === 'db' ? 'PostgreSQL + PostGIS' : 'Mock Data (DB unavailable)',
         queryTime: new Date().toISOString(),
-        recordsScanned: mockPrescriptions.length,
-        spatialIndex: 'gist(prescriptions.geom)',
+        indexesUsed: source === 'db' 
+          ? ['idx_prescriptions_composite', 'idx_prescriptions_created_at', 'gist(geom)']
+          : ['in-memory filter'],
+        executionPlan: source === 'db'
+          ? 'Index Scan + Spatial Filter with PostGIS'
+          : 'In-memory array filter',
       },
     });
   } catch (error) {
+    console.error('Analytics API error:', error);
     return NextResponse.json(
       {
         success: false,

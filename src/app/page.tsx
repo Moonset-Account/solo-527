@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Clock,
@@ -8,6 +8,8 @@ import {
   Pill,
   AlertTriangle,
   ArrowRight,
+  Loader2,
+  Database,
 } from 'lucide-react';
 import KPICard from '@/components/common/KPICard';
 import WaitDistributionChart from '@/components/charts/WaitDistributionChart';
@@ -16,17 +18,10 @@ import PrescriptionStackChart from '@/components/charts/PrescriptionStackChart';
 import FilterPanel from '@/components/layout/FilterPanel';
 import RemarkPanel from '@/components/common/RemarkPanel';
 import PharmacyHeatmap from '@/components/map/PharmacyHeatmap';
-import {
-  mockPrescriptions,
-  mockRemarks,
-  calculateKPIData,
-  calculateWaitDistribution,
-  calculateWindowCompare,
-  calculateHourlyPrescriptions,
-} from '@/data/mockData';
-import { formatMinutes, formatPercent, formatNumber } from '@/utils/formatters';
+import { mockRemarks } from '@/data/mockData';
+import { formatPercent, formatNumber } from '@/utils/formatters';
 import { useFilterStore } from '@/store/useFilterStore';
-import { applyFilters } from '@/utils/filters';
+import { useAnalytics, useHeatmap } from '@/hooks/useAnalytics';
 import type { Prescription, Remark } from '@/types';
 
 export default function HomePage() {
@@ -47,15 +42,8 @@ export default function HomePage() {
   });
 
   const filters = useFilterStore();
-
-  const filteredPrescriptions = useMemo(() => {
-    return applyFilters(mockPrescriptions, filters, filters.drillDown);
-  }, [filters]);
-
-  const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
-  const waitDistribution = useMemo(() => calculateWaitDistribution(filteredPrescriptions), [filteredPrescriptions]);
-  const windowCompare = useMemo(() => calculateWindowCompare(filteredPrescriptions), [filteredPrescriptions]);
-  const hourlyPrescriptions = useMemo(() => calculateHourlyPrescriptions(filteredPrescriptions), [filteredPrescriptions]);
+  const { data: analytics, loading, metadata } = useAnalytics(filters, filters.drillDown);
+  const { data: heatmap } = useHeatmap(filters, filters.drillDown);
 
   const handleDrillDown = (type: 'waitTime' | 'window' | 'hour', value: string) => {
     if (type === 'waitTime') {
@@ -87,13 +75,45 @@ export default function HomePage() {
     setRemarks([...remarks, newRemark]);
   };
 
+  if (loading || !analytics) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">药房运营复盘总览</h1>
+          <p className="text-sm text-gray-500">
+            基于处方全流程数据分析取药瓶颈，支持多维度对比与下钻查询
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <div className="w-64 flex-shrink-0">
+            <FilterPanel />
+          </div>
+          <div className="flex-1 flex items-center justify-center h-96">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+              <p className="text-sm text-gray-500">正在从 {metadata?.source || '数据源'} 加载数据...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { kpi: kpiData, waitDistribution, windowCompare, hourlyPrescriptions } = analytics;
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">药房运营复盘总览</h1>
-        <p className="text-sm text-gray-500">
-          基于处方全流程数据分析取药瓶颈，支持多维度对比与下钻查询
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-500">
+            基于处方全流程数据分析取药瓶颈，支持多维度对比与下钻查询
+          </p>
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+            <Database className="w-3 h-3" />
+            数据源: {metadata?.source || '本地计算'}
+          </span>
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -209,6 +229,7 @@ export default function HomePage() {
           />
 
           <PharmacyHeatmap
+            data={heatmap}
             onWindowClick={(windowNo) => handleDrillDown('window', windowNo)}
           />
 

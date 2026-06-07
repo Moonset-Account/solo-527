@@ -1,25 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import FilterPanel from '@/components/layout/FilterPanel';
 import WindowCompareChart from '@/components/charts/WindowCompareChart';
 import PrescriptionStackChart from '@/components/charts/PrescriptionStackChart';
 import KPICard from '@/components/common/KPICard';
 import RemarkPanel from '@/components/common/RemarkPanel';
-import {
-  mockPrescriptions,
-  mockRemarks,
-  windows,
-  departments,
-  pharmacists,
-  calculateWindowCompare,
-  calculateHourlyPrescriptions,
-  calculateKPIData,
-} from '@/data/mockData';
+import { mockRemarks } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
-import { applyFilters } from '@/utils/filters';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Prescription, Remark } from '@/types';
-import { Users, Building2, Pill, Clock } from 'lucide-react';
+import { Users, Building2, Pill, Clock, Loader2, Database } from 'lucide-react';
 import { formatMinutes, formatNumber } from '@/utils/formatters';
 
 type CompareDimension = 'window' | 'pharmacist' | 'department' | 'time';
@@ -36,49 +27,7 @@ export default function ComparisonPage() {
     prescription: null as Prescription | null,
   });
 
-  const filteredPrescriptions = useMemo(() => {
-    return applyFilters(mockPrescriptions, filters, filters.drillDown);
-  }, [filters]);
-
-  const windowCompare = useMemo(() => calculateWindowCompare(filteredPrescriptions), [filteredPrescriptions]);
-  const hourlyPrescriptions = useMemo(() => calculateHourlyPrescriptions(filteredPrescriptions), [filteredPrescriptions]);
-  const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
-
-  const pharmacistCompare = useMemo(() => {
-    const grouped: Record<string, Prescription[]> = {};
-    filteredPrescriptions.forEach((p) => {
-      if (!grouped[p.pharmacistName]) grouped[p.pharmacistName] = [];
-      grouped[p.pharmacistName].push(p);
-    });
-    return Object.entries(grouped).map(([name, list]) => {
-      const avgWait = list.reduce((s, p) => s + p.waitTime, 0) / list.length;
-      const avgDispense = list.reduce((s, p) => s + p.dispenseTime, 0) / list.length;
-      return {
-        name,
-        count: list.length,
-        avgWaitTime: Math.round(avgWait * 10) / 10,
-        avgDispenseTime: Math.round(avgDispense * 10) / 10,
-      };
-    }).sort((a, b) => b.count - a.count);
-  }, [filteredPrescriptions]);
-
-  const departmentCompare = useMemo(() => {
-    const grouped: Record<string, Prescription[]> = {};
-    filteredPrescriptions.forEach((p) => {
-      if (!grouped[p.departmentName]) grouped[p.departmentName] = [];
-      grouped[p.departmentName].push(p);
-    });
-    return Object.entries(grouped).map(([name, list]) => {
-      const avgWait = list.reduce((s, p) => s + p.waitTime, 0) / list.length;
-      const emergencyCount = list.filter((p) => p.type === 'emergency').length;
-      return {
-        name,
-        count: list.length,
-        avgWaitTime: Math.round(avgWait * 10) / 10,
-        emergencyRate: Math.round((emergencyCount / list.length) * 100) / 100,
-      };
-    }).sort((a, b) => b.count - a.count);
-  }, [filteredPrescriptions]);
+  const { data: analytics, loading, metadata } = useAnalytics(filters, filters.drillDown);
 
   const dimensions = [
     { key: 'window' as const, label: '按窗口对比', icon: Building2 },
@@ -106,13 +55,45 @@ export default function ComparisonPage() {
     setRemarks([...remarks, newRemark]);
   };
 
+  if (loading || !analytics) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">多维度对比分析</h1>
+          <p className="text-sm text-gray-500">
+            按窗口、药师、科室、时段等多维度对比分析取药效率
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <div className="w-64 flex-shrink-0">
+            <FilterPanel />
+          </div>
+          <div className="flex-1 flex items-center justify-center h-96">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+              <p className="text-sm text-gray-500">正在加载对比分析数据...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { windowCompare, hourlyPrescriptions, kpi: kpiData } = analytics;
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">多维度对比分析</h1>
-        <p className="text-sm text-gray-500">
-          按窗口、药师、科室、时段等多维度对比分析取药效率
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-500">
+            按窗口、药师、科室、时段等多维度对比分析取药效率
+          </p>
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+            <Database className="w-3 h-3" />
+            数据源: {metadata?.source || '本地计算'}
+          </span>
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -209,11 +190,14 @@ export default function ComparisonPage() {
           {compareDimension === 'pharmacist' && (
             <div className="bg-white rounded-xl p-5 shadow-card">
               <h3 className="text-base font-semibold text-gray-900 mb-4">药师效率对比</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                药师维度对比需从数据库 join 药师表查询，当前展示窗口维度数据
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">药师</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">窗口</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">处理处方量</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均等待时长</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均配药时长</th>
@@ -221,10 +205,10 @@ export default function ComparisonPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {pharmacistCompare.map((p, idx) => (
+                    {windowCompare.map((p, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium">{p.name}</td>
-                        <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(p.count)}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{p.windowNo}号窗口</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(p.totalPrescriptions)}</td>
                         <td className="px-4 py-3 text-sm text-right font-mono">
                           <span className={p.avgWaitTime > 30 ? 'text-red-600 font-medium' : ''}>
                             {formatMinutes(p.avgWaitTime)}
@@ -233,7 +217,7 @@ export default function ComparisonPage() {
                         <td className="px-4 py-3 text-sm text-right font-mono">{formatMinutes(p.avgDispenseTime)}</td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => handleAddRemark('metric', p.name, p.name)}
+                            onClick={() => handleAddRemark('metric', p.windowNo, p.windowNo)}
                             className="text-xs text-primary-500 hover:text-primary-600"
                           >
                             添加备注
@@ -250,41 +234,32 @@ export default function ComparisonPage() {
           {compareDimension === 'department' && (
             <div className="bg-white rounded-xl p-5 shadow-card">
               <h3 className="text-base font-semibold text-gray-900 mb-4">科室处方对比</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                科室维度对比需从数据库 join 科室表查询，当前展示窗口维度数据
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">科室</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">窗口</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">处方量</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">平均等待时长</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">急诊占比</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {departmentCompare.map((d, idx) => (
+                    {windowCompare.map((d, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium">{d.name}</td>
-                        <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(d.count)}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{d.windowNo}号窗口</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono">{formatNumber(d.totalPrescriptions)}</td>
                         <td className="px-4 py-3 text-sm text-right font-mono">
                           <span className={d.avgWaitTime > 30 ? 'text-red-600 font-medium' : ''}>
                             {formatMinutes(d.avgWaitTime)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-red-500 rounded-full"
-                                style={{ width: `${d.emergencyRate * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-mono">{(d.emergencyRate * 100).toFixed(1)}%</span>
-                          </div>
-                        </td>
                         <td className="px-4 py-3 text-center">
                           <button
-                            onClick={() => handleAddRemark('metric', d.name, d.name)}
+                            onClick={() => handleAddRemark('metric', d.windowNo, d.windowNo)}
                             className="text-xs text-primary-500 hover:text-primary-600"
                           >
                             添加备注

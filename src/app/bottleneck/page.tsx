@@ -1,22 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import BottleneckSankeyChart from '@/components/charts/BottleneckSankeyChart';
 import FilterPanel from '@/components/layout/FilterPanel';
 import WaitDistributionChart from '@/components/charts/WaitDistributionChart';
 import KPICard from '@/components/common/KPICard';
 import RemarkPanel from '@/components/common/RemarkPanel';
-import {
-  mockPrescriptions,
-  mockRemarks,
-  calculateSankeyData,
-  calculateWaitDistribution,
-  calculateKPIData,
-} from '@/data/mockData';
+import { mockRemarks } from '@/data/mockData';
 import { useFilterStore } from '@/store/useFilterStore';
-import { applyFilters } from '@/utils/filters';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Prescription, Remark } from '@/types';
-import { Clock, AlertTriangle, TrendingUp, Activity } from 'lucide-react';
+import { Clock, AlertTriangle, TrendingUp, Activity, Loader2, Database } from 'lucide-react';
 import { formatMinutes, formatPercent } from '@/utils/formatters';
 
 export default function BottleneckPage() {
@@ -30,39 +24,7 @@ export default function BottleneckPage() {
     prescription: null as Prescription | null,
   });
 
-  const filteredPrescriptions = useMemo(() => {
-    return applyFilters(mockPrescriptions, filters, filters.drillDown);
-  }, [filters]);
-
-  const sankeyData = useMemo(() => calculateSankeyData(filteredPrescriptions), [filteredPrescriptions]);
-  const waitDistribution = useMemo(() => calculateWaitDistribution(filteredPrescriptions), [filteredPrescriptions]);
-  const kpiData = useMemo(() => calculateKPIData(filteredPrescriptions), [filteredPrescriptions]);
-
-  const bottlenecks = useMemo(() => {
-    return [
-      {
-        stage: '缴费→配药',
-        avgDuration: kpiData.avgDispenseTime,
-        count: filteredPrescriptions.length,
-        severity: kpiData.avgDispenseTime > 15 ? 'critical' : kpiData.avgDispenseTime > 10 ? 'warning' : 'normal',
-        description: '配药环节耗时较长，建议增加药师或优化备药流程',
-      },
-      {
-        stage: '叫号→取药',
-        avgDuration: 8.5,
-        count: filteredPrescriptions.length,
-        severity: 'normal',
-        description: '患者取药响应正常',
-      },
-      {
-        stage: '处方创建→缴费',
-        avgDuration: 7.2,
-        count: filteredPrescriptions.length,
-        severity: 'warning',
-        description: '部分患者缴费排队时间较长，建议增加自助缴费机',
-      },
-    ];
-  }, [kpiData, filteredPrescriptions]);
+  const { data: analytics, loading, metadata } = useAnalytics(filters, filters.drillDown);
 
   const handleAddRemark = (targetType: string, targetValue: string, targetTitle: string) => {
     setRemarkPanel({
@@ -83,13 +45,69 @@ export default function BottleneckPage() {
     setRemarks([...remarks, newRemark]);
   };
 
+  if (loading || !analytics) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">流程瓶颈分析</h1>
+          <p className="text-sm text-gray-500">
+            通过桑基图分析处方全流程流转，识别各环节瓶颈
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <div className="w-64 flex-shrink-0">
+            <FilterPanel />
+          </div>
+          <div className="flex-1 flex items-center justify-center h-96">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+              <p className="text-sm text-gray-500">正在加载瓶颈分析数据...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { kpi: kpiData, waitDistribution, sankeyData } = analytics;
+
+  const bottlenecks = [
+    {
+      stage: '缴费→配药',
+      avgDuration: kpiData.avgDispenseTime,
+      count: analytics.totalCount,
+      severity: kpiData.avgDispenseTime > 15 ? 'critical' : kpiData.avgDispenseTime > 10 ? 'warning' : 'normal',
+      description: '配药环节耗时较长，建议增加药师或优化备药流程',
+    },
+    {
+      stage: '叫号→取药',
+      avgDuration: 8.5,
+      count: analytics.totalCount,
+      severity: 'normal',
+      description: '患者取药响应正常',
+    },
+    {
+      stage: '处方创建→缴费',
+      avgDuration: 7.2,
+      count: analytics.totalCount,
+      severity: 'warning',
+      description: '部分患者缴费排队时间较长，建议增加自助缴费机',
+    },
+  ];
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">流程瓶颈分析</h1>
-        <p className="text-sm text-gray-500">
-          通过桑基图分析处方全流程流转，识别各环节瓶颈
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-gray-500">
+            通过桑基图分析处方全流程流转，识别各环节瓶颈
+          </p>
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+            <Database className="w-3 h-3" />
+            数据源: {metadata?.source || '本地计算'}
+          </span>
+        </div>
       </div>
 
       <div className="flex gap-6">

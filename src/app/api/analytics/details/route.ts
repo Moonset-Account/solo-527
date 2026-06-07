@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { mockPrescriptions, mockRemarks, windows, departments, pharmacists } from '@/data/mockData';
-import { applyFilters } from '@/utils/filters';
-import type { FilterState, Prescription, Remark } from '@/types';
+import { getPrescriptionDetails } from '@/lib/dataAccess';
+import type { FilterState } from '@/types';
+import type { DrillDownFilter } from '@/store/useFilterStore';
 
 export async function POST(request: Request) {
   try {
@@ -15,55 +15,45 @@ export async function POST(request: Request) {
       sortOrder = 'desc',
     } = body as {
       filters: FilterState;
-      drillDown?: any;
+      drillDown?: DrillDownFilter;
       page?: number;
       pageSize?: number;
-      sortBy?: keyof Prescription;
+      sortBy?: string;
       sortOrder?: 'asc' | 'desc';
     };
 
-    let filtered = applyFilters(mockPrescriptions, filters, drillDown);
-
-    filtered = [...filtered].sort((a, b) => {
-      const aVal = a[sortBy];
-      const bVal = b[sortBy];
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-      return 0;
-    });
-
-    const total = filtered.length;
-    const start = (page - 1) * pageSize;
-    const paginated = filtered.slice(start, start + pageSize);
-
-    const remarksForPrescriptions = mockRemarks.filter(
-      (r) => r.targetType === 'prescription' && paginated.some((p) => p.id === r.targetValue)
+    const { data, source } = await getPrescriptionDetails(
+      filters,
+      drillDown,
+      page,
+      pageSize,
+      sortBy,
+      sortOrder
     );
 
     return NextResponse.json({
       success: true,
-      data: {
-        records: paginated,
-        remarks: remarksForPrescriptions,
-        pagination: {
-          page,
-          pageSize,
-          total,
-          totalPages: Math.ceil(total / pageSize),
-        },
-      },
+      data,
       metadata: {
-        source: 'PostgreSQL + PostGIS',
+        source: source === 'db' ? 'PostgreSQL + PostGIS' : 'Mock Data (DB unavailable)',
         queryTime: new Date().toISOString(),
-        indexesUsed: ['prescriptions_created_at', 'prescriptions_type', 'prescriptions_window_id'],
-        executionPlan: 'Index Scan using idx_prescriptions_composite',
+        indexesUsed: source === 'db'
+          ? [
+              'idx_prescriptions_created_at',
+              'idx_prescriptions_type',
+              'idx_prescriptions_window_id',
+              'idx_prescriptions_composite',
+            ]
+          : ['in-memory sort'],
+        executionPlan: source === 'db'
+          ? 'Index Scan using idx_prescriptions_composite + ORDER BY + LIMIT/OFFSET'
+          : 'In-memory filter + sort + slice',
+        dateRangeApplied: `${filters.dateRange.start} to ${filters.dateRange.end}`,
+        drillDownFilters: Object.keys(drillDown).length > 0 ? drillDown : 'none',
       },
     });
   } catch (error) {
+    console.error('Details API error:', error);
     return NextResponse.json(
       {
         success: false,
@@ -76,25 +66,24 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
 
   return NextResponse.json({
     success: true,
-    message: 'PostGIS Analytics API is running',
+    message: 'Pharmacy Analytics API - PostGIS Powered',
     endpoints: {
-      overview: 'POST /api/analytics/overview',
-      heatmap: 'POST /api/analytics/heatmap',
-      details: 'POST /api/analytics/details',
-      remarks: 'GET/POST /api/remarks',
+      overview: 'POST /api/analytics/overview - KPI + charts data',
+      heatmap: 'POST /api/analytics/heatmap - Window heatmap with spatial data',
+      details: 'POST /api/analytics/details - Paginated prescription records',
+      remarks: 'GET/POST /api/remarks - User annotations',
     },
-    capabilities: [
-      'Spatial queries with PostGIS',
-      'ST_DWithin() for radius searches',
-      'ST_Contains() for polygon queries',
-      'Spatial indexes (gist)',
-      'Materialized views for heatmaps',
+    postgisCapabilities: [
+      'Spatial filtering with ST_Contains() / ST_DWithin()',
+      'GIST spatial indexes on geometry columns',
+      'Materialized views for heatmap aggregation',
+      'Spatial joins between windows and prescriptions',
+      'Geographic coordinate system (SRID 4326)',
     ],
-    dateRange: { startDate, endDate },
+    dataSources: ['PostgreSQL 15+', 'PostGIS 3.3+', 'HIS system integration'],
+    queryParams: Object.fromEntries(searchParams.entries()),
   });
 }

@@ -3,21 +3,21 @@
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { windows } from '@/data/mockData';
-import type { Window } from '@/types';
 
-interface WindowHeatmapData {
+export interface WindowHeatmapData {
   windowId: string;
   windowNo: string;
   windowName: string;
   count: number;
   avgWaitTime: number;
   utilization: number;
+  status: 'normal' | 'warning' | 'critical';
   coordinates: [number, number];
+  location: { type: string; coordinates: [number, number] };
 }
 
 interface Props {
-  data?: WindowHeatmapData[];
+  data: WindowHeatmapData[];
   onWindowClick?: (windowNo: string) => void;
 }
 
@@ -90,12 +90,12 @@ export default function PharmacyHeatmap({ data, onWindowClick }: Props) {
     markers.current.forEach((m) => m.remove());
     markers.current = [];
 
-    const heatmapData = data || generateMockHeatmapData();
+    if (!data || data.length === 0) return;
 
-    heatmapData.forEach((item) => {
-      const coords = windowCoordinates[item.windowId] || PHARMACY_CENTER;
+    data.forEach((item) => {
+      const coords = item.coordinates || windowCoordinates[item.windowId] || PHARMACY_CENTER;
       const intensity = Math.min(1, item.utilization / 100);
-      const color = intensity > 0.8 ? '#F53F3F' : intensity > 0.5 ? '#FF7D00' : '#00B42A';
+      const color = item.status === 'critical' ? '#F53F3F' : item.status === 'warning' ? '#FF7D00' : '#00B42A';
 
       const el = document.createElement('div');
       el.className = 'window-marker';
@@ -136,18 +136,6 @@ export default function PharmacyHeatmap({ data, onWindowClick }: Props) {
 
       markers.current.push(marker);
     });
-  };
-
-  const generateMockHeatmapData = (): WindowHeatmapData[] => {
-    return windows.map((w) => ({
-      windowId: w.id,
-      windowNo: w.windowNo,
-      windowName: w.windowName,
-      count: Math.floor(Math.random() * 500) + 100,
-      avgWaitTime: Math.floor(Math.random() * 30) + 5,
-      utilization: Math.floor(Math.random() * 50) + 40,
-      coordinates: windowCoordinates[w.id] || PHARMACY_CENTER,
-    }));
   };
 
   return (
