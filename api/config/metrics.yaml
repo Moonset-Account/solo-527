@@ -1,0 +1,45 @@
+metrics:
+  error_rate:
+    name: 分拣差错率
+    formula: "total_errors / total_sorted * 100"
+    unit: "%"
+    description: "分拣差错包裹数占总分拣包裹数的百分比，反映分拣整体准确度"
+    threshold_warning: 1.0
+    threshold_critical: 2.0
+    category: 核心指标
+
+  review_failed_rate:
+    name: 复核不通过率
+    formula: "review_failed / total_errors * 100"
+    unit: "%"
+    description: "复核不通过的差错数占总差错数的百分比，衡量差错纠正效果"
+    threshold_warning: 30.0
+    threshold_critical: 50.0
+    category: 质量指标
+
+  alarm_affected_ratio:
+    name: 告警影响比率
+    formula: "alarm_affected_packages / total_sorted * 100"
+    unit: "%"
+    description: "受设备告警影响时段内分拣的包裹数占总分拣包裹数的百分比"
+    threshold_warning: 5.0
+    threshold_critical: 10.0
+    category: 设备指标
+
+  slot_error_intensity:
+    name: 格口差错强度
+    formula: "slot_error_count / slot_total_count * 1000"
+    unit: "‰"
+    description: "单个格口每千件包裹的差错数，用于识别格口异常热点"
+    threshold_warning: 15.0
+    threshold_critical: 25.0
+    category: 格口指标
+
+  shift_error_rate:
+    name: 班次差错率
+    formula: "shift_errors / shift_total_sorted * 100"
+    unit: "%"
+    description: "单个班次内的分拣差错率，用于班次间绩效对比"
+    threshold_warning: 1.5
+    threshold_critical: 2.5
+    category: 班次指标
