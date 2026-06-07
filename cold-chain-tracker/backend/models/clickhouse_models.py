@@ -78,35 +78,160 @@ class ClickHouseModels:
                 filtered.append(row)
         return filtered
 
-    def get_overview_stats(self, date_range=None):
-        if self.client:
-            try:
-                stats = {}
-                result = self.client.execute("SELECT count() FROM vehicles")
-                stats["total_vehicles"] = result[0][0]
-                result = self.client.execute("SELECT count() FROM routes WHERE status = '运输中'")
-                stats["active_routes"] = result[0][0]
-                result = self.client.execute("SELECT count() FROM exceptions WHERE resolution IS NULL OR resolution = '待处理'")
-                stats["pending_exceptions"] = result[0][0]
-                result = self.client.execute(
-                    "SELECT count(), countIf(temperature >= required_temp_min AND temperature <= required_temp_max) "
-                    "FROM temperature_boxes tb JOIN batches b ON tb.batch_id = b.batch_id"
-                )
-                if result:
-                    total, compliant = result[0]
-                    stats["temp_compliance_rate"] = round(compliant / max(total, 1) * 100, 1)
-                else:
-                    stats["temp_compliance_rate"] = 0.0
-                stats["total_routes"] = self.client.execute("SELECT count() FROM routes")[0][0]
-                stats["total_exceptions"] = self.client.execute("SELECT count() FROM exceptions")[0][0]
-                return stats
-            except Exception:
-                pass
+    def _apply_cross_dimension_filters(self, data, filters, data_type):
+        if not filters:
+            return data
+        vehicle_ids = self._split_ids(filters.get("vehicle_id"))
+        route_ids = self._split_ids(filters.get("route_id"))
+        batch_ids = self._split_ids(filters.get("batch_id"))
+        box_ids = self._split_ids(filters.get("box_id"))
+        customers = self._split_ids(filters.get("customer"))
 
-        vehicles = self._mock_data.get("vehicles", [])
-        routes = self._mock_data.get("routes", [])
-        exceptions = self._mock_data.get("exceptions", [])
-        boxes = self._mock_data.get("temperature_boxes", [])
+        resolved_vehicle_ids = set(vehicle_ids) if vehicle_ids else None
+        resolved_route_ids = set(route_ids) if route_ids else None
+        resolved_batch_ids = set(batch_ids) if batch_ids else None
+        resolved_box_ids = set(box_ids) if box_ids else None
+
+        if customers:
+            customer_data = self._mock_data.get("customers", [])
+            cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
+            deliveries = self._mock_data.get("deliveries", [])
+            cust_batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
+            if resolved_batch_ids is not None:
+                resolved_batch_ids &= cust_batch_ids
+            else:
+                resolved_batch_ids = cust_batch_ids
+
+        if resolved_batch_ids is not None:
+            batches = self._mock_data.get("batches", [])
+            batch_route_ids = {b["route_id"] for b in batches if b["batch_id"] in resolved_batch_ids}
+            if resolved_route_ids is not None:
+                resolved_route_ids &= batch_route_ids
+            else:
+                resolved_route_ids = batch_route_ids
+
+        if resolved_route_ids is not None:
+            routes = self._mock_data.get("routes", [])
+            route_vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in resolved_route_ids}
+            if resolved_vehicle_ids is not None:
+                resolved_vehicle_ids &= route_vehicle_ids
+            else:
+                resolved_vehicle_ids = route_vehicle_ids
+
+        if resolved_box_ids is not None:
+            boxes = self._mock_data.get("temperature_boxes", [])
+            box_vehicle_ids = {b["vehicle_id"] for b in boxes if b["box_id"] in resolved_box_ids}
+            box_batch_ids = {b["batch_id"] for b in boxes if b["box_id"] in resolved_box_ids}
+            if resolved_vehicle_ids is not None:
+                resolved_vehicle_ids &= box_vehicle_ids
+            else:
+                resolved_vehicle_ids = box_vehicle_ids
+            if resolved_batch_ids is not None:
+                resolved_batch_ids &= box_batch_ids
+            else:
+                resolved_batch_ids = box_batch_ids
+            batches = self._mock_data.get("batches", [])
+            box_route_ids = {b["route_id"] for b in batches if b["batch_id"] in resolved_batch_ids}
+            if resolved_route_ids is not None:
+                resolved_route_ids &= box_route_ids
+            else:
+                resolved_route_ids = box_route_ids
+            routes = self._mock_data.get("routes", [])
+            box_r_vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in resolved_route_ids}
+            if resolved_vehicle_ids is not None:
+                resolved_vehicle_ids &= box_r_vehicle_ids
+            else:
+                resolved_vehicle_ids = box_r_vehicle_ids
+
+        if data_type == "vehicles":
+            if resolved_vehicle_ids is not None:
+                data = [v for v in data if v["vehicle_id"] in resolved_vehicle_ids]
+        elif data_type == "routes":
+            if resolved_route_ids is not None:
+                data = [r for r in data if r["route_id"] in resolved_route_ids]
+        elif data_type == "batches":
+            if resolved_batch_ids is not None:
+                data = [b for b in data if b["batch_id"] in resolved_batch_ids]
+        elif data_type == "exceptions":
+            if resolved_vehicle_ids is not None:
+                data = [e for e in data if e.get("vehicle_id") in resolved_vehicle_ids]
+            elif resolved_route_ids is not None:
+                data = [e for e in data if e.get("route_id") in resolved_route_ids]
+            elif resolved_batch_ids is not None:
+                data = [e for e in data if e.get("batch_id") in resolved_batch_ids]
+            elif resolved_box_ids is not None:
+                data = [e for e in data if e.get("box_id") in resolved_box_ids]
+        elif data_type == "boxes":
+            if resolved_box_ids is not None:
+                data = [b for b in data if b["box_id"] in resolved_box_ids]
+            elif resolved_vehicle_ids is not None:
+                data = [b for b in data if b["vehicle_id"] in resolved_vehicle_ids]
+            elif resolved_batch_ids is not None:
+                data = [b for b in data if b["batch_id"] in resolved_batch_ids]
+        elif data_type == "readings":
+            if resolved_box_ids is not None:
+                data = [r for r in data if r["box_id"] in resolved_box_ids]
+            elif resolved_vehicle_ids is not None:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_box_ids = {b["box_id"] for b in boxes if b["vehicle_id"] in resolved_vehicle_ids}
+                data = [r for r in data if r["box_id"] in match_box_ids]
+            elif resolved_batch_ids is not None:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_box_ids = {b["box_id"] for b in boxes if b["batch_id"] in resolved_batch_ids}
+                data = [r for r in data if r["box_id"] in match_box_ids]
+            elif resolved_route_ids is not None:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                batches_data = {b["batch_id"]: b for b in self._mock_data.get("batches", [])}
+                match_box_ids = set()
+                for box in boxes:
+                    batch = batches_data.get(box.get("batch_id"))
+                    if batch and batch.get("route_id") in resolved_route_ids:
+                        match_box_ids.add(box["box_id"])
+                data = [r for r in data if r["box_id"] in match_box_ids]
+
+        date_start = filters.get("date_start") if filters else None
+        date_end = filters.get("date_end") if filters else None
+        if date_start or date_end:
+            if data_type == "vehicles":
+                routes = self._mock_data.get("routes", [])
+                v_ids = set()
+                for r in routes:
+                    dep = r.get("planned_departure", "")
+                    if dep and (not date_start or dep >= date_start) and (not date_end or dep <= date_end):
+                        v_ids.add(r["vehicle_id"])
+                data = [v for v in data if v["vehicle_id"] in v_ids]
+            elif data_type == "routes":
+                data = [r for r in data if (not date_start or r.get("planned_departure", "") >= date_start) and (not date_end or r.get("planned_departure", "") <= date_end)]
+            elif data_type == "batches":
+                routes = self._mock_data.get("routes", [])
+                r_ids = {r["route_id"] for r in routes if (not date_start or r.get("planned_departure", "") >= date_start) and (not date_end or r.get("planned_departure", "") <= date_end)}
+                data = [b for b in data if b["route_id"] in r_ids]
+            elif data_type == "exceptions":
+                data = [e for e in data if (not date_start or e.get("started_at", "") >= date_start) and (not date_end or e.get("started_at", "") <= date_end)]
+            elif data_type == "readings":
+                data = [r for r in data if (not date_start or r.get("recorded_at", "") >= date_start) and (not date_end or r.get("recorded_at", "") <= date_end)]
+
+        if data_type == "exceptions" and filters:
+            if filters.get("exception_type"):
+                data = [e for e in data if e["exception_type"] == filters["exception_type"]]
+            if filters.get("severity"):
+                data = [e for e in data if e["severity"] == filters["severity"]]
+
+        return data
+
+    def get_overview_stats(self, date_range=None, filters=None):
+        vehicles = self._apply_cross_dimension_filters(
+            self._mock_data.get("vehicles", []), filters, "vehicles"
+        )
+        routes = self._apply_cross_dimension_filters(
+            self._mock_data.get("routes", []), filters, "routes"
+        )
+        exceptions = self._apply_cross_dimension_filters(
+            self._mock_data.get("exceptions", []), filters, "exceptions"
+        )
+        boxes = self._apply_cross_dimension_filters(
+            self._mock_data.get("temperature_boxes", []), filters, "boxes"
+        )
         batches_data = {b["batch_id"]: b for b in self._mock_data.get("batches", [])}
 
         active_routes = [r for r in routes if r["status"] == "运输中"]
@@ -127,7 +252,9 @@ class ClickHouseModels:
         }
 
     def get_trend_data(self, granularity="day", date_range=None, filters=None):
-        readings = self._mock_data.get("temperature_readings", [])
+        readings = self._apply_cross_dimension_filters(
+            self._mock_data.get("temperature_readings", []), filters, "readings"
+        )
         if date_range:
             readings = self._filter_by_date_range(readings, date_range, "recorded_at")
 
@@ -139,15 +266,23 @@ class ClickHouseModels:
             grouped[dt]["temps"].append(r["temperature"])
             grouped[dt]["count"] += 1
 
+        exceptions = self._apply_cross_dimension_filters(
+            self._mock_data.get("exceptions", []), filters, "exceptions"
+        )
+
         result = []
         for key in sorted(grouped.keys()):
             temps = grouped[key]["temps"]
+            day_exc_count = len([e for e in exceptions if e.get("started_at", "").startswith(key)])
+            compliant_count = len([t for t in temps if -25 <= t <= 8])
             result.append({
                 "period": key,
                 "avg_temp": round(sum(temps) / len(temps), 2),
                 "min_temp": round(min(temps), 2),
                 "max_temp": round(max(temps), 2),
                 "reading_count": len(temps),
+                "exception_count": day_exc_count,
+                "compliance_rate": round(compliant_count / max(len(temps), 1) * 100, 1),
             })
         return result
 
@@ -514,27 +649,9 @@ class ClickHouseModels:
         return paginated, total
 
     def get_exception_duration(self, filters=None):
-        exceptions = self._filter_by_date_range(
-            self._mock_data.get("exceptions", []),
-            (filters.get("date_start"), filters.get("date_end")) if filters and filters.get("date_start") else None
+        exceptions = self._apply_cross_dimension_filters(
+            self._mock_data.get("exceptions", []), filters, "exceptions"
         )
-        if filters:
-            if filters.get("exception_type"):
-                exceptions = [e for e in exceptions if e["exception_type"] == filters["exception_type"]]
-            if filters.get("severity"):
-                exceptions = [e for e in exceptions if e["severity"] == filters["severity"]]
-            vehicle_ids = self._split_ids(filters.get("vehicle_id"))
-            if vehicle_ids:
-                exceptions = [e for e in exceptions if e["vehicle_id"] in vehicle_ids]
-            route_ids = self._split_ids(filters.get("route_id"))
-            if route_ids:
-                exceptions = [e for e in exceptions if e.get("route_id") in route_ids]
-            batch_ids = self._split_ids(filters.get("batch_id"))
-            if batch_ids:
-                exceptions = [e for e in exceptions if e.get("batch_id") in batch_ids]
-            box_ids = self._split_ids(filters.get("box_id"))
-            if box_ids:
-                exceptions = [e for e in exceptions if e.get("box_id") in box_ids]
 
         duration_by_type = {}
         for exc in exceptions:

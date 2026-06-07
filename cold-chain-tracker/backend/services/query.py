@@ -8,12 +8,15 @@ class QueryService:
         self.models = clickhouse_models
         self.cache = cache_service
 
-    def get_overview_stats(self, date_range=None):
-        cache_key = self.cache.generate_cache_key("overview", {"date_range": str(date_range)})
+    def get_overview_stats(self, date_range=None, filters=None):
+        cache_key = self.cache.generate_cache_key("overview", {
+            "date_range": str(date_range),
+            "filters": str(filters),
+        })
         result = self.cache.get(cache_key)
         if result is not None:
             return result
-        result = self.models.get_overview_stats(date_range)
+        result = self.models.get_overview_stats(date_range=date_range, filters=filters)
         self.cache.set(cache_key, result, ttl=60)
         return result
 

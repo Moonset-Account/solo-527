@@ -18,12 +18,7 @@ def init_dashboard_routes(qs: QueryService):
 @dashboard_bp.route("/api/overview", methods=["GET"])
 def get_overview():
     filters = parse_common_filters()
-    date_start = filters.get("date_start")
-    date_end = filters.get("date_end")
-    date_range = None
-    if date_start and date_end:
-        date_range = (date_start, date_end)
-    stats = query_service.get_overview_stats(date_range)
+    stats = query_service.get_overview_stats(filters=filters or None)
     return {
         "code": 200,
         "data": stats,
@@ -36,12 +31,7 @@ def get_overview():
 def get_trends():
     filters = parse_common_filters()
     granularity = request.args.get("granularity", "day")
-    date_start = filters.get("date_start")
-    date_end = filters.get("date_end")
-    date_range = None
-    if date_start and date_end:
-        date_range = (date_start, date_end)
-    data = query_service.get_trend_data(granularity=granularity, date_range=date_range)
+    data = query_service.get_trend_data(granularity=granularity, filters=filters or None)
     return {
         "code": 200,
         "data": data,
