@@ -89,6 +89,7 @@ export interface WeeklyReportData {
   ridesWoW: number
   ridesYoY: number
   availabilityWoW: number
+  dispatchWoW: number
   anomalies: Array<{
     stationId: string
     stationName: string

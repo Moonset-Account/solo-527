@@ -170,6 +170,25 @@ export function applyFilters(
         filters.stationIds.includes(r.originStationId) ||
         filters.stationIds.includes(r.destStationId),
     )
+    dispatches = dispatches.filter(
+      (d) =>
+        filters.stationIds.includes(d.fromStationId) ||
+        filters.stationIds.includes(d.toStationId),
+    )
+  }
+
+  if (filters.routeIds.length > 0) {
+    const routeStationPairs = new Set(
+      filters.routeIds.map((rid) => {
+        const parts = rid.split('->')
+        return parts.length === 2 ? `${parts[0]},${parts[1]}` : ''
+      }).filter(Boolean),
+    )
+    if (routeStationPairs.size > 0) {
+      dispatches = dispatches.filter((d) =>
+        routeStationPairs.has(`${d.fromStationId},${d.toStationId}`),
+      )
+    }
   }
 
   if (filters.timePeriod === 'morning_rush') {
@@ -177,9 +196,17 @@ export function applyFilters(
       const hour = new Date(r.startTime).getHours()
       return hour >= 7 && hour < 9
     })
+    dispatches = dispatches.filter((d) => {
+      const hour = new Date(d.dispatchTime).getHours()
+      return hour >= 7 && hour < 9
+    })
   } else if (filters.timePeriod === 'evening_rush') {
     rides = rides.filter((r) => {
       const hour = new Date(r.startTime).getHours()
+      return hour >= 17 && hour < 19
+    })
+    dispatches = dispatches.filter((d) => {
+      const hour = new Date(d.dispatchTime).getHours()
       return hour >= 17 && hour < 19
     })
   } else if (filters.timePeriod === 'custom' && filters.customTimeRange) {
@@ -189,6 +216,10 @@ export function applyFilters(
     rides = rides.filter((r) => {
       const rideMs = new Date(r.startTime).getTime()
       return rideMs >= startMs && rideMs <= endMs
+    })
+    dispatches = dispatches.filter((d) => {
+      const dispatchMs = new Date(d.dispatchTime).getTime()
+      return dispatchMs >= startMs && dispatchMs <= endMs
     })
   }
 
@@ -212,6 +243,14 @@ export function applyFilters(
       availableBikes: s.availableBikesForDispatch,
       bikesInRepair: 0,
     }))
+  } else if (filters.vehicleStatus === 'in_repair') {
+    stations = stations
+      .filter((s) => s.bikesInRepair > 0)
+      .map((s) => ({
+        ...s,
+        availableBikes: s.bikesInRepair,
+        availableBikesForDispatch: 0,
+      }))
   }
 
   stations = computeFlows(stations, rides)

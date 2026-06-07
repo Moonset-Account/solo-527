@@ -243,6 +243,11 @@ export default function FilterPanel() {
             已从可调度库存中剔除 {repairExcludedCount} 辆维修车辆
           </p>
         )}
+        {vehicleStatus === 'in_repair' && repairExcludedCount > 0 && (
+          <p className="mt-2 text-xs text-amber-400">
+            已从维修视图剔除 {repairExcludedCount} 辆可调度车辆
+          </p>
+        )}
       </section>
 
       <section>

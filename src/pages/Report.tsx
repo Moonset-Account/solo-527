@@ -1,19 +1,43 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, TrendingUp, TrendingDown, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Link, Navigate } from 'react-router-dom';
+import { Calendar, TrendingUp, TrendingDown, AlertTriangle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useDataStore } from '@/store/dataStore';
 import ExportMenu from '@/components/ExportMenu';
 import { getFilterDescription } from '@/utils/export';
 import type { WeeklyReportData } from '@/types';
 
 export default function Report() {
+  const loadData = useDataStore((s) => s.loadData);
+  const isDataLoaded = useDataStore((s) => s.isDataLoaded);
+  const isLoading = useDataStore((s) => s.isLoading);
   const generateWeeklyReport = useDataStore((s) => s.generateWeeklyReport);
   const [report, setReport] = useState<WeeklyReportData | null>(null)
 
   useEffect(() => {
-    const data = generateWeeklyReport();
-    setReport(data);
-  }, [generateWeeklyReport]);
+    if (!isDataLoaded) {
+      loadData()
+    }
+  }, [isDataLoaded, loadData])
+
+  useEffect(() => {
+    if (isDataLoaded && !report) {
+      const data = generateWeeklyReport();
+      setReport(data);
+    }
+  }, [isDataLoaded, generateWeeklyReport, report])
+
+  if (!isDataLoaded && isLoading) {
+    return (
+      <div className="min-h-screen bg-[#1a1d23] text-white flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#00e5c7]" />
+        <span className="ml-2 text-white/60">加载数据中...</span>
+      </div>
+    )
+  }
+
+  if (!isDataLoaded && !isLoading) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   if (!report) return null;
 
@@ -24,7 +48,7 @@ export default function Report() {
       <header className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-4">
           <Link
-            to="/"
+            to="/dashboard"
             className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm"
           >
             <ArrowLeft size={16} />
@@ -116,6 +140,17 @@ export default function Report() {
                   </td>
                 </tr>
                 <tr>
+                  <td className="px-4 py-3">调度次数</td>
+                  <td
+                    className={`text-right px-4 py-3 ${
+                      report.dispatchWoW > 0 ? 'text-emerald-400' : report.dispatchWoW < 0 ? 'text-red-400' : ''
+                    }`}
+                  >
+                    {report.dispatchWoW > 0 ? '+' : ''}{report.dispatchWoW}%
+                  </td>
+                  <td className="text-right px-4 py-3 text-white/30">-</td>
+                </tr>
+                <tr>
                   <td className="px-4 py-3">平均可调度车辆</td>
                   <td
                     className={`text-right px-4 py-3 ${
@@ -165,7 +200,7 @@ export default function Report() {
                           Math.abs(a.deviation) > 20 ? 'text-red-400' : 'text-[#ff9f43]'
                         }`}
                       >
-                        {a.deviation > 0 ? '+' : ''}{a.deviation}%
+                        {a.deviation > 0 ? '+' : ''}{a.deviation}
                       </td>
                     </tr>
                   ))}
