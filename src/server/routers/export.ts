@@ -163,19 +163,29 @@ async function buildRankingSheet(ctx: { prisma: import("@prisma/client").PrismaC
 
   const courses = await ctx.prisma.course.findMany({
     where: courseWhere,
-    include: { campus: true, waitlistEntries: true },
+    include: { campus: true },
   });
 
   const courseStats = await Promise.all(
     courses.map(async (course) => {
-      const waitlistEntries = course.waitlistEntries;
-      const waitlistCount = waitlistEntries.length;
-      const convertedCount = waitlistEntries.filter((e) => e.status === "converted").length;
-      const conversionRate = waitlistEntries.length > 0 ? convertedCount / waitlistEntries.length : 0;
+      const entryWhere: Record<string, unknown> = { courseId: course.id };
+      if (filters?.channels?.length) entryWhere.channel = { in: filters.channels };
+      if (filters?.dateRange) entryWhere.originalEnrollTime = { gte: filters.dateRange.start, lte: filters.dateRange.end };
 
-      const waitingEntries = waitlistEntries.filter((e) => e.status === "waiting");
+      const [waitlistCount, convertedCount, waitingEntries] = await Promise.all([
+        ctx.prisma.waitlistEntry.count({ where: entryWhere }),
+        ctx.prisma.waitlistEntry.count({ where: { ...entryWhere, status: "converted" } }),
+        ctx.prisma.waitlistEntry.findMany({
+          where: { ...entryWhere, status: "waiting" },
+          select: { originalEnrollTime: true, waitDays: true },
+        }),
+      ]);
+
+      const conversionRate = waitlistCount > 0 ? convertedCount / waitlistCount : 0;
+
+      const now = Date.now();
       const totalWaitDays = waitingEntries.reduce((sum, e) => {
-        const days = e.waitDays ?? Math.floor((Date.now() - new Date(e.originalEnrollTime).getTime()) / (1000 * 60 * 60 * 24));
+        const days = e.waitDays ?? Math.floor((now - e.originalEnrollTime.getTime()) / (1000 * 60 * 60 * 24));
         return sum + days;
       }, 0);
       const avgWaitDays = waitingEntries.length > 0 ? Math.round(totalWaitDays / waitingEntries.length) : 0;
@@ -228,13 +238,11 @@ async function buildAdjustHistorySheet(ctx: { prisma: import("@prisma/client").P
     orderBy: { createdAt: "desc" },
   });
 
-  return logs.map((log) => {
-    const displayName = log.entry.student.isMinor ? "（未成年人）" : log.entry.student.name;
-
+  const adultRows = logs.filter((log) => !log.entry.student.isMinor).map((log) => {
     const row: Record<string, unknown> = {
       调整时间: format(new Date(log.createdAt), "yyyy-MM-dd HH:mm"),
       操作人: log.operator.name,
-      学生姓名: displayName,
+      学生姓名: log.entry.student.name,
       课程: log.entry.course.name,
       调整前排名: log.oldPosition,
       调整后排名: log.newPosition,
@@ -247,6 +255,33 @@ async function buildAdjustHistorySheet(ctx: { prisma: import("@prisma/client").P
 
     return row;
   });
+
+  const minorLogs = logs.filter((log) => log.entry.student.isMinor);
+  const minorAggMap = new Map<string, { course: string; operator: string; count: number; reasons: string[] }>();
+  for (const log of minorLogs) {
+    const key = `${log.entry.course.name}-${log.operator.name}`;
+    const existing = minorAggMap.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (!existing.reasons.includes(log.reason)) existing.reasons.push(log.reason);
+    } else {
+      minorAggMap.set(key, { course: log.entry.course.name, operator: log.operator.name, count: 1, reasons: [log.reason] });
+    }
+  }
+
+  const minorRows: Record<string, unknown>[] = [...minorAggMap.values()].map((agg) => ({
+    调整时间: "",
+    操作人: agg.operator,
+    学生姓名: "（未成年人聚合）",
+    课程: agg.course,
+    调整前排名: "",
+    调整后排名: "",
+    调整原因: agg.reasons.join("；"),
+    未成年人调整次数: agg.count,
+    ...(includeAdjustDiff ? { 排位变化: "" } : {}),
+  }));
+
+  return [...adultRows, ...minorRows];
 }
 
 function saveFile(data: Record<string, unknown>[], fmt: "xlsx" | "csv", filename: string): string {

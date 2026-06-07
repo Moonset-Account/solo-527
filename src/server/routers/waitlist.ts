@@ -25,11 +25,11 @@ export const waitlistRouter = createTRPCRouter({
         orderBy: [{ status: "asc" }, { position: "asc" }],
       });
 
-      return entries.map((entry) => ({
+      const adults = entries.filter((e) => !e.student.isMinor).map((entry) => ({
         id: entry.id,
         studentId: entry.studentId,
-        studentName: maskMinorName(entry.student.name, entry.student.isMinor),
-        isMinor: entry.student.isMinor,
+        studentName: entry.student.name,
+        isMinor: false,
         courseId: entry.courseId,
         courseName: entry.course.name,
         campusId: entry.campusId,
@@ -48,6 +48,21 @@ export const waitlistRouter = createTRPCRouter({
         channel: entry.channel,
         ageGroup: entry.student.ageGroup,
       }));
+
+      const minorAggMap = new Map<string, { ageGroup: string; status: string; count: number }>();
+      for (const entry of entries.filter((e) => e.student.isMinor)) {
+        const key = `${entry.student.ageGroup}-${entry.status}`;
+        const existing = minorAggMap.get(key);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          minorAggMap.set(key, { ageGroup: entry.student.ageGroup, status: entry.status, count: 1 });
+        }
+      }
+
+      const minorAggregates = [...minorAggMap.values()];
+
+      return { adults, minorAggregates };
     }),
 
   adjust: publicProcedure

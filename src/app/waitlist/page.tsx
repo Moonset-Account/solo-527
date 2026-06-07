@@ -12,7 +12,7 @@ type WaitlistItem = {
   id: string;
   studentId: string;
   studentName: string;
-  isMinor: boolean;
+  isMinor: false;
   courseId: string;
   courseName: string;
   campusId: string;
@@ -24,6 +24,17 @@ type WaitlistItem = {
   status: string;
   channel: string;
   ageGroup: string;
+};
+
+type MinorAggregate = {
+  ageGroup: string;
+  status: string;
+  count: number;
+};
+
+type WaitlistResponse = {
+  adults: WaitlistItem[];
+  minorAggregates: MinorAggregate[];
 };
 
 type AdjustLog = {
@@ -160,7 +171,7 @@ export default function WaitlistPage() {
                 </tr>
               </thead>
               <tbody>
-                {(entries as WaitlistItem[] | undefined)?.filter(e => !e.isMinor).map((entry) => {
+                {((entries as WaitlistResponse | undefined)?.adults ?? []).map((entry) => {
                   const waitDays = entry.waitDays ?? calculateWaitDays(new Date(entry.originalEnrollTime), entry.convertedTime ? new Date(entry.convertedTime) : undefined);
                   const badge = STATUS_BADGE[entry.status] ?? STATUS_BADGE.waiting;
                   return (
@@ -215,20 +226,13 @@ export default function WaitlistPage() {
           )}
         </div>
 
-        {(entries as WaitlistItem[] | undefined)?.filter(e => e.isMinor).length > 0 && (
+        {((entries as WaitlistResponse | undefined)?.minorAggregates ?? []).length > 0 && (
           <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4">
             <p className="text-sm font-medium text-blue-800 mb-2">未成年人候补（聚合展示，不显示个人信息）</p>
             <div className="flex flex-wrap gap-3">
-              {Object.entries(
-                (entries as WaitlistItem[]).filter(e => e.isMinor).reduce((acc, e) => {
-                  const key = `${e.ageGroup}-${e.status}`;
-                  if (!acc[key]) acc[key] = { ageGroup: e.ageGroup, status: e.status, count: 0 };
-                  acc[key].count += 1;
-                  return acc;
-                }, {} as Record<string, { ageGroup: string; status: string; count: number }>)
-              ).map(([, v]) => (
-                <span key={`${v.ageGroup}-${v.status}`} className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                  {v.ageGroup} · {STATUS_BADGE[v.status]?.label ?? v.status} · {v.count}人
+              {((entries as WaitlistResponse | undefined)?.minorAggregates ?? []).map((agg) => (
+                <span key={`${agg.ageGroup}-${agg.status}`} className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                  {agg.ageGroup} · {STATUS_BADGE[agg.status]?.label ?? agg.status} · {agg.count}人
                 </span>
               ))}
             </div>
