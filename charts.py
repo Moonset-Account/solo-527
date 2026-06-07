@@ -255,7 +255,13 @@ def create_anomaly_analysis_chart(df: pd.DataFrame) -> go.Figure:
         fig.add_annotation(text="暂无异常数据", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
         return fig
     
-    anomaly_df = df[df["is_anomaly"] & df["anomaly_reason"].notna()]
+    is_anomaly_col = df["is_anomaly"]
+    if is_anomaly_col.dtype == object:
+        is_anomaly_mask = is_anomaly_col.astype(str).str.lower() == "true"
+    else:
+        is_anomaly_mask = is_anomaly_col
+    
+    anomaly_df = df[is_anomaly_mask & df["anomaly_reason"].notna()]
     
     if len(anomaly_df) == 0:
         fig = go.Figure()

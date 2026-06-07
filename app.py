@@ -17,6 +17,11 @@ from charts import (
     create_dept_comparison_chart, create_hourly_trend_chart,
     create_kpi_cards, create_patient_type_breakdown, create_anomaly_analysis_chart
 )
+from config_manager import (
+    load_annotations, add_annotation,
+    load_schedule_config, save_schedule_config,
+    load_permission_config, save_permission_config, apply_permission_filter
+)
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
@@ -33,9 +38,15 @@ def load_and_prepare_data():
         save_data(df, DATA_PATH)
     df = calculate_wait_times(df)
     df = detect_anomalies(df)
+    
+    permission_config = load_permission_config()
+    df = apply_permission_filter(df, permission_config)
+    
     return df
 
 df = load_and_prepare_data()
+permission_config = load_permission_config()
+schedule_config = load_schedule_config()
 
 app.title = "医院门诊等待时间分析工作台"
 
@@ -620,6 +631,38 @@ app.layout = html.Div(
             id="permission-modal",
             is_open=False,
         ),
+        dbc.Modal(
+            [
+                dbc.ModalHeader("添加异常样本注释"),
+                dbc.ModalBody(
+                    [
+                        html.P(id="annotation-visit-info", className="text-muted mb-3"),
+                        dbc.Label("注释内容"),
+                        dbc.Textarea(
+                            id="annotation-content",
+                            placeholder="请输入异常样本分析注释...",
+                            rows=4,
+                            className="mb-3"
+                        ),
+                        dbc.Label("注释人"),
+                        dbc.Input(
+                            id="annotation-author",
+                            placeholder="运营分析员",
+                            value="运营分析员",
+                            className="mb-3"
+                        ),
+                    ]
+                ),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button("取消", id="close-annotation-modal", className="ms-auto"),
+                        dbc.Button("保存注释", id="save-annotation-btn", color="primary"),
+                    ]
+                ),
+            ],
+            id="annotation-modal",
+            is_open=False,
+        ),
         dbc.Toast(
             id="toast",
             is_open=False,
@@ -753,6 +796,8 @@ def update_hourly_trend(filtered_data):
     if not filtered_data:
         return {}
     filtered = pd.DataFrame(filtered_data)
+    if "reg_time" in filtered.columns:
+        filtered["reg_time"] = pd.to_datetime(filtered["reg_time"], errors="coerce")
     return create_hourly_trend_chart(filtered)
 
 @app.callback(
@@ -919,22 +964,143 @@ def export_data(n_clicks, filtered_data, export_options, depts, doctors,
     return dcc.send_bytes(output.getvalue(), filename)
 
 @app.callback(
+    Output("annotation-modal", "is_open"),
+    Output("annotation-visit-info", "children"),
+    [Input("add-comment-btn", "n_clicks"),
+     Input("close-annotation-modal", "n_clicks"),
+     Input("save-annotation-btn", "n_clicks")],
+    [State("annotation-modal", "is_open"),
+     State("sample-table", "selected_rows"),
+     State("sample-table", "data")]
+)
+def toggle_annotation_modal(add_click, close_click, save_click, is_open, selected_rows, table_data):
+    """切换注释模态框"""
+    ctx = callback_context
+    
+    if not ctx.triggered:
+        return is_open, ""
+    
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    if trigger_id == "add-comment-btn":
+        info = ""
+        if selected_rows and table_data and len(selected_rows) > 0:
+            selected_visits = [table_data[i]["visit_id"] for i in selected_rows]
+            info = f"已选择 {len(selected_visits)} 个样本: {', '.join(selected_visits[:3])}{'...' if len(selected_visits) > 3 else ''}"
+        else:
+            info = "请先在表格中选择需要添加注释的样本"
+        return True, info
+    
+    if trigger_id in ["close-annotation-modal", "save-annotation-btn"]:
+        return False, ""
+    
+    return is_open, ""
+
+@app.callback(
+    Output("toast", "children", allow_duplicate=True),
+    Output("toast", "is_open", allow_duplicate=True),
+    Input("save-annotation-btn", "n_clicks"),
+    [State("sample-table", "selected_rows"),
+     State("sample-table", "data"),
+     State("annotation-content", "value"),
+     State("annotation-author", "value")],
+    prevent_initial_call=True
+)
+def save_annotation(save_click, selected_rows, table_data, content, author):
+    """保存注释"""
+    if not save_click or not selected_rows or not table_data or not content:
+        return "", False
+    
+    selected_visits = [table_data[i]["visit_id"] for i in selected_rows]
+    count = 0
+    for visit_id in selected_visits:
+        add_annotation(visit_id, content, author)
+        count += 1
+    
+    return dbc.Toast(f"已为 {count} 个样本保存注释！", header="成功", icon="success"), True
+
+@app.callback(
+    Output("schedule-modal", "is_open", allow_duplicate=True),
+    Input("save-schedule-btn", "n_clicks"),
+    [State("schedule-frequency", "value"),
+     State("schedule-format", "value"),
+     State("schedule-email", "value")],
+    prevent_initial_call=True
+)
+def save_schedule_settings(save_click, frequency, format_type, email):
+    """保存定时报表设置"""
+    if not save_click:
+        return dash.no_update
+    
+    config = {
+        "frequency": frequency,
+        "format": format_type,
+        "email": email,
+        "enabled": True
+    }
+    save_schedule_config(config)
+    global schedule_config
+    schedule_config = config
+    
+    return False
+
+@app.callback(
+    Output("permission-modal", "is_open", allow_duplicate=True),
+    Input("apply-permission-btn", "n_clicks"),
+    [State("permission-role", "value"),
+     State("permission-desensitize", "value"),
+     State("permission-export", "value"),
+     State("dept-filter", "value"),
+     State("doctor-filter", "value")],
+    prevent_initial_call=True
+)
+def apply_permission_settings(apply_click, role, desensitize, allow_export, dept_filter, doctor_filter):
+    """应用权限设置"""
+    if not apply_click:
+        return dash.no_update
+    
+    config = {
+        "current_role": role,
+        "desensitize": desensitize,
+        "allow_export": allow_export,
+        "allowed_depts": dept_filter if role == "dept_head" and dept_filter else [],
+        "allowed_doctors": doctor_filter if role == "doctor" and doctor_filter else []
+    }
+    save_permission_config(config)
+    
+    global df, permission_config
+    permission_config = config
+    df = load_and_prepare_data()
+    
+    return False
+
+@app.callback(
+    Output("export-btn", "disabled"),
+    Input("permission-role", "value"),
+    Input("permission-export", "value")
+)
+def update_export_permission(role, allow_export):
+    """根据权限更新导出按钮状态"""
+    return not allow_export
+
+@app.callback(
     Output("toast", "children"),
     Output("toast", "is_open"),
     [Input("save-schedule-btn", "n_clicks"),
-     Input("apply-permission-btn", "n_clicks")]
+     Input("apply-permission-btn", "n_clicks")],
+    [State("toast", "is_open")]
 )
-def show_toast(save_click, apply_click):
+def show_toast(save_click, apply_click, toast_open):
     """显示提示信息"""
     ctx = callback_context
-    if not ctx.triggered:
+    if not ctx.triggered or toast_open:
         return "", False
     
     trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
     if trigger_id == "save-schedule-btn":
         return dbc.Toast("定时报表设置已保存！", header="成功", icon="success"), True
     elif trigger_id == "apply-permission-btn":
-        return dbc.Toast("权限设置已应用！", header="成功", icon="success"), True
+        return dbc.Toast("权限设置已应用，数据已刷新！", header="成功", icon="success"), True
     
     return "", False
 
