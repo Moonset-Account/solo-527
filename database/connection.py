@@ -76,6 +76,8 @@ def get_events_from_db(filters: dict = None) -> pd.DataFrame:
     SELECT 
         de.event_id,
         de.event_time,
+        de.event_time as start_time,
+        de.event_time + (de.duration_minutes || ' minutes')::interval as end_time,
         de.equipment_id,
         e.equipment_name,
         e.line_id,
@@ -158,9 +160,13 @@ def get_work_orders_from_db(filters: dict = None) -> pd.DataFrame:
         wo.complete_time,
         wo.repair_duration_minutes as repair_duration,
         wo.repair_person as person_name,
+        md5(wo.repair_person)::varchar(10) as person_id,
+        '中级' as skill_level,
+        '维修组' as team,
         wo.repair_action,
         wo.root_cause,
-        wo.status
+        wo.status,
+        0 as labor_cost
     FROM maintenance_work_orders wo
     WHERE wo.event_id IN (%s)
     """ % ",".join(["%s"] * len(event_ids))
@@ -168,7 +174,11 @@ def get_work_orders_from_db(filters: dict = None) -> pd.DataFrame:
     result = execute_query(query, tuple(event_ids))
     
     if filters.get('repair_persons'):
-        result = result[result['person_name'].isin(filters['repair_persons'])]
+        persons = filters['repair_persons']
+        if persons and isinstance(persons, list) and persons[0].startswith("P"):
+            result = result[result['person_id'].isin(persons)]
+        else:
+            result = result[result['person_name'].isin(persons)]
     
     return result
 
@@ -204,4 +214,16 @@ def get_spare_parts_from_db(filters: dict = None) -> pd.DataFrame:
     WHERE spu.order_id IN (%s)
     """ % ",".join(["%s"] * len(order_ids))
     
-    return execute_query(query, tuple(order_ids))
+    params = list(order_ids)
+    
+    if filters.get('part_names'):
+        placeholders = ",".join(["%s"] * len(filters['part_names']))
+        query += f" AND sp.part_name IN ({placeholders})"
+        params.extend(filters['part_names'])
+    
+    result = execute_query(query, tuple(params))
+    
+    if filters.get('fault_codes'):
+        result = result[result['fault_code'].isin(filters['fault_codes'])]
+    
+    return result

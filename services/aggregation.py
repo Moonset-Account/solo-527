@@ -138,31 +138,43 @@ def get_maintenance_efficiency(filters: Optional[Dict] = None) -> Dict[str, Any]
     
     mttr = orders["repair_duration"].mean()
     
-    unplanned = events[events["breakdown_type"] == "unplanned"].sort_values("start_time")
+    time_col = "start_time" if "start_time" in events.columns else "event_time"
+    end_time_col = "end_time" if "end_time" in events.columns else time_col
+    
+    unplanned = events[events["breakdown_type"] == "unplanned"].sort_values(time_col)
     if len(unplanned) >= 2:
-        unplanned["next_start"] = unplanned["start_time"].shift(-1)
-        unplanned["interval"] = (unplanned["next_start"] - unplanned["end_time"]).dt.total_seconds() / 3600
+        unplanned["next_start"] = unplanned[time_col].shift(-1)
+        unplanned["interval"] = (unplanned["next_start"] - unplanned[end_time_col]).dt.total_seconds() / 3600
         mtbf = unplanned["interval"].dropna().mean()
     else:
         mtbf = 0
     
-    by_person = orders.groupby(["person_id", "person_name", "skill_level", "team"]).agg(
-        mttr=("repair_duration", "mean"),
-        completed_count=("order_id", "count"),
-        avg_labor_cost=("labor_cost", "mean"),
-    ).reset_index()
+    group_cols = ["person_id", "person_name"]
+    for col in ["skill_level", "team"]:
+        if col in orders.columns:
+            group_cols.append(col)
+    
+    agg_dict = {
+        "mttr": ("repair_duration", "mean"),
+        "completed_count": ("order_id", "count"),
+    }
+    if "labor_cost" in orders.columns:
+        agg_dict["avg_labor_cost"] = ("labor_cost", "mean")
+    
+    by_person = orders.groupby(group_cols).agg(**agg_dict).reset_index()
     
     persons_data = []
     for _, row in by_person.iterrows():
-        persons_data.append({
+        person = {
             "person_id": row["person_id"],
             "person_name": row["person_name"],
-            "skill_level": row["skill_level"],
-            "team": row["team"],
+            "skill_level": row.get("skill_level", "中级"),
+            "team": row.get("team", "维修组"),
             "mttr": round(float(row["mttr"]), 1),
             "completed_count": int(row["completed_count"]),
-            "avg_cost": round(float(row["avg_labor_cost"]), 2),
-        })
+            "avg_cost": round(float(row.get("avg_labor_cost", 0)), 2),
+        }
+        persons_data.append(person)
     
     bins = [0, 15, 30, 60, 120, 240, float("inf")]
     labels = ["0-15分钟", "15-30分钟", "30-60分钟", "1-2小时", "2-4小时", "4小时以上"]
@@ -178,7 +190,7 @@ def get_maintenance_efficiency(filters: Optional[Dict] = None) -> Dict[str, Any]
     
     return {
         "mttr": round(float(mttr), 1),
-        "mtbf": round(float(mtbf), 2),
+        "mtbf": round(float(mtbf), 2) if mtbf else 0,
         "by_person": persons_data,
         "duration_distribution": distribution,
     }

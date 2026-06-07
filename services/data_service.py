@@ -187,19 +187,22 @@ def _get_dimension_options_db(dimension: str) -> List[Dict[str, Any]]:
     from database.connection import execute_query
     
     queries = {
-        "line": "SELECT line_id as value, line_name as label FROM production_line ORDER BY line_id",
+        "line": "SELECT line_id as value, line_name as label FROM production_lines ORDER BY line_id",
         "equipment": "SELECT equipment_id as value, equipment_name as label FROM equipment ORDER BY equipment_name",
-        "shift": "SELECT shift_id as value, shift_name as label FROM shift ORDER BY shift_id",
-        "fault_type": "SELECT fault_code as value, fault_name as label FROM fault_type ORDER BY fault_name",
-        "repair_person": "SELECT person_id as value, person_name as label FROM repair_person ORDER BY person_name",
-        "spare_part": "SELECT part_id as value, part_name as label FROM spare_part ORDER BY part_name",
+        "shift": "SELECT shift_id as value, shift_name as label FROM shifts ORDER BY shift_id",
+        "fault_type": "SELECT fault_code as value, fault_name as label FROM fault_types ORDER BY fault_name",
+        "repair_person": "SELECT DISTINCT repair_person as value, repair_person as label FROM maintenance_work_orders ORDER BY repair_person",
+        "spare_part": "SELECT part_id as value, part_name as label FROM spare_parts ORDER BY part_name",
     }
     
     if dimension not in queries:
         return []
     
-    df = execute_query(queries[dimension])
-    return df.to_dict('records')
+    try:
+        df = execute_query(queries[dimension])
+        return df.to_dict('records')
+    except Exception:
+        return []
 
 
 def get_date_range() -> Dict[str, Any]:
@@ -208,8 +211,8 @@ def get_date_range() -> Dict[str, Any]:
     if mode == "timescaledb":
         try:
             from database.connection import execute_query
-            df = execute_query("SELECT MIN(DATE(start_time)) as min_date, MAX(DATE(start_time)) as max_date FROM downtime_event")
-            if not df.empty:
+            df = execute_query("SELECT MIN(DATE(event_time)) as min_date, MAX(DATE(event_time)) as max_date FROM downtime_events")
+            if not df.empty and df.iloc[0]["min_date"] is not None:
                 return {
                     "min_date": df.iloc[0]["min_date"],
                     "max_date": df.iloc[0]["max_date"]
