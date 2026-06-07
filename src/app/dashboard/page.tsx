@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { MetricCard } from "@/components/common/MetricCard";
 import { WorkloadHeatmap } from "@/components/charts/WorkloadHeatmap";
@@ -8,6 +9,7 @@ import { TagDistributionChart } from "@/components/charts/TagDistributionChart";
 import { StaffRankingTable } from "@/components/charts/StaffRankingTable";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
+import { exportDashboardToExcel } from "@/lib/export";
 import {
   MessageSquare,
   Clock,
@@ -23,6 +25,7 @@ export default function DashboardPage() {
 
   const { data: metrics } = trpc.dashboard.getMetrics.useQuery({
     dateRange,
+    teamIds: teamIds.length > 0 ? teamIds : undefined,
   });
 
   const { data: workload = [] } = trpc.dashboard.getTeamWorkload.useQuery({
@@ -43,8 +46,26 @@ export default function DashboardPage() {
     includeProbation: true,
   });
 
+  const handleExport = useCallback(() => {
+    exportDashboardToExcel({
+      metrics,
+      workload,
+      timeoutTrend,
+      tagDistribution,
+      staffRanking,
+      filters: {
+        dateRange,
+        teamIds: teamIds.length > 0 ? teamIds : undefined,
+      },
+    });
+  }, [metrics, workload, timeoutTrend, tagDistribution, staffRanking, dateRange, teamIds]);
+
   return (
-    <DashboardLayout title="看板总览" subtitle="实时监控客服运营数据">
+    <DashboardLayout
+      title="看板总览"
+      subtitle="实时监控客服运营数据"
+      onExport={handleExport}
+    >
       <div className="space-y-6 animate-fade-in">
         <div className="grid grid-cols-4 gap-4">
           <MetricCard

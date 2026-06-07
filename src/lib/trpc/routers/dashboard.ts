@@ -23,11 +23,16 @@ export const dashboardRouter = router({
             start: z.string(),
             end: z.string(),
           })
-          .optional(),
+          .optional()
+          .nullable(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
-    .query(async () => {
-      return generateDashboardMetrics();
+    .query(async ({ input }) => {
+      return generateDashboardMetrics(
+        input.dateRange ?? undefined,
+        input.teamIds ?? undefined
+      );
     }),
 
   getTeams: protectedProcedure.query(async () => {
@@ -51,22 +56,22 @@ export const dashboardRouter = router({
     .input(
       z.object({
         date: z.string().default(format(new Date(), "yyyy-MM-dd")),
-        teamIds: z.array(z.string()).optional(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
-    .query(async () => {
-      return generateTeamWorkload();
+    .query(async ({ input }) => {
+      return generateTeamWorkload(input.teamIds ?? undefined, input.date);
     }),
 
   getTimeoutTrend: protectedProcedure
     .input(
       z.object({
         days: z.number().default(7),
-        teamIds: z.array(z.string()).optional(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
     .query(async ({ input }) => {
-      return generateTimeoutTrend(input.days);
+      return generateTimeoutTrend(input.days, input.teamIds ?? undefined);
     }),
 
   getTagDistribution: protectedProcedure
@@ -77,22 +82,23 @@ export const dashboardRouter = router({
             start: z.string(),
             end: z.string(),
           })
-          .optional(),
+          .optional()
+          .nullable(),
       })
     )
-    .query(async () => {
-      return generateTagDistribution();
+    .query(async ({ input }) => {
+      return generateTagDistribution(input.dateRange ?? undefined);
     }),
 
   getStaffRanking: protectedProcedure
     .input(
       z.object({
-        teamIds: z.array(z.string()).optional(),
+        teamIds: z.array(z.string()).optional().nullable(),
         includeProbation: z.boolean().default(false),
       })
     )
     .query(async ({ input }) => {
-      const ranking = generateStaffRanking();
+      const ranking = generateStaffRanking(input.teamIds ?? undefined);
       if (input.includeProbation) {
         return ranking;
       }
@@ -103,13 +109,14 @@ export const dashboardRouter = router({
     .input(
       z.object({
         date: z.string().default(format(new Date(), "yyyy-MM-dd")),
-        teamIds: z.array(z.string()).optional(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
     .query(async ({ input }) => {
       const schedules = generateSchedules(input.date);
-      if (input.teamIds?.length) {
-        return schedules.filter((s) => input.teamIds!.includes(s.staff?.teamId || ""));
+      const ids = input.teamIds ?? undefined;
+      if (ids?.length) {
+        return schedules.filter((s) => ids.includes(s.staff?.teamId || ""));
       }
       return schedules;
     }),

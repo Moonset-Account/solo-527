@@ -43,12 +43,18 @@ const tagNames = [
 
 const categories = ["账户", "订单", "商品", "服务", "技术"];
 
-export function generateTeamWorkload(): TeamWorkload[] {
+export function generateTeamWorkload(teamIds?: string[], date?: string): TeamWorkload[] {
   const data: TeamWorkload[] = [];
+  const teams = teamIds?.length 
+    ? mockTeams.filter(t => teamIds.includes(t.id)) 
+    : mockTeams;
+  
+  const dateSeed = date ? new Date(date).getDate() : new Date().getDate();
+  
   for (let hour = 8; hour <= 22; hour++) {
-    mockTeams.forEach((team, teamIdx) => {
+    teams.forEach((team, teamIdx) => {
       const baseLoad = 40 + Math.sin((hour - 8) / 14 * Math.PI) * 30;
-      const variation = (Math.random() - 0.5) * 20;
+      const variation = ((dateSeed * 7 + hour * 3 + teamIdx * 11) % 20) - 10;
       const teamFactor = 1 + (teamIdx - 1.5) * 0.1;
       let workload = Math.min(100, Math.max(10, baseLoad * teamFactor + variation));
 
@@ -57,8 +63,8 @@ export function generateTeamWorkload(): TeamWorkload[] {
         teamName: team.name,
         hour,
         workload: Math.round(workload),
-        sessionCount: Math.round(workload * 2.5 + Math.random() * 20),
-        avgWaitTime: Math.round(workload * 0.8 + Math.random() * 30),
+        sessionCount: Math.round(workload * 2.5 + (dateSeed % 10) * 5),
+        avgWaitTime: Math.round(workload * 0.8 + (hour % 5) * 6),
         staffOnDuty: Math.round(3 + workload / 30),
       });
     });
@@ -66,9 +72,13 @@ export function generateTeamWorkload(): TeamWorkload[] {
   return data;
 }
 
-export function generateTimeoutTrend(days = 7): TimeoutTrendPoint[] {
+export function generateTimeoutTrend(days = 7, teamIds?: string[]): TimeoutTrendPoint[] {
   const data: TimeoutTrendPoint[] = [];
   const now = new Date();
+  
+  const teamFactor = teamIds?.length 
+    ? 1 + (teamIds.length / mockTeams.length - 0.5) * 0.3 
+    : 1;
 
   for (let d = days - 1; d >= 0; d--) {
     for (let h = 8; h <= 22; h += 2) {
@@ -77,10 +87,10 @@ export function generateTimeoutTrend(days = 7): TimeoutTrendPoint[] {
       date.setHours(h, 0, 0, 0);
 
       const isPeak = h >= 10 && h <= 12 || h >= 15 && h <= 19;
-      const baseWait = isPeak ? 60 : 25;
-      const variation = Math.random() * 20;
+      const baseWait = (isPeak ? 60 : 25) * teamFactor;
+      const variation = ((d * 13 + h * 7) % 20);
       const avgWaitTime = Math.round(baseWait + variation);
-      const sessionCount = Math.round(80 + Math.random() * 60);
+      const sessionCount = Math.round((80 + (d * 17 + h * 3) % 60) * teamFactor);
       const timeoutCount = Math.round(sessionCount * (avgWaitTime > 45 ? 0.15 : 0.05));
 
       data.push({
@@ -95,10 +105,16 @@ export function generateTimeoutTrend(days = 7): TimeoutTrendPoint[] {
   return data;
 }
 
-export function generateTagDistribution(): TagDistribution[] {
-  const total = 5000 + Math.round(Math.random() * 2000);
+export function generateTagDistribution(dateRange?: { start: string; end: string }): TagDistribution[] {
+  const startDate = dateRange ? new Date(dateRange.start) : new Date();
+  const endDate = dateRange ? new Date(dateRange.end) : new Date();
+  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  const baseTotal = 5000;
+  const total = baseTotal + Math.round(daysDiff * 200 + (startDate.getDate() * 13) % 2000);
+  
   return tagNames.map((tag, idx) => {
-    const weight = Math.random() * 0.8 + 0.2;
+    const weight = 0.6 + ((idx * 7 + startDate.getDate()) % 5) / 10;
     const count = Math.round((total / tagNames.length) * weight * (1 - idx * 0.03));
     return {
       tagName: tag,
@@ -109,17 +125,23 @@ export function generateTagDistribution(): TagDistribution[] {
   }).sort((a, b) => b.count - a.count);
 }
 
-export function generateStaffRanking(): StaffMetrics[] {
-  return mockStaffs.filter(s => s.role === "agent").map((staff, idx) => {
+export function generateStaffRanking(teamIds?: string[]): StaffMetrics[] {
+  let staffs = mockStaffs.filter(s => s.role === "agent");
+  if (teamIds?.length) {
+    staffs = staffs.filter(s => teamIds.includes(s.teamId));
+  }
+  
+  return staffs.map((staff, idx) => {
     const baseSkill = 1 - idx * 0.02;
     const probationPenalty = staff.isProbation ? 0.85 : 1;
-    const randomFactor = 0.85 + Math.random() * 0.3;
+    const randomFactor = 0.85 + ((idx * 13 + staff.id.charCodeAt(6)) % 30) / 100;
     const skill = baseSkill * probationPenalty * randomFactor;
 
     return {
       staffId: staff.id,
       staffName: staff.name,
       isProbation: staff.isProbation,
+      teamId: staff.teamId,
       sessionCount: Math.round(80 + skill * 120),
       avgWaitTime: Math.round(60 - skill * 35),
       avgDuration: Math.round(180 + (1 - skill) * 120),
@@ -135,21 +157,32 @@ export function generateStaffRanking(): StaffMetrics[] {
   });
 }
 
-export function generateDashboardMetrics(): DashboardMetrics {
+export function generateDashboardMetrics(dateRange?: { start: string; end: string }, teamIds?: string[]): DashboardMetrics {
+  const startDate = dateRange ? new Date(dateRange.start) : new Date();
+  const endDate = dateRange ? new Date(dateRange.end) : new Date();
+  const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  const teamFactor = teamIds?.length 
+    ? teamIds.length / mockTeams.length 
+    : 1;
+
+  const baseSessions = 12000;
+  const totalSessions = Math.round((baseSessions + daysDiff * 300 + (startDate.getDate() * 17) % 500) * teamFactor);
+  
   return {
-    totalSessions: 12456,
-    avgWaitTime: 38,
-    avgQualityScore: 87.5,
-    timeoutRate: 0.068,
-    transferRate: 0.125,
-    avgSatisfaction: 4.6,
-    staffOnDuty: 24,
-    totalStaff: 30,
+    totalSessions,
+    avgWaitTime: Math.round(35 + (daysDiff % 5) * 3 + (startDate.getDate() % 3) * 2),
+    avgQualityScore: Math.round((87 + (startDate.getDate() % 5) * 0.5) * 10) / 10,
+    timeoutRate: Math.round((0.06 + (daysDiff % 3) * 0.01) * 1000) / 1000,
+    transferRate: Math.round((0.12 + (startDate.getDate() % 4) * 0.01) * 1000) / 1000,
+    avgSatisfaction: Math.round((4.5 + (startDate.getDate() % 3) * 0.1) * 10) / 10,
+    staffOnDuty: Math.round(24 * teamFactor),
+    totalStaff: Math.round(30 * teamFactor),
     trends: {
-      sessions: 12.5,
-      waitTime: -8.3,
-      quality: 2.1,
-      timeout: -15.2,
+      sessions: Math.round((10 + (startDate.getDate() % 5) * 1.5) * 10) / 10,
+      waitTime: Math.round((-8 - (startDate.getDate() % 3) * 0.5) * 10) / 10,
+      quality: Math.round((2 + (daysDiff % 3) * 0.3) * 10) / 10,
+      timeout: Math.round((-15 - (startDate.getDate() % 4) * 0.5) * 10) / 10,
     },
   };
 }

@@ -28,6 +28,7 @@ export interface Staff {
 export interface StaffMetrics {
   staffId: string;
   staffName: string;
+  teamId?: string;
   isProbation: boolean;
   sessionCount: number;
   avgWaitTime: number;

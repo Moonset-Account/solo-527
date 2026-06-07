@@ -72,7 +72,7 @@ const roleMiddleware = (allowedRoles: UserRole[]) =>
   });
 
 export const router = t.router;
-export const publicProcedure = t.procedure.use(cacheMiddleware);
-export const protectedProcedure = t.procedure.use(authMiddleware).use(cacheMiddleware);
+export const publicProcedure = t.procedure;
+export const protectedProcedure = t.procedure.use(authMiddleware);
 export const supervisorProcedure = protectedProcedure.use(roleMiddleware(["supervisor", "admin"]));
 export const adminProcedure = protectedProcedure.use(roleMiddleware(["admin"]));
