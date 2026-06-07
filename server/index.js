@@ -298,7 +298,7 @@ app.post('/api/refresh', (req, res) => {
 })
 
 app.get('/api/dashboard/all', (req, res) => {
-  const { aggregated, workOrders, production } = getCachedData()
+  const { aggregated, workOrders, production, equipmentStatus } = getCachedData()
   const filters = req.query
   
   res.json({
@@ -309,6 +309,7 @@ app.get('/api/dashboard/all', (req, res) => {
     byTechnician: etl.aggregateRepairTimeByTechnician(workOrders, filters),
     spareParts: etl.aggregateSpareParts(workOrders, filters).slice(0, 10),
     trend: etl.aggregateTrendData(workOrders, filters),
+    equipmentStatusSummary: equipmentStatus.slice(0, 100),
     updateTime: aggregated.config.updateTime
   })
 })

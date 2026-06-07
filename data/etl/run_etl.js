@@ -365,9 +365,9 @@ const getKpiSummary = (workOrders, production, filters = {}) => {
 const main = () => {
   console.log('开始ETL处理...')
   
-  const { workOrders: rawWO, alarms, production } = loadRawData()
+  const { workOrders: rawWO, alarms, production, equipmentStatus } = loadRawData()
   
-  console.log(`加载原始数据: ${rawWO.length} 条工单`)
+  console.log(`加载原始数据: ${rawWO.length} 条工单, ${equipmentStatus.length} 条设备状态`)
   
   const cleanedWO = cleanWorkOrders(rawWO)
   
@@ -398,11 +398,16 @@ const main = () => {
   fs.writeFileSync(path.join(processedDir, 'cleaned_work_orders.json'), JSON.stringify(cleanedWO, null, 2))
   fs.writeFileSync(path.join(processedDir, 'alarms.json'), JSON.stringify(alarms, null, 2))
   fs.writeFileSync(path.join(processedDir, 'production.json'), JSON.stringify(production, null, 2))
+  fs.writeFileSync(path.join(processedDir, 'equipment_status.json'), JSON.stringify(equipmentStatus, null, 2))
   
   console.log('ETL处理完成！')
   console.log(`  聚合数据已保存到 data/processed/`)
+  console.log(`  - 工单: ${cleanedWO.length} 条`)
+  console.log(`  - 设备状态: ${equipmentStatus.length} 条`)
+  console.log(`  - 报警: ${alarms.length} 条`)
+  console.log(`  - 产量: ${production.length} 条`)
   
-  return { aggregated, cleanedWO, alarms, production }
+  return { aggregated, cleanedWO, alarms, production, equipmentStatus }
 }
 
 if (require.main === module) {

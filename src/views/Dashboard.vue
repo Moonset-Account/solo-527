@@ -203,11 +203,31 @@
         </div>
       </div>
       <el-table :data="workOrderItems" stripe style="width: 100%" v-loading="loadingWorkOrders">
-        <el-table-column prop="id" label="工单号" width="110" />
-        <el-table-column prop="date" label="日期" width="110" />
-        <el-table-column prop="shiftName" label="班次" width="80" />
-        <el-table-column prop="lineName" label="产线" width="130" />
-        <el-table-column prop="equipmentName" label="设备" width="150" />
+        <el-table-column prop="id" label="工单号" width="110">
+          <template #default="{ row }">
+            <el-link type="primary" @click="viewDetail(row)" style="font-size: 12px;">{{ row.id }}</el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="date" label="日期" width="110">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('date', row.date, row.date)" style="font-size: 12px;">{{ row.date }}</el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="shiftName" label="班次" width="80">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('shift', row.shift, row.shiftName)" style="font-size: 12px;">{{ row.shiftName }}</el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="lineName" label="产线" width="130">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('lineId', row.lineId, row.lineName)" style="font-size: 12px;">{{ row.lineName }}</el-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="equipmentName" label="设备" width="150">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('equipmentId', row.equipmentId, row.equipmentName)" style="font-size: 12px;">{{ row.equipmentName }}</el-link>
+          </template>
+        </el-table-column>
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
             <el-tag :type="row.type === 'planned' ? 'success' : 'danger'" size="small">
@@ -215,12 +235,25 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="categoryName" label="故障类别" width="110" />
+        <el-table-column prop="categoryName" label="故障类别" width="110">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('category', row.category, row.categoryName)" style="font-size: 12px;">{{ row.categoryName }}</el-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="durationMinutes" label="停机(分)" width="90" align="right" />
         <el-table-column prop="repairTimeMinutes" label="维修(分)" width="90" align="right" />
-        <el-table-column prop="technician" label="维修人" width="90" />
+        <el-table-column prop="technician" label="维修人" width="90">
+          <template #default="{ row }">
+            <el-link type="primary" @click="drillFromTable('technician', row.technician, row.technician)" style="font-size: 12px;">{{ row.technician }}</el-link>
+          </template>
+        </el-table-column>
         <el-table-column label="成本" width="100" align="right">
           <template #default="{ row }">¥{{ row.totalCost.toFixed(0) }}</template>
+        </el-table-column>
+        <el-table-column label="备注" width="120">
+          <template #default="{ row }">
+            <span style="font-size: 12px; color: #666;" :title="row.notes">{{ row.notes || '-' }}</span>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="80" fixed="right">
           <template #default="{ row }">
@@ -408,7 +441,7 @@ const loadDashboardData = async () => {
   }
 }
 
-const loadWorkOrders = async () => {
+const loadWorkOrders = async (autoOpenDetail = false) => {
   loadingWorkOrders.value = true
   try {
     const query = new URLSearchParams()
@@ -433,6 +466,10 @@ const loadWorkOrders = async () => {
     const data = await res.json()
     workOrderItems.value = data.items
     workOrderTotal.value = data.total
+    
+    if (autoOpenDetail && data.items.length === 1) {
+      await viewDetail(data.items[0])
+    }
   } catch (e) {
     console.error('加载工单失败', e)
   } finally {
@@ -461,14 +498,14 @@ const handleDrillCategory = (item) => {
   filters.value.category = item.category
   activeFilter.value = `故障类别: ${item.categoryName}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
 }
 
 const handleDrillLine = (item) => {
   filters.value.lineId = item.lineId
   activeFilter.value = `产线: ${item.lineName}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
   loadDashboardData()
 }
 
@@ -476,28 +513,28 @@ const handleDrillEquipment = (item) => {
   filters.value.equipmentId = item.equipmentId
   activeFilter.value = `设备: ${item.equipmentName}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
 }
 
 const handleDrillTechnician = (item) => {
   filters.value.technician = item.technician
   activeFilter.value = `维修人: ${item.technician}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
 }
 
 const handleDrillSparePart = (item) => {
   filters.value.partId = item.partId
   activeFilter.value = `备件: ${item.partName}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
 }
 
 const handleDrillDate = (item) => {
   filters.value.date = item.date
   activeFilter.value = `日期: ${item.date}`
   workOrderPage.value = 1
-  loadWorkOrders()
+  loadWorkOrders(true)
 }
 
 const clearDrillFilter = () => {
@@ -506,8 +543,37 @@ const clearDrillFilter = () => {
   filters.value.technician = null
   filters.value.partId = null
   filters.value.date = null
+  filters.value.shift = null
   activeFilter.value = null
   loadWorkOrders()
+}
+
+const drillFromTable = (field, value, label) => {
+  const labelMap = {
+    date: '日期',
+    shift: '班次',
+    lineId: '产线',
+    equipmentId: '设备',
+    category: '故障类别',
+    technician: '维修人',
+    partId: '备件'
+  }
+  
+  filters.value = {
+    lineId: null,
+    shift: null,
+    type: null,
+    category: null,
+    equipmentId: null,
+    technician: null,
+    partId: null,
+    date: null
+  }
+  
+  filters.value[field] = value
+  activeFilter.value = `${labelMap[field] || field}: ${label}`
+  workOrderPage.value = 1
+  loadWorkOrders(true)
 }
 
 const viewDetail = async (row) => {
