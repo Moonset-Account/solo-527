@@ -506,3 +506,51 @@ export async function logExportActionDB(
     VALUES ($1, $2, $3, $4, $5)
   `, [userId, channelId, format, sampleCount, ipAddress || null]);
 }
+
+export async function getUserByUsernameDB(username: string): Promise<{ id: string; username: string; displayName: string; roleId: string; roleName?: string } | null> {
+  const result = await pool.query(`
+    SELECT 
+      u.id,
+      u.username,
+      u.display_name as "displayName",
+      u.role_id as "roleId",
+      r.name as "roleName"
+    FROM users u
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE u.username = $1
+  `, [username]);
+  
+  return result.rows[0] || null;
+}
+
+export async function getUserByIdDB(userId: string): Promise<{ id: string; username: string; displayName: string; roleId: string; roleName?: string } | null> {
+  const result = await pool.query(`
+    SELECT 
+      u.id,
+      u.username,
+      u.display_name as "displayName",
+      u.role_id as "roleId",
+      r.name as "roleName"
+    FROM users u
+    LEFT JOIN roles r ON u.role_id = r.id
+    WHERE u.id = $1
+  `, [userId]);
+  
+  return result.rows[0] || null;
+}
+
+export async function getAllUsersDB(): Promise<Array<{ id: string; username: string; displayName: string; roleId: string; roleName?: string }>> {
+  const result = await pool.query(`
+    SELECT 
+      u.id,
+      u.username,
+      u.display_name as "displayName",
+      u.role_id as "roleId",
+      r.name as "roleName"
+    FROM users u
+    LEFT JOIN roles r ON u.role_id = r.id
+    ORDER BY u.username
+  `);
+  
+  return result.rows;
+}

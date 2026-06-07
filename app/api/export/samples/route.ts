@@ -39,18 +39,31 @@ export async function GET(request: Request) {
       );
     }
 
-    let hasPermission = false;
-    let actualUserId = userId || '';
-    
+    let actualUserId = '';
+    let userInfo = null;
+
     if (userId) {
-      hasPermission = await dataAccess.checkUserPermission(userId, EXPORT_PERMISSION);
-    } else if (username) {
-      hasPermission = await dataAccess.checkUserPermissionByUsername(username, EXPORT_PERMISSION);
-      if (hasPermission) {
-        actualUserId = username;
+      userInfo = await dataAccess.getUserById(userId);
+      if (userInfo) {
+        actualUserId = userInfo.id;
+      }
+    }
+    
+    if (!actualUserId && username) {
+      userInfo = await dataAccess.getUserByUsername(username);
+      if (userInfo) {
+        actualUserId = userInfo.id;
       }
     }
 
+    if (!actualUserId || !userInfo) {
+      return NextResponse.json(
+        { success: false, error: '用户不存在' },
+        { status: 401 }
+      );
+    }
+
+    const hasPermission = await dataAccess.checkUserPermission(actualUserId, EXPORT_PERMISSION);
     if (!hasPermission) {
       return NextResponse.json(
         { success: false, error: '您没有导出数据的权限，请联系管理员' },
@@ -61,7 +74,10 @@ export async function GET(request: Request) {
     const exportableChannels = await dataAccess.getExportableChannelsForUser(actualUserId);
     if (!exportableChannels.includes(channelId)) {
       return NextResponse.json(
-        { success: false, error: '您没有该渠道的数据导出权限' },
+        { 
+          success: false, 
+          error: `您没有该渠道的数据导出权限。您可导出的渠道: ${exportableChannels.join(', ') || '无'}` 
+        },
         { status: 403 }
       );
     }
@@ -123,7 +139,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      data: samples,
+      data: {
+        samples,
+        user: userInfo,
+        exportableChannels,
+      },
     });
   } catch (error) {
     console.error('导出失败:', error);

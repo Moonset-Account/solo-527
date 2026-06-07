@@ -592,3 +592,42 @@ export function logExportAction(
 ): void {
   console.log(`[Export Log] User: ${userId}, Channel: ${channelId}, Format: ${format}, Count: ${sampleCount}, IP: ${ipAddress || 'unknown'}`);
 }
+
+export function getUserByUsername(username: string) {
+  const user = users.find(u => u.username === username);
+  if (!user) return null;
+  const role = roles.find(r => r.id === user.roleId);
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    roleId: user.roleId,
+    roleName: role?.name,
+  };
+}
+
+export function getUserById(userId: string) {
+  const user = users.find(u => u.id === userId);
+  if (!user) return null;
+  const role = roles.find(r => r.id === user.roleId);
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    roleId: user.roleId,
+    roleName: role?.name,
+  };
+}
+
+export function getAllUsers() {
+  return users.map(user => {
+    const role = roles.find(r => r.id === user.roleId);
+    return {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      roleId: user.roleId,
+      roleName: role?.name,
+    };
+  });
+}

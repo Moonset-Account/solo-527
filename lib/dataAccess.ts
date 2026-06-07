@@ -81,3 +81,15 @@ export async function logExportAction(
 ) {
   return await dbRepo.logExportActionDB(userId, channelId, format, sampleCount, ipAddress);
 }
+
+export async function getUserByUsername(username: string) {
+  return await dbRepo.getUserByUsernameDB(username);
+}
+
+export async function getUserById(userId: string) {
+  return await dbRepo.getUserByIdDB(userId);
+}
+
+export async function getAllUsers() {
+  return await dbRepo.getAllUsersDB();
+}

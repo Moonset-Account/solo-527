@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Clock, Copy, Monitor, SkipForward, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
   cn 
 } from '@/lib/utils';
 import { Sample, Channel } from '@/lib/mockData';
+import { Users } from 'lucide-react';
 
 interface ChannelDetailData {
   channel: Channel;
@@ -22,6 +23,20 @@ interface ChannelDetailData {
   durationBins: { label: string; count: number }[];
   abnormalSamples: Sample[];
 }
+
+interface UserOption {
+  id: string;
+  username: string;
+  displayName: string;
+  roleId: string;
+  roleName?: string;
+}
+
+const roleLabels: Record<string, { label: string; color: string; bg: string }> = {
+  admin: { label: '系统管理员', color: 'text-red-700', bg: 'bg-red-50' },
+  research_manager: { label: '调研经理', color: 'text-blue-700', bg: 'bg-blue-50' },
+  viewer: { label: '只读用户', color: 'text-gray-700', bg: 'bg-gray-100' },
+};
 
 export default function ChannelDetailPage() {
   const params = useParams();
@@ -32,6 +47,10 @@ export default function ChannelDetailPage() {
   const [data, setData] = useState<ChannelDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ show: boolean; message: string; type?: 'success' | 'error' } | null>(null);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
+  const [showUserSelector, setShowUserSelector] = useState(false);
+  const userSelectorRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -47,9 +66,41 @@ export default function ChannelDetailPage() {
     setLoading(false);
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const result = await res.json();
+      if (result.success) {
+        setUsers(result.data);
+        if (result.data.length > 0) {
+          setSelectedUser(result.data[1]);
+        }
+      }
+    } catch (error) {
+      console.error('获取用户列表失败:', error);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchUsers();
   }, [channelId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userSelectorRef.current && !userSelectorRef.current.contains(event.target as Node)) {
+        setShowUserSelector(false);
+      }
+    };
+    
+    if (showUserSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserSelector]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ show: true, message, type });
@@ -57,9 +108,12 @@ export default function ChannelDetailPage() {
   };
 
   const handleExport = () => {
-    const userId = 'user-002';
-    const username = 'manager01';
-    const exportUrl = `/api/export/samples?channelId=${channelId}&format=csv&userId=${userId}&username=${username}`;
+    if (!selectedUser) {
+      showToast('请选择导出用户', 'error');
+      return;
+    }
+    
+    const exportUrl = `/api/export/samples?channelId=${channelId}&format=csv&userId=${selectedUser.id}`;
     
     fetch(exportUrl, { method: 'GET' })
       .then(res => {
@@ -219,9 +273,66 @@ export default function ChannelDetailPage() {
                 <RefreshCw className="w-4 h-4" />
                 刷新
               </button>
+              
+              <div className="relative" ref={userSelectorRef}>
+                <button
+                  onClick={() => setShowUserSelector(!showUserSelector)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+                >
+                  <Users className="w-4 h-4" />
+                  {selectedUser ? selectedUser.displayName : '选择用户'}
+                  {selectedUser && selectedUser.roleName && (
+                    <span className={cn(
+                      'px-1.5 py-0.5 rounded text-xs',
+                      roleLabels[selectedUser.roleName]?.color,
+                      roleLabels[selectedUser.roleName]?.bg
+                    )}>
+                      {roleLabels[selectedUser.roleName]?.label}
+                    </span>
+                  )}
+                </button>
+                
+                {showUserSelector && (
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-40 overflow-hidden">
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                      <p className="text-xs text-gray-500">选择导出用户角色测试权限</p>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      {users.map(user => (
+                        <button
+                          key={user.id}
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowUserSelector(false);
+                          }}
+                          className={cn(
+                            'w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0',
+                            selectedUser?.id === user.id && 'bg-blue-50'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900">{user.displayName}</span>
+                            {user.roleName && (
+                              <span className={cn(
+                                'px-1.5 py-0.5 rounded text-xs',
+                                roleLabels[user.roleName]?.color,
+                                roleLabels[user.roleName]?.bg
+                              )}>
+                                {roleLabels[user.roleName]?.label}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">@{user.username}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <button
                 onClick={handleExport}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
               >
                 <Download className="w-4 h-4" />
                 导出数据
