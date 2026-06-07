@@ -226,72 +226,84 @@ export function getRawRecords(filter: FilterParams & { page?: number; pageSize?:
   let allRecords: RawRecord[] = [];
 
   if (!source || source === 'ticket') {
-    allRecords.push(...filterByTime(dataStore.tickets, filter.startTime, filter.endTime).map(t => ({
-      id: t.id,
-      source: 'ticket' as const,
-      time: t.sellTime.toISOString(),
-      title: `门票售出: ${t.ticketType}`,
-      description: `票号 ${t.ticketNo}，${t.channel}渠道，¥${t.price}`,
-      metadata: { ticketNo: t.ticketNo, ticketType: t.ticketType, price: t.price, channel: t.channel, visitorId: t.visitorId }
-    })));
+    allRecords.push(...filterByTime(dataStore.tickets, filter.startTime, filter.endTime)
+      .filter(t => !filter.activity?.length || filter.activity.includes(t.activity))
+      .map(t => ({
+        id: t.id,
+        source: 'ticket' as const,
+        time: t.sellTime.toISOString(),
+        title: `门票售出: ${t.ticketType}`,
+        description: `票号 ${t.ticketNo}，${t.channel}渠道，¥${t.price}，${t.activity}`,
+        metadata: { ticketNo: t.ticketNo, ticketType: t.ticketType, price: t.price, channel: t.channel, visitorId: t.visitorId, activity: t.activity }
+      })));
   }
 
   if (!source || source === 'gate') {
     allRecords.push(...filterByTime(dataStore.gates, filter.startTime, filter.endTime)
       .filter(g => !filter.entrance?.length || filter.entrance.includes(g.entrance))
       .filter(g => !filter.areaId?.length || filter.areaId.includes(g.areaId))
+      .filter(g => !filter.activity?.length || filter.activity.includes(g.activity))
       .map(g => ({
         id: g.id,
         source: 'gate' as const,
         time: g.passTime.toISOString(),
         title: `闸机${g.direction === 'in' ? '入园' : '出园'}: ${g.entrance}`,
-        description: `票号 ${g.ticketNo}，${g.area}，排队 ${g.queueDuration.toFixed(1)}分钟`,
-        metadata: { ticketNo: g.ticketNo, entrance: g.entrance, area: g.area, areaId: g.areaId, direction: g.direction, queueDuration: g.queueDuration }
+        description: `票号 ${g.ticketNo}，${g.area}，排队 ${g.queueDuration.toFixed(1)}分钟，${g.activity}`,
+        metadata: { ticketNo: g.ticketNo, entrance: g.entrance, area: g.area, areaId: g.areaId, direction: g.direction, queueDuration: g.queueDuration, activity: g.activity }
       })));
   }
 
   if (!source || source === 'consumption') {
-    allRecords.push(...filterByTime(dataStore.consumptions, filter.startTime, filter.endTime).map(c => ({
-      id: c.id,
-      source: 'consumption' as const,
-      time: c.consumeTime.toISOString(),
-      title: `${c.category}消费: ${c.shopName}`,
-      description: `订单 ${c.orderNo}，¥${c.amount.toFixed(2)}`,
-      metadata: { orderNo: c.orderNo, category: c.category, shopName: c.shopName, amount: c.amount, visitorId: c.visitorId }
-    })));
+    allRecords.push(...filterByTime(dataStore.consumptions, filter.startTime, filter.endTime)
+      .filter(c => !filter.activity?.length || filter.activity.includes(c.activity))
+      .map(c => ({
+        id: c.id,
+        source: 'consumption' as const,
+        time: c.consumeTime.toISOString(),
+        title: `${c.category}消费: ${c.shopName}`,
+        description: `订单 ${c.orderNo}，¥${c.amount.toFixed(2)}，${c.activity}`,
+        metadata: { orderNo: c.orderNo, category: c.category, shopName: c.shopName, amount: c.amount, visitorId: c.visitorId, activity: c.activity }
+      })));
   }
 
   if (!source || source === 'parking') {
-    allRecords.push(...filterByTime(dataStore.parkings, filter.startTime, filter.endTime).map(p => ({
-      id: p.id,
-      source: 'parking' as const,
-      time: p.enterTime.toISOString(),
-      title: p.exitTime ? '车辆离场' : '车辆入场',
-      description: `车牌 ${p.plateNo}，${p.parkingLot}，${p.duration ? p.duration.toFixed(1) + '小时' : '停车中'}`,
-      metadata: { plateNo: p.plateNo, parkingLot: p.parkingLot, duration: p.duration, fee: p.fee, exitTime: p.exitTime?.toISOString() }
-    })));
+    allRecords.push(...filterByTime(dataStore.parkings, filter.startTime, filter.endTime)
+      .filter(p => !filter.areaId?.length || filter.areaId.includes(p.areaId))
+      .filter(p => !filter.activity?.length || filter.activity.includes(p.activity))
+      .map(p => ({
+        id: p.id,
+        source: 'parking' as const,
+        time: p.enterTime.toISOString(),
+        title: p.exitTime ? '车辆离场' : '车辆入场',
+        description: `车牌 ${p.plateNo}，${p.parkingLot}，${p.area}，${p.duration ? p.duration.toFixed(1) + '小时' : '停车中'}，${p.activity}`,
+        metadata: { plateNo: p.plateNo, parkingLot: p.parkingLot, area: p.area, areaId: p.areaId, duration: p.duration, fee: p.fee, exitTime: p.exitTime?.toISOString(), activity: p.activity }
+      })));
   }
 
   if (!source || source === 'weather') {
-    allRecords.push(...filterByTime(dataStore.weathers, filter.startTime, filter.endTime).map(w => ({
-      id: w.id,
-      source: 'weather' as const,
-      time: w.recordTime.toISOString(),
-      title: `天气记录: ${w.weather}`,
-      description: `温度 ${w.temperature.toFixed(1)}°C，湿度 ${w.humidity}%，风速 ${w.windSpeed.toFixed(1)}m/s`,
-      metadata: { temperature: w.temperature, humidity: w.humidity, weather: w.weather, windSpeed: w.windSpeed }
-    })));
+    allRecords.push(...filterByTime(dataStore.weathers, filter.startTime, filter.endTime)
+      .map(w => ({
+        id: w.id,
+        source: 'weather' as const,
+        time: w.recordTime.toISOString(),
+        title: `天气记录: ${w.weather}`,
+        description: `温度 ${w.temperature.toFixed(1)}°C，湿度 ${w.humidity}%，风速 ${w.windSpeed.toFixed(1)}m/s`,
+        metadata: { temperature: w.temperature, humidity: w.humidity, weather: w.weather, windSpeed: w.windSpeed }
+      })));
   }
 
   if (!source || source === 'show') {
-    allRecords.push(...filterByTime(dataStore.shows, filter.startTime, filter.endTime).map(s => ({
-      id: s.id,
-      source: 'show' as const,
-      time: s.startTime.toISOString(),
-      title: `演出: ${s.showName}`,
-      description: `${s.venue}，观众 ${s.audienceCount}/${s.capacity}，时长 ${Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60000)}分钟`,
-      metadata: { showName: s.showName, venue: s.venue, capacity: s.capacity, audienceCount: s.audienceCount, endTime: s.endTime.toISOString() }
-    })));
+    allRecords.push(...filterByTime(dataStore.shows, filter.startTime, filter.endTime)
+      .filter(s => !filter.areaId?.length || filter.areaId.includes(s.areaId))
+      .filter(s => !filter.activity?.length || filter.activity.includes(s.activity))
+      .map(s => ({
+        id: s.id,
+        source: 'show' as const,
+        time: s.startTime.toISOString(),
+        title: `演出: ${s.showName}`,
+        description: `${s.venue}，观众 ${s.audienceCount}/${s.capacity}，时长 ${Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60000)}分钟，${s.activity}`,
+        metadata: { showName: s.showName, venue: s.venue, area: s.area, areaId: s.areaId, capacity: s.capacity, audienceCount: s.audienceCount, endTime: s.endTime.toISOString(), activity: s.activity }
+      })));
   }
 
   allRecords.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -303,6 +315,46 @@ export function getRawRecords(filter: FilterParams & { page?: number; pageSize?:
 }
 
 const CALIBER_VERSION = 'v2.1.0';
+
+interface SourceStats {
+  fieldName: string;
+  recordCount: number;
+  missingCount: number;
+  missingRate: number;
+  outlierCount: number;
+  outlierRate: number;
+  completeness: number;
+  hasOutliers: boolean;
+  sampleSize: number;
+}
+
+function calcSourceStats(name: string, records: any[], outlierCheck: (r: any) => boolean): SourceStats {
+  const recordCount = records.length;
+  let missingCount = 0;
+  let outlierCount = 0;
+
+  records.forEach(r => {
+    const values = Object.values(r);
+    if (values.some(v => v === null || v === undefined || v === '')) missingCount++;
+    if (outlierCheck(r)) outlierCount++;
+  });
+
+  const missingRate = recordCount > 0 ? Math.round((missingCount / recordCount) * 1000) / 10 : 0;
+  const outlierRate = recordCount > 0 ? Math.round((outlierCount / recordCount) * 1000) / 10 : 0;
+  const completeness = Math.max(0, 100 - missingRate);
+
+  return {
+    fieldName: name,
+    recordCount,
+    missingCount,
+    missingRate,
+    outlierCount,
+    outlierRate,
+    completeness,
+    hasOutliers: outlierCount > 0,
+    sampleSize: recordCount
+  };
+}
 
 export function getDataQualityReport(filter: FilterParams = {}): DataQualityReport {
   const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime)
@@ -317,42 +369,28 @@ export function getDataQualityReport(filter: FilterParams = {}): DataQualityRepo
   const shows = filterByTime(dataStore.shows, filter.startTime, filter.endTime)
     .filter(s => !filter.activity?.length || filter.activity.includes(s.activity));
 
-  const allRecords = [...tickets, ...gates, ...consumptions, ...parkings];
-  const totalRecords = allRecords.length;
-  let missingFields = 0;
-  let anomalousRecords = 0;
-  let cleanedRecords = 0;
+  const ticketStats = calcSourceStats('门票数据', tickets, (r) => r.price < 0 || r.price > 2000);
+  const gateStats = calcSourceStats('闸机数据', gates, (r) => r.queueDuration > 120 || r.queueDuration < 0);
+  const consumptionStats = calcSourceStats('消费数据', consumptions, (r) => r.amount > 2000 || r.amount < 0);
+  const parkingStats = calcSourceStats('停车数据', parkings, (r) => (r.duration ?? 0) > 720 || (r.fee ?? 0) < 0);
+  const weatherStats = calcSourceStats('天气数据', weathers, (r) => r.temperature < -20 || r.temperature > 50 || r.humidity < 0 || r.humidity > 100);
+  const showStats = calcSourceStats('演出数据', shows, (r) => r.audienceCount > r.capacity || r.audienceCount < 0);
 
-  allRecords.forEach(r => {
-    const values = Object.values(r);
-    const hasMissing = values.some(v => v === null || v === undefined || v === '');
-    if (hasMissing) missingFields++;
-    let isOutlier = false;
-    if ('price' in r && r.price < 0) isOutlier = true;
-    if ('queueDuration' in r && r.queueDuration > 120) isOutlier = true;
-    if ('amount' in r && r.amount > 2000) isOutlier = true;
-    if (isOutlier) anomalousRecords++;
-    if (hasMissing || isOutlier) cleanedRecords++;
-  });
+  const allStats = [ticketStats, gateStats, consumptionStats, parkingStats, weatherStats, showStats];
+  const totalRecords = allStats.reduce((s, st) => s + st.recordCount, 0);
+  const totalMissing = allStats.reduce((s, st) => s + st.missingCount, 0);
+  const totalOutliers = allStats.reduce((s, st) => s + st.outlierCount, 0);
+  const cleanedRecords = totalMissing + totalOutliers;
 
-  const missingRate = totalRecords > 0 ? Math.round((missingFields / totalRecords) * 1000) / 10 : 0;
-  const outlierCount = anomalousRecords;
-  const sampleSize = totalRecords;
+  const missingRate = totalRecords > 0 ? Math.round((totalMissing / totalRecords) * 1000) / 10 : 0;
 
   return {
     missingRate,
-    outlierCount,
-    sampleSize,
+    outlierCount: totalOutliers,
+    sampleSize: totalRecords,
     updatedAt: dataStore.lastUpdate.toISOString(),
     caliberVersion: CALIBER_VERSION,
     cleanedCount: cleanedRecords,
-    fieldStats: [
-      { fieldName: '门票数据', completeness: tickets.length > 0 ? 98.2 : 0, hasOutliers: false, recordCount: tickets.length },
-      { fieldName: '闸机数据', completeness: gates.length > 0 ? 99.5 : 0, hasOutliers: outlierCount > 0, recordCount: gates.length },
-      { fieldName: '消费数据', completeness: consumptions.length > 0 ? 97.8 : 0, hasOutliers: false, recordCount: consumptions.length },
-      { fieldName: '停车数据', completeness: parkings.length > 0 ? 95.4 : 0, hasOutliers: false, recordCount: parkings.length },
-      { fieldName: '天气数据', completeness: weathers.length > 0 ? 99.9 : 0, hasOutliers: false, recordCount: weathers.length },
-      { fieldName: '演出数据', completeness: shows.length > 0 ? 98.7 : 0, hasOutliers: false, recordCount: shows.length }
-    ]
+    fieldStats: allStats
   };
 }

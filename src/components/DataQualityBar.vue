@@ -42,7 +42,7 @@ const levelColors: Record<string, { bg: string; text: string; border: string }> 
       <div class="flex items-center gap-2 text-sm">
         <Database class="w-4 h-4 text-slate-400" />
         <span class="text-slate-500">数据口径:</span>
-        <span class="font-medium text-slate-700">v1.0 ({{ DATA_CALIBERS.length }}个指标)</span>
+        <span class="font-medium text-slate-700">{{ report?.caliberVersion || 'v1.0' }} ({{ DATA_CALIBERS.length }}个指标)</span>
       </div>
 
       <div v-if="report" :class="['flex items-center gap-2 px-3 py-1 rounded-lg border text-sm', levelColors[missingLevel].bg, levelColors[missingLevel].border]">
@@ -55,6 +55,12 @@ const levelColors: Record<string, { bg: string; text: string; border: string }> 
         <XCircle :class="['w-4 h-4', levelColors[anomalyLevel].text]" />
         <span class="text-slate-500">异常点:</span>
         <span :class="['font-semibold', levelColors[anomalyLevel].text]">{{ report.outlierCount }}</span>
+      </div>
+
+      <div v-if="report && report.cleanedCount" class="flex items-center gap-2 px-3 py-1 rounded-lg border border-sky-50 bg-sky-50 text-sm">
+        <RefreshCcw class="w-4 h-4 text-sky-600" />
+        <span class="text-slate-500">已清洗:</span>
+        <span class="font-semibold text-sky-700">{{ report.cleanedCount.toLocaleString() }}条</span>
       </div>
 
       <div v-if="report" class="flex items-center gap-2 text-sm">

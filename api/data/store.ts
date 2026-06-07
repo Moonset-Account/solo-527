@@ -31,6 +31,8 @@ export interface ParkingRecord {
   enterTime: Date;
   exitTime?: Date;
   parkingLot: string;
+  area: string;
+  areaId: string;
   duration?: number;
   fee?: number;
   activity: string;
@@ -51,6 +53,8 @@ export interface ShowRecord {
   startTime: Date;
   endTime: Date;
   venue: string;
+  area: string;
+  areaId: string;
   capacity: number;
   audienceCount: number;
   activity: string;
@@ -170,12 +174,15 @@ export class DataStore {
       const enterTime = randomDateInRange(dayStart, now);
       const hasExited = Math.random() > 0.25;
       const duration = hasExited ? Math.max(30, randomNormal(180, 60)) : undefined;
+      const area = AREAS[Math.floor(Math.random() * AREAS.length)];
       this.parkings.push({
         id: generateId(),
         plateNo: '京A' + Math.floor(10000 + Math.random() * 90000),
         enterTime,
         exitTime: hasExited ? new Date(enterTime.getTime() + duration! * 60000) : undefined,
         parkingLot: ['P1', 'P2', 'P3'][Math.floor(Math.random() * 3)],
+        area: area.name,
+        areaId: area.id,
         duration,
         fee: duration ? Math.floor(duration / 30) * 10 : undefined,
         activity: ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]
@@ -199,12 +206,15 @@ export class DataStore {
     for (let i = 0; i < 8; i++) {
       const startTime = randomDateInRange(dayStart, dayEnd);
       const endTime = new Date(startTime.getTime() + 45 * 60000);
+      const area = AREAS[Math.floor(Math.random() * AREAS.length)];
       this.shows.push({
         id: generateId(),
         showName: showNames[i % showNames.length],
         startTime,
         endTime,
-        venue: AREAS[Math.floor(Math.random() * AREAS.length)].name,
+        venue: area.name,
+        area: area.name,
+        areaId: area.id,
         capacity: 800 + Math.floor(Math.random() * 800),
         audienceCount: Math.floor(randomNormal(600, 200)),
         activity: ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]

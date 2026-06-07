@@ -63,7 +63,12 @@ export interface DataQualityReport {
     fieldName: string;
     completeness: number;
     hasOutliers: boolean;
-    recordCount?: number;
+    recordCount: number;
+    missingCount: number;
+    missingRate: number;
+    outlierCount: number;
+    outlierRate: number;
+    sampleSize: number;
   }>;
 }
 
