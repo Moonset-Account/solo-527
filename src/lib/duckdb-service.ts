@@ -1,6 +1,6 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
 import type { FilterState } from './types';
-import { generateMockData } from './mock-data';
+import { FIXED_TASK_RECORDS, FIXED_WEATHER_RECORDS, FIXED_PEST_RECORDS } from './mock-data';
 
 let db: duckdb.AsyncDuckDB | null = null;
 let conn: duckdb.AsyncDuckDBConnection | null = null;
@@ -27,7 +27,7 @@ export async function ensureDB() {
 
 export async function loadMockData(): Promise<void> {
 	if (dataLoaded) return;
-	const d = await initDB();
+	await initDB();
 	await conn!.query(`
 		CREATE TABLE IF NOT EXISTS maintenance_tasks (
 			id VARCHAR, district VARCHAR, plant_type VARCHAR, task_type VARCHAR,
@@ -46,20 +46,19 @@ export async function loadMockData(): Promise<void> {
 			id VARCHAR, task_id VARCHAR, content TEXT, author VARCHAR, created_at TIMESTAMP
 		);
 	`);
-	const data = generateMockData(60);
-	for (const r of data.taskRecords) {
+	for (const r of FIXED_TASK_RECORDS) {
 		await conn!.query(`INSERT INTO maintenance_tasks VALUES (
 			'${r.id}','${r.district}','${r.plant_type}','${r.task_type}','${r.team}',
 			'${r.planned_date}',${r.completed_date ? `'${r.completed_date}'` : 'NULL'},
 			'${r.status}',${r.rainfall_mm},${r.pest_issue},${r.pest_type ? `'${r.pest_type}'` : 'NULL'},${r.photo_url ? `'${r.photo_url}'` : 'NULL'}
 		)`);
 	}
-	for (const r of data.weatherRecords) {
+	for (const r of FIXED_WEATHER_RECORDS) {
 		await conn!.query(`INSERT INTO weather_records VALUES (
 			'${r.record_date}','${r.district}',${r.rainfall_mm},${r.temperature},${r.humidity},'${r.weather_type}'
 		)`);
 	}
-	for (const r of data.pestRecords) {
+	for (const r of FIXED_PEST_RECORDS) {
 		await conn!.query(`INSERT INTO pest_records VALUES (
 			'${r.id}','${r.district}','${r.pest_type}','${r.severity}','${r.found_date}','${r.plant_type}'
 		)`);

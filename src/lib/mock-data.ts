@@ -31,6 +31,7 @@ class SeededRandom {
 
 const RNG = new SeededRandom(42);
 const FIXED_START = new Date(2025, 4, 1);
+const DATA_DAYS = 60;
 
 function fixedDate(offset: number): string {
 	const d = new Date(FIXED_START);
@@ -38,9 +39,9 @@ function fixedDate(offset: number): string {
 	return formatDate(d);
 }
 
-function generateWeatherRecords(days: number): WeatherRecord[] {
+function buildWeatherRecords(): WeatherRecord[] {
 	const records: WeatherRecord[] = [];
-	for (let i = 0; i < days; i++) {
+	for (let i = 0; i < DATA_DAYS; i++) {
 		const dateStr = fixedDate(i);
 		for (const district of DISTRICTS) {
 			const isRainy = RNG.next() < 0.25;
@@ -66,14 +67,14 @@ function generateWeatherRecords(days: number): WeatherRecord[] {
 	return records;
 }
 
-function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): TaskRecord[] {
+function buildTaskRecords(weatherRecords: WeatherRecord[]): TaskRecord[] {
 	const records: TaskRecord[] = [];
 	let id = 1;
 	const weatherMap = new Map<string, WeatherRecord>();
 	for (const w of weatherRecords) {
 		weatherMap.set(`${w.record_date}|${w.district}`, w);
 	}
-	for (let i = 0; i < days; i++) {
+	for (let i = 0; i < DATA_DAYS; i++) {
 		const dateStr = fixedDate(i);
 		const tasksPerDay = RNG.int(15, 35);
 		for (let t = 0; t < tasksPerDay; t++) {
@@ -90,11 +91,11 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 			const isPestTask = taskType === '病虫害防治';
 			const hasPestIssue = isPestTask && RNG.next() < 0.4;
 			const pestType = hasPestIssue ? RNG.pick(PEST_TYPES) : null;
-			if (i >= days - 2) {
+			if (i >= DATA_DAYS - 2) {
 				status = 'pending';
 			} else if (isHeavyRain && RNG.next() < 0.7) {
 				status = 'rain_delayed';
-				if (i + 1 < days && RNG.next() < 0.6) {
+				if (i + 1 < DATA_DAYS && RNG.next() < 0.6) {
 					completedDate = fixedDate(i + 1);
 				}
 			} else if (RNG.next() < 0.12) {
@@ -122,37 +123,34 @@ function generateTaskRecords(days: number, weatherRecords: WeatherRecord[]): Tas
 	return records;
 }
 
-function generatePestRecords(days: number): PestRecord[] {
+function derivePestRecords(tasks: TaskRecord[]): PestRecord[] {
 	const records: PestRecord[] = [];
 	let id = 1;
-	for (let i = 0; i < days; i++) {
-		const dateStr = fixedDate(i);
-		const count = RNG.int(0, 5);
-		for (let c = 0; c < count; c++) {
-			const district = RNG.pick(DISTRICTS);
-			const severityRoll = RNG.next();
-			let severity: PestRecord['severity'];
-			if (severityRoll < 0.5) severity = 'low';
-			else if (severityRoll < 0.85) severity = 'medium';
-			else severity = 'high';
-			records.push({
-				id: `P${String(id++).padStart(5, '0')}`,
-				district,
-				pest_type: RNG.pick(PEST_TYPES),
-				severity,
-				found_date: dateStr,
-				plant_type: RNG.pick(PLANT_TYPES)
-			});
-		}
+	for (const task of tasks) {
+		if (!task.pest_issue || !task.pest_type) continue;
+		const severityRoll = RNG.next();
+		let severity: PestRecord['severity'];
+		if (severityRoll < 0.5) severity = 'low';
+		else if (severityRoll < 0.85) severity = 'medium';
+		else severity = 'high';
+		records.push({
+			id: `P${String(id++).padStart(5, '0')}`,
+			district: task.district,
+			pest_type: task.pest_type,
+			severity,
+			found_date: task.planned_date,
+			plant_type: task.plant_type
+		});
 	}
 	return records;
 }
 
-export function generateMockData(days = 60) {
-	const weatherRecords = generateWeatherRecords(days);
-	const taskRecords = generateTaskRecords(days, weatherRecords);
-	const pestRecords = generatePestRecords(days);
-	return { taskRecords, weatherRecords, pestRecords };
-}
+const _weatherRecords = buildWeatherRecords();
+const _taskRecords = buildTaskRecords(_weatherRecords);
+const _pestRecords = derivePestRecords(_taskRecords);
+
+export const FIXED_TASK_RECORDS: readonly TaskRecord[] = Object.freeze(_taskRecords);
+export const FIXED_WEATHER_RECORDS: readonly WeatherRecord[] = Object.freeze(_weatherRecords);
+export const FIXED_PEST_RECORDS: readonly PestRecord[] = Object.freeze(_pestRecords);
 
 export { DISTRICT_AREAS };
