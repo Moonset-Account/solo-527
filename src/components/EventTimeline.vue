@@ -7,7 +7,12 @@ const props = defineProps<{
   constructionSites: ConstructionSite[]
   complaints: ComplaintAggregate[]
   trafficData: TrafficData[]
+  eventTypes?: string[]
 }>()
+
+const enabledTypes = computed(() => {
+  return props.eventTypes?.length > 0 ? props.eventTypes : ['construction', 'complaint', 'traffic']
+})
 
 const recentEvents = computed(() => {
   const events: Array<{
@@ -18,50 +23,71 @@ const recentEvents = computed(() => {
     district: string
   }> = []
 
-  props.constructionSites
-    .filter(s => s.status === 'active')
-    .slice(0, 5)
-    .forEach(site => {
-      events.push({
-        type: 'construction',
-        time: site.startDate,
-        title: site.name,
-        description: '施工进行中',
-        district: site.district,
+  if (enabledTypes.value.includes('construction')) {
+    props.constructionSites
+      .filter(s => s.status === 'active')
+      .slice(0, 5)
+      .forEach(site => {
+        events.push({
+          type: 'construction',
+          time: site.startDate,
+          title: site.name,
+          description: '施工进行中',
+          district: site.district,
+        })
       })
-    })
+  }
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayComplaints = props.complaints.filter(c => c.date === today)
-  if (todayComplaints.length > 0) {
-    const total = todayComplaints.reduce((sum, c) => sum + c.totalCount, 0)
-    events.push({
-      type: 'complaint',
-      time: today,
-      title: '公众投诉汇总',
-      description: `今日共 ${total} 件投诉（已脱敏聚合）`,
-      district: '全市',
+  if (enabledTypes.value.includes('complaint')) {
+    const today = new Date().toISOString().split('T')[0]
+    const todayComplaints = props.complaints.filter(c => c.date === today)
+    if (todayComplaints.length > 0) {
+      const byDistrict = new Map<string, number>()
+      todayComplaints.forEach(c => {
+        byDistrict.set(c.district, (byDistrict.get(c.district) || 0) + c.totalCount)
+      })
+      const total = Array.from(byDistrict.values()).reduce((a, b) => a + b, 0)
+      events.push({
+        type: 'complaint',
+        time: today,
+        title: '公众投诉汇总',
+        description: `今日共 ${total} 件投诉（已脱敏聚合）`,
+        district: '全市',
+      })
+      byDistrict.forEach((count, district) => {
+        events.push({
+          type: 'complaint',
+          time: today,
+          title: `${district}投诉`,
+          description: `${count} 件（仅聚合计数）`,
+          district,
+        })
+      })
+    }
+  }
+
+  if (enabledTypes.value.includes('traffic')) {
+    const rushHourTraffic = props.trafficData
+      .filter(t => {
+        const hour = new Date(t.timestamp).getHours()
+        return hour >= 17 && hour <= 19
+      })
+      .slice(0, 5)
+
+    rushHourTraffic.forEach(t => {
+      events.push({
+        type: 'traffic',
+        time: new Date(t.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        title: `${t.district} 车流量`,
+        description: `${t.vehicleCount} 辆/小时，平均 ${t.avgSpeed} km/h`,
+        district: t.district,
+      })
     })
   }
 
-  const rushHourTraffic = props.trafficData
-    .filter(t => {
-      const hour = new Date(t.timestamp).getHours()
-      return hour >= 17 && hour <= 19
-    })
-    .slice(0, 3)
-
-  rushHourTraffic.forEach(t => {
-    events.push({
-      type: 'traffic',
-      time: new Date(t.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      title: `${t.district} 车流量`,
-      description: `${t.vehicleCount} 辆/小时，平均 ${t.avgSpeed} km/h`,
-      district: t.district,
-    })
-  })
-
-  return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10)
+  return events
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 12)
 })
 
 const typeConfig = {
@@ -75,7 +101,16 @@ const typeConfig = {
   <div class="h-full flex flex-col">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-slate-800">关联事件时间线</h3>
-      <span class="text-xs text-slate-500">隐私保护：投诉仅显示聚合数据</span>
+      <div class="flex gap-1">
+        <span
+          v-for="type in ['construction', 'complaint', 'traffic']"
+          :key="type"
+          class="text-xs px-1.5 py-0.5 rounded"
+          :class="enabledTypes.includes(type) ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-300 line-through'"
+        >
+          {{ typeConfig[type as keyof typeof typeConfig].icon }}
+        </span>
+      </div>
     </div>
 
     <div class="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-3">
@@ -105,7 +140,14 @@ const typeConfig = {
 
       <div v-if="recentEvents.length === 0" class="text-center py-8 text-slate-400 text-sm">
         暂无事件数据
+        <p class="text-xs mt-1">请在筛选面板中启用事件类型</p>
       </div>
+    </div>
+
+    <div class="mt-3 pt-3 border-t border-slate-100">
+      <p class="text-xs text-slate-400">
+        💡 投诉数据仅显示聚合统计，不包含任何个人信息
+      </p>
     </div>
   </div>
 </template>

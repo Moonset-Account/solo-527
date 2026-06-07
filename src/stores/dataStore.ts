@@ -114,9 +114,9 @@ export const useDataStore = defineStore('data', {
     }) {
       try {
         this.error = null
+        await this.loadStations(filterCriteria.districts)
         await Promise.all([
           this.loadLinkedFilters(filterCriteria),
-          this.loadStations(filterCriteria.districts),
           this.loadTimeSeries(filterCriteria),
           this.loadHeatmap(),
           this.loadConstructionSites({ districts: filterCriteria.districts }),
@@ -167,7 +167,11 @@ export const useDataStore = defineStore('data', {
       try {
         let stationIds = criteria.stations
         if (stationIds.length === 0) {
-          stationIds = this.stations.slice(0, 5).map(s => s.id)
+          if (this.stations.length > 0) {
+            stationIds = this.stations.slice(0, 5).map(s => s.id)
+          } else {
+            stationIds = ['ST001', 'ST002', 'ST003', 'ST004', 'ST005']
+          }
         }
         this.timeSeries = await fetchTimeSeries(
           stationIds,

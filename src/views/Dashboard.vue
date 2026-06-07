@@ -193,6 +193,7 @@ watch(() => criteria.value.timeRange, () => {
               :construction-sites="constructionSites"
               :complaints="complaints"
               :traffic-data="trafficData"
+              :event-types="criteria.eventTypes"
             />
           </div>
         </div>
