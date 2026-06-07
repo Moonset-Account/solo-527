@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQualityStore } from '@/stores/quality'
-import { useFilterStore } from '@/stores/filter'
 import CardContainer from '@/components/layout/CardContainer.vue'
 import AnomalyMatrixChart from '@/components/charts/AnomalyMatrixChart.vue'
 import DurationBoxplot from '@/components/charts/DurationBoxplot.vue'
 import NoteModal from '@/components/common/NoteModal.vue'
+import DataCaliberCard from '@/components/common/DataCaliberCard.vue'
 import { formatNumber, formatPercent, formatDuration } from '@/utils/format'
-import { TrendingUp, TrendingDown, Minus, MessageSquare, Database, Clock as ClockIcon, Filter } from 'lucide-vue-next'
+import { TrendingUp, TrendingDown, Minus, MessageSquare } from 'lucide-vue-next'
 import type { AnomalyMatrixCell, ChannelRanking, QuestionGroupDuration } from '@/types'
 
 const qualityStore = useQualityStore()
-const filterStore = useFilterStore()
 const router = useRouter()
-
-const timeRangeText = computed(() => `${filterStore.timeRange.start} ~ ${filterStore.timeRange.end}`)
 
 const showNoteModal = ref(false)
 const noteTarget = ref<{ type: 'channel' | 'anomaly', id: string, name: string } | null>(null)
@@ -55,29 +52,7 @@ function getTrendClass(trend: string) {
 
 <template>
   <div class="space-y-6 animate-fade-in">
-    <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
-      <div class="flex items-center gap-2 mb-3">
-        <Database class="w-4 h-4 text-survey-primary" />
-        <span class="text-sm font-medium text-survey-text-primary">当前数据口径</span>
-      </div>
-      <div class="flex flex-wrap gap-6 text-sm">
-        <div class="flex items-center gap-2">
-          <ClockIcon class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">时间窗口:</span>
-          <span class="text-survey-text-primary font-medium">{{ timeRangeText }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Filter class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">分析维度:</span>
-          <span class="text-survey-secondary font-medium">渠道 × 异常类型</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Database class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">数据来源:</span>
-          <span class="text-survey-text-primary font-medium">ClickHouse 异常明细表</span>
-        </div>
-      </div>
-    </div>
+    <DataCaliberCard />
 
     <CardContainer title="异常提交矩阵（渠道 × 异常类型）">
       <template #header-actions>

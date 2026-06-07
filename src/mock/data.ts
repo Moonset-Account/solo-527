@@ -11,6 +11,7 @@ import type {
   TrendDataPoint,
   Dimension,
   ComparisonData,
+  DataCaliberInfo,
 } from '@/types'
 import dayjs from 'dayjs'
 
@@ -514,6 +515,64 @@ export function getMockQualityCheckHits(sampleId: string): QualityCheckHit[] {
     ...r,
     hitValue: ['32秒', '45%', '78次/小时', '0.94', '不一致'][allRules.indexOf(r)],
   }))
+}
+
+export function buildDataCaliberInfo(windowDays: number, filterDesc: string = '全部样本'): DataCaliberInfo {
+  const data = getRawSamplesByTimeWindow(windowDays)
+  const total = data.length
+  const valid = data.filter(s => s.qualityMark !== 'fail').length
+  const invalid = total - valid
+
+  const checkRules = [
+    {
+      name: '答题时长校验',
+      hitCount: data.filter(s => s.duration < 60).length,
+      passCount: data.filter(s => s.duration >= 60).length,
+    },
+    {
+      name: '跳题率校验',
+      hitCount: data.filter(s => s.skipCount > 5).length,
+      passCount: data.filter(s => s.skipCount <= 5).length,
+    },
+    {
+      name: '重复提交校验',
+      hitCount: data.filter(s => s.anomalyTypes.includes('duplicate')).length,
+      passCount: data.filter(s => !s.anomalyTypes.includes('duplicate')).length,
+    },
+    {
+      name: 'IP 区域校验',
+      hitCount: data.filter(s => s.anomalyTypes.includes('ip')).length,
+      passCount: data.filter(s => !s.anomalyTypes.includes('ip')).length,
+    },
+    {
+      name: '设备类型校验',
+      hitCount: data.filter(s => s.anomalyTypes.includes('device')).length,
+      passCount: data.filter(s => !s.anomalyTypes.includes('device')).length,
+    },
+    {
+      name: '质检规则命中',
+      hitCount: data.filter(s => s.anomalyTypes.includes('quality')).length,
+      passCount: data.filter(s => !s.anomalyTypes.includes('quality')).length,
+    },
+  ]
+
+  const windowText = windowDays === 1 ? '近 24 小时' : windowDays === 7 ? '近 7 天' : windowDays === 30 ? '近 30 天' : '近 90 天'
+  const queryId = `CH-${dayjs().format('YYYYMMDDHHmm')}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+
+  return {
+    totalRawRecords: total,
+    validRecords: valid,
+    invalidRecords: invalid,
+    checkPassRate: total > 0 ? valid / total : 0,
+    lastUpdateTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    dataSource: 'sample_quality_raw (ClickHouse)',
+    timeWindow: windowText,
+    queryId,
+    checkRules: checkRules.map(r => ({
+      ...r,
+      passRate: total > 0 ? r.passCount / total : 0,
+    })),
+  }
 }
 
 export const mockNotes: ManualNote[] = [

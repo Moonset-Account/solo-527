@@ -1,11 +1,11 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import Dashboard from '@/views/Dashboard.vue'
 import Comparison from '@/views/Comparison.vue'
 import AnomalyMatrix from '@/views/AnomalyMatrix.vue'
 import Details from '@/views/Details.vue'
 import Specs from '@/views/Specs.vue'
 
-const routes = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'dashboard',
@@ -37,7 +37,7 @@ const routes = [
     meta: { title: '口径说明' },
   },
   {
-    path: '/:pathMatch(.*)*',
+    path: '/login',
     redirect: '/',
   },
 ]

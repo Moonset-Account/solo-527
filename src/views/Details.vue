@@ -2,19 +2,18 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQualityStore } from '@/stores/quality'
-import { useFilterStore } from '@/stores/filter'
 import CardContainer from '@/components/layout/CardContainer.vue'
 import DimensionFilter from '@/components/filters/DimensionFilter.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import DetailDrawer from '@/components/common/DetailDrawer.vue'
 import NoteModal from '@/components/common/NoteModal.vue'
-import { X, Database, Clock, Filter } from 'lucide-vue-next'
+import DataCaliberCard from '@/components/common/DataCaliberCard.vue'
+import { X } from 'lucide-vue-next'
 import type { AnomalySample } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const qualityStore = useQualityStore()
-const filterStore = useFilterStore()
 
 const showDrawer = ref(false)
 const selectedSampleId = ref<string | null>(null)
@@ -22,8 +21,6 @@ const showNoteModal = ref(false)
 const noteTarget = ref<{ type: 'sample', id: string, name: string } | null>(null)
 
 const filteredData = computed(() => qualityStore.anomalySamples)
-const filterDescription = computed(() => qualityStore.filterDescription)
-const timeRangeText = computed(() => `${filterStore.timeRange.start} ~ ${filterStore.timeRange.end}`)
 
 const hasActiveFilters = computed(() => {
   return Object.keys(qualityStore.activeFilter).length > 0
@@ -80,39 +77,16 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6 animate-fade-in">
-    <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <Database class="w-4 h-4 text-survey-primary" />
-          <span class="text-sm font-medium text-survey-text-primary">当前数据口径</span>
-        </div>
-        <button
-          v-if="hasActiveFilters"
-          @click="clearFilters"
-          class="flex items-center gap-1 text-xs text-survey-text-muted hover:text-survey-danger transition-colors"
-        >
-          <X class="w-3.5 h-3.5" />
-          清除筛选
-        </button>
-      </div>
-
-      <div class="flex flex-wrap gap-4 text-sm">
-        <div class="flex items-center gap-2">
-          <Clock class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">时间窗口:</span>
-          <span class="text-survey-text-primary font-medium">{{ timeRangeText }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Filter class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">筛选条件:</span>
-          <span class="text-survey-secondary font-medium">{{ filterDescription }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Database class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">数据来源:</span>
-          <span class="text-survey-text-primary font-medium">ClickHouse 原始记录表 (sample_quality_raw)</span>
-        </div>
-      </div>
+    <div class="relative">
+      <DataCaliberCard />
+      <button
+        v-if="hasActiveFilters"
+        @click="clearFilters"
+        class="absolute top-4 right-4 flex items-center gap-1 px-2 py-1 rounded bg-survey-danger/10 text-survey-danger text-xs hover:bg-survey-danger/20 transition-colors z-10"
+      >
+        <X class="w-3.5 h-3.5" />
+        清除筛选
+      </button>
     </div>
 
     <div class="bg-survey-surface border border-survey-border rounded-lg p-4">

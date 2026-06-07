@@ -19,9 +19,11 @@ import {
   buildQuestionGroupDurations,
   buildComparisonData,
   buildAnomalySamples,
+  buildDataCaliberInfo,
   getMockAnswerTrajectory,
   getMockQualityCheckHits,
 } from '@/mock/data'
+import type { DataCaliberInfo } from '@/types'
 
 export interface SampleFilter {
   channelId?: string
@@ -120,6 +122,10 @@ export const useQualityStore = defineStore('quality', () => {
   const totalSamples = computed(() => metrics.value.totalSamples)
   const anomalyRate = computed(() => metrics.value.anomalyRate)
 
+  const dataCaliberInfo = computed<DataCaliberInfo>(() => {
+    return buildDataCaliberInfo(currentWindowDays.value)
+  })
+
   function setTimeWindow(window: TimeWindow) {
     timeWindow.value = window
   }
@@ -162,6 +168,7 @@ export const useQualityStore = defineStore('quality', () => {
     comparisonData,
     activeFilter,
     filterDescription,
+    dataCaliberInfo,
     totalSamples,
     anomalyRate,
     currentWindowDays,

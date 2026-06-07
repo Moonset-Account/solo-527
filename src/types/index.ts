@@ -145,3 +145,20 @@ export interface MetricDefinition {
   unit: string
   isPercentage: boolean
 }
+
+export interface DataCaliberInfo {
+  totalRawRecords: number
+  validRecords: number
+  invalidRecords: number
+  checkPassRate: number
+  lastUpdateTime: string
+  dataSource: string
+  timeWindow: string
+  queryId: string
+  checkRules: {
+    name: string
+    hitCount: number
+    passCount: number
+    passRate: number
+  }[]
+}

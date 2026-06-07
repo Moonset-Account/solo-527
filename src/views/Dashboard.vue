@@ -1,31 +1,21 @@
 <script setup lang="ts">
-import { Users, AlertTriangle, Clock, Repeat, Activity, Shield, Database, Clock as ClockIcon, Filter } from 'lucide-vue-next'
+import { Users, AlertTriangle, Clock, Repeat, Activity, Shield } from 'lucide-vue-next'
 import { useQualityStore } from '@/stores/quality'
-import { useFilterStore } from '@/stores/filter'
 import KpiCard from '@/components/common/KpiCard.vue'
 import CardContainer from '@/components/layout/CardContainer.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
 import TrendLineChart from '@/components/charts/TrendLineChart.vue'
+import DataCaliberCard from '@/components/common/DataCaliberCard.vue'
 import { formatNumber, formatPercent, formatDuration } from '@/utils/format'
 import { useRouter } from 'vue-router'
 import type { FunnelData } from '@/types'
-import { computed } from 'vue'
 
 const qualityStore = useQualityStore()
-const filterStore = useFilterStore()
 const router = useRouter()
-
-const timeRangeText = computed(() => `${filterStore.timeRange.start} ~ ${filterStore.timeRange.end}`)
 
 function goToDetails(stage?: FunnelData) {
   const query: Record<string, string> = {}
   if (stage) {
-    const stageMap: Record<string, string> = {
-      submitted: '',
-      valid: '',
-      quality_pass: 'qualityMark=pass',
-      anomaly: 'anomalyType=duration',
-    }
     if (stage.stageCode === 'anomaly') {
       query.anomalyType = 'duration'
     }
@@ -36,29 +26,7 @@ function goToDetails(stage?: FunnelData) {
 
 <template>
   <div class="space-y-6 animate-fade-in">
-    <div class="bg-survey-surface border border-survey-border rounded-lg p-4">
-      <div class="flex items-center gap-2 mb-3">
-        <Database class="w-4 h-4 text-survey-primary" />
-        <span class="text-sm font-medium text-survey-text-primary">当前数据口径</span>
-      </div>
-      <div class="flex flex-wrap gap-6 text-sm">
-        <div class="flex items-center gap-2">
-          <ClockIcon class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">时间窗口:</span>
-          <span class="text-survey-text-primary font-medium">{{ timeRangeText }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Filter class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">筛选条件:</span>
-          <span class="text-survey-secondary font-medium">全部样本（无筛选）</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Database class="w-4 h-4 text-survey-text-muted" />
-          <span class="text-survey-text-muted">数据来源:</span>
-          <span class="text-survey-text-primary font-medium">ClickHouse 原始记录 (sample_quality_raw)</span>
-        </div>
-      </div>
-    </div>
+    <DataCaliberCard />
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       <KpiCard
