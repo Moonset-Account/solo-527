@@ -7,12 +7,7 @@
 		NearExpiryAlert,
 		AnomalyPoint,
 		FilterState,
-		UserRole,
-		InboundRecord,
-		OutboundRecord,
-		InventoryAgeRecord,
-		ReturnRecord,
-		SafetyStockRecord
+		UserRole
 	} from '$lib/types';
 	import {
 		computeFunnelData,
@@ -42,13 +37,9 @@
 	let setFilter: (f: FilterState) => void = () => {};
 	let resetFilter: () => void = () => {};
 	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] });
-	let getInboundData: () => InboundRecord[] = () => [];
-	let getOutboundData: () => OutboundRecord[] = () => [];
-	let getInventoryAgeData: () => InventoryAgeRecord[] = () => [];
-	let getReturnData: () => ReturnRecord[] = () => [];
-	let getSafetyStockData: () => SafetyStockRecord[] = () => [];
 	let getAllSkuNames: () => Record<string, string> = () => ({});
 	let getDataVersion: () => number = () => 0;
+	let queryFromDuckDB: ((filters: Partial<FilterState>, wh: string[], sup: string[], sku: string[], names: Record<string, string>) => Promise<DataSource>) | null = null;
 
 	let funnelData = $state<FunnelData | null>(null);
 	let turnoverRanking = $state<TurnoverRanking[]>([]);
@@ -72,18 +63,7 @@
 		};
 	});
 
-	function buildDataSource(): DataSource {
-		return {
-			inbound: getInboundData(),
-			outbound: getOutboundData(),
-			inventoryAge: getInventoryAgeData(),
-			returns: getReturnData(),
-			safetyStock: getSafetyStockData(),
-			skuNames: getAllSkuNames()
-		};
-	}
-
-	function refreshData(filters: Partial<FilterState>) {
+	async function refreshData(filters: Partial<FilterState>) {
 		const role = getUserRole();
 		const mergedFilters = mergePermissionToFilter(
 			filters,
@@ -93,7 +73,24 @@
 		);
 
 		loading = true;
-		const ds = buildDataSource();
+		let ds: DataSource;
+
+		if (queryFromDuckDB) {
+			try {
+				ds = await queryFromDuckDB(
+					mergedFilters,
+					role.accessible_warehouses,
+					role.accessible_suppliers,
+					role.accessible_sku_categories,
+					getAllSkuNames()
+				);
+			} catch {
+				ds = { inbound: [], outbound: [], inventoryAge: [], returns: [], safetyStock: [], skuNames: getAllSkuNames() };
+			}
+		} else {
+			ds = { inbound: [], outbound: [], inventoryAge: [], returns: [], safetyStock: [], skuNames: getAllSkuNames() };
+		}
+
 		funnelData = computeFunnelData(ds, mergedFilters);
 		turnoverRanking = computeTurnoverRanking(ds, mergedFilters);
 		ageDistribution = computeAgeDistribution(ds, mergedFilters);
@@ -126,16 +123,22 @@
 			setFilter = stores.setFilter;
 			resetFilter = stores.resetFilter;
 			getUserRole = stores.getUserRole;
-			getInboundData = stores.getInboundData;
-			getOutboundData = stores.getOutboundData;
-			getInventoryAgeData = stores.getInventoryAgeData;
-			getReturnData = stores.getReturnData;
-			getSafetyStockData = stores.getSafetyStockData;
 			getAllSkuNames = stores.getAllSkuNames;
 			getDataVersion = stores.getDataVersion;
+		});
+		import('$lib/utils/duckdb').then((duckdb) => {
+			duckdb.initDuckDB().then(() => {
+				queryFromDuckDB = (filters, wh, sup, sku, names) =>
+					duckdb.queryDataSourceFromDuckDB(filters, wh, sup, sku, names);
+				mounted = true;
+				refreshData(getFilter());
+			}).catch(() => {
+				mounted = true;
+				refreshData(getFilter());
+			});
+		}).catch(() => {
 			mounted = true;
-			const filter = getFilter();
-			refreshData(filter);
+			refreshData(getFilter());
 		});
 	});
 

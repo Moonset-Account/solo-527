@@ -9,10 +9,12 @@ import type {
   SafetyStockRecord,
   FilterState
 } from '$lib/types'
+import type { DataSource } from '$lib/utils/analytics'
 import { dataDictionary } from '$lib/data/data-dictionary'
 
 let db: duckdb.AsyncDuckDB | null = null
 let conn: duckdb.AsyncDuckDBConnection | null = null
+let ready = false
 
 const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
   mvp: {
@@ -118,10 +120,15 @@ function applyMissingValueStrategy(tableName: string, records: Record<string, un
 }
 
 export async function initDuckDB(): Promise<void> {
-  if (db && conn) return
+  if (db && conn && ready) return
   db = await createDB()
   conn = await db.connect()
   await conn.query(CREATE_TABLES_SQL)
+  ready = true
+}
+
+export function isReady(): boolean {
+  return ready
 }
 
 export async function query<T>(sql: string): Promise<T[]> {
@@ -141,6 +148,70 @@ export async function query<T>(sql: string): Promise<T[]> {
     }
     return obj as T
   })
+}
+
+function sqlInList(values: string[]): string {
+  return values.map((s) => `'${s}'`).join(',')
+}
+
+function buildFilterWhereClause(
+  filters: Partial<FilterState>,
+  options?: {
+    hasWarehouse?: boolean
+    hasSupplier?: boolean
+    hasAgeBucket?: boolean
+    dateColumn?: string
+  }
+): string {
+  const clauses: string[] = []
+  if (filters.sku_ids?.length) {
+    clauses.push(`sku_id IN (${sqlInList(filters.sku_ids)})`)
+  }
+  if (options?.hasWarehouse && filters.warehouse_positions?.length) {
+    clauses.push(`warehouse_position IN (${sqlInList(filters.warehouse_positions)})`)
+  }
+  if (options?.hasSupplier && filters.supplier_ids?.length) {
+    clauses.push(`supplier_id IN (${sqlInList(filters.supplier_ids)})`)
+  }
+  if (filters.batch_nos?.length) {
+    clauses.push(`batch_no IN (${sqlInList(filters.batch_nos)})`)
+  }
+  if (options?.hasAgeBucket && filters.age_buckets?.length) {
+    clauses.push(`age_bucket IN (${sqlInList(filters.age_buckets)})`)
+  }
+  if (options?.dateColumn && filters.date_range?.start) {
+    clauses.push(`${options.dateColumn} >= '${filters.date_range.start}'`)
+  }
+  if (options?.dateColumn && filters.date_range?.end) {
+    clauses.push(`${options.dateColumn} <= '${filters.date_range.end}'`)
+  }
+  return clauses.length ? 'WHERE ' + clauses.join(' AND ') : ''
+}
+
+function buildPermissionClause(
+  accessibleWarehouses: string[],
+  accessibleSuppliers: string[],
+  accessibleSkuCategories: string[],
+  options?: { hasWarehouse?: boolean; hasSupplier?: boolean }
+): string {
+  const clauses: string[] = []
+  if (accessibleWarehouses.length > 0 && options?.hasWarehouse) {
+    clauses.push(`warehouse_position IN (${sqlInList(accessibleWarehouses)})`)
+  }
+  if (accessibleSuppliers.length > 0 && options?.hasSupplier) {
+    clauses.push(`supplier_id IN (${sqlInList(accessibleSuppliers)})`)
+  }
+  if (accessibleSkuCategories.length > 0) {
+    clauses.push(`sku_id IN (${sqlInList(accessibleSkuCategories)})`)
+  }
+  return clauses.join(' AND ')
+}
+
+function combineWhere(filterWhere: string, permissionClause: string): string {
+  if (!filterWhere && !permissionClause) return ''
+  if (!filterWhere && permissionClause) return `WHERE ${permissionClause}`
+  if (filterWhere && !permissionClause) return filterWhere
+  return filterWhere + ' AND ' + permissionClause
 }
 
 export async function loadData(data: {
@@ -236,6 +307,59 @@ export async function getFilterOptions(): Promise<{
     batch_nos: batches.map((r) => r.batch_no),
     age_buckets: buckets.map((r) => r.age_bucket)
   }
+}
+
+export async function queryDataSourceFromDuckDB(
+  filters: Partial<FilterState>,
+  accessibleWarehouses: string[],
+  accessibleSuppliers: string[],
+  accessibleSkuCategories: string[],
+  skuNames: Record<string, string>
+): Promise<DataSource> {
+  if (!ready || !conn) {
+    return {
+      inbound: [],
+      outbound: [],
+      inventoryAge: [],
+      returns: [],
+      safetyStock: [],
+      skuNames
+    }
+  }
+
+  const inFilterWhere = buildFilterWhereClause(filters, {
+    hasWarehouse: true,
+    hasSupplier: true,
+    dateColumn: 'inbound_date'
+  })
+  const inPermClause = buildPermissionClause(accessibleWarehouses, accessibleSuppliers, accessibleSkuCategories, { hasWarehouse: true, hasSupplier: true })
+  const inWhere = combineWhere(inFilterWhere, inPermClause)
+
+  const outFilterWhere = buildFilterWhereClause(filters, { dateColumn: 'outbound_date' })
+  const outPermClause = buildPermissionClause(accessibleWarehouses, accessibleSuppliers, accessibleSkuCategories)
+  const outWhere = combineWhere(outFilterWhere, outPermClause)
+
+  const invFilterWhere = buildFilterWhereClause(filters, { hasWarehouse: true, hasAgeBucket: true })
+  const invPermClause = buildPermissionClause(accessibleWarehouses, accessibleSuppliers, accessibleSkuCategories, { hasWarehouse: true })
+  const invWhere = combineWhere(invFilterWhere, invPermClause)
+
+  const retFilterWhere = buildFilterWhereClause(filters, {})
+  const retPermClause = buildPermissionClause(accessibleWarehouses, accessibleSuppliers, accessibleSkuCategories)
+  const retWhere = combineWhere(retFilterWhere, retPermClause)
+
+  const ssFilterWhere = buildFilterWhereClause(filters, { hasWarehouse: true })
+  const ssPermClause = buildPermissionClause(accessibleWarehouses, accessibleSuppliers, accessibleSkuCategories, { hasWarehouse: true })
+  const ssWhere = combineWhere(ssFilterWhere, ssPermClause)
+
+  const [inbound, outbound, inventoryAge, returns, safetyStock] = await Promise.all([
+    query<InboundRecord>(`SELECT * FROM inbound ${inWhere}`),
+    query<OutboundRecord>(`SELECT * FROM outbound ${outWhere}`),
+    query<InventoryAgeRecord>(`SELECT * FROM inventory_age ${invWhere}`),
+    query<ReturnRecord>(`SELECT * FROM returns ${retWhere}`),
+    query<SafetyStockRecord>(`SELECT * FROM safety_stock ${ssWhere}`)
+  ])
+
+  return { inbound, outbound, inventoryAge, returns, safetyStock, skuNames }
 }
 
 export function buildWhereClause(filters: Partial<FilterState>): string {

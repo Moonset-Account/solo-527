@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { parseCSV } from '$lib/utils/import'
 	import { dataDictionary } from '$lib/data/data-dictionary'
+	import { allSkuCategories } from '$lib/data/mock-data'
 	import { onMount } from 'svelte'
 	import type { DataDictionaryEntry, ImportResult, UserRole, InboundRecord, OutboundRecord, InventoryAgeRecord, ReturnRecord, SafetyStockRecord } from '$lib/types'
 
@@ -103,14 +104,14 @@
 	const warehouses = ['A1', 'B2', 'C3']
 	const suppliers = Array.from({ length: 10 }, (_, i) => `SUP${String(i + 1).padStart(2, '0')}`)
 
-	let rolePermissions = $state<Record<string, { warehouses: Set<string>; suppliers: Set<string> }>>({})
+	let rolePermissions = $state<Record<string, { warehouses: Set<string>; suppliers: Set<string>; skuCategories: Set<string> }>>({})
 
 	$effect(() => {
 		const current = getUserRole()
-		const perms: Record<string, { warehouses: Set<string>; suppliers: Set<string> }> = {
-			admin: { warehouses: new Set(warehouses), suppliers: new Set(suppliers) },
-			manager: { warehouses: new Set(['A1', 'B2']), suppliers: new Set(suppliers.slice(0, 5)) },
-			analyst: { warehouses: new Set(current.accessible_warehouses), suppliers: new Set(current.accessible_suppliers) }
+		const perms: Record<string, { warehouses: Set<string>; suppliers: Set<string>; skuCategories: Set<string> }> = {
+			admin: { warehouses: new Set(warehouses), suppliers: new Set(suppliers), skuCategories: new Set(allSkuCategories) },
+			manager: { warehouses: new Set(['A1', 'B2']), suppliers: new Set(suppliers.slice(0, 5)), skuCategories: new Set(allSkuCategories.slice(0, 8)) },
+			analyst: { warehouses: new Set(current.accessible_warehouses), suppliers: new Set(current.accessible_suppliers), skuCategories: new Set(current.accessible_sku_categories) }
 		}
 		rolePermissions = perms
 	})
@@ -207,11 +208,24 @@
 
 	function toggleSupplier(roleId: string, sup: string) {
 		const perms = { ...rolePermissions }
-		const rolePerm = { ...perms[roleId], suppliers: new Set(perms[roleId].suppliers) }
+		const rolePerm = { ...perms[roleId], suppliers: new Set(perms[roleId].suppliers), skuCategories: new Set(perms[roleId].skuCategories) }
 		if (rolePerm.suppliers.has(sup)) {
 			rolePerm.suppliers.delete(sup)
 		} else {
 			rolePerm.suppliers.add(sup)
+		}
+		perms[roleId] = rolePerm
+		rolePermissions = perms
+		syncRoleToStore()
+	}
+
+	function toggleSkuCategory(roleId: string, cat: string) {
+		const perms = { ...rolePermissions }
+		const rolePerm = { ...perms[roleId], warehouses: new Set(perms[roleId].warehouses), suppliers: new Set(perms[roleId].suppliers), skuCategories: new Set(perms[roleId].skuCategories) }
+		if (rolePerm.skuCategories.has(cat)) {
+			rolePerm.skuCategories.delete(cat)
+		} else {
+			rolePerm.skuCategories.add(cat)
 		}
 		perms[roleId] = rolePerm
 		rolePermissions = perms
@@ -226,7 +240,7 @@
 				...current,
 				accessible_warehouses: [...analystPerm.warehouses],
 				accessible_suppliers: [...analystPerm.suppliers],
-				accessible_sku_categories: current.accessible_sku_categories
+				accessible_sku_categories: [...analystPerm.skuCategories]
 			})
 		}
 	}
@@ -542,7 +556,7 @@
 							</div>
 						</div>
 
-						<div>
+						<div class="mb-4">
 							<h5 class="text-xs font-semibold text-[var(--color-primary-light)] mb-2 uppercase tracking-wide">可访问供应商</h5>
 							<div class="flex flex-wrap gap-3">
 								{#each suppliers as sup}
@@ -556,6 +570,25 @@
 											<div class="toggle-knob"></div>
 										</div>
 										<span class="text-xs text-[var(--color-primary)] group-hover:text-[var(--color-accent)] transition-colors">{sup}</span>
+									</label>
+								{/each}
+							</div>
+						</div>
+
+						<div>
+							<h5 class="text-xs font-semibold text-[var(--color-primary-light)] mb-2 uppercase tracking-wide">可访问SKU分类</h5>
+							<div class="flex flex-wrap gap-3">
+								{#each allSkuCategories as cat}
+									{@const checked = perms?.skuCategories.has(cat) ?? false}
+									<label class="flex items-center gap-2 cursor-pointer select-none group">
+										<div
+											class="toggle-switch"
+											class:toggle-on={checked}
+											onclick={() => toggleSkuCategory(role.role_id, cat)}
+										>
+											<div class="toggle-knob"></div>
+										</div>
+										<span class="text-xs text-[var(--color-primary)] group-hover:text-[var(--color-accent)] transition-colors">{cat}</span>
 									</label>
 								{/each}
 							</div>

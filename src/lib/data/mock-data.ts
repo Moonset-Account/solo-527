@@ -269,6 +269,7 @@ export const safetyStockRecords: SafetyStockRecord[] = SKU_CATALOG.map((sku, idx
 
 export const allSkuIds = SKU_CATALOG.map((s) => s.id)
 export const allSkuNames = Object.fromEntries(SKU_CATALOG.map((s) => [s.id, s.name]))
+export const allSkuCategories = [...new Set(SKU_CATALOG.map((s) => s.category))]
 export const allSupplierIds = SUPPLIERS.map((s) => s.id)
 export const allWarehousePositions = [...WAREHOUSE_POSITIONS]
 export const allBatchNos = inboundRecords.map((r) => r.batch_no)

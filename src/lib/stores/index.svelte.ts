@@ -18,6 +18,7 @@ import {
   safetyStockRecords,
   allSkuIds,
   allSkuNames,
+  allSkuCategories,
   allSupplierIds,
   allWarehousePositions
 } from '$lib/data/mock-data'
@@ -142,6 +143,10 @@ export function setDrillDownPaths(val: DrillDownPath[]): void {
 
 export function getAllSkuNames(): Record<string, string> {
   return allSkuNames
+}
+
+export function getSkuCategories(): string[] {
+  return allSkuCategories
 }
 
 export function getDataVersion(): number {

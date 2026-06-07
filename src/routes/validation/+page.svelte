@@ -2,40 +2,26 @@
 	import { computeFunnelData, computeTurnoverRanking, detectAnomalies, mergePermissionToFilter, type DataSource } from '$lib/utils/analytics'
 	import { onMount } from 'svelte'
 	import { exportToCSV } from '$lib/utils/export'
-	import type { ValidationRule, DrillDownPath, FilterState, UserRole, InboundRecord, OutboundRecord, InventoryAgeRecord, ReturnRecord, SafetyStockRecord } from '$lib/types'
+	import type { ValidationRule, DrillDownPath, FilterState, UserRole } from '$lib/types'
 
 	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } })
 	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] })
-	let getInboundData: () => InboundRecord[] = () => []
-	let getOutboundData: () => OutboundRecord[] = () => []
-	let getInventoryAgeData: () => InventoryAgeRecord[] = () => []
-	let getReturnData: () => ReturnRecord[] = () => []
-	let getSafetyStockData: () => SafetyStockRecord[] = () => []
 	let getAllSkuNames: () => Record<string, string> = () => ({})
+	let queryFromDuckDB: ((filters: Partial<FilterState>, wh: string[], sup: string[], sku: string[], names: Record<string, string>) => Promise<DataSource>) | null = null
 
 	onMount(() => {
 		import('$lib/stores/index.svelte').then((stores) => {
 			getFilter = stores.getFilter
 			getUserRole = stores.getUserRole
-			getInboundData = stores.getInboundData
-			getOutboundData = stores.getOutboundData
-			getInventoryAgeData = stores.getInventoryAgeData
-			getReturnData = stores.getReturnData
-			getSafetyStockData = stores.getSafetyStockData
 			getAllSkuNames = stores.getAllSkuNames
 		})
+		import('$lib/utils/duckdb').then((duckdb) => {
+			duckdb.initDuckDB().then(() => {
+				queryFromDuckDB = (filters, wh, sup, sku, names) =>
+					duckdb.queryDataSourceFromDuckDB(filters, wh, sup, sku, names)
+			}).catch(() => {})
+		}).catch(() => {})
 	})
-
-	function buildDataSource(): DataSource {
-		return {
-			inbound: getInboundData(),
-			outbound: getOutboundData(),
-			inventoryAge: getInventoryAgeData(),
-			returns: getReturnData(),
-			safetyStock: getSafetyStockData(),
-			skuNames: getAllSkuNames()
-		};
-	}
 
 	interface ValidationResult {
 		metric: string
@@ -141,7 +127,7 @@
 		editingRuleId = null
 	}
 
-	function runValidation() {
+	async function runValidation() {
 		const filter = getFilter()
 		const role = getUserRole()
 		const mergedFilters = mergePermissionToFilter(
@@ -150,7 +136,22 @@
 			role.accessible_suppliers,
 			role.accessible_sku_categories
 		)
-		const ds = buildDataSource()
+		let ds: DataSource
+		if (queryFromDuckDB) {
+			try {
+				ds = await queryFromDuckDB(
+					mergedFilters,
+					role.accessible_warehouses,
+					role.accessible_suppliers,
+					role.accessible_sku_categories,
+					getAllSkuNames()
+				)
+			} catch {
+				ds = { inbound: [], outbound: [], inventoryAge: [], returns: [], safetyStock: [], skuNames: getAllSkuNames() }
+			}
+		} else {
+			ds = { inbound: [], outbound: [], inventoryAge: [], returns: [], safetyStock: [], skuNames: getAllSkuNames() }
+		}
 		const funnelData = computeFunnelData(ds, mergedFilters)
 		const rankingData = computeTurnoverRanking(ds, mergedFilters)
 		const anomaliesData = detectAnomalies(ds, mergedFilters)
