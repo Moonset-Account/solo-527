@@ -16,7 +16,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.vue",
-    "api"
+    "src/**/*.vue"
   ]
 }

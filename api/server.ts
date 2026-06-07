@@ -1,20 +1,25 @@
 import express from 'express'
 import cors from 'cors'
-import type { FilterState, CategoryRule } from './types.js'
-import { transactions, budgets, subscriptions, rules, accounts, members, allMerchants, allMonths } from './mock.js'
+import dotenv from 'dotenv'
+import type { FilterState, CategoryRule, Transaction } from './types.js'
+import { transactions as mockTransactions, budgets, subscriptions, rules, accounts, members, allMerchants, allMonths } from './mock.js'
 import { cleanTransactions, detectAbnormal, aggregateCashFlow, aggregateCategoryBreakdown, computeBudgetProgress } from './clean.js'
-import { LRUCache, buildCacheKey } from './cache.js'
+import { checkClickHouse, isClickHouseConnected, queryTransactions, queryBudgetProgress, queryCategoryBreakdown, queryCashFlow, queryAbnormalSamples, queryFilterOptions as chQueryFilterOptions } from './clickhouse.js'
+import { initRedis, isRedisConnected, cacheGet, cacheSet, cacheClear, setUpdateTimestamp, getUpdateTimestamp as redisGetTs, fallbackCacheGet, fallbackCacheSet, fallbackCacheClear, buildCacheKey } from './redis.js'
+
+dotenv.config()
 
 const app = express()
 app.use(cors())
 app.use(express.json())
 
-const cache = new LRUCache<unknown>(200)
 let dataUpdatedAt = new Date().toISOString()
 
 function refreshUpdateTime() {
   dataUpdatedAt = new Date().toISOString()
-  cache.clear()
+  cacheClear().catch(() => {})
+  fallbackCacheClear()
+  setUpdateTimestamp(dataUpdatedAt).catch(() => {})
 }
 
 function parseFilter(body: Partial<FilterState>): FilterState {
@@ -30,11 +35,39 @@ function parseFilter(body: Partial<FilterState>): FilterState {
   }
 }
 
-app.get('/api/meta', (_req, res) => {
-  res.json({ updatedAt: dataUpdatedAt })
+async function getOrCreateCache<T>(key: string, compute: () => T | Promise<T>): Promise<T> {
+  const redisResult = await cacheGet<T>(key)
+  if (redisResult !== null) return redisResult
+
+  const fallbackResult = fallbackCacheGet(key) as T | null
+  if (fallbackResult !== null) return fallbackResult
+
+  const data = await compute()
+
+  cacheSet(key, data).catch(() => {})
+  fallbackCacheSet(key, data)
+
+  return data
+}
+
+app.get('/api/meta', async (_req, res) => {
+  const redisTs = await redisGetTs()
+  const updatedAt = redisTs || dataUpdatedAt
+  res.json({
+    updatedAt,
+    clickhouse: isClickHouseConnected(),
+    redis: isRedisConnected(),
+  })
 })
 
-app.get('/api/filter-options', (_req, res) => {
+app.get('/api/filter-options', async (_req, res) => {
+  if (isClickHouseConnected()) {
+    const chOptions = await chQueryFilterOptions()
+    if (chOptions) {
+      res.json(chOptions)
+      return
+    }
+  }
   res.json({
     accounts: accounts.map(a => a.name),
     categories: Object.keys({ '收入': [], '固定支出': [], '订阅': [], '购物': [], '旅行': [], '信用卡': [] }),
@@ -44,60 +77,95 @@ app.get('/api/filter-options', (_req, res) => {
   })
 })
 
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', async (req, res) => {
   const filter = parseFilter(req.body)
   const key = buildCacheKey('tx', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key) as { data: Transaction[]; meta: { updatedAt: string; sampleSize: number } } | null
-  if (cached) { res.json(cached); return }
-  const result = cleanTransactions(transactions, filter)
-  const response = { data: result, meta: { updatedAt: dataUpdatedAt, sampleSize: result.length } }
-  cache.set(key, response)
-  res.json(response)
+
+  const data = await getOrCreateCache(key, async () => {
+    if (isClickHouseConnected()) {
+      const chResult = await queryTransactions(filter)
+      if (chResult && chResult.length > 0) {
+        return { data: chResult, meta: { updatedAt: dataUpdatedAt, sampleSize: chResult.length } }
+      }
+    }
+    const result = cleanTransactions(mockTransactions, filter)
+    return { data: result, meta: { updatedAt: dataUpdatedAt, sampleSize: result.length } }
+  })
+
+  res.json(data)
 })
 
-app.post('/api/budget-progress', (req, res) => {
+app.post('/api/budget-progress', async (req, res) => {
   const filter = parseFilter(req.body)
   const key = buildCacheKey('budget', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key)
-  if (cached) { res.json(cached); return }
-  const txs = cleanTransactions(transactions, filter)
-  const result = computeBudgetProgress(txs, budgets)
-  cache.set(key, result)
-  res.json(result)
+
+  const data = await getOrCreateCache(key, async () => {
+    if (isClickHouseConnected()) {
+      const chResult = await queryBudgetProgress(filter)
+      if (chResult && chResult.length > 0) return chResult
+    }
+    const txs = cleanTransactions(mockTransactions, filter)
+    return computeBudgetProgress(txs, budgets)
+  })
+
+  res.json(data)
 })
 
-app.post('/api/category-breakdown', (req, res) => {
+app.post('/api/category-breakdown', async (req, res) => {
   const filter = parseFilter(req.body)
   const key = buildCacheKey('cat', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key)
-  if (cached) { res.json(cached); return }
-  const txs = cleanTransactions(transactions, filter)
-  const result = aggregateCategoryBreakdown(txs)
-  cache.set(key, result)
-  res.json(result)
+
+  const data = await getOrCreateCache(key, async () => {
+    if (isClickHouseConnected()) {
+      const chResult = await queryCategoryBreakdown(filter)
+      if (chResult && chResult.length > 0) return chResult
+    }
+    const txs = cleanTransactions(mockTransactions, filter)
+    return aggregateCategoryBreakdown(txs)
+  })
+
+  res.json(data)
 })
 
-app.post('/api/cash-flow', (req, res) => {
+app.post('/api/cash-flow', async (req, res) => {
   const filter = parseFilter(req.body)
   const key = buildCacheKey('cf', filter as unknown as Record<string, unknown>)
-  const cached = cache.get(key)
-  if (cached) { res.json(cached); return }
-  const txs = cleanTransactions(transactions, filter)
-  const result = aggregateCashFlow(txs)
-  cache.set(key, result)
-  res.json(result)
+
+  const data = await getOrCreateCache(key, async () => {
+    if (isClickHouseConnected()) {
+      const chResult = await queryCashFlow(filter)
+      if (chResult && chResult.length > 0) return chResult
+    }
+    const txs = cleanTransactions(mockTransactions, filter)
+    return aggregateCashFlow(txs)
+  })
+
+  res.json(data)
 })
 
-app.post('/api/abnormal-samples', (req, res) => {
+app.post('/api/abnormal-samples', async (req, res) => {
   const filter = parseFilter(req.body)
-  const abnFilter = { ...filter, excludeAbnormal: false, excludedTxIds: [] as string[] }
+  const abnFilter = { ...filter, excludeAbnormal: false }
   const key = buildCacheKey('abn', abnFilter as unknown as Record<string, unknown>)
-  const cached = cache.get(key)
-  if (cached) { res.json(cached); return }
-  const txs = cleanTransactions(transactions, abnFilter)
-  const result = detectAbnormal(txs)
-  cache.set(key, result)
-  res.json(result)
+
+  const data = await getOrCreateCache(key, async () => {
+    if (isClickHouseConnected()) {
+      const chResult = await queryAbnormalSamples({
+        ...abnFilter,
+        excludedTxIds: abnFilter.excludedTxIds,
+      })
+      if (chResult && (chResult.length > 0 || filter.excludedTxIds.length > 0)) return chResult
+    }
+    const txs = cleanTransactions(mockTransactions, abnFilter)
+    let result = detectAbnormal(txs)
+    if (filter.excludedTxIds.length > 0) {
+      const excludedSet = new Set(filter.excludedTxIds)
+      result = result.filter(t => !excludedSet.has(t.id))
+    }
+    return result
+  })
+
+  res.json(data)
 })
 
 app.get('/api/subscriptions', (_req, res) => {
@@ -137,7 +205,23 @@ app.get('/api/accounts', (_req, res) => {
   res.json(accounts)
 })
 
-const PORT = 3210
-app.listen(PORT, () => {
-  console.log(`[ClickHouse+Redis Mock API] running at http://localhost:${PORT}`)
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]', reason)
 })
+
+const PORT = Number(process.env.API_PORT) || 3210
+
+async function start() {
+  const chOk = await checkClickHouse()
+  console.log(`[ClickHouse] ${chOk ? 'connected' : 'unavailable, using in-memory fallback'}`)
+
+  const redisOk = await initRedis()
+  console.log(`[Redis] ${redisOk ? 'connected' : 'unavailable, using in-process LRU fallback'}`)
+
+  app.listen(PORT, () => {
+    console.log(`[API Server] running at http://localhost:${PORT}`)
+    console.log(`  ClickHouse: ${chOk ? '✓' : '✗'}  Redis: ${redisOk ? '✓' : '✗'}`)
+  })
+}
+
+start().catch(console.error)
