@@ -41,6 +41,8 @@ class ExportManager:
             self._use_db = db_manager.is_connected
             if self._use_db:
                 logger.info("✅ 导出任务将持久化到数据库")
+            else:
+                logger.info("ℹ️  导出任务使用内存存储（数据库未连接）")
         except Exception as e:
             logger.info(f"ℹ️  导出任务使用内存存储: {e}")
             self._use_db = False

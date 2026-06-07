@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from datetime import datetime, timedelta
 from typing import Optional, List
 import os
+import logging
 
 from data.api.schemas.models import (
     FilterParams, BacklogResponse, FunnelResponse, WorkloadResponse,
@@ -14,16 +15,22 @@ from data.api.routes.queries import (
     get_backlog_trend, get_funnel_data, get_workload_data,
     get_appeal_reversal_data, get_summary_data
 )
-from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES
-from data.cleaning.mock_data_generator import data_store
+from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES, REVIEWERS
 from data.export.tasks import export_manager
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="内容安全审核积压看板 API")
 
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    from data.db.models import db_manager
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "database_connected": db_manager.is_connected,
+    }
 
 
 @app.get("/api/summary", response_model=SummaryResponse)
@@ -35,13 +42,12 @@ async def get_summary(hours: Optional[int] = 24):
 
 @app.get("/api/dimensions", response_model=DimensionsResponse)
 async def get_dimensions():
-    reviewers = data_store.get_reviewers()
     return {
         "risk_tags": RISK_TAGS,
         "queue_types": QUEUE_TYPES,
         "shifts": SHIFTS,
         "sources": SOURCES,
-        "reviewers": reviewers,
+        "reviewers": REVIEWERS,
     }
 
 
@@ -76,6 +82,8 @@ async def query_funnel(params: FilterParams):
         time_end=params.time_end,
         risk_tags=params.risk_tags,
         queue_types=params.queue_types,
+        reviewers=params.reviewers,
+        shifts=params.shifts,
         sources=params.sources,
     )
     data = [
@@ -95,8 +103,11 @@ async def query_workload(params: FilterParams):
     df = get_workload_data(
         time_start=params.time_start,
         time_end=params.time_end,
-        shifts=params.shifts,
+        risk_tags=params.risk_tags,
+        queue_types=params.queue_types,
         reviewers=params.reviewers,
+        shifts=params.shifts,
+        sources=params.sources,
     )
     data = [
         WorkloadItem(
@@ -118,6 +129,9 @@ async def query_appeal(params: FilterParams):
         time_start=params.time_start,
         time_end=params.time_end,
         risk_tags=params.risk_tags,
+        queue_types=params.queue_types,
+        reviewers=params.reviewers,
+        shifts=params.shifts,
         sources=params.sources,
     )
     data = [
@@ -147,7 +161,7 @@ async def submit_export(submit: ExportTaskSubmit):
 async def get_export_status(task_id: str):
     task = export_manager.get_status(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
     return ExportTaskStatus(
         task_id=task.task_id,
         status=task.status,
@@ -166,7 +180,7 @@ async def download_export(task_id: str):
             media_type="application/octet-stream",
             filename=os.path.basename(file_path),
         )
-    raise HTTPException(status_code=404, detail="File not found")
+    raise HTTPException(status_code=404, detail=f"Export file for task {task_id} not found")
 
 
 @app.post("/api/cache/clear")
@@ -174,3 +188,4 @@ async def clear_cache():
     from data.cache.redis_client import cache_client
     cache_client.clear_all()
     return {"status": "ok"}
+

@@ -92,7 +92,11 @@ class DatabaseManager:
                 pool_pre_ping=True,
                 pool_recycle=300,
                 echo=False,
+                pool_timeout=5,
+                connect_args={"connect_timeout": 5},
             )
+            with self._engine.connect() as conn:
+                conn.execute("SELECT 1")
             self._SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self._engine
             )
@@ -101,6 +105,8 @@ class DatabaseManager:
         except Exception as e:
             logger.warning(f"⚠️  数据库连接失败，将使用内存数据: {e}")
             self._is_connected = False
+            self._engine = None
+            self._SessionLocal = None
 
     @property
     def is_connected(self):
@@ -134,16 +140,40 @@ class DatabaseManager:
     def _create_hypertable(self):
         try:
             with self._engine.connect() as conn:
-                conn.execute(
-                    "SELECT create_hypertable('review_logs', 'enqueue_time', if_not_exists => TRUE)"
+                result = conn.execute(
+                    "SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'"
                 )
-                conn.execute(
-                    "SELECT create_hypertable('appeal_logs', 'appeal_time', if_not_exists => TRUE)"
-                )
+                has_timescaledb = result.fetchone() is not None
                 conn.commit()
-                logger.info("✅ TimescaleDB 超表创建成功")
+
+                if has_timescaledb:
+                    logger.info("🔍 检测到 TimescaleDB 扩展，创建超表...")
+                    for table_name, time_col in [
+                        ("review_logs", "enqueue_time"),
+                        ("appeal_logs", "appeal_time"),
+                    ]:
+                        try:
+                            check_sql = f"""
+                                SELECT NOT EXISTS (
+                                    SELECT 1 FROM timescaledb_information.hypertables 
+                                    WHERE hypertable_name = '{table_name}'
+                                ) AS need_create
+                            """
+                            need_create = conn.execute(check_sql).scalar()
+                            if need_create:
+                                conn.execute(
+                                    f"SELECT create_hypertable('{table_name}', '{time_col}')"
+                                )
+                                logger.info(f"✅ 超表 {table_name} 创建成功")
+                            else:
+                                logger.info(f"ℹ️  超表 {table_name} 已存在")
+                        except Exception as e:
+                            logger.warning(f"⚠️  超表 {table_name} 创建失败: {e}")
+                    conn.commit()
+                else:
+                    logger.info("ℹ️  未检测到 TimescaleDB 扩展，使用普通 PostgreSQL 表")
         except Exception as e:
-            logger.info(f"ℹ️  超表创建跳过（可能已存在或非 TimescaleDB）: {e}")
+            logger.info(f"ℹ️  超表创建跳过: {e}")
 
 
 db_manager = DatabaseManager()
