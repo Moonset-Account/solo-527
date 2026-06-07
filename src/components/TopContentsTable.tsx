@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { ContentItem } from '@/lib/types';
+import type { ContentItem, Platform } from '@/lib/types';
 import { PLATFORM_LABELS, CONTENT_TYPE_LABELS, PLATFORM_PRIMARY_METRIC_LABEL, PLATFORM_METRICS } from '@/lib/types';
 
 interface TopContentsTableProps {
@@ -23,7 +23,7 @@ interface SortHeaderProps {
 function SortHeader({ field, label, sortField, sortOrder, onSort }: SortHeaderProps) {
   return (
     <th
-      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
+      className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-1">
@@ -44,30 +44,42 @@ function getPrimaryMetricValue(item: ContentItem): number {
   return item.views;
 }
 
+function getInteractionRate(item: ContentItem): number {
+  const primaryValue = getPrimaryMetricValue(item);
+  return primaryValue > 0
+    ? Number((((item.likes + item.shares + item.comments) / primaryValue) * 100).toFixed(2))
+    : 0;
+}
+
+function getSortValue(item: ContentItem, field: SortField): number {
+  if (field === 'interactionRate') {
+    return getInteractionRate(item);
+  }
+  if (field === 'primaryMetric') {
+    return getPrimaryMetricValue(item);
+  }
+  return item[field] as number;
+}
+
 export default function TopContentsTable({ items, onTagClick }: TopContentsTableProps) {
+  const [activePlatform, setActivePlatform] = useState<Platform | ''>('');
   const [sortField, setSortField] = useState<SortField>('primaryMetric');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [showOnlyAnomaly, setShowOnlyAnomaly] = useState(false);
 
-  const displayItems = showOnlyAnomaly ? items.filter((i) => i.isAnomaly) : items;
+  const platformItemsMap = new Map<Platform, ContentItem[]>();
+  items.forEach(item => {
+    const existing = platformItemsMap.get(item.platform) || [];
+    existing.push(item);
+    platformItemsMap.set(item.platform, existing);
+  });
 
-  const getInteractionRate = (item: ContentItem) => {
-    const primaryValue = getPrimaryMetricValue(item);
-    return primaryValue > 0
-      ? Number((((item.likes + item.shares + item.comments) / primaryValue) * 100).toFixed(2))
-      : 0;
-  };
+  const availablePlatforms = Array.from(platformItemsMap.keys()).sort((a, b) => a.localeCompare(b));
+  const displayPlatform = activePlatform || (availablePlatforms[0] ?? '');
 
-  const getSortValue = (item: ContentItem, field: SortField): number => {
-    if (field === 'interactionRate') {
-      return getInteractionRate(item);
-    }
-    if (field === 'primaryMetric') {
-      return getPrimaryMetricValue(item);
-    }
-    return item[field] as number;
-  };
+  const platformItems = platformItemsMap.get(displayPlatform) || [];
+  const displayItems = showOnlyAnomaly ? platformItems.filter((i) => i.isAnomaly) : platformItems;
 
   const sortedItems = [...displayItems].sort((a, b) => {
     const aVal = getSortValue(a, sortField);
@@ -84,14 +96,16 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
     }
   };
 
+  const primaryMetricName = displayPlatform ? PLATFORM_PRIMARY_METRIC_LABEL[displayPlatform] : '核心指标';
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">爆款内容拆解</h3>
             <p className="text-sm text-gray-500 mt-1">
-              共 {displayItems.length} 条内容，点击可查看明细。*核心指标按平台口径：微信=阅读量，抖音/B站=播放量，微博/小红书=曝光量
+              各平台按独立口径排名，不跨平台比较。当前样本: {displayItems.length} 条
             </p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -104,30 +118,51 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
             <span className="text-sm text-gray-700">只看异常数据</span>
           </label>
         </div>
+
+        {availablePlatforms.length > 1 && (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {availablePlatforms.map((platform) => (
+              <button
+                key={platform}
+                onClick={() => setActivePlatform(platform)}
+                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  displayPlatform === platform
+                    ? 'bg-blue-600 text-white font-medium'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {PLATFORM_LABELS[platform]} ({PLATFORM_PRIMARY_METRIC_LABEL[platform]})
+                <span className="ml-1 opacity-75">
+                  ({(platformItemsMap.get(platform) || []).length})
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 标题
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                平台/类型
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                类型
               </th>
-              <SortHeader field="primaryMetric" label="核心指标*" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="primaryMetric" label={primaryMetricName} sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="likes" label="点赞" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="shares" label="转发" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="comments" label="评论" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="interactionRate" label="互动率" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 标签
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sortedItems.slice(0, 20).map((item) => (
+            {sortedItems.slice(0, 15).map((item) => (
               <tr
                 key={item.id}
                 className={`hover:bg-gray-50 cursor-pointer transition-colors ${
@@ -135,11 +170,11 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
                 }`}
                 onClick={() => setSelectedItem(item)}
               >
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     {item.isAnomaly && (
                       <span
-                        className="w-2 h-2 rounded-full bg-amber-500"
+                        className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"
                         title={item.anomalyReason}
                       />
                     )}
@@ -148,32 +183,22 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-700">
-                    {PLATFORM_LABELS[item.platform]}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {CONTENT_TYPE_LABELS[item.contentType]}
-                  </div>
+                <td className="px-3 py-2.5 whitespace-nowrap text-xs text-gray-500">
+                  {CONTENT_TYPE_LABELS[item.contentType]}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <div className="text-sm text-gray-700 font-medium">
-                    {getPrimaryMetricValue(item).toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {PLATFORM_PRIMARY_METRIC_LABEL[item.platform]}
-                  </div>
+                <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-700">
+                  {getPrimaryMetricValue(item).toLocaleString()}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-700">
                   {item.likes.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-700">
                   {item.shares.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-700">
                   {item.comments.toLocaleString()}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                       getInteractionRate(item) >= 5
@@ -186,7 +211,7 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
                     {getInteractionRate(item)}%
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5">
                   <div className="flex flex-wrap gap-1">
                     {item.tags.slice(0, 2).map((tag) => (
                       <button
@@ -209,6 +234,13 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
                 </td>
               </tr>
             ))}
+            {sortedItems.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-400 text-sm">
+                  当前平台暂无数据
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -271,13 +303,13 @@ function DetailModal({ item, onClose }: { item: ContentItem; onClose: () => void
           </div>
 
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-2">核心指标</h4>
+            <h4 className="text-sm font-medium text-gray-500 mb-2">核心指标 ({PLATFORM_PRIMARY_METRIC_LABEL[item.platform]})</h4>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <MetricCard label="曝光量" value={item.views.toLocaleString()} color="blue" />
-              <MetricCard label="阅读量" value={item.reads.toLocaleString()} color="indigo" />
+              <MetricCard label={PLATFORM_PRIMARY_METRIC_LABEL[item.platform]} value={primaryValue.toLocaleString()} color="blue" />
               <MetricCard label="点赞" value={item.likes.toLocaleString()} color="pink" />
               <MetricCard label="转发" value={item.shares.toLocaleString()} color="green" />
               <MetricCard label="评论" value={item.comments.toLocaleString()} color="amber" />
+              <MetricCard label="收藏" value={item.favorites.toLocaleString()} color="indigo" />
             </div>
           </div>
 
@@ -296,7 +328,7 @@ function DetailModal({ item, onClose }: { item: ContentItem; onClose: () => void
               </div>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">互动率</h4>
+              <h4 className="text-sm font-medium text-gray-500 mb-2">互动率 (基于{PLATFORM_PRIMARY_METRIC_LABEL[item.platform]})</h4>
               <div className="text-2xl font-bold text-gray-900">{interactionRate}%</div>
             </div>
           </div>

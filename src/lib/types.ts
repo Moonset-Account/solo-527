@@ -54,6 +54,13 @@ export interface TopicMatrixItem {
   avgInteractionRate: number;
 }
 
+export interface PlatformTopicMatrix {
+  platform: Platform;
+  platformLabel: string;
+  primaryMetricName: string;
+  items: TopicMatrixItem[];
+}
+
 export interface HeatmapDataItem {
   weekday: number;
   hour: number;
@@ -107,6 +114,13 @@ export interface TopContent {
   comments: number;
   interactionRate: number;
   tags: string[];
+}
+
+export interface PlatformTopContents {
+  platform: Platform;
+  platformLabel: string;
+  primaryMetricName: string;
+  items: TopContent[];
 }
 
 export const PLATFORM_METRICS: Record<Platform, { primary: string; secondary?: string }> = {

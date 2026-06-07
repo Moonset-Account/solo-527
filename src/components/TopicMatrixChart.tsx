@@ -1,19 +1,27 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import * as echarts from 'echarts';
-import type { TopicMatrixItem } from '@/lib/types';
+import type { PlatformTopicMatrix } from '@/lib/types';
 
 interface TopicMatrixChartProps {
-  data: TopicMatrixItem[];
+  data: PlatformTopicMatrix[];
 }
 
 export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const [activePlatform, setActivePlatform] = useState<string>('');
+
+  const activeData = useMemo(() => {
+    const found = data.find(d => d.platform === activePlatform);
+    return found || data[0] || null;
+  }, [data, activePlatform]);
 
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !activeData) return;
+
+    const items = activeData.items;
 
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
@@ -25,11 +33,12 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           const dataIndex = params.dataIndex as number;
-          const item = data[dataIndex];
+          const item = items[dataIndex];
+          if (!item) return '';
           return `
             <div style="font-weight: 600; margin-bottom: 4px;">${item.tag}</div>
             <div>内容数量: ${item.count} 篇</div>
-            <div>平均核心指标: ${item.avgPrimaryMetric.toLocaleString()}</div>
+            <div>平均${activeData.primaryMetricName}: ${item.avgPrimaryMetric.toLocaleString()}</div>
             <div>平均点赞: ${item.avgLikes.toLocaleString()}</div>
             <div>互动率: ${item.avgInteractionRate}%</div>
           `;
@@ -42,7 +51,7 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
         bottom: '15%',
       },
       xAxis: {
-        name: '平均核心指标(阅读/播放/曝光)',
+        name: `平均${activeData.primaryMetricName}`,
         nameLocation: 'middle',
         nameGap: 30,
         type: 'value',
@@ -78,7 +87,7 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
       series: [
         {
           type: 'scatter',
-          data: data.map((item) => [
+          data: items.map((item) => [
             item.avgPrimaryMetric,
             item.avgLikes,
             item.count * 5 + 10,
@@ -88,7 +97,8 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             color: (params: any) => {
               const dataIndex = params.dataIndex as number;
-              const item = data[dataIndex];
+              const item = items[dataIndex];
+              if (!item) return '#9ca3af';
               if (item.avgInteractionRate >= 5) return '#10b981';
               if (item.avgInteractionRate >= 3) return '#3b82f6';
               if (item.avgInteractionRate >= 1.5) return '#f59e0b';
@@ -101,7 +111,7 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter: (params: any) => {
               const dataIndex = params.dataIndex as number;
-              return data[dataIndex].tag;
+              return items[dataIndex]?.tag || '';
             },
             position: 'top',
             fontSize: 11,
@@ -137,7 +147,7 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
       },
     };
 
-    chartInstance.current.setOption(option);
+    chartInstance.current.setOption(option, true);
 
     const handleResize = () => {
       chartInstance.current?.resize();
@@ -147,14 +157,30 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [data]);
+  }, [activeData]);
+
+  if (!activeData) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800">选题矩阵</h3>
+            <p className="text-sm text-gray-500 mt-1">各平台按独立口径统计，气泡大小代表内容数量，颜色代表互动率</p>
+          </div>
+        </div>
+        <div className="h-80 flex items-center justify-center text-gray-400 text-sm">
+          暂无数据
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">选题矩阵</h3>
-          <p className="text-sm text-gray-500 mt-1">气泡大小代表内容数量，颜色代表互动率</p>
+          <p className="text-sm text-gray-500 mt-1">各平台按独立口径统计，气泡大小代表内容数量，颜色代表互动率</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span className="w-3 h-3 rounded-full bg-emerald-500"></span> 高互动
@@ -163,6 +189,25 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
           <span className="w-3 h-3 rounded-full bg-red-500 ml-2"></span> 低互动
         </div>
       </div>
+
+      {data.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {data.map((platform) => (
+            <button
+              key={platform.platform}
+              onClick={() => setActivePlatform(platform.platform)}
+              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                activePlatform === platform.platform || (!activePlatform && platform.platform === data[0]?.platform)
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {platform.platformLabel} ({platform.primaryMetricName})
+            </button>
+          ))}
+        </div>
+      )}
+
       <div ref={chartRef} className="w-full h-80" />
     </div>
   );

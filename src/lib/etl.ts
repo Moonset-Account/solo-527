@@ -4,9 +4,11 @@ import type {
   FilterState,
   ProcessedData,
   TopicMatrixItem,
+  PlatformTopicMatrix,
   HeatmapDataItem,
   FunnelItem,
   TopContent,
+  PlatformTopContents,
   PlatformFunnelData,
   PlatformAggregatedMetrics,
   Platform,
@@ -163,6 +165,28 @@ export function getTopicMatrix(items: ContentItem[], topN: number = 15): TopicMa
     .slice(0, topN);
 }
 
+export function getPlatformTopicMatrix(items: ContentItem[], topN: number = 15): PlatformTopicMatrix[] {
+  const platformItems = new Map<Platform, ContentItem[]>();
+  
+  items.forEach(item => {
+    const existing = platformItems.get(item.platform) || [];
+    existing.push(item);
+    platformItems.set(item.platform, existing);
+  });
+
+  const result: PlatformTopicMatrix[] = [];
+  platformItems.forEach((platformData, platform) => {
+    result.push({
+      platform,
+      platformLabel: PLATFORM_LABELS[platform],
+      primaryMetricName: PLATFORM_PRIMARY_METRIC_LABEL[platform],
+      items: getTopicMatrix(platformData, topN),
+    });
+  });
+
+  return result.sort((a, b) => a.platform.localeCompare(b.platform));
+}
+
 export function getPublishHeatmap(items: ContentItem[]): HeatmapDataItem[] {
   const heatmap: Map<string, number> = new Map();
 
@@ -223,6 +247,28 @@ export function getTopContents(items: ContentItem[], topN: number = 10): TopCont
     })
     .sort((a, b) => b.primaryMetric - a.primaryMetric)
     .slice(0, topN);
+}
+
+export function getPlatformTopContents(items: ContentItem[], topN: number = 10): PlatformTopContents[] {
+  const platformItems = new Map<Platform, ContentItem[]>();
+  
+  items.forEach(item => {
+    const existing = platformItems.get(item.platform) || [];
+    existing.push(item);
+    platformItems.set(item.platform, existing);
+  });
+
+  const result: PlatformTopContents[] = [];
+  platformItems.forEach((platformData, platform) => {
+    result.push({
+      platform,
+      platformLabel: PLATFORM_LABELS[platform],
+      primaryMetricName: PLATFORM_PRIMARY_METRIC_LABEL[platform],
+      items: getTopContents(platformData, topN),
+    });
+  });
+
+  return result.sort((a, b) => a.platform.localeCompare(b.platform));
 }
 
 export function validateMetrics(items: ContentItem[]): { valid: boolean; issues: string[] } {

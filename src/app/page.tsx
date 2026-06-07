@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import type { FilterState, PlatformAggregatedMetrics } from '@/lib/types';
 import {
   loadData,
-  getTopicMatrix,
+  getPlatformTopicMatrix,
   getPublishHeatmap,
   getPlatformInteractionFunnel,
   validateMetrics,
@@ -59,8 +59,8 @@ export default function Dashboard() {
     };
   }, [allData]);
 
-  const topicMatrix = useMemo(() => {
-    return getTopicMatrix(processedData.items, 15);
+  const platformTopicMatrix = useMemo(() => {
+    return getPlatformTopicMatrix(processedData.items, 15);
   }, [processedData]);
 
   const heatmapData = useMemo(() => {
@@ -183,7 +183,7 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <TopicMatrixChart data={topicMatrix} />
+                <TopicMatrixChart data={platformTopicMatrix} />
                 <PublishHeatmap data={heatmapData} />
               </div>
 
