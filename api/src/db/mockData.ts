@@ -193,6 +193,80 @@ export const savedFilters: SavedFilter[] = [
   },
 ];
 
+export const rawTemperatureRecords: any[] = [];
+export const rawPositionRecords: any[] = [];
+export const rawDoorRecords: any[] = [];
+
+for (let i = 0; i < tempRecords.length; i++) {
+  const t = tempRecords[i];
+  rawTemperatureRecords.push({
+    id: t.id,
+    vehicle_id: t.vehicleId,
+    batch_id: t.batchId,
+    probe_id: t.probeId,
+    timestamp: t.timestamp,
+    temperature: t.temperature,
+  });
+}
+
+for (let i = 0; i < 12; i++) {
+  rawTemperatureRecords.push({
+    id: generateId(),
+    vehicle_id: vehicles[0].id,
+    batch_id: null,
+    probe_id: null,
+    timestamp: null,
+    temperature: null,
+  });
+}
+
+for (let i = 0; i < posRecords.length; i++) {
+  const p = posRecords[i];
+  rawPositionRecords.push({
+    id: p.id,
+    vehicle_id: p.vehicleId,
+    timestamp: p.timestamp,
+    lat: p.lat,
+    lng: p.lng,
+    speed: p.speed,
+  });
+}
+
+for (let i = 0; i < 5; i++) {
+  rawPositionRecords.push({
+    id: generateId(),
+    vehicle_id: null,
+    timestamp: null,
+    lat: 999,
+    lng: 999,
+    speed: null,
+  });
+}
+
+for (let i = 0; i < doorRecords.length; i++) {
+  const d = doorRecords[i];
+  rawDoorRecords.push({
+    id: d.id,
+    vehicle_id: d.vehicleId,
+    batch_id: d.batchId,
+    open_time: d.openTime,
+    close_time: d.closeTime,
+    duration_seconds: d.duration,
+    operator: d.operator,
+  });
+}
+
+for (let i = 0; i < 3; i++) {
+  rawDoorRecords.push({
+    id: generateId(),
+    vehicle_id: null,
+    batch_id: null,
+    open_time: null,
+    close_time: null,
+    operator: null,
+  });
+}
+
 export const dataQualityLogs: DataQualityLog[] = [
   {
     id: generateId(),

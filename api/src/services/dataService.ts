@@ -2,9 +2,14 @@ import { randomUUID } from 'crypto';
 import {
   vehicles, routes, customers, batches, probes,
   tempRecords, posRecords, doorRecords, anomalies,
-  savedFilters, dataQualityLogs
+  savedFilters, dataQualityLogs,
+  rawTemperatureRecords, rawPositionRecords, rawDoorRecords
 } from '../db/mockData.js';
-import { calculateDataQuality } from '../scripts/dataCleaner.js';
+import {
+  cleanTemperatureRecords, cleanPositionRecords, cleanDoorRecords,
+  calculateDataQuality
+} from '../scripts/dataCleaner.js';
+import { DATA_QUALITY_CONFIG } from '../config/metricsConfig.js';
 import type {
   Vehicle, Route, Customer, TemperatureRecord, PositionRecord,
   DoorRecord, DeliveryBatch, TemperatureProbe, AnomalyEvent,
@@ -122,7 +127,7 @@ export const getAnomalyStatistics = (dimension: string = 'vehicle'): AnomalyStat
   
   return vehicles.map(v => {
     const vehicleAnomalies = anomalies.filter(a => a.vehicleId === v.id);
-    const totalDuration = vehicleAnomalies.reduce((sum, a) => sum + (a.durationSeconds || 0), 0);
+    const totalDuration = vehicleAnomalies.reduce((sum, a) => sum + (a.duration || 0), 0);
     return {
       dimension,
       dimensionValue: v.plateNumber,
@@ -338,37 +343,35 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
 };
 
 export const getDataQualityReport = (): DataQualityReport => {
-  const tempCleanResult = { data: tempRecords, removed: 0, issues: [] };
-  const posCleanResult = { data: posRecords, removed: 0, issues: [] };
-  const doorCleanResult = { data: doorRecords, removed: 0, issues: [] };
-  
-  const latestLog = dataQualityLogs.length > 0 
-    ? dataQualityLogs.sort((a, b) => b.updateTime - a.updateTime)[0]
-    : null;
-  
-  if (latestLog && latestLog.missingFields.length > 0) {
-    for (const mf of latestLog.missingFields) {
-      if (mf.field === 'temperature_records') tempCleanResult.removed = mf.missingCount;
-      if (mf.field === 'position_records') posCleanResult.removed = mf.missingCount;
-      if (mf.field === 'door_records') doorCleanResult.removed = mf.missingCount;
-    }
-  }
+  const tempCleanResult = cleanTemperatureRecords(rawTemperatureRecords);
+  const posCleanResult = cleanPositionRecords(rawPositionRecords);
+  const doorCleanResult = cleanDoorRecords(rawDoorRecords);
   
   const cleanedReport = calculateDataQuality(tempCleanResult, posCleanResult, doorCleanResult);
   
   const sampleSize = [
-    { dimension: 'temperature_records', count: tempRecords.length },
-    { dimension: 'position_records', count: posRecords.length },
-    { dimension: 'door_records', count: doorRecords.length },
+    { dimension: 'temperature_records', count: rawTemperatureRecords.length },
+    { dimension: 'position_records', count: rawPositionRecords.length },
+    { dimension: 'door_records', count: rawDoorRecords.length },
     { dimension: 'anomaly_events', count: anomalies.length },
     { dimension: 'delivery_batches', count: batches.length },
   ];
   
+  const allIssues = [...tempCleanResult.issues, ...posCleanResult.issues, ...doorCleanResult.issues];
+  const errorMessage = allIssues.length > 0 
+    ? allIssues.slice(0, 3).join('; ') 
+    : undefined;
+  
+  const isUpdateFailed = cleanedReport.completeness < DATA_QUALITY_CONFIG.completenessThreshold;
+  
   return {
-    ...cleanedReport,
+    updateTime: Date.now(),
+    completeness: cleanedReport.completeness,
+    missingFields: cleanedReport.missingFields,
+    anomalyPoints: tempCleanResult.data.filter(t => !t.isNormal).length,
     sampleSize,
-    updateTime: latestLog?.updateTime || Date.now(),
-    errorMessage: latestLog?.errorMessage || cleanedReport.errorMessage,
+    isUpdateFailed,
+    errorMessage,
   };
 };
 
