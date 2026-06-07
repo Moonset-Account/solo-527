@@ -32,13 +32,7 @@ function saveEdit(category: MedicineCategory) {
     ElMessage.warning('分类名称不能为空')
     return
   }
-  const updated = dataStore.medicineCategories.map(c => {
-    if (c.id === category.id) {
-      return { ...c, name: editName.value.trim() }
-    }
-    return c
-  })
-  dataStore.updateMedicineCategory(updated)
+  dataStore.updateMedicineCategory(category.id, { name: editName.value.trim() })
   editingId.value = null
   editName.value = ''
   ElMessage.success('分类名称已更新')
@@ -60,8 +54,7 @@ async function deleteCategory(category: MedicineCategory) {
       ElMessage.error('请先删除该分类下的子分类')
       return
     }
-    const updated = dataStore.medicineCategories.filter(c => c.id !== category.id)
-    dataStore.updateMedicineCategory(updated)
+    dataStore.deleteMedicineCategory(category.id)
     ElMessage.success('分类已删除')
   } catch {
     // 用户取消
@@ -69,17 +62,15 @@ async function deleteCategory(category: MedicineCategory) {
 }
 
 function addSubCategory(parent: MedicineCategory) {
-  const newId = `SUB${String(Date.now()).slice(-6)}`
-  const newCategory: MedicineCategory = {
-    id: newId,
+  const newCategory = {
     name: '新分类',
     parentId: parent.id,
     level: 2,
     medicines: []
   }
-  const updated = [...dataStore.medicineCategories, newCategory]
-  dataStore.updateMedicineCategory(updated)
-  editingId.value = newId
+  dataStore.addMedicineCategory(newCategory)
+  const lastCategory = dataStore.medicineCategories[dataStore.medicineCategories.length - 1]
+  editingId.value = lastCategory.id
   editName.value = '新分类'
   ElMessage.success('已添加新分类，请修改名称')
 }

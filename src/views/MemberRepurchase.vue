@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useDataStore } from '@/stores/data'
+import { useAuthStore } from '@/stores/auth'
 import CohortHeatmap from '@/components/charts/CohortHeatmap.vue'
 import SampleSizeBadge from '@/components/common/SampleSizeBadge.vue'
 import LowSampleTip from '@/components/common/LowSampleTip.vue'
@@ -11,6 +12,8 @@ import { CHRONIC_LABELS, MEMBER_TIERS } from '@/utils/constants'
 import type { UserRole } from '@/types'
 
 const dataStore = useDataStore()
+const authStore = useAuthStore()
+
 const selectedTags = ref<string[]>([])
 const selectedTiers = ref<string[]>([])
 const isApplying = ref(false)
@@ -80,7 +83,7 @@ const sampleMembers = [
 ]
 
 const currentRole = computed<UserRole | ''>(() => {
-  return useDataStore().$state?.user?.role || ''
+  return authStore.user?.role || ''
 })
 
 onMounted(() => {

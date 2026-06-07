@@ -8,13 +8,13 @@ import type {
   StoreRankItem,
   MedicineComparison,
   PrescriptionRangeStat,
-  MedicineCategory
+  MedicineCategory,
 } from '@/types'
 import type {
   QueryFilter,
   CohortQueryParams,
-  PaginatedResult
 } from '@/types/query'
+import type { ClickHouseQueryResult } from '@/services/api/config'
 import {
   queryCoreMetrics,
   queryCohortData,
@@ -23,11 +23,10 @@ import {
   queryStoreRank,
   queryMedicineComparison,
   queryPrescriptionRangeStats,
-  clearQueryCache
+  clearQueryCache,
 } from '@/services/clickhouse'
 import { MEDICINE_CATEGORIES_KEY } from '@/utils/storage'
 import { defaultMedicineCategories } from '@/utils/mock'
-import { STORE_CACHE_KEY, CACHE_TTL } from '@/utils/constants'
 
 export const useDataStore = defineStore('data', () => {
   const loading = ref(false)
@@ -48,7 +47,7 @@ export const useDataStore = defineStore('data', () => {
     chronicLabels: [],
     storeIds: [],
     regionIds: [],
-    memberTier: []
+    memberTier: [],
   })
 
   const hasActiveFilter = computed(() => {
@@ -88,14 +87,20 @@ export const useDataStore = defineStore('data', () => {
       chronicLabels: [],
       storeIds: [],
       regionIds: [],
-      memberTier: []
+      memberTier: [],
     }
     clearQueryCache()
   }
 
-  function wrapResult<T>(result: PaginatedResult<T>): T {
+  function wrapResult<T>(result: ClickHouseQueryResult<T>): T {
     lastQueryId.value = result.queryId
     lastExecutionTime.value = result.executionTime
+    console.log('[DataStore] Query completed', {
+      queryId: result.queryId,
+      executionTime: result.executionTime,
+      sampleSize: result.sampleSize,
+      lowSample: result.lowSample,
+    })
     return result.data
   }
 
@@ -107,6 +112,7 @@ export const useDataStore = defineStore('data', () => {
       coreMetrics.value = wrapResult(result)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadCoreMetrics error', e)
     } finally {
       loading.value = false
     }
@@ -119,8 +125,14 @@ export const useDataStore = defineStore('data', () => {
       const queryParams = { ...currentFilter.value, ...params }
       const result = await queryCohortData(queryParams)
       cohortData.value = wrapResult(result)
+      console.log('[DataStore] Cohort data loaded', {
+        cohorts: cohortData.value.length,
+        sampleSize: cohortData.value[0]?.cells[0]?.sampleSize,
+        hasLowSample: cohortData.value.some(c => c.cells.some(cell => cell.lowSample)),
+      })
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadCohortData error', e)
     } finally {
       loading.value = false
     }
@@ -134,6 +146,7 @@ export const useDataStore = defineStore('data', () => {
       funnelData.value = wrapResult(result)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadFunnelData error', e)
     } finally {
       loading.value = false
     }
@@ -147,6 +160,7 @@ export const useDataStore = defineStore('data', () => {
       priceTrend.value = wrapResult(result)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadPriceTrend error', e)
     } finally {
       loading.value = false
     }
@@ -158,8 +172,13 @@ export const useDataStore = defineStore('data', () => {
     try {
       const result = await queryStoreRank(currentFilter.value)
       storeRank.value = wrapResult(result)
+      console.log('[DataStore] Store rank loaded', {
+        count: storeRank.value.length,
+        stores: storeRank.value.map(s => s.storeName),
+      })
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadStoreRank error', e)
     } finally {
       loading.value = false
     }
@@ -172,11 +191,12 @@ export const useDataStore = defineStore('data', () => {
       const result = await queryMedicineComparison({
         ...currentFilter.value,
         activityId,
-        targetCategories: categories
+        targetCategories: categories,
       })
       medicineComparison.value = wrapResult(result)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadMedicineComparison error', e)
     } finally {
       loading.value = false
     }
@@ -190,6 +210,7 @@ export const useDataStore = defineStore('data', () => {
       prescriptionRanges.value = wrapResult(result)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '加载失败'
+      console.error('[DataStore] loadPrescriptionRanges error', e)
     } finally {
       loading.value = false
     }
@@ -215,7 +236,7 @@ export const useDataStore = defineStore('data', () => {
   function addMedicineCategory(category: Omit<MedicineCategory, 'id'>) {
     const newCategory: MedicineCategory = {
       ...category,
-      id: 'CAT_' + Date.now()
+      id: 'CAT_' + Date.now(),
     }
     medicineCategories.value.push(newCategory)
     saveMedicineCategories()
@@ -240,7 +261,7 @@ export const useDataStore = defineStore('data', () => {
       loadCoreMetrics(),
       loadCohortData(),
       loadPriceTrend(),
-      loadStoreRank()
+      loadStoreRank(),
     ])
   }
 
@@ -280,6 +301,6 @@ export const useDataStore = defineStore('data', () => {
     updateMedicineCategory,
     deleteMedicineCategory,
     refreshAll,
-    init
+    init,
   }
 })

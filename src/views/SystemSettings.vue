@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useDataStore } from '@/stores/data'
 import { useAuthStore } from '@/stores/auth'
 import { Shield, Database, Download, UserCog, Info, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { ElSwitch, ElMessage, ElMessageBox } from 'element-plus'
+import { clearQueryCache, getCacheStats } from '@/services/clickhouse'
 
 const dataStore = useDataStore()
 const authStore = useAuthStore()
@@ -12,6 +13,8 @@ const minSampleSize = ref(10)
 const autoMaskSensitive = ref(true)
 const allowExportPersonal = ref(false)
 const cacheExpiryMinutes = ref(30)
+
+const cacheStats = ref(getCacheStats())
 
 function handleClearCache() {
   ElMessageBox.confirm(
@@ -23,15 +26,17 @@ function handleClearCache() {
       type: 'warning'
     }
   ).then(() => {
-    dataStore.clearCache()
+    clearQueryCache()
+    cacheStats.value = getCacheStats()
     ElMessage.success('缓存已清除')
   }).catch(() => {
     // 用户取消
   })
 }
 
-function handleRefreshData() {
-  dataStore.loadAllData(true)
+async function handleRefreshData() {
+  await dataStore.refreshAll()
+  cacheStats.value = getCacheStats()
   ElMessage.success('数据已刷新')
 }
 

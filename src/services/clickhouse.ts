@@ -1,12 +1,12 @@
+import { clickhouseQuery } from './api/client'
 import type {
-  QueryFilter,
   CohortQueryParams,
   FunnelQueryParams,
   PriceTrendQueryParams,
   StoreRankQueryParams,
   MedicineComparisonQueryParams,
   PrescriptionRangeQueryParams,
-  PaginatedResult
+  QueryFilter,
 } from '@/types/query'
 import type {
   CohortData,
@@ -15,52 +15,21 @@ import type {
   StoreRankItem,
   MedicineComparison,
   PrescriptionRangeStat,
-  CoreMetric
+  CoreMetric,
 } from '@/types'
-import { generateMockData } from '@/utils/mock'
-import { checkLowSample } from '@/utils/privacy'
-import { useAuthStore } from '@/stores/auth'
-import { STORE_CACHE_KEY, CACHE_TTL } from '@/utils/constants'
+import type { ClickHouseQueryResult } from './api/config'
+import { CACHE_TTL } from '@/utils/constants'
 
-const QUERY_CACHE = new Map<string, { data: unknown; timestamp: number }>()
-
-function generateQueryId(): string {
-  return 'qry_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-}
-
-function applyPermissionFilter(filter: QueryFilter): QueryFilter {
-  const authStore = useAuthStore()
-  const user = authStore.user
-  
-  if (!user) {
-    return { ...filter, storeIds: [] }
-  }
-
-  if (!authStore.permissions.canViewAllStores) {
-    return {
-      ...filter,
-      storeIds: user.storeId ? [user.storeId] : []
-    }
-  }
-
-  if (user.regionId && !authStore.permissions.canViewAllStores) {
-    return {
-      ...filter,
-      regionIds: [user.regionId]
-    }
-  }
-
-  return filter
-}
+const QUERY_CACHE = new Map<string, { data: ClickHouseQueryResult<unknown>; timestamp: number }>()
 
 function getCacheKey(prefix: string, params: unknown): string {
   return `${prefix}_${JSON.stringify(params)}`
 }
 
-function getCached<T>(key: string): T | null {
+function getCached<T>(key: string): ClickHouseQueryResult<T> | null {
   const cached = QUERY_CACHE.get(key)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data as T
+    return cached.data as ClickHouseQueryResult<T>
   }
   if (cached) {
     QUERY_CACHE.delete(key)
@@ -68,265 +37,140 @@ function getCached<T>(key: string): T | null {
   return null
 }
 
-function setCache(key: string, data: unknown): void {
-  QUERY_CACHE.set(key, { data, timestamp: Date.now() })
+function setCache<T>(key: string, data: ClickHouseQueryResult<T>): void {
+  QUERY_CACHE.set(key, { data: data as ClickHouseQueryResult<unknown>, timestamp: Date.now() })
 }
 
-async function simulateQueryDelay(): Promise<void> {
-  const delay = 50 + Math.random() * 200
-  return new Promise(resolve => setTimeout(resolve, delay))
-}
-
-function applyChronicLabelFilter<T>(data: T[], chronicLabels?: string[]): T[] {
-  if (!chronicLabels || chronicLabels.length === 0) {
-    return data
-  }
-  const sampleReduction = Math.max(0.3, 1 - chronicLabels.length * 0.15)
-  const filteredCount = Math.max(1, Math.floor(data.length * sampleReduction))
-  return data.slice(0, filteredCount)
-}
-
-function wrapResult<T>(data: T, baseSampleSize: number): PaginatedResult<T> {
-  const lowSample = checkLowSample(baseSampleSize)
-  return {
-    data,
-    sampleSize: baseSampleSize,
-    lowSample,
-    queryId: generateQueryId(),
-    executionTime: Math.floor(50 + Math.random() * 200)
-  }
-}
-
-export async function queryCoreMetrics(filter: QueryFilter = {}): Promise<PaginatedResult<CoreMetric[]>> {
-  const appliedFilter = applyPermissionFilter(filter)
-  const cacheKey = getCacheKey('coreMetrics', appliedFilter)
-  const cached = getCached<PaginatedResult<CoreMetric[]>>(cacheKey)
-  if (cached) return cached
-
-  await simulateQueryDelay()
+function buildQueryParams(filter: QueryFilter): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
   
-  let baseSampleSize = 12580
-  if (appliedFilter.chronicLabels && appliedFilter.chronicLabels.length > 0) {
-    baseSampleSize = Math.floor(baseSampleSize * (1 - appliedFilter.chronicLabels.length * 0.2))
+  if (filter.storeIds && filter.storeIds.length > 0) {
+    params.storeIds = filter.storeIds.join(',')
   }
-  if (appliedFilter.storeIds && appliedFilter.storeIds.length > 0) {
-    baseSampleSize = Math.floor(baseSampleSize / 8)
+  if (filter.regionIds && filter.regionIds.length > 0) {
+    params.regionIds = filter.regionIds.join(',')
   }
+  if (filter.chronicLabels && filter.chronicLabels.length > 0) {
+    params.chronicLabels = filter.chronicLabels.join(',')
+  }
+  if (filter.memberTier && filter.memberTier.length > 0) {
+    params.memberTier = filter.memberTier.join(',')
+  }
+  if (filter.startDate) {
+    params.startDate = filter.startDate
+  }
+  if (filter.endDate) {
+    params.endDate = filter.endDate
+  }
+  
+  return params
+}
 
-  const metrics: CoreMetric[] = [
-    { name: '活跃会员数', value: Math.floor(baseSampleSize * 0.85), sampleSize: baseSampleSize, lowSample: checkLowSample(baseSampleSize), trend: 5.2 },
-    { name: '复购率', value: 42.8, sampleSize: baseSampleSize, lowSample: checkLowSample(baseSampleSize), trend: 3.1, unit: '%' },
-    { name: '平均客单价', value: 156.8, sampleSize: baseSampleSize, lowSample: checkLowSample(baseSampleSize), trend: -1.2, unit: '¥' },
-    { name: '优惠券核销率', value: 68.5, sampleSize: baseSampleSize, lowSample: checkLowSample(baseSampleSize), trend: 8.7, unit: '%' }
-  ]
+export async function queryCoreMetrics(filter: QueryFilter = {}) {
+  const cacheKey = getCacheKey('coreMetrics', filter)
+  const cached = getCached(cacheKey)
+  if (cached) return cached
 
-  const result = wrapResult(metrics, baseSampleSize)
+  const params = buildQueryParams(filter)
+  const result = await clickhouseQuery<CoreMetric[]>('coreMetrics', params)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryCohortData(params: CohortQueryParams = {}): Promise<PaginatedResult<CohortData[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('cohort', appliedFilter)
-  const cached = getCached<PaginatedResult<CohortData[]>>(cacheKey)
+export async function queryCohortData(params: CohortQueryParams = {}) {
+  const cacheKey = getCacheKey('cohort', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let cohortData = mock.cohortData
-
-  if (appliedFilter.chronicLabels && appliedFilter.chronicLabels.length > 0) {
-    cohortData = applyChronicLabelFilter(cohortData, appliedFilter.chronicLabels)
-    cohortData = cohortData.map(cohort => ({
-      ...cohort,
-      cells: cohort.cells.map(cell => ({
-        ...cell,
-        sampleSize: Math.floor(cell.sampleSize * 0.4),
-        lowSample: checkLowSample(Math.floor(cell.sampleSize * 0.4))
-      }))
-    }))
+  const queryParams = {
+    ...buildQueryParams(params),
+    cohortPeriod: params.cohortPeriod || 'month',
+    retentionPeriods: params.retentionPeriods || 6,
   }
-
-  if (appliedFilter.storeIds && appliedFilter.storeIds.length > 0) {
-    cohortData = cohortData.map(cohort => ({
-      ...cohort,
-      cells: cohort.cells.map(cell => ({
-        ...cell,
-        sampleSize: Math.floor(cell.sampleSize / 10),
-        lowSample: checkLowSample(Math.floor(cell.sampleSize / 10))
-      }))
-    }))
-  }
-
-  let totalSampleSize = cohortData.length > 0 ? cohortData[0].cells[0]?.sampleSize || 0 : 0
-  const result = wrapResult(cohortData, totalSampleSize)
+  const result = await clickhouseQuery<CohortData[]>('cohort', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryFunnelData(params: FunnelQueryParams): Promise<PaginatedResult<FunnelStep[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('funnel', appliedFilter)
-  const cached = getCached<PaginatedResult<FunnelStep[]>>(cacheKey)
+export async function queryFunnelData(params: FunnelQueryParams) {
+  const cacheKey = getCacheKey('funnel', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let funnelData = [...mock.funnelData]
-
-  if (appliedFilter.storeIds && appliedFilter.storeIds.length > 0) {
-    const scale = 0.12
-    funnelData = funnelData.map(step => ({
-      ...step,
-      value: Math.floor(step.value * scale),
-      sampleSize: Math.floor(step.sampleSize * scale),
-      lowSample: checkLowSample(Math.floor(step.sampleSize * scale))
-    }))
+  const queryParams = {
+    ...buildQueryParams(params),
+    activityId: params.activityId,
   }
-
-  if (appliedFilter.chronicLabels && appliedFilter.chronicLabels.length > 0) {
-    const scale = 0.5
-    funnelData = funnelData.map(step => ({
-      ...step,
-      value: Math.floor(step.value * scale),
-      sampleSize: Math.floor(step.sampleSize * scale),
-      lowSample: checkLowSample(Math.floor(step.sampleSize * scale))
-    }))
-  }
-
-  const baseSampleSize = funnelData[0]?.sampleSize || 0
-  const result = wrapResult(funnelData, baseSampleSize)
+  const result = await clickhouseQuery<FunnelStep[]>('funnel', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryPriceTrend(params: PriceTrendQueryParams = {}): Promise<PaginatedResult<PriceTrendPoint[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('priceTrend', appliedFilter)
-  const cached = getCached<PaginatedResult<PriceTrendPoint[]>>(cacheKey)
+export async function queryPriceTrend(params: PriceTrendQueryParams = {}) {
+  const cacheKey = getCacheKey('priceTrend', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let priceTrend = [...mock.priceTrend]
-
-  if (appliedFilter.storeIds && appliedFilter.storeIds.length > 0) {
-    priceTrend = priceTrend.map(point => ({
-      ...point,
-      sampleSize: Math.floor(point.sampleSize / 10),
-      lowSample: checkLowSample(Math.floor(point.sampleSize / 10))
-    }))
+  const queryParams = {
+    ...buildQueryParams(params),
+    granularity: params.granularity || 'month',
   }
-
-  if (appliedFilter.chronicLabels && appliedFilter.chronicLabels.length > 0) {
-    priceTrend = priceTrend.map(point => ({
-      ...point,
-      sampleSize: Math.floor(point.sampleSize * 0.6),
-      lowSample: checkLowSample(Math.floor(point.sampleSize * 0.6))
-    }))
-  }
-
-  const baseSampleSize = priceTrend[0]?.sampleSize || 0
-  const result = wrapResult(priceTrend, baseSampleSize)
+  const result = await clickhouseQuery<PriceTrendPoint[]>('priceTrend', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryStoreRank(params: StoreRankQueryParams = {}): Promise<PaginatedResult<StoreRankItem[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('storeRank', appliedFilter)
-  const cached = getCached<PaginatedResult<StoreRankItem[]>>(cacheKey)
+export async function queryStoreRank(params: StoreRankQueryParams = {}) {
+  const cacheKey = getCacheKey('storeRank', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let storeRank = [...mock.storeRank]
-
-  if (!useAuthStore().permissions.canViewAllStores) {
-    const userStoreId = useAuthStore().user?.storeId
-    if (userStoreId) {
-      storeRank = storeRank.filter(s => s.storeId === userStoreId)
-    }
+  const queryParams = {
+    ...buildQueryParams(params),
+    limit: params.limit || 20,
   }
-
-  if (appliedFilter.limit) {
-    storeRank = storeRank.slice(0, appliedFilter.limit)
-  }
-
-  const baseSampleSize = storeRank.reduce((sum, s) => sum + s.orderCount, 0)
-  const result = wrapResult(storeRank, baseSampleSize)
+  const result = await clickhouseQuery<StoreRankItem[]>('storeRank', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryMedicineComparison(params: MedicineComparisonQueryParams): Promise<PaginatedResult<MedicineComparison[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('medicineComparison', appliedFilter)
-  const cached = getCached<PaginatedResult<MedicineComparison[]>>(cacheKey)
+export async function queryMedicineComparison(params: MedicineComparisonQueryParams) {
+  const cacheKey = getCacheKey('medicineComparison', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let comparisonData = [...mock.medicineComparison]
-
-  if (params.targetCategories && params.targetCategories.length > 0) {
-    comparisonData = comparisonData.filter(item => 
-      params.targetCategories.includes(item.category)
-    )
+  const queryParams = {
+    ...buildQueryParams(params),
+    activityId: params.activityId,
+    targetCategories: params.targetCategories?.join(','),
   }
-
-  if (appliedFilter.storeIds && appliedFilter.storeIds.length > 0) {
-    comparisonData = comparisonData.map(item => ({
-      ...item,
-      sampleSize: Math.floor(item.sampleSize / 10),
-      lowSample: checkLowSample(Math.floor(item.sampleSize / 10))
-    }))
-  }
-
-  const baseSampleSize = comparisonData.reduce((sum, item) => sum + item.sampleSize, 0)
-  const result = wrapResult(comparisonData, baseSampleSize)
+  const result = await clickhouseQuery<MedicineComparison[]>('medicineComparison', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
-export async function queryPrescriptionRangeStats(params: PrescriptionRangeQueryParams = {}): Promise<PaginatedResult<PrescriptionRangeStat[]>> {
-  const appliedFilter = applyPermissionFilter(params)
-  const cacheKey = getCacheKey('prescriptionRange', appliedFilter)
-  const cached = getCached<PaginatedResult<PrescriptionRangeStat[]>>(cacheKey)
+export async function queryPrescriptionRangeStats(params: PrescriptionRangeQueryParams = {}) {
+  const cacheKey = getCacheKey('prescriptionRange', params)
+  const cached = getCached(cacheKey)
   if (cached) return cached
 
-  await simulateQueryDelay()
-
-  const mock = generateMockData()
-  let rangeStats = [...mock.prescriptionRanges]
-
-  if (appliedFilter.chronicLabels && appliedFilter.chronicLabels.length > 0) {
-    rangeStats = rangeStats.map(stat => ({
-      ...stat,
-      memberCount: Math.floor(stat.memberCount * 0.5),
-      lowSample: checkLowSample(Math.floor(stat.memberCount * 0.5))
-    }))
+  const queryParams = {
+    ...buildQueryParams(params),
+    ranges: params.ranges?.join(','),
   }
-
-  const baseSampleSize = rangeStats.reduce((sum, stat) => sum + stat.memberCount, 0)
-  const result = wrapResult(rangeStats, baseSampleSize)
+  const result = await clickhouseQuery<PrescriptionRangeStat[]>('prescriptionRanges', queryParams)
   setCache(cacheKey, result)
   return result
 }
 
 export function clearQueryCache(): void {
   QUERY_CACHE.clear()
-  localStorage.removeItem(STORE_CACHE_KEY)
+  console.log('[ClickHouse] Query cache cleared')
 }
 
 export function getCacheStats(): { size: number; keys: string[] } {
   return {
     size: QUERY_CACHE.size,
-    keys: Array.from(QUERY_CACHE.keys())
+    keys: Array.from(QUERY_CACHE.keys()),
   }
 }
