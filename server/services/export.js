@@ -1,5 +1,5 @@
 import { createObjectCsvWriter } from "csv-writer";
-import { query } from "../server/db/index.js";
+import { query } from "../db/index.js";
 import { v4 as uuidv4 } from "uuid";
 import { mkdirSync, existsSync } from "fs";
 import { dirname, join } from "path";

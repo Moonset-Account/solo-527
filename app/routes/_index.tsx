@@ -37,13 +37,11 @@ interface LoaderData {
     pumpEnergy: PumpEnergyItem[];
     strategyBenefits: StrategyBenefitItem[];
   };
+  dataSource: "demo" | "live";
 }
 
 export const loader: LoaderFunction = async ({ request }) => {
-  const url = new URL(request.url);
-  const queryString = url.searchParams.toString();
-
-  let filterOptions: FilterOptions = {
+  const filterOptions: FilterOptions = {
     fields: [
       { id: 1, name: "东一号田", area: 120 },
       { id: 2, name: "东二号田", area: 95 },
@@ -71,7 +69,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     ],
   };
 
-  let summary: SummaryStats = {
+  const summary: SummaryStats = {
     totalIrrigations: 186,
     totalWater: 28450.5,
     totalCost: 12456.8,
@@ -82,43 +80,11 @@ export const loader: LoaderFunction = async ({ request }) => {
     postRainRate: 15.0,
   };
 
-  let anomalies: AnomalyItem[] = generateMockAnomalies();
-  let waterTrend: WaterTrendItem[] = generateMockWaterTrend();
-  let moistureData: MoistureItem[] = generateMockMoistureData();
-  let pumpEnergy: PumpEnergyItem[] = generateMockPumpEnergy();
-  let strategyBenefits: StrategyBenefitItem[] = generateMockStrategyBenefits();
-
-  try {
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-
-    const [
-      filterRes,
-      summaryRes,
-      anomalyRes,
-      waterRes,
-      moistureRes,
-      pumpRes,
-      strategyRes,
-    ] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/filters`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/summary?${queryString}`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/anomalies?${queryString}`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/water-trend?${queryString}`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/moisture-comparison?${queryString}`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/pump-energy?${queryString}`).then((r) => r.json()),
-      fetch(`${baseUrl}/api/strategy-benefits?${queryString}`).then((r) => r.json()),
-    ]);
-
-    if (filterRes.status === "fulfilled") filterOptions = filterRes.value;
-    if (summaryRes.status === "fulfilled") summary = summaryRes.value;
-    if (anomalyRes.status === "fulfilled") anomalies = anomalyRes.value;
-    if (waterRes.status === "fulfilled") waterTrend = waterRes.value;
-    if (moistureRes.status === "fulfilled") moistureData = moistureRes.value;
-    if (pumpRes.status === "fulfilled") pumpEnergy = pumpRes.value;
-    if (strategyRes.status === "fulfilled") strategyBenefits = strategyRes.value;
-  } catch (err) {
-    console.log("使用模拟数据:", err);
-  }
+  const anomalies: AnomalyItem[] = generateMockAnomalies();
+  const waterTrend: WaterTrendItem[] = generateMockWaterTrend();
+  const moistureData: MoistureItem[] = generateMockMoistureData();
+  const pumpEnergy: PumpEnergyItem[] = generateMockPumpEnergy();
+  const strategyBenefits: StrategyBenefitItem[] = generateMockStrategyBenefits();
 
   return json({
     mockData: {
@@ -130,14 +96,17 @@ export const loader: LoaderFunction = async ({ request }) => {
       pumpEnergy,
       strategyBenefits,
     },
+    dataSource: "demo" as const,
   });
 };
 
 export default function Dashboard() {
-  const { mockData } = useLoaderData<LoaderData>();
+  const { mockData, dataSource } = useLoaderData<LoaderData>();
   const [filters, setFilters] = useFilterContext();
   const revalidator = useRevalidator();
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (revalidator.state === "idle") {
@@ -148,18 +117,40 @@ export default function Dashboard() {
     }
   }, [revalidator]);
 
-  const handleExport = async () => {
+  const exportTypes = [
+    { type: "water_summary", label: "💧 用水汇总报表" },
+    { type: "irrigation_records", label: "📋 灌溉明细记录" },
+    { type: "pump_energy", label: "⚡ 泵站能耗分析" },
+    { type: "anomalies", label: "⚠️ 异常记录清单" },
+  ];
+
+  const handleExport = async (exportType: string) => {
+    setShowExportMenu(false);
     setIsExporting(true);
+    setExportStatus("正在创建导出任务...");
+
     try {
       const res = await fetch("/api/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "water_summary", filters }),
+        body: JSON.stringify({ type: exportType, filters }),
       });
+
+      if (!res.ok) {
+        throw new Error("API 未响应");
+      }
+
       const data = await res.json();
-      alert(`导出任务已创建: ${data.taskId}`);
+
+      if (data.success) {
+        setExportStatus(`✅ 导出任务已创建: ${data.taskId.slice(0, 8)}...`);
+        setTimeout(() => setExportStatus(null), 3000);
+      } else {
+        throw new Error(data.error || "创建失败");
+      }
     } catch (err) {
-      alert("导出功能需要后端数据库支持");
+      setExportStatus("ℹ️ 当前为演示模式，导出功能需连接数据库");
+      setTimeout(() => setExportStatus(null), 4000);
     } finally {
       setIsExporting(false);
     }
@@ -180,13 +171,37 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleExport}
-                disabled={isExporting}
-                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                {isExporting ? "导出中..." : "📊 导出数据"}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={isExporting}
+                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  📊 {isExporting ? "导出中..." : "导出数据"}
+                  <span className="text-xs">▼</span>
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
+                    {exportTypes.map((item) => (
+                      <button
+                        key={item.type}
+                        onClick={() => handleExport(item.type)}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {exportStatus && (
+                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                  {exportStatus}
+                </span>
+              )}
+              <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs font-medium border border-yellow-200">
+                演示数据
+              </span>
               <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm font-medium">
                 技
               </div>

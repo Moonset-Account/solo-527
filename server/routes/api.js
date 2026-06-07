@@ -9,6 +9,7 @@ import {
   getFilterOptions,
 } from "../services/aggregator.js";
 import { deleteCachePattern } from "../services/cache.js";
+import { createExportTask, getExportTaskStatus, getAllExportTasks } from "../services/export.js";
 
 const router = Router();
 
@@ -115,6 +116,44 @@ router.post("/cache/clear", async (req, res) => {
   } catch (err) {
     console.error("清除缓存失败:", err);
     res.status(500).json({ error: "清除缓存失败" });
+  }
+});
+
+router.post("/export", async (req, res) => {
+  try {
+    const { type, filters } = req.body;
+    const validTypes = ["irrigation_records", "water_summary", "pump_energy", "anomalies"];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: "无效的导出类型", validTypes });
+    }
+    const taskId = await createExportTask(type, filters || {});
+    res.json({ success: true, taskId, message: "导出任务已创建" });
+  } catch (err) {
+    console.error("创建导出任务失败:", err);
+    res.status(500).json({ error: "创建导出任务失败", details: err.message });
+  }
+});
+
+router.get("/export/:taskId", async (req, res) => {
+  try {
+    const task = getExportTaskStatus(req.params.taskId);
+    if (!task) {
+      return res.status(404).json({ error: "任务不存在" });
+    }
+    res.json(task);
+  } catch (err) {
+    console.error("获取导出任务状态失败:", err);
+    res.status(500).json({ error: "获取导出任务状态失败" });
+  }
+});
+
+router.get("/exports", async (req, res) => {
+  try {
+    const tasks = getAllExportTasks();
+    res.json(tasks);
+  } catch (err) {
+    console.error("获取导出任务列表失败:", err);
+    res.status(500).json({ error: "获取导出任务列表失败" });
   }
 });
 
