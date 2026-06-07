@@ -110,7 +110,7 @@
 				id: `ann_${Date.now()}`,
 				text: annotationText,
 				createdAt: new Date().toISOString(),
-				createdBy: $userStore?.name || '未知用户'
+				createdBy: $userStore?.fullName || $userStore?.username || '未知用户'
 			});
 			annotationText = '';
 			showToast('备注已保存', 'success');

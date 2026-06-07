@@ -15,7 +15,7 @@ export async function GET() {
 		return json({
 			success: true,
 			data: {
-				vehicles: vehicles.map((v) => ({ id: v.id, label: v.plate_number })),
+				vehicles: vehicles.map((v) => ({ id: v.id, label: v.plateNumber })),
 				customers: customers.map((c) => ({ id: c.id, label: c.name })),
 				routes: routes.map((r) => ({ id: r.id, label: r.name })),
 				containers: containers.map((c) => ({ id: c.id, label: c.code })),

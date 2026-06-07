@@ -14,21 +14,21 @@ export async function GET({ url }) {
 
 		return json({
 			success: true,
-			data: records.map((r) => ({
+			data: records.map((r: any) => ({
 				id: r.id,
-				shipmentId: r.shipment_id,
-				batchNo: r.batch_no,
-				probeId: r.probe_id,
+				shipmentId: r.shipmentId,
+				batchNo: r.batchNo,
+				probeId: r.probeId,
 				timestamp: r.timestamp,
 				temperature: r.temperature,
 				humidity: r.humidity,
 				latitude: r.latitude,
 				longitude: r.longitude,
-				doorOpen: r.door_open,
-				probeCalibrated: r.probe_calibrated,
-				probeCalibrationDate: r.probe_calibration_date,
-				calibrationDeviation: r.calibration_deviation,
-				createdAt: r.created_at
+				doorOpen: r.doorOpen,
+				probeCalibrated: r.probeCalibrated,
+				probeCalibrationDate: r.probeCalibrationDate,
+				calibrationDeviation: r.calibrationDeviation,
+				createdAt: r.createdAt
 			}))
 		});
 	} catch (e) {
