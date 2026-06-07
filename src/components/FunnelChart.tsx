@@ -59,7 +59,7 @@ export default function FunnelChart() {
   const chartH = height - padding.top - padding.bottom;
   const stageH = chartH / data.length;
 
-  const maxCount = Math.max(...data.map((d) => d.count));
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   return (
     <div className="glass-card glass-card-hover p-6 animate-fade-in">

@@ -1,40 +1,42 @@
 import app from './app.js';
-import net from 'net';
+import { execSync } from 'child_process';
 
-function findAvailablePort(startPort: number): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.listen(startPort, () => {
-      const port = (server.address() as net.AddressInfo).port;
-      server.close(() => resolve(port));
-    });
-    server.on('error', () => {
-      findAvailablePort(startPort + 1).then(resolve, reject);
-    });
-  });
+const PORT = parseInt(process.env.PORT || '34567', 10);
+
+function killExistingPort(port: number): void {
+  try {
+    const result = execSync(`lsof -ti:${port}`, { encoding: 'utf-8' }).trim();
+    if (result) {
+      const pids = result.split('\n').filter(Boolean);
+      for (const pid of pids) {
+        try {
+          process.kill(Number(pid), 'SIGKILL');
+          console.log(`Killed existing process ${pid} on port ${port}`);
+        } catch {}
+      }
+    }
+  } catch {}
 }
 
-const requestedPort = parseInt(process.env.PORT || '34567', 10);
+killExistingPort(PORT);
 
-findAvailablePort(requestedPort).then((port) => {
-  const server = app.listen(port, () => {
-    console.log(`Server ready on port ${port}`);
+const server = app.listen(PORT, () => {
+  console.log(`Server ready on port ${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
   });
+});
 
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received');
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
-    });
-  });
-
-  process.on('SIGINT', () => {
-    console.log('SIGINT signal received');
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
-    });
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
   });
 });
 

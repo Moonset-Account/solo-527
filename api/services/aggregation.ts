@@ -50,6 +50,12 @@ function buildFilterWhere(filters: FilterParams, tableAlias?: string): { sql: st
     params.push(...filters.channels);
   }
 
+  if (filters.stages && filters.stages.length > 0) {
+    const placeholders = filters.stages.map(() => '?').join(',');
+    conditions.push(`${prefix}id IN (SELECT candidate_id FROM pipeline_stages WHERE stage IN (${placeholders}))`);
+    params.push(...filters.stages);
+  }
+
   if (filters.dateRange && filters.dateRange.start && filters.dateRange.end) {
     conditions.push(`${prefix}created_at >= ? AND ${prefix}created_at <= ?`);
     params.push(filters.dateRange.start, filters.dateRange.end + ' 23:59:59');
@@ -80,8 +86,13 @@ export function getFunnelData(filters: FilterParams): FunnelStage[] {
   ).all(...params) as { id: string }[];
 
   const idList = candidateIds.map(c => c.id);
+
+  const activeStages = filters.stages && filters.stages.length > 0
+    ? STAGE_ORDER.filter(s => filters.stages!.includes(s))
+    : STAGE_ORDER;
+
   if (idList.length === 0) {
-    return STAGE_ORDER.map(stage => ({
+    return activeStages.map(stage => ({
       stage,
       stageLabel: STAGE_LABELS[stage],
       count: 0,
@@ -122,9 +133,11 @@ export function getFunnelData(filters: FilterParams): FunnelStage[] {
   }
 
   const totalCandidates = idList.length;
-  return STAGE_ORDER.map((stage, idx) => {
+  return activeStages.map((stage) => {
+    const orderIdx = STAGE_ORDER.indexOf(stage);
     const count = stageCounts[stage];
-    const prevCount = idx === 0 ? totalCandidates : stageCounts[STAGE_ORDER[idx - 1]];
+    const prevStage = orderIdx > 0 ? STAGE_ORDER[orderIdx - 1] : null;
+    const prevCount = prevStage ? stageCounts[prevStage as StageName] : totalCandidates;
     const conversionRate = prevCount > 0 ? Math.round((count / prevCount) * 10000) / 100 : 0;
 
     const durations = stageDurations[stage];
@@ -151,8 +164,13 @@ export function getStageDuration(filters: FilterParams): { stage: StageName; sta
   ).all(...params) as { id: string }[];
 
   const idList = candidateIds.map(c => c.id);
+
+  const activeStages = filters.stages && filters.stages.length > 0
+    ? STAGE_ORDER.filter(s => filters.stages!.includes(s))
+    : STAGE_ORDER;
+
   if (idList.length === 0) {
-    return STAGE_ORDER.map(stage => ({
+    return activeStages.map(stage => ({
       stage,
       stageLabel: STAGE_LABELS[stage],
       durations: [],
@@ -162,10 +180,15 @@ export function getStageDuration(filters: FilterParams): { stage: StageName; sta
     }));
   }
 
+  const stageFilterSql = filters.stages && filters.stages.length > 0
+    ? ` AND stage IN (${filters.stages.map(() => '?').join(',')})`
+    : '';
+  const stageFilterParams = filters.stages && filters.stages.length > 0 ? filters.stages : [];
+
   const placeholders = idList.map(() => '?').join(',');
   const stages = db.prepare(
-    `SELECT stage, entered_at, exited_at FROM pipeline_stages WHERE candidate_id IN (${placeholders}) AND exited_at IS NOT NULL`
-  ).all(...idList) as { stage: StageName; entered_at: string; exited_at: string }[];
+    `SELECT stage, entered_at, exited_at FROM pipeline_stages WHERE candidate_id IN (${placeholders}) AND exited_at IS NOT NULL${stageFilterSql}`
+  ).all(...idList, ...stageFilterParams) as { stage: StageName; entered_at: string; exited_at: string }[];
 
   const stageDurations: Record<StageName, number[]> = {
     posted: [], applied: [], screened: [], interviewed: [], offered: [], hired: [],
@@ -178,7 +201,7 @@ export function getStageDuration(filters: FilterParams): { stage: StageName; sta
     }
   }
 
-  return STAGE_ORDER.map(stage => {
+  return activeStages.map(stage => {
     const durations = stageDurations[stage];
     const avg = durations.length > 0 ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10 : 0;
     return {

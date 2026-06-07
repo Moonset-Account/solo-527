@@ -33,9 +33,10 @@ export function permissionMiddleware(req: Request, res: Response, next: NextFunc
   req.userId = userIdHeader;
 
   if (role === 'interviewer') {
-    const allowedPaths = ['/api/workload'];
-    if (!allowedPaths.some(p => req.path.startsWith(p))) {
-      res.status(403).json({ success: false, error: 'Interviewers can only access workload endpoint' });
+    const blockedPaths = ['/api/annotations'];
+    const writeOnly = req.method !== 'GET';
+    if (blockedPaths.some(p => req.path.startsWith(p)) || writeOnly) {
+      res.status(403).json({ success: false, error: 'Interviewers have read-only access to dashboard data' });
       return;
     }
   }

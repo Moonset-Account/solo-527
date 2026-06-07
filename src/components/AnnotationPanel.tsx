@@ -1,30 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Plus, AlertTriangle } from "lucide-react";
 import { useAppStore } from "@/store";
+import type { AnomalyAnnotation } from "@/types";
 
 export default function AnnotationPanel() {
-  const { annotationPanelOpen, toggleAnnotationPanel, annotations, addAnnotation } = useAppStore();
+  const { annotationPanelOpen, toggleAnnotationPanel, role, setAnnotations } = useAppStore();
+  const annotations = useAppStore((s) => s.annotations);
   const [newComment, setNewComment] = useState("");
   const [newStage, setNewStage] = useState("");
   const [newMetric, setNewMetric] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const fetchAnnotations = useCallback(async () => {
+    try {
+      const headers: Record<string, string> = { "X-User-Role": role };
+      const res = await fetch("/api/annotations", { headers });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data !== undefined ? json.data : json;
+        setAnnotations(data as AnomalyAnnotation[]);
+      }
+    } catch {}
+  }, [role, setAnnotations]);
+
+  useEffect(() => {
+    if (annotationPanelOpen) {
+      fetchAnnotations();
+    }
+  }, [annotationPanelOpen, fetchAnnotations]);
 
   if (!annotationPanelOpen) return null;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newComment.trim()) return;
-    addAnnotation({
-      id: `ann-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      stage: newStage || "整体",
-      metric: newMetric || "通用",
-      value: 0,
-      comment: newComment.trim(),
-      createdBy: "当前用户",
-      createdAt: new Date().toISOString(),
-    });
-    setNewComment("");
-    setNewStage("");
-    setNewMetric("");
+    setLoading(true);
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-User-Role": role,
+      };
+      const res = await fetch("/api/annotations", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          date: new Date().toISOString().split("T")[0],
+          stage: newStage || "整体",
+          metric: newMetric || "通用",
+          value: 0,
+          comment: newComment.trim(),
+          createdBy: "当前用户",
+        }),
+      });
+      if (res.ok) {
+        setNewComment("");
+        setNewStage("");
+        setNewMetric("");
+        await fetchAnnotations();
+      }
+    } catch {}
+    setLoading(false);
   };
 
   return (
@@ -42,40 +76,43 @@ export default function AnnotationPanel() {
         </button>
       </div>
 
-      <div className="p-4 border-b border-accent-cyan/10">
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input
-              value={newStage}
-              onChange={(e) => setNewStage(e.target.value)}
-              placeholder="阶段"
-              className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
-            />
-            <input
-              value={newMetric}
-              onChange={(e) => setNewMetric(e.target.value)}
-              placeholder="指标"
-              className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
-            />
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="添加注释..."
-              className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            />
-            <button
-              onClick={handleAdd}
-              className="px-3 py-1.5 bg-accent-cyan/20 text-accent-cyan rounded-lg text-xs hover:bg-accent-cyan/30 transition-colors flex items-center gap-1"
-            >
-              <Plus size={12} />
-              添加
-            </button>
+      {role !== "interviewer" && (
+        <div className="p-4 border-b border-accent-cyan/10">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                value={newStage}
+                onChange={(e) => setNewStage(e.target.value)}
+                placeholder="阶段"
+                className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
+              />
+              <input
+                value={newMetric}
+                onChange={(e) => setNewMetric(e.target.value)}
+                placeholder="指标"
+                className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
+              />
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="添加注释..."
+                className="flex-1 bg-secondary-bg/60 border border-accent-cyan/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-accent-cyan/40"
+                onKeyDown={(e) => e.key === "Enter" && !loading && handleAdd()}
+              />
+              <button
+                onClick={handleAdd}
+                disabled={loading}
+                className="px-3 py-1.5 bg-accent-cyan/20 text-accent-cyan rounded-lg text-xs hover:bg-accent-cyan/30 transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <Plus size={12} />
+                添加
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="overflow-y-auto h-[calc(100vh-10rem)] p-4 space-y-3">
         {annotations.length === 0 ? (

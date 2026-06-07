@@ -30,8 +30,8 @@ function parseFilterParams(query: Record<string, unknown>): FilterParams {
     channels: parseArray(query.channels),
     stages: parseArray(query.stages),
     dateRange: {
-      start: (query.dateStart as string) || '2025-01-01',
-      end: (query.dateEnd as string) || '2025-12-31',
+      start: (query.startDate as string) || '2025-01-01',
+      end: (query.endDate as string) || '2025-12-31',
     },
   };
 }

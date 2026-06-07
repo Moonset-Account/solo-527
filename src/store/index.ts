@@ -7,6 +7,7 @@ interface AppState {
   sidebarOpen: boolean;
   annotationPanelOpen: boolean;
   annotations: AnomalyAnnotation[];
+  roleVersion: number;
   setFilters: (filters: Partial<FilterParams>) => void;
   resetFilters: () => void;
   setRole: (role: UserRole) => void;
@@ -34,12 +35,13 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarOpen: true,
   annotationPanelOpen: false,
   annotations: [],
+  roleVersion: 0,
   setFilters: (partial) =>
     set((state) => ({
       filters: { ...state.filters, ...partial },
     })),
   resetFilters: () => set({ filters: defaultFilters }),
-  setRole: (role) => set({ role }),
+  setRole: (role) => set((state) => ({ role, roleVersion: state.roleVersion + 1 })),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleAnnotationPanel: () =>
     set((state) => ({ annotationPanelOpen: !state.annotationPanelOpen })),
