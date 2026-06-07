@@ -78,119 +78,112 @@ class ClickHouseModels:
                 filtered.append(row)
         return filtered
 
-    def _apply_cross_dimension_filters(self, data, filters, data_type):
-        if not filters:
-            return data
-        vehicle_ids = self._split_ids(filters.get("vehicle_id"))
-        route_ids = self._split_ids(filters.get("route_id"))
-        batch_ids = self._split_ids(filters.get("batch_id"))
-        box_ids = self._split_ids(filters.get("box_id"))
-        customers = self._split_ids(filters.get("customer"))
-
-        resolved_vehicle_ids = set(vehicle_ids) if vehicle_ids else None
-        resolved_route_ids = set(route_ids) if route_ids else None
-        resolved_batch_ids = set(batch_ids) if batch_ids else None
-        resolved_box_ids = set(box_ids) if box_ids else None
+    def _resolve_entity_ids(self, filters):
+        vehicle_ids = set(self._split_ids(filters.get("vehicle_id"))) if filters.get("vehicle_id") else None
+        route_ids = set(self._split_ids(filters.get("route_id"))) if filters.get("route_id") else None
+        batch_ids = set(self._split_ids(filters.get("batch_id"))) if filters.get("batch_id") else None
+        box_ids = set(self._split_ids(filters.get("box_id"))) if filters.get("box_id") else None
+        customers = self._split_ids(filters.get("customer")) if filters.get("customer") else None
 
         if customers:
             customer_data = self._mock_data.get("customers", [])
             cust_ids = {c["customer_id"] for c in customer_data if c["name"] in customers}
             deliveries = self._mock_data.get("deliveries", [])
             cust_batch_ids = {d["batch_id"] for d in deliveries if d.get("customer_id") in cust_ids}
-            if resolved_batch_ids is not None:
-                resolved_batch_ids &= cust_batch_ids
-            else:
-                resolved_batch_ids = cust_batch_ids
+            batch_ids = cust_batch_ids if batch_ids is None else batch_ids & cust_batch_ids
 
-        if resolved_batch_ids is not None:
-            batches = self._mock_data.get("batches", [])
-            batch_route_ids = {b["route_id"] for b in batches if b["batch_id"] in resolved_batch_ids}
-            if resolved_route_ids is not None:
-                resolved_route_ids &= batch_route_ids
-            else:
-                resolved_route_ids = batch_route_ids
-
-        if resolved_route_ids is not None:
-            routes = self._mock_data.get("routes", [])
-            route_vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in resolved_route_ids}
-            if resolved_vehicle_ids is not None:
-                resolved_vehicle_ids &= route_vehicle_ids
-            else:
-                resolved_vehicle_ids = route_vehicle_ids
-
-        if resolved_box_ids is not None:
+        if box_ids is not None:
             boxes = self._mock_data.get("temperature_boxes", [])
-            box_vehicle_ids = {b["vehicle_id"] for b in boxes if b["box_id"] in resolved_box_ids}
-            box_batch_ids = {b["batch_id"] for b in boxes if b["box_id"] in resolved_box_ids}
-            if resolved_vehicle_ids is not None:
-                resolved_vehicle_ids &= box_vehicle_ids
-            else:
-                resolved_vehicle_ids = box_vehicle_ids
-            if resolved_batch_ids is not None:
-                resolved_batch_ids &= box_batch_ids
-            else:
-                resolved_batch_ids = box_batch_ids
+            box_batch_ids = {b["batch_id"] for b in boxes if b["box_id"] in box_ids}
+            batch_ids = box_batch_ids if batch_ids is None else batch_ids & box_batch_ids
+
+        if batch_ids is not None:
             batches = self._mock_data.get("batches", [])
-            box_route_ids = {b["route_id"] for b in batches if b["batch_id"] in resolved_batch_ids}
-            if resolved_route_ids is not None:
-                resolved_route_ids &= box_route_ids
-            else:
-                resolved_route_ids = box_route_ids
+            batch_route_ids = {b["route_id"] for b in batches if b["batch_id"] in batch_ids}
+            route_ids = batch_route_ids if route_ids is None else route_ids & batch_route_ids
+
+        if route_ids is not None:
             routes = self._mock_data.get("routes", [])
-            box_r_vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in resolved_route_ids}
-            if resolved_vehicle_ids is not None:
-                resolved_vehicle_ids &= box_r_vehicle_ids
-            else:
-                resolved_vehicle_ids = box_r_vehicle_ids
+            route_vehicle_ids = {r["vehicle_id"] for r in routes if r["route_id"] in route_ids}
+            vehicle_ids = route_vehicle_ids if vehicle_ids is None else vehicle_ids & route_vehicle_ids
+
+        if vehicle_ids is not None and route_ids is None:
+            routes = self._mock_data.get("routes", [])
+            route_ids = {r["route_id"] for r in routes if r["vehicle_id"] in vehicle_ids}
+
+        if route_ids is not None and batch_ids is None:
+            batches = self._mock_data.get("batches", [])
+            batch_ids = {b["batch_id"] for b in batches if b["route_id"] in route_ids}
+
+        if batch_ids is not None and box_ids is None:
+            boxes = self._mock_data.get("temperature_boxes", [])
+            box_ids = {b["box_id"] for b in boxes if b["batch_id"] in batch_ids}
+
+        return vehicle_ids, route_ids, batch_ids, box_ids
+
+    def _apply_cross_dimension_filters(self, data, filters, data_type):
+        if not filters:
+            return data
+
+        vehicle_ids, route_ids, batch_ids, box_ids = self._resolve_entity_ids(filters)
 
         if data_type == "vehicles":
-            if resolved_vehicle_ids is not None:
-                data = [v for v in data if v["vehicle_id"] in resolved_vehicle_ids]
+            if vehicle_ids is not None:
+                data = [v for v in data if v["vehicle_id"] in vehicle_ids]
         elif data_type == "routes":
-            if resolved_route_ids is not None:
-                data = [r for r in data if r["route_id"] in resolved_route_ids]
+            if route_ids is not None:
+                data = [r for r in data if r["route_id"] in route_ids]
         elif data_type == "batches":
-            if resolved_batch_ids is not None:
-                data = [b for b in data if b["batch_id"] in resolved_batch_ids]
-        elif data_type == "exceptions":
-            if resolved_vehicle_ids is not None:
-                data = [e for e in data if e.get("vehicle_id") in resolved_vehicle_ids]
-            elif resolved_route_ids is not None:
-                data = [e for e in data if e.get("route_id") in resolved_route_ids]
-            elif resolved_batch_ids is not None:
-                data = [e for e in data if e.get("batch_id") in resolved_batch_ids]
-            elif resolved_box_ids is not None:
-                data = [e for e in data if e.get("box_id") in resolved_box_ids]
+            if batch_ids is not None:
+                data = [b for b in data if b["batch_id"] in batch_ids]
         elif data_type == "boxes":
-            if resolved_box_ids is not None:
-                data = [b for b in data if b["box_id"] in resolved_box_ids]
-            elif resolved_vehicle_ids is not None:
-                data = [b for b in data if b["vehicle_id"] in resolved_vehicle_ids]
-            elif resolved_batch_ids is not None:
-                data = [b for b in data if b["batch_id"] in resolved_batch_ids]
+            if box_ids is not None:
+                data = [b for b in data if b["box_id"] in box_ids]
+            elif vehicle_ids is not None:
+                data = [b for b in data if b["vehicle_id"] in vehicle_ids]
+            elif batch_ids is not None:
+                data = [b for b in data if b["batch_id"] in batch_ids]
         elif data_type == "readings":
-            if resolved_box_ids is not None:
-                data = [r for r in data if r["box_id"] in resolved_box_ids]
-            elif resolved_vehicle_ids is not None:
+            if box_ids is not None:
+                data = [r for r in data if r["box_id"] in box_ids]
+            elif batch_ids is not None:
                 boxes = self._mock_data.get("temperature_boxes", [])
-                match_box_ids = {b["box_id"] for b in boxes if b["vehicle_id"] in resolved_vehicle_ids}
+                match_box_ids = {b["box_id"] for b in boxes if b["batch_id"] in batch_ids}
                 data = [r for r in data if r["box_id"] in match_box_ids]
-            elif resolved_batch_ids is not None:
-                boxes = self._mock_data.get("temperature_boxes", [])
-                match_box_ids = {b["box_id"] for b in boxes if b["batch_id"] in resolved_batch_ids}
-                data = [r for r in data if r["box_id"] in match_box_ids]
-            elif resolved_route_ids is not None:
+            elif route_ids is not None:
                 boxes = self._mock_data.get("temperature_boxes", [])
                 batches_data = {b["batch_id"]: b for b in self._mock_data.get("batches", [])}
                 match_box_ids = set()
                 for box in boxes:
                     batch = batches_data.get(box.get("batch_id"))
-                    if batch and batch.get("route_id") in resolved_route_ids:
+                    if batch and batch.get("route_id") in route_ids:
                         match_box_ids.add(box["box_id"])
                 data = [r for r in data if r["box_id"] in match_box_ids]
+            elif vehicle_ids is not None:
+                boxes = self._mock_data.get("temperature_boxes", [])
+                match_box_ids = {b["box_id"] for b in boxes if b["vehicle_id"] in vehicle_ids}
+                data = [r for r in data if r["box_id"] in match_box_ids]
+        elif data_type == "exceptions":
+            if batch_ids is not None:
+                data = [e for e in data if e.get("batch_id") in batch_ids]
+            elif route_ids is not None:
+                data = [e for e in data if e.get("route_id") in route_ids]
+            elif vehicle_ids is not None:
+                data = [e for e in data if e.get("vehicle_id") in vehicle_ids]
+            elif box_ids is not None:
+                data = [e for e in data if e.get("box_id") in box_ids]
+            if filters.get("exception_type"):
+                data = [e for e in data if e["exception_type"] == filters["exception_type"]]
+            if filters.get("severity"):
+                data = [e for e in data if e["severity"] == filters["severity"]]
+        elif data_type == "door_events":
+            if vehicle_ids is not None:
+                data = [d for d in data if d["vehicle_id"] in vehicle_ids]
+            elif box_ids is not None:
+                data = [d for d in data if d.get("box_id") in box_ids]
 
-        date_start = filters.get("date_start") if filters else None
-        date_end = filters.get("date_end") if filters else None
+        date_start = filters.get("date_start")
+        date_end = filters.get("date_end")
         if date_start or date_end:
             if data_type == "vehicles":
                 routes = self._mock_data.get("routes", [])
@@ -199,23 +192,31 @@ class ClickHouseModels:
                     dep = r.get("planned_departure", "")
                     if dep and (not date_start or dep >= date_start) and (not date_end or dep <= date_end):
                         v_ids.add(r["vehicle_id"])
+                if vehicle_ids is not None:
+                    v_ids &= vehicle_ids
                 data = [v for v in data if v["vehicle_id"] in v_ids]
             elif data_type == "routes":
                 data = [r for r in data if (not date_start or r.get("planned_departure", "") >= date_start) and (not date_end or r.get("planned_departure", "") <= date_end)]
             elif data_type == "batches":
                 routes = self._mock_data.get("routes", [])
                 r_ids = {r["route_id"] for r in routes if (not date_start or r.get("planned_departure", "") >= date_start) and (not date_end or r.get("planned_departure", "") <= date_end)}
+                if route_ids is not None:
+                    r_ids &= route_ids
                 data = [b for b in data if b["route_id"] in r_ids]
             elif data_type == "exceptions":
                 data = [e for e in data if (not date_start or e.get("started_at", "") >= date_start) and (not date_end or e.get("started_at", "") <= date_end)]
             elif data_type == "readings":
                 data = [r for r in data if (not date_start or r.get("recorded_at", "") >= date_start) and (not date_end or r.get("recorded_at", "") <= date_end)]
-
-        if data_type == "exceptions" and filters:
-            if filters.get("exception_type"):
-                data = [e for e in data if e["exception_type"] == filters["exception_type"]]
-            if filters.get("severity"):
-                data = [e for e in data if e["severity"] == filters["severity"]]
+            elif data_type == "boxes":
+                routes = self._mock_data.get("routes", [])
+                batches = self._mock_data.get("batches", [])
+                r_ids = {r["route_id"] for r in routes if (not date_start or r.get("planned_departure", "") >= date_start) and (not date_end or r.get("planned_departure", "") <= date_end)}
+                if route_ids is not None:
+                    r_ids &= route_ids
+                b_ids = {b["batch_id"] for b in batches if b["route_id"] in r_ids}
+                if batch_ids is not None:
+                    b_ids &= batch_ids
+                data = [b for b in data if b["batch_id"] in b_ids]
 
         return data
 
