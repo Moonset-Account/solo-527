@@ -8,15 +8,6 @@ import { calculateWaitDays, cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ChevronDown, Loader2 } from 'lucide-react';
 
-const COURSES = [
-  { id: 'course-1', name: '少儿英语启蒙' },
-  { id: 'course-2', name: '青少年编程基础' },
-  { id: 'course-3', name: '数学思维训练' },
-  { id: 'course-4', name: '创意美术' },
-  { id: 'course-5', name: '钢琴入门' },
-  { id: 'course-6', name: '机器人编程' },
-];
-
 type WaitlistItem = {
   id: string;
   studentId: string;
@@ -53,27 +44,36 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 
 export default function WaitlistPage() {
   const queryClient = useQueryClient();
-  const [selectedCourse, setSelectedCourse] = useState('course-1');
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [adjustEntry, setAdjustEntry] = useState<WaitlistItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const { data: courses } = useQuery({
+    queryKey: ['meta.courses'],
+    queryFn: () => trpc.meta.courses.query(),
+  });
+
+  const effectiveCourseId = selectedCourse || (courses?.[0]?.id ?? '');
+
   const { data: entries, isLoading: entriesLoading } = useQuery({
-    queryKey: ['waitlist.list', selectedCourse],
-    queryFn: () => trpc.waitlist.list.query({ courseId: selectedCourse }),
+    queryKey: ['waitlist.list', effectiveCourseId],
+    queryFn: () => trpc.waitlist.list.query({ courseId: effectiveCourseId }),
+    enabled: !!effectiveCourseId,
   });
 
   const { data: adjustLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ['waitlist.history', selectedCourse],
-    queryFn: () => trpc.waitlist.history.query({ courseId: selectedCourse }),
+    queryKey: ['waitlist.history', effectiveCourseId],
+    queryFn: () => trpc.waitlist.history.query({ courseId: effectiveCourseId }),
+    enabled: !!effectiveCourseId,
   });
 
   const adjustMutation = useMutation({
     mutationFn: (params: { entryId: string; newPosition: number; reason: string }) =>
       trpc.waitlist.adjust.mutate(params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['waitlist.list', selectedCourse] });
-      queryClient.invalidateQueries({ queryKey: ['waitlist.history', selectedCourse] });
+      queryClient.invalidateQueries({ queryKey: ['waitlist.list', effectiveCourseId] });
+      queryClient.invalidateQueries({ queryKey: ['waitlist.history', effectiveCourseId] });
     },
   });
 
@@ -81,7 +81,7 @@ export default function WaitlistPage() {
     mutationFn: (params: { entryId: string }) =>
       trpc.waitlist.convert.mutate(params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['waitlist.list', selectedCourse] });
+      queryClient.invalidateQueries({ queryKey: ['waitlist.list', effectiveCourseId] });
     },
   });
 
@@ -100,7 +100,7 @@ export default function WaitlistPage() {
     setModalOpen(true);
   };
 
-  const selectedCourseName = COURSES.find((c) => c.id === selectedCourse)?.name ?? '';
+  const selectedCourseName = courses?.find((c) => c.id === effectiveCourseId)?.name ?? '';
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] p-6">
@@ -120,7 +120,7 @@ export default function WaitlistPage() {
           </button>
           {dropdownOpen && (
             <div className="absolute top-full left-0 z-10 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-              {COURSES.map((course) => (
+              {(courses ?? []).map((course) => (
                 <button
                   key={course.id}
                   onClick={() => {
@@ -129,7 +129,7 @@ export default function WaitlistPage() {
                   }}
                   className={cn(
                     'block w-full px-4 py-2 text-left text-sm hover:bg-gray-50',
-                    selectedCourse === course.id && 'bg-[#E8A838]/10 font-medium text-[#E8A838]'
+                    effectiveCourseId === course.id && 'bg-[#E8A838]/10 font-medium text-[#E8A838]'
                   )}
                 >
                   {course.name}

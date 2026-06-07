@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
+import { AGE_GROUPS, CHANNELS, LOW_SAMPLE_THRESHOLD } from "@/lib/constants";
 
 type FunnelStage = "browse" | "inquiry" | "enroll" | "waitlist" | "converted" | "refund";
 
@@ -14,86 +15,6 @@ const STAGE_LABELS: Record<FunnelStage, string> = {
 
 const STAGE_ORDER: FunnelStage[] = ["browse", "inquiry", "enroll", "waitlist", "converted", "refund"];
 
-const BASE_COUNTS: Record<FunnelStage, number> = {
-  browse: 500,
-  inquiry: 280,
-  enroll: 150,
-  waitlist: 45,
-  converted: 30,
-  refund: 8,
-};
-
-const CAMPUSES = [
-  { id: "campus-1", name: "朝阳区校区" },
-  { id: "campus-2", name: "海淀区校区" },
-  { id: "campus-3", name: "西城区校区" },
-];
-
-const COURSES = [
-  { id: "course-1", name: "少儿英语启蒙", ageGroup: "3-6岁", campusId: "campus-1", capacity: 20 },
-  { id: "course-2", name: "青少年编程基础", ageGroup: "10-12岁", campusId: "campus-1", capacity: 15 },
-  { id: "course-3", name: "数学思维训练", ageGroup: "7-9岁", campusId: "campus-2", capacity: 25 },
-  { id: "course-4", name: "创意美术", ageGroup: "3-6岁", campusId: "campus-2", capacity: 20 },
-  { id: "course-5", name: "钢琴入门", ageGroup: "7-9岁", campusId: "campus-3", capacity: 10 },
-  { id: "course-6", name: "机器人编程", ageGroup: "13-15岁", campusId: "campus-3", capacity: 18 },
-];
-
-const AGE_GROUPS = ["3-6岁", "7-9岁", "10-12岁", "13-15岁"];
-const CHANNELS = ["线下推广", "微信公众号", "朋友推荐", "线上广告", "官网注册"];
-
-const CAMPUS_RATIOS: Record<string, Record<FunnelStage, number>> = {
-  "campus-1": { browse: 180, inquiry: 105, enroll: 58, waitlist: 18, converted: 12, refund: 3 },
-  "campus-2": { browse: 175, inquiry: 95, enroll: 52, waitlist: 15, converted: 10, refund: 3 },
-  "campus-3": { browse: 145, inquiry: 80, enroll: 40, waitlist: 12, converted: 8, refund: 2 },
-};
-
-const COURSE_RATIOS: Record<string, Record<FunnelStage, number>> = {
-  "course-1": { browse: 95, inquiry: 55, enroll: 30, waitlist: 12, converted: 8, refund: 2 },
-  "course-2": { browse: 85, inquiry: 50, enroll: 28, waitlist: 8, converted: 5, refund: 1 },
-  "course-3": { browse: 90, inquiry: 48, enroll: 25, waitlist: 7, converted: 5, refund: 2 },
-  "course-4": { browse: 80, inquiry: 45, enroll: 22, waitlist: 6, converted: 4, refund: 1 },
-  "course-5": { browse: 75, inquiry: 42, enroll: 23, waitlist: 7, converted: 5, refund: 1 },
-  "course-6": { browse: 75, inquiry: 40, enroll: 22, waitlist: 5, converted: 3, refund: 1 },
-};
-
-const AGE_RATIOS: Record<string, Record<FunnelStage, number>> = {
-  "3-6岁": { browse: 175, inquiry: 100, enroll: 52, waitlist: 18, converted: 12, refund: 3 },
-  "7-9岁": { browse: 165, inquiry: 90, enroll: 48, waitlist: 13, converted: 9, refund: 3 },
-  "10-12岁": { browse: 100, inquiry: 55, enroll: 30, waitlist: 8, converted: 5, refund: 1 },
-  "13-15岁": { browse: 60, inquiry: 35, enroll: 20, waitlist: 6, converted: 4, refund: 1 },
-};
-
-const CHANNEL_RATIOS: Record<string, Record<FunnelStage, number>> = {
-  "线下推广": { browse: 120, inquiry: 75, enroll: 42, waitlist: 12, converted: 8, refund: 2 },
-  "微信公众号": { browse: 140, inquiry: 72, enroll: 38, waitlist: 11, converted: 7, refund: 2 },
-  "朋友推荐": { browse: 80, inquiry: 52, enroll: 32, waitlist: 9, converted: 7, refund: 1 },
-  "线上广告": { browse: 110, inquiry: 50, enroll: 24, waitlist: 8, converted: 5, refund: 2 },
-  "官网注册": { browse: 50, inquiry: 31, enroll: 14, waitlist: 5, converted: 3, refund: 1 },
-};
-
-function buildFunnelData(counts: Record<FunnelStage, number>) {
-  return STAGE_ORDER.map((stage, i) => {
-    const prevCount = i === 0 ? counts[stage] : counts[STAGE_ORDER[i - 1]];
-    return {
-      stage,
-      label: STAGE_LABELS[stage],
-      count: counts[stage],
-      rate: i === 0 ? 1 : prevCount > 0 ? counts[stage] / prevCount : 0,
-    };
-  });
-}
-
-function buildDrilldownItems(
-  items: { id: string; name: string }[],
-  ratios: Record<string, Record<FunnelStage, number>>,
-) {
-  return items.map((item) => ({
-    key: item.id,
-    label: item.name,
-    data: buildFunnelData(ratios[item.id] ?? BASE_COUNTS),
-  }));
-}
-
 const funnelFilterSchema = z.object({
   campusIds: z.array(z.string()).optional(),
   courseIds: z.array(z.string()).optional(),
@@ -107,38 +28,186 @@ const funnelFilterSchema = z.object({
     .optional(),
 });
 
-export const funnelRouter = createTRPCRouter({
-  getFunnel: publicProcedure.input(funnelFilterSchema).query(({ input }) => {
-    void input;
+type FilterInput = z.infer<typeof funnelFilterSchema>;
 
-    const data = buildFunnelData(BASE_COUNTS);
+function enrollmentWhere(filter: FilterInput) {
+  return {
+    isDuplicate: false,
+    ...(filter.campusIds?.length ? { campusId: { in: filter.campusIds } } : {}),
+    ...(filter.courseIds?.length ? { courseId: { in: filter.courseIds } } : {}),
+    ...(filter.ageGroups?.length ? { student: { ageGroup: { in: filter.ageGroups } } } : {}),
+    ...(filter.channels?.length ? { channel: { in: filter.channels } } : {}),
+    ...(filter.dateRange
+      ? { enrollTime: { gte: filter.dateRange.start, lte: filter.dateRange.end } }
+      : {}),
+  };
+}
+
+function waitlistWhere(filter: FilterInput) {
+  return {
+    ...(filter.campusIds?.length ? { campusId: { in: filter.campusIds } } : {}),
+    ...(filter.courseIds?.length ? { courseId: { in: filter.courseIds } } : {}),
+    ...(filter.ageGroups?.length ? { student: { ageGroup: { in: filter.ageGroups } } } : {}),
+    ...(filter.channels?.length ? { channel: { in: filter.channels } } : {}),
+    ...(filter.dateRange
+      ? { originalEnrollTime: { gte: filter.dateRange.start, lte: filter.dateRange.end } }
+      : {}),
+  };
+}
+
+function refundWhere(filter: FilterInput) {
+  return {
+    ...(filter.courseIds?.length ? { courseId: { in: filter.courseIds } } : {}),
+    ...(filter.ageGroups?.length ? { student: { ageGroup: { in: filter.ageGroups } } } : {}),
+    ...(filter.campusIds?.length ? { course: { campusId: { in: filter.campusIds } } } : {}),
+    ...(filter.channels?.length ? { enrollment: { channel: { in: filter.channels } } } : {}),
+    ...(filter.dateRange
+      ? { refundTime: { gte: filter.dateRange.start, lte: filter.dateRange.end } }
+      : {}),
+  };
+}
+
+interface StageCounts {
+  browse: number;
+  inquiry: number;
+  enroll: number;
+  waitlist: number;
+  converted: number;
+  refund: number;
+}
+
+function buildFunnelData(counts: StageCounts) {
+  return STAGE_ORDER.map((stage, i) => {
+    const prevCount = i === 0 ? counts[stage] : counts[STAGE_ORDER[i - 1]];
+    return {
+      stage,
+      label: STAGE_LABELS[stage],
+      count: counts[stage],
+      rate: i === 0 ? 1 : prevCount > 0 ? counts[stage] / prevCount : 0,
+    };
+  });
+}
+
+export const funnelRouter = createTRPCRouter({
+  getFunnel: publicProcedure.input(funnelFilterSchema).query(async ({ input, ctx }) => {
+    const eWhere = enrollmentWhere(input);
+    const wWhere = waitlistWhere(input);
+    const rWhere = refundWhere(input);
+
+    const [browseCount, inquiryCount, enrollCount, waitlistCount, convertedCount, refundCount] =
+      await Promise.all([
+        ctx.prisma.enrollment.count({ where: { ...eWhere, status: "browse" } }),
+        ctx.prisma.enrollment.count({ where: { ...eWhere, status: "inquiry" } }),
+        ctx.prisma.enrollment.count({ where: { ...eWhere, status: "enrolled" } }),
+        ctx.prisma.waitlistEntry.count({ where: wWhere }),
+        ctx.prisma.waitlistEntry.count({ where: { ...wWhere, status: "converted" } }),
+        ctx.prisma.refundRecord.count({ where: rWhere }),
+      ]);
+
+    const counts: StageCounts = {
+      browse: browseCount,
+      inquiry: inquiryCount,
+      enroll: enrollCount,
+      waitlist: waitlistCount,
+      converted: convertedCount,
+      refund: refundCount,
+    };
+
+    const data = buildFunnelData(counts);
+
+    const [enrollments, waitlistEntries, refundRecords, campuses, courses] = await Promise.all([
+      ctx.prisma.enrollment.findMany({
+        where: eWhere,
+        select: {
+          status: true,
+          campusId: true,
+          courseId: true,
+          channel: true,
+          student: { select: { ageGroup: true } },
+        },
+      }),
+      ctx.prisma.waitlistEntry.findMany({
+        where: wWhere,
+        select: {
+          status: true,
+          campusId: true,
+          courseId: true,
+          channel: true,
+          student: { select: { ageGroup: true } },
+        },
+      }),
+      ctx.prisma.refundRecord.findMany({
+        where: rWhere,
+        select: {
+          courseId: true,
+          student: { select: { ageGroup: true } },
+          course: { select: { campusId: true } },
+          enrollment: { select: { channel: true } },
+        },
+      }),
+      ctx.prisma.campus.findMany({ select: { id: true, name: true } }),
+      ctx.prisma.course.findMany({ select: { id: true, name: true } }),
+    ]);
+
+    function countStages(
+      eList: typeof enrollments,
+      wList: typeof waitlistEntries,
+      rList: typeof refundRecords,
+    ): StageCounts & { lowSample: boolean } {
+      const browse = eList.filter((e) => e.status === "browse").length;
+      const inquiry = eList.filter((e) => e.status === "inquiry").length;
+      const enroll = eList.filter((e) => e.status === "enrolled").length;
+      const wl = wList.length;
+      const converted = wList.filter((w) => w.status === "converted").length;
+      const refund = rList.length;
+      return {
+        browse,
+        inquiry,
+        enroll,
+        waitlist: wl,
+        converted,
+        refund,
+        lowSample: wl < LOW_SAMPLE_THRESHOLD,
+      };
+    }
+
+    const campusItems = campuses.map((campus) => {
+      const ef = enrollments.filter((e) => e.campusId === campus.id);
+      const wf = waitlistEntries.filter((w) => w.campusId === campus.id);
+      const rf = refundRecords.filter((r) => r.course.campusId === campus.id);
+      const sc = countStages(ef, wf, rf);
+      return { key: campus.id, label: campus.name, data: buildFunnelData(sc), lowSample: sc.lowSample };
+    });
+
+    const courseItems = courses.map((course) => {
+      const ef = enrollments.filter((e) => e.courseId === course.id);
+      const wf = waitlistEntries.filter((w) => w.courseId === course.id);
+      const rf = refundRecords.filter((r) => r.courseId === course.id);
+      const sc = countStages(ef, wf, rf);
+      return { key: course.id, label: course.name, data: buildFunnelData(sc), lowSample: sc.lowSample };
+    });
+
+    const ageGroupItems = AGE_GROUPS.map((ag) => {
+      const ef = enrollments.filter((e) => e.student.ageGroup === ag);
+      const wf = waitlistEntries.filter((w) => w.student.ageGroup === ag);
+      const rf = refundRecords.filter((r) => r.student.ageGroup === ag);
+      const sc = countStages(ef, wf, rf);
+      return { key: ag, label: ag, data: buildFunnelData(sc), lowSample: sc.lowSample };
+    });
+
+    const channelItems = CHANNELS.map((ch) => {
+      const ef = enrollments.filter((e) => e.channel === ch);
+      const wf = waitlistEntries.filter((w) => w.channel === ch);
+      const rf = refundRecords.filter((r) => r.enrollment.channel === ch);
+      const sc = countStages(ef, wf, rf);
+      return { key: ch, label: ch, data: buildFunnelData(sc), lowSample: sc.lowSample };
+    });
 
     const drilldown = [
-      {
-        dimension: "campus" as const,
-        items: buildDrilldownItems(CAMPUSES, CAMPUS_RATIOS),
-      },
-      {
-        dimension: "course" as const,
-        items: buildDrilldownItems(
-          COURSES.map((c) => ({ id: c.id, name: c.name })),
-          COURSE_RATIOS,
-        ),
-      },
-      {
-        dimension: "ageGroup" as const,
-        items: buildDrilldownItems(
-          AGE_GROUPS.map((g) => ({ id: g, name: g })),
-          AGE_RATIOS,
-        ),
-      },
-      {
-        dimension: "channel" as const,
-        items: buildDrilldownItems(
-          CHANNELS.map((ch) => ({ id: ch, name: ch })),
-          CHANNEL_RATIOS,
-        ),
-      },
+      { dimension: "campus" as const, items: campusItems },
+      { dimension: "course" as const, items: courseItems },
+      { dimension: "ageGroup" as const, items: ageGroupItems },
+      { dimension: "channel" as const, items: channelItems },
     ];
 
     return { data, drilldown };
@@ -150,35 +219,81 @@ export const funnelRouter = createTRPCRouter({
         granularity: z.enum(["day", "week", "month"]),
       }),
     )
-    .query(({ input }) => {
-      void input;
+    .query(async ({ input, ctx }) => {
+      const wWhere = waitlistWhere(input);
 
-      const months = [
-        "2025-01",
-        "2025-02",
-        "2025-03",
-        "2025-04",
-        "2025-05",
-        "2025-06",
-      ];
+      const entries = await ctx.prisma.waitlistEntry.findMany({
+        where: wWhere,
+        select: {
+          status: true,
+          originalEnrollTime: true,
+        },
+      });
 
-      const trend = months.map((month, i) => ({
-        period: month,
-        waitlistCount: [38, 42, 45, 48, 50, 45][i],
-        conversionRate: [0.62, 0.65, 0.67, 0.64, 0.66, 0.67][i],
+      const periodMap = new Map<string, { total: number; converted: number }>();
+
+      for (const entry of entries) {
+        const d = entry.originalEnrollTime;
+        let periodKey: string;
+
+        if (input.granularity === "day") {
+          periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        } else if (input.granularity === "week") {
+          const start = new Date(d);
+          start.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+          periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+        } else {
+          periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+
+        const existing = periodMap.get(periodKey) ?? { total: 0, converted: 0 };
+        existing.total += 1;
+        if (entry.status === "converted") existing.converted += 1;
+        periodMap.set(periodKey, existing);
+      }
+
+      const sortedPeriods = [...periodMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+      return sortedPeriods.map(([period, { total, converted }]) => ({
+        period,
+        waitlistCount: total,
+        conversionRate: total > 0 ? converted / total : 0,
       }));
-
-      return trend;
     }),
 
-  getMetrics: publicProcedure.input(funnelFilterSchema).query(({ input }) => {
-    void input;
+  getMetrics: publicProcedure.input(funnelFilterSchema).query(async ({ input, ctx }) => {
+    const eWhere = enrollmentWhere(input);
+    const wWhere = waitlistWhere(input);
+    const rWhere = refundWhere(input);
+
+    const [waitingCount, convertedCount, totalWaitlist, refundCount, enrolledCount, waitingEntries] =
+      await Promise.all([
+        ctx.prisma.waitlistEntry.count({ where: { ...wWhere, status: "waiting" } }),
+        ctx.prisma.waitlistEntry.count({ where: { ...wWhere, status: "converted" } }),
+        ctx.prisma.waitlistEntry.count({ where: wWhere }),
+        ctx.prisma.refundRecord.count({ where: rWhere }),
+        ctx.prisma.enrollment.count({ where: { ...eWhere, status: "enrolled" } }),
+        ctx.prisma.waitlistEntry.findMany({
+          where: { ...wWhere, status: "waiting" },
+          select: { originalEnrollTime: true },
+        }),
+      ]);
+
+    const now = new Date();
+    const avgWaitDays =
+      waitingCount > 0
+        ? waitingEntries.reduce((sum, e) => {
+            const days =
+              (now.getTime() - e.originalEnrollTime.getTime()) / (1000 * 60 * 60 * 24);
+            return sum + days;
+          }, 0) / waitingCount
+        : 0;
 
     return {
-      totalWaitlist: 45,
-      avgWaitDays: 12.5,
-      conversionRate: 0.667,
-      refundRate: 0.053,
+      totalWaitlist: waitingCount,
+      avgWaitDays: Math.round(avgWaitDays * 10) / 10,
+      conversionRate: totalWaitlist > 0 ? convertedCount / totalWaitlist : 0,
+      refundRate: enrolledCount > 0 ? refundCount / enrolledCount : 0,
     };
   }),
 });

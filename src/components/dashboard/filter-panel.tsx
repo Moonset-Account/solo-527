@@ -1,26 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/hooks/use-trpc";
 import { useFilterStore } from "@/store/filter-store";
 import { AGE_GROUPS, CHANNELS } from "@/lib/constants";
 import { X, RotateCcw } from "lucide-react";
-
-const CAMPUS_OPTIONS = [
-  { id: "campus-1", name: "朝阳区校区" },
-  { id: "campus-2", name: "海淀区校区" },
-  { id: "campus-3", name: "西城区校区" },
-];
-
-const COURSE_OPTIONS = [
-  { id: "course-1", name: "少儿英语启蒙" },
-  { id: "course-2", name: "青少年编程基础" },
-  { id: "course-3", name: "数学思维训练" },
-  { id: "course-4", name: "创意美术" },
-  { id: "course-5", name: "钢琴入门" },
-  { id: "course-6", name: "机器人编程" },
-];
-
-const AGE_OPTIONS = AGE_GROUPS.map((g) => ({ id: g, name: g }));
-const CHANNEL_OPTIONS = CHANNELS.map((c) => ({ id: c, name: c }));
 
 type FilterConfig = {
   key: "campusIds" | "courseIds" | "ageGroups" | "channels";
@@ -28,25 +12,28 @@ type FilterConfig = {
   options: { id: string; name: string }[];
 };
 
-const FILTER_CONFIGS: FilterConfig[] = [
-  { key: "campusIds", label: "校区", options: CAMPUS_OPTIONS },
-  { key: "courseIds", label: "课程", options: COURSE_OPTIONS },
-  { key: "ageGroups", label: "年龄段", options: AGE_OPTIONS },
-  { key: "channels", label: "渠道", options: CHANNEL_OPTIONS },
-];
-
-function resolveNames(key: FilterConfig["key"], ids: string[]): string[] {
-  const config = FILTER_CONFIGS.find((c) => c.key === key)!;
-  return ids.map(
-    (id) => config.options.find((o) => o.id === id)?.name ?? id
-  );
-}
-
 export function FilterPanel() {
   const { campusIds, courseIds, ageGroups, channels, setFilter, resetFilters } =
     useFilterStore();
 
+  const { data: campuses } = useQuery({
+    queryKey: ["meta.campuses"],
+    queryFn: () => trpc.meta.campuses.query(),
+  });
+
+  const { data: courses } = useQuery({
+    queryKey: ["meta.courses"],
+    queryFn: () => trpc.meta.courses.query(),
+  });
+
   const filterValues = { campusIds, courseIds, ageGroups, channels };
+
+  const FILTER_CONFIGS: FilterConfig[] = [
+    { key: "campusIds", label: "校区", options: (campuses ?? []).map((c) => ({ id: c.id, name: c.name })) },
+    { key: "courseIds", label: "课程", options: (courses ?? []).map((c) => ({ id: c.id, name: c.name })) },
+    { key: "ageGroups", label: "年龄段", options: AGE_GROUPS.map((g) => ({ id: g, name: g })) },
+    { key: "channels", label: "渠道", options: CHANNELS.map((c) => ({ id: c, name: c })) },
+  ];
 
   const activeTags: { key: FilterConfig["key"]; id: string; name: string }[] =
     [];
@@ -122,7 +109,7 @@ export function FilterPanel() {
               key={`${tag.key}-${tag.id}`}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/5 text-xs text-primary font-medium"
             >
-              {resolveNames(tag.key, [tag.id])[0]}
+              {tag.name}
               <button
                 onClick={() => handleRemoveTag(tag.key, tag.id)}
                 className="text-text-muted hover:text-danger transition-colors"

@@ -48,14 +48,9 @@ export default function RankingPage() {
     queryFn: () => trpc.ranking.list.query({ sortBy }),
   });
 
-  const validRankings = ((rankings as RankingItem[] | undefined) ?? []).filter((r) => !r.lowSample);
+  const validRankings = ((rankings as RankingItem[] | undefined) ?? []);
 
-  const rankMap = new Map<string, number>();
-  validRankings.forEach((r, idx) => {
-    rankMap.set(r.courseId, idx + 1);
-  });
-
-  const maxWaitlist = Math.max(...((rankings as RankingItem[] | undefined) ?? []).map((r) => r.waitlistCount), 1);
+  const maxWaitlist = Math.max(...validRankings.map((r) => r.waitlistCount), 1);
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] p-6">
@@ -100,33 +95,27 @@ export default function RankingPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">转正率</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">平均等待</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">加开建议</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">样本状态</th>
                 </tr>
               </thead>
               <tbody>
-                {((rankings as RankingItem[] | undefined) ?? []).map((item, idx) => {
-                  const rank = rankMap.get(item.courseId);
+                {validRankings.map((item, idx) => {
+                  const rank = idx + 1;
                   const badge = SUGGESTION_BADGE[item.suggestion] ?? SUGGESTION_BADGE.normal;
                   return (
                     <tr
                       key={item.courseId}
                       className={cn(
                         'border-b border-gray-50 hover:bg-gray-50/50',
-                        idx % 2 === 1 && !item.lowSample && 'bg-gray-50/30',
-                        item.lowSample && 'opacity-50'
+                        idx % 2 === 1 && 'bg-gray-50/30'
                       )}
                     >
                       <td className="px-4 py-3">
-                        {rank ? (
-                          <div className="flex items-center gap-1">
-                            {rank <= 3 && <RankIcon rank={rank} />}
-                            <span className={cn('text-sm font-bold', rank <= 3 ? 'text-[#1E3A5F]' : 'text-gray-600')}>
-                              {rank}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {rank <= 3 && <RankIcon rank={rank} />}
+                          <span className={cn('text-sm font-bold', rank <= 3 ? 'text-[#1E3A5F]' : 'text-gray-600')}>
+                            {rank}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.courseName}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{item.campusName}</td>
@@ -150,11 +139,6 @@ export default function RankingPage() {
                         <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', badge.className)}>
                           {badge.label}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {item.lowSample && (
-                          <span className="text-xs text-gray-400">样本不足</span>
-                        )}
                       </td>
                     </tr>
                   );
