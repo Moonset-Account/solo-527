@@ -122,11 +122,13 @@ def get_funnel_data(
     time_end: datetime,
     risk_tags: Optional[List[str]] = None,
     queue_types: Optional[List[str]] = None,
+    reviewers: Optional[List[str]] = None,
+    shifts: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     review_logs = data_store.get_review_logs()
     filtered = _apply_filters(
-        review_logs, risk_tags, queue_types, None, None, sources, time_start, time_end
+        review_logs, risk_tags, queue_types, reviewers, shifts, sources, time_start, time_end
     )
     
     if filtered.empty:
@@ -163,12 +165,15 @@ def get_funnel_data(
 def get_workload_data(
     time_start: datetime,
     time_end: datetime,
-    shifts: Optional[List[str]] = None,
+    risk_tags: Optional[List[str]] = None,
+    queue_types: Optional[List[str]] = None,
     reviewers: Optional[List[str]] = None,
+    shifts: Optional[List[str]] = None,
+    sources: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     review_logs = data_store.get_review_logs()
     filtered = _apply_filters(
-        review_logs, None, None, reviewers, shifts, None, time_start, time_end
+        review_logs, risk_tags, queue_types, reviewers, shifts, sources, time_start, time_end
     )
     
     if filtered.empty:
@@ -215,12 +220,24 @@ def get_appeal_reversal_data(
     time_start: datetime,
     time_end: datetime,
     risk_tags: Optional[List[str]] = None,
+    queue_types: Optional[List[str]] = None,
+    reviewers: Optional[List[str]] = None,
+    shifts: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     appeal_logs = data_store.get_appeal_logs()
     filtered = appeal_logs[
         (appeal_logs["appeal_time"] >= time_start) & (appeal_logs["appeal_time"] <= time_end)
     ]
+    
+    if sources and len(sources) > 0 and "source" in filtered.columns:
+        filtered = filtered[filtered["source"].isin(sources)]
+    if shifts and len(shifts) > 0 and "shift" in filtered.columns:
+        filtered = filtered[filtered["shift"].isin(shifts)]
+    if reviewers and len(reviewers) > 0 and "original_reviewer_id" in filtered.columns:
+        filtered = filtered[filtered["original_reviewer_id"].isin(reviewers)]
+    if queue_types and len(queue_types) > 0 and "original_queue_type" in filtered.columns:
+        filtered = filtered[filtered["original_queue_type"].isin(queue_types)]
     
     if filtered.empty:
         return pd.DataFrame(columns=[

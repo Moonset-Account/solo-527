@@ -1,5 +1,5 @@
 from dash import html, dcc
-from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES
+from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES, REVIEWERS
 
 
 def filters_layout():
@@ -7,6 +7,7 @@ def filters_layout():
     shift_options = [{"label": s["name"], "value": s["name"]} for s in SHIFTS]
     queue_options = [{"label": q, "value": q} for q in QUEUE_TYPES]
     source_options = [{"label": s, "value": s} for s in SOURCES]
+    reviewer_options = [{"label": r["name"], "value": r["id"]} for r in REVIEWERS]
     
     return html.Div(
         className="filters-section",
@@ -50,6 +51,20 @@ def filters_layout():
                                 options=shift_options,
                                 multi=True,
                                 placeholder="选择班次...",
+                                clearable=True,
+                            )
+                        ]
+                    ),
+                    html.Div(
+                        className="filter-group",
+                        children=[
+                            html.Label(className="filter-label", children="审核员"),
+                            dcc.Dropdown(
+                                id="filter-reviewers",
+                                options=reviewer_options,
+                                multi=True,
+                                placeholder="选择审核员...",
+                                searchable=True,
                                 clearable=True,
                             )
                         ]

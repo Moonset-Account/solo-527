@@ -147,14 +147,14 @@ async def submit_export(submit: ExportTaskSubmit):
 async def get_export_status(task_id: str):
     task = export_manager.get_status(task_id)
     if not task:
-        return ExportTaskStatus(
-            task_id=task.task_id,
-            status=task.status,
-            progress=task.progress,
-            download_url=f"/api/export/download/{task_id}" if task.status == "completed" else None,
-            error_message=task.error_message,
-        )
-    raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="Task not found")
+    return ExportTaskStatus(
+        task_id=task.task_id,
+        status=task.status,
+        progress=task.progress,
+        download_url=f"/api/export/download/{task_id}" if task.status == "completed" else None,
+        error_message=task.error_message,
+    )
 
 
 @app.get("/api/export/download/{task_id}")

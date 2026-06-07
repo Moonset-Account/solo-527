@@ -78,3 +78,9 @@ SHIFTS: List[Dict[str, str]] = [
 
 
 SOURCES: List[str] = ["首页推荐", "搜索结果", "用户举报", "专题活动", "达人内容"]
+
+
+REVIEWERS: List[Dict[str, str]] = [
+    {"id": f"r{i:03d}", "name": f"审核员{i:02d}", "team": ["一组", "二组", "三组"][i % 3]}
+    for i in range(1, 21)
+]

@@ -94,14 +94,14 @@ def parse_url_params(href):
     return result
 
 
-def get_filter_values(risk_tags, queue_types, shifts, sources, granularity):
+def get_filter_values(risk_tags, queue_types, reviewers, shifts, sources, granularity):
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=24)
     
     return {
         "risk_tags": risk_tags or [],
         "queue_types": queue_types or [],
-        "reviewers": None,
+        "reviewers": reviewers or [],
         "shifts": shifts or [],
         "sources": sources or [],
         "time_start": time_start.isoformat(),
@@ -113,6 +113,7 @@ def get_filter_values(risk_tags, queue_types, shifts, sources, granularity):
 @app.callback(
     [Output("filter-risk-tags", "value"),
      Output("filter-queue-types", "value"),
+     Output("filter-reviewers", "value"),
      Output("filter-shifts", "value"),
      Output("filter-sources", "value"),
      Output("filter-granularity", "value")],
@@ -126,6 +127,7 @@ def load_filters_from_url(href):
     return (
         params.get("risk_tags"),
         params.get("queue_types"),
+        params.get("reviewers"),
         params.get("shifts"),
         params.get("sources"),
         params.get("granularity", "1h"),
@@ -136,11 +138,12 @@ def load_filters_from_url(href):
     Output("url", "search"),
     [Input("filter-risk-tags", "value"),
      Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
      Input("filter-shifts", "value"),
      Input("filter-sources", "value"),
      Input("filter-granularity", "value")]
 )
-def update_url_params(risk_tags, queue_types, shifts, sources, granularity):
+def update_url_params(risk_tags, queue_types, reviewers, shifts, sources, granularity):
     ctx = callback_context
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
@@ -150,6 +153,8 @@ def update_url_params(risk_tags, queue_types, shifts, sources, granularity):
         params["risk_tags"] = json.dumps(risk_tags)
     if queue_types:
         params["queue_types"] = json.dumps(queue_types)
+    if reviewers:
+        params["reviewers"] = json.dumps(reviewers)
     if shifts:
         params["shifts"] = json.dumps(shifts)
     if sources:
@@ -166,25 +171,34 @@ def update_url_params(risk_tags, queue_types, shifts, sources, granularity):
     Output("filter-breadcrumbs", "children"),
     [Input("filter-risk-tags", "value"),
      Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
      Input("filter-shifts", "value"),
      Input("filter-sources", "value")]
 )
-def update_breadcrumbs(risk_tags, queue_types, shifts, sources):
+def update_breadcrumbs(risk_tags, queue_types, reviewers, shifts, sources):
     tags = []
     
-    def make_tag(label, values):
+    def make_tag(label, values, value_map=None):
         if values and len(values) > 0:
+            if value_map:
+                display_values = [value_map.get(v, v) for v in values]
+            else:
+                display_values = values
             return html.Span(
                 className="filter-tag",
                 children=[
-                    f"{label}: {', '.join(values[:2])}{'...' if len(values) > 2 else ''}",
+                    f"{label}: {', '.join(display_values[:2])}{'...' if len(display_values) > 2 else ''}",
                 ]
             )
         return None
     
+    from data.metrics.definitions import REVIEWERS
+    reviewer_map = {r["id"]: r["name"] for r in REVIEWERS}
+    
     for t in [
         make_tag("风险标签", risk_tags),
         make_tag("队列", queue_types),
+        make_tag("审核员", reviewers, reviewer_map),
         make_tag("班次", shifts),
         make_tag("来源", sources),
     ]:
@@ -268,11 +282,12 @@ def update_summary_cards(n, risk_tags, queue_types, shifts, sources):
     [Input("interval-refresh", "n_intervals"),
      Input("filter-risk-tags", "value"),
      Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
      Input("filter-shifts", "value"),
      Input("filter-sources", "value"),
      Input("filter-granularity", "value")]
 )
-def update_backlog_chart(n, risk_tags, queue_types, shifts, sources, granularity):
+def update_backlog_chart(n, risk_tags, queue_types, reviewers, shifts, sources, granularity):
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=24)
     
@@ -282,7 +297,7 @@ def update_backlog_chart(n, risk_tags, queue_types, shifts, sources, granularity
         granularity=granularity or "1h",
         risk_tags=risk_tags,
         queue_types=queue_types,
-        reviewers=None,
+        reviewers=reviewers,
         shifts=shifts,
         sources=sources,
     )
@@ -295,9 +310,11 @@ def update_backlog_chart(n, risk_tags, queue_types, shifts, sources, granularity
     [Input("interval-refresh", "n_intervals"),
      Input("filter-risk-tags", "value"),
      Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
+     Input("filter-shifts", "value"),
      Input("filter-sources", "value")]
 )
-def update_funnel_chart(n, risk_tags, queue_types, sources):
+def update_funnel_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=24)
     
@@ -306,6 +323,8 @@ def update_funnel_chart(n, risk_tags, queue_types, sources):
         time_end=time_end,
         risk_tags=risk_tags,
         queue_types=queue_types,
+        reviewers=reviewers,
+        shifts=shifts,
         sources=sources,
     )
     
@@ -315,17 +334,24 @@ def update_funnel_chart(n, risk_tags, queue_types, sources):
 @app.callback(
     Output("workload-chart", "figure"),
     [Input("interval-refresh", "n_intervals"),
-     Input("filter-shifts", "value")]
+     Input("filter-risk-tags", "value"),
+     Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
+     Input("filter-shifts", "value"),
+     Input("filter-sources", "value")]
 )
-def update_workload_chart(n, shifts):
+def update_workload_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=24)
     
     df = get_workload_data(
         time_start=time_start,
         time_end=time_end,
+        risk_tags=risk_tags,
+        queue_types=queue_types,
+        reviewers=reviewers,
         shifts=shifts,
-        reviewers=None,
+        sources=sources,
     )
     
     return render_workload_chart(df)
@@ -335,9 +361,12 @@ def update_workload_chart(n, shifts):
     Output("appeal-chart", "figure"),
     [Input("interval-refresh", "n_intervals"),
      Input("filter-risk-tags", "value"),
+     Input("filter-queue-types", "value"),
+     Input("filter-reviewers", "value"),
+     Input("filter-shifts", "value"),
      Input("filter-sources", "value")]
 )
-def update_appeal_chart(n, risk_tags, sources):
+def update_appeal_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
     time_end = datetime.now()
     time_start = time_end - timedelta(hours=72)
     
@@ -345,6 +374,9 @@ def update_appeal_chart(n, risk_tags, sources):
         time_start=time_start,
         time_end=time_end,
         risk_tags=risk_tags,
+        queue_types=queue_types,
+        reviewers=reviewers,
+        shifts=shifts,
         sources=sources,
     )
     
@@ -356,11 +388,12 @@ def update_appeal_chart(n, risk_tags, sources):
     [Input("btn-export", "n_clicks")],
     [State("filter-risk-tags", "value"),
      State("filter-queue-types", "value"),
+     State("filter-reviewers", "value"),
      State("filter-shifts", "value"),
      State("filter-sources", "value"),
      State("filter-granularity", "value")]
 )
-def handle_export(n_clicks, risk_tags, queue_types, shifts, sources, granularity):
+def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, granularity):
     if not n_clicks or n_clicks == 0:
         return ""
     
@@ -370,6 +403,7 @@ def handle_export(n_clicks, risk_tags, queue_types, shifts, sources, granularity
     filters = {
         "risk_tags": risk_tags,
         "queue_types": queue_types,
+        "reviewers": reviewers,
         "shifts": shifts,
         "sources": sources,
         "time_start": time_start.isoformat(),

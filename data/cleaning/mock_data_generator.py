@@ -5,12 +5,7 @@ from typing import List, Dict
 import random
 import hashlib
 
-from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES
-
-REVIEWERS = [
-    {"id": f"r{i:03d}", "name": f"审核员{i:02d}", "team": random.choice(["一组", "二组", "三组"])}
-    for i in range(1, 21)
-]
+from data.metrics.definitions import RISK_TAGS, QUEUE_TYPES, SHIFTS, SOURCES, REVIEWERS
 
 
 def generate_review_logs(hours: int = 48, count_per_hour: int = 500) -> pd.DataFrame:
@@ -130,6 +125,10 @@ def generate_appeal_logs(review_logs: pd.DataFrame) -> pd.DataFrame:
             "appeal_result": appeal_result,
             "appeal_reviewer": random.choice([r["name"] for r in REVIEWERS]),
             "original_risk_tags": row["machine_risk_tags"],
+            "source": row["source"],
+            "shift": row["shift"],
+            "original_reviewer_id": row["reviewer_id"],
+            "original_queue_type": row["queue_type"],
         })
     
     return pd.DataFrame(appeal_records).sort_values("appeal_time").reset_index(drop=True)
