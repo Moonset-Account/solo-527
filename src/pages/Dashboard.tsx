@@ -18,7 +18,8 @@ import FunnelChart from '../components/charts/FunnelChart';
 import TrendLineChart from '../components/charts/TrendLineChart';
 import { exportToCSV, exportToPDF, exportScreenshot } from '../utils/export';
 import { useState } from 'react';
-import { formatPercent, formatDays } from '../utils/format';
+import ReactECharts from 'echarts-for-react';
+import { formatPercent, formatDays, CHART_PALETTE } from '../utils/format';
 
 export default function Dashboard() {
   const { getKPIData, filteredCandidates } = useStore();
@@ -193,8 +194,6 @@ export default function Dashboard() {
 
 function DepartmentBarChart() {
   const { filteredCandidates, departments } = useStore();
-  const { CHART_PALETTE } = require('../utils/format');
-  const ReactECharts = require('echarts-for-react').default;
 
   const deptData = departments.map(dept => {
     const deptCandidates = filteredCandidates.filter(c => c.departmentId === dept.id);
@@ -253,8 +252,6 @@ function DepartmentBarChart() {
 
 function RecruiterRankingChart() {
   const { filteredCandidates, recruiters } = useStore();
-  const { CHART_PALETTE } = require('../utils/format');
-  const ReactECharts = require('echarts-for-react').default;
 
   const recData = recruiters.map(rec => {
     const recCandidates = filteredCandidates.filter(c => c.recruiterId === rec.id);

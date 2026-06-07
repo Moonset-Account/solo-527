@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import StageDurationChart from '../components/charts/StageDurationChart';
 import { exportToCSV } from '../utils/export';
+import ReactECharts from 'echarts-for-react';
 import { formatDate, CHART_PALETTE } from '../utils/format';
 
 export default function EfficiencyPage() {
@@ -127,7 +128,6 @@ function AnomalyList() {
 
 function DurationBoxplotChart() {
   const { getStageDurationData } = useStore();
-  const ReactECharts = require('echarts-for-react').default;
 
   const data = getStageDurationData();
 

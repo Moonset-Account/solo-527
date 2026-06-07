@@ -1,4 +1,5 @@
-import { X, Calendar, Clock, User, Building2, Briefcase, Radio, MessageSquare, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { X, Calendar, Clock, User, Building2, Briefcase, Radio, MessageSquare, AlertTriangle, Edit2, Check, XCircle, Save } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { formatDate, formatDays } from '../../utils/format';
 import { Candidate, StageRecord } from '../../data/types';
@@ -8,7 +9,44 @@ interface CandidateDetailModalProps {
   onClose: () => void;
 }
 
-function StageTimelineItem({ stage, isLast }: { stage: StageRecord; isLast: boolean }) {
+function StageTimelineItem({
+  stage,
+  isLast,
+  candidateId,
+}: {
+  stage: StageRecord;
+  isLast: boolean;
+  candidateId: string;
+}) {
+  const { updateStageNote, toggleStageAnomaly } = useStore();
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteValue, setNoteValue] = useState(stage.notes || '');
+  const [isAnomalyEditing, setIsAnomalyEditing] = useState(false);
+  const [anomalyReason, setAnomalyReason] = useState(stage.anomalyReason || '');
+
+  const handleSaveNote = () => {
+    updateStageNote(candidateId, stage.id, noteValue);
+    setIsEditingNote(false);
+  };
+
+  const handleToggleAnomaly = () => {
+    if (stage.isAnomaly) {
+      toggleStageAnomaly(candidateId, stage.id, false);
+    } else {
+      setIsAnomalyEditing(true);
+    }
+  };
+
+  const handleSaveAnomaly = () => {
+    toggleStageAnomaly(candidateId, stage.id, true, anomalyReason || '耗时异常，需要调查');
+    setIsAnomalyEditing(false);
+  };
+
+  const handleCancelAnomaly = () => {
+    setIsAnomalyEditing(false);
+    setAnomalyReason(stage.anomalyReason || '');
+  };
+
   return (
     <div className="flex gap-4">
       <div className="flex flex-col items-center">
@@ -23,8 +61,8 @@ function StageTimelineItem({ stage, isLast }: { stage: StageRecord; isLast: bool
       </div>
       <div className="flex-1 pb-6">
         <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
               <h4 className="font-semibold text-slate-800">{stage.stageName}</h4>
               {stage.isAnomaly && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
@@ -32,20 +70,119 @@ function StageTimelineItem({ stage, isLast }: { stage: StageRecord; isLast: bool
                   异常
                 </span>
               )}
+              <button
+                onClick={handleToggleAnomaly}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition-colors ${
+                  stage.isAnomaly
+                    ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}
+              >
+                {stage.isAnomaly ? (
+                  <>
+                    <XCircle size={12} />
+                    取消异常
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle size={12} />
+                    标记异常
+                  </>
+                )}
+              </button>
             </div>
             {stage.interviewerName && (
               <p className="mt-1 text-sm text-slate-500">面试官: {stage.interviewerName}</p>
             )}
-            {stage.notes && (
-              <p className="mt-2 text-sm text-slate-600 bg-slate-50 rounded-lg p-2">
-                {stage.notes}
+
+            {isAnomalyEditing && (
+              <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                <p className="text-xs font-medium text-orange-800 mb-2">异常原因</p>
+                <textarea
+                  value={anomalyReason}
+                  onChange={(e) => setAnomalyReason(e.target.value)}
+                  placeholder="请输入异常原因..."
+                  className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                  rows={2}
+                />
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    onClick={handleCancelAnomaly}
+                    className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveAnomaly}
+                    className="rounded-lg bg-orange-500 px-3 py-1 text-xs text-white hover:bg-orange-600"
+                  >
+                    <Check size={12} className="inline mr-1" />
+                    确认标记
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {stage.isAnomaly && stage.anomalyReason && !isAnomalyEditing && (
+              <p className="mt-2 text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                <AlertTriangle size={12} className="inline mr-1" />
+                异常原因: {stage.anomalyReason}
               </p>
             )}
-            {stage.isAnomaly && stage.anomalyReason && (
-              <p className="mt-1 text-xs text-orange-600">异常原因: {stage.anomalyReason}</p>
+
+            {isEditingNote ? (
+              <div className="mt-2">
+                <textarea
+                  value={noteValue}
+                  onChange={(e) => setNoteValue(e.target.value)}
+                  placeholder="添加备注..."
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                  rows={2}
+                />
+                <div className="mt-2 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setIsEditingNote(false);
+                      setNoteValue(stage.notes || '');
+                    }}
+                    className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSaveNote}
+                    className="rounded-lg bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600"
+                  >
+                    <Save size={12} className="inline mr-1" />
+                    保存
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2">
+                {stage.notes ? (
+                  <div className="group rounded-lg bg-slate-50 p-2 relative">
+                    <p className="text-sm text-slate-600 pr-8">{stage.notes}</p>
+                    <button
+                      onClick={() => setIsEditingNote(true)}
+                      className="absolute right-2 top-2 rounded p-1 text-slate-400 opacity-0 transition-opacity hover:bg-slate-200 group-hover:opacity-100"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsEditingNote(true)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    <Edit2 size={12} />
+                    添加备注
+                  </button>
+                )}
+              </div>
             )}
           </div>
-          <div className="text-right">
+          <div className="text-right ml-4 shrink-0">
             <p className="text-sm text-slate-600">{formatDate(stage.startDate)}</p>
             {stage.endDate && (
               <p className="text-xs text-slate-400">至 {formatDate(stage.endDate)}</p>
@@ -156,6 +293,7 @@ export default function CandidateDetailModal({ candidate, onClose }: CandidateDe
                   key={stage.id}
                   stage={stage}
                   isLast={idx === stages.length - 1}
+                  candidateId={candidate.id}
                 />
               ))}
             </div>

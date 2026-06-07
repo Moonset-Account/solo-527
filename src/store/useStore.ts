@@ -16,6 +16,8 @@ import { candidates, departments, positions, recruiters, channels, interviewers,
 import { format, eachMonthOfInterval, isWithinInterval, parseISO } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
+export type UserRole = 'admin' | 'hr_ops' | 'recruiter' | 'hiring_manager';
+
 interface StoreState {
   filters: FilterState;
   filteredCandidates: Candidate[];
@@ -26,6 +28,8 @@ interface StoreState {
   channels: typeof channels;
   interviewers: typeof interviewers;
   selectedCandidate: Candidate | null;
+  currentUserRole: UserRole;
+  currentUserId: string | null;
   setDateRange: (range: [Date, Date]) => void;
   setDepartments: (depts: string[]) => void;
   setPositions: (pos: string[]) => void;
@@ -34,7 +38,11 @@ interface StoreState {
   setStages: (st: StageType[]) => void;
   setStatus: (st: CandidateStatus[]) => void;
   setSelectedCandidate: (candidate: Candidate | null) => void;
+  setCurrentUser: (role: UserRole, userId: string | null) => void;
   resetFilters: () => void;
+  addCandidates: (newCandidates: Candidate[]) => void;
+  updateStageNote: (candidateId: string, stageId: string, note: string) => void;
+  toggleStageAnomaly: (candidateId: string, stageId: string, isAnomaly: boolean, reason?: string) => void;
   getKPIData: () => KPIData;
   getTrendData: () => TrendDataPoint[];
   getFunnelData: () => FunnelDataPoint[];
@@ -55,8 +63,26 @@ const defaultFilters: FilterState = {
   status: [],
 };
 
-function filterCandidates(candidates: Candidate[], filters: FilterState): Candidate[] {
+function filterCandidates(
+  candidates: Candidate[],
+  filters: FilterState,
+  userRole?: UserRole,
+  userId?: string | null
+): Candidate[] {
   return candidates.filter(c => {
+    if (userRole && userId) {
+      if (userRole === 'recruiter' && c.recruiterId !== userId) {
+        return false;
+      }
+      if (userRole === 'hiring_manager') {
+        const dept = departments.find(d => d.id === c.departmentId);
+        const managerDeptIds = departments.slice(0, 2).map(d => d.id);
+        if (!managerDeptIds.includes(c.departmentId)) {
+          return false;
+        }
+      }
+    }
+
     if (!isWithinInterval(c.applyDate, { start: filters.dateRange[0], end: filters.dateRange[1] })) {
       return false;
     }
@@ -72,7 +98,7 @@ function filterCandidates(candidates: Candidate[], filters: FilterState): Candid
 
 export const useStore = create<StoreState>((set, get) => ({
   filters: defaultFilters,
-  filteredCandidates: candidates,
+  filteredCandidates: filterCandidates(candidates, defaultFilters, 'hr_ops', null),
   allCandidates: candidates,
   departments,
   positions,
@@ -80,12 +106,14 @@ export const useStore = create<StoreState>((set, get) => ({
   channels,
   interviewers,
   selectedCandidate: null,
+  currentUserRole: 'hr_ops',
+  currentUserId: null,
 
   setDateRange: (range) => set(state => {
     const newFilters = { ...state.filters, dateRange: range };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -93,7 +121,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, departments: depts };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -101,7 +129,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, positions: pos };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -109,7 +137,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, recruiters: rec };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -117,7 +145,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, channels: ch };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -125,7 +153,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, stages: st };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
@@ -133,15 +161,76 @@ export const useStore = create<StoreState>((set, get) => ({
     const newFilters = { ...state.filters, status: st };
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 
   setSelectedCandidate: (candidate) => set({ selectedCandidate: candidate }),
 
-  resetFilters: () => set({
+  resetFilters: () => set(state => ({
     filters: defaultFilters,
-    filteredCandidates: candidates,
+    filteredCandidates: filterCandidates(candidates, defaultFilters, state.currentUserRole, state.currentUserId),
+  })),
+
+  setCurrentUser: (role, userId) => set(state => {
+    const filtered = filterCandidates(state.allCandidates, state.filters, role, userId);
+    return {
+      currentUserRole: role,
+      currentUserId: userId,
+      filteredCandidates: filtered,
+    };
+  }),
+
+  addCandidates: (newCandidates) => set(state => {
+    const updatedAll = [...state.allCandidates, ...newCandidates];
+    return {
+      allCandidates: updatedAll,
+      filteredCandidates: filterCandidates(updatedAll, state.filters, state.currentUserRole, state.currentUserId),
+    };
+  }),
+
+  updateStageNote: (candidateId, stageId, note) => set(state => {
+    const updatedAll = state.allCandidates.map(c => {
+      if (c.id === candidateId) {
+        return {
+          ...c,
+          stages: c.stages.map(s =>
+            s.id === stageId ? { ...s, notes: note } : s
+          ),
+        };
+      }
+      return c;
+    });
+    const updatedSelected = state.selectedCandidate?.id === candidateId
+      ? updatedAll.find(c => c.id === candidateId) || null
+      : state.selectedCandidate;
+    return {
+      allCandidates: updatedAll,
+      filteredCandidates: filterCandidates(updatedAll, state.filters, state.currentUserRole, state.currentUserId),
+      selectedCandidate: updatedSelected,
+    };
+  }),
+
+  toggleStageAnomaly: (candidateId, stageId, isAnomaly, reason) => set(state => {
+    const updatedAll = state.allCandidates.map(c => {
+      if (c.id === candidateId) {
+        return {
+          ...c,
+          stages: c.stages.map(s =>
+            s.id === stageId ? { ...s, isAnomaly, anomalyReason: isAnomaly ? reason : undefined } : s
+          ),
+        };
+      }
+      return c;
+    });
+    const updatedSelected = state.selectedCandidate?.id === candidateId
+      ? updatedAll.find(c => c.id === candidateId) || null
+      : state.selectedCandidate;
+    return {
+      allCandidates: updatedAll,
+      filteredCandidates: filterCandidates(updatedAll, state.filters, state.currentUserRole, state.currentUserId),
+      selectedCandidate: updatedSelected,
+    };
   }),
 
   drillDown: (dimension, value) => set(state => {
@@ -165,7 +254,7 @@ export const useStore = create<StoreState>((set, get) => ({
     }
     return {
       filters: newFilters,
-      filteredCandidates: filterCandidates(state.allCandidates, newFilters),
+      filteredCandidates: filterCandidates(state.allCandidates, newFilters, state.currentUserRole, state.currentUserId),
     };
   }),
 

@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import ChannelQualityChart from '../components/charts/ChannelQualityChart';
 import { exportToCSV } from '../utils/export';
+import ReactECharts from 'echarts-for-react';
 import { CHART_PALETTE, formatPercent } from '../utils/format';
 import { STAGE_ORDER, STAGE_NAMES } from '../data/mockData';
 
@@ -140,7 +141,6 @@ export default function ChannelPage() {
 function ChannelFunnelCompareChart() {
   const { getChannelQualityData } = useStore();
   const channelData = getChannelQualityData();
-  const ReactECharts = require('echarts-for-react').default;
 
   const stages = Object.values(STAGE_NAMES).slice(0, 5);
 
@@ -170,7 +170,6 @@ function ChannelFunnelCompareChart() {
 function CostEfficiencyChart() {
   const { getChannelQualityData } = useStore();
   const channelData = getChannelQualityData();
-  const ReactECharts = require('echarts-for-react').default;
 
   const option = {
     tooltip: {

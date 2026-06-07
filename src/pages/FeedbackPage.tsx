@@ -2,6 +2,7 @@ import { MessageSquare, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import { exportToCSV } from '../utils/export';
+import ReactECharts from 'echarts-for-react';
 import { CHART_PALETTE, STAGE_COLORS } from '../utils/format';
 import { STAGE_ORDER, STAGE_NAMES } from '../data/mockData';
 
@@ -159,7 +160,6 @@ export default function FeedbackPage() {
 
 function SatisfactionBarChart() {
   const { filteredCandidates } = useStore();
-  const ReactECharts = require('echarts-for-react').default;
 
   const scores = [1, 2, 3, 4, 5];
   const counts = scores.map(s => filteredCandidates.filter(c => c.feedback?.satisfaction === s).length);
@@ -185,7 +185,6 @@ function SatisfactionBarChart() {
 
 function StageSatisfactionChart() {
   const { filteredCandidates } = useStore();
-  const ReactECharts = require('echarts-for-react').default;
 
   const data = STAGE_ORDER.map((stage: string) => {
     const stageCandidates = filteredCandidates.filter(c => c.feedback?.stage === stage);

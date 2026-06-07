@@ -19,6 +19,7 @@ function App() {
           <main className="p-6">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/efficiency" element={<EfficiencyPage />} />
               <Route path="/channel" element={<ChannelPage />} />
               <Route path="/interviewer" element={<InterviewerPage />} />

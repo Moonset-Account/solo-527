@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import InterviewerLoadChart from '../components/charts/InterviewerLoadChart';
 import { exportToCSV } from '../utils/export';
+import ReactECharts from 'echarts-for-react';
 import { CHART_PALETTE } from '../utils/format';
 
 export default function InterviewerPage() {
@@ -128,7 +129,6 @@ export default function InterviewerPage() {
 function DepartmentInterviewPie() {
   const { getInterviewerLoadData } = useStore();
   const loadData = getInterviewerLoadData();
-  const ReactECharts = require('echarts-for-react').default;
 
   const deptStats: Record<string, number> = {};
   loadData.forEach(iv => {

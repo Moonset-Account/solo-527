@@ -1,32 +1,84 @@
 import { useState, useRef } from 'react';
-import { Upload, Database, BookOpen, AlertTriangle, CheckCircle, XCircle, FileText, Settings } from 'lucide-react';
-import { useStore } from '../store/useStore';
+import {
+  Upload,
+  BookOpen,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  FileText,
+  Settings,
+  User,
+  Shield,
+  Check,
+  X,
+} from 'lucide-react';
+import { useStore, UserRole } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import { parseCSV } from '../utils/export';
-import { dataDictionary } from '../data/mockData';
+import { dataDictionary, departments, positions, recruiters, channels, STAGE_ORDER, STAGE_NAMES } from '../data/mockData';
+import { Candidate, StageType, CandidateStatus } from '../data/types';
 import { CHART_PALETTE } from '../utils/format';
 
+const ROLE_OPTIONS: { role: UserRole; label: string; description: string; icon: any }[] = [
+  { role: 'admin', label: '管理员', description: '查看所有数据，管理系统配置', icon: Shield },
+  { role: 'hr_ops', label: '人事运营', description: '查看所有招聘数据，导出报告', icon: User },
+  { role: 'hiring_manager', label: '招聘经理', description: '查看本部门招聘数据', icon: User },
+  { role: 'recruiter', label: '招聘官', description: '仅查看个人负责的候选人', icon: User },
+];
+
 export default function DataManagerPage() {
-  const [activeTab, setActiveTab] = useState<'import' | 'dictionary' | 'quality'>('import');
+  const [activeTab, setActiveTab] = useState<'import' | 'dictionary' | 'quality' | 'permission'>('import');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any[]>([]);
-  const [importStatus, setImportStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [importStatus, setImportStatus] = useState<'idle' | 'uploading' | 'mapping' | 'success' | 'error'>('idle');
+  const [importCount, setImportCount] = useState(0);
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { getDataQualityReport } = useStore();
+  const {
+    getDataQualityReport,
+    addCandidates,
+    currentUserRole,
+    currentUserId,
+    setCurrentUser,
+    allCandidates,
+    recruiters: recruiterList,
+  } = useStore();
+
   const qualityReport = getDataQualityReport();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await processFile(file);
+  };
 
+  const processFile = async (file: File) => {
     setUploadedFile(file);
     setImportStatus('uploading');
 
     try {
       const data = await parseCSV(file);
-      setPreviewData(data.slice(0, 5));
-      setImportStatus('success');
+      setPreviewData(data.slice(0, 10));
+
+      if (data.length > 0) {
+        const headers = Object.keys(data[0]);
+        const autoMapping: Record<string, string> = {};
+        headers.forEach(h => {
+          const lowerH = h.toLowerCase();
+          if (lowerH.includes('姓名') || lowerH.includes('name')) autoMapping[h] = 'name';
+          if (lowerH.includes('职位') || lowerH.includes('position')) autoMapping[h] = 'positionName';
+          if (lowerH.includes('部门') || lowerH.includes('department')) autoMapping[h] = 'departmentName';
+          if (lowerH.includes('渠道') || lowerH.includes('channel')) autoMapping[h] = 'channelName';
+          if (lowerH.includes('招聘官') || lowerH.includes('recruiter')) autoMapping[h] = 'recruiterName';
+          if (lowerH.includes('申请日期') || lowerH.includes('apply') || lowerH.includes('日期')) autoMapping[h] = 'applyDate';
+          if (lowerH.includes('状态') || lowerH.includes('status')) autoMapping[h] = 'status';
+          if (lowerH.includes('阶段') || lowerH.includes('stage')) autoMapping[h] = 'currentStage';
+        });
+        setFieldMapping(autoMapping);
+      }
+
+      setImportStatus('mapping');
     } catch (error) {
       setImportStatus('error');
     }
@@ -36,17 +88,94 @@ export default function DataManagerPage() {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (!file) return;
+    await processFile(file);
+  };
 
-    setUploadedFile(file);
-    setImportStatus('uploading');
+  const handleConfirmImport = () => {
+    if (previewData.length === 0) return;
 
-    try {
-      const data = await parseCSV(file);
-      setPreviewData(data.slice(0, 5));
-      setImportStatus('success');
-    } catch (error) {
-      setImportStatus('error');
+    const newCandidates: Candidate[] = previewData.slice(0, 20).map((row, idx) => {
+      const dept = departments.find(d =>
+        d.name === (row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'departmentName') || ''] || departments[0].name)
+      ) || departments[0];
+
+      const pos = positions.find(p =>
+        p.name === (row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'positionName') || ''] || positions[0].name)
+      ) || positions[0];
+
+      const ch = channels.find(c =>
+        c.name === (row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'channelName') || ''] || channels[0].name)
+      ) || channels[0];
+
+      const rec = recruiterList.find(r =>
+        r.name === (row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'recruiterName') || ''] || recruiterList[0].name)
+      ) || recruiterList[0];
+
+      const stageName = row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'currentStage') || ''] || '简历筛选';
+      const stageIdx = Object.values(STAGE_NAMES).findIndex(s => s === stageName);
+      const currentStage = (stageIdx >= 0 ? STAGE_ORDER[stageIdx] : 'resume') as StageType;
+
+      const statusStr = row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'status') || ''] || '进行中';
+      let status: CandidateStatus = 'in_progress';
+      if (statusStr.includes('入职') || statusStr === 'hired') status = 'hired';
+      else if (statusStr.includes('拒绝') || statusStr === 'rejected') status = 'rejected';
+      else if (statusStr.includes('Offer') || statusStr === 'offer_declined') status = 'offer_declined';
+
+      const name = row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'name') || ''] || `候选人${idx + 1}`;
+
+      const applyDateStr = row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'applyDate') || ''];
+      const applyDate = applyDateStr ? new Date(applyDateStr) : new Date();
+
+      return {
+        id: `imported_${Date.now()}_${idx}`,
+        name,
+        positionId: pos.id,
+        positionName: pos.name,
+        departmentId: dept.id,
+        departmentName: dept.name,
+        channelId: ch.id,
+        channelName: ch.name,
+        recruiterId: rec.id,
+        recruiterName: rec.name,
+        applyDate,
+        currentStage,
+        currentStageName: STAGE_NAMES[currentStage],
+        status,
+        stages: [
+          {
+            id: `stage_imported_${Date.now()}_${idx}_0`,
+            candidateId: `imported_${Date.now()}_${idx}`,
+            stage: 'resume',
+            stageName: '简历筛选',
+            startDate: applyDate,
+            endDate: new Date(applyDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+            durationDays: 2,
+            result: 'pass',
+            isAnomaly: false,
+          },
+        ],
+        totalCycleDays: 2,
+      };
+    });
+
+    addCandidates(newCandidates);
+    setImportCount(newCandidates.length);
+    setImportStatus('success');
+  };
+
+  const handleRoleChange = (role: UserRole) => {
+    let userId: string | null = null;
+    if (role === 'recruiter') {
+      userId = recruiterList[0].id;
     }
+    setCurrentUser(role, userId);
+  };
+
+  const getRoleBadgeClass = (role: UserRole) => {
+    if (role === currentUserRole) {
+      return 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20';
+    }
+    return 'border-slate-200 bg-white hover:border-slate-300';
   };
 
   return (
@@ -54,7 +183,7 @@ export default function DataManagerPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">数据管理</h1>
-          <p className="mt-1 text-sm text-slate-500">数据导入、数据字典和数据质量监控</p>
+          <p className="mt-1 text-sm text-slate-500">数据导入、数据字典、数据质量监控和权限设置</p>
         </div>
       </div>
 
@@ -69,6 +198,17 @@ export default function DataManagerPage() {
         >
           <Upload size={16} />
           数据导入
+        </button>
+        <button
+          onClick={() => setActiveTab('permission')}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'permission'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Shield size={16} />
+          权限设置
         </button>
         <button
           onClick={() => setActiveTab('dictionary')}
@@ -122,7 +262,7 @@ export default function DataManagerPage() {
               {importStatus === 'success' && (
                 <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-sm text-emerald-700">
                   <CheckCircle size={16} />
-                  文件上传成功，已解析 {previewData.length} 条数据
+                  成功导入 {importCount} 条候选人数据
                 </div>
               )}
               {importStatus === 'error' && (
@@ -131,28 +271,74 @@ export default function DataManagerPage() {
                   文件解析失败，请检查文件格式
                 </div>
               )}
+              {importStatus === 'mapping' && (
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm text-blue-700">
+                  <Check size={16} />
+                  文件解析成功，共 {previewData.length} 条数据
+                </div>
+              )}
             </div>
 
-            {previewData.length > 0 && (
-              <div className="mt-6">
-                <h4 className="mb-3 font-medium text-slate-700">数据预览（前5条）</h4>
+            {importStatus === 'mapping' && previewData.length > 0 && (
+              <div className="mt-6 space-y-4">
+                <h4 className="font-medium text-slate-700">字段映射配置</h4>
                 <div className="overflow-x-auto rounded-lg border border-slate-200">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50">
-                        {Object.keys(previewData[0]).map((key, idx) => (
-                          <th key={idx} className="px-3 py-2 text-left font-medium text-slate-600">
-                            {key}
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">CSV字段</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">示例值</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">映射到系统字段</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(previewData[0]).map((header, idx) => (
+                        <tr key={idx} className="border-t border-slate-100">
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{header}</td>
+                          <td className="px-3 py-2 text-slate-600">{String(previewData[0][header] || '').slice(0, 30)}</td>
+                          <td className="px-3 py-2">
+                            <select
+                              value={fieldMapping[header] || ''}
+                              onChange={(e) => setFieldMapping({ ...fieldMapping, [header]: e.target.value })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                            >
+                              <option value="">-- 不导入 --</option>
+                              <option value="name">候选人姓名</option>
+                              <option value="positionName">职位</option>
+                              <option value="departmentName">部门</option>
+                              <option value="channelName">招聘渠道</option>
+                              <option value="recruiterName">招聘官</option>
+                              <option value="applyDate">申请日期</option>
+                              <option value="status">状态</option>
+                              <option value="currentStage">当前阶段</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+                    数据预览（前5条）
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        {Object.keys(previewData[0]).map((h, i) => (
+                          <th key={i} className="px-3 py-2 text-left text-xs font-medium text-slate-500">
+                            {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {previewData.map((row, idx) => (
-                        <tr key={idx} className="border-t border-slate-100">
+                      {previewData.slice(0, 5).map((row, idx) => (
+                        <tr key={idx} className="border-b border-slate-50 last:border-0">
                           {Object.values(row).map((val, vidx) => (
-                            <td key={vidx} className="px-3 py-2 text-slate-700">
-                              {String(val)}
+                            <td key={vidx} className="px-3 py-2 text-slate-600">
+                              {String(val || '').slice(0, 20)}
                             </td>
                           ))}
                         </tr>
@@ -161,13 +347,50 @@ export default function DataManagerPage() {
                   </table>
                 </div>
 
-                <div className="mt-4 flex justify-end gap-3">
-                  <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50">
-                    字段映射设置
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setImportStatus('idle');
+                      setPreviewData([]);
+                      setUploadedFile(null);
+                    }}
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    <X size={14} className="inline mr-1" />
+                    取消
                   </button>
-                  <button className="rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-blue-500/30">
-                    确认导入
+                  <button
+                    onClick={handleConfirmImport}
+                    className="rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-blue-500/30"
+                  >
+                    <Check size={14} className="inline mr-1" />
+                    确认导入 {previewData.length > 20 ? 20 : previewData.length} 条数据
                   </button>
+                </div>
+              </div>
+            )}
+
+            {importStatus === 'success' && (
+              <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="text-emerald-500" size={24} />
+                  <div>
+                    <h4 className="font-semibold text-emerald-800">导入成功</h4>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      已成功导入 {importCount} 条候选人记录。
+                      当前系统共 {allCandidates.length} 条候选人数据。
+                    </p>
+                    <button
+                      onClick={() => {
+                        setImportStatus('idle');
+                        setPreviewData([]);
+                        setUploadedFile(null);
+                      }}
+                      className="mt-3 text-sm font-medium text-emerald-700 underline underline-offset-2"
+                    >
+                      继续导入更多数据
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -192,20 +415,6 @@ export default function DataManagerPage() {
               <div className="rounded-xl border border-slate-200 p-4 transition-all hover:border-blue-300 hover:shadow-md">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
-                    <Database size={24} />
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800">面试记录</p>
-                    <p className="text-xs text-slate-500">面试评价和结果记录</p>
-                  </div>
-                </div>
-                <button className="mt-4 w-full rounded-lg border border-slate-200 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50">
-                  下载模板
-                </button>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 transition-all hover:border-blue-300 hover:shadow-md">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
                     <Settings size={24} />
                   </div>
                   <div>
@@ -222,11 +431,103 @@ export default function DataManagerPage() {
         </div>
       )}
 
-      {activeTab === 'dictionary' && (
+      {activeTab === 'permission' && (
         <ChartCard
-          title="数据字典"
-          subtitle="系统字段定义和说明"
+          title="权限设置"
+          subtitle="切换不同角色体验数据过滤效果"
         >
+          <div className="mb-4 rounded-lg bg-blue-50 p-4">
+            <p className="text-sm text-blue-800">
+              <Shield size={16} className="inline mr-2" />
+              当前角色: <strong>{ROLE_OPTIONS.find(r => r.role === currentUserRole)?.label}</strong>
+              {currentUserId && (
+                <span className="ml-2">
+                  (用户ID: {currentUserId})
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-xs text-blue-600">
+              切换角色后，所有页面的数据会根据权限自动过滤
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {ROLE_OPTIONS.map(({ role, label, description, icon: Icon }) => (
+              <button
+                key={role}
+                onClick={() => handleRoleChange(role)}
+                className={`rounded-xl border-2 p-4 text-left transition-all ${getRoleBadgeClass(role)}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                    role === currentUserRole ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-800">{label}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-slate-500">{description}</p>
+                {role === currentUserRole && (
+                  <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                    <Check size={12} />
+                    当前角色
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
+            <div className="bg-slate-50 px-4 py-3 font-medium text-slate-700">
+              权限矩阵
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/50">
+                  <th className="px-4 py-2 text-left font-medium text-slate-600">功能</th>
+                  <th className="px-4 py-2 text-center font-medium text-slate-600">管理员</th>
+                  <th className="px-4 py-2 text-center font-medium text-slate-600">人事运营</th>
+                  <th className="px-4 py-2 text-center font-medium text-slate-600">招聘经理</th>
+                  <th className="px-4 py-2 text-center font-medium text-slate-600">招聘官</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { feature: '查看所有候选人数据', admin: true, hr: true, manager: false, recruiter: false },
+                  { feature: '查看本部门候选人', admin: true, hr: true, manager: true, recruiter: false },
+                  { feature: '查看个人负责候选人', admin: true, hr: true, manager: true, recruiter: true },
+                  { feature: '导出CSV/PDF报告', admin: true, hr: true, manager: true, recruiter: false },
+                  { feature: '批量导入数据', admin: true, hr: false, manager: false, recruiter: false },
+                  { feature: '标注异常点', admin: true, hr: true, manager: false, recruiter: false },
+                  { feature: '编辑备注', admin: true, hr: true, manager: true, recruiter: true },
+                  { feature: '查看数据质量报告', admin: true, hr: true, manager: false, recruiter: false },
+                ].map((row, idx) => (
+                  <tr key={idx} className="border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-2.5 text-slate-700">{row.feature}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {row.admin ? <Check size={16} className="mx-auto text-emerald-500" /> : <X size={16} className="mx-auto text-slate-300" />}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {row.hr ? <Check size={16} className="mx-auto text-emerald-500" /> : <X size={16} className="mx-auto text-slate-300" />}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {row.manager ? <Check size={16} className="mx-auto text-emerald-500" /> : <X size={16} className="mx-auto text-slate-300" />}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {row.recruiter ? <Check size={16} className="mx-auto text-emerald-500" /> : <X size={16} className="mx-auto text-slate-300" />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+      )}
+
+      {activeTab === 'dictionary' && (
+        <ChartCard title="数据字典" subtitle="系统字段定义和说明">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -281,7 +582,7 @@ export default function DataManagerPage() {
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-500">数据总数</p>
-                <Database size={18} className="text-blue-500" />
+                <CheckCircle size={18} className="text-blue-500" />
               </div>
               <p className="mt-2 text-2xl font-bold text-slate-800">{qualityReport.totalRecords}<span className="text-sm font-normal text-slate-500 ml-1">条</span></p>
             </div>
@@ -326,10 +627,7 @@ export default function DataManagerPage() {
                     <div className="h-2 w-full rounded-full bg-slate-100">
                       <div
                         className="h-full rounded-full"
-                        style={{
-                          width: `${field.percentage}%`,
-                          backgroundColor: CHART_PALETTE[idx % CHART_PALETTE.length],
-                        }}
+                        style={{ width: `${field.percentage}%`, backgroundColor: CHART_PALETTE[idx % CHART_PALETTE.length] }}
                       />
                     </div>
                   </div>
