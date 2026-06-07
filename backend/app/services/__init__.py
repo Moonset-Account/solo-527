@@ -229,7 +229,8 @@ class AnomalyService:
         end_time: Optional[datetime] = None,
         severity: Optional[str] = None,
         room_ids: Optional[List[str]] = None,
-        week_type: Optional[str] = None
+        week_type: Optional[str] = None,
+        include_maintenance: bool = False
     ):
         query = self.db.query(Anomaly).join(
             EnergyData, Anomaly.energy_data_id == EnergyData.id
@@ -245,6 +246,9 @@ class AnomalyService:
             query = query.filter(Anomaly.severity == severity)
         if room_ids:
             query = query.filter(Device.room_id.in_(room_ids))
+        if not include_maintenance:
+            query = query.filter(Device.status != "maintenance")
+        query = query.filter(Device.status != "offline")
         query = _filter_week_type(query, week_type, "anomalies")
             
         anomalies = query.limit(100).all()
