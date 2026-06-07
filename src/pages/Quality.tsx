@@ -10,9 +10,17 @@ import ExportButton from '@/components/ExportButton'
 
 const CONCLUSION_CONFIG: Record<string, { color: string; border: string; label: string }> = {
   warehouse_damage: { color: '#E74C3C', border: 'border-l-red-500', label: '仓库破损' },
+  transport_damage: { color: '#C0392B', border: 'border-l-red-400', label: '运输损坏' },
+  wrong_item: { color: '#E67E22', border: 'border-l-orange-500', label: '发错货' },
+  consumer_dissatisfied: { color: '#3498DB', border: 'border-l-blue-500', label: '不满意' },
+  consumer_wrong_size: { color: '#2980B9', border: 'border-l-blue-400', label: '尺码不符' },
+  consumer_changed_mind: { color: '#5DADE2', border: 'border-l-blue-300', label: '改变主意' },
   consumer_reason: { color: '#3498DB', border: 'border-l-blue-500', label: '消费者原因' },
+  quality_defect: { color: '#8E44AD', border: 'border-l-purple-500', label: '质量缺陷' },
   other: { color: '#95A5A6', border: 'border-l-gray-400', label: '其他' },
 }
+
+const DEFAULT_CONCLUSION_CFG = { color: '#BDC3C7', border: 'border-l-gray-300', label: '未知' }
 
 const CURRENCY_BADGE: Record<string, string> = {
   USD: 'bg-green-100 text-green-700',
@@ -80,9 +88,9 @@ export default function Quality() {
 
   const chartOption = useMemo<EChartsOption>(() => {
     const pieData = filteredChartData.map((d) => ({
-      name: CONCLUSION_CONFIG[d.conclusion]?.label ?? d.conclusionLabel,
+      name: (CONCLUSION_CONFIG[d.conclusion] ?? DEFAULT_CONCLUSION_CFG).label,
       value: d.count,
-      itemStyle: { color: CONCLUSION_CONFIG[d.conclusion]?.color ?? '#999' },
+      itemStyle: { color: (CONCLUSION_CONFIG[d.conclusion] ?? DEFAULT_CONCLUSION_CFG).color },
     }))
 
     return {
@@ -160,7 +168,7 @@ export default function Quality() {
 
         <div className="lg:col-span-3 flex flex-col gap-4">
           {qualityData.map((d) => {
-            const cfg = CONCLUSION_CONFIG[d.conclusion]
+            const cfg = CONCLUSION_CONFIG[d.conclusion] ?? DEFAULT_CONCLUSION_CFG
             return (
               <div
                 key={d.conclusion}

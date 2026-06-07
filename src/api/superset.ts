@@ -1,6 +1,7 @@
 import type { SupersetDataset, SupersetCacheEntry, SupersetPermission } from "@/types"
 import { SUPERSET_CONFIG, CLICKHOUSE_CONFIG, POSTGRESQL_CONFIG } from "./config"
 import { pgMeta } from "./postgresql"
+import { supersetApi } from "./client"
 
 const ROLE_PERMISSIONS: Record<string, SupersetPermission[]> = {
   operator: [
@@ -33,26 +34,15 @@ export function setRole(role: string): void {
   console.log(`[Superset] Role switched to: ${role}`)
 }
 
+export function getCurrentRole(): string {
+  return currentRole
+}
+
 class SupersetClient {
   private datasets: Map<string, SupersetDataset> = new Map()
   private cache: Map<string, SupersetCacheEntry<unknown>> = new Map()
-  private connectedDatabases: Map<number, { name: string; backend: string; status: string }> = new Map()
 
   constructor() {
-    this.connectedDatabases.set(CLICKHOUSE_CONFIG.id, {
-      name: CLICKHOUSE_CONFIG.name,
-      backend: CLICKHOUSE_CONFIG.backend,
-      status: "connected",
-    })
-    this.connectedDatabases.set(POSTGRESQL_CONFIG.id, {
-      name: POSTGRESQL_CONFIG.name,
-      backend: POSTGRESQL_CONFIG.backend,
-      status: "connected",
-    })
-
-    console.log(`[Superset] Connected to ${CLICKHOUSE_CONFIG.name} (${CLICKHOUSE_CONFIG.host}:${CLICKHOUSE_CONFIG.port})`)
-    console.log(`[Superset] Connected to ${POSTGRESQL_CONFIG.name} (${POSTGRESQL_CONFIG.host}:${POSTGRESQL_CONFIG.port})`)
-
     this.registerDataset({
       id: "ds-return-rate-trend",
       name: "return_rate_trend",
@@ -179,17 +169,18 @@ class SupersetClient {
     return Array.from(this.datasets.values())
   }
 
-  listDatabases(): { id: number; name: string; backend: string; status: string }[] {
-    return Array.from(this.connectedDatabases.entries()).map(([id, val]) => ({ id, ...val }))
+  listDatabases(): { id: number; name: string; backend: string; status: string; host: string; port: number }[] {
+    return [
+      { id: CLICKHOUSE_CONFIG.id, name: CLICKHOUSE_CONFIG.name, backend: "clickhouse", status: supersetApi.getStatus().status, host: CLICKHOUSE_CONFIG.host, port: CLICKHOUSE_CONFIG.port },
+      { id: POSTGRESQL_CONFIG.id, name: POSTGRESQL_CONFIG.name, backend: "postgresql", status: supersetApi.getStatus().status, host: POSTGRESQL_CONFIG.host, port: POSTGRESQL_CONFIG.port },
+    ]
   }
 
   query<T>(cacheKey: string, queryFn: () => T, ttlMs: number = SUPERSET_CONFIG.cacheTtlMs): T {
     const cached = this.cache.get(cacheKey) as SupersetCacheEntry<T> | undefined
     if (cached && Date.now() - cached.createdAt < cached.ttlMs) {
-      console.log(`[Superset] Cache HIT: ${cacheKey}`)
       return cached.data
     }
-    console.log(`[Superset] Cache MISS: ${cacheKey}, executing query...`)
     const data = queryFn()
     this.cache.set(cacheKey, { key: cacheKey, data, createdAt: Date.now(), ttlMs })
     return data
@@ -198,10 +189,8 @@ class SupersetClient {
   invalidateCache(key?: string): void {
     if (key) {
       this.cache.delete(key)
-      console.log(`[Superset] Cache invalidated: ${key}`)
     } else {
       this.cache.clear()
-      console.log(`[Superset] All cache invalidated`)
     }
   }
 
@@ -213,16 +202,28 @@ class SupersetClient {
     return perm.actions.includes(action)
   }
 
-  exportCSV(filename: string, headers: string[], rows: string[][]): void {
+  async exportCSV(filename: string, headers: string[], rows: string[][]): Promise<{ success: boolean; error?: string }> {
     const canExport = this.checkPermission("csv", "export")
     if (!canExport) {
-      console.error("[Superset] Permission denied: csv export")
-      return
+      console.error("[Superset] Permission denied: csv export for role", currentRole)
+      return { success: false, error: `当前角色(${currentRole})没有 CSV 导出权限` }
+    }
+
+    const remoteBlob = await supersetApi.exportDatasetCSV("refund_report", {})
+    if (remoteBlob) {
+      const url = URL.createObjectURL(remoteBlob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = filename.endsWith(".csv") ? filename : filename + ".csv"
+      anchor.click()
+      URL.revokeObjectURL(url)
+      console.log(`[Superset] CSV exported from remote: ${filename}`)
+      return { success: true }
     }
 
     const bom = "\uFEFF"
-    const headerLine = headers.join(",")
-    const dataLines = rows.map((row) => row.join(",")).join("\n")
+    const headerLine = headers.map(this.formatCSVField).join(",")
+    const dataLines = rows.map((row) => row.map(this.formatCSVField).join(",")).join("\n")
     const csvContent = bom + headerLine + "\n" + dataLines
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
@@ -231,7 +232,15 @@ class SupersetClient {
     anchor.download = filename.endsWith(".csv") ? filename : filename + ".csv"
     anchor.click()
     URL.revokeObjectURL(url)
-    console.log(`[Superset] CSV exported: ${filename}`)
+    console.log(`[Superset] CSV exported locally: ${filename}`)
+    return { success: true }
+  }
+
+  private formatCSVField(value: string): string {
+    if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+      return '"' + value.replace(/"/g, '""') + '"'
+    }
+    return value
   }
 
   exportChartImage(filename: string, dataUrl: string): void {
@@ -239,17 +248,6 @@ class SupersetClient {
     anchor.href = dataUrl
     anchor.download = filename.endsWith(".png") ? filename : filename + ".png"
     anchor.click()
-    console.log(`[Superset] Chart image exported: ${filename}`)
-  }
-
-  getExportDataWithRates(warehouseType: string): { currency: string; originalAmount: number; exchangeRate: number; convertedUSD: number }[] {
-    const rates = pgMeta.getCurrencyExchangeRates()
-    return rates.map((r) => ({
-      currency: r.currency,
-      originalAmount: +(Math.random() * 50000 + 5000).toFixed(2),
-      exchangeRate: r.exchangeRateToUSD,
-      convertedUSD: +(Math.random() * 50000 + 5000 * r.exchangeRateToUSD).toFixed(2),
-    }))
   }
 }
 

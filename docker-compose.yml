@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: return-ch
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ch-data:/var/lib/clickhouse
+      - ./infra/clickhouse/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    environment:
+      CLICKHOUSE_USER: dashboard_reader
+      CLICKHOUSE_PASSWORD: ch_secure_2024
+      CLICKHOUSE_DB: analytics
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "dashboard_reader", "--password", "ch_secure_2024", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: return-pg
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infra/postgresql/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    environment:
+      POSTGRES_USER: dashboard_meta
+      POSTGRES_PASSWORD: pg_secure_2024
+      POSTGRES_DB: return_dashboard
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dashboard_meta -d return_dashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  superset:
+    image: apache/superset:4.0
+    container_name: return-superset
+    ports:
+      - "8088:8088"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: superset_secret_2024
+      DATABASE_URI: postgresql+psycopg2://dashboard_meta:pg_secure_2024@postgres:5432/superset_meta
+      CLICKHOUSE_URI: clickhouse+native://dashboard_reader:ch_secure_2024@clickhouse:9000/analytics
+    volumes:
+      - ./infra/superset/superset_init.sh:/app/superset_init.sh
+    entrypoint: ["/bin/bash", "/app/superset_init.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+
+volumes:
+  ch-data:
+  pg-data:
