@@ -2,8 +2,40 @@ import random
 import numpy as np
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.models import Room, Device, EnergyData, Alarm, Workorder, Schedule, Anomaly, ACStrategy, WorkorderAlarm
-from app.core.database import SessionLocal, engine, Base
+from app.core.database import SessionLocal, engine, Base, get_db_type
+
+
+def init_database():
+    db_type = get_db_type()
+    print(f"数据库类型: {db_type}")
+    
+    try:
+        if db_type == "postgresql":
+            with engine.connect() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"))
+                conn.commit()
+    except Exception as e:
+        print(f"初始化PostgreSQL扩展时跳过 (可能已存在): {e}")
+    
+    Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        room_count = db.query(Room).count()
+        if room_count == 0:
+            print("正在生成模拟数据...")
+            generator = DataGenerator(db)
+            generator.generate_all()
+            print("模拟数据生成完成！")
+        else:
+            print("数据库已存在数据，跳过初始化")
+    except Exception as e:
+        print(f"数据库初始化出错: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 class DataGenerator:
@@ -262,20 +294,3 @@ class DataGenerator:
                     )
                     self.db.add(anomaly)
         self.db.flush()
-
-
-def init_database():
-    Base.metadata.create_all(bind=engine)
-    
-    db = SessionLocal()
-    try:
-        room_count = db.query(Room).count()
-        if room_count == 0:
-            print("正在生成模拟数据...")
-            generator = DataGenerator(db)
-            generator.generate_all()
-            print("模拟数据生成完成！")
-        else:
-            print("数据库已存在数据，跳过初始化")
-    finally:
-        db.close()

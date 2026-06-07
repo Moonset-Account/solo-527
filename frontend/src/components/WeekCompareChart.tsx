@@ -15,12 +15,7 @@ export default function WeekCompareChart() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const examWeekStart = dayjs().subtract(15, 'day').format('YYYY-MM-DD HH:mm:ss');
-      const normalWeekStart = dayjs().subtract(8, 'day').format('YYYY-MM-DD HH:mm:ss');
-      
       const result = await apiService.compareWeeks({
-        examWeekStart,
-        normalWeekStart,
         roomIds: roomIds.length > 0 ? roomIds : undefined,
         includeMaintenance,
       });
@@ -39,7 +34,7 @@ export default function WeekCompareChart() {
   const getChartOption = (): EChartsOption => {
     if (!data) return {};
 
-    const examTimes = data.examWeek.map(d => d.time.split(' ')[1] || d.time);
+    const examTimes = data.examWeek.map(d => d.time);
     const examValues = data.examWeek.map(d => d.value);
     const normalValues = data.normalWeek.map(d => d.value);
 

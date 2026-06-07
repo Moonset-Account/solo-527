@@ -22,4 +22,4 @@ def get_db():
 
 
 def get_db_type() -> str:
-    return settings.DB_TYPE
+    return settings.RESOLVED_DB_TYPE
