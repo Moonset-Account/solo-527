@@ -11,23 +11,61 @@ import type {
 
 const API_BASE = '/api';
 
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('auth-storage');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.state?.token || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
+
+  if (res.status === 401) {
+    localStorage.removeItem('auth-storage');
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+  }
+
   if (!res.ok) {
-    throw new Error(`API error: ${res.status}`);
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `API error: ${res.status}`);
   }
   return res.json();
 }
 
 export const api = {
   login: (email: string, password: string) =>
-    fetchJSON(`${API_BASE}/auth/login`, {
+    fetchJSON<{
+      success: boolean;
+      token: string;
+      user: {
+        id: string;
+        email: string;
+        role: string;
+        name: string;
+        athleteId?: string;
+      };
+    }>(`${API_BASE}/auth/login`, {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
@@ -79,15 +117,10 @@ export const api = {
   },
 
   getRadar: (athleteId: string) =>
-    fetchJSON<RadarData[]>(`${API_BASE}/radar/${athleteId}`),
+    fetchJSON<RadarData>(`${API_BASE}/radar/${athleteId}`),
 
-  getDataQuality: (filters: FilterState) => {
-    const params = new URLSearchParams();
-    if (filters.athleteIds.length) params.set('athleteIds', filters.athleteIds.join(','));
-    params.set('start', filters.dateRange.start);
-    params.set('end', filters.dateRange.end);
-    return fetchJSON<DataQualityStatus>(`${API_BASE}/data-quality?${params.toString()}`);
-  },
+  getDataQuality: () =>
+    fetchJSON<DataQualityStatus>(`${API_BASE}/data-quality`),
 
   getSports: () =>
     fetchJSON<string[]>(`${API_BASE}/sports`),
@@ -95,14 +128,53 @@ export const api = {
   getExercises: () =>
     fetchJSON<string[]>(`${API_BASE}/exercises`),
 
+  getPresets: () =>
+    fetchJSON<{
+      id: string;
+      name: string;
+      isDefault: boolean;
+      filters: FilterState;
+      createdAt: string;
+    }[]>(`${API_BASE}/presets`),
+
+  createPreset: (name: string, filters: FilterState, isDefault = false) =>
+    fetchJSON<{
+      id: string;
+      name: string;
+      isDefault: boolean;
+      filters: FilterState;
+    }>(`${API_BASE}/presets`, {
+      method: 'POST',
+      body: JSON.stringify({ name, filters, isDefault }),
+    }),
+
+  deletePreset: (id: string) =>
+    fetchJSON<void>(`${API_BASE}/presets/${id}`, { method: 'DELETE' }),
+
   triggerEtl: () =>
-    fetchJSON(`${API_BASE}/etl/trigger`, { method: 'POST' }),
+    fetchJSON<{
+      success: boolean;
+      recordsProcessed: number;
+      errors: string[];
+    }>(`${API_BASE}/etl/trigger`, { method: 'POST' }),
 
   exportReport: (filters: FilterState) => {
     const params = new URLSearchParams();
     if (filters.athleteIds.length) params.set('athleteIds', filters.athleteIds.join(','));
     params.set('start', filters.dateRange.start);
     params.set('end', filters.dateRange.end);
-    return fetchJSON(`${API_BASE}/export/report?${params.toString()}`);
+    return fetchJSON<{
+      filters: FilterState;
+      summary: {
+        trainingCount: number;
+        recoveryCount: number;
+        strengthCount: number;
+        totalLoad: number;
+        avgRecovery: number;
+      };
+      training: TrainingData[];
+      recovery: RecoveryData[];
+      strength: StrengthData[];
+    }>(`${API_BASE}/export/report?${params.toString()}`);
   },
 };

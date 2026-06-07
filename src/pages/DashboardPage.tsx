@@ -29,7 +29,7 @@ export function DashboardPage() {
     ? filters.athleteIds[0]
     : user?.athleteId || (athletes[0]?.id ?? '');
 
-  const { data: radarData = [] } = useRadarData(selectedAthleteId);
+  const { data: radarData = null } = useRadarData(selectedAthleteId);
 
   const summary = useMemo(() => {
     const totalLoad = trainingData.reduce((sum, d) => sum + d.loadScore, 0);

@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { EtlLog, DataQualityStatus } from '@shared/types';
+import type { DataQualityStatus } from '@shared/types';
 
 export interface EtlResult {
   success: boolean;
@@ -152,7 +152,7 @@ export class EtlPipeline {
         injuries: injuryCount,
         athletes: athleteCount,
       },
-      etlStatus: lastEtl?.status || 'unknown',
+      etlStatus: (lastEtl?.status as 'running' | 'completed' | 'failed' | 'unknown') || 'unknown',
     };
   }
 }

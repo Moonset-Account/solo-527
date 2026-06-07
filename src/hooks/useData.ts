@@ -79,10 +79,9 @@ export function useRadarData(athleteId: string) {
 }
 
 export function useDataQuality() {
-  const filters = useFilterStore((s) => s.filters);
   return useQuery({
-    queryKey: ['data-quality', filters],
-    queryFn: () => api.getDataQuality(filters),
+    queryKey: ['data-quality'],
+    queryFn: () => api.getDataQuality(),
     staleTime: 60 * 1000,
     refetchInterval: 30 * 1000,
   });

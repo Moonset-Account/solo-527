@@ -1,4 +1,4 @@
-import type { Athlete, TrainingData, StrengthData, RecoveryData, InjuryRecord, User } from '../shared/types';
+import type { Athlete, TrainingData, StrengthData, RecoveryData, InjuryRecord, User } from '@shared/types';
 import { addDays, formatISO, subDays } from 'date-fns';
 
 const ATHLETE_NAMES = [

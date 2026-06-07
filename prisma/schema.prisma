@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -11,7 +11,7 @@ model User {
   id            String          @id @default(uuid())
   email         String          @unique
   passwordHash  String
-  role          String
+  role          String          @db.VarChar(50)
   name          String
   athleteId     String?         @unique
   athlete       Athlete?        @relation(fields: [athleteId], references: [id])
@@ -43,15 +43,15 @@ model TrainingData {
   athleteId     String
   athlete       Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   date          DateTime
-  sessionType   String
+  sessionType   String   @db.VarChar(100)
   durationMin   Int
   avgHeartRate  Int?
   maxHeartRate  Int?
-  paceKmPerH    Float?
-  distanceKm    Float?
+  paceKmPerH    Decimal? @db.Decimal(5, 2)
+  distanceKm    Decimal? @db.Decimal(6, 2)
   loadScore     Int
   rpe           Int?
-  source        String?
+  source        String?  @db.VarChar(100)
   createdAt     DateTime @default(now())
 
   @@index([athleteId, date])
@@ -62,12 +62,12 @@ model StrengthData {
   athleteId    String
   athlete      Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   date         DateTime
-  exercise     String
-  weightKg     Float
+  exercise     String   @db.VarChar(100)
+  weightKg     Decimal  @db.Decimal(5, 1)
   reps         Int
   sets         Int
-  estimated1Rm Float?
-  notes        String?
+  estimated1Rm Decimal? @db.Decimal(5, 1)
+  notes        String?  @db.Text
   createdAt    DateTime @default(now())
 
   @@index([athleteId, exercise])
@@ -83,7 +83,7 @@ model RecoveryData {
   sorenessScore  Int?
   moodScore      Int?
   overallScore   Int
-  source         String?
+  source         String?  @db.VarChar(100)
   createdAt      DateTime @default(now())
 
   @@index([athleteId, date])
@@ -94,11 +94,11 @@ model InjuryRecord {
   athleteId   String
   athlete     Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   date        DateTime
-  injuryType  String
-  severity    String
-  description String
-  notes       String?
-  status      String   @default("active")
+  injuryType  String   @db.VarChar(100)
+  severity    String   @db.VarChar(20)
+  description String   @db.Text
+  notes       String?  @db.Text
+  status      String   @default("active") @db.VarChar(20)
   returnDate  DateTime?
   createdAt   DateTime @default(now())
 
@@ -110,9 +110,9 @@ model FilterPreset {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
+  name      String   @db.VarChar(255)
   isDefault Boolean  @default(false)
-  filters   String
+  filters   String   @db.JsonB
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -120,10 +120,10 @@ model FilterPreset {
 
 model EtlLog {
   id               String    @id @default(uuid())
-  source           String
-  status           String
+  source           String    @db.VarChar(100)
+  status           String    @db.VarChar(20)
   recordsProcessed Int       @default(0)
-  errors           String?
+  errors           String?   @db.Text
   startedAt        DateTime  @default(now())
   finishedAt       DateTime?
 

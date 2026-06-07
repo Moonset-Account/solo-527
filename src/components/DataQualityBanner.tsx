@@ -15,25 +15,25 @@ export function DataQualityBanner({ status, onRefresh }: DataQualityBannerProps)
 
   if (!dataQualityBannerOpen) return null;
 
-  const hasErrors = status.errors.length > 0;
   const hasWarnings = status.warnings.length > 0;
-  const hasMissing = status.missingFields.length > 0;
+  const isError = status.status === 'error';
+  const isWarning = status.status === 'warning';
 
-  if (!hasErrors && !hasWarnings && !hasMissing) return null;
-
-  const severity = hasErrors ? 'error' : hasWarnings ? 'warning' : 'info';
+  const severity = isError ? 'error' : isWarning ? 'warning' : 'info';
 
   const colors = {
-    error: 'bg-danger/15 border-danger/40 text-danger',
-    warning: 'bg-warning/15 border-warning/40 text-warning',
-    info: 'bg-brand-400/15 border-brand-400/40 text-brand-300',
+    error: 'bg-red-500/15 border-red-500/40 text-red-400',
+    warning: 'bg-amber-500/15 border-amber-500/40 text-amber-400',
+    info: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400',
   };
 
   const icons = {
     error: <XCircle className="w-5 h-5" />,
     warning: <AlertTriangle className="w-5 h-5" />,
-    info: <Info className="w-5 h-5" />,
+    info: <CheckCircle className="w-5 h-5" />,
   };
+
+  const totalSamples = status.sampleSizes.training + status.sampleSizes.strength + status.sampleSizes.recovery;
 
   return (
     <motion.div
@@ -47,10 +47,11 @@ export function DataQualityBanner({ status, onRefresh }: DataQualityBannerProps)
             {icons[severity]}
             <div className="flex-1">
               <p className="text-sm font-medium">
-                {hasErrors ? '发现数据问题' : hasWarnings ? '数据存在警告' : '数据提示'}
+                {isError ? '数据服务异常' : isWarning ? '数据存在警告' : hasWarnings ? '数据提示' : '数据状态良好'}
               </p>
               <p className="text-xs opacity-80">
-                样本量: {status.sampleSize} | 最后更新: {new Date(status.lastUpdated).toLocaleString('zh-CN')}
+                训练:{status.sampleSizes.training} | 力量:{status.sampleSizes.strength} | 恢复:{status.sampleSizes.recovery} | 
+                最后更新: {new Date(status.lastUpdated).toLocaleString('zh-CN')}
               </p>
             </div>
           </div>
@@ -88,19 +89,6 @@ export function DataQualityBanner({ status, onRefresh }: DataQualityBannerProps)
               className="overflow-hidden"
             >
               <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                {status.errors.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold mb-1">错误:</p>
-                    <ul className="text-xs space-y-1">
-                      {status.errors.map((err, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <XCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                          <span>{err}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
                 {status.warnings.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold mb-1">警告:</p>
@@ -114,30 +102,30 @@ export function DataQualityBanner({ status, onRefresh }: DataQualityBannerProps)
                     </ul>
                   </div>
                 )}
-                {status.missingFields.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold mb-1">缺失字段:</p>
-                    <ul className="text-xs space-y-1">
-                      {status.missingFields.map((field, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                          <span>{field}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {status.updateSuccess ? (
-                  <p className="text-xs flex items-center gap-1 text-success">
-                    <CheckCircle className="w-3 h-3" />
-                    数据更新成功
+                <div>
+                  <p className="text-xs font-semibold mb-1">ETL 状态:</p>
+                  <p className="text-xs flex items-center gap-1">
+                    {status.etlStatus === 'completed' ? (
+                      <><CheckCircle className="w-3 h-3 text-emerald-400" /> ETL 执行成功</>
+                    ) : status.etlStatus === 'running' ? (
+                      <><RefreshCw className="w-3 h-3 animate-spin" /> ETL 执行中...</>
+                    ) : status.etlStatus === 'failed' ? (
+                      <><XCircle className="w-3 h-3 text-red-400" /> ETL 执行失败</>
+                    ) : (
+                      <><Info className="w-3 h-3" /> ETL 状态未知</>
+                    )}
                   </p>
-                ) : (
-                  <p className="text-xs flex items-center gap-1 text-danger">
-                    <XCircle className="w-3 h-3" />
-                    数据更新失败，请重试
-                  </p>
-                )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold mb-1">样本量统计:</p>
+                  <ul className="text-xs space-y-1 grid grid-cols-2 gap-1">
+                    <li>训练数据: {status.sampleSizes.training} 条</li>
+                    <li>力量数据: {status.sampleSizes.strength} 条</li>
+                    <li>恢复数据: {status.sampleSizes.recovery} 条</li>
+                    <li>伤病记录: {status.sampleSizes.injuries} 条</li>
+                    <li>队员数量: {status.sampleSizes.athletes} 人</li>
+                  </ul>
+                </div>
               </div>
             </motion.div>
           )}

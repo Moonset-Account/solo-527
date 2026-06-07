@@ -113,7 +113,7 @@ export function ComparePage() {
 }
 
 function RadarChartWrapper({ athleteId, name, delay }: { athleteId: string; name: string; delay: number }) {
-  const { data: radarData = [] } = useRadarData(athleteId);
+  const { data: radarData = null } = useRadarData(athleteId);
 
   return (
     <motion.div

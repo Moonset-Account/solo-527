@@ -5,14 +5,14 @@ import { EmptyState, LoadingState } from './EmptyStates';
 import { useMemo } from 'react';
 
 interface RadarChartProps {
-  data: RadarData[];
+  data: RadarData | null;
   athleteName?: string;
   isLoading?: boolean;
 }
 
 export function RadarChart({ data, athleteName, isLoading }: RadarChartProps) {
   if (isLoading) return <LoadingState />;
-  if (!data || data.length === 0) return <EmptyState icon="chart" title="暂无雷达数据" />;
+  if (!data || !data.metrics || data.metrics.length === 0) return <EmptyState icon="chart" title="暂无雷达数据" />;
 
   const option: EChartsOption = {
     tooltip: {
@@ -21,7 +21,7 @@ export function RadarChart({ data, athleteName, isLoading }: RadarChartProps) {
       textStyle: { color: '#E2E8F0', fontSize: 12 },
     },
     radar: {
-      indicator: data.map((d) => ({ name: d.dimension, max: d.fullMark })),
+      indicator: data.metrics.map((m) => ({ name: m.name, max: m.max })),
       splitArea: {
         areaStyle: {
           color: ['rgba(51, 65, 85, 0.2)', 'rgba(51, 65, 85, 0.4)'],
@@ -39,7 +39,7 @@ export function RadarChart({ data, athleteName, isLoading }: RadarChartProps) {
         type: 'radar',
         data: [
           {
-            value: data.map((d) => d.value),
+            value: data.metrics.map((m) => m.value),
             name: athleteName || '能力评估',
             areaStyle: {
               color: 'rgba(56, 189, 248, 0.25)',

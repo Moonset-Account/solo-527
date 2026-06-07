@@ -87,7 +87,7 @@ export function getInjuryRecords(filters: FilterState, currentUserRole: string, 
   return data;
 }
 
-export function getRadarData(athleteId: string): RadarData[] {
+export function getRadarData(athleteId: string): RadarData {
   const training = store.trainingData.filter(d => d.athleteId === athleteId);
   const strength = store.strengthData.filter(d => d.athleteId === athleteId);
   const recovery = store.recoveryData.filter(d => d.athleteId === athleteId);
@@ -99,52 +99,51 @@ export function getRadarData(athleteId: string): RadarData[] {
   const avgDuration = training.length > 0 ? training.reduce((sum, d) => sum + d.durationMin, 0) / training.length : 0;
   const avgHr = training.filter(d => d.avgHeartRate).reduce((sum, d) => sum + (d.avgHeartRate || 0), 0) / (training.filter(d => d.avgHeartRate).length || 1);
 
-  return [
-    { dimension: '负荷量', value: Math.min(100, Math.round(avgLoad / 8)), fullMark: 100 },
-    { dimension: '力量水平', value: Math.min(100, Math.round(avgStrength / 1.5)), fullMark: 100 },
-    { dimension: '恢复能力', value: Math.round(avgRecovery), fullMark: 100 },
-    { dimension: '速度耐力', value: Math.min(100, Math.round(avgPace * 6)), fullMark: 100 },
-    { dimension: '训练时长', value: Math.min(100, Math.round(avgDuration / 1.2)), fullMark: 100 },
-    { dimension: '心率强度', value: Math.min(100, Math.round((avgHr - 60) / 1.2)), fullMark: 100 },
-  ];
+  return {
+    athleteId,
+    metrics: [
+      { name: '负荷量', value: Math.min(100, Math.round(avgLoad / 8)), max: 100 },
+      { name: '力量水平', value: Math.min(100, Math.round(avgStrength / 1.5)), max: 100 },
+      { name: '恢复能力', value: Math.round(avgRecovery), max: 100 },
+      { name: '速度耐力', value: Math.min(100, Math.round(avgPace * 6)), max: 100 },
+      { name: '训练时长', value: Math.min(100, Math.round(avgDuration / 1.2)), max: 100 },
+      { name: '心率强度', value: Math.min(100, Math.round((avgHr - 60) / 1.2)), max: 100 },
+    ],
+    lastUpdated: new Date(),
+  };
 }
 
-export function getDataQualityStatus(filters: FilterState): DataQualityStatus {
-  const training = filterTrainingData(filters, 'coach');
-  const recovery = filterRecoveryData(filters, 'coach');
-  const strength = filterStrengthData(filters, 'coach');
+export function getDataQualityStatus(_filters: FilterState): DataQualityStatus {
+  const training = store.trainingData.length;
+  const recovery = store.recoveryData.length;
+  const strength = store.strengthData.length;
+  const injuries = store.injuryRecords.length;
+  const athletes = store.athletes.length;
 
-  const missingFields: string[] = [];
   const warnings: string[] = [];
-  const errors: string[] = [];
 
-  const trainingMissingHr = training.filter(d => !d.avgHeartRate).length;
-  const trainingMissingPace = training.filter(d => d.sessionType === '有氧训练' && !d.paceKmPerH).length;
-  const recoveryMissingSleep = recovery.filter(d => !d.sleepScore).length;
-  const strengthMissing1Rm = strength.filter(d => !d.estimated1Rm).length;
+  const trainingMissingHr = store.trainingData.filter(d => !d.avgHeartRate).length;
+  if (trainingMissingHr > 0) warnings.push(`训练心率数据缺失 ${trainingMissingHr} 条`);
 
-  if (trainingMissingHr > 0) missingFields.push(`训练心率数据缺失 ${trainingMissingHr} 条`);
-  if (trainingMissingPace > 0) missingFields.push(`配速数据缺失 ${trainingMissingPace} 条`);
-  if (recoveryMissingSleep > 0) missingFields.push(`睡眠评分缺失 ${recoveryMissingSleep} 条`);
-  if (strengthMissing1Rm > 0) warnings.push(`力量测试 1RM 估算数据缺失 ${strengthMissing1Rm} 条`);
-
-  const sampleSize = training.length + recovery.length + strength.length;
-
+  const sampleSize = training + recovery + strength;
   if (sampleSize < 10) {
     warnings.push('样本量较小，分析结果可能存在偏差');
   }
 
-  if (training.length === 0) {
-    errors.push('当前筛选条件下没有训练数据');
-  }
+  const hasErrors = training === 0;
 
   return {
-    lastUpdated: new Date().toISOString(),
-    updateSuccess: true,
-    missingFields,
-    sampleSize,
+    status: hasErrors ? 'error' : warnings.length > 0 ? 'warning' : 'healthy',
+    lastUpdated: new Date(),
     warnings,
-    errors,
+    sampleSizes: {
+      training,
+      strength,
+      recovery,
+      injuries,
+      athletes,
+    },
+    etlStatus: 'completed',
   };
 }
 

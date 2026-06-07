@@ -78,18 +78,27 @@ export interface FilterState {
 }
 
 export interface DataQualityStatus {
-  lastUpdated: string;
-  updateSuccess: boolean;
-  missingFields: string[];
-  sampleSize: number;
+  status: 'healthy' | 'warning' | 'error';
+  lastUpdated: Date | string;
   warnings: string[];
-  errors: string[];
+  sampleSizes: {
+    training: number;
+    strength: number;
+    recovery: number;
+    injuries: number;
+    athletes: number;
+  };
+  etlStatus: 'running' | 'completed' | 'failed' | 'unknown';
 }
 
 export interface RadarData {
-  dimension: string;
-  value: number;
-  fullMark: number;
+  athleteId: string;
+  metrics: Array<{
+    name: string;
+    value: number;
+    max: number;
+  }>;
+  lastUpdated: Date | string;
 }
 
 export interface User {
