@@ -37,12 +37,12 @@ const availableStations = computed(() => {
 
 const districtComplaintCount = computed(() => {
   if (!linkedFilters.value) return new Map()
-  return linkedFilters.value.districtComplaintCounts
+  return new Map(Object.entries(linkedFilters.value.districtComplaintCounts))
 })
 
 const districtConstructionCount = computed(() => {
   if (!linkedFilters.value) return new Map()
-  return linkedFilters.value.districtConstructionCount
+  return new Map(Object.entries(linkedFilters.value.districtConstructionCounts))
 })
 
 watch(() => criteria.value.districts, (newDistricts) => {

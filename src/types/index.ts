@@ -76,6 +76,44 @@ export interface DistrictHeatmap {
 
 export type PollutantType = 'pm25' | 'pm10' | 'ozone' | 'no2' | 'so2' | 'co' | 'aqi'
 
+export interface LinkedFilterOptions {
+  availableStations: MonitorStation[]
+  availableDistricts: string[]
+  availableHours: number[]
+  districtComplaintCounts: Record<string, number>
+  districtConstructionCounts: Record<string, number>
+}
+
+export interface AggregateResult {
+  stationId?: string
+  stationName?: string
+  district?: string
+  hour?: number
+  hour_label?: string
+  date?: string
+  pm25_avg?: number
+  pm25_max?: number
+  pm25_min?: number
+  pm25_count?: number
+  pm10_avg?: number
+  pm10_max?: number
+  pm10_min?: number
+  pm10_count?: number
+  ozone_avg?: number
+  ozone_max?: number
+  ozone_min?: number
+  ozone_count?: number
+  no2_avg?: number
+  no2_max?: number
+  no2_min?: number
+  no2_count?: number
+  aqi_avg?: number
+  aqi_max?: number
+  aqi_min?: number
+  aqi_count?: number
+  sample_count?: number
+}
+
 export const POLLUTANT_CONFIG: Record<PollutantType, { name: string; unit: string; color: string }> = {
   pm25: { name: 'PM2.5', unit: 'μg/m³', color: '#ef4444' },
   pm10: { name: 'PM10', unit: 'μg/m³', color: '#f97316' },

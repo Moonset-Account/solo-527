@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ConstructionSite, ComplaintAggregate, TrafficData } from '@/types'
-import { DISTRICTS } from '@/types'
+
+type EventType = 'construction' | 'complaint' | 'traffic'
+
+const ALL_EVENT_TYPES: EventType[] = ['construction', 'complaint', 'traffic']
 
 const props = defineProps<{
   constructionSites: ConstructionSite[]
@@ -10,8 +13,13 @@ const props = defineProps<{
   eventTypes?: string[]
 }>()
 
-const enabledTypes = computed(() => {
-  return props.eventTypes?.length > 0 ? props.eventTypes : ['construction', 'complaint', 'traffic']
+const enabledTypes = computed<EventType[]>(() => {
+  if (!props.eventTypes || props.eventTypes.length === 0) {
+    return ALL_EVENT_TYPES
+  }
+  return props.eventTypes.filter((t): t is EventType =>
+    ALL_EVENT_TYPES.includes(t as EventType)
+  )
 })
 
 const recentEvents = computed(() => {
@@ -103,12 +111,12 @@ const typeConfig = {
       <h3 class="text-sm font-semibold text-slate-800">关联事件时间线</h3>
       <div class="flex gap-1">
         <span
-          v-for="type in ['construction', 'complaint', 'traffic']"
+          v-for="type in ALL_EVENT_TYPES"
           :key="type"
           class="text-xs px-1.5 py-0.5 rounded"
           :class="enabledTypes.includes(type) ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-300 line-through'"
         >
-          {{ typeConfig[type as keyof typeof typeConfig].icon }}
+          {{ typeConfig[type].icon }}
         </span>
       </div>
     </div>

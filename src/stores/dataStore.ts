@@ -6,6 +6,7 @@ import type {
   ConstructionSite,
   ComplaintAggregate,
   TrafficData,
+  LinkedFilterOptions,
 } from '@/types'
 import {
   fetchStations,
@@ -14,8 +15,7 @@ import {
   fetchConstructionSites,
   fetchComplaintsAggregate,
   fetchTrafficData,
-  getLinkedFilterOptions,
-  type LinkedFilterResult,
+  fetchLinkedFilters,
 } from '@/api/aggregateApi'
 
 interface DataState {
@@ -25,7 +25,7 @@ interface DataState {
   constructionSites: ConstructionSite[]
   complaints: ComplaintAggregate[]
   trafficData: TrafficData[]
-  linkedFilters: LinkedFilterResult | null
+  linkedFilters: LinkedFilterOptions | null
   loading: {
     stations: boolean
     timeSeries: boolean
@@ -136,7 +136,10 @@ export const useDataStore = defineStore('data', {
     }) {
       this.loading.linkedFilters = true
       try {
-        this.linkedFilters = await getLinkedFilterOptions(criteria)
+        this.linkedFilters = await fetchLinkedFilters(
+          criteria.districts || [],
+          criteria.stations || []
+        )
       } finally {
         this.loading.linkedFilters = false
       }
@@ -146,7 +149,7 @@ export const useDataStore = defineStore('data', {
       this.loading.stations = true
       try {
         if (districts.length === 1) {
-          this.stations = await fetchStations({ district: districts[0] })
+          this.stations = await fetchStations(districts[0])
         } else {
           this.stations = await fetchStations()
           if (districts.length > 1) {
@@ -176,8 +179,7 @@ export const useDataStore = defineStore('data', {
         this.timeSeries = await fetchTimeSeries(
           stationIds,
           criteria.timeRange.start,
-          criteria.timeRange.end,
-          criteria.pollutants
+          criteria.timeRange.end
         )
       } finally {
         this.loading.timeSeries = false
@@ -188,7 +190,13 @@ export const useDataStore = defineStore('data', {
       this.loading.heatmap = true
       try {
         const today = new Date().toISOString().split('T')[0]
-        this.heatmap = await fetchHeatmap(today)
+        const data = await fetchHeatmap(today)
+        this.heatmap = data.map(d => ({
+          district: d.district,
+          avgAqi: d.avgAqi,
+          avgPm25: d.avgPm25,
+          stationCount: d.stationCount,
+        }))
       } finally {
         this.loading.heatmap = false
       }
@@ -197,10 +205,9 @@ export const useDataStore = defineStore('data', {
     async loadConstructionSites(options?: { districts?: string[]; status?: 'active' | 'completed' }) {
       this.loading.construction = true
       try {
-        let sites = await fetchConstructionSites({
-          status: options?.status,
-        })
-        if (options?.districts && options.districts.length > 0) {
+        const district = options?.districts && options.districts.length === 1 ? options.districts[0] : undefined
+        let sites = await fetchConstructionSites(district, options?.status)
+        if (options?.districts && options.districts.length > 1) {
           sites = sites.filter(s => options.districts!.includes(s.district))
         }
         this.constructionSites = sites

@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
+    "dev:server": "cd server && npm install && npm start",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:server": "cd server && npm install"
   },
   "dependencies": {
     "vue": "^3.4.21",
