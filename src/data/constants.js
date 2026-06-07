@@ -59,9 +59,13 @@ export const EQUIPMENT_TYPES = [
 export const WEATHER_TYPES = [
   { id: 'sunny', name: '晴天', icon: '☀️' },
   { id: 'cloudy', name: '多云', icon: '⛅' },
-  { id: 'rainy', name: '雨天', icon: '🌧️' },
-  { id: 'stormy', name: '暴风雨', icon: '⛈️' },
-  { id: 'windy', name: '大风', icon: '💨' }
+  { id: 'light_rain', name: '小雨', icon: '🌦️' },
+  { id: 'heavy_rain', name: '大雨', icon: '🌧️' },
+  { id: 'storm', name: '暴风雨', icon: '⛈️' },
+  { id: 'windy', name: '大风', icon: '💨' },
+  { id: 'foggy', name: '雾天', icon: '🌫️' },
+  { id: 'hot', name: '高温', icon: '🔥' },
+  { id: 'cold', name: '低温', icon: '❄️' }
 ]
 
 export const FUNNEL_STAGES = [

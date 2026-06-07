@@ -352,6 +352,10 @@ INSERT INTO equipment_types (id, name, category) VALUES
 INSERT INTO weather_types (id, name, icon) VALUES
 ('sunny', '晴天', '☀️'),
 ('cloudy', '多云', '⛅'),
-('rainy', '雨天', '🌧️'),
-('stormy', '暴风雨', '⛈️'),
-('windy', '大风', '💨');
+('light_rain', '小雨', '🌦️'),
+('heavy_rain', '大雨', '🌧️'),
+('storm', '暴风雨', '⛈️'),
+('windy', '大风', '💨'),
+('foggy', '雾天', '🌫️'),
+('hot', '高温', '🔥'),
+('cold', '低温', '❄️');
