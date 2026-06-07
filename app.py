@@ -267,6 +267,7 @@ def _get_mapped_data(chapter_id, version_id=None):
         "unmapped_quiz": pd.DataFrame(),
         "unmapped_error": pd.DataFrame(),
         "unmapped_discussion": pd.DataFrame(),
+        "unmapped_learning_path": pd.DataFrame(),
         "unmapped_section_info": [],
         "has_multiple": has_multiple,
         "old_vid": old_vid,
@@ -391,21 +392,16 @@ def _get_mapped_data(chapter_id, version_id=None):
             name="error_count"
         )
 
-    if not old_disc_raw.empty:
-        if unmapped_old_sids:
-            old_disc_mapped = old_disc_raw[~old_disc_raw["section_id"].isin(unmapped_old_sids)].copy()
-        else:
-            old_disc_mapped = old_disc_raw
-        unmapped_disc = old_disc_raw[old_disc_raw["section_id"].isin(unmapped_old_sids)].copy()
-        result["unmapped_discussion"] = unmapped_disc
-    else:
-        old_disc_mapped = old_disc_raw
-        unmapped_disc = pd.DataFrame()
+    mapped_disc, unmapped_disc = mapping_service.map_records_to_new_structure(
+        old_disc_raw, old_vid, new_vid
+    )
+    result["unmapped_discussion"] = unmapped_disc
 
-    if not old_disc_mapped.empty and not new_disc_raw.empty:
-        combined_disc = pd.concat([old_disc_mapped, new_disc_raw], ignore_index=True)
-    elif not old_disc_mapped.empty:
-        combined_disc = old_disc_mapped
+    if not mapped_disc.empty:
+        if not new_disc_raw.empty:
+            combined_disc = pd.concat([mapped_disc, new_disc_raw], ignore_index=True)
+        else:
+            combined_disc = mapped_disc
     else:
         combined_disc = new_disc_raw
 
@@ -431,18 +427,48 @@ def _get_mapped_data(chapter_id, version_id=None):
 
     result["refund"] = queries.get_refund_comparison(chapter_id)
 
-    if not old_lp_raw.empty:
-        if unmapped_old_sids:
-            old_lp_mapped = old_lp_raw[~old_lp_raw["section_id"].isin(unmapped_old_sids)].copy()
-        else:
-            old_lp_mapped = old_lp_raw
-    else:
-        old_lp_mapped = old_lp_raw
+    mapped_lp, unmapped_lp = mapping_service.map_records_to_new_structure(
+        old_lp_raw, old_vid, new_vid
+    )
+    result["unmapped_learning_path"] = unmapped_lp
 
-    if not old_lp_mapped.empty and not new_lp_raw.empty:
-        combined_lp = pd.concat([old_lp_mapped, new_lp_raw], ignore_index=True)
-    elif not old_lp_mapped.empty:
-        combined_lp = old_lp_mapped
+    mapping_records = mapping_service._get_mappings(old_vid, new_vid)
+    sid_map = {}
+    for _, mr in mapping_records.iterrows():
+        if mr["mapping_type"] != "unmapped":
+            sid_map.setdefault(mr["old_section_id"], []).append(mr["new_section_id"])
+
+    if not mapped_lp.empty:
+        for col in ["from_section_id", "to_section_id"]:
+            if col in mapped_lp.columns:
+                mapped_lp[col] = mapped_lp[col].apply(
+                    lambda s: sid_map.get(s, [s])[0] if pd.notna(s) else s
+                )
+
+    if not mapped_lp.empty:
+        if "from_section_id" in mapped_lp.columns and "to_section_id" in mapped_lp.columns:
+            has_unmapped_ref = (
+                mapped_lp["from_section_id"].isin(unmapped_old_sids) |
+                mapped_lp["to_section_id"].isin(unmapped_old_sids)
+            )
+            if has_unmapped_ref.any():
+                unmapped_ref_rows = mapped_lp[has_unmapped_ref].copy()
+                unmapped_ref_rows["mapping_type"] = "unmapped"
+                if not unmapped_lp.empty:
+                    unmapped_lp = pd.concat([unmapped_lp, unmapped_ref_rows], ignore_index=True)
+                    result["unmapped_learning_path"] = unmapped_lp
+                else:
+                    result["unmapped_learning_path"] = unmapped_ref_rows
+                mapped_lp = mapped_lp[~has_unmapped_ref].copy()
+
+    if not mapped_lp.empty:
+        if not new_lp_raw.empty:
+            for col in ["from_section_id", "to_section_id"]:
+                if col in new_lp_raw.columns:
+                    new_lp_raw[col] = new_lp_raw[col]
+            combined_lp = pd.concat([mapped_lp, new_lp_raw], ignore_index=True)
+        else:
+            combined_lp = mapped_lp
     else:
         combined_lp = new_lp_raw
 
@@ -484,10 +510,12 @@ def _build_unmapped_alert(unmapped_data):
     unmapped_quiz = unmapped_data.get("unmapped_quiz", pd.DataFrame())
     unmapped_error = unmapped_data.get("unmapped_error", pd.DataFrame())
     unmapped_discussion = unmapped_data.get("unmapped_discussion", pd.DataFrame())
+    unmapped_learning_path = unmapped_data.get("unmapped_learning_path", pd.DataFrame())
     unmapped_section_info = unmapped_data.get("unmapped_section_info", [])
 
     if (unmapped_viewing.empty and unmapped_quiz.empty
-            and unmapped_error.empty and unmapped_discussion.empty):
+            and unmapped_error.empty and unmapped_discussion.empty
+            and unmapped_learning_path.empty):
         if not unmapped_section_info:
             return dbc.Alert(
                 "✅ 所有旧章节小节均可映射到新结构，学习记录已完整映射。",
@@ -513,6 +541,8 @@ def _build_unmapped_alert(unmapped_data):
         sample_parts.append(f"错题记录 {len(unmapped_error)} 条")
     if not unmapped_discussion.empty:
         sample_parts.append(f"讨论记录 {len(unmapped_discussion)} 条")
+    if not unmapped_learning_path.empty:
+        sample_parts.append(f"学习路径记录 {len(unmapped_learning_path)} 条")
 
     sample_detail = "，涉及 " + "、".join(sample_parts) if sample_parts else ""
 
@@ -565,6 +595,18 @@ def _build_unmapped_alert(unmapped_data):
         record_detail_rows.append(
             html.Tr([html.Td("讨论"), html.Td(str(len(unmapped_discussion))),
                      html.Td(", ".join(ud["section_name"].unique()[:5]) if "section_name" in ud.columns else "—")])
+        )
+
+    if not unmapped_learning_path.empty:
+        ulp = unmapped_learning_path.copy()
+        if not sections.empty and "section_id" in ulp.columns:
+            ulp = ulp.merge(
+                sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                on="section_id", how="left"
+            )
+        record_detail_rows.append(
+            html.Tr([html.Td("学习路径"), html.Td(str(len(unmapped_learning_path))),
+                     html.Td(", ".join(ulp["section_name"].unique()[:5]) if "section_name" in ulp.columns else "—")])
         )
 
     alert_content = [

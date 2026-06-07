@@ -42,6 +42,7 @@ class ExportService:
             unmapped_quiz = mapped_data.get("unmapped_quiz", pd.DataFrame())
             unmapped_error = mapped_data.get("unmapped_error", pd.DataFrame())
             unmapped_discussion = mapped_data.get("unmapped_discussion", pd.DataFrame())
+            unmapped_learning_path = mapped_data.get("unmapped_learning_path", pd.DataFrame())
         else:
             viewing = queries_service.get_viewing_comparison(chapter_id)
             quiz = queries_service.get_quiz_comparison(chapter_id)
@@ -53,6 +54,7 @@ class ExportService:
             unmapped_quiz = pd.DataFrame()
             unmapped_error = pd.DataFrame()
             unmapped_discussion = pd.DataFrame()
+            unmapped_learning_path = pd.DataFrame()
 
         if viewing is not None and not viewing.empty:
             data["观看对比"] = viewing
@@ -135,20 +137,31 @@ class ExportService:
                 )
             unmapped_parts.append(ud)
 
+        if not unmapped_learning_path.empty:
+            ulp = unmapped_learning_path.copy()
+            ulp["记录类型"] = "学习路径"
+            if not sections.empty and "section_id" in ulp.columns:
+                ulp = ulp.merge(
+                    sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                    on="section_id", how="left"
+                )
+            unmapped_parts.append(ulp)
+
         if unmapped_parts:
             unmapped_all = pd.concat(unmapped_parts, ignore_index=True)
             display_cols = [c for c in unmapped_all.columns if c in
                             ["记录类型", "time", "user_id", "section_name", "section_id",
                              "duration_seconds", "completion_pct", "score", "total_questions",
                              "correct_answers", "question_id", "selected_answer", "correct_answer",
-                             "content", "mapping_type"]]
+                             "content", "event_type", "mapping_type"]]
             col_map = {
                 "time": "时间", "user_id": "用户ID", "section_name": "小节",
                 "duration_seconds": "时长(秒)", "completion_pct": "完播率",
                 "score": "分数", "total_questions": "总题数",
                 "correct_answers": "正确数", "question_id": "题目ID",
                 "selected_answer": "选择答案", "correct_answer": "正确答案",
-                "content": "讨论内容", "mapping_type": "映射类型",
+                "content": "讨论内容", "event_type": "事件类型",
+                "mapping_type": "映射类型",
             }
             export_df = unmapped_all[display_cols].copy()
             export_df.columns = [col_map.get(c, c) for c in export_df.columns]
