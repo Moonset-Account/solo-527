@@ -743,8 +743,14 @@
                     });
                     const data = await resp.json();
                     if (resp.ok && data.report_id) {
-                        this.reportStatus = '报表任务已提交，任务ID: ' + data.task_id;
-                        this.pollReportStatus(data.report_id);
+                        if (data.status === 'completed') {
+                            this.reportStatus = '报表已同步生成，路径: ' + (data.file_path || '');
+                        } else if (data.status === 'failed') {
+                            this.reportStatus = '报表生成失败: ' + (data.error || '未知错误');
+                        } else {
+                            this.reportStatus = '报表任务已提交，任务ID: ' + (data.task_id || '无');
+                            this.pollReportStatus(data.report_id);
+                        }
                     } else {
                         this.reportStatus = '提交失败: ' + (data.error || data.detail || '未知错误');
                     }

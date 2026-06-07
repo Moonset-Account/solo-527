@@ -1,4 +1,5 @@
 import json
+import logging
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -19,6 +20,8 @@ from visit_dashboard.utils import (
     get_post_refund_complaints, build_annotation_marks, clear_metric_config_cache,
 )
 from visit_dashboard.tasks import generate_custom_report
+
+logger = logging.getLogger(__name__)
 
 
 DIMENSION_FIELD_MAP = {
@@ -415,10 +418,34 @@ def api_create_report(request):
         report.save(update_fields=['task_id'])
         return JsonResponse({'report_id': report.id, 'task_id': task.id, 'status': 'pending'})
     except Exception as e:
-        report.status = 'failed'
-        report.error_message = f'Celery任务提交失败: {e}'
-        report.save()
-        return JsonResponse({'report_id': report.id, 'status': 'failed', 'error': str(e)})
+        logger.warning(f'Celery unavailable, falling back to sync report generation: {e}')
+        try:
+            generate_custom_report(report.id, params)
+            report.refresh_from_db()
+            if report.status == 'completed':
+                return JsonResponse({
+                    'report_id': report.id,
+                    'task_id': None,
+                    'status': 'completed',
+                    'file_path': report.file_path,
+                })
+            else:
+                return JsonResponse({
+                    'report_id': report.id,
+                    'task_id': None,
+                    'status': 'failed',
+                    'error': report.error_message or '同步生成报表失败',
+                })
+        except Exception as inner_e:
+            report.status = 'failed'
+            report.error_message = f'报表生成失败: {inner_e}'
+            report.save()
+            return JsonResponse({
+                'report_id': report.id,
+                'task_id': None,
+                'status': 'failed',
+                'error': str(inner_e),
+            })
 
 
 @login_required
@@ -519,7 +546,7 @@ def api_annotation_create(request):
 
 
 def _apply_filters(visits, date_from, date_to, store_id, user):
-    visits = filter_queryset_by_permission(visits, user)
+    visits = filter_queryset_by_permission(visits, user, store_field='work_order__store_id')
 
     if date_from:
         visits = visits.filter(visited_at__gte=date_from)

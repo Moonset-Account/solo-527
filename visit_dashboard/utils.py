@@ -31,12 +31,12 @@ def get_store_ids_for_user(user):
     return list(StorePermission.objects.filter(user=user).values_list('store_id', flat=True))
 
 
-def filter_queryset_by_permission(queryset, user):
+def filter_queryset_by_permission(queryset, user, store_field='store_id'):
     if user.is_superuser:
         return queryset
     store_ids = get_store_ids_for_user(user)
     if store_ids is not None and len(store_ids) > 0:
-        return queryset.filter(store_id__in=store_ids)
+        return queryset.filter(**{f'{store_field}__in': store_ids})
     if store_ids is not None and len(store_ids) == 0:
         return queryset.none()
     return queryset
