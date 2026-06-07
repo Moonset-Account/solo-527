@@ -269,8 +269,8 @@ def generate_demo_data():
                 uid = np.random.choice(users)
                 sid = np.random.choice(section_ids)
                 etype = np.random.choice(event_types, p=[0.35, 0.30, 0.15, 0.20])
-                from_sid = np.random.choice(section_ids) if etype in ("complete", "skip") else None
-                to_sid = sid if etype in ("enter", "revisit") else None
+                from_sid = np.random.choice(section_ids)
+                to_sid = sid
                 rows.append({
                     "time": day + timedelta(hours=int(np.random.uniform(8, 23))),
                     "user_id": uid,

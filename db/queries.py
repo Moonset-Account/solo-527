@@ -1,4 +1,5 @@
 import pandas as pd
+from db import execute_query
 from db.demo_data import get_demo_data
 from config import DEMO_MODE, TRANSITION_WINDOW_DAYS
 
@@ -8,24 +9,59 @@ class QueriesService:
         self._data = get_demo_data() if DEMO_MODE else None
 
     def _get_data(self, table_name):
-        if self._data is None:
-            return pd.DataFrame()
-        return self._data.get(table_name, pd.DataFrame())
+        if self._data is not None:
+            return self._data.get(table_name, pd.DataFrame())
+        return pd.DataFrame()
+
+    def _query_to_df(self, sql, params=None):
+        rows = execute_query(sql, params)
+        return pd.DataFrame(rows) if rows else pd.DataFrame()
 
     def get_chapters(self):
-        return self._get_data("chapters")
+        if self._data is not None:
+            return self._get_data("chapters")
+        return self._query_to_df("SELECT id, course_id, name, created_at FROM chapters ORDER BY id")
 
     def get_chapter_versions(self, chapter_id=None):
-        df = self._get_data("chapter_versions")
+        if self._data is not None:
+            df = self._get_data("chapter_versions")
+            if chapter_id is not None:
+                df = df[df["chapter_id"] == chapter_id]
+            return df.sort_values("version_number") if not df.empty else df
+        sql = "SELECT id, chapter_id, version_number, updated_at, change_description, is_current FROM chapter_versions"
+        params = None
         if chapter_id is not None:
-            df = df[df["chapter_id"] == chapter_id]
-        return df.sort_values("version_number") if not df.empty else df
+            sql += " WHERE chapter_id = %s"
+            params = (chapter_id,)
+        sql += " ORDER BY version_number"
+        return self._query_to_df(sql, params)
 
     def get_chapter_sections(self, version_id=None):
-        df = self._get_data("chapter_sections")
+        if self._data is not None:
+            df = self._get_data("chapter_sections")
+            if version_id is not None:
+                df = df[df["chapter_version_id"] == version_id]
+            return df.sort_values("section_order") if not df.empty else df
+        sql = "SELECT id, chapter_version_id, section_order, section_name, parent_section_id FROM chapter_sections"
+        params = None
         if version_id is not None:
-            df = df[df["chapter_version_id"] == version_id]
-        return df.sort_values("section_order") if not df.empty else df
+            sql += " WHERE chapter_version_id = %s"
+            params = (version_id,)
+        sql += " ORDER BY section_order"
+        return self._query_to_df(sql, params)
+
+    def get_section_mappings(self, old_version_id=None, new_version_id=None):
+        if self._data is not None:
+            return self._get_data("section_mappings")
+        sql = "SELECT id, old_section_id, new_section_id, mapping_type FROM section_mappings WHERE 1=1"
+        params = []
+        if old_version_id is not None:
+            sql += " AND old_section_id IN (SELECT id FROM chapter_sections WHERE chapter_version_id = %s)"
+            params.append(old_version_id)
+        if new_version_id is not None:
+            sql += " AND new_section_id IN (SELECT id FROM chapter_sections WHERE chapter_version_id = %s)"
+            params.append(new_version_id)
+        return self._query_to_df(sql, tuple(params) if params else None)
 
     def get_update_date(self, chapter_id):
         versions = self.get_chapter_versions(chapter_id)
@@ -40,6 +76,15 @@ class QueriesService:
         sections = self.get_chapter_sections(version_id)
         return sections["id"].tolist() if not sections.empty else []
 
+    def _get_section_filter_sql(self, version_id, prefix=""):
+        if version_id is not None:
+            sids = self.get_section_ids_for_version(version_id)
+            if sids:
+                placeholders = ",".join(["%s"] * len(sids))
+                return f" AND {prefix}section_id IN ({placeholders})", sids
+            return " AND 1=0", []
+        return "", []
+
     def _split_periods(self, df, update_date, time_col="time"):
         if df.empty or update_date is None:
             return df, pd.DataFrame(), pd.DataFrame()
@@ -51,8 +96,42 @@ class QueriesService:
         after = df[df[time_col] >= transition_end]
         return before, transition, after
 
+    def _apply_period_labels(self, before, transition, after):
+        result_parts = []
+        if not before.empty:
+            c = before.copy()
+            c["period"] = "更新前"
+            result_parts.append(c)
+        if not transition.empty:
+            c = transition.copy()
+            c["period"] = "过渡期"
+            result_parts.append(c)
+        if not after.empty:
+            c = after.copy()
+            c["period"] = "更新后"
+            result_parts.append(c)
+        return pd.concat(result_parts, ignore_index=True) if result_parts else pd.DataFrame()
+
+    def _apply_period_column(self, df, update_date, time_col="date"):
+        if df.empty or update_date is None:
+            df["period"] = "未知"
+            return df
+        update_ts = pd.Timestamp(update_date)
+        transition_end = update_ts + pd.Timedelta(days=TRANSITION_WINDOW_DAYS)
+        df["period"] = df[time_col].apply(
+            lambda d: "更新前" if d < update_ts
+            else ("过渡期" if d < transition_end else "更新后")
+        )
+        return df
+
     def get_viewing_comparison(self, chapter_id, version_id=None):
-        viewing = self._get_data("viewing_records")
+        if self._data is not None:
+            viewing = self._get_data("viewing_records")
+        else:
+            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sql = f"SELECT time, user_id, section_id, duration_seconds, completion_pct FROM viewing_records WHERE 1=1{sec_filter} ORDER BY time"
+            viewing = self._query_to_df(sql, sec_params if sec_params else None)
+
         if viewing.empty:
             return pd.DataFrame()
 
@@ -62,9 +141,9 @@ class QueriesService:
 
         update_date = self.get_update_date(chapter_id)
 
-        if version_id is not None:
+        if self._data is not None and version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            viewing = viewing[viewing["section_id"].isin(sids)]
+            viewing = viewing[viewing["section_id"].isin(sids)].copy()
 
         viewing["date"] = pd.to_datetime(viewing["time"]).dt.date
 
@@ -77,25 +156,16 @@ class QueriesService:
         daily["date"] = pd.to_datetime(daily["date"])
 
         before, transition, after = self._split_periods(daily, update_date, "date")
-
-        result_parts = []
-        if not before.empty:
-            before_c = before.copy()
-            before_c["period"] = "更新前"
-            result_parts.append(before_c)
-        if not transition.empty:
-            trans_c = transition.copy()
-            trans_c["period"] = "过渡期"
-            result_parts.append(trans_c)
-        if not after.empty:
-            after_c = after.copy()
-            after_c["period"] = "更新后"
-            result_parts.append(after_c)
-
-        return pd.concat(result_parts, ignore_index=True) if result_parts else pd.DataFrame()
+        return self._apply_period_labels(before, transition, after)
 
     def get_quiz_comparison(self, chapter_id, version_id=None):
-        quiz = self._get_data("quiz_records")
+        if self._data is not None:
+            quiz = self._get_data("quiz_records")
+        else:
+            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sql = f"SELECT time, user_id, section_id, quiz_id, score, total_questions, correct_answers FROM quiz_records WHERE 1=1{sec_filter} ORDER BY time"
+            quiz = self._query_to_df(sql, sec_params if sec_params else None)
+
         if quiz.empty:
             return pd.DataFrame()
 
@@ -105,9 +175,9 @@ class QueriesService:
 
         update_date = self.get_update_date(chapter_id)
 
-        if version_id is not None:
+        if self._data is not None and version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            quiz = quiz[quiz["section_id"].isin(sids)]
+            quiz = quiz[quiz["section_id"].isin(sids)].copy()
 
         quiz["date"] = pd.to_datetime(quiz["time"]).dt.date
 
@@ -120,32 +190,23 @@ class QueriesService:
         daily["date"] = pd.to_datetime(daily["date"])
 
         before, transition, after = self._split_periods(daily, update_date, "date")
-
-        result_parts = []
-        if not before.empty:
-            before_c = before.copy()
-            before_c["period"] = "更新前"
-            result_parts.append(before_c)
-        if not transition.empty:
-            trans_c = transition.copy()
-            trans_c["period"] = "过渡期"
-            result_parts.append(trans_c)
-        if not after.empty:
-            after_c = after.copy()
-            after_c["period"] = "更新后"
-            result_parts.append(after_c)
-
-        return pd.concat(result_parts, ignore_index=True) if result_parts else pd.DataFrame()
+        return self._apply_period_labels(before, transition, after)
 
     def get_error_heatmap_data(self, chapter_id, version_id=None):
-        errors = self._get_data("error_records")
-        sections = self._get_data("chapter_sections")
+        if self._data is not None:
+            errors = self._get_data("error_records")
+        else:
+            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sql = f"SELECT time, user_id, section_id, question_id, selected_answer, correct_answer FROM error_records WHERE 1=1{sec_filter} ORDER BY time"
+            errors = self._query_to_df(sql, sec_params if sec_params else None)
+
+        sections = self.get_chapter_sections()
         if errors.empty:
             return pd.DataFrame()
 
-        if version_id is not None:
+        if self._data is not None and version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            errors = errors[errors["section_id"].isin(sids)]
+            errors = errors[errors["section_id"].isin(sids)].copy()
 
         errors = errors.merge(
             sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
@@ -158,22 +219,34 @@ class QueriesService:
         return heatmap
 
     def get_discussion_aggregation(self, chapter_id, version_id=None):
-        discussions = self._get_data("discussion_records")
+        if self._data is not None:
+            discussions = self._get_data("discussion_records")
+        else:
+            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sql = f"SELECT time, user_id, section_id, content, topic_tags FROM discussion_records WHERE 1=1{sec_filter} ORDER BY time"
+            discussions = self._query_to_df(sql, sec_params if sec_params else None)
+
         if discussions.empty:
             return pd.DataFrame()
 
         versions = self.get_chapter_versions(chapter_id)
         update_date = self.get_update_date(chapter_id)
 
-        if version_id is not None:
+        if self._data is not None and version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            discussions = discussions[discussions["section_id"].isin(sids)]
+            discussions = discussions[discussions["section_id"].isin(sids)].copy()
 
         discussions["date"] = pd.to_datetime(discussions["time"]).dt.date
 
         all_tags = []
         for _, row in discussions.iterrows():
             tags = row.get("topic_tags", [])
+            if isinstance(tags, str):
+                import ast
+                try:
+                    tags = ast.literal_eval(tags)
+                except Exception:
+                    tags = [tags]
             if isinstance(tags, (list, tuple)):
                 for tag in tags:
                     all_tags.append({
@@ -189,21 +262,15 @@ class QueriesService:
         tags_df["date"] = pd.to_datetime(tags_df["date"])
 
         agg = tags_df.groupby(["date", "tag"]).size().reset_index(name="count")
-
-        if update_date is not None:
-            update_ts = pd.Timestamp(update_date)
-            agg["period"] = agg["date"].apply(
-                lambda d: "更新前" if d < update_ts
-                else ("过渡期" if d < update_ts + pd.Timedelta(days=TRANSITION_WINDOW_DAYS)
-                      else "更新后")
-            )
-        else:
-            agg["period"] = "未知"
-
-        return agg
+        return self._apply_period_column(agg, update_date, "date")
 
     def get_refund_comparison(self, chapter_id, version_id=None):
-        refunds = self._get_data("refund_requests")
+        if self._data is not None:
+            refunds = self._get_data("refund_requests")
+        else:
+            sql = "SELECT time, user_id, chapter_id, reason, category FROM refund_requests WHERE chapter_id = %s ORDER BY time"
+            refunds = self._query_to_df(sql, (chapter_id,))
+
         if refunds.empty:
             return pd.DataFrame()
 
@@ -218,39 +285,25 @@ class QueriesService:
         ).reset_index()
         daily["date"] = pd.to_datetime(daily["date"])
 
-        category_daily = chapter_refunds.groupby(["date", "category"]).size().reset_index(
-            name="count"
-        )
-        category_daily["date"] = pd.to_datetime(category_daily["date"])
-
         before, transition, after = self._split_periods(daily, update_date, "date")
-
-        result_parts = []
-        if not before.empty:
-            before_c = before.copy()
-            before_c["period"] = "更新前"
-            result_parts.append(before_c)
-        if not transition.empty:
-            trans_c = transition.copy()
-            trans_c["period"] = "过渡期"
-            result_parts.append(trans_c)
-        if not after.empty:
-            after_c = after.copy()
-            after_c["period"] = "更新后"
-            result_parts.append(after_c)
-
-        result = pd.concat(result_parts, ignore_index=True) if result_parts else pd.DataFrame()
-        return result if not result.empty else category_daily
+        result = self._apply_period_labels(before, transition, after)
+        return result if not result.empty else daily
 
     def get_learning_path_data(self, chapter_id, version_id=None):
-        events = self._get_data("learning_path_events")
-        sections = self._get_data("chapter_sections")
-        if events.empty:
-            return pd.DataFrame()
+        if self._data is not None:
+            events = self._get_data("learning_path_events")
+        else:
+            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sql = f"SELECT time, user_id, section_id, event_type, from_section_id, to_section_id FROM learning_path_events WHERE 1=1{sec_filter} ORDER BY time"
+            events = self._query_to_df(sql, sec_params if sec_params else None)
 
-        if version_id is not None:
+        sections = self.get_chapter_sections()
+        if events.empty:
+            return pd.DataFrame(), pd.DataFrame()
+
+        if self._data is not None and version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            events = events[events["section_id"].isin(sids)]
+            events = events[events["section_id"].isin(sids)].copy()
 
         update_date = self.get_update_date(chapter_id)
 
@@ -258,16 +311,7 @@ class QueriesService:
 
         event_agg = events.groupby(["date", "event_type"]).size().reset_index(name="count")
         event_agg["date"] = pd.to_datetime(event_agg["date"])
-
-        if update_date is not None:
-            update_ts = pd.Timestamp(update_date)
-            event_agg["period"] = event_agg["date"].apply(
-                lambda d: "更新前" if d < update_ts
-                else ("过渡期" if d < update_ts + pd.Timedelta(days=TRANSITION_WINDOW_DAYS)
-                      else "更新后")
-            )
-        else:
-            event_agg["period"] = "未知"
+        event_agg = self._apply_period_column(event_agg, update_date, "date")
 
         transitions = events[
             events["from_section_id"].notna() & events["to_section_id"].notna()
@@ -294,7 +338,7 @@ class QueriesService:
 
     def get_raw_learning_records(self, chapter_id, version_id=None, record_type="all",
                                  start_date=None, end_date=None, page=1, page_size=100):
-        sections = self._get_data("chapter_sections")
+        sections = self.get_chapter_sections()
         versions = self.get_chapter_versions(chapter_id)
 
         if version_id is not None:
@@ -308,28 +352,74 @@ class QueriesService:
             else:
                 sids = []
 
+        if not sids:
+            return pd.DataFrame()
+
+        sid_placeholders = ",".join(["%s"] * len(sids))
         dfs = []
 
         if record_type in ("all", "viewing"):
-            v = self._get_data("viewing_records")
-            if not v.empty and sids:
-                v = v[v["section_id"].isin(sids)].copy()
-                v["record_type"] = "观看"
-                dfs.append(v)
+            if self._data is not None:
+                v = self._get_data("viewing_records")
+                if not v.empty and sids:
+                    v = v[v["section_id"].isin(sids)].copy()
+                    v["record_type"] = "观看"
+                    dfs.append(v)
+            else:
+                sql = f"SELECT time, user_id, section_id, duration_seconds, completion_pct FROM viewing_records WHERE section_id IN ({sid_placeholders})"
+                params = list(sids)
+                if start_date:
+                    sql += " AND time >= %s"
+                    params.append(start_date)
+                if end_date:
+                    sql += " AND time <= %s"
+                    params.append(end_date)
+                v = self._query_to_df(sql, tuple(params))
+                if not v.empty:
+                    v["record_type"] = "观看"
+                    dfs.append(v)
 
         if record_type in ("all", "quiz"):
-            q = self._get_data("quiz_records")
-            if not q.empty and sids:
-                q = q[q["section_id"].isin(sids)].copy()
-                q["record_type"] = "测验"
-                dfs.append(q)
+            if self._data is not None:
+                q = self._get_data("quiz_records")
+                if not q.empty and sids:
+                    q = q[q["section_id"].isin(sids)].copy()
+                    q["record_type"] = "测验"
+                    dfs.append(q)
+            else:
+                sql = f"SELECT time, user_id, section_id, quiz_id, score, total_questions, correct_answers FROM quiz_records WHERE section_id IN ({sid_placeholders})"
+                params = list(sids)
+                if start_date:
+                    sql += " AND time >= %s"
+                    params.append(start_date)
+                if end_date:
+                    sql += " AND time <= %s"
+                    params.append(end_date)
+                q = self._query_to_df(sql, tuple(params))
+                if not q.empty:
+                    q["record_type"] = "测验"
+                    dfs.append(q)
 
         if record_type in ("all", "error"):
-            e = self._get_data("error_records")
-            if not e.empty and sids:
-                e = e[e["section_id"].isin(sids)].copy()
-                e["record_type"] = "错题"
-                dfs.append(e)
+            if self._data is not None:
+                e = self._get_data("error_records")
+                if not e.empty and sids:
+                    e = e[e["section_id"].isin(sids)].copy()
+                    e["record_type"] = "错题"
+                    dfs.append(e)
+            else:
+                sql = f"SELECT time, user_id, section_id, question_id, selected_answer, correct_answer FROM error_records WHERE section_id IN ({sid_placeholders})"
+                params = list(sids)
+                if start_date:
+                    sql += " AND time >= %s"
+                    params.append(start_date)
+                if end_date:
+                    sql += " AND time <= %s"
+                    params.append(end_date)
+                e = self._query_to_df(sql, tuple(params))
+                if not e.empty:
+                    e["record_type"] = "错题"
+                    dfs.append(e)
 
         if not dfs:
             return pd.DataFrame()
@@ -337,10 +427,11 @@ class QueriesService:
         combined = pd.concat(dfs, ignore_index=True)
         combined["time"] = pd.to_datetime(combined["time"])
 
-        if start_date is not None:
-            combined = combined[combined["time"] >= pd.Timestamp(start_date)]
-        if end_date is not None:
-            combined = combined[combined["time"] <= pd.Timestamp(end_date)]
+        if self._data is not None:
+            if start_date is not None:
+                combined = combined[combined["time"] >= pd.Timestamp(start_date)]
+            if end_date is not None:
+                combined = combined[combined["time"] <= pd.Timestamp(end_date)]
 
         if not sections.empty:
             combined = combined.merge(
@@ -362,8 +453,11 @@ class QueriesService:
         old_vid = versions.iloc[0]["id"]
         new_vid = versions.iloc[-1]["id"]
 
-        sections = self._get_data("chapter_sections")
-        mappings = self._get_data("section_mappings")
+        sections = self.get_chapter_sections()
+        mappings = self.get_section_mappings(old_vid, new_vid)
+
+        if mappings.empty:
+            return pd.DataFrame()
 
         old_sections = sections[sections["chapter_version_id"] == old_vid]
         new_sections = sections[sections["chapter_version_id"] == new_vid]
