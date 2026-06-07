@@ -14,6 +14,7 @@ from src.database.mock_data import (
     update_threshold, SAMPLE_TYPES, SAMPLE_TYPE_NAMES, 
     DEPARTMENTS, STAGES, STAGE_NAMES
 )
+from src.database.connection import get_db_status
 from src.utils.data_processor import (
     process_full_pipeline, filter_by_criteria, 
     get_stage_duration_stats, get_timeout_summary, 
@@ -35,27 +36,50 @@ app.title = "医院检验样本时效看板"
 
 def load_raw_data():
     """加载原始数据（不做处理）"""
-    samples_raw = get_samples_df()
-    returns_raw = get_returns_df()
-    thresholds_raw = get_thresholds_df()
-    return samples_raw, returns_raw, thresholds_raw
+    try:
+        samples_raw = get_samples_df()
+        returns_raw = get_returns_df()
+        thresholds_raw = get_thresholds_df()
+        return samples_raw, returns_raw, thresholds_raw
+    except Exception as e:
+        print(f"[WARN] 加载数据失败: {e}")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 
 def get_initial_date_range():
-    samples_raw, _, _ = load_raw_data()
-    if samples_raw is not None and not samples_raw.empty:
-        min_date = samples_raw['collected_at'].min().date()
-        max_date = samples_raw['collected_at'].max().date()
-        return min_date, max_date
+    """安全获取初始日期范围，避免导入时卡住"""
     today = datetime.now().date()
+    try:
+        samples_raw, _, _ = load_raw_data()
+        if samples_raw is not None and not samples_raw.empty:
+            min_date = samples_raw['collected_at'].min().date()
+            max_date = samples_raw['collected_at'].max().date()
+            return min_date, max_date
+    except Exception as e:
+        print(f"[WARN] 获取日期范围失败，使用默认值: {e}")
     return today - timedelta(days=30), today
 
 
-min_date, max_date = get_initial_date_range()
+_min_max_dates = None
+
+
+def get_cached_date_range():
+    """缓存日期范围，避免重复计算"""
+    global _min_max_dates
+    if _min_max_dates is None:
+        _min_max_dates = get_initial_date_range()
+    return _min_max_dates
+
+
+min_date, max_date = get_cached_date_range()
 
 
 navbar = dbc.NavbarSimple(
     children=[
+        dbc.NavItem(
+            html.Div(id='datasource-status-badge', className="me-3"),
+            className="d-flex align-items-center"
+        ),
         dbc.NavItem(dbc.NavLink("时效看板", href="#", active=True)),
     ],
     brand="🏥 医院检验样本时效看板",
@@ -214,6 +238,31 @@ def process_data_with_current_thresholds(start_date, end_date, sample_types, pri
     
     df = process_full_pipeline(samples_raw, thresholds_raw, returns_raw)
     return df, returns_raw, thresholds_raw
+
+
+@app.callback(
+    Output('datasource-status-badge', 'children'),
+    Input('threshold-version', 'data'),
+    Input('date-range-picker', 'start_date'),
+)
+def update_datasource_badge(version, start_date):
+    """更新数据源状态徽章"""
+    status = get_db_status()
+    if status['mode'] == 'mock':
+        color = 'warning'
+        icon = '💾'
+    elif status['available']:
+        color = 'success'
+        icon = '🗄️'
+    else:
+        color = 'danger'
+        icon = '⚠️'
+    return dbc.Badge(
+        f"{icon} {status['mode_name']}",
+        color=color,
+        className="px-3 py-2",
+        style={'fontSize': '0.875rem'}
+    )
 
 
 @app.callback(

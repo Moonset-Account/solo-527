@@ -1,7 +1,10 @@
 import os
+import time
+import threading
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
 import pandas as pd
 
 load_dotenv()
@@ -14,55 +17,200 @@ DB_CONFIG = {
     'password': os.getenv('DB_PASSWORD', 'postgres'),
 }
 
-USE_MOCK_DATA = os.getenv('USE_MOCK_DATA', 'True').lower() == 'true'
+DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', '3'))
+DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '5'))
+DB_HEALTH_CHECK_INTERVAL = int(os.getenv('DB_HEALTH_CHECK_INTERVAL', '30'))
 
 _engine = None
 _Session = None
+_db_available = False
+_last_health_check = 0
+_health_lock = threading.Lock()
+
+
+def _get_use_mock_data():
+    """动态获取 USE_MOCK_DATA 配置"""
+    return os.getenv('USE_MOCK_DATA', 'True').lower() == 'true'
+
+
+def _get_db_url():
+    return f"postgresql+psycopg2://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}?connect_timeout={DB_CONNECT_TIMEOUT}"
+
+
+def _test_connection(engine):
+    """测试数据库连接"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+def check_database_health(force=False):
+    """
+    检查数据库健康状态
+    带有缓存机制，避免频繁检查
+    """
+    global _db_available, _last_health_check, _engine
+    
+    use_mock = _get_use_mock_data()
+    if use_mock:
+        return False
+    
+    now = time.time()
+    if not force and (now - _last_health_check) < DB_HEALTH_CHECK_INTERVAL:
+        return _db_available
+    
+    with _health_lock:
+        if not force and (now - _last_health_check) < DB_HEALTH_CHECK_INTERVAL:
+            return _db_available
+        
+        _last_health_check = now
+        
+        try:
+            if _engine is None:
+                _engine = create_engine(
+                    _get_db_url(),
+                    pool_pre_ping=True,
+                    pool_recycle=3600,
+                    pool_size=DB_POOL_SIZE,
+                    max_overflow=10,
+                    connect_args={'connect_timeout': DB_CONNECT_TIMEOUT}
+                )
+            
+            _db_available = _test_connection(_engine)
+        except Exception:
+            _db_available = False
+            if _engine is not None:
+                try:
+                    _engine.dispose()
+                except:
+                    pass
+                _engine = None
+        
+        return _db_available
+
+
+def is_database_available():
+    """检查数据库是否可用（快速接口）"""
+    if _get_use_mock_data():
+        return False
+    return _db_available or check_database_health()
 
 
 def get_engine():
+    """
+    获取数据库引擎
+    如果数据库不可用，返回 None 而不是卡住
+    """
     global _engine
-    if _engine is None and not USE_MOCK_DATA:
-        db_url = f"postgresql+psycopg2://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}"
-        _engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+    
+    use_mock = _get_use_mock_data()
+    if use_mock:
+        return None
+    
+    if not check_database_health():
+        return None
+    
     return _engine
 
 
 def get_session():
+    """获取数据库会话"""
     global _Session
-    if _Session is None and not USE_MOCK_DATA:
-        _Session = sessionmaker(bind=get_engine())
-    return _Session() if _Session else None
-
-
-def execute_query(query, params=None):
-    if USE_MOCK_DATA:
+    
+    use_mock = _get_use_mock_data()
+    if use_mock:
         return None
+    
+    engine = get_engine()
+    if engine is None:
+        return None
+    
+    if _Session is None:
+        _Session = sessionmaker(bind=engine)
+    
+    try:
+        return _Session()
+    except Exception:
+        return None
+
+
+def execute_query(query, params=None, timeout=None):
+    """
+    执行 SQL 查询，带有超时保护和错误处理
+    失败时返回 None 而不是抛出异常
+    """
+    if _get_use_mock_data():
+        return None
+    
+    if not check_database_health():
+        return None
+    
     session = get_session()
+    if session is None:
+        return None
+    
     try:
         result = session.execute(text(query), params or {})
         session.commit()
         return result
+    except OperationalError as e:
+        session.rollback()
+        global _db_available
+        _db_available = False
+        print(f"[DB] 数据库连接失败: {e}")
+        return None
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[DB] SQL 执行错误: {e}")
+        return None
     except Exception as e:
         session.rollback()
-        raise e
+        print(f"[DB] 未知错误: {e}")
+        return None
     finally:
-        session.close()
+        try:
+            session.close()
+        except:
+            pass
 
 
 def query_to_dataframe(query, params=None):
-    if USE_MOCK_DATA:
+    """
+    执行查询并返回 DataFrame
+    失败时返回 None 而不是卡住或抛出异常
+    """
+    if _get_use_mock_data():
         return None
+    
+    if not check_database_health():
+        return None
+    
     engine = get_engine()
-    return pd.read_sql(text(query), engine, params=params or {})
+    if engine is None:
+        return None
+    
+    try:
+        return pd.read_sql(text(query), engine, params=params or {})
+    except OperationalError as e:
+        global _db_available
+        _db_available = False
+        print(f"[DB] 数据库查询连接失败: {e}")
+        return None
+    except Exception as e:
+        print(f"[DB] 查询失败: {e}")
+        return None
 
 
 def fetch_samples_from_db(start_date=None, end_date=None, sample_types=None, 
                           priorities=None, departments=None):
     """
     从 TimescaleDB 读取样本数据
+    失败时返回 None，上层会自动回退到模拟数据
     """
-    if USE_MOCK_DATA:
+    if not check_database_health():
         return None
     
     query = """
@@ -107,7 +255,7 @@ def fetch_samples_from_db(start_date=None, end_date=None, sample_types=None,
         query += " AND requesting_department = ANY(:departments)"
         params['departments'] = departments
     
-    query += " ORDER BY collected_at DESC"
+    query += " ORDER BY collected_at DESC LIMIT 5000"
     
     df = query_to_dataframe(query, params)
     
@@ -125,8 +273,9 @@ def fetch_samples_from_db(start_date=None, end_date=None, sample_types=None,
 def fetch_thresholds_from_db():
     """
     从 TimescaleDB 读取阈值配置
+    失败时返回 None，上层会自动回退到默认配置
     """
-    if USE_MOCK_DATA:
+    if not check_database_health():
         return None
     
     query = """
@@ -167,8 +316,9 @@ def fetch_thresholds_from_db():
 def fetch_returns_from_db(start_date=None, end_date=None):
     """
     从 TimescaleDB 读取退回记录
+    失败时返回 None，上层会自动回退到模拟数据
     """
-    if USE_MOCK_DATA:
+    if not check_database_health():
         return None
     
     query = """
@@ -194,7 +344,7 @@ def fetch_returns_from_db(start_date=None, end_date=None):
         query += " AND ls.collected_at <= :end_date"
         params['end_date'] = end_date
     
-    query += " ORDER BY srr.return_time DESC"
+    query += " ORDER BY srr.return_time DESC LIMIT 1000"
     
     return query_to_dataframe(query, params)
 
@@ -202,8 +352,9 @@ def fetch_returns_from_db(start_date=None, end_date=None):
 def update_threshold_in_db(sample_type, priority, stage_name, new_threshold):
     """
     更新数据库中的阈值配置
+    失败时返回 False，上层会更新内存缓存
     """
-    if USE_MOCK_DATA:
+    if not check_database_health():
         return False
     
     query = """
@@ -222,9 +373,25 @@ def update_threshold_in_db(sample_type, priority, stage_name, new_threshold):
         'threshold_minutes': new_threshold
     }
     
-    try:
-        execute_query(query, params)
-        return True
-    except Exception as e:
-        print(f"更新阈值失败: {e}")
-        return False
+    result = execute_query(query, params)
+    return result is not None
+
+
+def get_db_status():
+    """获取数据库状态，用于页面显示"""
+    use_mock = _get_use_mock_data()
+    if use_mock:
+        return {
+            'mode': 'mock',
+            'mode_name': '模拟数据',
+            'available': True,
+            'message': '使用内存模拟数据'
+        }
+    
+    available = is_database_available()
+    return {
+        'mode': 'database',
+        'mode_name': 'TimescaleDB',
+        'available': available,
+        'message': '数据库连接正常' if available else '数据库不可用，已降级为模拟数据'
+    }
