@@ -1,0 +1,66 @@
+{
+  "data_sources": {
+    "monitor_stations": {
+      "update_frequency": "5m",
+      "fields": [
+        {"name": "station_id", "type": "string", "required": true},
+        {"name": "timestamp", "type": "datetime", "required": true},
+        {"name": "pm25", "type": "float", "unit": "μg/m³"},
+        {"name": "pm10", "type": "float", "unit": "μg/m³"},
+        {"name": "ozone", "type": "float", "unit": "μg/m³"},
+        {"name": "no2", "type": "float", "unit": "μg/m³"},
+        {"name": "so2", "type": "float", "unit": "μg/m³"},
+        {"name": "co", "type": "float", "unit": "mg/m³"},
+        {"name": "aqi", "type": "integer"}
+      ],
+      "quality_rules": {
+        "pm25_range": [0, 1000],
+        "ozone_range": [0, 500]
+      }
+    },
+    "weather": {
+      "update_frequency": "1h",
+      "fields": ["wind_direction", "wind_speed", "temperature", "humidity"]
+    },
+    "traffic": {
+      "update_frequency": "1h",
+      "aggregation": "hourly"
+    },
+    "construction_sites": {
+      "update_frequency": "1d"
+    },
+    "complaints": {
+      "update_frequency": "1d",
+      "privacy_level": "aggregate_only",
+      "note": "投诉数据必须脱敏后才能进入公开接口，仅保留按区域和日期的聚合计数"
+    }
+  },
+  "aqi_standards": {
+    "pm25": [
+      {"level": "good", "range": [0, 35], "color": "#00e400"},
+      {"level": "moderate", "range": [36, 75], "color": "#ffff00"},
+      {"level": "unhealthy_sensitive", "range": [76, 115], "color": "#ff7e00"},
+      {"level": "unhealthy", "range": [116, 150], "color": "#ff0000"},
+      {"level": "very_unhealthy", "range": [151, 250], "color": "#8f3f97"},
+      {"level": "hazardous", "range": [251, 500], "color": "#7e0023"}
+    ]
+  },
+  "cache_policy": {
+    "realtime_data": {"ttl": "5m", "layer": "redis"},
+    "hourly_aggregation": {"ttl": "1h", "layer": "redis"},
+    "daily_aggregation": {"ttl": "24h", "layer": "local+redis"},
+    "station_list": {"ttl": "1h", "layer": "redis"}
+  },
+  "privacy_rules": {
+    "complaints": {
+      "allow_raw_data": false,
+      "min_aggregation_size": 3,
+      "suppress_count_below": 3,
+      "fields_to_remove": ["user_id", "phone", "address", "content_text", "location_detail"]
+    }
+  },
+  "status_rules": {
+    "offline_threshold_minutes": 15,
+    "data_latency_warning_seconds": 120
+  }
+}
