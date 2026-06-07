@@ -3,22 +3,18 @@ const router = express.Router();
 const mockData = require('../data/mockData');
 const { metricsConfig, radarMetrics } = require('../data/metricsConfig');
 const etlService = require('../services/etlService');
-const cacheService = require('../services/cacheService');
 const exportService = require('../services/exportService');
 const authMiddleware = require('../middleware/auth');
+const dataService = require('../services/dataService');
 
 const {
   athletes,
   coaches,
   sports,
   exercises,
-  trainingPlans,
   actualTrainings,
   heartRateData,
-  paceData,
-  strengthTests,
-  recoveryScores,
-  injuryRecords
+  paceData
 } = mockData;
 
 const enforceScope = (req, queryField = 'athleteId') => {
@@ -28,16 +24,19 @@ const enforceScope = (req, queryField = 'athleteId') => {
   return req.query[queryField];
 };
 
-router.get('/athletes', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/athletes', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   const { sport } = req.query;
-  let result = athletes;
+
+  const result = await dataService.getAthletes();
+  let list = result.rows;
 
   if (req.dataScope && req.dataScope.type === 'self') {
-    result = athletes.filter(a => a.id === req.dataScope.athleteId);
+    list = list.filter(a => a.id === req.dataScope.athleteId);
   } else if (sport) {
-    result = athletes.filter(a => a.sport === sport);
+    list = list.filter(a => a.sport === sport);
   }
-  res.json(result);
+
+  res.json(list);
 });
 
 router.get('/sports', (req, res) => {
@@ -53,152 +52,83 @@ router.get('/metrics-config', (req, res) => {
   res.json({ metrics: metricsConfig, radarMetrics });
 });
 
-router.get('/training/load-curve', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/training/load-curve', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   const effectiveAthleteId = enforceScope(req);
-
-  const cacheKey = cacheService.generateKey('loadCurve', { ...req.query, effectiveAthleteId });
-  const cached = cacheService.get(cacheKey);
-  if (cached) return res.json(cached);
-
   const { sport, startDate, endDate, exercise, metric = 'load' } = req.query;
 
-  let filtered = [...actualTrainings];
-
-  if (effectiveAthleteId) filtered = filtered.filter(t => t.athleteId === effectiveAthleteId);
-  if (sport) filtered = filtered.filter(t => t.sport === sport);
-  if (exercise) filtered = filtered.filter(t => t.exercise === exercise);
-  if (startDate) filtered = filtered.filter(t => t.date >= startDate);
-  if (endDate) filtered = filtered.filter(t => t.date <= endDate);
-
-  const chartData = etlService.transformTrainingForChart(filtered, 'date');
-  const anomalies = etlService.detectAnomalies(chartData, 'load');
-
-  const dataWithTrainingIds = chartData.map(d => {
-    const dayTrainings = filtered.filter(t => t.date === d.key);
-    return {
-      ...d,
-      trainingIds: dayTrainings.map(t => t.id),
-      exerciseList: [...new Set(dayTrainings.map(t => t.exercise))]
-    };
+  const result = await dataService.getLoadCurve({
+    athleteId: effectiveAthleteId,
+    sport,
+    startDate,
+    endDate,
+    exercise
   });
 
-  const result = {
-    data: dataWithTrainingIds.sort((a, b) => a.key.localeCompare(b.key)),
-    anomalies: anomalies.map(a => ({
-      ...a,
-      trainingIds: filtered.filter(t => t.date === a.key).map(t => t.id)
-    })),
-    summary: {
-      totalLoad: chartData.reduce((s, d) => s + d.load, 0),
-      avgIntensity: chartData.length > 0 ? Math.round(chartData.reduce((s, d) => s + d.intensity, 0) / chartData.length) : 0,
-      avgCompletion: chartData.length > 0 ? Math.round(chartData.reduce((s, d) => s + d.completionRate, 0) / chartData.length) : 0
-    },
-    dataScope: req.dataScope
+  const response = {
+    data: result.rows,
+    anomalies: result.anomalies,
+    summary: result.summary,
+    dataScope: req.dataScope,
+    _meta: {
+      cached: result.cached,
+      cacheKey: result.cacheKey,
+      queryMeta: result.queryMeta
+    }
   };
 
-  cacheService.set(cacheKey, result);
-  res.json(result);
+  res.json(response);
 });
 
-router.get('/training/radar', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/training/radar', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   let athleteId = enforceScope(req);
 
   if (!athleteId) {
     return res.status(400).json({ error: '请选择队员' });
   }
 
-  const athlete = athletes.find(a => a.id === athleteId);
-  if (!athlete) {
+  const result = await dataService.getRadarMetrics(athleteId);
+
+  if (!result.found) {
     return res.status(404).json({ error: '队员不存在' });
   }
 
-  const athleteTrainings = actualTrainings.filter(t => t.athleteId === athleteId);
-  const last30Days = athleteTrainings.slice(-50);
-  const recovery = recoveryScores.filter(r => r.athleteId === athleteId).slice(-7);
-
-  const avgRecovery = recovery.length > 0
-    ? recovery.reduce((s, r) => s + r.overallScore, 0) / recovery.length
-    : 60;
-
-  const radarData = radarMetrics.map(m => {
-    let value = 50 + Math.random() * 40;
-    switch (m.key) {
-      case 'strength':
-        const st = strengthTests.filter(s => s.athleteId === athleteId);
-        value = st.length > 0 ? Math.min(100, st.reduce((s, t) => s + t.oneRepMax, 0) / st.length / 2) : 60;
-        break;
-      case 'endurance':
-        const enduranceTrainings = last30Days.filter(t => ['3000米跑', '400米跑'].includes(t.exercise));
-        value = enduranceTrainings.length * 10 + 40;
-        break;
-      case 'speed':
-        const speedTrainings = last30Days.filter(t => ['30米冲刺', '100米跑'].includes(t.exercise));
-        value = speedTrainings.length * 12 + 35;
-        break;
-      case 'power':
-        const powerTrainings = last30Days.filter(t => ['高翻', '深蹲'].includes(t.exercise));
-        const avgIntensity = powerTrainings.length > 0
-          ? powerTrainings.reduce((s, t) => s + t.actualIntensity, 0) / powerTrainings.length
-          : 60;
-        value = avgIntensity;
-        break;
-      case 'flexibility':
-        value = 55 + Math.random() * 30;
-        break;
-      case 'recovery':
-        value = avgRecovery;
-        break;
-    }
-    return {
-      metric: m.name,
-      value: Math.min(100, Math.round(value)),
-      max: m.max
-    };
-  });
-
+  const row = result.rows[0];
   res.json({
-    athlete: { id: athlete.id, name: athlete.name, sport: athlete.sport },
-    radarData,
-    teamAvg: radarMetrics.map(m => ({ metric: m.name, value: 65, max: m.max }))
+    athlete: row.athlete,
+    radarData: row.radar_data,
+    teamAvg: row.team_avg,
+    _meta: {
+      cached: result.cached,
+      cacheKey: result.cacheKey
+    }
   });
 });
 
-router.get('/recovery/trend', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/recovery/trend', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   const effectiveAthleteId = enforceScope(req);
-
-  const cacheKey = cacheService.generateKey('recoveryTrend', { ...req.query, effectiveAthleteId });
-  const cached = cacheService.get(cacheKey);
-  if (cached) return res.json(cached);
-
   const { startDate, endDate } = req.query;
 
-  let filtered = [...recoveryScores];
-  if (effectiveAthleteId) filtered = filtered.filter(r => r.athleteId === effectiveAthleteId);
-  if (startDate) filtered = filtered.filter(r => r.date >= startDate);
-  if (endDate) filtered = filtered.filter(r => r.date <= endDate);
+  const result = await dataService.getRecoveryTrend({
+    athleteId: effectiveAthleteId,
+    startDate,
+    endDate
+  });
 
-  filtered = filtered.sort((a, b) => a.date.localeCompare(b.date));
-
-  const anomalies = etlService.detectAnomalies(filtered, 'overallScore');
-
-  const result = {
-    data: filtered,
-    anomalies: anomalies.map(a => ({
-      ...a,
-      linkedTrainingDate: a.date
-    })),
-    summary: {
-      avgOverall: filtered.length > 0 ? Math.round(filtered.reduce((s, r) => s + r.overallScore, 0) / filtered.length) : 0,
-      avgSleep: filtered.length > 0 ? Math.round(filtered.reduce((s, r) => s + r.sleepScore, 0) / filtered.length) : 0,
-      avgHRV: filtered.length > 0 ? Math.round(filtered.reduce((s, r) => s + r.hrv, 0) / filtered.length) : 0
+  const response = {
+    data: result.rows,
+    anomalies: result.anomalies,
+    summary: result.summary,
+    _meta: {
+      cached: result.cached,
+      cacheKey: result.cacheKey,
+      queryMeta: result.queryMeta
     }
   };
 
-  cacheService.set(cacheKey, result);
-  res.json(result);
+  res.json(response);
 });
 
-router.get('/training/comparison', authMiddleware.requireCoach.bind(authMiddleware), (req, res) => {
+router.get('/training/comparison', authMiddleware.requireCoach.bind(authMiddleware), async (req, res) => {
   const { athleteIds, metric = 'load', startDate, endDate } = req.query;
   const ids = Array.isArray(athleteIds) ? athleteIds : [athleteIds];
 
@@ -206,113 +136,66 @@ router.get('/training/comparison', authMiddleware.requireCoach.bind(authMiddlewa
     return res.json([]);
   }
 
-  const comparisonData = ids.map(id => {
-    let trainings = actualTrainings.filter(t => t.athleteId === id);
-    if (startDate) trainings = trainings.filter(t => t.date >= startDate);
-    if (endDate) trainings = trainings.filter(t => t.date <= endDate);
-
-    const athlete = athletes.find(a => a.id === id);
-    const daily = etlService.transformTrainingForChart(trainings, 'date');
-
-    return {
-      athleteId: id,
-      athleteName: athlete ? athlete.name : id,
-      sport: athlete ? athlete.sport : '',
-      data: daily.sort((a, b) => a.key.localeCompare(b.key)),
-      total: daily.reduce((s, d) => s + d[metric], 0),
-      average: daily.length > 0 ? Math.round(daily.reduce((s, d) => s + d[metric], 0) / daily.length) : 0
-    };
+  const result = await dataService.getTrainingComparison({
+    athleteIds: ids,
+    metric,
+    startDate,
+    endDate
   });
+
+  const comparisonData = result.rows.map(r => ({
+    athleteId: r.athlete_id,
+    athleteName: r.athlete_name,
+    sport: r.sport,
+    data: r.data,
+    total: r.total,
+    average: r.average
+  }));
 
   res.json(comparisonData);
 });
 
-router.get('/training/detail/:id', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/training/detail/:id', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   const { id } = req.params;
-  const training = actualTrainings.find(t => t.id === id);
-  if (!training) {
+  const result = await dataService.getTrainingDetail(id);
+
+  if (!result.found || result.rows.length === 0) {
     return res.status(404).json({ error: '训练记录不存在' });
   }
+
+  const row = result.rows[0];
+  const training = row.training;
 
   if (req.dataScope && req.dataScope.type === 'self' && training.athleteId !== req.dataScope.athleteId) {
     return res.status(403).json({ error: '权限不足：只能查看自己的训练记录' });
   }
 
-  const plan = trainingPlans.find(p => p.id === training.planId);
-  const hrData = heartRateData.filter(
-    h => h.athleteId === training.athleteId && h.date === training.date && h.exercise === training.exercise
-  );
-
   const paceForExercise = paceData.find(
     p => p.athleteId === training.athleteId && p.date === training.date && p.exercise === training.exercise
   );
 
-  const planIntensity = plan ? (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity) : 0;
-  const originalIntensity = plan ? (plan.originalIntensity || plan.plannedIntensity) : 0;
-  const plannedLoad = plan ? plan.plannedSets * plan.plannedReps * planIntensity : 0;
-  const originalPlannedLoad = plan ? plan.plannedSets * plan.plannedReps * originalIntensity : 0;
-  const actualLoad = etlService.calculateLoad(training);
-
-  const deviationAnalysis = plan ? {
-    sets: {
-      planned: plan.plannedSets,
-      actual: training.actualSets,
-      diff: training.actualSets - plan.plannedSets,
-      deviationPercent: Math.round(((training.actualSets - plan.plannedSets) / plan.plannedSets) * 100)
-    },
-    reps: {
-      planned: plan.plannedReps,
-      actual: training.actualReps,
-      diff: training.actualReps - plan.plannedReps,
-      deviationPercent: Math.round(((training.actualReps - plan.plannedReps) / plan.plannedReps) * 100)
-    },
-    intensity: {
-      originalPlanned: originalIntensity,
-      adjustedPlanned: planIntensity,
-      actual: training.actualIntensity,
-      diffFromAdjusted: training.actualIntensity - planIntensity,
-      diffFromOriginal: training.actualIntensity - originalIntensity,
-      wasAdjusted: plan.adjusted
-    },
-    load: {
-      planned: plannedLoad,
-      originalPlannedLoad: originalPlannedLoad,
-      actual: actualLoad,
-      deviationPercent: Math.round(((actualLoad - plannedLoad) / plannedLoad) * 100)
-    }
-  } : null;
-
   res.json({
     training,
-    plan,
-    heartRate: hrData,
+    plan: row.plan,
+    heartRate: row.heart_rate,
     pace: paceForExercise || null,
-    planComparison: plan ? {
-      sets: { planned: plan.plannedSets, actual: training.actualSets, diff: training.actualSets - plan.plannedSets },
-      reps: { planned: plan.plannedReps, actual: training.actualReps, diff: training.actualReps - plan.plannedReps },
-      intensity: {
-        planned: plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity,
-        actual: training.actualIntensity,
-        original: plan.originalIntensity,
-        wasAdjusted: plan.adjusted
-      },
-      adjusted: plan.adjusted,
-      adjustmentReason: plan.adjustmentReason
-    } : null,
-    deviationAnalysis,
-    rawRecord: {
-      ...training,
-      calculatedLoad: etlService.calculateLoad(training)
+    planComparison: row.planComparison,
+    deviationAnalysis: row.deviation_analysis,
+    rawRecord: row.raw_record,
+    _meta: {
+      cached: result.cached,
+      cacheKey: result.cacheKey,
+      queryMeta: result.queryMeta
     }
   });
 });
 
-router.get('/injuries', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/injuries', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   let athleteId = enforceScope(req);
   const userRole = req.user?.role;
 
-  let filtered = [...injuryRecords];
-  if (athleteId) filtered = filtered.filter(i => i.athleteId === athleteId);
+  const result = await dataService.getInjuryRecords(athleteId);
+  let filtered = result.rows;
 
   const canViewInternal = authMiddleware.canViewInternalNotes(userRole);
   if (!canViewInternal) {
@@ -322,61 +205,55 @@ router.get('/injuries', authMiddleware.enforceDataPermission.bind(authMiddleware
   res.json(filtered);
 });
 
-router.get('/training-plans', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/training-plans', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   let athleteId = enforceScope(req);
   const { date, adjustedOnly } = req.query;
 
-  let filtered = [...trainingPlans];
-  if (athleteId) filtered = filtered.filter(p => p.athleteId === athleteId);
-  if (date) filtered = filtered.filter(p => p.date === date);
-  if (adjustedOnly === 'true') filtered = filtered.filter(p => p.adjusted);
-
-  const withActual = filtered.map(plan => {
-    const actual = actualTrainings.find(t => t.planId === plan.id);
-    const deviation = actual && plan ? {
-      intensityDeviation: actual.actualIntensity - (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity),
-      originalIntensityDeviation: actual.actualIntensity - (plan.originalIntensity || plan.plannedIntensity),
-      loadDeviation: actual ? etlService.calculateLoad(actual) - (plan.plannedSets * plan.plannedReps * (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity)) : 0
-    } : null;
-
-    return {
-      ...plan,
-      actual: actual || null,
-      deviation
-    };
+  const result = await dataService.getTrainingPlans({
+    athleteId,
+    date,
+    adjustedOnly
   });
 
-  res.json(withActual.sort((a, b) => b.date.localeCompare(a.date)));
+  res.json(result.rows);
 });
 
-router.get('/acwr', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/acwr', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   let athleteId = enforceScope(req);
   if (!athleteId) {
     return res.status(400).json({ error: '请指定队员' });
   }
 
   const { date } = req.query;
-  const result = etlService.calculateAcuteChronicWorkloadRatio(
-    athleteId,
-    date || new Date().toISOString().split('T')[0]
-  );
-  res.json(result);
+  const result = await dataService.getACWR(athleteId, date);
+
+  res.json(result.rows[0]);
 });
 
-router.get('/training/day/:date', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+router.get('/training/day/:date', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
   const { date } = req.params;
   let athleteId = enforceScope(req);
 
-  let trainings = actualTrainings.filter(t => t.date === date);
-  if (athleteId) trainings = trainings.filter(t => t.athleteId === athleteId);
+  const result = await dataService.getDayTrainings(date, athleteId);
 
-  const withPlans = trainings.map(t => ({
-    training: t,
-    plan: trainingPlans.find(p => p.id === t.planId),
-    calculatedLoad: etlService.calculateLoad(t)
+  const withPlans = result.rows.map(row => ({
+    training: row.training,
+    plan: row.plan,
+    calculatedLoad: row.calculatedLoad,
+    deviation: row.deviation,
+    planComparison: row.planComparison,
+    deviationAnalysis: row.deviation || null
   }));
 
-  res.json(withPlans);
+  res.json({
+    data: withPlans,
+    hasAdjusted: result.hasAdjusted,
+    _meta: {
+      cached: result.cached,
+      cacheKey: result.cacheKey,
+      queryMeta: result.queryMeta
+    }
+  });
 });
 
 router.get('/export/training', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
@@ -393,12 +270,12 @@ router.get('/export/training', authMiddleware.enforceDataPermission.bind(authMid
       (!startDate || t.date >= startDate) &&
       (!endDate || t.date <= endDate)
     ),
-    recovery: recoveryScores.filter(r =>
+    recovery: mockData.recoveryScores.filter(r =>
       r.athleteId === athleteId &&
       (!startDate || r.date >= startDate) &&
       (!endDate || r.date <= endDate)
     ),
-    plans: trainingPlans.filter(p =>
+    plans: mockData.trainingPlans.filter(p =>
       p.athleteId === athleteId &&
       (!startDate || p.date >= startDate) &&
       (!endDate || p.date <= endDate)
@@ -429,6 +306,11 @@ router.get('/export/training', authMiddleware.enforceDataPermission.bind(authMid
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="training-data-${athleteId}.xlsx"`);
   res.send(buffer);
+});
+
+router.get('/system/stats', authMiddleware.requireCoach.bind(authMiddleware), async (req, res) => {
+  const stats = await dataService.getSystemStats();
+  res.json(stats);
 });
 
 router.post('/auth/login', (req, res) => {

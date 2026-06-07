@@ -657,8 +657,9 @@ const openDayDetail = async (date) => {
   selectedDayDate.value = date
   try {
     const res = await trainingApi.getDayTrainings(date)
-    selectedDayTrainings.value = res.data
-    selectedDayHasAdjusted.value = res.data.some(t => t.plan?.adjusted)
+    const result = res.data
+    selectedDayTrainings.value = result.data
+    selectedDayHasAdjusted.value = result.hasAdjusted
     dayDetailVisible.value = true
   } catch (e) {
     ElMessage.error('获取当日训练记录失败')
