@@ -1,0 +1,713 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>门店售后回访质量看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --success: #27ae60;
+            --post-refund: #8e44ad;
+            --bg: #f5f6fa;
+            --card-bg: #fff;
+            --text: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border: #e0e0e0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); }
+        .header { background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%); color: #fff; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .user-info { font-size: 14px; opacity: 0.9; }
+        .container { max-width: 1440px; margin: 0 auto; padding: 20px; }
+        .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+        .filters label { font-size: 13px; color: var(--text-secondary); margin-right: 4px; }
+        .filters select, .filters input { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+        .filters button { padding: 6px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-warning { background: var(--warning); color: #fff; }
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+        .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; color: var(--text-secondary); }
+        .tab:hover { color: var(--primary); }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .card { background: var(--card-bg); border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .card .label { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+        .card .value { font-size: 28px; font-weight: 700; }
+        .card .value.danger { color: var(--danger); }
+        .card .value.warning { color: var(--warning); }
+        .card .value.post-refund { color: var(--post-refund); }
+        .card .value.primary { color: var(--primary); }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .chart-box { background: var(--card-bg); border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .chart-box h3 { font-size: 15px; margin-bottom: 12px; color: var(--text); }
+        .chart-container { width: 100%; height: 360px; }
+        .table-box { background: var(--card-bg); border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
+        .table-box h3 { font-size: 15px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f9fa; padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+        tr:hover { background: #f8f9ff; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-danger { background: #fde8e8; color: var(--danger); }
+        .badge-warning { background: #fef3d7; color: var(--warning); }
+        .badge-post-refund { background: #f3e5f5; color: var(--post-refund); }
+        .badge-success { background: #e8f5e9; color: var(--success); }
+        .annotation-panel { background: #fff8e1; border-left: 3px solid var(--warning); padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+        .annotation-panel h4 { font-size: 13px; color: var(--warning); margin-bottom: 8px; }
+        .annotation-item { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .modal { background: #fff; border-radius: 10px; padding: 24px; width: 480px; max-width: 90vw; }
+        .modal h3 { margin-bottom: 16px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; margin-bottom: 4px; color: var(--text-secondary); }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+        .report-status { font-size: 13px; }
+        .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+</head>
+<body x-data="dashboardApp()">
+    <div class="header">
+        <h1>门店售后回访质量看板</h1>
+        <div class="user-info">
+            {{ user.get_full_name }}
+            <button class="btn-primary" style="margin-left: 12px; padding: 4px 12px;" @click="showReportModal = true">生成报表</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="filters">
+            <div>
+                <label>开始日期</label>
+                <input type="date" x-model="filters.date_from">
+            </div>
+            <div>
+                <label>结束日期</label>
+                <input type="date" x-model="filters.date_to">
+            </div>
+            <div>
+                <label>门店</label>
+                <select x-model="filters.store_id">
+                    <option value="">全部门店</option>
+                    {% for store in stores %}
+                    <option value="{{ store.id }}">{{ store.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-primary" @click="loadAll()">查询</button>
+            <button class="btn-warning" @click="resetFilters()">重置</button>
+        </div>
+
+        <div class="tabs">
+            <div class="tab" :class="{'active': activeTab === 'low_score'}" @click="switchTab('low_score')">低分回访</div>
+            <div class="tab" :class="{'active': activeTab === 'complaint'}" @click="switchTab('complaint')">二次投诉</div>
+            <div class="tab" :class="{'active': activeTab === 'store'}" @click="switchTab('store')">门店对比</div>
+            <div class="tab" :class="{'active': activeTab === 'problem_type'}" @click="switchTab('problem_type')">问题类型对比</div>
+            <div class="tab" :class="{'active': activeTab === 'team'}" @click="switchTab('team')">处理班组对比</div>
+        </div>
+
+        <template x-if="overview">
+            <div>
+                <div class="cards">
+                    <div class="card">
+                        <div class="label">已完成回访</div>
+                        <div class="value primary" x-text="overview.total_visits || 0"></div>
+                    </div>
+                    <div class="card">
+                        <div class="label">满意度均值</div>
+                        <div class="value" :class="overview.avg_satisfaction < 3.5 ? 'danger' : 'primary'" x-text="overview.avg_satisfaction || '-'"></div>
+                    </div>
+                    <div class="card">
+                        <div class="label">低分回访(≤3分)</div>
+                        <div class="value danger" x-text="overview.low_score_count || 0"></div>
+                    </div>
+                    <div class="card">
+                        <div class="label">退款后二次投诉</div>
+                        <div class="value post-refund" x-text="overview.post_refund_complaint_count || 0"></div>
+                    </div>
+                </div>
+
+                <template x-if="overview.annotations && overview.annotations.length > 0">
+                    <div class="annotation-panel">
+                        <h4>⚠ 异常注释</h4>
+                        <template x-for="a in overview.annotations" :key="a.text">
+                            <div class="annotation-item">
+                                <span x-text="a.type === 'post_refund_complaint' ? '【退款后投诉】' : '【其他异常】'"></span>
+                                <span x-text="a.text"></span>
+                                <span style="float:right" x-text="a.annotated_by + ' ' + a.created_at"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="activeTab === 'low_score'">
+            <div>
+                <div class="chart-row">
+                    <div class="chart-box">
+                        <h3>低分回访分布</h3>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background:#e74c3c"></div>普通低分</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div>退款后二次投诉</div>
+                        </div>
+                        <div id="lowScoreChart" class="chart-container"></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3>满意度趋势</h3>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background:#1a73e8"></div>满意度均值</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div>退款后投诉标记</div>
+                        </div>
+                        <div id="trendChart" class="chart-container"></div>
+                    </div>
+                </div>
+                <div class="table-box">
+                    <h3>低分回访明细</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>工单编号</th>
+                                <th>客户</th>
+                                <th>手机号</th>
+                                <th>门店</th>
+                                <th>问题类型</th>
+                                <th>处理班组</th>
+                                <th>处理人</th>
+                                <th>满意度</th>
+                                <th>录音标签</th>
+                                <th>状态标记</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="v in lowScoreVisits" :key="v.order_no">
+                                <tr>
+                                    <td x-text="v.order_no"></td>
+                                    <td x-text="v.customer_name"></td>
+                                    <td x-text="v.customer_phone"></td>
+                                    <td x-text="v.store_name"></td>
+                                    <td x-text="v.problem_type"></td>
+                                    <td x-text="v.team_name"></td>
+                                    <td x-text="v.handler_name"></td>
+                                    <td><span class="badge badge-danger" x-text="v.satisfaction_score"></span></td>
+                                    <td x-text="(v.recording_tags || []).join(', ')"></td>
+                                    <td>
+                                        <template x-if="v.is_post_refund_complaint">
+                                            <span class="badge badge-post-refund">退款后投诉</span>
+                                        </template>
+                                        <template x-if="v.has_secondary_complaint && !v.is_post_refund_complaint">
+                                            <span class="badge badge-warning">有二次投诉</span>
+                                        </template>
+                                        <template x-if="!v.has_secondary_complaint">
+                                            <span class="badge badge-danger">低分</span>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="activeTab === 'complaint'">
+            <div>
+                <div class="chart-row">
+                    <div class="chart-box">
+                        <h3>二次投诉分类</h3>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background:#f39c12"></div>普通二次投诉</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div>退款后二次投诉(单独标记)</div>
+                        </div>
+                        <div id="complaintChart" class="chart-container"></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3>退款状态分布</h3>
+                        <div id="refundChart" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <div class="table-box">
+                    <h3>退款后二次投诉明细（单独标记，不与普通低分混在一起）</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>工单编号</th>
+                                <th>客户</th>
+                                <th>手机号</th>
+                                <th>门店</th>
+                                <th>投诉类型</th>
+                                <th>投诉时间</th>
+                                <th>满意度</th>
+                                <th>标记</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="c in postRefundComplaints" :key="c.order_no">
+                                <tr style="background: #fdf2f8;">
+                                    <td x-text="c.order_no"></td>
+                                    <td x-text="c.customer_name"></td>
+                                    <td x-text="c.customer_phone"></td>
+                                    <td x-text="c.store_name"></td>
+                                    <td x-text="c.complaint_type"></td>
+                                    <td x-text="c.complaint_time"></td>
+                                    <td x-text="c.satisfaction_score || '-'"></td>
+                                    <td><span class="badge badge-post-refund">⚠ 退款后投诉</span></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-box">
+                    <h3>普通二次投诉明细</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>工单编号</th>
+                                <th>客户</th>
+                                <th>手机号</th>
+                                <th>门店</th>
+                                <th>投诉类型</th>
+                                <th>投诉时间</th>
+                                <th>满意度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="c in normalComplaints" :key="c.order_no">
+                                <tr>
+                                    <td x-text="c.order_no"></td>
+                                    <td x-text="c.customer_name"></td>
+                                    <td x-text="c.customer_phone"></td>
+                                    <td x-text="c.store_name"></td>
+                                    <td x-text="c.complaint_type"></td>
+                                    <td x-text="c.complaint_time"></td>
+                                    <td x-text="c.satisfaction_score || '-'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="activeTab === 'store' || activeTab === 'problem_type' || activeTab === 'team'">
+            <div>
+                <div class="chart-row">
+                    <div class="chart-box">
+                        <h3 x-text="dimensionTitle + ' - 满意度与低分对比'"></h3>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot" style="background:#1a73e8"></div>满意度均值</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#e74c3c"></div>低分数量</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#8e44ad"></div>退款后投诉</div>
+                        </div>
+                        <div id="dimensionChart" class="chart-container"></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3 x-text="dimensionTitle + ' - 回访量分布'"></h3>
+                        <div id="dimensionCountChart" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <div class="table-box">
+                    <h3 x-text="dimensionTitle + '对比明细'"></h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th x-text="dimensionTitle"></th>
+                                <th>回访量</th>
+                                <th>满意度均值</th>
+                                <th>低分数</th>
+                                <th>二次投诉</th>
+                                <th>退款后投诉</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="d in dimensionData" :key="d.name">
+                                <tr>
+                                    <td x-text="d.name"></td>
+                                    <td x-text="d.visit_count"></td>
+                                    <td>
+                                        <span :class="d.avg_satisfaction && d.avg_satisfaction < 3.5 ? 'badge badge-danger' : 'badge badge-success'" x-text="d.avg_satisfaction || '-'"></span>
+                                    </td>
+                                    <td x-text="d.low_score_count"></td>
+                                    <td x-text="d.secondary_complaint_count"></td>
+                                    <td>
+                                        <template x-if="d.post_refund_complaint_count > 0">
+                                            <span class="badge badge-post-refund" x-text="d.post_refund_complaint_count"></span>
+                                        </template>
+                                        <template x-if="!d.post_refund_complaint_count || d.post_refund_complaint_count === 0">
+                                            <span>0</span>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <template x-if="dimensionAnnotations && dimensionAnnotations.length > 0">
+                    <div class="annotation-panel">
+                        <h4>⚠ 异常注释</h4>
+                        <template x-for="a in dimensionAnnotations" :key="a.text">
+                            <div class="annotation-item">
+                                <span x-text="'【' + (a.type === 'post_refund_complaint' ? '退款后投诉' : '异常') + '】'"></span>
+                                <span x-text="a.text"></span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+
+    <template x-if="showReportModal">
+        <div class="modal-overlay" @click.self="showReportModal = false">
+            <div class="modal">
+                <h3>生成自定义报表</h3>
+                <div class="form-group">
+                    <label>报表类型</label>
+                    <select x-model="reportForm.report_type">
+                        <option value="custom">自定义报表</option>
+                        <option value="low_score">低分回访报表</option>
+                        <option value="complaint">二次投诉报表</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>对比维度</label>
+                    <select x-model="reportForm.dimension">
+                        <option value="store">门店</option>
+                        <option value="problem_type">问题类型</option>
+                        <option value="team">处理班组</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:16px;">
+                    <button class="btn-primary" @click="createReport()">生成</button>
+                    <button style="background:#eee;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;" @click="showReportModal = false">取消</button>
+                </div>
+                <template x-if="reportStatus">
+                    <div class="report-status" style="margin-top:12px;" x-text="reportStatus"></div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <script>
+    function dashboardApp() {
+        return {
+            activeTab: 'low_score',
+            filters: { date_from: '', date_to: '', store_id: '' },
+            overview: null,
+            lowScoreVisits: [],
+            normalComplaints: [],
+            postRefundComplaints: [],
+            dimensionData: [],
+            dimensionAnnotations: [],
+            trendData: [],
+            refundStatus: [],
+            showReportModal: false,
+            reportForm: { report_type: 'custom', dimension: 'store' },
+            reportStatus: '',
+
+            get dimensionTitle() {
+                const map = { store: '门店', problem_type: '问题类型', team: '处理班组' };
+                return map[this.activeTab] || '门店';
+            },
+
+            init() {
+                this.loadAll();
+            },
+
+            async loadAll() {
+                await this.loadOverview();
+                this.loadTabData();
+            },
+
+            async loadOverview() {
+                const params = new URLSearchParams(this.filters);
+                const resp = await fetch(`/api/overview/?${params}`);
+                this.overview = await resp.json();
+            },
+
+            switchTab(tab) {
+                this.activeTab = tab;
+                this.loadTabData();
+            },
+
+            async loadTabData() {
+                const params = new URLSearchParams(this.filters);
+                if (this.activeTab === 'low_score') {
+                    await this.loadLowScore(params);
+                    await this.loadTrend(params);
+                } else if (this.activeTab === 'complaint') {
+                    await this.loadComplaints(params);
+                    await this.loadRefundStatus(params);
+                } else {
+                    params.set('dimension', this.activeTab);
+                    await this.loadDimension(params);
+                }
+            },
+
+            async loadLowScore(params) {
+                const resp = await fetch(`/api/low-score/?${params}`);
+                const data = await resp.json();
+                this.lowScoreVisits = data.low_score_visits || [];
+                this.$nextTick(() => this.renderLowScoreChart());
+            },
+
+            async loadTrend(params) {
+                const resp = await fetch(`/api/satisfaction-trend/?${params}`);
+                const data = await resp.json();
+                this.trendData = data;
+                this.$nextTick(() => this.renderTrendChart(data));
+            },
+
+            async loadComplaints(params) {
+                const resp = await fetch(`/api/secondary-complaint/?${params}`);
+                const data = await resp.json();
+                this.normalComplaints = data.normal_complaints || [];
+                this.postRefundComplaints = data.post_refund_complaints || [];
+                this.$nextTick(() => this.renderComplaintChart(data));
+            },
+
+            async loadRefundStatus(params) {
+                const resp = await fetch(`/api/refund-status/?${params}`);
+                const data = await resp.json();
+                this.refundStatus = data.refund_status || [];
+                this.$nextTick(() => this.renderRefundChart());
+            },
+
+            async loadDimension(params) {
+                const resp = await fetch(`/api/dimension-compare/?${params}`);
+                const data = await resp.json();
+                this.dimensionData = data.data || [];
+                this.dimensionAnnotations = data.annotations || [];
+                this.$nextTick(() => {
+                    this.renderDimensionChart();
+                    this.renderDimensionCountChart();
+                });
+            },
+
+            resetFilters() {
+                this.filters = { date_from: '', date_to: '', store_id: '' };
+                this.loadAll();
+            },
+
+            renderLowScoreChart() {
+                const dom = document.getElementById('lowScoreChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                const normalLow = this.lowScoreVisits.filter(v => !v.is_post_refund_complaint).length;
+                const postRefundLow = this.lowScoreVisits.filter(v => v.is_post_refund_complaint).length;
+                chart.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0, data: ['普通低分', '退款后二次投诉'] },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+                        label: { show: true, formatter: '{b}: {c}' },
+                        data: [
+                            { value: normalLow, name: '普通低分', itemStyle: { color: '#e74c3c' } },
+                            { value: postRefundLow, name: '退款后二次投诉', itemStyle: { color: '#8e44ad' } },
+                        ],
+                    }],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            renderTrendChart(data) {
+                const dom = document.getElementById('trendChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                const trend = data.trend || [];
+                const postRefundMarks = data.post_refund_marks || [];
+                const markPoints = postRefundMarks.map(m => ({
+                    coord: [m.date, null],
+                    name: '退款后投诉',
+                    itemStyle: { color: '#8e44ad' },
+                    symbolSize: 12,
+                }));
+                chart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    legend: { bottom: 0 },
+                    xAxis: { type: 'category', data: trend.map(t => t.date) },
+                    yAxis: [
+                        { type: 'value', name: '满意度', min: 1, max: 5 },
+                        { type: 'value', name: '退款后投诉数', min: 0 },
+                    ],
+                    series: [
+                        {
+                            name: '满意度均值',
+                            type: 'line',
+                            data: trend.map(t => t.avg_satisfaction),
+                            smooth: true,
+                            lineStyle: { color: '#1a73e8', width: 2 },
+                            itemStyle: { color: '#1a73e8' },
+                            areaStyle: { color: 'rgba(26,115,232,0.1)' },
+                        },
+                        {
+                            name: '退款后投诉标记',
+                            type: 'scatter',
+                            yAxisIndex: 1,
+                            data: postRefundMarks.map(m => [m.date, m.count]),
+                            symbolSize: 14,
+                            itemStyle: { color: '#8e44ad' },
+                            label: { show: true, formatter: '{c}', color: '#8e44ad', fontSize: 10 },
+                        },
+                    ],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            renderComplaintChart(data) {
+                const dom = document.getElementById('complaintChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                chart.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0 },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+                        label: { show: true, formatter: '{b}: {c}' },
+                        data: [
+                            { value: (data.normal_complaints || []).length, name: '普通二次投诉', itemStyle: { color: '#f39c12' } },
+                            { value: data.post_refund_count || 0, name: '退款后二次投诉', itemStyle: { color: '#8e44ad' } },
+                        ],
+                    }],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            renderRefundChart() {
+                const dom = document.getElementById('refundChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                const colors = { pending: '#f39c12', approved: '#3498db', refunded: '#27ae60', rejected: '#e74c3c' };
+                chart.setOption({
+                    tooltip: { trigger: 'item' },
+                    legend: { bottom: 0 },
+                    series: [{
+                        type: 'pie',
+                        radius: '65%',
+                        label: { show: true, formatter: '{b}: {c}' },
+                        data: this.refundStatus.map(r => ({
+                            value: r.count,
+                            name: r.status_display,
+                            itemStyle: { color: colors[r.status] || '#999' },
+                        })),
+                    }],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            renderDimensionChart() {
+                const dom = document.getElementById('dimensionChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                const names = this.dimensionData.map(d => d.name);
+                chart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    legend: { bottom: 0, data: ['满意度均值', '低分数', '退款后投诉'] },
+                    xAxis: { type: 'category', data: names, axisLabel: { rotate: names.length > 6 ? 30 : 0 } },
+                    yAxis: [
+                        { type: 'value', name: '满意度', min: 1, max: 5 },
+                        { type: 'value', name: '数量' },
+                    ],
+                    series: [
+                        {
+                            name: '满意度均值',
+                            type: 'bar',
+                            data: this.dimensionData.map(d => d.avg_satisfaction),
+                            itemStyle: { color: '#1a73e8', borderRadius: [4, 4, 0, 0] },
+                            markLine: { data: [{ yAxis: 3.5, name: '警戒线', lineStyle: { color: '#e74c3c', type: 'dashed' } }] },
+                        },
+                        {
+                            name: '低分数',
+                            type: 'bar',
+                            yAxisIndex: 1,
+                            data: this.dimensionData.map(d => d.low_score_count),
+                            itemStyle: { color: '#e74c3c', borderRadius: [4, 4, 0, 0] },
+                        },
+                        {
+                            name: '退款后投诉',
+                            type: 'bar',
+                            yAxisIndex: 1,
+                            data: this.dimensionData.map(d => d.post_refund_complaint_count),
+                            itemStyle: { color: '#8e44ad', borderRadius: [4, 4, 0, 0] },
+                        },
+                    ],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            renderDimensionCountChart() {
+                const dom = document.getElementById('dimensionCountChart');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                const names = this.dimensionData.map(d => d.name);
+                chart.setOption({
+                    tooltip: { trigger: 'axis' },
+                    xAxis: { type: 'category', data: names, axisLabel: { rotate: names.length > 6 ? 30 : 0 } },
+                    yAxis: { type: 'value', name: '回访量' },
+                    series: [{
+                        type: 'bar',
+                        data: this.dimensionData.map(d => d.visit_count),
+                        itemStyle: { color: '#1a73e8', borderRadius: [4, 4, 0, 0] },
+                        label: { show: true, position: 'top' },
+                    }],
+                });
+                window.addEventListener('resize', () => chart.resize());
+            },
+
+            async createReport() {
+                this.reportStatus = '正在提交报表生成任务...';
+                const resp = await fetch('/api/report/create/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+                    body: JSON.stringify({
+                        report_type: this.reportForm.report_type,
+                        params: { ...this.filters, dimension: this.reportForm.dimension },
+                    }),
+                });
+                const data = await resp.json();
+                if (data.report_id) {
+                    this.reportStatus = '报表任务已提交，任务ID: ' + data.task_id;
+                    this.pollReportStatus(data.report_id);
+                } else {
+                    this.reportStatus = '提交失败: ' + (data.error || '未知错误');
+                }
+            },
+
+            async pollReportStatus(reportId) {
+                const poll = async () => {
+                    const resp = await fetch(`/api/report/${reportId}/status/`);
+                    const data = await resp.json();
+                    if (data.status === 'completed') {
+                        this.reportStatus = '报表已生成，路径: ' + data.file_path;
+                    } else if (data.status === 'failed') {
+                        this.reportStatus = '报表生成失败: ' + data.error_message;
+                    } else {
+                        setTimeout(poll, 3000);
+                    }
+                };
+                setTimeout(poll, 2000);
+            },
+        };
+    }
+    </script>
+</body>
+</html>
