@@ -1,0 +1,15 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Dashboard from "@/pages/Dashboard";
+import Report from "@/pages/Report";
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/report" element={<Report />} />
+      </Routes>
+    </Router>
+  );
+}
