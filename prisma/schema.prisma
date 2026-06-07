@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Campus {
+  id        String   @id @default(uuid())
+  name      String
+  city      String
+  createdAt DateTime @default(now())
+  courses   Course[]
+  classes   Class[]
+  enrollments Enrollment[]
+  waitlistEntries WaitlistEntry[]
+  users     User[]
+}
+
+model Course {
+  id        String   @id @default(uuid())
+  name      String
+  ageGroup  String
+  capacity  Int      @default(20)
+  campusId  String
+  campus    Campus   @relation(fields: [campusId], references: [id])
+  createdAt DateTime @default(now())
+  classes   Class[]
+  enrollments Enrollment[]
+  waitlistEntries WaitlistEntry[]
+  refundRecords RefundRecord[]
+
+  @@index([campusId])
+}
+
+model Class {
+  id           String    @id @default(uuid())
+  name         String
+  courseId     String
+  course       Course    @relation(fields: [courseId], references: [id])
+  campusId     String
+  campus       Campus    @relation(fields: [campusId], references: [id])
+  capacity     Int       @default(20)
+  enrolledCount Int      @default(0)
+  status       String    @default("active")
+  startDate    DateTime?
+  createdAt    DateTime  @default(now())
+  enrollments  Enrollment[]
+
+  @@index([courseId])
+  @@index([campusId])
+}
+
+model Student {
+  id        String   @id @default(uuid())
+  name      String
+  isMinor   Boolean  @default(false)
+  ageGroup  String
+  phone     String?
+  birthDate DateTime?
+  createdAt DateTime @default(now())
+  enrollments Enrollment[]
+  waitlistEntries WaitlistEntry[]
+  refundRecords RefundRecord[]
+
+  @@index([isMinor])
+}
+
+model Enrollment {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id])
+  classId        String?
+  class          Class?    @relation(fields: [classId], references: [id])
+  campusId       String
+  campus         Campus    @relation(fields: [campusId], references: [id])
+  channel        String
+  status         String    @default("enrolled")
+  enrollTime     DateTime  @default(now())
+  convertedTime  DateTime?
+  isDuplicate    Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  refundRecords  RefundRecord[]
+
+  @@index([courseId])
+  @@index([campusId])
+  @@index([status])
+  @@index([channel])
+  @@index([enrollTime])
+}
+
+model WaitlistEntry {
+  id                String    @id @default(uuid())
+  studentId         String
+  student           Student   @relation(fields: [studentId], references: [id])
+  courseId          String
+  course            Course    @relation(fields: [courseId], references: [id])
+  campusId          String
+  campus            Campus    @relation(fields: [campusId], references: [id])
+  position          Int
+  status            String    @default("waiting")
+  channel           String
+  originalEnrollTime DateTime
+  convertedTime     DateTime?
+  waitDays          Int?
+  createdAt         DateTime  @default(now())
+  adjustLogs        WaitlistAdjustLog[]
+
+  @@index([courseId])
+  @@index([campusId])
+  @@index([status])
+  @@index([courseId, position])
+}
+
+model WaitlistAdjustLog {
+  id         String        @id @default(uuid())
+  entryId    String
+  entry      WaitlistEntry @relation(fields: [entryId], references: [id])
+  operatorId String
+  operator   User          @relation(fields: [operatorId], references: [id])
+  oldPosition Int
+  newPosition Int
+  reason      String
+  createdAt   DateTime     @default(now())
+
+  @@index([entryId])
+}
+
+model RefundRecord {
+  id           String     @id @default(uuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id])
+  reason       String
+  category     String
+  amount       Decimal    @db.Decimal(10, 2)
+  refundTime   DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+
+  @@index([enrollmentId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String   @default("staff")
+  campusId  String?
+  campus    Campus?  @relation(fields: [campusId], references: [id])
+  createdAt DateTime @default(now())
+  adjustLogs WaitlistAdjustLog[]
+}
