@@ -133,7 +133,7 @@ class ColdChainDataGenerator:
             elif review_status == "resolved":
                 review_note = "已确认合规"
             
-            photo_seed = abs(hash(box_id)) % 1000
+            photo_idx = abs(hash(box_id)) % 8 + 1
             
             shipment = ShipmentRecord(
                 box_id=box_id,
@@ -146,7 +146,7 @@ class ColdChainDataGenerator:
                 status="completed",
                 review_status=review_status,
                 review_note=review_note,
-                signoff_photo_url=f"https://picsum.photos/seed/vaccine{photo_seed}/600/400"
+                signoff_photo_url=f"/static/photos/BOX{photo_idx:03d}.jpg"
             )
             
             shipments.append(shipment)

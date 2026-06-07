@@ -7,14 +7,26 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from data_generator import generate_demo_data, ThresholdConfig
+from data_generator import ThresholdConfig
 from compliance_engine import ComplianceCalculator
 from report_exporter import ReportExporter
 from database import get_database
 
 
-db = get_database()
-df_shipments, df_samples = db.load_data()
+db = None
+df_shipments = pd.DataFrame()
+df_samples = pd.DataFrame()
+db_error = None
+db_status = "连接中..."
+
+try:
+    db = get_database(init_sample_data=True)
+    df_shipments, df_samples = db.load_data()
+    db_status = "✓ TimescaleDB 已连接"
+except Exception as e:
+    db_error = str(e)
+    db_status = f"✗ TimescaleDB 连接失败: {str(e)[:50]}..."
+    print(f"[数据库错误] {e}")
 
 default_threshold = ThresholdConfig()
 
@@ -24,16 +36,20 @@ calculator = ComplianceCalculator(
     min_samples=default_threshold.min_sample_count
 )
 
-compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
-df_compliance = calculator.results_to_dataframe(compliance_results)
-df_cleaned_all = []
-for r in compliance_results:
-    for d in r.removed_details:
-        d["box_id"] = r.box_id
-        d["batch_no"] = r.batch_no
-        d["route"] = r.route
-        df_cleaned_all.append(d)
-df_cleaned = pd.DataFrame(df_cleaned_all)
+if len(df_shipments) > 0 and len(df_samples) > 0:
+    compliance_results = calculator.calculate_all_compliance(df_shipments, df_samples)
+    df_compliance = calculator.results_to_dataframe(compliance_results)
+    df_cleaned_all = []
+    for r in compliance_results:
+        for d in r.removed_details:
+            d["box_id"] = r.box_id
+            d["batch_no"] = r.batch_no
+            d["route"] = r.route
+            df_cleaned_all.append(d)
+    df_cleaned = pd.DataFrame(df_cleaned_all)
+else:
+    df_compliance = pd.DataFrame()
+    df_cleaned = pd.DataFrame()
 
 app = dash.Dash(
     __name__, 
@@ -272,20 +288,46 @@ app.layout = dbc.Container([
                 html.H2("❄️ 冷链疫苗温度合规分析平台", className="text-primary mt-4 mb-1 d-inline"),
                 html.Span([
                     dbc.Badge(
-                        "🗄️ 数据来源: TimescaleDB" if db.is_available() else "💾 数据来源: 内置模拟数据",
-                        color="success" if db.is_available() else "warning",
+                        db_status,
+                        color="success" if db and db.connected else "danger",
                         className="ms-3 align-middle"
                     )
                 ]),
                 html.P("疾控中心仓库复盘专用 · 时序数据智能分析", className="text-muted mb-0"),
-                html.P(id="db-status-detail", className="small text-muted", children=""),
             ])
         ])
     ]),
-    dbc.Row([
-        dbc.Col(sidebar, md=2),
-        main_content
+    
+    dbc.Row(id="error-row", children=[
+        dbc.Col(
+            dbc.Alert([
+                html.H4("⚠️ 无法连接 TimescaleDB 数据库", className="alert-heading"),
+                html.P([
+                    "请确保：",
+                    html.Br(),
+                    "1. PostgreSQL + TimescaleDB 服务正在运行",
+                    html.Br(),
+                    "2. 已配置 .env 文件中的数据库连接信息",
+                    html.Br(),
+                    "3. 数据库用户有创建表和 hypertable 的权限"
+                ], className="mb-2"),
+                html.Hr(),
+                html.P([
+                    html.Strong("错误详情："),
+                    html.Code(db_error or "未知错误")
+                ], className="small text-break")
+            ], color="danger") if db_error else None,
+            width=12
+        )
     ]),
+    
+    html.Div(id="main-content-area", children=[
+        dbc.Row([
+            dbc.Col(sidebar, md=2),
+            main_content
+        ])
+    ] if not db_error else []),
+    
     modal_sample_detail,
     dcc.Store(id="selected-shipment-id")
 ], fluid=True, className="bg-light")
@@ -351,8 +393,11 @@ def update_all_charts(min_temp, max_temp, min_samples, start_date, end_date,
                 df_cleaned_all.append(d)
         df_cleaned = pd.DataFrame(df_cleaned_all)
     elif triggered == "refresh-btn":
-        db = get_database(force_new=False)
-        df_shipments, df_samples = db.load_data()
+        try:
+            db = get_database(init_sample_data=False)
+            df_shipments, df_samples = db.load_data()
+        except Exception as e:
+            print(f"刷新失败: {e}")
         calculator = ComplianceCalculator(
             min_temp=min_temp or 2.0,
             max_temp=max_temp or 8.0,

@@ -1,61 +1,57 @@
 import os
 import pandas as pd
 from datetime import datetime
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 load_dotenv()
 
 
-class ColdChainTimescaleDB:
+class ColdChainDatabase:
     """
-    冷链疫苗温度数据库 - TimescaleDB 专用
-    支持时序表 (hypertable)、分桶查询、原生时间序列操作
+    冷链疫苗温度数据库 - 强制 TimescaleDB
+    所有数据直接从 TimescaleDB 的 shipments / temperature_samples 表查询
+    无模拟数据 fallback
     """
     
     def __init__(self):
-        self.use_timescaledb = os.getenv("USE_TIMESCALEDB", "true").lower() == "true"
         self.engine = None
         self.connected = False
-        self.error_msg = None
-        
-        try:
-            if self.use_timescaledb:
-                self._connect_timescaledb()
-            else:
-                self._connect_fallback()
-        except Exception as e:
-            self.error_msg = str(e)
-            print(f"[警告] 数据库连接失败: {e}")
-            self._connect_fallback()
+        self.connection_error = None
+        self._connect()
     
-    def _connect_timescaledb(self):
-        """连接 TimescaleDB 并初始化 hypertable"""
+    def _connect(self):
+        """强制连接 TimescaleDB，失败则记录错误"""
         host = os.getenv("TIMESCALEDB_HOST", "localhost")
         port = os.getenv("TIMESCALEDB_PORT", "5432")
         user = os.getenv("TIMESCALEDB_USER", "postgres")
         password = os.getenv("TIMESCALEDB_PASSWORD", "postgres")
         database = os.getenv("TIMESCALEDB_DATABASE", "cold_chain")
         
-        conn_str = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        self.engine = create_engine(conn_str, pool_pre_ping=True)
-        
-        with self.engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"))
-            conn.commit()
-        
-        self._init_timescaledb_schema()
-        self.connected = True
-        print(f"[✓] 已连接 TimescaleDB: {host}:{port}/{database}")
+        try:
+            conn_str = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
+            self.engine = create_engine(conn_str, pool_pre_ping=True, pool_recycle=3600)
+            
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"))
+                conn.commit()
+            
+            self._init_schema()
+            self.connected = True
+            print(f"[✓] TimescaleDB 已连接: {host}:{port}/{database}")
+            
+        except Exception as e:
+            self.connection_error = str(e)
+            self.connected = False
+            print(f"[✗] TimescaleDB 连接失败: {e}")
+            raise RuntimeError(
+                f"无法连接 TimescaleDB。请配置 .env 文件或确保数据库运行。\n"
+                f"错误详情: {e}"
+            )
     
-    def _connect_fallback(self):
-        """使用内置模拟数据（无需数据库）"""
-        print("[!] 使用内置模拟数据模式（如需连接 TimescaleDB，请配置 .env 文件）")
-        self.engine = None
-        self.connected = False
-    
-    def _init_timescaledb_schema(self):
+    def _init_schema(self):
         """初始化 TimescaleDB 表结构和 hypertable"""
         with self.engine.connect() as conn:
             conn.execute(text("""
@@ -90,15 +86,22 @@ class ColdChainTimescaleDB:
                 )
             """))
             
-            result = conn.execute(text("""
-                SELECT create_hypertable('temperature_samples', 'timestamp', 
+            conn.execute(text("""
+                SELECT create_hypertable(
+                    'temperature_samples', 
+                    'timestamp',
                     if_not_exists => TRUE,
-                    chunk_time_interval => INTERVAL '1 day')
+                    chunk_time_interval => INTERVAL '1 day'
+                )
             """))
             
             conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_samples_shipment_time 
                 ON temperature_samples(shipment_id, timestamp DESC)
+            """))
+            conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_samples_box_time 
+                ON temperature_samples(box_id, timestamp DESC)
             """))
             conn.execute(text("""
                 CREATE INDEX IF NOT EXISTS idx_shipments_batch 
@@ -111,76 +114,64 @@ class ColdChainTimescaleDB:
             
             conn.commit()
     
-    def is_available(self) -> bool:
-        return self.connected
-    
-    def is_empty(self) -> bool:
+    def check_connection(self) -> Tuple[bool, str]:
+        """检查连接状态"""
         if not self.connected:
-            return True
+            return False, self.connection_error or "未连接"
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT COUNT(*) FROM shipments"))
-                count = result.scalar()
-                return count == 0
-        except Exception:
-            return True
+                conn.execute(text("SELECT 1"))
+            return True, "正常"
+        except Exception as e:
+            return False, str(e)
     
-    def get_shipments_with_time_bucket(
-        self, 
+    def get_all_shipments(self) -> pd.DataFrame:
+        """从 shipments 表查询所有运输批次"""
+        query = text("SELECT * FROM shipments ORDER BY signoff_time DESC")
+        with self.engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+        if "signoff_time" in df.columns:
+            df["signoff_time"] = pd.to_datetime(df["signoff_time"])
+        return df
+    
+    def get_all_samples(self) -> pd.DataFrame:
+        """从 temperature_samples 表查询所有温度采样"""
+        query = text("SELECT * FROM temperature_samples ORDER BY timestamp")
+        with self.engine.connect() as conn:
+            df = pd.read_sql(query, conn)
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+        return df
+    
+    def get_samples_by_box(self, box_id: str) -> pd.DataFrame:
+        """按箱号查询温度采样"""
+        query = text("""
+            SELECT * FROM temperature_samples 
+            WHERE box_id = :box_id 
+            ORDER BY timestamp
+        """)
+        with self.engine.connect() as conn:
+            df = pd.read_sql(query, conn, params={"box_id": box_id})
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+        return df
+    
+    def get_daily_stats(
+        self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         exclude_review: bool = True
     ) -> pd.DataFrame:
         """
-        使用 TimescaleDB time_bucket 查询运输数据
+        使用 TimescaleDB time_bucket 查询每日统计
+        排除复核/申诉中的批次
         """
-        if not self.connected:
-            return pd.DataFrame()
+        params: Dict = {}
         
         query = """
             SELECT 
-                s.*,
-                COUNT(ts.sample_id) as actual_sample_count
-            FROM shipments s
-            LEFT JOIN temperature_samples ts ON s.shipment_id = ts.shipment_id
-            WHERE 1=1
-        """
-        params = {}
-        
-        if start_date:
-            query += " AND s.signoff_time >= :start_date"
-            params["start_date"] = start_date
-        if end_date:
-            query += " AND s.signoff_time <= :end_date"
-            params["end_date"] = end_date
-        if exclude_review:
-            query += " AND s.review_status NOT IN ('pending', 'appealed')"
-        
-        query += " GROUP BY s.shipment_id ORDER BY s.signoff_time DESC"
-        
-        with self.engine.connect() as conn:
-            df = pd.read_sql(text(query), conn, params=params)
-        
-        return df
-    
-    def get_temperature_stats(
-        self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        bucket_interval: str = '1 day'
-    ) -> pd.DataFrame:
-        """
-        使用 TimescaleDB time_bucket 聚合温度统计
-        """
-        if not self.connected:
-            return pd.DataFrame()
-        
-        query = f"""
-            SELECT 
-                time_bucket(:bucket_interval, ts.timestamp) as bucket,
-                s.route,
-                s.from_station,
-                s.to_station,
+                time_bucket('1 day', ts.timestamp) as bucket,
+                COUNT(DISTINCT s.shipment_id) as shipment_count,
                 COUNT(*) as sample_count,
                 AVG(ts.temperature) as avg_temp,
                 MAX(ts.temperature) as max_temp,
@@ -190,7 +181,9 @@ class ColdChainTimescaleDB:
             JOIN shipments s ON ts.shipment_id = s.shipment_id
             WHERE 1=1
         """
-        params = {"bucket_interval": bucket_interval}
+        
+        if exclude_review:
+            query += " AND s.review_status NOT IN ('pending', 'appealed')"
         
         if start_date:
             query += " AND ts.timestamp >= :start_date"
@@ -199,39 +192,53 @@ class ColdChainTimescaleDB:
             query += " AND ts.timestamp <= :end_date"
             params["end_date"] = end_date
         
-        query += " GROUP BY 1, 2, 3, 4 ORDER BY bucket DESC"
+        query += " GROUP BY 1 ORDER BY bucket DESC"
         
         with self.engine.connect() as conn:
             df = pd.read_sql(text(query), conn, params=params)
         
         return df
     
-    def load_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """加载所有数据（兼容接口）"""
-        if self.connected:
-            df_shipments = pd.read_sql("SELECT * FROM shipments ORDER BY shipment_id", self.engine)
-            df_samples = pd.read_sql("SELECT * FROM temperature_samples ORDER BY timestamp", self.engine)
-            if "signoff_time" in df_shipments.columns:
-                df_shipments["signoff_time"] = pd.to_datetime(df_shipments["signoff_time"])
-            if "timestamp" in df_samples.columns:
-                df_samples["timestamp"] = pd.to_datetime(df_samples["timestamp"])
-            return df_shipments, df_samples
-        else:
-            from data_generator import generate_demo_data
-            df_shipments, df_samples, _ = generate_demo_data()
-            return df_shipments, df_samples
+    def get_route_compliance(self, exclude_review: bool = True) -> pd.DataFrame:
+        """查询各路线合规率（从数据库聚合）"""
+        query = """
+            SELECT 
+                s.route,
+                COUNT(*) as shipment_count,
+                AVG(s.sample_count) as avg_samples
+            FROM shipments s
+            WHERE 1=1
+        """
+        if exclude_review:
+            query += " AND s.review_status NOT IN ('pending', 'appealed')"
+        
+        query += " GROUP BY s.route ORDER BY shipment_count DESC"
+        
+        with self.engine.connect() as conn:
+            df = pd.read_sql(text(query), conn)
+        
+        return df
     
-    def import_data(self, df_shipments: pd.DataFrame, df_samples: pd.DataFrame):
-        """导入数据到 TimescaleDB"""
-        if not self.connected:
-            print("[!] 数据库未连接，跳过导入")
-            return
+    def is_empty(self) -> bool:
+        """检查数据库是否为空"""
+        with self.engine.connect() as conn:
+            result = conn.execute(text("SELECT COUNT(*) FROM shipments"))
+            count = result.scalar()
+            return count == 0
+    
+    def load_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """加载所有数据（仪表板用）"""
+        df_shipments = self.get_all_shipments()
+        df_samples = self.get_all_samples()
+        return df_shipments, df_samples
+    
+    def import_sample_data(self, df_shipments: pd.DataFrame, df_samples: pd.DataFrame):
+        """导入示例数据到数据库"""
+        df_shipments_write = df_shipments.copy()
+        if "shipment_id" in df_shipments_write.columns:
+            df_shipments_write = df_shipments_write.drop(columns=["shipment_id"])
         
-        df_shipments_to_write = df_shipments.copy()
-        if "shipment_id" in df_shipments_to_write.columns:
-            df_shipments_to_write = df_shipments_to_write.drop(columns=["shipment_id"])
-        
-        df_shipments_to_write.to_sql(
+        df_shipments_write.to_sql(
             "shipments", 
             self.engine, 
             if_exists="append", 
@@ -243,12 +250,12 @@ class ColdChainTimescaleDB:
             result = conn.execute(text("SELECT shipment_id, box_id FROM shipments"))
             box_id_map = {row[1]: row[0] for row in result.fetchall()}
         
-        df_samples_to_write = df_samples.copy()
-        df_samples_to_write["shipment_id"] = df_samples_to_write["box_id"].map(box_id_map)
-        if "sample_id" in df_samples_to_write.columns:
-            df_samples_to_write = df_samples_to_write.drop(columns=["sample_id"])
+        df_samples_write = df_samples.copy()
+        df_samples_write["shipment_id"] = df_samples_write["box_id"].map(box_id_map)
+        if "sample_id" in df_samples_write.columns:
+            df_samples_write = df_samples_write.drop(columns=["sample_id"])
         
-        df_samples_to_write.to_sql(
+        df_samples_write.to_sql(
             "temperature_samples", 
             self.engine, 
             if_exists="append", 
@@ -259,8 +266,7 @@ class ColdChainTimescaleDB:
         print(f"[✓] 已导入 {len(df_shipments)} 条运输，{len(df_samples)} 条采样到 TimescaleDB")
     
     def update_review_status(self, box_id: str, review_status: str, review_note: str = ""):
-        if not self.connected:
-            return
+        """更新复核状态"""
         with self.engine.connect() as conn:
             conn.execute(
                 text("""
@@ -273,17 +279,17 @@ class ColdChainTimescaleDB:
             conn.commit()
 
 
-def get_database(force_refresh: bool = False) -> ColdChainTimescaleDB:
+def get_database(init_sample_data: bool = True) -> ColdChainDatabase:
     """
-    获取数据库连接
-    优先使用 TimescaleDB（配置 .env 即可）
+    获取数据库连接（强制 TimescaleDB）
+    如果数据库为空，自动导入示例数据
     """
-    db = ColdChainTimescaleDB()
+    db = ColdChainDatabase()
     
-    if db.is_available() and (force_refresh or db.is_empty()):
-        print("[TimescaleDB] 初始化示例数据...")
+    if init_sample_data and db.is_empty():
+        print("[TimescaleDB] 数据库为空，正在导入示例数据...")
         from data_generator import generate_demo_data
         df_shipments, df_samples, _ = generate_demo_data()
-        db.import_data(df_shipments, df_samples)
+        db.import_sample_data(df_shipments, df_samples)
     
     return db
