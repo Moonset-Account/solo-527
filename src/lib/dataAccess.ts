@@ -34,43 +34,44 @@ const WINDOW_COORDS: Record<string, [number, number]> = {
   w6: [116.39705, 39.9070],
 };
 
-function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { clause: string; params: any[] } {
+function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter, tableAlias: string = 'p'): { clause: string; params: any[] } {
   const conditions: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
+  const t = tableAlias ? `${tableAlias}.` : '';
 
   if (filters.dateRange.start && filters.dateRange.end) {
-    conditions.push(`p.created_at_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+    conditions.push(`${t}created_at_date BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
     params.push(filters.dateRange.start, filters.dateRange.end);
     paramIndex += 2;
   }
 
   if (filters.windows.length > 0) {
-    conditions.push(`p.window_id = ANY($${paramIndex}::uuid[])`);
+    conditions.push(`${t}window_id = ANY($${paramIndex}::uuid[])`);
     params.push(filters.windows);
     paramIndex++;
   }
 
   if (filters.pharmacists.length > 0) {
-    conditions.push(`p.pharmacist_id = ANY($${paramIndex}::uuid[])`);
+    conditions.push(`${t}pharmacist_id = ANY($${paramIndex}::uuid[])`);
     params.push(filters.pharmacists);
     paramIndex++;
   }
 
   if (filters.departments.length > 0) {
-    conditions.push(`p.department_id = ANY($${paramIndex}::uuid[])`);
+    conditions.push(`${t}department_id = ANY($${paramIndex}::uuid[])`);
     params.push(filters.departments);
     paramIndex++;
   }
 
   if (filters.prescriptionTypes.length > 0) {
-    conditions.push(`p.type = ANY($${paramIndex}::varchar[])`);
+    conditions.push(`${t}type = ANY($${paramIndex}::varchar[])`);
     params.push(filters.prescriptionTypes);
     paramIndex++;
   }
 
   if (filters.timePeriods.length > 0) {
-    conditions.push(`p.time_period = ANY($${paramIndex}::varchar[])`);
+    conditions.push(`${t}time_period = ANY($${paramIndex}::varchar[])`);
     params.push(filters.timePeriods);
     paramIndex++;
   }
@@ -78,11 +79,11 @@ function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { c
   if (drillDown.waitTimeRange) {
     const { min, max } = parseWaitTimeRange(drillDown.waitTimeRange);
     if (max === Infinity) {
-      conditions.push(`p.wait_time_minutes >= $${paramIndex}`);
+      conditions.push(`${t}wait_time_minutes >= $${paramIndex}`);
       params.push(min);
       paramIndex++;
     } else {
-      conditions.push(`p.wait_time_minutes >= $${paramIndex} AND p.wait_time_minutes < $${paramIndex + 1}`);
+      conditions.push(`${t}wait_time_minutes >= $${paramIndex} AND ${t}wait_time_minutes < $${paramIndex + 1}`);
       params.push(min, max);
       paramIndex += 2;
     }
@@ -97,7 +98,7 @@ function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { c
   if (drillDown.hour) {
     const match = drillDown.hour.match(/(\d+):00/);
     if (match) {
-      conditions.push(`p.hour = $${paramIndex}`);
+      conditions.push(`${t}hour = $${paramIndex}`);
       params.push(parseInt(match[1]));
       paramIndex++;
     }
@@ -114,10 +115,9 @@ function buildWhereClause(filters: FilterState, drillDown: DrillDownFilter): { c
     };
     const col = nodeMap[drillDown.processNode];
     if (col) {
+      conditions.push(`${t}${col} IS NOT NULL`);
       if (col === 'refunded_at') {
-        conditions.push(`p.${col} IS NOT NULL`);
-      } else {
-        conditions.push(`p.${col} IS NOT NULL`);
+        conditions.push(`${t}status = 'refunded'`);
       }
     }
   }
@@ -177,6 +177,10 @@ export async function getAnalyticsOverview(
     peakHour: 9,
   };
 
+  const windowWhere = clause
+    ? clause.replace(/p\./g, 'p.').replace(/w\./g, 'w.')
+    : '';
+
   const windowCompareQuery = `
     SELECT
       w.window_no,
@@ -185,7 +189,8 @@ export async function getAnalyticsOverview(
       ROUND(AVG(p.dispense_time_minutes)::numeric, 1) as avg_dispense,
       ROUND(COUNT(p.id)::numeric / NULLIF(w.capacity, 0) / 30 * 100, 1) as utilization
     FROM windows w
-    LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    LEFT JOIN prescriptions p ON p.window_id = w.id
+      ${windowWhere ? 'AND ' + windowWhere.replace('WHERE ', '') : ''}
     WHERE w.is_active = true
     GROUP BY w.id, w.window_no, w.capacity
     ORDER BY w.window_no
@@ -319,19 +324,35 @@ export async function getAnalyticsOverview(
     avgAmount: parseFloat(r.avg_amount || 0),
   }));
 
-  const sankeyNodes = ['处方创建', '已缴费', '配药完成', '已叫号', '已取药', '已退药'];
+  const durationQuery = `
+    SELECT
+      ROUND(AVG(EXTRACT(EPOCH FROM (p.paid_at - p.created_at)) / 60)::numeric, 1) as pay_duration,
+      ROUND(AVG(EXTRACT(EPOCH FROM (p.dispensed_at - p.paid_at)) / 60)::numeric, 1) as dispense_duration,
+      ROUND(AVG(EXTRACT(EPOCH FROM (p.called_at - p.dispensed_at)) / 60)::numeric, 1) as call_duration,
+      ROUND(AVG(EXTRACT(EPOCH FROM (p.picked_at - p.called_at)) / 60)::numeric, 1) as pick_duration,
+      ROUND(AVG(EXTRACT(EPOCH FROM (p.refunded_at - p.called_at)) / 60)::numeric, 1) as refund_duration,
+      COUNT(CASE WHEN p.refunded_at IS NOT NULL THEN 1 END) as refund_count
+    FROM prescriptions p
+    JOIN windows w ON p.window_id = w.id
+    ${clause}
+  `;
+
+  const durationRes = await queryDb(durationQuery, params);
+  const durRow = durationRes.rows[0];
+
   const total = kpi.totalPrescriptions;
-  const refundCount = Math.round(total * kpi.refundRate);
+  const refundCount = parseInt(durRow.refund_count || Math.round(total * kpi.refundRate));
   const pickCount = total - refundCount;
 
+  const sankeyNodes = ['处方创建', '已缴费', '配药完成', '已叫号', '已取药', '已退药'];
   const sankeyData: SankeyData = {
     nodes: sankeyNodes.map((name) => ({ name })),
     links: [
-      { source: 0, target: 1, value: total, avgDuration: 7.2 },
-      { source: 1, target: 2, value: total, avgDuration: kpi.avgDispenseTime },
-      { source: 2, target: 3, value: total, avgDuration: 2.5 },
-      { source: 3, target: 4, value: pickCount, avgDuration: 8.5 },
-      { source: 3, target: 5, value: refundCount, avgDuration: 15.0 },
+      { source: 0, target: 1, value: total, avgDuration: parseFloat(durRow.pay_duration || 7.2) },
+      { source: 1, target: 2, value: total, avgDuration: parseFloat(durRow.dispense_duration || kpi.avgDispenseTime) },
+      { source: 2, target: 3, value: total, avgDuration: parseFloat(durRow.call_duration || 2.5) },
+      { source: 3, target: 4, value: pickCount, avgDuration: parseFloat(durRow.pick_duration || 8.5) },
+      { source: 3, target: 5, value: refundCount, avgDuration: parseFloat(durRow.refund_duration || 15.0) },
     ],
   };
 
@@ -373,7 +394,8 @@ export async function getWindowHeatmap(
       ST_X(w.location::geometry) as lng,
       ST_Y(w.location::geometry) as lat
     FROM windows w
-    LEFT JOIN prescriptions p ON p.window_id = w.id ${clause ? 'AND ' + clause.replace('WHERE ', '').replace('w.', 'p.') : ''}
+    LEFT JOIN prescriptions p ON p.window_id = w.id
+      ${clause ? 'AND ' + clause.replace('WHERE ', '') : ''}
     WHERE w.is_active = true
     GROUP BY w.id, w.window_no, w.window_name, w.capacity, w.location
     ORDER BY w.window_no

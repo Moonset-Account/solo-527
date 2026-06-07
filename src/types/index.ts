@@ -83,6 +83,7 @@ export interface Remark {
   id: string;
   targetType: RemarkTargetType;
   targetValue: string;
+  targetTitle?: string;
   content: string;
   author: string;
   createdAt: string;

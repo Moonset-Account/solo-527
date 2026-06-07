@@ -12,39 +12,97 @@ import type {
   TimePeriod,
 } from '@/types';
 
-const windows: Window[] = [
-  { id: 'w1', windowNo: '01', windowName: '门诊1号窗口', area: 'outpatient', capacity: 200, isActive: true },
-  { id: 'w2', windowNo: '02', windowName: '门诊2号窗口', area: 'outpatient', capacity: 200, isActive: true },
-  { id: 'w3', windowNo: '03', windowName: '门诊3号窗口', area: 'outpatient', capacity: 200, isActive: true },
-  { id: 'w4', windowNo: '04', windowName: '门诊4号窗口', area: 'outpatient', capacity: 150, isActive: true },
-  { id: 'w5', windowNo: '05', windowName: '急诊专用窗口', area: 'emergency', capacity: 300, isActive: true },
-  { id: 'w6', windowNo: '06', windowName: '住院药房窗口', area: 'inpatient', capacity: 100, isActive: true },
+export const WINDOW_IDS: Record<string, string> = {
+  w1: '00000000-0000-0000-0000-000000000101',
+  w2: '00000000-0000-0000-0000-000000000102',
+  w3: '00000000-0000-0000-0000-000000000103',
+  w4: '00000000-0000-0000-0000-000000000104',
+  w5: '00000000-0000-0000-0000-000000000105',
+  w6: '00000000-0000-0000-0000-000000000106',
+};
+
+export const PHARMACIST_IDS: Record<string, string> = {
+  p1: '00000000-0000-0000-0000-000000000201',
+  p2: '00000000-0000-0000-0000-000000000202',
+  p3: '00000000-0000-0000-0000-000000000203',
+  p4: '00000000-0000-0000-0000-000000000204',
+  p5: '00000000-0000-0000-0000-000000000205',
+  p6: '00000000-0000-0000-0000-000000000206',
+  p7: '00000000-0000-0000-0000-000000000207',
+  p8: '00000000-0000-0000-0000-000000000208',
+  p9: '00000000-0000-0000-0000-000000000209',
+  p10: '00000000-0000-0000-0000-000000000210',
+};
+
+export const DEPARTMENT_IDS: Record<string, string> = {
+  d1: '00000000-0000-0000-0000-000000000001',
+  d2: '00000000-0000-0000-0000-000000000002',
+  d3: '00000000-0000-0000-0000-000000000003',
+  d4: '00000000-0000-0000-0000-000000000004',
+  d5: '00000000-0000-0000-0000-000000000005',
+  d6: '00000000-0000-0000-0000-000000000006',
+  d7: '00000000-0000-0000-0000-000000000007',
+  d8: '00000000-0000-0000-0000-000000000008',
+  d9: '00000000-0000-0000-0000-000000000009',
+  d10: '00000000-0000-0000-0000-000000000010',
+};
+
+export const windows: Window[] = [
+  { id: WINDOW_IDS.w1, windowNo: '1', windowName: '1号窗口', area: 'outpatient', capacity: 200, isActive: true },
+  { id: WINDOW_IDS.w2, windowNo: '2', windowName: '2号窗口', area: 'outpatient', capacity: 200, isActive: true },
+  { id: WINDOW_IDS.w3, windowNo: '3', windowName: '3号窗口', area: 'outpatient', capacity: 200, isActive: true },
+  { id: WINDOW_IDS.w4, windowNo: '4', windowName: '4号窗口(急诊)', area: 'emergency', capacity: 180, isActive: true },
+  { id: WINDOW_IDS.w5, windowNo: '5', windowName: '5号窗口(专科)', area: 'outpatient', capacity: 150, isActive: true },
+  { id: WINDOW_IDS.w6, windowNo: '6', windowName: '6号窗口(专科)', area: 'outpatient', capacity: 150, isActive: true },
 ];
 
-const pharmacists: Pharmacist[] = [
-  { id: 'p1', name: '张药师', title: '主管药师', specialty: '西药', windowId: 'w1' },
-  { id: 'p2', name: '李药师', title: '药师', specialty: '西药', windowId: 'w1' },
-  { id: 'p3', name: '王药师', title: '主管药师', specialty: '中药', windowId: 'w2' },
-  { id: 'p4', name: '赵药师', title: '药师', specialty: '西药', windowId: 'w2' },
-  { id: 'p5', name: '刘药师', title: '副主任药师', specialty: '抗生素', windowId: 'w3' },
-  { id: 'p6', name: '陈药师', title: '药师', specialty: '西药', windowId: 'w3' },
-  { id: 'p7', name: '杨药师', title: '药师', specialty: '肿瘤用药', windowId: 'w4' },
-  { id: 'p8', name: '黄药师', title: '主管药师', specialty: '急诊用药', windowId: 'w5' },
-  { id: 'p9', name: '周药师', title: '药师', specialty: '急诊用药', windowId: 'w5' },
-  { id: 'p10', name: '吴药师', title: '主管药师', specialty: '住院用药', windowId: 'w6' },
+export const pharmacists: Pharmacist[] = [
+  { id: PHARMACIST_IDS.p1, name: '张药师', title: '主管药师', specialty: '西药', windowId: WINDOW_IDS.w1 },
+  { id: PHARMACIST_IDS.p2, name: '李药师', title: '药师', specialty: '西药', windowId: WINDOW_IDS.w1 },
+  { id: PHARMACIST_IDS.p3, name: '王药师', title: '副主任药师', specialty: '中药', windowId: WINDOW_IDS.w2 },
+  { id: PHARMACIST_IDS.p4, name: '赵药师', title: '主管药师', specialty: '西药', windowId: WINDOW_IDS.w2 },
+  { id: PHARMACIST_IDS.p5, name: '刘药师', title: '副主任药师', specialty: '抗生素', windowId: WINDOW_IDS.w3 },
+  { id: PHARMACIST_IDS.p6, name: '陈药师', title: '药师', specialty: '西药', windowId: WINDOW_IDS.w3 },
+  { id: PHARMACIST_IDS.p7, name: '杨药师', title: '药师', specialty: '肿瘤用药', windowId: WINDOW_IDS.w4 },
+  { id: PHARMACIST_IDS.p8, name: '黄药师', title: '主管药师', specialty: '急诊用药', windowId: WINDOW_IDS.w4 },
+  { id: PHARMACIST_IDS.p9, name: '周药师', title: '药师', specialty: '急诊用药', windowId: WINDOW_IDS.w5 },
+  { id: PHARMACIST_IDS.p10, name: '吴药师', title: '副主任药师', specialty: '专科用药', windowId: WINDOW_IDS.w6 },
 ];
 
-const departments: Department[] = [
-  { id: 'd1', deptName: '急诊科', deptCategory: 'emergency', dailyPrescriptionAvg: 150 },
-  { id: 'd2', deptName: '内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 200 },
-  { id: 'd3', deptName: '外科', deptCategory: 'outpatient', dailyPrescriptionAvg: 120 },
-  { id: 'd4', deptName: '儿科', deptCategory: 'outpatient', dailyPrescriptionAvg: 180 },
-  { id: 'd5', deptName: '妇产科', deptCategory: 'outpatient', dailyPrescriptionAvg: 90 },
-  { id: 'd6', deptName: '肿瘤科', deptCategory: 'outpatient', dailyPrescriptionAvg: 60 },
-  { id: 'd7', deptName: '心血管内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 110 },
-  { id: 'd8', deptName: '神经内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 80 },
-  { id: 'd9', deptName: '骨科', deptCategory: 'outpatient', dailyPrescriptionAvg: 70 },
-  { id: 'd10', deptName: '住院部', deptCategory: 'inpatient', dailyPrescriptionAvg: 100 },
+export const departments: Department[] = [
+  { id: DEPARTMENT_IDS.d1, deptName: '急诊科', deptCategory: 'emergency', dailyPrescriptionAvg: 150 },
+  { id: DEPARTMENT_IDS.d2, deptName: '内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 200 },
+  { id: DEPARTMENT_IDS.d3, deptName: '外科', deptCategory: 'outpatient', dailyPrescriptionAvg: 120 },
+  { id: DEPARTMENT_IDS.d4, deptName: '儿科', deptCategory: 'outpatient', dailyPrescriptionAvg: 180 },
+  { id: DEPARTMENT_IDS.d5, deptName: '妇产科', deptCategory: 'outpatient', dailyPrescriptionAvg: 90 },
+  { id: DEPARTMENT_IDS.d6, deptName: '肿瘤科', deptCategory: 'outpatient', dailyPrescriptionAvg: 60 },
+  { id: DEPARTMENT_IDS.d7, deptName: '心内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 110 },
+  { id: DEPARTMENT_IDS.d8, deptName: '神经内科', deptCategory: 'outpatient', dailyPrescriptionAvg: 80 },
+  { id: DEPARTMENT_IDS.d9, deptName: '皮肤科', deptCategory: 'outpatient', dailyPrescriptionAvg: 70 },
+  { id: DEPARTMENT_IDS.d10, deptName: '眼科', deptCategory: 'outpatient', dailyPrescriptionAvg: 65 },
+];
+
+export const mockRemarks: Remark[] = [
+  {
+    id: 'r1',
+    targetType: 'window',
+    targetValue: WINDOW_IDS.w3,
+    targetTitle: '3号窗口',
+    content: '上午9-11点3号窗口排队严重，建议增加临时药师支援',
+    author: '张主任',
+    createdAt: '2026-06-01T10:30:00Z',
+    severity: 'warning',
+  },
+  {
+    id: 'r2',
+    targetType: 'metric',
+    targetValue: 'avgWaitTime',
+    targetTitle: '平均等待时长',
+    content: '本周平均等待时长较上周下降8.3%，配药效率提升明显',
+    author: '系统',
+    createdAt: '2026-06-05T09:00:00Z',
+    severity: 'normal',
+  },
 ];
 
 function randomInt(min: number, max: number): number {
@@ -70,25 +128,25 @@ function generatePrescription(id: number, date: Date): Prescription {
   createdAt.setHours(hour, minute, 0, 0);
 
   const dept = randomChoice(departments);
-  
+
   let type: 'emergency' | 'normal' | 'specialist';
   let window: Window;
   let pharmacist: Pharmacist;
 
   if (dept.deptCategory === 'emergency') {
     type = 'emergency';
-    window = windows.find((w) => w.area === 'emergency')!;
-    pharmacist = pharmacists.find((p) => p.windowId === window.id)!;
-  } else if (dept.deptCategory === 'inpatient') {
+    window = windows.find((w) => w.area === 'emergency') || windows[3];
+    pharmacist = randomChoice(pharmacists.filter((p) => p.windowId === window.id));
+  } else if (id % 5 === 0) {
     type = 'specialist';
-    window = windows.find((w) => w.area === 'inpatient')!;
-    pharmacist = pharmacists.find((p) => p.windowId === window.id)!;
+    const specialistWindows = windows.filter((w) => w.id === WINDOW_IDS.w5 || w.id === WINDOW_IDS.w6);
+    window = randomChoice(specialistWindows);
+    pharmacist = randomChoice(pharmacists.filter((p) => p.windowId === window.id));
   } else {
-    type = Math.random() < 0.2 ? 'specialist' : 'normal';
+    type = 'normal';
     const outpatientWindows = windows.filter((w) => w.area === 'outpatient');
     window = randomChoice(outpatientWindows);
-    const windowPharmacists = pharmacists.filter((p) => p.windowId === window.id);
-    pharmacist = randomChoice(windowPharmacists);
+    pharmacist = randomChoice(pharmacists.filter((p) => p.windowId === window.id));
   }
 
   const payDelay = type === 'emergency' ? randomInt(1, 5) : randomInt(3, 15);
@@ -101,18 +159,13 @@ function generatePrescription(id: number, date: Date): Prescription {
   const calledAt = new Date(dispensedAt.getTime() + callDelay * 60000);
   const pickedAt = new Date(calledAt.getTime() + pickDelay * 60000);
 
-  const refundRate = 0.03;
-  const refundedAt = Math.random() < refundRate 
-    ? new Date(calledAt.getTime() + randomInt(1, 10) * 60000) 
-    : undefined;
+  const isRefunded = Math.random() < 0.03;
 
   const waitTime = Math.round((pickedAt.getTime() - createdAt.getTime()) / 60000);
   const dispenseTime = Math.round((dispensedAt.getTime() - paidAt.getTime()) / 60000);
 
-  const patientCategories = ['医保', '自费', '离休', '公费'];
-
   return {
-    id: `rx-${id.toString().padStart(6, '0')}`,
+    id: `presc_${id.toString().padStart(6, '0')}`,
     prescriptionNo: `RX${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${id.toString().padStart(6, '0')}`,
     type,
     departmentId: dept.id,
@@ -125,11 +178,11 @@ function generatePrescription(id: number, date: Date): Prescription {
     paidAt: paidAt.toISOString(),
     dispensedAt: dispensedAt.toISOString(),
     calledAt: calledAt.toISOString(),
-    pickedAt: pickedAt.toISOString(),
-    refundedAt: refundedAt?.toISOString(),
-    amount: Math.round(randomInt(20, 500) * 100) / 100,
+    pickedAt: isRefunded ? '' : pickedAt.toISOString(),
+    refundedAt: isRefunded ? new Date(calledAt.getTime() + randomInt(5, 30) * 60000).toISOString() : undefined,
+    amount: Math.round((randomInt(20, 500) + Math.random()) * 100) / 100,
     drugCount: randomInt(1, 8),
-    patientCategory: randomChoice(patientCategories),
+    patientCategory: Math.random() < 0.1 ? 'vip' : 'normal',
     waitTime,
     dispenseTime,
     timePeriod: getTimePeriodFromHour(hour),
@@ -137,7 +190,7 @@ function generatePrescription(id: number, date: Date): Prescription {
   };
 }
 
-function generatePrescriptions(days: number = 30): Prescription[] {
+function generateMockPrescriptions(days: number = 30): Prescription[] {
   const prescriptions: Prescription[] = [];
   const today = new Date();
   let id = 1;
@@ -145,11 +198,11 @@ function generatePrescriptions(days: number = 30): Prescription[] {
   for (let d = 0; d < days; d++) {
     const date = new Date(today);
     date.setDate(date.getDate() - d);
-    
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    const dailyCount = isWeekend ? randomInt(400, 600) : randomInt(600, 900);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const count = isWeekend ? randomInt(100, 180) : randomInt(180, 280);
 
-    for (let i = 0; i < dailyCount; i++) {
+    for (let i = 0; i < count; i++) {
       prescriptions.push(generatePrescription(id++, date));
     }
   }
@@ -157,52 +210,22 @@ function generatePrescriptions(days: number = 30): Prescription[] {
   return prescriptions;
 }
 
-const mockPrescriptions = generatePrescriptions(30);
+export const mockPrescriptions = generateMockPrescriptions(30);
 
-const mockRemarks: Remark[] = [
-  {
-    id: 'r1',
-    targetType: 'window',
-    targetValue: '03',
-    content: '3号窗口配药设备于6月15日上午故障，导致等待时间延长',
-    author: '运营改善组-李',
-    createdAt: '2024-06-15T14:30:00.000Z',
-    severity: 'warning',
-  },
-  {
-    id: 'r2',
-    targetType: 'period',
-    targetValue: '2024-06-10 08:00-10:00',
-    content: '周一早高峰，门诊量激增，建议增加临时窗口',
-    author: '运营改善组-王',
-    createdAt: '2024-06-10T11:00:00.000Z',
-    severity: 'critical',
-  },
-  {
-    id: 'r3',
-    targetType: 'metric',
-    targetValue: 'avgWaitTimeEmergency',
-    content: '急诊等待时间连续3天超过30分钟，需分析原因',
-    author: '药剂科主任',
-    createdAt: '2024-06-12T09:00:00.000Z',
-    severity: 'critical',
-  },
-];
-
-function calculateKPIData(prescriptions: Prescription[]): KPIData {
+export function calculateKPIData(prescriptions: Prescription[]): KPIData {
   const total = prescriptions.length;
   const emergency = prescriptions.filter((p) => p.type === 'emergency');
   const normal = prescriptions.filter((p) => p.type === 'normal');
   const specialist = prescriptions.filter((p) => p.type === 'specialist');
   const refunded = prescriptions.filter((p) => p.refundedAt);
 
-  const avgWait = (list: Prescription[]) =>
-    list.length > 0 ? list.reduce((sum, p) => sum + p.waitTime, 0) / list.length : 0;
+  const avgWait = total > 0 ? prescriptions.reduce((s, p) => s + p.waitTime, 0) / total : 0;
+  const avgDispense = total > 0 ? prescriptions.reduce((s, p) => s + p.dispenseTime, 0) / total : 0;
 
   const windowUtilization: Record<string, number> = {};
   windows.forEach((w) => {
     const count = prescriptions.filter((p) => p.windowId === w.id).length;
-    windowUtilization[w.windowNo] = Math.min(100, (count / (w.capacity * 30)) * 100);
+    windowUtilization[w.windowNo] = Math.min(100, Math.round((count / (w.capacity * 30)) * 100 * 10) / 10);
   });
 
   const hourCounts: Record<number, number> = {};
@@ -218,18 +241,18 @@ function calculateKPIData(prescriptions: Prescription[]): KPIData {
     emergencyPrescriptions: emergency.length,
     normalPrescriptions: normal.length,
     specialistPrescriptions: specialist.length,
-    avgWaitTime: avgWait(prescriptions),
-    avgWaitTimeEmergency: avgWait(emergency),
-    avgWaitTimeNormal: avgWait(normal),
-    avgWaitTimeSpecialist: avgWait(specialist),
-    avgDispenseTime: prescriptions.reduce((sum, p) => sum + p.dispenseTime, 0) / total,
-    refundRate: refunded.length / total,
+    avgWaitTime: Math.round(avgWait * 10) / 10,
+    avgWaitTimeEmergency: emergency.length > 0 ? Math.round((emergency.reduce((s, p) => s + p.waitTime, 0) / emergency.length) * 10) / 10 : 0,
+    avgWaitTimeNormal: normal.length > 0 ? Math.round((normal.reduce((s, p) => s + p.waitTime, 0) / normal.length) * 10) / 10 : 0,
+    avgWaitTimeSpecialist: specialist.length > 0 ? Math.round((specialist.reduce((s, p) => s + p.waitTime, 0) / specialist.length) * 10) / 10 : 0,
+    avgDispenseTime: Math.round(avgDispense * 10) / 10,
+    refundRate: total > 0 ? refunded.length / total : 0,
     windowUtilization,
     peakHour,
   };
 }
 
-function calculateWaitDistribution(prescriptions: Prescription[]): WaitDistributionItem[] {
+export function calculateWaitDistribution(prescriptions: Prescription[]): WaitDistributionItem[] {
   const ranges = [
     { min: 0, max: 10, label: '0-10分钟' },
     { min: 10, max: 20, label: '10-20分钟' },
@@ -239,47 +262,37 @@ function calculateWaitDistribution(prescriptions: Prescription[]): WaitDistribut
     { min: 60, max: Infinity, label: '60分钟以上' },
   ];
 
-  return ranges.map(({ min, max, label }) => ({
-    range: label,
-    count: prescriptions.filter((p) => p.waitTime >= min && p.waitTime < max).length,
-    emergencyCount: prescriptions.filter(
-      (p) => p.type === 'emergency' && p.waitTime >= min && p.waitTime < max
-    ).length,
-    normalCount: prescriptions.filter(
-      (p) => p.type !== 'emergency' && p.waitTime >= min && p.waitTime < max
-    ).length,
-  }));
+  return ranges.map((r) => {
+    const inRange = prescriptions.filter((p) => p.waitTime >= r.min && p.waitTime < r.max);
+    const emergency = inRange.filter((p) => p.type === 'emergency');
+    return {
+      range: r.label,
+      count: inRange.length,
+      emergencyCount: emergency.length,
+      normalCount: inRange.length - emergency.length,
+    };
+  });
 }
 
-function calculateWindowCompare(prescriptions: Prescription[]): WindowCompareItem[] {
+export function calculateWindowCompare(prescriptions: Prescription[]): WindowCompareItem[] {
   return windows.map((w) => {
     const windowPrescriptions = prescriptions.filter((p) => p.windowId === w.id);
     const count = windowPrescriptions.length;
-    const avgWait = count > 0 
-      ? windowPrescriptions.reduce((sum, p) => sum + p.waitTime, 0) / count 
-      : 0;
-    const avgDispense = count > 0
-      ? windowPrescriptions.reduce((sum, p) => sum + p.dispenseTime, 0) / count
-      : 0;
-    const utilization = Math.min(100, (count / (w.capacity * 30)) * 100);
-
     return {
       windowNo: w.windowNo,
       totalPrescriptions: count,
-      avgWaitTime: Math.round(avgWait * 10) / 10,
-      avgDispenseTime: Math.round(avgDispense * 10) / 10,
-      utilization: Math.round(utilization * 10) / 10,
+      avgWaitTime: count > 0 ? Math.round((windowPrescriptions.reduce((s, p) => s + p.waitTime, 0) / count) * 10) / 10 : 0,
+      avgDispenseTime: count > 0 ? Math.round((windowPrescriptions.reduce((s, p) => s + p.dispenseTime, 0) / count) * 10) / 10 : 0,
+      utilization: Math.min(100, Math.round((count / (w.capacity * 30)) * 100 * 10) / 10),
     };
-  }).filter((w) => w.totalPrescriptions > 0);
+  });
 }
 
-function calculateHourlyPrescriptions(prescriptions: Prescription[]): HourlyPrescriptionItem[] {
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-  
-  return hours.map((hour) => {
-    const hourPrescriptions = prescriptions.filter((p) => p.hour === hour);
+export function calculateHourlyPrescriptions(prescriptions: Prescription[]): HourlyPrescriptionItem[] {
+  return Array.from({ length: 17 }, (_, i) => i + 6).map((h) => {
+    const hourPrescriptions = prescriptions.filter((p) => p.hour === h);
     return {
-      hour: `${hour}:00`,
+      hour: `${h}:00`,
       emergency: hourPrescriptions.filter((p) => p.type === 'emergency').length,
       normal: hourPrescriptions.filter((p) => p.type === 'normal').length,
       specialist: hourPrescriptions.filter((p) => p.type === 'specialist').length,
@@ -287,42 +300,68 @@ function calculateHourlyPrescriptions(prescriptions: Prescription[]): HourlyPres
   });
 }
 
-function calculateSankeyData(prescriptions: Prescription[]): SankeyData {
-  const avgDuration = (list: Prescription[], key: 'waitTime' | 'dispenseTime') =>
-    list.length > 0 ? Math.round(list.reduce((sum, p) => sum + p[key], 0) / list.length) : 0;
+export function calculateSankeyData(prescriptions: Prescription[]): SankeyData {
+  const total = prescriptions.length;
+  const refundCount = prescriptions.filter((p) => p.refundedAt).length;
+  const pickCount = total - refundCount;
 
-  const nodes = [
-    { name: '处方创建' },
-    { name: '已缴费' },
-    { name: '配药中' },
-    { name: '已叫号' },
-    { name: '已取药' },
-    { name: '已退药' },
-  ];
+  const avgPayDelay = total > 0
+    ? prescriptions.reduce((s, p) => {
+        const paid = new Date(p.paidAt).getTime();
+        const created = new Date(p.createdAt).getTime();
+        return s + (paid - created) / 60000;
+      }, 0) / total
+    : 0;
 
-  const refundedCount = prescriptions.filter((p) => p.refundedAt).length;
-  const pickedCount = prescriptions.length - refundedCount;
+  const avgDispenseDelay = total > 0
+    ? prescriptions.reduce((s, p) => {
+        const dispensed = new Date(p.dispensedAt).getTime();
+        const paid = new Date(p.paidAt).getTime();
+        return s + (dispensed - paid) / 60000;
+      }, 0) / total
+    : 0;
 
-  const links = [
-    { source: 0, target: 1, value: prescriptions.length, avgDuration: avgDuration(prescriptions, 'waitTime') },
-    { source: 1, target: 2, value: prescriptions.length, avgDuration: avgDuration(prescriptions, 'dispenseTime') },
-    { source: 2, target: 3, value: prescriptions.length, avgDuration: 3 },
-    { source: 3, target: 4, value: pickedCount, avgDuration: 8 },
-    { source: 3, target: 5, value: refundedCount, avgDuration: 5 },
-  ];
+  const avgCallDelay = total > 0
+    ? prescriptions.reduce((s, p) => {
+        const called = new Date(p.calledAt).getTime();
+        const dispensed = new Date(p.dispensedAt).getTime();
+        return s + (called - dispensed) / 60000;
+      }, 0) / total
+    : 0;
 
-  return { nodes, links };
+  const pickedPrescriptions = prescriptions.filter((p) => p.pickedAt && !p.refundedAt);
+  const avgPickDelay = pickedPrescriptions.length > 0
+    ? pickedPrescriptions.reduce((s, p) => {
+        const picked = new Date(p.pickedAt!).getTime();
+        const called = new Date(p.calledAt).getTime();
+        return s + (picked - called) / 60000;
+      }, 0) / pickedPrescriptions.length
+    : 0;
+
+  const refundedPrescriptions = prescriptions.filter((p) => p.refundedAt);
+  const avgRefundDelay = refundedPrescriptions.length > 0
+    ? refundedPrescriptions.reduce((s, p) => {
+        const refunded = new Date(p.refundedAt!).getTime();
+        const called = new Date(p.calledAt).getTime();
+        return s + (refunded - called) / 60000;
+      }, 0) / refundedPrescriptions.length
+    : 0;
+
+  return {
+    nodes: [
+      { name: '处方创建' },
+      { name: '已缴费' },
+      { name: '配药完成' },
+      { name: '已叫号' },
+      { name: '已取药' },
+      { name: '已退药' },
+    ],
+    links: [
+      { source: 0, target: 1, value: total, avgDuration: Math.round(avgPayDelay * 10) / 10 },
+      { source: 1, target: 2, value: total, avgDuration: Math.round(avgDispenseDelay * 10) / 10 },
+      { source: 2, target: 3, value: total, avgDuration: Math.round(avgCallDelay * 10) / 10 },
+      { source: 3, target: 4, value: pickCount, avgDuration: Math.round(avgPickDelay * 10) / 10 },
+      { source: 3, target: 5, value: refundCount, avgDuration: Math.round(avgRefundDelay * 10) / 10 },
+    ],
+  };
 }
-
-export {
-  windows,
-  pharmacists,
-  departments,
-  mockPrescriptions,
-  mockRemarks,
-  calculateKPIData,
-  calculateWaitDistribution,
-  calculateWindowCompare,
-  calculateHourlyPrescriptions,
-  calculateSankeyData,
-};
