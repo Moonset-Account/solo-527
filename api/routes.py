@@ -45,9 +45,15 @@ def register_api_routes(server):
         else:
             params = request.args.to_dict()
         
-        dimensions = params.get('dimensions', [])
+        dimensions = params.get('dimensions', params.get('dimension', []))
         if isinstance(dimensions, str):
-            dimensions = json.loads(dimensions)
+            if ',' in dimensions:
+                dimensions = [d.strip() for d in dimensions.split(',')]
+            else:
+                dimensions = [dimensions]
+        
+        if not dimensions:
+            dimensions = ['fault_type']
         
         filters = _build_filters_from_params(params)
         result_df = aggregate_downtime_by_dimension(dimensions, filters)

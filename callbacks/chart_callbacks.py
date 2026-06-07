@@ -55,6 +55,8 @@ def build_filters_from_state(filter_state, drilldown_state=None):
                     filters["equipment_ids"] = [value] if not isinstance(value, list) else value
                 elif key == "drilldown_shift_id":
                     filters["shift_ids"] = [value] if not isinstance(value, list) else value
+                elif key == "drilldown_person":
+                    filters["repair_persons"] = [value] if isinstance(value, str) else value
     
     return filters
 
@@ -83,48 +85,79 @@ def get_current_caliber_description(filter_state, drilldown_state=None):
         for key, value in drilldown_state.items():
             if value:
                 if key == "drilldown_fault_code":
-                    parts.append(f"下钻: 故障={value}")
+                    parts.append(f"下钻→故障:{value}")
                 elif key == "drilldown_line_id":
-                    parts.append(f"下钻: 产线={value}")
+                    from database.sample_data import PRODUCTION_LINES
+                    line_name = next((pl["line_name"] for pl in PRODUCTION_LINES if pl["line_id"] == value), str(value))
+                    parts.append(f"下钻→产线:{line_name}")
+                elif key == "drilldown_person":
+                    parts.append(f"下钻→维修人:{value}")
+                elif key == "drilldown_part_name":
+                    parts.append(f"下钻→备件:{value}")
     
     return " | ".join(parts) if parts else "全部数据"
 
 
 def create_breadcrumbs(filter_state, drilldown_state=None):
-    crumbs = [
-        dbc.BreadcrumbItem("首页", href="/", active=False),
-    ]
-    
     caliber = get_current_caliber_description(filter_state, drilldown_state)
-    crumbs.append(dbc.BreadcrumbItem(caliber, active=True))
     
     drilldown_items = []
+    has_drilldown = False
+    
     if drilldown_state:
         for key, value in drilldown_state.items():
             if value:
+                has_drilldown = True
                 if key == "drilldown_fault_code":
                     drilldown_items.append(
-                        dbc.Badge(
-                            [f"故障: {value}", html.Button("×", className="btn-close ms-2", size="sm", id=f"clear-{key}")],
-                            color="info", className="me-2"
-                        )
+                        dbc.Badge([
+                            f"故障: {value}",
+                            html.Button("×", className="btn-close ms-2", size="sm", 
+                                       id="clear-drilldown-fault", n_clicks=0)
+                        ], color="info", className="me-2")
+                    )
+                elif key == "drilldown_line_id":
+                    from database.sample_data import PRODUCTION_LINES
+                    line_name = next((pl["line_name"] for pl in PRODUCTION_LINES if pl["line_id"] == value), str(value))
+                    drilldown_items.append(
+                        dbc.Badge([
+                            f"产线: {line_name}",
+                            html.Button("×", className="btn-close ms-2", size="sm",
+                                       id="clear-drilldown-line", n_clicks=0)
+                        ], color="info", className="me-2")
+                    )
+                elif key == "drilldown_person":
+                    drilldown_items.append(
+                        dbc.Badge([
+                            f"维修人: {value}",
+                            html.Button("×", className="btn-close ms-2", size="sm",
+                                       id="clear-drilldown-person", n_clicks=0)
+                        ], color="info", className="me-2")
+                    )
+                elif key == "drilldown_part_name":
+                    drilldown_items.append(
+                        dbc.Badge([
+                            f"备件: {value}",
+                            html.Button("×", className="btn-close ms-2", size="sm",
+                                       id="clear-drilldown-part", n_clicks=0)
+                        ], color="info", className="me-2")
                     )
     
+    if has_drilldown:
+        drilldown_items.append(
+            dbc.Button("清除全部下钻", size="sm", color="link", id="clear-all-drilldown", n_clicks=0, className="p-0")
+        )
+    
     return html.Div([
-        dbc.Breadcrumb(crumbs, className="mb-2"),
+        html.Div([
+            html.I(className="bi bi-info-circle me-1"),
+            html.Small(f"当前口径: {caliber}", className="text-muted"),
+        ], className="mb-2"),
         html.Div(drilldown_items, className="mb-3") if drilldown_items else None,
     ])
 
 
 def register_callbacks(app):
-    
-    @app.callback(
-        Output(DRILLDOWN_STORE, 'data', allow_duplicate=True),
-        Input('url', 'pathname'),
-        prevent_initial_call='initial_duplicate',
-    )
-    def reset_drilldown_on_page_change(pathname):
-        return {}
     
     @app.callback(
         Output(FILTER_STORE, "data"),
@@ -485,6 +518,79 @@ def register_callbacks(app):
         person_fig.update_layout(clickmode='event+select')
         
         return mttr, mtbf, total_orders, f"{avg_cost:.0f}", dist_fig, person_fig
+    
+    @app.callback(
+        Output(DRILLDOWN_STORE, "data", allow_duplicate=True),
+        Input("person-chart", "clickData"),
+        State(DRILLDOWN_STORE, "data"),
+        prevent_initial_call=True,
+    )
+    def person_click_drilldown(click_data, current_drilldown):
+        if not click_data or not click_data.get("points"):
+            raise dash.exceptions.PreventUpdate
+        
+        point = click_data["points"][0]
+        person_name = point.get("x")
+        
+        if not person_name:
+            raise dash.exceptions.PreventUpdate
+        
+        new_drilldown = current_drilldown or {}
+        new_drilldown["drilldown_person"] = person_name
+        
+        return new_drilldown
+    
+    @app.callback(
+        Output(DRILLDOWN_STORE, "data", allow_duplicate=True),
+        Input("cost-chart", "clickData"),
+        State(DRILLDOWN_STORE, "data"),
+        prevent_initial_call=True,
+    )
+    def spare_part_click_drilldown(click_data, current_drilldown):
+        if not click_data or not click_data.get("points"):
+            raise dash.exceptions.PreventUpdate
+        
+        point = click_data["points"][0]
+        part_name = point.get("x")
+        
+        if not part_name:
+            raise dash.exceptions.PreventUpdate
+        
+        new_drilldown = current_drilldown or {}
+        new_drilldown["drilldown_part_name"] = part_name
+        
+        return new_drilldown
+    
+    @app.callback(
+        Output(DRILLDOWN_STORE, "data", allow_duplicate=True),
+        [
+            Input("clear-drilldown-fault", "n_clicks"),
+            Input("clear-drilldown-line", "n_clicks"),
+            Input("clear-drilldown-person", "n_clicks"),
+            Input("clear-drilldown-part", "n_clicks"),
+            Input("clear-all-drilldown", "n_clicks"),
+        ],
+        State(DRILLDOWN_STORE, "data"),
+        prevent_initial_call=True,
+    )
+    def clear_drilldown(clear_fault, clear_line, clear_person, clear_part, clear_all, current_drilldown):
+        if not ctx.triggered_id:
+            raise dash.exceptions.PreventUpdate
+        
+        new_drilldown = current_drilldown or {}
+        
+        if ctx.triggered_id == "clear-drilldown-fault":
+            new_drilldown.pop("drilldown_fault_code", None)
+        elif ctx.triggered_id == "clear-drilldown-line":
+            new_drilldown.pop("drilldown_line_id", None)
+        elif ctx.triggered_id == "clear-drilldown-person":
+            new_drilldown.pop("drilldown_person", None)
+        elif ctx.triggered_id == "clear-drilldown-part":
+            new_drilldown.pop("drilldown_part_name", None)
+        elif ctx.triggered_id == "clear-all-drilldown":
+            new_drilldown = {}
+        
+        return new_drilldown
     
     @app.callback(
         [
