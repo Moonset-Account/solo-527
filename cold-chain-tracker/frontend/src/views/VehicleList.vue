@@ -18,7 +18,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="v in vehicles" :key="v.id" class="clickable-row" @click="goDetail(v.id)">
+          <tr v-for="v in vehicles" :key="v.vehicle_id" class="clickable-row" @click="goDetail(v.vehicle_id)">
             <td><strong>{{ v.plate_number }}</strong></td>
             <td>
               <span class="status-badge" :class="statusClass(v.status)">{{ statusLabel(v.status) }}</span>
@@ -65,11 +65,11 @@ const displayPages = computed(() => {
 })
 
 function statusClass(s) {
-  return { in_transit: 'badge-green', idle: 'badge-blue', maintenance: 'badge-yellow', offline: 'badge-red' }[s] || 'badge-green'
+  return { '运行中': 'badge-green', '空闲': 'badge-blue', '维修中': 'badge-yellow', '装载中': 'badge-yellow' }[s] || 'badge-green'
 }
 
 function statusLabel(s) {
-  return { in_transit: '运输中', idle: '空闲', maintenance: '维修中', offline: '离线' }[s] || s
+  return s || '--'
 }
 
 function goDetail(id) { router.push(`/vehicles/${id}`) }

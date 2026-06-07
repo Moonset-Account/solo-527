@@ -110,7 +110,8 @@ function drawChart() {
         .attr('rx', 2)
         .attr('cursor', 'pointer')
         .on('click', () => {
-          drillDown('vehicle', item.vehicle_id, item.vehicle_plate || item.vehicle_id)
+          filterStore.exceptionType = item.exception_type
+          drillDown('overall', null, '整体趋势')
         })
     })
 

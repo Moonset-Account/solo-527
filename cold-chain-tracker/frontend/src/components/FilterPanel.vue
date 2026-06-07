@@ -20,19 +20,19 @@
         <div class="filter-group">
           <label>车辆</label>
           <select multiple v-model="store.selectedVehicle" class="filter-select">
-            <option v-for="v in vehicleOptions" :key="v.id" :value="v.id">{{ v.plate_number }}</option>
+            <option v-for="v in vehicleOptions" :key="v.vehicle_id" :value="v.vehicle_id">{{ v.plate_number }}</option>
           </select>
         </div>
         <div class="filter-group">
           <label>路线</label>
           <select multiple v-model="store.selectedRoute" class="filter-select">
-            <option v-for="r in routeOptions" :key="r.id" :value="r.id">{{ r.name }}</option>
+            <option v-for="r in routeOptions" :key="r.route_id" :value="r.route_id">{{ r.route_id }} {{ r.origin }}→{{ r.destination }}</option>
           </select>
         </div>
         <div class="filter-group">
           <label>批次</label>
           <select multiple v-model="store.selectedBatch" class="filter-select">
-            <option v-for="b in batchOptions" :key="b.id" :value="b.id">{{ b.code }}</option>
+            <option v-for="b in batchOptions" :key="b.batch_id" :value="b.batch_id">{{ b.batch_id }} {{ b.product_name }}</option>
           </select>
         </div>
       </div>

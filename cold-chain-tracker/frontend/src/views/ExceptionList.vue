@@ -20,15 +20,15 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="ex in exceptions" :key="ex.id" class="clickable-row" @click="$router.push(`/exceptions/${ex.id}`)">
+          <tr v-for="ex in exceptions" :key="ex.exception_id" class="clickable-row" @click="$router.push(`/exceptions/${ex.exception_id}`)">
             <td>{{ formatDatetime(ex.started_at) }}</td>
             <td>{{ ex.exception_type }}</td>
             <td><span class="status-badge" :class="sevClass(ex.severity)">{{ sevLabel(ex.severity) }}</span></td>
             <td>{{ ex.vehicle_id }}</td>
             <td>{{ ex.route_name || ex.route_id }}</td>
             <td>{{ ex.batch_code || ex.batch_id }}</td>
-            <td>{{ formatDuration(ex.duration) }}</td>
-            <td><span class="status-badge" :class="ex.status === 'resolved' ? 'badge-green' : 'badge-red'">{{ ex.status === 'resolved' ? '已解决' : '未解决' }}</span></td>
+            <td>{{ formatDuration(ex.duration_minutes || ex.duration) }}</td>
+            <td><span class="status-badge" :class="ex.resolution ? 'badge-green' : 'badge-red'">{{ ex.resolution ? '已解决' : '未解决' }}</span></td>
           </tr>
         </tbody>
       </table>

@@ -2,7 +2,7 @@
   <div v-if="routeData">
     <div class="page-header">
       <div>
-        <h1 class="page-title">路线 {{ routeData.name || routeData.id }}</h1>
+        <h1 class="page-title">路线 {{ routeData.route_id }}</h1>
         <DrillNav />
       </div>
       <ExportPanel elementId="route-detail" filename="route-detail" />
@@ -10,7 +10,7 @@
 
     <div class="info-card" id="route-detail">
       <div class="info-grid">
-        <div class="info-field"><label>路线编号</label><span>{{ routeData.name || routeData.id }}</span></div>
+        <div class="info-field"><label>路线编号</label><span>{{ routeData.route_id }}</span></div>
         <div class="info-field"><label>起点</label><span>{{ routeData.origin }}</span></div>
         <div class="info-field"><label>终点</label><span>{{ routeData.destination }}</span></div>
         <div class="info-field"><label>状态</label>
@@ -42,10 +42,10 @@
       <table class="data-table compact" v-if="doorEvents.length">
         <thead><tr><th>时间</th><th>位置</th><th>开门时长</th><th>温度变化</th></tr></thead>
         <tbody>
-          <tr v-for="d in doorEvents" :key="d.id || d.timestamp">
-            <td>{{ formatDatetime(d.timestamp || d.door_open_time) }}</td>
-            <td>{{ formatGPS(d.latitude, d.longitude) }}</td>
-            <td>{{ formatDuration(d.duration || d.door_duration) }}</td>
+          <tr v-for="d in doorEvents" :key="d.event_id || d.timestamp">
+            <td>{{ formatDatetime(d.occurred_at || d.timestamp) }}</td>
+            <td>{{ formatGPS(d.location_lat || d.latitude, d.location_lng || d.longitude) }}</td>
+            <td>{{ formatDuration(d.duration_seconds || d.door_duration) }}</td>
             <td>{{ d.temp_change ? d.temp_change.toFixed(1) + '°C' : '--' }}</td>
           </tr>
         </tbody>

@@ -47,7 +47,7 @@
             <tr><th>时间</th><th>类型</th><th>车辆</th><th>严重程度</th></tr>
           </thead>
           <tbody>
-            <tr v-for="ex in recentExceptions" :key="ex.id" class="clickable-row" @click="goException(ex.id)">
+            <tr v-for="ex in recentExceptions" :key="ex.exception_id" class="clickable-row" @click="goException(ex.exception_id)">
               <td>{{ formatDatetime(ex.started_at) }}</td>
               <td>{{ ex.exception_type }}</td>
               <td>{{ ex.vehicle_id }}</td>

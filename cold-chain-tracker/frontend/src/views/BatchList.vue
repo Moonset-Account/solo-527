@@ -19,9 +19,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="b in batches" :key="b.id" class="clickable-row" @click="$router.push(`/batches/${b.id}`)">
-            <td><strong>{{ b.code || b.batch_code }}</strong></td>
-            <td>{{ b.product || b.product_name }}</td>
+          <tr v-for="b in batches" :key="b.batch_id" class="clickable-row" @click="$router.push(`/batches/${b.batch_id}`)">
+            <td><strong>{{ b.batch_id }}</strong></td>
+            <td>{{ b.product_name || b.product }}</td>
             <td>{{ b.customer }}</td>
             <td>{{ b.vehicle_plate || b.vehicle_id }}</td>
             <td><span class="status-badge" :class="batchStatusClass(b.status)">{{ batchStatusLabel(b.status) }}</span></td>

@@ -23,9 +23,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as d3 from 'd3'
+import { useRouter } from 'vue-router'
 import api from '../utils/api'
 import { useFilterStore } from '../stores/filter'
 import { useDrilldown } from '../composables/useDrilldown'
+
+const router = useRouter()
 
 const props = defineProps({ scope: { type: String, default: 'overall' } })
 const emit = defineEmits(['drilldown'])
@@ -79,9 +82,12 @@ function drawChart() {
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
   const parseDate = d3.timeParse('%Y-%m-%d')
+  const parseMonth = d3.timeParse('%Y-%m')
   const data = chartData.value.map(d => ({
     ...d,
-    dateObj: parseDate(d.date) || new Date(d.date)
+    dateObj: parseDate(d.period) || parseMonth(d.period) || new Date(d.period),
+    compliance_rate: d.compliance_rate || 0,
+    exception_count: d.exception_count || 0
   })).sort((a, b) => a.dateObj - b.dateObj)
 
   const xScale = d3.scaleTime()
@@ -156,7 +162,7 @@ function drawChart() {
       if (!d) return
       tooltip.value = {
         visible: true,
-        date: d.date,
+        date: d.period,
         compliance: (d.compliance_rate || 0).toFixed(1),
         exceptions: d.exception_count || 0
       }
@@ -177,8 +183,9 @@ function drawChart() {
     .attr('fill', '#60a5fa')
     .attr('cursor', 'pointer')
     .on('click', (event, d) => {
-      if (d.vehicle_id) drillDown('vehicle', d.vehicle_id, d.vehicle_plate || d.vehicle_id)
       emit('drilldown', d)
+      drillDown('overall', null, '整体趋势')
+      router.push('/vehicles')
     })
 }
 

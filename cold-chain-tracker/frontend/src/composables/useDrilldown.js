@@ -1,56 +1,51 @@
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-
-const DRILL_LEVELS = ['overall', 'vehicle', 'route', 'batch', 'box', 'customer']
-const DRILL_LABELS = {
-  overall: '整体趋势',
-  vehicle: '车辆',
-  route: '路线',
-  batch: '批次',
-  box: '保温箱',
-  customer: '客户'
-}
+import { useDrilldownStore } from '../stores/drilldown'
+import { useFilterStore } from '../stores/filter'
 
 export function useDrilldown() {
-  const router = useRouter()
-  const drillPath = ref([{ level: 'overall', id: null, label: '整体趋势' }])
-
-  const currentLevel = computed(() => drillPath.value[drillPath.value.length - 1])
+  const drillStore = useDrilldownStore()
+  const filterStore = useFilterStore()
 
   function drillDown(level, id, label) {
-    const existingIdx = drillPath.value.findIndex(p => p.level === level)
-    if (existingIdx >= 0) {
-      drillPath.value = drillPath.value.slice(0, existingIdx + 1)
-      drillPath.value[existingIdx] = { level, id, label: `${DRILL_LABELS[level]} ${label}` }
-    } else {
-      drillPath.value.push({ level, id, label: `${DRILL_LABELS[level]} ${label}` })
+    if (level === 'vehicle' && id) {
+      filterStore.selectedVehicle = [id]
+    } else if (level === 'route' && id) {
+      filterStore.selectedRoute = [id]
+    } else if (level === 'batch' && id) {
+      filterStore.selectedBatch = [id]
+    } else if (level === 'box' && id) {
+      filterStore.selectedBox = [id]
+    } else if (level === 'customer' && id) {
+      filterStore.selectedCustomer = [id]
+    } else if (level === 'overall') {
+      filterStore.clearFilters()
     }
-    navigateByLevel(level, id)
+    drillStore.drillDown(level, id, label)
   }
 
   function goBack(index) {
-    drillPath.value = drillPath.value.slice(0, index + 1)
-    const target = drillPath.value[index]
-    navigateByLevel(target.level, target.id)
-  }
-
-  function navigateByLevel(level, id) {
-    const routes = {
-      overall: '/',
-      vehicle: `/vehicles/${id}`,
-      route: `/routes/${id}`,
-      batch: `/batches/${id}`,
-      box: `/batches/${id}`,
-      customer: `/batches/${id}`
+    const drillPath = drillStore.drillPath
+    for (let i = index + 1; i < drillPath.length; i++) {
+      const lvl = drillPath[i].level
+      if (lvl === 'vehicle') filterStore.selectedVehicle = []
+      else if (lvl === 'route') filterStore.selectedRoute = []
+      else if (lvl === 'batch') filterStore.selectedBatch = []
+      else if (lvl === 'box') filterStore.selectedBox = []
+      else if (lvl === 'customer') filterStore.selectedCustomer = []
     }
-    const path = routes[level] || '/'
-    router.push(path)
+    drillStore.goBack(index)
   }
 
   function resetDrill() {
-    drillPath.value = [{ level: 'overall', id: null, label: '整体趋势' }]
-    router.push('/')
+    filterStore.clearFilters()
+    drillStore.resetDrill()
   }
 
-  return { drillPath, currentLevel, drillDown, goBack, resetDrill, DRILL_LABELS }
+  return {
+    drillPath: drillStore.drillPath,
+    currentLevel: drillStore.currentLevel,
+    drillDown,
+    goBack,
+    resetDrill,
+    DRILL_LABELS: drillStore.DRILL_LABELS
+  }
 }

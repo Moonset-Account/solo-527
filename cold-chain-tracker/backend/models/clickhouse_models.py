@@ -349,6 +349,18 @@ class ClickHouseModels:
             if filters.get("date_end"):
                 data = [r for r in data if r["recorded_at"] <= filters["date_end"]]
         data.sort(key=lambda x: x["recorded_at"])
+        exceptions = self._mock_data.get("exceptions", [])
+        for r in data:
+            r["is_anomaly"] = False
+            for exc in exceptions:
+                if exc.get("box_id") == r["box_id"] and exc.get("started_at") and exc.get("ended_at"):
+                    if exc["started_at"] <= r["recorded_at"] <= exc["ended_at"]:
+                        r["is_anomaly"] = True
+                        r["exception_id"] = exc["exception_id"]
+                        r["exception_type"] = exc["exception_type"]
+                        r["severity"] = exc["severity"]
+                        r["description"] = exc.get("description", "")
+                        break
         paginated, total = self._paginated(data, page, page_size)
         return paginated, total
 

@@ -31,8 +31,8 @@
         <table class="data-table compact" v-if="routes.length">
           <thead><tr><th>路线</th><th>起点</th><th>终点</th><th>状态</th></tr></thead>
           <tbody>
-            <tr v-for="r in routes" :key="r.id" class="clickable-row" @click="$router.push(`/routes/${r.id}`)">
-              <td>{{ r.name || r.id }}</td>
+            <tr v-for="r in routes" :key="r.route_id" class="clickable-row" @click="$router.push(`/routes/${r.route_id}`)">
+              <td>{{ r.route_id }}</td>
               <td>{{ r.origin }}</td>
               <td>{{ r.destination }}</td>
               <td><span class="status-badge" :class="r.status === 'completed' ? 'badge-green' : 'badge-blue'">{{ r.status }}</span></td>
@@ -47,7 +47,7 @@
         <table class="data-table compact" v-if="exceptions.length">
           <thead><tr><th>类型</th><th>严重程度</th><th>时间</th></tr></thead>
           <tbody>
-            <tr v-for="ex in exceptions" :key="ex.id" class="clickable-row" @click="$router.push(`/exceptions/${ex.id}`)">
+            <tr v-for="ex in exceptions" :key="ex.exception_id" class="clickable-row" @click="$router.push(`/exceptions/${ex.exception_id}`)">
               <td>{{ ex.exception_type }}</td>
               <td><span class="status-badge" :class="sevClass(ex.severity)">{{ sevLabel(ex.severity) }}</span></td>
               <td>{{ formatDatetime(ex.started_at) }}</td>
@@ -77,11 +77,11 @@ const routes = ref([])
 const exceptions = ref([])
 
 function statusClass(s) {
-  return { in_transit: 'badge-green', idle: 'badge-blue', maintenance: 'badge-yellow', offline: 'badge-red' }[s] || 'badge-green'
+  return { '运行中': 'badge-green', '空闲': 'badge-blue', '维修中': 'badge-yellow', '装载中': 'badge-yellow' }[s] || 'badge-green'
 }
 
 function statusLabel(s) {
-  return { in_transit: '运输中', idle: '空闲', maintenance: '维修中', offline: '离线' }[s] || s
+  return s || '--'
 }
 
 function sevClass(s) { return { critical: 'badge-red', major: 'badge-yellow', minor: 'badge-blue' }[s] || 'badge-green' }

@@ -2,7 +2,7 @@
   <div v-if="batch">
     <div class="page-header">
       <div>
-        <h1 class="page-title">批次 {{ batch.code || batch.batch_code }}</h1>
+        <h1 class="page-title">批次 {{ batch.batch_id }}</h1>
         <DrillNav />
       </div>
       <ExportPanel elementId="batch-detail" filename="batch-detail" />
@@ -10,16 +10,14 @@
 
     <div class="info-card" id="batch-detail">
       <div class="info-grid">
-        <div class="info-field"><label>批次号</label><span>{{ batch.code || batch.batch_code }}</span></div>
-        <div class="info-field"><label>产品</label><span>{{ batch.product || batch.product_name }}</span></div>
-        <div class="info-field"><label>客户</label><span>{{ batch.customer }}</span></div>
-        <div class="info-field"><label>车辆</label><span>{{ batch.vehicle_plate || batch.vehicle_id }}</span></div>
-        <div class="info-field"><label>状态</label>
-          <span class="status-badge" :class="batchStatusClass(batch.status)">{{ batchStatusLabel(batch.status) }}</span>
+        <div class="info-field"><label>批次号</label><span>{{ batch.batch_id }}</span></div>
+        <div class="info-field"><label>产品</label><span>{{ batch.product_name }}</span></div>
+        <div class="info-field"><label>数量</label><span>{{ batch.quantity }}</span></div>
+        <div class="info-field"><label>温度要求</label><span>{{ batch.required_temp_min }}°C ~ {{ batch.required_temp_max }}°C</span></div>
+        <div class="info-field"><label>路线</label>
+          <router-link v-if="batch.route_id" :to="`/routes/${batch.route_id}`" class="link">{{ batch.route_id }}</router-link>
+          <span v-else>--</span>
         </div>
-        <div class="info-field"><label>温度合规率</label><span>{{ formatPercent(batch.compliance_rate) }}</span></div>
-        <div class="info-field"><label>出发时间</label><span>{{ formatDatetime(batch.departure_time || batch.start_time) }}</span></div>
-        <div class="info-field"><label>到达时间</label><span>{{ formatDatetime(batch.arrival_time || batch.end_time) }}</span></div>
       </div>
     </div>
 
@@ -32,12 +30,12 @@
       <table class="data-table compact" v-if="exceptions.length">
         <thead><tr><th>类型</th><th>严重程度</th><th>开始时间</th><th>持续时长</th><th>状态</th></tr></thead>
         <tbody>
-          <tr v-for="ex in exceptions" :key="ex.id" class="clickable-row" @click="$router.push(`/exceptions/${ex.id}`)">
-            <td>{{ ex.exception_type }}</td>
+          <tr v-for="ex in exceptions" :key="ex.exception_id" class="clickable-row" @click="$router.push(`/exceptions/${ex.exception_id}`)">
+            <td>{{ typeLabel(ex.exception_type) }}</td>
             <td><span class="status-badge" :class="sevClass(ex.severity)">{{ sevLabel(ex.severity) }}</span></td>
             <td>{{ formatDatetime(ex.started_at) }}</td>
-            <td>{{ formatDuration(ex.duration) }}</td>
-            <td><span class="status-badge" :class="ex.status === 'resolved' ? 'badge-green' : 'badge-red'">{{ ex.status === 'resolved' ? '已解决' : '未解决' }}</span></td>
+            <td>{{ formatDuration(ex.duration_minutes) }}</td>
+            <td><span class="status-badge" :class="ex.resolution ? 'badge-green' : 'badge-red'">{{ ex.resolution ? '已解决' : '未解决' }}</span></td>
           </tr>
         </tbody>
       </table>
@@ -61,16 +59,9 @@ const batchId = route.params.id
 const batch = ref(null)
 const exceptions = ref([])
 
-function batchStatusClass(s) {
-  return { in_transit: 'badge-blue', delivered: 'badge-green', pending: 'badge-yellow', exception: 'badge-red' }[s] || 'badge-green'
-}
-
-function batchStatusLabel(s) {
-  return { in_transit: '运输中', delivered: '已送达', pending: '待发运', exception: '异常' }[s] || s
-}
-
-function sevClass(s) { return { critical: 'badge-red', major: 'badge-yellow', minor: 'badge-blue' }[s] || 'badge-green' }
-function sevLabel(s) { return { critical: '严重', major: '重要', minor: '轻微' }[s] || s }
+function sevClass(s) { return { critical: 'badge-red', high: 'badge-red', medium: 'badge-yellow', low: 'badge-green' }[s] || 'badge-green' }
+function sevLabel(s) { return { critical: '严重', high: '高', medium: '中等', low: '低' }[s] || s }
+function typeLabel(t) { return { temp_exceeded: '温度超标', unauthorized_door: '非授权开门', delayed_arrival: '到货延迟', calibration_drift: '校准漂移' }[t] || t }
 
 async function fetchData() {
   try {

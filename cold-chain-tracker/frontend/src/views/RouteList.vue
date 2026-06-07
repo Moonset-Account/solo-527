@@ -19,14 +19,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in routes" :key="r.id" class="clickable-row" @click="$router.push(`/routes/${r.id}`)">
-            <td><strong>{{ r.name || r.id }}</strong></td>
+          <tr v-for="r in routes" :key="r.route_id" class="clickable-row" @click="$router.push(`/routes/${r.route_id}`)">
+            <td><strong>{{ r.route_id }}</strong></td>
             <td>{{ r.origin }}</td>
             <td>{{ r.destination }}</td>
             <td><span class="status-badge" :class="r.status === 'completed' ? 'badge-green' : 'badge-blue'">{{ routeStatusLabel(r.status) }}</span></td>
             <td>{{ formatPercent(r.compliance_rate) }}</td>
             <td :style="{ color: r.exception_count > 0 ? 'var(--danger)' : '' }">{{ r.exception_count || 0 }}</td>
-            <td>{{ formatDistance(r.distance) }}</td>
+            <td>{{ formatDistance(r.distance_km || r.distance) }}</td>
           </tr>
         </tbody>
       </table>
@@ -62,7 +62,7 @@ const displayPages = computed(() => {
 })
 
 function routeStatusLabel(s) {
-  return { in_transit: '运输中', completed: '已完成', planned: '计划中', cancelled: '已取消' }[s] || s
+  return s || '--'
 }
 
 async function fetchRoutes() {

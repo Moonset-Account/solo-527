@@ -192,7 +192,23 @@ function drawChart() {
       .attr('stroke-width', 1.5)
       .attr('cursor', 'pointer')
       .on('click', (event, d) => {
-        selectedRecord.value = d
+        if (d.exception_id) {
+          selectedRecord.value = {
+            exception_id: d.exception_id,
+            exception_type: d.exception_type,
+            severity: d.severity,
+            description: d.description,
+            probe_id: d.probe_id,
+            box_id: d.box_id,
+            temperature: d.temperature,
+            recorded_at: d.recorded_at,
+            is_anomaly: true,
+            linked_temperature_readings: [{ reading_id: d.reading_id, probe_id: d.probe_id, box_id: d.box_id, temperature: d.temperature, recorded_at: d.recorded_at, is_anomaly: true }],
+            linked_door_events: []
+          }
+        } else {
+          selectedRecord.value = d
+        }
         showOriginal.value = true
       })
       .on('mouseenter', (event, d) => {
