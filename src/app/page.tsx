@@ -38,6 +38,8 @@ import { mean } from '@/lib/utils/statistics';
 
 interface AnalyticsResponse {
   success: boolean;
+  error?: string;
+  message?: string;
   data: {
     studentMetrics: StudentMetrics[];
     radarData: any;
@@ -53,12 +55,13 @@ interface AnalyticsResponse {
     canImportData: boolean;
     canExportData: boolean;
     useMockData: boolean;
+    dataEmpty?: boolean;
     permittedClassIds: string[];
     currentUser?: {
       username: string;
       roles: string[];
     };
-  };
+  } | null;
   timestamp: string;
 }
 
@@ -73,12 +76,15 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [apiData, setApiData] = useState<AnalyticsResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [useDemoMode, setUseDemoMode] = useState(false);
 
   const analytics = useMemo(() => new AnalyticsService(mockDataset), []);
 
   const fetchData = async () => {
     setIsLoading(true);
     setLoadError(null);
+    setErrorCode(null);
     try {
       const params = new URLSearchParams();
       if (filters.classId) params.append('classId', filters.classId);
@@ -93,29 +99,44 @@ export default function Home() {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error(`API 错误: ${response.status}`);
-      }
-
       const data = await response.json();
+      
       if (data.success) {
         setApiData(data);
+        setUseDemoMode(false);
       } else {
-        throw new Error(data.error || '获取数据失败');
+        setErrorCode(data.error || 'UNKNOWN_ERROR');
+        setLoadError(data.message || '获取数据失败');
+        setApiData(null);
       }
     } catch (error) {
       console.error('Fetch analytics error:', error);
-      setLoadError(error instanceof Error ? error.message : '未知错误');
+      setErrorCode('NETWORK_ERROR');
+      setLoadError(error instanceof Error ? error.message : '网络连接失败');
+      setApiData(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [filters]);
+    if (!useDemoMode) {
+      fetchData();
+    }
+  }, [filters, useDemoMode]);
 
-  const fallbackData = useMemo(() => {
+  const switchToDemoMode = () => {
+    setUseDemoMode(true);
+    setLoadError(null);
+    setErrorCode(null);
+  };
+
+  const switchToRealData = () => {
+    setUseDemoMode(false);
+    fetchData();
+  };
+
+  const demoData = useMemo(() => {
     const studentMetrics = analytics.calculateStudentMetrics(filters);
     const radarData = analytics.getRadarChartData(filters, selectedStudentIds);
     const boxPlotData = analytics.getScoreBoxPlotData(filters);
@@ -142,15 +163,92 @@ export default function Home() {
       canImportData: true,
       canExportData: true,
       useMockData: true,
+      dataEmpty: false,
       permittedClassIds: mockDataset.classes.map(c => c.id),
       currentUser: {
-        username: '教务老师',
+        username: '教务老师（演示）',
         roles: ['dean'],
       },
     };
   }, [analytics, filters, selectedStudentIds]);
 
-  const data = apiData?.data || fallbackData;
+  const data = useDemoMode ? demoData : apiData?.data;
+  
+  if (isLoading || !data) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-6 max-w-md">
+          {isLoading ? (
+            <>
+              <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+              <p className="text-gray-600">正在加载数据...</p>
+            </>
+          ) : errorCode === 'DATABASE_NOT_CONFIGURED' ? (
+            <>
+              <Database className="w-16 h-16 text-gray-400 mx-auto" />
+              <h2 className="text-xl font-semibold text-gray-800">数据库未配置</h2>
+              <p className="text-gray-500 text-sm">{loadError}</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={switchToDemoMode}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  使用演示数据
+                </button>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  重试
+                </button>
+              </div>
+            </>
+          ) : errorCode === 'NO_CLASS_PERMISSION' ? (
+            <>
+              <ShieldAlert className="w-16 h-16 text-amber-500 mx-auto" />
+              <h2 className="text-xl font-semibold text-gray-800">暂无班级访问权限</h2>
+              <p className="text-gray-500 text-sm">{loadError}</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={switchToDemoMode}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  使用演示数据
+                </button>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  重试
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-16 h-16 text-red-500 mx-auto" />
+              <h2 className="text-xl font-semibold text-gray-800">数据加载失败</h2>
+              <p className="text-gray-500 text-sm">{loadError}</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={switchToDemoMode}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  使用演示数据
+                </button>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  重试
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const {
     studentMetrics,
     radarData,
@@ -166,6 +264,7 @@ export default function Home() {
     canImportData,
     canExportData,
     useMockData,
+    dataEmpty,
     currentUser,
   } = data;
 
@@ -239,17 +338,6 @@ export default function Home() {
     },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-          <p className="text-gray-600">正在加载数据...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -269,11 +357,26 @@ export default function Home() {
                       演示数据
                     </span>
                   )}
-                  {!useMockData && (
+                  {!useMockData && !dataEmpty && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
                       <Database className="w-3 h-3" />
                       实时数据
                     </span>
+                  )}
+                  {!useMockData && dataEmpty && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      <Database className="w-3 h-3" />
+                      暂无数据
+                    </span>
+                  )}
+                  {useDemoMode && (
+                    <button
+                      onClick={switchToRealData}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full hover:bg-blue-100 transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      切换到实时数据
+                    </button>
                   )}
                 </div>
               </div>
@@ -316,15 +419,15 @@ export default function Home() {
             </div>
           </div>
 
-          {loadError && (
-            <div className="mt-3 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-              <span>数据加载失败: {loadError}，已切换到演示数据</span>
+          {dataEmpty && !useMockData && (
+            <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>有权限的班级暂无数据，请先导入学生信息和相关数据</span>
               <button
-                onClick={handleRefresh}
+                onClick={() => setShowImport(true)}
                 className="ml-auto text-blue-600 hover:text-blue-700 font-medium"
               >
-                重试
+                立即导入
               </button>
             </div>
           )}

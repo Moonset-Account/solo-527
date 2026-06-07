@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       userId: 'demo-user',
       username: '教务老师',
       roles: ['dean'],
-      permittedClassIds: [],
+      permittedClassIds: [] as string[],
       canViewContact: false,
       canImportData: true,
       canExportData: true,
@@ -131,162 +131,206 @@ export async function POST(request: Request) {
       }
     });
 
+    if (confirmWrite && !isDbAvailable()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'DATABASE_NOT_CONFIGURED',
+          message: '数据库未配置，无法执行入库操作。请设置 DATABASE_URL 环境变量后重试',
+          importType,
+          fileName: file.name,
+          totalRecords: records.length,
+        },
+        { status: 503 }
+      );
+    }
+
     let dbWriteSuccess = 0;
     let dbWriteFailed = 0;
     let dbAvailable = db && isDbAvailable();
 
     if (confirmWrite && errors.length === 0 && dbAvailable) {
-      try {
-        for (const record of records) {
-          try {
-            const studentId = record['学号'] || record['studentId'] || '';
-            const studentName = record['姓名'] || record['fullName'] || '';
+      for (const [recordIdx, record] of records.entries()) {
+        const lineNum = recordIdx + 2;
+        try {
+          const studentId = record['学号'] || record['studentId'] || '';
+          const studentName = record['姓名'] || record['fullName'] || '';
 
-            if (importType === 'students') {
-              let classId = record['班级ID'] || record['classId'] || '';
-              const className = record['班级'] || record['className'] || '';
-              
-              if (!classId && className) {
-                classId = await getOrCreateClassByName(className) || effectiveAuth.permittedClassIds[0] || '';
-              }
-              if (!classId) {
-                classId = effectiveAuth.permittedClassIds[0] || 'default-class';
-              }
-              
-              const existingStudent = await db!
-                .select()
-                .from(students)
-                .where(eq(students.studentId, studentId))
-                .limit(1);
+          if (importType === 'students') {
+            let classId: string | null = record['班级ID'] || record['classId'] || '';
+            const className = record['班级'] || record['className'] || '';
+            
+            if (!classId && className) {
+              classId = await getOrCreateClassByName(className);
+            }
+            
+            if (!classId) {
+              dbWriteFailed++;
+              errors.push(`第 ${lineNum} 行: 班级名称「${className}」无法转换为有效班级 UUID，请检查班级名称或手动指定班级ID`);
+              continue;
+            }
+            
+            const existingStudent = await db!
+              .select()
+              .from(students)
+              .where(eq(students.studentId, studentId))
+              .limit(1);
 
-              if (existingStudent.length === 0) {
-                const latVal = record['纬度'] || record['latitude'];
-                const lngVal = record['经度'] || record['longitude'];
-                await db!.insert(students).values({
-                  studentId: studentId,
+            if (existingStudent.length === 0) {
+              const latVal = record['纬度'] || record['latitude'];
+              const lngVal = record['经度'] || record['longitude'];
+              await db!.insert(students).values({
+                studentId: studentId,
+                fullName: studentName,
+                gender: record['性别'] || record['gender'] || null,
+                phone: record['手机号'] || record['phone'] || null,
+                email: record['邮箱'] || record['email'] || null,
+                address: record['家庭住址'] || record['address'] || null,
+                latitude: latVal ? String(latVal) : null,
+                longitude: lngVal ? String(lngVal) : null,
+                classId: classId,
+              });
+            } else {
+              await db!
+                .update(students)
+                .set({
                   fullName: studentName,
                   gender: record['性别'] || record['gender'] || null,
                   phone: record['手机号'] || record['phone'] || null,
                   email: record['邮箱'] || record['email'] || null,
-                  address: record['家庭住址'] || record['address'] || null,
-                  latitude: latVal ? String(latVal) : null,
-                  longitude: lngVal ? String(lngVal) : null,
-                  classId: classId,
-                });
-              } else {
-                await db!
-                  .update(students)
-                  .set({
-                    fullName: studentName,
-                    gender: record['性别'] || record['gender'] || null,
-                    phone: record['手机号'] || record['phone'] || null,
-                    email: record['邮箱'] || record['email'] || null,
-                    classId: classId || existingStudent[0].classId,
-                  })
-                  .where(eq(students.studentId, studentId));
-              }
-              successfulIds.push(studentId);
-              dbWriteSuccess++;
-            } else if (importType === 'attendance') {
-              const existingStudents = await db!
-                .select()
-                .from(students)
-                .where(eq(students.studentId, studentId))
-                .limit(1);
+                  classId: classId || existingStudent[0].classId,
+                })
+                .where(eq(students.studentId, studentId));
+            }
+            successfulIds.push(studentId);
+            dbWriteSuccess++;
+          } else if (importType === 'attendance') {
+            const existingStudents = await db!
+              .select()
+              .from(students)
+              .where(eq(students.studentId, studentId))
+              .limit(1);
 
-              if (existingStudents.length > 0) {
-                const stu = existingStudents[0];
-                const date = record['日期'] || record['date'] || new Date().toISOString().split('T')[0];
-                const status = record['出勤状态'] || record['status'] || 'present';
-                const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
-                
-                let courseId = record['课程ID'] || record['courseId'] || null;
-                const courseName = record['课程'] || record['courseName'] || '';
-                if (!courseId && courseName) {
-                  courseId = await getOrCreateCourseByName(courseName);
-                }
-                
-                let classId = record['班级ID'] || record['classId'] || stu.classId || null;
-                const className = record['班级'] || record['className'] || '';
-                if (!classId && className) {
-                  classId = await getOrCreateClassByName(className);
-                }
+            if (existingStudents.length === 0) {
+              dbWriteFailed++;
+              errors.push(`第 ${lineNum} 行: 学号 ${studentId} 不存在，请先导入学生信息`);
+              continue;
+            }
 
-                await db!.insert(attendance).values({
-                  studentId: stu.id,
-                  courseId: courseId,
-                  classId: classId,
-                  date: date,
-                  weekNumber: weekNumber,
-                  status: status,
-                  remarks: record['备注'] || record['remarks'] || null,
-                });
-                successfulIds.push(studentId);
-                dbWriteSuccess++;
-              } else {
+            const stu = existingStudents[0];
+            const date = record['日期'] || record['date'];
+            if (!date) {
+              dbWriteFailed++;
+              errors.push(`第 ${lineNum} 行: 缺少出勤日期`);
+              continue;
+            }
+            
+            const status = record['出勤状态'] || record['status'] || 'present';
+            const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
+            
+            let courseId: string | null = record['课程ID'] || record['courseId'] || null;
+            const courseName = record['课程'] || record['courseName'] || '';
+            if (!courseId && courseName) {
+              courseId = await getOrCreateCourseByName(courseName);
+              if (!courseId) {
                 dbWriteFailed++;
-                errors.push(`学号 ${studentId} 不存在`);
-              }
-            } else if (importType === 'scores') {
-              const existingStudents = await db!
-                .select()
-                .from(students)
-                .where(eq(students.studentId, studentId))
-                .limit(1);
-
-              if (existingStudents.length > 0) {
-                const stu = existingStudents[0];
-                const assignmentScore = record['作业分数'] || record['assignmentScore'];
-                const quizScore = record['测验分数'] || record['quizScore'];
-                const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
-                
-                let courseId = record['课程ID'] || record['courseId'] || null;
-                const courseName = record['课程'] || record['courseName'] || '';
-                if (!courseId && courseName) {
-                  courseId = await getOrCreateCourseByName(courseName);
-                }
-
-                if (assignmentScore) {
-                  await db!.insert(assignmentSubmissions).values({
-                    studentId: stu.id,
-                    courseId: courseId,
-                    score: String(assignmentScore),
-                    submittedAt: new Date(),
-                    weekNumber: weekNumber,
-                  });
-                }
-
-                if (quizScore) {
-                  await db!.insert(quizSubmissions).values({
-                    studentId: stu.id,
-                    courseId: courseId,
-                    totalScore: String(quizScore),
-                    submittedAt: new Date(),
-                    weekNumber: weekNumber,
-                  });
-                }
-                successfulIds.push(studentId);
-                dbWriteSuccess++;
-              } else {
-                dbWriteFailed++;
-                errors.push(`学号 ${studentId} 不存在`);
+                errors.push(`第 ${lineNum} 行: 课程名称「${courseName}」无法转换为有效课程 UUID`);
+                continue;
               }
             }
-          } catch (recordError) {
-            dbWriteFailed++;
-            console.error('Record import error:', recordError);
+            
+            let classId: string | null = record['班级ID'] || record['classId'] || stu.classId || null;
+            const className = record['班级'] || record['className'] || '';
+            if (!classId && className) {
+              classId = await getOrCreateClassByName(className);
+              if (!classId) {
+                dbWriteFailed++;
+                errors.push(`第 ${lineNum} 行: 班级名称「${className}」无法转换为有效班级 UUID`);
+                continue;
+              }
+            }
+
+            await db!.insert(attendance).values({
+              studentId: stu.id,
+              courseId: courseId,
+              classId: classId,
+              date: date,
+              weekNumber: weekNumber,
+              status: status,
+              remarks: record['备注'] || record['remarks'] || null,
+            });
+            successfulIds.push(studentId);
+            dbWriteSuccess++;
+          } else if (importType === 'scores') {
+            const existingStudents = await db!
+              .select()
+              .from(students)
+              .where(eq(students.studentId, studentId))
+              .limit(1);
+
+            if (existingStudents.length === 0) {
+              dbWriteFailed++;
+              errors.push(`第 ${lineNum} 行: 学号 ${studentId} 不存在，请先导入学生信息`);
+              continue;
+            }
+
+            const stu = existingStudents[0];
+            const assignmentScore = record['作业分数'] || record['assignmentScore'];
+            const quizScore = record['测验分数'] || record['quizScore'];
+            const weekNumber = record['周次'] || record['weekNumber'] ? Number(record['周次'] || record['weekNumber']) : null;
+            
+            let courseId: string | null = record['课程ID'] || record['courseId'] || null;
+            const courseName = record['课程'] || record['courseName'] || '';
+            if (!courseId && courseName) {
+              courseId = await getOrCreateCourseByName(courseName);
+              if (!courseId) {
+                dbWriteFailed++;
+                errors.push(`第 ${lineNum} 行: 课程名称「${courseName}」无法转换为有效课程 UUID`);
+                continue;
+              }
+            }
+
+            if (!assignmentScore && !quizScore) {
+              dbWriteFailed++;
+              errors.push(`第 ${lineNum} 行: 作业分数和测验分数不能同时为空`);
+              continue;
+            }
+
+            if (assignmentScore) {
+              await db!.insert(assignmentSubmissions).values({
+                studentId: stu.id,
+                courseId: courseId,
+                score: String(assignmentScore),
+                submittedAt: new Date(),
+                weekNumber: weekNumber,
+              });
+            }
+
+            if (quizScore) {
+              await db!.insert(quizSubmissions).values({
+                studentId: stu.id,
+                courseId: courseId,
+                totalScore: String(quizScore),
+                submittedAt: new Date(),
+                weekNumber: weekNumber,
+              });
+            }
+            successfulIds.push(studentId);
+            dbWriteSuccess++;
           }
+        } catch (recordError) {
+          dbWriteFailed++;
+          const errMsg = recordError instanceof Error ? recordError.message : '未知错误';
+          errors.push(`第 ${lineNum} 行: 数据库写入失败 - ${errMsg}`);
+          console.error('Record import error at line', lineNum, ':', recordError);
         }
-      } catch (dbError) {
-        console.warn('Database write failed, import completed in preview mode:', dbError);
-        dbAvailable = false;
       }
     }
 
     const successful = records.length - errors.length;
 
     return NextResponse.json({
-      success: true,
+      success: confirmWrite ? dbWriteFailed === 0 : errors.length === 0,
       data: {
         importType,
         fileName: file.name,
@@ -296,13 +340,16 @@ export async function POST(request: Request) {
         errors,
         missingReport,
         preview: records.slice(0, 5),
-        dbWriteExecuted: confirmWrite,
+        dbWriteExecuted: confirmWrite && dbAvailable,
         dbWriteSuccess,
         dbWriteFailed,
         successfulIds,
+        dbAvailable,
       },
-      message: confirmWrite
-        ? `数据库写入成功 ${dbWriteSuccess} 条，失败 ${dbWriteFailed + errors.length} 条`
+      message: confirmWrite && dbAvailable
+        ? `数据库写入完成：成功 ${dbWriteSuccess} 条，失败 ${dbWriteFailed + errors.length} 条`
+        : confirmWrite && !dbAvailable
+        ? '数据库不可用，已取消入库操作'
         : `预览完成：成功 ${successful} 条，失败 ${errors.length} 条，请确认后执行入库`,
     });
   } catch (error) {

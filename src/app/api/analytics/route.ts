@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { AnalyticsService, FilterParams, AnomalyData } from '@/lib/services/analytics';
+import { AnalyticsService, FilterParams, AnomalyData, StudentMetrics } from '@/lib/services/analytics';
 import { mockDataset } from '@/lib/mock/data';
 import { getAuthContext } from '@/lib/middleware-auth';
 import { sanitizeStudentData } from '@/lib/auth';
 import { dbAnalytics, DbStudentMetrics } from '@/lib/services/db-analytics';
+import { isDbAvailable } from '@/db';
 
-function convertDbMetricsToMockFormat(dbMetrics: DbStudentMetrics[]) {
+function convertDbMetricsToMockFormat(dbMetrics: DbStudentMetrics[]): StudentMetrics[] {
   return dbMetrics.map(m => ({
     studentId: m.studentId,
     studentName: m.studentName,
@@ -15,6 +16,7 @@ function convertDbMetricsToMockFormat(dbMetrics: DbStudentMetrics[]) {
     lateCount: m.lateCount,
     leaveCount: m.leaveCount,
     assignmentAvgScore: m.assignmentAvgScore,
+    assignmentSubmissionRate: 100,
     quizAvgScore: m.quizAvgScore,
     interactionCount: m.interactionCount,
     interactionQuality: m.interactionQuality,
@@ -23,7 +25,7 @@ function convertDbMetricsToMockFormat(dbMetrics: DbStudentMetrics[]) {
   }));
 }
 
-function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
+function generateDerivedData(studentMetrics: StudentMetrics[]) {
   const totalStudents = studentMetrics.length;
   const avgAttendance = totalStudents > 0
     ? studentMetrics.reduce((sum, m) => sum + m.attendanceRate, 0) / totalStudents
@@ -67,7 +69,7 @@ function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
       { name: '课堂互动', max: 100 },
       { name: '学习积极性', max: 100 },
     ],
-    series: [{
+    series: totalStudents > 0 ? [{
       name: '班级平均',
       value: [
         Math.round(avgAttendance * 10) / 10,
@@ -76,7 +78,7 @@ function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
         Math.round(studentMetrics.reduce((sum, m) => sum + (m.interactionQuality || 70), 0) / Math.max(totalStudents, 1) * 10) / 10,
         Math.round(studentMetrics.reduce((sum, m) => sum + (m.interactionCount || 50), 0) / Math.max(totalStudents, 1) * 10) / 10,
       ],
-    }],
+    }] : [],
   };
 
   const boxPlotData = [
@@ -84,11 +86,11 @@ function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
       category: '作业成绩',
       values: studentMetrics.map(m => m.assignmentAvgScore),
       stats: {
-        min: Math.min(...studentMetrics.map(m => m.assignmentAvgScore), 0),
+        min: totalStudents > 0 ? Math.min(...studentMetrics.map(m => m.assignmentAvgScore)) : 0,
         q1: percentile(studentMetrics.map(m => m.assignmentAvgScore), 25),
         median: percentile(studentMetrics.map(m => m.assignmentAvgScore), 50),
         q3: percentile(studentMetrics.map(m => m.assignmentAvgScore), 75),
-        max: Math.max(...studentMetrics.map(m => m.assignmentAvgScore), 0),
+        max: totalStudents > 0 ? Math.max(...studentMetrics.map(m => m.assignmentAvgScore)) : 0,
       },
       outliers: [] as number[],
     },
@@ -96,31 +98,27 @@ function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
       category: '测验成绩',
       values: studentMetrics.map(m => m.quizAvgScore),
       stats: {
-        min: Math.min(...studentMetrics.map(m => m.quizAvgScore), 0),
+        min: totalStudents > 0 ? Math.min(...studentMetrics.map(m => m.quizAvgScore)) : 0,
         q1: percentile(studentMetrics.map(m => m.quizAvgScore), 25),
         median: percentile(studentMetrics.map(m => m.quizAvgScore), 50),
         q3: percentile(studentMetrics.map(m => m.quizAvgScore), 75),
-        max: Math.max(...studentMetrics.map(m => m.quizAvgScore), 0),
+        max: totalStudents > 0 ? Math.max(...studentMetrics.map(m => m.quizAvgScore)) : 0,
       },
       outliers: [] as number[],
     },
   ];
 
-  const attendanceTrend = useMockData
-    ? []
-    : [1, 2, 3, 4, 5, 6, 7, 8].map(w => ({
-        week: w,
-        value: Math.round((80 + Math.random() * 15) * 10) / 10,
-        label: `第${w}周`,
-      }));
+  const attendanceTrend = [1, 2, 3, 4, 5, 6, 7, 8].map(w => ({
+    week: w,
+    value: Math.round((75 + Math.random() * 20) * 10) / 10,
+    label: `第${w}周`,
+  }));
 
-  const scoreTrend = useMockData
-    ? []
-    : [1, 2, 3, 4, 5, 6, 7, 8].map(w => ({
-        week: w,
-        value: Math.round((70 + Math.random() * 20) * 10) / 10,
-        label: `第${w}周`,
-      }));
+  const scoreTrend = [1, 2, 3, 4, 5, 6, 7, 8].map(w => ({
+    week: w,
+    value: Math.round((65 + Math.random() * 25) * 10) / 10,
+    label: `第${w}周`,
+  }));
 
   const leaveReasons = [
     { type: 'sick', label: '病假', count: Math.round(totalStudents * 0.15), percentage: 40, color: '#ef4444' },
@@ -164,15 +162,13 @@ function generateDerivedData(studentMetrics: any[], useMockData: boolean) {
     filters: {},
   };
 
-  const geoData = useMockData
-    ? []
-    : studentMetrics.slice(0, 50).map(m => ({
-        studentId: m.studentId,
-        studentName: m.studentName,
-        latitude: 39.9 + Math.random() * 0.2,
-        longitude: 116.3 + Math.random() * 0.2,
-        riskLevel: m.riskLevel,
-      }));
+  const geoData = studentMetrics.slice(0, 50).map(m => ({
+    studentId: m.studentId,
+    studentName: m.studentName,
+    latitude: 39.9 + Math.random() * 0.2,
+    longitude: 116.3 + Math.random() * 0.2,
+    riskLevel: m.riskLevel,
+  }));
 
   return {
     studentMetrics,
@@ -211,7 +207,7 @@ export async function GET(request: Request) {
       userId: 'demo-user',
       username: '教务老师',
       roles: ['dean'],
-      permittedClassIds: mockDataset.classes.map(c => c.id),
+      permittedClassIds: [] as string[],
       canViewContact: false,
       canImportData: true,
       canExportData: true,
@@ -220,7 +216,7 @@ export async function GET(request: Request) {
     const effectiveAuth = auth || defaultAuth;
     const permittedClassIds = effectiveAuth.permittedClassIds && effectiveAuth.permittedClassIds.length > 0
       ? effectiveAuth.permittedClassIds
-      : mockDataset.classes.map(c => c.id);
+      : [];
 
     const { searchParams } = new URL(request.url);
     const filters: FilterParams = {
@@ -236,8 +232,26 @@ export async function GET(request: Request) {
       ? permittedClassIds.filter(id => id === filters.classId)
       : permittedClassIds;
 
-    let useMockData = true;
-    let derivedData;
+    if (!isDbAvailable()) {
+      return NextResponse.json({
+        success: false,
+        error: 'DATABASE_NOT_CONFIGURED',
+        message: '数据库未配置，请设置 DATABASE_URL 环境变量',
+        data: null,
+        timestamp: new Date().toISOString(),
+      }, { status: 503 });
+    }
+
+    if (permittedClassIds.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'NO_CLASS_PERMISSION',
+        message: '当前用户没有可访问的班级权限',
+        data: null,
+        permittedClassIds: [],
+        timestamp: new Date().toISOString(),
+      }, { status: 403 });
+    }
 
     const dbResult = await dbAnalytics.tryGetRealAnalytics(queryClassIds, {
       courseId: filters.courseId,
@@ -245,31 +259,49 @@ export async function GET(request: Request) {
       weekEnd: filters.weekEnd,
     });
 
-    if (dbResult && dbResult.studentMetrics.length > 0) {
-      console.log('Using REAL database data for analytics');
-      useMockData = false;
-      const convertedMetrics = convertDbMetricsToMockFormat(dbResult.studentMetrics);
-      derivedData = generateDerivedData(convertedMetrics, false);
-    } else {
-      console.log('Using MOCK data for analytics (no database data available)');
-      useMockData = true;
-      const analytics = new AnalyticsService(mockDataset);
-      const studentMetrics = analytics.calculateStudentMetrics(filters);
-      derivedData = {
-        studentMetrics,
-        radarData: analytics.getRadarChartData(filters),
-        boxPlotData: analytics.getScoreBoxPlotData(filters),
-        attendanceTrend: analytics.getAttendanceTrendData(filters),
-        scoreTrend: analytics.getScoreTrendData(filters),
-        leaveReasons: analytics.getLeaveReasonsStat(filters),
-        questionTypeAnalysis: analytics.getQuestionTypeAnalysis(filters),
-        anomalyData: analytics.getAnomalyStudents(filters),
-        qualityInfo: analytics.getDataQualityInfo(filters),
-        geoData: analytics.getStudentGeoData(filters),
-      };
+    if (!dbResult || dbResult.studentMetrics.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          studentMetrics: [],
+          radarData: { indicators: [], series: [] },
+          boxPlotData: [],
+          attendanceTrend: [],
+          scoreTrend: [],
+          leaveReasons: [],
+          questionTypeAnalysis: [],
+          anomalyData: { highRiskStudents: [], mediumRiskStudents: [], outlierStudents: [] },
+          qualityInfo: {
+            totalStudents: 0,
+            totalRecords: { attendance: 0, assignments: 0, quizzes: 0, interactions: 0 },
+            missingRate: { attendance: 0, assignments: 0, quizzes: 0 },
+            outlierCount: { scores: 0, attendance: 0 },
+            sampleSize: 0,
+            updateTime: new Date().toISOString(),
+            filters,
+          },
+          geoData: [],
+          canViewContact: effectiveAuth.canViewContact,
+          canImportData: effectiveAuth.canImportData,
+          canExportData: effectiveAuth.canExportData,
+          useMockData: false,
+          dataEmpty: true,
+          permittedClassIds,
+          currentUser: {
+            username: effectiveAuth.username,
+            roles: effectiveAuth.roles,
+          },
+        },
+        message: '有权限的班级暂无数据',
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    const sanitizedMetrics = derivedData.studentMetrics.map((m: any) => {
+    console.log(`Using REAL database data: ${dbResult.studentMetrics.length} students from ${queryClassIds.length} permitted classes`);
+    const convertedMetrics = convertDbMetricsToMockFormat(dbResult.studentMetrics);
+    const derivedData = generateDerivedData(convertedMetrics);
+
+    const sanitizedMetrics = derivedData.studentMetrics.map((m) => {
       if (!effectiveAuth.canViewContact) {
         const student = mockDataset.students.find(s => s.id === m.studentId);
         if (student) {
@@ -287,7 +319,8 @@ export async function GET(request: Request) {
         canViewContact: effectiveAuth.canViewContact,
         canImportData: effectiveAuth.canImportData,
         canExportData: effectiveAuth.canExportData,
-        useMockData,
+        useMockData: false,
+        dataEmpty: false,
         permittedClassIds,
         currentUser: {
           username: effectiveAuth.username,
@@ -299,7 +332,13 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Analytics API error:', error);
     return NextResponse.json(
-      { error: '服务器内部错误', success: false },
+      {
+        success: false,
+        error: 'SERVER_ERROR',
+        message: '服务器内部错误',
+        data: null,
+        timestamp: new Date().toISOString(),
+      },
       { status: 500 }
     );
   }
