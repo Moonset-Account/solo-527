@@ -363,9 +363,9 @@ export const chApi = {
     return executeQuery(`
       SELECT 
         online_total,
-        online_faulty,
-        online_normal,
-        round(online_normal / online_total, 4) as availability_rate,
+        faulty_from_status + faulty_from_logs as online_faulty,
+        online_total - (faulty_from_status + faulty_from_logs) as online_normal,
+        round((online_total - (faulty_from_status + faulty_from_logs)) / online_total, 4) as availability_rate,
         offline_count
       FROM (
         SELECT 
@@ -379,11 +379,6 @@ export const chApi = {
         FROM fact_fault_log
         WHERE occur_time >= '${startTime}' AND occur_time <= '${endTime}'
       ) f
-      ARRAY JOIN (
-        SELECT 
-          faulty_from_status + faulty_from_logs as online_faulty,
-          online_total - (faulty_from_status + faulty_from_logs) as online_normal
-      )
     `)
   },
   
@@ -461,66 +456,89 @@ export const chApi = {
     const [start, end] = timeRange
     const startTime = start.replace('T', ' ').slice(0, 19)
     const endTime = end.replace('T', ' ').slice(0, 19)
-    return executeQuery(`
-      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
-      FROM (
+    
+    const [stationRes, codeRes, repairRes] = await Promise.all([
+      executeQuery(`
         SELECT 
-          'station' as anomaly_type,
           s.station_id as entity_id,
           s.station_name as entity_name,
-          concat(s.station_name, ' 故障频发') as title,
-          concat('已发生 ', toString(count(f.fault_id)), ' 次故障，', toString(countIf(f.is_resolved = 0)), ' 次未处理') as description,
-          if(count(f.fault_id) >= 10, 'critical', 'warning') as level,
-          count(f.fault_id) as metric_value,
-          '故障次数' as metric_label,
-          1 as sort_order
+          count(f.fault_id) as fault_count,
+          countIf(f.is_resolved = 0) as unresolved_count
         FROM dim_station s
         INNER JOIN fact_fault_log f ON s.station_id = f.station_id
-          AND f.occur_time >= '${startTime}' AND f.occur_time <= '${endTime}'
-        GROUP BY s.station_id, s.station_name
-        ORDER BY count(f.fault_id) DESC
-        LIMIT 1
-      )
-      UNION ALL
-      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
-      FROM (
-        SELECT 
-          'fault_code' as anomaly_type,
-          f.fault_code as entity_id,
-          f.fault_code as entity_name,
-          concat(f.fault_code, ' 故障高发') as title,
-          concat('共发生 ', toString(count()), ' 次') as description,
-          if(max(f.severity) = 'critical', 'critical', 'warning') as level,
-          count() as metric_value,
-          '发生次数' as metric_label,
-          2 as sort_order
-        FROM fact_fault_log f
         WHERE f.occur_time >= '${startTime}' AND f.occur_time <= '${endTime}'
-        GROUP BY f.fault_code
-        ORDER BY count() DESC
+        GROUP BY s.station_id, s.station_name
+        ORDER BY fault_count DESC
         LIMIT 1
-      )
-      UNION ALL
-      SELECT anomaly_type, entity_id, entity_name, title, description, level, metric_value, metric_label
-      FROM (
+      `),
+      executeQuery(`
         SELECT 
-          'repair' as anomaly_type,
-          'slow_repair' as entity_id,
-          '维修效率' as entity_name,
-          '平均维修耗时过长' as title,
-          concat('平均维修 ', toString(round(avg(r.repair_hours), 1)), ' 小时') as description,
-          if(avg(r.repair_hours) > 3, 'warning', 'info') as level,
-          round(avg(r.repair_hours), 1) as metric_value,
-          '平均小时' as metric_label,
-          3 as sort_order
-        FROM fact_repair_order r
-        WHERE r.status = 'completed' 
-          AND r.create_time >= '${startTime}' AND r.create_time <= '${endTime}'
-        HAVING count() > 0
+          fault_code as entity_id,
+          count() as fault_count,
+          max(severity) as max_severity
+        FROM fact_fault_log
+        WHERE occur_time >= '${startTime}' AND occur_time <= '${endTime}'
+        GROUP BY fault_code
+        ORDER BY fault_count DESC
         LIMIT 1
-      )
-      ORDER BY sort_order
-    `)
+      `),
+      executeQuery(`
+        SELECT 
+          round(avg(repair_hours), 1) as avg_hours,
+          count() as sample_size
+        FROM fact_repair_order
+        WHERE status = 'completed' 
+          AND create_time >= '${startTime}' AND create_time <= '${endTime}'
+      `)
+    ])
+    
+    const anomalies = []
+    
+    if (stationRes && stationRes.length > 0 && stationRes[0].entity_id) {
+      const s = stationRes[0]
+      anomalies.push({
+        anomaly_type: 'station',
+        entity_id: s.entity_id,
+        entity_name: s.entity_name,
+        title: `${s.entity_name} 故障频发`,
+        description: `已发生 ${s.fault_count} 次故障，${s.unresolved_count} 次未处理`,
+        level: s.fault_count >= 10 ? 'critical' : 'warning',
+        metric_value: s.fault_count,
+        metric_label: '故障次数'
+      })
+    }
+    
+    if (codeRes && codeRes.length > 0 && codeRes[0].entity_id) {
+      const c = codeRes[0]
+      anomalies.push({
+        anomaly_type: 'fault_code',
+        entity_id: c.entity_id,
+        entity_name: c.entity_id,
+        title: `${c.entity_id} 故障高发`,
+        description: `共发生 ${c.fault_count} 次`,
+        level: c.max_severity === 'critical' ? 'critical' : 'warning',
+        metric_value: c.fault_count,
+        metric_label: '发生次数'
+      })
+    }
+    
+    if (repairRes && repairRes.length > 0 && repairRes[0].sample_size > 0) {
+      const r = repairRes[0]
+      if (r.avg_hours > 3) {
+        anomalies.push({
+          anomaly_type: 'repair',
+          entity_id: 'slow_repair',
+          entity_name: '维修效率',
+          title: '平均维修耗时过长',
+          description: `平均维修 ${r.avg_hours} 小时`,
+          level: 'warning',
+          metric_value: r.avg_hours,
+          metric_label: '平均小时'
+        })
+      }
+    }
+    
+    return anomalies
   },
   
   isMock: () => USE_MOCK
