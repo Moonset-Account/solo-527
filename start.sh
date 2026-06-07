@@ -3,6 +3,14 @@
 echo "=========================================="
 echo "城市空气质量分析工作台 - 启动脚本"
 echo "=========================================="
+echo ""
+echo "提示: 如果因权限无法执行，请使用:"
+echo "  bash start.sh"
+echo "  或"
+echo "  python3 start.py"
+echo ""
+
+cd "$(dirname "$0")"
 
 if [ ! -f ".env" ]; then
     echo "复制环境变量配置文件..."

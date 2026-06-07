@@ -41,82 +41,97 @@ class TimescaleDBService:
             return pd.read_sql(text(query), conn, params=params)
     
     def get_air_quality_raw(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        query = "SELECT * FROM air_quality_raw WHERE 1=1"
+        query = "SELECT a.* FROM air_quality_raw a WHERE 1=1"
         params = {}
         
+        if 'districts' in filters and filters['districts']:
+            placeholders = ', '.join([f':d{i}' for i in range(len(filters['districts']))])
+            query += f" AND a.station_id IN (SELECT station_id FROM monitoring_stations WHERE district IN ({placeholders}))"
+            params.update({f'd{i}': d for i, d in enumerate(filters['districts'])})
+        
         if 'start_time' in filters and filters['start_time'] is not None:
-            query += " AND timestamp >= :start_time"
+            query += " AND a.timestamp >= :start_time"
             params['start_time'] = pd.Timestamp(filters['start_time'])
         
         if 'end_time' in filters and filters['end_time'] is not None:
-            query += " AND timestamp <= :end_time"
+            query += " AND a.timestamp <= :end_time"
             params['end_time'] = pd.Timestamp(filters['end_time'])
         
         if 'station_ids' in filters and filters['station_ids']:
             placeholders = ', '.join([f':s{i}' for i in range(len(filters['station_ids']))])
-            query += f" AND station_id IN ({placeholders})"
+            query += f" AND a.station_id IN ({placeholders})"
             params.update({f's{i}': s for i, s in enumerate(filters['station_ids'])})
         
         if 'hour_range' in filters and filters['hour_range']:
             start_hour, end_hour = filters['hour_range']
-            query += " AND EXTRACT(HOUR FROM timestamp) BETWEEN :start_hour AND :end_hour"
+            query += " AND EXTRACT(HOUR FROM a.timestamp) BETWEEN :start_hour AND :end_hour"
             params['start_hour'] = start_hour
             params['end_hour'] = end_hour
         
         if filters.get('exclude_anomalies', False):
-            query += " AND is_anomaly = false"
+            query += " AND a.is_anomaly = false"
         
-        query += " ORDER BY timestamp DESC"
+        query += " ORDER BY a.timestamp DESC"
         
         with self.engine.connect() as conn:
             return pd.read_sql(text(query), conn, params=params)
     
     def get_air_quality_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        query = "SELECT * FROM air_quality_hourly WHERE 1=1"
+        query = "SELECT h.* FROM air_quality_hourly h WHERE 1=1"
         params = {}
         
+        if 'districts' in filters and filters['districts']:
+            placeholders = ', '.join([f':d{i}' for i in range(len(filters['districts']))])
+            query += f" AND h.station_id IN (SELECT station_id FROM monitoring_stations WHERE district IN ({placeholders}))"
+            params.update({f'd{i}': d for i, d in enumerate(filters['districts'])})
+        
         if 'start_time' in filters and filters['start_time'] is not None:
-            query += " AND hour_bucket >= :start_time"
+            query += " AND h.hour_bucket >= :start_time"
             params['start_time'] = pd.Timestamp(filters['start_time'])
         
         if 'end_time' in filters and filters['end_time'] is not None:
-            query += " AND hour_bucket <= :end_time"
+            query += " AND h.hour_bucket <= :end_time"
             params['end_time'] = pd.Timestamp(filters['end_time'])
         
         if 'station_ids' in filters and filters['station_ids']:
             placeholders = ', '.join([f':s{i}' for i in range(len(filters['station_ids']))])
-            query += f" AND station_id IN ({placeholders})"
+            query += f" AND h.station_id IN ({placeholders})"
             params.update({f's{i}': s for i, s in enumerate(filters['station_ids'])})
         
         if 'hour_range' in filters and filters['hour_range']:
             start_hour, end_hour = filters['hour_range']
-            query += " AND EXTRACT(HOUR FROM hour_bucket) BETWEEN :start_hour AND :end_hour"
+            query += " AND EXTRACT(HOUR FROM h.hour_bucket) BETWEEN :start_hour AND :end_hour"
             params['start_hour'] = start_hour
             params['end_hour'] = end_hour
         
-        query += " ORDER BY hour_bucket ASC"
+        query += " ORDER BY h.hour_bucket ASC"
         
         with self.engine.connect() as conn:
             return pd.read_sql(text(query), conn, params=params)
     
     def get_air_quality_daily(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        query = "SELECT * FROM air_quality_daily WHERE 1=1"
+        query = "SELECT d.* FROM air_quality_daily d WHERE 1=1"
         params = {}
         
+        if 'districts' in filters and filters['districts']:
+            placeholders = ', '.join([f':d{i}' for i in range(len(filters['districts']))])
+            query += f" AND d.station_id IN (SELECT station_id FROM monitoring_stations WHERE district IN ({placeholders}))"
+            params.update({f'd{i}': d for i, d in enumerate(filters['districts'])})
+        
         if 'start_time' in filters and filters['start_time'] is not None:
-            query += " AND day_bucket >= :start_time"
+            query += " AND d.day_bucket >= :start_time"
             params['start_time'] = pd.Timestamp(filters['start_time'])
         
         if 'end_time' in filters and filters['end_time'] is not None:
-            query += " AND day_bucket <= :end_time"
+            query += " AND d.day_bucket <= :end_time"
             params['end_time'] = pd.Timestamp(filters['end_time'])
         
         if 'station_ids' in filters and filters['station_ids']:
             placeholders = ', '.join([f':s{i}' for i in range(len(filters['station_ids']))])
-            query += f" AND station_id IN ({placeholders})"
+            query += f" AND d.station_id IN ({placeholders})"
             params.update({f's{i}': s for i, s in enumerate(filters['station_ids'])})
         
-        query += " ORDER BY day_bucket ASC"
+        query += " ORDER BY d.day_bucket ASC"
         
         with self.engine.connect() as conn:
             return pd.read_sql(text(query), conn, params=params)
@@ -124,36 +139,41 @@ class TimescaleDBService:
     def get_traffic_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
         query = """
             SELECT 
-                time_bucket('1 hour', timestamp) as hour_bucket,
-                station_id,
-                AVG(vehicle_count) as vehicle_count_avg,
-                SUM(vehicle_count) as vehicle_count_sum,
-                AVG(average_speed) as average_speed_avg,
+                time_bucket('1 hour', t.timestamp) as hour_bucket,
+                t.station_id,
+                AVG(t.vehicle_count) as vehicle_count_avg,
+                SUM(t.vehicle_count) as vehicle_count_sum,
+                AVG(t.average_speed) as average_speed_avg,
                 COUNT(*) as record_count
-            FROM traffic_flow WHERE 1=1
+            FROM traffic_flow t WHERE 1=1
         """
         params = {}
         
+        if 'districts' in filters and filters['districts']:
+            placeholders = ', '.join([f':d{i}' for i in range(len(filters['districts']))])
+            query += f" AND t.station_id IN (SELECT station_id FROM monitoring_stations WHERE district IN ({placeholders}))"
+            params.update({f'd{i}': d for i, d in enumerate(filters['districts'])})
+        
         if 'start_time' in filters and filters['start_time'] is not None:
-            query += " AND timestamp >= :start_time"
+            query += " AND t.timestamp >= :start_time"
             params['start_time'] = pd.Timestamp(filters['start_time'])
         
         if 'end_time' in filters and filters['end_time'] is not None:
-            query += " AND timestamp <= :end_time"
+            query += " AND t.timestamp <= :end_time"
             params['end_time'] = pd.Timestamp(filters['end_time'])
         
         if 'station_ids' in filters and filters['station_ids']:
             placeholders = ', '.join([f':s{i}' for i in range(len(filters['station_ids']))])
-            query += f" AND station_id IN ({placeholders})"
+            query += f" AND t.station_id IN ({placeholders})"
             params.update({f's{i}': s for i, s in enumerate(filters['station_ids'])})
         
         if 'hour_range' in filters and filters['hour_range']:
             start_hour, end_hour = filters['hour_range']
-            query += " AND EXTRACT(HOUR FROM timestamp) BETWEEN :start_hour AND :end_hour"
+            query += " AND EXTRACT(HOUR FROM t.timestamp) BETWEEN :start_hour AND :end_hour"
             params['start_hour'] = start_hour
             params['end_hour'] = end_hour
         
-        query += " GROUP BY hour_bucket, station_id ORDER BY hour_bucket ASC"
+        query += " GROUP BY hour_bucket, t.station_id ORDER BY hour_bucket ASC"
         
         with self.engine.connect() as conn:
             return pd.read_sql(text(query), conn, params=params)

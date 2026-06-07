@@ -56,11 +56,10 @@ class DataService:
         return result
     
     def get_stations(self, districts: Optional[List[str]] = None) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_stations(districts)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_stations(districts)
         
         stations = self.mock_store.stations.copy()
         if districts:
@@ -68,21 +67,19 @@ class DataService:
         return stations
     
     def get_air_quality_raw(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_air_quality_raw(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_air_quality_raw(filters)
         
         df = self.mock_store.air_quality.copy()
         return self._filter_dataframe(df, filters)
     
     def get_air_quality_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_air_quality_hourly(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_air_quality_hourly(filters)
         
         raw_data = self.get_air_quality_raw(filters)
         
@@ -118,11 +115,10 @@ class DataService:
         return result
     
     def get_air_quality_daily(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_air_quality_daily(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_air_quality_daily(filters)
         
         raw_data = self.get_air_quality_raw(filters)
         
@@ -154,11 +150,10 @@ class DataService:
         return self._filter_dataframe(df, filters)
     
     def get_traffic_hourly(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_traffic_hourly(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_traffic_hourly(filters)
         
         raw_data = self.get_traffic_data(filters)
         
@@ -182,11 +177,10 @@ class DataService:
         return result
     
     def get_construction_sites(self, districts: Optional[List[str]] = None, active_only: bool = True) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_construction_sites(districts, active_only)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_construction_sites(districts, active_only)
         
         sites = self.mock_store.construction_sites.copy()
         if districts:
@@ -196,11 +190,10 @@ class DataService:
         return sites
     
     def get_complaints(self, filters: Dict[str, Any], is_public: bool = True) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_complaints(filters, is_public)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_complaints(filters, is_public)
         
         complaints = self.mock_store.complaints.copy()
         
@@ -228,11 +221,10 @@ class DataService:
         return complaints
     
     def get_events(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_events(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_events(filters)
         
         events = self.mock_store.events.copy()
         
@@ -251,11 +243,10 @@ class DataService:
         return events
     
     def get_anomaly_records(self, filters: Dict[str, Any]) -> pd.DataFrame:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_anomaly_records(filters)
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_anomaly_records(filters)
         
         raw_data = self.get_air_quality_raw(filters)
         anomalies = raw_data[raw_data['is_anomaly'] == True].copy()
@@ -303,11 +294,10 @@ class DataService:
         return result
     
     def get_last_updated(self) -> Dict[str, Any]:
-        if not self.use_mock and db_service.is_connected():
-            try:
-                return db_service.get_last_updated()
-            except Exception as e:
-                print(f"DB error, falling back to mock: {e}")
+        if not self.use_mock:
+            if not db_service.is_connected():
+                raise ConnectionError("USE_MOCK_DATA=false 但无法连接到 TimescaleDB，请检查数据库配置")
+            return db_service.get_last_updated()
         
         return {
             'air_quality': {

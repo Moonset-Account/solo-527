@@ -1254,8 +1254,15 @@ def download_report(excel_n, csv_n, filters, stats, pollutants, districts, stati
         '污染物': ', '.join([Config.POLLUTANT_NAMES[p].split(' ')[0] for p in (pollutants or [])]),
         '行政区': ', '.join(districts) if districts else '全部',
         '监测站点': ', '.join([stations_name_map.get(s, str(s)) for s in (stations or [])]) if stations else '全部',
-        '排除异常样本': filters.get('exclude_anomalies', False)
+        '排除异常样本': filters.get('exclude_anomalies', False),
+        '仅显示已核实投诉': filters.get('verified_only', False),
     }
+    
+    if filters.get('hour_range'):
+        filter_description['小时范围'] = f"{filters['hour_range'][0]}:00 - {filters['hour_range'][1]}:00"
+    
+    if filters.get('event_types'):
+        filter_description['事件类型'] = ', '.join(filters['event_types'])
     
     air_quality_update = last_updated.get('air_quality', {})
     if isinstance(air_quality_update, dict):
@@ -1306,8 +1313,11 @@ def download_report(excel_n, csv_n, filters, stats, pollutants, districts, stati
         csv_lines.append(f'# 当前筛选 - 行政区,{", ".join(districts) if districts else "全部"}')
         csv_lines.append(f'# 当前筛选 - 监测站点,{", ".join([stations_name_map.get(s, str(s)) for s in (stations or [])]) if stations else "全部"}')
         csv_lines.append(f'# 当前筛选 - 排除异常样本,{filters.get("exclude_anomalies", False)}')
+        csv_lines.append(f'# 当前筛选 - 仅显示已核实投诉,{filters.get("verified_only", False)}')
         if filters.get('hour_range'):
             csv_lines.append(f'# 当前筛选 - 小时范围,{filters["hour_range"][0]}:00 - {filters["hour_range"][1]}:00')
+        if filters.get('event_types'):
+            csv_lines.append(f'# 当前筛选 - 事件类型,{", ".join(filters["event_types"])}')
         
         csv_lines.append(f'# 样本统计 - 原始样本量,{stats.get("raw_records", 0)}')
         csv_lines.append(f'# 样本统计 - 聚合记录数,{stats.get("hourly_records", 0)}')
