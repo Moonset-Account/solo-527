@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
 
 export interface JWTPayload {
   userId: string;
@@ -32,13 +31,6 @@ export function verifyToken(token: string): JWTPayload | null {
   } catch {
     return null;
   }
-}
-
-export async function getCurrentUser(): Promise<JWTPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
-  if (!token) return null;
-  return verifyToken(token);
 }
 
 export function maskPhone(phone: string | null | undefined): string {

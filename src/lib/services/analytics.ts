@@ -28,6 +28,7 @@ export interface StudentMetrics {
   attendanceRate: number;
   absentCount: number;
   lateCount: number;
+  leaveCount: number;
   assignmentAvgScore: number;
   assignmentSubmissionRate: number;
   quizAvgScore: number;
@@ -196,6 +197,7 @@ export class AnalyticsService {
       const attendanceRate = totalAttendance > 0 ? (presentCount / totalAttendance) * 100 : 100;
       const absentCount = studentAttendance.filter((a) => a.status === 'absent').length;
       const lateCount = studentAttendance.filter((a) => a.status === 'late' || a.status === 'early').length;
+      const leaveCount = studentAttendance.filter((a) => a.status === 'leave' || a.status === 'excused').length;
 
       const validScores = studentAssignments
         .filter((s) => s.score !== null && !s.isMissing)
@@ -239,6 +241,7 @@ export class AnalyticsService {
         attendanceRate: Math.round(attendanceRate * 10) / 10,
         absentCount,
         lateCount,
+        leaveCount,
         assignmentAvgScore: Math.round(assignmentAvgScore * 10) / 10,
         assignmentSubmissionRate: Math.round(assignmentSubmissionRate * 10) / 10,
         quizAvgScore: Math.round(quizAvgScore * 10) / 10,

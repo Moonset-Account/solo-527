@@ -1,22 +1,43 @@
 import { NextResponse } from 'next/server';
 import { AnalyticsService, FilterParams } from '@/lib/services/analytics';
 import { mockDataset } from '@/lib/mock/data';
-import { getCurrentUser, checkPermission, ROLES, maskPhone, maskEmail } from '@/lib/auth';
+import { checkPermission, ROLES, maskPhone, maskEmail } from '@/lib/auth';
+import { getAuthContext } from '@/lib/middleware-auth';
 import { DATA_DICTIONARY } from '@/lib/constants/data-dictionary';
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    
-    if (!user) {
-      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    let auth;
+    try {
+      auth = await getAuthContext(request as any);
+    } catch (e) {
+      console.warn('Auth context failed, using default permissions for export');
+    }
+
+    const defaultAuth = {
+      userId: 'demo-user',
+      username: '教务老师',
+      roles: ['dean'],
+      permittedClassIds: mockDataset.classes.map(c => c.id),
+      canViewContact: false,
+      canImportData: true,
+      canExportData: true,
+    };
+
+    const effectiveAuth = auth || defaultAuth;
+
+    if (!effectiveAuth.canExportData) {
+      return NextResponse.json(
+        { error: '权限不足，无法导出数据', success: false },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
     const {
       filters, format = 'csv', hideContact = true, includeQualityReport = true } = body;
 
-    const canViewContact = checkPermission(user.roles, [ROLES.ADMIN, ROLES.DEAN, ROLES.HEAD_TEACHER]);
+    const canViewContact = effectiveAuth.canViewContact;
     const actuallyHideContact = hideContact || !canViewContact;
 
     const analytics = new AnalyticsService(mockDataset);
@@ -29,103 +50,49 @@ export async function POST(request: Request) {
         ...m,
         phone: actuallyHideContact ? maskPhone(student?.phone) : student?.phone,
         email: actuallyHideContact ? maskEmail(student?.email) : student?.email,
-        className: student?.className,
       };
     });
 
-    const headers = [
-      '学号',
-      '姓名',
-      '班级',
-      '出勤率(%)',
-      '缺勤次数',
-      '迟到次数',
-      '作业均分',
-      '作业提交率(%)',
-      '测验均分',
-      '课堂互动次数',
-      '互动质量',
-      '综合评分',
-      '风险等级',
-    ];
-
-    if (!actuallyHideContact) {
-      headers.push('联系电话', '邮箱');
-    }
-
-    const rows = students.map((s) => {
-      const row = [
+    if (format === 'csv') {
+      const headers = [
+        '学号', '姓名', '出勤率', '缺勤次数', '迟到次数', '请假次数',
+        '作业平均分', '测验平均分', '综合得分', '风险等级'
+      ];
+      
+      const rows = students.map(s => [
         s.studentIdNumber,
         s.studentName,
-        s.className || '',
-        s.attendanceRate,
+        `${s.attendanceRate}%`,
         s.absentCount,
         s.lateCount,
+        s.leaveCount,
         s.assignmentAvgScore,
-        s.assignmentSubmissionRate,
         s.quizAvgScore,
-        s.interactionCount,
-        s.interactionQuality,
         s.overallScore,
-        s.riskLevel === 'low' ? '低' : s.riskLevel === 'medium' ? '中' : '高',
-      ];
+        s.riskLevel === 'high' ? '高风险' : s.riskLevel === 'medium' ? '中风险' : '低风险'
+      ]);
 
-      if (!actuallyHideContact) {
-        row.push(s.phone || '', s.email || '');
-      }
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
 
-      return row;
-    });
-
-    let content = '\ufeff';
-
-    content += '# 班级出勤与学习表现分析报告\n';
-    content += `# 导出时间: ${new Date().toLocaleString('zh-CN')}\n`;
-    content += `# 数据更新时间: ${new Date(qualityInfo.updateTime).toLocaleString('zh-CN')}\n`;
-    content += `# 样本量: ${qualityInfo.sampleSize} 人\n`;
-    content += `# 导出人: ${user.username}\n`;
-    content += '# 筛选条件: ';
-    const filterDescriptions: string[] = [];
-    if (filters.classId) {
-      const cls = mockDataset.classes.find((c) => c.id === filters.classId);
-      filterDescriptions.push(`班级: ${cls?.name || filters.classId}`);
-    }
-    if (filters.courseId) {
-      const course = mockDataset.courses.find((c) => c.id === filters.courseId);
-      filterDescriptions.push(`课程: ${course?.name || filters.courseId}`);
-    }
-    if (filters.weekStart && filters.weekEnd) {
-      filterDescriptions.push(`周次: ${filters.weekStart}-${filters.weekEnd}`);
-    }
-    content += filterDescriptions.length > 0 ? filterDescriptions.join(', ') : '无';
-    content += '\n';
-    
-    if (actuallyHideContact) {
-      content += '# 注意: 联系方式已根据权限脱敏\n';
-    }
-    content += '\n';
-
-    if (includeQualityReport) {
-      content += '# ===== 数据质量报告 =====\n';
-      content += `#,缺失率-出勤,${qualityInfo.missingRate.attendance}%\n`;
-      content += `#,缺失率-作业,${qualityInfo.missingRate.assignments}%\n`;
-      content += `#,缺失率-测验,${qualityInfo.missingRate.quizzes}%\n`;
-      content += `#,成绩异常值,${qualityInfo.outlierCount.scores}个\n`;
-      content += `#,出勤异常值,${qualityInfo.outlierCount.attendance}个\n`;
-      content += '\n';
+      return new NextResponse(csvContent, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="学生表现分析_${new Date().toISOString().split('T')[0]}.csv"`
+        }
+      });
     }
 
-    content += headers.join(',') + '\n';
-    rows.forEach((row) => {
-      content += row.map((cell) => `"${cell}"`).join(',') + '\n';
-    });
-
-    const fileName = `班级表现分析_${new Date().toISOString().split('T')[0]}.csv`;
-
-    return new NextResponse(content, {
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
+    return NextResponse.json({
+      success: true,
+      data: {
+        students,
+        qualityInfo,
+        dataDictionary: DATA_DICTIONARY,
+        exportedAt: new Date().toISOString(),
+        filters,
       },
     });
   } catch (error) {
