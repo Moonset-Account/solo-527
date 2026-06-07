@@ -15,10 +15,20 @@ class DataService:
         if db_url is None:
             db_url = get_db_url()
         
-        if is_timescaledb_enabled():
-            self.session, self.engine = init_timescaledb(db_url)
-        else:
-            self.session, self.engine = init_db(db_url)
+        try:
+            if is_timescaledb_enabled():
+                print(f"正在连接 TimescaleDB: {db_url}")
+                self.session, self.engine = init_timescaledb(db_url)
+                print("TimescaleDB 连接成功")
+            else:
+                print(f"正在连接数据库: {db_url}")
+                self.session, self.engine = init_db(db_url)
+                print("数据库连接成功")
+        except Exception as e:
+            print(f"数据库连接失败: {e}")
+            print("尝试使用默认 SQLite 数据库...")
+            self.session, self.engine = init_db('sqlite:///cold_storage.db')
+            print("已回退到默认 SQLite 数据库")
     
     def get_zones(self):
         zones = self.session.query(TemperatureZone).all()

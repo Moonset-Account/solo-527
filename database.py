@@ -174,17 +174,26 @@ def init_db(db_url=None):
 def init_timescaledb(db_url=None):
     if db_url is None:
         db_url = get_db_url()
+    
+    if 'sqlite' in db_url:
+        print("警告：SQLite 不支持 TimescaleDB，自动回退到普通 SQLite 模式")
+        return init_db(db_url)
+    
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
-        conn.execute(text("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);"))
-        conn.execute(text("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);"))
-        conn.execute(text("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);"))
-        conn.execute(text("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);"))
-        conn.execute(text("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);"))
-        conn.commit()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
+            conn.execute(text("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);"))
+            conn.execute(text("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);"))
+            conn.execute(text("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);"))
+            conn.execute(text("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);"))
+            conn.execute(text("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);"))
+            conn.commit()
+        print("TimescaleDB 超表创建成功")
+    except Exception as e:
+        print(f"TimescaleDB 初始化警告（使用普通 PostgreSQL 模式）: {e}")
     
     Session = sessionmaker(bind=engine)
     return Session(), engine
