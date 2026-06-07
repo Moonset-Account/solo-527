@@ -7,6 +7,21 @@ export const WEATHER_OPTIONS = [
   { label: '大风', value: 'windy' }
 ]
 
+export const WEATHER_CATEGORY_MAP: Record<string, string> = {
+  sunny: 'favorable',
+  rainy: 'adverse',
+  snowy: 'adverse',
+  foggy: 'adverse',
+  hot: 'extreme',
+  windy: 'adverse'
+}
+
+export const WEATHER_CATEGORY_LABELS: Record<string, string> = {
+  favorable: '晴好',
+  adverse: '恶劣',
+  extreme: '极端'
+}
+
 export const TIME_PERIOD_OPTIONS = [
   { label: '早餐时段(6:00-9:00)', value: 'breakfast' },
   { label: '午餐时段(11:00-13:00)', value: 'lunch' },
