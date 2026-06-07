@@ -16,7 +16,7 @@ TIMESCALEDB_URI = os.getenv(
 
 TIMESCALEDB_SCHEMA = os.getenv("TIMESCALEDB_SCHEMA", "public")
 
-DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")
+DB_ENGINE = os.getenv("DB_ENGINE", "timescaledb")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-in-prod")
 

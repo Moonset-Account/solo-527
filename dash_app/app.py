@@ -61,16 +61,41 @@ def _user(uid_str):
         s.close()
 
 
-def _params(sd, ed, team, ath_id, program, stype, exercise):
+def _merge_params(sd, ed, team, ath_id, program, stype, exercise, drill_filters):
     p = {}
     if sd: p["start_date"] = sd
     if ed: p["end_date"] = ed
+    if stype: p["session_type"] = stype
     if team: p["team"] = team
     if ath_id: p["athlete_id"] = str(ath_id)
     if program: p["program"] = program
-    if stype: p["session_type"] = stype
     if exercise: p["exercise_name"] = exercise
+    for dim in DRILL_LEVELS:
+        val = drill_filters.get(dim)
+        if val and dim not in p:
+            if dim == "athlete":
+                name_to_id = _athlete_name_to_id()
+                aid = name_to_id.get(val)
+                if aid: p["athlete_id"] = str(aid)
+            elif dim == "training_day":
+                p["start_date"] = val
+                p["end_date"] = val
+            else:
+                p[dim] = val
     return p
+
+
+_ATH_NAME_MAP = None
+
+def _athlete_name_to_id():
+    global _ATH_NAME_MAP
+    if _ATH_NAME_MAP is None:
+        s = SessionLocal()
+        try:
+            _ATH_NAME_MAP = {a.name: a.id for a in s.query(Athlete).all()}
+        finally:
+            s.close()
+    return _ATH_NAME_MAP
 
 
 def _query_agg(group_by, params, user):
@@ -157,6 +182,31 @@ def _query_hr(params, user):
         s.close()
 
 
+def _query_hr_detail(params, user):
+    s = SessionLocal()
+    try:
+        q = s.query(HeartRate).join(Athlete, HeartRate.athlete_id == Athlete.id)
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(HeartRate.athlete_id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(HeartRate.recorded_at >= params["start_date"])
+        if params.get("end_date"): q = q.filter(HeartRate.recorded_at <= params["end_date"] + " 23:59:59")
+        q = q.filter(HeartRate.is_anomaly == True)
+        rows = q.order_by(HeartRate.recorded_at.desc()).limit(200).all()
+        out = []
+        for r in rows:
+            ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+            out.append({
+                "id": r.id, "athlete_id": r.athlete_id, "athlete_name": ath.name if ath else None,
+                "team": ath.team if ath else None, "recorded_at": r.recorded_at.isoformat(),
+                "hr_bpm": r.hr_bpm, "hr_zone": r.hr_zone,
+                "activity": r.activity, "is_anomaly": r.is_anomaly, "notes": r.notes,
+            })
+        return pd.DataFrame(out)
+    finally:
+        s.close()
+
+
 def _query_pace(params, user):
     s = SessionLocal()
     try:
@@ -179,6 +229,32 @@ def _query_pace(params, user):
             "date": r.date, "avg_pace": round(r.avg_pace, 2), "best_pace": round(r.best_pace, 2),
             "total_km": round(r.total_km, 1) if r.total_km else None,
         } for r in rows])
+    finally:
+        s.close()
+
+
+def _query_pace_detail(params, user):
+    s = SessionLocal()
+    try:
+        q = s.query(Pace).join(Athlete, Pace.athlete_id == Athlete.id)
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(Pace.athlete_id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(Pace.recorded_at >= params["start_date"])
+        if params.get("end_date"): q = q.filter(Pace.recorded_at <= params["end_date"] + " 23:59:59")
+        q = q.filter(Pace.is_anomaly == True)
+        rows = q.order_by(Pace.recorded_at.desc()).limit(200).all()
+        out = []
+        for r in rows:
+            ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+            out.append({
+                "id": r.id, "athlete_id": r.athlete_id, "athlete_name": ath.name if ath else None,
+                "team": ath.team if ath else None, "recorded_at": r.recorded_at.isoformat(),
+                "pace_min_per_km": r.pace_min_per_km, "distance_km": r.distance_km,
+                "duration_min": r.duration_min, "activity": r.activity,
+                "is_anomaly": r.is_anomaly, "notes": r.notes,
+            })
+        return pd.DataFrame(out)
     finally:
         s.close()
 
@@ -261,61 +337,86 @@ def _query_injuries(params, user):
         s.close()
 
 
-def _query_anomaly_records(metric_type, params, user):
+def _get_record_detail(record_type, record_id, user):
     s = SessionLocal()
     try:
-        out = []
-        if metric_type == "heartrate":
-            q = s.query(HeartRate).join(Athlete, HeartRate.athlete_id == Athlete.id)
-            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
-            if params.get("athlete_id"): q = q.filter(HeartRate.athlete_id == int(params["athlete_id"]))
-            if params.get("start_date"): q = q.filter(HeartRate.recorded_at >= params["start_date"])
-            if params.get("end_date"): q = q.filter(HeartRate.recorded_at <= params["end_date"] + " 23:59:59")
-            q = q.filter(HeartRate.is_anomaly == True)
-            for r in q.limit(200).all():
+        if record_type == "heartrate":
+            r = s.query(HeartRate).filter_by(id=record_id).first()
+            if r:
+                if user and user.role == "athlete" and user.athlete_id != r.athlete_id:
+                    return None
                 ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-                out.append({"type": "heartrate", "id": r.id, "athlete_name": ath.name if ath else None,
-                            "time": r.recorded_at.isoformat(), "value": f"{r.hr_bpm} bpm",
-                            "activity": r.activity, "notes": r.notes or ""})
-        elif metric_type == "pace":
-            q = s.query(Pace).join(Athlete, Pace.athlete_id == Athlete.id)
-            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
-            if params.get("athlete_id"): q = q.filter(Pace.athlete_id == int(params["athlete_id"]))
-            if params.get("start_date"): q = q.filter(Pace.recorded_at >= params["start_date"])
-            if params.get("end_date"): q = q.filter(Pace.recorded_at <= params["end_date"] + " 23:59:59")
-            q = q.filter(Pace.is_anomaly == True)
-            for r in q.limit(200).all():
+                return html.Div([
+                    html.H5(f"心率异常记录 #{r.id}", style={"color": C["danger"]}),
+                    html.Table([
+                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(ath.name if ath else "")]),
+                        html.Tr([html.Td("时间", style={"color": C["muted"]}), html.Td(r.recorded_at.isoformat())]),
+                        html.Tr([html.Td("心率", style={"color": C["muted"]}), html.Td(f"{r.hr_bpm} bpm")]),
+                        html.Tr([html.Td("心率区间", style={"color": C["muted"]}), html.Td(str(r.hr_zone))]),
+                        html.Tr([html.Td("活动", style={"color": C["muted"]}), html.Td(r.activity or "")]),
+                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(r.notes or "无")]),
+                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
+                ])
+        elif record_type == "pace":
+            r = s.query(Pace).filter_by(id=record_id).first()
+            if r:
+                if user and user.role == "athlete" and user.athlete_id != r.athlete_id:
+                    return None
                 ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-                out.append({"type": "pace", "id": r.id, "athlete_name": ath.name if ath else None,
-                            "time": r.recorded_at.isoformat(), "value": f"{r.pace_min_per_km} min/km",
-                            "activity": r.activity, "notes": r.notes or ""})
-        elif metric_type == "strength":
-            q = s.query(StrengthTest).join(Athlete, StrengthTest.athlete_id == Athlete.id)
-            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
-            if params.get("athlete_id"): q = q.filter(StrengthTest.athlete_id == int(params["athlete_id"]))
-            if params.get("start_date"): q = q.filter(StrengthTest.test_date >= params["start_date"])
-            if params.get("end_date"): q = q.filter(StrengthTest.test_date <= params["end_date"])
-            q = q.filter(StrengthTest.is_anomaly == True)
-            for r in q.limit(200).all():
+                return html.Div([
+                    html.H5(f"配速异常记录 #{r.id}", style={"color": C["danger"]}),
+                    html.Table([
+                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(ath.name if ath else "")]),
+                        html.Tr([html.Td("时间", style={"color": C["muted"]}), html.Td(r.recorded_at.isoformat())]),
+                        html.Tr([html.Td("配速", style={"color": C["muted"]}), html.Td(f"{r.pace_min_per_km} min/km")]),
+                        html.Tr([html.Td("距离", style={"color": C["muted"]}), html.Td(f"{r.distance_km} km")]),
+                        html.Tr([html.Td("时长", style={"color": C["muted"]}), html.Td(f"{r.duration_min} min")]),
+                        html.Tr([html.Td("活动", style={"color": C["muted"]}), html.Td(r.activity or "")]),
+                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(r.notes or "无")]),
+                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
+                ])
+        elif record_type == "strength":
+            r = s.query(StrengthTest).filter_by(id=record_id).first()
+            if r:
+                if user and user.role == "athlete" and user.athlete_id != r.athlete_id:
+                    return None
                 ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-                out.append({"type": "strength", "id": r.id, "athlete_name": ath.name if ath else None,
-                            "time": r.test_date.isoformat(), "value": f"{r.exercise_name} {r.one_rm_kg}kg",
-                            "activity": "", "notes": r.notes or ""})
-        elif metric_type == "recovery":
-            q = s.query(RecoveryScore).join(Athlete, RecoveryScore.athlete_id == Athlete.id)
-            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
-            if params.get("athlete_id"): q = q.filter(RecoveryScore.athlete_id == int(params["athlete_id"]))
-            if params.get("start_date"): q = q.filter(RecoveryScore.score_date >= params["start_date"])
-            if params.get("end_date"): q = q.filter(RecoveryScore.score_date <= params["end_date"])
-            q = q.filter(RecoveryScore.is_anomaly == True)
-            for r in q.limit(200).all():
+                return html.Div([
+                    html.H5(f"力量测试异常记录 #{r.id}", style={"color": C["danger"]}),
+                    html.Table([
+                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(ath.name if ath else "")]),
+                        html.Tr([html.Td("测试日", style={"color": C["muted"]}), html.Td(r.test_date.isoformat())]),
+                        html.Tr([html.Td("动作", style={"color": C["muted"]}), html.Td(r.exercise_name)]),
+                        html.Tr([html.Td("1RM", style={"color": C["muted"]}), html.Td(f"{r.one_rm_kg} kg")]),
+                        html.Tr([html.Td("最大次数", style={"color": C["muted"]}), html.Td(str(r.max_reps))]),
+                        html.Tr([html.Td("速度", style={"color": C["muted"]}), html.Td(f"{r.velocity_ms} m/s" if r.velocity_ms else "")]),
+                        html.Tr([html.Td("功率", style={"color": C["muted"]}), html.Td(f"{r.power_w} W" if r.power_w else "")]),
+                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(r.notes or "无")]),
+                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
+                ])
+        elif record_type == "recovery":
+            r = s.query(RecoveryScore).filter_by(id=record_id).first()
+            if r:
+                if user and user.role == "athlete" and user.athlete_id != r.athlete_id:
+                    return None
                 ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-                out.append({"type": "recovery", "id": r.id, "athlete_name": ath.name if ath else None,
-                            "time": r.score_date.isoformat(), "value": f"恢复 {r.overall_score}",
-                            "activity": "", "notes": r.notes or ""})
-        return out
+                return html.Div([
+                    html.H5(f"恢复评分异常记录 #{r.id}", style={"color": C["danger"]}),
+                    html.Table([
+                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(ath.name if ath else "")]),
+                        html.Tr([html.Td("日期", style={"color": C["muted"]}), html.Td(r.score_date.isoformat())]),
+                        html.Tr([html.Td("综合评分", style={"color": C["muted"]}), html.Td(str(r.overall_score))]),
+                        html.Tr([html.Td("睡眠", style={"color": C["muted"]}), html.Td(str(r.sleep_score))]),
+                        html.Tr([html.Td("疲劳", style={"color": C["muted"]}), html.Td(str(r.fatigue_score))]),
+                        html.Tr([html.Td("压力", style={"color": C["muted"]}), html.Td(str(r.stress_score))]),
+                        html.Tr([html.Td("酸痛", style={"color": C["muted"]}), html.Td(str(r.soreness_score))]),
+                        html.Tr([html.Td("HRV(ms)", style={"color": C["muted"]}), html.Td(str(r.hrv_ms))]),
+                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(r.notes or "无")]),
+                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
+                ])
     finally:
         s.close()
+    return None
 
 
 app.layout = html.Div([
@@ -327,7 +428,7 @@ app.layout = html.Div([
         html.Span("体能教练日常复盘平台", style={"color": C["muted"], "fontSize": "0.8rem", "marginLeft": "1rem"}),
     ], style={"marginBottom": "0.3rem"}),
 
-    html.Div(id="breadcrumb", style={"color": C["warning"], "fontSize": "0.78rem", "marginBottom": "0.8rem", "cursor": "pointer"}),
+    html.Div(id="breadcrumb", style={"color": C["warning"], "fontSize": "0.78rem", "marginBottom": "0.8rem"}),
 
     dbc.Row([
         dbc.Col([html.Label("队伍", style={"color": C["muted"], "fontSize": "0.72rem"}),
@@ -402,43 +503,43 @@ def load_filters(_, team, role):
 
 @app.callback(Output("breadcrumb", "children"), Input("drilldown-state", "data"))
 def update_breadcrumb(ds):
-    dp = DrilldownPath()
-    dp.current_level = ds.get("level", 0)
-    dp.filters = ds.get("filters", {})
+    ds = ds or {"level": 0, "filters": {}}
+    level = ds.get("level", 0)
+    filters = ds.get("filters", {})
+    if level == 0:
+        return "📍 全部（点击图表柱下钻）"
     parts = ["📍 全部"]
-    for dim in DRILL_LEVELS[:dp.current_level]:
-        val = dp.filters.get(dim, "?")
-        parts.append(f" {DRILL_LABELS.get(dim, dim)}={val}")
-    return "".join(parts) if len(parts) == 1 else "📍 " + " > ".join(
-        [f"{DRILL_LABELS.get(dim, dim)}={dp.filters.get(dim, '?')}" for dim in DRILL_LEVELS[:dp.current_level]]
-    ) if dp.current_level > 0 else "📍 全部（点击图表柱/点下钻）"
+    for dim in DRILL_LEVELS[:level]:
+        val = filters.get(dim, "?")
+        parts.append(f"{DRILL_LABELS.get(dim, dim)}={val}")
+    return " > ".join(parts)
 
 
 @app.callback([Output("summary-row", "children"), Output("tab-content", "children")],
           [Input("f-team", "value"), Input("f-athlete", "value"),
            Input("f-date", "start_date"), Input("f-date", "end_date"),
            Input("f-stype", "value"), Input("f-role", "value"),
-           Input("tab-main", "value")],
-          State("drilldown-state", "data"))
+           Input("tab-main", "value"),
+           Input("drilldown-state", "data")])
 def render_all(team, ath_id, sd, ed, stype, role, tab, ds):
     import traceback
     try:
         uid = "1" if role == "coach" else "2"
         user = _user(uid)
-        params = _params(sd, ed, team, ath_id, None, stype, None)
 
-        level = ds.get("level", 0) if ds else 0
-        filters = ds.get("filters", {}) if ds else {}
-        drill_program = filters.get("program")
-        drill_exercise = filters.get("exercise")
-        if drill_program: params["program"] = drill_program
-        if drill_exercise: params["exercise_name"] = drill_exercise
+        ds = ds or {"level": 0, "filters": {}}
+        level = ds.get("level", 0)
+        drill_filters = ds.get("filters", {})
+
+        params = _merge_params(sd, ed, team, ath_id, None, stype, None, drill_filters)
 
         hr_df = _query_hr(params, user)
         pace_df = _query_pace(params, user)
         str_df = _query_strength(params, user)
         rec_df = _query_recovery(params, user)
         inj_df = _query_injuries(params, user)
+        hr_detail = _query_hr_detail(params, user)
+        pace_detail = _query_pace_detail(params, user)
 
         agg_dim = DRILL_LEVELS[min(level, len(DRILL_LEVELS) - 1)]
         if agg_dim == "metric":
@@ -457,9 +558,9 @@ def render_all(team, ath_id, sd, ed, stype, role, tab, ds):
         if tab == "tab-load":
             content = _render_load_tab(load_df, rec_df, str_df, level)
         elif tab == "tab-hr":
-            content = _render_hr_tab(hr_df)
+            content = _render_hr_tab(hr_df, hr_detail)
         elif tab == "tab-pace":
-            content = _render_pace_tab(pace_df)
+            content = _render_pace_tab(pace_df, pace_detail)
         elif tab == "tab-str":
             content = _render_str_tab(str_df)
         elif tab == "tab-rec":
@@ -467,7 +568,7 @@ def render_all(team, ath_id, sd, ed, stype, role, tab, ds):
         elif tab == "tab-inj":
             content = _render_inj_tab(inj_df, user)
         elif tab == "tab-cal":
-            content = _render_cal_tab(params, user)
+            content = _render_cal_tab()
         else:
             content = html.Div("")
 
@@ -568,7 +669,7 @@ def _render_load_tab(load_df, rec_df, str_df, level):
     ])
 
 
-def _render_hr_tab(hr_df):
+def _render_hr_tab(hr_df, hr_detail_df):
     fig = go.Figure()
     if not hr_df.empty and "date" in hr_df.columns:
         if "avg_hr" in hr_df.columns:
@@ -583,10 +684,34 @@ def _render_hr_tab(hr_df):
     fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
                       margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
                       yaxis={"title": "bpm", "gridcolor": C["border"]}, xaxis={"gridcolor": C["border"]}, hovermode="x unified")
-    return dbc.Row([dbc.Col(_card("心率趋势", [dcc.Graph(figure=fig)]), width=12)])
+
+    anom_rows = []
+    if not hr_detail_df.empty:
+        for _, r in hr_detail_df.iterrows():
+            anom_rows.append(html.Tr([
+                html.Td(str(r.get("athlete_name", "")), style={"color": C["text"]}),
+                html.Td(str(r.get("recorded_at", ""))[:16], style={"color": C["muted"]}),
+                html.Td(str(r.get("hr_bpm", "")), style={"color": C["danger"], "fontWeight": "bold"}),
+                html.Td(str(r.get("activity", "")), style={"color": C["muted"]}),
+                html.Td(dbc.Button("查看详情", size="sm", color="danger", outline=True,
+                                   id={"type": "btn-hr-detail", "index": int(r["id"])},
+                                   style={"fontSize": "0.7rem", "padding": "0.1rem 0.4rem"})),
+            ]))
+
+    anom_table = ""
+    if anom_rows:
+        hdr = [html.Th(h, style={"color": C["primary"], "fontSize": "0.75rem"})
+               for h in ["队员", "时间", "心率", "活动", "操作"]]
+        anom_table = html.Div([
+            html.H6("异常心率记录（点击查看原始详情）", style={"color": C["danger"], "fontSize": "0.82rem", "marginTop": "1rem"}),
+            html.Table([html.Thead(html.Tr(hdr)), html.Tbody(anom_rows)],
+                       style={"width": "100%", "fontSize": "0.75rem"}, className="table table-dark table-sm"),
+        ])
+
+    return dbc.Row([dbc.Col(_card("心率趋势", [dcc.Graph(figure=fig), anom_table]), width=12)])
 
 
-def _render_pace_tab(pace_df):
+def _render_pace_tab(pace_df, pace_detail_df):
     fig = go.Figure()
     if not pace_df.empty and "date" in pace_df.columns:
         if "avg_pace" in pace_df.columns:
@@ -603,7 +728,31 @@ def _render_pace_tab(pace_df):
                       yaxis={"title": "min/km", "gridcolor": C["border"]},
                       yaxis2={"title": "km", "overlaying": "y", "side": "right", "gridcolor": C["border"]},
                       xaxis={"gridcolor": C["border"]}, hovermode="x unified")
-    return dbc.Row([dbc.Col(_card("配速趋势", [dcc.Graph(figure=fig)]), width=12)])
+
+    anom_rows = []
+    if not pace_detail_df.empty:
+        for _, r in pace_detail_df.iterrows():
+            anom_rows.append(html.Tr([
+                html.Td(str(r.get("athlete_name", "")), style={"color": C["text"]}),
+                html.Td(str(r.get("recorded_at", ""))[:16], style={"color": C["muted"]}),
+                html.Td(str(r.get("pace_min_per_km", "")), style={"color": C["danger"], "fontWeight": "bold"}),
+                html.Td(str(r.get("distance_km", "")), style={"color": C["muted"]}),
+                html.Td(dbc.Button("查看详情", size="sm", color="danger", outline=True,
+                                   id={"type": "btn-pace-detail", "index": int(r["id"])},
+                                   style={"fontSize": "0.7rem", "padding": "0.1rem 0.4rem"})),
+            ]))
+
+    anom_table = ""
+    if anom_rows:
+        hdr = [html.Th(h, style={"color": C["primary"], "fontSize": "0.75rem"})
+               for h in ["队员", "时间", "配速", "距离", "操作"]]
+        anom_table = html.Div([
+            html.H6("异常配速记录（点击查看原始详情）", style={"color": C["danger"], "fontSize": "0.82rem", "marginTop": "1rem"}),
+            html.Table([html.Thead(html.Tr(hdr)), html.Tbody(anom_rows)],
+                       style={"width": "100%", "fontSize": "0.75rem"}, className="table table-dark table-sm"),
+        ])
+
+    return dbc.Row([dbc.Col(_card("配速趋势", [dcc.Graph(figure=fig), anom_table]), width=12)])
 
 
 def _render_str_tab(str_df):
@@ -621,7 +770,32 @@ def _render_str_tab(str_df):
     fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
                       margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
                       yaxis={"title": "1RM (kg)", "gridcolor": C["border"]}, xaxis={"gridcolor": C["border"]}, hovermode="x unified")
-    return dbc.Row([dbc.Col(_card("力量测试趋势（异常点可点击查看详情）", [dcc.Graph(figure=fig, id="graph-strength")]), width=12)])
+
+    anom_rows = []
+    if not str_df.empty and "is_anomaly" in str_df.columns:
+        anom = str_df[str_df["is_anomaly"] == True]
+        for _, r in anom.iterrows():
+            anom_rows.append(html.Tr([
+                html.Td(str(r.get("athlete_name", "")), style={"color": C["text"]}),
+                html.Td(str(r.get("test_date", "")), style={"color": C["muted"]}),
+                html.Td(str(r.get("exercise_name", "")), style={"color": C["text"]}),
+                html.Td(str(r.get("one_rm_kg", "")), style={"color": C["danger"], "fontWeight": "bold"}),
+                html.Td(dbc.Button("查看详情", size="sm", color="danger", outline=True,
+                                   id={"type": "btn-str-detail", "index": int(r["id"])},
+                                   style={"fontSize": "0.7rem", "padding": "0.1rem 0.4rem"})),
+            ]))
+
+    anom_table = ""
+    if anom_rows:
+        hdr = [html.Th(h, style={"color": C["primary"], "fontSize": "0.75rem"})
+               for h in ["队员", "测试日", "动作", "1RM", "操作"]]
+        anom_table = html.Div([
+            html.H6("力量异常记录（点击查看原始详情）", style={"color": C["danger"], "fontSize": "0.82rem", "marginTop": "1rem"}),
+            html.Table([html.Thead(html.Tr(hdr)), html.Tbody(anom_rows)],
+                       style={"width": "100%", "fontSize": "0.75rem"}, className="table table-dark table-sm"),
+        ])
+
+    return dbc.Row([dbc.Col(_card("力量测试趋势", [dcc.Graph(figure=fig, id="graph-strength"), anom_table]), width=12)])
 
 
 def _render_rec_tab(rec_df):
@@ -644,7 +818,31 @@ def _render_rec_tab(rec_df):
                       margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
                       yaxis={"title": "评分", "gridcolor": C["border"], "range": [0, 100]},
                       xaxis={"gridcolor": C["border"]}, hovermode="x unified")
-    return dbc.Row([dbc.Col(_card("恢复评分趋势（异常点点击查看原始记录）", [dcc.Graph(figure=fig, id="graph-rec-detail")]), width=12)])
+
+    anom_rows = []
+    if not rec_df.empty and "is_anomaly" in rec_df.columns:
+        anom = rec_df[rec_df["is_anomaly"] == True]
+        for _, r in anom.iterrows():
+            anom_rows.append(html.Tr([
+                html.Td(str(r.get("athlete_name", "")), style={"color": C["text"]}),
+                html.Td(str(r.get("score_date", "")), style={"color": C["muted"]}),
+                html.Td(str(r.get("overall_score", "")), style={"color": C["danger"], "fontWeight": "bold"}),
+                html.Td(dbc.Button("查看详情", size="sm", color="danger", outline=True,
+                                   id={"type": "btn-rec-detail", "index": int(r["id"])},
+                                   style={"fontSize": "0.7rem", "padding": "0.1rem 0.4rem"})),
+            ]))
+
+    anom_table = ""
+    if anom_rows:
+        hdr = [html.Th(h, style={"color": C["primary"], "fontSize": "0.75rem"})
+               for h in ["队员", "日期", "综合评分", "操作"]]
+        anom_table = html.Div([
+            html.H6("恢复异常记录（点击查看原始详情）", style={"color": C["danger"], "fontSize": "0.82rem", "marginTop": "1rem"}),
+            html.Table([html.Thead(html.Tr(hdr)), html.Tbody(anom_rows)],
+                       style={"width": "100%", "fontSize": "0.75rem"}, className="table table-dark table-sm"),
+        ])
+
+    return dbc.Row([dbc.Col(_card("恢复评分趋势", [dcc.Graph(figure=fig, id="graph-rec-detail"), anom_table]), width=12)])
 
 
 def _render_inj_tab(inj_df, user):
@@ -675,7 +873,7 @@ def _render_inj_tab(inj_df, user):
                       style={"width": "100%", "fontSize": "0.78rem"}, className="table table-dark table-sm")
 
 
-def _render_cal_tab(params, user):
+def _render_cal_tab():
     return html.Div([
         html.P("校验维度: 训练计划RPE | 心率范围 | 配速范围 | 力量下降阈值 | 恢复评分异常",
                style={"color": C["muted"], "fontSize": "0.8rem"}),
@@ -724,25 +922,44 @@ def handle_drill(click, up_n, reset_n, ds):
 
 @app.callback(
     [Output("modal-detail", "is_open"), Output("modal-detail-body", "children")],
-    [Input("graph-rec-detail", "clickData"), Input("btn-close-detail", "n_clicks")],
+    [Input({"type": "btn-hr-detail", "index": ALL}, "n_clicks"),
+     Input({"type": "btn-pace-detail", "index": ALL}, "n_clicks"),
+     Input({"type": "btn-str-detail", "index": ALL}, "n_clicks"),
+     Input({"type": "btn-rec-detail", "index": ALL}, "n_clicks"),
+     Input("graph-rec-detail", "clickData"),
+     Input("btn-close-detail", "n_clicks")],
     [State("modal-detail", "is_open"), State("f-role", "value")],
     prevent_initial_call=True,
 )
-def handle_anomaly_click(click, close_n, is_open, role):
+def handle_detail_click(hr_clicks, pace_clicks, str_clicks, rec_clicks, graph_click, close_n, is_open, role):
     triggered = ctx.triggered_id
     if triggered == "btn-close-detail":
         return False, ""
 
-    if triggered == "graph-rec-detail" and click:
-        pt = click["points"][0]
-        point_idx = pt.get("pointIndex")
-        curve_idx = pt.get("curveIndex", 0)
+    if isinstance(triggered, dict) and "type" in triggered and "index" in triggered:
+        btn_type = triggered["type"]
+        record_id = triggered["index"]
+        type_map = {
+            "btn-hr-detail": "heartrate",
+            "btn-pace-detail": "pace",
+            "btn-str-detail": "strength",
+            "btn-rec-detail": "recovery",
+        }
+        record_type = type_map.get(btn_type)
+        if record_type:
+            uid = "1" if role == "coach" else "2"
+            user = _user(uid)
+            detail = _get_record_detail(record_type, record_id, user)
+            if detail:
+                return True, detail
+            return True, html.Div(f"记录 #{record_id} 未找到", style={"color": C["muted"]})
+
+    if triggered == "graph-rec-detail" and graph_click:
+        pt = graph_click["points"][0]
         x_val = pt.get("x", "")
         y_val = pt.get("y", "")
-
         uid = "1" if role == "coach" else "2"
         user = _user(uid)
-
         s = SessionLocal()
         try:
             rec = s.query(RecoveryScore).filter(
@@ -751,26 +968,12 @@ def handle_anomaly_click(click, close_n, is_open, role):
                 RecoveryScore.is_anomaly == True,
             ).first()
             if rec:
-                ath = s.query(Athlete).filter_by(id=rec.athlete_id).first()
-                detail = html.Div([
-                    html.H5(f"恢复评分异常记录 #{rec.id}", style={"color": C["danger"]}),
-                    html.Table([
-                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(str(ath.name if ath else ""))]),
-                        html.Tr([html.Td("日期", style={"color": C["muted"]}), html.Td(rec.score_date.isoformat())]),
-                        html.Tr([html.Td("综合评分", style={"color": C["muted"]}), html.Td(str(rec.overall_score))]),
-                        html.Tr([html.Td("睡眠", style={"color": C["muted"]}), html.Td(str(rec.sleep_score))]),
-                        html.Tr([html.Td("疲劳", style={"color": C["muted"]}), html.Td(str(rec.fatigue_score))]),
-                        html.Tr([html.Td("压力", style={"color": C["muted"]}), html.Td(str(rec.stress_score))]),
-                        html.Tr([html.Td("酸痛", style={"color": C["muted"]}), html.Td(str(rec.soreness_score))]),
-                        html.Tr([html.Td("HRV(ms)", style={"color": C["muted"]}), html.Td(str(rec.hrv_ms))]),
-                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(rec.notes or "无")]),
-                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
-                ])
-                return True, detail
+                detail = _get_record_detail("recovery", rec.id, user)
+                if detail:
+                    return True, detail
         finally:
             s.close()
-
-        return True, html.Div(f"点击日期: {x_val}, 评分: {y_val} — 未找到异常记录原始数据", style={"color": C["muted"]})
+        return True, html.Div(f"日期: {x_val}, 评分: {y_val}", style={"color": C["muted"]})
 
     return is_open, ""
 
@@ -780,15 +983,17 @@ def handle_anomaly_click(click, close_n, is_open, role):
     Input("btn-run-caliber", "n_clicks"),
     [State("f-date", "start_date"), State("f-date", "end_date"),
      State("f-team", "value"), State("f-athlete", "value"),
-     State("f-stype", "value"), State("f-role", "value")],
+     State("f-stype", "value"), State("f-role", "value"),
+     State("drilldown-state", "data")],
     prevent_initial_call=True,
 )
-def run_caliber(n, sd, ed, team, ath_id, stype, role):
+def run_caliber(n, sd, ed, team, ath_id, stype, role, ds):
     if not n:
         return False, ""
     uid = "1" if role == "coach" else "2"
     user = _user(uid)
-    params = _params(sd, ed, team, ath_id, None, stype, None)
+    drill_filters = ds.get("filters", {}) if ds else {}
+    params = _merge_params(sd, ed, team, ath_id, None, stype, None, drill_filters)
 
     data_by_dim = {
         "heartrate": _query_hr(params, user).to_dict("records"),
@@ -799,7 +1004,12 @@ def run_caliber(n, sd, ed, team, ath_id, stype, role):
     results = run_all_checks(data_by_dim)
     summary = format_check_summary(results)
 
-    filter_desc = f"口径: 队伍={team or '全部'}, 队员={ath_id or '全部'}, 日期={sd}~{ed}, 类型={stype or '全部'}\n\n"
+    filter_desc = f"口径: 队伍={team or '全部'}, 队员={ath_id or '全部'}, 日期={sd}~{ed}, 类型={stype or '全部'}\n"
+    for dim in DRILL_LEVELS:
+        val = drill_filters.get(dim)
+        if val:
+            filter_desc += f"  下钻 {DRILL_LABELS.get(dim, dim)}={val}\n"
+    filter_desc += "\n"
     rules = "规则:\n"
     rules += "  心率: " + ", ".join(v["label"] for v in HEARTRATE_RULES.values()) + "\n"
     rules += "  配速: " + ", ".join(v["label"] for v in PACE_RULES.values()) + "\n"
@@ -827,15 +1037,15 @@ def export_csv(n, team, ath_id, sd, ed, stype, role, ds):
         return dash.no_update
     uid = "1" if role == "coach" else "2"
     user = _user(uid)
-    params = _params(sd, ed, team, ath_id, None, stype, None)
+    drill_filters = ds.get("filters", {}) if ds else {}
+    params = _merge_params(sd, ed, team, ath_id, None, stype, None, drill_filters)
     df = _query_agg("training_day", params, user)
 
     caliber = f"口径: 队伍={team or '全部'} 队员={ath_id or '全部'} 日期={sd}~{ed} 类型={stype or '全部'}"
     if ds:
-        filters = ds.get("filters", {})
         level = ds.get("level", 0)
         caliber += f" 下钻层级={level}"
-        for k, v in filters.items():
+        for k, v in drill_filters.items():
             caliber += f" {k}={v}"
 
     output = io.StringIO()
