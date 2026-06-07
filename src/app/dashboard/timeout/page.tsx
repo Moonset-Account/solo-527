@@ -11,13 +11,14 @@ import { AlertTriangle, Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TimeoutPage() {
-  const { teamIds } = useFilterStore();
+  const { teamIds, dateRange } = useFilterStore();
   const [days, setDays] = useState(7);
   const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: timeoutTrend = [] } = trpc.dashboard.getTimeoutTrend.useQuery({
     days,
     teamIds: teamIds.length > 0 ? teamIds : undefined,
+    dateRange,
   });
 
   const handleExport = useCallback(() => {

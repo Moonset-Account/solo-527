@@ -103,12 +103,33 @@ export function generateTeamWorkload(
   return data;
 }
 
-export function generateTimeoutTrend(days = 7, teamIds?: string[]): TimeoutTrendPoint[] {
+export function generateTimeoutTrend(
+  days = 7,
+  teamIds?: string[],
+  dateRange?: { start: string; end: string }
+): TimeoutTrendPoint[] {
   const data: TimeoutTrendPoint[] = [];
-  const now = new Date();
-  
-  const teamFactor = teamIds?.length 
-    ? 1 + (teamIds.length / mockTeams.length - 0.5) * 0.3 
+  const now = dateRange ? new Date(dateRange.end) : new Date();
+
+  const teamFactor = teamIds?.length
+    ? 1 + (teamIds.length / mockTeams.length - 0.5) * 0.3
+    : 1;
+
+  const rangeFactor = dateRange
+    ? Math.max(
+        0.8,
+        Math.min(
+          1.3,
+          1 +
+            (Math.ceil(
+              (new Date(dateRange.end).getTime() -
+                new Date(dateRange.start).getTime()) /
+                (1000 * 60 * 60 * 24)
+            ) -
+              7) *
+              0.03
+        )
+      )
     : 1;
 
   for (let d = days - 1; d >= 0; d--) {
@@ -117,12 +138,16 @@ export function generateTimeoutTrend(days = 7, teamIds?: string[]): TimeoutTrend
       date.setDate(date.getDate() - d);
       date.setHours(h, 0, 0, 0);
 
-      const isPeak = h >= 10 && h <= 12 || h >= 15 && h <= 19;
-      const baseWait = (isPeak ? 60 : 25) * teamFactor;
+      const isPeak = (h >= 10 && h <= 12) || (h >= 15 && h <= 19);
+      const baseWait = (isPeak ? 60 : 25) * teamFactor * rangeFactor;
       const variation = ((d * 13 + h * 7) % 20);
       const avgWaitTime = Math.round(baseWait + variation);
-      const sessionCount = Math.round((80 + (d * 17 + h * 3) % 60) * teamFactor);
-      const timeoutCount = Math.round(sessionCount * (avgWaitTime > 45 ? 0.15 : 0.05));
+      const sessionCount = Math.round(
+        (80 + ((d * 17 + h * 3) % 60)) * teamFactor * rangeFactor
+      );
+      const timeoutCount = Math.round(
+        sessionCount * (avgWaitTime > 45 ? 0.15 : 0.05)
+      );
 
       data.push({
         time: `${date.getMonth() + 1}/${date.getDate()} ${h}:00`,
@@ -176,36 +201,57 @@ export function generateTagDistribution(
     .sort((a, b) => b.count - a.count);
 }
 
-export function generateStaffRanking(teamIds?: string[]): StaffMetrics[] {
-  let staffs = mockStaffs.filter(s => s.role === "agent");
+export function generateStaffRanking(
+  teamIds?: string[],
+  dateRange?: { start: string; end: string }
+): StaffMetrics[] {
+  let staffs = mockStaffs.filter((s) => s.role === "agent");
   if (teamIds?.length) {
-    staffs = staffs.filter(s => teamIds.includes(s.teamId));
+    staffs = staffs.filter((s) => teamIds.includes(s.teamId));
   }
-  
-  return staffs.map((staff, idx) => {
-    const baseSkill = 1 - idx * 0.02;
-    const probationPenalty = staff.isProbation ? 0.85 : 1;
-    const randomFactor = 0.85 + ((idx * 13 + staff.id.charCodeAt(6)) % 30) / 100;
-    const skill = baseSkill * probationPenalty * randomFactor;
 
-    return {
-      staffId: staff.id,
-      staffName: staff.name,
-      isProbation: staff.isProbation,
-      teamId: staff.teamId,
-      sessionCount: Math.round(80 + skill * 120),
-      avgWaitTime: Math.round(60 - skill * 35),
-      avgDuration: Math.round(180 + (1 - skill) * 120),
-      transferRate: Math.round((0.2 - skill * 0.15) * 100) / 100,
-      avgQualityScore: Math.round(70 + skill * 25),
-      satisfaction: Math.round(3.5 + skill * 1.5 * 10) / 10,
-      workloadScore: Math.round(50 + skill * 40),
-    };
-  }).sort((a, b) => {
-    const scoreA = a.avgQualityScore * 0.4 + a.satisfaction * 10 * 0.3 + (100 - a.transferRate * 100) * 0.3;
-    const scoreB = b.avgQualityScore * 0.4 + b.satisfaction * 10 * 0.3 + (100 - b.transferRate * 100) * 0.3;
-    return scoreB - scoreA;
-  });
+  const startDate = dateRange ? new Date(dateRange.start) : new Date();
+  const daysDiff = dateRange
+    ? Math.ceil(
+        (new Date(dateRange.end).getTime() - startDate.getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : 7;
+
+  return staffs
+    .map((staff, idx) => {
+      const baseSkill = 1 - idx * 0.02;
+      const probationPenalty = staff.isProbation ? 0.85 : 1;
+      const randomFactor =
+        0.85 + ((idx * 13 + staff.id.charCodeAt(6)) % 30) / 100;
+      const dateFactor = 0.95 + (daysDiff / 30) * 0.1;
+      const skill = baseSkill * probationPenalty * randomFactor * dateFactor;
+
+      return {
+        staffId: staff.id,
+        staffName: staff.name,
+        isProbation: staff.isProbation,
+        teamId: staff.teamId,
+        sessionCount: Math.round((80 + skill * 120) * (daysDiff / 7)),
+        avgWaitTime: Math.round(60 - skill * 35),
+        avgDuration: Math.round(180 + (1 - skill) * 120),
+        transferRate: Math.round((0.2 - skill * 0.15) * 100) / 100,
+        avgQualityScore: Math.round((70 + skill * 25) * 10) / 10,
+        satisfaction: Math.round((3.5 + skill * 1.5) * 10) / 10,
+        workloadScore: Math.round(50 + skill * 40),
+      };
+    })
+    .sort((a, b) => {
+      const scoreA =
+        a.avgQualityScore * 0.4 +
+        a.satisfaction * 10 * 0.3 +
+        (100 - a.transferRate * 100) * 0.3;
+      const scoreB =
+        b.avgQualityScore * 0.4 +
+        b.satisfaction * 10 * 0.3 +
+        (100 - b.transferRate * 100) * 0.3;
+      return scoreB - scoreA;
+    });
 }
 
 export function generateDashboardMetrics(dateRange?: { start: string; end: string }, teamIds?: string[]): DashboardMetrics {
@@ -321,4 +367,45 @@ export function generateLowQualitySessions(includeRestricted = true): QualitySes
       tags: ["订单查询", "退款申请"],
     },
   ].filter(s => includeRestricted || !s.isRestricted);
+}
+
+const dynamicScheduleChanges: ScheduleChange[] = [];
+
+export function addScheduleChange(change: Omit<ScheduleChange, "id" | "changedAt">): ScheduleChange {
+  const newChange: ScheduleChange = {
+    ...change,
+    id: `change-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    changedAt: new Date().toISOString(),
+  };
+  dynamicScheduleChanges.unshift(newChange);
+  return newChange;
+}
+
+export function getAllScheduleChanges(): ScheduleChange[] {
+  return [...dynamicScheduleChanges, ...generateScheduleChanges()];
+}
+
+export function generateWorkloadSnapshot(teamIds?: string[]): {
+  before: Record<string, number>;
+  after: Record<string, number>;
+  teams: string[];
+} {
+  const teams = teamIds?.length
+    ? mockTeams.filter((t) => teamIds.includes(t.id))
+    : mockTeams;
+  
+  const before: Record<string, number> = {};
+  const after: Record<string, number> = {};
+  
+  teams.forEach((team, idx) => {
+    const baseLoad = 50 + idx * 15;
+    before[team.name] = Math.round(baseLoad + (Math.random() - 0.5) * 20);
+    after[team.name] = Math.round(baseLoad * 0.85 + (Math.random() - 0.5) * 15);
+  });
+  
+  return {
+    before,
+    after,
+    teams: teams.map((t) => t.name),
+  };
 }

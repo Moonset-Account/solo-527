@@ -11,12 +11,13 @@ import { format } from "date-fns";
 import { Users, Trophy, Star, Clock, ArrowRightLeft } from "lucide-react";
 
 export default function StaffPage() {
-  const { teamIds } = useFilterStore();
+  const { teamIds, dateRange } = useFilterStore();
   const today = format(new Date(), "yyyy-MM-dd");
 
   const { data: staffRanking = [] } = trpc.dashboard.getStaffRanking.useQuery({
     teamIds: teamIds.length > 0 ? teamIds : undefined,
     includeProbation: true,
+    dateRange,
   });
 
   const handleExport = useCallback(() => {

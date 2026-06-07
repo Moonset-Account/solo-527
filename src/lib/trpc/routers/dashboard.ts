@@ -11,6 +11,9 @@ import {
   generateLowQualitySessions,
   mockTeams,
   mockStaffs,
+  addScheduleChange,
+  getAllScheduleChanges,
+  generateWorkloadSnapshot,
 } from "@/lib/mock/data";
 import { format, startOfDay, endOfDay, subDays } from "date-fns";
 
@@ -79,10 +82,21 @@ export const dashboardRouter = router({
       z.object({
         days: z.number().default(7),
         teamIds: z.array(z.string()).optional().nullable(),
+        dateRange: z
+          .object({
+            start: z.string(),
+            end: z.string(),
+          })
+          .optional()
+          .nullable(),
       })
     )
     .query(async ({ input }) => {
-      return generateTimeoutTrend(input.days, input.teamIds ?? undefined);
+      return generateTimeoutTrend(
+        input.days,
+        input.teamIds ?? undefined,
+        input.dateRange ?? undefined
+      );
     }),
 
   getTagDistribution: protectedProcedure
@@ -110,10 +124,20 @@ export const dashboardRouter = router({
       z.object({
         teamIds: z.array(z.string()).optional().nullable(),
         includeProbation: z.boolean().default(false),
+        dateRange: z
+          .object({
+            start: z.string(),
+            end: z.string(),
+          })
+          .optional()
+          .nullable(),
       })
     )
     .query(async ({ input }) => {
-      const ranking = generateStaffRanking(input.teamIds ?? undefined);
+      const ranking = generateStaffRanking(
+        input.teamIds ?? undefined,
+        input.dateRange ?? undefined
+      );
       if (input.includeProbation) {
         return ranking;
       }
@@ -137,7 +161,7 @@ export const dashboardRouter = router({
     }),
 
   getScheduleChanges: protectedProcedure.query(async () => {
-    return generateScheduleChanges();
+    return getAllScheduleChanges();
   }),
 
   getLowQualitySessions: protectedProcedure
@@ -147,27 +171,59 @@ export const dashboardRouter = router({
         threshold: z.number().default(70),
       })
     )
-    .query(async ({ input }) => {
-      return generateLowQualitySessions(input.includeRestricted);
+    .query(async ({ input, ctx }) => {
+      const canViewRestricted =
+        ctx.user?.role === "supervisor" || ctx.user?.role === "admin";
+      return generateLowQualitySessions(
+        input.includeRestricted && canViewRestricted
+      );
     }),
 
   adjustSchedule: protectedProcedure
     .input(
       z.object({
         scheduleId: z.string(),
+        staffId: z.string().optional(),
         startHour: z.number(),
         endHour: z.number(),
         shiftType: z.string(),
         reason: z.string().optional(),
+        teamIds: z.array(z.string()).optional().nullable(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const snapshot = generateWorkloadSnapshot(
+        input.teamIds ?? undefined
+      );
+
+      const beforeHour = input.startHour >= 12 ? input.startHour - 6 : input.startHour + 6;
+      const beforeShift = input.shiftType === "morning" ? "afternoon" : "morning";
+
+      const change = addScheduleChange({
+        scheduleId: input.scheduleId,
+        beforeSnapshot: {
+          startHour: beforeHour,
+          endHour: beforeHour + 8,
+          shiftType: beforeShift,
+          workload: snapshot.before,
+        } as Record<string, unknown>,
+        afterSnapshot: {
+          startHour: input.startHour,
+          endHour: input.endHour,
+          shiftType: input.shiftType,
+          workload: snapshot.after,
+        } as Record<string, unknown>,
+        changedBy: ctx.user?.id || "supervisor-1",
+        reason: input.reason || "主管调班",
+      });
+
       return {
         success: true,
         message: "班次调整成功",
-        changeId: `change-${Date.now()}`,
-        beforeSnapshot: { startHour: input.startHour - 4, endHour: input.endHour - 4 },
-        afterSnapshot: { startHour: input.startHour, endHour: input.endHour, shiftType: input.shiftType },
+        changeId: change.id,
+        beforeSnapshot: change.beforeSnapshot,
+        afterSnapshot: change.afterSnapshot,
+        workloadSnapshot: snapshot,
       };
     }),
 });

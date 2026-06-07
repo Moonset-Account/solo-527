@@ -32,15 +32,24 @@ const cache = new LRUCache<string, { data: unknown; timestamp: number }>({
   ttl: 5 * 60 * 1000,
 });
 
-const cacheMiddleware = t.middleware(async ({ next, path, input }) => {
-  const cacheKey = `${path}:${hashObject(input as object)}`;
+const authMiddleware = t.middleware(({ next, ctx }) => {
+  if (!ctx.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({
+    ctx: {
+      user: ctx.user,
+    },
+  });
+});
+
+const cacheMiddleware = t.middleware(async ({ next, path, input, ctx }) => {
+  const userKey = ctx.user ? `${ctx.user.id}:${ctx.user.role}` : "public";
+  const cacheKey = `${userKey}:${path}:${hashObject(input as object)}`;
   const cached = cache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
-    return {
-      ok: true,
-      data: cached.data as unknown,
-    } as Awaited<ReturnType<typeof next>>;
+    return next();
   }
 
   const result = await next();
@@ -55,17 +64,6 @@ const cacheMiddleware = t.middleware(async ({ next, path, input }) => {
   return result;
 });
 
-const authMiddleware = t.middleware(({ next, ctx }) => {
-  if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-  return next({
-    ctx: {
-      user: ctx.user,
-    },
-  });
-});
-
 const roleMiddleware = (allowedRoles: UserRole[]) =>
   t.middleware(({ next, ctx }) => {
     if (!ctx.user || !allowedRoles.includes(ctx.user.role)) {
@@ -75,7 +73,7 @@ const roleMiddleware = (allowedRoles: UserRole[]) =>
   });
 
 export const router = t.router;
-export const publicProcedure = t.procedure.use(cacheMiddleware);
-export const protectedProcedure = t.procedure.use(cacheMiddleware).use(authMiddleware);
+export const publicProcedure = t.procedure;
+export const protectedProcedure = t.procedure.use(authMiddleware);
 export const supervisorProcedure = protectedProcedure.use(roleMiddleware(["supervisor", "admin"]));
 export const adminProcedure = protectedProcedure.use(roleMiddleware(["admin"]));
