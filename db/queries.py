@@ -110,6 +110,24 @@ class QueriesService:
             return df.iloc[0:0]
         return df[df["section_id"].isin(sids)].copy()
 
+    def _get_version_raw_records(self, table_name, chapter_id, version_id):
+        if self._data is not None:
+            data = self._get_data(table_name)
+            return self._filter_by_section_ids(data, chapter_id, version_id)
+        table_columns = {
+            "viewing_records": "time, user_id, section_id, duration_seconds, completion_pct",
+            "quiz_records": "time, user_id, section_id, quiz_id, score, total_questions, correct_answers",
+            "error_records": "time, user_id, section_id, question_id, selected_answer, correct_answer",
+            "discussion_records": "time, user_id, section_id, content, topic_tags",
+            "learning_path_events": "time, user_id, section_id, event_type, from_section_id, to_section_id",
+        }
+        columns = table_columns.get(table_name, "*")
+        sec_filter, sec_params = self._get_section_filter_sql(
+            version_id=version_id, chapter_id=chapter_id
+        )
+        sql = f"SELECT {columns} FROM {table_name} WHERE 1=1{sec_filter}"
+        return self._query_to_df(sql, sec_params if sec_params else None)
+
     def _split_periods(self, df, update_date, time_col="time"):
         if df.empty or update_date is None:
             return df, pd.DataFrame(), pd.DataFrame()

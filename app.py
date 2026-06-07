@@ -266,10 +266,12 @@ def _get_mapped_data(chapter_id, version_id=None):
         "unmapped_viewing": pd.DataFrame(),
         "unmapped_quiz": pd.DataFrame(),
         "unmapped_error": pd.DataFrame(),
+        "unmapped_discussion": pd.DataFrame(),
         "unmapped_section_info": [],
         "has_multiple": has_multiple,
         "old_vid": old_vid,
         "new_vid": new_vid,
+        "unmapped_old_sids": set(),
     }
 
     update_date = queries.get_update_date(chapter_id)
@@ -299,32 +301,22 @@ def _get_mapped_data(chapter_id, version_id=None):
     _, unmapped_section_info = mapping_service.get_section_mapping(old_vid, new_vid)
     result["unmapped_section_info"] = unmapped_section_info
 
-    old_viewing_raw = queries._filter_by_section_ids(
-        queries._get_data("viewing_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, old_vid
-    )
-    new_viewing_raw = queries._filter_by_section_ids(
-        queries._get_data("viewing_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, new_vid
-    )
+    unmapped_old_sids = set()
+    for rec in unmapped_section_info:
+        if rec.get("version") == "old":
+            unmapped_old_sids.add(rec["section_id"])
+    result["unmapped_old_sids"] = unmapped_old_sids
 
-    old_quiz_raw = queries._filter_by_section_ids(
-        queries._get_data("quiz_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, old_vid
-    )
-    new_quiz_raw = queries._filter_by_section_ids(
-        queries._get_data("quiz_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, new_vid
-    )
-
-    old_error_raw = queries._filter_by_section_ids(
-        queries._get_data("error_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, old_vid
-    )
-    new_error_raw = queries._filter_by_section_ids(
-        queries._get_data("error_records") if queries._data is not None else pd.DataFrame(),
-        chapter_id, new_vid
-    )
+    old_viewing_raw = queries._get_version_raw_records("viewing_records", chapter_id, old_vid)
+    new_viewing_raw = queries._get_version_raw_records("viewing_records", chapter_id, new_vid)
+    old_quiz_raw = queries._get_version_raw_records("quiz_records", chapter_id, old_vid)
+    new_quiz_raw = queries._get_version_raw_records("quiz_records", chapter_id, new_vid)
+    old_error_raw = queries._get_version_raw_records("error_records", chapter_id, old_vid)
+    new_error_raw = queries._get_version_raw_records("error_records", chapter_id, new_vid)
+    old_disc_raw = queries._get_version_raw_records("discussion_records", chapter_id, old_vid)
+    new_disc_raw = queries._get_version_raw_records("discussion_records", chapter_id, new_vid)
+    old_lp_raw = queries._get_version_raw_records("learning_path_events", chapter_id, old_vid)
+    new_lp_raw = queries._get_version_raw_records("learning_path_events", chapter_id, new_vid)
 
     mapped_viewing, unmapped_viewing = mapping_service.map_records_to_new_structure(
         old_viewing_raw, old_vid, new_vid
@@ -399,39 +391,87 @@ def _get_mapped_data(chapter_id, version_id=None):
             name="error_count"
         )
 
-    result["discussion"] = queries.get_discussion_aggregation(chapter_id)
+    if not old_disc_raw.empty:
+        if unmapped_old_sids:
+            old_disc_mapped = old_disc_raw[~old_disc_raw["section_id"].isin(unmapped_old_sids)].copy()
+        else:
+            old_disc_mapped = old_disc_raw
+        unmapped_disc = old_disc_raw[old_disc_raw["section_id"].isin(unmapped_old_sids)].copy()
+        result["unmapped_discussion"] = unmapped_disc
+    else:
+        old_disc_mapped = old_disc_raw
+        unmapped_disc = pd.DataFrame()
+
+    if not old_disc_mapped.empty and not new_disc_raw.empty:
+        combined_disc = pd.concat([old_disc_mapped, new_disc_raw], ignore_index=True)
+    elif not old_disc_mapped.empty:
+        combined_disc = old_disc_mapped
+    else:
+        combined_disc = new_disc_raw
+
+    if not combined_disc.empty:
+        combined_disc["date"] = pd.to_datetime(combined_disc["time"]).dt.date
+        all_tags = []
+        for _, row in combined_disc.iterrows():
+            tags = row.get("topic_tags", [])
+            if isinstance(tags, str):
+                import ast
+                try:
+                    tags = ast.literal_eval(tags)
+                except Exception:
+                    tags = [tags]
+            if isinstance(tags, (list, tuple)):
+                for tag in tags:
+                    all_tags.append({"date": row["date"], "tag": tag, "section_id": row["section_id"]})
+        if all_tags:
+            tags_df = pd.DataFrame(all_tags)
+            tags_df["date"] = pd.to_datetime(tags_df["date"])
+            agg = tags_df.groupby(["date", "tag"]).size().reset_index(name="count")
+            result["discussion"] = queries._apply_period_column(agg, update_date, "date")
+
     result["refund"] = queries.get_refund_comparison(chapter_id)
 
-    old_lp_agg, old_lp_flow = queries.get_learning_path_data(chapter_id, old_vid)
-    new_lp_agg, new_lp_flow = queries.get_learning_path_data(chapter_id, new_vid)
+    if not old_lp_raw.empty:
+        if unmapped_old_sids:
+            old_lp_mapped = old_lp_raw[~old_lp_raw["section_id"].isin(unmapped_old_sids)].copy()
+        else:
+            old_lp_mapped = old_lp_raw
+    else:
+        old_lp_mapped = old_lp_raw
 
-    agg_parts = []
-    if not old_lp_agg.empty:
-        agg_parts.append(old_lp_agg)
-    if not new_lp_agg.empty:
-        agg_parts.append(new_lp_agg)
-    event_agg = pd.concat(agg_parts, ignore_index=True) if agg_parts else pd.DataFrame()
+    if not old_lp_mapped.empty and not new_lp_raw.empty:
+        combined_lp = pd.concat([old_lp_mapped, new_lp_raw], ignore_index=True)
+    elif not old_lp_mapped.empty:
+        combined_lp = old_lp_mapped
+    else:
+        combined_lp = new_lp_raw
 
-    if not event_agg.empty:
-        event_agg = event_agg.groupby(["date", "event_type", "period"]).agg(
-            count=("count", "sum")
-        ).reset_index()
+    if not combined_lp.empty:
+        combined_lp["date"] = pd.to_datetime(combined_lp["time"]).dt.date
+        event_agg = combined_lp.groupby(["date", "event_type"]).size().reset_index(name="count")
+        event_agg["date"] = pd.to_datetime(event_agg["date"])
+        event_agg = queries._apply_period_column(event_agg, update_date, "date")
 
-    flow_parts = []
-    if not old_lp_flow.empty:
-        flow_parts.append(old_lp_flow)
-    if not new_lp_flow.empty:
-        flow_parts.append(new_lp_flow)
-    flow = pd.concat(flow_parts, ignore_index=True) if flow_parts else pd.DataFrame()
+        transitions = combined_lp[
+            combined_lp["from_section_id"].notna() & combined_lp["to_section_id"].notna()
+        ].copy()
+        if not transitions.empty and not sections.empty:
+            trans = transitions.merge(
+                sections[["id", "section_name"]].rename(
+                    columns={"id": "from_section_id", "section_name": "from_name"}
+                ), on="from_section_id", how="left"
+            ).merge(
+                sections[["id", "section_name"]].rename(
+                    columns={"id": "to_section_id", "section_name": "to_name"}
+                ), on="to_section_id", how="left"
+            )
+            flow = trans.groupby(["from_name", "to_name"]).size().reset_index(name="count")
+            flow = flow.sort_values("count", ascending=False).head(20)
+        else:
+            flow = pd.DataFrame()
 
-    if not flow.empty:
-        flow = flow.groupby(["from_name", "to_name"]).agg(
-            count=("count", "sum")
-        ).reset_index()
-        flow = flow.sort_values("count", ascending=False).head(20)
-
-    result["learning_path_events"] = event_agg
-    result["learning_path_flow"] = flow
+        result["learning_path_events"] = event_agg
+        result["learning_path_flow"] = flow
 
     return result
 
@@ -443,9 +483,11 @@ def _build_unmapped_alert(unmapped_data):
     unmapped_viewing = unmapped_data.get("unmapped_viewing", pd.DataFrame())
     unmapped_quiz = unmapped_data.get("unmapped_quiz", pd.DataFrame())
     unmapped_error = unmapped_data.get("unmapped_error", pd.DataFrame())
+    unmapped_discussion = unmapped_data.get("unmapped_discussion", pd.DataFrame())
     unmapped_section_info = unmapped_data.get("unmapped_section_info", [])
 
-    if unmapped_viewing.empty and unmapped_quiz.empty and unmapped_error.empty:
+    if (unmapped_viewing.empty and unmapped_quiz.empty
+            and unmapped_error.empty and unmapped_discussion.empty):
         if not unmapped_section_info:
             return dbc.Alert(
                 "✅ 所有旧章节小节均可映射到新结构，学习记录已完整映射。",
@@ -469,6 +511,8 @@ def _build_unmapped_alert(unmapped_data):
         sample_parts.append(f"测验记录 {len(unmapped_quiz)} 条")
     if not unmapped_error.empty:
         sample_parts.append(f"错题记录 {len(unmapped_error)} 条")
+    if not unmapped_discussion.empty:
+        sample_parts.append(f"讨论记录 {len(unmapped_discussion)} 条")
 
     sample_detail = "，涉及 " + "、".join(sample_parts) if sample_parts else ""
 
@@ -509,6 +553,18 @@ def _build_unmapped_alert(unmapped_data):
         record_detail_rows.append(
             html.Tr([html.Td("错题"), html.Td(str(len(unmapped_error))),
                      html.Td(", ".join(ue["section_name"].unique()[:5]) if "section_name" in ue.columns else "—")])
+        )
+
+    if not unmapped_discussion.empty:
+        ud = unmapped_discussion.copy()
+        if not sections.empty and "section_id" in ud.columns:
+            ud = ud.merge(
+                sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                on="section_id", how="left"
+            )
+        record_detail_rows.append(
+            html.Tr([html.Td("讨论"), html.Td(str(len(unmapped_discussion))),
+                     html.Td(", ".join(ud["section_name"].unique()[:5]) if "section_name" in ud.columns else "—")])
         )
 
     alert_content = [
@@ -860,6 +916,7 @@ def update_drilldown(chapter_id, version_id, record_type, page, page_size, filte
 
     if has_multiple and version_id is None:
         mapped = _get_mapped_data(chapter_id, version_id=None)
+        unmapped_old_sids = mapped.get("unmapped_old_sids", set())
 
         parts = []
         if record_type in ("all", "viewing") and not mapped["unmapped_viewing"].empty:
@@ -884,6 +941,9 @@ def update_drilldown(chapter_id, version_id, record_type, page, page_size, filte
             parts.append(ue)
 
         mapped_df = queries.get_raw_records(chapter_id, version_id, record_type, start_date, end_date)
+        if not mapped_df.empty and unmapped_old_sids and "section_id" in mapped_df.columns:
+            mapped_df = mapped_df[~mapped_df["section_id"].isin(unmapped_old_sids)].copy()
+
         if not mapped_df.empty:
             old_sids = set(queries.get_section_ids_for_version(old_vid))
             new_sids = set(queries.get_section_ids_for_version(new_vid))
@@ -891,7 +951,6 @@ def update_drilldown(chapter_id, version_id, record_type, page, page_size, filte
                 mapped_df["_struct_ver"] = mapped_df["section_id"].apply(
                     lambda s: "旧版→新版(已映射)" if s in new_sids else ("旧版" if s in old_sids else "新版")
                 )
-                mapped_df["mapping_type"] = mapped_df.get("mapping_type", "")
             parts.append(mapped_df)
 
         if not parts:

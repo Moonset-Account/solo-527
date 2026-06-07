@@ -41,6 +41,7 @@ class ExportService:
             unmapped_viewing = mapped_data.get("unmapped_viewing", pd.DataFrame())
             unmapped_quiz = mapped_data.get("unmapped_quiz", pd.DataFrame())
             unmapped_error = mapped_data.get("unmapped_error", pd.DataFrame())
+            unmapped_discussion = mapped_data.get("unmapped_discussion", pd.DataFrame())
         else:
             viewing = queries_service.get_viewing_comparison(chapter_id)
             quiz = queries_service.get_quiz_comparison(chapter_id)
@@ -51,6 +52,7 @@ class ExportService:
             unmapped_viewing = pd.DataFrame()
             unmapped_quiz = pd.DataFrame()
             unmapped_error = pd.DataFrame()
+            unmapped_discussion = pd.DataFrame()
 
         if viewing is not None and not viewing.empty:
             data["观看对比"] = viewing
@@ -76,6 +78,11 @@ class ExportService:
         raw = queries_service.get_raw_records(chapter_id)
         if raw is not None and not raw.empty:
             safe_raw = raw.copy()
+            unmapped_old_sids = set()
+            if mapped_data is not None:
+                unmapped_old_sids = mapped_data.get("unmapped_old_sids", set())
+            if unmapped_old_sids and "section_id" in safe_raw.columns:
+                safe_raw = safe_raw[~safe_raw["section_id"].isin(unmapped_old_sids)].copy()
             for c in safe_raw.columns:
                 if safe_raw[c].apply(lambda x: isinstance(x, (list, dict))).any():
                     safe_raw[c] = safe_raw[c].apply(str)
@@ -118,20 +125,30 @@ class ExportService:
                 )
             unmapped_parts.append(ue)
 
+        if not unmapped_discussion.empty:
+            ud = unmapped_discussion.copy()
+            ud["记录类型"] = "讨论"
+            if not sections.empty and "section_id" in ud.columns:
+                ud = ud.merge(
+                    sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                    on="section_id", how="left"
+                )
+            unmapped_parts.append(ud)
+
         if unmapped_parts:
             unmapped_all = pd.concat(unmapped_parts, ignore_index=True)
             display_cols = [c for c in unmapped_all.columns if c in
                             ["记录类型", "time", "user_id", "section_name", "section_id",
                              "duration_seconds", "completion_pct", "score", "total_questions",
                              "correct_answers", "question_id", "selected_answer", "correct_answer",
-                             "mapping_type"]]
+                             "content", "mapping_type"]]
             col_map = {
                 "time": "时间", "user_id": "用户ID", "section_name": "小节",
                 "duration_seconds": "时长(秒)", "completion_pct": "完播率",
                 "score": "分数", "total_questions": "总题数",
                 "correct_answers": "正确数", "question_id": "题目ID",
                 "selected_answer": "选择答案", "correct_answer": "正确答案",
-                "mapping_type": "映射类型",
+                "content": "讨论内容", "mapping_type": "映射类型",
             }
             export_df = unmapped_all[display_cols].copy()
             export_df.columns = [col_map.get(c, c) for c in export_df.columns]

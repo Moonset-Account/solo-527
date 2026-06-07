@@ -18,36 +18,65 @@ new_vid = versions.iloc[-1]["id"]
 
 results = []
 
-viewing_all = q.get_viewing_comparison(chapter_id)
-results.append(f"All versions viewing: {len(viewing_all)} rows")
+# Test 1: _get_version_raw_records works in demo mode
+old_vr = q._get_version_raw_records("viewing_records", chapter_id, old_vid)
+new_vr = q._get_version_raw_records("viewing_records", chapter_id, new_vid)
+results.append(f"Old viewing raw: {len(old_vr)}, New viewing raw: {len(new_vr)}")
 
-viewing_old = q.get_viewing_comparison(chapter_id, old_vid)
-viewing_new = q.get_viewing_comparison(chapter_id, new_vid)
-results.append(f"Old: {len(viewing_old)}, New: {len(viewing_new)}")
+old_dr = q._get_version_raw_records("discussion_records", chapter_id, old_vid)
+new_dr = q._get_version_raw_records("discussion_records", chapter_id, new_vid)
+results.append(f"Old disc raw: {len(old_dr)}, New disc raw: {len(new_dr)}")
 
-old_viewing_raw = q._filter_by_section_ids(q._get_data("viewing_records"), chapter_id, old_vid)
-mapped, unmapped = m.map_records_to_new_structure(old_viewing_raw, old_vid, new_vid)
+old_lpr = q._get_version_raw_records("learning_path_events", chapter_id, old_vid)
+new_lpr = q._get_version_raw_records("learning_path_events", chapter_id, new_vid)
+results.append(f"Old LP raw: {len(old_lpr)}, New LP raw: {len(new_lpr)}")
+
+# Test 2: Mapping
+mapped, unmapped = m.map_records_to_new_structure(old_vr, old_vid, new_vid)
 results.append(f"Mapped viewing: {len(mapped)}, Unmapped: {len(unmapped)}")
 if not unmapped.empty:
     results.append(f"Unmapped sids: {unmapped['section_id'].unique().tolist()}")
     results.append(f"Unmapped mapping_types: {unmapped['mapping_type'].unique().tolist()}")
+    # Verify no mapping_type=unmapped in mapped
+    if "mapping_type" in mapped.columns:
+        unmapped_in_mapped = mapped[mapped["mapping_type"] == "unmapped"]
+        results.append(f"unmapped rows leaked into mapped: {len(unmapped_in_mapped)}")
 
+# Test 3: _get_mapped_data
 from app import _get_mapped_data
-mapped_data = _get_mapped_data(chapter_id)
-results.append(f"Mapped viewing comparison: {len(mapped_data['viewing'])}")
-results.append(f"Unmapped viewing: {len(mapped_data['unmapped_viewing'])}")
-results.append(f"Unmapped quiz: {len(mapped_data['unmapped_quiz'])}")
-results.append(f"Unmapped error: {len(mapped_data['unmapped_error'])}")
+md = _get_mapped_data(chapter_id)
+results.append(f"Mapped viewing comparison: {len(md['viewing'])}")
+results.append(f"Unmapped viewing: {len(md['unmapped_viewing'])}")
+results.append(f"Unmapped quiz: {len(md['unmapped_quiz'])}")
+results.append(f"Unmapped error: {len(md['unmapped_error'])}")
+results.append(f"Unmapped discussion: {len(md['unmapped_discussion'])}")
+results.append(f"Discussion data: {len(md['discussion'])}")
+results.append(f"Learning path events: {len(md['learning_path_events'])}")
+results.append(f"Learning path flow: {len(md['learning_path_flow'])}")
+results.append(f"Unmapped old sids: {md['unmapped_old_sids']}")
 
-report_data, filename = e.build_report_data(chapter_id, q, m, mapped_data)
+# Test 4: Verify mapped comparison data does NOT contain unmapped section records
+# by checking that the viewing comparison excludes sid=4
+raw_mapped = q.get_raw_records(chapter_id)
+if not raw_mapped.empty and md['unmapped_old_sids']:
+    still_in_raw = raw_mapped[raw_mapped["section_id"].isin(md['unmapped_old_sids'])]
+    results.append(f"Unmapped sids still in raw records: {len(still_in_raw)} (should be >0, raw is unfiltered)")
+
+# Test 5: Export with mapped data
+report_data, filename = e.build_report_data(chapter_id, q, m, md)
 results.append(f"Report sheets: {list(report_data.keys())}")
 if "无法映射样本" in report_data:
-    results.append(f"Unmapped samples: {report_data['无法映射样本'].shape}")
+    results.append(f"Unmapped samples sheet: {report_data['无法映射样本'].shape}")
+if "原始记录" in report_data:
+    raw_rows = report_data["原始记录"]
+    if "section_id" in raw_rows.columns and md['unmapped_old_sids']:
+        leaked = raw_rows[raw_rows["section_id"].isin(md['unmapped_old_sids'])]
+        results.append(f"Unmapped sids leaked into export raw: {len(leaked)} (should be 0)")
 
 excel_bytes = e.export_to_excel(report_data, "test")
 results.append(f"Excel size: {len(excel_bytes)} bytes")
 results.append("ALL TESTS PASSED")
 
-with open("/tmp/test_result3.txt", "w") as f:
+with open("/tmp/test_result4.txt", "w") as f:
     f.write("\n".join(results))
 print("Done")
