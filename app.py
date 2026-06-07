@@ -32,9 +32,10 @@ USE_MOCK = os.environ.get('USE_MOCK', 'auto').lower() in ['true', '1', 'yes']
 
 def test_db_connection():
     try:
+        from sqlalchemy import text
         engine = get_engine()
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return True
     except Exception:
         return False
@@ -42,12 +43,11 @@ def test_db_connection():
 
 def load_data_from_db():
     try:
-        from src.database.models import Window, Dish, Order, Review, WindowOutage
         from sqlalchemy import text
         engine = get_engine()
         
-        windows_df = pd.read_sql("SELECT * FROM windows WHERE is_active = TRUE", engine)
-        dishes_df = pd.read_sql("SELECT * FROM dishes", engine)
+        windows_df = pd.read_sql(text("SELECT * FROM windows WHERE is_active = TRUE"), engine)
+        dishes_df = pd.read_sql(text("SELECT * FROM dishes"), engine)
         
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=7)
@@ -283,8 +283,7 @@ def create_big_break_figure():
 
 def create_queue_start_figure(selected_window):
     def _compute():
-        metrics = QueueMetrics(orders_df)
-        return metrics.analyze_queue_start_patterns()
+        return query_layer.get_queue_start_patterns()
     
     patterns = get_cached_data('queue_patterns', _compute)
     
@@ -324,8 +323,7 @@ def create_queue_start_figure(selected_window):
 
 def create_serve_time_figure(selected_window):
     def _compute():
-        metrics = ServeMetrics(orders_df)
-        return metrics.analyze_serve_patterns()
+        return query_layer.get_serve_patterns()
     
     patterns = get_cached_data('serve_patterns', _compute)
     
@@ -346,7 +344,7 @@ def create_serve_time_figure(selected_window):
         size='serve_count',
         color='time_slot',
         custom_data=['window_id'],
-        labels={'window_name': '窗口', 'avg_serve_duration': '平均出餐时间(分钟)', 
+        labels={'window_name': '窗口', 'avg_serve_duration': '平均出餐时间(分钟)',
                 'serve_count': '出餐量', 'time_slot': '时段'}
     )
     
@@ -804,8 +802,7 @@ def update_window_detail(window_id, selected_date, include_abnormal):
      Input('last-refresh-time', 'data')]
 )
 def update_queue_stats(selected_window, _):
-    metrics = QueueMetrics(orders_df)
-    patterns = metrics.analyze_queue_start_patterns()
+    patterns = query_layer.get_queue_start_patterns()
     
     if patterns is None or patterns.empty:
         return html.Div("暂无数据")
@@ -835,10 +832,8 @@ def update_queue_stats(selected_window, _):
      Input('last-refresh-time', 'data')]
 )
 def update_wordcloud(selected_window, _):
-    review_metrics = ReviewMetrics(reviews_df, orders_df)
-    
     window_id = selected_window if selected_window != 'all' else None
-    keywords_df = review_metrics.get_keyword_frequency(window_id=window_id, min_rating=2)
+    keywords_df = query_layer.get_review_keywords(window_id=window_id, min_rating=2)
     
     from wordcloud import WordCloud
     import io
@@ -927,18 +922,25 @@ def refresh_cache(n_clicks):
         return dash.no_update, dash.no_update
     
     cache_manager.invalidate_all()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     if not query_layer.use_mock:
-        query_layer.refresh_caches()
-        mode_note = "（含连续聚合视图）"
+        success, msg = query_layer.refresh_caches()
+        if success:
+            status = html.Span([
+                html.I(className='fas fa-check-circle me-1'),
+                f'缓存已刷新（含连续聚合视图）({now})'
+            ], className='text-success')
+        else:
+            status = html.Span([
+                html.I(className='fas fa-exclamation-triangle me-1'),
+                f'缓存已刷新，但数据库视图刷新异常: {msg}'
+            ], className='text-warning')
     else:
-        mode_note = ""
-    
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    status = html.Span([
-        html.I(className='fas fa-check-circle me-1'),
-        f'缓存已刷新{mode_note} ({now})'
-    ], className='text-success')
+        status = html.Span([
+            html.I(className='fas fa-check-circle me-1'),
+            f'缓存已刷新（模拟数据模式）({now})'
+        ], className='text-success')
     
     return status, now
 
@@ -959,23 +961,24 @@ def export_data(csv_clicks, pdf_clicks, selected_date, selected_floor, selected_
     
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
-    filtered = orders_df.copy()
+    if selected_date and isinstance(selected_date, str):
+        selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
     
-    if selected_date:
-        if isinstance(selected_date, str):
-            selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
-        filtered = filtered[filtered['queue_start_time'].dt.date == selected_date]
+    filtered = query_layer.get_orders_for_export(
+        date=selected_date,
+        floor=selected_floor,
+        time_slot=selected_time_slot,
+        limit=10000
+    )
     
-    if selected_floor != 'all':
-        filtered = filtered[filtered['floor'] == selected_floor]
+    filtered['queue_start_time'] = pd.to_datetime(filtered['queue_start_time'])
     
-    if selected_time_slot != 'all':
-        filtered = filtered[filtered['time_slot'] == selected_time_slot]
+    windows_for_export = query_layer._get_windows_df() if not query_layer.use_mock else windows_df
     
     if button_id == 'export-csv-btn':
         return dcc.send_data_frame(filtered.to_csv, f"canteen_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
     elif button_id == 'export-pdf-btn':
-        pdf_path = export_to_pdf(filtered, windows_df)
+        pdf_path = export_to_pdf(filtered, windows_for_export)
         return dcc.send_file(pdf_path)
     
     return None

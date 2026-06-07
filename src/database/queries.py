@@ -579,9 +579,193 @@ class QueryLayer:
                 'count': int(row['count_val'])
             }
 
-    def refresh_caches(self):
-        if not self.use_mock:
-            try:
-                refresh_continuous_views()
-            except Exception as e:
-                print(f"刷新连续聚合视图失败: {e}")
+    def refresh_caches(self) -> Tuple[bool, str]:
+        if self.use_mock:
+            return True, "模拟数据模式，无需刷新数据库视图"
+        
+        errors = []
+        
+        try:
+            refresh_continuous_views()
+        except Exception as e:
+            errors.append(f"连续聚合视图刷新失败: {str(e)}")
+        
+        if errors:
+            return False, "; ".join(errors)
+        
+        return True, "数据库连续聚合视图刷新成功"
+
+    def get_queue_start_patterns(self) -> pd.DataFrame:
+        if self.use_mock:
+            from ..analysis.metrics import QueueMetrics
+            orders = self._get_orders_df()
+            metrics = QueueMetrics(orders)
+            return metrics.analyze_queue_start_patterns()
+        else:
+            sql = text("""
+                SELECT
+                    window_id,
+                    floor,
+                    time_slot,
+                    AVG(EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS avg_queue_start,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS median_queue_start,
+                    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS p25_queue_start,
+                    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS p75_queue_start,
+                    MIN(EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS earliest_queue,
+                    MAX(EXTRACT(EPOCH FROM queue_start_time::time) / 60) AS latest_queue,
+                    COUNT(*) AS queue_count
+                FROM orders
+                WHERE is_abnormal = FALSE
+                GROUP BY window_id, floor, time_slot
+                ORDER BY window_id, time_slot
+            """)
+
+            df = pd.read_sql(sql, self.engine)
+            
+            if not df.empty:
+                def minutes_to_time(m):
+                    if pd.isna(m):
+                        return None
+                    h = int(m // 60)
+                    mi = int(m % 60)
+                    return f"{h:02d}:{mi:02d}"
+                
+                for col in ['avg_queue_start', 'median_queue_start', 'p25_queue_start',
+                            'p75_queue_start', 'earliest_queue', 'latest_queue']:
+                    df[col + '_time'] = df[col].apply(minutes_to_time)
+            
+            return df
+
+    def get_serve_patterns(self) -> pd.DataFrame:
+        if self.use_mock:
+            from ..analysis.metrics import ServeMetrics
+            orders = self._get_orders_df()
+            metrics = ServeMetrics(orders)
+            return metrics.analyze_serve_patterns()
+        else:
+            sql = text("""
+                SELECT
+                    window_id,
+                    floor,
+                    time_slot,
+                    AVG(EXTRACT(EPOCH FROM serve_time::time) / 60) AS avg_serve_time,
+                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM serve_time::time) / 60) AS median_serve_time,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM serve_time::time) / 60) AS p95_serve_time,
+                    AVG(wait_serve) AS avg_serve_duration,
+                    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY wait_serve) AS p95_serve_duration,
+                    COUNT(*) AS serve_count,
+                    AVG(wait_payment) AS avg_payment_wait
+                FROM orders
+                WHERE is_abnormal = FALSE
+                  AND serve_time IS NOT NULL
+                GROUP BY window_id, floor, time_slot
+                ORDER BY window_id, time_slot
+            """)
+
+            df = pd.read_sql(sql, self.engine)
+            
+            if not df.empty:
+                def minutes_to_time(m):
+                    if pd.isna(m):
+                        return None
+                    h = int(m // 60)
+                    mi = int(m % 60)
+                    return f"{h:02d}:{mi:02d}"
+                
+                df['avg_serve_time_str'] = df['avg_serve_time'].apply(minutes_to_time)
+                df['median_serve_time_str'] = df['median_serve_time'].apply(minutes_to_time)
+            
+            return df
+
+    def get_review_keywords(self, window_id: int = None, min_rating: int = None, top_n: int = 50) -> pd.DataFrame:
+        if self.use_mock:
+            from ..analysis.metrics import ReviewMetrics
+            reviews = self._get_reviews_df()
+            orders = self._get_orders_df()
+            metrics = ReviewMetrics(reviews, orders)
+            return metrics.get_keyword_frequency(window_id=window_id, min_rating=min_rating, top_n=top_n)
+        else:
+            where_conditions = []
+            params = {"top_n": top_n}
+            
+            if window_id is not None:
+                where_conditions.append("window_id = :window_id")
+                params["window_id"] = window_id
+            
+            if min_rating is not None:
+                where_conditions.append("rating <= :min_rating")
+                params["min_rating"] = min_rating
+            
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+            
+            sql = text(f"""
+                WITH keyword_list AS (
+                    SELECT
+                        jsonb_array_elements_text(keywords) AS keyword
+                    FROM reviews
+                    WHERE {where_clause}
+                      AND keywords IS NOT NULL
+                      AND jsonb_typeof(keywords) = 'array'
+                )
+                SELECT
+                    keyword,
+                    COUNT(*) AS count
+                FROM keyword_list
+                GROUP BY keyword
+                ORDER BY count DESC
+                LIMIT :top_n
+            """)
+            
+            df = pd.read_sql(sql, self.engine, params=params)
+            return df
+
+    def get_orders_for_export(self,
+                               date: datetime.date = None,
+                               floor: int = None,
+                               time_slot: str = None,
+                               limit: int = 10000) -> pd.DataFrame:
+        if self.use_mock:
+            orders = self._get_orders_df()
+            orders['queue_start_time'] = pd.to_datetime(orders['queue_start_time'])
+            
+            filtered = orders.copy()
+            
+            if date:
+                filtered = filtered[filtered['queue_start_time'].dt.date == date]
+            if floor is not None and floor != 'all':
+                filtered = filtered[filtered['floor'] == floor]
+            if time_slot is not None and time_slot != 'all':
+                filtered = filtered[filtered['time_slot'] == time_slot]
+            
+            return filtered.head(limit)
+        else:
+            where_conditions = []
+            params = {"limit": limit}
+            
+            if date:
+                start_dt = datetime.combine(date, datetime.min.time())
+                end_dt = start_dt + timedelta(days=1)
+                where_conditions.append("queue_start_time >= :start_dt")
+                where_conditions.append("queue_start_time < :end_dt")
+                params["start_dt"] = start_dt
+                params["end_dt"] = end_dt
+            
+            if floor is not None and floor != 'all':
+                where_conditions.append("floor = :floor")
+                params["floor"] = floor
+            
+            if time_slot is not None and time_slot != 'all':
+                where_conditions.append("time_slot = :time_slot")
+                params["time_slot"] = time_slot
+            
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+            
+            sql = text(f"""
+                SELECT * FROM orders
+                WHERE {where_clause}
+                ORDER BY queue_start_time DESC
+                LIMIT :limit
+            """)
+            
+            df = pd.read_sql(sql, self.engine, params=params)
+            return df
