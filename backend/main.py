@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, dashboard, master_data
+from app.api import auth, dashboard, master, hazards, fines, appeals, exports
 
 Base.metadata.create_all(bind=engine)
 
@@ -14,15 +14,19 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(dashboard.router, prefix="/api")
-app.include_router(master_data.router, prefix="/api")
+app.include_router(auth.router)
+app.include_router(dashboard.router)
+app.include_router(master.router)
+app.include_router(hazards.router)
+app.include_router(fines.router)
+app.include_router(appeals.router)
+app.include_router(exports.router)
 
 
 @app.get("/api/health")

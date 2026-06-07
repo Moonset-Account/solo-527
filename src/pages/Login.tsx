@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Lock, User } from 'lucide-react';
 import { useAuthStore } from '@/store';
-import { mockUsers } from '@/mock/data';
+import { authApi } from '@/services/api';
 import { cn } from '@/utils';
 
 const LoginPage: React.FC = () => {
@@ -20,17 +20,11 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      const user = mockUsers.find((u) => u.username === username);
-      if (user && password === '123456') {
-        login(user, 'mock-jwt-token');
-        navigate('/dashboard');
-      } else {
-        setError('用户名或密码错误');
-      }
-    } catch (err) {
-      setError('登录失败，请重试');
+      const result = await authApi.login(username, password);
+      login(result.user, result.access_token);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || '登录失败，请重试');
     } finally {
       setLoading(false);
     }

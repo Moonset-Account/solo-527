@@ -16,120 +16,133 @@ import {
   PaginatedResponse,
   WeatherRecord,
   StopWorkRecord,
+  User,
 } from '@/types';
-import {
-  mockHazards,
-  mockDashboardStats,
-  mockClosureRateTrend,
-  mockOverdueRanking,
-  mockFloorHeatmap,
-  mockTeamTrend,
-  mockTeams,
-  mockHazardTypes,
-  mockInspectionPoints,
-  mockFines,
-  mockFineStatistics,
-  mockAppeals,
-  mockWeatherRecords,
-  mockStopWorkRecords,
-} from '@/mock/data';
-import dayjs from 'dayjs';
+import { saveAs } from 'file-saver';
 
 const api = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
+  baseURL: 'http://localhost:8000/api',
+  timeout: 30000,
+  withCredentials: false,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const authStorage = localStorage.getItem('auth-storage');
+  if (authStorage) {
+    try {
+      const auth = JSON.parse(authStorage);
+      if (auth.state?.token) {
+        config.headers.Authorization = `Bearer ${auth.state.token}`;
+      }
+    } catch (e) {
+      console.error('Failed to parse auth storage', e);
+    }
   }
   return config;
 });
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth-storage');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
-const applyFilters = <T extends { team?: { id: string }; type?: { id: string }; status?: string; level?: string; inspectionPoint?: { floor: number }; discoveredAt?: string }>(
-  items: T[],
-  filters: FilterCriteria
-): T[] => {
-  return items.filter((item) => {
-    if (filters.teamIds?.length && item.team?.id && !filters.teamIds.includes(item.team.id)) {
-      return false;
-    }
-    if (filters.typeIds?.length && item.type?.id && !filters.typeIds.includes(item.type.id)) {
-      return false;
-    }
-    if (filters.statuses?.length && item.status && !filters.statuses.includes(item.status as any)) {
-      return false;
-    }
-    if (filters.levels?.length && item.level && !filters.levels.includes(item.level as any)) {
-      return false;
-    }
-    if (filters.floors?.length && item.inspectionPoint?.floor !== undefined && !filters.floors.includes(item.inspectionPoint.floor)) {
-      return false;
-    }
-    if (filters.dateRange && item.discoveredAt) {
-      const discovered = dayjs(item.discoveredAt);
-      const start = dayjs(filters.dateRange[0]);
-      const end = dayjs(filters.dateRange[1]);
-      if (discovered.isBefore(start) || discovered.isAfter(end)) {
-        return false;
-      }
-    }
-    if (filters.keyword) {
-      const keyword = filters.keyword.toLowerCase();
-      const str = JSON.stringify(item).toLowerCase();
-      if (!str.includes(keyword)) {
-        return false;
-      }
-    }
-    return true;
-  });
+const buildFilterParams = (filters: FilterCriteria = {}): Record<string, any> => {
+  const params: Record<string, any> = {};
+  
+  if (filters.dateRange?.length === 2) {
+    params.start_date = filters.dateRange[0];
+    params.end_date = filters.dateRange[1];
+  }
+  if (filters.floors?.length) {
+    params.floors = filters.floors;
+  }
+  if (filters.teamIds?.length) {
+    params.team_ids = filters.teamIds;
+  }
+  if (filters.typeIds?.length) {
+    params.type_ids = filters.typeIds;
+  }
+  if (filters.statuses?.length) {
+    params.statuses = filters.statuses;
+  }
+  if (filters.levels?.length) {
+    params.levels = filters.levels;
+  }
+  if (filters.keyword) {
+    params.keyword = filters.keyword;
+  }
+  
+  return params;
+};
+
+export const authApi = {
+  login: async (username: string, password: string): Promise<{ access_token: string; user: User }> => {
+    const response = await api.post('/auth/login', { username, password });
+    return response.data;
+  },
+  
+  getMe: async (): Promise<User> => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
 };
 
 export const dashboardApi = {
   getStats: async (filters: FilterCriteria = {}): Promise<DashboardStats> => {
-    await delay(300);
-    const filtered = applyFilters(mockHazards, filters);
-    const closed = filtered.filter((h) => h.status === 'closed').length;
-    const overdue = filtered.filter((h) => h.isOverdue).length;
-    const confirmedFines = filtered.filter((h) => h.fineStatus === 'confirmed');
-    const pendingFines = filtered.filter((h) => h.fineStatus === 'pending');
-    
+    const params = buildFilterParams(filters);
+    const response = await api.get('/dashboard/stats', { params });
+    const data = response.data;
     return {
-      total: filtered.length,
-      pending: filtered.filter((h) => h.status === 'pending').length,
-      inProgress: filtered.filter((h) => h.status === 'in_progress').length,
-      underReview: filtered.filter((h) => h.status === 'under_review').length,
-      closed,
-      overdue,
-      closureRate: filtered.length > 0 ? Math.round((closed / filtered.length) * 100) : 0,
-      overdueRate: filtered.length > 0 ? Math.round((overdue / filtered.length) * 100) : 0,
-      totalConfirmedFine: confirmedFines.reduce((sum, h) => sum + (h.fineAmount || 0), 0),
-      totalPendingFine: pendingFines.reduce((sum, h) => sum + (h.fineAmount || 0), 0),
+      total: data.total,
+      pending: data.pending,
+      inProgress: data.in_progress,
+      underReview: data.under_review,
+      closed: data.closed,
+      overdue: data.overdue,
+      closureRate: data.closure_rate,
+      overdueRate: data.overdue_rate,
+      totalConfirmedFine: data.total_confirmed_fine,
+      totalPendingFine: data.total_pending_fine,
     };
   },
 
   getClosureRateTrend: async (days: number = 14, filters: FilterCriteria = {}): Promise<ClosureRateTrendItem[]> => {
-    await delay(200);
-    return mockClosureRateTrend.slice(-days);
+    const params = buildFilterParams(filters);
+    params.days = days;
+    const response = await api.get('/dashboard/closure-rate-trend', { params });
+    return response.data;
   },
 
   getOverdueRanking: async (limit: number = 10, filters: FilterCriteria = {}): Promise<OverdueRankingItem[]> => {
-    await delay(200);
-    return mockOverdueRanking.slice(0, limit);
+    const params = buildFilterParams(filters);
+    params.limit = limit;
+    const response = await api.get('/dashboard/overdue-ranking', { params });
+    return response.data;
   },
 
   getFloorHeatmap: async (filters: FilterCriteria = {}): Promise<FloorHeatmapItem[]> => {
-    await delay(200);
-    return mockFloorHeatmap;
+    const params = buildFilterParams(filters);
+    delete params.statuses;
+    delete params.keyword;
+    delete params.start_date;
+    delete params.end_date;
+    const response = await api.get('/dashboard/floor-heatmap', { params });
+    return response.data;
   },
 
   getTeamTrend: async (days: number = 7, filters: FilterCriteria = {}): Promise<TeamTrendItem[]> => {
-    await delay(200);
-    return mockTeamTrend;
+    const params = buildFilterParams(filters);
+    params.days = days;
+    delete params.team_ids;
+    const response = await api.get('/dashboard/team-trend', { params });
+    return response.data;
   },
 };
 
@@ -139,56 +152,80 @@ export const hazardApi = {
     pageSize: number = 10,
     filters: FilterCriteria = {}
   ): Promise<PaginatedResponse<Hazard>> => {
-    await delay(300);
-    const filtered = applyFilters(mockHazards, filters);
-    const start = (page - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
+    const params = buildFilterParams(filters);
+    params.page = page;
+    params.page_size = pageSize;
+    const response = await api.get('/hazards', { params });
+    const data = response.data;
+    
+    const items = data.items.map((item: any) => ({
+      ...item,
+      isOverdue: item.is_overdue,
+      fineAmount: item.fine_amount,
+      fineStatus: item.fine_status,
+      rejectReasons: item.reject_reasons,
+      discoveryPhotos: item.discovery_photos,
+      rectificationRecords: item.rectification_records,
+      appealRecords: item.appeal_records,
+      inspectionPoint: item.inspection_point,
+    }));
     
     return {
       items,
-      total: filtered.length,
-      page,
-      pageSize,
+      total: data.total,
+      page: data.page,
+      pageSize: data.page_size,
     };
   },
 
   getById: async (id: string): Promise<Hazard | undefined> => {
-    await delay(200);
-    return mockHazards.find((h) => h.id === id);
+    try {
+      const response = await api.get(`/hazards/${id}`);
+      const item = response.data;
+      return {
+        ...item,
+        isOverdue: item.is_overdue,
+        fineAmount: item.fine_amount,
+        fineStatus: item.fine_status,
+        rejectReasons: item.reject_reasons,
+        discoveryPhotos: item.discovery_photos,
+        rectificationRecords: item.rectification_records,
+        appealRecords: item.appeal_records,
+        inspectionPoint: item.inspection_point,
+      };
+    } catch (e) {
+      console.error('Failed to get hazard detail', e);
+      return undefined;
+    }
   },
 
   submitRectification: async (hazardId: string, data: { description: string; photoIds: string[] }) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/hazards/${hazardId}/submit-rectification`, data);
+    return response.data;
   },
 
   reviewRectification: async (hazardId: string, data: { result: 'pass' | 'reject'; reason?: string }) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/hazards/${hazardId}/review`, data);
+    return response.data;
   },
 
   submitAppeal: async (hazardId: string, data: { reason: string }) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/hazards/${hazardId}/appeal`, data);
+    return response.data;
   },
 
   getWeatherEvidence: async (hazardId: string, startDate: string, endDate: string): Promise<WeatherRecord[]> => {
-    await delay(200);
-    return mockWeatherRecords.filter((w) => {
-      const date = dayjs(w.date);
-      return date.isAfter(dayjs(startDate).subtract(1, 'day')) && date.isBefore(dayjs(endDate).add(1, 'day'));
+    const response = await api.get(`/hazards/${hazardId}/weather-evidence`, {
+      params: { start_date: startDate, end_date: endDate },
     });
+    return response.data;
   },
 
-  getStopWorkEvidence: async (startDate: string, endDate: string): Promise<StopWorkRecord[]> => {
-    await delay(200);
-    return mockStopWorkRecords.filter((s) => {
-      const start = dayjs(s.startDate);
-      const end = dayjs(s.endDate);
-      const targetStart = dayjs(startDate);
-      const targetEnd = dayjs(endDate);
-      return start.isBefore(targetEnd) && end.isAfter(targetStart);
+  getStopWorkEvidence: async (hazardId: string, startDate: string, endDate: string): Promise<StopWorkRecord[]> => {
+    const response = await api.get(`/hazards/${hazardId}/stop-work-evidence`, {
+      params: { start_date: startDate, end_date: endDate },
     });
+    return response.data;
   },
 };
 
@@ -198,35 +235,37 @@ export const fineApi = {
     pageSize: number = 10,
     filters: FilterCriteria & { status?: string } = {}
   ): Promise<PaginatedResponse<Fine>> => {
-    await delay(300);
-    let filtered = [...mockFines];
+    const params = buildFilterParams(filters);
+    params.page = page;
+    params.page_size = pageSize;
     if (filters.status) {
-      filtered = filtered.filter((f) => f.status === filters.status);
+      params.status = filters.status;
     }
-    const start = (page - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
-    
-    return {
-      items,
-      total: filtered.length,
-      page,
-      pageSize,
-    };
+    const response = await api.get('/fines', { params });
+    return response.data;
   },
 
   confirmFine: async (fineId: string) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/fines/${fineId}/confirm`);
+    return response.data;
   },
 
   rejectFine: async (fineId: string, reason: string) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/fines/${fineId}/reject?reason=${encodeURIComponent(reason)}`);
+    return response.data;
   },
 
   getStatistics: async (filters: FilterCriteria = {}): Promise<FineStatistics> => {
-    await delay(200);
-    return mockFineStatistics;
+    const params = buildFilterParams(filters);
+    const response = await api.get('/fines/statistics', { params });
+    const data = response.data;
+    return {
+      totalConfirmed: data.total_confirmed,
+      totalPending: data.total_pending,
+      byTeam: data.by_team,
+      byType: data.by_type,
+      byMonth: data.by_month,
+    };
   },
 };
 
@@ -236,88 +275,68 @@ export const appealApi = {
     pageSize: number = 10,
     filters: FilterCriteria & { status?: string } = {}
   ): Promise<PaginatedResponse<AppealRecord>> => {
-    await delay(300);
-    let filtered = [...mockAppeals];
+    const params = buildFilterParams(filters);
+    params.page = page;
+    params.page_size = pageSize;
     if (filters.status) {
-      filtered = filtered.filter((a) => a.status === filters.status);
+      params.status = filters.status;
     }
-    const start = (page - 1) * pageSize;
-    const items = filtered.slice(start, start + pageSize);
-    
-    return {
-      items,
-      total: filtered.length,
-      page,
-      pageSize,
-    };
+    const response = await api.get('/appeals', { params });
+    return response.data;
   },
 
   handleAppeal: async (appealId: string, data: { result: 'approved' | 'rejected'; remark?: string }) => {
-    await delay(300);
-    return { success: true };
+    const response = await api.post(`/appeals/${appealId}/handle`, data);
+    return response.data;
   },
 };
 
 export const masterDataApi = {
   getTeams: async (): Promise<Team[]> => {
-    await delay(100);
-    return mockTeams;
+    const response = await api.get('/master/teams');
+    return response.data;
   },
 
   getHazardTypes: async (): Promise<HazardType[]> => {
-    await delay(100);
-    return mockHazardTypes;
+    const response = await api.get('/master/hazard-types');
+    return response.data;
   },
 
   getInspectionPoints: async (): Promise<InspectionPoint[]> => {
-    await delay(100);
-    return mockInspectionPoints;
+    const response = await api.get('/master/inspection-points');
+    return response.data;
   },
 
   getFloors: async (): Promise<number[]> => {
-    await delay(100);
-    return [-1, 1, 2, 3, 4, 5, 6];
+    const response = await api.get('/master/floors');
+    return response.data;
   },
 };
 
 export const exportApi = {
-  exportHazards: async (filters: FilterCriteria = {}): Promise<Blob> => {
-    await delay(500);
-    const data = applyFilters(mockHazards, filters);
-    const csvContent = [
-      ['隐患编号', '标题', '类型', '等级', '楼层', '责任班组', '状态', '发现时间', '截止时间'].join(','),
-      ...data.map((h) => [
-        h.code,
-        h.title,
-        h.type.name,
-        h.level,
-        h.inspectionPoint.floor,
-        h.team.name,
-        h.status,
-        h.discoveredAt,
-        h.deadline,
-      ].join(',')),
-    ].join('\n');
-    
-    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  exportHazards: async (filters: FilterCriteria = {}): Promise<void> => {
+    const params = buildFilterParams(filters);
+    params.format = 'csv';
+    const response = await api.get('/export/hazards', {
+      params,
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `隐患列表_${new Date().toISOString().slice(0, 10)}.csv`);
   },
 
-  exportFines: async (filters: FilterCriteria = {}): Promise<Blob> => {
-    await delay(500);
-    const csvContent = [
-      ['罚款编号', '隐患编号', '隐患标题', '责任班组', '金额', '状态', '创建时间'].join(','),
-      ...mockFines.map((f) => [
-        f.id,
-        f.hazardCode,
-        f.hazardTitle,
-        f.teamName,
-        f.amount,
-        f.status,
-        f.createdAt,
-      ].join(',')),
-    ].join('\n');
-    
-    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  exportFines: async (filters: FilterCriteria & { status?: string } = {}): Promise<void> => {
+    const params = buildFilterParams(filters);
+    if (filters.status) {
+      params.status = filters.status;
+    }
+    params.format = 'csv';
+    const response = await api.get('/export/fines', {
+      params,
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `罚款记录_${new Date().toISOString().slice(0, 10)}.csv`);
   },
 };
 

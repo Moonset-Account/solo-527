@@ -1,19 +1,31 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Optional, List
+
 from app.core.database import get_db
-from app.models.schemas import (
+from app.models import Hazard, Team, InspectionPoint, Fine
+from app.schemas import (
     DashboardStats,
     ClosureRateTrendItem,
     OverdueRankingItem,
     FloorHeatmapItem,
     TeamTrendItem,
-    FilterCriteria,
 )
-from app.models.models import Hazard, Team, InspectionPoint
 
-router = APIRouter(prefix="/dashboard", tags=["看板数据"])
+router = APIRouter(prefix="/api/dashboard", tags=["看板数据"])
+
+
+def apply_filters(query, db: Session, floors=None, team_ids=None, type_ids=None, levels=None):
+    if floors:
+        query = query.filter(Hazard.inspection_point_floor.in_(floors))
+    if team_ids:
+        query = query.filter(Hazard.team_id.in_(team_ids))
+    if type_ids:
+        query = query.filter(Hazard.type_id.in_(type_ids))
+    if levels:
+        query = query.filter(Hazard.level.in_(levels))
+    return query
 
 
 @router.get("/stats", response_model=DashboardStats)
@@ -29,17 +41,16 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
     
-    if floors:
-        query = query.join(InspectionPoint).filter(InspectionPoint.floor.in_(floors))
-    if team_ids:
-        query = query.filter(Hazard.team_id.in_(team_ids))
-    if type_ids:
-        query = query.filter(Hazard.type_id.in_(type_ids))
     if statuses:
         query = query.filter(Hazard.status.in_(statuses))
-    if levels:
-        query = query.filter(Hazard.level.in_(levels))
+    if keyword:
+        query = query.filter(Hazard.title.ilike(f"%{keyword}%"))
+    if start_date:
+        query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
     
     hazards = query.all()
     
@@ -50,10 +61,10 @@ def get_dashboard_stats(
     closed = sum(1 for h in hazards if h.status == 'closed')
     
     now = datetime.utcnow()
-    overdue = sum(1 for h in hazards if h.deadline < now and h.status != 'closed')
+    overdue = sum(1 for h in hazards if h.is_overdue)
     
-    closure_rate = (closed / total * 100) if total > 0 else 0
-    overdue_rate = (overdue / total * 100) if total > 0 else 0
+    closure_rate = round((closed / total * 100)) if total > 0 else 0
+    overdue_rate = round((overdue / total * 100)) if total > 0 else 0
     
     confirmed_fines = sum(float(h.fine_amount or 0) for h in hazards if h.fine_status == 'confirmed')
     pending_fines = sum(float(h.fine_amount or 0) for h in hazards if h.fine_status == 'pending')
@@ -65,8 +76,8 @@ def get_dashboard_stats(
         under_review=under_review,
         closed=closed,
         overdue=overdue,
-        closure_rate=round(closure_rate, 1),
-        overdue_rate=round(overdue_rate, 1),
+        closure_rate=closure_rate,
+        overdue_rate=overdue_rate,
         total_confirmed_fine=confirmed_fines,
         total_pending_fine=pending_fines,
     )
@@ -75,32 +86,60 @@ def get_dashboard_stats(
 @router.get("/closure-rate-trend", response_model=List[ClosureRateTrendItem])
 def get_closure_rate_trend(
     days: int = Query(14, ge=1, le=60),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    floors: Optional[List[int]] = Query(None),
+    team_ids: Optional[List[str]] = Query(None),
+    type_ids: Optional[List[str]] = Query(None),
+    levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
     result = []
     base_date = datetime.utcnow().date()
     
     for i in range(days - 1, -1, -1):
-        date = base_date - timedelta(days=i)
-        date_str = date.strftime("%m-%d")
+        current_date = base_date - timedelta(days=i)
+        date_str = current_date.strftime("%m-%d")
         
-        day_start = datetime.combine(date, datetime.min.time())
-        day_end = day_start + timedelta(days=1)
+        query = db.query(Hazard)
+        query = apply_filters(query, db, floors, team_ids, type_ids, levels)
         
-        total = db.query(Hazard).filter(Hazard.created_at < day_end).count()
-        closed = db.query(Hazard).filter(
-            Hazard.status == 'closed',
-            Hazard.closed_at >= day_start,
-            Hazard.closed_at < day_end,
+        start_dt = datetime.combine(current_date, datetime.min.time())
+        end_dt = datetime.combine(current_date, datetime.max.time())
+        
+        if start_date:
+            query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+        if end_date:
+            query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
+        
+        new_hazards = query.filter(
+            Hazard.discovered_at >= start_dt,
+            Hazard.discovered_at <= end_dt,
         ).count()
         
-        rate = (closed / total * 100) if total > 0 else 0
+        closed_hazards = query.filter(
+            Hazard.closed_at >= start_dt,
+            Hazard.closed_at <= end_dt,
+            Hazard.status == 'closed',
+        ).count()
+        
+        cumulative_query = db.query(Hazard)
+        cumulative_query = apply_filters(cumulative_query, db, floors, team_ids, type_ids, levels)
+        if start_date:
+            cumulative_query = cumulative_query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+        if end_date:
+            cumulative_query = cumulative_query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
+        
+        cumulative_before = cumulative_query.filter(Hazard.discovered_at <= end_dt).all()
+        total_before = len(cumulative_before)
+        closed_before = sum(1 for h in cumulative_before if h.status == 'closed' and h.closed_at and h.closed_at <= end_dt)
+        rate = round((closed_before / total_before * 100), 1) if total_before > 0 else 0
         
         result.append(ClosureRateTrendItem(
             date=date_str,
-            rate=round(rate, 1),
-            closed=closed,
-            total=total,
+            new_hazards=new_hazards,
+            closed_hazards=closed_hazards,
+            closure_rate=rate,
         ))
     
     return result
@@ -109,97 +148,115 @@ def get_closure_rate_trend(
 @router.get("/overdue-ranking", response_model=List[OverdueRankingItem])
 def get_overdue_ranking(
     limit: int = Query(10, ge=1, le=50),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    floors: Optional[List[int]] = Query(None),
+    type_ids: Optional[List[str]] = Query(None),
+    levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
-    teams = db.query(Team).all()
+    query = db.query(Hazard).filter(Hazard.status != 'closed')
+    query = apply_filters(query, db, floors, None, type_ids, levels)
+    
+    if start_date:
+        query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
+    
     now = datetime.utcnow()
+    hazards = query.filter(Hazard.deadline < now).all()
     
-    result = []
-    for team in teams:
-        team_hazards = db.query(Hazard).filter(
-            Hazard.team_id == team.id,
-            Hazard.deadline < now,
-            Hazard.status != 'closed',
-        ).all()
-        
-        count = len(team_hazards)
-        amount = sum(float(h.fine_amount or 0) for h in team_hazards)
-        
-        result.append(OverdueRankingItem(
-            team_id=team.id,
-            team_name=team.name,
-            count=count,
-            amount=amount,
-        ))
+    team_counts = {}
+    for h in hazards:
+        team_id = h.team_id or 'unknown'
+        team_name = h.team_name or '未分配'
+        if team_id not in team_counts:
+            team_counts[team_id] = {'team_id': team_id, 'team_name': team_name, 'overdue_count': 0}
+        team_counts[team_id]['overdue_count'] += 1
     
-    result.sort(key=lambda x: x.count, reverse=True)
-    return result[:limit]
+    ranking = sorted(team_counts.values(), key=lambda x: x['overdue_count'], reverse=True)[:limit]
+    return [OverdueRankingItem(**item) for item in ranking]
 
 
 @router.get("/floor-heatmap", response_model=List[FloorHeatmapItem])
 def get_floor_heatmap(
+    team_ids: Optional[List[str]] = Query(None),
+    type_ids: Optional[List[str]] = Query(None),
+    levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
-    points = db.query(InspectionPoint).all()
+    query = db.query(Hazard)
+    query = apply_filters(query, db, None, team_ids, type_ids, levels)
+    
+    hazards = query.all()
+    
     floor_data = {}
-    
-    for point in points:
-        if point.floor not in floor_data:
-            floor_data[point.floor] = {'count': 0, 'points': {}}
+    for h in hazards:
+        floor = h.inspection_point_floor or 0
+        if floor not in floor_data:
+            floor_data[floor] = {
+                'floor': floor,
+                'hazard_count': 0,
+                'level_1_count': 0,
+                'level_2_count': 0,
+                'level_3_count': 0,
+            }
         
-        hazard_count = db.query(Hazard).filter(
-            Hazard.inspection_point_id == point.id
-        ).count()
+        floor_data[floor]['hazard_count'] += 1
         
-        floor_data[point.floor]['count'] += hazard_count
-        floor_data[point.floor]['points'][point.name] = hazard_count
+        if h.level == 'low':
+            floor_data[floor]['level_1_count'] += 1
+        elif h.level == 'medium':
+            floor_data[floor]['level_2_count'] += 1
+        else:
+            floor_data[floor]['level_3_count'] += 1
     
-    result = []
-    for floor, data in sorted(floor_data.items()):
-        result.append(FloorHeatmapItem(
-            floor=floor,
-            count=data['count'],
-            points=[{'name': name, 'count': cnt} for name, cnt in data['points'].items()],
-        ))
-    
-    return result
+    result = sorted(floor_data.values(), key=lambda x: x['floor'])
+    return [FloorHeatmapItem(**item) for item in result]
 
 
 @router.get("/team-trend", response_model=List[TeamTrendItem])
 def get_team_trend(
     days: int = Query(7, ge=1, le=30),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    floors: Optional[List[int]] = Query(None),
+    type_ids: Optional[List[str]] = Query(None),
+    levels: Optional[List[str]] = Query(None),
     db: Session = Depends(get_db),
 ):
-    teams = db.query(Team).limit(4).all()
-    base_date = datetime.utcnow().date()
     result = []
+    base_date = datetime.utcnow().date()
     
-    for team in teams:
-        for i in range(days - 1, -1, -1):
-            date = base_date - timedelta(days=i)
-            date_str = date.strftime("%m-%d")
+    teams = db.query(Team).filter(Team.is_active == True).all()
+    
+    for i in range(days - 1, -1, -1):
+        current_date = base_date - timedelta(days=i)
+        date_str = current_date.strftime("%m-%d")
+        
+        start_dt = datetime.combine(current_date, datetime.min.time())
+        end_dt = datetime.combine(current_date, datetime.max.time())
+        
+        for team in teams:
+            query = db.query(Hazard).filter(Hazard.team_id == team.id)
+            query = apply_filters(query, db, floors, None, type_ids, levels)
             
-            day_start = datetime.combine(date, datetime.min.time())
-            day_end = day_start + timedelta(days=1)
+            if start_date:
+                query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
+            if end_date:
+                query = query.filter(Hazard.discovered_at <= datetime.fromisoformat(end_date))
             
-            total = db.query(Hazard).filter(
-                Hazard.team_id == team.id,
-                Hazard.created_at < day_end,
+            count = query.filter(
+                Hazard.discovered_at >= start_dt,
+                Hazard.discovered_at <= end_dt,
             ).count()
             
-            completed = db.query(Hazard).filter(
-                Hazard.team_id == team.id,
-                Hazard.status == 'closed',
-                Hazard.closed_at >= day_start,
-                Hazard.closed_at < day_end,
-            ).count()
-            
-            result.append(TeamTrendItem(
-                team=team.name,
-                team_id=team.id,
-                date=date_str,
-                completed=completed,
-                total=total,
-            ))
+            if count > 0 or True:
+                result.append(TeamTrendItem(
+                    date=date_str,
+                    team_id=team.id,
+                    team_name=team.name,
+                    hazard_count=count,
+                ))
     
     return result

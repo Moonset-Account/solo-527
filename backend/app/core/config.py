@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
-    DATABASE_URL: str = "sqlite:///./hazard_system.db"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/hazard_system"
     
     CORS_ORIGINS: list = [
         "http://localhost:3000",

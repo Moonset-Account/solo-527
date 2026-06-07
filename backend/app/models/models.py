@@ -1,9 +1,11 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, Numeric, Boolean, Date, JSON
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from passlib.context import CryptContext
 from app.core.database import Base
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class User(Base):
@@ -11,12 +13,20 @@ class User(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     username = Column(String(50), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    name = Column(String(100), nullable=False)
-    role = Column(String(20), nullable=False)  # director, admin, team_leader
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(100), nullable=False)
+    email = Column(String(100))
+    role = Column(String(20), nullable=False, default="viewer")  # director, admin, team_leader, viewer
     phone = Column(String(20))
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def verify_password(self, password: str) -> bool:
+        return pwd_context.verify(password, self.hashed_password)
+    
+    def set_password(self, password: str):
+        self.hashed_password = pwd_context.hash(password)
 
 
 class HazardType(Base):
@@ -25,7 +35,9 @@ class HazardType(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), nullable=False)
     code = Column(String(50), unique=True, nullable=False)
-    level = Column(String(20), nullable=False)  # low, medium, high, critical
+    description = Column(Text)
+    default_fine_amount = Column(Numeric(12, 2), default=0)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -37,6 +49,7 @@ class Team(Base):
     name = Column(String(100), nullable=False)
     leader = Column(String(50), nullable=False)
     phone = Column(String(20))
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -48,7 +61,9 @@ class InspectionPoint(Base):
     name = Column(String(100), nullable=False)
     floor = Column(Integer, nullable=False)
     area = Column(String(100))
+    description = Column(Text)
     coordinates = Column(JSON)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -72,13 +87,28 @@ class Hazard(Base):
     fine_amount = Column(Numeric(12, 2))
     fine_status = Column(String(20))  # pending, confirmed, rejected
     reject_reasons = Column(JSON, default=list)
+    
+    team_name = Column(String(100))
+    type_name = Column(String(100))
+    inspection_point_floor = Column(Integer)
+    inspection_point_name = Column(String(100))
+    discoverer_name = Column(String(100))
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    type = relationship("HazardType")
-    inspection_point = relationship("InspectionPoint")
-    team = relationship("Team")
-    discoverer = relationship("User")
+    type = relationship("HazardType", lazy="joined")
+    inspection_point = relationship("InspectionPoint", lazy="joined")
+    team = relationship("Team", lazy="joined")
+    discoverer = relationship("User", lazy="joined")
+    
+    @property
+    def is_overdue(self) -> bool:
+        if self.status == "closed":
+            return False
+        if not self.deadline:
+            return False
+        return datetime.utcnow() > self.deadline
 
 
 class StatusHistory(Base):
@@ -99,11 +129,11 @@ class RectificationRecord(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     hazard_id = Column(String, ForeignKey("hazards.id", ondelete="CASCADE"))
     description = Column(Text, nullable=False)
-    submitted_by = Column(String, ForeignKey("users.id"))
+    submitted_by = Column(String(100))
     submitted_at = Column(DateTime, default=datetime.utcnow)
     review_result = Column(String(20))  # pass, reject
     review_reason = Column(Text)
-    reviewed_by = Column(String, ForeignKey("users.id"))
+    reviewed_by = Column(String(100))
     reviewed_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -115,7 +145,7 @@ class AppealRecord(Base):
     hazard_id = Column(String, ForeignKey("hazards.id", ondelete="CASCADE"))
     reason = Column(Text, nullable=False)
     status = Column(String(20), nullable=False, default="pending")  # pending, approved, rejected
-    handled_by = Column(String, ForeignKey("users.id"))
+    handled_by = Column(String(100))
     handled_at = Column(DateTime)
     handle_remark = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -126,10 +156,14 @@ class Fine(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     hazard_id = Column(String, ForeignKey("hazards.id", ondelete="CASCADE"))
+    team_id = Column(String, ForeignKey("teams.id"))
+    team_name = Column(String(100))
     amount = Column(Numeric(12, 2), nullable=False)
+    reason = Column(Text)
     status = Column(String(20), nullable=False, default="pending")
     confirmed_by = Column(String, ForeignKey("users.id"))
     confirmed_at = Column(DateTime)
+    rejected_at = Column(DateTime)
     reject_reason = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
