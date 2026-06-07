@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import {
   Filter,
@@ -12,12 +12,14 @@ import {
   ChevronDown,
   X,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
 import { useFilterStore } from '../store/useFilterStore';
+import { useSites, useMeasurements } from '../hooks/useData';
+import { api } from '../utils/apiClient';
 import type { Measurement, TrendData } from '../types';
 import { INDICATORS, RIVER_SECTIONS, ORGANIZATIONS } from '../utils/constants';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
 import { filterMeasurements, calculateTrendData } from '../utils/dataService';
 
 export default function TrendAnalysis() {
@@ -26,8 +28,18 @@ export default function TrendAnalysis() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedMeasurement, setSelectedMeasurement] = useState<Measurement | null>(null);
 
+  const { data: sitesData } = useSites();
+  const { data: measurementsData, loading, refetch } = useMeasurements({ limit: 1000 });
+  
+  const allSites = sitesData || [];
+  const allMeasurements = measurementsData?.data || [];
+
   const filteredMeasurements = useMemo(() => {
-    return filterMeasurements(MOCK_MEASUREMENTS, query, MOCK_SITES);
+    return filterMeasurements(allMeasurements, query, allSites);
+  }, [allMeasurements, query, allSites]);
+
+  useEffect(() => {
+    refetch();
   }, [query]);
 
   const trendDataList = useMemo(() => {
@@ -318,7 +330,7 @@ export default function TrendAnalysis() {
           <div className="max-h-[500px] overflow-y-auto">
             <div className="divide-y divide-slate-100">
               {filteredMeasurements.slice(0, 20).map((m) => {
-                const site = MOCK_SITES.find((s) => s.id === m.siteId);
+                const site = allSites.find((s) => s.id === m.siteId);
                 return (
                   <div
                     key={m.id}
@@ -390,7 +402,7 @@ export default function TrendAnalysis() {
             </div>
             <div className="p-6">
               {(() => {
-                const site = MOCK_SITES.find((s) => s.id === selectedMeasurement.siteId);
+                const site = allSites.find((s) => s.id === selectedMeasurement.siteId);
                 return (
                   <>
                     <div className="grid grid-cols-2 gap-4 mb-6">

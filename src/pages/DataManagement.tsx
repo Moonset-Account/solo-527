@@ -19,11 +19,12 @@ import { INDICATORS, WATER_QUALITY_GRADES } from '../utils/constants';
 import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
 import { runQualityCheck, measurementsToCSV } from '../utils/dataService';
 import { api } from '../utils/apiClient';
+import { useQualityCheck } from '../hooks/useData';
 import type { QualityCheckResult } from '../types';
 
 export default function DataManagement() {
   const [activeTab, setActiveTab] = useState<'import' | 'quality' | 'dictionary'>('quality');
-  const [qualityCheck, setQualityCheck] = useState<QualityCheckResult | null>(null);
+  const { data: qualityData, loading: qualityLoading, refetch: refetchQuality } = useQualityCheck();
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -35,10 +36,7 @@ export default function DataManagement() {
     skipped?: number;
   } | null>(null);
 
-  useMemo(() => {
-    const result = runQualityCheck(MOCK_MEASUREMENTS, MOCK_SITES);
-    setQualityCheck(result);
-  }, []);
+  const qualityCheck = qualityData;
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -100,8 +98,7 @@ export default function DataManagement() {
       if (result.success) {
         setImportPreview([]);
         setImportFile(null);
-        const qualityResult = runQualityCheck(MOCK_MEASUREMENTS, MOCK_SITES);
-        setQualityCheck(qualityResult);
+        refetchQuality();
       }
     } catch (error) {
       setImportResult({

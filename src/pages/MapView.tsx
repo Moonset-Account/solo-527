@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Layers, MapPin, AlertTriangle, Droplets, Zap, Info, X, Eye, EyeOff } from 'lucide-react';
+import { Layers, MapPin, AlertTriangle, Droplets, Zap, Info, X, Eye, EyeOff, Loader2 } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
-import { MAP_CENTER, MAP_ZOOM, INDICATORS, WATER_QUALITY_GRADES } from '../utils/constants';
+import { useSites, useMeasurements } from '../hooks/useData';
+import { MAP_CENTER, MAP_ZOOM, WATER_QUALITY_GRADES } from '../utils/constants';
 import type { MonitoringSite, Measurement } from '../types';
 import { getWaterQualityGrade } from '../utils/dataService';
 
@@ -29,13 +29,19 @@ export default function MapView() {
   });
   const [mapError, setMapError] = useState(false);
 
+  const { data: sites, loading: sitesLoading, error: sitesError } = useSites();
+  const { data: measurementsData } = useMeasurements({ limit: 200 });
+
+  const allSites = sites || [];
+  const allMeasurements = measurementsData?.data || [];
+
   const filteredSites = useMemo(() => {
-    return MOCK_SITES.filter((site) => {
+    return allSites.filter((site) => {
       if (!layers.manual && site.type === 'manual') return false;
       if (!layers.automatic && site.type === 'automatic') return false;
 
       if (!layers.anomalies) {
-        const hasAnomaly = MOCK_MEASUREMENTS.some(
+        const hasAnomaly = allMeasurements.some(
           (m) => m.siteId === site.id && m.isAnomaly
         );
         if (hasAnomaly) return false;
@@ -43,10 +49,10 @@ export default function MapView() {
 
       return true;
     });
-  }, [layers]);
+  }, [allSites, allMeasurements, layers]);
 
   useEffect(() => {
-    if (mapContainer.current && !map.current) {
+    if (mapContainer.current && !map.current && MAPBOX_TOKEN) {
       try {
         map.current = new mapboxgl.Map({
           container: mapContainer.current,
@@ -59,7 +65,9 @@ export default function MapView() {
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
         map.current.on('load', () => {
-          addSitesToMap();
+          if (filteredSites.length > 0) {
+            addSitesToMap();
+          }
         });
 
         map.current.on('error', () => {
@@ -69,6 +77,8 @@ export default function MapView() {
         console.warn('Mapbox 加载失败，使用 fallback 视图:', e);
         setMapError(true);
       }
+    } else if (!MAPBOX_TOKEN) {
+      setMapError(true);
     }
 
     return () => {
@@ -80,10 +90,10 @@ export default function MapView() {
   }, []);
 
   useEffect(() => {
-    if (map.current && map.current.loaded()) {
+    if (map.current && map.current.loaded() && filteredSites.length > 0) {
       updateMapLayers();
     }
-  }, [layers]);
+  }, [filteredSites]);
 
   const clearMarkers = () => {
     markersRef.current.forEach((marker) => marker.remove());
@@ -96,9 +106,9 @@ export default function MapView() {
     clearMarkers();
 
     filteredSites.forEach((site) => {
-      const siteMeasurementsData = MOCK_MEASUREMENTS.filter((m) => m.siteId === site.id);
-      const latestMeasurement = siteMeasurementsData[0];
-      const hasAnomaly = siteMeasurementsData.some((m) => m.isAnomaly);
+      const siteMeas = allMeasurements.filter((m) => m.siteId === site.id);
+      const latestMeasurement = siteMeas[0];
+      const hasAnomaly = siteMeas.some((m) => m.isAnomaly);
       const grade = latestMeasurement
         ? getWaterQualityGrade('dissolvedOxygen', latestMeasurement.dissolvedOxygen)
         : null;
@@ -121,10 +131,6 @@ export default function MapView() {
         el.style.borderStyle = 'dashed';
       }
 
-      if (!layers.anomalies && hasAnomaly) {
-        el.style.display = 'none';
-      }
-
       el.addEventListener('mouseenter', () => {
         el.style.transform = 'scale(1.2)';
       });
@@ -134,7 +140,7 @@ export default function MapView() {
       el.addEventListener('click', () => {
         setSelectedSite(site);
         setSiteMeasurements(
-          MOCK_MEASUREMENTS.filter((m) => m.siteId === site.id).slice(0, 10)
+          allMeasurements.filter((m) => m.siteId === site.id).slice(0, 10)
         );
       });
 
@@ -154,40 +160,78 @@ export default function MapView() {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleSiteClick = (site: MonitoringSite) => {
+    setSelectedSite(site);
+    setSiteMeasurements(
+      allMeasurements.filter((m) => m.siteId === site.id).slice(0, 10)
+    );
+  };
+
+  if (sitesLoading) {
+    return (
+      <PageContainer title="地图监测" subtitle="加载中...">
+        <div className="bg-white rounded-xl shadow-card border border-slate-100 h-[600px] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+            <p className="text-slate-500">加载站点数据...</p>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (sitesError) {
+    return (
+      <PageContainer title="地图监测" subtitle="数据加载失败">
+        <div className="bg-white rounded-xl shadow-card border border-slate-100 h-[600px] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <AlertTriangle className="w-12 h-12 text-rose-400" />
+            <p className="text-slate-700 font-medium">{sitesError}</p>
+          </div>
+        </div>
+      </PageContainer>
+    );
+  }
+
   if (mapError) {
     return (
-      <PageContainer title="地图监测" subtitle="地图服务加载失败">
-        <div className="bg-white rounded-xl shadow-card border border-slate-100 p-12 text-center">
-          <MapPin className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-700 mb-2">地图服务暂不可用</h3>
-          <p className="text-slate-500 mb-6">
-            配置 VITE_MAPBOX_TOKEN 环境变量以启用地图功能，或使用下方网格视图
-          </p>
-
-          <div className="mb-4 flex justify-center gap-2">
-            <LayerToggleButton
-              label="人工采样"
-              active={layers.manual}
-              onClick={() => toggleLayer('manual')}
-              colorClass="amber"
-            />
-            <LayerToggleButton
-              label="自动站"
-              active={layers.automatic}
-              onClick={() => toggleLayer('automatic')}
-              colorClass="blue"
-            />
-            <LayerToggleButton
-              label="异常点"
-              active={layers.anomalies}
-              onClick={() => toggleLayer('anomalies')}
-              colorClass="rose"
-            />
+      <PageContainer title="地图监测" subtitle="网格视图">
+        <div className="bg-white rounded-xl shadow-card border border-slate-100 p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <LayerToggleButton
+                label="人工采样"
+                active={layers.manual}
+                onClick={() => toggleLayer('manual')}
+                colorClass="amber"
+              />
+              <LayerToggleButton
+                label="自动站"
+                active={layers.automatic}
+                onClick={() => toggleLayer('automatic')}
+                colorClass="blue"
+              />
+              <LayerToggleButton
+                label="异常点"
+                active={layers.anomalies}
+                onClick={() => toggleLayer('anomalies')}
+                colorClass="rose"
+              />
+            </div>
+            <div className="text-sm text-slate-500">
+              显示 {filteredSites.length}/{allSites.length} 个站点
+            </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
+          {!MAPBOX_TOKEN && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+              💡 配置 <code className="bg-amber-100 px-1.5 py-0.5 rounded">VITE_MAPBOX_TOKEN</code> 环境变量以启用交互式地图
+            </div>
+          )}
+
+          <div className="grid grid-cols-4 gap-4">
             {filteredSites.map((site) => {
-              const siteMeas = MOCK_MEASUREMENTS.filter((m) => m.siteId === site.id);
+              const siteMeas = allMeasurements.filter((m) => m.siteId === site.id);
               const hasAnomaly = siteMeas.some((m) => m.isAnomaly);
               const latest = siteMeas[0];
               const grade = latest
@@ -203,12 +247,7 @@ export default function MapView() {
                     borderColor: hasAnomaly ? '#EF4444' : 'transparent',
                     borderStyle: site.type === 'manual' ? 'dashed' : 'solid',
                   }}
-                  onClick={() => {
-                    setSelectedSite(site);
-                    setSiteMeasurements(
-                      MOCK_MEASUREMENTS.filter((m) => m.siteId === site.id).slice(0, 10)
-                    );
-                  }}
+                  onClick={() => handleSiteClick(site)}
                 >
                   <div
                     className="w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center"
@@ -220,8 +259,8 @@ export default function MapView() {
                       <Droplets className="w-5 h-5 text-white" />
                     )}
                   </div>
-                  <p className="text-sm font-medium text-slate-800 truncate">{site.name}</p>
-                  <p className="text-xs text-slate-500">{site.riverSection}</p>
+                  <p className="text-sm font-medium text-slate-800 truncate text-center">{site.name}</p>
+                  <p className="text-xs text-slate-500 text-center">{site.riverSection}</p>
                   {hasAnomaly && (
                     <p className="text-xs text-rose-600 mt-1 flex items-center justify-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
@@ -233,6 +272,14 @@ export default function MapView() {
             })}
           </div>
         </div>
+
+        {selectedSite && (
+          <SiteDetailPanel
+            site={selectedSite}
+            measurements={siteMeasurements}
+            onClose={() => setSelectedSite(null)}
+          />
+        )}
       </PageContainer>
     );
   }
@@ -267,7 +314,7 @@ export default function MapView() {
             />
           </div>
           <div className="text-xs text-slate-500">
-            显示 {filteredSites.length}/{MOCK_SITES.length} 个站点
+            显示 {filteredSites.length}/{allSites.length} 个站点
           </div>
         </div>
       }
@@ -313,68 +360,88 @@ export default function MapView() {
         </div>
 
         {selectedSite && (
-          <div className="absolute top-4 right-4 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-10">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-cyan-50 to-blue-50">
-              <div>
-                <h3 className="font-display font-semibold text-slate-800">{selectedSite.name}</h3>
-                <p className="text-xs text-slate-500">{selectedSite.code}</p>
-              </div>
-              <button
-                onClick={() => setSelectedSite(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white/50"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5">
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <InfoItem label="所属河段" value={selectedSite.riverSection} />
-                <InfoItem
-                  label="监测类型"
-                  value={selectedSite.type === 'manual' ? '人工采样' : '自动站'}
-                />
-                <InfoItem label="采样机构" value={selectedSite.organization} />
-                <InfoItem
-                  label="站点状态"
-                  value={selectedSite.status === 'active' ? '运行中' : '停用'}
-                />
-              </div>
-
-              <h4 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                <Info className="w-4 h-4 text-slate-400" />
-                最新监测数据
-              </h4>
-              <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-                {siteMeasurements.slice(0, 5).map((m) => (
-                  <div key={m.id} className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-xs text-slate-500 mb-2">
-                      {new Date(m.sampleTime).toLocaleString('zh-CN')}
-                    </p>
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <MiniMetric label="水温" value={m.temperature} unit="°C" />
-                      <MiniMetric label="pH" value={m.ph} unit="" />
-                      <MiniMetric label="DO" value={m.dissolvedOxygen} unit="" />
-                      <MiniMetric label="NH3" value={m.ammoniaNitrogen} unit="" />
-                    </div>
-                    {m.isAnomaly && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-rose-600 bg-rose-50 px-2 py-1 rounded">
-                        <AlertTriangle className="w-3 h-3" />
-                        {m.anomalyReason || '存在异常'}
-                      </div>
-                    )}
-                    {m.note && (
-                      <div className="mt-2 text-xs text-slate-600 bg-amber-50 px-2 py-1 rounded">
-                        📝 {m.note}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <SiteDetailPanel
+            site={selectedSite}
+            measurements={siteMeasurements}
+            onClose={() => setSelectedSite(null)}
+          />
         )}
       </div>
     </PageContainer>
+  );
+}
+
+interface SiteDetailPanelProps {
+  site: MonitoringSite;
+  measurements: Measurement[];
+  onClose: () => void;
+}
+
+function SiteDetailPanel({ site, measurements, onClose }: SiteDetailPanelProps) {
+  return (
+    <div className="absolute top-4 right-4 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-10">
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-cyan-50 to-blue-50">
+        <div>
+          <h3 className="font-display font-semibold text-slate-800">{site.name}</h3>
+          <p className="text-xs text-slate-500">{site.code}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-white/50"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <InfoItem label="所属河段" value={site.riverSection} />
+          <InfoItem
+            label="监测类型"
+            value={site.type === 'manual' ? '人工采样' : '自动站'}
+          />
+          <InfoItem label="采样机构" value={site.organization} />
+          <InfoItem
+            label="站点状态"
+            value={site.status === 'active' ? '运行中' : '停用'}
+          />
+        </div>
+
+        <h4 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
+          <Info className="w-4 h-4 text-slate-400" />
+          最新监测数据
+        </h4>
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+          {measurements.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">暂无监测数据</p>
+          ) : (
+            measurements.slice(0, 5).map((m) => (
+              <div key={m.id} className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs text-slate-500 mb-2">
+                  {new Date(m.sampleTime).toLocaleString('zh-CN')}
+                </p>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <MiniMetric label="水温" value={m.temperature} unit="°C" />
+                  <MiniMetric label="pH" value={m.ph} unit="" />
+                  <MiniMetric label="DO" value={m.dissolvedOxygen} unit="" />
+                  <MiniMetric label="NH3" value={m.ammoniaNitrogen} unit="" />
+                </div>
+                {m.isAnomaly && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-rose-600 bg-rose-50 px-2 py-1 rounded">
+                    <AlertTriangle className="w-3 h-3" />
+                    {m.anomalyReason || '存在异常'}
+                  </div>
+                )}
+                {m.note && (
+                  <div className="mt-2 text-xs text-slate-600 bg-amber-50 px-2 py-1 rounded">
+                    📝 {m.note}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

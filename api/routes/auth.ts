@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { validateCredentials, getUserByUsername } from '../db/index.js';
+import { getDB } from '../db/index.js';
 import { generateToken, invalidateToken } from '../middleware/auth.js';
 
 const router = Router();
@@ -16,7 +16,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = validateCredentials(username, password);
+    const user = await getDB().validateCredentials(username, password);
     if (!user) {
       res.status(401).json({
         success: false,
@@ -83,7 +83,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const existingUser = getUserByUsername(username);
+    const existingUser = await getDB().getUserByUsername(username);
     if (existingUser) {
       res.status(400).json({
         success: false,

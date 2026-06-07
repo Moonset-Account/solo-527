@@ -1,15 +1,15 @@
 import express, { type Response } from 'express';
-import { getSites, getSiteById, addSite } from '../db/index.js';
+import { getDB } from '../db/index.js';
 import { authMiddleware, getOrganizationFilter, adminOnly, type AuthenticatedRequest } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get('/', (req: AuthenticatedRequest, res: Response) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
-    const sites = getSites(orgFilter || undefined);
+    const sites = await getDB().getSites(orgFilter || undefined);
     
     res.json({
       success: true,
@@ -25,10 +25,10 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
-    const site = getSiteById(req.params.id);
+    const site = await getDB().getSiteById(req.params.id);
     
     if (!site) {
       res.status(404).json({
@@ -59,7 +59,7 @@ router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.post('/', adminOnly, (req: AuthenticatedRequest, res: Response) => {
+router.post('/', adminOnly, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
     const siteData = req.body;
@@ -76,7 +76,7 @@ router.post('/', adminOnly, (req: AuthenticatedRequest, res: Response) => {
       siteData.organization = orgFilter;
     }
 
-    const newSite = addSite(siteData);
+    const newSite = await getDB().addSite(siteData);
 
     res.json({
       success: true,

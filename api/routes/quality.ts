@@ -1,5 +1,5 @@
 import express, { type Response } from 'express';
-import { getSites, getMeasurements } from '../db/index.js';
+import { getDB } from '../db/index.js';
 import { authMiddleware, getOrganizationFilter, type AuthenticatedRequest } from '../middleware/auth.js';
 import { runQualityCheck } from '../../src/utils/dataService.js';
 
@@ -7,11 +7,11 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get('/', (req: AuthenticatedRequest, res: Response) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
-    const sites = getSites(orgFilter || undefined);
-    const result = getMeasurements({
+    const sites = await getDB().getSites(orgFilter || undefined);
+    const result = await getDB().getMeasurements({
       organizations: orgFilter ? [orgFilter] : undefined,
       limit: 10000,
     });

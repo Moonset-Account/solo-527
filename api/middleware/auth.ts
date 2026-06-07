@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { getUserById } from '../db/index.js';
+import { getDB } from '../db/index.js';
 import type { User } from '../../src/types';
 
 const TOKEN_STORAGE = new Map<string, { userId: string; expiresAt: number }>();
@@ -19,11 +19,11 @@ export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
-export function authMiddleware(
+export async function authMiddleware(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -53,7 +53,7 @@ export function authMiddleware(
     return;
   }
 
-  const user = getUserById(tokenData.userId);
+  const user = await getDB().getUserById(tokenData.userId);
   if (!user) {
     res.status(401).json({
       success: false,

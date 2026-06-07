@@ -1,5 +1,5 @@
 import express, { type Response } from 'express';
-import { getMeasurements, addMeasurements, getSites } from '../db/index.js';
+import { getDB } from '../db/index.js';
 import { authMiddleware, getOrganizationFilter, type AuthenticatedRequest } from '../middleware/auth.js';
 import { 
   calculateTrendData, 
@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get('/', (req: AuthenticatedRequest, res: Response) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
     const query: MeasurementQuery = {};
@@ -51,13 +51,13 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
     const limit = Number(req.query.limit) || 100;
     const offset = Number(req.query.offset) || 0;
 
-    const result = getMeasurements({
+    const result = await getDB().getMeasurements({
       ...query,
       limit,
       offset,
     });
 
-    const sites = getSites(orgFilter || undefined);
+    const sites = await getDB().getSites(orgFilter || undefined);
     const filtered = filterMeasurements(result.data, query, sites);
 
     res.json({
@@ -74,20 +74,21 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.get('/trend', (req: AuthenticatedRequest, res: Response) => {
+router.get('/trend', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
     const { indicator, dataSource, siteId } = req.query;
     
-    const allMeasurements = getMeasurements({
+    const allResult = await getDB().getMeasurements({
       organizations: orgFilter ? [orgFilter] : undefined,
       siteIds: siteId ? [siteId as string] : undefined,
-    }).data;
+      limit: 10000,
+    });
 
     const indicatorCode = indicator as string || 'dissolvedOxygen';
     const source = dataSource as 'manual' | 'automatic' || 'manual';
 
-    const trendData = calculateTrendData(allMeasurements, indicatorCode, source);
+    const trendData = calculateTrendData(allResult.data, indicatorCode, source);
 
     res.json({
       success: true,
@@ -102,7 +103,7 @@ router.get('/trend', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.post('/import', (req: AuthenticatedRequest, res: Response) => {
+router.post('/import', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
     const { data } = req.body;
@@ -115,7 +116,7 @@ router.post('/import', (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    const sites = getSites(orgFilter || undefined);
+    const sites = await getDB().getSites(orgFilter || undefined);
     const siteMap = new Map(sites.map(s => [s.name, s.id]));
 
     const validMeasurements: Omit<Measurement, 'id'>[] = [];
@@ -130,6 +131,7 @@ router.post('/import', (req: AuthenticatedRequest, res: Response) => {
         continue;
       }
 
+      const site = sites.find(s => s.id === siteId);
       const sampleTime = row['采样时间'] || row['sampleTime'] || new Date().toISOString();
       const temperature = row['水温'] !== undefined ? Number(row['水温']) : 
                          row['temperature'] !== undefined ? Number(row['temperature']) : null;
@@ -142,7 +144,6 @@ router.post('/import', (req: AuthenticatedRequest, res: Response) => {
       const rainfall = row['降雨量'] !== undefined ? Number(row['降雨量']) :
                        row['rainfall'] !== undefined ? Number(row['rainfall']) : null;
 
-      const site = sites.find(s => s.id === siteId);
       const isAnomaly = row['状态'] === '异常' || row['isAnomaly'] === true;
 
       validMeasurements.push({
@@ -162,7 +163,7 @@ router.post('/import', (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    const imported = addMeasurements(validMeasurements);
+    const imported = await getDB().addMeasurements(validMeasurements);
 
     res.json({
       success: true,
@@ -179,15 +180,15 @@ router.post('/import', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-router.get('/export/csv', (req: AuthenticatedRequest, res: Response) => {
+router.get('/export/csv', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const orgFilter = getOrganizationFilter(req);
-    const result = getMeasurements({
+    const result = await getDB().getMeasurements({
       organizations: orgFilter ? [orgFilter] : undefined,
       limit: 10000,
     });
 
-    const sites = getSites(orgFilter || undefined);
+    const sites = await getDB().getSites(orgFilter || undefined);
     const csv = measurementsToCSV(result.data, sites);
     
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

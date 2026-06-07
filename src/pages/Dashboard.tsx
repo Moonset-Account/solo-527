@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -11,12 +10,11 @@ import {
   MapPin,
   ChevronRight,
   Eye,
+  RefreshCw,
 } from 'lucide-react';
 import PageContainer from '../components/layout/PageContainer';
-import type { OverviewStats } from '../types';
+import { useOverview } from '../hooks/useData';
 import { WATER_QUALITY_GRADES } from '../utils/constants';
-import { calculateOverviewStats } from '../utils/dataService';
-import { MOCK_SITES, MOCK_MEASUREMENTS } from '../utils/mockData';
 
 const indicatorIcons = {
   temperature: Thermometer,
@@ -34,25 +32,43 @@ const indicatorColors = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<OverviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const data = calculateOverviewStats(MOCK_SITES, MOCK_MEASUREMENTS);
-      setStats(data);
-      setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: stats, loading, error, refetch } = useOverview();
 
   if (loading || !stats) {
     return (
       <PageContainer title="总览仪表盘" subtitle="加载中...">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-4 gap-4 mb-6">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse" />
           ))}
+        </div>
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2 h-80 bg-slate-100 rounded-xl animate-pulse" />
+          <div className="h-80 bg-slate-100 rounded-xl animate-pulse" />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageContainer title="总览仪表盘" subtitle="数据加载失败">
+        <div className="bg-white rounded-xl shadow-card border border-slate-100 p-12 text-center">
+          <AlertTriangle className="w-16 h-16 text-rose-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-700 mb-2">数据加载失败</h3>
+          <p className="text-slate-500 mb-6">{error}</p>
+          <button
+            onClick={refetch}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            重新加载
+          </button>
         </div>
       </PageContainer>
     );
@@ -62,6 +78,15 @@ export default function Dashboard() {
     <PageContainer
       title="总览仪表盘"
       subtitle={`数据更新时间：${new Date(stats.latestDataTime).toLocaleString('zh-CN')}`}
+      actions={
+        <button
+          onClick={refetch}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          刷新数据
+        </button>
+      }
     >
       <div className="grid grid-cols-4 gap-5 mb-6">
         <StatCard
@@ -70,7 +95,7 @@ export default function Dashboard() {
           unit="个"
           icon={MapPin}
           trend="up"
-          trendValue="2 个新增"
+          trendValue="全部正常运行"
           color="from-cyan-500 to-blue-600"
         />
         <StatCard
@@ -79,7 +104,7 @@ export default function Dashboard() {
           unit="条"
           icon={Activity}
           trend="up"
-          trendValue="本周新增"
+          trendValue="实时更新"
           color="from-emerald-500 to-teal-600"
         />
         <StatCard
@@ -88,7 +113,7 @@ export default function Dashboard() {
           unit="条"
           icon={AlertTriangle}
           trend="down"
-          trendValue="较上周减少 12%"
+          trendValue="待处理"
           color="from-amber-500 to-orange-600"
         />
         <StatCard
@@ -97,7 +122,7 @@ export default function Dashboard() {
           unit="%"
           icon={TrendingUp}
           trend="up"
-          trendValue="较上周提升 2.3%"
+          trendValue="持续改善"
           color="from-violet-500 to-purple-600"
         />
       </div>
@@ -236,44 +261,69 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-            {stats.recentAnomalies.map((anomaly) => (
-              <div
-                key={anomaly.id}
-                className="p-4 hover:bg-slate-50 transition-colors cursor-pointer"
-                onClick={() => navigate('/trends')}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-800 truncate">
-                        {anomaly.siteName}
-                      </p>
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-rose-100 text-rose-600 font-medium flex-shrink-0">
-                        {anomaly.indicator}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {new Date(anomaly.sampleTime).toLocaleString('zh-CN')}
-                    </p>
-                    {anomaly.reason && (
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-1">
-                        原因：{anomaly.reason}
-                      </p>
-                    )}
-                  </div>
-                  <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 flex-shrink-0">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                </div>
+            {stats.recentAnomalies.length === 0 ? (
+              <div className="p-8 text-center text-slate-400">
+                <CheckCircle className="w-12 h-12 mx-auto mb-2 text-emerald-300" />
+                <p>暂无异常数据</p>
               </div>
-            ))}
+            ) : (
+              stats.recentAnomalies.map((anomaly) => (
+                <div
+                  key={anomaly.id}
+                  className="p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => navigate('/trends')}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <AlertTriangle className="w-4 h-4 text-rose-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-slate-800 truncate">
+                          {anomaly.siteName}
+                        </p>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-rose-100 text-rose-600 font-medium flex-shrink-0">
+                          {anomaly.indicator}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(anomaly.sampleTime).toLocaleString('zh-CN')}
+                      </p>
+                      {anomaly.reason && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-1">
+                          原因：{anomaly.reason}
+                        </p>
+                      )}
+                    </div>
+                    <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 flex-shrink-0">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
     </PageContainer>
+  );
+}
+
+function CheckCircle({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
   );
 }
 
