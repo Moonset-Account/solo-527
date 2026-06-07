@@ -64,9 +64,29 @@ export interface HeatmapCell {
   date: Date;
   hour: number;
   value: number;
+  utilization: number;
   sampleSize: number;
   isClosed?: boolean;
   isExamWeek?: boolean;
+}
+
+export interface QueryParams {
+  dateRange: [Date, Date];
+  areas?: string[];
+  floors?: number[];
+}
+
+export interface DataAdapter {
+  getHeatmapData(params: QueryParams): Promise<HeatmapCell[]>;
+  getAreaUtilization(params: QueryParams): Promise<AreaUtilization[]>;
+  getViolationStats(params: QueryParams): Promise<ViolationStats[]>;
+  getDashboardStats(params?: QueryParams): Promise<DashboardStats>;
+  getAreas(): Promise<Area[]>;
+  getClosedDates(): Promise<ClosedDate[]>;
+  getExamPeriods(): Promise<ExamPeriod[]>;
+  getRawRecords(date: Date, hour?: number, studentId?: string): Promise<(Reservation | Violation)[]>;
+  getViolations(params: QueryParams, studentId?: string): Promise<Violation[]>;
+  getStudentReservations(studentId: string, params: QueryParams): Promise<Reservation[]>;
 }
 
 export interface AreaUtilization {

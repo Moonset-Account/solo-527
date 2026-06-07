@@ -352,6 +352,7 @@ export function calculateHeatmapData(
         date: day,
         hour,
         value: isClosed ? 0 : utilization,
+        utilization: isClosed ? 0 : utilization,
         sampleSize: hourReservations.length,
         isClosed,
         isExamWeek,
