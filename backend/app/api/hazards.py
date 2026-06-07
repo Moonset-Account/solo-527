@@ -123,7 +123,31 @@ def get_hazard_detail(
     ).all()
     
     rect_records = []
+    all_photo_ids = []
     for r in rectification_records:
+        if r.photo_ids:
+            all_photo_ids.extend(r.photo_ids)
+    
+    all_photos = db.query(Attachment).filter(Attachment.id.in_(all_photo_ids)).all() if all_photo_ids else []
+    photos_map = {p.id: p for p in all_photos}
+    
+    for r in rectification_records:
+        record_photos = []
+        if r.photo_ids:
+            for pid in r.photo_ids:
+                p = photos_map.get(pid)
+                if p:
+                    record_photos.append({
+                        "id": p.id,
+                        "file_name": p.name or "photo.jpg",
+                        "file_path": p.url or "",
+                        "file_size": 0,
+                        "content_type": "image/jpeg",
+                        "is_sensitive": p.sensitive or False,
+                        "uploaded_by": "",
+                        "created_at": p.created_at,
+                    })
+        
         rect_records.append({
             "id": r.id,
             "hazard_id": r.hazard_id,
@@ -134,7 +158,7 @@ def get_hazard_detail(
             "reviewer": r.reviewed_by,
             "reviewed_at": r.reviewed_at,
             "reject_reason": r.review_reason,
-            "photos": [],
+            "photos": record_photos,
         })
     
     app_records = []
@@ -205,6 +229,7 @@ def submit_rectification(
     record = RectificationRecord(
         hazard_id=hazard_id,
         description=request.description,
+        photo_ids=request.photo_ids or [],
         submitted_by=current_user.full_name,
         submitted_at=datetime.utcnow(),
     )

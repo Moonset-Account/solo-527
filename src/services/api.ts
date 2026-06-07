@@ -165,6 +165,43 @@ export const dashboardApi = {
   },
 };
 
+const mapAttachment = (p: any) => ({
+  id: p.id,
+  name: p.file_name || 'photo.jpg',
+  url: p.file_path || '',
+  type: 'image' as const,
+  uploadedAt: p.created_at || '',
+  uploadedBy: p.uploaded_by || '',
+  sensitive: p.is_sensitive || false,
+});
+
+const mapRectificationRecord = (r: any) => ({
+  id: r.id,
+  hazardId: r.hazard_id,
+  submittedAt: r.submitted_at,
+  submittedBy: r.submitted_by || '',
+  description: r.description,
+  photos: (r.photos || []).map(mapAttachment),
+  reviewResult: r.review_result as 'pass' | 'reject' | undefined,
+  reviewReason: r.reject_reason,
+  reviewedAt: r.reviewed_at,
+  reviewedBy: r.reviewer || '',
+});
+
+const mapAppealRecord = (a: any) => ({
+  id: a.id,
+  hazardId: a.hazard_id,
+  reason: a.reason,
+  createdAt: a.submitted_at,
+  createdBy: a.submitted_by || '',
+  status: a.status,
+  handledAt: a.handled_at,
+  handledBy: a.handled_by || '',
+  handleRemark: a.remark,
+  weatherEvidence: [],
+  stopWorkEvidence: [],
+});
+
 export const hazardApi = {
   getList: async (
     page: number = 1,
@@ -179,14 +216,37 @@ export const hazardApi = {
     
     const items = data.items.map((item: any) => ({
       ...item,
+      code: item.code || `HZ-${item.id.slice(0, 8).toUpperCase()}`,
       isOverdue: item.is_overdue,
       fineAmount: item.fine_amount,
       fineStatus: item.fine_status,
-      rejectReasons: item.reject_reasons,
-      discoveryPhotos: item.discovery_photos,
-      rectificationRecords: item.rectification_records,
-      appealRecords: item.appeal_records,
-      inspectionPoint: item.inspection_point,
+      rejectReasons: item.reject_reasons || [],
+      discoveryPhotos: (item.discovery_photos || []).map(mapAttachment),
+      rectificationRecords: (item.rectification_records || []).map(mapRectificationRecord),
+      appealRecords: (item.appeal_records || []).map(mapAppealRecord),
+      discoveredAt: item.discovered_at,
+      deadline: item.deadline,
+      closedAt: item.closed_at,
+      discoverer: item.discoverer_name || '',
+      type: {
+        id: item.type_id,
+        name: item.type_name || '',
+        code: '',
+        description: '',
+        level: 'medium',
+      },
+      team: {
+        id: item.team_id,
+        name: item.team_name || '',
+        leader: '',
+        phone: '',
+      },
+      inspectionPoint: {
+        id: item.inspection_point_id,
+        name: item.inspection_point_name || '',
+        floor: item.inspection_point_floor || 0,
+        area: '',
+      },
     }));
     
     return {
@@ -203,14 +263,37 @@ export const hazardApi = {
       const item = response.data;
       return {
         ...item,
+        code: item.code || `HZ-${item.id.slice(0, 8).toUpperCase()}`,
         isOverdue: item.is_overdue,
         fineAmount: item.fine_amount,
         fineStatus: item.fine_status,
-        rejectReasons: item.reject_reasons,
-        discoveryPhotos: item.discovery_photos,
-        rectificationRecords: item.rectification_records,
-        appealRecords: item.appeal_records,
-        inspectionPoint: item.inspection_point,
+        rejectReasons: item.reject_reasons || [],
+        discoveryPhotos: (item.discovery_photos || []).map(mapAttachment),
+        rectificationRecords: (item.rectification_records || []).map(mapRectificationRecord),
+        appealRecords: (item.appeal_records || []).map(mapAppealRecord),
+        discoveredAt: item.discovered_at,
+        deadline: item.deadline,
+        closedAt: item.closed_at,
+        discoverer: item.discoverer_name || '',
+        type: {
+          id: item.type_id,
+          name: item.type_name || '',
+          code: '',
+          description: '',
+          level: 'medium',
+        },
+        team: {
+          id: item.team_id,
+          name: item.team_name || '',
+          leader: '',
+          phone: '',
+        },
+        inspectionPoint: {
+          id: item.inspection_point_id,
+          name: item.inspection_point_name || '',
+          floor: item.inspection_point_floor || 0,
+          area: '',
+        },
       };
     } catch (e) {
       console.error('Failed to get hazard detail', e);

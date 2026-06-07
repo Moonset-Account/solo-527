@@ -16,7 +16,7 @@ from app.schemas import (
 router = APIRouter(prefix="/dashboard", tags=["看板数据"])
 
 
-def apply_filters(query, db: Session, floors=None, team_ids=None, type_ids=None, levels=None):
+def apply_filters(query, db: Session, floors=None, team_ids=None, type_ids=None, levels=None, statuses=None, keyword=None):
     if floors:
         query = query.filter(Hazard.inspection_point_floor.in_(floors))
     if team_ids:
@@ -25,6 +25,10 @@ def apply_filters(query, db: Session, floors=None, team_ids=None, type_ids=None,
         query = query.filter(Hazard.type_id.in_(type_ids))
     if levels:
         query = query.filter(Hazard.level.in_(levels))
+    if statuses:
+        query = query.filter(Hazard.status.in_(statuses))
+    if keyword:
+        query = query.filter(Hazard.title.ilike(f"%{keyword}%"))
     return query
 
 
@@ -41,12 +45,8 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard)
-    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels, statuses, keyword)
     
-    if statuses:
-        query = query.filter(Hazard.status.in_(statuses))
-    if keyword:
-        query = query.filter(Hazard.title.ilike(f"%{keyword}%"))
     if start_date:
         query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
     if end_date:
@@ -91,7 +91,9 @@ def get_closure_rate_trend(
     floors: Optional[List[int]] = Query(None),
     team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
+    statuses: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
+    keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     result = []
@@ -102,7 +104,7 @@ def get_closure_rate_trend(
         date_str = current_date.strftime("%m-%d")
         
         query = db.query(Hazard)
-        query = apply_filters(query, db, floors, team_ids, type_ids, levels)
+        query = apply_filters(query, db, floors, team_ids, type_ids, levels, statuses, keyword)
         
         start_dt = datetime.combine(current_date, datetime.min.time())
         end_dt = datetime.combine(current_date, datetime.max.time())
@@ -153,11 +155,13 @@ def get_overdue_ranking(
     floors: Optional[List[int]] = Query(None),
     team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
+    statuses: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
+    keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard).filter(Hazard.status != 'closed')
-    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels, statuses, keyword)
     
     if start_date:
         query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
@@ -186,11 +190,13 @@ def get_floor_heatmap(
     floors: Optional[List[int]] = Query(None),
     team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
+    statuses: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
+    keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Hazard)
-    query = apply_filters(query, db, floors, team_ids, type_ids, levels)
+    query = apply_filters(query, db, floors, team_ids, type_ids, levels, statuses, keyword)
     
     if start_date:
         query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))
@@ -232,7 +238,9 @@ def get_team_trend(
     floors: Optional[List[int]] = Query(None),
     team_ids: Optional[List[str]] = Query(None),
     type_ids: Optional[List[str]] = Query(None),
+    statuses: Optional[List[str]] = Query(None),
     levels: Optional[List[str]] = Query(None),
+    keyword: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     result = []
@@ -252,7 +260,7 @@ def get_team_trend(
         
         for team in teams:
             query = db.query(Hazard).filter(Hazard.team_id == team.id)
-            query = apply_filters(query, db, floors, None, type_ids, levels)
+            query = apply_filters(query, db, floors, None, type_ids, levels, statuses, keyword)
             
             if start_date:
                 query = query.filter(Hazard.discovered_at >= datetime.fromisoformat(start_date))

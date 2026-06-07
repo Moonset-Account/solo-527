@@ -129,6 +129,7 @@ class RectificationRecord(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     hazard_id = Column(String, ForeignKey("hazards.id", ondelete="CASCADE"))
     description = Column(Text, nullable=False)
+    photo_ids = Column(JSON, default=list)
     submitted_by = Column(String(100))
     submitted_at = Column(DateTime, default=datetime.utcnow)
     review_result = Column(String(20))  # pass, reject
