@@ -21,6 +21,10 @@ function toNum(v: unknown): number {
 
 let seeded = false;
 
+export function resetSeeded() {
+  seeded = false;
+}
+
 async function ensureSeeded() {
   if (!seeded) {
     await seedDatabase();
@@ -28,37 +32,40 @@ async function ensureSeeded() {
   }
 }
 
-function buildWhereClause(filters: Partial<FilterState>): string {
+function buildWhereClause(filters: Partial<FilterState>, alias: string = 'a'): string {
   const conditions: string[] = ['1=1'];
-  if (filters.model_id) conditions.push(`a.model_id = '${filters.model_id}'`);
-  if (filters.sales_id) conditions.push(`a.sales_id = '${filters.sales_id}'`);
-  if (filters.source) conditions.push(`a.source = '${filters.source}'`);
-  if (filters.store_id) conditions.push(`a.store_id = '${filters.store_id}'`);
-  if (filters.is_visited === 'true') conditions.push('a.is_visited = TRUE');
-  else if (filters.is_visited === 'false') conditions.push('a.is_visited = FALSE');
-  if (filters.period_start) conditions.push(`a.appointment_time >= '${filters.period_start}'`);
-  if (filters.period_end) conditions.push(`a.appointment_time <= '${filters.period_end}'`);
+  if (filters.model_id) conditions.push(`${alias}.model_id = '${filters.model_id}'`);
+  if (filters.sales_id) conditions.push(`${alias}.sales_id = '${filters.sales_id}'`);
+  if (filters.source) conditions.push(`${alias}.source = '${filters.source}'`);
+  if (filters.store_id) conditions.push(`${alias}.store_id = '${filters.store_id}'`);
+  if (filters.is_visited === 'true') conditions.push(`${alias}.is_visited = TRUE`);
+  else if (filters.is_visited === 'false') conditions.push(`${alias}.is_visited = FALSE`);
+  if (filters.period_start) conditions.push(`${alias}.appointment_time >= '${filters.period_start}'`);
+  if (filters.period_end) conditions.push(`${alias}.appointment_time <= '${filters.period_end}'`);
   return conditions.join(' AND ');
+}
+
+function buildDedupCte(filters: Partial<FilterState>, alias: string = 'a'): string {
+  const where = buildWhereClause(filters, alias);
+  return `
+    SELECT * FROM (
+      SELECT ${alias}.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY c.phone_hash
+          ORDER BY ${alias}.created_at ASC
+        ) as rn
+      FROM appointments ${alias}
+      JOIN customers c ON ${alias}.customer_id = c.id
+      WHERE ${where}
+    ) sub
+    WHERE rn = 1
+  `;
 }
 
 export async function getFunnelData(filters: Partial<FilterState>): Promise<FunnelData> {
   await ensureSeeded();
   const db = await getDb();
-  const where = buildWhereClause(filters);
-
-  const dedupSql = `
-    SELECT * FROM (
-      SELECT *,
-        ROW_NUMBER() OVER (
-          PARTITION BY c.phone_hash
-          ORDER BY a.created_at ASC
-        ) as rn
-      FROM appointments a
-      JOIN customers c ON a.customer_id = c.id
-      WHERE ${where}
-    ) sub
-    WHERE rn = 1
-  `;
+  const dedupSql = buildDedupCte(filters);
 
   const stagesSql = `
     SELECT
@@ -115,7 +122,7 @@ export async function getFunnelData(filters: Partial<FilterState>): Promise<Funn
 export async function getCancellationDetails(filters: Partial<FilterState>): Promise<CancellationDetail[]> {
   await ensureSeeded();
   const db = await getDb();
-  const where = buildWhereClause(filters);
+  const dedupSql = buildDedupCte(filters);
 
   const cancelledSql = `
     SELECT
@@ -123,9 +130,9 @@ export async function getCancellationDetails(filters: Partial<FilterState>): Pro
       COUNT(*) as count,
       FALSE as is_no_show,
       SUM(CASE WHEN cancellation_reason = '车型缺货' THEN 1 ELSE 0 END) as model_out_of_stock,
-      SUM(CASE WHEN cancellation_reason = '客户主动取消' THEN 1 ELSE 0 END) as customer_reschedule
-    FROM appointments a
-    WHERE ${where} AND a.status = '已取消'
+      SUM(CASE WHEN cancellation_reason = '客户主动改约' THEN 1 ELSE 0 END) as customer_reschedule
+    FROM (${dedupSql}) dedup
+    WHERE dedup.status = '已取消'
     GROUP BY cancellation_reason
   `;
 
@@ -136,8 +143,8 @@ export async function getCancellationDetails(filters: Partial<FilterState>): Pro
       TRUE as is_no_show,
       0 as model_out_of_stock,
       0 as customer_reschedule
-    FROM appointments a
-    WHERE ${where} AND a.status = '爽约'
+    FROM (${dedupSql}) dedup
+    WHERE dedup.status = '爽约'
     GROUP BY no_show_reason
   `;
 
@@ -169,7 +176,7 @@ export async function getSalesLoad(filters: Partial<FilterState>): Promise<Sales
     return cached.data;
   }
 
-  const where = buildWhereClause(filters);
+  const dedupSql = buildDedupCte(filters);
 
   const sql = `
     SELECT
@@ -177,13 +184,12 @@ export async function getSalesLoad(filters: Partial<FilterState>): Promise<Sales
       sp.name as sales_name,
       st.name as store_name,
       COUNT(*) as appointment_count,
-      SUM(CASE WHEN a.status = '已完成' THEN 1 ELSE 0 END) as completed_count,
-      SUM(CASE WHEN a.status = '已取消' THEN 1 ELSE 0 END) as cancelled_count,
-      SUM(CASE WHEN a.status = '爽约' THEN 1 ELSE 0 END) as no_show_count
-    FROM appointments a
-    JOIN salespeople sp ON a.sales_id = sp.id
+      SUM(CASE WHEN dedup.status = '已完成' THEN 1 ELSE 0 END) as completed_count,
+      SUM(CASE WHEN dedup.status = '已取消' THEN 1 ELSE 0 END) as cancelled_count,
+      SUM(CASE WHEN dedup.status = '爽约' THEN 1 ELSE 0 END) as no_show_count
+    FROM (${dedupSql}) dedup
+    JOIN salespeople sp ON dedup.sales_id = sp.id
     JOIN stores st ON sp.store_id = st.id
-    WHERE ${where}
     GROUP BY sp.id, sp.name, st.name
     ORDER BY appointment_count DESC
   `;
@@ -223,6 +229,9 @@ export async function getScheduleConflicts(filters: Partial<FilterState>): Promi
   await ensureSeeded();
   const db = await getDb();
 
+  const where1 = buildWhereClause(filters, 'a1');
+  const where2 = buildWhereClause(filters, 'a2');
+
   const sql = `
     SELECT
       a1.id as appointment_id_1,
@@ -240,6 +249,8 @@ export async function getScheduleConflicts(filters: Partial<FilterState>): Promi
     WHERE a1.status IN ('待确认','已确认')
       AND a2.status IN ('待确认','已确认')
       AND ABS(EXTRACT(EPOCH FROM (a2.appointment_time - a1.appointment_time))) < 7200
+      AND ${where1}
+      AND ${where2}
   `;
 
   const rows = await runQuery(db, sql) as Record<string, unknown>[];
@@ -256,20 +267,19 @@ export async function getScheduleConflicts(filters: Partial<FilterState>): Promi
 export async function getConversionData(filters: Partial<FilterState>): Promise<ConversionData[]> {
   await ensureSeeded();
   const db = await getDb();
-  const where = buildWhereClause(filters);
+  const dedupSql = buildDedupCte(filters);
 
   const sql = `
     SELECT
       m.id as model_id,
       m.name as model_name,
-      SUM(CASE WHEN a.status = '已完成' THEN 1 ELSE 0 END) as total_completed,
-      SUM(CASE WHEN a.conversion_type = '到店成交' THEN 1 ELSE 0 END) as in_store_conversion,
-      SUM(CASE WHEN a.conversion_type = '后续成交' THEN 1 ELSE 0 END) as follow_up_conversion,
-      SUM(CASE WHEN a.is_vehicle_swapped = TRUE THEN 1 ELSE 0 END) as vehicle_swap_count,
-      SUM(CASE WHEN a.is_vehicle_swapped = TRUE AND a.original_model_id != a.model_id THEN 1 ELSE 0 END) as original_model_preserved
-    FROM appointments a
-    JOIN car_models m ON a.model_id = m.id
-    WHERE ${where}
+      SUM(CASE WHEN dedup.status = '已完成' THEN 1 ELSE 0 END) as total_completed,
+      SUM(CASE WHEN dedup.conversion_type = '到店成交' THEN 1 ELSE 0 END) as in_store_conversion,
+      SUM(CASE WHEN dedup.conversion_type = '后续成交' THEN 1 ELSE 0 END) as follow_up_conversion,
+      SUM(CASE WHEN dedup.is_vehicle_swapped = TRUE THEN 1 ELSE 0 END) as vehicle_swap_count,
+      SUM(CASE WHEN dedup.is_vehicle_swapped = TRUE AND dedup.original_model_id != dedup.model_id THEN 1 ELSE 0 END) as original_model_preserved
+    FROM (${dedupSql}) dedup
+    JOIN car_models m ON dedup.model_id = m.id
     GROUP BY m.id, m.name
     ORDER BY total_completed DESC
   `;
@@ -315,36 +325,35 @@ export async function getFilterOptions(): Promise<{
 export async function getExportData(filters: Partial<FilterState>): Promise<Record<string, unknown>[]> {
   await ensureSeeded();
   const db = await getDb();
-  const where = buildWhereClause(filters);
+  const dedupSql = buildDedupCte(filters);
 
   const sql = `
     SELECT
-      a.id as 预约编号,
+      dedup.id as 预约编号,
       c.name as 客户姓名,
       c.phone as 联系电话,
       m1.name as 预约车型,
       m2.name as 原始预约车型,
       sp.name as 销售顾问,
       st.name as 门店,
-      a.source as 预约来源,
-      a.status as 预约状态,
-      a.appointment_time as 预约时间,
-      a.created_at as 创建时间,
-      CASE WHEN a.is_visited THEN '是' ELSE '否' END as 是否到店,
-      COALESCE(a.cancellation_reason, '') as 取消原因,
-      COALESCE(a.no_show_reason, '') as 爽约原因,
-      COALESCE(a.conversion_type, '') as 成交类型,
-      CASE WHEN a.is_vehicle_swapped THEN '是' ELSE '否' END as 是否调车,
-      CASE WHEN a.is_duplicate_customer THEN '是' ELSE '否' END as 重复客户,
-      a.remark as 备注
-    FROM appointments a
-    JOIN customers c ON a.customer_id = c.id
-    JOIN car_models m1 ON a.model_id = m1.id
-    JOIN car_models m2 ON a.original_model_id = m2.id
-    JOIN salespeople sp ON a.sales_id = sp.id
-    JOIN stores st ON a.store_id = st.id
-    WHERE ${where}
-    ORDER BY a.appointment_time DESC
+      dedup.source as 预约来源,
+      dedup.status as 预约状态,
+      dedup.appointment_time as 预约时间,
+      dedup.created_at as 创建时间,
+      CASE WHEN dedup.is_visited THEN '是' ELSE '否' END as 是否到店,
+      COALESCE(dedup.cancellation_reason, '') as 取消原因,
+      COALESCE(dedup.no_show_reason, '') as 爽约原因,
+      COALESCE(dedup.conversion_type, '') as 成交类型,
+      CASE WHEN dedup.is_vehicle_swapped THEN '是' ELSE '否' END as 是否调车,
+      CASE WHEN dedup.is_duplicate_customer THEN '是' ELSE '否' END as 重复客户,
+      dedup.remark as 备注
+    FROM (${dedupSql}) dedup
+    JOIN customers c ON dedup.customer_id = c.id
+    JOIN car_models m1 ON dedup.model_id = m1.id
+    JOIN car_models m2 ON dedup.original_model_id = m2.id
+    JOIN salespeople sp ON dedup.sales_id = sp.id
+    JOIN stores st ON dedup.store_id = st.id
+    ORDER BY dedup.appointment_time DESC
   `;
 
   return (await runQuery(db, sql)) as Record<string, unknown>[];

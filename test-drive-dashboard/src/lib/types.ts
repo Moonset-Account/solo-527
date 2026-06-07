@@ -28,6 +28,7 @@ export type AppointmentSource = '线上官网' | 'APP' | '小程序' | '到店�
 export type AppointmentStatus = '待确认' | '已确认' | '已到店' | '已完成' | '已取消' | '爽约';
 export type CancellationReason =
   | '客户主动取消'
+  | '客户主动改约'
   | '车型缺货'
   | '时间冲突'
   | '天气原因'

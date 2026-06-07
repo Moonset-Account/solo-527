@@ -127,7 +127,7 @@
             <th>占比</th>
             <th>类型</th>
             <th>车型缺货</th>
-            <th>客户改约</th>
+            <th>客户主动改约</th>
           </tr>
         </thead>
         <tbody>
