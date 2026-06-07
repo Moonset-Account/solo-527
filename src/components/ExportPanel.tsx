@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Download, FileText, FileSpreadsheet, Eye, EyeOff, X, CheckCircle, AlertTriangle } from 'lucide-react';
 import { StudentMetrics, DataQualityInfo, FilterParams } from '@/lib/services/analytics';
 import { maskPhone, maskEmail } from '@/lib/auth';
+import { generatePdfBlob } from './PdfReport';
+import { mockDataset } from '@/lib/mock/data';
 
 interface ExportPanelProps {
   isOpen: boolean;
@@ -117,38 +119,46 @@ export default function ExportPanel({
   const handleExport = async () => {
     setIsExporting(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      if (exportFormat === 'csv') {
+        const csv = generateCSV();
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `班级表现分析_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const pdfBlob = await generatePdfBlob(
+          students,
+          qualityInfo,
+          filters,
+          hideContact
+        );
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `班级表现分析_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
 
-    if (exportFormat === 'csv') {
-      const csv = generateCSV();
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `班级表现分析_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } else {
-      const csv = generateCSV();
-      const blob = new Blob([csv], { type: 'text/plain;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `班级表现分析_${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setIsExporting(false);
+      setExportSuccess(true);
+      setTimeout(() => {
+        setExportSuccess(false);
+        onClose();
+      }, 1500);
+    } catch (error) {
+      console.error('Export error:', error);
+      setIsExporting(false);
+      alert('导出失败，请重试');
     }
-
-    setIsExporting(false);
-    setExportSuccess(true);
-    setTimeout(() => {
-      setExportSuccess(false);
-      onClose();
-    }, 1500);
   };
 
   return (

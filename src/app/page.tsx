@@ -27,6 +27,7 @@ import StudentProfile from '@/components/StudentProfile';
 import AnomalyList from '@/components/AnomalyList';
 import DataQualityPanel from '@/components/DataQualityPanel';
 import ExportPanel from '@/components/ExportPanel';
+import ImportPanel from '@/components/ImportPanel';
 
 import { AnalyticsService, FilterParams } from '@/lib/services/analytics';
 import { mockDataset } from '@/lib/mock/data';
@@ -39,6 +40,7 @@ export default function Home() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [viewStudentId, setViewStudentId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [canViewContact] = useState(false);
 
   const analytics = useMemo(() => new AnalyticsService(mockDataset), []);
@@ -178,7 +180,11 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowImport(true)}
+                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                title="批量导入"
+              >
                 <Upload className="w-5 h-5" />
               </button>
               <button
@@ -390,7 +396,10 @@ export default function Home() {
                   <Download className="w-4 h-4" />
                   导出分析报告
                 </button>
-                <button className="w-full py-2.5 px-4 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="w-full py-2.5 px-4 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
                   <Upload className="w-4 h-4" />
                   批量导入数据
                 </button>
@@ -422,6 +431,11 @@ export default function Home() {
         qualityInfo={qualityInfo}
         filters={filters}
         canViewContact={canViewContact}
+      />
+
+      <ImportPanel
+        isOpen={showImport}
+        onClose={() => setShowImport(false)}
       />
     </div>
   );
