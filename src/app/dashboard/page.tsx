@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import MetricCard from "@/components/MetricCard";
 import { TimeoutOrdersList, LowRatingList } from "@/components/RankLists";
-import BuildingHeatmap from "@/components/BuildingHeatmap";
+import MapView from "@/components/MapView";
 import {
   RepeatRateTrend,
   ResponseTimeDistribution,
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-slate-900">楼栋分布地图</h3>
                 <span className="text-xs text-slate-500">点击楼栋可下钻筛选</span>
               </div>
-              <BuildingHeatmap
+              <MapView
                 buildings={buildingPoints || []}
                 workOrders={workOrders || []}
                 height="380px"

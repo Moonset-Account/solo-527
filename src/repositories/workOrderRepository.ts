@@ -21,19 +21,16 @@ export async function getWorkOrders(filters?: FilterOptions): Promise<WorkOrder[
 
   let sql = `
     SELECT 
-      w.id, w.order_no as "orderNo", w.building_id as "buildingId", b.name as "buildingName",
+      w.id, w.order_no as "orderNo", w.building_id as "buildingId", w.building_name as "buildingName",
       w.room_no as "roomNo", w.room_type as "roomType", w.repair_type as "repairType",
-      w.supplier_id as "supplierId", s.name as "supplierName", w.status,
+      w.supplier_id as "supplierId", w.supplier_name as "supplierName", w.status,
       w.created_at as "createdAt", w.responded_at as "respondedAt",
       w.completed_at as "completedAt", w.response_time as "responseTime",
       w.is_repeat as "isRepeat", w.parent_order_id as "parentOrderId",
-      po.order_no as "parentOrderNo", w.is_holiday as "isHoliday",
+      w.parent_order_no as "parentOrderNo", w.is_holiday as "isHoliday",
       w.tenant_rating as "tenantRating", w.tenant_feedback as "tenantFeedback",
       w.tenant_name as "tenantName", w.lng, w.lat
     FROM work_orders_cleaned w
-    LEFT JOIN buildings b ON w.building_id = b.id
-    LEFT JOIN suppliers s ON w.supplier_id = s.id
-    LEFT JOIN work_orders po ON w.parent_order_id = po.id
     WHERE 1=1
   `;
 
@@ -136,6 +133,7 @@ export async function getBuildingMetrics(): Promise<(Building & {
   repeatCount: number;
   timeoutCount: number;
   repeatRate: number;
+  geomGeojson?: string;
 })[]> {
   if (isUsingMockData()) {
     const { aggregateBuildingPoints } = await import("@/services/dataService");
@@ -144,16 +142,17 @@ export async function getBuildingMetrics(): Promise<(Building & {
 
   const sql = `
     SELECT 
-      building_id as id,
-      building_name as name,
+      id,
+      name,
       address,
       lng, lat,
-      total_orders as "orderCount",
+      geom_geojson as "geomGeojson",
+      order_count as "orderCount",
       repeat_count as "repeatCount",
       timeout_count as "timeoutCount",
       repeat_rate as "repeatRate"
     FROM v_building_metrics
-    ORDER BY building_name
+    ORDER BY name
   `;
   return queryDatabase(sql);
 }

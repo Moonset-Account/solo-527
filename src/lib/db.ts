@@ -13,11 +13,19 @@ const DB_CONFIG: PoolConfig = {
 
 let pool: Pool | null = null;
 let useMockData = true;
+let initialized = false;
 
 export function initDatabase(): void {
+  if (initialized) return;
+  initialized = true;
+
   if (process.env.DATABASE_URL || process.env.DB_HOST) {
     try {
-      pool = new Pool(DB_CONFIG);
+      if (process.env.DATABASE_URL) {
+        pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      } else {
+        pool = new Pool(DB_CONFIG);
+      }
       useMockData = false;
       console.log("✓ 数据库连接池已初始化");
     } catch (error) {
@@ -29,6 +37,8 @@ export function initDatabase(): void {
     useMockData = true;
   }
 }
+
+initDatabase();
 
 export function getPool(): Pool | null {
   return pool;
