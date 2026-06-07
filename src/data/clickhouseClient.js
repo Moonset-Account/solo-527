@@ -1,6 +1,6 @@
 import { clickhouseConfig, buildQueryUrl, TABLES } from './clickhouseConfig'
 import { mockData } from './mockData'
-import { CANCEL_REASONS, WEATHER_TYPES, SPORTS_PROJECTS, EQUIPMENT_TYPES, AGE_GROUPS } from './constants'
+import { CANCEL_REASONS, WEATHER_TYPES, SPORTS_PROJECTS, EQUIPMENT_TYPES, AGE_GROUPS, COACHES } from './constants'
 
 class ClickHouseClient {
   constructor() {
@@ -21,13 +21,14 @@ class ClickHouseClient {
       })
 
       if (!response.ok) {
-        throw new Error(`ClickHouse query failed: ${response.statusText}`)
+        const errorText = await response.text()
+        throw new Error(`ClickHouse query failed: ${response.status} - ${errorText}`)
       }
 
       const result = await response.json()
       return result.data || result
     } catch (error) {
-      console.warn('ClickHouse query failed:', error.message)
+      console.error('ClickHouse query error:', error.message)
       throw error
     }
   }
@@ -36,13 +37,7 @@ class ClickHouseClient {
     if (this.config.useMockData) {
       return this.mockQuery(sql, params)
     }
-
-    try {
-      return await this.executeRawQuery(sql)
-    } catch (error) {
-      console.warn('ClickHouse connection failed, falling back to mock data:', error.message)
-      return this.mockQuery(sql, params)
-    }
+    return await this.executeRawQuery(sql)
   }
 
   buildWhereClause(filters, tableAlias = '') {
@@ -69,55 +64,67 @@ class ClickHouseClient {
     const whereClause = this.buildWhereClause(filters, 'r')
     const whereClauseIncident = this.buildWhereClause(filters, 'i')
     const whereClauseEquip = this.buildWhereClause(filters, 'e')
+    const whereClauseCheckin = this.buildWhereClause(filters, 'c')
 
     const queries = {
       funnelData: `
         SELECT
-            'register' as stage,
-            sum(registerCount) as count
-        FROM ${TABLES.REGISTRATIONS} r
-        ${whereClause}
-        UNION ALL
-        SELECT
-            'confirm' as stage,
-            sum(confirmCount) as count
-        FROM ${TABLES.REGISTRATIONS} r
-        ${whereClause}
-        UNION ALL
-        SELECT
-            'checkin' as stage,
-            sum(checkinCount) as count
-        FROM ${TABLES.REGISTRATIONS} r
-        ${whereClause}
-        UNION ALL
-        SELECT
-            'complete' as stage,
-            sum(completeCount) as count
-        FROM ${TABLES.REGISTRATIONS} r
-        ${whereClause}
+            stage,
+            count
+        FROM (
+            SELECT 'register' as stage, sum(r.registerCount) as count
+            FROM ${TABLES.REGISTRATIONS} r
+            LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
+            ${whereClause}
+            UNION ALL
+            SELECT 'confirm' as stage, sum(r.confirmCount) as count
+            FROM ${TABLES.REGISTRATIONS} r
+            LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
+            ${whereClause}
+            UNION ALL
+            SELECT 'checkin' as stage, count(DISTINCT c.registrationId) as count
+            FROM ${TABLES.CHECKINS} c
+            LEFT JOIN ${TABLES.REGISTRATIONS} r ON c.registrationId = r.id
+            LEFT JOIN ${TABLES.COACHES} co ON c.coachId = co.id
+            ${whereClauseCheckin}
+            UNION ALL
+            SELECT 'complete' as stage, sum(r.completeCount) as count
+            FROM ${TABLES.REGISTRATIONS} r
+            LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
+            ${whereClause}
+        )
       `,
 
       cancelByReason: `
         SELECT
-            cancelReasonId,
-            count() as count
+            r.cancelReasonId,
+            count() as count,
+            groupArray(DISTINCT r.weatherId) as weatherIds
         FROM ${TABLES.REGISTRATIONS} r
-        ${whereClause ? whereClause + ' AND' : 'WHERE'} cancelled = 1 AND cancelReasonId IS NOT NULL
-        GROUP BY cancelReasonId
+        LEFT JOIN ${TABLES.WEATHER} w 
+            ON r.sessionId = w.sessionId 
+            AND r.registerDate = w.date
+        LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
+        ${whereClause ? whereClause + ' AND' : 'WHERE'} r.cancelled = 1 
+            AND r.cancelReasonId IS NOT NULL
+        GROUP BY r.cancelReasonId
+        ORDER BY count DESC
       `,
 
       cancelByWeather: `
         SELECT
             w.weatherId,
-            count() as count
+            count() as count,
+            groupArray(DISTINCT r.cancelReasonId) as cancelReasonIds
         FROM ${TABLES.REGISTRATIONS} r
         LEFT JOIN ${TABLES.WEATHER} w 
             ON r.sessionId = w.sessionId 
             AND r.registerDate = w.date
+        LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
         ${whereClause ? whereClause + ' AND' : 'WHERE'} r.cancelled = 1 
-            AND r.cancelReasonId = 'weather'
             AND w.weatherId IS NOT NULL
         GROUP BY w.weatherId
+        ORDER BY count DESC
       `,
 
       incidents: `
@@ -127,12 +134,14 @@ class ClickHouseClient {
             wt.name as weatherName,
             w.temperature,
             w.windSpeed,
-            w.visibility
+            w.visibility,
+            co.name as coachName
         FROM ${TABLES.INCIDENTS} i
         LEFT JOIN ${TABLES.WEATHER} w 
             ON i.sessionId = w.sessionId 
             AND i.date = w.date
         LEFT JOIN weather_types wt ON w.weatherId = wt.id
+        LEFT JOIN ${TABLES.COACHES} co ON i.coachId = co.id
         ${whereClauseIncident}
         ORDER BY i.date DESC, i.time DESC
       `,
@@ -143,11 +152,13 @@ class ClickHouseClient {
             count() as total,
             sum(if(i.level = 'minor', 1, 0)) as minor,
             sum(if(i.level = 'medical', 1, 0)) as medical,
-            sum(if(i.level = 'suspend', 1, 0)) as suspend
+            sum(if(i.level = 'suspend', 1, 0)) as suspend,
+            groupArray(DISTINCT i.coachId) as coachIds
         FROM ${TABLES.INCIDENTS} i
         LEFT JOIN ${TABLES.WEATHER} w 
             ON i.sessionId = w.sessionId 
             AND i.date = w.date
+        LEFT JOIN ${TABLES.COACHES} co ON i.coachId = co.id
         ${whereClauseIncident ? whereClauseIncident + ' AND' : 'WHERE'} w.weatherId IS NOT NULL
         GROUP BY w.weatherId
         ORDER BY total DESC
@@ -155,76 +166,107 @@ class ClickHouseClient {
 
       equipment: `
         SELECT
-            projectId,
-            equipmentId,
-            sum(useCount) as useCount,
-            sum(damageCount) as damageCount,
-            sum(lossCount) as lossCount,
-            sum(totalWear) as totalWear
+            e.projectId,
+            e.equipmentId,
+            sum(e.useCount) as useCount,
+            sum(e.damageCount) as damageCount,
+            sum(e.lossCount) as lossCount,
+            sum(e.totalWear) as totalWear,
+            groupArray(DISTINCT e.coachId) as coachIds
         FROM ${TABLES.EQUIPMENT_USAGE} e
+        LEFT JOIN ${TABLES.COACHES} co ON e.coachId = co.id
         ${whereClauseEquip}
-        GROUP BY projectId, equipmentId
+        GROUP BY e.projectId, e.equipmentId
         ORDER BY totalWear DESC
       `,
 
       ageStats: `
         SELECT
-            ageGroupId,
-            sum(registerCount) as registerCount,
-            sum(confirmCount) as confirmCount,
-            sum(checkinCount) as checkinCount,
-            sum(completeCount) as completeCount,
-            sum(cancelled) as cancelCount
+            r.ageGroupId,
+            sum(r.registerCount) as registerCount,
+            sum(r.confirmCount) as confirmCount,
+            count(DISTINCT c.registrationId) as checkinCount,
+            sum(r.completeCount) as completeCount,
+            sum(r.cancelled) as cancelCount,
+            groupArray(DISTINCT r.coachId) as coachIds
         FROM ${TABLES.REGISTRATIONS} r
+        LEFT JOIN ${TABLES.CHECKINS} c 
+            ON r.id = c.registrationId 
+            AND c.sessionId = r.sessionId
+        LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
         ${whereClause}
-        GROUP BY ageGroupId
+        GROUP BY r.ageGroupId
       `,
 
       totalStats: `
         SELECT
-            sum(registerCount) as totalRegister,
-            sum(cancelled) as totalCancelled
+            sum(r.registerCount) as totalRegister,
+            sum(r.cancelled) as totalCancelled,
+            count(DISTINCT c.registrationId) as totalCheckins,
+            count(DISTINCT r.coachId) as activeCoaches
         FROM ${TABLES.REGISTRATIONS} r
+        LEFT JOIN ${TABLES.CHECKINS} c 
+            ON r.id = c.registrationId 
+            AND c.sessionId = r.sessionId
+        LEFT JOIN ${TABLES.COACHES} co ON r.coachId = co.id
         ${whereClause}
+      `,
+
+      coachStats: `
+        SELECT
+            co.id as coachId,
+            co.name as coachName,
+            co.specialty,
+            count(DISTINCT r.id) as registrationCount,
+            count(DISTINCT c.registrationId) as checkinCount,
+            count(DISTINCT i.id) as incidentCount
+        FROM ${TABLES.COACHES} co
+        LEFT JOIN ${TABLES.REGISTRATIONS} r ON co.id = r.coachId
+        LEFT JOIN ${TABLES.CHECKINS} c ON co.id = c.coachId
+        LEFT JOIN ${TABLES.INCIDENTS} i ON co.id = i.coachId
+        WHERE 1=1
+          ${filters?.sessionId && filters.sessionId !== 'all' ? `AND (r.sessionId = '${filters.sessionId}' OR c.sessionId = '${filters.sessionId}' OR i.sessionId = '${filters.sessionId}')` : ''}
+          ${filters?.projectId && filters.projectId !== 'all' ? `AND (r.projectId = '${filters.projectId}' OR c.projectId = '${filters.projectId}' OR i.projectId = '${filters.projectId}')` : ''}
+          ${filters?.coachId && filters.coachId !== 'all' ? `AND co.id = '${filters.coachId}'` : ''}
+        GROUP BY co.id, co.name, co.specialty
+        ORDER BY registrationCount DESC
       `
     }
 
-    try {
-      const [
-        funnelResult,
-        cancelReasonResult,
-        cancelWeatherResult,
-        incidentsResult,
-        incidentWeatherResult,
-        equipmentResult,
-        ageStatsResult,
-        totalStatsResult
-      ] = await Promise.all([
-        this.executeRawQuery(queries.funnelData),
-        this.executeRawQuery(queries.cancelByReason),
-        this.executeRawQuery(queries.cancelByWeather),
-        this.executeRawQuery(queries.incidents),
-        this.executeRawQuery(queries.incidentByWeather),
-        this.executeRawQuery(queries.equipment),
-        this.executeRawQuery(queries.ageStats),
-        this.executeRawQuery(queries.totalStats)
-      ])
+    const [
+      funnelResult,
+      cancelReasonResult,
+      cancelWeatherResult,
+      incidentsResult,
+      incidentWeatherResult,
+      equipmentResult,
+      ageStatsResult,
+      totalStatsResult,
+      coachStatsResult
+    ] = await Promise.all([
+      this.executeRawQuery(queries.funnelData),
+      this.executeRawQuery(queries.cancelByReason),
+      this.executeRawQuery(queries.cancelByWeather),
+      this.executeRawQuery(queries.incidents),
+      this.executeRawQuery(queries.incidentByWeather),
+      this.executeRawQuery(queries.equipment),
+      this.executeRawQuery(queries.ageStats),
+      this.executeRawQuery(queries.totalStats),
+      this.executeRawQuery(queries.coachStats)
+    ])
 
-      return this.transformClickHouseResults({
-        funnelResult,
-        cancelReasonResult,
-        cancelWeatherResult,
-        incidentsResult,
-        incidentWeatherResult,
-        equipmentResult,
-        ageStatsResult,
-        totalStatsResult,
-        filters
-      })
-    } catch (error) {
-      console.warn('ClickHouse unified query failed, using mock data:', error.message)
-      return this.getMockUnifiedDashboardData(filters)
-    }
+    return this.transformClickHouseResults({
+      funnelResult,
+      cancelReasonResult,
+      cancelWeatherResult,
+      incidentsResult,
+      incidentWeatherResult,
+      equipmentResult,
+      ageStatsResult,
+      totalStatsResult,
+      coachStatsResult,
+      filters
+    })
   }
 
   transformClickHouseResults(results) {
@@ -237,6 +279,7 @@ class ClickHouseClient {
       equipmentResult,
       ageStatsResult,
       totalStatsResult,
+      coachStatsResult,
       filters
     } = results
 
@@ -281,7 +324,8 @@ class ClickHouseClient {
       } : null,
       hasPhoto: Boolean(event.hasPhoto),
       minorCount: Number(event.minorCount),
-      adultCount: Number(event.adultCount)
+      adultCount: Number(event.adultCount),
+      coachName: event.coachName
     }))
 
     const incidentByDate = {}
@@ -356,6 +400,15 @@ class ClickHouseClient {
         groupCount: acc.groupCount + 1
       }), { registerCount: 0, confirmCount: 0, checkinCount: 0, completeCount: 0, cancelCount: 0, groupCount: 0 })
 
+    const coachStats = coachStatsResult.map(item => ({
+      coachId: item.coachId,
+      coachName: item.coachName,
+      specialty: item.specialty,
+      registrationCount: Number(item.registrationCount),
+      checkinCount: Number(item.checkinCount),
+      incidentCount: Number(item.incidentCount)
+    }))
+
     return {
       funnel: {
         funnelData,
@@ -395,8 +448,10 @@ class ClickHouseClient {
         incidentByWeather,
         cancelByWeather
       },
+      coachStats,
       queryTime: new Date().toISOString(),
-      filtersApplied: filters
+      filtersApplied: filters,
+      dataSource: 'clickhouse'
     }
   }
 
@@ -406,15 +461,26 @@ class ClickHouseClient {
     const filteredRegs = this.applyFilters(mockData.registrations, filters)
     const filteredIncidents = this.applyFilters(mockData.incidents, filters)
     const filteredEquipment = this.applyFilters(mockData.equipmentUsage, filters)
+    const filteredCheckins = this.applyFilters(mockData.checkins || [], filters)
     
     const funnelStages = ['register', 'confirm', 'checkin', 'complete']
     const stageKeys = ['registerCount', 'confirmCount', 'checkinCount', 'completeCount']
     
-    const funnelData = funnelStages.map((stage, i) => ({
-      stage: ['报名', '确认参加', '签到', '完成活动'][i],
-      key: stage,
-      count: filteredRegs.reduce((sum, r) => sum + (r[stageKeys[i]] || 0), 0)
-    }))
+    const funnelData = funnelStages.map((stage, i) => {
+      let count = 0
+      if (stage === 'checkin') {
+        count = filteredCheckins.length > 0 
+          ? filteredCheckins.length 
+          : filteredRegs.reduce((sum, r) => sum + (r[stageKeys[i]] || 0), 0)
+      } else {
+        count = filteredRegs.reduce((sum, r) => sum + (r[stageKeys[i]] || 0), 0)
+      }
+      return {
+        stage: ['报名', '确认参加', '签到', '完成活动'][i],
+        key: stage,
+        count
+      }
+    })
     
     const cancelByReason = {}
     const cancelByWeather = {}
@@ -437,9 +503,11 @@ class ClickHouseClient {
     const incidentsWithWeather = filteredIncidents.map(incident => {
       const weatherKey = `${incident.sessionId}-${incident.date}`
       const weather = weatherMap[weatherKey]
+      const coach = COACHES.find(c => c.id === incident.coachId)
       return {
         ...incident,
-        weather: weather || null
+        weather: weather || null,
+        coachName: coach?.name || null
       }
     })
     
@@ -537,6 +605,19 @@ class ClickHouseClient {
     const timeline = Object.entries(incidentByDate)
       .sort((a, b) => new Date(a[0]) - new Date(b[0]))
       .map(([date, events]) => ({ date, events }))
+
+    const coachStats = COACHES.map(coach => {
+      const coachRegs = filteredRegs.filter(r => r.coachId === coach.id)
+      const coachIncidents = filteredIncidents.filter(i => i.coachId === coach.id)
+      return {
+        coachId: coach.id,
+        coachName: coach.name,
+        specialty: coach.specialty,
+        registrationCount: coachRegs.length,
+        checkinCount: coachRegs.filter(r => r.checkinCount > 0).length,
+        incidentCount: coachIncidents.length
+      }
+    }).filter(c => c.registrationCount > 0 || c.incidentCount > 0)
     
     return {
       funnel: {
@@ -579,49 +660,44 @@ class ClickHouseClient {
         incidentByWeather,
         cancelByWeather: Object.entries(cancelByWeather).map(([weatherId, count]) => ({ weatherId, count }))
       },
+      coachStats,
       queryTime: new Date().toISOString(),
-      filtersApplied: filters
+      filtersApplied: filters,
+      dataSource: 'mock'
     }
   }
 
-  mockQuery(sql, params) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const sqlLower = sql.toLowerCase()
-        
-        if (sqlLower.includes('unified') || sqlLower.includes('dashboard')) {
-          resolve(this.getMockUnifiedDashboardData(params))
-        } else if (sqlLower.includes('funnel') || sqlLower.includes('registrations')) {
-          resolve(this.getMockUnifiedDashboardData(params).funnel)
-        } else if (sqlLower.includes('incidents') || sqlLower.includes('timeline')) {
-          resolve(this.getMockUnifiedDashboardData(params).incidents)
-        } else if (sqlLower.includes('equipment') || sqlLower.includes('heatmap')) {
-          resolve(this.getMockUnifiedDashboardData(params).equipment)
-        } else if (sqlLower.includes('age_group') || sqlLower.includes('age')) {
-          resolve(this.getMockUnifiedDashboardData(params).ageStats)
-        } else {
-          resolve(this.getMockUnifiedDashboardData(params))
-        }
-      }, 100 + Math.random() * 200)
+  getWeatherMap() {
+    const map = {}
+    mockData.weatherRecords.forEach(w => {
+      map[`${w.sessionId}-${w.date}`] = w
     })
+    return map
   }
 
   applyFilters(data, filters) {
+    if (!filters) return data
+    
     return data.filter(item => {
-      if (filters?.sessionId && filters.sessionId !== 'all' && item.sessionId !== filters.sessionId) return false
-      if (filters?.projectId && filters.projectId !== 'all' && item.projectId !== filters.projectId) return false
-      if (filters?.ageGroupId && filters.ageGroupId !== 'all' && item.ageGroupId !== filters.ageGroupId) return false
-      if (filters?.coachId && filters.coachId !== 'all' && item.coachId !== filters.coachId) return false
+      if (filters.sessionId && filters.sessionId !== 'all' && item.sessionId !== filters.sessionId) {
+        return false
+      }
+      if (filters.projectId && filters.projectId !== 'all' && item.projectId !== filters.projectId) {
+        return false
+      }
+      if (filters.ageGroupId && filters.ageGroupId !== 'all' && item.ageGroupId !== filters.ageGroupId) {
+        return false
+      }
+      if (filters.coachId && filters.coachId !== 'all' && item.coachId !== filters.coachId) {
+        return false
+      }
       return true
     })
   }
 
-  getWeatherMap() {
-    const weatherMap = {}
-    mockData.weatherRecords.forEach(w => {
-      weatherMap[`${w.sessionId}-${w.date}`] = w
-    })
-    return weatherMap
+  mockQuery(sql, params) {
+    console.log('Mock query:', sql.substring(0, 100) + '...')
+    return []
   }
 
   async getUnifiedDashboardData(filters) {
@@ -632,29 +708,9 @@ class ClickHouseClient {
     try {
       return await this.getUnifiedDashboardDataFromClickHouse(filters)
     } catch (error) {
-      console.warn('Falling back to mock data:', error.message)
-      return this.getMockUnifiedDashboardData(filters)
+      console.error('ClickHouse unified query failed:', error.message)
+      throw error
     }
-  }
-
-  async getFunnelData(filters) {
-    const result = await this.getUnifiedDashboardData(filters)
-    return result.funnel
-  }
-
-  async getIncidentData(filters) {
-    const result = await this.getUnifiedDashboardData(filters)
-    return result.incidents
-  }
-
-  async getEquipmentData(filters) {
-    const result = await this.getUnifiedDashboardData(filters)
-    return result.equipment
-  }
-
-  async getAgeGroupData(filters) {
-    const result = await this.getUnifiedDashboardData(filters)
-    return result.ageStats
   }
 }
 

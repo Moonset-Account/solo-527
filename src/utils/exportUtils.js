@@ -44,7 +44,7 @@ export const exportToExcel = async (exportData) => {
   funnelSheetData.push(['取消原因分布'])
   funnelSheetData.push(['原因', '数量'])
   funnel.cancelByReason.forEach(item => {
-    funnelSheetData.push([item.reason, item.count])
+    funnelSheetData.push([getLabel(CANCEL_REASONS, item.reasonId), item.count])
   })
   const funnelWs = XLSX.utils.aoa_to_sheet(funnelSheetData)
   XLSX.utils.book_append_sheet(wb, funnelWs, '漏斗数据')
@@ -146,6 +146,25 @@ export const exportToExcel = async (exportData) => {
     }
     const weatherWs = XLSX.utils.aoa_to_sheet(weatherSheetData)
     XLSX.utils.book_append_sheet(wb, weatherWs, '天气分析')
+  }
+  
+  if (exportData.coachStats && exportData.coachStats.length > 0) {
+    const coachSheetData = [
+      ['教练统计']
+    ]
+    coachSheetData.push([])
+    coachSheetData.push(['教练姓名', '专长项目', '负责报名数', '负责签到数', '关联事件数'])
+    exportData.coachStats.forEach(coach => {
+      coachSheetData.push([
+        coach.coachName,
+        coach.specialty,
+        coach.registrationCount,
+        coach.checkinCount,
+        coach.incidentCount
+      ])
+    })
+    const coachWs = XLSX.utils.aoa_to_sheet(coachSheetData)
+    XLSX.utils.book_append_sheet(wb, coachWs, '教练统计')
   }
   
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })

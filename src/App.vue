@@ -225,13 +225,23 @@ const handleFilterChange = () => {
 }
 
 const handleExport = async () => {
-  if (!canExportData()) {
+  if (!canExportData() || !unifiedDataSource) {
     return
   }
   
   exporting.value = true
   try {
-    const exportData = await getExportData(filters)
+    const exportData = {
+      funnel: unifiedDataSource.funnel,
+      incidents: unifiedDataSource.incidents,
+      equipment: unifiedDataSource.equipment,
+      ageStats: unifiedDataSource.ageStats,
+      weatherAnalysis: unifiedDataSource.weatherAnalysis,
+      coachStats: unifiedDataSource.coachStats,
+      exportTime: unifiedDataSource.queryTime || new Date().toISOString(),
+      filters,
+      dataSource: unifiedDataSource.dataSource
+    }
     await exportToExcel(exportData)
   } catch (error) {
     console.error('Export failed:', error)
