@@ -28,6 +28,9 @@ def aggregate_downtime_by_dimension(dimensions: List[str], filters: Optional[Dic
     
     group_cols = list(dict.fromkeys(group_cols))
     
+    if not group_cols:
+        return pd.DataFrame()
+    
     aggregated = df.groupby(group_cols).agg(
         total_duration=("duration_minutes", "sum"),
         count=("event_id", "count"),
@@ -187,6 +190,9 @@ def get_spare_part_correlation(filters: Optional[Dict] = None) -> Dict[str, Any]
     
     if len(usages) == 0:
         return {"matrix": [], "top_correlations": [], "cost_analysis": []}
+    
+    fault_info = events[["fault_code", "fault_name"]].drop_duplicates().set_index("fault_code")["fault_name"].to_dict()
+    usages["fault_name"] = usages["fault_code"].map(fault_info).fillna(usages["fault_code"])
     
     fault_part = usages.groupby(["fault_code", "fault_name", "part_name"]).agg(
         usage_count=("usage_id", "count"),

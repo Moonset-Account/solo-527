@@ -9,6 +9,8 @@ from layouts.line_compare import get_line_compare_layout
 from layouts.maintenance import get_maintenance_layout
 from layouts.spare_parts import get_spare_parts_layout
 from callbacks.chart_callbacks import register_callbacks
+from api.routes import register_api_routes
+from services.data_service import get_data_source_mode
 
 app = dash.Dash(
     __name__,
@@ -25,6 +27,11 @@ app = dash.Dash(
 )
 
 server = app.server
+register_api_routes(server)
+
+data_mode = get_data_source_mode()
+mode_badge_class = "bg-success" if data_mode == "timescaledb" else "bg-warning"
+mode_badge_text = "TimescaleDB" if data_mode == "timescaledb" else "Mock数据"
 
 sidebar = html.Div([
     html.Div([
@@ -57,6 +64,12 @@ sidebar = html.Div([
     
     html.Div([
         html.Hr(className="text-white-50"),
+        html.Div([
+            html.Span([
+                html.Span(className=f"badge {mode_badge_class} me-1"),
+                mode_badge_text,
+            ], className="small text-white-50 d-block mb-1"),
+        ]),
         html.Small("版本 v1.0.0", className="text-white-50 d-block"),
         html.Small("© 2024 工厂设备管理", className="text-white-50 d-block"),
     ], className="mt-auto p-3 position-absolute bottom-0 start-0 end-0"),
@@ -64,6 +77,17 @@ sidebar = html.Div([
 
 content = html.Div([
     dcc.Location(id="url", refresh=False),
+    dcc.Store(id="filter-state", data={
+        "start_date": None,
+        "end_date": None,
+        "line_ids": None,
+        "equipment_ids": None,
+        "shift_ids": None,
+        "fault_codes": None,
+        "repair_persons": None,
+        "breakdown_type": "all",
+    }),
+    dcc.Store(id="drilldown-state", data={}),
     html.Div(id="page-content"),
 ], className="main-content")
 

@@ -40,18 +40,28 @@ def generate_excel_report(filter_state: dict, kpi_data: dict, pareto_data: dict,
         filter_desc.append(f"设备: {filter_state['equipment_ids']}")
     if filter_state.get("shift_ids"):
         filter_desc.append(f"班次: {filter_state['shift_ids']}")
+    if filter_state.get("fault_codes"):
+        filter_desc.append(f"故障类型: {filter_state['fault_codes']}")
+    if filter_state.get("repair_persons"):
+        filter_desc.append(f"维修人员: {filter_state['repair_persons']}")
     if filter_state.get("breakdown_type"):
         type_map = {"all": "全部", "planned": "仅计划检修", "unplanned": "仅突发故障"}
         filter_desc.append(f"停机类型: {type_map.get(filter_state['breakdown_type'], '全部')}")
+    if filter_state.get("drilldown"):
+        filter_desc.append(f"下钻维度: {filter_state['drilldown']}")
     ws_summary["B4"] = "; ".join(filter_desc) if filter_desc else "无筛选(全部数据)"
     
-    ws_summary["A6"] = "核心KPI指标"
-    ws_summary["A6"].font = Font(bold=True, size=12)
-    ws_summary.merge_cells("A6:F6")
+    if filter_state.get("caliber"):
+        ws_summary["A6"] = "当前口径"
+        ws_summary["B6"] = filter_state["caliber"]
+    
+    ws_summary["A8"] = "核心KPI指标"
+    ws_summary["A8"].font = Font(bold=True, size=12)
+    ws_summary.merge_cells("A8:F8")
     
     kpi_headers = ["指标名称", "数值", "单位", "口径说明"]
     for col, header in enumerate(kpi_headers, 1):
-        cell = ws_summary.cell(row=7, column=col, value=header)
+        cell = ws_summary.cell(row=9, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center")
@@ -67,7 +77,7 @@ def generate_excel_report(filter_state: dict, kpi_data: dict, pareto_data: dict,
         ["设备可用率", f"{kpi_data.get('availability', 0)}%", "", get_caliber_note("availability")],
     ]
     
-    for row_idx, row_data in enumerate(kpi_rows, 8):
+    for row_idx, row_data in enumerate(kpi_rows, 10):
         for col_idx, value in enumerate(row_data, 1):
             cell = ws_summary.cell(row=row_idx, column=col_idx, value=value)
             cell.border = thin_border

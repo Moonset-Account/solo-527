@@ -24,6 +24,13 @@ def get_overview_layout():
         
         create_filter_panel(),
         create_filter_store(),
+        dcc.Store(id="drilldown-state", data={}),
+        
+        dbc.Row([
+            dbc.Col([
+                html.Div(id="current-caliber", className="mb-2"),
+            ], md=12),
+        ]),
         
         dcc.Loading(
             id="loading-kpi",

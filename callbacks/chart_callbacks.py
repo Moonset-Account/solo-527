@@ -1,12 +1,13 @@
 from datetime import datetime
-from dash import callback, Input, Output, State, ctx, dash
+from dash import callback, Input, Output, State, ctx, dash, no_update
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 import pandas as pd
 
 from services.aggregation import (
     get_kpi_summary, get_trend_data, get_pareto_analysis,
-    get_line_comparison, get_maintenance_efficiency, get_spare_part_correlation
+    get_line_comparison, get_maintenance_efficiency, get_spare_part_correlation,
+    aggregate_downtime_by_dimension
 )
 from services.data_service import get_date_range
 from components.kpi_cards import create_kpi_row
@@ -19,7 +20,11 @@ from components.export import generate_excel_report
 from utils.helpers import format_duration
 
 
-def build_filters_from_state(filter_state):
+DRILLDOWN_STORE = "drilldown-state"
+FILTER_STORE = "filter-state"
+
+
+def build_filters_from_state(filter_state, drilldown_state=None):
     filters = {}
     if filter_state:
         if filter_state.get("start_date"):
@@ -38,13 +43,91 @@ def build_filters_from_state(filter_state):
             filters["repair_persons"] = filter_state["repair_persons"]
         if filter_state.get("breakdown_type"):
             filters["breakdown_type"] = filter_state["breakdown_type"]
+    
+    if drilldown_state:
+        for key, value in drilldown_state.items():
+            if value and key not in filters:
+                if key == "drilldown_fault_code":
+                    filters["fault_codes"] = [value] if isinstance(value, str) else value
+                elif key == "drilldown_line_id":
+                    filters["line_ids"] = [value] if not isinstance(value, list) else value
+                elif key == "drilldown_equipment_id":
+                    filters["equipment_ids"] = [value] if not isinstance(value, list) else value
+                elif key == "drilldown_shift_id":
+                    filters["shift_ids"] = [value] if not isinstance(value, list) else value
+    
     return filters
+
+
+def get_current_caliber_description(filter_state, drilldown_state=None):
+    parts = []
+    
+    if filter_state:
+        if filter_state.get("start_date") and filter_state.get("end_date"):
+            parts.append(f"时间: {filter_state['start_date']} ~ {filter_state['end_date']}")
+        if filter_state.get("line_ids"):
+            parts.append(f"产线: {len(filter_state['line_ids'])}个")
+        if filter_state.get("equipment_ids"):
+            parts.append(f"设备: {len(filter_state['equipment_ids'])}台")
+        if filter_state.get("shift_ids"):
+            parts.append(f"班次: {len(filter_state['shift_ids'])}个")
+        if filter_state.get("fault_codes"):
+            parts.append(f"故障: {len(filter_state['fault_codes'])}类")
+        if filter_state.get("repair_persons"):
+            parts.append(f"维修人: {len(filter_state['repair_persons'])}人")
+        bt = filter_state.get("breakdown_type", "all")
+        bt_label = {"all": "全部停机", "planned": "仅计划检修", "unplanned": "仅突发故障"}.get(bt, bt)
+        parts.append(f"类型: {bt_label}")
+    
+    if drilldown_state:
+        for key, value in drilldown_state.items():
+            if value:
+                if key == "drilldown_fault_code":
+                    parts.append(f"下钻: 故障={value}")
+                elif key == "drilldown_line_id":
+                    parts.append(f"下钻: 产线={value}")
+    
+    return " | ".join(parts) if parts else "全部数据"
+
+
+def create_breadcrumbs(filter_state, drilldown_state=None):
+    crumbs = [
+        dbc.BreadcrumbItem("首页", href="/", active=False),
+    ]
+    
+    caliber = get_current_caliber_description(filter_state, drilldown_state)
+    crumbs.append(dbc.BreadcrumbItem(caliber, active=True))
+    
+    drilldown_items = []
+    if drilldown_state:
+        for key, value in drilldown_state.items():
+            if value:
+                if key == "drilldown_fault_code":
+                    drilldown_items.append(
+                        dbc.Badge(
+                            [f"故障: {value}", html.Button("×", className="btn-close ms-2", size="sm", id=f"clear-{key}")],
+                            color="info", className="me-2"
+                        )
+                    )
+    
+    return html.Div([
+        dbc.Breadcrumb(crumbs, className="mb-2"),
+        html.Div(drilldown_items, className="mb-3") if drilldown_items else None,
+    ])
 
 
 def register_callbacks(app):
     
     @app.callback(
-        Output("filter-state", "data"),
+        Output(DRILLDOWN_STORE, 'data', allow_duplicate=True),
+        Input('url', 'pathname'),
+        prevent_initial_call='initial_duplicate',
+    )
+    def reset_drilldown_on_page_change(pathname):
+        return {}
+    
+    @app.callback(
+        Output(FILTER_STORE, "data"),
         [
             Input("date-range", "start_date"),
             Input("date-range", "end_date"),
@@ -55,7 +138,7 @@ def register_callbacks(app):
             Input("person-filter", "value"),
             Input("breakdown-type-filter", "value"),
         ],
-        State("filter-state", "data"),
+        State(FILTER_STORE, "data"),
         prevent_initial_call=False,
     )
     def update_filter_state(start_date, end_date, line_ids, equipment_ids, shift_ids, 
@@ -83,6 +166,7 @@ def register_callbacks(app):
             Output("fault-filter", "value"),
             Output("person-filter", "value"),
             Output("breakdown-type-filter", "value"),
+            Output(DRILLDOWN_STORE, "data"),
         ],
         Input("reset-filters-btn", "n_clicks"),
         prevent_initial_call=True,
@@ -101,29 +185,38 @@ def register_callbacks(app):
             None,
             None,
             "all",
+            {},
         ]
     
     @app.callback(
         [
             Output("kpi-cards-container", "children"),
             Output("data-update-time", "children"),
+            Output("current-caliber", "children"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_kpi_cards(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_kpi_cards(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         kpi_data = get_kpi_summary(filters)
         update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return create_kpi_row(kpi_data), update_time
+        caliber = get_current_caliber_description(filter_state, drilldown_state)
+        
+        caliber_badge = html.Div([
+            html.I(className="bi bi-info-circle me-1"),
+            html.Small(f"当前口径: {caliber}", className="text-muted"),
+        ], className="text-end")
+        
+        return create_kpi_row(kpi_data), update_time, caliber_badge
     
     @app.callback(
         Output("trend-chart", "figure"),
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_trend_chart(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_trend_chart(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         trend_df = get_trend_data(filters)
         return create_trend_chart(trend_df)
     
@@ -132,11 +225,11 @@ def register_callbacks(app):
             Output("top-faults-list", "children"),
             Output("top-lines-list", "children"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_overview_lists(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_overview_lists(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         
         pareto_data = get_pareto_analysis(filters)
         fault_items = pareto_data.get("items", [])[:5]
@@ -156,7 +249,7 @@ def register_callbacks(app):
                     html.Div([
                         html.Small(item["description"], className="text-muted"),
                     ], className="mt-1"),
-                ], className="mb-2")
+                ], className="mb-2", id={"type": "fault-item", "index": item["fault_code"]})
             )
         
         if not fault_list:
@@ -207,14 +300,15 @@ def register_callbacks(app):
             Output("pareto-detail-container", "children"),
             Output("suggestions-container", "children"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_pareto_page(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_pareto_page(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         pareto_data = get_pareto_analysis(filters)
         
         fig = create_pareto_chart(pareto_data)
+        fig.update_layout(clickmode='event+select')
         
         items = pareto_data.get("items", [])
         detail_rows = []
@@ -227,7 +321,7 @@ def register_callbacks(app):
                     html.Td(f"{item['percentage']}%"),
                     html.Td(f"{item['cumulative_percentage']}%"),
                     html.Td(html.Small(item["description"], className="text-muted")),
-                ])
+                ], id={"type": "pareto-row", "index": item["fault_code"]})
             )
         
         if detail_rows:
@@ -267,19 +361,49 @@ def register_callbacks(app):
         return fig, detail_table, suggestion_cards
     
     @app.callback(
+        Output(DRILLDOWN_STORE, "data", allow_duplicate=True),
+        Input("pareto-chart", "clickData"),
+        State(DRILLDOWN_STORE, "data"),
+        prevent_initial_call=True,
+    )
+    def pareto_click_drilldown(click_data, current_drilldown):
+        if not click_data or not click_data.get("points"):
+            raise dash.exceptions.PreventUpdate
+        
+        point = click_data["points"][0]
+        fault_name = point.get("x")
+        
+        from database.sample_data import FAULT_TYPES
+        fault_code = None
+        for ft in FAULT_TYPES:
+            if ft["fault_name"] == fault_name:
+                fault_code = ft["fault_code"]
+                break
+        
+        if not fault_code:
+            raise dash.exceptions.PreventUpdate
+        
+        new_drilldown = current_drilldown or {}
+        new_drilldown["drilldown_fault_code"] = fault_code
+        
+        return new_drilldown
+    
+    @app.callback(
         [
             Output("line-compare-chart", "figure"),
             Output("heatmap-chart", "figure"),
             Output("line-summary-cards", "children"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_line_compare_page(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_line_compare_page(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         line_data = get_line_comparison(filters)
         
         compare_fig = create_line_comparison_chart(line_data)
+        compare_fig.update_layout(clickmode='event+select')
+        
         heatmap_fig = create_heatmap_chart(line_data.get("heatmap_data", []))
         
         lines = line_data.get("lines", [])
@@ -307,6 +431,34 @@ def register_callbacks(app):
         return compare_fig, heatmap_fig, dbc.ListGroup(summary, flush=True)
     
     @app.callback(
+        Output(DRILLDOWN_STORE, "data", allow_duplicate=True),
+        Input("line-compare-chart", "clickData"),
+        State(DRILLDOWN_STORE, "data"),
+        prevent_initial_call=True,
+    )
+    def line_compare_click_drilldown(click_data, current_drilldown):
+        if not click_data or not click_data.get("points"):
+            raise dash.exceptions.PreventUpdate
+        
+        point = click_data["points"][0]
+        line_name = point.get("x")
+        
+        from database.sample_data import PRODUCTION_LINES
+        line_id = None
+        for pl in PRODUCTION_LINES:
+            if pl["line_name"] == line_name:
+                line_id = pl["line_id"]
+                break
+        
+        if not line_id:
+            raise dash.exceptions.PreventUpdate
+        
+        new_drilldown = current_drilldown or {}
+        new_drilldown["drilldown_line_id"] = line_id
+        
+        return new_drilldown
+    
+    @app.callback(
         [
             Output("mttr-value", "children"),
             Output("mtbf-value", "children"),
@@ -315,11 +467,11 @@ def register_callbacks(app):
             Output("maint-dist-chart", "figure"),
             Output("person-chart", "figure"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_maintenance_page(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_maintenance_page(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         eff_data = get_maintenance_efficiency(filters)
         
         mttr = eff_data.get("mttr", 0)
@@ -330,6 +482,7 @@ def register_callbacks(app):
         
         dist_fig = create_maintenance_distribution(eff_data)
         person_fig = create_repair_person_chart(eff_data)
+        person_fig.update_layout(clickmode='event+select')
         
         return mttr, mtbf, total_orders, f"{avg_cost:.0f}", dist_fig, person_fig
     
@@ -339,11 +492,11 @@ def register_callbacks(app):
             Output("cost-chart", "figure"),
             Output("top-correlations-list", "children"),
         ],
-        Input("filter-state", "data"),
+        [Input(FILTER_STORE, "data"), Input(DRILLDOWN_STORE, "data")],
         prevent_initial_call=False,
     )
-    def update_spare_parts_page(filter_state):
-        filters = build_filters_from_state(filter_state)
+    def update_spare_parts_page(filter_state, drilldown_state):
+        filters = build_filters_from_state(filter_state, drilldown_state)
         corr_data = get_spare_part_correlation(filters)
         
         heatmap_fig = create_spare_parts_heatmap(corr_data)
@@ -380,14 +533,14 @@ def register_callbacks(app):
     @app.callback(
         Output("download-report", "data"),
         Input("export-btn", "n_clicks"),
-        State("filter-state", "data"),
+        [State(FILTER_STORE, "data"), State(DRILLDOWN_STORE, "data")],
         prevent_initial_call=True,
     )
-    def export_report(n_clicks, filter_state):
+    def export_report(n_clicks, filter_state, drilldown_state):
         if not n_clicks:
             raise dash.exceptions.PreventUpdate
         
-        filters = build_filters_from_state(filter_state)
+        filters = build_filters_from_state(filter_state, drilldown_state)
         
         kpi_data = get_kpi_summary(filters)
         pareto_data = get_pareto_analysis(filters)
@@ -395,8 +548,14 @@ def register_callbacks(app):
         eff_data = get_maintenance_efficiency(filters)
         corr_data = get_spare_part_correlation(filters)
         
+        export_filter_state = {
+            **(filter_state or {}),
+            "drilldown": drilldown_state,
+            "caliber": get_current_caliber_description(filter_state, drilldown_state),
+        }
+        
         excel_data = generate_excel_report(
-            filter_state or {},
+            export_filter_state,
             kpi_data,
             pareto_data,
             line_data,

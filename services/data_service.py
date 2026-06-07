@@ -1,9 +1,28 @@
+import os
 import pandas as pd
 from typing import Dict, List, Any, Optional
+
 from database.sample_data import get_all_data
 from utils.helpers import handle_empty_data
 
+DATA_SOURCE = os.environ.get("DATA_SOURCE", "mock")
+
 _data_cache = None
+_db_status = None
+
+
+def get_data_source_mode() -> str:
+    global _db_status
+    if _db_status is None:
+        try:
+            from database.connection import check_db_connection
+            _db_status = check_db_connection()
+            if _db_status["connected"]:
+                return "timescaledb"
+        except Exception:
+            pass
+        _db_status = {"mode": "mock"}
+    return _db_status.get("mode", "mock")
 
 
 def load_data() -> Dict[str, pd.DataFrame]:
@@ -14,11 +33,12 @@ def load_data() -> Dict[str, pd.DataFrame]:
 
 
 def reload_data():
-    global _data_cache
-    _data_cache = get_all_data()
+    global _data_cache, _db_status
+    _data_cache = None
+    _db_status = None
 
 
-def get_events(filters: Optional[Dict] = None) -> pd.DataFrame:
+def _get_events_mock(filters: Optional[Dict] = None) -> pd.DataFrame:
     data = load_data()
     df = data["events"].copy()
     
@@ -41,7 +61,24 @@ def get_events(filters: Optional[Dict] = None) -> pd.DataFrame:
     return handle_empty_data(df)
 
 
-def get_work_orders(filters: Optional[Dict] = None) -> pd.DataFrame:
+def get_events(filters: Optional[Dict] = None) -> pd.DataFrame:
+    mode = get_data_source_mode()
+    
+    if mode == "timescaledb":
+        try:
+            from database.connection import get_events_from_db
+            df = get_events_from_db(filters)
+            if not df.empty:
+                if "date" in df.columns and isinstance(df["date"].iloc[0], str):
+                    df["date"] = pd.to_datetime(df["date"]).dt.date
+            return handle_empty_data(df)
+        except Exception:
+            pass
+    
+    return _get_events_mock(filters)
+
+
+def _get_work_orders_mock(filters: Optional[Dict] = None) -> pd.DataFrame:
     data = load_data()
     events = get_events(filters)
     
@@ -58,7 +95,21 @@ def get_work_orders(filters: Optional[Dict] = None) -> pd.DataFrame:
     return handle_empty_data(orders)
 
 
-def get_spare_part_usages(filters: Optional[Dict] = None) -> pd.DataFrame:
+def get_work_orders(filters: Optional[Dict] = None) -> pd.DataFrame:
+    mode = get_data_source_mode()
+    
+    if mode == "timescaledb":
+        try:
+            from database.connection import get_work_orders_from_db
+            df = get_work_orders_from_db(filters)
+            return handle_empty_data(df)
+        except Exception:
+            pass
+    
+    return _get_work_orders_mock(filters)
+
+
+def _get_spare_part_usages_mock(filters: Optional[Dict] = None) -> pd.DataFrame:
     data = load_data()
     orders = get_work_orders(filters)
     
@@ -72,7 +123,35 @@ def get_spare_part_usages(filters: Optional[Dict] = None) -> pd.DataFrame:
     return handle_empty_data(usages)
 
 
+def get_spare_part_usages(filters: Optional[Dict] = None) -> pd.DataFrame:
+    mode = get_data_source_mode()
+    
+    if mode == "timescaledb":
+        try:
+            from database.connection import get_spare_parts_from_db
+            df = get_spare_parts_from_db(filters)
+            return handle_empty_data(df)
+        except Exception:
+            pass
+    
+    return _get_spare_part_usages_mock(filters)
+
+
 def get_dimension_options(dimension: str) -> List[Dict[str, Any]]:
+    mode = get_data_source_mode()
+    
+    if mode == "timescaledb":
+        try:
+            options = _get_dimension_options_db(dimension)
+            if options:
+                return options
+        except Exception:
+            pass
+    
+    return _get_dimension_options_mock(dimension)
+
+
+def _get_dimension_options_mock(dimension: str) -> List[Dict[str, Any]]:
     data = load_data()
     
     if dimension == "line":
@@ -97,7 +176,40 @@ def get_dimension_options(dimension: str) -> List[Dict[str, Any]]:
     return []
 
 
+def _get_dimension_options_db(dimension: str) -> List[Dict[str, Any]]:
+    from database.connection import execute_query
+    
+    queries = {
+        "line": "SELECT line_id as value, line_name as label FROM production_line ORDER BY line_id",
+        "equipment": "SELECT equipment_id as value, equipment_name as label FROM equipment ORDER BY equipment_name",
+        "shift": "SELECT shift_id as value, shift_name as label FROM shift ORDER BY shift_id",
+        "fault_type": "SELECT fault_code as value, fault_name as label FROM fault_type ORDER BY fault_name",
+        "repair_person": "SELECT person_id as value, person_name as label FROM repair_person ORDER BY person_name",
+        "spare_part": "SELECT part_id as value, part_name as label FROM spare_part ORDER BY part_name",
+    }
+    
+    if dimension not in queries:
+        return []
+    
+    df = execute_query(queries[dimension])
+    return df.to_dict('records')
+
+
 def get_date_range() -> Dict[str, Any]:
+    mode = get_data_source_mode()
+    
+    if mode == "timescaledb":
+        try:
+            from database.connection import execute_query
+            df = execute_query("SELECT MIN(DATE(start_time)) as min_date, MAX(DATE(start_time)) as max_date FROM downtime_event")
+            if not df.empty:
+                return {
+                    "min_date": df.iloc[0]["min_date"],
+                    "max_date": df.iloc[0]["max_date"]
+                }
+        except Exception:
+            pass
+    
     events = load_data()["events"]
     return {
         "min_date": events["date"].min(),
