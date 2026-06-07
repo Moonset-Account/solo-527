@@ -10,6 +10,11 @@ import {
   calculateDataQuality
 } from '../scripts/dataCleaner.js';
 import { DATA_QUALITY_CONFIG } from '../config/metricsConfig.js';
+import {
+  getSavedFiltersFromStorage,
+  saveFilterToStorage,
+  deleteFilterFromStorage,
+} from './fileStorage.js';
 import type {
   Vehicle, Route, Customer, TemperatureRecord, PositionRecord,
   DoorRecord, DeliveryBatch, TemperatureProbe, AnomalyEvent,
@@ -337,6 +342,66 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
         avgDuration: deliveredBatches.length > 0 ? Math.round(totalDuration / deliveredBatches.length / 60000) : 0,
       });
     }
+  } else if (dimension === 'batch') {
+    for (const id of ids) {
+      const batch = batches.find(b => b.id === id);
+      if (!batch) continue;
+      
+      const batchTemps = tempRecords.filter(t => t.batchId === id);
+      const avgTemp = batchTemps.length > 0 
+        ? batchTemps.reduce((sum, t) => sum + t.temperature, 0) / batchTemps.length 
+        : 0;
+      
+      const batchAnomalies = anomalies.filter(a => a.batchId === id);
+      const isDelivered = batch.status === 'delivered' || batch.status === 'exception';
+      const onTime = isDelivered && batch.actualArrival && batch.actualArrival <= batch.estimatedArrival ? 1 : 0;
+      const duration = isDelivered && batch.actualArrival 
+        ? Math.round((batch.actualArrival - batch.startTime) / 60000)
+        : 0;
+      
+      items.push({
+        id,
+        name: `批次${batch.batchNo || id.slice(0, 8)}`,
+        avgTemperature: Math.round(avgTemp * 100) / 100,
+        anomalyCount: batchAnomalies.length,
+        onTimeRate: isDelivered ? (onTime ? 100 : 0) : 0,
+        avgDuration: duration,
+      });
+    }
+  } else if (dimension === 'probe') {
+    for (const id of ids) {
+      const probe = probes.find(p => p.id === id);
+      if (!probe) continue;
+      
+      const probeTemps = tempRecords.filter(t => t.probeId === id);
+      const avgTemp = probeTemps.length > 0 
+        ? probeTemps.reduce((sum, t) => sum + t.temperature, 0) / probeTemps.length 
+        : 0;
+      
+      const probeAnomalies = anomalies.filter(a => a.probeId === id);
+      const probeBatches = [...new Set(probeTemps.map(t => t.batchId).filter(Boolean))];
+      const deliveredBatches = batches.filter(b => 
+        probeBatches.includes(b.id) && (b.status === 'delivered' || b.status === 'exception')
+      );
+      let onTimeCount = 0;
+      let totalDuration = 0;
+      for (const b of deliveredBatches) {
+        const actual = b.actualArrival || 0;
+        const estimated = b.estimatedArrival;
+        const start = b.startTime;
+        if (actual <= estimated) onTimeCount++;
+        totalDuration += (actual - start);
+      }
+      
+      items.push({
+        id,
+        name: probe.probeCode,
+        avgTemperature: Math.round(avgTemp * 100) / 100,
+        anomalyCount: probeAnomalies.length,
+        onTimeRate: deliveredBatches.length > 0 ? Math.round((onTimeCount / deliveredBatches.length) * 100) : 0,
+        avgDuration: deliveredBatches.length > 0 ? Math.round(totalDuration / deliveredBatches.length / 60000) : 0,
+      });
+    }
   }
   
   return { dimension, items };
@@ -376,28 +441,13 @@ export const getDataQualityReport = (): DataQualityReport => {
 };
 
 export const getSavedFilters = (userId: string = 'default'): SavedFilter[] => {
-  return savedFilters
-    .filter(f => f.userId === userId)
-    .sort((a, b) => b.createdAt - a.createdAt);
+  return getSavedFiltersFromStorage(userId);
 };
 
 export const saveFilter = (name: string, filters: Record<string, any>, userId: string = 'default'): SavedFilter => {
-  const newFilter: SavedFilter = {
-    id: randomUUID(),
-    userId,
-    name,
-    filters,
-    createdAt: Date.now(),
-  };
-  savedFilters.push(newFilter);
-  return newFilter;
+  return saveFilterToStorage(name, filters, userId);
 };
 
 export const deleteFilter = (id: string): boolean => {
-  const index = savedFilters.findIndex(f => f.id === id);
-  if (index > -1) {
-    savedFilters.splice(index, 1);
-    return true;
-  }
-  return false;
+  return deleteFilterFromStorage(id);
 };

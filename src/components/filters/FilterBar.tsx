@@ -7,12 +7,12 @@ import type { SavedFilter } from '@shared/types';
 
 export default function FilterBar() {
   const { 
-    selectedVehicleId, selectedRouteId, selectedBatchId, selectedCustomerId,
-    setSelectedVehicleId, setSelectedRouteId, setSelectedBatchId, setSelectedCustomerId,
+    selectedVehicleId, selectedRouteId, selectedBatchId, selectedCustomerId, selectedProbeId,
+    setSelectedVehicleId, setSelectedRouteId, setSelectedBatchId, setSelectedCustomerId, setSelectedProbeId,
     clearFilters
   } = useFilterStore();
   
-  const { vehicles, routes, customers } = useMetaStore();
+  const { vehicles, routes, customers, batches, probes } = useMetaStore();
   
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -25,14 +25,18 @@ export default function FilterBar() {
 
   const loadMeta = async () => {
     try {
-      const [v, r, c] = await Promise.all([
+      const [v, r, c, b, p] = await Promise.all([
         api.getVehicles(),
         api.getRoutes(),
         api.getCustomers(),
+        api.getBatches(),
+        api.getProbeStatus(),
       ]);
       useMetaStore.getState().setVehicles(v);
       useMetaStore.getState().setRoutes(r);
       useMetaStore.getState().setCustomers(c);
+      useMetaStore.getState().setBatches(b);
+      useMetaStore.getState().setProbes(p);
     } catch (error) {
       console.error('Failed to load meta data:', error);
     }
@@ -62,6 +66,7 @@ export default function FilterBar() {
       selectedRouteId,
       selectedBatchId,
       selectedCustomerId,
+      selectedProbeId,
     };
     
     try {
@@ -96,9 +101,10 @@ export default function FilterBar() {
     setSelectedRouteId(filter.filters.selectedRouteId);
     setSelectedBatchId(filter.filters.selectedBatchId);
     setSelectedCustomerId(filter.filters.selectedCustomerId);
+    setSelectedProbeId(filter.filters.selectedProbeId);
   };
 
-  const hasActiveFilters = selectedVehicleId || selectedRouteId || selectedBatchId || selectedCustomerId;
+  const hasActiveFilters = selectedVehicleId || selectedRouteId || selectedBatchId || selectedCustomerId || selectedProbeId;
 
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
@@ -138,6 +144,28 @@ export default function FilterBar() {
           <option value="">全部客户</option>
           {customers.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedBatchId || ''}
+          onChange={(e) => setSelectedBatchId(e.target.value || null)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">全部批次</option>
+          {batches.map((b) => (
+            <option key={b.id} value={b.id}>批次{b.batchNo || b.id.slice(0, 8)}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedProbeId || ''}
+          onChange={(e) => setSelectedProbeId(e.target.value || null)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">全部温控箱</option>
+          {probes.map((p) => (
+            <option key={p.id} value={p.id}>{p.probeCode} - {p.status === 'normal' ? '正常' : '需校准'}</option>
           ))}
         </select>
 
