@@ -9,29 +9,27 @@ import { publicRoutes } from './routes/public.js'
 import { holidayRoutes } from './routes/holiday.js'
 import { binPointRoutes } from './routes/binpoint.js'
 import { inspectionRoutes } from './routes/inspection.js'
-import { initClickHouse, getClickHouseClient, getFallbackDb } from './clickhouse.js'
+import { initClickHouse, isClickHouseConnected } from './clickhouse.js'
 
 const PORT = parseInt(process.env.API_PORT || '5194', 10)
 
 async function main() {
-  const useClickHouse = await initClickHouse()
-
-  const { connected } = await getClickHouseClient()
-  const db = getFallbackDb()
+  await initClickHouse()
+  const connected = isClickHouseConnected()
 
   const app = express()
   app.use(cors())
   app.use(compression())
   app.use(express.json())
 
-  app.use('/api/spatial', spatialRoutes(db))
-  app.use('/api/misuse', misuseRoutes(db))
-  app.use('/api/collection', collectionRoutes(db))
-  app.use('/api/audit', auditRoutes(db))
-  app.use('/api/public', publicRoutes(db))
-  app.use('/api/holidays', holidayRoutes(db))
-  app.use('/api/binpoints', binPointRoutes(db))
-  app.use('/api/inspection', inspectionRoutes(db))
+  app.use('/api/spatial', spatialRoutes())
+  app.use('/api/misuse', misuseRoutes())
+  app.use('/api/collection', collectionRoutes())
+  app.use('/api/audit', auditRoutes())
+  app.use('/api/public', publicRoutes())
+  app.use('/api/holidays', holidayRoutes())
+  app.use('/api/binpoints', binPointRoutes())
+  app.use('/api/inspection', inspectionRoutes())
 
   app.get('/api/health', (_req, res) => {
     res.json({

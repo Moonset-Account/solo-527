@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import type { ClickHouseDB } from '../types.js'
+import { executeQuery, getFallbackDbSync } from '../clickhouse.js'
 import { logQuery } from '../types.js'
 
-export function collectionRoutes(db: ClickHouseDB) {
+export function collectionRoutes() {
   const router = Router()
 
-  router.get('/efficiency/time-window', (req, res) => {
+  router.get('/efficiency/time-window', async (req, res) => {
     const t0 = Date.now()
     const startDate = (req.query.startDate as string) || '2024-01-01'
     const excludeHolidays = req.query.excludeHolidays !== 'false'
@@ -24,31 +24,34 @@ export function collectionRoutes(db: ClickHouseDB) {
     }
     sql += ` GROUP BY time_window ORDER BY time_window`
 
-    let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
-    if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
+    const result = await executeQuery(sql, params, () => {
+      const db = getFallbackDbSync()
+      let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
+      if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
 
-    if (req.query.communityId && req.query.communityId !== 'all') {
-      const binIds = new Set(db.binPoints.filter(b => b.community_id === req.query.communityId).map(b => b.id))
-      logs = logs.filter(l => binIds.has(l.bin_point_id))
-    }
+      if (req.query.communityId && req.query.communityId !== 'all') {
+        const binIds = new Set(db.binPoints.filter(b => b.community_id === req.query.communityId).map(b => b.id))
+        logs = logs.filter(l => binIds.has(l.bin_point_id))
+      }
 
-    const windowMap = new Map<string, { total: number; completed: number }>()
-    logs.forEach(l => {
-      const existing = windowMap.get(l.time_window) || { total: 0, completed: 0 }
-      existing.total++; if (l.status === 'completed') existing.completed++
-      windowMap.set(l.time_window, existing)
+      const windowMap = new Map<string, { total: number; completed: number }>()
+      logs.forEach(l => {
+        const existing = windowMap.get(l.time_window) || { total: 0, completed: 0 }
+        existing.total++; if (l.status === 'completed') existing.completed++
+        windowMap.set(l.time_window, existing)
+      })
+
+      return Array.from(windowMap.entries()).map(([window, d]) => ({
+        timeWindow: window, totalCount: d.total, completedCount: d.completed,
+        onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
+      }))
     })
 
-    const data = Array.from(windowMap.entries()).map(([window, d]) => ({
-      timeWindow: window, totalCount: d.total, completedCount: d.completed,
-      onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
-    }))
-
-    logQuery(sql, params, Date.now() - t0, data.length)
-    res.json({ sql, params, data, rowCount: data.length })
+    logQuery(sql, params, Date.now() - t0, result.data.length)
+    res.json({ sql, params, data: result.data, rowCount: result.data.length, fromClickHouse: result.fromClickHouse })
   })
 
-  router.get('/efficiency/community', (req, res) => {
+  router.get('/efficiency/community', async (req, res) => {
     const t0 = Date.now()
     const startDate = (req.query.startDate as string) || '2024-01-01'
     const excludeHolidays = req.query.excludeHolidays !== 'false'
@@ -62,33 +65,36 @@ export function collectionRoutes(db: ClickHouseDB) {
     }
     sql += ` GROUP BY c.name ORDER BY on_time_rate DESC`
 
-    let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
-    if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
+    const result = await executeQuery(sql, params, () => {
+      const db = getFallbackDbSync()
+      let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
+      if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
 
-    const commMap = new Map<string, { communityId: string; total: number; completed: number }>()
-    logs.forEach(l => {
-      const bin = db.binPoints.find(b => b.id === l.bin_point_id)
-      if (bin) {
-        const existing = commMap.get(bin.community_id) || { communityId: bin.community_id, total: 0, completed: 0 }
-        existing.total++; if (l.status === 'completed') existing.completed++
-        commMap.set(bin.community_id, existing)
-      }
+      const commMap = new Map<string, { communityId: string; total: number; completed: number }>()
+      logs.forEach(l => {
+        const bin = db.binPoints.find(b => b.id === l.bin_point_id)
+        if (bin) {
+          const existing = commMap.get(bin.community_id) || { communityId: bin.community_id, total: 0, completed: 0 }
+          existing.total++; if (l.status === 'completed') existing.completed++
+          commMap.set(bin.community_id, existing)
+        }
+      })
+
+      return Array.from(commMap.values()).map(d => {
+        const comm = db.communities.find(c => c.id === d.communityId)
+        return {
+          communityName: comm?.name || '未知', district: comm?.district || '',
+          totalCount: d.total, completedCount: d.completed,
+          onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
+        }
+      }).sort((a, b) => b.onTimeRate - a.onTimeRate)
     })
 
-    const data = Array.from(commMap.values()).map(d => {
-      const comm = db.communities.find(c => c.id === d.communityId)
-      return {
-        communityName: comm?.name || '未知', district: comm?.district || '',
-        totalCount: d.total, completedCount: d.completed,
-        onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
-      }
-    }).sort((a, b) => b.onTimeRate - a.onTimeRate)
-
-    logQuery(sql, params, Date.now() - t0, data.length)
-    res.json({ sql, params, data, rowCount: data.length })
+    logQuery(sql, params, Date.now() - t0, result.data.length)
+    res.json({ sql, params, data: result.data, rowCount: result.data.length, fromClickHouse: result.fromClickHouse })
   })
 
-  router.get('/trend', (req, res) => {
+  router.get('/trend', async (req, res) => {
     const t0 = Date.now()
     const startDate = (req.query.startDate as string) || '2024-01-01'
     const excludeHolidays = req.query.excludeHolidays !== 'false'
@@ -102,24 +108,27 @@ export function collectionRoutes(db: ClickHouseDB) {
     }
     sql += ` GROUP BY date ORDER BY date`
 
-    let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
-    if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
+    const result = await executeQuery(sql, params, () => {
+      const db = getFallbackDbSync()
+      let logs = db.collectionLogs.filter(l => new Date(l.plan_time).toISOString().split('T')[0] >= startDate)
+      if (excludeHolidays) logs = logs.filter(l => l.is_holiday === 0)
 
-    const dateMap = new Map<string, { total: number; completed: number }>()
-    logs.forEach(l => {
-      const date = new Date(l.plan_time).toISOString().split('T')[0]
-      const existing = dateMap.get(date) || { total: 0, completed: 0 }
-      existing.total++; if (l.status === 'completed') existing.completed++
-      dateMap.set(date, existing)
+      const dateMap = new Map<string, { total: number; completed: number }>()
+      logs.forEach(l => {
+        const date = new Date(l.plan_time).toISOString().split('T')[0]
+        const existing = dateMap.get(date) || { total: 0, completed: 0 }
+        existing.total++; if (l.status === 'completed') existing.completed++
+        dateMap.set(date, existing)
+      })
+
+      return Array.from(dateMap.entries()).map(([date, d]) => ({
+        date, totalCount: d.total, completedCount: d.completed,
+        onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
+      })).sort((a, b) => a.date.localeCompare(b.date))
     })
 
-    const data = Array.from(dateMap.entries()).map(([date, d]) => ({
-      date, totalCount: d.total, completedCount: d.completed,
-      onTimeRate: d.total > 0 ? parseFloat((d.completed / d.total * 100).toFixed(1)) : 0
-    })).sort((a, b) => a.date.localeCompare(b.date))
-
-    logQuery(sql, params, Date.now() - t0, data.length)
-    res.json({ sql, params, data, rowCount: data.length })
+    logQuery(sql, params, Date.now() - t0, result.data.length)
+    res.json({ sql, params, data: result.data, rowCount: result.data.length, fromClickHouse: result.fromClickHouse })
   })
 
   return router

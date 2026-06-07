@@ -83,6 +83,17 @@ async function loadData() {
     cachedGeoJson = geoRes.data
     lastSQL.value = binRes.sql
 
+    console.log('[MapPage] GeoJSON loaded:', cachedGeoJson?.type, cachedGeoJson?.features?.length, 'features')
+    if (cachedGeoJson?.features?.length > 0) {
+      const f0 = cachedGeoJson.features[0]
+      console.log('[MapPage] First feature:', f0.properties?.name, f0.geometry?.type, f0.geometry?.coordinates?.[0]?.length, 'vertices')
+      const coords = f0.geometry.coordinates[0]
+      const lngs = coords.map((c: number[]) => c[0])
+      const lats = coords.map((c: number[]) => c[1])
+      console.log('[MapPage] First feature range: lng=[', Math.min(...lngs), ',', Math.max(...lngs), '] lat=[', Math.min(...lats), ',', Math.max(...lats), ']')
+    }
+    console.log('[MapPage] BinPoints loaded:', binPoints.value.length, 'first:', binPoints.value[0]?.lng, binPoints.value[0]?.lat)
+
     const districtSet = new Set<string>()
     binPoints.value.forEach(b => { if (b.district) districtSet.add(b.district) })
     districts.value = Array.from(districtSet)
@@ -94,11 +105,20 @@ async function loadData() {
 }
 
 function initMap() {
-  if (!mapContainer.value || !cachedGeoJson) return
+  if (!mapContainer.value) {
+    console.log('[MapPage] initMap: no container')
+    return
+  }
+  if (!cachedGeoJson) {
+    console.log('[MapPage] initMap: no GeoJSON')
+    return
+  }
 
   const rect = mapContainer.value.getBoundingClientRect()
   const width = rect.width
   const height = rect.height
+
+  console.log('[MapPage] initMap: container', width, 'x', height, 'geojson features:', cachedGeoJson.features?.length)
 
   if (width === 0 || height === 0) return
 
@@ -121,6 +141,10 @@ function initMap() {
 
   projection = d3.geoMercator()
     .fitExtent([[20, 20], [width - 20, height - 20]], cachedGeoJson)
+
+  console.log('[MapPage] projection: scale=', projection.scale(), 'translate=', projection.translate())
+  const testPt = projection([116.34, 39.90])
+  console.log('[MapPage] test projection [116.34,39.90] ->', testPt)
 
   const path = d3.geoPath().projection(projection!)
 

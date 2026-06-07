@@ -11,6 +11,10 @@ let chClient: ClickHouseClient | null = null
 let isConnected = false
 let fallbackDb: ClickHouseDB | null = null
 
+export function isClickHouseConnected(): boolean {
+  return isConnected
+}
+
 export async function getClickHouseClient(): Promise<{ client: ClickHouseClient | null; connected: boolean }> {
   if (isConnected && chClient) return { client: chClient, connected: true }
 
@@ -21,18 +25,33 @@ export async function getClickHouseClient(): Promise<{ client: ClickHouseClient 
     })
     const pingResult = await chClient.ping()
     if (!pingResult.success) {
-      throw new Error(`Ping failed: ${JSON.stringify(pingResult)}`)
+      isConnected = false
+      chClient = null
+      console.log(`[ClickHouse] Ping failed, falling back to in-memory`)
+      console.log(`[ClickHouse] To use real ClickHouse: set CLICKHOUSE_URL and ensure server is running`)
+      return { client: null, connected: false }
     }
     isConnected = true
     console.log(`[ClickHouse] Connected to ${CLICKHOUSE_URL}/${CLICKHOUSE_DB}`)
     return { client: chClient, connected: true }
-  } catch (e) {
-    console.log(`[ClickHouse] Connection failed (${CLICKHOUSE_URL}), using in-memory fallback`)
-    console.log(`[ClickHouse] To use real ClickHouse: set CLICKHOUSE_URL and ensure server is running`)
+  } catch {
     isConnected = false
     chClient = null
+    console.log(`[ClickHouse] Connection failed (${CLICKHOUSE_URL}), using in-memory fallback`)
+    console.log(`[ClickHouse] To use real ClickHouse: set CLICKHOUSE_URL and ensure server is running`)
     return { client: null, connected: false }
   }
+}
+
+export async function getFallbackDb(): Promise<ClickHouseDB> {
+  if (fallbackDb) return fallbackDb
+  fallbackDb = await initDatabase()
+  return fallbackDb
+}
+
+export function getFallbackDbSync(): ClickHouseDB {
+  if (!fallbackDb) throw new Error('Database not initialized. Call initClickHouse() first.')
+  return fallbackDb
 }
 
 export async function initClickHouse(): Promise<boolean> {
@@ -157,9 +176,16 @@ export async function queryClickHouse<T = any>(
   return { data: [] as T[], fromClickHouse: false, sql }
 }
 
-export function getFallbackDb(): ClickHouseDB {
-  if (!fallbackDb) {
-    throw new Error('Database not initialized')
+export async function executeQuery<T>(
+  sql: string,
+  params: Record<string, any>,
+  fallbackFn: () => T[]
+): Promise<{ data: T[]; fromClickHouse: boolean; sql: string }> {
+  if (isClickHouseConnected()) {
+    const result = await queryClickHouse<T>(sql, params)
+    if (result.fromClickHouse) {
+      return result
+    }
   }
-  return fallbackDb
+  return { data: fallbackFn(), fromClickHouse: false, sql }
 }
