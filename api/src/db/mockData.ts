@@ -48,8 +48,8 @@ for (const v of vehicles) {
       id: generateId(),
       vehicleId: v.id,
       boxId: `BOX-${i}`,
-      lastCalibrationDate: new Date(lastCal).toISOString().split('T')[0],
-      nextCalibrationDate: new Date(nextCal).toISOString().split('T')[0],
+      lastCalibrationDate: lastCal,
+      nextCalibrationDate: nextCal,
       calibrationStatus: status,
     });
   }
@@ -85,9 +85,9 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
       vehicleId: vehicle.id,
       routeId: route.id,
       customerId: customer.id,
-      startTime: new Date(startTime).toISOString(),
-      estimatedArrival: new Date(estimatedArrival).toISOString(),
-      actualArrival: new Date(actualArrival).toISOString(),
+      startTime,
+      estimatedArrival,
+      actualArrival,
       status,
     });
 
@@ -111,7 +111,7 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
           vehicleId: vehicle.id,
           batchId,
           probeId: probe.id,
-          timestamp: new Date(t).toISOString(),
+          timestamp: t,
           temperature: Math.round(temp * 100) / 100,
           isNormal,
         });
@@ -126,7 +126,7 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
       posRecords.push({
         id: generateId(),
         vehicleId: vehicle.id,
-        timestamp: new Date(t).toISOString(),
+        timestamp: t,
         lat: Math.round(lat * 10000) / 10000,
         lng: Math.round(lng * 10000) / 10000,
         speed: Math.round((50 + Math.random() * 30) * 10) / 10,
@@ -141,9 +141,9 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
         batchId,
         vehicleId: vehicle.id,
         type: anomalyType,
-        startTime: new Date(anomalyStart).toISOString(),
-        endTime: new Date(anomalyStart + anomalyDuration).toISOString(),
-        durationSeconds: Math.floor(anomalyDuration / 1000),
+        startTime: anomalyStart,
+        endTime: anomalyStart + anomalyDuration,
+        duration: Math.floor(anomalyDuration / 1000),
         severity,
         responsible: vehicle.driverName,
         description: anomalyType === 'temp_high' ? '运输途中温度异常升高' : '车门非正常开启',
@@ -155,9 +155,9 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
           id: generateId(),
           vehicleId: vehicle.id,
           batchId,
-          openTime: new Date(anomalyStart).toISOString(),
-          closeTime: new Date(anomalyStart + anomalyDuration).toISOString(),
-          durationSeconds: Math.floor(anomalyDuration / 1000),
+          openTime: anomalyStart,
+          closeTime: anomalyStart + anomalyDuration,
+          duration: Math.floor(anomalyDuration / 1000),
           operator: vehicle.driverName,
         });
       }
@@ -168,9 +168,9 @@ for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
       id: generateId(),
       vehicleId: vehicle.id,
       batchId,
-      openTime: new Date(unloadingTime).toISOString(),
-      closeTime: new Date(unloadingTime + 15 * 60 * 1000).toISOString(),
-      durationSeconds: 15 * 60,
+      openTime: unloadingTime,
+      closeTime: unloadingTime + 15 * 60 * 1000,
+      duration: 15 * 60,
       operator: '卸货员',
     });
   }
@@ -181,15 +181,15 @@ export const savedFilters: SavedFilter[] = [
     id: generateId(),
     userId: 'default',
     name: '本周异常运输',
-    filters: JSON.stringify({ timeRange: '7d', status: 'exception' }),
-    createdAt: new Date(now - 2 * DAY_MS).toISOString(),
+    filters: { timeRange: '7d', status: 'exception' },
+    createdAt: now - 2 * DAY_MS,
   },
   {
     id: generateId(),
     userId: 'default',
     name: '高温预警路线',
-    filters: JSON.stringify({ anomalyType: 'temp_high', severity: 'high' }),
-    createdAt: new Date(now - 5 * DAY_MS).toISOString(),
+    filters: { anomalyType: 'temp_high', severity: 'high' },
+    createdAt: now - 5 * DAY_MS,
   },
 ];
 
@@ -197,11 +197,11 @@ export const dataQualityLogs: DataQualityLog[] = [
   {
     id: generateId(),
     dataDate: new Date(now).toISOString().split('T')[0],
-    updateTime: new Date(now).toISOString(),
+    updateTime: now,
     completeness: 97.8,
     missingFields: [
-      { field: 'temperature', missingCount: 12 },
-      { field: 'position', missingCount: 5 },
+      { field: 'temperature_records', missingCount: 12 },
+      { field: 'position_records', missingCount: 5 },
       { field: 'door_records', missingCount: 3 },
     ],
     anomalyPoints: 23,

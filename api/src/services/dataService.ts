@@ -4,6 +4,7 @@ import {
   tempRecords, posRecords, doorRecords, anomalies,
   savedFilters, dataQualityLogs
 } from '../db/mockData.js';
+import { calculateDataQuality } from '../scripts/dataCleaner.js';
 import type {
   Vehicle, Route, Customer, TemperatureRecord, PositionRecord,
   DoorRecord, DeliveryBatch, TemperatureProbe, AnomalyEvent,
@@ -33,13 +34,13 @@ export const getBatches = (filters?: any): DeliveryBatch[] => {
   }
   
   return result
-    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+    .sort((a, b) => b.startTime - a.startTime)
     .slice(0, 100)
     .map(b => ({
       ...b,
-      startTime: new Date(b.startTime).getTime(),
-      estimatedArrival: new Date(b.estimatedArrival).getTime(),
-      actualArrival: b.actualArrival ? new Date(b.actualArrival).getTime() : null,
+      startTime: b.startTime,
+      estimatedArrival: b.estimatedArrival,
+      actualArrival: b.actualArrival,
     }));
 };
 
@@ -52,9 +53,9 @@ export const getKPIData = (): KPIData => {
   let totalDuration = 0;
   let onTimeCount = 0;
   for (const b of deliveredBatches) {
-    const start = new Date(b.startTime).getTime();
-    const actual = b.actualArrival ? new Date(b.actualArrival).getTime() : start;
-    const estimated = new Date(b.estimatedArrival).getTime();
+    const start = b.startTime;
+    const actual = b.actualArrival || start;
+    const estimated = b.estimatedArrival;
     totalDuration += (actual - start);
     if (actual <= estimated) onTimeCount++;
   }
@@ -87,19 +88,15 @@ export const getTemperatureTrend = (vehicleId?: string, batchId?: string): Tempe
   }
   
   return result
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-    .slice(0, 5000)
-    .map(t => ({
-      ...t,
-      timestamp: new Date(t.timestamp).getTime(),
-    }));
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(0, 5000);
 };
 
 export const getAnomalyStatistics = (dimension: string = 'vehicle'): AnomalyStatistics[] => {
   if (dimension === 'vehicle') {
     return vehicles.map(v => {
       const vehicleAnomalies = anomalies.filter(a => a.vehicleId === v.id);
-      const totalDuration = vehicleAnomalies.reduce((sum, a) => sum + (a.durationSeconds || 0), 0);
+      const totalDuration = vehicleAnomalies.reduce((sum, a) => sum + (a.duration || 0), 0);
       return {
         dimension,
         dimensionValue: v.plateNumber,
@@ -113,7 +110,7 @@ export const getAnomalyStatistics = (dimension: string = 'vehicle'): AnomalyStat
       const routeAnomalies = anomalies.filter(a => 
         routeBatches.some(b => b.id === a.batchId)
       );
-      const totalDuration = routeAnomalies.reduce((sum, a) => sum + (a.durationSeconds || 0), 0);
+      const totalDuration = routeAnomalies.reduce((sum, a) => sum + (a.duration || 0), 0);
       return {
         dimension,
         dimensionValue: r.name,
@@ -136,11 +133,7 @@ export const getAnomalyStatistics = (dimension: string = 'vehicle'): AnomalyStat
 };
 
 export const getProbeStatus = (): TemperatureProbe[] => {
-  return probes.map(p => ({
-    ...p,
-    lastCalibrationDate: new Date(p.lastCalibrationDate).getTime(),
-    nextCalibrationDate: new Date(p.nextCalibrationDate).getTime(),
-  }));
+  return [...probes];
 };
 
 export const getRouteTrack = (vehicleId: string, batchId?: string): PositionRecord[] => {
@@ -149,21 +142,17 @@ export const getRouteTrack = (vehicleId: string, batchId?: string): PositionReco
   if (batchId) {
     const batch = batches.find(b => b.id === batchId);
     if (batch) {
-      const startTime = new Date(batch.startTime).getTime();
-      const endTime = batch.actualArrival ? new Date(batch.actualArrival).getTime() : Date.now();
+      const startTime = batch.startTime;
+      const endTime = batch.actualArrival || Date.now();
       result = result.filter(p => {
-        const t = new Date(p.timestamp).getTime();
+        const t = p.timestamp;
         return t >= startTime && t <= endTime;
       });
     }
   }
   
   return result
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-    .map(p => ({
-      ...p,
-      timestamp: new Date(p.timestamp).getTime(),
-    }));
+    .sort((a, b) => a.timestamp - b.timestamp);
 };
 
 export const getAnomalyList = (page: number = 1, pageSize: number = 20, filters?: any) => {
@@ -179,15 +168,15 @@ export const getAnomalyList = (page: number = 1, pageSize: number = 20, filters?
     result = result.filter(a => a.status === filters.status);
   }
   
-  result.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  result.sort((a, b) => b.startTime - a.startTime);
   
   const total = result.length;
   const start = (page - 1) * pageSize;
   const list = result.slice(start, start + pageSize).map(a => ({
     ...a,
-    startTime: new Date(a.startTime).getTime(),
-    endTime: a.endTime ? new Date(a.endTime).getTime() : null,
-    duration: a.durationSeconds || 0,
+    startTime: a.startTime,
+    endTime: a.endTime,
+    duration: a.duration || 0,
   }));
   
   return { list, total, page, pageSize };
@@ -199,9 +188,9 @@ export const getAnomalyDetail = (anomalyId: string) => {
   
   const relatedDoors = doorRecords.filter(d => {
     if (d.vehicleId !== anomaly.vehicleId) return false;
-    const anomalyStart = new Date(anomaly.startTime).getTime();
-    const doorOpen = d.openTime ? new Date(d.openTime).getTime() : 0;
-    const doorClose = d.closeTime ? new Date(d.closeTime).getTime() : 0;
+    const anomalyStart = anomaly.startTime;
+    const doorOpen = d.openTime || 0;
+    const doorClose = d.closeTime || 0;
     return Math.abs(doorOpen - anomalyStart) < 30 * 60 * 1000 || 
            Math.abs(doorClose - anomalyStart) < 30 * 60 * 1000;
   });
@@ -209,15 +198,15 @@ export const getAnomalyDetail = (anomalyId: string) => {
   return {
     anomaly: {
       ...anomaly,
-      startTime: new Date(anomaly.startTime).getTime(),
-      endTime: anomaly.endTime ? new Date(anomaly.endTime).getTime() : null,
-      duration: anomaly.durationSeconds || 0,
+      startTime: anomaly.startTime,
+      endTime: anomaly.endTime,
+      duration: anomaly.duration || 0,
     },
     relatedDoors: relatedDoors.map(d => ({
       ...d,
-      openTime: d.openTime ? new Date(d.openTime).getTime() : 0,
-      closeTime: d.closeTime ? new Date(d.closeTime).getTime() : 0,
-      duration: d.durationSeconds || 0,
+      openTime: d.openTime || 0,
+      closeTime: d.closeTime || 0,
+      duration: d.duration || 0,
     })),
   };
 };
@@ -225,12 +214,12 @@ export const getAnomalyDetail = (anomalyId: string) => {
 export const getDoorRecords = (batchId: string): DoorRecord[] => {
   return doorRecords
     .filter(d => d.batchId === batchId)
-    .sort((a, b) => new Date(a.openTime || 0).getTime() - new Date(b.openTime || 0).getTime())
+    .sort((a, b) => (a.openTime || 0) - (b.openTime || 0))
     .map(d => ({
       ...d,
-      openTime: d.openTime ? new Date(d.openTime).getTime() : 0,
-      closeTime: d.closeTime ? new Date(d.closeTime).getTime() : 0,
-      duration: d.durationSeconds || 0,
+      openTime: d.openTime || 0,
+      closeTime: d.closeTime || 0,
+      duration: d.duration || 0,
     }));
 };
 
@@ -253,9 +242,9 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
       let onTimeCount = 0;
       let totalDuration = 0;
       for (const b of vehicleBatches) {
-        const actual = b.actualArrival ? new Date(b.actualArrival).getTime() : 0;
-        const estimated = new Date(b.estimatedArrival).getTime();
-        const start = new Date(b.startTime).getTime();
+        const actual = b.actualArrival || 0;
+        const estimated = b.estimatedArrival;
+        const start = b.startTime;
         if (actual <= estimated) onTimeCount++;
         totalDuration += (actual - start);
       }
@@ -290,9 +279,9 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
       let onTimeCount = 0;
       let totalDuration = 0;
       for (const b of deliveredBatches) {
-        const actual = b.actualArrival ? new Date(b.actualArrival).getTime() : 0;
-        const estimated = new Date(b.estimatedArrival).getTime();
-        const start = new Date(b.startTime).getTime();
+        const actual = b.actualArrival || 0;
+        const estimated = b.estimatedArrival;
+        const start = b.startTime;
         if (actual <= estimated) onTimeCount++;
         totalDuration += (actual - start);
       }
@@ -327,9 +316,9 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
       let onTimeCount = 0;
       let totalDuration = 0;
       for (const b of deliveredBatches) {
-        const actual = b.actualArrival ? new Date(b.actualArrival).getTime() : 0;
-        const estimated = new Date(b.estimatedArrival).getTime();
-        const start = new Date(b.startTime).getTime();
+        const actual = b.actualArrival || 0;
+        const estimated = b.estimatedArrival;
+        const start = b.startTime;
         if (actual <= estimated) onTimeCount++;
         totalDuration += (actual - start);
       }
@@ -349,9 +338,23 @@ export const getCompareMetrics = (dimension: string, ids: string[], metrics: str
 };
 
 export const getDataQualityReport = (): DataQualityReport => {
-  const latest = dataQualityLogs.length > 0 
-    ? dataQualityLogs.sort((a, b) => new Date(b.updateTime).getTime() - new Date(a.updateTime).getTime())[0]
+  const tempCleanResult = { data: tempRecords, removed: 0, issues: [] };
+  const posCleanResult = { data: posRecords, removed: 0, issues: [] };
+  const doorCleanResult = { data: doorRecords, removed: 0, issues: [] };
+  
+  const latestLog = dataQualityLogs.length > 0 
+    ? dataQualityLogs.sort((a, b) => b.updateTime - a.updateTime)[0]
     : null;
+  
+  if (latestLog && latestLog.missingFields.length > 0) {
+    for (const mf of latestLog.missingFields) {
+      if (mf.field === 'temperature_records') tempCleanResult.removed = mf.missingCount;
+      if (mf.field === 'position_records') posCleanResult.removed = mf.missingCount;
+      if (mf.field === 'door_records') doorCleanResult.removed = mf.missingCount;
+    }
+  }
+  
+  const cleanedReport = calculateDataQuality(tempCleanResult, posCleanResult, doorCleanResult);
   
   const sampleSize = [
     { dimension: 'temperature_records', count: tempRecords.length },
@@ -361,36 +364,18 @@ export const getDataQualityReport = (): DataQualityReport => {
     { dimension: 'delivery_batches', count: batches.length },
   ];
   
-  if (!latest) {
-    return {
-      updateTime: Date.now(),
-      completeness: 100,
-      missingFields: [],
-      anomalyPoints: 0,
-      sampleSize,
-      isUpdateFailed: false,
-    };
-  }
-  
   return {
-    updateTime: new Date(latest.updateTime).getTime(),
-    completeness: latest.completeness,
-    missingFields: latest.missingFields || [],
-    anomalyPoints: latest.anomalyPoints,
+    ...cleanedReport,
     sampleSize,
-    isUpdateFailed: latest.isUpdateFailed,
-    errorMessage: latest.errorMessage,
+    updateTime: latestLog?.updateTime || Date.now(),
+    errorMessage: latestLog?.errorMessage || cleanedReport.errorMessage,
   };
 };
 
 export const getSavedFilters = (userId: string = 'default'): SavedFilter[] => {
   return savedFilters
     .filter(f => f.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .map(f => ({
-      ...f,
-      createdAt: new Date(f.createdAt).getTime(),
-    }));
+    .sort((a, b) => b.createdAt - a.createdAt);
 };
 
 export const saveFilter = (name: string, filters: Record<string, any>, userId: string = 'default'): SavedFilter => {
@@ -399,7 +384,7 @@ export const saveFilter = (name: string, filters: Record<string, any>, userId: s
     userId,
     name,
     filters,
-    createdAt: new Date().toISOString(),
+    createdAt: Date.now(),
   };
   savedFilters.push(newFilter);
   return newFilter;

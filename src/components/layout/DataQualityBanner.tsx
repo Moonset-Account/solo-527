@@ -11,7 +11,8 @@ export default function DataQualityBanner() {
   if (!showDataQualityWarning || !dataQuality) return null;
 
   const hasCriticalIssues = dataQuality.isUpdateFailed || dataQuality.completeness < 80;
-  const hasWarnings = !hasCriticalIssues && (dataQuality.completeness < 95 || dataQuality.missingFields.length > 0);
+  const hasMissingFields = dataQuality.missingFields && dataQuality.missingFields.length > 0;
+  const hasWarnings = !hasCriticalIssues && (dataQuality.completeness < 95 || hasMissingFields);
   
   if (!hasCriticalIssues && !hasWarnings) return null;
 

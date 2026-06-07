@@ -19,7 +19,8 @@ export default function Header() {
     try {
       const data = await api.getDataQualityReport();
       setDataQuality(data);
-      if (data.isUpdateFailed || data.completeness < 90) {
+      const hasMissingFields = data.missingFields && data.missingFields.length > 0;
+      if (data.isUpdateFailed || data.completeness < 95 || hasMissingFields) {
         setShowDataQualityWarning(true);
       }
     } catch (error) {
@@ -36,7 +37,9 @@ export default function Header() {
   const getQualityStatus = () => {
     if (!dataQuality) return { icon: Clock, color: 'text-gray-400', text: '检查中' };
     if (dataQuality.isUpdateFailed) return { icon: AlertCircle, color: 'text-red-500', text: '更新失败' };
+    const hasMissingFields = dataQuality.missingFields && dataQuality.missingFields.length > 0;
     if (dataQuality.completeness < 90) return { icon: AlertCircle, color: 'text-yellow-500', text: '数据不完整' };
+    if (hasMissingFields) return { icon: AlertCircle, color: 'text-yellow-500', text: '字段缺失' };
     return { icon: CheckCircle, color: 'text-green-500', text: '数据正常' };
   };
 

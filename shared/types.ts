@@ -127,3 +127,14 @@ export interface CompareMetrics {
     avgDuration: number;
   }[];
 }
+
+export interface DataQualityLog {
+  id: string;
+  dataDate: string;
+  updateTime: number;
+  completeness: number;
+  missingFields: { field: string; missingCount: number }[];
+  anomalyPoints: number;
+  isUpdateFailed: boolean;
+  errorMessage: string | null;
+}
