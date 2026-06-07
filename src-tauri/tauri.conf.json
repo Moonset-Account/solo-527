@@ -1,0 +1,59 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist",
+    "withGlobalTauri": false
+  },
+  "package": {
+    "productName": "LabSampleDashboard",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "dialog": {
+        "all": false,
+        "save": true,
+        "open": true
+      },
+      "fs": {
+        "all": false,
+        "readFile": true,
+        "writeFile": true,
+        "readDir": true,
+        "createDir": true,
+        "scope": ["$APPDATA/*", "$APPDATA/**/*"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.lab.sample-dashboard",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "实验室样本复核趋势看板",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  }
+}
