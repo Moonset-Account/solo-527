@@ -1,4 +1,4 @@
-import { addDays, addHours, setHours, setMinutes, format, eachDayOfInterval } from 'date-fns';
+import { addDays, addHours, setHours, setMinutes, format, eachDayOfInterval, isSameDay } from 'date-fns';
 import type { Area, Reservation, Violation, ClosedDate, ExamPeriod, HeatmapCell, AreaUtilization, ViolationStats, DashboardStats } from '@/types';
 
 export const AREAS: Area[] = [
@@ -14,13 +14,13 @@ export const AREAS: Area[] = [
   { areaId: 'E2', areaName: '五楼多媒体室', floor: 5, totalSeats: 40, description: '多媒体学习' },
 ];
 
-export const CLOSED_DATES: ClosedDate[] = [
+const DEFAULT_CLOSED_DATES: ClosedDate[] = [
   { date: new Date(2026, 3, 5), reason: '清明节假期' },
   { date: new Date(2026, 4, 1), reason: '劳动节假期' },
   { date: new Date(2026, 4, 4), reason: '系统维护升级' },
 ];
 
-export const EXAM_PERIODS: ExamPeriod[] = [
+const DEFAULT_EXAM_PERIODS: ExamPeriod[] = [
   {
     startDate: new Date(2026, 4, 15),
     endDate: new Date(2026, 4, 28),
@@ -28,6 +28,9 @@ export const EXAM_PERIODS: ExamPeriod[] = [
     noShowThreshold: 3,
   },
 ];
+
+export const CLOSED_DATES = DEFAULT_CLOSED_DATES;
+export const EXAM_PERIODS = DEFAULT_EXAM_PERIODS;
 
 const START_DATE = new Date(2026, 2, 1);
 const END_DATE = new Date(2026, 4, 31);
@@ -53,7 +56,19 @@ function generateStudentName(): string {
   return randomChoice(surnames) + randomChoice(names) + (Math.random() > 0.5 ? randomChoice(names) : '');
 }
 
-export function generateReservations(count: number = 50000): Reservation[] {
+function isDateInExamPeriod(date: Date, examPeriods: ExamPeriod[]): boolean {
+  return examPeriods.some(ep => date >= ep.startDate && date <= ep.endDate);
+}
+
+function isDateClosed(date: Date, closedDates: ClosedDate[]): boolean {
+  return closedDates.some(cd => isSameDay(cd.date, date));
+}
+
+export function generateReservations(
+  count: number = 50000,
+  closedDates: ClosedDate[] = DEFAULT_CLOSED_DATES,
+  examPeriods: ExamPeriod[] = DEFAULT_EXAM_PERIODS
+): Reservation[] {
   const reservations: Reservation[] = [];
   const days = eachDayOfInterval({ start: START_DATE, end: END_DATE });
   
@@ -65,12 +80,9 @@ export function generateReservations(count: number = 50000): Reservation[] {
     const endTime = addHours(startTime, duration);
     const area = randomChoice(AREAS);
     
-    const isClosed = CLOSED_DATES.some(cd => format(cd.date, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
-    if (isClosed && Math.random() > 0.1) continue;
+    if (isDateClosed(day, closedDates) && Math.random() > 0.1) continue;
     
-    const isExamWeek = EXAM_PERIODS.some(ep => 
-      day >= ep.startDate && day <= ep.endDate
-    );
+    const isExamWeek = isDateInExamPeriod(day, examPeriods);
     
     let status: Reservation['status'];
     const rand = Math.random();
@@ -140,40 +152,78 @@ const ALL_VIOLATIONS = generateViolations(ALL_RESERVATIONS);
 
 export { ALL_RESERVATIONS, ALL_VIOLATIONS };
 
-export function generateHeatmapData(startDate: Date, endDate: Date, areaIds?: string[]): HeatmapCell[] {
+interface AggregationConfig {
+  closedDates: ClosedDate[];
+  examPeriods: ExamPeriod[];
+}
+
+function filterReservations(
+  reservations: Reservation[],
+  startDate: Date,
+  endDate: Date,
+  areaIds?: string[],
+  floors?: number[]
+): Reservation[] {
+  return reservations.filter(r => {
+    const inDateRange = r.startTime >= startDate && r.startTime <= endDate;
+    if (!inDateRange) return false;
+    
+    if (areaIds && areaIds.length > 0 && !areaIds.includes(r.areaId)) return false;
+    
+    if (floors && floors.length > 0) {
+      const area = AREAS.find(a => a.areaId === r.areaId);
+      if (!area || !floors.includes(area.floor)) return false;
+    }
+    
+    return true;
+  });
+}
+
+function filterViolations(
+  violations: Violation[],
+  startDate: Date,
+  endDate: Date
+): Violation[] {
+  return violations.filter(v => v.occurTime >= startDate && v.occurTime <= endDate);
+}
+
+export function calculateHeatmapData(
+  reservations: Reservation[],
+  startDate: Date,
+  endDate: Date,
+  config: AggregationConfig,
+  areaIds?: string[],
+  floors?: number[]
+): HeatmapCell[] {
   const cells: HeatmapCell[] = [];
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const areas = areaIds && areaIds.length > 0 
+  const filteredAreas = areaIds && areaIds.length > 0 
     ? AREAS.filter(a => areaIds.includes(a.areaId))
     : AREAS;
+  const finalAreas = floors && floors.length > 0
+    ? filteredAreas.filter(a => floors.includes(a.floor))
+    : filteredAreas;
+  
+  const filteredReservations = filterReservations(reservations, startDate, endDate, areaIds, floors);
+  const totalSeats = finalAreas.reduce((sum, a) => sum + a.totalSeats, 0);
   
   for (const day of days) {
-    const dayStr = format(day, 'yyyy-MM-dd');
-    const isClosed = CLOSED_DATES.some(cd => format(cd.date, 'yyyy-MM-dd') === dayStr);
-    const isExamWeek = EXAM_PERIODS.some(ep => day >= ep.startDate && day <= ep.endDate);
+    const isClosed = isDateClosed(day, config.closedDates);
+    const isExamWeek = isDateInExamPeriod(day, config.examPeriods);
     
     for (let hour = 7; hour <= 20; hour++) {
-      let baseValue = 0.3;
+      const hourReservations = filteredReservations.filter(r => 
+        isSameDay(r.startTime, day) && r.startTime.getHours() === hour
+      );
       
-      if (hour >= 9 && hour <= 11) baseValue += 0.2;
-      if (hour >= 14 && hour <= 17) baseValue += 0.25;
-      if (hour >= 19 && hour <= 20) baseValue += 0.15;
-      
-      if (isExamWeek) baseValue += 0.2;
-      if (day.getDay() === 0 || day.getDay() === 6) baseValue -= 0.15;
-      if (isClosed) baseValue = 0;
-      
-      const randomVariation = (Math.random() - 0.5) * 0.15;
-      const value = Math.max(0, Math.min(1, baseValue + randomVariation));
-      
-      const totalSeats = areas.reduce((sum, a) => sum + a.totalSeats, 0);
-      const sampleSize = Math.round(value * totalSeats * 0.8);
+      const checkedInCount = hourReservations.filter(r => r.status === 'checked_in').length;
+      const utilization = totalSeats > 0 ? Math.min(1, checkedInCount / totalSeats) : 0;
       
       cells.push({
         date: day,
         hour,
-        value: isClosed ? 0 : value,
-        sampleSize,
+        value: isClosed ? 0 : utilization,
+        sampleSize: hourReservations.length,
         isClosed,
         isExamWeek,
       });
@@ -183,28 +233,46 @@ export function generateHeatmapData(startDate: Date, endDate: Date, areaIds?: st
   return cells;
 }
 
-export function generateAreaUtilization(startDate: Date, endDate: Date, floors?: number[]): AreaUtilization[] {
+export function calculateAreaUtilization(
+  reservations: Reservation[],
+  startDate: Date,
+  endDate: Date,
+  config: AggregationConfig,
+  floors?: number[]
+): AreaUtilization[] {
   const filteredAreas = floors && floors.length > 0
     ? AREAS.filter(a => floors.includes(a.floor))
     : AREAS;
   
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const isExamWeek = EXAM_PERIODS.some(ep => 
-    days.some(d => d >= ep.startDate && d <= ep.endDate)
-  );
+  const filteredReservations = filterReservations(reservations, startDate, endDate, undefined, floors);
   
   return filteredAreas.map(area => {
-    const baseUtil = 0.4 + (area.floor / 10) + Math.random() * 0.2;
-    const examBoost = isExamWeek ? 0.15 : 0;
-    const utilization = Math.min(0.95, baseUtil + examBoost);
+    const areaReservations = filteredReservations.filter(r => r.areaId === area.areaId);
+    const checkedInCount = areaReservations.filter(r => r.status === 'checked_in').length;
+    const maxPossible = area.totalSeats * days.length * 10;
+    const utilization = maxPossible > 0 ? Math.min(0.95, checkedInCount / (area.totalSeats * days.length * 0.8)) : 0;
     
     const trend = days.map(d => {
-      const dayVar = (d.getDay() === 0 || d.getDay() === 6) ? -0.1 : 0.05;
+      const dayRes = areaReservations.filter(r => isSameDay(r.startTime, d));
+      const dayCheckedIn = dayRes.filter(r => r.status === 'checked_in').length;
+      const dayUtil = area.totalSeats > 0 ? Math.min(0.98, dayCheckedIn / (area.totalSeats * 0.6)) : 0;
       return {
         date: d,
-        value: Math.max(0.1, Math.min(0.98, utilization + dayVar + (Math.random() - 0.5) * 0.1)),
+        value: Math.max(0.05, dayUtil),
       };
     });
+    
+    const hourCounts: Record<number, number> = {};
+    for (let h = 7; h <= 20; h++) hourCounts[h] = 0;
+    areaReservations.forEach(r => {
+      const h = r.startTime.getHours();
+      if (h >= 7 && h <= 20) hourCounts[h]++;
+    });
+    const peakHours = Object.entries(hourCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([h]) => parseInt(h));
     
     return {
       areaId: area.areaId,
@@ -212,56 +280,100 @@ export function generateAreaUtilization(startDate: Date, endDate: Date, floors?:
       floor: area.floor,
       totalSeats: area.totalSeats,
       utilization,
-      totalReservations: Math.round(utilization * area.totalSeats * days.length * 0.6),
-      peakHours: [9, 10, 14, 15, 16],
+      totalReservations: areaReservations.length,
+      peakHours: peakHours.sort((a, b) => a - b),
       trend,
     };
   });
 }
 
-export function generateViolationStats(startDate: Date, endDate: Date): ViolationStats[] {
+export function calculateViolationStats(
+  reservations: Reservation[],
+  violations: Violation[],
+  startDate: Date,
+  endDate: Date,
+  config: AggregationConfig
+): ViolationStats[] {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  const isExamWeek = (d: Date) => EXAM_PERIODS.some(ep => d >= ep.startDate && d <= ep.endDate);
+  const filteredReservations = filterReservations(reservations, startDate, endDate);
+  const filteredViolations = filterViolations(violations, startDate, endDate);
   
   return days.map(day => {
-    const baseRate = isExamWeek(day) ? 0.12 : 0.08;
-    const weekend = day.getDay() === 0 || day.getDay() === 6 ? 0.02 : 0;
-    const noShowRate = Math.min(0.25, baseRate + weekend + (Math.random() - 0.5) * 0.04);
+    const dayReservations = filteredReservations.filter(r => isSameDay(r.startTime, day));
+    const dayViolations = filteredViolations.filter(v => isSameDay(v.occurTime, day));
+    
+    const totalReservations = dayReservations.length;
+    const noShowCount = dayReservations.filter(r => r.status === 'no_show').length;
+    const noShowRate = totalReservations > 0 ? noShowCount / totalReservations : 0;
+    
+    const violationByType: Record<string, number> = {
+      no_show: 0,
+      late_checkin: 0,
+      early_leave: 0,
+      occupancy_timeout: 0,
+    };
+    
+    dayViolations.forEach(v => {
+      violationByType[v.violationType] = (violationByType[v.violationType] || 0) + 1;
+    });
     
     return {
       date: day,
       noShowRate,
-      totalViolations: Math.round(noShowRate * 300),
-      violationByType: {
-        no_show: Math.round(noShowRate * 200),
-        late_checkin: Math.round(noShowRate * 60),
-        early_leave: Math.round(noShowRate * 30),
-        occupancy_timeout: Math.round(noShowRate * 10),
-      },
-      sampleSize: randomInt(200, 500),
+      totalViolations: dayViolations.length,
+      violationByType,
+      sampleSize: totalReservations,
     };
   });
 }
 
-export function generateDashboardStats(): DashboardStats {
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(new Date(2026, 4, 25), -6 + i);
-    return format(d, 'MM-dd');
+export function calculateDashboardStats(
+  reservations: Reservation[],
+  violations: Violation[],
+  startDate: Date,
+  endDate: Date,
+  config: AggregationConfig,
+  areaIds?: string[],
+  floors?: number[]
+): DashboardStats {
+  const filteredReservations = filterReservations(reservations, startDate, endDate, areaIds, floors);
+  const filteredViolations = filterViolations(violations, startDate, endDate);
+  
+  const today = endDate;
+  const todayReservations = filteredReservations.filter(r => isSameDay(r.startTime, today));
+  const todayEntries = todayReservations.filter(r => r.status === 'checked_in').length * 3;
+  const todayRes = todayReservations.length;
+  
+  const totalReservations = filteredReservations.length;
+  const checkedInCount = filteredReservations.filter(r => r.status === 'checked_in').length;
+  const noShowCount = filteredReservations.filter(r => r.status === 'no_show').length;
+  
+  const checkInRate = totalReservations > 0 ? checkedInCount / totalReservations : 0;
+  const noShowRate = totalReservations > 0 ? noShowCount / totalReservations : 0;
+  
+  const weekDays = eachDayOfInterval({ start: addDays(endDate, -6), end: endDate });
+  const weekTrend = weekDays.map(d => {
+    const dayRes = filteredReservations.filter(r => isSameDay(r.startTime, d));
+    return {
+      date: format(d, 'MM-dd'),
+      entries: dayRes.filter(r => r.status === 'checked_in').length * 2 + randomInt(50, 150),
+      reservations: dayRes.length,
+    };
   });
   
+  const areaStats = AREAS.map(area => {
+    const areaRes = filteredReservations.filter(r => r.areaId === area.areaId);
+    const areaCheckedIn = areaRes.filter(r => r.status === 'checked_in').length;
+    const utilization = area.totalSeats > 0 ? Math.min(0.95, areaCheckedIn / (area.totalSeats * weekDays.length * 0.5)) : 0;
+    return { areaName: area.areaName, utilization };
+  }).sort((a, b) => b.utilization - a.utilization).slice(0, 5);
+  
   return {
-    todayEntries: 2847,
-    todayReservations: 1923,
-    checkInRate: 0.78,
-    noShowRate: 0.09,
-    weekTrend: weekDays.map((date, i) => ({
-      date,
-      entries: 2200 + i * 100 + randomInt(-100, 200),
-      reservations: 1500 + i * 80 + randomInt(-80, 150),
-    })),
-    topAreas: AREAS.slice(0, 5).map(a => ({
-      areaName: a.areaName,
-      utilization: 0.6 + Math.random() * 0.3,
-    })),
+    todayEntries,
+    todayReservations: todayRes,
+    checkInRate,
+    noShowRate,
+    weekTrend,
+    topAreas: areaStats,
   };
 }

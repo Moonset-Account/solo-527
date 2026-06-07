@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { LayoutDashboard, Flame, BarChart3, AlertTriangle, GraduationCap, Settings, ChevronDown, User, Shield, BookOpen } from 'lucide-vue-next';
+import { LayoutDashboard, Flame, BarChart3, AlertTriangle, GraduationCap, Settings, ChevronDown, User, Shield, BookOpen, ClipboardList } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import type { UserRole } from '@/types';
 
@@ -11,14 +11,32 @@ const authStore = useAuthStore();
 
 const showRoleMenu = ref(false);
 
-const menuItems = [
+const adminMenuItems = [
   { path: '/dashboard', label: '总览仪表盘', icon: LayoutDashboard },
   { path: '/heatmap', label: '时段热力分析', icon: Flame },
   { path: '/area-utilization', label: '区域利用率', icon: BarChart3 },
   { path: '/violation', label: '爽约与违规', icon: AlertTriangle },
   { path: '/exam-week', label: '考试周分析', icon: GraduationCap },
+];
+
+const superAdminMenuItems = [
+  ...adminMenuItems,
   { path: '/settings', label: '系统配置', icon: Settings },
 ];
+
+const studentMenuItems = [
+  { path: '/my-records', label: '我的预约', icon: ClipboardList },
+];
+
+const menuItems = computed(() => {
+  if (authStore.userRole === 'super_admin') {
+    return superAdminMenuItems;
+  } else if (authStore.userRole === 'librarian') {
+    return adminMenuItems;
+  } else {
+    return studentMenuItems;
+  }
+});
 
 const roles: { value: UserRole; label: string; icon: any }[] = [
   { value: 'super_admin', label: '超级管理员', icon: Shield },
@@ -29,6 +47,11 @@ const roles: { value: UserRole; label: string; icon: any }[] = [
 function switchRole(role: UserRole) {
   authStore.setRole(role);
   showRoleMenu.value = false;
+  if (role === 'student') {
+    router.push('/my-records');
+  } else {
+    router.push('/dashboard');
+  }
 }
 </script>
 

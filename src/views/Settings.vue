@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Calendar, Settings, GraduationCap, Plus, Trash2, Save, X } from 'lucide-vue-next';
-import { dataAdapter } from '@/api/adapter';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import type { ClosedDate, ExamPeriod } from '@/types';
 import { format } from 'date-fns';
 import { ElMessage } from 'element-plus';
+
+const configStore = useSystemConfigStore();
 
 const closedDates = ref<ClosedDate[]>([]);
 const examPeriods = ref<ExamPeriod[]>([]);
@@ -17,9 +19,11 @@ const newClosedDate = ref({ date: '', reason: '' });
 const showAddExamPeriod = ref(false);
 const newExamPeriod = ref({ startDate: '', endDate: '', name: '', noShowThreshold: 3 });
 
-async function loadData() {
-  closedDates.value = await dataAdapter.getClosedDates();
-  examPeriods.value = await dataAdapter.getExamPeriods();
+function loadData() {
+  closedDates.value = [...configStore.closedDates];
+  examPeriods.value = [...configStore.examPeriods];
+  noShowThreshold.value = configStore.normalNoShowThreshold;
+  remindBeforeMinutes.value = configStore.remindBeforeMinutes;
 }
 
 function addClosedDate() {
@@ -27,18 +31,17 @@ function addClosedDate() {
     ElMessage.warning('请填写完整信息');
     return;
   }
-  closedDates.value.push({
-    date: new Date(newClosedDate.value.date),
-    reason: newClosedDate.value.reason,
-  });
+  configStore.addClosedDate(new Date(newClosedDate.value.date), newClosedDate.value.reason);
   newClosedDate.value = { date: '', reason: '' };
   showAddClosedDate.value = false;
-  ElMessage.success('临时闭馆日已添加');
+  loadData();
+  ElMessage.success('临时闭馆日已添加，图表将自动更新');
 }
 
 function removeClosedDate(index: number) {
-  closedDates.value.splice(index, 1);
-  ElMessage.success('已删除');
+  configStore.removeClosedDate(index);
+  loadData();
+  ElMessage.success('已删除，图表将自动更新');
 }
 
 function addExamPeriod() {
@@ -46,7 +49,7 @@ function addExamPeriod() {
     ElMessage.warning('请填写完整信息');
     return;
   }
-  examPeriods.value.push({
+  configStore.addExamPeriod({
     startDate: new Date(newExamPeriod.value.startDate),
     endDate: new Date(newExamPeriod.value.endDate),
     name: newExamPeriod.value.name,
@@ -54,16 +57,20 @@ function addExamPeriod() {
   });
   newExamPeriod.value = { startDate: '', endDate: '', name: '', noShowThreshold: 3 };
   showAddExamPeriod.value = false;
-  ElMessage.success('考试周期已添加');
+  loadData();
+  ElMessage.success('考试周期已添加，相关统计将自动更新');
 }
 
 function removeExamPeriod(index: number) {
-  examPeriods.value.splice(index, 1);
-  ElMessage.success('已删除');
+  configStore.removeExamPeriod(index);
+  loadData();
+  ElMessage.success('已删除，相关统计将自动更新');
 }
 
 function saveSettings() {
-  ElMessage.success('设置已保存');
+  configStore.setNormalNoShowThreshold(noShowThreshold.value);
+  configStore.setRemindBeforeMinutes(remindBeforeMinutes.value);
+  ElMessage.success('设置已保存，所有页面统计将使用新规则');
 }
 
 onMounted(loadData);
@@ -83,6 +90,12 @@ onMounted(loadData);
         <Save class="w-4 h-4" />
         保存设置
       </button>
+    </div>
+    
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <p class="text-amber-700 text-sm">
+        💡 <strong>提示：</strong>配置修改后将立即生效，所有分析页面的统计数据会自动使用新的规则重新计算。
+      </p>
     </div>
     
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -134,7 +147,7 @@ onMounted(loadData);
         <div class="space-y-2">
           <div 
             v-for="(cd, index) in closedDates" 
-            :key="format(cd.date, 'yyyy-MM-dd')"
+            :key="format(cd.date, 'yyyy-MM-dd') + index"
             class="flex items-center justify-between p-3 bg-red-50 rounded-lg group"
           >
             <div>
@@ -218,7 +231,7 @@ onMounted(loadData);
         <div class="space-y-2">
           <div 
             v-for="(ep, index) in examPeriods" 
-            :key="ep.name"
+            :key="ep.name + index"
             class="p-4 bg-orange-50 rounded-lg group"
           >
             <div class="flex items-center justify-between">
@@ -287,6 +300,7 @@ onMounted(loadData);
             <li>• 考试周可单独配置更严格的爽约规则</li>
             <li>• 签到迟到超过 30 分钟记为一次违规</li>
             <li>• 违规记录将影响后续预约优先级</li>
+            <li>• 配置修改后所有页面立即生效</li>
           </ul>
         </div>
       </div>

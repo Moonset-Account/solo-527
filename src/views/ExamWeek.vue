@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import LineTrendChart from '@/components/charts/LineTrendChart.vue';
 import { dataAdapter } from '@/api/adapter';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import type { ViolationStats, AreaUtilization } from '@/types';
 import { format, subDays } from 'date-fns';
 import { GraduationCap, Settings, AlertTriangle, BarChart3, ArrowRight } from 'lucide-vue-next';
-import { EXAM_PERIODS } from '@/mock/dataGenerator';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const configStore = useSystemConfigStore();
 const examViolationStats = ref<ViolationStats[]>([]);
 const normalViolationStats = ref<ViolationStats[]>([]);
 const examAreaData = ref<AreaUtilization[]>([]);
 const normalAreaData = ref<AreaUtilization[]>([]);
+const loading = ref(false);
 
-const examPeriod = EXAM_PERIODS[0];
-const normalPeriod = {
-  startDate: subDays(examPeriod.startDate, 14),
-  endDate: subDays(examPeriod.startDate, 1),
-};
+const examPeriod = computed(() => configStore.examPeriods[0] || {
+  startDate: new Date(2026, 4, 15),
+  endDate: new Date(2026, 4, 28),
+  name: '春季学期期末考试',
+  noShowThreshold: 3,
+});
+
+const normalPeriod = computed(() => ({
+  startDate: subDays(examPeriod.value.startDate, 14),
+  endDate: subDays(examPeriod.value.startDate, 1),
+}));
 
 const examTrendData = computed(() => {
   return examViolationStats.value.map(d => ({
@@ -56,23 +64,37 @@ const avgNormalUtilization = computed(() => {
   return normalAreaData.value.reduce((s, d) => s + d.utilization, 0) / normalAreaData.value.length;
 });
 
-onMounted(async () => {
-  examViolationStats.value = await dataAdapter.getViolationStats({
-    dateRange: [examPeriod.startDate, examPeriod.endDate],
-  });
-  
-  normalViolationStats.value = await dataAdapter.getViolationStats({
-    dateRange: [normalPeriod.startDate, normalPeriod.endDate],
-  });
-  
-  examAreaData.value = await dataAdapter.getAreaUtilization({
-    dateRange: [examPeriod.startDate, examPeriod.endDate],
-  });
-  
-  normalAreaData.value = await dataAdapter.getAreaUtilization({
-    dateRange: [normalPeriod.startDate, normalPeriod.endDate],
-  });
-});
+async function loadData() {
+  if (!configStore.examPeriods.length) return;
+  loading.value = true;
+  try {
+    examViolationStats.value = await dataAdapter.getViolationStats({
+      dateRange: [examPeriod.value.startDate, examPeriod.value.endDate],
+    });
+    
+    normalViolationStats.value = await dataAdapter.getViolationStats({
+      dateRange: [normalPeriod.value.startDate, normalPeriod.value.endDate],
+    });
+    
+    examAreaData.value = await dataAdapter.getAreaUtilization({
+      dateRange: [examPeriod.value.startDate, examPeriod.value.endDate],
+    });
+    
+    normalAreaData.value = await dataAdapter.getAreaUtilization({
+      dateRange: [normalPeriod.value.startDate, normalPeriod.value.endDate],
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(loadData);
+
+watch(
+  () => configStore.examPeriods,
+  loadData,
+  { deep: true }
+);
 </script>
 
 <template>

@@ -4,14 +4,17 @@ import AreaBarChart from '@/components/charts/AreaBarChart.vue';
 import LineTrendChart from '@/components/charts/LineTrendChart.vue';
 import ExportButton from '@/components/common/ExportButton.vue';
 import { useFilterStore } from '@/stores/filter';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import { dataAdapter } from '@/api/adapter';
 import type { AreaUtilization } from '@/types';
 import { format } from 'date-fns';
 import { Building2, TrendingUp, Clock } from 'lucide-vue-next';
 
 const filterStore = useFilterStore();
+const configStore = useSystemConfigStore();
 const areaData = ref<AreaUtilization[]>([]);
 const selectedArea = ref<string | null>(null);
+const loading = ref(false);
 
 const selectedAreaData = computed(() => {
   if (!selectedArea.value) return null;
@@ -42,19 +45,34 @@ const exportData = computed(() => {
 });
 
 async function loadData() {
-  areaData.value = await dataAdapter.getAreaUtilization({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
-  if (areaData.value.length > 0 && !selectedArea.value) {
-    selectedArea.value = areaData.value[0].areaId;
+  loading.value = true;
+  try {
+    areaData.value = await dataAdapter.getAreaUtilization({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+    if (areaData.value.length > 0 && !selectedArea.value) {
+      selectedArea.value = areaData.value[0].areaId;
+    }
+  } finally {
+    loading.value = false;
   }
 }
 
 onMounted(loadData);
 
-watch([() => filterStore.dateRange, () => filterStore.selectedAreas, () => filterStore.selectedFloors], loadData, { deep: true });
+watch(
+  [
+    () => filterStore.dateRange,
+    () => filterStore.selectedAreas,
+    () => filterStore.selectedFloors,
+    () => configStore.closedDates,
+    () => configStore.examPeriods,
+  ],
+  loadData,
+  { deep: true }
+);
 </script>
 
 <template>

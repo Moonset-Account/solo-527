@@ -4,6 +4,7 @@ import LineTrendChart from '@/components/charts/LineTrendChart.vue';
 import ExportButton from '@/components/common/ExportButton.vue';
 import { useFilterStore } from '@/stores/filter';
 import { useAuthStore } from '@/stores/auth';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import { dataAdapter } from '@/api/adapter';
 import { maskStudentId, maskStudentName } from '@/utils/dataMasking';
 import type { ViolationStats, Violation } from '@/types';
@@ -12,8 +13,10 @@ import { AlertTriangle, Users, Clock, XCircle } from 'lucide-vue-next';
 
 const filterStore = useFilterStore();
 const authStore = useAuthStore();
+const configStore = useSystemConfigStore();
 const violationStats = ref<ViolationStats[]>([]);
 const violations = ref<Violation[]>([]);
+const loading = ref(false);
 
 const noShowTrendData = computed(() => {
   return violationStats.value.map(d => ({
@@ -77,22 +80,37 @@ const exportData = computed(() => {
 });
 
 async function loadData() {
-  violationStats.value = await dataAdapter.getViolationStats({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
-  
-  violations.value = await dataAdapter.getViolations({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
+  loading.value = true;
+  try {
+    violationStats.value = await dataAdapter.getViolationStats({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+    
+    violations.value = await dataAdapter.getViolations({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(loadData);
 
-watch([() => filterStore.dateRange, () => filterStore.selectedAreas, () => filterStore.selectedFloors], loadData, { deep: true });
+watch(
+  [
+    () => filterStore.dateRange,
+    () => filterStore.selectedAreas,
+    () => filterStore.selectedFloors,
+    () => configStore.closedDates,
+    () => configStore.examPeriods,
+  ],
+  loadData,
+  { deep: true }
+);
 </script>
 
 <template>

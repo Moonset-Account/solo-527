@@ -3,15 +3,18 @@ import { ref, onMounted, watch, computed } from 'vue';
 import HeatmapChart from '@/components/charts/HeatmapChart.vue';
 import ExportButton from '@/components/common/ExportButton.vue';
 import { useFilterStore } from '@/stores/filter';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import { dataAdapter } from '@/api/adapter';
 import type { HeatmapCell, ClosedDate, ExamPeriod } from '@/types';
 import { format } from 'date-fns';
 import { Calendar, AlertCircle } from 'lucide-vue-next';
 
 const filterStore = useFilterStore();
+const configStore = useSystemConfigStore();
 const heatmapData = ref<HeatmapCell[]>([]);
 const closedDates = ref<ClosedDate[]>([]);
 const examPeriods = ref<ExamPeriod[]>([]);
+const loading = ref(false);
 
 const exportData = computed(() => {
   return heatmapData.value.map(d => ({
@@ -25,18 +28,33 @@ const exportData = computed(() => {
 });
 
 async function loadData() {
-  heatmapData.value = await dataAdapter.getHeatmapData({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
-  closedDates.value = await dataAdapter.getClosedDates();
-  examPeriods.value = await dataAdapter.getExamPeriods();
+  loading.value = true;
+  try {
+    heatmapData.value = await dataAdapter.getHeatmapData({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+    closedDates.value = await dataAdapter.getClosedDates();
+    examPeriods.value = await dataAdapter.getExamPeriods();
+  } finally {
+    loading.value = false;
+  }
 }
 
 onMounted(loadData);
 
-watch([() => filterStore.dateRange, () => filterStore.selectedAreas, () => filterStore.selectedFloors], loadData, { deep: true });
+watch(
+  [
+    () => filterStore.dateRange,
+    () => filterStore.selectedAreas,
+    () => filterStore.selectedFloors,
+    () => configStore.closedDates,
+    () => configStore.examPeriods,
+  ],
+  loadData,
+  { deep: true }
+);
 </script>
 
 <template>

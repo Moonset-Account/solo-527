@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Users, CalendarCheck, CheckCircle, XCircle, TrendingUp } from 'lucide-vue-next';
 import StatCard from '@/components/charts/StatCard.vue';
 import LineTrendChart from '@/components/charts/LineTrendChart.vue';
 import AreaBarChart from '@/components/charts/AreaBarChart.vue';
 import ExportButton from '@/components/common/ExportButton.vue';
 import { useFilterStore } from '@/stores/filter';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import { dataAdapter } from '@/api/adapter';
 import type { DashboardStats, AreaUtilization } from '@/types';
 
 const filterStore = useFilterStore();
+const configStore = useSystemConfigStore();
 const stats = ref<DashboardStats | null>(null);
 const areaData = ref<AreaUtilization[]>([]);
+const loading = ref(false);
 
 const weekTrendData = computed(() => {
   if (!stats.value) return [];
@@ -31,19 +34,38 @@ const exportData = computed(() => {
   }));
 });
 
-onMounted(async () => {
-  stats.value = await dataAdapter.getDashboardStats({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
-  
-  areaData.value = await dataAdapter.getAreaUtilization({
-    dateRange: filterStore.dateRange,
-    areas: filterStore.selectedAreas,
-    floors: filterStore.selectedFloors,
-  });
-});
+async function loadData() {
+  loading.value = true;
+  try {
+    stats.value = await dataAdapter.getDashboardStats({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+    
+    areaData.value = await dataAdapter.getAreaUtilization({
+      dateRange: filterStore.dateRange,
+      areas: filterStore.selectedAreas,
+      floors: filterStore.selectedFloors,
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(loadData);
+
+watch(
+  [
+    () => filterStore.dateRange,
+    () => filterStore.selectedAreas,
+    () => filterStore.selectedFloors,
+    () => configStore.closedDates,
+    () => configStore.examPeriods,
+  ],
+  loadData,
+  { deep: true }
+);
 </script>
 
 <template>

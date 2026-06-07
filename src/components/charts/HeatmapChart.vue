@@ -4,9 +4,9 @@ import * as d3 from 'd3';
 import { format } from 'date-fns';
 import type { HeatmapCell } from '@/types';
 import { useDrillDownStore } from '@/stores/drillDown';
+import { useAuthStore } from '@/stores/auth';
+import { useSystemConfigStore } from '@/stores/systemConfig';
 import { dataAdapter } from '@/api/adapter';
-import { getClosedDateReason } from '@/utils/dateHelper';
-import { CLOSED_DATES } from '@/mock/dataGenerator';
 
 const props = defineProps<{
   data: HeatmapCell[];
@@ -15,8 +15,11 @@ const props = defineProps<{
 }>();
 
 const drillDownStore = useDrillDownStore();
+const authStore = useAuthStore();
+const configStore = useSystemConfigStore();
 const containerRef = ref<HTMLElement | null>(null);
 const tooltipRef = ref<HTMLElement | null>(null);
+const canDrillDown = computed(() => authStore.hasPermission('drill_down'));
 
 const colorScale = d3.scaleSequential()
   .domain([0, 1])
@@ -30,7 +33,7 @@ const uniqueDates = computed(() => {
 });
 
 async function handleCellClick(cell: HeatmapCell) {
-  if (cell.isClosed) return;
+  if (cell.isClosed || !canDrillDown.value) return;
   const records = await dataAdapter.getRawRecords(cell.date, cell.hour);
   drillDownStore.open(
     `${format(cell.date, 'yyyy-MM-dd')} ${cell.hour}:00 时段详情`,
@@ -91,7 +94,7 @@ function renderChart() {
     .data(props.data)
     .enter()
     .append('rect')
-    .attr('class', 'cell cursor-pointer transition-all duration-200')
+    .attr('class', `cell transition-all duration-200 ${canDrillDown.value ? 'cursor-pointer' : 'cursor-default'}`)
     .attr('x', d => xScale(`${d.hour}:00`) || 0)
     .attr('y', d => yScale(format(d.date, 'yyyy-MM-dd')) || 0)
     .attr('width', xScale.bandwidth())
@@ -109,7 +112,8 @@ function renderChart() {
   cells.on('mouseover', function(event, d) {
       d3.select(this).attr('opacity', 0.8);
       if (tooltipRef.value) {
-        const closedReason = d.isClosed ? getClosedDateReason(d.date, CLOSED_DATES) : null;
+        const closedReason = d.isClosed ? configStore.getClosedDateReason(d.date) : null;
+        const canClick = !d.isClosed && canDrillDown.value;
         tooltipRef.value.innerHTML = `
           <div class="font-medium text-sm">${format(d.date, 'yyyy-MM-dd')} ${d.hour}:00</div>
           <div class="text-slate-600 mt-1">利用率: ${(d.value * 100).toFixed(1)}%</div>
@@ -117,6 +121,7 @@ function renderChart() {
           ${d.isClosed ? `<div class="text-red-500 font-medium mt-1">临时闭馆: ${closedReason}</div>` : ''}
           ${d.isExamWeek ? `<div class="text-orange-500 font-medium mt-1">考试周</div>` : ''}
           ${d.sampleSize < 20 ? `<div class="text-amber-600 text-xs mt-1">⚠️ 样本量较小，数据仅供参考</div>` : ''}
+          ${canClick ? `<div class="text-blue-500 text-xs mt-1">点击查看原始记录 →</div>` : ''}
         `;
         tooltipRef.value.style.display = 'block';
         tooltipRef.value.style.left = `${event.pageX + 10}px`;

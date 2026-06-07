@@ -1,5 +1,25 @@
-import { generateHeatmapData, generateAreaUtilization, generateViolationStats, generateDashboardStats, ALL_RESERVATIONS, ALL_VIOLATIONS, AREAS, CLOSED_DATES, EXAM_PERIODS } from '@/mock/dataGenerator';
-import type { HeatmapCell, AreaUtilization, ViolationStats, DashboardStats, Area, ClosedDate, ExamPeriod, Reservation, Violation } from '@/types';
+import {
+  ALL_RESERVATIONS,
+  ALL_VIOLATIONS,
+  AREAS,
+  calculateHeatmapData,
+  calculateAreaUtilization,
+  calculateViolationStats,
+  calculateDashboardStats,
+} from '@/mock/dataGenerator';
+import type {
+  HeatmapCell,
+  AreaUtilization,
+  ViolationStats,
+  DashboardStats,
+  Area,
+  ClosedDate,
+  ExamPeriod,
+  Reservation,
+  Violation,
+} from '@/types';
+import { useSystemConfigStore } from '@/stores/systemConfig';
+import { isSameDay } from 'date-fns';
 
 export interface QueryParams {
   dateRange: [Date, Date];
@@ -15,85 +35,150 @@ export interface DataAdapter {
   getAreas(): Promise<Area[]>;
   getClosedDates(): Promise<ClosedDate[]>;
   getExamPeriods(): Promise<ExamPeriod[]>;
-  getRawRecords(date: Date, hour?: number): Promise<(Reservation | Violation)[]>;
-  getViolations(params: QueryParams): Promise<Violation[]>;
+  getRawRecords(date: Date, hour?: number, studentId?: string): Promise<(Reservation | Violation)[]>;
+  getViolations(params: QueryParams, studentId?: string): Promise<Violation[]>;
+  getStudentReservations(studentId: string, params: QueryParams): Promise<Reservation[]>;
 }
 
 class MockDataAdapter implements DataAdapter {
+  private getConfig() {
+    const configStore = useSystemConfigStore();
+    return {
+      closedDates: configStore.closedDates,
+      examPeriods: configStore.examPeriods,
+    };
+  }
+
   async getHeatmapData(params: QueryParams): Promise<HeatmapCell[]> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(generateHeatmapData(params.dateRange[0], params.dateRange[1], params.areas));
+        const config = this.getConfig();
+        const data = calculateHeatmapData(
+          ALL_RESERVATIONS,
+          params.dateRange[0],
+          params.dateRange[1],
+          config,
+          params.areas,
+          params.floors
+        );
+        resolve(data);
       }, 300);
     });
   }
-  
+
   async getAreaUtilization(params: QueryParams): Promise<AreaUtilization[]> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(generateAreaUtilization(params.dateRange[0], params.dateRange[1], params.floors));
+        const config = this.getConfig();
+        const data = calculateAreaUtilization(
+          ALL_RESERVATIONS,
+          params.dateRange[0],
+          params.dateRange[1],
+          config,
+          params.floors
+        );
+        resolve(data);
       }, 300);
     });
   }
-  
+
   async getViolationStats(params: QueryParams): Promise<ViolationStats[]> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(generateViolationStats(params.dateRange[0], params.dateRange[1]));
+        const config = this.getConfig();
+        const data = calculateViolationStats(
+          ALL_RESERVATIONS,
+          ALL_VIOLATIONS,
+          params.dateRange[0],
+          params.dateRange[1],
+          config
+        );
+        resolve(data);
       }, 300);
     });
   }
-  
-  async getDashboardStats(_params?: QueryParams): Promise<DashboardStats> {
-    return new Promise(resolve => {
+
+  async getDashboardStats(params: QueryParams): Promise<DashboardStats> {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        resolve(generateDashboardStats());
+        const config = this.getConfig();
+        const data = calculateDashboardStats(
+          ALL_RESERVATIONS,
+          ALL_VIOLATIONS,
+          params.dateRange[0],
+          params.dateRange[1],
+          config,
+          params.areas,
+          params.floors
+        );
+        resolve(data);
       }, 300);
     });
   }
-  
+
   async getAreas(): Promise<Area[]> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(() => resolve(AREAS), 100);
     });
   }
-  
+
   async getClosedDates(): Promise<ClosedDate[]> {
-    return new Promise(resolve => {
-      setTimeout(() => resolve(CLOSED_DATES), 100);
+    return new Promise((resolve) => {
+      const configStore = useSystemConfigStore();
+      setTimeout(() => resolve(configStore.closedDates), 100);
     });
   }
-  
+
   async getExamPeriods(): Promise<ExamPeriod[]> {
-    return new Promise(resolve => {
-      setTimeout(() => resolve(EXAM_PERIODS), 100);
+    return new Promise((resolve) => {
+      const configStore = useSystemConfigStore();
+      setTimeout(() => resolve(configStore.examPeriods), 100);
     });
   }
-  
-  async getRawRecords(date: Date, hour?: number): Promise<(Reservation | Violation)[]> {
-    return new Promise(resolve => {
+
+  async getRawRecords(date: Date, hour?: number, studentId?: string): Promise<(Reservation | Violation)[]> {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        const dateStr = date.toDateString();
-        const records = ALL_RESERVATIONS
-          .filter(r => {
-            const matchDate = r.startTime.toDateString() === dateStr;
-            const matchHour = hour === undefined || r.startTime.getHours() === hour;
-            return matchDate && matchHour;
-          })
-          .slice(0, 20);
-        resolve(records);
+        const records: (Reservation | Violation)[] = ALL_RESERVATIONS.filter((r) => {
+          const matchDate = isSameDay(r.startTime, date);
+          const matchHour = hour === undefined || r.startTime.getHours() === hour;
+          const matchStudent = !studentId || r.studentId === studentId;
+          return matchDate && matchHour && matchStudent;
+        });
+
+        if (studentId) {
+          const violationRecords = ALL_VIOLATIONS.filter((v) => isSameDay(v.occurTime, date) && v.studentId === studentId);
+          records.push(...violationRecords);
+        }
+
+        resolve(records.slice(0, 50));
       }, 400);
     });
   }
-  
-  async getViolations(params: QueryParams): Promise<Violation[]> {
-    return new Promise(resolve => {
+
+  async getViolations(params: QueryParams, studentId?: string): Promise<Violation[]> {
+    return new Promise((resolve) => {
       setTimeout(() => {
         const [start, end] = params.dateRange;
-        const records = ALL_VIOLATIONS
-          .filter(v => v.occurTime >= start && v.occurTime <= end)
-          .slice(0, 100);
-        resolve(records);
+        let records = ALL_VIOLATIONS.filter(
+          (v) => v.occurTime >= start && v.occurTime <= end
+        );
+        if (studentId) {
+          records = records.filter((v) => v.studentId === studentId);
+        }
+        resolve(records.slice(0, 100));
+      }, 300);
+    });
+  }
+
+  async getStudentReservations(studentId: string, params: QueryParams): Promise<Reservation[]> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const [start, end] = params.dateRange;
+        const records = ALL_RESERVATIONS.filter(
+          (r) => r.studentId === studentId && r.startTime >= start && r.startTime <= end
+        );
+        resolve(records.slice(0, 100));
       }, 300);
     });
   }
