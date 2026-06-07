@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #E0F0EA;
+  background-color: #0D1F2D;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #224558 #0D1F2D;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #0D1F2D;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #224558;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #2D5A6F;
+}
+
+@layer components {
+  .card {
+    @apply bg-surface rounded-xl border border-surface-border p-5 transition-all duration-300;
+  }
+
+  .card:hover {
+    @apply border-accent/30 shadow-lg shadow-accent/5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-accent {
+    @apply badge bg-accent/15 text-accent;
+  }
+
+  .badge-warn {
+    @apply badge bg-warn/15 text-warn;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger/15 text-danger;
+  }
+
+  .badge-info {
+    @apply badge bg-info/15 text-info;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-accent hover:bg-accent-light text-base-900 font-semibold rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 bg-transparent hover:bg-surface-light text-accent border border-accent/30 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .filter-tag {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 bg-accent/10 text-accent rounded-lg text-sm border border-accent/20 transition-all duration-200 cursor-pointer hover:bg-accent/20;
+  }
+}
