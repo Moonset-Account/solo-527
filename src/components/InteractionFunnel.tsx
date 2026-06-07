@@ -24,8 +24,9 @@ export default function InteractionFunnel({ data }: InteractionFunnelProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          const item = data[params.dataIndex];
+        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+          const dataIndex = params.dataIndex as number;
+          const item = data[dataIndex];
           return `
             <div style="font-weight: 600; margin-bottom: 4px;">${item.name}</div>
             <div>数量: ${item.value.toLocaleString()}</div>
@@ -52,8 +53,9 @@ export default function InteractionFunnel({ data }: InteractionFunnelProps) {
           label: {
             show: true,
             position: 'inside',
-            formatter: (params: any) => {
-              const item = data[params.dataIndex];
+            formatter: (params: echarts.DefaultLabelFormatterCallbackParams) => {
+              const dataIndex = params.dataIndex as number;
+              const item = data[dataIndex];
               return `{name|${item.name}}\n{value|${item.value.toLocaleString()}}`;
             },
             rich: {

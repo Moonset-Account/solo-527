@@ -12,6 +12,32 @@ interface TopContentsTableProps {
 type SortField = 'views' | 'likes' | 'shares' | 'comments' | 'interactionRate';
 type SortOrder = 'asc' | 'desc';
 
+interface SortHeaderProps {
+  field: SortField;
+  label: string;
+  sortField: SortField;
+  sortOrder: SortOrder;
+  onSort: (field: SortField) => void;
+}
+
+function SortHeader({ field, label, sortField, sortOrder, onSort }: SortHeaderProps) {
+  return (
+    <th
+      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field && (
+          <span className="text-blue-600">
+            {sortOrder === 'desc' ? '↓' : '↑'}
+          </span>
+        )}
+      </div>
+    </th>
+  );
+}
+
 export default function TopContentsTable({ items, onTagClick }: TopContentsTableProps) {
   const [sortField, setSortField] = useState<SortField>('views');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -48,22 +74,6 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
     }
   };
 
-  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
-    <th
-      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50 transition-colors"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field && (
-          <span className="text-blue-600">
-            {sortOrder === 'desc' ? '↓' : '↑'}
-          </span>
-        )}
-      </div>
-    </th>
-  );
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
@@ -96,11 +106,11 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 平台/类型
               </th>
-              <SortHeader field="views" label="曝光量" />
-              <SortHeader field="likes" label="点赞" />
-              <SortHeader field="shares" label="转发" />
-              <SortHeader field="comments" label="评论" />
-              <SortHeader field="interactionRate" label="互动率" />
+              <SortHeader field="views" label="曝光量" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="likes" label="点赞" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="shares" label="转发" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="comments" label="评论" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="interactionRate" label="互动率" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 标签
               </th>

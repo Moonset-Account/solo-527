@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dayjs from 'dayjs';
-import type { FilterState, Platform, ContentType, TimeUnit } from '@/lib/types';
+import type { FilterState, Platform, ContentType } from '@/lib/types';
 import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '@/lib/types';
 
 interface FilterPanelProps {

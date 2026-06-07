@@ -65,6 +65,34 @@ export interface FunnelItem {
   rate: number;
 }
 
+export interface PlatformFunnelData {
+  platform: Platform;
+  platformLabel: string;
+  primaryMetric: string;
+  funnel: FunnelItem[];
+  conversionRates: number[];
+}
+
+export interface PlatformAggregatedMetrics {
+  platform: Platform;
+  platformLabel: string;
+  sampleSize: number;
+  primaryMetricName: string;
+  primaryMetricTotal: number;
+  likes: number;
+  shares: number;
+  comments: number;
+  avgInteractionRate: number;
+}
+
+export const PLATFORM_PRIMARY_METRIC_LABEL: Record<Platform, string> = {
+  wechat: '阅读量',
+  weibo: '曝光量',
+  douyin: '播放量',
+  xiaohongshu: '曝光量',
+  bilibili: '播放量',
+};
+
 export interface TopContent {
   id: string;
   title: string;

@@ -22,8 +22,9 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          const item = data[params.dataIndex];
+        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+          const dataIndex = params.dataIndex as number;
+          const item = data[dataIndex];
           return `
             <div style="font-weight: 600; margin-bottom: 4px;">${item.tag}</div>
             <div>内容数量: ${item.count} 篇</div>
@@ -81,10 +82,11 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
             item.avgLikes,
             item.count * 5 + 10,
           ]),
-          symbolSize: (data: any) => data[2],
+          symbolSize: (value: number[]) => value[2],
           itemStyle: {
-            color: (params: any) => {
-              const item = data[params.dataIndex];
+            color: (params: echarts.ItemStyleColorCallbackParams) => {
+              const dataIndex = params.dataIndex as number;
+              const item = data[dataIndex];
               if (item.avgInteractionRate >= 5) return '#10b981';
               if (item.avgInteractionRate >= 3) return '#3b82f6';
               if (item.avgInteractionRate >= 1.5) return '#f59e0b';
@@ -94,7 +96,10 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
           },
           label: {
             show: true,
-            formatter: (params: any) => data[params.dataIndex].tag,
+            formatter: (params: echarts.DefaultLabelFormatterCallbackParams) => {
+              const dataIndex = params.dataIndex as number;
+              return data[dataIndex].tag;
+            },
             position: 'top',
             fontSize: 11,
             color: '#374151',

@@ -1,5 +1,21 @@
 import dayjs from 'dayjs';
-import type { ContentItem, FilterState, ProcessedData, TopicMatrixItem, HeatmapDataItem, FunnelItem, TopContent } from './types';
+import type {
+  ContentItem,
+  FilterState,
+  ProcessedData,
+  TopicMatrixItem,
+  HeatmapDataItem,
+  FunnelItem,
+  TopContent,
+  PlatformFunnelData,
+  PlatformAggregatedMetrics,
+  Platform,
+} from './types';
+import {
+  PLATFORM_LABELS,
+  PLATFORM_PRIMARY_METRIC_LABEL,
+  PLATFORM_METRICS,
+} from './types';
 import { getMockData } from './mock-data';
 
 const CACHE_KEY = 'content_data_cache';
@@ -270,4 +286,89 @@ export function exportToCSV(items: ContentItem[], filters: FilterState, updateTi
   ].join('\n');
 
   return csvContent;
+}
+
+function getPrimaryMetricValue(item: ContentItem): number {
+  const metrics = PLATFORM_METRICS[item.platform];
+  if (metrics.primary === 'reads') {
+    return item.reads;
+  }
+  return item.views;
+}
+
+export function getPlatformAggregatedMetrics(items: ContentItem[]): PlatformAggregatedMetrics[] {
+  const platformGroups = new Map<Platform, ContentItem[]>();
+
+  items.forEach(item => {
+    const group = platformGroups.get(item.platform) || [];
+    group.push(item);
+    platformGroups.set(item.platform, group);
+  });
+
+  const result: PlatformAggregatedMetrics[] = [];
+  platformGroups.forEach((platformItems, platform) => {
+    const primaryMetricTotal = platformItems.reduce((sum, item) => sum + getPrimaryMetricValue(item), 0);
+    const totalLikes = platformItems.reduce((sum, item) => sum + item.likes, 0);
+    const totalShares = platformItems.reduce((sum, item) => sum + item.shares, 0);
+    const totalComments = platformItems.reduce((sum, item) => sum + item.comments, 0);
+    const totalInteractions = totalLikes + totalShares + totalComments;
+
+    result.push({
+      platform,
+      platformLabel: PLATFORM_LABELS[platform],
+      sampleSize: platformItems.length,
+      primaryMetricName: PLATFORM_PRIMARY_METRIC_LABEL[platform],
+      primaryMetricTotal,
+      likes: totalLikes,
+      shares: totalShares,
+      comments: totalComments,
+      avgInteractionRate: primaryMetricTotal > 0
+        ? Number(((totalInteractions / primaryMetricTotal) * 100).toFixed(2))
+        : 0,
+    });
+  });
+
+  return result.sort((a, b) => b.primaryMetricTotal - a.primaryMetricTotal);
+}
+
+export function getPlatformInteractionFunnel(items: ContentItem[]): PlatformFunnelData[] {
+  const platformGroups = new Map<Platform, ContentItem[]>();
+
+  items.forEach(item => {
+    const group = platformGroups.get(item.platform) || [];
+    group.push(item);
+    platformGroups.set(item.platform, group);
+  });
+
+  const result: PlatformFunnelData[] = [];
+  platformGroups.forEach((platformItems, platform) => {
+    const totalPrimary = platformItems.reduce((sum, item) => sum + getPrimaryMetricValue(item), 0);
+    const totalLikes = platformItems.reduce((sum, item) => sum + item.likes, 0);
+    const totalShares = platformItems.reduce((sum, item) => sum + item.shares, 0);
+    const totalComments = platformItems.reduce((sum, item) => sum + item.comments, 0);
+
+    const primaryName = PLATFORM_PRIMARY_METRIC_LABEL[platform];
+    const funnel: FunnelItem[] = [
+      { name: primaryName, value: totalPrimary, rate: 100 },
+      { name: '点赞量', value: totalLikes, rate: totalPrimary > 0 ? Number(((totalLikes / totalPrimary) * 100).toFixed(2)) : 0 },
+      { name: '转发量', value: totalShares, rate: totalPrimary > 0 ? Number(((totalShares / totalPrimary) * 100).toFixed(2)) : 0 },
+      { name: '评论量', value: totalComments, rate: totalPrimary > 0 ? Number(((totalComments / totalPrimary) * 100).toFixed(2)) : 0 },
+    ];
+
+    const conversionRates: number[] = [];
+    for (let i = 1; i < funnel.length; i++) {
+      const prev = funnel[i - 1].value;
+      conversionRates.push(prev > 0 ? Number(((funnel[i].value / prev) * 100).toFixed(2)) : 0);
+    }
+
+    result.push({
+      platform,
+      platformLabel: PLATFORM_LABELS[platform],
+      primaryMetric: PLATFORM_PRIMARY_METRIC_LABEL[platform],
+      funnel,
+      conversionRates,
+    });
+  });
+
+  return result;
 }

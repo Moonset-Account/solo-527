@@ -26,10 +26,11 @@ export default function PublishHeatmap({ data }: PublishHeatmapProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
+        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+          const value = params.value as number[];
           return `
-            <div style="font-weight: 600; margin-bottom: 4px;">${WEEKDAYS[params.value[1]]} ${params.value[0]}:00</div>
-            <div>发布数量: ${params.value[2]} 篇</div>
+            <div style="font-weight: 600; margin-bottom: 4px;">${WEEKDAYS[value[1]]} ${value[0]}:00</div>
+            <div>发布数量: ${value[2]} 篇</div>
           `;
         },
       },
