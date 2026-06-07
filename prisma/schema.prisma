@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  passwordHash  String
+  role          String
+  name          String
+  athleteId     String?
+  athlete       Athlete?        @relation(fields: [athleteId], references: [id])
+  filterPresets FilterPreset[]
+  createdAt     DateTime        @default(now())
+}
+
+model Athlete {
+  id         String           @id @default(uuid())
+  name       String
+  team       String?
+  sport      String
+  position   String?
+  birthDate  DateTime?
+  user       User?
+  training   TrainingData[]
+  strength   StrengthData[]
+  recovery   RecoveryData[]
+  injuries   InjuryRecord[]
+  createdAt  DateTime         @default(now())
+}
+
+model TrainingData {
+  id            String   @id @default(uuid())
+  athleteId     String
+  athlete       Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date          DateTime
+  sessionType   String
+  durationMin   Int
+  avgHeartRate  Int?
+  maxHeartRate  Int?
+  paceKmPerH    Float?
+  distanceKm    Float?
+  loadScore     Int
+  rpe           Int?
+  source        String?
+  createdAt     DateTime @default(now())
+
+  @@index([athleteId, date])
+}
+
+model StrengthData {
+  id           String   @id @default(uuid())
+  athleteId    String
+  athlete      Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date         DateTime
+  exercise     String
+  weightKg     Float
+  reps         Int
+  sets         Int
+  estimated1Rm Float?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([athleteId, exercise])
+}
+
+model RecoveryData {
+  id             String   @id @default(uuid())
+  athleteId      String
+  athlete        Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date           DateTime
+  sleepScore     Int?
+  hrv            Int?
+  sorenessScore  Int?
+  moodScore      Int?
+  overallScore   Int
+  source         String?
+  createdAt      DateTime @default(now())
+
+  @@index([athleteId, date])
+}
+
+model InjuryRecord {
+  id          String   @id @default(uuid())
+  athleteId   String
+  athlete     Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date        DateTime
+  injuryType  String
+  severity    String
+  description String
+  notes       String?
+  status      String   @default("active")
+  returnDate  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([athleteId])
+}
+
+model FilterPreset {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  isDefault Boolean  @default(false)
+  filters   String
+  createdAt DateTime @default(now())
+}
+
+model EtlLog {
+  id               String    @id @default(uuid())
+  source           String
+  status           String
+  recordsProcessed Int       @default(0)
+  errors           String?
+  startedAt        DateTime  @default(now())
+  finishedAt       DateTime?
+
+  @@index([status])
+}
