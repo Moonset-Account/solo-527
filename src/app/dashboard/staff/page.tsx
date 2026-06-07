@@ -6,6 +6,7 @@ import { StaffRankingTable } from "@/components/charts/StaffRankingTable";
 import { trpc } from "@/lib/trpc/client";
 import { useFilterStore } from "@/store/filterStore";
 import { exportToCSV } from "@/lib/export";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Users, Trophy, Star, Clock, ArrowRightLeft } from "lucide-react";
 

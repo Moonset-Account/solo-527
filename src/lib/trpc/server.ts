@@ -32,12 +32,15 @@ const cache = new LRUCache<string, { data: unknown; timestamp: number }>({
   ttl: 5 * 60 * 1000,
 });
 
-const cacheMiddleware = t.middleware(async ({ next, path, rawInput }) => {
-  const cacheKey = `${path}:${hashObject(rawInput)}`;
+const cacheMiddleware = t.middleware(async ({ next, path, input }) => {
+  const cacheKey = `${path}:${hashObject(input as object)}`;
   const cached = cache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
-    return { data: cached.data, isCached: true };
+    return {
+      ok: true,
+      data: cached.data as unknown,
+    } as Awaited<ReturnType<typeof next>>;
   }
 
   const result = await next();
@@ -72,7 +75,7 @@ const roleMiddleware = (allowedRoles: UserRole[]) =>
   });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
-export const protectedProcedure = t.procedure.use(authMiddleware);
+export const publicProcedure = t.procedure.use(cacheMiddleware);
+export const protectedProcedure = t.procedure.use(cacheMiddleware).use(authMiddleware);
 export const supervisorProcedure = protectedProcedure.use(roleMiddleware(["supervisor", "admin"]));
 export const adminProcedure = protectedProcedure.use(roleMiddleware(["admin"]));
