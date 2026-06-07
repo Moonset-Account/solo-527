@@ -114,7 +114,7 @@ def init_data():
                 "occurred_at": now - timedelta(days=3),
                 "status": EventStatus.CLOSED,
                 "notification": NotificationStatus.SUCCESS,
-                "closed_at": now - timedelta(days=3, hours=2)
+                "closed_at": now - timedelta(days=3) + timedelta(hours=2)
             },
             {
                 "title": "雨天路滑摔倒",

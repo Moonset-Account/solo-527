@@ -116,7 +116,9 @@ def get_handle_duration_stats(
     for event in events:
         if event.closed_at and event.actual_occurred_at:
             delta = event.closed_at - event.actual_occurred_at
-            durations.append(delta.total_seconds() / 60)
+            minutes = delta.total_seconds() / 60
+            if minutes >= 0:
+                durations.append(minutes)
     
     overall_avg = sum(durations) / len(durations) if durations else 0
     
@@ -127,7 +129,9 @@ def get_handle_duration_stats(
         for e in level_events:
             if e.closed_at and e.actual_occurred_at:
                 delta = e.closed_at - e.actual_occurred_at
-                level_durations.append(delta.total_seconds() / 60)
+                minutes = delta.total_seconds() / 60
+                if minutes >= 0:
+                    level_durations.append(minutes)
         
         count = len(level_durations)
         avg = sum(level_durations) / count if count > 0 else 0
@@ -151,7 +155,9 @@ def get_handle_duration_stats(
                 date_groups[date_key] = []
             if event.closed_at and event.actual_occurred_at:
                 delta = event.closed_at - event.actual_occurred_at
-                date_groups[date_key].append(delta.total_seconds() / 60)
+                minutes = delta.total_seconds() / 60
+                if minutes >= 0:
+                    date_groups[date_key].append(minutes)
         
         for date_key in sorted(date_groups.keys()):
             dur_list = date_groups[date_key]

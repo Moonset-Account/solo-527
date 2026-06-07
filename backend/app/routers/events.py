@@ -22,7 +22,8 @@ def event_to_schema(event: SafetyEvent) -> EventSchema:
     handle_duration = None
     if event.closed_at and event.actual_occurred_at:
         delta = event.closed_at - event.actual_occurred_at
-        handle_duration = int(delta.total_seconds() / 60)
+        minutes = int(delta.total_seconds() / 60)
+        handle_duration = max(minutes, 0)
     
     return EventSchema(
         id=event.id,

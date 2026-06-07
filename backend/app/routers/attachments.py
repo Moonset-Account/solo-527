@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 import os
-import shutil
 from datetime import datetime
 from app.database import get_db
 from app.models import (
@@ -88,8 +87,8 @@ def upload_attachment(
     
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     
-    file_ext = os.path.splitext(file.filename)[1]
-    stored_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{UUID()}{file_ext}"
+    file_ext = os.path.splitext(file.filename)[1] if file.filename else ''
+    stored_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uuid4()}{file_ext}"
     storage_path = os.path.join(settings.UPLOAD_DIR, stored_filename)
     
     file_size = 0

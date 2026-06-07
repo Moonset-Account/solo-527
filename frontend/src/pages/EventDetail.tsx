@@ -235,14 +235,12 @@ const EventDetail = () => {
                         </div>
                       </div>
                     </div>
-                    <a
-                      href={`/api/attachments/${att.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => attachmentsAPI.download(att.id, att.filename)}
                       className="text-primary-600 hover:underline text-sm"
                     >
                       下载
-                    </a>
+                    </button>
                   </div>
                 ))}
               </div>
