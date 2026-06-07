@@ -29,7 +29,8 @@ export const trainingApi = {
   getComparison: (params) => api.get('/training/comparison', { params }),
   getDetail: (id) => api.get(`/training/detail/${id}`),
   getPlans: (params) => api.get('/training-plans', { params }),
-  getACWR: (params) => api.get('/acwr', { params })
+  getACWR: (params) => api.get('/acwr', { params }),
+  getDayTrainings: (date) => api.get(`/training/day/${date}`)
 }
 
 export const recoveryApi = {

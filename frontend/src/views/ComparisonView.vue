@@ -65,7 +65,7 @@
           </div>
         </div>
       </el-col>
-    </el-col>
+    </el-row>
 
     <el-empty v-else description="请选择队员进行对比" style="margin-top: 80px" />
   </div>

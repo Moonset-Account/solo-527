@@ -5,6 +5,7 @@ const { metricsConfig, radarMetrics } = require('../data/metricsConfig');
 const etlService = require('../services/etlService');
 const cacheService = require('../services/cacheService');
 const exportService = require('../services/exportService');
+const authMiddleware = require('../middleware/auth');
 
 const {
   athletes,
@@ -14,15 +15,26 @@ const {
   trainingPlans,
   actualTrainings,
   heartRateData,
+  paceData,
   strengthTests,
   recoveryScores,
   injuryRecords
 } = mockData;
 
-router.get('/athletes', (req, res) => {
+const enforceScope = (req, queryField = 'athleteId') => {
+  if (req.dataScope && req.dataScope.type === 'self') {
+    return req.dataScope.athleteId;
+  }
+  return req.query[queryField];
+};
+
+router.get('/athletes', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
   const { sport } = req.query;
   let result = athletes;
-  if (sport) {
+
+  if (req.dataScope && req.dataScope.type === 'self') {
+    result = athletes.filter(a => a.id === req.dataScope.athleteId);
+  } else if (sport) {
     result = athletes.filter(a => a.sport === sport);
   }
   res.json(result);
@@ -41,45 +53,63 @@ router.get('/metrics-config', (req, res) => {
   res.json({ metrics: metricsConfig, radarMetrics });
 });
 
-router.get('/training/load-curve', (req, res) => {
-  const cacheKey = cacheService.generateKey('loadCurve', req.query);
+router.get('/training/load-curve', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  const effectiveAthleteId = enforceScope(req);
+
+  const cacheKey = cacheService.generateKey('loadCurve', { ...req.query, effectiveAthleteId });
   const cached = cacheService.get(cacheKey);
   if (cached) return res.json(cached);
 
-  const { athleteId, sport, startDate, endDate, exercise, metric = 'load' } = req.query;
+  const { sport, startDate, endDate, exercise, metric = 'load' } = req.query;
 
   let filtered = [...actualTrainings];
 
-  if (athleteId) filtered = filtered.filter(t => t.athleteId === athleteId);
+  if (effectiveAthleteId) filtered = filtered.filter(t => t.athleteId === effectiveAthleteId);
   if (sport) filtered = filtered.filter(t => t.sport === sport);
   if (exercise) filtered = filtered.filter(t => t.exercise === exercise);
   if (startDate) filtered = filtered.filter(t => t.date >= startDate);
   if (endDate) filtered = filtered.filter(t => t.date <= endDate);
 
   const chartData = etlService.transformTrainingForChart(filtered, 'date');
-
   const anomalies = etlService.detectAnomalies(chartData, 'load');
 
+  const dataWithTrainingIds = chartData.map(d => {
+    const dayTrainings = filtered.filter(t => t.date === d.key);
+    return {
+      ...d,
+      trainingIds: dayTrainings.map(t => t.id),
+      exerciseList: [...new Set(dayTrainings.map(t => t.exercise))]
+    };
+  });
+
   const result = {
-    data: chartData.sort((a, b) => a.key.localeCompare(b.key)),
-    anomalies,
+    data: dataWithTrainingIds.sort((a, b) => a.key.localeCompare(b.key)),
+    anomalies: anomalies.map(a => ({
+      ...a,
+      trainingIds: filtered.filter(t => t.date === a.key).map(t => t.id)
+    })),
     summary: {
       totalLoad: chartData.reduce((s, d) => s + d.load, 0),
       avgIntensity: chartData.length > 0 ? Math.round(chartData.reduce((s, d) => s + d.intensity, 0) / chartData.length) : 0,
       avgCompletion: chartData.length > 0 ? Math.round(chartData.reduce((s, d) => s + d.completionRate, 0) / chartData.length) : 0
-    }
+    },
+    dataScope: req.dataScope
   };
 
   cacheService.set(cacheKey, result);
   res.json(result);
 });
 
-router.get('/training/radar', (req, res) => {
-  const { athleteId } = req.query;
-  const athlete = athletes.find(a => a.id === athleteId);
+router.get('/training/radar', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  let athleteId = enforceScope(req);
 
+  if (!athleteId) {
+    return res.status(400).json({ error: '请选择队员' });
+  }
+
+  const athlete = athletes.find(a => a.id === athleteId);
   if (!athlete) {
-    return res.status(404).json({ error: 'Athlete not found' });
+    return res.status(404).json({ error: '队员不存在' });
   }
 
   const athleteTrainings = actualTrainings.filter(t => t.athleteId === athleteId);
@@ -133,15 +163,17 @@ router.get('/training/radar', (req, res) => {
   });
 });
 
-router.get('/recovery/trend', (req, res) => {
-  const cacheKey = cacheService.generateKey('recoveryTrend', req.query);
+router.get('/recovery/trend', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  const effectiveAthleteId = enforceScope(req);
+
+  const cacheKey = cacheService.generateKey('recoveryTrend', { ...req.query, effectiveAthleteId });
   const cached = cacheService.get(cacheKey);
   if (cached) return res.json(cached);
 
-  const { athleteId, startDate, endDate } = req.query;
+  const { startDate, endDate } = req.query;
 
   let filtered = [...recoveryScores];
-  if (athleteId) filtered = filtered.filter(r => r.athleteId === athleteId);
+  if (effectiveAthleteId) filtered = filtered.filter(r => r.athleteId === effectiveAthleteId);
   if (startDate) filtered = filtered.filter(r => r.date >= startDate);
   if (endDate) filtered = filtered.filter(r => r.date <= endDate);
 
@@ -151,7 +183,10 @@ router.get('/recovery/trend', (req, res) => {
 
   const result = {
     data: filtered,
-    anomalies,
+    anomalies: anomalies.map(a => ({
+      ...a,
+      linkedTrainingDate: a.date
+    })),
     summary: {
       avgOverall: filtered.length > 0 ? Math.round(filtered.reduce((s, r) => s + r.overallScore, 0) / filtered.length) : 0,
       avgSleep: filtered.length > 0 ? Math.round(filtered.reduce((s, r) => s + r.sleepScore, 0) / filtered.length) : 0,
@@ -163,9 +198,13 @@ router.get('/recovery/trend', (req, res) => {
   res.json(result);
 });
 
-router.get('/training/comparison', (req, res) => {
+router.get('/training/comparison', authMiddleware.requireCoach.bind(authMiddleware), (req, res) => {
   const { athleteIds, metric = 'load', startDate, endDate } = req.query;
   const ids = Array.isArray(athleteIds) ? athleteIds : [athleteIds];
+
+  if (!ids || ids.length === 0) {
+    return res.json([]);
+  }
 
   const comparisonData = ids.map(id => {
     let trainings = actualTrainings.filter(t => t.athleteId === id);
@@ -188,11 +227,15 @@ router.get('/training/comparison', (req, res) => {
   res.json(comparisonData);
 });
 
-router.get('/training/detail/:id', (req, res) => {
+router.get('/training/detail/:id', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
   const { id } = req.params;
   const training = actualTrainings.find(t => t.id === id);
   if (!training) {
-    return res.status(404).json({ error: 'Training record not found' });
+    return res.status(404).json({ error: '训练记录不存在' });
+  }
+
+  if (req.dataScope && req.dataScope.type === 'self' && training.athleteId !== req.dataScope.athleteId) {
+    return res.status(403).json({ error: '权限不足：只能查看自己的训练记录' });
   }
 
   const plan = trainingPlans.find(p => p.id === training.planId);
@@ -200,35 +243,88 @@ router.get('/training/detail/:id', (req, res) => {
     h => h.athleteId === training.athleteId && h.date === training.date && h.exercise === training.exercise
   );
 
+  const paceForExercise = paceData.find(
+    p => p.athleteId === training.athleteId && p.date === training.date && p.exercise === training.exercise
+  );
+
+  const planIntensity = plan ? (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity) : 0;
+  const originalIntensity = plan ? (plan.originalIntensity || plan.plannedIntensity) : 0;
+  const plannedLoad = plan ? plan.plannedSets * plan.plannedReps * planIntensity : 0;
+  const originalPlannedLoad = plan ? plan.plannedSets * plan.plannedReps * originalIntensity : 0;
+  const actualLoad = etlService.calculateLoad(training);
+
+  const deviationAnalysis = plan ? {
+    sets: {
+      planned: plan.plannedSets,
+      actual: training.actualSets,
+      diff: training.actualSets - plan.plannedSets,
+      deviationPercent: Math.round(((training.actualSets - plan.plannedSets) / plan.plannedSets) * 100)
+    },
+    reps: {
+      planned: plan.plannedReps,
+      actual: training.actualReps,
+      diff: training.actualReps - plan.plannedReps,
+      deviationPercent: Math.round(((training.actualReps - plan.plannedReps) / plan.plannedReps) * 100)
+    },
+    intensity: {
+      originalPlanned: originalIntensity,
+      adjustedPlanned: planIntensity,
+      actual: training.actualIntensity,
+      diffFromAdjusted: training.actualIntensity - planIntensity,
+      diffFromOriginal: training.actualIntensity - originalIntensity,
+      wasAdjusted: plan.adjusted
+    },
+    load: {
+      planned: plannedLoad,
+      originalPlannedLoad: originalPlannedLoad,
+      actual: actualLoad,
+      deviationPercent: Math.round(((actualLoad - plannedLoad) / plannedLoad) * 100)
+    }
+  } : null;
+
   res.json({
     training,
     plan,
     heartRate: hrData,
+    pace: paceForExercise || null,
     planComparison: plan ? {
       sets: { planned: plan.plannedSets, actual: training.actualSets, diff: training.actualSets - plan.plannedSets },
       reps: { planned: plan.plannedReps, actual: training.actualReps, diff: training.actualReps - plan.plannedReps },
-      intensity: { planned: plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity, actual: training.actualIntensity, original: plan.originalIntensity },
+      intensity: {
+        planned: plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity,
+        actual: training.actualIntensity,
+        original: plan.originalIntensity,
+        wasAdjusted: plan.adjusted
+      },
       adjusted: plan.adjusted,
       adjustmentReason: plan.adjustmentReason
-    } : null
+    } : null,
+    deviationAnalysis,
+    rawRecord: {
+      ...training,
+      calculatedLoad: etlService.calculateLoad(training)
+    }
   });
 });
 
-router.get('/injuries', (req, res) => {
-  const { athleteId, role = 'coach' } = req.query;
+router.get('/injuries', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  let athleteId = enforceScope(req);
+  const userRole = req.user?.role;
 
   let filtered = [...injuryRecords];
   if (athleteId) filtered = filtered.filter(i => i.athleteId === athleteId);
 
-  if (role !== 'coach' && role !== 'rehab') {
+  const canViewInternal = authMiddleware.canViewInternalNotes(userRole);
+  if (!canViewInternal) {
     filtered = filtered.map(({ internalNotes, ...rest }) => rest);
   }
 
   res.json(filtered);
 });
 
-router.get('/training-plans', (req, res) => {
-  const { athleteId, date, adjustedOnly } = req.query;
+router.get('/training-plans', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  let athleteId = enforceScope(req);
+  const { date, adjustedOnly } = req.query;
 
   let filtered = [...trainingPlans];
   if (athleteId) filtered = filtered.filter(p => p.athleteId === athleteId);
@@ -237,17 +333,29 @@ router.get('/training-plans', (req, res) => {
 
   const withActual = filtered.map(plan => {
     const actual = actualTrainings.find(t => t.planId === plan.id);
+    const deviation = actual && plan ? {
+      intensityDeviation: actual.actualIntensity - (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity),
+      originalIntensityDeviation: actual.actualIntensity - (plan.originalIntensity || plan.plannedIntensity),
+      loadDeviation: actual ? etlService.calculateLoad(actual) - (plan.plannedSets * plan.plannedReps * (plan.adjusted ? plan.adjustedIntensity : plan.plannedIntensity)) : 0
+    } : null;
+
     return {
       ...plan,
-      actual: actual || null
+      actual: actual || null,
+      deviation
     };
   });
 
-  res.json(withActual);
+  res.json(withActual.sort((a, b) => b.date.localeCompare(a.date)));
 });
 
-router.get('/acwr', (req, res) => {
-  const { athleteId, date } = req.query;
+router.get('/acwr', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  let athleteId = enforceScope(req);
+  if (!athleteId) {
+    return res.status(400).json({ error: '请指定队员' });
+  }
+
+  const { date } = req.query;
   const result = etlService.calculateAcuteChronicWorkloadRatio(
     athleteId,
     date || new Date().toISOString().split('T')[0]
@@ -255,8 +363,29 @@ router.get('/acwr', (req, res) => {
   res.json(result);
 });
 
-router.get('/export/training', async (req, res) => {
-  const { athleteId, startDate, endDate, format = 'xlsx' } = req.query;
+router.get('/training/day/:date', authMiddleware.enforceDataPermission.bind(authMiddleware), (req, res) => {
+  const { date } = req.params;
+  let athleteId = enforceScope(req);
+
+  let trainings = actualTrainings.filter(t => t.date === date);
+  if (athleteId) trainings = trainings.filter(t => t.athleteId === athleteId);
+
+  const withPlans = trainings.map(t => ({
+    training: t,
+    plan: trainingPlans.find(p => p.id === t.planId),
+    calculatedLoad: etlService.calculateLoad(t)
+  }));
+
+  res.json(withPlans);
+});
+
+router.get('/export/training', authMiddleware.enforceDataPermission.bind(authMiddleware), async (req, res) => {
+  let athleteId = enforceScope(req);
+  if (!athleteId) {
+    return res.status(400).json({ error: '请指定队员' });
+  }
+
+  const { startDate, endDate, format = 'xlsx' } = req.query;
 
   const data = {
     trainings: actualTrainings.filter(t =>
@@ -273,7 +402,12 @@ router.get('/export/training', async (req, res) => {
       p.athleteId === athleteId &&
       (!startDate || p.date >= startDate) &&
       (!endDate || p.date <= endDate)
-    )
+    ).map(p => ({
+      ...p,
+      originalIntensity: p.originalIntensity || '',
+      adjustedIntensity: p.adjusted ? p.adjustedIntensity : '',
+      adjustmentReason: p.adjustmentReason || ''
+    }))
   };
 
   if (format === 'json') {
@@ -301,22 +435,35 @@ router.post('/auth/login', (req, res) => {
   const { username, password, role } = req.body;
 
   let user = null;
-  if (role === 'coach') {
+  let tokenRole = role || 'athlete';
+
+  if (role === 'coach' || role === 'rehab' || role === 'head') {
     user = coaches.find(c => c.id === username);
+    tokenRole = user?.role || role;
   } else {
     user = athletes.find(a => a.id === username);
   }
 
   if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return res.status(401).json({ error: '账号或密码错误' });
   }
 
+  const userPayload = Buffer.from(JSON.stringify({ id: user.id, role: tokenRole })).toString('base64');
+  const token = `mock-jwt-token-${userPayload}`;
+
   res.json({
-    token: 'mock-jwt-token-' + Date.now(),
+    token,
     user: {
       ...user,
-      role: role || 'athlete'
+      role: tokenRole
     }
+  });
+});
+
+router.get('/auth/me', authMiddleware.requireAuth.bind(authMiddleware), (req, res) => {
+  res.json({
+    user: req.user,
+    dataScope: req.dataScope
   });
 });
 
