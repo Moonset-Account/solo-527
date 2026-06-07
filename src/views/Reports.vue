@@ -2,8 +2,7 @@
 import { ref, computed } from 'vue'
 import { useEnergyStore } from '@/stores/energy'
 import { useAllocationStore } from '@/stores/allocation'
-import { mockTenants } from '@/mock'
-import { formatNumber, formatDate, exportToCSV } from '@/utils'
+import { formatNumber, formatDate, exportToCSV, getTimeRangeText } from '@/utils'
 import { FileText, Download, Calendar, Layers, Eye, FileSpreadsheet, FileJson } from 'lucide-vue-next'
 import type { Dimension, ReportConfig } from '@/types'
 
@@ -73,24 +72,37 @@ function downloadCSV() {
 }
 
 function downloadAllocationCSV() {
-  const data = allocationStore.results.map(r => ({
-    '租户名称': r.tenantName,
-    '统计周期': r.period,
-    '租户自耗(kWh)': formatNumber(r.tenantUsage),
-    '公共分摊(kWh)': formatNumber(r.allocatedEnergy),
-    '总能耗(kWh)': formatNumber(r.totalEnergy),
-    '分摊口径': r.formula
-  }))
+  const metaData = [
+    { '项': '时间窗口', '值': getTimeRangeText(energyStore.selectedTimeRange) },
+    { '项': '分析维度', '值': dimensions.find(d => d.value === reportConfig.value.dimension)?.label || '楼栋维度' },
+    { '项': '有效样本量', '值': energyStore.stats.sampleCount },
+    { '项': '总样本量', '值': energyStore.stats.totalSamples },
+    { '项': '分摊口径', '值': allocationStore.activeRule?.name || '按面积分摊' },
+    { '项': '公共区域总能耗', '值': `${formatNumber(allocationStore.commonEnergy)} kWh` },
+    { '项': '生成时间', '值': new Date().toLocaleString('zh-CN') },
+    { '项': '', '值': '' }
+  ]
   
-  const summary = [{
-    '项目': '合计',
-    '租户自耗(kWh)': formatNumber(allocationStore.totalTenantUsage),
-    '公共分摊(kWh)': formatNumber(allocationStore.totalAllocated),
-    '总能耗(kWh)': formatNumber(allocationStore.grandTotal),
-    '分摊口径': `分摊规则: ${allocationStore.activeRule?.name}`
-  }]
+  const data = allocationStore.results.map(r => {
+    const tenant = energyStore.tenants.find(t => t.id === r.tenantId)
+    return {
+      '租户名称': r.tenantName,
+      '所在楼层': tenant?.floorId.replace('flr-00', '') + 'F' || '-',
+      '租赁面积(㎡)': tenant?.area || 0,
+      '员工人数': tenant?.peopleCount || 0,
+      '统计周期': r.period,
+      '租户自耗(kWh)': formatNumber(r.tenantUsage),
+      '公共分摊(kWh)': formatNumber(r.allocatedEnergy),
+      '总能耗(kWh)': formatNumber(r.totalEnergy),
+      '分摊公式': r.formula
+    }
+  })
   
-  exportToCSV([...data, ...summary], '租户能耗分摊报告')
+  const summary = [
+    { '租户名称': '', '所在楼层': '', '租赁面积(㎡)': '', '员工人数': '', '统计周期': '合计', '租户自耗(kWh)': formatNumber(allocationStore.totalTenantUsage), '公共分摊(kWh)': formatNumber(allocationStore.totalAllocated), '总能耗(kWh)': formatNumber(allocationStore.grandTotal), '分摊公式': '' }
+  ]
+  
+  exportToCSV([...metaData, ...data, ...summary], '租户能耗对账单')
 }
 </script>
 
@@ -305,19 +317,16 @@ function downloadAllocationCSV() {
                 <p class="text-sm text-slate-300">
                   <strong>分摊规则：</strong>
                   <template v-if="allocationStore.activeRule?.method === 'by_area'">
-                    按各租户租赁面积占比分摊，总面积 {{ formatNumber(allocationStore.results.reduce((sum, r) => {
-                      const t = mockTenants.find(mt => mt.id === r.tenantId)
-                      return sum + (t?.area || 0)
-                    }, 0)) }} ㎡
+                    按各租户租赁面积占比分摊，总面积 {{ formatNumber(energyStore.tenants.reduce((sum, t) => sum + t.area, 0)) }} ㎡
                   </template>
                   <template v-else-if="allocationStore.activeRule?.method === 'by_people'">
-                    按各租户员工人数占比分摊，总人数 {{ allocationStore.results.reduce((sum, r) => {
-                      const t = mockTenants.find(mt => mt.id === r.tenantId)
-                      return sum + (t?.peopleCount || 0)
-                    }, 0) }} 人
+                    按各租户员工人数占比分摊，总人数 {{ energyStore.tenants.reduce((sum, t) => sum + t.peopleCount, 0) }} 人
                   </template>
-                  <template v-else>
-                    平均分摊至所有租户
+                  <template v-else-if="allocationStore.activeRule?.method === 'by_usage_ratio'">
+                    按各租户自耗用量比例分摊，总自耗 {{ formatNumber(allocationStore.totalTenantUsage) }} kWh
+                  </template>
+                  <template v-else-if="allocationStore.activeRule?.method === 'even'">
+                    平均分摊至所有租户，共 {{ energyStore.tenants.length }} 户
                   </template>
                 </p>
               </div>

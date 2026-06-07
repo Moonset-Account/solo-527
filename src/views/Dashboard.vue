@@ -6,7 +6,6 @@ import MetricCard from '@/components/common/MetricCard.vue'
 import EnergyLineChart from '@/components/charts/EnergyLineChart.vue'
 import { aggregateByHour, formatNumber, getDeviceTypeLabel, getStatusLabel } from '@/utils'
 import type { Dimension, TimeRange } from '@/types'
-import { mockFloors, mockTenants, mockDevices } from '@/mock'
 import { ElMessage } from 'element-plus'
 
 const energyStore = useEnergyStore()
@@ -129,7 +128,7 @@ const deviceStats = computed(() => {
           v-model="energyStore.selectedDimensionId"
           class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
         >
-          <option v-for="floor in mockFloors" :key="floor.id" :value="floor.id">
+          <option v-for="floor in energyStore.floors" :key="floor.id" :value="floor.id">
             {{ floor.name }}
           </option>
         </select>
@@ -139,7 +138,7 @@ const deviceStats = computed(() => {
           v-model="energyStore.selectedDimensionId"
           class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
         >
-          <option v-for="tenant in mockTenants" :key="tenant.id" :value="tenant.id">
+          <option v-for="tenant in energyStore.tenants" :key="tenant.id" :value="tenant.id">
             {{ tenant.name }}
           </option>
         </select>
@@ -149,7 +148,7 @@ const deviceStats = computed(() => {
           v-model="energyStore.selectedDimensionId"
           class="bg-bg-tertiary border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-slate-200 outline-none focus:border-brand-500"
         >
-          <option v-for="device in mockDevices" :key="device.id" :value="device.id">
+          <option v-for="device in energyStore.devices" :key="device.id" :value="device.id">
             {{ device.name }}
           </option>
         </select>

@@ -152,6 +152,14 @@ export const mockAllocationRules: AllocationRule[] = [
     params: {},
     isActive: false,
     createdAt: '2024-06-01T00:00:00Z'
+  },
+  {
+    id: 'rule-004',
+    name: '平均分摊公共能耗',
+    method: 'even',
+    params: {},
+    isActive: false,
+    createdAt: '2024-06-01T00:00:00Z'
   }
 ]
 

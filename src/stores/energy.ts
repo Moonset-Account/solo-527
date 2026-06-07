@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import dayjs from 'dayjs'
-import type { Device, EnergyReading, Alert, EnergyStats, Dimension, TimeRange } from '../types'
-import { mockDevices, generateEnergyReadings, mockAlerts, mockTimeOfUsePrices, mockFloors, mockTenants } from '../mock'
+import type { Device, EnergyReading, Alert, EnergyStats, Dimension, TimeRange, Tenant, Floor, Building, HolidayMode } from '../types'
+import { mockDevices, generateEnergyReadings, mockAlerts, mockTimeOfUsePrices, mockFloors, mockTenants, mockBuildings } from '../mock'
 import { calculateEnergyStats } from '../utils'
 
 function generateReadingsByTimeRange(timeRange: TimeRange): EnergyReading[] {
@@ -19,6 +19,9 @@ function generateReadingsByTimeRange(timeRange: TimeRange): EnergyReading[] {
 }
 
 export const useEnergyStore = defineStore('energy', () => {
+  const buildings = ref<Building[]>(mockBuildings)
+  const floors = ref<Floor[]>(mockFloors)
+  const tenants = ref<Tenant[]>(mockTenants)
   const devices = ref<Device[]>(mockDevices)
   const baseReadings = ref<EnergyReading[]>(generateEnergyReadings(24 * 30))
   const alerts = ref<Alert[]>(mockAlerts)
@@ -26,6 +29,13 @@ export const useEnergyStore = defineStore('energy', () => {
   const selectedTimeRange = ref<TimeRange>('day')
   const selectedDimensionId = ref<string>('')
   const importedReadings = ref<EnergyReading[]>([])
+
+  const holidayMode = ref<HolidayMode>({
+    workdayStart: '08:00',
+    workdayEnd: '18:00',
+    weekendReduction: 30,
+    holidayReduction: 50
+  })
 
   const onlineDevices = computed(() => devices.value.filter(d => d.status === 'online'))
   const offlineDevices = computed(() => devices.value.filter(d => d.status === 'offline'))
@@ -45,7 +55,7 @@ export const useEnergyStore = defineStore('energy', () => {
     }
     if (selectedDimension.value === 'tenant') {
       const tenantId = selectedDimensionId.value || 'ten-001'
-      const tenant = mockTenants.find(t => t.id === tenantId)
+      const tenant = tenants.value.find(t => t.id === tenantId)
       if (tenant) {
         return devices.value.filter(d => d.floorId === tenant.floorId)
       }
@@ -95,9 +105,34 @@ export const useEnergyStore = defineStore('energy', () => {
     })
   })
 
+  const tenantUsageMap = computed<Record<string, number>>(() => {
+    const usageMap: Record<string, number> = {}
+    
+    tenants.value.forEach(tenant => {
+      const floorDevices = devices.value.filter(d => d.floorId === tenant.floorId && d.type === 'electricity')
+      const deviceIds = floorDevices.map(d => d.id)
+      
+      const allReadings = importedReadings.value.length > 0 ? importedReadings.value : baseReadings.value
+      const tenantReadings = allReadings.filter(r => 
+        deviceIds.includes(r.deviceId) && 
+        !r.isOffline && 
+        dayjs(r.timestamp).isAfter(dayjs().startOf(selectedTimeRange.value as any))
+      )
+      
+      const totalUsage = tenantReadings.reduce((sum, r) => sum + r.value, 0)
+      usageMap[tenant.id] = totalUsage > 0 ? totalUsage : 500 + Math.random() * 500
+    })
+    
+    return usageMap
+  })
+
   const stats = computed<EnergyStats>(() => {
     return calculateEnergyStats(filteredReadings.value, mockTimeOfUsePrices)
   })
+
+  function getTenantUsage(tenantId: string): number {
+    return tenantUsageMap.value[tenantId] || 500
+  }
 
   function getReadingsByDeviceType(type: 'electricity' | 'water' | 'hvac'): EnergyReading[] {
     const deviceIds = filteredDevices.value.filter(d => d.type === type).map(d => d.id)
@@ -112,6 +147,22 @@ export const useEnergyStore = defineStore('energy', () => {
     const existingIds = new Set(devices.value.map(d => d.id))
     const uniqueNew = newDevices.filter(d => !existingIds.has(d.id))
     devices.value = [...devices.value, ...uniqueNew]
+  }
+
+  function importTenants(newTenants: Tenant[]): void {
+    const existingIds = new Set(tenants.value.map(t => t.id))
+    const uniqueNew = newTenants.filter(t => !existingIds.has(t.id))
+    tenants.value = [...tenants.value, ...uniqueNew]
+  }
+
+  function importFloors(newFloors: Floor[]): void {
+    const existingIds = new Set(floors.value.map(f => f.id))
+    const uniqueNew = newFloors.filter(f => !existingIds.has(f.id))
+    floors.value = [...floors.value, ...uniqueNew]
+  }
+
+  function updateHolidayMode(mode: HolidayMode): void {
+    holidayMode.value = { ...mode }
   }
 
   function acknowledgeAlert(alertId: string, note: string): void {
@@ -143,6 +194,9 @@ export const useEnergyStore = defineStore('energy', () => {
   })
 
   return {
+    buildings,
+    floors,
+    tenants,
     devices,
     readings: filteredReadings,
     baseReadings,
@@ -160,9 +214,15 @@ export const useEnergyStore = defineStore('energy', () => {
     acknowledgedAlerts,
     resolvedAlerts,
     stats,
+    tenantUsageMap,
+    holidayMode,
+    getTenantUsage,
     getReadingsByDeviceType,
     importReadings,
     importDevices,
+    importTenants,
+    importFloors,
+    updateHolidayMode,
     acknowledgeAlert,
     resolveAlert,
     refreshData

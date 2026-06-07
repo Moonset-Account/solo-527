@@ -2,15 +2,15 @@
 import { computed, ref } from 'vue'
 import { useAllocationStore } from '@/stores/allocation'
 import { useEnergyStore } from '@/stores/energy'
-import { mockTenants } from '@/mock'
-import { formatNumber } from '@/utils'
-import { Settings, Calculator, FileDown, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { formatNumber, getTimeRangeText } from '@/utils'
+import { Settings, Calculator, FileDown, ChevronDown, ChevronUp, Clock } from 'lucide-vue-next'
 import type { AllocationMethod } from '@/types'
+import { ElMessage } from 'element-plus'
 
 const allocationStore = useAllocationStore()
 const energyStore = useEnergyStore()
 
-const selectedMethod = ref<AllocationMethod>('by_area')
+const selectedMethod = ref<AllocationMethod>(allocationStore.activeRule?.method as AllocationMethod || 'by_area')
 const expandedRow = ref<string | null>(null)
 
 const methods = [
@@ -20,8 +20,8 @@ const methods = [
   { value: 'even', label: '平均分摊', desc: '将公共能耗平均分摊给所有租户' }
 ]
 
-const totalArea = computed(() => mockTenants.reduce((sum, t) => sum + t.area, 0))
-const totalPeople = computed(() => mockTenants.reduce((sum, t) => sum + t.peopleCount, 0))
+const totalArea = computed(() => allocationStore.currentTenants.reduce((sum, t) => sum + t.area, 0))
+const totalPeople = computed(() => allocationStore.currentTenants.reduce((sum, t) => sum + t.peopleCount, 0))
 
 function toggleRow(id: string) {
   expandedRow.value = expandedRow.value === id ? null : id
@@ -32,34 +32,58 @@ function changeMethod(method: AllocationMethod) {
   const rule = allocationStore.rules.find(r => r.method === method)
   if (rule) {
     allocationStore.setActiveRule(rule.id)
+    ElMessage.success(`已切换至「${methods.find(m => m.value === method)?.label}」规则`)
   }
+}
+
+function getTenantById(tenantId: string) {
+  return allocationStore.currentTenants.find(t => t.id === tenantId)
 }
 
 function exportResults() {
   const csvContent = [
-    ['租户名称', '租户面积(㎡)', '员工人数', '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊口径'],
-    ...allocationStore.results.map(r => [
-      r.tenantName,
-      mockTenants.find(t => t.id === r.tenantId)?.area || 0,
-      mockTenants.find(t => t.id === r.tenantId)?.peopleCount || 0,
-      r.tenantUsage.toFixed(2),
-      r.allocatedEnergy.toFixed(2),
-      r.totalEnergy.toFixed(2),
-      r.formula
-    ])
+    ['时间窗口', getTimeRangeText(energyStore.selectedTimeRange)],
+    ['样本量', energyStore.stats.sampleCount],
+    ['分摊口径', allocationStore.activeRule?.name || '按面积分摊'],
+    [''],
+    ['租户名称', '所在楼层', '租户面积(㎡)', '员工人数', '租户自耗(kWh)', '公共分摊(kWh)', '总能耗(kWh)', '分摊公式'],
+    ...allocationStore.results.map(r => {
+      const tenant = getTenantById(r.tenantId)
+      return [
+        r.tenantName,
+        tenant?.floorId.replace('flr-00', '') + 'F' || '-',
+        tenant?.area || 0,
+        tenant?.peopleCount || 0,
+        r.tenantUsage.toFixed(2),
+        r.allocatedEnergy.toFixed(2),
+        r.totalEnergy.toFixed(2),
+        r.formula
+      ]
+    })
   ].map(row => row.join(',')).join('\n')
 
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = `租户能耗分摊_${allocationStore.period}.csv`
+  link.download = `租户能耗对账单_${energyStore.selectedTimeRange}_${new Date().toISOString().split('T')[0]}.csv`
   link.click()
   URL.revokeObjectURL(link.href)
+  ElMessage.success('对账单已导出，包含时间窗口、样本量、分摊口径')
 }
 </script>
 
 <template>
   <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 text-sm text-slate-400">
+        <Clock class="w-4 h-4" />
+        <span>统计周期: {{ getTimeRangeText(energyStore.selectedTimeRange) }}</span>
+      </div>
+      <div class="text-sm text-slate-400">
+        有效样本: <span class="text-brand-400 font-mono">{{ energyStore.stats.sampleCount }}</span> 条
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div class="card p-5">
         <p class="text-sm text-slate-400 mb-2">公共区域总能耗</p>
@@ -75,7 +99,7 @@ function exportResults() {
       <div class="card p-5">
         <p class="text-sm text-slate-400 mb-2">已分摊能耗</p>
         <p class="text-2xl font-mono font-bold text-brand-400">{{ formatNumber(allocationStore.totalAllocated) }} kWh</p>
-        <p class="text-xs text-slate-500 mt-1">共 {{ mockTenants.length }} 户租户</p>
+        <p class="text-xs text-slate-500 mt-1">共 {{ allocationStore.currentTenants.length }} 户租户</p>
       </div>
       <div class="card p-5">
         <p class="text-sm text-slate-400 mb-2">租户自耗总计</p>
@@ -126,7 +150,7 @@ function exportResults() {
               公共能耗 × (租户自耗 / 总自耗)
             </template>
             <template v-else>
-              公共能耗 / 租户数量 ({{ mockTenants.length }}户)
+              公共能耗 / 租户数量 ({{ allocationStore.currentTenants.length }}户)
             </template>
           </p>
         </div>
@@ -163,11 +187,11 @@ function exportResults() {
             </thead>
             <tbody>
               <template v-for="result in allocationStore.results" :key="result.id">
-                <tr class="cursor-pointer" @click="toggleRow(result.id)">
-                  <td class="font-medium">{{ result.tenantName }}</td>
-                  <td>{{ mockTenants.find(t => t.id === result.tenantId)?.floorId.replace('flr-00', '') }}F</td>
-                  <td class="font-mono">{{ mockTenants.find(t => t.id === result.tenantId)?.area }}</td>
-                  <td class="font-mono">{{ mockTenants.find(t => t.id === result.tenantId)?.peopleCount }}</td>
+              <tr class="cursor-pointer" @click="toggleRow(result.id)">
+                <td class="font-medium">{{ result.tenantName }}</td>
+                <td>{{ getTenantById(result.tenantId)?.floorId.replace('flr-00', '') }}F</td>
+                <td class="font-mono">{{ getTenantById(result.tenantId)?.area }}</td>
+                <td class="font-mono">{{ getTenantById(result.tenantId)?.peopleCount }}</td>
                   <td class="font-mono text-slate-300">{{ formatNumber(result.tenantUsage) }}</td>
                   <td class="font-mono text-brand-400">{{ formatNumber(result.allocatedEnergy) }}</td>
                   <td class="font-mono font-medium text-white">{{ formatNumber(result.totalEnergy) }}</td>
@@ -192,7 +216,7 @@ function exportResults() {
                       </p>
                       <p class="text-sm text-slate-300">
                         <span class="text-slate-500">联系人：</span>
-                        {{ mockTenants.find(t => t.id === result.tenantId)?.contact }}
+                        {{ getTenantById(result.tenantId)?.contact }}
                       </p>
                     </div>
                   </td>

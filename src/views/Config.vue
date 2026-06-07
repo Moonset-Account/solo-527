@@ -5,8 +5,8 @@ import { useEnergyStore } from '@/stores/energy'
 import { useAllocationStore } from '@/stores/allocation'
 import { Upload, Calendar, Building2, Users, Zap, Droplets, Wind, Settings as SettingsIcon, CheckCircle } from 'lucide-vue-next'
 import { formatDateTime, getTenantUsage } from '@/utils'
-import type { EnergyReading, Device, Tenant } from '@/types'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import type { EnergyReading, Device, Tenant, Floor, HolidayMode } from '@/types'
+import { ElMessage } from 'element-plus'
 
 const energyStore = useEnergyStore()
 const allocationStore = useAllocationStore()
@@ -24,14 +24,19 @@ const tabs = [
 const uploadFile = ref<File | null>(null)
 const uploadProgress = ref(0)
 const isUploading = ref(false)
-const importResult = ref<{ readings: number; devices: number; tenants: number } | null>(null)
+const importResult = ref<{ readings: number; devices: number; tenants: number; floors: number } | null>(null)
 
-const holidayMode = ref({
-  workdayStart: '08:00',
-  workdayEnd: '18:00',
-  weekendReduction: 30,
-  holidayReduction: 50
+const holidayMode = ref<HolidayMode>({
+  workdayStart: energyStore.holidayMode.workdayStart,
+  workdayEnd: energyStore.holidayMode.workdayEnd,
+  weekendReduction: energyStore.holidayMode.weekendReduction,
+  holidayReduction: energyStore.holidayMode.holidayReduction
 })
+
+function saveHolidayMode() {
+  energyStore.updateHolidayMode(holidayMode.value)
+  ElMessage.success('节假日模式配置已保存')
+}
 
 function handleFileUpload(event: Event) {
   const target = event.target as HTMLInputElement
@@ -109,7 +114,7 @@ async function parseTenants(data: any[]): Promise<Tenant[]> {
   data.forEach((row, idx) => {
     tenants.push({
       id: row['编号'] || row['id'] || `ten-new-${idx}`,
-      floorId: row['楼层'] || row['floor_id'] || 'flr-001',
+      floorId: row['楼层编号'] || row['楼层'] || row['floor_id'] || 'flr-001',
       name: row['名称'] || row['name'] || `导入租户${idx + 1}`,
       area: parseFloat(row['面积'] || row['area'] || '100'),
       peopleCount: parseInt(row['人数'] || row['people_count'] || '10'),
@@ -118,6 +123,22 @@ async function parseTenants(data: any[]): Promise<Tenant[]> {
   })
   
   return tenants
+}
+
+async function parseFloors(data: any[]): Promise<Floor[]> {
+  const floors: Floor[] = []
+  
+  data.forEach((row, idx) => {
+    floors.push({
+      id: row['编号'] || row['id'] || `flr-new-${idx}`,
+      buildingId: row['楼栋'] || row['building_id'] || 'bld-001',
+      floorNumber: parseInt(row['楼层号'] || row['floor_number'] || row['楼层'] || (idx + 1).toString()),
+      name: row['名称'] || row['name'] || `${idx + 1}F`,
+      area: parseFloat(row['面积'] || row['area'] || '1000')
+    })
+  })
+  
+  return floors
 }
 
 async function startUpload() {
@@ -144,18 +165,29 @@ async function startUpload() {
     let readingsCount = 0
     let devicesCount = 0
     let tenantsCount = 0
+    let floorsCount = 0
     
     if (headerKeys.some(k => k.includes('读数') || k.includes('value') || k.includes('reading'))) {
       const readings = await parseEnergyReadings(parsedData)
       energyStore.importReadings(readings)
       readingsCount = readings.length
     }
+    uploadProgress.value = 60
+    await nextTick()
+    
+    if (headerKeys.some(k => k.includes('楼层号') || k.includes('floor_number')) &&
+        headerKeys.some(k => k.includes('面积') || k.includes('area'))) {
+      const floors = await parseFloors(parsedData)
+      energyStore.importFloors(floors)
+      floorsCount = floors.length
+    }
     uploadProgress.value = 70
     await nextTick()
     
     if (headerKeys.some(k => k.includes('名称') || k.includes('name')) && 
         headerKeys.some(k => k.includes('类型') || k.includes('type')) &&
-        !headerKeys.some(k => k.includes('面积') || k.includes('area'))) {
+        !headerKeys.some(k => k.includes('面积') || k.includes('area')) &&
+        !headerKeys.some(k => k.includes('人数') || k.includes('people'))) {
       const devices = await parseDevices(parsedData)
       energyStore.importDevices(devices)
       devicesCount = devices.length
@@ -163,17 +195,19 @@ async function startUpload() {
     uploadProgress.value = 85
     await nextTick()
     
-    if (headerKeys.some(k => k.includes('面积') || k.includes('area') || k.includes('人数') || k.includes('people'))) {
+    if (headerKeys.some(k => k.includes('面积') || k.includes('area')) && 
+        (headerKeys.some(k => k.includes('人数') || k.includes('people')) ||
+         headerKeys.some(k => k.includes('联系人') || k.includes('contact')))) {
       const tenants = await parseTenants(parsedData)
+      energyStore.importTenants(tenants)
       tenantsCount = tenants.length
-      ElMessage.info(`已解析 ${tenants.length} 条租户数据，可直接用于分摊计算`)
     }
     uploadProgress.value = 100
     await nextTick()
     
-    importResult.value = { readings: readingsCount, devices: devicesCount, tenants: tenantsCount }
+    importResult.value = { readings: readingsCount, devices: devicesCount, tenants: tenantsCount, floors: floorsCount }
     
-    const totalImported = readingsCount + devicesCount + tenantsCount
+    const totalImported = readingsCount + devicesCount + tenantsCount + floorsCount
     if (totalImported > 0) {
       ElMessage.success(`成功导入 ${totalImported} 条数据`)
     } else {
@@ -214,7 +248,7 @@ async function startUpload() {
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-medium text-white">设备列表</h3>
         <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-400">共 {{ mockDevices.length }} 台设备</span>
+          <span class="text-sm text-slate-400">共 {{ energyStore.devices.length }} 台设备</span>
         </div>
       </div>
 
@@ -230,7 +264,7 @@ async function startUpload() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="device in mockDevices" :key="device.id">
+            <tr v-for="device in energyStore.devices" :key="device.id">
               <td class="font-medium">{{ device.name }}</td>
               <td>
                 <div class="flex items-center gap-2">
@@ -279,7 +313,7 @@ async function startUpload() {
     <div v-if="activeTab === 'tenants'" class="card p-5">
       <div class="flex items-center justify-between mb-4">
         <h3 class="font-medium text-white">租户列表</h3>
-        <span class="text-sm text-slate-400">共 {{ mockTenants.length }} 家租户</span>
+        <span class="text-sm text-slate-400">共 {{ energyStore.tenants.length }} 家租户</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -294,7 +328,7 @@ async function startUpload() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="tenant in mockTenants" :key="tenant.id">
+            <tr v-for="tenant in energyStore.tenants" :key="tenant.id">
               <td class="font-medium">{{ tenant.name }}</td>
               <td>{{ tenant.floorId.replace('flr-00', '') }}F</td>
               <td class="font-mono">{{ tenant.area }} ㎡</td>
@@ -314,13 +348,13 @@ async function startUpload() {
       <div class="mb-6">
         <h4 class="text-sm font-medium text-slate-300 mb-3">楼栋信息</h4>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="building in mockBuildings" :key="building.id" class="p-4 bg-bg-tertiary/30 rounded-lg">
+          <div v-for="building in energyStore.buildings" :key="building.id" class="p-4 bg-bg-tertiary/30 rounded-lg">
             <div class="flex items-center gap-3 mb-2">
               <Building2 class="w-5 h-5 text-brand-400" />
               <span class="font-medium text-white">{{ building.name }}</span>
             </div>
             <p class="text-sm text-slate-400">总建筑面积: {{ building.totalArea.toLocaleString() }} ㎡</p>
-            <p class="text-sm text-slate-400">楼层数: {{ mockFloors.length }} 层</p>
+            <p class="text-sm text-slate-400">楼层数: {{ energyStore.floors.length }} 层</p>
           </div>
         </div>
       </div>
@@ -337,7 +371,7 @@ async function startUpload() {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="floor in mockFloors" :key="floor.id">
+              <tr v-for="floor in energyStore.floors" :key="floor.id">
                 <td class="font-mono font-medium">{{ floor.floorNumber }}F</td>
                 <td class="font-medium">{{ floor.name }}</td>
                 <td class="font-mono">{{ floor.area }} ㎡</td>
@@ -401,6 +435,12 @@ async function startUpload() {
         </div>
       </div>
 
+      <div class="mt-6">
+        <button @click="saveHolidayMode" class="btn-primary">
+          保存节假日配置
+        </button>
+      </div>
+
       <div class="mt-6 p-4 bg-brand-600/10 border border-brand-500/20 rounded-lg">
         <p class="text-sm text-brand-300">
           <strong>配置说明：</strong>节假日模式下，系统将根据配置自动调整公共区域空调、照明等设备的运行策略，
@@ -448,7 +488,7 @@ async function startUpload() {
                 <CheckCircle class="w-5 h-5" />
                 <span class="text-sm font-medium">导入完成</span>
               </div>
-              <div class="grid grid-cols-3 gap-2 mt-3">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
                 <div v-if="importResult.readings > 0" class="text-center p-2 bg-brand-500/10 rounded">
                   <div class="text-lg font-mono font-bold text-brand-400">{{ importResult.readings }}</div>
                   <div class="text-xs text-slate-400">条读数</div>
@@ -456,6 +496,10 @@ async function startUpload() {
                 <div v-if="importResult.devices > 0" class="text-center p-2 bg-status-success/10 rounded">
                   <div class="text-lg font-mono font-bold text-status-success">{{ importResult.devices }}</div>
                   <div class="text-xs text-slate-400">台设备</div>
+                </div>
+                <div v-if="importResult.floors > 0" class="text-center p-2 bg-status-warning/10 rounded">
+                  <div class="text-lg font-mono font-bold text-status-warning">{{ importResult.floors }}</div>
+                  <div class="text-xs text-slate-400">层楼</div>
                 </div>
                 <div v-if="importResult.tenants > 0" class="text-center p-2 bg-status-info/10 rounded">
                   <div class="text-lg font-mono font-bold text-status-info">{{ importResult.tenants }}</div>

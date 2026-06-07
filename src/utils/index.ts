@@ -35,7 +35,7 @@ export function getTimeRangeText(range: string): string {
   }
 }
 
-const tenantUsageMap: Record<string, number> = {
+const defaultTenantUsageMap: Record<string, number> = {
   'ten-001': 320.5,
   'ten-002': 856.2,
   'ten-003': 2150.8,
@@ -44,14 +44,15 @@ const tenantUsageMap: Record<string, number> = {
   'ten-006': 4100.2
 }
 
-export function getTenantUsage(tenantId: string): number {
-  return tenantUsageMap[tenantId] || 500 + Math.random() * 500
+export function getTenantUsage(tenantId: string, usageMap?: Record<string, number>): number {
+  const map = usageMap || defaultTenantUsageMap
+  return map[tenantId] || 500 + Math.random() * 500
 }
 
-export function allocateByArea(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+export function allocateByArea(commonEnergy: number, tenants: Tenant[], usageMap?: Record<string, number>): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
   const totalArea = tenants.reduce((sum, t) => sum + t.area, 0)
   return tenants.map(t => {
-    const tenantUsage = getTenantUsage(t.id)
+    const tenantUsage = getTenantUsage(t.id, usageMap)
     const allocatedEnergy = (t.area / totalArea) * commonEnergy
     return {
       tenantId: t.id,
@@ -65,10 +66,10 @@ export function allocateByArea(commonEnergy: number, tenants: Tenant[]): Omit<Al
   })
 }
 
-export function allocateByPeople(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+export function allocateByPeople(commonEnergy: number, tenants: Tenant[], usageMap?: Record<string, number>): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
   const totalPeople = tenants.reduce((sum, t) => sum + t.peopleCount, 0)
   return tenants.map(t => {
-    const tenantUsage = getTenantUsage(t.id)
+    const tenantUsage = getTenantUsage(t.id, usageMap)
     const allocatedEnergy = (t.peopleCount / totalPeople) * commonEnergy
     return {
       tenantId: t.id,
@@ -82,12 +83,12 @@ export function allocateByPeople(commonEnergy: number, tenants: Tenant[]): Omit<
   })
 }
 
-export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
-  const usages = tenants.map(t => getTenantUsage(t.id))
+export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[], usageMap?: Record<string, number>): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+  const usages = tenants.map(t => getTenantUsage(t.id, usageMap))
   const totalUsage = usages.reduce((sum, u) => sum + u, 0)
   return tenants.map((t, idx) => {
     const tenantUsage = usages[idx]
-    const allocatedEnergy = (tenantUsage / totalUsage) * commonEnergy
+    const allocatedEnergy = totalUsage > 0 ? (tenantUsage / totalUsage) * commonEnergy : 0
     return {
       tenantId: t.id,
       tenantName: t.name,
@@ -100,10 +101,10 @@ export function allocateByUsageRatio(commonEnergy: number, tenants: Tenant[]): O
   })
 }
 
-export function allocateEven(commonEnergy: number, tenants: Tenant[]): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
-  const perTenant = commonEnergy / tenants.length
+export function allocateEven(commonEnergy: number, tenants: Tenant[], usageMap?: Record<string, number>): Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] {
+  const perTenant = tenants.length > 0 ? commonEnergy / tenants.length : 0
   return tenants.map(t => {
-    const tenantUsage = getTenantUsage(t.id)
+    const tenantUsage = getTenantUsage(t.id, usageMap)
     return {
       tenantId: t.id,
       tenantName: t.name,

@@ -1,38 +1,47 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AllocationRule, AllocationResult, AllocationMethod } from '../types'
-import { mockAllocationRules, mockTenants } from '../mock'
-import { allocateByArea, allocateByPeople, allocateByUsageRatio, allocateEven } from '../utils'
+import { mockAllocationRules } from '../mock'
+import { allocateByArea, allocateByPeople, allocateByUsageRatio, allocateEven, getTimeRangeText } from '../utils'
+import { useEnergyStore } from './energy'
 
 export const useAllocationStore = defineStore('allocation', () => {
+  const energyStore = useEnergyStore()
+  
   const rules = ref<AllocationRule[]>(mockAllocationRules)
   const selectedRuleId = ref<string>(mockAllocationRules.find(r => r.isActive)?.id || '')
   const commonEnergy = ref<number>(2500)
-  const period = ref<string>('2025年6月')
 
   const activeRule = computed(() => rules.value.find(r => r.isActive))
+  
+  const period = computed(() => getTimeRangeText(energyStore.selectedTimeRange))
+  
+  const currentTenants = computed(() => energyStore.tenants)
+  
+  const tenantUsageMap = computed(() => energyStore.tenantUsageMap)
 
   const results = computed<AllocationResult[]>(() => {
     const rule = activeRule.value
-    if (!rule) return []
+    const tenants = currentTenants.value
+    if (!rule || tenants.length === 0) return []
 
     let allocationResults: Omit<AllocationResult, 'id' | 'ruleId' | 'period'>[] = []
     
     switch (rule.method as AllocationMethod) {
       case 'by_area':
-        allocationResults = allocateByArea(commonEnergy.value, mockTenants)
+        allocationResults = allocateByArea(commonEnergy.value, tenants, tenantUsageMap.value)
         break
       case 'by_people':
-        allocationResults = allocateByPeople(commonEnergy.value, mockTenants)
+        allocationResults = allocateByPeople(commonEnergy.value, tenants, tenantUsageMap.value)
         break
       case 'by_usage_ratio':
-        allocationResults = allocateByUsageRatio(commonEnergy.value, mockTenants)
+        allocationResults = allocateByUsageRatio(commonEnergy.value, tenants, tenantUsageMap.value)
         break
       case 'even':
-        allocationResults = allocateEven(commonEnergy.value, mockTenants)
+        allocationResults = allocateEven(commonEnergy.value, tenants, tenantUsageMap.value)
         break
       default:
-        allocationResults = allocateByArea(commonEnergy.value, mockTenants)
+        allocationResults = allocateByArea(commonEnergy.value, tenants, tenantUsageMap.value)
     }
 
     return allocationResults.map((r, idx) => ({
@@ -76,6 +85,8 @@ export const useAllocationStore = defineStore('allocation', () => {
     totalAllocated,
     totalTenantUsage,
     grandTotal,
+    currentTenants,
+    tenantUsageMap,
     setActiveRule,
     updateCommonEnergy,
     addRule

@@ -134,3 +134,10 @@ export interface ChartDataPoint {
   label: string
   isOffline?: boolean
 }
+
+export interface HolidayMode {
+  workdayStart: string
+  workdayEnd: string
+  weekendReduction: number
+  holidayReduction: number
+}
