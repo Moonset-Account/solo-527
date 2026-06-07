@@ -1,0 +1,26 @@
+{
+  "name": "live-stream-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generate:data": "node scripts/generateData.js",
+    "clean:data": "node scripts/cleanData.js",
+    "export:report": "node scripts/exportReport.js"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "svelte": "^4.2.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "echarts": "^5.4.3",
+    "duckdb": "^0.9.2",
+    "lru-cache": "^10.0.1"
+  }
+}
