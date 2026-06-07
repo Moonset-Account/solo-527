@@ -1,10 +1,11 @@
 import os
 import io
 import csv
+import json
 from datetime import date, timedelta
 
 import dash
-from dash import dcc, html, Input, Output, State, callback, ctx
+from dash import dcc, html, Input, Output, State, ctx, ALL, MATCH
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 import pandas as pd
@@ -24,78 +25,109 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.DARKLY],
     suppress_callback_exceptions=True,
-    title="训练负荷可视化系统",
+    title="运动训练负荷可视化",
 )
 server = app.server
 
-COLORS = {
-    "bg": "#0f1117",
-    "card": "#1a1d29",
-    "border": "#2d3148",
+C = {
+    "bg": "#0b0e14",
+    "card": "#151922",
+    "border": "#262d3d",
     "primary": "#4f8cff",
     "success": "#36d399",
     "warning": "#fbbd23",
     "danger": "#f87272",
     "text": "#e2e8f0",
-    "text_muted": "#94a3b8",
-    "chart_colors": ["#4f8cff", "#36d399", "#fbbd23", "#f87272", "#a78bfa", "#fb923c", "#22d3ee", "#f472b6"],
+    "muted": "#8892a4",
+    "colors": ["#4f8cff", "#36d399", "#fbbd23", "#f87272", "#a78bfa", "#fb923c", "#22d3ee", "#f472b6"],
 }
 
-
-def card(title, children, style=None):
-    return dbc.Card(
-        dbc.CardBody([
-            html.H6(title, className="card-title mb-3",
-                    style={"color": COLORS["primary"], "fontSize": "0.85rem"}),
-            *children,
-        ]),
-        style={"backgroundColor": COLORS["card"], "borderColor": COLORS["border"], **(style or {})},
-    )
+DRILL_LEVELS = ["team", "athlete", "program", "training_day", "exercise", "metric"]
+DRILL_LABELS = {"team": "队伍", "athlete": "队员", "program": "训练计划", "training_day": "训练日", "exercise": "动作", "metric": "指标"}
 
 
-def _get_user(uid_str):
+def _card(title, children):
+    return dbc.Card(dbc.CardBody([
+        html.H6(title, className="card-title mb-2", style={"color": C["primary"], "fontSize": "0.82rem"}),
+        *children,
+    ]), style={"backgroundColor": C["card"], "borderColor": C["border"]})
+
+
+def _user(uid_str):
     s = SessionLocal()
     try:
-        return s.query(User).filter_by(id=int(uid_str)).first()
+        return s.query(User).filter_by(id=int(uid_str or "1")).first()
     finally:
         s.close()
 
 
-def _query_load(params, user):
+def _params(sd, ed, team, ath_id, program, stype, exercise):
+    p = {}
+    if sd: p["start_date"] = sd
+    if ed: p["end_date"] = ed
+    if team: p["team"] = team
+    if ath_id: p["athlete_id"] = str(ath_id)
+    if program: p["program"] = program
+    if stype: p["session_type"] = stype
+    if exercise: p["exercise_name"] = exercise
+    return p
+
+
+def _query_agg(group_by, params, user):
     s = SessionLocal()
     try:
         q = s.query(
             Athlete.team, Athlete.id.label("athlete_id"), Athlete.name.label("athlete_name"),
+            TrainingPlan.name.label("program_name"),
             TrainingSession.session_date, TrainingSession.session_type,
             TrainingExercise.exercise_name, TrainingExercise.exercise_category,
-            TrainingLog.actual_rpe, TrainingLog.actual_sets, TrainingLog.actual_reps,
-            TrainingLog.actual_load_kg, TrainingLog.actual_duration_min, TrainingLog.completed,
+            TrainingLog.actual_rpe, TrainingLog.actual_duration_min,
         ).join(TrainingLog, TrainingLog.athlete_id == Athlete.id
         ).join(TrainingSession, TrainingLog.session_id == TrainingSession.id
-        ).join(TrainingExercise, TrainingLog.exercise_id == TrainingExercise.id)
+        ).join(TrainingExercise, TrainingLog.exercise_id == TrainingExercise.id
+        ).join(TrainingPlan, TrainingSession.plan_id == TrainingPlan.id)
 
         if user and user.role == "athlete":
             q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
-        if params.get("athlete_id"):
-            q = q.filter(Athlete.id == int(params["athlete_id"]))
-        if params.get("start_date"):
-            q = q.filter(TrainingSession.session_date >= params["start_date"])
-        if params.get("end_date"):
-            q = q.filter(TrainingSession.session_date <= params["end_date"])
-        if params.get("session_type"):
-            q = q.filter(TrainingSession.session_type == params["session_type"])
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("athlete_id"): q = q.filter(Athlete.id == int(params["athlete_id"]))
+        if params.get("program"): q = q.filter(TrainingPlan.name == params["program"])
+        if params.get("start_date"): q = q.filter(TrainingSession.session_date >= params["start_date"])
+        if params.get("end_date"): q = q.filter(TrainingSession.session_date <= params["end_date"])
+        if params.get("session_type"): q = q.filter(TrainingSession.session_type == params["session_type"])
+        if params.get("exercise_name"): q = q.filter(TrainingExercise.exercise_name == params["exercise_name"])
 
-        rows = q.limit(5000).all()
-        return [{
+        rows = q.limit(8000).all()
+        df = pd.DataFrame([{
             "team": r.team, "athlete_id": r.athlete_id, "athlete_name": r.athlete_name,
-            "session_date": r.session_date.isoformat() if r.session_date else None,
-            "session_type": r.session_type, "exercise_name": r.exercise_name,
-            "exercise_category": r.exercise_category, "rpe": r.actual_rpe,
+            "program": r.program_name, "training_day": r.session_date.isoformat() if r.session_date else None,
+            "exercise_name": r.exercise_name, "exercise_category": r.exercise_category,
+            "rpe": r.actual_rpe,
             "load": round((r.actual_rpe or 0) * (r.actual_duration_min or 0), 1),
-            "completed": r.completed,
-        } for r in rows]
+        } for r in rows])
+
+        if df.empty:
+            return df
+
+        if group_by == "team":
+            return df.groupby("team").agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index().rename(columns={"team": "key"})
+        elif group_by == "athlete":
+            g = df.groupby(["athlete_id", "athlete_name", "team"]).agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index()
+            g["key"] = g["athlete_name"]
+            return g
+        elif group_by == "program":
+            g = df.groupby("program").agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index().rename(columns={"program": "key"})
+            return g
+        elif group_by == "training_day":
+            g = df.groupby("training_day").agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index().rename(columns={"training_day": "key"})
+            return g
+        elif group_by == "exercise":
+            g = df.groupby(["exercise_name", "exercise_category"]).agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index()
+            g["key"] = g["exercise_name"]
+            return g
+        else:
+            df["key"] = df["training_day"]
+            return df.groupby("key").agg(load=("load", "sum"), rpe=("rpe", "mean"), count=("load", "size")).reset_index()
     finally:
         s.close()
 
@@ -109,27 +141,18 @@ def _query_hr(params, user):
             func.avg(HeartRate.hr_bpm).label("avg_hr"),
             func.max(HeartRate.hr_bpm).label("max_hr"),
             func.min(HeartRate.hr_bpm).label("min_hr"),
-            func.count(HeartRate.id).label("count"),
         ).join(HeartRate, HeartRate.athlete_id == Athlete.id)
-
-        if user and user.role == "athlete":
-            q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("athlete_id"):
-            q = q.filter(Athlete.id == int(params["athlete_id"]))
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
-        if params.get("start_date"):
-            q = q.filter(HeartRate.recorded_at >= params["start_date"])
-        if params.get("end_date"):
-            q = q.filter(HeartRate.recorded_at <= params["end_date"] + " 23:59:59")
-
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(Athlete.id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(HeartRate.recorded_at >= params["start_date"])
+        if params.get("end_date"): q = q.filter(HeartRate.recorded_at <= params["end_date"] + " 23:59:59")
         q = q.group_by(Athlete.id, Athlete.name, Athlete.team, func.date(HeartRate.recorded_at))
         rows = q.limit(3000).all()
-        return [{
+        return pd.DataFrame([{
             "athlete_id": r.athlete_id, "athlete_name": r.athlete_name, "team": r.team,
-            "date": r.date, "avg_hr": round(r.avg_hr, 1) if r.avg_hr else None,
-            "max_hr": r.max_hr, "min_hr": r.min_hr, "count": r.count,
-        } for r in rows]
+            "date": r.date, "avg_hr": round(r.avg_hr, 1), "max_hr": r.max_hr, "min_hr": r.min_hr,
+        } for r in rows])
     finally:
         s.close()
 
@@ -143,30 +166,19 @@ def _query_pace(params, user):
             func.avg(Pace.pace_min_per_km).label("avg_pace"),
             func.min(Pace.pace_min_per_km).label("best_pace"),
             func.sum(Pace.distance_km).label("total_km"),
-            func.count(Pace.id).label("count"),
         ).join(Pace, Pace.athlete_id == Athlete.id)
-
-        if user and user.role == "athlete":
-            q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("athlete_id"):
-            q = q.filter(Athlete.id == int(params["athlete_id"]))
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
-        if params.get("start_date"):
-            q = q.filter(Pace.recorded_at >= params["start_date"])
-        if params.get("end_date"):
-            q = q.filter(Pace.recorded_at <= params["end_date"] + " 23:59:59")
-
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(Athlete.id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(Pace.recorded_at >= params["start_date"])
+        if params.get("end_date"): q = q.filter(Pace.recorded_at <= params["end_date"] + " 23:59:59")
         q = q.group_by(Athlete.id, Athlete.name, Athlete.team, func.date(Pace.recorded_at))
         rows = q.limit(3000).all()
-        return [{
+        return pd.DataFrame([{
             "athlete_id": r.athlete_id, "athlete_name": r.athlete_name, "team": r.team,
-            "date": r.date,
-            "avg_pace": round(r.avg_pace, 2) if r.avg_pace else None,
-            "best_pace": round(r.best_pace, 2) if r.best_pace else None,
+            "date": r.date, "avg_pace": round(r.avg_pace, 2), "best_pace": round(r.best_pace, 2),
             "total_km": round(r.total_km, 1) if r.total_km else None,
-            "count": r.count,
-        } for r in rows]
+        } for r in rows])
     finally:
         s.close()
 
@@ -175,30 +187,23 @@ def _query_strength(params, user):
     s = SessionLocal()
     try:
         q = s.query(StrengthTest).join(Athlete, StrengthTest.athlete_id == Athlete.id)
-        if user and user.role == "athlete":
-            q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("athlete_id"):
-            q = q.filter(StrengthTest.athlete_id == int(params["athlete_id"]))
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
-        if params.get("start_date"):
-            q = q.filter(StrengthTest.test_date >= params["start_date"])
-        if params.get("end_date"):
-            q = q.filter(StrengthTest.test_date <= params["end_date"])
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(StrengthTest.athlete_id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(StrengthTest.test_date >= params["start_date"])
+        if params.get("end_date"): q = q.filter(StrengthTest.test_date <= params["end_date"])
         rows = q.limit(2000).all()
-        result = []
+        out = []
         for r in rows:
             ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-            result.append({
-                "id": r.id, "athlete_id": r.athlete_id,
-                "athlete_name": ath.name if ath else None,
-                "team": ath.team if ath else None,
-                "test_date": r.test_date.isoformat(),
+            out.append({
+                "id": r.id, "athlete_id": r.athlete_id, "athlete_name": ath.name if ath else None,
+                "team": ath.team if ath else None, "test_date": r.test_date.isoformat(),
                 "exercise_name": r.exercise_name, "one_rm_kg": r.one_rm_kg,
                 "max_reps": r.max_reps, "velocity_ms": r.velocity_ms,
                 "power_w": r.power_w, "is_anomaly": r.is_anomaly, "notes": r.notes,
             })
-        return result
+        return pd.DataFrame(out)
     finally:
         s.close()
 
@@ -207,31 +212,24 @@ def _query_recovery(params, user):
     s = SessionLocal()
     try:
         q = s.query(RecoveryScore).join(Athlete, RecoveryScore.athlete_id == Athlete.id)
-        if user and user.role == "athlete":
-            q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("athlete_id"):
-            q = q.filter(RecoveryScore.athlete_id == int(params["athlete_id"]))
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
-        if params.get("start_date"):
-            q = q.filter(RecoveryScore.score_date >= params["start_date"])
-        if params.get("end_date"):
-            q = q.filter(RecoveryScore.score_date <= params["end_date"])
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(RecoveryScore.athlete_id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
+        if params.get("start_date"): q = q.filter(RecoveryScore.score_date >= params["start_date"])
+        if params.get("end_date"): q = q.filter(RecoveryScore.score_date <= params["end_date"])
         rows = q.order_by(RecoveryScore.score_date).limit(3000).all()
-        result = []
+        out = []
         for r in rows:
             ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
-            result.append({
-                "id": r.id, "athlete_id": r.athlete_id,
-                "athlete_name": ath.name if ath else None,
-                "team": ath.team if ath else None,
-                "score_date": r.score_date.isoformat(),
+            out.append({
+                "id": r.id, "athlete_id": r.athlete_id, "athlete_name": ath.name if ath else None,
+                "team": ath.team if ath else None, "score_date": r.score_date.isoformat(),
                 "overall_score": r.overall_score, "sleep_score": r.sleep_score,
                 "fatigue_score": r.fatigue_score, "stress_score": r.stress_score,
                 "soreness_score": r.soreness_score, "hrv_ms": r.hrv_ms,
                 "is_anomaly": r.is_anomaly, "notes": r.notes,
             })
-        return result
+        return pd.DataFrame(out)
     finally:
         s.close()
 
@@ -240,21 +238,16 @@ def _query_injuries(params, user):
     s = SessionLocal()
     try:
         q = s.query(Injury).join(Athlete, Injury.athlete_id == Athlete.id)
-        if user and user.role == "athlete":
-            q = q.filter(Athlete.id == user.athlete_id)
-        if params.get("athlete_id"):
-            q = q.filter(Injury.athlete_id == int(params["athlete_id"]))
-        if params.get("team"):
-            q = q.filter(Athlete.team == params["team"])
+        if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+        if params.get("athlete_id"): q = q.filter(Injury.athlete_id == int(params["athlete_id"]))
+        if params.get("team"): q = q.filter(Athlete.team == params["team"])
         rows = q.order_by(Injury.injury_date.desc()).limit(500).all()
-        result = []
+        out = []
         for r in rows:
             ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
             item = {
-                "id": r.id, "athlete_id": r.athlete_id,
-                "athlete_name": ath.name if ath else None,
-                "team": ath.team if ath else None,
-                "injury_date": r.injury_date.isoformat(),
+                "id": r.id, "athlete_id": r.athlete_id, "athlete_name": ath.name if ath else None,
+                "team": ath.team if ath else None, "injury_date": r.injury_date.isoformat(),
                 "body_part": r.body_part, "injury_type": r.injury_type,
                 "severity": r.severity, "status": r.status,
                 "return_date": r.return_date.isoformat() if r.return_date else None,
@@ -262,531 +255,594 @@ def _query_injuries(params, user):
             }
             if not user or user.role == "coach":
                 item["coach_notes"] = r.coach_notes
-            result.append(item)
-        return result
+            out.append(item)
+        return pd.DataFrame(out)
+    finally:
+        s.close()
+
+
+def _query_anomaly_records(metric_type, params, user):
+    s = SessionLocal()
+    try:
+        out = []
+        if metric_type == "heartrate":
+            q = s.query(HeartRate).join(Athlete, HeartRate.athlete_id == Athlete.id)
+            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+            if params.get("athlete_id"): q = q.filter(HeartRate.athlete_id == int(params["athlete_id"]))
+            if params.get("start_date"): q = q.filter(HeartRate.recorded_at >= params["start_date"])
+            if params.get("end_date"): q = q.filter(HeartRate.recorded_at <= params["end_date"] + " 23:59:59")
+            q = q.filter(HeartRate.is_anomaly == True)
+            for r in q.limit(200).all():
+                ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+                out.append({"type": "heartrate", "id": r.id, "athlete_name": ath.name if ath else None,
+                            "time": r.recorded_at.isoformat(), "value": f"{r.hr_bpm} bpm",
+                            "activity": r.activity, "notes": r.notes or ""})
+        elif metric_type == "pace":
+            q = s.query(Pace).join(Athlete, Pace.athlete_id == Athlete.id)
+            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+            if params.get("athlete_id"): q = q.filter(Pace.athlete_id == int(params["athlete_id"]))
+            if params.get("start_date"): q = q.filter(Pace.recorded_at >= params["start_date"])
+            if params.get("end_date"): q = q.filter(Pace.recorded_at <= params["end_date"] + " 23:59:59")
+            q = q.filter(Pace.is_anomaly == True)
+            for r in q.limit(200).all():
+                ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+                out.append({"type": "pace", "id": r.id, "athlete_name": ath.name if ath else None,
+                            "time": r.recorded_at.isoformat(), "value": f"{r.pace_min_per_km} min/km",
+                            "activity": r.activity, "notes": r.notes or ""})
+        elif metric_type == "strength":
+            q = s.query(StrengthTest).join(Athlete, StrengthTest.athlete_id == Athlete.id)
+            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+            if params.get("athlete_id"): q = q.filter(StrengthTest.athlete_id == int(params["athlete_id"]))
+            if params.get("start_date"): q = q.filter(StrengthTest.test_date >= params["start_date"])
+            if params.get("end_date"): q = q.filter(StrengthTest.test_date <= params["end_date"])
+            q = q.filter(StrengthTest.is_anomaly == True)
+            for r in q.limit(200).all():
+                ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+                out.append({"type": "strength", "id": r.id, "athlete_name": ath.name if ath else None,
+                            "time": r.test_date.isoformat(), "value": f"{r.exercise_name} {r.one_rm_kg}kg",
+                            "activity": "", "notes": r.notes or ""})
+        elif metric_type == "recovery":
+            q = s.query(RecoveryScore).join(Athlete, RecoveryScore.athlete_id == Athlete.id)
+            if user and user.role == "athlete": q = q.filter(Athlete.id == user.athlete_id)
+            if params.get("athlete_id"): q = q.filter(RecoveryScore.athlete_id == int(params["athlete_id"]))
+            if params.get("start_date"): q = q.filter(RecoveryScore.score_date >= params["start_date"])
+            if params.get("end_date"): q = q.filter(RecoveryScore.score_date <= params["end_date"])
+            q = q.filter(RecoveryScore.is_anomaly == True)
+            for r in q.limit(200).all():
+                ath = s.query(Athlete).filter_by(id=r.athlete_id).first()
+                out.append({"type": "recovery", "id": r.id, "athlete_name": ath.name if ath else None,
+                            "time": r.score_date.isoformat(), "value": f"恢复 {r.overall_score}",
+                            "activity": "", "notes": r.notes or ""})
+        return out
     finally:
         s.close()
 
 
 app.layout = html.Div([
-    dcc.Store(id="store-drilldown", data={"current_level": 0, "filters": {}}),
-    dcc.Store(id="store-filter-state", data={}),
-    dcc.Store(id="store-user-role", data="coach"),
-    dcc.Store(id="store-user-id", data="1"),
+    dcc.Store(id="drilldown-state", data={"level": 0, "filters": {}}),
     dcc.Download(id="download-export"),
 
     html.Div([
-        html.Div([
-            html.H4("训练负荷可视化系统", style={"color": COLORS["primary"], "margin": 0}),
-            html.Span("体能教练日常复盘平台",
-                      style={"color": COLORS["text_muted"], "fontSize": "0.8rem", "marginLeft": "1rem"}),
-        ], style={"display": "flex", "alignItems": "center", "marginBottom": "0.5rem"}),
-        html.Span(id="drilldown-breadcrumb", children="全部",
-                  style={"color": COLORS["warning"], "fontSize": "0.8rem", "cursor": "pointer"}),
-    ], style={"marginBottom": "0.5rem"}),
+        html.H4("运动训练负荷可视化", style={"color": C["primary"], "margin": 0, "fontWeight": "bold"}),
+        html.Span("体能教练日常复盘平台", style={"color": C["muted"], "fontSize": "0.8rem", "marginLeft": "1rem"}),
+    ], style={"marginBottom": "0.3rem"}),
+
+    html.Div(id="breadcrumb", style={"color": C["warning"], "fontSize": "0.78rem", "marginBottom": "0.8rem", "cursor": "pointer"}),
 
     dbc.Row([
-        dbc.Col([
-            html.Label("队伍", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dcc.Dropdown(id="filter-team", placeholder="全部队伍", clearable=True),
-        ], width=2),
-        dbc.Col([
-            html.Label("队员", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dcc.Dropdown(id="filter-athlete", placeholder="全部队员", clearable=True),
-        ], width=2),
-        dbc.Col([
-            html.Label("日期范围", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dcc.DatePickerRange(
-                id="filter-date-range",
-                start_date=(date.today() - timedelta(days=28)).isoformat(),
-                end_date=date.today().isoformat(),
-            ),
-        ], width=3),
-        dbc.Col([
-            html.Label("训练类型", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dcc.Dropdown(id="filter-session-type", placeholder="全部类型", clearable=True),
-        ], width=2),
-        dbc.Col([
-            html.Label("角色", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dcc.Dropdown(id="filter-role", options=[
-                {"label": "教练", "value": "coach"},
-                {"label": "队员", "value": "athlete"},
-            ], value="coach", clearable=False),
-        ], width=2),
-        dbc.Col([
-            html.Label("导出", style={"color": COLORS["text_muted"], "fontSize": "0.75rem"}),
-            dbc.ButtonGroup([
-                dbc.Button("CSV", id="btn-export-csv", size="sm", color="primary", outline=True),
-            ], size="sm"),
-        ], width=1),
+        dbc.Col([html.Label("队伍", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dcc.Dropdown(id="f-team", placeholder="全部", clearable=True)], width=2),
+        dbc.Col([html.Label("队员", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dcc.Dropdown(id="f-athlete", placeholder="全部", clearable=True)], width=2),
+        dbc.Col([html.Label("日期", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dcc.DatePickerRange(id="f-date",
+                                     start_date=(date.today() - timedelta(days=28)).isoformat(),
+                                     end_date=date.today().isoformat())], width=3),
+        dbc.Col([html.Label("训练类型", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dcc.Dropdown(id="f-stype", placeholder="全部", clearable=True)], width=2),
+        dbc.Col([html.Label("角色", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dcc.Dropdown(id="f-role", options=[{"label": "教练", "value": "coach"}, {"label": "队员", "value": "athlete"}],
+                              value="coach", clearable=False)], width=2),
+        dbc.Col([html.Label("导出", style={"color": C["muted"], "fontSize": "0.72rem"}),
+                 dbc.Button("CSV", id="btn-csv", size="sm", color="primary", outline=True)], width=1),
     ], className="mb-3 g-2"),
 
-    html.Div(id="main-content", children=[html.Div("加载中...", style={"color": COLORS["text_muted"], "textAlign": "center", "padding": "2rem"})]),
+    dbc.Row(id="summary-row", className="mb-3"),
+
+    dcc.Tabs(id="tab-main", value="tab-load", children=[
+        dcc.Tab(label="负荷趋势与下钻", value="tab-load", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="心率", value="tab-hr", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="配速", value="tab-pace", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="力量测试", value="tab-str", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="恢复评分", value="tab-rec", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="伤病记录", value="tab-inj", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+        dcc.Tab(label="口径校验", value="tab-cal", style={"backgroundColor": C["card"], "color": C["text"]},
+                selected_style={"backgroundColor": C["primary"], "color": "#fff"}),
+    ]),
+
+    html.Div(id="tab-content", className="mt-3"),
+
+    dbc.Modal([
+        dbc.ModalHeader(dbc.ModalTitle("原始记录详情")),
+        dbc.ModalBody(id="modal-detail-body"),
+        dbc.ModalFooter(dbc.Button("关闭", id="btn-close-detail", className="ms-auto")),
+    ], id="modal-detail", is_open=False, size="lg", style={"color": C["text"]}),
 
     dbc.Modal([
         dbc.ModalHeader(dbc.ModalTitle("口径校验报告")),
         dbc.ModalBody(id="modal-caliber-body", style={"whiteSpace": "pre-wrap", "fontFamily": "monospace"}),
         dbc.ModalFooter(dbc.Button("关闭", id="btn-close-caliber", className="ms-auto")),
-    ], id="modal-caliber", is_open=False, size="lg", style={"color": COLORS["text"]}),
-], style={"backgroundColor": COLORS["bg"], "minHeight": "100vh", "padding": "1.5rem"})
+    ], id="modal-caliber", is_open=False, size="lg", style={"color": C["text"]}),
+], style={"backgroundColor": C["bg"], "minHeight": "100vh", "padding": "1.2rem 1.5rem"})
 
 
-def _common_params(start_date, end_date, team, athlete_id, session_type):
-    params = {}
-    if start_date:
-        params["start_date"] = start_date
-    if end_date:
-        params["end_date"] = end_date
-    if team:
-        params["team"] = team
-    if athlete_id:
-        params["athlete_id"] = athlete_id
-    if session_type:
-        params["session_type"] = session_type
-    return params
-
-
-@callback(
-    [Output("filter-team", "options"), Output("filter-session-type", "options")],
-    Input("filter-date-range", "start_date"),
-)
-def load_filters(_):
+@app.callback([Output("f-team", "options"), Output("f-stype", "options"), Output("f-athlete", "options")],
+          [Input("f-date", "start_date"), Input("f-team", "value"), Input("f-role", "value")])
+def load_filters(_, team, role):
     s = SessionLocal()
     try:
         teams = [t[0] for t in s.query(Athlete.team).distinct().all()]
         stypes = [t[0] for t in s.query(TrainingSession.session_type).distinct().all() if t[0]]
-    finally:
-        s.close()
-    return [{"label": t, "value": t} for t in teams], [{"label": t, "value": t} for t in stypes]
-
-
-@callback(
-    Output("filter-athlete", "options"),
-    [Input("filter-team", "value"), Input("filter-role", "value")],
-)
-def load_athletes(team, role):
-    s = SessionLocal()
-    try:
         q = s.query(Athlete)
-        if role == "athlete":
-            q = q.filter(Athlete.id == 1)
-        if team:
-            q = q.filter(Athlete.team == team)
-        athletes = q.all()
+        if role == "athlete": q = q.filter(Athlete.id == 1)
+        if team: q = q.filter(Athlete.team == team)
+        aths = q.all()
     finally:
         s.close()
-    return [{"label": a.name, "value": a.id} for a in athletes]
+    return ([{"label": t, "value": t} for t in teams],
+            [{"label": t, "value": t} for t in stypes],
+            [{"label": a.name, "value": a.id} for a in aths])
 
 
-@callback(
-    [Output("store-user-role", "data"), Output("store-user-id", "data")],
-    Input("filter-role", "value"),
-)
-def update_role(role):
-    return role, "1" if role == "coach" else "2"
-
-
-@callback(
-    Output("drilldown-breadcrumb", "children"),
-    Input("store-drilldown", "data"),
-)
-def update_breadcrumb(drilldown):
+@app.callback(Output("breadcrumb", "children"), Input("drilldown-state", "data"))
+def update_breadcrumb(ds):
     dp = DrilldownPath()
-    dp.current_level = drilldown.get("current_level", 0)
-    dp.filters = drilldown.get("filters", {})
-    return f"📍 {dp.describe()}"
+    dp.current_level = ds.get("level", 0)
+    dp.filters = ds.get("filters", {})
+    parts = ["📍 全部"]
+    for dim in DRILL_LEVELS[:dp.current_level]:
+        val = dp.filters.get(dim, "?")
+        parts.append(f" {DRILL_LABELS.get(dim, dim)}={val}")
+    return "".join(parts) if len(parts) == 1 else "📍 " + " > ".join(
+        [f"{DRILL_LABELS.get(dim, dim)}={dp.filters.get(dim, '?')}" for dim in DRILL_LEVELS[:dp.current_level]]
+    ) if dp.current_level > 0 else "📍 全部（点击图表柱/点下钻）"
 
 
-@callback(
-    Output("main-content", "children"),
-    [
-        Input("filter-team", "value"),
-        Input("filter-athlete", "value"),
-        Input("filter-date-range", "start_date"),
-        Input("filter-date-range", "end_date"),
-        Input("filter-session-type", "value"),
-        Input("filter-role", "value"),
-    ],
-)
-def render_main(team, athlete_id, start_date, end_date, session_type, role):
-    user_id = "1" if role == "coach" else "2"
-    params = _common_params(start_date, end_date, team, athlete_id, session_type)
-    user = _get_user(user_id)
-    role = user.role if user else "coach"
+@app.callback([Output("summary-row", "children"), Output("tab-content", "children")],
+          [Input("f-team", "value"), Input("f-athlete", "value"),
+           Input("f-date", "start_date"), Input("f-date", "end_date"),
+           Input("f-stype", "value"), Input("f-role", "value"),
+           Input("tab-main", "value")],
+          State("drilldown-state", "data"))
+def render_all(team, ath_id, sd, ed, stype, role, tab, ds):
+    import traceback
+    try:
+        uid = "1" if role == "coach" else "2"
+        user = _user(uid)
+        params = _params(sd, ed, team, ath_id, None, stype, None)
 
-    load_data = _query_load(params, user)
-    hr_data = _query_hr(params, user)
-    pace_data = _query_pace(params, user)
-    strength_data = _query_strength(params, user)
-    recovery_data = _query_recovery(params, user)
-    injury_data = _query_injuries(params, user)
+        level = ds.get("level", 0) if ds else 0
+        filters = ds.get("filters", {}) if ds else {}
+        drill_program = filters.get("program")
+        drill_exercise = filters.get("exercise")
+        if drill_program: params["program"] = drill_program
+        if drill_exercise: params["exercise_name"] = drill_exercise
 
-    load_df = pd.DataFrame(load_data)
-    hr_df = pd.DataFrame(hr_data)
-    pace_df = pd.DataFrame(pace_data)
-    strength_df = pd.DataFrame(strength_data)
-    recovery_df = pd.DataFrame(recovery_data)
-    injury_df = pd.DataFrame(injury_data)
+        hr_df = _query_hr(params, user)
+        pace_df = _query_pace(params, user)
+        str_df = _query_strength(params, user)
+        rec_df = _query_recovery(params, user)
+        inj_df = _query_injuries(params, user)
 
-    summary = dbc.Row([
-        dbc.Col(card("训练记录", [html.H3(str(len(load_df)), style={"color": COLORS["primary"], "margin": 0})]), width=2),
-        dbc.Col(card("心率采样", [html.H3(str(len(hr_df)), style={"color": COLORS["success"], "margin": 0})]), width=2),
-        dbc.Col(card("配速记录", [html.H3(str(len(pace_df)), style={"color": COLORS["warning"], "margin": 0})]), width=2),
-        dbc.Col(card("力量测试", [html.H3(str(len(strength_df)), style={"color": COLORS["danger"], "margin": 0})]), width=2),
-        dbc.Col(card("恢复评分", [html.H3(str(len(recovery_df)), style={"color": "#a78bfa", "margin": 0})]), width=2),
-        dbc.Col(card("伤病记录", [html.H3(str(len(injury_df)), style={"color": "#f472b6", "margin": 0})]), width=2),
-    ], className="mb-3")
+        agg_dim = DRILL_LEVELS[min(level, len(DRILL_LEVELS) - 1)]
+        if agg_dim == "metric":
+            agg_dim = "training_day"
+        load_df = _query_agg(agg_dim, params, user)
 
-    load_fig = _build_load_chart(load_df)
-    radar_fig = _build_radar_chart(strength_df, recovery_df)
-    recovery_fig = _build_recovery_chart(recovery_df)
-    comp_fig = _build_comparison_chart(load_df)
-    hr_fig = _build_hr_chart(hr_df)
-    pace_fig = _build_pace_chart(pace_df)
-    injury_tbl = _build_injury_table(injury_df, role)
+        summary = [
+            dbc.Col(_card("训练记录", [html.H3(str(len(load_df)), style={"color": C["primary"], "margin": 0, "fontSize": "1.3rem"})]), width=2),
+            dbc.Col(_card("心率采样", [html.H3(str(len(hr_df)), style={"color": C["success"], "margin": 0, "fontSize": "1.3rem"})]), width=2),
+            dbc.Col(_card("配速记录", [html.H3(str(len(pace_df)), style={"color": C["warning"], "margin": 0, "fontSize": "1.3rem"})]), width=2),
+            dbc.Col(_card("力量测试", [html.H3(str(len(str_df)), style={"color": C["danger"], "margin": 0, "fontSize": "1.3rem"})]), width=2),
+            dbc.Col(_card("恢复评分", [html.H3(str(len(rec_df)), style={"color": "#a78bfa", "margin": 0, "fontSize": "1.3rem"})]), width=2),
+            dbc.Col(_card("伤病记录", [html.H3(str(len(inj_df)), style={"color": "#f472b6", "margin": 0, "fontSize": "1.3rem"})]), width=2),
+        ]
 
-    caliber_btn = dbc.Button("运行口径校验", id="btn-run-caliber", color="warning", size="sm", className="mt-2")
+        if tab == "tab-load":
+            content = _render_load_tab(load_df, rec_df, str_df, level)
+        elif tab == "tab-hr":
+            content = _render_hr_tab(hr_df)
+        elif tab == "tab-pace":
+            content = _render_pace_tab(pace_df)
+        elif tab == "tab-str":
+            content = _render_str_tab(str_df)
+        elif tab == "tab-rec":
+            content = _render_rec_tab(rec_df)
+        elif tab == "tab-inj":
+            content = _render_inj_tab(inj_df, user)
+        elif tab == "tab-cal":
+            content = _render_cal_tab(params, user)
+        else:
+            content = html.Div("")
+
+        return summary, content
+    except Exception as e:
+        traceback.print_exc()
+        err = html.Div(f"渲染错误: {str(e)}", style={"color": C["danger"], "padding": "2rem"})
+        return [dbc.Col(err, width=12)], err
+
+
+def _render_load_tab(load_df, rec_df, str_df, level):
+    drill_fig = go.Figure()
+    if not load_df.empty and "key" in load_df.columns:
+        drill_fig.add_trace(go.Bar(
+            x=load_df["key"], y=load_df["load"], name="训练负荷",
+            marker_color=C["primary"], customdata=load_df["key"],
+        ))
+        if "rpe" in load_df.columns:
+            drill_fig.add_trace(go.Scatter(
+                x=load_df["key"], y=load_df["rpe"].round(1), mode="lines+markers",
+                name="平均RPE", line={"color": C["warning"], "width": 2}, yaxis="y2",
+            ))
+    drill_fig.update_layout(
+        paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+        margin={"l": 50, "r": 30, "t": 35, "b": 50},
+        title={"text": f"负荷聚合（按{DRILL_LABELS.get(DRILL_LEVELS[min(level, 5)], '整体')}）— 点击柱下钻", "font": {"size": 13}},
+        legend={"orientation": "h", "y": 1.12},
+        yaxis={"title": "训练负荷", "gridcolor": C["border"]},
+        yaxis2={"title": "RPE", "overlaying": "y", "side": "right", "gridcolor": C["border"]},
+        xaxis={"gridcolor": C["border"]}, hovermode="x unified",
+    )
+
+    radar_fig = go.Figure()
+    cats = ["力量", "耐力", "恢复", "睡眠", "HRV"]
+    vals = [50.0] * 5
+    if not str_df.empty and "one_rm_kg" in str_df.columns:
+        vals[0] = min(100, float(str_df["one_rm_kg"].max()) / 200 * 100)
+    if not rec_df.empty:
+        if "overall_score" in rec_df.columns: vals[2] = float(rec_df["overall_score"].mean())
+        if "sleep_score" in rec_df.columns: vals[3] = float(rec_df["sleep_score"].mean())
+        if "hrv_ms" in rec_df.columns: vals[4] = min(100, float(rec_df["hrv_ms"].mean()) / 120 * 100)
+    radar_fig.add_trace(go.Scatterpolar(
+        r=vals + [vals[0]], theta=cats + [cats[0]], fill="toself",
+        fillcolor="rgba(79,140,255,0.25)", line={"color": C["primary"], "width": 2},
+    ))
+    radar_fig.update_layout(
+        polar={"bgcolor": C["card"], "radialaxis": {"visible": True, "range": [0, 100], "gridcolor": C["border"],
+                                                       "tickfont": {"color": C["muted"], "size": 9}},
+               "angularaxis": {"gridcolor": C["border"], "tickfont": {"color": C["text"], "size": 11}}},
+        paper_bgcolor=C["card"], font={"color": C["text"]}, margin={"l": 20, "r": 20, "t": 20, "b": 20}, showlegend=False,
+    )
+
+    rec_fig = go.Figure()
+    if not rec_df.empty and "score_date" in rec_df.columns:
+        for col, nm, clr in [("overall_score", "综合", C["primary"]), ("sleep_score", "睡眠", "#a78bfa"),
+                              ("fatigue_score", "疲劳", C["warning"]), ("stress_score", "压力", C["danger"]),
+                              ("soreness_score", "酸痛", "#fb923c")]:
+            if col in rec_df.columns:
+                rec_fig.add_trace(go.Scatter(x=rec_df["score_date"], y=rec_df[col], mode="lines", name=nm,
+                                             line={"color": clr, "width": 1.5}))
+        if "is_anomaly" in rec_df.columns:
+            anom = rec_df[rec_df["is_anomaly"] == True]
+            if not anom.empty and "overall_score" in anom.columns:
+                rec_fig.add_trace(go.Scatter(x=anom["score_date"], y=anom["overall_score"], mode="markers",
+                                             name="异常点", marker={"color": C["danger"], "size": 10, "symbol": "x"}))
+    rec_fig.add_hline(y=60, line_dash="dash", line_color=C["warning"],
+                      annotation_text="警戒线60", annotation_font_color=C["warning"])
+    rec_fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                          margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                          yaxis={"title": "评分", "gridcolor": C["border"], "range": [0, 100]},
+                          xaxis={"gridcolor": C["border"]}, hovermode="x unified")
+
+    comp_fig = go.Figure()
+    if not load_df.empty and "key" in load_df.columns:
+        comp_fig.add_trace(go.Bar(x=load_df["key"], y=load_df["load"], name="总负荷", marker_color=C["primary"]))
+        if "rpe" in load_df.columns:
+            comp_fig.add_trace(go.Scatter(x=load_df["key"], y=load_df["rpe"].round(1), mode="lines+markers",
+                                          name="平均RPE", line={"color": C["warning"], "width": 2}, yaxis="y2"))
+    comp_fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                           margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                           yaxis={"title": "训练负荷", "gridcolor": C["border"]},
+                           yaxis2={"title": "RPE", "overlaying": "y", "side": "right", "gridcolor": C["border"]},
+                           xaxis={"gridcolor": C["border"]})
 
     return html.Div([
-        summary,
         dbc.Row([
-            dbc.Col(card("负荷曲线（点击下钻）", [dcc.Graph(figure=load_fig, id="graph-load")]), width=8),
-            dbc.Col(card("个人雷达图", [dcc.Graph(figure=radar_fig, id="graph-radar")]), width=4),
+            dbc.Col(_card("负荷下钻", [dcc.Graph(figure=drill_fig, id="graph-drill")]), width=8),
+            dbc.Col(_card("个人雷达", [dcc.Graph(figure=radar_fig, id="graph-radar")]), width=4),
         ], className="mb-3"),
         dbc.Row([
-            dbc.Col(card("恢复趋势", [dcc.Graph(figure=recovery_fig, id="graph-recovery")]), width=6),
-            dbc.Col(card("训练对比", [dcc.Graph(figure=comp_fig, id="graph-comparison")]), width=6),
+            dbc.Col(_card("恢复趋势", [dcc.Graph(figure=rec_fig, id="graph-recovery")]), width=6),
+            dbc.Col(_card("训练对比", [dcc.Graph(figure=comp_fig, id="graph-compare")]), width=6),
         ], className="mb-3"),
-        dbc.Row([
-            dbc.Col(card("心率趋势", [dcc.Graph(figure=hr_fig, id="graph-hr")]), width=6),
-            dbc.Col(card("配速趋势", [dcc.Graph(figure=pace_fig, id="graph-pace")]), width=6),
-        ], className="mb-3"),
-        dbc.Row([
-            dbc.Col(card("伤病记录", [injury_tbl]), width=12),
-        ], className="mb-3"),
-        dbc.Row([
-            dbc.Col(card("口径校验", [
-                html.P("校验维度: 训练计划RPE | 心率范围 | 配速范围 | 力量下降阈值",
-                       style={"color": COLORS["text_muted"], "fontSize": "0.8rem"}),
-                caliber_btn,
-            ]), width=12),
-        ]),
+        html.Div([
+            dbc.Button("⬆ 上钻一级", id="btn-drill-up", color="warning", size="sm", className="me-2"),
+            dbc.Button("🔄 重置下钻", id="btn-drill-reset", color="secondary", size="sm"),
+        ], className="mb-2"),
     ])
 
 
-def _build_load_chart(df):
+def _render_hr_tab(hr_df):
     fig = go.Figure()
-    if df.empty or "session_date" not in df.columns:
-        fig.update_layout(title="暂无数据", paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"],
-                          font={"color": COLORS["text"]})
-        return fig
-
-    daily = df.groupby("session_date").agg({"load": "sum"}).reset_index()
-    fig.add_trace(go.Scatter(
-        x=daily["session_date"], y=daily["load"],
-        mode="lines+markers", name="训练负荷",
-        line={"color": COLORS["primary"], "width": 2}, marker={"size": 6},
-    ))
-
-    if "rpe" in df.columns:
-        daily_rpe = df.groupby("session_date").agg({"rpe": "mean"}).reset_index()
-        fig.add_trace(go.Scatter(
-            x=daily_rpe["session_date"], y=daily_rpe["rpe"],
-            mode="lines+markers", name="平均RPE",
-            line={"color": COLORS["warning"], "width": 1, "dash": "dot"}, yaxis="y2",
-        ))
-
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        legend={"orientation": "h", "y": 1.12},
-        yaxis={"title": "训练负荷", "gridcolor": COLORS["border"]},
-        yaxis2={"title": "RPE", "overlaying": "y", "side": "right", "gridcolor": COLORS["border"]},
-        xaxis={"gridcolor": COLORS["border"]}, hovermode="x unified",
-    )
-    return fig
+    if not hr_df.empty and "date" in hr_df.columns:
+        if "avg_hr" in hr_df.columns:
+            fig.add_trace(go.Scatter(x=hr_df["date"], y=hr_df["avg_hr"], mode="lines+markers", name="平均心率",
+                                     line={"color": C["success"], "width": 2}))
+        if "max_hr" in hr_df.columns:
+            fig.add_trace(go.Scatter(x=hr_df["date"], y=hr_df["max_hr"], mode="lines", name="最高心率",
+                                     line={"color": C["danger"], "width": 1, "dash": "dot"}))
+        if "min_hr" in hr_df.columns:
+            fig.add_trace(go.Scatter(x=hr_df["date"], y=hr_df["min_hr"], mode="lines", name="最低心率",
+                                     line={"color": C["primary"], "width": 1, "dash": "dot"}))
+    fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                      margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                      yaxis={"title": "bpm", "gridcolor": C["border"]}, xaxis={"gridcolor": C["border"]}, hovermode="x unified")
+    return dbc.Row([dbc.Col(_card("心率趋势", [dcc.Graph(figure=fig)]), width=12)])
 
 
-def _build_radar_chart(strength_df, recovery_df):
+def _render_pace_tab(pace_df):
     fig = go.Figure()
-    categories = ["力量", "速度", "耐力", "恢复", "睡眠", "HRV"]
-    values = [50.0] * 6
-
-    if not strength_df.empty and "one_rm_kg" in strength_df.columns:
-        by_ex = strength_df.groupby("exercise_name").agg({"one_rm_kg": "max"}).reset_index()
-        if not by_ex.empty:
-            values[0] = min(100, (by_ex["one_rm_kg"].max() / 200) * 100)
-
-    if not recovery_df.empty:
-        if "overall_score" in recovery_df.columns:
-            values[3] = float(recovery_df["overall_score"].mean())
-        if "sleep_score" in recovery_df.columns:
-            values[4] = float(recovery_df["sleep_score"].mean())
-        if "hrv_ms" in recovery_df.columns:
-            values[5] = min(100, float(recovery_df["hrv_ms"].mean()) / 120 * 100)
-
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]], theta=categories + [categories[0]],
-        fill="toself", fillcolor="rgba(79,140,255,0.3)",
-        line={"color": COLORS["primary"], "width": 2}, name="综合能力",
-    ))
-    fig.update_layout(
-        polar={"bgcolor": COLORS["card"],
-               "radialaxis": {"visible": True, "range": [0, 100], "gridcolor": COLORS["border"],
-                              "tickfont": {"color": COLORS["text_muted"], "size": 9}},
-               "angularaxis": {"gridcolor": COLORS["border"], "tickfont": {"color": COLORS["text"], "size": 11}}},
-        paper_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 20, "r": 20, "t": 20, "b": 20}, showlegend=False,
-    )
-    return fig
+    if not pace_df.empty and "date" in pace_df.columns:
+        if "avg_pace" in pace_df.columns:
+            fig.add_trace(go.Scatter(x=pace_df["date"], y=pace_df["avg_pace"], mode="lines+markers", name="平均配速",
+                                     line={"color": C["warning"], "width": 2}))
+        if "best_pace" in pace_df.columns:
+            fig.add_trace(go.Scatter(x=pace_df["date"], y=pace_df["best_pace"], mode="lines", name="最佳配速",
+                                     line={"color": C["success"], "width": 1, "dash": "dash"}))
+        if "total_km" in pace_df.columns:
+            fig.add_trace(go.Bar(x=pace_df["date"], y=pace_df["total_km"], name="距离(km)",
+                                 marker_color="rgba(79,140,255,0.3)", yaxis="y2"))
+    fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                      margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                      yaxis={"title": "min/km", "gridcolor": C["border"]},
+                      yaxis2={"title": "km", "overlaying": "y", "side": "right", "gridcolor": C["border"]},
+                      xaxis={"gridcolor": C["border"]}, hovermode="x unified")
+    return dbc.Row([dbc.Col(_card("配速趋势", [dcc.Graph(figure=fig)]), width=12)])
 
 
-def _build_recovery_chart(df):
+def _render_str_tab(str_df):
     fig = go.Figure()
-    if df.empty or "score_date" not in df.columns:
-        fig.update_layout(title="暂无数据", paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"],
-                          font={"color": COLORS["text"]})
-        return fig
-
-    metrics = [
-        ("overall_score", "综合评分", COLORS["primary"]),
-        ("sleep_score", "睡眠", "#a78bfa"),
-        ("fatigue_score", "疲劳", COLORS["warning"]),
-        ("stress_score", "压力", COLORS["danger"]),
-        ("soreness_score", "酸痛", "#fb923c"),
-    ]
-    for col, name, color in metrics:
-        if col in df.columns:
-            fig.add_trace(go.Scatter(x=df["score_date"], y=df[col], mode="lines", name=name,
-                                     line={"color": color, "width": 1.5}))
-
-    if "is_anomaly" in df.columns:
-        anomalies = df[df["is_anomaly"] == True]
-        if not anomalies.empty and "overall_score" in anomalies.columns:
-            fig.add_trace(go.Scatter(
-                x=anomalies["score_date"], y=anomalies["overall_score"],
-                mode="markers", name="异常点",
-                marker={"color": COLORS["danger"], "size": 10, "symbol": "x"},
-            ))
-
-    fig.add_hline(y=60, line_dash="dash", line_color=COLORS["warning"],
-                  annotation_text="警戒线60", annotation_font_color=COLORS["warning"])
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        legend={"orientation": "h", "y": 1.12},
-        yaxis={"title": "评分", "gridcolor": COLORS["border"], "range": [0, 100]},
-        xaxis={"gridcolor": COLORS["border"]}, hovermode="x unified",
-    )
-    return fig
+    if not str_df.empty and "test_date" in str_df.columns and "one_rm_kg" in str_df.columns:
+        for i, ex in enumerate(str_df["exercise_name"].unique()[:6]):
+            sub = str_df[str_df["exercise_name"] == ex]
+            fig.add_trace(go.Scatter(x=sub["test_date"], y=sub["one_rm_kg"], mode="lines+markers",
+                                     name=ex, line={"color": C["colors"][i % len(C["colors"])]}))
+        if "is_anomaly" in str_df.columns:
+            anom = str_df[str_df["is_anomaly"] == True]
+            if not anom.empty:
+                fig.add_trace(go.Scatter(x=anom["test_date"], y=anom["one_rm_kg"], mode="markers",
+                                         name="异常下降", marker={"color": C["danger"], "size": 10, "symbol": "x"}))
+    fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                      margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                      yaxis={"title": "1RM (kg)", "gridcolor": C["border"]}, xaxis={"gridcolor": C["border"]}, hovermode="x unified")
+    return dbc.Row([dbc.Col(_card("力量测试趋势（异常点可点击查看详情）", [dcc.Graph(figure=fig, id="graph-strength")]), width=12)])
 
 
-def _build_comparison_chart(df):
+def _render_rec_tab(rec_df):
     fig = go.Figure()
-    if df.empty or "athlete_name" not in df.columns or "load" not in df.columns:
-        fig.update_layout(title="暂无数据", paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"],
-                          font={"color": COLORS["text"]})
-        return fig
-
-    by_ath = df.groupby("athlete_name").agg({"load": "sum", "rpe": "mean"}).reset_index()
-    fig.add_trace(go.Bar(x=by_ath["athlete_name"], y=by_ath["load"], name="总负荷",
-                         marker_color=COLORS["primary"]))
-    fig.add_trace(go.Scatter(x=by_ath["athlete_name"], y=by_ath["rpe"], mode="lines+markers",
-                             name="平均RPE", line={"color": COLORS["warning"], "width": 2}, yaxis="y2"))
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        legend={"orientation": "h", "y": 1.12},
-        yaxis={"title": "训练负荷", "gridcolor": COLORS["border"]},
-        yaxis2={"title": "RPE", "overlaying": "y", "side": "right", "gridcolor": COLORS["border"]},
-        xaxis={"gridcolor": COLORS["border"]},
-    )
-    return fig
-
-
-def _build_hr_chart(df):
-    fig = go.Figure()
-    if df.empty or "date" not in df.columns:
-        fig.update_layout(title="暂无数据", paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"],
-                          font={"color": COLORS["text"]})
-        return fig
-
-    if "avg_hr" in df.columns:
-        fig.add_trace(go.Scatter(x=df["date"], y=df["avg_hr"], mode="lines+markers", name="平均心率",
-                                 line={"color": COLORS["success"], "width": 2}))
-    if "max_hr" in df.columns:
-        fig.add_trace(go.Scatter(x=df["date"], y=df["max_hr"], mode="lines", name="最高心率",
-                                 line={"color": COLORS["danger"], "width": 1, "dash": "dot"}))
-    if "min_hr" in df.columns:
-        fig.add_trace(go.Scatter(x=df["date"], y=df["min_hr"], mode="lines", name="最低心率",
-                                 line={"color": COLORS["primary"], "width": 1, "dash": "dot"}))
-
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        legend={"orientation": "h", "y": 1.12},
-        yaxis={"title": "bpm", "gridcolor": COLORS["border"]},
-        xaxis={"gridcolor": COLORS["border"]}, hovermode="x unified",
-    )
-    return fig
+    if not rec_df.empty and "score_date" in rec_df.columns:
+        for col, nm, clr in [("overall_score", "综合评分", C["primary"]), ("sleep_score", "睡眠", "#a78bfa"),
+                              ("fatigue_score", "疲劳", C["warning"]), ("stress_score", "压力", C["danger"]),
+                              ("soreness_score", "酸痛", "#fb923c")]:
+            if col in rec_df.columns:
+                fig.add_trace(go.Scatter(x=rec_df["score_date"], y=rec_df[col], mode="lines", name=nm,
+                                         line={"color": clr, "width": 1.5}))
+        if "is_anomaly" in rec_df.columns:
+            anom = rec_df[rec_df["is_anomaly"] == True]
+            if not anom.empty and "overall_score" in anom.columns:
+                fig.add_trace(go.Scatter(x=anom["score_date"], y=anom["overall_score"], mode="markers",
+                                         name="异常点(点击查看)", marker={"color": C["danger"], "size": 12, "symbol": "x"},
+                                         customdata=anom["id"] if "id" in anom.columns else None))
+    fig.add_hline(y=60, line_dash="dash", line_color=C["warning"], annotation_text="警戒线60", annotation_font_color=C["warning"])
+    fig.update_layout(paper_bgcolor=C["card"], plot_bgcolor=C["card"], font={"color": C["text"]},
+                      margin={"l": 40, "r": 20, "t": 30, "b": 40}, legend={"orientation": "h", "y": 1.12},
+                      yaxis={"title": "评分", "gridcolor": C["border"], "range": [0, 100]},
+                      xaxis={"gridcolor": C["border"]}, hovermode="x unified")
+    return dbc.Row([dbc.Col(_card("恢复评分趋势（异常点点击查看原始记录）", [dcc.Graph(figure=fig, id="graph-rec-detail")]), width=12)])
 
 
-def _build_pace_chart(df):
-    fig = go.Figure()
-    if df.empty or "date" not in df.columns:
-        fig.update_layout(title="暂无数据", paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"],
-                          font={"color": COLORS["text"]})
-        return fig
-
-    if "avg_pace" in df.columns:
-        fig.add_trace(go.Scatter(x=df["date"], y=df["avg_pace"], mode="lines+markers", name="平均配速",
-                                 line={"color": COLORS["warning"], "width": 2}))
-    if "best_pace" in df.columns:
-        fig.add_trace(go.Scatter(x=df["date"], y=df["best_pace"], mode="lines", name="最佳配速",
-                                 line={"color": COLORS["success"], "width": 1, "dash": "dash"}))
-    if "total_km" in df.columns:
-        fig.add_trace(go.Bar(x=df["date"], y=df["total_km"], name="距离(km)",
-                             marker_color="rgba(79,140,255,0.3)", yaxis="y2"))
-
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"], plot_bgcolor=COLORS["card"], font={"color": COLORS["text"]},
-        margin={"l": 40, "r": 20, "t": 30, "b": 40},
-        legend={"orientation": "h", "y": 1.12},
-        yaxis={"title": "min/km", "gridcolor": COLORS["border"]},
-        yaxis2={"title": "km", "overlaying": "y", "side": "right", "gridcolor": COLORS["border"]},
-        xaxis={"gridcolor": COLORS["border"]}, hovermode="x unified",
-    )
-    return fig
-
-
-def _build_injury_table(df, role):
-    if df.empty:
-        return html.P("暂无伤病记录", style={"color": COLORS["text_muted"]})
-
-    severity_colors = {"mild": COLORS["success"], "moderate": COLORS["warning"], "severe": COLORS["danger"]}
-    status_labels = {"active": "活跃", "recovering": "恢复中", "resolved": "已解决"}
-
+def _render_inj_tab(inj_df, user):
+    if inj_df.empty:
+        return html.Div("暂无伤病记录", style={"color": C["muted"]})
+    sev_c = {"mild": C["success"], "moderate": C["warning"], "severe": C["danger"]}
+    st_l = {"active": "活跃", "recovering": "恢复中", "resolved": "已解决"}
     rows = []
-    for _, r in df.iterrows():
+    for _, r in inj_df.iterrows():
         cells = [
-            html.Td(str(r.get("athlete_name", "")), style={"color": COLORS["text"]}),
-            html.Td(str(r.get("injury_date", "")), style={"color": COLORS["text_muted"]}),
-            html.Td(str(r.get("body_part", "")), style={"color": COLORS["text"]}),
-            html.Td(str(r.get("injury_type", "")), style={"color": COLORS["text_muted"]}),
+            html.Td(str(r.get("athlete_name", "")), style={"color": C["text"]}),
+            html.Td(str(r.get("injury_date", "")), style={"color": C["muted"]}),
+            html.Td(str(r.get("body_part", "")), style={"color": C["text"]}),
+            html.Td(str(r.get("injury_type", "")), style={"color": C["muted"]}),
             html.Td(html.Span(str(r.get("severity", "")),
-                              style={"color": severity_colors.get(r.get("severity"), COLORS["text"]), "fontWeight": "bold"})),
-            html.Td(status_labels.get(r.get("status"), str(r.get("status", ""))), style={"color": COLORS["text"]}),
-            html.Td(str(r.get("return_date", "")), style={"color": COLORS["text_muted"]}),
+                              style={"color": sev_c.get(r.get("severity"), C["text"]), "fontWeight": "bold"})),
+            html.Td(st_l.get(r.get("status"), str(r.get("status", ""))), style={"color": C["text"]}),
         ]
-        if role == "coach":
+        if not user or user.role == "coach":
             cn = r.get("coach_notes", "")
-            cells.append(html.Td(
-                html.Span("教练可见", style={"color": COLORS["danger"], "fontSize": "0.75rem"}) if cn else "—",
-                style={"color": COLORS["text_muted"]},
-            ))
+            cells.append(html.Td(html.Span("教练可见", style={"color": C["danger"], "fontSize": "0.72rem"}) if cn else "—",
+                                 style={"color": C["muted"]}))
         rows.append(html.Tr(cells))
-
-    header_cells = [
-        html.Th("队员", style={"color": COLORS["primary"]}),
-        html.Th("日期", style={"color": COLORS["primary"]}),
-        html.Th("部位", style={"color": COLORS["primary"]}),
-        html.Th("类型", style={"color": COLORS["primary"]}),
-        html.Th("严重度", style={"color": COLORS["primary"]}),
-        html.Th("状态", style={"color": COLORS["primary"]}),
-        html.Th("预计归队", style={"color": COLORS["primary"]}),
-    ]
-    if role == "coach":
-        header_cells.append(html.Th("教练备注", style={"color": COLORS["danger"]}))
-
-    return html.Table([html.Thead(html.Tr(header_cells)), html.Tbody(rows)],
-                      style={"width": "100%", "fontSize": "0.8rem"}, className="table table-dark table-sm")
+    hdr = [html.Th(h, style={"color": C["primary"]}) for h in ["队员", "日期", "部位", "类型", "严重度", "状态"]]
+    if not user or user.role == "coach":
+        hdr.append(html.Th("教练备注", style={"color": C["danger"]}))
+    return html.Table([html.Thead(html.Tr(hdr)), html.Tbody(rows)],
+                      style={"width": "100%", "fontSize": "0.78rem"}, className="table table-dark table-sm")
 
 
-@callback(
-    Output("modal-caliber", "is_open"),
-    [Input("btn-close-caliber", "n_clicks")],
-    [State("modal-caliber", "is_open")],
-)
-def toggle_caliber_modal(n, is_open):
-    if n:
-        return False
-    return is_open
+def _render_cal_tab(params, user):
+    return html.Div([
+        html.P("校验维度: 训练计划RPE | 心率范围 | 配速范围 | 力量下降阈值 | 恢复评分异常",
+               style={"color": C["muted"], "fontSize": "0.8rem"}),
+        dbc.Button("运行口径校验", id="btn-run-caliber", color="warning", size="sm"),
+        html.Div(id="caliber-result", className="mt-3"),
+    ])
 
 
-@callback(
-    [Output("modal-caliber-body", "children"), Output("modal-caliber", "is_open", allow_duplicate=True)],
-    Input("btn-run-caliber", "n_clicks"),
-    [
-        State("filter-date-range", "start_date"),
-        State("filter-date-range", "end_date"),
-        State("filter-team", "value"),
-        State("filter-athlete", "value"),
-        State("filter-session-type", "value"),
-        State("filter-role", "value"),
-    ],
+@app.callback(
+    Output("drilldown-state", "data"),
+    [Input("graph-drill", "clickData"), Input("btn-drill-up", "n_clicks"), Input("btn-drill-reset", "n_clicks")],
+    State("drilldown-state", "data"),
     prevent_initial_call=True,
 )
-def run_caliber_check(n, start_date, end_date, team, athlete_id, session_type, role):
-    if not n:
-        return "", False
+def handle_drill(click, up_n, reset_n, ds):
+    triggered = ctx.triggered_id
+    ds = ds or {"level": 0, "filters": {}}
+    level = ds.get("level", 0)
+    filters = dict(ds.get("filters", {}))
 
-    user_id = "1" if role == "coach" else "2"
-    params = _common_params(start_date, end_date, team, athlete_id, session_type)
-    user = _get_user(user_id)
+    if triggered == "btn-drill-reset":
+        return {"level": 0, "filters": {}}
+    elif triggered == "btn-drill-up":
+        if level > 0:
+            dim = DRILL_LEVELS[level - 1]
+            if dim in filters:
+                del filters[dim]
+            level -= 1
+        return {"level": level, "filters": filters}
+    elif triggered == "graph-drill" and click:
+        pt = click["points"][0]
+        if "label" in pt:
+            val = pt["label"]
+        elif "x" in pt:
+            val = str(pt["x"])
+        else:
+            return dash.no_update
+        if level < len(DRILL_LEVELS):
+            dim = DRILL_LEVELS[level]
+            filters[dim] = val
+            level += 1
+        return {"level": level, "filters": filters}
+
+    return dash.no_update
+
+
+@app.callback(
+    [Output("modal-detail", "is_open"), Output("modal-detail-body", "children")],
+    [Input("graph-rec-detail", "clickData"), Input("btn-close-detail", "n_clicks")],
+    [State("modal-detail", "is_open"), State("f-role", "value")],
+    prevent_initial_call=True,
+)
+def handle_anomaly_click(click, close_n, is_open, role):
+    triggered = ctx.triggered_id
+    if triggered == "btn-close-detail":
+        return False, ""
+
+    if triggered == "graph-rec-detail" and click:
+        pt = click["points"][0]
+        point_idx = pt.get("pointIndex")
+        curve_idx = pt.get("curveIndex", 0)
+        x_val = pt.get("x", "")
+        y_val = pt.get("y", "")
+
+        uid = "1" if role == "coach" else "2"
+        user = _user(uid)
+
+        s = SessionLocal()
+        try:
+            rec = s.query(RecoveryScore).filter(
+                RecoveryScore.score_date == x_val,
+                RecoveryScore.overall_score == y_val,
+                RecoveryScore.is_anomaly == True,
+            ).first()
+            if rec:
+                ath = s.query(Athlete).filter_by(id=rec.athlete_id).first()
+                detail = html.Div([
+                    html.H5(f"恢复评分异常记录 #{rec.id}", style={"color": C["danger"]}),
+                    html.Table([
+                        html.Tr([html.Td("队员", style={"color": C["muted"]}), html.Td(str(ath.name if ath else ""))]),
+                        html.Tr([html.Td("日期", style={"color": C["muted"]}), html.Td(rec.score_date.isoformat())]),
+                        html.Tr([html.Td("综合评分", style={"color": C["muted"]}), html.Td(str(rec.overall_score))]),
+                        html.Tr([html.Td("睡眠", style={"color": C["muted"]}), html.Td(str(rec.sleep_score))]),
+                        html.Tr([html.Td("疲劳", style={"color": C["muted"]}), html.Td(str(rec.fatigue_score))]),
+                        html.Tr([html.Td("压力", style={"color": C["muted"]}), html.Td(str(rec.stress_score))]),
+                        html.Tr([html.Td("酸痛", style={"color": C["muted"]}), html.Td(str(rec.soreness_score))]),
+                        html.Tr([html.Td("HRV(ms)", style={"color": C["muted"]}), html.Td(str(rec.hrv_ms))]),
+                        html.Tr([html.Td("备注", style={"color": C["muted"]}), html.Td(rec.notes or "无")]),
+                    ], style={"fontSize": "0.85rem", "color": C["text"]}),
+                ])
+                return True, detail
+        finally:
+            s.close()
+
+        return True, html.Div(f"点击日期: {x_val}, 评分: {y_val} — 未找到异常记录原始数据", style={"color": C["muted"]})
+
+    return is_open, ""
+
+
+@app.callback(
+    [Output("modal-caliber", "is_open"), Output("caliber-result", "children")],
+    Input("btn-run-caliber", "n_clicks"),
+    [State("f-date", "start_date"), State("f-date", "end_date"),
+     State("f-team", "value"), State("f-athlete", "value"),
+     State("f-stype", "value"), State("f-role", "value")],
+    prevent_initial_call=True,
+)
+def run_caliber(n, sd, ed, team, ath_id, stype, role):
+    if not n:
+        return False, ""
+    uid = "1" if role == "coach" else "2"
+    user = _user(uid)
+    params = _params(sd, ed, team, ath_id, None, stype, None)
 
     data_by_dim = {
-        "heartrate": _query_hr(params, user),
-        "pace": _query_pace(params, user),
-        "strength": _query_strength(params, user),
-        "training_plan": _query_load(params, user),
+        "heartrate": _query_hr(params, user).to_dict("records"),
+        "pace": _query_pace(params, user).to_dict("records"),
+        "strength": _query_strength(params, user).to_dict("records"),
+        "training_plan": _query_agg("training_day", params, user).to_dict("records"),
     }
-
     results = run_all_checks(data_by_dim)
     summary = format_check_summary(results)
 
-    filter_desc = (f"筛选条件: 队伍={team or '全部'}, 队员={athlete_id or '全部'}, "
-                   f"日期={start_date}~{end_date}, 类型={session_type or '全部'}\n\n")
+    filter_desc = f"口径: 队伍={team or '全部'}, 队员={ath_id or '全部'}, 日期={sd}~{ed}, 类型={stype or '全部'}\n\n"
+    rules = "规则:\n"
+    rules += "  心率: " + ", ".join(v["label"] for v in HEARTRATE_RULES.values()) + "\n"
+    rules += "  配速: " + ", ".join(v["label"] for v in PACE_RULES.values()) + "\n"
+    rules += "  力量: " + ", ".join(v["label"] for v in STRENGTH_RULES.values()) + "\n"
+    rules += "  训练: " + ", ".join(v["label"] for v in TRAINING_PLAN_RULES.values()) + "\n\n"
 
-    rules_text = "校验规则:\n"
-    rules_text += "  心率: " + ", ".join(f"{v['label']}" for v in HEARTRATE_RULES.values()) + "\n"
-    rules_text += "  配速: " + ", ".join(f"{v['label']}" for v in PACE_RULES.values()) + "\n"
-    rules_text += "  力量: " + ", ".join(f"{v['label']}" for v in STRENGTH_RULES.values()) + "\n"
-    rules_text += "  训练计划: " + ", ".join(f"{v['label']}" for v in TRAINING_PLAN_RULES.values()) + "\n\n"
-
-    return filter_desc + rules_text + summary, True
+    report = filter_desc + rules + summary
+    return True, html.Pre(report, style={"color": C["text"], "fontSize": "0.8rem", "whiteSpace": "pre-wrap"})
 
 
-@callback(
-    Output("download-export", "data"),
-    Input("btn-export-csv", "n_clicks"),
-    [
-        State("filter-team", "value"),
-        State("filter-athlete", "value"),
-        State("filter-date-range", "start_date"),
-        State("filter-date-range", "end_date"),
-        State("filter-session-type", "value"),
-        State("filter-role", "value"),
-    ],
-    prevent_initial_call=True,
-)
-def export_csv(n, team, athlete_id, start_date, end_date, session_type, role):
+@app.callback(Output("modal-caliber", "is_open", allow_duplicate=True), Input("btn-close-caliber", "n_clicks"),
+          State("modal-caliber", "is_open"), prevent_initial_call=True)
+def close_caliber(n, is_open):
+    return False if n else is_open
+
+
+@app.callback(Output("download-export", "data"), Input("btn-csv", "n_clicks"),
+          [State("f-team", "value"), State("f-athlete", "value"),
+           State("f-date", "start_date"), State("f-date", "end_date"),
+           State("f-stype", "value"), State("f-role", "value"),
+           State("drilldown-state", "data")],
+          prevent_initial_call=True)
+def export_csv(n, team, ath_id, sd, ed, stype, role, ds):
     if not n:
         return dash.no_update
+    uid = "1" if role == "coach" else "2"
+    user = _user(uid)
+    params = _params(sd, ed, team, ath_id, None, stype, None)
+    df = _query_agg("training_day", params, user)
 
-    user_id = "1" if role == "coach" else "2"
-    params = _common_params(start_date, end_date, team, athlete_id, session_type)
-    user = _get_user(user_id)
-    load_data = _query_load(params, user)
-
-    caliber_header = f"筛选口径: 队伍={team or '全部'} 队员={athlete_id or '全部'} 日期={start_date}~{end_date} 类型={session_type or '全部'}"
-
-    if not load_data:
-        return dcc.send_string("暂无数据", "export.csv")
+    caliber = f"口径: 队伍={team or '全部'} 队员={ath_id or '全部'} 日期={sd}~{ed} 类型={stype or '全部'}"
+    if ds:
+        filters = ds.get("filters", {})
+        level = ds.get("level", 0)
+        caliber += f" 下钻层级={level}"
+        for k, v in filters.items():
+            caliber += f" {k}={v}"
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["# " + caliber_header])
-    writer.writerow(load_data[0].keys())
-    for row in load_data:
-        writer.writerow(row.values())
+    writer.writerow(["# " + caliber])
+    if not df.empty:
+        writer.writerow(df.columns.tolist())
+        for _, row in df.iterrows():
+            writer.writerow(row.tolist())
     return dcc.send_string(output.getvalue(), "training_load_export.csv", "text/csv")
