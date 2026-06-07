@@ -1,13 +1,25 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import duckdb from 'duckdb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dataDir = path.join(__dirname, '..', 'data');
 
-const db = new duckdb.Database(path.join(dataDir, 'analytics.db'));
+let db = null;
+let duckdbAvailable = false;
+
+async function initDB() {
+  try {
+    const duckdbModule = await import('duckdb');
+    const duckdb = duckdbModule.default;
+    db = new duckdb.Database(path.join(dataDir, 'analytics.db'));
+    duckdbAvailable = true;
+    console.log('[清洗] DuckDB 可用，将写入 analytics.db');
+  } catch (e) {
+    console.log('[清洗] DuckDB 不可用，仅生成 cleaned JSON 文件:', e.message);
+  }
+}
 
 function loadJSON(filename) {
   const filePath = path.join(dataDir, filename);
@@ -58,6 +70,10 @@ function cleanPresentationSlots(slots) {
 }
 
 function createTables() {
+  if (!duckdbAvailable) {
+    console.log('[清洗] 跳过 DuckDB 建表');
+    return;
+  }
   console.log('创建数据库表...');
   
   db.exec(`
@@ -130,6 +146,10 @@ function createTables() {
 }
 
 function insertSessions(sessions) {
+  if (!duckdbAvailable) {
+    console.log('[清洗] 跳过 DuckDB 会话数据插入');
+    return;
+  }
   console.log('插入会话数据到DuckDB...');
   
   const stmt = db.prepare(`
@@ -172,6 +192,10 @@ function insertSessions(sessions) {
 }
 
 function insertPresentationSlots(slots) {
+  if (!duckdbAvailable) {
+    console.log('[清洗] 跳过 DuckDB 讲解时段数据插入');
+    return;
+  }
   console.log('插入讲解时段数据到DuckDB...');
   
   const stmt = db.prepare(`
@@ -207,70 +231,71 @@ function insertPresentationSlots(slots) {
   console.log('插入 ' + slots.length + ' 条讲解时段数据');
 }
 
-function runAnalytics() {
+function runAnalytics(cleanedSessions, cleanedSlots) {
   console.log('\n=== 数据质量检查 ===');
   
-  db.all('SELECT COUNT(*) as total FROM sessions', (err, res) => {
-    if (err) console.error(err);
-    console.log('总会话数: ' + res[0].total);
-  });
+  console.log('总会话数: ' + cleanedSessions.length);
   
-  db.all('SELECT product_type, COUNT(*) as cnt FROM sessions GROUP BY product_type', (err, res) => {
-    if (err) console.error(err);
-    console.log('商品类型分布:', res);
+  const typeDist = {};
+  cleanedSessions.forEach(s => {
+    typeDist[s.product_type] = (typeDist[s.product_type] || 0) + 1;
   });
+  console.log('商品类型分布:', typeDist);
   
-  db.all(`
-    SELECT 
-      COUNT(DISTINCT user_id) as watch_uv,
-      SUM(has_interaction) as interaction_uv,
-      SUM(has_cart_add) as cart_add_uv,
-      SUM(has_order) as order_uv,
-      SUM(order_amount) as gmv,
-      SUM(has_refund) as refund_count
-    FROM sessions
-  `, (err, res) => {
-    if (err) console.error(err);
-    console.log('核心指标:', res[0]);
+  let watchUv = new Set(cleanedSessions.map(s => s.user_id)).size;
+  let interactionUv = 0, cartAddUv = 0, orderUv = 0, gmv = 0, refundCount = 0;
+  cleanedSessions.forEach(s => {
+    if (s.has_interaction) interactionUv++;
+    if (s.has_cart_add) cartAddUv++;
+    if (s.has_order) orderUv++;
+    gmv += s.order_amount || 0;
+    if (s.has_refund) refundCount++;
   });
+  console.log('核心指标:', { watch_uv: watchUv, interaction_uv: interactionUv, cart_add_uv: cartAddUv, order_uv: orderUv, gmv: gmv, refund_count: refundCount });
   
-  db.all(`
-    SELECT 
-      product_type,
-      COUNT(*) as total_orders,
-      SUM(CASE WHEN is_fulfilled = 1 THEN 1 ELSE 0 END) as fulfilled,
-      ROUND(SUM(CASE WHEN is_fulfilled = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as fulfillment_rate
-    FROM sessions
-    WHERE has_order = 1
-    GROUP BY product_type
-  `, (err, res) => {
-    if (err) console.error(err);
-    console.log('履约表现（分类型）:', res);
+  const fulfill = {};
+  cleanedSessions.filter(s => s.has_order).forEach(s => {
+    const t = s.product_type;
+    if (!fulfill[t]) fulfill[t] = { total_orders: 0, fulfilled: 0 };
+    fulfill[t].total_orders++;
+    if (s.is_fulfilled === 1 || s.is_fulfilled === true) fulfill[t].fulfilled++;
   });
+  const fulfillmentStats = Object.entries(fulfill).map(([t, v]) => ({
+    product_type: t,
+    total_orders: v.total_orders,
+    fulfilled_orders: v.fulfilled,
+    fulfillment_rate: v.total_orders > 0 ? Number((v.fulfilled * 100 / v.total_orders).toFixed(2)) : 0
+  }));
+  console.log('履约表现（分类型）:', fulfillmentStats);
   
-  db.all('SELECT COUNT(*) as total FROM presentation_slots', (err, res) => {
-    if (err) console.error(err);
-    console.log('总讲解时段数: ' + res[0].total);
-  });
+  console.log('总讲解时段数: ' + cleanedSlots.length);
   
-  db.all('SELECT DISTINCT time_slot FROM presentation_slots LIMIT 5', (err, res) => {
-    if (err) console.error(err);
-    console.log('讲解时段示例:', res);
-  });
+  const timeSlots = [...new Set(cleanedSlots.map(s => s.time_slot))].slice(0, 5);
+  console.log('讲解时段示例:', timeSlots);
 
-  db.all('SELECT DISTINCT activity_id, activity_name FROM presentation_slots LIMIT 5', (err, res) => {
-    if (err) console.error(err);
-    console.log('讲解时段活动类型:', res);
-  });
+  const activities = [...new Set(cleanedSlots.map(s => s.activity_id + '|' + s.activity_name))].slice(0, 5);
+  console.log('讲解时段活动类型:', activities.map(a => ({ activity_id: a.split('|')[0], activity_name: a.split('|')[1] })));
 
-  db.all('SELECT DISTINCT source_channel FROM presentation_slots LIMIT 5', (err, res) => {
-    if (err) console.error(err);
-    console.log('讲解时段观众来源:', res);
-  });
+  const sources = [...new Set(cleanedSlots.map(s => s.source_channel))].slice(0, 5);
+  console.log('讲解时段观众来源:', sources);
+  
+  if (duckdbAvailable) {
+    console.log('\n[DuckDB] 验证数据库写入...');
+    db.all('SELECT COUNT(*) as cnt FROM sessions', (err, res) => {
+      if (err) console.error('  会话表查询失败:', err.message);
+      else console.log('  DuckDB 会话数:', res[0].cnt);
+    });
+    db.all('SELECT COUNT(*) as cnt FROM presentation_slots', (err, res) => {
+      if (err) console.error('  时段表查询失败:', err.message);
+      else console.log('  DuckDB 时段数:', res[0].cnt);
+    });
+  }
 }
 
 async function main() {
   try {
+    await initDB();
+    
     const rawSessions = loadJSON('raw_sessions.json');
     const rawSlots = loadJSON('raw_presentation_slots.json');
     
@@ -296,11 +321,11 @@ async function main() {
     insertSessions(cleanedSessions);
     insertPresentationSlots(cleanedSlots);
     
-    runAnalytics();
+    runAnalytics(cleanedSessions, cleanedSlots);
     
     setTimeout(() => {
       console.log('\n数据清洗完成！');
-      db.close();
+      if (duckdbAvailable && db) db.close();
     }, 1500);
   } catch (error) {
     console.error('清洗失败:', error);
