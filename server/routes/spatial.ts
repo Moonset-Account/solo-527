@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type { ClickHouseDB } from '../types.js'
 import { logQuery } from '../types.js'
+import { getDistrictGeoJson } from '../db.js'
 
 export function spatialRoutes(db: ClickHouseDB) {
   const router = Router()
@@ -58,33 +59,22 @@ export function spatialRoutes(db: ClickHouseDB) {
 
   router.get('/districts/geojson', (_req, res) => {
     const t0 = Date.now()
-    const sql = `SELECT district, min(lng) - 0.005 AS min_lng, max(lng) + 0.005 AS max_lng, min(lat) - 0.004 AS min_lat, max(lat) + 0.004 AS max_lat, count() AS bin_count FROM bin_points GROUP BY district ORDER BY district`
+    const sql = `SELECT district, boundary_polygon FROM district_boundaries ORDER BY district`
 
-    const districtMap = new Map<string, { bins: typeof db.binPoints }>()
+    const districtMap = new Map<string, number>()
     db.binPoints.forEach(b => {
       const comm = db.communities.find(c => c.id === b.community_id)
       const district = comm?.district || '未知'
-      if (!districtMap.has(district)) districtMap.set(district, { bins: [] })
-      districtMap.get(district)!.bins.push(b)
+      districtMap.set(district, (districtMap.get(district) || 0) + 1)
     })
 
-    const features: any[] = []
-    districtMap.forEach((data, districtName) => {
-      const bins = data.bins
-      if (bins.length === 0) return
-      const lngs = bins.map(b => b.lng); const lats = bins.map(b => b.lat)
-      const minLng = Math.min(...lngs) - 0.005; const maxLng = Math.max(...lngs) + 0.005
-      const minLat = Math.min(...lats) - 0.004; const maxLat = Math.max(...lats) + 0.004
-      features.push({
-        type: 'Feature',
-        properties: { name: districtName, binCount: bins.length },
-        geometry: { type: 'Polygon', coordinates: [[[minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat], [minLng, minLat]]] }
-      })
+    const geoJson = getDistrictGeoJson()
+    geoJson.features.forEach((f: any) => {
+      f.properties.binCount = districtMap.get(f.properties.name) || 0
     })
 
-    const geoJson = { type: 'FeatureCollection', features }
-    logQuery(sql, {}, Date.now() - t0, features.length)
-    res.json({ sql, params: {}, data: geoJson, rowCount: features.length })
+    logQuery(sql, {}, Date.now() - t0, geoJson.features.length)
+    res.json({ sql, params: {}, data: geoJson, rowCount: geoJson.features.length })
   })
 
   return router

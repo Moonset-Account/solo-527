@@ -32,6 +32,36 @@ function formatDate(d: Date) { return d.toISOString().split('T')[0] }
 function formatDateTime(d: Date) { return d.toISOString() }
 
 const districts = ['东城区', '西城区', '朝阳区', '海淀区', '丰台区', '石景山区']
+
+const districtBoundaries: Record<string, [number, number][]> = {
+  '东城区': [
+    [116.395, 39.895], [116.435, 39.895], [116.435, 39.940],
+    [116.410, 39.950], [116.395, 39.940]
+  ],
+  '西城区': [
+    [116.340, 39.890], [116.395, 39.895], [116.395, 39.940],
+    [116.375, 39.950], [116.340, 39.935]
+  ],
+  '朝阳区': [
+    [116.435, 39.895], [116.510, 39.895], [116.510, 39.955],
+    [116.470, 39.975], [116.435, 39.955], [116.435, 39.940]
+  ],
+  '海淀区': [
+    [116.260, 39.920], [116.340, 39.910], [116.340, 39.935],
+    [116.375, 39.950], [116.350, 39.985], [116.290, 39.995],
+    [116.260, 39.970]
+  ],
+  '丰台区': [
+    [116.170, 39.800], [116.340, 39.800], [116.395, 39.830],
+    [116.435, 39.845], [116.435, 39.895], [116.340, 39.890],
+    [116.260, 39.880], [116.170, 39.860]
+  ],
+  '石景山区': [
+    [116.170, 39.860], [116.260, 39.880], [116.260, 39.920],
+    [116.240, 39.940], [116.170, 39.935], [116.150, 39.900]
+  ]
+}
+
 const communityNames = [
   '阳光花园', '绿城小区', '幸福家园', '和平里社区', '望京花园',
   '中关村社区', '亚运村小区', '三里屯社区', '国贸花园', '金融街社区',
@@ -44,6 +74,45 @@ const binPointNames = [
 ]
 const gridCodes = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3']
 
+function pointInPolygon(lng: number, lat: number, polygon: [number, number][]): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1]
+    const xj = polygon[j][0], yj = polygon[j][1]
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+function randomPointInPolygon(polygon: [number, number][]): [number, number] {
+  let lngs = polygon.map(p => p[0])
+  let lats = polygon.map(p => p[1])
+  let minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+  let minLat = Math.min(...lats), maxLat = Math.max(...lats)
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const lng = randomRange(minLng, maxLng)
+    const lat = randomRange(minLat, maxLat)
+    if (pointInPolygon(lng, lat, polygon)) return [lng, lat]
+  }
+  const cx = polygon.reduce((s, p) => s + p[0], 0) / polygon.length
+  const cy = polygon.reduce((s, p) => s + p[1], 0) / polygon.length
+  return [cx, cy]
+}
+
+export function getDistrictGeoJson() {
+  const features = districts.map(d => ({
+    type: 'Feature',
+    properties: { name: d },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[...districtBoundaries[d], districtBoundaries[d][0]]]
+    }
+  }))
+  return { type: 'FeatureCollection' as const, features }
+}
+
 function generateCommunities(): CommunityRow[] {
   return communityNames.map((name, i) => ({
     id: `comm-${String(i + 1).padStart(3, '0')}`, name, district: districts[i % districts.length], household_count: randomInt(500, 3000)
@@ -53,22 +122,14 @@ function generateCommunities(): CommunityRow[] {
 function generateBinPoints(communities: CommunityRow[]): BinPointRow[] {
   const points: BinPointRow[] = []
   let id = 1
-  const baseLng = 116.4074; const baseLat = 39.9042
-  const districtCenters: Record<string, { lng: number; lat: number }> = {}
-  districts.forEach((d, i) => {
-    const angle = (i / districts.length) * Math.PI * 2
-    districtCenters[d] = { lng: baseLng + Math.cos(angle) * 0.06, lat: baseLat + Math.sin(angle) * 0.04 }
-  })
   communities.forEach((comm, ci) => {
-    const center = districtCenters[comm.district]
-    const commLng = center.lng + (ci % 3 - 1) * 0.008 + randomRange(-0.003, 0.003)
-    const commLat = center.lat + (Math.floor(ci / 3) % 3 - 1) * 0.006 + randomRange(-0.003, 0.003)
+    const boundary = districtBoundaries[comm.district]
+    const communityCenter = randomPointInPolygon(boundary)
     const count = randomInt(3, 8)
     for (let i = 0; i < count; i++) {
       const statuses: string[] = ['normal', 'normal', 'normal', 'warning', 'full', 'abnormal']
       const status = randomChoice(statuses)
-      const lng = commLng + randomRange(-0.004, 0.004)
-      const lat = commLat + randomRange(-0.003, 0.003)
+      const [lng, lat] = randomPointInPolygon(boundary)
       points.push({
         id: `bin-${String(id).padStart(5, '0')}`, community_id: comm.id, name: randomChoice(binPointNames),
         lng, lat, geo_hash: encodeGeoHash(lng, lat, 8), status, bin_count: randomInt(2, 6),

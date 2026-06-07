@@ -9,12 +9,15 @@ import { publicRoutes } from './routes/public.js'
 import { holidayRoutes } from './routes/holiday.js'
 import { binPointRoutes } from './routes/binpoint.js'
 import { inspectionRoutes } from './routes/inspection.js'
-import { initDatabase } from './db.js'
+import { initClickHouse, getClickHouseClient, getFallbackDb } from './clickhouse.js'
 
 const PORT = parseInt(process.env.API_PORT || '5194', 10)
 
 async function main() {
-  const db = await initDatabase()
+  const useClickHouse = await initClickHouse()
+
+  const { connected } = await getClickHouseClient()
+  const db = getFallbackDb()
 
   const app = express()
   app.use(cors())
@@ -31,12 +34,22 @@ async function main() {
   app.use('/api/inspection', inspectionRoutes(db))
 
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', clickhouse: 'simulated', timestamp: new Date().toISOString() })
+    res.json({
+      status: 'ok',
+      clickhouse: connected ? 'connected' : 'fallback',
+      clickhouseUrl: connected ? process.env.CLICKHOUSE_URL || 'http://localhost:8123' : 'not connected',
+      timestamp: new Date().toISOString()
+    })
   })
 
   app.listen(PORT, () => {
     console.log(`[ClickHouse API Server] running at http://localhost:${PORT}`)
-    console.log(`[ClickHouse API Server] Simulated ClickHouse query engine ready`)
+    if (connected) {
+      console.log(`[ClickHouse API Server] ✅ Connected to real ClickHouse at ${process.env.CLICKHOUSE_URL || 'http://localhost:8123'}`)
+    } else {
+      console.log(`[ClickHouse API Server] ⚠️  Using in-memory fallback (ClickHouse not available)`)
+      console.log(`[ClickHouse API Server] To connect real ClickHouse: CLICKHOUSE_URL=http://host:8123 npm run server`)
+    }
   })
 }
 
