@@ -16,6 +16,7 @@ from app.schemas import (
     HandleDurationStats, PublicReportStats
 )
 from app.auth import require_authenticated, get_current_user
+from app.utils import calculate_handle_duration_minutes, calculate_handle_duration_minutes_float
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -114,11 +115,9 @@ def get_handle_duration_stats(
     
     durations = []
     for event in events:
-        if event.closed_at and event.actual_occurred_at:
-            delta = event.closed_at - event.actual_occurred_at
-            minutes = delta.total_seconds() / 60
-            if minutes >= 0:
-                durations.append(minutes)
+        d = calculate_handle_duration_minutes_float(event)
+        if d is not None:
+            durations.append(d)
     
     overall_avg = sum(durations) / len(durations) if durations else 0
     
@@ -127,11 +126,9 @@ def get_handle_duration_stats(
         level_events = [e for e in events if e.level == level]
         level_durations = []
         for e in level_events:
-            if e.closed_at and e.actual_occurred_at:
-                delta = e.closed_at - e.actual_occurred_at
-                minutes = delta.total_seconds() / 60
-                if minutes >= 0:
-                    level_durations.append(minutes)
+            d = calculate_handle_duration_minutes_float(e)
+            if d is not None:
+                level_durations.append(d)
         
         count = len(level_durations)
         avg = sum(level_durations) / count if count > 0 else 0
@@ -153,11 +150,9 @@ def get_handle_duration_stats(
             date_key = event.actual_occurred_at.strftime("%Y-%m-%d")
             if date_key not in date_groups:
                 date_groups[date_key] = []
-            if event.closed_at and event.actual_occurred_at:
-                delta = event.closed_at - event.actual_occurred_at
-                minutes = delta.total_seconds() / 60
-                if minutes >= 0:
-                    date_groups[date_key].append(minutes)
+            d = calculate_handle_duration_minutes_float(event)
+            if d is not None:
+                date_groups[date_key].append(d)
         
         for date_key in sorted(date_groups.keys()):
             dur_list = date_groups[date_key]
@@ -189,9 +184,9 @@ def get_public_report(
     closed_events = query.all()
     durations = []
     for e in closed_events:
-        if e.closed_at and e.actual_occurred_at:
-            delta = e.closed_at - e.actual_occurred_at
-            durations.append(delta.total_seconds() / 60)
+        d = calculate_handle_duration_minutes_float(e)
+        if d is not None:
+            durations.append(d)
     avg_duration = sum(durations) / len(durations) if durations else 0
     
     total_notifications = db.query(SafetyEvent).count()
@@ -266,10 +261,7 @@ def export_report(
     else:
         events_data = []
         for event in events:
-            handle_duration = None
-            if event.closed_at and event.actual_occurred_at:
-                delta = event.closed_at - event.actual_occurred_at
-                handle_duration = int(delta.total_seconds() / 60)
+            handle_duration = calculate_handle_duration_minutes(event)
             
             events_data.append({
                 "id": str(event.id),

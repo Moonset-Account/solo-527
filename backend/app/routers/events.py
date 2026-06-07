@@ -14,16 +14,13 @@ from app.schemas import (
     EventListResponse
 )
 from app.auth import require_authenticated, require_teacher, require_project_manager
+from app.utils import calculate_handle_duration_minutes
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 def event_to_schema(event: SafetyEvent) -> EventSchema:
-    handle_duration = None
-    if event.closed_at and event.actual_occurred_at:
-        delta = event.closed_at - event.actual_occurred_at
-        minutes = int(delta.total_seconds() / 60)
-        handle_duration = max(minutes, 0)
+    handle_duration = calculate_handle_duration_minutes(event)
     
     return EventSchema(
         id=event.id,
