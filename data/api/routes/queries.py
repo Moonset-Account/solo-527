@@ -304,7 +304,13 @@ def get_funnel_data(
         return pd.DataFrame(columns=["step_name", "count", "avg_duration_seconds", "conversion_rate"])
 
     appeal_logs = _get_appeal_logs_from_db(
-        time_start=time_start, time_end=time_end
+        risk_tags=risk_tags,
+        queue_types=queue_types,
+        reviewers=reviewers,
+        shifts=shifts,
+        sources=sources,
+        time_start=time_start,
+        time_end=time_end,
     )
 
     if appeal_logs is None:
@@ -312,6 +318,19 @@ def get_funnel_data(
         appeal_filtered = appeal_logs[
             (appeal_logs["appeal_time"] >= time_start) & (appeal_logs["appeal_time"] <= time_end)
         ]
+        if sources and len(sources) > 0 and "source" in appeal_filtered.columns:
+            appeal_filtered = appeal_filtered[appeal_filtered["source"].isin(sources)]
+        if shifts and len(shifts) > 0 and "shift" in appeal_filtered.columns:
+            appeal_filtered = appeal_filtered[appeal_filtered["shift"].isin(shifts)]
+        if reviewers and len(reviewers) > 0 and "original_reviewer_id" in appeal_filtered.columns:
+            appeal_filtered = appeal_filtered[appeal_filtered["original_reviewer_id"].isin(reviewers)]
+        if queue_types and len(queue_types) > 0 and "original_queue_type" in appeal_filtered.columns:
+            appeal_filtered = appeal_filtered[appeal_filtered["original_queue_type"].isin(queue_types)]
+        if risk_tags and len(risk_tags) > 0:
+            tag_mask = appeal_filtered["original_risk_tags"].apply(
+                lambda tags: any(t in risk_tags for t in tags) if isinstance(tags, list) else False
+            )
+            appeal_filtered = appeal_filtered[tag_mask]
     else:
         appeal_filtered = appeal_logs
 

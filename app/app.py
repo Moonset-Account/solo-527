@@ -413,7 +413,7 @@ def update_appeal_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
 
 
 @app.callback(
-    [Output("export-status", "children"),
+    [Output("export-status", "children", allow_duplicate=True),
      Output("export-poll-interval", "disabled"),
      Output("export-poll-interval", "max_intervals"),
      Output("current-export-task-id", "data")],
@@ -423,7 +423,8 @@ def update_appeal_chart(n, risk_tags, queue_types, reviewers, shifts, sources):
      State("filter-reviewers", "value"),
      State("filter-shifts", "value"),
      State("filter-sources", "value"),
-     State("filter-granularity", "value")]
+     State("filter-granularity", "value")],
+    prevent_initial_call=True
 )
 def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, granularity):
     if not n_clicks or n_clicks == 0:
@@ -451,7 +452,6 @@ def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, 
             html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
         ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
         html.Div(
-            id="export-progress-bar",
             style={
                 "height": "8px",
                 "background": "linear-gradient(90deg, #3b82f6, #8b5cf6)",
@@ -460,47 +460,131 @@ def handle_export(n_clicks, risk_tags, queue_types, reviewers, shifts, sources, 
                 "transition": "width 0.5s ease",
             }
         ),
-        html.Span(id="export-progress-text", children="20% 准备数据...", style={"color": "#64748b", "fontSize": "12px", "marginTop": "4px", "display": "block"}),
+        html.Span(children="20% 准备数据...", style={"color": "#64748b", "fontSize": "12px", "marginTop": "6px", "display": "block"}),
     ])
 
     return status_ui, False, 30, task_id
 
 
 @app.callback(
-    [Output("export-progress-bar", "style"),
-     Output("export-progress-text", "children"),
-     Output("export-poll-interval", "disabled", allow_duplicate=True)],
+    Output("export-status", "children"),
     [Input("export-poll-interval", "n_intervals")],
     [State("current-export-task-id", "data")],
     prevent_initial_call=True
 )
 def poll_export_status(n_intervals, task_id):
     if not task_id:
-        return {}, "", True
+        raise dash.exceptions.PreventUpdate
 
     status = export_manager.get_status(task_id)
     if not status:
-        return {"width": "100%", "background": "#ef4444"}, "❌ 任务不存在", True
+        return html.Div([
+            html.Div([
+                html.Span("❌ 任务不存在", style={"fontWeight": "bold", "color": "#ef4444", "marginRight": "12px"}),
+                html.Span(f"404: 任务ID {task_id[:8]}... 未找到或已过期", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+            ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+            html.Div(
+                style={
+                    "height": "8px",
+                    "background": "#ef4444",
+                    "width": "100%",
+                    "borderRadius": "4px",
+                }
+            ),
+        ])
 
     progress = status.progress
     width = f"{min(progress, 100)}%"
 
     if status.status == "completed":
-        bg = "linear-gradient(90deg, #10b981, #059669)"
-        text = f"✅ 导出完成！文件: {os.path.basename(status.file_path)}"
-        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, True
+        download_url = f"/api/export/download/{task_id}"
+        file_name = os.path.basename(status.file_path) if status.file_path else "导出文件.xlsx"
+        return html.Div([
+            html.Div([
+                html.Span("✅ 导出完成", style={"fontWeight": "bold", "color": "#10b981", "marginRight": "12px"}),
+                html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+            ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+            html.Div(
+                style={
+                    "height": "8px",
+                    "background": "linear-gradient(90deg, #10b981, #059669)",
+                    "width": width,
+                    "borderRadius": "4px",
+                    "transition": "width 0.5s ease",
+                }
+            ),
+            html.Div(style={"marginTop": "10px", "display": "flex", "alignItems": "center"}, children=[
+                html.Span(f"📄 {file_name}", style={"color": "#e2e8f0", "marginRight": "16px", "fontSize": "13px"}),
+                html.A(
+                    "⬇️ 点击下载",
+                    href=download_url,
+                    target="_blank",
+                    style={
+                        "display": "inline-block",
+                        "padding": "6px 14px",
+                        "background": "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+                        "color": "white",
+                        "borderRadius": "6px",
+                        "textDecoration": "none",
+                        "fontSize": "12px",
+                        "fontWeight": "500",
+                        "transition": "transform 0.2s ease",
+                    }
+                ),
+            ]),
+        ])
     elif status.status == "failed":
-        bg = "linear-gradient(90deg, #ef4444, #dc2626)"
-        text = f"❌ 导出失败: {status.error_message}"
-        return {"width": "100%", "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, True
+        return html.Div([
+            html.Div([
+                html.Span("❌ 导出失败", style={"fontWeight": "bold", "color": "#ef4444", "marginRight": "12px"}),
+                html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+            ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+            html.Div(
+                style={
+                    "height": "8px",
+                    "background": "linear-gradient(90deg, #ef4444, #dc2626)",
+                    "width": "100%",
+                    "borderRadius": "4px",
+                    "transition": "width 0.5s ease",
+                }
+            ),
+            html.Span(children=f"错误: {status.error_message}", style={"color": "#fca5a5", "fontSize": "12px", "marginTop": "6px", "display": "block"}),
+        ])
     elif status.status == "processing":
-        bg = "linear-gradient(90deg, #3b82f6, #8b5cf6)"
         stage_text = "查询数据..." if progress < 40 else "生成文件..." if progress < 70 else "写入中..."
-        text = f"{progress}% {stage_text}"
-        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, text, False
+        return html.Div([
+            html.Div([
+                html.Span("📦 导出处理中...", style={"fontWeight": "bold", "color": "#3b82f6", "marginRight": "12px"}),
+                html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+            ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+            html.Div(
+                style={
+                    "height": "8px",
+                    "background": "linear-gradient(90deg, #3b82f6, #8b5cf6)",
+                    "width": width,
+                    "borderRadius": "4px",
+                    "transition": "width 0.5s ease",
+                }
+            ),
+            html.Span(children=f"{progress}% {stage_text}", style={"color": "#64748b", "fontSize": "12px", "marginTop": "6px", "display": "block"}),
+        ])
     else:
-        bg = "linear-gradient(90deg, #f59e0b, #d97706)"
-        return {"width": width, "background": bg, "height": "8px", "borderRadius": "4px", "transition": "width 0.5s ease"}, f"{progress}% 排队中...", False
+        return html.Div([
+            html.Div([
+                html.Span("⏳ 排队中...", style={"fontWeight": "bold", "color": "#f59e0b", "marginRight": "12px"}),
+                html.Span(f"任务ID: {task_id[:8]}", style={"color": "#64748b", "fontFamily": "JetBrains Mono, monospace"}),
+            ], style={"display": "flex", "alignItems": "center", "marginBottom": "8px"}),
+            html.Div(
+                style={
+                    "height": "8px",
+                    "background": "linear-gradient(90deg, #f59e0b, #d97706)",
+                    "width": width,
+                    "borderRadius": "4px",
+                    "transition": "width 0.5s ease",
+                }
+            ),
+            html.Span(children=f"{progress}% 等待处理...", style={"color": "#64748b", "fontSize": "12px", "marginTop": "6px", "display": "block"}),
+        ])
 
 
 if __name__ == "__main__":
