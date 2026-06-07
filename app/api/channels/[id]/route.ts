@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { mockChannels, generateMockSamples, getDurationBins, getDeviceAggregation, getIpRegionAggregation } from '@/lib/mockData';
+import * as dataAccess from '@/lib/dataAccess';
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const channel = mockChannels.find(c => c.id === params.id);
+    const channel = await dataAccess.getChannelById(params.id);
     
     if (!channel) {
       return NextResponse.json(
@@ -15,12 +15,11 @@ export async function GET(
       );
     }
 
-    const samples = generateMockSamples(params.id, 100);
-    const durations = samples.map(s => s.totalDuration);
-    const durationBins = getDurationBins(durations);
-    const deviceStats = getDeviceAggregation(samples);
-    const regionStats = getIpRegionAggregation(samples);
-    const abnormalSamples = samples.filter(s => s.abnormalTypes.length > 0);
+    const samples = await dataAccess.getSamplesByChannel(params.id);
+    const durationBins = await dataAccess.getDurationBins(params.id);
+    const deviceStats = await dataAccess.getDeviceAggregation(params.id);
+    const regionStats = await dataAccess.getIpRegionAggregation(params.id);
+    const abnormalSamples = await dataAccess.getAbnormalSamples(params.id);
 
     return NextResponse.json({
       success: true,
@@ -38,6 +37,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    console.error('获取渠道详情失败:', error);
     return NextResponse.json(
       { success: false, error: '获取渠道详情失败' },
       { status: 500 }

@@ -2,58 +2,104 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { ArrowLeft, Download, Clock, Copy, Monitor, SkipForward, FileText, AlertTriangle } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Download, Clock, Copy, Monitor, SkipForward, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import DurationBinsChart from '@/components/DurationBinsChart';
 import QuestionGroupHeatmap from '@/components/QuestionGroupHeatmap';
 import AbnormalSampleList from '@/components/AbnormalSampleList';
-import { 
-  generateMockSamples, 
-  mockChannels, 
-  mockReviewQueue, 
-  getDurationBins, 
-  Sample, 
-  Channel 
-} from '@/lib/mockData';
+import { useApp } from '@/lib/context/AppContext';
 import { 
   getQualityScoreColor, 
   getQualityScoreBgColor, 
-  formatDuration, 
   cn 
 } from '@/lib/utils';
+import { Sample, Channel } from '@/lib/mockData';
+
+interface ChannelDetailData {
+  channel: Channel;
+  samples: Sample[];
+  durationBins: { label: string; count: number }[];
+  abnormalSamples: Sample[];
+}
 
 export default function ChannelDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const channelId = params.id as string;
   
-  const [channel, setChannel] = useState<Channel | null>(null);
-  const [samples, setSamples] = useState<Sample[]>([]);
+  const { pendingCount, refreshAll } = useApp();
+  const [data, setData] = useState<ChannelDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ show: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    const ch = mockChannels.find(c => c.id === channelId);
-    if (ch) {
-      setChannel(ch);
-      const generatedSamples = generateMockSamples(channelId, 100);
-      setSamples(generatedSamples);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/channels/${channelId}`);
+      const result = await res.json();
+      if (result.success) {
+        setData(result.data);
+      }
+    } catch (error) {
+      console.error('获取渠道详情失败:', error);
     }
     setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [channelId]);
 
-  const pendingCount = mockReviewQueue.filter(r => r.status === 'pending').length;
-  
+  const showToast = (message: string) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleExport = () => {
+    window.open(`/api/export/samples?channelId=${channelId}&format=csv`, '_blank');
+    showToast('正在导出数据...');
+  };
+
+  const handleMarkSample = async (sampleId: string, action: 'approve' | 'reject') => {
+    try {
+      const actionType = action === 'approve' ? 'approved' : 'rejected';
+      const res = await fetch('/api/review-queue/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ids: [sampleId], 
+          action: actionType, 
+          reviewer: '调研经理' 
+        }),
+      });
+      
+      if (res.ok) {
+        await refreshAll();
+        await fetchData();
+        showToast(action === 'approve' ? '样本已通过，渠道质量分已更新' : '样本已标记无效');
+      }
+    } catch (error) {
+      console.error('标记样本失败:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <Navbar pendingCount={pendingCount} />
+        <Navbar pendingCount={0} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse">
+          <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-6" />
             <div className="h-32 bg-gray-200 rounded-xl mb-6" />
+            <div className="grid grid-cols-5 gap-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-24 bg-gray-200 rounded-xl" />
+              ))}
+            </div>
             <div className="grid grid-cols-2 gap-6">
-              <div className="h-64 bg-gray-200 rounded-xl" />
-              <div className="h-64 bg-gray-200 rounded-xl" />
+              <div className="h-80 bg-gray-200 rounded-xl" />
+              <div className="h-80 bg-gray-200 rounded-xl" />
             </div>
           </div>
         </div>
@@ -61,7 +107,7 @@ export default function ChannelDetailPage() {
     );
   }
 
-  if (!channel) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navbar pendingCount={pendingCount} />
@@ -72,26 +118,11 @@ export default function ChannelDetailPage() {
     );
   }
 
-  const durations = samples.map(s => s.totalDuration);
-  const durationBins = getDurationBins(durations);
-  const abnormalSamples = samples.filter(s => s.abnormalTypes.length > 0);
+  const { channel, samples, durationBins, abnormalSamples } = data;
   const questionGroupDurations = samples.map(s => s.questionGroupDurations);
 
   const totalAbnormal = channel.fastAnswerCount + channel.duplicateSubmissionCount + 
     channel.deviceConcentrationCount + channel.skipAbnormalCount + channel.openCopyCount;
-
-  const handleExport = () => {
-    window.open(`/api/export/samples?channelId=${channelId}&format=csv`, '_blank');
-  };
-
-  const handleMarkSample = (sampleId: string, action: 'approve' | 'reject') => {
-    console.log(`标记样本 ${sampleId} 为 ${action}`);
-    setSamples(prev => prev.map(s => 
-      s.id === sampleId 
-        ? { ...s, status: action === 'approve' ? 'approved' : 'rejected' }
-        : s
-    ));
-  };
 
   const metrics = [
     { key: 'fastAnswerCount', label: '答题过快', icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-50', value: channel.fastAnswerCount },
@@ -106,6 +137,17 @@ export default function ChannelDetailPage() {
       <Navbar pendingCount={pendingCount} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {toast?.show && (
+          <div className="fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-green-500 text-white flex items-center gap-2">
+            <div className="w-5 h-5 flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            {toast.message}
+          </div>
+        )}
+
         <div className="mb-6">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4">
             <ArrowLeft className="w-4 h-4" />
@@ -127,6 +169,13 @@ export default function ChannelDetailPage() {
                   {channel.pendingReview} 条待复核
                 </span>
               )}
+              <button
+                onClick={fetchData}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                刷新
+              </button>
               <button
                 onClick={handleExport}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
@@ -217,7 +266,7 @@ export default function ChannelDetailPage() {
               <p className="text-sm font-medium text-amber-700 mb-1">待复核样本</p>
               <p className="text-2xl font-bold text-amber-600">{channel.pendingReview}</p>
               <p className="text-xs text-amber-600 mt-1">
-                需调研经理审核确认
+                需调研经理审核确认，复核通过后质量分才更新
               </p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg border border-red-100">

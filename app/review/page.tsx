@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, X, Clock, Copy, Monitor, SkipForward, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Check, X, Clock, Copy, Monitor, SkipForward, FileText, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import Navbar from '@/components/Navbar';
-import { mockReviewQueue, ReviewQueueItem, mockChannels } from '@/lib/mockData';
+import { useApp } from '@/lib/context/AppContext';
 import { abnormalTypeLabels, statusLabels, cn } from '@/lib/utils';
 
 const iconMap: Record<string, any> = {
@@ -15,27 +15,33 @@ const iconMap: Record<string, any> = {
 };
 
 export default function ReviewQueuePage() {
-  const [items, setItems] = useState<ReviewQueueItem[]>([]);
+  const { reviewItems, pendingCount, refreshReviewQueue, batchReview, refreshAll } = useApp();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [processing, setProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'info' } | null>(null);
 
   useEffect(() => {
-    setItems(mockReviewQueue);
-  }, []);
+    const init = async () => {
+      await refreshReviewQueue();
+      setLoading(false);
+    };
+    init();
+  }, [refreshReviewQueue]);
 
-  const pendingCount = items.filter(i => i.status === 'pending').length;
-  
-  const filteredItems = items.filter(item => {
+  const filteredItems = reviewItems.filter(item => {
     if (filter === 'all') return true;
     return item.status === filter;
   });
 
+  const pendingItems = filteredItems.filter(i => i.status === 'pending');
+
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredItems.filter(i => i.status === 'pending').length) {
+    if (selectedIds.length === pendingItems.length && pendingItems.length > 0) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredItems.filter(i => i.status === 'pending').map(i => i.id));
+      setSelectedIds(pendingItems.map(i => i.id));
     }
   };
 
@@ -45,57 +51,90 @@ export default function ReviewQueuePage() {
     );
   };
 
+  const showToast = (message: string, type: 'success' | 'info' = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleBatchAction = async (action: 'approved' | 'rejected') => {
     if (selectedIds.length === 0) return;
     
     setProcessing(true);
     
-    try {
-      const res = await fetch('/api/review-queue/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds, action, reviewer: '调研经理' }),
-      });
-      
-      if (res.ok) {
-        setItems(prev => prev.map(item => 
-          selectedIds.includes(item.id) 
-            ? { ...item, status: action, reviewedAt: new Date().toISOString(), reviewer: '调研经理' }
-            : item
-        ));
-        setSelectedIds([]);
-      }
-    } catch (error) {
-      console.error('批量处理失败', error);
-      setItems(prev => prev.map(item => 
-        selectedIds.includes(item.id) 
-          ? { ...item, status: action, reviewedAt: new Date().toISOString(), reviewer: '调研经理' }
-          : item
-      ));
+    const result = await batchReview(selectedIds, action);
+    
+    if (result.success) {
       setSelectedIds([]);
+      const actionText = action === 'approved' ? '通过' : '拒绝';
+      showToast(`成功${actionText} ${result.processedCount} 条样本，渠道质量分已更新`, 'success');
     }
     
     setProcessing(false);
   };
 
-  const handleSingleAction = (id: string, action: 'approved' | 'rejected') => {
-    setItems(prev => prev.map(item => 
-      item.id === id 
-        ? { ...item, status: action, reviewedAt: new Date().toISOString(), reviewer: '调研经理' }
-        : item
-    ));
+  const handleSingleAction = async (id: string, action: 'approved' | 'rejected') => {
+    setProcessing(true);
+    
+    const result = await batchReview([id], action);
+    
+    if (result.success) {
+      const actionText = action === 'approved' ? '通过' : '拒绝';
+      showToast(`已${actionText}样本，渠道质量分已更新`, 'success');
+    }
+    
+    setProcessing(false);
   };
 
-  const pendingItems = items.filter(i => i.status === 'pending');
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar pendingCount={0} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-gray-200 rounded w-1/4" />
+            <div className="grid grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-24 bg-gray-200 rounded-xl" />
+              ))}
+            </div>
+            <div className="h-96 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const approvedCount = reviewItems.filter(i => i.status === 'approved').length;
+  const rejectedCount = reviewItems.filter(i => i.status === 'rejected').length;
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar pendingCount={pendingCount} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">复核队列</h1>
-          <p className="text-gray-600">审核异常样本，批量通过后更新渠道质量分</p>
+        {toast?.show && (
+          <div className={cn(
+            'fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in',
+            toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+          )}>
+            <CheckCircle className="w-5 h-5" />
+            {toast.message}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">复核队列</h1>
+            <p className="text-gray-600">审核异常样本，批量通过后更新渠道质量分</p>
+          </div>
+          <button
+            onClick={refreshAll}
+            disabled={processing}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={cn('w-4 h-4', processing && 'animate-spin')} />
+            刷新
+          </button>
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -104,19 +143,15 @@ export default function ReviewQueuePage() {
             <div className="text-sm text-gray-500 mt-1">待处理</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-green-600">
-              {items.filter(i => i.status === 'approved').length}
-            </div>
+            <div className="text-3xl font-bold text-green-600">{approvedCount}</div>
             <div className="text-sm text-gray-500 mt-1">已通过</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-gray-600">
-              {items.filter(i => i.status === 'rejected').length}
-            </div>
+            <div className="text-3xl font-bold text-gray-600">{rejectedCount}</div>
             <div className="text-sm text-gray-500 mt-1">已拒绝</div>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-blue-600">{items.length}</div>
+            <div className="text-3xl font-bold text-blue-600">{reviewItems.length}</div>
             <div className="text-sm text-gray-500 mt-1">全部样本</div>
           </div>
         </div>
@@ -125,7 +160,9 @@ export default function ReviewQueuePage() {
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
             <p className="text-sm text-amber-700">
-              当前有 <strong>{pendingCount}</strong> 条样本等待复核。请及时处理，未处理样本将影响渠道质量分的更新。
+              当前有 <strong>{pendingCount}</strong> 条样本等待复核。
+              <span className="font-medium">调研经理批量审核通过后，渠道质量分才会更新。</span>
+              未处理样本将在看板上保持醒目的待办数量。
             </p>
           </div>
         )}
@@ -186,7 +223,7 @@ export default function ReviewQueuePage() {
                   <th className="w-12 px-5 py-3">
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === filteredItems.filter(i => i.status === 'pending').length && filteredItems.filter(i => i.status === 'pending').length > 0}
+                      checked={selectedIds.length === pendingItems.length && pendingItems.length > 0}
                       onChange={handleSelectAll}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -258,14 +295,16 @@ export default function ReviewQueuePage() {
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => handleSingleAction(item.id, 'rejected')}
-                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            disabled={processing}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                             title="标记无效"
                           >
                             <X className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleSingleAction(item.id, 'approved')}
-                            className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            disabled={processing}
+                            className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
                             title="确认有效"
                           >
                             <Check className="w-4 h-4" />

@@ -1,24 +1,63 @@
-import { Suspense } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import QualityCard from '@/components/QualityCard';
-import { mockChannels, mockReviewQueue } from '@/lib/mockData';
+import { useApp } from '@/lib/context/AppContext';
+import { Channel } from '@/lib/mockData';
+import { RefreshCw } from 'lucide-react';
 
-export default async function HomePage() {
-  const pendingCount = mockReviewQueue.filter(r => r.status === 'pending').length;
-  const channels = mockChannels;
+export default function HomePage() {
+  const { channels, pendingCount, refreshChannels } = useApp();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const init = async () => {
+      await refreshChannels();
+      setLoading(false);
+    };
+    init();
+  }, [refreshChannels]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar pendingCount={0} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-gray-200 rounded w-1/4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-56 bg-gray-200 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar pendingCount={pendingCount} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">渠道质量概览</h1>
-          <p className="text-gray-600">实时监控各投放渠道的问卷样本质量</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">渠道质量概览</h1>
+            <p className="text-gray-600">实时监控各投放渠道的问卷样本质量</p>
+          </div>
+          <button
+            onClick={refreshChannels}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          >
+            <RefreshCw className="w-4 h-4" />
+            刷新数据
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {channels.map((channel) => (
+          {channels.map((channel: Channel) => (
             <QualityCard key={channel.id} channel={channel} />
           ))}
         </div>
