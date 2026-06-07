@@ -124,7 +124,7 @@ class ChapterMappingService:
     def map_records_to_new_structure(self, records_df, old_version_id, new_version_id,
                                      section_col="section_id"):
         if records_df.empty:
-            return records_df, pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame()
 
         sections = self._get_sections()
         if sections.empty:
@@ -160,12 +160,20 @@ class ChapterMappingService:
         for _, row in old_records.iterrows():
             sid = row[section_col]
             if sid in mapping_dict:
-                for target in mapping_dict[sid]:
-                    new_row = row.copy()
-                    new_row["original_section_id"] = sid
-                    new_row[section_col] = target["new_section_id"]
-                    new_row["mapping_type"] = target["mapping_type"]
-                    mapped_rows.append(new_row)
+                targets = mapping_dict[sid]
+                has_valid = any(t["mapping_type"] != "unmapped" for t in targets)
+                if has_valid:
+                    for target in targets:
+                        if target["mapping_type"] != "unmapped":
+                            new_row = row.copy()
+                            new_row["original_section_id"] = sid
+                            new_row[section_col] = target["new_section_id"]
+                            new_row["mapping_type"] = target["mapping_type"]
+                            mapped_rows.append(new_row)
+                else:
+                    row_copy = row.copy()
+                    row_copy["mapping_type"] = "unmapped"
+                    unmapped_rows.append(row_copy)
             else:
                 row_copy = row.copy()
                 row_copy["mapping_type"] = "unmapped"
@@ -185,6 +193,6 @@ class ChapterMappingService:
         elif not new_records.empty:
             combined = new_records
         else:
-            combined = records_df
+            combined = pd.DataFrame()
 
         return combined, unmapped_df

@@ -27,40 +27,53 @@ class ExportService:
         return output.getvalue()
 
     @staticmethod
-    def build_report_data(chapter_id, queries_service, mapping_service=None):
+    def build_report_data(chapter_id, queries_service, mapping_service=None, mapped_data=None):
         data = {}
 
-        viewing = queries_service.get_viewing_comparison(chapter_id)
+        if mapped_data is not None:
+            viewing = mapped_data.get("viewing", pd.DataFrame())
+            quiz = mapped_data.get("quiz", pd.DataFrame())
+            errors = mapped_data.get("error", pd.DataFrame())
+            discussions = mapped_data.get("discussion", pd.DataFrame())
+            refunds = mapped_data.get("refund", pd.DataFrame())
+            lp_events = mapped_data.get("learning_path_events", pd.DataFrame())
+            lp_flow = mapped_data.get("learning_path_flow", pd.DataFrame())
+            unmapped_viewing = mapped_data.get("unmapped_viewing", pd.DataFrame())
+            unmapped_quiz = mapped_data.get("unmapped_quiz", pd.DataFrame())
+            unmapped_error = mapped_data.get("unmapped_error", pd.DataFrame())
+        else:
+            viewing = queries_service.get_viewing_comparison(chapter_id)
+            quiz = queries_service.get_quiz_comparison(chapter_id)
+            errors = queries_service.get_error_heatmap_data(chapter_id)
+            discussions = queries_service.get_discussion_aggregation(chapter_id)
+            refunds = queries_service.get_refund_comparison(chapter_id)
+            lp_events, lp_flow = queries_service.get_learning_path_data(chapter_id)
+            unmapped_viewing = pd.DataFrame()
+            unmapped_quiz = pd.DataFrame()
+            unmapped_error = pd.DataFrame()
+
         if viewing is not None and not viewing.empty:
             data["观看对比"] = viewing
 
-        quiz = queries_service.get_quiz_comparison(chapter_id)
         if quiz is not None and not quiz.empty:
             data["测验对比"] = quiz
 
-        errors = queries_service.get_error_heatmap_data(chapter_id)
         if errors is not None and not errors.empty:
             data["错题热力图"] = errors
 
-        discussions = queries_service.get_discussion_aggregation(chapter_id)
         if discussions is not None and not discussions.empty:
             data["讨论聚合"] = discussions
 
-        refunds = queries_service.get_refund_comparison(chapter_id)
         if refunds is not None and not refunds.empty:
             data["退款对比"] = refunds
 
-        path_result = queries_service.get_learning_path_data(chapter_id)
-        if isinstance(path_result, tuple):
-            event_agg, flow = path_result
-            if event_agg is not None and not event_agg.empty:
-                data["学习路径事件"] = event_agg
-            if flow is not None and not flow.empty:
-                data["学习流转"] = flow
-        elif isinstance(path_result, pd.DataFrame) and not path_result.empty:
-            data["学习路径"] = path_result
+        if lp_events is not None and not lp_events.empty:
+            data["学习路径事件"] = lp_events
 
-        raw = queries_service.get_raw_learning_records(chapter_id)
+        if lp_flow is not None and not lp_flow.empty:
+            data["学习流转"] = lp_flow
+
+        raw = queries_service.get_raw_records(chapter_id)
         if raw is not None and not raw.empty:
             safe_raw = raw.copy()
             for c in safe_raw.columns:
@@ -72,17 +85,57 @@ class ExportService:
         if mapping_info is not None and not mapping_info.empty:
             data["章节映射"] = mapping_info
 
-        unmapped_count = 0
-        if mapping_service is not None:
-            versions = queries_service.get_chapter_versions(chapter_id)
-            if len(versions) >= 2:
-                old_vid = versions.iloc[0]["id"]
-                new_vid = versions.iloc[-1]["id"]
-                _, unmapped_recs = mapping_service.get_section_mapping(old_vid, new_vid)
-                unmapped_count = len(unmapped_recs)
-                if unmapped_recs:
-                    unmapped_df = pd.DataFrame(unmapped_recs)
-                    data["无法映射样本"] = unmapped_df
+        sections = queries_service.get_chapter_sections()
+
+        unmapped_parts = []
+        if not unmapped_viewing.empty:
+            uv = unmapped_viewing.copy()
+            uv["记录类型"] = "观看"
+            if not sections.empty and "section_id" in uv.columns:
+                uv = uv.merge(
+                    sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                    on="section_id", how="left"
+                )
+            unmapped_parts.append(uv)
+
+        if not unmapped_quiz.empty:
+            uq = unmapped_quiz.copy()
+            uq["记录类型"] = "测验"
+            if not sections.empty and "section_id" in uq.columns:
+                uq = uq.merge(
+                    sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                    on="section_id", how="left"
+                )
+            unmapped_parts.append(uq)
+
+        if not unmapped_error.empty:
+            ue = unmapped_error.copy()
+            ue["记录类型"] = "错题"
+            if not sections.empty and "section_id" in ue.columns:
+                ue = ue.merge(
+                    sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
+                    on="section_id", how="left"
+                )
+            unmapped_parts.append(ue)
+
+        if unmapped_parts:
+            unmapped_all = pd.concat(unmapped_parts, ignore_index=True)
+            display_cols = [c for c in unmapped_all.columns if c in
+                            ["记录类型", "time", "user_id", "section_name", "section_id",
+                             "duration_seconds", "completion_pct", "score", "total_questions",
+                             "correct_answers", "question_id", "selected_answer", "correct_answer",
+                             "mapping_type"]]
+            col_map = {
+                "time": "时间", "user_id": "用户ID", "section_name": "小节",
+                "duration_seconds": "时长(秒)", "completion_pct": "完播率",
+                "score": "分数", "total_questions": "总题数",
+                "correct_answers": "正确数", "question_id": "题目ID",
+                "selected_answer": "选择答案", "correct_answer": "正确答案",
+                "mapping_type": "映射类型",
+            }
+            export_df = unmapped_all[display_cols].copy()
+            export_df.columns = [col_map.get(c, c) for c in export_df.columns]
+            data["无法映射样本"] = export_df
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"课程更新分析_chapter{chapter_id}_{timestamp}.xlsx"

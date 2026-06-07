@@ -76,14 +76,39 @@ class QueriesService:
         sections = self.get_chapter_sections(version_id)
         return sections["id"].tolist() if not sections.empty else []
 
-    def _get_section_filter_sql(self, version_id, prefix=""):
+    def _get_chapter_section_ids(self, chapter_id):
+        versions = self.get_chapter_versions(chapter_id)
+        if versions.empty:
+            return []
+        all_sids = []
+        for _, v in versions.iterrows():
+            all_sids.extend(self.get_section_ids_for_version(v["id"]))
+        return all_sids
+
+    def _get_section_filter_sql(self, version_id=None, chapter_id=None, prefix=""):
         if version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
-            if sids:
-                placeholders = ",".join(["%s"] * len(sids))
-                return f" AND {prefix}section_id IN ({placeholders})", sids
-            return " AND 1=0", []
-        return "", []
+        elif chapter_id is not None:
+            sids = self._get_chapter_section_ids(chapter_id)
+        else:
+            return "", []
+        if sids:
+            placeholders = ",".join(["%s"] * len(sids))
+            return f" AND {prefix}section_id IN ({placeholders})", sids
+        return " AND 1=0", []
+
+    def _filter_by_section_ids(self, df, chapter_id, version_id=None):
+        if df.empty:
+            return df
+        if version_id is not None:
+            sids = self.get_section_ids_for_version(version_id)
+        elif chapter_id is not None:
+            sids = self._get_chapter_section_ids(chapter_id)
+        else:
+            return df
+        if not sids:
+            return df.iloc[0:0]
+        return df[df["section_id"].isin(sids)].copy()
 
     def _split_periods(self, df, update_date, time_col="time"):
         if df.empty or update_date is None:
@@ -128,22 +153,21 @@ class QueriesService:
         if self._data is not None:
             viewing = self._get_data("viewing_records")
         else:
-            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sec_filter, sec_params = self._get_section_filter_sql(version_id=version_id, chapter_id=chapter_id)
             sql = f"SELECT time, user_id, section_id, duration_seconds, completion_pct FROM viewing_records WHERE 1=1{sec_filter} ORDER BY time"
             viewing = self._query_to_df(sql, sec_params if sec_params else None)
 
         if viewing.empty:
             return pd.DataFrame()
 
+        if self._data is not None:
+            viewing = self._filter_by_section_ids(viewing, chapter_id, version_id)
+
         versions = self.get_chapter_versions(chapter_id)
         if versions.empty:
             return pd.DataFrame()
 
         update_date = self.get_update_date(chapter_id)
-
-        if self._data is not None and version_id is not None:
-            sids = self.get_section_ids_for_version(version_id)
-            viewing = viewing[viewing["section_id"].isin(sids)].copy()
 
         viewing["date"] = pd.to_datetime(viewing["time"]).dt.date
 
@@ -162,22 +186,21 @@ class QueriesService:
         if self._data is not None:
             quiz = self._get_data("quiz_records")
         else:
-            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sec_filter, sec_params = self._get_section_filter_sql(version_id=version_id, chapter_id=chapter_id)
             sql = f"SELECT time, user_id, section_id, quiz_id, score, total_questions, correct_answers FROM quiz_records WHERE 1=1{sec_filter} ORDER BY time"
             quiz = self._query_to_df(sql, sec_params if sec_params else None)
 
         if quiz.empty:
             return pd.DataFrame()
 
+        if self._data is not None:
+            quiz = self._filter_by_section_ids(quiz, chapter_id, version_id)
+
         versions = self.get_chapter_versions(chapter_id)
         if versions.empty:
             return pd.DataFrame()
 
         update_date = self.get_update_date(chapter_id)
-
-        if self._data is not None and version_id is not None:
-            sids = self.get_section_ids_for_version(version_id)
-            quiz = quiz[quiz["section_id"].isin(sids)].copy()
 
         quiz["date"] = pd.to_datetime(quiz["time"]).dt.date
 
@@ -196,7 +219,7 @@ class QueriesService:
         if self._data is not None:
             errors = self._get_data("error_records")
         else:
-            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sec_filter, sec_params = self._get_section_filter_sql(version_id=version_id, chapter_id=chapter_id)
             sql = f"SELECT time, user_id, section_id, question_id, selected_answer, correct_answer FROM error_records WHERE 1=1{sec_filter} ORDER BY time"
             errors = self._query_to_df(sql, sec_params if sec_params else None)
 
@@ -204,9 +227,8 @@ class QueriesService:
         if errors.empty:
             return pd.DataFrame()
 
-        if self._data is not None and version_id is not None:
-            sids = self.get_section_ids_for_version(version_id)
-            errors = errors[errors["section_id"].isin(sids)].copy()
+        if self._data is not None:
+            errors = self._filter_by_section_ids(errors, chapter_id, version_id)
 
         errors = errors.merge(
             sections[["id", "section_name"]].rename(columns={"id": "section_id"}),
@@ -222,19 +244,18 @@ class QueriesService:
         if self._data is not None:
             discussions = self._get_data("discussion_records")
         else:
-            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sec_filter, sec_params = self._get_section_filter_sql(version_id=version_id, chapter_id=chapter_id)
             sql = f"SELECT time, user_id, section_id, content, topic_tags FROM discussion_records WHERE 1=1{sec_filter} ORDER BY time"
             discussions = self._query_to_df(sql, sec_params if sec_params else None)
 
         if discussions.empty:
             return pd.DataFrame()
 
+        if self._data is not None:
+            discussions = self._filter_by_section_ids(discussions, chapter_id, version_id)
+
         versions = self.get_chapter_versions(chapter_id)
         update_date = self.get_update_date(chapter_id)
-
-        if self._data is not None and version_id is not None:
-            sids = self.get_section_ids_for_version(version_id)
-            discussions = discussions[discussions["section_id"].isin(sids)].copy()
 
         discussions["date"] = pd.to_datetime(discussions["time"]).dt.date
 
@@ -275,7 +296,7 @@ class QueriesService:
             return pd.DataFrame()
 
         update_date = self.get_update_date(chapter_id)
-        chapter_refunds = refunds[refunds["chapter_id"] == chapter_id]
+        chapter_refunds = refunds[refunds["chapter_id"] == chapter_id].copy()
 
         chapter_refunds["date"] = pd.to_datetime(chapter_refunds["time"]).dt.date
 
@@ -293,7 +314,7 @@ class QueriesService:
         if self._data is not None:
             events = self._get_data("learning_path_events")
         else:
-            sec_filter, sec_params = self._get_section_filter_sql(version_id)
+            sec_filter, sec_params = self._get_section_filter_sql(version_id=version_id, chapter_id=chapter_id)
             sql = f"SELECT time, user_id, section_id, event_type, from_section_id, to_section_id FROM learning_path_events WHERE 1=1{sec_filter} ORDER BY time"
             events = self._query_to_df(sql, sec_params if sec_params else None)
 
@@ -301,9 +322,8 @@ class QueriesService:
         if events.empty:
             return pd.DataFrame(), pd.DataFrame()
 
-        if self._data is not None and version_id is not None:
-            sids = self.get_section_ids_for_version(version_id)
-            events = events[events["section_id"].isin(sids)].copy()
+        if self._data is not None:
+            events = self._filter_by_section_ids(events, chapter_id, version_id)
 
         update_date = self.get_update_date(chapter_id)
 
@@ -336,26 +356,19 @@ class QueriesService:
 
         return event_agg, flow
 
-    def get_raw_learning_records(self, chapter_id, version_id=None, record_type="all",
-                                 start_date=None, end_date=None, page=1, page_size=100):
+    def get_raw_records(self, chapter_id, version_id=None, record_type="all",
+                        start_date=None, end_date=None):
         sections = self.get_chapter_sections()
         versions = self.get_chapter_versions(chapter_id)
 
         if version_id is not None:
             sids = self.get_section_ids_for_version(version_id)
         else:
-            if not versions.empty:
-                all_sids = []
-                for _, v in versions.iterrows():
-                    all_sids.extend(self.get_section_ids_for_version(v["id"]))
-                sids = all_sids
-            else:
-                sids = []
+            sids = self._get_chapter_section_ids(chapter_id)
 
         if not sids:
             return pd.DataFrame()
 
-        sid_placeholders = ",".join(["%s"] * len(sids))
         dfs = []
 
         if record_type in ("all", "viewing"):
@@ -366,6 +379,7 @@ class QueriesService:
                     v["record_type"] = "观看"
                     dfs.append(v)
             else:
+                sid_placeholders = ",".join(["%s"] * len(sids))
                 sql = f"SELECT time, user_id, section_id, duration_seconds, completion_pct FROM viewing_records WHERE section_id IN ({sid_placeholders})"
                 params = list(sids)
                 if start_date:
@@ -387,6 +401,7 @@ class QueriesService:
                     q["record_type"] = "测验"
                     dfs.append(q)
             else:
+                sid_placeholders = ",".join(["%s"] * len(sids))
                 sql = f"SELECT time, user_id, section_id, quiz_id, score, total_questions, correct_answers FROM quiz_records WHERE section_id IN ({sid_placeholders})"
                 params = list(sids)
                 if start_date:
@@ -408,6 +423,7 @@ class QueriesService:
                     e["record_type"] = "错题"
                     dfs.append(e)
             else:
+                sid_placeholders = ",".join(["%s"] * len(sids))
                 sql = f"SELECT time, user_id, section_id, question_id, selected_answer, correct_answer FROM error_records WHERE section_id IN ({sid_placeholders})"
                 params = list(sids)
                 if start_date:
@@ -439,8 +455,13 @@ class QueriesService:
                 on="section_id", how="left"
             )
 
-        combined = combined.sort_values("time", ascending=False)
+        return combined.sort_values("time", ascending=False).reset_index(drop=True)
 
+    def get_raw_learning_records(self, chapter_id, version_id=None, record_type="all",
+                                 start_date=None, end_date=None, page=1, page_size=100):
+        combined = self.get_raw_records(chapter_id, version_id, record_type, start_date, end_date)
+        if combined.empty:
+            return combined
         start_idx = (page - 1) * page_size
         end_idx = start_idx + page_size
         return combined.iloc[start_idx:end_idx]

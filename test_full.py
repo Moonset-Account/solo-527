@@ -1,6 +1,10 @@
+import sys
+sys.path.insert(0, "/Users/xingyaolei/Desktop/trae-solo-generated-projects/question-187")
+
 from db.queries import QueriesService
 from services import ChapterMappingService
 from services.export import ExportService
+import pandas as pd
 
 q = QueriesService()
 m = ChapterMappingService()
@@ -9,37 +13,41 @@ e = ExportService()
 chapters = q.get_chapters()
 chapter_id = chapters.iloc[0]["id"]
 versions = q.get_chapter_versions(chapter_id)
+old_vid = versions.iloc[0]["id"]
+new_vid = versions.iloc[-1]["id"]
 
-has_multiple = len(versions) >= 2
-if has_multiple:
-    old_vid = versions.iloc[0]["id"]
-    new_vid = versions.iloc[-1]["id"]
-    mapping, unmapped = m.get_section_mapping(old_vid, new_vid)
-    unmapped_old_sids = [r["section_id"] for r in unmapped if r.get("version") == "old"]
-    
-    old_viewing = q.get_viewing_comparison(chapter_id, old_vid)
-    new_viewing = q.get_viewing_comparison(chapter_id, new_vid)
-    
-    old_lp, old_flow = q.get_learning_path_data(chapter_id, old_vid)
-    new_lp, new_flow = q.get_learning_path_data(chapter_id, new_vid)
+results = []
 
-report_data, filename = e.build_report_data(chapter_id, q, m)
+viewing_all = q.get_viewing_comparison(chapter_id)
+results.append(f"All versions viewing: {len(viewing_all)} rows")
+
+viewing_old = q.get_viewing_comparison(chapter_id, old_vid)
+viewing_new = q.get_viewing_comparison(chapter_id, new_vid)
+results.append(f"Old: {len(viewing_old)}, New: {len(viewing_new)}")
+
+old_viewing_raw = q._filter_by_section_ids(q._get_data("viewing_records"), chapter_id, old_vid)
+mapped, unmapped = m.map_records_to_new_structure(old_viewing_raw, old_vid, new_vid)
+results.append(f"Mapped viewing: {len(mapped)}, Unmapped: {len(unmapped)}")
+if not unmapped.empty:
+    results.append(f"Unmapped sids: {unmapped['section_id'].unique().tolist()}")
+    results.append(f"Unmapped mapping_types: {unmapped['mapping_type'].unique().tolist()}")
+
+from app import _get_mapped_data
+mapped_data = _get_mapped_data(chapter_id)
+results.append(f"Mapped viewing comparison: {len(mapped_data['viewing'])}")
+results.append(f"Unmapped viewing: {len(mapped_data['unmapped_viewing'])}")
+results.append(f"Unmapped quiz: {len(mapped_data['unmapped_quiz'])}")
+results.append(f"Unmapped error: {len(mapped_data['unmapped_error'])}")
+
+report_data, filename = e.build_report_data(chapter_id, q, m, mapped_data)
+results.append(f"Report sheets: {list(report_data.keys())}")
+if "无法映射样本" in report_data:
+    results.append(f"Unmapped samples: {report_data['无法映射样本'].shape}")
+
 excel_bytes = e.export_to_excel(report_data, "test")
+results.append(f"Excel size: {len(excel_bytes)} bytes")
+results.append("ALL TESTS PASSED")
 
-with open("/tmp/test_result.txt", "w") as f:
-    f.write(f"Chapters: {len(chapters)}\n")
-    f.write(f"Versions: {len(versions)}\n")
-    f.write(f"Has multiple: {has_multiple}\n")
-    if has_multiple:
-        f.write(f"Mapping rows: {len(mapping)}\n")
-        f.write(f"Unmapped records: {len(unmapped)}\n")
-        f.write(f"Unmapped old sids: {unmapped_old_sids}\n")
-        f.write(f"Old viewing: {len(old_viewing)}, New viewing: {len(new_viewing)}\n")
-        f.write(f"Old LP events: {len(old_lp)}, flow: {len(old_flow)}\n")
-        f.write(f"New LP events: {len(new_lp)}, flow: {len(new_flow)}\n")
-    f.write(f"Report sheets: {list(report_data.keys())}\n")
-    f.write(f"Has unmapped samples: {'无法映射样本' in report_data}\n")
-    f.write(f"Excel size: {len(excel_bytes)} bytes\n")
-    f.write("FULL TEST PASSED\n")
-
-print("Done - check /tmp/test_result.txt")
+with open("/tmp/test_result3.txt", "w") as f:
+    f.write("\n".join(results))
+print("Done")
