@@ -473,3 +473,122 @@ export function reviewSingleSampleBySampleId(
     updatedChannelIds,
   };
 }
+
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface Permission {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  roleId: string;
+}
+
+interface RolePermission {
+  roleId: string;
+  permissionId: string;
+}
+
+interface ChannelManager {
+  channelId: string;
+  userId: string;
+}
+
+const roles: Role[] = [
+  { id: 'role-admin', name: 'admin', description: '系统管理员' },
+  { id: 'role-manager', name: 'research_manager', description: '调研经理' },
+  { id: 'role-viewer', name: 'viewer', description: '只读用户' },
+];
+
+const permissions: Permission[] = [
+  { id: 'perm-export', name: 'export_samples', description: '导出样本数据' },
+  { id: 'perm-export-all', name: 'export_all_channels', description: '导出所有渠道数据' },
+  { id: 'perm-export-own', name: 'export_own_channel', description: '导出自己管理的渠道数据' },
+  { id: 'perm-review', name: 'review_samples', description: '审核样本' },
+  { id: 'perm-view', name: 'view_channels', description: '查看渠道' },
+];
+
+const rolePermissions: RolePermission[] = [
+  { roleId: 'role-admin', permissionId: 'perm-export' },
+  { roleId: 'role-admin', permissionId: 'perm-export-all' },
+  { roleId: 'role-admin', permissionId: 'perm-review' },
+  { roleId: 'role-admin', permissionId: 'perm-view' },
+  { roleId: 'role-manager', permissionId: 'perm-export' },
+  { roleId: 'role-manager', permissionId: 'perm-export-own' },
+  { roleId: 'role-manager', permissionId: 'perm-review' },
+  { roleId: 'role-manager', permissionId: 'perm-view' },
+  { roleId: 'role-viewer', permissionId: 'perm-view' },
+];
+
+const users: User[] = [
+  { id: 'user-001', username: 'admin', displayName: '系统管理员', roleId: 'role-admin' },
+  { id: 'user-002', username: 'manager01', displayName: '调研经理-张三', roleId: 'role-manager' },
+  { id: 'user-003', username: 'viewer01', displayName: '只读用户-李四', roleId: 'role-viewer' },
+];
+
+const channelManagers: ChannelManager[] = [
+  { channelId: 'ch-001', userId: 'user-002' },
+  { channelId: 'ch-002', userId: 'user-002' },
+];
+
+export function checkUserPermission(userId: string, permissionName: string): boolean {
+  const user = users.find(u => u.id === userId);
+  if (!user) return false;
+  
+  const rolePermIds = rolePermissions
+    .filter(rp => rp.roleId === user.roleId)
+    .map(rp => rp.permissionId);
+  
+  return permissions.some(p => 
+    rolePermIds.includes(p.id) && p.name === permissionName
+  );
+}
+
+export function checkUserPermissionByUsername(username: string, permissionName: string): boolean {
+  const user = users.find(u => u.username === username);
+  if (!user) return false;
+  return checkUserPermission(user.id, permissionName);
+}
+
+export function getUserRole(userId: string): { roleId: string; roleName: string } | null {
+  const user = users.find(u => u.id === userId);
+  if (!user) return null;
+  
+  const role = roles.find(r => r.id === user.roleId);
+  if (!role) return null;
+  
+  return { roleId: role.id, roleName: role.name };
+}
+
+export function getExportableChannelsForUser(userId: string): string[] {
+  if (checkUserPermission(userId, 'export_all_channels')) {
+    return getStore().channels.map(c => c.id);
+  }
+  
+  if (checkUserPermission(userId, 'export_own_channel')) {
+    return channelManagers
+      .filter(cm => cm.userId === userId)
+      .map(cm => cm.channelId);
+  }
+  
+  return [];
+}
+
+export function logExportAction(
+  userId: string,
+  channelId: string,
+  format: string,
+  sampleCount: number,
+  ipAddress?: string
+): void {
+  console.log(`[Export Log] User: ${userId}, Channel: ${channelId}, Format: ${format}, Count: ${sampleCount}, IP: ${ipAddress || 'unknown'}`);
+}

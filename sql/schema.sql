@@ -61,7 +61,60 @@ CREATE TABLE IF NOT EXISTS device_stats (
   UNIQUE(channel_id, device_id)
 );
 
+CREATE TABLE IF NOT EXISTS roles (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS permissions (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id SERIAL PRIMARY KEY,
+  role_id VARCHAR(50) REFERENCES roles(id) ON DELETE CASCADE,
+  permission_id VARCHAR(50) REFERENCES permissions(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(50) PRIMARY KEY,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  display_name VARCHAR(200),
+  role_id VARCHAR(50) REFERENCES roles(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS channel_managers (
+  id SERIAL PRIMARY KEY,
+  channel_id VARCHAR(50) REFERENCES channels(id) ON DELETE CASCADE,
+  user_id VARCHAR(50) REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(channel_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS export_logs (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(50) REFERENCES users(id),
+  channel_id VARCHAR(50) REFERENCES channels(id),
+  format VARCHAR(20) DEFAULT 'csv',
+  sample_count INTEGER DEFAULT 0,
+  ip_address VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_samples_channel_id ON samples(channel_id);
 CREATE INDEX IF NOT EXISTS idx_samples_status ON samples(status);
 CREATE INDEX IF NOT EXISTS idx_review_queue_status ON review_queue(status);
 CREATE INDEX IF NOT EXISTS idx_review_queue_channel_id ON review_queue(channel_id);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_channel_managers_user_id ON channel_managers(user_id);
+CREATE INDEX IF NOT EXISTS idx_export_logs_user_id ON export_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_export_logs_channel_id ON export_logs(channel_id);

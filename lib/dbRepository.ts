@@ -427,3 +427,82 @@ export async function reviewSingleSampleBySampleIdDB(
     client.release();
   }
 }
+
+export async function checkUserPermissionDB(
+  userId: string,
+  permissionName: string
+): Promise<boolean> {
+  const result = await pool.query(`
+    SELECT COUNT(*) as count
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    JOIN role_permissions rp ON r.id = rp.role_id
+    JOIN permissions p ON rp.permission_id = p.id
+    WHERE u.id = $1 AND p.name = $2
+  `, [userId, permissionName]);
+  
+  return parseInt(result.rows[0].count, 10) > 0;
+}
+
+export async function checkUserPermissionByUsernameDB(
+  username: string,
+  permissionName: string
+): Promise<boolean> {
+  const result = await pool.query(`
+    SELECT COUNT(*) as count
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    JOIN role_permissions rp ON r.id = rp.role_id
+    JOIN permissions p ON rp.permission_id = p.id
+    WHERE u.username = $1 AND p.name = $2
+  `, [username, permissionName]);
+  
+  return parseInt(result.rows[0].count, 10) > 0;
+}
+
+export async function getUserRoleDB(userId: string): Promise<{ roleId: string; roleName: string } | null> {
+  const result = await pool.query(`
+    SELECT r.id as "roleId", r.name as "roleName"
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    WHERE u.id = $1
+  `, [userId]);
+  
+  return result.rows[0] || null;
+}
+
+export async function getExportableChannelsForUserDB(
+  userId: string
+): Promise<string[]> {
+  const hasExportAll = await checkUserPermissionDB(userId, 'export_all_channels');
+  if (hasExportAll) {
+    const result = await pool.query('SELECT id FROM channels');
+    return result.rows.map(r => r.id);
+  }
+  
+  const hasExportOwn = await checkUserPermissionDB(userId, 'export_own_channel');
+  if (hasExportOwn) {
+    const result = await pool.query(`
+      SELECT DISTINCT c.id
+      FROM channels c
+      JOIN channel_managers cm ON c.id = cm.channel_id
+      WHERE cm.user_id = $1
+    `, [userId]);
+    return result.rows.map(r => r.id);
+  }
+  
+  return [];
+}
+
+export async function logExportActionDB(
+  userId: string,
+  channelId: string,
+  format: string,
+  sampleCount: number,
+  ipAddress?: string
+): Promise<void> {
+  await pool.query(`
+    INSERT INTO export_logs (user_id, channel_id, format, sample_count, ip_address)
+    VALUES ($1, $2, $3, $4, $5)
+  `, [userId, channelId, format, sampleCount, ipAddress || null]);
+}

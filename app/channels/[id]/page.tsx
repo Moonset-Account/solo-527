@@ -31,7 +31,7 @@ export default function ChannelDetailPage() {
   const { pendingCount, refreshAll } = useApp();
   const [data, setData] = useState<ChannelDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ show: boolean; message: string } | null>(null);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type?: 'success' | 'error' } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -51,14 +51,43 @@ export default function ChannelDetailPage() {
     fetchData();
   }, [channelId]);
 
-  const showToast = (message: string) => {
-    setToast({ show: true, message });
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
   const handleExport = () => {
-    window.open(`/api/export/samples?channelId=${channelId}&format=csv`, '_blank');
-    showToast('正在导出数据...');
+    const userId = 'user-002';
+    const username = 'manager01';
+    const exportUrl = `/api/export/samples?channelId=${channelId}&format=csv&userId=${userId}&username=${username}`;
+    
+    fetch(exportUrl, { method: 'GET' })
+      .then(res => {
+        if (res.status === 401 || res.status === 403) {
+          return res.json().then(data => {
+            showToast(data.error || '没有导出权限', 'error');
+          });
+        }
+        if (res.ok) {
+          return res.blob().then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `samples_${channelId}_${Date.now()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showToast('导出成功');
+          });
+        }
+        return res.json().then(data => {
+          showToast(data.error || '导出失败', 'error');
+        });
+      })
+      .catch(() => {
+        showToast('导出失败，请重试', 'error');
+      });
   };
 
   const handleMarkSample = async (sampleId: string, action: 'approve' | 'reject') => {
@@ -143,11 +172,20 @@ export default function ChannelDetailPage() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {toast?.show && (
-          <div className="fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg bg-green-500 text-white flex items-center gap-2">
+          <div className={cn(
+            'fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 animate-slide-in',
+            toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'
+          )}>
             <div className="w-5 h-5 flex items-center justify-center">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              {toast.type === 'error' ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </div>
             {toast.message}
           </div>

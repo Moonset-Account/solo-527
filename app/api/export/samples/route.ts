@@ -15,16 +15,62 @@ const statusMap: Record<string, string> = {
   rejected: '已拒绝',
 };
 
+const EXPORT_PERMISSION = 'export_samples';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const channelId = searchParams.get('channelId');
     const format = searchParams.get('format') || 'csv';
+    const userId = searchParams.get('userId');
+    const username = searchParams.get('username');
 
     if (!channelId) {
       return NextResponse.json(
         { success: false, error: '请指定渠道ID' },
         { status: 400 }
+      );
+    }
+
+    if (!userId && !username) {
+      return NextResponse.json(
+        { success: false, error: '请指定用户身份（userId 或 username）' },
+        { status: 401 }
+      );
+    }
+
+    let hasPermission = false;
+    let actualUserId = userId || '';
+    
+    if (userId) {
+      hasPermission = await dataAccess.checkUserPermission(userId, EXPORT_PERMISSION);
+    } else if (username) {
+      hasPermission = await dataAccess.checkUserPermissionByUsername(username, EXPORT_PERMISSION);
+      if (hasPermission) {
+        actualUserId = username;
+      }
+    }
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, error: '您没有导出数据的权限，请联系管理员' },
+        { status: 403 }
+      );
+    }
+
+    const exportableChannels = await dataAccess.getExportableChannelsForUser(actualUserId);
+    if (!exportableChannels.includes(channelId)) {
+      return NextResponse.json(
+        { success: false, error: '您没有该渠道的数据导出权限' },
+        { status: 403 }
+      );
+    }
+
+    const channel = await dataAccess.getChannelById(channelId);
+    if (!channel) {
+      return NextResponse.json(
+        { success: false, error: '渠道不存在' },
+        { status: 404 }
       );
     }
 
@@ -54,6 +100,19 @@ export async function GET(request: Request) {
         ].join(','))
       ].join('\n');
 
+      try {
+        const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined;
+        await dataAccess.logExportAction(
+          actualUserId,
+          channelId,
+          format,
+          samples.length,
+          ip
+        );
+      } catch (logError) {
+        console.error('记录导出日志失败:', logError);
+      }
+
       return new NextResponse('\ufeff' + csvContent, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
@@ -69,7 +128,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('导出失败:', error);
     return NextResponse.json(
-      { success: false, error: '导出失败' },
+      { success: false, error: '导出失败，请稍后重试' },
       { status: 500 }
     );
   }

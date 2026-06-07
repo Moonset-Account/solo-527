@@ -21,3 +21,35 @@ INSERT INTO review_queue (id, sample_id, channel_id, channel_name, abnormal_type
 ('rq-003', 's-004', 'ch-002', '抖音信息流', ARRAY['duplicate_submission', 'device_concentration']::varchar[], NOW() - INTERVAL '45 minutes', 'pending'),
 ('rq-004', 's-005', 'ch-002', '抖音信息流', ARRAY['duplicate_submission', 'device_concentration']::varchar[], NOW() - INTERVAL '46 minutes', 'pending'),
 ('rq-005', 's-007', 'ch-004', '百度SEM', ARRAY['fast_answer', 'skip_abnormal']::varchar[], NOW() - INTERVAL '1.5 hours', 'pending');
+
+INSERT INTO roles (id, name, description) VALUES
+('role-admin', 'admin', '系统管理员，拥有所有权限'),
+('role-manager', 'research_manager', '调研经理，可审核和导出自己管理的渠道'),
+('role-viewer', 'viewer', '只读用户，仅可查看数据');
+
+INSERT INTO permissions (id, name, description) VALUES
+('perm-export', 'export_samples', '导出样本数据'),
+('perm-export-all', 'export_all_channels', '导出所有渠道数据'),
+('perm-export-own', 'export_own_channel', '导出自己管理的渠道数据'),
+('perm-review', 'review_samples', '审核样本'),
+('perm-view', 'view_channels', '查看渠道数据');
+
+INSERT INTO role_permissions (role_id, permission_id) VALUES
+('role-admin', 'perm-export'),
+('role-admin', 'perm-export-all'),
+('role-admin', 'perm-review'),
+('role-admin', 'perm-view'),
+('role-manager', 'perm-export'),
+('role-manager', 'perm-export-own'),
+('role-manager', 'perm-review'),
+('role-manager', 'perm-view'),
+('role-viewer', 'perm-view');
+
+INSERT INTO users (id, username, display_name, role_id) VALUES
+('user-001', 'admin', '系统管理员', 'role-admin'),
+('user-002', 'manager01', '调研经理-张三', 'role-manager'),
+('user-003', 'viewer01', '只读用户-李四', 'role-viewer');
+
+INSERT INTO channel_managers (channel_id, user_id) VALUES
+('ch-001', 'user-002'),
+('ch-002', 'user-002');

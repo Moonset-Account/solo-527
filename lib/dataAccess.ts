@@ -55,3 +55,29 @@ export async function reviewSingleSampleBySampleId(
 ) {
   return await dbRepo.reviewSingleSampleBySampleIdDB(sampleId, action, reviewer);
 }
+
+export async function checkUserPermission(userId: string, permissionName: string) {
+  return await dbRepo.checkUserPermissionDB(userId, permissionName);
+}
+
+export async function checkUserPermissionByUsername(username: string, permissionName: string) {
+  return await dbRepo.checkUserPermissionByUsernameDB(username, permissionName);
+}
+
+export async function getUserRole(userId: string) {
+  return await dbRepo.getUserRoleDB(userId);
+}
+
+export async function getExportableChannelsForUser(userId: string) {
+  return await dbRepo.getExportableChannelsForUserDB(userId);
+}
+
+export async function logExportAction(
+  userId: string,
+  channelId: string,
+  format: string,
+  sampleCount: number,
+  ipAddress?: string
+) {
+  return await dbRepo.logExportActionDB(userId, channelId, format, sampleCount, ipAddress);
+}
