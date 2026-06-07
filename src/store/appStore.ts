@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FilterState, RentalRecord, UserRole, DISTRICTS, LAYOUTS, SOURCES, ScheduledReport } from '@/types';
+import { FilterState, RentalRecord, UserRole, DISTRICTS, LAYOUTS, SOURCES, ScheduledReport, ReportHistory } from '@/types';
 import { MOCK_RECORDS, DATA_UPDATE_TIME } from '@/data/mockData';
 import { filterRecords, detectAnomalies, mergeDuplicateRecords, applyRoleBasedFiltering } from '@/utils/dataUtils';
 
@@ -32,9 +32,10 @@ interface AppState {
   toggleRecordForTrace: (id: string) => void;
   clearTraceSelection: () => void;
   updateRecordAnnotation: (id: string, annotation: string) => void;
-  addScheduledReport: (report: Omit<ScheduledReport, 'id' | 'createdAt'>) => void;
+  addScheduledReport: (report: Omit<ScheduledReport, 'id' | 'createdAt' | 'history'>) => void;
   toggleScheduledReport: (id: string) => void;
   deleteScheduledReport: (id: string) => void;
+  runReportNow: (reportId: string) => ReportHistory | null;
 }
 
 const today = new Date();
@@ -92,7 +93,29 @@ export const useAppStore = create<AppState>((set, get) => ({
       email: 'student@example.com',
       enabled: true,
       createdAt: '2026-06-01T00:00:00.000Z',
-      lastRunAt: '2026-06-07T08:00:00.000Z'
+      lastRunAt: '2026-06-07T08:00:00.000Z',
+      history: [
+        {
+          id: 'hist-001',
+          reportId: 'rep-001',
+          generatedAt: '2026-06-07T08:00:00.000Z',
+          sampleCount: 487,
+          anomalyCount: 23,
+          avgRent: 7850,
+          medianRent: 7200,
+          dataUpdateTime: DATA_UPDATE_TIME
+        },
+        {
+          id: 'hist-002',
+          reportId: 'rep-001',
+          generatedAt: '2026-05-31T08:00:00.000Z',
+          sampleCount: 462,
+          anomalyCount: 19,
+          avgRent: 7680,
+          medianRent: 7100,
+          dataUpdateTime: '2026-05-31T00:00:00.000Z'
+        }
+      ]
     }
   ],
 
@@ -147,7 +170,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newReport: ScheduledReport = {
       ...report,
       id: `rep-${Date.now()}`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      history: []
     };
     set({ scheduledReports: [...get().scheduledReports, newReport] });
   },
@@ -162,6 +186,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteScheduledReport: (id) => {
     set({ scheduledReports: get().scheduledReports.filter(r => r.id !== id) });
+  },
+
+  runReportNow: (reportId) => {
+    const report = get().scheduledReports.find(r => r.id === reportId);
+    if (!report) return null;
+
+    const filtered = filterRecords(get().allRecords, report.filterState);
+    const anomalyCount = filtered.filter(r => r.isAnomaly).length;
+    const avgRent = filtered.length > 0 ? Math.round(filtered.reduce((sum, r) => sum + r.rent, 0) / filtered.length) : 0;
+    const sortedRents = filtered.map(r => r.rent).sort((a, b) => a - b);
+    const medianRent = sortedRents.length > 0 ? Math.round(sortedRents[Math.floor(sortedRents.length / 2)]) : 0;
+
+    const historyItem: ReportHistory = {
+      id: `hist-${Date.now()}`,
+      reportId,
+      generatedAt: new Date().toISOString(),
+      sampleCount: filtered.length,
+      anomalyCount,
+      avgRent,
+      medianRent,
+      dataUpdateTime: get().dataUpdateTime
+    };
+
+    set({
+      scheduledReports: get().scheduledReports.map(r =>
+        r.id === reportId
+          ? {
+              ...r,
+              lastRunAt: historyItem.generatedAt,
+              history: [historyItem, ...r.history].slice(0, 20)
+            }
+          : r
+      )
+    });
+
+    return historyItem;
   }
 }));
 

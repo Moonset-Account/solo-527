@@ -77,6 +77,18 @@ export interface ScheduledReport {
   enabled: boolean;
   createdAt: string;
   lastRunAt?: string;
+  history: ReportHistory[];
+}
+
+export interface ReportHistory {
+  id: string;
+  reportId: string;
+  generatedAt: string;
+  sampleCount: number;
+  anomalyCount: number;
+  avgRent: number;
+  medianRent: number;
+  dataUpdateTime: string;
 }
 
 export interface ExportContext {
