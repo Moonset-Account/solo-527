@@ -30,6 +30,7 @@ export default function DataManagerPage() {
   const [activeTab, setActiveTab] = useState<'import' | 'dictionary' | 'quality' | 'permission'>('import');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [fullData, setFullData] = useState<any[]>([]);
   const [importStatus, setImportStatus] = useState<'idle' | 'uploading' | 'mapping' | 'success' | 'error'>('idle');
   const [importCount, setImportCount] = useState(0);
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
@@ -42,7 +43,9 @@ export default function DataManagerPage() {
     currentUserId,
     setCurrentUser,
     allCandidates,
+    filteredCandidates,
     recruiters: recruiterList,
+    departments,
   } = useStore();
 
   const qualityReport = getDataQualityReport();
@@ -59,6 +62,7 @@ export default function DataManagerPage() {
 
     try {
       const data = await parseCSV(file);
+      setFullData(data);
       setPreviewData(data.slice(0, 10));
 
       if (data.length > 0) {
@@ -92,9 +96,9 @@ export default function DataManagerPage() {
   };
 
   const handleConfirmImport = () => {
-    if (previewData.length === 0) return;
+    if (fullData.length === 0) return;
 
-    const newCandidates: Candidate[] = previewData.slice(0, 20).map((row, idx) => {
+    const newCandidates: Candidate[] = fullData.map((row, idx) => {
       const dept = departments.find(d =>
         d.name === (row[Object.keys(fieldMapping).find(k => fieldMapping[k] === 'departmentName') || ''] || departments[0].name)
       ) || departments[0];
@@ -352,6 +356,7 @@ export default function DataManagerPage() {
                     onClick={() => {
                       setImportStatus('idle');
                       setPreviewData([]);
+                      setFullData([]);
                       setUploadedFile(null);
                     }}
                     className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
@@ -364,7 +369,7 @@ export default function DataManagerPage() {
                     className="rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-2 text-sm font-medium text-white transition-all hover:shadow-lg hover:shadow-blue-500/30"
                   >
                     <Check size={14} className="inline mr-1" />
-                    确认导入 {previewData.length > 20 ? 20 : previewData.length} 条数据
+                    确认导入 {fullData.length} 条数据
                   </button>
                 </div>
               </div>
@@ -384,6 +389,7 @@ export default function DataManagerPage() {
                       onClick={() => {
                         setImportStatus('idle');
                         setPreviewData([]);
+                        setFullData([]);
                         setUploadedFile(null);
                       }}
                       className="mt-3 text-sm font-medium text-emerald-700 underline underline-offset-2"
@@ -449,6 +455,35 @@ export default function DataManagerPage() {
             <p className="mt-1 text-xs text-blue-600">
               切换角色后，所有页面的数据会根据权限自动过滤
             </p>
+          </div>
+
+          <div className="mb-6 grid grid-cols-4 gap-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs text-slate-500">全部候选人</p>
+              <p className="mt-1 text-2xl font-bold text-slate-800">{allCandidates.length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs text-slate-500">当前可见</p>
+              <p className="mt-1 text-2xl font-bold text-blue-600">{filteredCandidates.length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs text-slate-500">数据可见比例</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-600">
+                {allCandidates.length > 0 ? Math.round((filteredCandidates.length / allCandidates.length) * 100) : 0}%
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs text-slate-500">
+                {currentUserRole === 'hiring_manager' ? '可见部门' : '可见招聘官'}
+              </p>
+              <p className="mt-1 text-lg font-bold text-purple-600">
+                {currentUserRole === 'hiring_manager'
+                  ? departments.slice(0, 2).map(d => d.name).join('、')
+                  : currentUserRole === 'recruiter'
+                    ? recruiterList[0].name
+                    : '全部'}
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

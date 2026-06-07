@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useStore } from './store/useStore';
 import Sidebar from './components/layout/Sidebar';
 import FilterBar from './components/layout/FilterBar';
 import Dashboard from './pages/Dashboard';
@@ -8,8 +9,11 @@ import InterviewerPage from './pages/InterviewerPage';
 import FeedbackPage from './pages/FeedbackPage';
 import RecordsPage from './pages/RecordsPage';
 import DataManagerPage from './pages/DataManagerPage';
+import CandidateDetailModal from './components/modals/CandidateDetailModal';
 
 function App() {
+  const { selectedCandidate, setSelectedCandidate } = useStore();
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-50">
@@ -29,6 +33,13 @@ function App() {
             </Routes>
           </main>
         </div>
+
+        {selectedCandidate && (
+          <CandidateDetailModal
+            candidate={selectedCandidate}
+            onClose={() => setSelectedCandidate(null)}
+          />
+        )}
       </div>
     </Router>
   );

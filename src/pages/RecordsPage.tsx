@@ -4,7 +4,6 @@ import { useStore } from '../store/useStore';
 import ChartCard from '../components/charts/ChartCard';
 import { exportToCSV } from '../utils/export';
 import { formatDate } from '../utils/format';
-import CandidateDetailModal from '../components/modals/CandidateDetailModal';
 
 const statusLabels: Record<string, { label: string; className: string }> = {
   in_progress: { label: '进行中', className: 'bg-blue-100 text-blue-700' },
@@ -171,12 +170,6 @@ export default function RecordsPage() {
         )}
       </ChartCard>
 
-      {selectedCandidate && (
-        <CandidateDetailModal
-          candidate={selectedCandidate}
-          onClose={() => setSelectedCandidate(null)}
-        />
-      )}
     </div>
   );
 }

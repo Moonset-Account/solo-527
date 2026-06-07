@@ -70,12 +70,11 @@ function filterCandidates(
   userId?: string | null
 ): Candidate[] {
   return candidates.filter(c => {
-    if (userRole && userId) {
-      if (userRole === 'recruiter' && c.recruiterId !== userId) {
+    if (userRole) {
+      if (userRole === 'recruiter' && userId && c.recruiterId !== userId) {
         return false;
       }
       if (userRole === 'hiring_manager') {
-        const dept = departments.find(d => d.id === c.departmentId);
         const managerDeptIds = departments.slice(0, 2).map(d => d.id);
         if (!managerDeptIds.includes(c.departmentId)) {
           return false;
