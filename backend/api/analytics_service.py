@@ -81,6 +81,48 @@ class AnalyticsService:
                 pass
         return query
     
+    def _get_month_date_range(self, filters: Dict):
+        if filters.get('month'):
+            try:
+                year, month = map(int, filters['month'].split('-'))
+                start_date = datetime(year, month, 1).date()
+                if month == 12:
+                    end_date = datetime(year + 1, 1, 1).date()
+                else:
+                    end_date = datetime(year, month + 1, 1).date()
+                return start_date, end_date
+            except (ValueError, AttributeError):
+                pass
+        return None, None
+    
+    def _filter_member_ids_by_course(self, member_ids: List[int], filters: Dict) -> List[int]:
+        if filters.get('course_ids') and member_ids:
+            booking_member_ids = self.db.query(Booking.member_id).filter(
+                Booking.member_id.in_(member_ids),
+                Booking.course_id.in_(filters['course_ids'])
+            ).distinct().all()
+            filtered_ids = set(m[0] for m in booking_member_ids)
+            return [mid for mid in member_ids if mid in filtered_ids]
+        return member_ids
+    
+    def _filter_member_ids_by_month(self, member_ids: List[int], filters: Dict) -> List[int]:
+        start_date, end_date = self._get_month_date_range(filters)
+        if start_date and end_date and member_ids:
+            checkin_member_ids = self.db.query(Checkin.member_id).filter(
+                Checkin.member_id.in_(member_ids),
+                Checkin.checkin_time >= start_date,
+                Checkin.checkin_time < end_date
+            ).distinct().all()
+            booking_member_ids = self.db.query(Booking.member_id).filter(
+                Booking.member_id.in_(member_ids),
+                Booking.booking_date >= start_date,
+                Booking.booking_date < end_date
+            ).distinct().all()
+            
+            filtered_ids = set(m[0] for m in checkin_member_ids) | set(m[0] for m in booking_member_ids)
+            return [mid for mid in member_ids if mid in filtered_ids]
+        return member_ids
+    
     def get_anomaly_summary(self, filters: Dict) -> Dict:
         cache_key = cache.generate_key("anomaly_summary", **filters)
         cached = cache.get(cache_key)
@@ -88,14 +130,25 @@ class AnalyticsService:
             return cached
         
         today = datetime.now().date()
-        thirty_days_ago = today - timedelta(days=30)
-        sixty_days_ago = today - timedelta(days=60)
+        start_date, end_date = self._get_month_date_range(filters)
+        
+        if start_date and end_date:
+            month_end = end_date - timedelta(days=1)
+            thirty_days_ago = max(start_date, month_end - timedelta(days=30))
+            sixty_days_ago = max(start_date, month_end - timedelta(days=60))
+        else:
+            thirty_days_ago = today - timedelta(days=30)
+            sixty_days_ago = today - timedelta(days=60)
         
         anomalies = []
         warnings = []
         
         active_members = self._get_active_members_query(filters).all()
         member_ids = [m.id for m in active_members]
+        
+        member_ids = self._filter_member_ids_by_course(member_ids, filters)
+        member_ids = self._filter_member_ids_by_month(member_ids, filters)
+        active_members = [m for m in active_members if m.id in member_ids]
         
         checkins_30d = self.db.query(Checkin).filter(
             Checkin.member_id.in_(member_ids),
@@ -202,6 +255,10 @@ class AnalyticsService:
         members = self._get_active_members_query(filters).all()
         member_ids = [m.id for m in members]
         
+        member_ids = self._filter_member_ids_by_course(member_ids, filters)
+        member_ids = self._filter_member_ids_by_month(member_ids, filters)
+        members = [m for m in members if m.id in member_ids]
+        
         cohort_data = []
         warnings = []
         
@@ -282,7 +339,11 @@ class AnalyticsService:
         if cached:
             return cached
         
-        thirty_days_ago = datetime.now().date() - timedelta(days=30)
+        start_date, end_date = self._get_month_date_range(filters)
+        if start_date and end_date:
+            date_start = start_date
+        else:
+            date_start = datetime.now().date() - timedelta(days=30)
         
         query = self.db.query(
             Course.id,
@@ -302,8 +363,13 @@ class AnalyticsService:
             query = query.filter(Booking.coach_id.in_(filters['coach_ids']))
         
         query = query.filter(
-            Booking.booking_date >= thirty_days_ago
-        ).group_by(Course.id, Course.name, Course.category, Course.capacity)
+            Booking.booking_date >= date_start
+        )
+        
+        if start_date and end_date:
+            query = query.filter(Booking.booking_date < end_date)
+        
+        query = query.group_by(Course.id, Course.name, Course.category, Course.capacity)
         
         course_data = []
         for row in query.all():
@@ -348,7 +414,11 @@ class AnalyticsService:
         if cached:
             return cached
         
-        thirty_days_ago = datetime.now().date() - timedelta(days=30)
+        start_date, end_date = self._get_month_date_range(filters)
+        if start_date and end_date:
+            date_start = start_date
+        else:
+            date_start = datetime.now().date() - timedelta(days=30)
         
         query = self.db.query(
             Coach.id,
@@ -356,18 +426,25 @@ class AnalyticsService:
             Coach.level,
             Store.name.label('store_name'),
             func.count(Booking.id).label('total_classes')
-        ).join(Store, Coach.store_id == Store.id, isouter=True)\
+        ).select_from(Coach).join(Store, Coach.store_id == Store.id, isouter=True)\
          .join(Booking, Coach.id == Booking.coach_id, isouter=True)
         
         if filters.get('coach_ids'):
             query = query.filter(Coach.id.in_(filters['coach_ids']))
         if filters.get('store_ids'):
             query = query.filter(Coach.store_id.in_(filters['store_ids']))
+        if filters.get('course_ids'):
+            query = query.filter(Booking.course_id.in_(filters['course_ids']))
         
         query = query.filter(
-            Booking.booking_date >= thirty_days_ago,
+            Booking.booking_date >= date_start,
             Booking.status == 'checked_in'
-        ).group_by(Coach.id, Coach.name, Coach.level, Store.name)
+        )
+        
+        if start_date and end_date:
+            query = query.filter(Booking.booking_date < end_date)
+        
+        query = query.group_by(Coach.id, Coach.name, Coach.level, Store.name)
         
         coach_data = []
         for row in query.all():
@@ -389,14 +466,24 @@ class AnalyticsService:
             ).distinct().all()
             student_ids = [s[0] for s in student_ids]
             
+            if filters.get('member_type_ids') and student_ids:
+                type_members = self.db.query(Member.id).filter(
+                    Member.id.in_(student_ids),
+                    Member.member_type_id.in_(filters['member_type_ids'])
+                ).all()
+                student_ids = [m[0] for m in type_members]
+            
             retention_rate = 0
             if student_ids:
                 active_count = 0
                 for sid in student_ids:
-                    has_checkin = self.db.query(Checkin).filter(
+                    checkin_query = self.db.query(Checkin).filter(
                         Checkin.member_id == sid,
-                        Checkin.checkin_time >= thirty_days_ago
-                    ).first()
+                        Checkin.checkin_time >= date_start
+                    )
+                    if start_date and end_date:
+                        checkin_query = checkin_query.filter(Checkin.checkin_time < end_date)
+                    has_checkin = checkin_query.first()
                     if has_checkin:
                         active_count += 1
                 retention_rate = active_count / len(student_ids) if student_ids else 0

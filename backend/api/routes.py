@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
 from io import BytesIO
 
 try:
@@ -16,29 +15,32 @@ except ImportError:
 
 router = APIRouter(prefix="/api", tags=["analytics"])
 
-class FilterParams(BaseModel):
-    member_type_ids: Optional[List[int]] = None
-    store_ids: Optional[List[int]] = None
-    coach_ids: Optional[List[int]] = None
-    course_ids: Optional[List[int]] = None
-    month: Optional[str] = None
-
 @router.get("/filters/options")
 def get_filter_options(db: Session = Depends(get_db)):
     service = AnalyticsService(db)
-    return service.get_filters_options()
+    options = service.get_filters_options()
+    return {
+        "stores": options["stores"],
+        "coaches": options["coaches"],
+        "courses": options["courses"],
+        "memberTypes": options["member_types"]
+    }
 
 @router.get("/anomaly-summary")
 def get_anomaly_summary(
     member_type_ids: Optional[List[int]] = Query(None),
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "member_type_ids": member_type_ids,
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     return service.get_anomaly_summary(filters)
@@ -48,13 +50,17 @@ def get_retention_cohort(
     member_type_ids: Optional[List[int]] = Query(None),
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     months: int = Query(6, ge=3, le=12),
     db: Session = Depends(get_db)
 ):
     filters = {
         "member_type_ids": member_type_ids,
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     return service.get_retention_cohort(filters, months)
@@ -64,12 +70,14 @@ def get_course_heatmap(
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
     course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "store_ids": store_ids,
         "coach_ids": coach_ids,
-        "course_ids": course_ids
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     return service.get_course_heatmap(filters)
@@ -78,11 +86,17 @@ def get_course_heatmap(
 def get_coach_load(
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
+    member_type_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month,
+        "member_type_ids": member_type_ids
     }
     service = AnalyticsService(db)
     return service.get_coach_load(filters)
@@ -92,13 +106,17 @@ def get_churn_warning(
     member_type_ids: Optional[List[int]] = Query(None),
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     limit: int = Query(100, ge=10, le=500),
     db: Session = Depends(get_db)
 ):
     filters = {
         "member_type_ids": member_type_ids,
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     return service.get_churn_warning_list(filters, limit)
@@ -108,13 +126,17 @@ def export_cohort(
     member_type_ids: Optional[List[int]] = Query(None),
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     months: int = Query(6, ge=3, le=12),
     db: Session = Depends(get_db)
 ):
     filters = {
         "member_type_ids": member_type_ids,
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     data = service.get_retention_cohort(filters, months)
@@ -132,12 +154,16 @@ def export_churn_warning(
     member_type_ids: Optional[List[int]] = Query(None),
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "member_type_ids": member_type_ids,
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month
     }
     service = AnalyticsService(db)
     data = service.get_churn_warning_list(filters, limit=500)
@@ -154,11 +180,17 @@ def export_churn_warning(
 def export_coach_load(
     store_ids: Optional[List[int]] = Query(None),
     coach_ids: Optional[List[int]] = Query(None),
+    course_ids: Optional[List[int]] = Query(None),
+    month: Optional[str] = Query(None),
+    member_type_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db)
 ):
     filters = {
         "store_ids": store_ids,
-        "coach_ids": coach_ids
+        "coach_ids": coach_ids,
+        "course_ids": course_ids,
+        "month": month,
+        "member_type_ids": member_type_ids
     }
     service = AnalyticsService(db)
     data = service.get_coach_load(filters)
