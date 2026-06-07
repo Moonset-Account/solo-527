@@ -17,6 +17,7 @@ from src.analysis.anomaly_detector import AnomalyDetector
 from src.analysis.metrics import QueueMetrics, ServeMetrics, ReviewMetrics
 from src.analysis.cache_manager import CacheManager
 from src.database import QueryLayer
+from src.database.connection import get_engine
 from src.utils.data_generator import generate_mock_data
 from src.utils.exporter import export_to_csv, export_to_pdf
 
@@ -26,11 +27,91 @@ server = app.server
 
 cache_manager = CacheManager(server)
 
-orders_df, windows_df, dishes_df, reviews_df, outages_df = generate_mock_data(days=7, orders_per_day=600)
+USE_MOCK = os.environ.get('USE_MOCK', 'auto').lower() in ['true', '1', 'yes']
+
+
+def test_db_connection():
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
+def load_data_from_db():
+    try:
+        from src.database.models import Window, Dish, Order, Review, WindowOutage
+        from sqlalchemy import text
+        engine = get_engine()
+        
+        windows_df = pd.read_sql("SELECT * FROM windows WHERE is_active = TRUE", engine)
+        dishes_df = pd.read_sql("SELECT * FROM dishes", engine)
+        
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=7)
+        orders_query = text("""
+            SELECT * FROM orders 
+            WHERE queue_start_time >= :start_date 
+            AND queue_start_time < :end_date
+            ORDER BY queue_start_time DESC
+            LIMIT 5000
+        """)
+        orders_df = pd.read_sql(orders_query, engine, params={"start_date": start_date, "end_date": end_date + timedelta(days=1)})
+        
+        reviews_query = text("""
+            SELECT * FROM reviews 
+            WHERE create_time >= :start_date 
+            ORDER BY create_time DESC
+            LIMIT 1000
+        """)
+        reviews_df = pd.read_sql(reviews_query, engine, params={"start_date": start_date})
+        
+        outages_query = text("""
+            SELECT * FROM window_outages 
+            WHERE start_time >= :start_date 
+            ORDER BY start_time DESC
+        """)
+        outages_df = pd.read_sql(outages_query, engine, params={"start_date": start_date - timedelta(days=1)})
+        
+        return orders_df, windows_df, dishes_df, reviews_df, outages_df
+    except Exception as e:
+        print(f"从数据库加载数据失败: {e}")
+        return None
+
+
+if USE_MOCK:
+    print("环境变量 USE_MOCK=true，使用模拟数据")
+    orders_df, windows_df, dishes_df, reviews_df, outages_df = generate_mock_data(days=7, orders_per_day=600)
+else:
+    print("尝试连接 TimescaleDB...")
+    if test_db_connection():
+        print("数据库连接成功，从数据库加载数据...")
+        db_data = load_data_from_db()
+        if db_data is not None and len(db_data[0]) > 0:
+            orders_df, windows_df, dishes_df, reviews_df, outages_df = db_data
+            USE_MOCK = False
+        else:
+            print("数据库中数据不足，回退到模拟数据")
+            orders_df, windows_df, dishes_df, reviews_df, outages_df = generate_mock_data(days=7, orders_per_day=600)
+            USE_MOCK = True
+    else:
+        print("数据库连接失败，回退到模拟数据")
+        orders_df, windows_df, dishes_df, reviews_df, outages_df = generate_mock_data(days=7, orders_per_day=600)
+        USE_MOCK = True
 
 time_slicer = TimeSlicer()
 anomaly_detector = AnomalyDetector()
-orders_df = anomaly_detector.clean_data(orders_df, outages_df)
+
+if not USE_MOCK:
+    orders_df['queue_start_time'] = pd.to_datetime(orders_df['queue_start_time'])
+    orders_df['payment_time'] = pd.to_datetime(orders_df['payment_time'])
+    orders_df['serve_time'] = pd.to_datetime(orders_df['serve_time'])
+    if 'is_abnormal' not in orders_df.columns:
+        orders_df = anomaly_detector.clean_data(orders_df, outages_df)
+else:
+    orders_df = anomaly_detector.clean_data(orders_df, outages_df)
 
 mock_data = {
     'orders': orders_df,
@@ -39,7 +120,7 @@ mock_data = {
     'reviews': reviews_df,
     'outages': outages_df
 }
-query_layer = QueryLayer(use_mock=True, mock_data=mock_data)
+query_layer = QueryLayer(use_mock=USE_MOCK, mock_data=mock_data)
 
 available_dates = sorted(orders_df['queue_start_time'].dt.date.unique())
 available_floors = sorted(orders_df['floor'].unique())
@@ -847,10 +928,16 @@ def refresh_cache(n_clicks):
     
     cache_manager.invalidate_all()
     
+    if not query_layer.use_mock:
+        query_layer.refresh_caches()
+        mode_note = "（含连续聚合视图）"
+    else:
+        mode_note = ""
+    
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     status = html.Span([
         html.I(className='fas fa-check-circle me-1'),
-        f'缓存已刷新 ({now})'
+        f'缓存已刷新{mode_note} ({now})'
     ], className='text-success')
     
     return status, now
