@@ -1,23 +1,4 @@
 <script lang="ts">
-	import {
-		getFilter,
-		setFilter,
-		resetFilter
-	} from '$lib/stores/index.svelte';
-	import {
-		computeFunnelData,
-		computeTurnoverRanking,
-		computeAgeDistribution,
-		computeReplenishment,
-		computeNearExpiryAlerts,
-		detectAnomalies
-	} from '$lib/utils/analytics';
-	import {
-		allSkuIds,
-		allSupplierIds,
-		allWarehousePositions,
-		allBatchNos
-	} from '$lib/data/mock-data';
 	import { onMount } from 'svelte';
 	import type {
 		FunnelData,
@@ -25,8 +6,30 @@
 		ReplenishmentSuggestion,
 		NearExpiryAlert,
 		AnomalyPoint,
-		FilterState
+		FilterState,
+		UserRole,
+		InboundRecord,
+		OutboundRecord,
+		InventoryAgeRecord,
+		ReturnRecord,
+		SafetyStockRecord
 	} from '$lib/types';
+	import {
+		computeFunnelData,
+		computeTurnoverRanking,
+		computeAgeDistribution,
+		computeReplenishment,
+		computeNearExpiryAlerts,
+		detectAnomalies,
+		mergePermissionToFilter,
+		type DataSource
+	} from '$lib/utils/analytics';
+	import {
+		allSkuIds,
+		allSupplierIds,
+		allWarehousePositions,
+		allBatchNos
+	} from '$lib/data/mock-data';
 	import FilterPanel from '$lib/components/FilterPanel.svelte';
 	import FunnelChart from '$lib/components/FunnelChart.svelte';
 	import AgeDistributionChart from '$lib/components/AgeDistributionChart.svelte';
@@ -34,6 +37,18 @@
 	import ReplenishmentTable from '$lib/components/ReplenishmentTable.svelte';
 	import NearExpiryAlerts from '$lib/components/NearExpiryAlerts.svelte';
 	import AnomalyPanel from '$lib/components/AnomalyPanel.svelte';
+
+	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } });
+	let setFilter: (f: FilterState) => void = () => {};
+	let resetFilter: () => void = () => {};
+	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] });
+	let getInboundData: () => InboundRecord[] = () => [];
+	let getOutboundData: () => OutboundRecord[] = () => [];
+	let getInventoryAgeData: () => InventoryAgeRecord[] = () => [];
+	let getReturnData: () => ReturnRecord[] = () => [];
+	let getSafetyStockData: () => SafetyStockRecord[] = () => [];
+	let getAllSkuNames: () => Record<string, string> = () => ({});
+	let getDataVersion: () => number = () => 0;
 
 	let funnelData = $state<FunnelData | null>(null);
 	let turnoverRanking = $state<TurnoverRanking[]>([]);
@@ -43,6 +58,7 @@
 	let anomalies = $state<AnomalyPoint[]>([]);
 	let loading = $state(true);
 	let mounted = $state(false);
+	let version = $state(0);
 
 	const ageBucketOptions = ['0-30', '30-60', '60-90', '90-180', '180+'];
 
@@ -56,14 +72,34 @@
 		};
 	});
 
+	function buildDataSource(): DataSource {
+		return {
+			inbound: getInboundData(),
+			outbound: getOutboundData(),
+			inventoryAge: getInventoryAgeData(),
+			returns: getReturnData(),
+			safetyStock: getSafetyStockData(),
+			skuNames: getAllSkuNames()
+		};
+	}
+
 	function refreshData(filters: Partial<FilterState>) {
+		const role = getUserRole();
+		const mergedFilters = mergePermissionToFilter(
+			filters,
+			role.accessible_warehouses,
+			role.accessible_suppliers,
+			role.accessible_sku_categories
+		);
+
 		loading = true;
-		funnelData = computeFunnelData(filters);
-		turnoverRanking = computeTurnoverRanking(filters);
-		ageDistribution = computeAgeDistribution(filters);
-		replenishment = computeReplenishment(filters);
-		nearExpiryAlerts = computeNearExpiryAlerts(filters);
-		anomalies = detectAnomalies(filters);
+		const ds = buildDataSource();
+		funnelData = computeFunnelData(ds, mergedFilters);
+		turnoverRanking = computeTurnoverRanking(ds, mergedFilters);
+		ageDistribution = computeAgeDistribution(ds, mergedFilters);
+		replenishment = computeReplenishment(ds, mergedFilters);
+		nearExpiryAlerts = computeNearExpiryAlerts(ds, mergedFilters);
+		anomalies = detectAnomalies(ds, mergedFilters);
 		loading = false;
 	}
 
@@ -85,9 +121,31 @@
 	}
 
 	onMount(() => {
-		mounted = true;
-		const filter = getFilter();
-		refreshData(filter);
+		import('$lib/stores/index.svelte').then((stores) => {
+			getFilter = stores.getFilter;
+			setFilter = stores.setFilter;
+			resetFilter = stores.resetFilter;
+			getUserRole = stores.getUserRole;
+			getInboundData = stores.getInboundData;
+			getOutboundData = stores.getOutboundData;
+			getInventoryAgeData = stores.getInventoryAgeData;
+			getReturnData = stores.getReturnData;
+			getSafetyStockData = stores.getSafetyStockData;
+			getAllSkuNames = stores.getAllSkuNames;
+			getDataVersion = stores.getDataVersion;
+			mounted = true;
+			const filter = getFilter();
+			refreshData(filter);
+		});
+	});
+
+	$effect(() => {
+		if (!mounted) return;
+		const v = getDataVersion();
+		if (v !== version) {
+			version = v;
+			refreshData(getFilter());
+		}
 	});
 </script>
 

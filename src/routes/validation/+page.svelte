@@ -1,16 +1,41 @@
 <script lang="ts">
-	import { computeFunnelData, computeTurnoverRanking, detectAnomalies } from '$lib/utils/analytics'
+	import { computeFunnelData, computeTurnoverRanking, detectAnomalies, mergePermissionToFilter, type DataSource } from '$lib/utils/analytics'
 	import { onMount } from 'svelte'
 	import { exportToCSV } from '$lib/utils/export'
-	import type { ValidationRule, DrillDownPath, FilterState } from '$lib/types'
+	import type { ValidationRule, DrillDownPath, FilterState, UserRole, InboundRecord, OutboundRecord, InventoryAgeRecord, ReturnRecord, SafetyStockRecord } from '$lib/types'
 
 	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } })
+	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] })
+	let getInboundData: () => InboundRecord[] = () => []
+	let getOutboundData: () => OutboundRecord[] = () => []
+	let getInventoryAgeData: () => InventoryAgeRecord[] = () => []
+	let getReturnData: () => ReturnRecord[] = () => []
+	let getSafetyStockData: () => SafetyStockRecord[] = () => []
+	let getAllSkuNames: () => Record<string, string> = () => ({})
 
 	onMount(() => {
 		import('$lib/stores/index.svelte').then((stores) => {
 			getFilter = stores.getFilter
+			getUserRole = stores.getUserRole
+			getInboundData = stores.getInboundData
+			getOutboundData = stores.getOutboundData
+			getInventoryAgeData = stores.getInventoryAgeData
+			getReturnData = stores.getReturnData
+			getSafetyStockData = stores.getSafetyStockData
+			getAllSkuNames = stores.getAllSkuNames
 		})
 	})
+
+	function buildDataSource(): DataSource {
+		return {
+			inbound: getInboundData(),
+			outbound: getOutboundData(),
+			inventoryAge: getInventoryAgeData(),
+			returns: getReturnData(),
+			safetyStock: getSafetyStockData(),
+			skuNames: getAllSkuNames()
+		};
+	}
 
 	interface ValidationResult {
 		metric: string
@@ -118,9 +143,17 @@
 
 	function runValidation() {
 		const filter = getFilter()
-		const funnelData = computeFunnelData(filter)
-		const rankingData = computeTurnoverRanking(filter)
-		const anomaliesData = detectAnomalies(filter)
+		const role = getUserRole()
+		const mergedFilters = mergePermissionToFilter(
+			filter,
+			role.accessible_warehouses,
+			role.accessible_suppliers,
+			role.accessible_sku_categories
+		)
+		const ds = buildDataSource()
+		const funnelData = computeFunnelData(ds, mergedFilters)
+		const rankingData = computeTurnoverRanking(ds, mergedFilters)
+		const anomaliesData = detectAnomalies(ds, mergedFilters)
 
 		const turnoverRate = funnelData.total_inbound > 0
 			? funnelData.effective_turnover

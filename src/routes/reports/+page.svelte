@@ -1,16 +1,41 @@
 <script lang="ts">
-	import { computeWeeklyReport, detectAnomalies } from '$lib/utils/analytics'
+	import { computeWeeklyReport, mergePermissionToFilter, type DataSource } from '$lib/utils/analytics'
 	import { onMount } from 'svelte'
 	import { exportToPDF, exportToImage } from '$lib/utils/export'
-	import type { WeeklyReport, FilterState } from '$lib/types'
+	import type { WeeklyReport, FilterState, UserRole, InboundRecord, OutboundRecord, InventoryAgeRecord, ReturnRecord, SafetyStockRecord } from '$lib/types'
 
 	let getFilter: () => FilterState = () => ({ sku_ids: [], warehouse_positions: [], supplier_ids: [], batch_nos: [], age_buckets: [], date_range: { start: '', end: '' } })
+	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] })
+	let getInboundData: () => InboundRecord[] = () => []
+	let getOutboundData: () => OutboundRecord[] = () => []
+	let getInventoryAgeData: () => InventoryAgeRecord[] = () => []
+	let getReturnData: () => ReturnRecord[] = () => []
+	let getSafetyStockData: () => SafetyStockRecord[] = () => []
+	let getAllSkuNames: () => Record<string, string> = () => ({})
 
 	onMount(() => {
 		import('$lib/stores/index.svelte').then((stores) => {
 			getFilter = stores.getFilter
+			getUserRole = stores.getUserRole
+			getInboundData = stores.getInboundData
+			getOutboundData = stores.getOutboundData
+			getInventoryAgeData = stores.getInventoryAgeData
+			getReturnData = stores.getReturnData
+			getSafetyStockData = stores.getSafetyStockData
+			getAllSkuNames = stores.getAllSkuNames
 		})
 	})
+
+	function buildDataSource(): DataSource {
+		return {
+			inbound: getInboundData(),
+			outbound: getOutboundData(),
+			inventoryAge: getInventoryAgeData(),
+			returns: getReturnData(),
+			safetyStock: getSafetyStockData(),
+			skuNames: getAllSkuNames()
+		};
+	}
 
 	let reports = $state<WeeklyReport[]>([])
 	let selectedReport = $state<WeeklyReport | null>(null)
@@ -26,7 +51,15 @@
 		generating = true
 		try {
 			const filter = getFilter()
-			const report = computeWeeklyReport(filter)
+			const role = getUserRole()
+			const mergedFilters = mergePermissionToFilter(
+				filter,
+				role.accessible_warehouses,
+				role.accessible_suppliers,
+				role.accessible_sku_categories
+			)
+			const ds = buildDataSource()
+			const report = computeWeeklyReport(ds, mergedFilters)
 			reports = [...reports, report]
 			selectedReport = report
 		} finally {

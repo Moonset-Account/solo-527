@@ -8,18 +8,21 @@ import type {
   WeeklyReport,
   InboundRecord,
   OutboundRecord,
-  InventoryAgeRecord
+  InventoryAgeRecord,
+  ReturnRecord,
+  SafetyStockRecord
 } from '$lib/types'
-import {
-  inboundRecords,
-  outboundRecords,
-  inventoryAgeRecords,
-  returnRecords,
-  safetyStockRecords,
-  allSkuNames
-} from '$lib/data/mock-data'
 
-function filterByCommon<T extends { sku_id?: string; batch_no?: string; warehouse_position?: string }>(
+export interface DataSource {
+  inbound: InboundRecord[]
+  outbound: OutboundRecord[]
+  inventoryAge: InventoryAgeRecord[]
+  returns: ReturnRecord[]
+  safetyStock: SafetyStockRecord[]
+  skuNames: Record<string, string>
+}
+
+function filterByCommon<T extends { sku_id?: string; batch_no?: string; warehouse_position?: string; supplier_id?: string }>(
   data: T[],
   filters: Partial<FilterState>
 ): T[] {
@@ -27,6 +30,7 @@ function filterByCommon<T extends { sku_id?: string; batch_no?: string; warehous
     if (filters.sku_ids?.length && row.sku_id && !filters.sku_ids.includes(row.sku_id)) return false
     if (filters.batch_nos?.length && row.batch_no && !filters.batch_nos.includes(row.batch_no)) return false
     if (filters.warehouse_positions?.length && row.warehouse_position && !filters.warehouse_positions.includes(row.warehouse_position)) return false
+    if (filters.supplier_ids?.length && row.supplier_id && !filters.supplier_ids.includes(row.supplier_id)) return false
     return true
   })
 }
@@ -63,10 +67,45 @@ function filterInventoryAge(data: InventoryAgeRecord[], filters: Partial<FilterS
   })
 }
 
-export function computeFunnelData(filters: Partial<FilterState> = {}): FunnelData {
-  const inbound = filterInbound(inboundRecords, filters)
-  const outbound = filterOutbound(outboundRecords, filters)
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
+export function mergePermissionToFilter(
+  filters: Partial<FilterState>,
+  accessibleWarehouses: string[],
+  accessibleSuppliers: string[],
+  accessibleSkuCategories: string[]
+): Partial<FilterState> {
+  const merged: Partial<FilterState> = { ...filters }
+
+  if (accessibleWarehouses.length > 0) {
+    if (filters.warehouse_positions?.length) {
+      merged.warehouse_positions = filters.warehouse_positions.filter((w) => accessibleWarehouses.includes(w))
+    } else {
+      merged.warehouse_positions = [...accessibleWarehouses]
+    }
+  }
+
+  if (accessibleSuppliers.length > 0) {
+    if (filters.supplier_ids?.length) {
+      merged.supplier_ids = filters.supplier_ids.filter((s) => accessibleSuppliers.includes(s))
+    } else {
+      merged.supplier_ids = [...accessibleSuppliers]
+    }
+  }
+
+  if (accessibleSkuCategories.length > 0) {
+    if (filters.sku_ids?.length) {
+      merged.sku_ids = filters.sku_ids.filter((s) => accessibleSkuCategories.includes(s))
+    } else {
+      merged.sku_ids = [...accessibleSkuCategories]
+    }
+  }
+
+  return merged
+}
+
+export function computeFunnelData(ds: DataSource, filters: Partial<FilterState> = {}): FunnelData {
+  const inbound = filterInbound(ds.inbound, filters)
+  const outbound = filterOutbound(ds.outbound, filters)
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
 
   const totalInbound = inbound.reduce((s, r) => s + r.quantity, 0)
   const currentInventory = inventory.reduce((s, r) => s + r.current_quantity, 0)
@@ -85,9 +124,10 @@ export function computeFunnelData(filters: Partial<FilterState> = {}): FunnelDat
 }
 
 export function computeAgeDistribution(
+  ds: DataSource,
   filters: Partial<FilterState> = {}
 ): Array<{ age_bucket: string; batch_no: string; quantity: number }> {
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
   const grouped = new Map<string, number>()
 
   for (const row of inventory) {
@@ -110,10 +150,10 @@ export function computeAgeDistribution(
   return result
 }
 
-export function computeTurnoverRanking(filters: Partial<FilterState> = {}): TurnoverRanking[] {
-  const inbound = filterInbound(inboundRecords, filters)
-  const outbound = filterOutbound(outboundRecords, filters)
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
+export function computeTurnoverRanking(ds: DataSource, filters: Partial<FilterState> = {}): TurnoverRanking[] {
+  const inbound = filterInbound(ds.inbound, filters)
+  const outbound = filterOutbound(ds.outbound, filters)
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
 
   const inboundMap = new Map<string, { qty: number; sku_name: string }>()
   for (const r of inbound) {
@@ -155,7 +195,7 @@ export function computeTurnoverRanking(filters: Partial<FilterState> = {}): Turn
 
     const inQty = inData?.qty || 0
     const turnoverRate = inQty > 0 ? outQty / inQty : 0
-    const skuName = inData?.sku_name || allSkuNames[sku_id] || sku_id
+    const skuName = inData?.sku_name || ds.skuNames[sku_id] || sku_id
 
     rankings.push({
       sku_id,
@@ -172,9 +212,9 @@ export function computeTurnoverRanking(filters: Partial<FilterState> = {}): Turn
   return rankings
 }
 
-export function computeReplenishment(filters: Partial<FilterState> = {}): ReplenishmentSuggestion[] {
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
-  const safety = filterByCommon(safetyStockRecords, filters)
+export function computeReplenishment(ds: DataSource, filters: Partial<FilterState> = {}): ReplenishmentSuggestion[] {
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
+  const safety = filterByCommon(ds.safetyStock, filters)
 
   const inventoryBySku = new Map<string, number>()
   for (const r of inventory) {
@@ -203,7 +243,7 @@ export function computeReplenishment(filters: Partial<FilterState> = {}): Replen
 
       results.push({
         sku_id: ss.sku_id,
-        sku_name: allSkuNames[ss.sku_id] || ss.sku_id,
+        sku_name: ds.skuNames[ss.sku_id] || ss.sku_id,
         warehouse_position: ss.warehouse_position,
         current_qty: currentQty,
         safety_stock_qty: ss.safety_stock_qty,
@@ -223,8 +263,8 @@ export function computeReplenishment(filters: Partial<FilterState> = {}): Replen
   return results
 }
 
-export function computeNearExpiryAlerts(filters: Partial<FilterState> = {}): NearExpiryAlert[] {
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
+export function computeNearExpiryAlerts(ds: DataSource, filters: Partial<FilterState> = {}): NearExpiryAlert[] {
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
   const results: NearExpiryAlert[] = []
 
   for (const r of inventory) {
@@ -233,7 +273,7 @@ export function computeNearExpiryAlerts(filters: Partial<FilterState> = {}): Nea
 
     results.push({
       sku_id: r.sku_id,
-      sku_name: allSkuNames[r.sku_id] || r.sku_id,
+      sku_name: ds.skuNames[r.sku_id] || r.sku_id,
       batch_no: r.batch_no,
       warehouse_position: r.warehouse_position,
       expiry_date: r.expiry_date || '',
@@ -266,13 +306,13 @@ export function computeNearExpiryAlerts(filters: Partial<FilterState> = {}): Nea
   return merged
 }
 
-export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoint[] {
+export function detectAnomalies(ds: DataSource, filters: Partial<FilterState> = {}): AnomalyPoint[] {
   const anomalies: AnomalyPoint[] = []
   const now = new Date('2026-06-08')
 
-  const inbound = filterInbound(inboundRecords, filters)
-  const outbound = filterOutbound(outboundRecords, filters)
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
+  const inbound = filterInbound(ds.inbound, filters)
+  const outbound = filterOutbound(ds.outbound, filters)
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
 
   const outBySku = new Map<string, { total: number; byWeek: Map<string, number> }>()
   for (const r of outbound) {
@@ -309,7 +349,7 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
         id: `anomaly_drop_${skuId}`,
         metric: '周转率下降',
         sku_id: skuId,
-        sku_name: allSkuNames[skuId] || skuId,
+        sku_name: ds.skuNames[skuId] || skuId,
         batch_no: '',
         description: `近一周出库量(${latestWeek})显著低于均值(${Math.round(avg)})`,
         severity: latestWeek < avg * 0.3 ? 'high' : 'medium',
@@ -331,7 +371,7 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
           id: `anomaly_spike_${r.sku_id}_${r.batch_no}`,
           metric: '库存积压',
           sku_id: r.sku_id,
-          sku_name: allSkuNames[r.sku_id] || r.sku_id,
+          sku_name: ds.skuNames[r.sku_id] || r.sku_id,
           batch_no: r.batch_no,
           description: `库存量(${r.current_quantity})异常偏高，周转率仅${(ratio * 100).toFixed(1)}%`,
           severity: r.current_quantity > 400 ? 'high' : 'medium',
@@ -349,7 +389,7 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
         id: `anomaly_stale_${r.sku_id}_${r.batch_no}`,
         metric: '滞销库存',
         sku_id: r.sku_id,
-        sku_name: allSkuNames[r.sku_id] || r.sku_id,
+        sku_name: ds.skuNames[r.sku_id] || r.sku_id,
         batch_no: r.batch_no,
         description: `库龄${r.age_days}天且库存量${r.current_quantity}，疑似滞销`,
         severity: r.age_days > 200 ? 'high' : 'medium',
@@ -360,9 +400,9 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
     }
   }
 
-  const returnData = filterByCommon(returnRecords, filters)
+  const retData = filterByCommon(ds.returns, filters)
   const returnBySku = new Map<string, number>()
-  for (const r of returnData) {
+  for (const r of retData) {
     returnBySku.set(r.sku_id, (returnBySku.get(r.sku_id) || 0) + r.quantity)
   }
   for (const [skuId, retQty] of returnBySku) {
@@ -372,7 +412,7 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
         id: `anomaly_return_${skuId}`,
         metric: '退货率异常',
         sku_id: skuId,
-        sku_name: allSkuNames[skuId] || skuId,
+        sku_name: ds.skuNames[skuId] || skuId,
         batch_no: '',
         description: `退货率${((retQty / outQty) * 100).toFixed(1)}%超出正常范围`,
         severity: retQty / outQty > 0.25 ? 'high' : 'low',
@@ -386,7 +426,7 @@ export function detectAnomalies(filters: Partial<FilterState> = {}): AnomalyPoin
   return anomalies
 }
 
-export function computeWeeklyReport(filters: Partial<FilterState> = {}): WeeklyReport {
+export function computeWeeklyReport(ds: DataSource, filters: Partial<FilterState> = {}): WeeklyReport {
   const now = new Date('2026-06-08')
   const weekEnd = new Date(now)
   const weekStart = new Date(now)
@@ -394,10 +434,10 @@ export function computeWeeklyReport(filters: Partial<FilterState> = {}): WeeklyR
 
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
 
-  const inbound = filterInbound(inboundRecords, filters)
-  const outbound = filterOutbound(outboundRecords, filters)
-  const inventory = filterInventoryAge(inventoryAgeRecords, filters)
-  const rets = filterByCommon(returnRecords, filters)
+  const inbound = filterInbound(ds.inbound, filters)
+  const outbound = filterOutbound(ds.outbound, filters)
+  const inventory = filterInventoryAge(ds.inventoryAge, filters)
+  const rets = filterByCommon(ds.returns, filters)
 
   const totalInbound = inbound.reduce((s, r) => s + r.quantity, 0)
   const totalOutbound = outbound.reduce((s, r) => s + r.quantity, 0)
@@ -467,7 +507,7 @@ export function computeWeeklyReport(filters: Partial<FilterState> = {}): WeeklyR
     yoyComparison[key] = { current, previous, change_pct: changePct }
   }
 
-  const anomalies = detectAnomalies(filters)
+  const anomalies = detectAnomalies(ds, filters)
 
   const keyChanges: string[] = []
   if (momComparison['入库总量'].change_pct > 20) {
@@ -488,7 +528,7 @@ export function computeWeeklyReport(filters: Partial<FilterState> = {}): WeeklyR
   if (anomalies.length > 0) {
     keyChanges.push(`检测到${anomalies.length}个异常指标`)
   }
-  const replenishments = computeReplenishment(filters)
+  const replenishments = computeReplenishment(ds, filters)
   if (replenishments.length > 0) {
     keyChanges.push(`${replenishments.length}个SKU需补货`)
   }

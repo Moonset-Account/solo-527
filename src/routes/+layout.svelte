@@ -23,6 +23,19 @@
 		import('$lib/stores/index.svelte').then((mod) => {
 			currentRole = mod.getUserRole();
 		});
+		import('$lib/utils/duckdb').then((duckdb) => {
+			duckdb.initDuckDB().then(() => {
+				import('$lib/stores/index.svelte').then((stores) => {
+					duckdb.loadData({
+						inbound: stores.getInboundData(),
+						outbound: stores.getOutboundData(),
+						inventory_age: stores.getInventoryAgeData(),
+						returns: stores.getReturnData(),
+						safety_stock: stores.getSafetyStockData()
+					}).catch(() => {});
+				});
+			}).catch(() => {});
+		}).catch(() => {});
 		mounted = true;
 	});
 

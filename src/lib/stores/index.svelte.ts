@@ -17,6 +17,7 @@ import {
   returnRecords,
   safetyStockRecords,
   allSkuIds,
+  allSkuNames,
   allSupplierIds,
   allWarehousePositions
 } from '$lib/data/mock-data'
@@ -48,6 +49,7 @@ let safetyStockData = $state<SafetyStockRecord[]>(safetyStockRecords)
 let reportData = $state<WeeklyReport[]>([])
 let validationRules = $state<ValidationRule[]>([])
 let drillDownPaths = $state<DrillDownPath[]>([])
+let dataVersion = $state(0)
 
 export function getFilter(): FilterState {
   return filterState
@@ -75,6 +77,7 @@ export function getInboundData(): InboundRecord[] {
 
 export function setInboundData(val: InboundRecord[]): void {
   inboundData = val
+  bumpVersion()
 }
 
 export function getOutboundData(): OutboundRecord[] {
@@ -83,6 +86,7 @@ export function getOutboundData(): OutboundRecord[] {
 
 export function setOutboundData(val: OutboundRecord[]): void {
   outboundData = val
+  bumpVersion()
 }
 
 export function getInventoryAgeData(): InventoryAgeRecord[] {
@@ -91,6 +95,7 @@ export function getInventoryAgeData(): InventoryAgeRecord[] {
 
 export function setInventoryAgeData(val: InventoryAgeRecord[]): void {
   inventoryAgeData = val
+  bumpVersion()
 }
 
 export function getReturnData(): ReturnRecord[] {
@@ -99,6 +104,7 @@ export function getReturnData(): ReturnRecord[] {
 
 export function setReturnData(val: ReturnRecord[]): void {
   returnData = val
+  bumpVersion()
 }
 
 export function getSafetyStockData(): SafetyStockRecord[] {
@@ -107,6 +113,7 @@ export function getSafetyStockData(): SafetyStockRecord[] {
 
 export function setSafetyStockData(val: SafetyStockRecord[]): void {
   safetyStockData = val
+  bumpVersion()
 }
 
 export function getReportData(): WeeklyReport[] {
@@ -131,4 +138,16 @@ export function getDrillDownPaths(): DrillDownPath[] {
 
 export function setDrillDownPaths(val: DrillDownPath[]): void {
   drillDownPaths = val
+}
+
+export function getAllSkuNames(): Record<string, string> {
+  return allSkuNames
+}
+
+export function getDataVersion(): number {
+  return dataVersion
+}
+
+function bumpVersion(): void {
+  dataVersion++
 }

@@ -11,6 +11,7 @@
 	let setSafetyStockData: (d: SafetyStockRecord[]) => void = () => {}
 	let getUserRole: () => UserRole = () => ({ role_id: 'analyst', role_name: '数据分析师', accessible_warehouses: [], accessible_suppliers: [], accessible_sku_categories: [] })
 	let setUserRole: (r: UserRole) => void = () => {}
+	let loadToDuckDB: ((data: { inbound?: InboundRecord[]; outbound?: OutboundRecord[]; inventory_age?: InventoryAgeRecord[]; returns?: ReturnRecord[]; safety_stock?: SafetyStockRecord[] }) => Promise<void>) | null = null
 
 	onMount(() => {
 		import('$lib/stores/index.svelte').then((stores) => {
@@ -22,6 +23,11 @@
 			getUserRole = stores.getUserRole
 			setUserRole = stores.setUserRole
 		})
+		import('$lib/utils/duckdb').then((duckdb) => {
+			duckdb.initDuckDB().then(() => {
+				loadToDuckDB = (data) => duckdb.loadData(data)
+			}).catch(() => {})
+		}).catch(() => {})
 	})
 
 	type TabKey = 'import' | 'dictionary' | 'missing' | 'permission'
@@ -148,11 +154,31 @@
 			uploadProgress = 100
 			importResult = result
 			if (result.success_rows > 0 && validRows.length > 0) {
-				if (result.table_name === 'inbound_records') setInboundData(validRows as unknown as InboundRecord[])
-				else if (result.table_name === 'outbound_records') setOutboundData(validRows as unknown as OutboundRecord[])
-				else if (result.table_name === 'inventory_age_records') setInventoryAgeData(validRows as unknown as InventoryAgeRecord[])
-				else if (result.table_name === 'return_records') setReturnData(validRows as unknown as ReturnRecord[])
-				else if (result.table_name === 'safety_stock_records') setSafetyStockData(validRows as unknown as SafetyStockRecord[])
+				const duckdbPayload: { inbound?: InboundRecord[]; outbound?: OutboundRecord[]; inventory_age?: InventoryAgeRecord[]; returns?: ReturnRecord[]; safety_stock?: SafetyStockRecord[] } = {}
+				if (result.table_name === 'inbound_records') {
+					const rows = validRows as unknown as InboundRecord[]
+					setInboundData(rows)
+					duckdbPayload.inbound = rows
+				} else if (result.table_name === 'outbound_records') {
+					const rows = validRows as unknown as OutboundRecord[]
+					setOutboundData(rows)
+					duckdbPayload.outbound = rows
+				} else if (result.table_name === 'inventory_age_records') {
+					const rows = validRows as unknown as InventoryAgeRecord[]
+					setInventoryAgeData(rows)
+					duckdbPayload.inventory_age = rows
+				} else if (result.table_name === 'return_records') {
+					const rows = validRows as unknown as ReturnRecord[]
+					setReturnData(rows)
+					duckdbPayload.returns = rows
+				} else if (result.table_name === 'safety_stock_records') {
+					const rows = validRows as unknown as SafetyStockRecord[]
+					setSafetyStockData(rows)
+					duckdbPayload.safety_stock = rows
+				}
+				if (loadToDuckDB) {
+					loadToDuckDB(duckdbPayload).catch(() => {})
+				}
 			}
 		} catch {
 			clearInterval(interval)
@@ -199,7 +225,8 @@
 			setUserRole({
 				...current,
 				accessible_warehouses: [...analystPerm.warehouses],
-				accessible_suppliers: [...analystPerm.suppliers]
+				accessible_suppliers: [...analystPerm.suppliers],
+				accessible_sku_categories: current.accessible_sku_categories
 			})
 		}
 	}
