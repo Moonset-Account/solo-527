@@ -203,7 +203,7 @@
 <AppLayout>
 	{#if loading}
 		<div class="flex items-center justify-center h-64">
-			<div class="animate-spin w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+			<div class="animate-spin w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full mx-auto"></div>
 		</div>
 	{:else}
 		<div class="space-y-6">

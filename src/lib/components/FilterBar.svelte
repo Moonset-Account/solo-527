@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { filterStore, activeFiltersCount, resetFilters } from '$lib/stores';
-	import type { FilterState } from '$lib/types';
+	import { filterStore, activeFiltersCount, resetFilters, showToast, savedViewsStore } from '$lib/stores';
+	import type { FilterState, SavedView } from '$lib/types';
 	import { Filter, X, Save } from 'lucide-svelte';
 	import { get } from 'svelte/store';
 
@@ -25,22 +25,41 @@
 		}
 	}
 
-	async function handleSaveView() {
+	function handleSelectChange(e: Event, key: keyof FilterState): void {
+		const target = e.target as HTMLSelectElement;
+		const values = Array.from(target.selectedOptions).map((o) => o.value);
+		updateFilter(key, values as any);
+	}
+
+	function handleInputChange(e: Event, key: keyof FilterState): void {
+		const target = e.target as HTMLInputElement;
+		const values = target.value.split(',').filter(Boolean);
+		updateFilter(key, values as any);
+	}
+
+	function handleSaveView(): void {
 		if (!viewName.trim()) return;
 
 		const filters = get(filterStore);
-		const { saveView } = await import('$lib/data/services');
-		await saveView({
+		const newView: SavedView = {
+			id: 'view_' + Date.now(),
 			name: viewName,
 			page: typeof window !== 'undefined' ? window.location.pathname : '/dashboard',
 			filters,
-			createdBy: 'admin'
-		});
+			createdBy: 'admin',
+			createdAt: new Date().toISOString()
+		};
+
+		savedViewsStore.update((views) => [...views, newView]);
+
+		try {
+			localStorage.setItem('savedViews', JSON.stringify(get(savedViewsStore)));
+		} catch (e) {
+			console.warn('Failed to save views to localStorage:', e);
+		}
 
 		showSaveDialog = false;
 		viewName = '';
-
-		const { showToast } = await import('$lib/stores');
 		showToast('视图保存成功', 'success');
 	}
 </script>
@@ -80,7 +99,7 @@
 					class="select"
 					multiple
 					value={$filterStore.vehicleIds}
-					on:change={(e) => updateFilter('vehicleIds', Array.from(e.target.selectedOptions, (o) => o.value))}
+					on:change={(e) => handleSelectChange(e, 'vehicleIds')}
 				>
 					{#each vehicles as v}
 						<option value={v.id}>{v.label}</option>
@@ -94,7 +113,7 @@
 					class="select"
 					multiple
 					value={$filterStore.customerIds}
-					on:change={(e) => updateFilter('customerIds', Array.from(e.target.selectedOptions, (o) => o.value))}
+					on:change={(e) => handleSelectChange(e, 'customerIds')}
 				>
 					{#each customers as c}
 						<option value={c.id}>{c.label}</option>
@@ -108,7 +127,7 @@
 					class="select"
 					multiple
 					value={$filterStore.routeIds}
-					on:change={(e) => updateFilter('routeIds', Array.from(e.target.selectedOptions, (o) => o.value))}
+					on:change={(e) => handleSelectChange(e, 'routeIds')}
 				>
 					{#each routes as r}
 						<option value={r.id}>{r.label}</option>
@@ -122,7 +141,7 @@
 					class="select"
 					multiple
 					value={$filterStore.anomalyTypes}
-					on:change={(e) => updateFilter('anomalyTypes', Array.from(e.target.selectedOptions, (o) => o.value))}
+					on:change={(e) => handleSelectChange(e, 'anomalyTypes')}
 				>
 					{#each anomalyTypes as t}
 						<option value={t.key}>{t.label}</option>
@@ -136,7 +155,7 @@
 					class="select"
 					multiple
 					value={$filterStore.severityLevels}
-					on:change={(e) => updateFilter('severityLevels', Array.from(e.target.selectedOptions, (o) => o.value))}
+					on:change={(e) => handleSelectChange(e, 'severityLevels')}
 				>
 					{#each severityLevels as s}
 						<option value={s.key}>{s.label}</option>
@@ -151,7 +170,7 @@
 					class="input"
 					placeholder="输入批次号搜索"
 					value={$filterStore.batchNos.join(',')}
-					on:input={(e) => updateFilter('batchNos', e.target.value.split(',').filter(Boolean))}
+					on:input={(e) => handleInputChange(e, 'batchNos')}
 				/>
 			</div>
 		</div>

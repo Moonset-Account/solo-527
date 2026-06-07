@@ -5,6 +5,7 @@
 	import { userStore, showToast } from '$lib/stores';
 	import { Upload, FileSpreadsheet, Check, AlertCircle, Download, RefreshCw } from 'lucide-svelte';
 	import Papa from 'papaparse';
+	import { importTemperatureData, type ImportResult } from '$lib/data/importService';
 
 	let loading = false;
 	let dragOver = false;
@@ -14,7 +15,7 @@
 	let columns: string[] = [];
 	let fieldMapping: Record<string, string> = {};
 	let importProgress = 0;
-	let importResult: { success: number; failed: number; errors: string[] } | null = null;
+	let importResult: ImportResult | null = null;
 
 	const requiredFields = [
 		{ key: 'shipmentId', label: '运单ID', required: true },
@@ -98,20 +99,17 @@
 		importProgress = 0;
 		loading = true;
 
-		const interval = setInterval(() => {
-			importProgress += Math.random() * 15;
-			if (importProgress >= 100) {
-				importProgress = 100;
-				clearInterval(interval);
-				loading = false;
-				importResult = {
-					success: Math.floor(previewData.length * 0.95),
-					failed: Math.floor(previewData.length * 0.05),
-					errors: ['第 15 行: 温度值超出合理范围 (-50°C ~ 50°C)', '第 32 行: 时间戳格式错误']
-				};
-				showToast('数据导入完成', 'success');
-			}
-		}, 200);
+		try {
+			const result = await importTemperatureData(previewData, fieldMapping, (progress) => {
+				importProgress = progress;
+			});
+			importResult = result;
+			showToast('数据导入完成', 'success');
+		} catch (e) {
+			showToast('导入失败: ' + (e as Error).message, 'error');
+		} finally {
+			loading = false;
+		}
 	}
 
 	function resetImport() {
@@ -123,37 +121,28 @@
 		importProgress = 0;
 		importResult = null;
 	}
-
-	function downloadTemplate() {
-		const rows = [
-			['运单ID', '批次号', '时间戳', '温度', '纬度', '经度', '箱门状态', '探头ID', '探头校准状态'],
-			['S001', 'BATCH-20240601001', '2024-06-01 08:00:00', '-18.5', '39.9042', '116.4074', 'close', 'TP001', 'true'],
-			['S001', 'BATCH-20240601001', '2024-06-01 08:05:00', '-18.3', '39.9100', '116.4100', 'close', 'TP001', 'true']
-		];
-		const template = rows.map((row) => row.join(',')).join('\n');
-
-		const blob = new Blob(['\ufeff' + template], { type: 'text/csv;charset=utf-8;' });
-		const link = document.createElement('a');
-		link.href = URL.createObjectURL(blob);
-		link.download = '冷链温控数据导入模板.csv';
-		link.click();
-		URL.revokeObjectURL(link.href);
-		showToast('模板下载成功', 'success');
-	}
 </script>
 
 <AppLayout>
 	<div class="space-y-6">
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-xl font-bold text-slate-800">数据导入</h2>
+				<p class="text-sm text-slate-500 mt-1">导入冷链物流温控数据，系统将自动清洗和校验</p>
+			</div>
+			<a
+				href="/templates/import_template.csv"
+				class="btn btn-secondary flex items-center gap-2"
+				download
+			>
+				<Download class="w-4 h-4" />
+				下载模板
+			</a>
+		</div>
+
 		<div class="card">
-			<div class="card-header flex items-center justify-between">
-				<div>
-					<h3 class="text-base font-semibold text-slate-800">数据导入</h3>
-					<p class="text-sm text-slate-500 mt-1">批量导入车辆定位、温度、开门等冷链数据</p>
-				</div>
-				<button on:click={downloadTemplate} class="btn btn-secondary text-sm flex items-center gap-2">
-					<Download class="w-4 h-4" />
-					下载模板
-				</button>
+			<div class="card-header">
+				<h3 class="text-base font-semibold text-slate-800">导入流程</h3>
 			</div>
 			<div class="card-body">
 				<div class="flex items-center gap-4 mb-8">
@@ -166,11 +155,11 @@
 									{step}
 								{/if}
 							</div>
-							<span class="ml-2 text-sm {step <= importStep ? 'text-slate-800 font-medium' : 'text-slate-500'}>
+							<span class="ml-2 text-sm {step <= importStep ? 'text-slate-800 font-medium' : 'text-slate-500'}">
 								{step === 1 ? '上传文件' : step === 2 ? '字段映射' : '开始导入'}
 							</span>
 							{#if idx < 2}
-								<div class="w-16 h-0.5 mx-4 {step < importStep ? 'bg-primary-500' : 'bg-slate-200'}"/>
+								<div class="w-16 h-0.5 mx-4 {step < importStep ? 'bg-primary-500' : 'bg-slate-200'}"></div>
 							{/if}
 						</div>
 					{/each}
@@ -187,15 +176,12 @@
 							<Upload class="w-8 h-8 text-slate-400" />
 						</div>
 						<p class="text-lg font-medium text-slate-800 mb-2">拖拽文件到此处上传</p>
-						<p class="text-sm text-slate-500 mb-4">或点击下方按钮选择文件</p>
-						<label class="inline-block">
+						<p class="text-sm text-slate-500 mb-6">支持 CSV、Excel 格式，单个文件不超过 100MB</p>
+						<label class="btn btn-primary inline-flex items-center gap-2 cursor-pointer">
+							<FileSpreadsheet class="w-4 h-4" />
+							选择文件
 							<input type="file" accept=".csv,.xlsx" class="hidden" on:change={handleFileInput} />
-							<span class="btn btn-primary cursor-pointer">
-								<FileSpreadsheet class="w-4 h-4 inline mr-2" />
-								选择文件
-							</span>
 						</label>
-						<p class="text-xs text-slate-400 mt-4">支持 CSV、Excel 格式，单个文件不超过 100MB</p>
 					</div>
 
 					<div class="mt-6 p-4 bg-blue-50 rounded-lg">
@@ -217,7 +203,7 @@
 						<div class="flex items-center justify-between mb-4">
 							<div>
 								<p class="font-medium text-slate-800">文件名: {uploadedFile?.name}</p>
-								<p class="text-sm text-slate-500">文件大小: {((uploadedFile?.size || 0 / 1024 / 1024).toFixed(2)} MB</p>
+								<p class="text-sm text-slate-500">文件大小: {(((uploadedFile?.size || 0) / 1024 / 1024)).toFixed(2)} MB</p>
 							</div>
 							<button on:click={resetImport} class="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
 								<RefreshCw class="w-4 h-4" />
@@ -230,18 +216,19 @@
 							<div class="grid grid-cols-2 gap-4">
 								{#each columns as col}
 									<div class="flex items-center gap-3">
-									<div class="flex-1 p-2 bg-slate-50 rounded text-sm">{col}</div>
-									<span class="text-slate-400">→</span>
-									<select class="select flex-1 text-sm" bind:value={fieldMapping[col]}>
-										<option value="">-- 不导入 --</option>
-										{#each requiredFields as field}
-											<option value={field.key}>
-												{field.label} {field.required ? '*' : ''}
-											</option>
-										{/each}
-									</select>
-								</div>
-							{/each}
+										<div class="flex-1 p-2 bg-slate-50 rounded text-sm">{col}</div>
+										<span class="text-slate-400">→</span>
+										<select class="select flex-1 text-sm" bind:value={fieldMapping[col]}>
+											<option value="">-- 不导入 --</option>
+											{#each requiredFields as field}
+												<option value={field.key}>
+													{field.label} {field.required ? '*' : ''}
+												</option>
+											{/each}
+										</select>
+									</div>
+								{/each}
+							</div>
 						</div>
 
 						<h4 class="text-sm font-medium text-slate-700 mb-3">数据预览 (前 10 行)</h4>
@@ -318,16 +305,26 @@
 								</div>
 							</div>
 
+							{#if importResult.filledMissing > 0}
+								<div class="text-left max-w-md mx-auto p-4 bg-yellow-50 rounded-lg mb-4">
+									<h4 class="text-sm font-medium text-yellow-800 mb-2">缺失值处理:</h4>
+									<p class="text-sm text-yellow-700">已自动填充 {importResult.filledMissing} 条缺失记录</p>
+								</div>
+							{/if}
+
 							{#if importResult.errors.length > 0}
 								<div class="text-left max-w-md mx-auto p-4 bg-red-50 rounded-lg">
 									<h4 class="text-sm font-medium text-red-800 mb-2">失败详情:</h4>
 									<ul class="text-sm text-red-700 space-y-1">
-										{#each importResult.errors as error}
+										{#each importResult.errors.slice(0, 5) as error}
 											<li class="flex items-start gap-2">
 												<AlertCircle class="w-4 h-4 mt-0.5 flex-shrink-0" />
 												{error}
 											</li>
 										{/each}
+										{#if importResult.errors.length > 5}
+											<li class="text-xs text-red-500">还有 {importResult.errors.length - 5} 条错误未显示</li>
+										{/if}
 									</ul>
 								</div>
 							{/if}

@@ -1,10 +1,9 @@
 <script lang="ts">
-	import type { SvelteComponent } from 'svelte';
 	import { TrendingUp, TrendingDown } from 'lucide-svelte';
 
 	export let title: string;
 	export let value: string | number;
-	export let icon: typeof SvelteComponent;
+	export let icon: any;
 	export let trend: number | undefined = undefined;
 	export let trendLabel: string | undefined = undefined;
 	export let color: string = 'primary';

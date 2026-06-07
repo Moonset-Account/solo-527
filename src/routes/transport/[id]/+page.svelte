@@ -83,9 +83,10 @@
 <AppLayout>
 	{#if loading || !shipment}
 		<div class="flex items-center justify-center h-64">
-			<div class="animate-spin w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+			<div class="animate-spin w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full mx-auto"></div>
 		</div>
 	{:else}
+		{@const s = shipment}
 		<div class="space-y-6">
 			<div class="flex items-center gap-4">
 				<button
@@ -96,10 +97,10 @@
 				</button>
 				<div>
 					<h2 class="text-xl font-bold text-slate-800">运单详情</h2>
-					<p class="text-sm text-slate-500">批次号: <span class="font-mono font-medium">{shipment.batchNo}</span></p>
+					<p class="text-sm text-slate-500">批次号: <span class="font-mono font-medium">{s.batchNo}</span></p>
 				</div>
-				<span class="badge {getShipmentStatusColor(shipment.status)} ml-auto">
-					{getShipmentStatusLabel(shipment.status)}
+				<span class="badge {getShipmentStatusColor(s.status)} ml-auto">
+					{getShipmentStatusLabel(s.status)}
 				</span>
 			</div>
 
@@ -111,7 +112,7 @@
 						</div>
 						<div>
 							<p class="text-xs text-slate-500">温控箱</p>
-							<p class="font-medium text-slate-800">{shipment.containerId}</p>
+							<p class="font-medium text-slate-800">{s.containerId}</p>
 						</div>
 					</div>
 				</div>
@@ -141,7 +142,7 @@
 						<div>
 							<p class="text-xs text-slate-500">路线</p>
 							<p class="font-medium text-slate-800">
-								{routeOptions.find((r) => r.id === shipment.routeId)?.label || shipment.routeId}
+								{routeOptions.find((r) => r.id === s.routeId)?.label || s.routeId}
 							</p>
 						</div>
 					</div>
@@ -154,9 +155,9 @@
 						<div>
 							<p class="text-xs text-slate-500">运输时长</p>
 							<p class="font-medium text-slate-800 font-mono">
-								{shipment.arrivalTime
+								{s.arrivalTime
 									? formatDuration(
-											(new Date(shipment.arrivalTime).getTime() - new Date(shipment.departureTime).getTime()) /
+											(new Date(s.arrivalTime).getTime() - new Date(s.departureTime).getTime()) /
 												(1000 * 60)
 										)
 									: '运输中'}
@@ -175,20 +176,20 @@
 						<div>
 							<p class="text-xs text-slate-500 mb-1">车辆</p>
 							<p class="text-sm font-medium text-slate-800">
-								{vehicleOptions.find((v) => v.id === shipment.vehicleId)?.label || shipment.vehicleId}
+								{vehicleOptions.find((v) => v.id === s.vehicleId)?.label || s.vehicleId}
 							</p>
 						</div>
 						<div>
 							<p class="text-xs text-slate-500 mb-1">发货时间</p>
-							<p class="text-sm font-medium text-slate-800">{formatDateTime(shipment.departureTime)}</p>
+							<p class="text-sm font-medium text-slate-800">{formatDateTime(s.departureTime)}</p>
 						</div>
 						<div>
 							<p class="text-xs text-slate-500 mb-1">预计到达</p>
-							<p class="text-sm font-medium text-slate-800">{formatDateTime(shipment.plannedArrivalTime)}</p>
+							<p class="text-sm font-medium text-slate-800">{formatDateTime(s.plannedArrivalTime)}</p>
 						</div>
 						<div>
 							<p class="text-xs text-slate-500 mb-1">实际到达</p>
-							<p class="text-sm font-medium text-slate-800">{formatDateTime(shipment.arrivalTime)}</p>
+							<p class="text-sm font-medium text-slate-800">{formatDateTime(s.arrivalTime)}</p>
 						</div>
 					</div>
 
@@ -201,13 +202,13 @@
 						</div>
 						<div class="flex items-center gap-6 mt-3">
 							<div class="flex items-center gap-2">
-								<div class="w-3 h-3 rounded-full bg-cyan-500" />
+								<div class="w-3 h-3 rounded-full bg-cyan-500"></div>
 								<span class="text-sm text-slate-600">
 									已校准: <strong>{calibrationSummary.calibrated}</strong> 条
 								</span>
 							</div>
 							<div class="flex items-center gap-2">
-								<div class="w-3 h-3 rounded-full bg-yellow-500" />
+								<div class="w-3 h-3 rounded-full bg-yellow-500"></div>
 								<span class="text-sm text-slate-600">
 									待校准: <strong>{calibrationSummary.uncalibrated}</strong> 条
 								</span>

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import * as echarts from 'echarts';
-	import type { EChartsOption } from 'echarts';
 
-	export let option: EChartsOption;
+	export let option: any;
 	export let height: string = '400px';
 	export let theme: string | undefined = undefined;
 

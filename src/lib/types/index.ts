@@ -124,7 +124,7 @@ export interface SavedView {
 	filters: FilterState;
 	chartConfigs?: Record<string, any>;
 	createdBy?: string;
-	createdAt: Date;
+	createdAt: string;
 }
 
 export interface FilterState {
@@ -183,4 +183,4 @@ export interface ResponsibilitySegment {
 	color: string;
 }
 
-export type { default as EChartsType } from 'echarts';
+export type { EChartsType } from 'echarts';
