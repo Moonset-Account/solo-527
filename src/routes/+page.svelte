@@ -15,7 +15,7 @@
 		getDimensionAnalysis,
 		getSatisfactionTrend,
 		getFailureExamples
-	} from '@/lib/utils/queryService';
+	} from '@/lib/utils/duckdbService';
 	import { formatNumber, formatPercent } from '@/lib/utils/format';
 
 	import FilterBar from '@/lib/components/filters/FilterBar.svelte';
@@ -29,59 +29,59 @@
 	import DetailModal from '@/lib/components/modals/DetailModal.svelte';
 	import NoteEditor from '@/lib/components/modals/NoteEditor.svelte';
 
-	import { Activity, Users, MessageSquareHeart, RotateCcw, BarChart3 } from 'lucide-svelte';
+	import { Activity, Users, MessageSquareHeart, RotateCcw, BarChart3, Loader2 } from 'lucide-svelte';
 
 	let selectedDimension: DimensionType = 'intent';
-	let overviewMetrics: OverviewMetrics | null = $state(null);
-	let funnelData: FunnelDataPoint[] = $state([]);
-	let dimensionData: DimensionDataPoint[] = $state([]);
-	let trendData: TrendDataPoint[] = $state([]);
-	let failureExamples: Session[] = $state([]);
+	let overviewMetrics: OverviewMetrics | null = null;
+	let funnelData: FunnelDataPoint[] = [];
+	let dimensionData: DimensionDataPoint[] = [];
+	let trendData: TrendDataPoint[] = [];
+	let failureExamples: Session[] = [];
+	let loading = true;
 
-	let showDetailModal = $state(false);
-	let showNoteModal = $state(false);
-	let detailDimension = $state<DimensionType>('intent');
-	let detailDimensionValue = $state('');
-	let noteDimension = $state<DimensionType>('intent');
-	let noteDimensionValue = $state('');
+	let showDetailModal = false;
+	let showNoteModal = false;
+	let detailDimension: DimensionType = 'intent';
+	let detailDimensionValue = '';
+	let noteDimension: DimensionType = 'intent';
+	let noteDimensionValue = '';
 
 	let unsubscribe: (() => void) | null = null;
 
-	function loadAllData() {
-		const filters = $filterStore;
-		overviewMetrics = getOverviewMetrics(filters);
-		funnelData = getFunnelData(filters);
-		dimensionData = getDimensionAnalysis(selectedDimension, filters);
-		trendData = getSatisfactionTrend('day', filters);
-		failureExamples = getFailureExamples(filters, 8);
+	async function loadAllData() {
+		loading = true;
+		try {
+			const filters = $filterStore;
+			const [metrics, funnel, dimData, trend, failures] = await Promise.all([
+				getOverviewMetrics(filters),
+				getFunnelData(filters),
+				getDimensionAnalysis(selectedDimension, filters),
+				getSatisfactionTrend('day', filters),
+				getFailureExamples(filters, 8)
+			]);
+			overviewMetrics = metrics;
+			funnelData = funnel;
+			dimensionData = dimData;
+			trendData = trend;
+			failureExamples = failures;
+		} catch (e) {
+			console.error('Failed to load data:', e);
+		} finally {
+			loading = false;
+		}
 	}
 
-	$effect(() => {
-		loadAllData();
-	});
-
-	$effect(() => {
-		const filters = $filterStore;
-		dimensionData = getDimensionAnalysis(selectedDimension, filters);
-	});
-
-	function handleDrilldown(e: { dimension: string; value: string }) {
-		detailDimension = e.dimension as DimensionType;
-		detailDimensionValue = e.value;
-		showDetailModal = true;
-	}
-
-	function handleAddNote(e: { dimension: string; value: string }) {
-		noteDimension = e.dimension as DimensionType;
-		noteDimensionValue = e.value;
-		showNoteModal = true;
-	}
-
-	function handleHeatmapSelect(e: { dimension: string; value: string }) {
-		handleDrilldown(e);
+	async function loadDimensionData() {
+		try {
+			const filters = $filterStore;
+			dimensionData = await getDimensionAnalysis(selectedDimension, filters);
+		} catch (e) {
+			console.error('Failed to load dimension data:', e);
+		}
 	}
 
 	onMount(() => {
+		loadAllData();
 		unsubscribe = filterStore.subscribe(() => {
 			loadAllData();
 		});
@@ -90,6 +90,26 @@
 	onDestroy(() => {
 		unsubscribe?.();
 	});
+
+	$: if (!loading && selectedDimension) {
+		loadDimensionData();
+	}
+
+	function handleDrilldown(e: CustomEvent<{ dimension: string; value: string }>) {
+		detailDimension = e.detail.dimension as DimensionType;
+		detailDimensionValue = e.detail.value;
+		showDetailModal = true;
+	}
+
+	function handleAddNote(e: CustomEvent<{ dimension: string; value: string }>) {
+		noteDimension = e.detail.dimension as DimensionType;
+		noteDimensionValue = e.detail.value;
+		showNoteModal = true;
+	}
+
+	function handleHeatmapSelect(e: CustomEvent<{ dimension: string; value: string }>) {
+		handleDrilldown(e);
+	}
 </script>
 
 <div class="min-h-screen bg-slate-50">
@@ -106,6 +126,12 @@
 					</div>
 				</div>
 				<div class="flex items-center gap-3">
+					{#if loading}
+						<div class="flex items-center gap-2 text-primary-500">
+							<Loader2 class="w-5 h-5 animate-spin" />
+							<span class="text-sm">数据加载中...</span>
+						</div>
+					{/if}
 					<div class="text-right">
 						<p class="text-sm font-medium text-slate-700">数据更新时间</p>
 						<p class="text-xs text-slate-400 font-mono">{new Date().toLocaleString('zh-CN')}</p>
@@ -118,7 +144,7 @@
 	<main class="max-w-[1600px] mx-auto px-6 py-6">
 		<FilterBar />
 
-		{#if overviewMetrics}
+		{#if overviewMetrics && !loading}
 			<div class="grid grid-cols-6 gap-4 mb-6">
 				<KPICard
 					title="总会话量"
@@ -225,7 +251,7 @@
 				</div>
 				<div>
 					<h4 class="font-medium text-slate-700 mb-2">低样本判定</h4>
-					<p>样本量 < 30 的维度标记为低样本</p>
+					<p>样本量 &lt; 30 的维度标记为低样本</p>
 					<p class="text-slate-400 mt-1">低样本数据的排序结论仅供参考，请结合业务场景判断</p>
 				</div>
 			</div>

@@ -1,23 +1,30 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { filterStore, activeFilterCount } from '@/lib/stores/filterStore';
-	import { getDistinctValues } from '@/lib/utils/queryService';
+	import { getDistinctValues } from '@/lib/utils/duckdbService';
 	import { getLevelLabel, getChannelLabel } from '@/lib/utils/format';
 	import { Calendar, Filter, X } from 'lucide-svelte';
 
-	const { intents, channels, versions, customerLevels } = getDistinctValues();
+	let intents: string[] = [];
+	let channels: string[] = [];
+	let versions: string[] = [];
+	let customerLevels: string[] = [];
 
-	let filters = $state($filterStore);
-	let showFilters = $state(false);
-
-	$effect(() => {
-		filters = $filterStore;
+	onMount(async () => {
+		const values = await getDistinctValues();
+		intents = values.intents;
+		channels = values.channels;
+		versions = values.versions;
+		customerLevels = values.customerLevels;
 	});
+
+	let showFilters = false;
 
 	function handleDateChange(type: 'start' | 'end', value: string) {
 		if (type === 'start') {
-			filterStore.setDateRange(value, filters.endDate);
+			filterStore.setDateRange(value, $filterStore.endDate);
 		} else {
-			filterStore.setDateRange(filters.startDate, value);
+			filterStore.setDateRange($filterStore.startDate, value);
 		}
 	}
 
@@ -25,7 +32,7 @@
 		field: 'channels' | 'versions' | 'customerLevels' | 'intentTags',
 		value: string
 	) {
-		const current = filters[field];
+		const current = $filterStore[field];
 		const updated = current.includes(value)
 			? current.filter((v) => v !== value)
 			: [...current, value];
@@ -59,15 +66,15 @@
 				<input
 					type="date"
 					class="input max-w-[160px]"
-					value={filters.startDate}
-					oninput={(e) => handleDateChange('start', e.target.value)}
+					value={$filterStore.startDate}
+					oninput={(e) => handleDateChange('start', (e.target as HTMLInputElement).value)}
 				/>
 				<span class="text-slate-400">至</span>
 				<input
 					type="date"
 					class="input max-w-[160px]"
-					value={filters.endDate}
-					oninput={(e) => handleDateChange('end', e.target.value)}
+					value={$filterStore.endDate}
+					oninput={(e) => handleDateChange('end', (e.target as HTMLInputElement).value)}
 				/>
 			</div>
 		</div>
@@ -101,7 +108,7 @@
 						<label class="flex items-center gap-2 cursor-pointer">
 							<input
 								type="checkbox"
-								checked={filters.channels.includes(channel)}
+								checked={$filterStore.channels.includes(channel)}
 								onchange={() => handleMultiSelectChange('channels', channel)}
 								class="rounded text-primary-500 focus:ring-primary-500"
 							/>
@@ -118,7 +125,7 @@
 						<label class="flex items-center gap-2 cursor-pointer">
 							<input
 								type="checkbox"
-								checked={filters.versions.includes(version)}
+								checked={$filterStore.versions.includes(version)}
 								onchange={() => handleMultiSelectChange('versions', version)}
 								class="rounded text-primary-500 focus:ring-primary-500"
 							/>
@@ -135,7 +142,7 @@
 						<label class="flex items-center gap-2 cursor-pointer">
 							<input
 								type="checkbox"
-								checked={filters.customerLevels.includes(level)}
+								checked={$filterStore.customerLevels.includes(level)}
 								onchange={() => handleMultiSelectChange('customerLevels', level)}
 								class="rounded text-primary-500 focus:ring-primary-500"
 							/>
@@ -152,7 +159,7 @@
 						<label class="flex items-center gap-2 cursor-pointer">
 							<input
 								type="checkbox"
-								checked={filters.intentTags.includes(intent)}
+								checked={$filterStore.intentTags.includes(intent)}
 								onchange={() => handleMultiSelectChange('intentTags', intent)}
 								class="rounded text-primary-500 focus:ring-primary-500"
 							/>

@@ -21,14 +21,18 @@
 	export let sortField: keyof DimensionDataPoint = 'transfer_rate';
 	export let sortOrder: 'asc' | 'desc' = 'desc';
 
-	let displayData = $derived([...data].sort((a, b) => {
-		const aVal = a[sortField];
-		const bVal = b[sortField];
-		if (typeof aVal === 'number' && typeof bVal === 'number') {
-			return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-		}
-		return 0;
-	}));
+	let displayData: DimensionDataPoint[] = [];
+
+	$: {
+		displayData = [...data].sort((a, b) => {
+			const aVal = a[sortField];
+			const bVal = b[sortField];
+			if (typeof aVal === 'number' && typeof bVal === 'number') {
+				return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+			}
+			return 0;
+		});
+	}
 
 	function handleSort(field: keyof DimensionDataPoint) {
 		if (sortField === field) {
@@ -41,13 +45,18 @@
 
 	function formatDimensionValue(item: DimensionDataPoint): string {
 		switch (item.dimension) {
-			case 'level':
-				return getLevelLabel(item.dimension_value);
-			case 'channel':
-				return getChannelLabel(item.dimension_value);
-			default:
-				return item.dimension_value;
+		case 'level':
+			return getLevelLabel(item.dimension_value);
+		case 'channel':
+			return getChannelLabel(item.dimension_value);
+		default:
+			return item.dimension_value;
 		}
+	}
+
+	function handleAddNoteClick(e: Event, item: DimensionDataPoint) {
+		e.stopPropagation();
+		dispatch('addNote', { dimension: item.dimension, value: item.dimension_value });
 	}
 </script>
 
@@ -140,8 +149,7 @@
 							{#if item.has_note}
 								<StickyNote
 									class="w-4 h-4 text-amber-500"
-									onclick|stopPropagation={() =>
-										dispatch('addNote', { dimension: item.dimension, value: item.dimension_value })}
+									onclick={(e) => handleAddNoteClick(e, item)}
 								/>
 							{/if}
 						</div>
@@ -171,8 +179,7 @@
 					<td class="table-cell text-center">
 						<button
 							class="text-primary-600 hover:text-primary-700 text-sm font-medium"
-							onclick|stopPropagation={() =>
-								dispatch('addNote', { dimension: item.dimension, value: item.dimension_value })}
+							onclick={(e) => handleAddNoteClick(e, item)}
 						>
 							添加备注
 						</button>

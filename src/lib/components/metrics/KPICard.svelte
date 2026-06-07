@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { ArrowUpRight, ArrowDownRight } from 'lucide-svelte';
 
+	let hasIconSlot = false;
+
 	export let title: string;
 	export let value: string;
-	export let change?: number;
+	export let change: number | undefined = undefined;
 	export let changeLabel = '环比';
-	export let icon?: string;
+	export let icon: string | undefined = undefined;
 	export let variant: 'default' | 'success' | 'warning' | 'danger' = 'default';
 
 	const variantClasses = {
@@ -34,10 +36,12 @@
 				</div>
 			{/if}
 		</div>
-		{#if icon}
-			<div class="text-slate-400">
-				{icon}
-			</div>
-		{/if}
+		<div class="text-slate-400">
+			<slot name="icon">
+				{#if icon}
+					{icon}
+				{/if}
+			</slot>
+		</div>
 	</div>
 </div>

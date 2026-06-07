@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { Session, DimensionType, Pagination } from '@/lib/types';
-	import { getSessionsByDimension } from '@/lib/utils/queryService';
+	import { getSessionDetails } from '@/lib/utils/duckdbService';
 	import { filterStore } from '@/lib/stores/filterStore';
 	import {
 		formatDateTime,
@@ -9,7 +9,7 @@
 		getLevelLabel,
 		getChannelLabel
 	} from '@/lib/utils/format';
-	import { X, ChevronLeft, ChevronRight, User, Bot, MessageSquare } from 'lucide-svelte';
+	import { X, ChevronLeft, ChevronRight, User, Bot, MessageSquare, Loader2 } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -19,31 +19,38 @@
 	export let dimension: DimensionType;
 	export let dimensionValue: string;
 
-	let sessions = $state<Session[]>([]);
-	let pagination = $state<Pagination>({ page: 1, pageSize: 10 });
-	let total = $state(0);
-	let loading = $state(false);
+	let sessions: Session[] = [];
+	let pagination: Pagination = { page: 1, pageSize: 10 };
+	let total = 0;
+	let loading = false;
+	let totalPages = 0;
 
-	$effect(() => {
+	onMount(() => {
 		loadData();
 	});
 
-	function loadData() {
+	$: {
+		totalPages = Math.ceil(total / pagination.pageSize);
+	}
+
+	async function loadData() {
 		loading = true;
-		const filters = $filterStore;
-		const allSessions = getSessionsByDimension(dimension, dimensionValue, filters);
-		total = allSessions.length;
-		const start = (pagination.page - 1) * pagination.pageSize;
-		sessions = allSessions.slice(start, start + pagination.pageSize);
-		loading = false;
+		try {
+			const filters = $filterStore;
+			const result = await getSessionDetails(filters, pagination, dimension, dimensionValue);
+			total = result.total;
+			sessions = result.data;
+		} catch (e) {
+			console.error('Failed to load session details:', e);
+		} finally {
+			loading = false;
+		}
 	}
 
 	function goToPage(page: number) {
 		pagination.page = page;
 		loadData();
 	}
-
-	const totalPages = $derived(Math.ceil(total / pagination.pageSize));
 </script>
 
 <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

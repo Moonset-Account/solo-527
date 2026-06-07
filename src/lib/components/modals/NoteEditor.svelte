@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 	import type { DimensionType, Note } from '@/lib/types';
 	import { noteStore } from '@/lib/stores/noteStore';
 	import { X, Send } from 'lucide-svelte';
@@ -11,16 +11,20 @@
 	export let dimension: DimensionType;
 	export let dimensionValue: string;
 
-	let newNote = $state('');
-	let notes = $state<Note[]>([]);
+	let newNote = '';
+	let notes: Note[] = [];
+	let unsubscribe: (() => void) | null = null;
 
-	$effect(() => {
-		const unsubscribe = noteStore.subscribe((allNotes) => {
+	onMount(() => {
+		unsubscribe = noteStore.subscribe((allNotes) => {
 			notes = allNotes.filter(
 				(n) => n.dimension === dimension && n.dimensionValue === dimensionValue
 			);
 		});
-		return unsubscribe;
+	});
+
+	onDestroy(() => {
+		unsubscribe?.();
 	});
 
 	function addNote() {
