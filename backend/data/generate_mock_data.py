@@ -3,9 +3,15 @@ import numpy as np
 from datetime import datetime, timedelta
 import random
 from sqlalchemy.orm import Session
-from backend.db.database import SessionLocal, engine
-from backend.db.models import Base, Store, Coach, Course, MemberType, Member, \
-    Booking, Checkin, BodyMeasurement, PTPurchase, Feedback, Suspension
+
+try:
+    from db.database import SessionLocal, engine
+    from db.models import Base, Store, Coach, Course, MemberType, Member, \
+        Booking, Checkin, BodyMeasurement, PTPurchase, Feedback, Suspension
+except ImportError:
+    from backend.db.database import SessionLocal, engine
+    from backend.db.models import Base, Store, Coach, Course, MemberType, Member, \
+        Booking, Checkin, BodyMeasurement, PTPurchase, Feedback, Suspension
 
 def generate_mock_data():
     db = SessionLocal()

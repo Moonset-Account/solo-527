@@ -257,16 +257,18 @@ export const generateMockCoachLoad = (filters: FilterState): CoachLoadResponse =
 
 export const generateMockChurnWarning = (filters: FilterState, limit: number = 100): ChurnWarningResponse => {
   const baseMembers = [
-    { member_id: 1001, name: "王伟", member_type: "年卡", store: "朝阳旗舰店", join_date: "2024-01-15", last_checkin: "2024-05-20", days_inactive: 35, avg_weekly_freq: 2.8, risk_level: "高风险" as const },
-    { member_id: 1045, name: "李娜", member_type: "私教会员", store: "海淀分店", join_date: "2024-02-20", last_checkin: "2024-05-25", days_inactive: 30, avg_weekly_freq: 3.2, risk_level: "高风险" as const },
-    { member_id: 1089, name: "张强", member_type: "季卡", store: "浦东分店", join_date: "2024-03-10", last_checkin: "2024-05-28", days_inactive: 27, avg_weekly_freq: 2.1, risk_level: "高风险" as const },
-    { member_id: 1123, name: "刘芳", member_type: "年卡", store: "朝阳旗舰店", join_date: "2024-01-08", last_checkin: "2024-06-02", days_inactive: 22, avg_weekly_freq: 1.8, risk_level: "中风险" as const },
-    { member_id: 1156, name: "陈明", member_type: "月卡", store: "海淀分店", join_date: "2024-04-01", last_checkin: "2024-06-05", days_inactive: 19, avg_weekly_freq: 1.5, risk_level: "中风险" as const },
-    { member_id: 1189, name: "杨丽", member_type: "季卡", store: "浦东分店", join_date: "2024-03-15", last_checkin: "2024-06-08", days_inactive: 16, avg_weekly_freq: 1.2, risk_level: "中风险" as const },
-    { member_id: 1201, name: "赵磊", member_type: "月卡", store: "朝阳旗舰店", join_date: "2024-05-01", last_checkin: "2024-06-10", days_inactive: 14, avg_weekly_freq: 0.8, risk_level: "低风险" as const },
-    { member_id: 1234, name: "黄敏", member_type: "年卡", store: "海淀分店", join_date: "2024-02-10", last_checkin: "2024-06-12", days_inactive: 12, avg_weekly_freq: 2.5, risk_level: "低风险" as const },
-    { member_id: 1267, name: "周杰", member_type: "私教会员", store: "浦东分店", join_date: "2024-01-20", last_checkin: "2024-06-13", days_inactive: 11, avg_weekly_freq: 3.0, risk_level: "低风险" as const },
-    { member_id: 1290, name: "吴婷", member_type: "季卡", store: "朝阳旗舰店", join_date: "2024-03-05", last_checkin: "2024-06-14", days_inactive: 10, avg_weekly_freq: 1.9, risk_level: "低风险" as const },
+    { member_id: 1001, name: "王伟", member_type: "年卡", store: "朝阳旗舰店", coach_ids: [1, 4], course_ids: [1, 2, 3], join_date: "2024-01-15", last_checkin: "2024-05-20", days_inactive: 35, avg_weekly_freq: 2.8, risk_level: "高风险" as const },
+    { member_id: 1045, name: "李娜", member_type: "私教会员", store: "海淀分店", coach_ids: [2, 5], course_ids: [4, 5], join_date: "2024-02-20", last_checkin: "2024-05-25", days_inactive: 30, avg_weekly_freq: 3.2, risk_level: "高风险" as const },
+    { member_id: 1089, name: "张强", member_type: "季卡", store: "浦东分店", coach_ids: [3, 6], course_ids: [2, 6], join_date: "2024-03-10", last_checkin: "2024-05-28", days_inactive: 27, avg_weekly_freq: 2.1, risk_level: "高风险" as const },
+    { member_id: 1123, name: "刘芳", member_type: "年卡", store: "朝阳旗舰店", coach_ids: [1, 7], course_ids: [1, 5], join_date: "2024-01-08", last_checkin: "2024-06-02", days_inactive: 22, avg_weekly_freq: 1.8, risk_level: "中风险" as const },
+    { member_id: 1156, name: "陈明", member_type: "月卡", store: "海淀分店", coach_ids: [2, 8], course_ids: [3, 4], join_date: "2024-04-01", last_checkin: "2024-06-05", days_inactive: 19, avg_weekly_freq: 1.5, risk_level: "中风险" as const },
+    { member_id: 1189, name: "杨丽", member_type: "季卡", store: "浦东分店", coach_ids: [3, 9], course_ids: [2, 7], join_date: "2024-03-15", last_checkin: "2024-06-08", days_inactive: 16, avg_weekly_freq: 1.2, risk_level: "中风险" as const },
+    { member_id: 1201, name: "赵磊", member_type: "月卡", store: "朝阳旗舰店", coach_ids: [4, 10], course_ids: [4, 6], join_date: "2024-05-01", last_checkin: "2024-06-10", days_inactive: 14, avg_weekly_freq: 0.8, risk_level: "低风险" as const },
+    { member_id: 1234, name: "黄敏", member_type: "年卡", store: "海淀分店", coach_ids: [5, 7], course_ids: [1, 3], join_date: "2024-02-10", last_checkin: "2024-06-12", days_inactive: 12, avg_weekly_freq: 2.5, risk_level: "低风险" as const },
+    { member_id: 1267, name: "周杰", member_type: "私教会员", store: "浦东分店", coach_ids: [6, 8], course_ids: [5, 7], join_date: "2024-01-20", last_checkin: "2024-06-13", days_inactive: 11, avg_weekly_freq: 3.0, risk_level: "低风险" as const },
+    { member_id: 1290, name: "吴婷", member_type: "季卡", store: "朝阳旗舰店", coach_ids: [1, 9], course_ids: [2, 4], join_date: "2024-03-05", last_checkin: "2024-06-14", days_inactive: 10, avg_weekly_freq: 1.9, risk_level: "低风险" as const },
+    { member_id: 1310, name: "郑浩", member_type: "私教会员", store: "海淀分店", coach_ids: [2, 10], course_ids: [3, 6], join_date: "2024-02-01", last_checkin: "2024-05-15", days_inactive: 40, avg_weekly_freq: 3.5, risk_level: "高风险" as const },
+    { member_id: 1325, name: "孙悦", member_type: "年卡", store: "浦东分店", coach_ids: [3, 4], course_ids: [1, 7], join_date: "2024-01-25", last_checkin: "2024-06-01", days_inactive: 23, avg_weekly_freq: 2.2, risk_level: "中风险" as const },
   ];
   
   let filteredMembers = [...baseMembers];
@@ -279,6 +281,24 @@ export const generateMockChurnWarning = (filters: FilterState, limit: number = 1
   if (filters.memberTypeIds?.length) {
     const typeNames = mockFilterOptions.memberTypes.filter(t => filters.memberTypeIds!.includes(t.id)).map(t => t.name);
     filteredMembers = filteredMembers.filter(m => typeNames.includes(m.member_type));
+  }
+  
+  if (filters.coachIds?.length) {
+    filteredMembers = filteredMembers.filter(m => 
+      m.coach_ids.some(cid => filters.coachIds!.includes(cid))
+    );
+  }
+  
+  if (filters.courseIds?.length) {
+    filteredMembers = filteredMembers.filter(m => 
+      m.course_ids.some(cid => filters.courseIds!.includes(cid))
+    );
+  }
+  
+  if (filters.month) {
+    const monthMultiplier = 0.6 + Math.random() * 0.4;
+    const keepCount = Math.ceil(filteredMembers.length * monthMultiplier);
+    filteredMembers = filteredMembers.slice(0, keepCount);
   }
   
   const highRisk = filteredMembers.filter(m => m.risk_level === "高风险");
@@ -294,7 +314,7 @@ export const generateMockChurnWarning = (filters: FilterState, limit: number = 1
     high_risk_count: highRisk.length,
     medium_risk_count: mediumRisk.length,
     low_risk_count: lowRisk.length,
-    members: filteredMembers.slice(0, limit),
+    members: filteredMembers.slice(0, limit).map(({ coach_ids, course_ids, ...rest }) => rest),
     warnings
   };
 };

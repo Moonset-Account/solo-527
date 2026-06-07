@@ -431,16 +431,81 @@ class AnalyticsService:
         
         today = datetime.now().date()
         members = self._get_active_members_query(filters).all()
-        susp_map = self._get_member_suspensions([m.id for m in members])
+        member_ids = [m.id for m in members]
+        
+        if filters.get('coach_ids'):
+            coach_member_ids = set()
+            pt_members = self.db.query(PTPurchase.member_id).filter(
+                PTPurchase.coach_id.in_(filters['coach_ids'])
+            ).all()
+            for m in pt_members:
+                coach_member_ids.add(m.member_id)
+            
+            booking_members = self.db.query(Booking.member_id).filter(
+                Booking.coach_id.in_(filters['coach_ids'])
+            ).all()
+            for m in booking_members:
+                coach_member_ids.add(m.member_id)
+            
+            member_ids = [mid for mid in member_ids if mid in coach_member_ids]
+            members = [m for m in members if m.id in member_ids]
+        
+        if filters.get('course_ids'):
+            course_member_ids = set()
+            booking_members = self.db.query(Booking.member_id).filter(
+                Booking.course_id.in_(filters['course_ids'])
+            ).all()
+            for m in booking_members:
+                course_member_ids.add(m.member_id)
+            
+            member_ids = [mid for mid in member_ids if mid in course_member_ids]
+            members = [m for m in members if m.id in member_ids]
+        
+        if filters.get('month'):
+            try:
+                year, month = map(int, filters['month'].split('-'))
+                month_start = datetime(year, month, 1).date()
+                if month == 12:
+                    month_end = datetime(year + 1, 1, 1).date()
+                else:
+                    month_end = datetime(year, month + 1, 1).date()
+                
+                month_member_ids = set()
+                checkin_members = self.db.query(Checkin.member_id).filter(
+                    Checkin.member_id.in_(member_ids),
+                    Checkin.checkin_time >= month_start,
+                    Checkin.checkin_time < month_end
+                ).all()
+                for m in checkin_members:
+                    month_member_ids.add(m.member_id)
+                
+                booking_members = self.db.query(Booking.member_id).filter(
+                    Booking.member_id.in_(member_ids),
+                    Booking.booking_date >= month_start,
+                    Booking.booking_date < month_end
+                ).all()
+                for m in booking_members:
+                    month_member_ids.add(m.member_id)
+                
+                member_ids = [mid for mid in member_ids if mid in month_member_ids]
+                members = [m for m in members if m.id in member_ids]
+            except (ValueError, AttributeError):
+                pass
+        
+        susp_map = self._get_member_suspensions(member_ids)
         
         high_risk = []
         medium_risk = []
         low_risk = []
         
+        member_type_map = {mt.id: mt.name for mt in self.db.query(MemberType).all()}
+        store_map = {s.id: s.name for s in self.db.query(Store).all()}
+        
         for member in members:
-            last_checkin = self.db.query(Checkin).filter(
+            last_checkin_query = self.db.query(Checkin).filter(
                 Checkin.member_id == member.id
-            ).order_by(Checkin.checkin_time.desc()).first()
+            )
+            last_checkin = last_checkin_query.order_by(Checkin.checkin_time.desc()).first()
             
             if not last_checkin:
                 continue
@@ -450,24 +515,18 @@ class AnalyticsService:
             if self._is_member_suspended(member.id, datetime.combine(today, datetime.min.time()), susp_map):
                 continue
             
-            checkins_90d = self.db.query(Checkin).filter(
+            freq_query = self.db.query(Checkin).filter(
                 Checkin.member_id == member.id,
                 Checkin.checkin_time >= today - timedelta(days=90)
-            ).count()
+            )
+            checkins_90d = freq_query.count()
             avg_weekly_freq = checkins_90d / 12.86 if checkins_90d > 0 else 0
-            
-            member_type = self.db.query(MemberType.name).filter(
-                MemberType.id == member.member_type_id
-            ).scalar()
-            store = self.db.query(Store.name).filter(
-                Store.id == member.store_id
-            ).scalar()
             
             member_info = {
                 "member_id": member.id,
                 "name": member.name,
-                "member_type": member_type,
-                "store": store,
+                "member_type": member_type_map.get(member.member_type_id, '未知'),
+                "store": store_map.get(member.store_id, '未知'),
                 "join_date": str(member.join_date),
                 "last_checkin": str(last_checkin.checkin_time.date()),
                 "days_inactive": days_inactive,
