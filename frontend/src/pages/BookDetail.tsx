@@ -338,26 +338,29 @@ const BookDetail: React.FC = () => {
         </Descriptions>
 
         <Row gutter={16} style={{ marginTop: 24 }}>
-          {CONDITIONS.map((cond) => {
-            const priceField = `suggested_price_${cond.value
-              .replace(/成新|新/g, '')
-              .replace(/九成新/g, 'like_new')
-              .replace(/八成新/g, 'good')
-              .replace(/七成新/g, 'fair')
-              .replace(/六成新及以下/g, 'poor')
-              .replace(/全新/g, 'new')}` as keyof Book;
-            const price = (book as any)[priceField];
-            return (
-              <Col span={4} key={cond.value}>
-                <Statistic
-                  title={cond.value}
-                  value={price || 0}
-                  prefix="¥"
-                  valueStyle={{ color: CONDITION_COLORS[cond.value] }}
-                />
-              </Col>
-            );
-          })}
+          {(() => {
+            const priceFieldMap: Record<string, keyof Book> = {
+              '全新': 'suggested_price_new',
+              '九成新': 'suggested_price_like_new',
+              '八成新': 'suggested_price_good',
+              '七成新': 'suggested_price_fair',
+              '六成新及以下': 'suggested_price_poor',
+            };
+            return CONDITIONS.map((cond) => {
+              const priceField = priceFieldMap[cond.value];
+              const price = priceField ? (book as any)[priceField] : 0;
+              return (
+                <Col span={4} key={cond.value}>
+                  <Statistic
+                    title={cond.value}
+                    value={price || 0}
+                    prefix="¥"
+                    valueStyle={{ color: CONDITION_COLORS[cond.value] }}
+                  />
+                </Col>
+              );
+            });
+          })()}
           <Col span={4}>
             <Button
               type="primary"

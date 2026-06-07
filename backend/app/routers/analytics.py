@@ -64,38 +64,70 @@ def get_price_scatter(filters: FilterParams, db: Session = Depends(get_db)):
     
     results = query.all()
     
-    scatter_data = []
-    seen_records = set()
+    grouped_data: dict = {}
     
     for record, book in results:
-        if record.id in seen_records:
-            continue
-        seen_records.add(record.id)
+        key = (record.isbn, record.condition)
         
-        suggested_price = get_suggested_price(book, record.condition)
+        if key not in grouped_data:
+            grouped_data[key] = {
+                "isbn": record.isbn,
+                "title": book.title,
+                "condition": record.condition,
+                "recycle_prices": [],
+                "sale_prices": [],
+                "days_in_stock_list": [],
+                "channels": set(),
+                "suggested_price": get_suggested_price(book, record.condition),
+                "is_set": book.is_set,
+                "is_abnormal_list": [],
+                "record_nos": [],
+                "total_costs": [],
+            }
+        
+        data = grouped_data[key]
+        data["recycle_prices"].append(record.recycle_price)
+        data["channels"].add(record.channel)
+        data["days_in_stock_list"].append(record.days_in_stock)
+        data["is_abnormal_list"].append(record.is_abnormal)
+        data["record_nos"].append(record.record_no)
+        
+        if record.sale_price:
+            data["sale_prices"].append(record.sale_price)
+        if record.total_cost:
+            data["total_costs"].append(record.total_cost)
+    
+    scatter_data = []
+    for key, data in grouped_data.items():
+        avg_recycle_price = sum(data["recycle_prices"]) / len(data["recycle_prices"])
+        avg_sale_price = sum(data["sale_prices"]) / len(data["sale_prices"]) if data["sale_prices"] else None
+        avg_days_in_stock = sum(data["days_in_stock_list"]) / len(data["days_in_stock_list"])
         
         profit_margin = None
-        if record.sale_price and record.total_cost:
-            profit_margin = round((record.sale_price - record.total_cost) / record.total_cost * 100, 2)
+        if avg_sale_price and data["total_costs"]:
+            avg_total_cost = sum(data["total_costs"]) / len(data["total_costs"])
+            if avg_total_cost > 0:
+                profit_margin = round((avg_sale_price - avg_total_cost) / avg_total_cost * 100, 2)
         
-        is_abnormal = record.is_abnormal
+        is_abnormal = any(data["is_abnormal_list"])
+        suggested_price = data["suggested_price"]
         if suggested_price and not is_abnormal:
-            price_diff_pct = abs(record.recycle_price - suggested_price) / suggested_price
+            price_diff_pct = abs(avg_recycle_price - suggested_price) / suggested_price
             if price_diff_pct > 0.3:
                 is_abnormal = True
         
         scatter_data.append(PriceScatterData(
-            isbn=record.isbn,
-            title=book.title,
-            condition=record.condition,
-            recycle_price=record.recycle_price,
+            isbn=data["isbn"],
+            title=data["title"],
+            condition=data["condition"],
+            recycle_price=round(avg_recycle_price, 2),
             suggested_price=suggested_price,
-            sale_price=record.sale_price,
-            channel=record.channel,
-            days_in_stock=record.days_in_stock,
+            sale_price=round(avg_sale_price, 2) if avg_sale_price else None,
+            channel=list(data["channels"])[0] if data["channels"] else "",
+            days_in_stock=round(avg_days_in_stock, 1),
             is_abnormal=is_abnormal,
-            is_set=book.is_set,
-            record_no=record.record_no,
+            is_set=data["is_set"],
+            record_no=data["record_nos"][0] if data["record_nos"] else "",
             profit_margin=profit_margin
         ))
     
