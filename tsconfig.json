@@ -30,12 +30,16 @@
     },
     "types": [
       "node",
-      "express"
+      "express",
+      "@remix-run/node"
     ]
   },
   "include": [
     "src",
+    "app",
     "api",
-    "shared"
+    "shared",
+    "server.ts",
+    "remix.config.js"
   ]
 }

@@ -29,7 +29,7 @@ const router = Router();
 router.get('/anomalies', async (req: Request, res: Response): Promise<void> => {
   try {
     const { params, customerStage } = parseFilterParams(req);
-    const consultationIds = getFilteredConsultationIds(params, customerStage);
+    const consultationIds = await getFilteredConsultationIds(params, customerStage);
     const anomalies = await getAnomaliesAggregation(consultationIds, params, customerStage);
     res.json({ anomalies });
   } catch (error) {
@@ -41,7 +41,7 @@ router.get('/anomalies', async (req: Request, res: Response): Promise<void> => {
 router.get('/funnel', async (req: Request, res: Response): Promise<void> => {
   try {
     const { params, customerStage } = parseFilterParams(req);
-    const consultationIds = getFilteredConsultationIds(params, customerStage);
+    const consultationIds = await getFilteredConsultationIds(params, customerStage);
     const cacheKey = buildCacheKey('funnel', { ids: consultationIds.length, ...params, customerStage });
     const agg = await getFunnelAggregation(consultationIds, cacheKey);
 
@@ -64,7 +64,7 @@ router.get('/funnel', async (req: Request, res: Response): Promise<void> => {
 router.get('/channel-quality', async (req: Request, res: Response): Promise<void> => {
   try {
     const { params, customerStage } = parseFilterParams(req);
-    const consultationIds = getFilteredConsultationIds(params, customerStage);
+    const consultationIds = await getFilteredConsultationIds(params, customerStage);
     const cacheKey = buildCacheKey('channel', { ids: consultationIds.length, ...params, customerStage });
     const channels = await getChannelQualityAggregation(consultationIds, cacheKey);
     res.json({ channels });
@@ -77,7 +77,7 @@ router.get('/channel-quality', async (req: Request, res: Response): Promise<void
 router.get('/consultant-load', async (req: Request, res: Response): Promise<void> => {
   try {
     const { params, customerStage } = parseFilterParams(req);
-    const consultationIds = getFilteredConsultationIds(params, customerStage);
+    const consultationIds = await getFilteredConsultationIds(params, customerStage);
     const cacheKey = buildCacheKey('consultant', { ids: consultationIds.length, ...params, customerStage });
     const consultants = await getConsultantLoadAggregation(consultationIds, cacheKey);
     res.json({ consultants });
@@ -90,7 +90,7 @@ router.get('/consultant-load', async (req: Request, res: Response): Promise<void
 router.get('/follow-up-trend', async (req: Request, res: Response): Promise<void> => {
   try {
     const { params, customerStage } = parseFilterParams(req);
-    const consultationIds = getFilteredConsultationIds(params, customerStage);
+    const consultationIds = await getFilteredConsultationIds(params, customerStage);
     const cacheKey = buildCacheKey('followup', { ids: consultationIds.length, ...params, customerStage });
     const result = await getFollowUpTrendAggregation(consultationIds, cacheKey);
     res.json(result);

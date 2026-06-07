@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import type { ExportTask, ExportFormat, FilterParams } from '../../shared/types.js';
-import { getFilteredConsultationIds, getFunnelAggregation, getChannelQualityAggregation, getConsultantLoadAggregation, getFollowUpTrendAggregation } from '../data/aggregations.js';
+import { getFilteredConsultationIds, getFunnelAggregation, getChannelQualityAggregation, getConsultantLoadAggregation, getFollowUpTrendAggregation, getAnomaliesAggregation } from '../data/aggregations.js';
 import { buildCacheKey } from '../data/redisCache.js';
 
 const router = Router();
@@ -20,7 +20,7 @@ async function generateExportData(viewType: string, filters: FilterParams): Prom
     months: filters.months,
   };
   const customerStage = filters.customerStage;
-  const consultationIds = getFilteredConsultationIds(params, customerStage);
+  const consultationIds = await getFilteredConsultationIds(params, customerStage);
 
   switch (viewType) {
     case 'funnel': {
@@ -64,9 +64,12 @@ async function generateExportData(viewType: string, filters: FilterParams): Prom
       return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     }
     case 'anomalies': {
-      const anomalies = await getFollowUpTrendAggregation(consultationIds, buildCacheKey('followup_export', { ids: consultationIds.length, ...params, customerStage }));
-      const headers = ['月份', '复诊率', '平均间隔天数'];
-      const rows = anomalies.monthly.map((m) => [m.month, `${(m.followUpRate * 100).toFixed(1)}%`, String(m.avgIntervalDays)]);
+      const anomalies = await getAnomaliesAggregation(consultationIds, params, customerStage);
+      const headers = ['级别', '标题', '描述', '指标', '当前值', '预期值', '关联视角'];
+      const rows = anomalies.map((a) => [
+        a.level, a.title, `"${a.description}"`, a.metric,
+        String(a.currentValue), String(a.expectedValue), a.relatedView,
+      ]);
       return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     }
     default:
