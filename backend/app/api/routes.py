@@ -88,11 +88,14 @@ def get_anomalies(
     severity: Optional[str] = Query(None),
     room_ids: Optional[str] = Query(None),
     week_type: Optional[str] = Query(None),
+    include_maintenance: bool = Query(False),
     db: Session = Depends(get_db)
 ):
     room_id_list = room_ids.split(",") if room_ids else None
     service = AnomalyService(db)
-    return service.get_anomalies(start_time, end_time, severity, room_id_list, week_type)
+    return service.get_anomalies(
+        start_time, end_time, severity, room_id_list, week_type, include_maintenance
+    )
 
 
 @router.get("/energy/anomalies/{anomaly_id}")

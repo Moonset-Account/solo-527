@@ -3,18 +3,25 @@ from sqlalchemy import func, and_, between, text
 from datetime import datetime, timedelta
 from typing import Optional, List
 from app.models import Room, Device, EnergyData, Alarm, Workorder, Schedule, Anomaly, ACStrategy, WorkorderAlarm
+from app.core.database import get_db_type
 from app import schemas
 
 
 def _filter_week_type(query, week_type: Optional[str], table_alias: str = "energy_data"):
     if week_type and week_type != "all":
+        db_type = get_db_type()
+        if db_type == "postgresql":
+            day_extract = f"EXTRACT(DAY FROM {table_alias}.timestamp)::integer"
+        else:
+            day_extract = f"CAST(strftime('%d', {table_alias}.timestamp) AS INTEGER)"
+        
         if week_type == "exam":
             query = query.filter(
-                text(f"CAST(strftime('%d', {table_alias}.timestamp) AS INTEGER) BETWEEN 15 AND 21")
+                text(f"{day_extract} BETWEEN 15 AND 21")
             )
         elif week_type == "normal":
             query = query.filter(
-                text(f"NOT CAST(strftime('%d', {table_alias}.timestamp) AS INTEGER) BETWEEN 15 AND 21")
+                text(f"NOT {day_extract} BETWEEN 15 AND 21")
             )
     return query
 
@@ -182,29 +189,39 @@ class EnergyService:
     
     def compare_weeks(
         self,
-        exam_week_start: datetime,
-        normal_week_start: datetime,
+        exam_week_start: Optional[datetime] = None,
+        normal_week_start: Optional[datetime] = None,
         room_ids: Optional[List[str]] = None,
         include_maintenance: bool = False
     ):
-        def get_week_data(start: datetime, label_week_type: str):
+        now = datetime.now()
+        
+        if not exam_week_start:
+            exam_week_start = now.replace(day=15, hour=0, minute=0, second=0, microsecond=0)
+            if exam_week_start > now:
+                exam_week_start = (exam_week_start - timedelta(days=30)).replace(day=15)
+        
+        if not normal_week_start:
+            normal_week_start = exam_week_start - timedelta(days=7)
+        
+        def get_week_data(start: datetime):
             end = start + timedelta(days=7)
             data = self.get_energy_trend(
                 start, end, 
                 room_ids=room_ids, 
                 categories=["total"],
                 include_maintenance=include_maintenance,
-                week_type=label_week_type
+                week_type=None
             )
             hourly = {}
             for point in data:
                 ts = point["timestamp"]
-                hour_key = ts.strftime("%Y-%m-%d %H:00")
+                hour_key = ts.strftime("%H:00")
                 hourly[hour_key] = hourly.get(hour_key, 0) + point["value"]
             return [{"time": k, "value": round(v, 2)} for k, v in sorted(hourly.items())]
         
-        exam_data = get_week_data(exam_week_start, "exam")
-        normal_data = get_week_data(normal_week_start, "normal")
+        exam_data = get_week_data(exam_week_start)
+        normal_data = get_week_data(normal_week_start)
         
         exam_total = sum(d["value"] for d in exam_data)
         normal_total = sum(d["value"] for d in normal_data)

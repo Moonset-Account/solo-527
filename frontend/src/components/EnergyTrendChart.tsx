@@ -33,6 +33,7 @@ export default function EnergyTrendChart({ onAnomalyClick }: EnergyTrendChartPro
           endTime: timeRange.end,
           roomIds: roomIds.length > 0 ? roomIds : undefined,
           weekType: weekType !== 'all' ? weekType : undefined,
+          includeMaintenance,
         }),
       ]);
       setData(trendData);

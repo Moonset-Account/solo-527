@@ -88,13 +88,15 @@ export const apiService = {
     severity?: string;
     roomIds?: string[];
     weekType?: string;
+    includeMaintenance?: boolean;
   }): Promise<AnomalyPoint[]> {
-    const queryParams: Record<string, string> = {};
+    const queryParams: Record<string, string | boolean> = {};
     if (params.startTime) queryParams.start_time = params.startTime;
     if (params.endTime) queryParams.end_time = params.endTime;
     if (params.severity) queryParams.severity = params.severity;
     if (params.roomIds?.length) queryParams.room_ids = params.roomIds.join(',');
     if (params.weekType) queryParams.week_type = params.weekType;
+    if (params.includeMaintenance !== undefined) queryParams.include_maintenance = params.includeMaintenance;
     
     const { data } = await api.get('/energy/anomalies', { params: queryParams });
     return data;
