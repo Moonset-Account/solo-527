@@ -3,9 +3,10 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils import timezone
 from django.conf import settings
-from django.db.models import Count, Avg, Q, F
+from django.db.models import Count, Avg, Q, F, Case, When, IntegerField, Sum
 from django.db.models.functions import TruncDate
 
 from visit_dashboard.models import (
@@ -20,7 +21,23 @@ from visit_dashboard.utils import (
 from visit_dashboard.tasks import generate_custom_report
 
 
+DIMENSION_FIELD_MAP = {
+    'store': 'work_order__store__name',
+    'problem_type': 'work_order__problem_type__name',
+    'team': 'work_order__team__name',
+    'handler': 'work_order__handler__last_name',
+}
+
+DIMENSION_WO_FIELD_MAP = {
+    'store': 'store__name',
+    'problem_type': 'problem_type__name',
+    'team': 'team__name',
+    'handler': 'handler__last_name',
+}
+
+
 @login_required
+@ensure_csrf_cookie
 def dashboard(request):
     stores = Store.objects.filter(is_active=True)
     problem_types = ProblemType.objects.all()
@@ -33,6 +50,7 @@ def dashboard(request):
         'teams': teams,
         'metric_configs': metric_configs,
         'low_score_threshold': settings.LOW_SCORE_THRESHOLD,
+        'csrf_token': str(request.META.get('CSRF_COOKIE', '')),
     }
     return render(request, 'visit_dashboard/dashboard.html', context)
 
@@ -187,7 +205,7 @@ def api_dimension_compare(request):
     date_to = request.GET.get('date_to')
     store_id = request.GET.get('store_id')
 
-    config = get_metric_config(dimension)
+    get_metric_config(dimension)
 
     visits = get_completed_visits().select_related(
         'work_order', 'work_order__store', 'work_order__problem_type',
@@ -196,46 +214,40 @@ def api_dimension_compare(request):
 
     visits = _apply_filters(visits, date_from, date_to, store_id, user)
 
-    if dimension == 'store':
-        dimension_field = 'work_order__store__name'
-    elif dimension == 'problem_type':
-        dimension_field = 'work_order__problem_type__name'
-    elif dimension == 'team':
-        dimension_field = 'work_order__team__name'
-    elif dimension == 'handler':
-        dimension_field = 'work_order__handler__last_name'
-    else:
-        dimension_field = 'work_order__store__name'
+    dimension_field = DIMENSION_FIELD_MAP.get(dimension, 'work_order__store__name')
 
-    dimension_values = visits.values(dimension_key=F(dimension_field)).annotate(
+    threshold = settings.LOW_SCORE_THRESHOLD
+
+    dimension_values = visits.annotate(
+        dimension_key=F(dimension_field),
+        is_low=Case(
+            When(satisfaction_score__lte=threshold, then=1),
+            default=0,
+            output_field=IntegerField(),
+        ),
+    ).values('dimension_key').annotate(
         visit_count=Count('id'),
         avg_satisfaction=Avg('satisfaction_score'),
+        low_score_count=Sum('is_low'),
     ).order_by('dimension_key')
 
     result = []
     for dv in dimension_values:
         if dv['dimension_key'] is None:
             continue
-
-        low_score_count = sum(
-            1 for v in visits
-            if getattr(v.work_order, _get_model_attr(dimension), None)
-            and str(getattr(v.work_order, _get_model_attr(dimension))) == str(dv['dimension_key'])
-            and v.is_low_score
-        )
-
         result.append({
             'name': dv['dimension_key'],
             'visit_count': dv['visit_count'],
             'avg_satisfaction': round(dv['avg_satisfaction'], 2) if dv['avg_satisfaction'] else None,
-            'low_score_count': low_score_count,
+            'low_score_count': dv['low_score_count'] or 0,
         })
 
     complaint_counts = {}
     work_order_ids = visits.values_list('work_order_id', flat=True)
-    complaints = SecondaryComplaint.objects.filter(work_order_id__in=work_order_ids)
-    for c in complaints.select_related('work_order'):
-        key = _get_dimension_value(c.work_order, dimension)
+    complaints = SecondaryComplaint.objects.filter(work_order_id__in=work_order_ids).select_related('work_order')
+    for c in complaints:
+        wo = c.work_order
+        key = _get_dimension_value(wo, dimension)
         if key not in complaint_counts:
             complaint_counts[key] = {'normal': 0, 'post_refund': 0}
         if c.is_post_refund:
@@ -397,11 +409,16 @@ def api_create_report(request):
         created_by=user,
     )
 
-    task = generate_custom_report.delay(report.id, params)
-    report.task_id = task.id
-    report.save(update_fields=['task_id'])
-
-    return JsonResponse({'report_id': report.id, 'task_id': task.id, 'status': 'pending'})
+    try:
+        task = generate_custom_report.delay(report.id, params)
+        report.task_id = task.id
+        report.save(update_fields=['task_id'])
+        return JsonResponse({'report_id': report.id, 'task_id': task.id, 'status': 'pending'})
+    except Exception as e:
+        report.status = 'failed'
+        report.error_message = f'Celery任务提交失败: {e}'
+        report.save()
+        return JsonResponse({'report_id': report.id, 'status': 'failed', 'error': str(e)})
 
 
 @login_required
@@ -512,16 +529,6 @@ def _apply_filters(visits, date_from, date_to, store_id, user):
         visits = visits.filter(work_order__store_id=store_id)
 
     return visits
-
-
-def _get_model_attr(dimension):
-    mapping = {
-        'store': 'store',
-        'problem_type': 'problem_type',
-        'team': 'team',
-        'handler': 'handler',
-    }
-    return mapping.get(dimension, 'store')
 
 
 def _get_dimension_value(work_order, dimension):

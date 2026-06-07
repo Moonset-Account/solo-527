@@ -1,6 +1,18 @@
 import re
-from django.core.cache import cache
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_cache():
+    try:
+        from django.core.cache import cache
+        cache.get('_ping')
+        return cache
+    except Exception:
+        logger.warning('Cache backend unavailable, skipping cache operations')
+        return None
 
 
 def mask_phone(phone):
@@ -15,9 +27,8 @@ def mask_phone(phone):
 def get_store_ids_for_user(user):
     if user.is_superuser:
         return None
-    if hasattr(user, 'store_permissions'):
-        return list(user.store_permissions.values_list('store_id', flat=True))
-    return []
+    from visit_dashboard.models import StorePermission
+    return list(StorePermission.objects.filter(user=user).values_list('store_id', flat=True))
 
 
 def filter_queryset_by_permission(queryset, user):
@@ -40,20 +51,35 @@ def get_completed_visits(queryset=None):
 def get_metric_config(dimension='store'):
     from visit_dashboard.models import MetricConfig
     cache_key = f'metric_config:{dimension}'
-    config = cache.get(cache_key)
-    if config is None:
-        config = MetricConfig.objects.filter(dimension=dimension, is_active=True).first()
-        if config:
-            cache.set(cache_key, config, timeout=3600)
+    c = _safe_cache()
+    if c:
+        try:
+            config = c.get(cache_key)
+            if config is not None:
+                return config
+        except Exception:
+            pass
+    config = MetricConfig.objects.filter(dimension=dimension, is_active=True).first()
+    if config and c:
+        try:
+            c.set(cache_key, config, timeout=3600)
+        except Exception:
+            pass
     return config
 
 
 def clear_metric_config_cache(dimension=None):
-    if dimension:
-        cache.delete(f'metric_config:{dimension}')
-    else:
-        for dim in ['store', 'problem_type', 'team', 'handler']:
-            cache.delete(f'metric_config:{dim}')
+    c = _safe_cache()
+    if not c:
+        return
+    try:
+        if dimension:
+            c.delete(f'metric_config:{dimension}')
+        else:
+            for dim in ['store', 'problem_type', 'team', 'handler']:
+                c.delete(f'metric_config:{dim}')
+    except Exception:
+        pass
 
 
 def compute_satisfaction_avg(visits):

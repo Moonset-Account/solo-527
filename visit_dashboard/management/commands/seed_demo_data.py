@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from visit_dashboard.models import (
     Store, Team, ProblemType, WorkOrder, VisitRecord,
-    Refund, SecondaryComplaint, MetricConfig, AnomalyAnnotation,
+    Refund, SecondaryComplaint, StorePermission, MetricConfig, AnomalyAnnotation,
 )
 
 
@@ -27,6 +27,14 @@ class Command(BaseCommand):
         handler3, _ = User.objects.get_or_create(username='handler3', defaults={
             'first_name': '王', 'last_name': '强', 'email': 'wang@example.com'
         })
+
+        supervisor, _ = User.objects.get_or_create(username='supervisor', defaults={
+            'first_name': '赵', 'last_name': '主管', 'email': 'supervisor@example.com',
+            'is_staff': True,
+        })
+        if not supervisor.has_usable_password():
+            supervisor.set_password('supervisor123')
+            supervisor.save()
 
         store1, _ = Store.objects.get_or_create(code='S001', defaults={
             'name': '北京朝阳店', 'region': '华北'
@@ -149,5 +157,14 @@ class Command(BaseCommand):
             'is_active': True,
             'created_by': admin_user,
         })
+
+        for store in [store1, store2, store3]:
+            StorePermission.objects.get_or_create(user=supervisor, store=store)
+        for store in [store1, store2]:
+            StorePermission.objects.get_or_create(user=handler1, store=store)
+        for store in [store2, store3]:
+            StorePermission.objects.get_or_create(user=handler2, store=store)
+        for store in [store3, store1]:
+            StorePermission.objects.get_or_create(user=handler3, store=store)
 
         self.stdout.write(self.style.SUCCESS('Demo data seeded successfully!'))

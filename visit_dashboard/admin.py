@@ -1,7 +1,7 @@
 from django.contrib import admin
 from visit_dashboard.models import (
     Store, Team, ProblemType, WorkOrder, VisitRecord,
-    Refund, SecondaryComplaint, MetricConfig, AsyncReport, AnomalyAnnotation,
+    Refund, SecondaryComplaint, StorePermission, MetricConfig, AsyncReport, AnomalyAnnotation,
 )
 
 
@@ -51,6 +51,14 @@ class RefundAdmin(admin.ModelAdmin):
 class SecondaryComplaintAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'work_order', 'complaint_type', 'complaint_time', 'is_post_refund']
     list_filter = ['is_post_refund', 'complaint_type']
+
+
+@admin.register(StorePermission)
+class StorePermissionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'store', 'created_at']
+    list_filter = ['store']
+    search_fields = ['user__username', 'user__last_name']
+    raw_id_fields = ['user']
 
 
 @admin.register(MetricConfig)

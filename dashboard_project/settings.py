@@ -49,8 +49,12 @@ WSGI_APPLICATION = 'dashboard_project.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'visit_dashboard',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -71,6 +75,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 3600,
+    'retry_on_timeout': True,
+}
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -89,14 +99,28 @@ CELERY_BEAT_SCHEDULE = {
 
 CACHES = {
     'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'visit-dashboard-cache',
+        'KEY_PREFIX': 'visit_dashboard',
+    }
+}
+
+REDIS_URL = 'redis://localhost:6379/1'
+
+try:
+    import redis
+    r = redis.Redis.from_url(REDIS_URL)
+    r.ping()
+    CACHES['default'] = {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost:6379/1',
+        'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
         'KEY_PREFIX': 'visit_dashboard',
     }
-}
+except Exception:
+    pass
 
 LOW_SCORE_THRESHOLD = 3
 VISIT_COMPLETE_STATUS = 'completed'

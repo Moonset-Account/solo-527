@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>门店售后回访质量看板</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.1/dist/cdn.min.js"></script>
@@ -74,6 +75,9 @@
         .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
         .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
         .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .loading-overlay { position: relative; opacity: 0.6; pointer-events: none; }
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body x-data="dashboardApp()">
@@ -85,7 +89,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container" :class="{'loading-overlay': loading}">
         <div class="filters">
             <div>
                 <label>开始日期</label>
@@ -104,7 +108,10 @@
                     {% endfor %}
                 </select>
             </div>
-            <button class="btn-primary" @click="loadAll()">查询</button>
+            <button class="btn-primary" @click="loadAll()">
+                <span x-show="loading" class="loading-spinner"></span>
+                <span x-text="loading ? '加载中...' : '查询'"></span>
+            </button>
             <button class="btn-warning" @click="resetFilters()">重置</button>
         </div>
 
@@ -418,10 +425,16 @@
             showReportModal: false,
             reportForm: { report_type: 'custom', dimension: 'store' },
             reportStatus: '',
+            loading: false,
+            _reqSeq: 0,
 
             get dimensionTitle() {
                 const map = { store: '门店', problem_type: '问题类型', team: '处理班组' };
                 return map[this.activeTab] || '门店';
+            },
+
+            _getCsrfToken() {
+                return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             },
 
             init() {
@@ -429,73 +442,99 @@
             },
 
             async loadAll() {
-                await this.loadOverview();
-                this.loadTabData();
+                this.loading = true;
+                const seq = ++this._reqSeq;
+                await this.loadOverview(seq);
+                if (seq === this._reqSeq) {
+                    this.loadTabData(seq);
+                }
             },
 
-            async loadOverview() {
-                const params = new URLSearchParams(this.filters);
-                const resp = await fetch(`/api/overview/?${params}`);
-                this.overview = await resp.json();
+            async loadOverview(seq) {
+                try {
+                    const params = new URLSearchParams(this.filters);
+                    const resp = await fetch(`/api/overview/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    this.overview = await resp.json();
+                } catch (e) {
+                    console.error('loadOverview failed:', e);
+                }
             },
 
             switchTab(tab) {
                 this.activeTab = tab;
-                this.loadTabData();
+                const seq = ++this._reqSeq;
+                this.loadTabData(seq);
             },
 
-            async loadTabData() {
+            async loadTabData(seq) {
                 const params = new URLSearchParams(this.filters);
                 if (this.activeTab === 'low_score') {
-                    await this.loadLowScore(params);
-                    await this.loadTrend(params);
+                    await Promise.all([this.loadLowScore(params, seq), this.loadTrend(params, seq)]);
                 } else if (this.activeTab === 'complaint') {
-                    await this.loadComplaints(params);
-                    await this.loadRefundStatus(params);
+                    await Promise.all([this.loadComplaints(params, seq), this.loadRefundStatus(params, seq)]);
                 } else {
                     params.set('dimension', this.activeTab);
-                    await this.loadDimension(params);
+                    await this.loadDimension(params, seq);
+                }
+                if (seq === this._reqSeq) {
+                    this.loading = false;
                 }
             },
 
-            async loadLowScore(params) {
-                const resp = await fetch(`/api/low-score/?${params}`);
-                const data = await resp.json();
-                this.lowScoreVisits = data.low_score_visits || [];
-                this.$nextTick(() => this.renderLowScoreChart());
+            async loadLowScore(params, seq) {
+                try {
+                    const resp = await fetch(`/api/low-score/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    const data = await resp.json();
+                    this.lowScoreVisits = data.low_score_visits || [];
+                    this.$nextTick(() => this.renderLowScoreChart());
+                } catch (e) { console.error('loadLowScore failed:', e); }
             },
 
-            async loadTrend(params) {
-                const resp = await fetch(`/api/satisfaction-trend/?${params}`);
-                const data = await resp.json();
-                this.trendData = data;
-                this.$nextTick(() => this.renderTrendChart(data));
+            async loadTrend(params, seq) {
+                try {
+                    const resp = await fetch(`/api/satisfaction-trend/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    const data = await resp.json();
+                    this.trendData = data;
+                    this.$nextTick(() => this.renderTrendChart(data));
+                } catch (e) { console.error('loadTrend failed:', e); }
             },
 
-            async loadComplaints(params) {
-                const resp = await fetch(`/api/secondary-complaint/?${params}`);
-                const data = await resp.json();
-                this.normalComplaints = data.normal_complaints || [];
-                this.postRefundComplaints = data.post_refund_complaints || [];
-                this.$nextTick(() => this.renderComplaintChart(data));
+            async loadComplaints(params, seq) {
+                try {
+                    const resp = await fetch(`/api/secondary-complaint/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    const data = await resp.json();
+                    this.normalComplaints = data.normal_complaints || [];
+                    this.postRefundComplaints = data.post_refund_complaints || [];
+                    this.$nextTick(() => this.renderComplaintChart(data));
+                } catch (e) { console.error('loadComplaints failed:', e); }
             },
 
-            async loadRefundStatus(params) {
-                const resp = await fetch(`/api/refund-status/?${params}`);
-                const data = await resp.json();
-                this.refundStatus = data.refund_status || [];
-                this.$nextTick(() => this.renderRefundChart());
+            async loadRefundStatus(params, seq) {
+                try {
+                    const resp = await fetch(`/api/refund-status/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    const data = await resp.json();
+                    this.refundStatus = data.refund_status || [];
+                    this.$nextTick(() => this.renderRefundChart());
+                } catch (e) { console.error('loadRefundStatus failed:', e); }
             },
 
-            async loadDimension(params) {
-                const resp = await fetch(`/api/dimension-compare/?${params}`);
-                const data = await resp.json();
-                this.dimensionData = data.data || [];
-                this.dimensionAnnotations = data.annotations || [];
-                this.$nextTick(() => {
-                    this.renderDimensionChart();
-                    this.renderDimensionCountChart();
-                });
+            async loadDimension(params, seq) {
+                try {
+                    const resp = await fetch(`/api/dimension-compare/?${params}`);
+                    if (seq !== this._reqSeq) return;
+                    const data = await resp.json();
+                    this.dimensionData = data.data || [];
+                    this.dimensionAnnotations = data.annotations || [];
+                    this.$nextTick(() => {
+                        this.renderDimensionChart();
+                        this.renderDimensionCountChart();
+                    });
+                } catch (e) { console.error('loadDimension failed:', e); }
             },
 
             resetFilters() {
@@ -503,9 +542,18 @@
                 this.loadAll();
             },
 
+            _disposeChart(domId) {
+                const dom = document.getElementById(domId);
+                if (dom) {
+                    const existing = echarts.getInstanceByDom(dom);
+                    if (existing) existing.dispose();
+                }
+            },
+
             renderLowScoreChart() {
                 const dom = document.getElementById('lowScoreChart');
                 if (!dom) return;
+                this._disposeChart('lowScoreChart');
                 const chart = echarts.init(dom);
                 const normalLow = this.lowScoreVisits.filter(v => !v.is_post_refund_complaint).length;
                 const postRefundLow = this.lowScoreVisits.filter(v => v.is_post_refund_complaint).length;
@@ -524,21 +572,17 @@
                         ],
                     }],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             renderTrendChart(data) {
                 const dom = document.getElementById('trendChart');
                 if (!dom) return;
+                this._disposeChart('trendChart');
                 const chart = echarts.init(dom);
                 const trend = data.trend || [];
                 const postRefundMarks = data.post_refund_marks || [];
-                const markPoints = postRefundMarks.map(m => ({
-                    coord: [m.date, null],
-                    name: '退款后投诉',
-                    itemStyle: { color: '#8e44ad' },
-                    symbolSize: 12,
-                }));
                 chart.setOption({
                     tooltip: { trigger: 'axis' },
                     legend: { bottom: 0 },
@@ -568,12 +612,14 @@
                         },
                     ],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             renderComplaintChart(data) {
                 const dom = document.getElementById('complaintChart');
                 if (!dom) return;
+                this._disposeChart('complaintChart');
                 const chart = echarts.init(dom);
                 chart.setOption({
                     tooltip: { trigger: 'item' },
@@ -589,12 +635,14 @@
                         ],
                     }],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             renderRefundChart() {
                 const dom = document.getElementById('refundChart');
                 if (!dom) return;
+                this._disposeChart('refundChart');
                 const chart = echarts.init(dom);
                 const colors = { pending: '#f39c12', approved: '#3498db', refunded: '#27ae60', rejected: '#e74c3c' };
                 chart.setOption({
@@ -611,12 +659,14 @@
                         })),
                     }],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             renderDimensionChart() {
                 const dom = document.getElementById('dimensionChart');
                 if (!dom) return;
+                this._disposeChart('dimensionChart');
                 const chart = echarts.init(dom);
                 const names = this.dimensionData.map(d => d.name);
                 chart.setOption({
@@ -651,12 +701,14 @@
                         },
                     ],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             renderDimensionCountChart() {
                 const dom = document.getElementById('dimensionCountChart');
                 if (!dom) return;
+                this._disposeChart('dimensionCountChart');
                 const chart = echarts.init(dom);
                 const names = this.dimensionData.map(d => d.name);
                 chart.setOption({
@@ -670,38 +722,51 @@
                         label: { show: true, position: 'top' },
                     }],
                 });
-                window.addEventListener('resize', () => chart.resize());
+                const ro = new ResizeObserver(() => chart.resize());
+                ro.observe(dom);
             },
 
             async createReport() {
                 this.reportStatus = '正在提交报表生成任务...';
-                const resp = await fetch('/api/report/create/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
-                    body: JSON.stringify({
-                        report_type: this.reportForm.report_type,
-                        params: { ...this.filters, dimension: this.reportForm.dimension },
-                    }),
-                });
-                const data = await resp.json();
-                if (data.report_id) {
-                    this.reportStatus = '报表任务已提交，任务ID: ' + data.task_id;
-                    this.pollReportStatus(data.report_id);
-                } else {
-                    this.reportStatus = '提交失败: ' + (data.error || '未知错误');
+                const csrfToken = this._getCsrfToken();
+                try {
+                    const resp = await fetch('/api/report/create/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                        },
+                        body: JSON.stringify({
+                            report_type: this.reportForm.report_type,
+                            params: { ...this.filters, dimension: this.reportForm.dimension },
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (resp.ok && data.report_id) {
+                        this.reportStatus = '报表任务已提交，任务ID: ' + data.task_id;
+                        this.pollReportStatus(data.report_id);
+                    } else {
+                        this.reportStatus = '提交失败: ' + (data.error || data.detail || '未知错误');
+                    }
+                } catch (e) {
+                    this.reportStatus = '网络错误: ' + e.message;
                 }
             },
 
             async pollReportStatus(reportId) {
                 const poll = async () => {
-                    const resp = await fetch(`/api/report/${reportId}/status/`);
-                    const data = await resp.json();
-                    if (data.status === 'completed') {
-                        this.reportStatus = '报表已生成，路径: ' + data.file_path;
-                    } else if (data.status === 'failed') {
-                        this.reportStatus = '报表生成失败: ' + data.error_message;
-                    } else {
-                        setTimeout(poll, 3000);
+                    try {
+                        const resp = await fetch(`/api/report/${reportId}/status/`);
+                        const data = await resp.json();
+                        if (data.status === 'completed') {
+                            this.reportStatus = '报表已生成，路径: ' + data.file_path;
+                        } else if (data.status === 'failed') {
+                            this.reportStatus = '报表生成失败: ' + data.error_message;
+                        } else {
+                            setTimeout(poll, 3000);
+                        }
+                    } catch (e) {
+                        this.reportStatus = '轮询失败: ' + e.message;
                     }
                 };
                 setTimeout(poll, 2000);

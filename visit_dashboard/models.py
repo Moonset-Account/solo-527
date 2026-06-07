@@ -161,6 +161,30 @@ class SecondaryComplaint(models.Model):
         return refunds.exists()
 
 
+class StorePermission(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='store_permissions',
+        verbose_name='用户',
+    )
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='allowed_users',
+        verbose_name='门店',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='授权时间')
+
+    class Meta:
+        verbose_name = '门店权限'
+        verbose_name_plural = '门店权限'
+        unique_together = ('user', 'store')
+
+    def __str__(self):
+        return f'{self.user} -> {self.store}'
+
+
 class MetricConfig(models.Model):
     DIMENSION_CHOICES = [
         ('store', '门店'),
