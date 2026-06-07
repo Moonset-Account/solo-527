@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 
+const ACTIVITIES = ['日常运营', '周末特别活动', '节假日', '暑期档', '夜间场'];
+
 export interface TicketRecord {
   id: string;
   ticketNo: string;
@@ -8,6 +10,7 @@ export interface TicketRecord {
   sellTime: Date;
   channel: string;
   visitorId: string;
+  activity: string;
 }
 
 export interface GateRecord {
@@ -19,6 +22,7 @@ export interface GateRecord {
   area: string;
   areaId: string;
   queueDuration: number;
+  activity: string;
 }
 
 export interface ParkingRecord {
@@ -29,6 +33,7 @@ export interface ParkingRecord {
   parkingLot: string;
   duration?: number;
   fee?: number;
+  activity: string;
 }
 
 export interface WeatherRecord {
@@ -48,6 +53,7 @@ export interface ShowRecord {
   venue: string;
   capacity: number;
   audienceCount: number;
+  activity: string;
 }
 
 export interface ConsumptionRecord {
@@ -58,6 +64,7 @@ export interface ConsumptionRecord {
   amount: number;
   category: string;
   shopName: string;
+  activity: string;
 }
 
 export type AnyRecord = TicketRecord | GateRecord | ParkingRecord | WeatherRecord | ShowRecord | ConsumptionRecord;
@@ -127,6 +134,7 @@ export class DataStore {
     for (let i = 0; i < 15000; i++) {
       const ticketType = TICKET_TYPES[Math.floor(Math.random() * TICKET_TYPES.length)];
       const visitorId = 'V' + generateId();
+      const activity = ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)];
       this.tickets.push({
         id: generateId(),
         ticketNo: 'TK' + generateId().toUpperCase(),
@@ -134,7 +142,8 @@ export class DataStore {
         price: ticketPrices[ticketType],
         sellTime: randomDateInRange(dayStart, now),
         channel: channels[Math.floor(Math.random() * channels.length)],
-        visitorId
+        visitorId,
+        activity
       });
     }
 
@@ -152,7 +161,8 @@ export class DataStore {
         direction: isEntry ? 'in' : 'out',
         area: area.name,
         areaId: area.id,
-        queueDuration: isEntry ? Math.max(0, randomNormal(15, 8)) : 0
+        queueDuration: isEntry ? Math.max(0, randomNormal(15, 8)) : 0,
+        activity: ticket.activity
       });
     }
 
@@ -167,7 +177,8 @@ export class DataStore {
         exitTime: hasExited ? new Date(enterTime.getTime() + duration! * 60000) : undefined,
         parkingLot: ['P1', 'P2', 'P3'][Math.floor(Math.random() * 3)],
         duration,
-        fee: duration ? Math.floor(duration / 30) * 10 : undefined
+        fee: duration ? Math.floor(duration / 30) * 10 : undefined,
+        activity: ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]
       });
     }
 
@@ -195,7 +206,8 @@ export class DataStore {
         endTime,
         venue: AREAS[Math.floor(Math.random() * AREAS.length)].name,
         capacity: 800 + Math.floor(Math.random() * 800),
-        audienceCount: Math.floor(randomNormal(600, 200))
+        audienceCount: Math.floor(randomNormal(600, 200)),
+        activity: ACTIVITIES[Math.floor(Math.random() * ACTIVITIES.length)]
       });
     }
 
@@ -210,7 +222,8 @@ export class DataStore {
         consumeTime: randomDateInRange(dayStart, now),
         amount: Math.round(randomNormal(85, 40) * 100) / 100,
         category: categories[Math.floor(Math.random() * categories.length)],
-        shopName: shopNames[Math.floor(Math.random() * shopNames.length)]
+        shopName: shopNames[Math.floor(Math.random() * shopNames.length)],
+        activity: ticket.activity
       });
     }
 

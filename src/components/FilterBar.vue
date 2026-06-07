@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Filter, RotateCcw, ChevronDown } from 'lucide-vue-next';
 import { useFilterStore } from '@/stores/filter';
-import { ENTRANCES, AREAS, TICKET_TYPES, ACTIVITIES } from '@/data/constants';
+import { ENTRANCES, AREAS, TICKET_TYPES, ACTIVITIES, getAreaName } from '@/data/constants';
 import { computed, ref } from 'vue';
 
 const emit = defineEmits<{
@@ -14,10 +14,9 @@ const showEntranceDropdown = ref(false);
 const showTicketDropdown = ref(false);
 const showActivityDropdown = ref(false);
 
-const areaNames = computed(() => AREAS.map(a => a.name));
 const selectedAreaLabels = computed(() => {
   return filterStore.filters.area.length > 0
-    ? filterStore.filters.area.join(', ')
+    ? filterStore.filters.area.map(id => getAreaName(id)).join(', ')
     : '全部区域';
 });
 const selectedEntranceLabels = computed(() => {
@@ -130,17 +129,17 @@ function closeDropdowns() {
           class="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 w-48 py-1 max-h-60 overflow-auto"
         >
           <label
-            v-for="item in areaNames"
-            :key="item"
+            v-for="item in AREAS"
+            :key="item.id"
             class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm"
           >
             <input
               type="checkbox"
-              :checked="filterStore.filters.area.includes(item)"
-              @change="toggleArea(item)"
+              :checked="filterStore.filters.area.includes(item.id)"
+              @change="toggleArea(item.id)"
               class="rounded text-teal-600 focus:ring-teal-500"
             />
-            {{ item }}
+            {{ item.name }}
           </label>
         </div>
       </div>

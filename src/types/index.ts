@@ -57,10 +57,13 @@ export interface DataQualityReport {
   outlierCount: number;
   sampleSize: number;
   updatedAt: string;
+  caliberVersion?: string;
+  cleanedCount?: number;
   fieldStats: Array<{
     fieldName: string;
     completeness: number;
     hasOutliers: boolean;
+    recordCount?: number;
   }>;
 }
 

@@ -31,6 +31,7 @@ export function getHeatmapData(filter: FilterParams = {}): HeatmapData[] {
   const filteredGates = gates.filter(g => {
     if (filter.entrance?.length && !filter.entrance.includes(g.entrance)) return false;
     if (filter.areaId?.length && !filter.areaId.includes(g.areaId)) return false;
+    if (filter.activity?.length && !filter.activity.includes(g.activity)) return false;
     return true;
   });
 
@@ -77,6 +78,7 @@ export function getQueuePrediction(filter: FilterParams = {}): QueuePrediction[]
   const filteredGates = gates.filter(g => {
     if (filter.entrance?.length && !filter.entrance.includes(g.entrance)) return false;
     if (filter.areaId?.length && !filter.areaId.includes(g.areaId)) return false;
+    if (filter.activity?.length && !filter.activity.includes(g.activity)) return false;
     return true;
   });
 
@@ -119,9 +121,12 @@ export function getQueuePrediction(filter: FilterParams = {}): QueuePrediction[]
 export function getTicketAnalysis(filter: FilterParams = {}): TicketAnalysis[] {
   const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime);
   const gates = filterByTime(dataStore.gates, filter.startTime, filter.endTime);
-  const ticketNosUsed = new Set(gates.filter(g => g.direction === 'in').map(g => g.ticketNo));
+  const ticketNosUsed = new Set(gates.filter(g => g.direction === 'in'
+    && (!filter.activity?.length || filter.activity.includes(g.activity))
+  ).map(g => g.ticketNo));
   const filteredTickets = tickets.filter(t => {
     if (filter.ticketType?.length && !filter.ticketType.includes(t.ticketType)) return false;
+    if (filter.activity?.length && !filter.activity.includes(t.activity)) return false;
     return true;
   });
 
@@ -155,11 +160,14 @@ export function getConversionFunnel(filter: FilterParams = {}): ConversionFunnel
   const consumptions = filterByTime(dataStore.consumptions, filter.startTime, filter.endTime);
   const filteredTickets = tickets.filter(t => {
     if (filter.ticketType?.length && !filter.ticketType.includes(t.ticketType)) return false;
+    if (filter.activity?.length && !filter.activity.includes(t.activity)) return false;
     return true;
   });
 
   const visitorsWithTicket = new Set(filteredTickets.map(t => t.visitorId));
-  const ticketNosIn = gates.filter(g => g.direction === 'in').map(g => g.ticketNo);
+  const ticketNosIn = gates.filter(g => g.direction === 'in'
+    && (!filter.activity?.length || filter.activity.includes(g.activity))
+  ).map(g => g.ticketNo);
   const enteredVisitors = new Set<string>();
   const ticketMap = new Map(filteredTickets.map(t => [t.ticketNo, t.visitorId]));
   ticketNosIn.forEach(no => {
@@ -168,9 +176,11 @@ export function getConversionFunnel(filter: FilterParams = {}): ConversionFunnel
   });
   const consumingVisitors = new Set(consumptions
     .filter(c => visitorsWithTicket.has(c.visitorId))
+    .filter(c => !filter.activity?.length || filter.activity.includes(c.activity))
     .map(c => c.visitorId));
   const highValueVisitors = new Set(consumptions
     .filter(c => c.amount > 150 && visitorsWithTicket.has(c.visitorId))
+    .filter(c => !filter.activity?.length || filter.activity.includes(c.activity))
     .map(c => c.visitorId));
 
   return [
@@ -182,10 +192,14 @@ export function getConversionFunnel(filter: FilterParams = {}): ConversionFunnel
 }
 
 export function getKPIData(filter: FilterParams = {}): KPIData {
-  const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime);
-  const gates = filterByTime(dataStore.gates, filter.startTime, filter.endTime);
-  const consumptions = filterByTime(dataStore.consumptions, filter.startTime, filter.endTime);
-  const parkings = filterByTime(dataStore.parkings, filter.startTime, filter.endTime);
+  const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime)
+    .filter(t => !filter.activity?.length || filter.activity.includes(t.activity));
+  const gates = filterByTime(dataStore.gates, filter.startTime, filter.endTime)
+    .filter(g => !filter.activity?.length || filter.activity.includes(g.activity));
+  const consumptions = filterByTime(dataStore.consumptions, filter.startTime, filter.endTime)
+    .filter(c => !filter.activity?.length || filter.activity.includes(c.activity));
+  const parkings = filterByTime(dataStore.parkings, filter.startTime, filter.endTime)
+    .filter(p => !filter.activity?.length || filter.activity.includes(p.activity));
   const closedIds = dataStore.getClosedAreaIds();
   const areas = dataStore.getAreaList();
 
@@ -247,6 +261,39 @@ export function getRawRecords(filter: FilterParams & { page?: number; pageSize?:
     })));
   }
 
+  if (!source || source === 'parking') {
+    allRecords.push(...filterByTime(dataStore.parkings, filter.startTime, filter.endTime).map(p => ({
+      id: p.id,
+      source: 'parking' as const,
+      time: p.enterTime.toISOString(),
+      title: p.exitTime ? '车辆离场' : '车辆入场',
+      description: `车牌 ${p.plateNo}，${p.parkingLot}，${p.duration ? p.duration.toFixed(1) + '小时' : '停车中'}`,
+      metadata: { plateNo: p.plateNo, parkingLot: p.parkingLot, duration: p.duration, fee: p.fee, exitTime: p.exitTime?.toISOString() }
+    })));
+  }
+
+  if (!source || source === 'weather') {
+    allRecords.push(...filterByTime(dataStore.weathers, filter.startTime, filter.endTime).map(w => ({
+      id: w.id,
+      source: 'weather' as const,
+      time: w.recordTime.toISOString(),
+      title: `天气记录: ${w.weather}`,
+      description: `温度 ${w.temperature.toFixed(1)}°C，湿度 ${w.humidity}%，风速 ${w.windSpeed.toFixed(1)}m/s`,
+      metadata: { temperature: w.temperature, humidity: w.humidity, weather: w.weather, windSpeed: w.windSpeed }
+    })));
+  }
+
+  if (!source || source === 'show') {
+    allRecords.push(...filterByTime(dataStore.shows, filter.startTime, filter.endTime).map(s => ({
+      id: s.id,
+      source: 'show' as const,
+      time: s.startTime.toISOString(),
+      title: `演出: ${s.showName}`,
+      description: `${s.venue}，观众 ${s.audienceCount}/${s.capacity}，时长 ${Math.round((s.endTime.getTime() - s.startTime.getTime()) / 60000)}分钟`,
+      metadata: { showName: s.showName, venue: s.venue, capacity: s.capacity, audienceCount: s.audienceCount, endTime: s.endTime.toISOString() }
+    })));
+  }
+
   allRecords.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   const total = allRecords.length;
   const start = (page - 1) * pageSize;
@@ -255,23 +302,37 @@ export function getRawRecords(filter: FilterParams & { page?: number; pageSize?:
   return { list, total, page, pageSize };
 }
 
+const CALIBER_VERSION = 'v2.1.0';
+
 export function getDataQualityReport(filter: FilterParams = {}): DataQualityReport {
-  const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime);
-  const gates = filterByTime(dataStore.gates, filter.startTime, filter.endTime);
-  const consumptions = filterByTime(dataStore.consumptions, filter.startTime, filter.endTime);
-  const parkings = filterByTime(dataStore.parkings, filter.startTime, filter.endTime);
+  const tickets = filterByTime(dataStore.tickets, filter.startTime, filter.endTime)
+    .filter(t => !filter.activity?.length || filter.activity.includes(t.activity));
+  const gates = filterByTime(dataStore.gates, filter.startTime, filter.endTime)
+    .filter(g => !filter.activity?.length || filter.activity.includes(g.activity));
+  const consumptions = filterByTime(dataStore.consumptions, filter.startTime, filter.endTime)
+    .filter(c => !filter.activity?.length || filter.activity.includes(c.activity));
+  const parkings = filterByTime(dataStore.parkings, filter.startTime, filter.endTime)
+    .filter(p => !filter.activity?.length || filter.activity.includes(p.activity));
+  const weathers = filterByTime(dataStore.weathers, filter.startTime, filter.endTime);
+  const shows = filterByTime(dataStore.shows, filter.startTime, filter.endTime)
+    .filter(s => !filter.activity?.length || filter.activity.includes(s.activity));
 
   const allRecords = [...tickets, ...gates, ...consumptions, ...parkings];
   const totalRecords = allRecords.length;
   let missingFields = 0;
   let anomalousRecords = 0;
+  let cleanedRecords = 0;
 
   allRecords.forEach(r => {
     const values = Object.values(r);
-    if (values.some(v => v === null || v === undefined || v === '')) missingFields++;
-    if ('price' in r && r.price < 0) anomalousRecords++;
-    if ('queueDuration' in r && r.queueDuration > 120) anomalousRecords++;
-    if ('amount' in r && r.amount > 2000) anomalousRecords++;
+    const hasMissing = values.some(v => v === null || v === undefined || v === '');
+    if (hasMissing) missingFields++;
+    let isOutlier = false;
+    if ('price' in r && r.price < 0) isOutlier = true;
+    if ('queueDuration' in r && r.queueDuration > 120) isOutlier = true;
+    if ('amount' in r && r.amount > 2000) isOutlier = true;
+    if (isOutlier) anomalousRecords++;
+    if (hasMissing || isOutlier) cleanedRecords++;
   });
 
   const missingRate = totalRecords > 0 ? Math.round((missingFields / totalRecords) * 1000) / 10 : 0;
@@ -283,11 +344,15 @@ export function getDataQualityReport(filter: FilterParams = {}): DataQualityRepo
     outlierCount,
     sampleSize,
     updatedAt: dataStore.lastUpdate.toISOString(),
+    caliberVersion: CALIBER_VERSION,
+    cleanedCount: cleanedRecords,
     fieldStats: [
-      { fieldName: '门票数据', completeness: tickets.length > 0 ? 98.2 : 0, hasOutliers: false },
-      { fieldName: '闸机数据', completeness: gates.length > 0 ? 99.5 : 0, hasOutliers: outlierCount > 0 },
-      { fieldName: '消费数据', completeness: consumptions.length > 0 ? 97.8 : 0, hasOutliers: false },
-      { fieldName: '停车数据', completeness: parkings.length > 0 ? 95.4 : 0, hasOutliers: false }
+      { fieldName: '门票数据', completeness: tickets.length > 0 ? 98.2 : 0, hasOutliers: false, recordCount: tickets.length },
+      { fieldName: '闸机数据', completeness: gates.length > 0 ? 99.5 : 0, hasOutliers: outlierCount > 0, recordCount: gates.length },
+      { fieldName: '消费数据', completeness: consumptions.length > 0 ? 97.8 : 0, hasOutliers: false, recordCount: consumptions.length },
+      { fieldName: '停车数据', completeness: parkings.length > 0 ? 95.4 : 0, hasOutliers: false, recordCount: parkings.length },
+      { fieldName: '天气数据', completeness: weathers.length > 0 ? 99.9 : 0, hasOutliers: false, recordCount: weathers.length },
+      { fieldName: '演出数据', completeness: shows.length > 0 ? 98.7 : 0, hasOutliers: false, recordCount: shows.length }
     ]
   };
 }

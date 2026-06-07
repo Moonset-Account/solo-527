@@ -11,6 +11,28 @@ export const AREAS = [
   { id: 'area8', name: '儿童乐园', capacity: 1800 }
 ];
 
+export const AREA_MAP: Record<string, string> = AREAS.reduce((acc, a) => {
+  acc[a.id] = a.name;
+  acc[a.name] = a.id;
+  return acc;
+}, {} as Record<string, string>);
+
+export function getAreaName(areaId: string): string {
+  return AREA_MAP[areaId] || areaId;
+}
+
+export function getAreaId(areaName: string): string {
+  return AREA_MAP[areaName] || areaName;
+}
+
+export function getAreaIds(names: string[]): string[] {
+  return names.map(n => getAreaId(n));
+}
+
+export function getAreaNames(ids: string[]): string[] {
+  return ids.map(id => getAreaName(id));
+}
+
 export const TICKET_TYPES = ['成人票', '儿童票', '老人票', '学生票', 'VIP票', '家庭套票'];
 
 export const ACTIVITIES = ['日常运营', '周末特别活动', '节假日', '暑期档', '夜间场'];
