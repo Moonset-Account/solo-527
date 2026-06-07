@@ -66,10 +66,13 @@ export interface ReturnRecord {
   sku: string;
   category: string;
   store: string;
+  storeId: string;
   reason: string;
   reasonDetail: string;
   warehouse: string;
+  warehouseId: string;
   logistics: string;
+  logisticsId: string;
   applyTime: string;
   qualityTime: string;
   refundTime: string;

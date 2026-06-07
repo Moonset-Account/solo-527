@@ -31,7 +31,7 @@ export function applyFilters(
 
     if (applyDate < startDate || applyDate > endDate) return false;
     if (filters.products.length > 0 && !filters.products.includes(r.sku)) return false;
-    if (filters.stores.length > 0 && !filters.stores.includes(r.store)) return false;
+    if (filters.stores.length > 0 && !filters.stores.includes(r.storeId)) return false;
     if (filters.reasons.length > 0) {
       const matched = filters.reasons.some((f) => {
         if (f.includes(":")) {
@@ -42,8 +42,8 @@ export function applyFilters(
       });
       if (!matched) return false;
     }
-    if (filters.warehouses.length > 0 && !filters.warehouses.includes(r.warehouse)) return false;
-    if (filters.logistics.length > 0 && !filters.logistics.includes(r.logistics)) return false;
+    if (filters.warehouses.length > 0 && !filters.warehouses.includes(r.warehouseId)) return false;
+    if (filters.logistics.length > 0 && !filters.logistics.includes(r.logisticsId)) return false;
 
     return true;
   });

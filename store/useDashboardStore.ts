@@ -21,6 +21,7 @@ interface DashboardState {
   service: ServiceMetrics | null;
   records: ReturnRecord[] | null;
   recordsTotal: number;
+  recordsPage: number;
   selectedRecord: ReturnRecord | null;
   detailPanelOpen: boolean;
   loading: Record<string, boolean>;
@@ -71,6 +72,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   service: null,
   records: null,
   recordsTotal: 0,
+  recordsPage: 1,
   selectedRecord: null,
   detailPanelOpen: false,
   loading: {},
@@ -230,7 +232,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   },
 
   fetchRecords: async (page = 1) => {
-    set((s) => ({ loading: { ...s.loading, records: true } }));
+    set((s) => ({ loading: { ...s.loading, records: true }, recordsPage: page }));
     try {
       const qs = get().buildQueryString();
       const res = await fetch(`/api/dashboard/records?${qs}&page=${page}&pageSize=20`);

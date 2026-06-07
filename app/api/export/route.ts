@@ -27,7 +27,12 @@ export async function GET(req: NextRequest) {
   const allRecords = getAllRecords();
   const records = applyFilters(allRecords, filters);
 
-  const recordsCSV = toCSV(records as unknown as Record<string, unknown>[]);
+  const sanitizedRecords = records.map((r) => {
+    const { userHash, ...rest } = r;
+    return rest;
+  });
+
+  const recordsCSV = toCSV(sanitizedRecords as unknown as Record<string, unknown>[]);
   const definitionsCSV = toCSV(
     DATA_DEFINITIONS as unknown as Record<string, unknown>[]
   );

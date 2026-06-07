@@ -3,13 +3,15 @@
 import { Eye, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Users } from "lucide-react";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import type { ReturnRecord } from "@/lib/types";
-import { useState } from "react";
 import SampleSizeIndicator from "./SampleSizeIndicator";
 
 export default function RecordsTable() {
-  const { records, recordsTotal, loading, openDetail, summary } = useDashboardStore();
-  const [page, setPage] = useState(1);
+  const { records, recordsTotal, recordsPage, loading, openDetail, summary, fetchRecords } = useDashboardStore();
   const pageSize = 20;
+
+  const handlePageChange = (newPage: number) => {
+    fetchRecords(newPage);
+  };
 
   if (loading.records && !records) {
     return (
@@ -148,22 +150,22 @@ export default function RecordsTable() {
 
       <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          显示 {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, recordsTotal)} 条，共 {recordsTotal} 条
+          显示 {(recordsPage - 1) * pageSize + 1} - {Math.min(recordsPage * pageSize, recordsTotal)} 条，共 {recordsTotal} 条
         </p>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
+            onClick={() => handlePageChange(Math.max(1, recordsPage - 1))}
+            disabled={recordsPage === 1}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-sm text-slate-600 px-2">
-            {page} / {totalPages}
+            {recordsPage} / {totalPages}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
+            onClick={() => handlePageChange(Math.min(totalPages, recordsPage + 1))}
+            disabled={recordsPage === totalPages}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
