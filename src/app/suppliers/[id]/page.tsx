@@ -6,7 +6,7 @@ import MetricCard from "@/components/MetricCard";
 import { MOCK_WORK_ORDERS, MOCK_SUPPLIERS, getMetricsSummary } from "@/mock/data";
 import {
   RepeatRateTrend,
-  ResponseTimeBoxplot,
+  ResponseTimeDistribution,
   MaterialsUsage,
 } from "@/components/Charts";
 import { RefreshCw, Clock, Star, AlertTriangle } from "lucide-react";
@@ -94,7 +94,7 @@ export default function SupplierDetailPage({ params }: PageProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <RepeatRateTrend orders={supplierOrders} title="复修率趋势" />
-          <ResponseTimeBoxplot orders={supplierOrders} title="响应时长分布" />
+          <ResponseTimeDistribution orders={supplierOrders} title="响应时长分布" />
           <MaterialsUsage orders={supplierOrders} title="材料消耗" />
         </div>
 

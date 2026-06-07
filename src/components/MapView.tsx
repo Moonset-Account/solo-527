@@ -154,7 +154,7 @@ export default function MapView({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-red-500" />
-            <span className="text-slate-600">复修率 > 10%</span>
+            <span className="text-slate-600">复修率 {">"} 10%</span>
           </div>
         </div>
       </div>

@@ -1,58 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { MOCK_SUPPLIERS, MOCK_WORK_ORDERS } from "@/mock/data";
-import {
-  RepeatRateTrend,
-  ResponseTimeBoxplot,
-  RepairTypeDistribution,
-} from "@/components/Charts";
-import MetricCard from "@/components/MetricCard";
-import { Star, Clock, RefreshCw, AlertTriangle } from "lucide-react";
+import { getAllSupplierMetrics, preloadSupplierCache } from "@/services/dataService";
 import Link from "next/link";
 
 export default function SuppliersPage() {
+  useEffect(() => {
+    preloadSupplierCache();
+  }, []);
+
   const suppliersWithStats = useMemo(() => {
-    return MOCK_SUPPLIERS.map((supplier) => {
-      const orders = MOCK_WORK_ORDERS.filter((o) => o.supplierId === supplier.id);
-      const completedOrders = orders.filter(
-        (o) => o.status === "completed" || o.status === "closed"
-      );
-      const nonHolidayOrders = completedOrders.filter((o) => !o.isHoliday);
-
-      const repeatCount = orders.filter((o) => o.isRepeat).length;
-      const repeatRate = orders.length > 0 ? (repeatCount / orders.length) * 100 : 0;
-
-      const responseTimes = nonHolidayOrders
-        .filter((o) => o.responseTime)
-        .map((o) => o.responseTime!);
-      const avgResponseTime =
-        responseTimes.length > 0
-          ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
-          : 0;
-
-      const timeoutCount = nonHolidayOrders.filter(
-        (o) => o.responseTime && o.responseTime > 120
-      ).length;
-
-      const ratings = completedOrders
-        .filter((o) => o.tenantRating)
-        .map((o) => o.tenantRating!);
-      const avgRating =
-        ratings.length > 0
-          ? ratings.reduce((a, b) => a + b, 0) / ratings.length
-          : 0;
-
-      return {
-        ...supplier,
-        orderCount: orders.length,
-        repeatRate: Math.round(repeatRate * 10) / 10,
-        avgResponseTime: Math.round(avgResponseTime),
-        timeoutCount,
-        avgRating: Math.round(avgRating * 10) / 10,
-      };
-    }).sort((a, b) => b.repeatRate - a.repeatRate);
+    return getAllSupplierMetrics().sort((a, b) => b.repeatRate - a.repeatRate);
   }, []);
 
   return (
@@ -63,11 +22,11 @@ export default function SuppliersPage() {
             供应商管理
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            共 {suppliersWithStats.length} 家合作供应商
+            共 {suppliersWithStats.length} 家合作供应商（数据已缓存）
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {suppliersWithStats.map((supplier, idx) => (
             <Link
               key={supplier.id}
@@ -126,7 +85,7 @@ export default function SuppliersPage() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-500">总工单</span>
                   <span className="font-medium text-slate-700">
-                    {supplier.orderCount} 单
+                    {supplier.totalOrders} 单
                   </span>
                 </div>
               </div>

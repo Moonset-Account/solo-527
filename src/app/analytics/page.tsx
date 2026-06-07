@@ -3,7 +3,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   RepeatRateTrend,
-  ResponseTimeBoxplot,
+  ResponseTimeDistribution,
   RepairTypeDistribution,
   MaterialsUsage,
 } from "@/components/Charts";
@@ -24,7 +24,7 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <RepeatRateTrend orders={MOCK_WORK_ORDERS} title="复修率趋势分析" />
-          <ResponseTimeBoxplot orders={MOCK_WORK_ORDERS} title="响应时长箱线图" />
+          <ResponseTimeDistribution orders={MOCK_WORK_ORDERS} title="响应时长分位数统计" />
           <RepairTypeDistribution orders={MOCK_WORK_ORDERS} title="维修类型分布" />
           <MaterialsUsage orders={MOCK_WORK_ORDERS} title="材料消耗排行" />
         </div>

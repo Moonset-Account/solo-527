@@ -1,34 +1,66 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import FilterBar from "@/components/FilterBar";
 import WorkOrderTable from "@/components/WorkOrderTable";
 import WorkOrderDetail from "@/components/WorkOrderDetail";
-import { MOCK_WORK_ORDERS } from "@/mock/data";
+import {
+  getCleanedWorkOrders,
+  filterWorkOrders,
+} from "@/services/dataService";
 import { FilterOptions, WorkOrder } from "@/types";
 
 export default function WorkOrdersPage() {
-  const [filters, setFilters] = useState<FilterOptions>({});
-  const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
+  const searchParams = useSearchParams();
   const router = useRouter();
 
+  const initialFilters = useMemo(() => {
+    const params: FilterOptions = {};
+    const buildingId = searchParams.get("buildingId");
+    const roomType = searchParams.get("roomType");
+    const repairType = searchParams.get("repairType");
+    const supplierId = searchParams.get("supplierId");
+    const month = searchParams.get("month");
+    const status = searchParams.get("status");
+    const isRepeat = searchParams.get("isRepeat");
+    const isHoliday = searchParams.get("isHoliday");
+
+    if (buildingId) params.buildingId = buildingId;
+    if (roomType) params.roomType = roomType;
+    if (repairType) params.repairType = repairType;
+    if (supplierId) params.supplierId = supplierId;
+    if (month) params.month = month;
+    if (status) params.status = status as FilterOptions["status"];
+    if (isRepeat !== null) params.isRepeat = isRepeat === "true";
+    if (isHoliday !== null) params.isHoliday = isHoliday === "true";
+
+    return params;
+  }, [searchParams]);
+
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
+
+  const allOrders = useMemo(() => getCleanedWorkOrders(), []);
+
   const filteredOrders = useMemo(() => {
-    return MOCK_WORK_ORDERS.filter((order) => {
-      if (filters.buildingId && order.buildingId !== filters.buildingId) return false;
-      if (filters.roomType && order.roomType !== filters.roomType) return false;
-      if (filters.repairType && order.repairType !== filters.repairType) return false;
-      if (filters.supplierId && order.supplierId !== filters.supplierId) return false;
-      if (filters.status && order.status !== filters.status) return false;
-      if (filters.isRepeat !== undefined && order.isRepeat !== filters.isRepeat) return false;
-      if (filters.isHoliday !== undefined && order.isHoliday !== filters.isHoliday) return false;
-      return true;
-    });
-  }, [filters]);
+    return filterWorkOrders(allOrders, filters);
+  }, [allOrders, filters]);
 
   const handleOrderClick = (order: WorkOrder) => {
     setSelectedOrder(order);
+  };
+
+  const handleFiltersChange = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+    const params = new URLSearchParams();
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.append(key, String(value));
+      }
+    });
+    router.replace(`/work-orders?${params.toString()}`);
   };
 
   return (
@@ -40,12 +72,13 @@ export default function WorkOrdersPage() {
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             共 {filteredOrders.length} 条工单记录
+            {Object.keys(filters).length > 0 && " (已筛选)"}
           </p>
         </div>
 
         <FilterBar
           filters={filters}
-          onChange={setFilters}
+          onChange={handleFiltersChange}
           exportData={filteredOrders}
         />
 

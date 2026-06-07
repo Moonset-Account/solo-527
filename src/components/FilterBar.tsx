@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { FilterOptions, ROOM_TYPES, REPAIR_TYPES } from "@/types";
+import { FilterOptions, ROOM_TYPES, REPAIR_TYPES, STATUS_LABELS } from "@/types";
 import { MOCK_BUILDINGS, MOCK_SUPPLIERS } from "@/mock/data";
-import { Filter, Download, X } from "lucide-react";
+import { Filter, Download, X, FileSpreadsheet } from "lucide-react";
 import { cn, exportToCSV } from "@/lib/utils";
 import { WorkOrder } from "@/types";
+import { formatOrdersForExport } from "@/services/dataService";
+import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 
 interface FilterBarProps {
@@ -30,6 +32,7 @@ export default function FilterBar({
   exportData,
 }: FilterBarProps) {
   const [showFilters, setShowFilters] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const handleChange = (key: keyof FilterOptions, value: any) => {
     const newFilters = { ...filters };
@@ -45,22 +48,21 @@ export default function FilterBar({
     onChange({});
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if (!exportData) return;
-    const data = exportData.map((o) => ({
-      工单编号: o.orderNo,
-      楼栋: o.buildingName,
-      房型: o.roomType,
-      维修类型: o.repairType,
-      供应商: o.supplierName,
-      状态: o.status,
-      创建时间: dayjs(o.createdAt).format("YYYY-MM-DD HH:mm"),
-      响应时长: o.responseTime ? `${Math.round(o.responseTime)}分钟` : "-",
-      是否复修: o.isRepeat ? "是" : "否",
-      是否节假日: o.isHoliday ? "是" : "否",
-      租户评分: o.tenantRating || "-",
-    }));
-    exportToCSV(data, `维修工单_${dayjs().format("YYYYMMDD")}`);
+    const data = formatOrdersForExport(exportData);
+    exportToCSV(data, `维修工单_${dayjs().format("YYYYMMDD_HHmm")}`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportExcel = () => {
+    if (!exportData) return;
+    const data = formatOrdersForExport(exportData);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "工单数据");
+    XLSX.writeFile(wb, `维修工单_${dayjs().format("YYYYMMDD_HHmm")}.xlsx`);
+    setShowExportMenu(false);
   };
 
   const activeFilterCount = Object.keys(filters).length;
@@ -145,17 +147,37 @@ export default function FilterBar({
           </div>
         </div>
 
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          <span className="text-sm font-medium">导出</span>
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            <span className="text-sm font-medium">导出</span>
+          </button>
+          {showExportMenu && (
+            <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-slate-200 py-1 min-w-40 z-50">
+              <button
+                onClick={handleExportCSV}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                导出 CSV
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+                导出 Excel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {showFilters && (
-        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">
               楼栋
@@ -241,6 +263,24 @@ export default function FilterBar({
               {MONTHS.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              工单状态
+            </label>
+            <select
+              value={filters.status || ""}
+              onChange={(e) => handleChange("status", e.target.value || undefined)}
+              className="select text-sm"
+            >
+              <option value="">全部状态</option>
+              {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>
