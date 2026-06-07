@@ -54,11 +54,11 @@ function handleClick(alertId: string) {
             ]"
             @click="handleClick(alert.id)"
           >
-            <span class="font-medium">{{ POND_NAMES[alert.pondId] || alert.pondId }}</span>
+            <span class="font-medium">{{ POND_NAMES[alert.pond_id] || alert.pond_id }}</span>
             <span>{{ METRIC_LABELS[alert.metric as keyof typeof METRIC_LABELS] || alert.metric }}</span>
             <span v-if="alert.type === 'threshold'">{{ alert.value }}</span>
             <span v-else>离线</span>
-            <span class="text-[10px] opacity-70">{{ formatTime(alert.triggeredAt) }}</span>
+            <span class="text-[10px] opacity-70">{{ formatTime(alert.triggered_at) }}</span>
             <ChevronRight class="w-3 h-3 opacity-50" />
           </button>
         </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
@@ -13,7 +13,7 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { getMockReadings, mockThresholds, mockFeedingRecords } from '@/mock/data'
+import { fetchReadings, fetchThresholds, fetchFeedingRecords } from '@/services/api'
 import type { MetricType, SensorReading } from '@/types'
 import { METRIC_LABELS, METRIC_COLORS, METRIC_UNITS } from '@/types'
 
@@ -28,31 +28,38 @@ const emit = defineEmits<{
   'point-click': [reading: SensorReading]
 }>()
 
-const readings = computed(() => getMockReadings(props.pondId, props.metric))
+const readings = ref<any[]>([])
+const threshold = ref<any>(null)
+const strategyFeedings = ref<any[]>([])
 
-const threshold = computed(() =>
-  mockThresholds.find(t => t.pondId === props.pondId && t.metric === props.metric)
-)
+async function fetchData() {
+  const [readingsRes, thresholdsRes, feedingsRes] = await Promise.all([
+    fetchReadings({ pondId: props.pondId, metric: props.metric }),
+    fetchThresholds(props.pondId),
+    fetchFeedingRecords(props.pondId)
+  ])
+  readings.value = readingsRes
+  threshold.value = thresholdsRes.find((t: any) => t.pond_id === props.pondId && t.metric === props.metric) || null
+  strategyFeedings.value = feedingsRes.filter((f: any) => f.strategy_change)
+}
 
-const strategyFeedings = computed(() =>
-  mockFeedingRecords.filter(f => f.pondId === props.pondId && f.strategyChange)
-)
+watch(() => [props.pondId, props.metric], fetchData, { immediate: true })
 
 const offlineSegments = computed(() => {
   const segments: { start: string; end: string }[] = []
   let start: string | null = null
   for (const r of readings.value) {
     if (r.quality === 'offline') {
-      if (!start) start = r.timestamp
+      if (!start) start = r.ts
     } else {
       if (start) {
-        segments.push({ start, end: r.timestamp })
+        segments.push({ start, end: r.ts })
         start = null
       }
     }
   }
-  if (start) {
-    segments.push({ start, end: readings.value[readings.value.length - 1].timestamp })
+  if (start && readings.value.length > 0) {
+    segments.push({ start, end: readings.value[readings.value.length - 1].ts })
   }
   return segments
 })
@@ -65,15 +72,15 @@ const qualityLabel: Record<string, string> = {
 
 const option = computed(() => {
   const lineData = readings.value.map(r => {
-    if (r.isAnomaly) {
+    if (r.is_anomaly) {
       return {
-        value: [r.timestamp, r.value],
+        value: [r.ts, r.value],
         symbolSize: 14,
         itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 2 }
       }
     }
     return {
-      value: [r.timestamp, r.quality === 'offline' ? NaN : r.value],
+      value: [r.ts, r.quality === 'offline' ? NaN : r.value],
       symbolSize: 4
     }
   })
@@ -91,27 +98,20 @@ const option = computed(() => {
   if (threshold.value) {
     const th = threshold.value
     thresholdMarkLines.push(
-      { yAxis: th.warningHigh, lineStyle: { color: '#F59E0B', type: 'dashed', width: 1 }, label: { formatter: '预警上限', color: '#F59E0B', fontSize: 10, position: 'insideEndTop' } },
-      { yAxis: th.warningLow, lineStyle: { color: '#F59E0B', type: 'dashed', width: 1 }, label: { formatter: '预警下限', color: '#F59E0B', fontSize: 10, position: 'insideEndTop' } },
-      { yAxis: th.criticalHigh, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: '严重上限', color: '#ef4444', fontSize: 10, position: 'insideEndTop' } },
-      { yAxis: th.criticalLow, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: '严重下限', color: '#ef4444', fontSize: 10, position: 'insideEndTop' } }
+      { yAxis: th.warning_high, lineStyle: { color: '#F59E0B', type: 'dashed', width: 1 }, label: { formatter: '预警上限', color: '#F59E0B', fontSize: 10, position: 'insideEndTop' } },
+      { yAxis: th.warning_low, lineStyle: { color: '#F59E0B', type: 'dashed', width: 1 }, label: { formatter: '预警下限', color: '#F59E0B', fontSize: 10, position: 'insideEndTop' } },
+      { yAxis: th.critical_high, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: '严重上限', color: '#ef4444', fontSize: 10, position: 'insideEndTop' } },
+      { yAxis: th.critical_low, lineStyle: { color: '#ef4444', type: 'dashed', width: 1 }, label: { formatter: '严重下限', color: '#ef4444', fontSize: 10, position: 'insideEndTop' } }
     )
   }
 
-  const feedingMarkLines = strategyFeedings.value.map(f => ({
-    xAxis: f.timestamp,
-    lineStyle: { color: '#8B5CF6', type: 'dashed', width: 1 },
-    label: {
-      show: false,
-      formatter: f.strategyNote || '策略变更',
-      color: '#8B5CF6',
-      fontSize: 10,
-      position: 'insideEndTop'
-    },
-    emphasis: {
-      label: { show: true, formatter: f.strategyNote || '策略变更', color: '#8B5CF6', fontSize: 11, position: 'insideEndTop' }
-    }
-  }))
+  const feedingMarkLines: any[] = []
+  for (const f of strategyFeedings.value) {
+    feedingMarkLines.push([
+      { coord: [f.ts, 0], lineStyle: { color: '#8B5CF6', type: 'dashed', width: 1 } },
+      { coord: [f.ts, 'max'], label: { show: false, formatter: f.strategy_note || '策略变更', color: '#8B5CF6', fontSize: 10, position: 'insideEndTop' }, emphasis: { label: { show: true, formatter: f.strategy_note || '策略变更', color: '#8B5CF6', fontSize: 11, position: 'insideEndTop' } } }
+    ])
+  }
 
   return {
     backgroundColor: '#0A2E36',
@@ -129,10 +129,10 @@ const option = computed(() => {
         const val = isNaN(r.value) ? '--' : r.value
         return [
           `<div style="font-weight:bold;margin-bottom:4px">${METRIC_LABELS[props.metric]}</div>`,
-          `时间: ${new Date(r.timestamp).toLocaleString('zh-CN')}<br/>`,
+          `时间: ${new Date(r.ts).toLocaleString('zh-CN')}<br/>`,
           `数值: ${val} ${METRIC_UNITS[props.metric]}<br/>`,
           `质量: ${qualityLabel[r.quality] || r.quality}<br/>`,
-          `传感器: ${r.sensorId}`
+          `传感器: ${r.sensor_id}`
         ].join('')
       }
     },

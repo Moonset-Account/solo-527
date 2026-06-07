@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { getMockReadings, mockProcessingNotes, mockAlerts } from '@/mock/data'
-import { POND_NAMES, METRIC_LABELS, JUDGMENT_LABELS, type SensorReading, type ProcessingNote, type Alert, type MetricType } from '@/types'
+import { ref, watch } from 'vue'
+import { fetchDrilldownData, createNote } from '@/services/api'
+import { POND_NAMES, METRIC_LABELS, JUDGMENT_LABELS } from '@/types'
 import { X, Plus, AlertTriangle, FileText } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -13,37 +13,31 @@ const emit = defineEmits<{
 }>()
 
 const newNote = ref('')
-const localNotes = ref<ProcessingNote[]>([])
+const foundReading = ref<any>(null)
+const associatedNotes = ref<any[]>([])
+const associatedAlerts = ref<any[]>([])
+const localNotes = ref<any[]>([])
 
-const foundReading = computed<SensorReading | null>(() => {
-  if (!props.readingId) return null
-  const ponds = ['pond-1', 'pond-2', 'pond-3', 'pond-4']
-  const metrics: MetricType[] = ['dissolved_oxygen', 'temperature', 'ph']
-  for (const pondId of ponds) {
-    for (const metric of metrics) {
-      const readings = getMockReadings(pondId, metric)
-      const found = readings.find(r => r.id === props.readingId)
-      if (found) return found
-    }
+async function fetchDrilldown() {
+  if (!props.readingId) {
+    foundReading.value = null
+    associatedNotes.value = []
+    associatedAlerts.value = []
+    return
   }
-  return null
-})
+  try {
+    const data = await fetchDrilldownData(props.readingId)
+    foundReading.value = data.reading
+    associatedNotes.value = data.notes
+    associatedAlerts.value = data.alerts
+  } catch {
+    foundReading.value = null
+    associatedNotes.value = []
+    associatedAlerts.value = []
+  }
+}
 
-const associatedNotes = computed(() => {
-  if (!props.readingId) return []
-  return mockProcessingNotes.filter(n =>
-    n.readingId === props.readingId ||
-    (foundReading.value && n.alertId && mockAlerts.some(a => a.id === n.alertId && a.pondId === foundReading.value!.pondId))
-  )
-})
-
-const associatedAlerts = computed<Alert[]>(() => {
-  if (!foundReading.value) return []
-  return mockAlerts.filter(a =>
-    a.pondId === foundReading.value.pondId &&
-    a.metric === foundReading.value.metric
-  )
-})
+watch(() => props.readingId, fetchDrilldown, { immediate: true })
 
 function formatTime(iso: string) {
   const d = new Date(iso)
@@ -54,16 +48,25 @@ function formatTime(iso: string) {
   return `${m}-${day} ${h}:${min}`
 }
 
-function addNote() {
+async function addNote() {
   if (!newNote.value.trim() || !props.readingId) return
-  localNotes.value.push({
-    id: `local-note-${Date.now()}`,
-    alertId: null,
-    readingId: props.readingId,
-    note: newNote.value.trim(),
-    createdBy: '当前用户',
-    createdAt: new Date().toISOString(),
-  })
+  try {
+    const note = await createNote({
+      readingId: props.readingId,
+      note: newNote.value.trim(),
+      createdBy: '当前用户'
+    })
+    localNotes.value.push(note)
+  } catch {
+    localNotes.value.push({
+      id: `local-note-${Date.now()}`,
+      alert_id: null,
+      reading_id: props.readingId,
+      note: newNote.value.trim(),
+      created_by: '当前用户',
+      created_at: new Date().toISOString(),
+    })
+  }
   newNote.value = ''
 }
 </script>
@@ -102,7 +105,7 @@ function addNote() {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-gray-500">传感器</span>
-                <span class="text-gray-300">{{ foundReading.sensorId }}</span>
+                <span class="text-gray-300">{{ foundReading.sensor_id }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-gray-500">数据质量</span>
@@ -119,8 +122,8 @@ function addNote() {
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-gray-500">是否异常</span>
-                <span :class="foundReading.isAnomaly ? 'text-[#EF4444]' : 'text-emerald-400'">
-                  {{ foundReading.isAnomaly ? '是' : '否' }}
+                <span :class="foundReading.is_anomaly ? 'text-[#EF4444]' : 'text-emerald-400'">
+                  {{ foundReading.is_anomaly ? '是' : '否' }}
                 </span>
               </div>
             </div>
@@ -138,8 +141,8 @@ function addNote() {
                 class="bg-[#0D3B47] rounded-lg p-2.5"
               >
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-[10px] text-[#00B4D8]">{{ note.createdBy }}</span>
-                  <span class="text-[10px] text-gray-600">{{ formatTime(note.createdAt) }}</span>
+                  <span class="text-[10px] text-[#00B4D8]">{{ note.created_by }}</span>
+                  <span class="text-[10px] text-gray-600">{{ formatTime(note.created_at) }}</span>
                 </div>
                 <p class="text-xs text-gray-300">{{ note.note }}</p>
               </div>
@@ -159,21 +162,21 @@ function addNote() {
               >
                 <div class="flex items-center gap-2 mb-1">
                   <AlertTriangle class="w-3 h-3" :class="alert.severity === 'critical' ? 'text-[#EF4444]' : 'text-[#F59E0B]'" />
-                  <span class="text-xs text-gray-300">{{ POND_NAMES[alert.pondId] }}</span>
+                  <span class="text-xs text-gray-300">{{ POND_NAMES[alert.pond_id] }}</span>
                   <span class="text-[10px] text-gray-500">{{ METRIC_LABELS[alert.metric as keyof typeof METRIC_LABELS] }}</span>
                 </div>
-                <div v-if="alert.humanJudgment" class="flex items-center gap-2 mt-1">
+                <div v-if="alert.human_judgment" class="flex items-center gap-2 mt-1">
                   <span
                     class="px-1 py-0.5 rounded text-[10px] font-medium"
                     :class="{
-                      'bg-[#00B4D8]/10 text-[#00B4D8]': alert.humanJudgment === 'false_alarm',
-                      'bg-[#EF4444]/10 text-[#EF4444]': alert.humanJudgment === 'real_anomaly',
-                      'bg-[#F59E0B]/10 text-[#F59E0B]': alert.humanJudgment === 'needs_onsite',
+                      'bg-[#00B4D8]/10 text-[#00B4D8]': alert.human_judgment === 'false_alarm',
+                      'bg-[#EF4444]/10 text-[#EF4444]': alert.human_judgment === 'real_anomaly',
+                      'bg-[#F59E0B]/10 text-[#F59E0B]': alert.human_judgment === 'needs_onsite',
                     }"
                   >
-                    {{ JUDGMENT_LABELS[alert.humanJudgment] }}
+                    {{ JUDGMENT_LABELS[alert.human_judgment as keyof typeof JUDGMENT_LABELS] }}
                   </span>
-                  <span v-if="alert.judgmentNote" class="text-[10px] text-gray-400">{{ alert.judgmentNote }}</span>
+                  <span v-if="alert.judgment_note" class="text-[10px] text-gray-400">{{ alert.judgment_note }}</span>
                 </div>
               </div>
             </div>

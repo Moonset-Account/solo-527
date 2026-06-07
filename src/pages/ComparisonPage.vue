@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ComparisonChart from '@/components/ComparisonChart.vue'
 import { useFilterStore } from '@/stores/filter'
-import { mockBatches } from '@/mock/data'
+import { fetchBatches } from '@/services/api'
 import { POND_NAMES, METRIC_LABELS, type MetricType } from '@/types'
 
 const filterStore = useFilterStore()
 
 const currentMetric = ref<MetricType>('dissolved_oxygen')
+const batches = ref<any[]>([])
 
-const activeBatches = computed(() => mockBatches.filter(b => b.status === 'active'))
+onMounted(async () => {
+  batches.value = await fetchBatches()
+})
+
+const activeBatches = computed(() => batches.value.filter(b => b.status === 'active'))
 
 function toggleBatch(batchId: string) {
   filterStore.toggleBatch(batchId)
@@ -31,7 +36,7 @@ function toggleBatch(batchId: string) {
               : 'bg-[#0A2E36] text-gray-500 border-[#0D3B47] hover:text-gray-300 hover:border-gray-600'"
             @click="toggleBatch(batch.id)"
           >
-            {{ batch.batchName }}
+            {{ batch.batch_name }}
           </button>
         </div>
       </div>

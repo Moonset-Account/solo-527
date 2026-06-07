@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import {
@@ -10,7 +10,7 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { getMockReadings, mockBatches } from '@/mock/data'
+import { fetchReadings, fetchBatches } from '@/services/api'
 import type { MetricType } from '@/types'
 import { METRIC_LABELS, METRIC_UNITS, POND_NAMES } from '@/types'
 
@@ -23,26 +23,50 @@ const props = defineProps<{
   metric: MetricType
 }>()
 
+const batches = ref<any[]>([])
+const readingsMap = ref<Record<string, any[]>>({})
+
 const batchPondMap = computed(() => {
   const map = new Map<string, string>()
   for (const batchId of props.batchIds) {
-    const batch = mockBatches.find(b => b.id === batchId)
+    const batch = batches.value.find((b: any) => b.id === batchId)
     if (batch) {
-      map.set(batchId, batch.pondId)
+      map.set(batchId, batch.pond_id)
     }
   }
   return map
 })
 
+async function fetchData() {
+  const batchesRes: any[] = await fetchBatches()
+  batches.value = batchesRes
+
+  const pondIds = new Set<string>()
+  for (const batchId of props.batchIds) {
+    const batch = batchesRes.find((b: any) => b.id === batchId)
+    if (batch) pondIds.add(batch.pond_id)
+  }
+
+  const newMap: Record<string, any[]> = {}
+  await Promise.all(
+    [...pondIds].map(async pondId => {
+      newMap[pondId] = await fetchReadings({ pondId, metric: props.metric })
+    })
+  )
+  readingsMap.value = newMap
+}
+
+watch(() => [props.batchIds, props.metric], fetchData, { immediate: true })
+
 const seriesData = computed(() => {
   return props.batchIds.map((batchId, idx) => {
     const pondId = batchPondMap.value.get(batchId)
     if (!pondId) return null
-    const readings = getMockReadings(pondId, props.metric)
-    const data = readings.map(r => ({
-      value: [r.timestamp, r.quality === 'offline' ? NaN : r.value],
-      symbolSize: r.isAnomaly ? 10 : 3,
-      itemStyle: r.isAnomaly ? { color: '#ef4444', borderColor: '#fff', borderWidth: 2 } : {}
+    const readings = readingsMap.value[pondId] || []
+    const data = readings.map((r: any) => ({
+      value: [r.ts, r.quality === 'offline' ? NaN : r.value],
+      symbolSize: r.is_anomaly ? 10 : 3,
+      itemStyle: r.is_anomaly ? { color: '#ef4444', borderColor: '#fff', borderWidth: 2 } : {}
     }))
     return {
       batchId,

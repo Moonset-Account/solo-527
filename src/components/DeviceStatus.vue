@@ -1,23 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { mockSensorStatuses, mockAeratorStatuses } from '@/mock/data'
+import { ref, computed, onMounted } from 'vue'
+import { fetchSensorStatuses, fetchAeratorStatuses } from '@/services/api'
 import { POND_NAMES, METRIC_LABELS, type AeratorStatusType, type SensorOnlineStatus } from '@/types'
 import { Cpu, Wind, Wifi, WifiOff } from 'lucide-vue-next'
 
+const sensors = ref<any[]>([])
+const aerators = ref<any[]>([])
+
+onMounted(async () => {
+  const [sensorsRes, aeratorsRes] = await Promise.all([
+    fetchSensorStatuses(),
+    fetchAeratorStatuses()
+  ])
+  sensors.value = sensorsRes
+  aerators.value = aeratorsRes
+})
+
 const sensorByPond = computed(() => {
-  const map: Record<string, typeof mockSensorStatuses> = {}
-  for (const s of mockSensorStatuses) {
-    if (!map[s.pondId]) map[s.pondId] = []
-    map[s.pondId].push(s)
+  const map: Record<string, any[]> = {}
+  for (const s of sensors.value) {
+    if (!map[s.pond_id]) map[s.pond_id] = []
+    map[s.pond_id].push(s)
   }
   return map
 })
 
 const aeratorByPond = computed(() => {
-  const map: Record<string, typeof mockAeratorStatuses> = {}
-  for (const a of mockAeratorStatuses) {
-    if (!map[a.pondId]) map[a.pondId] = []
-    map[a.pondId].push(a)
+  const map: Record<string, any[]> = {}
+  for (const a of aerators.value) {
+    if (!map[a.pond_id]) map[a.pond_id] = []
+    map[a.pond_id].push(a)
   }
   return map
 })
@@ -72,7 +84,7 @@ function formatHeartbeat(iso: string) {
         <div class="space-y-1.5">
           <div
             v-for="sensor in sensorByPond[pondId]"
-            :key="sensor.sensorId"
+            :key="sensor.sensor_id"
             class="flex items-center gap-2 text-xs"
           >
             <span class="w-2 h-2 rounded-full shrink-0" :class="statusDotColor(sensor.status)" />
@@ -86,7 +98,7 @@ function formatHeartbeat(iso: string) {
               {{ statusLabel(sensor.status) }}
             </span>
             <span v-if="sensor.status === 'offline'" class="text-[10px] text-gray-600">
-              {{ formatHeartbeat(sensor.lastHeartbeat) }}
+              {{ formatHeartbeat(sensor.last_heartbeat) }}
             </span>
           </div>
 
@@ -109,7 +121,7 @@ function formatHeartbeat(iso: string) {
               {{ statusLabel(aerator.status) }}
             </span>
             <span
-              v-if="aerator.autoMode"
+              v-if="aerator.auto_mode"
               class="text-[10px] px-1 py-0.5 rounded bg-[#00B4D8]/10 text-[#00B4D8]"
             >
               自动

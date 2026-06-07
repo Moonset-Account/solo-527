@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AlertBanner from '@/components/AlertBanner.vue'
 import RealtimeChart from '@/components/RealtimeChart.vue'
 import DeviceStatus from '@/components/DeviceStatus.vue'
@@ -11,6 +11,10 @@ import { POND_NAMES, METRIC_LABELS } from '@/types'
 
 const filterStore = useFilterStore()
 const alertStore = useAlertStore()
+
+onMounted(() => {
+  alertStore.init()
+})
 
 const selectedReadingId = ref<string | null>(null)
 

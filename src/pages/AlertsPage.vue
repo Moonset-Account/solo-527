@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import AlertModal from '@/components/AlertModal.vue'
 import { useAlertStore } from '@/stores/alerts'
 import type { Alert } from '@/types'
@@ -7,6 +7,10 @@ import { JUDGMENT_LABELS, POND_NAMES, METRIC_LABELS } from '@/types'
 import { AlertTriangle, WifiOff, Thermometer, CheckCircle } from 'lucide-vue-next'
 
 const alertStore = useAlertStore()
+
+onMounted(() => {
+  alertStore.init()
+})
 
 const pendingAlerts = computed(() => alertStore.pendingAlerts)
 const acknowledgedAlerts = computed(() => alertStore.acknowledgedAlerts)
@@ -66,19 +70,19 @@ function handleAck(alertId: string) {
                 >
                   {{ alert.severity === 'critical' ? '严重' : '警告' }}
                 </span>
-                <span class="text-sm text-gray-300">{{ POND_NAMES[alert.pondId] }}</span>
+                <span class="text-sm text-gray-300">{{ POND_NAMES[alert.pond_id] }}</span>
                 <span class="text-xs text-gray-500">{{ METRIC_LABELS[alert.metric as keyof typeof METRIC_LABELS] }}</span>
               </div>
 
               <div v-if="alert.type === 'threshold'" class="text-xs text-gray-400 mb-2">
                 当前值 <span class="text-gray-200 font-medium">{{ alert.value }}</span>
                 <span class="mx-1">/</span>
-                阈值 <span class="text-gray-200 font-medium">{{ alert.threshold }}</span>
+                阈值 <span class="text-gray-200 font-medium">{{ alert.threshold_value }}</span>
               </div>
               <div v-else class="text-xs text-gray-400 mb-2">传感器离线</div>
 
               <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-600">{{ formatTimeAgo(alert.triggeredAt) }}</span>
+                <span class="text-xs text-gray-600">{{ formatTimeAgo(alert.triggered_at) }}</span>
                 <button
                   class="px-3 py-1 text-xs font-medium rounded-lg bg-[#00B4D8]/10 text-[#00B4D8] hover:bg-[#00B4D8]/20 transition-colors"
                   @click="handleAck(alert.id)"
@@ -106,27 +110,27 @@ function handleAck(alertId: string) {
           class="bg-[#0A2E36]/50 rounded-lg border border-[#0D3B47]/50 p-3 opacity-70"
         >
           <div class="flex items-center gap-2 mb-1">
-            <span class="text-xs text-gray-500">{{ POND_NAMES[alert.pondId] }}</span>
+            <span class="text-xs text-gray-500">{{ POND_NAMES[alert.pond_id] }}</span>
             <span class="text-xs text-gray-600">·</span>
             <span class="text-xs text-gray-500">{{ METRIC_LABELS[alert.metric as keyof typeof METRIC_LABELS] }}</span>
           </div>
-          <div v-if="alert.humanJudgment" class="flex items-center gap-2 mb-1">
+          <div v-if="alert.human_judgment" class="flex items-center gap-2 mb-1">
             <span
               class="px-1.5 py-0.5 rounded text-[10px] font-medium"
               :class="{
-                'bg-[#00B4D8]/10 text-[#00B4D8]': alert.humanJudgment === 'false_alarm',
-                'bg-[#EF4444]/10 text-[#EF4444]': alert.humanJudgment === 'real_anomaly',
-                'bg-[#F59E0B]/10 text-[#F59E0B]': alert.humanJudgment === 'needs_onsite',
+                'bg-[#00B4D8]/10 text-[#00B4D8]': alert.human_judgment === 'false_alarm',
+                'bg-[#EF4444]/10 text-[#EF4444]': alert.human_judgment === 'real_anomaly',
+                'bg-[#F59E0B]/10 text-[#F59E0B]': alert.human_judgment === 'needs_onsite',
               }"
             >
-              {{ JUDGMENT_LABELS[alert.humanJudgment] }}
+              {{ JUDGMENT_LABELS[alert.human_judgment] }}
             </span>
           </div>
-          <div v-if="alert.judgmentNote" class="text-xs text-gray-500 mt-1">
-            {{ alert.judgmentNote }}
+          <div v-if="alert.judgment_note" class="text-xs text-gray-500 mt-1">
+            {{ alert.judgment_note }}
           </div>
           <div class="text-[10px] text-gray-600 mt-1">
-            确认人: {{ alert.acknowledgedBy }} · {{ formatTimeAgo(alert.acknowledgedAt!) }}
+            确认人: {{ alert.acknowledged_by }} · {{ formatTimeAgo(alert.acknowledged_at!) }}
           </div>
         </div>
       </div>

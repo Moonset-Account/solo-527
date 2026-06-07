@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
 import {
@@ -11,7 +11,7 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { getMockReadings, mockFeedingRecords } from '@/mock/data'
+import { fetchReadings, fetchFeedingRecords } from '@/services/api'
 import { METRIC_LABELS, METRIC_COLORS } from '@/types'
 
 use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, DataZoomComponent, LegendComponent, CanvasRenderer])
@@ -20,46 +20,47 @@ const props = defineProps<{
   pondId: string
 }>()
 
-const readings = computed(() => getMockReadings(props.pondId, 'dissolved_oxygen'))
+const readings = ref<any[]>([])
+const feedings = ref<any[]>([])
 
-const feedings = computed(() =>
-  mockFeedingRecords.filter(f => f.pondId === props.pondId)
-)
+async function fetchData() {
+  const [readingsRes, feedingsRes] = await Promise.all([
+    fetchReadings({ pondId: props.pondId, metric: 'dissolved_oxygen' }),
+    fetchFeedingRecords(props.pondId)
+  ])
+  readings.value = readingsRes
+  feedings.value = feedingsRes
+}
+
+watch(() => props.pondId, fetchData, { immediate: true })
 
 const strategyFeedings = computed(() =>
-  feedings.value.filter(f => f.strategyChange)
+  feedings.value.filter((f: any) => f.strategy_change)
 )
 
 const option = computed(() => {
-  const lineData = readings.value.map(r => ({
-    value: [r.timestamp, r.quality === 'offline' ? NaN : r.value],
-    symbolSize: r.isAnomaly ? 14 : 4,
-    itemStyle: r.isAnomaly ? { color: '#ef4444', borderColor: '#fff', borderWidth: 2 } : {}
+  const lineData = readings.value.map((r: any) => ({
+    value: [r.ts, r.quality === 'offline' ? NaN : r.value],
+    symbolSize: r.is_anomaly ? 14 : 4,
+    itemStyle: r.is_anomaly ? { color: '#ef4444', borderColor: '#fff', borderWidth: 2 } : {}
   }))
 
-  const barData = feedings.value.map(f => ({
-    value: [f.timestamp, f.amount],
+  const barData = feedings.value.map((f: any) => ({
+    value: [f.ts, f.amount],
     itemStyle: {
-      color: f.strategyChange
+      color: f.strategy_change
         ? { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#8B5CF6' }, { offset: 1, color: 'rgba(139,92,246,0.3)' }] }
         : { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#F59E0B' }, { offset: 1, color: 'rgba(245,158,11,0.3)' }] }
     }
   }))
 
-  const feedingMarkLines = strategyFeedings.value.map(f => ({
-    xAxis: f.timestamp,
-    lineStyle: { color: '#8B5CF6', type: 'dashed', width: 1 },
-    label: {
-      show: false,
-      formatter: f.strategyNote || '策略变更',
-      color: '#8B5CF6',
-      fontSize: 10,
-      position: 'insideEndTop'
-    },
-    emphasis: {
-      label: { show: true, formatter: f.strategyNote || '策略变更', color: '#8B5CF6', fontSize: 11, position: 'insideEndTop' }
-    }
-  }))
+  const feedingMarkLines: any[] = []
+  for (const f of strategyFeedings.value) {
+    feedingMarkLines.push([
+      { coord: [f.ts, 0], lineStyle: { color: '#8B5CF6', type: 'dashed', width: 1 } },
+      { coord: [f.ts, 'max'], label: { show: false, formatter: f.strategy_note || '策略变更', color: '#8B5CF6', fontSize: 10, position: 'insideEndTop' }, emphasis: { label: { show: true, formatter: f.strategy_note || '策略变更', color: '#8B5CF6', fontSize: 11, position: 'insideEndTop' } } }
+    ])
+  }
 
   return {
     backgroundColor: '#0A2E36',

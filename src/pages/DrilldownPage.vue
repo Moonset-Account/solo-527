@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getMockReadings, mockProcessingNotes, mockAlerts } from '@/mock/data'
-import { POND_NAMES, METRIC_LABELS, JUDGMENT_LABELS, type MetricType, type ProcessingNote } from '@/types'
+import { fetchDrilldownData, createNote } from '@/services/api'
+import { POND_NAMES, METRIC_LABELS, JUDGMENT_LABELS } from '@/types'
 import { ArrowLeft, Plus, AlertTriangle } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -10,32 +10,18 @@ const router = useRouter()
 
 const pointId = route.params.pointId as string
 
-const foundReading = computed(() => {
-  const ponds = ['pond-1', 'pond-2', 'pond-3', 'pond-4']
-  const metrics: MetricType[] = ['dissolved_oxygen', 'temperature', 'ph']
-  for (const pondId of ponds) {
-    for (const metric of metrics) {
-      const readings = getMockReadings(pondId, metric)
-      const found = readings.find(r => r.id === pointId)
-      if (found) return found
-    }
-  }
-  const stateReading = (window.history.state?.reading) as any
-  if (stateReading) return stateReading
-  return null
-})
+const reading = ref<any>(null)
+const notes = ref<any[]>([])
+const alerts = ref<any[]>([])
 
-const associatedNotes = computed(() =>
-  mockProcessingNotes.filter(n => n.readingId === pointId || (foundReading.value && n.alertId && mockAlerts.some(a => a.id === n.alertId)))
-)
-
-const associatedAlerts = computed(() => {
-  if (!foundReading.value) return []
-  return mockAlerts.filter(a => a.pondId === foundReading.value.pondId && a.metric === foundReading.value.metric)
+onMounted(async () => {
+  const data = await fetchDrilldownData(pointId)
+  reading.value = data.reading
+  notes.value = data.notes
+  alerts.value = data.alerts
 })
 
 const newNote = ref('')
-const localNotes = ref<ProcessingNote[]>([])
 
 function formatTime(iso: string) {
   const d = new Date(iso)
@@ -47,16 +33,14 @@ function formatTime(iso: string) {
   return `${y}-${m}-${day} ${h}:${min}`
 }
 
-function addNote() {
+async function addNote() {
   if (!newNote.value.trim()) return
-  localNotes.value.push({
-    id: `local-note-${Date.now()}`,
-    alertId: null,
+  const created = await createNote({
     readingId: pointId,
     note: newNote.value.trim(),
     createdBy: '当前用户',
-    createdAt: new Date().toISOString(),
   })
+  notes.value.push(created)
   newNote.value = ''
 }
 
@@ -78,7 +62,7 @@ function goBack() {
       <h1 class="text-lg font-medium text-gray-200">异常钻取详情</h1>
     </div>
 
-    <div v-if="!foundReading" class="flex-1 flex items-center justify-center">
+    <div v-if="!reading" class="flex-1 flex items-center justify-center">
       <p class="text-gray-500">未找到对应的采样记录</p>
     </div>
 
@@ -88,60 +72,60 @@ function goBack() {
         <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
           <div class="flex items-center gap-2">
             <span class="text-gray-500">传感器ID:</span>
-            <span class="text-gray-300">{{ foundReading.sensorId }}</span>
+            <span class="text-gray-300">{{ reading.sensor_id }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">时间戳:</span>
-            <span class="text-gray-300">{{ formatTime(foundReading.timestamp) }}</span>
+            <span class="text-gray-300">{{ formatTime(reading.timestamp) }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">数值:</span>
-            <span class="text-gray-300">{{ foundReading.value }}</span>
+            <span class="text-gray-300">{{ reading.value }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">数据质量:</span>
             <span
               class="px-1.5 py-0.5 rounded text-[10px] font-medium"
               :class="{
-                'bg-emerald-500/20 text-emerald-400': foundReading.quality === 'good',
-                'bg-[#F59E0B]/20 text-[#F59E0B]': foundReading.quality === 'suspect',
-                'bg-[#EF4444]/20 text-[#EF4444]': foundReading.quality === 'offline',
+                'bg-emerald-500/20 text-emerald-400': reading.quality === 'good',
+                'bg-[#F59E0B]/20 text-[#F59E0B]': reading.quality === 'suspect',
+                'bg-[#EF4444]/20 text-[#EF4444]': reading.quality === 'offline',
               }"
             >
-              {{ foundReading.quality === 'good' ? '正常' : foundReading.quality === 'suspect' ? '可疑' : '离线' }}
+              {{ reading.quality === 'good' ? '正常' : reading.quality === 'suspect' ? '可疑' : '离线' }}
             </span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">是否异常:</span>
-            <span :class="foundReading.isAnomaly ? 'text-[#EF4444]' : 'text-emerald-400'">
-              {{ foundReading.isAnomaly ? '是' : '否' }}
+            <span :class="reading.is_anomaly ? 'text-[#EF4444]' : 'text-emerald-400'">
+              {{ reading.is_anomaly ? '是' : '否' }}
             </span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">塘口:</span>
-            <span class="text-gray-300">{{ POND_NAMES[foundReading.pondId] }}</span>
+            <span class="text-gray-300">{{ POND_NAMES[reading.pond_id] }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500">指标:</span>
-            <span class="text-gray-300">{{ METRIC_LABELS[foundReading.metric as keyof typeof METRIC_LABELS] }}</span>
+            <span class="text-gray-300">{{ METRIC_LABELS[reading.metric as keyof typeof METRIC_LABELS] }}</span>
           </div>
         </div>
       </div>
 
       <div class="bg-[#0A2E36] rounded-xl border border-[#0D3B47] p-4 mb-6">
         <h3 class="text-sm font-medium text-gray-200 mb-3">处理记录</h3>
-        <div v-if="associatedNotes.length === 0 && localNotes.length === 0" class="py-4 text-center">
+        <div v-if="notes.length === 0" class="py-4 text-center">
           <p class="text-gray-600 text-sm">暂无处理记录</p>
         </div>
         <div v-else class="space-y-3">
           <div
-            v-for="note in [...associatedNotes, ...localNotes]"
+            v-for="note in notes"
             :key="note.id"
             class="bg-[#0D3B47] rounded-lg p-3"
           >
             <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-[#00B4D8]">{{ note.createdBy }}</span>
-              <span class="text-xs text-gray-600">{{ formatTime(note.createdAt) }}</span>
+              <span class="text-xs text-[#00B4D8]">{{ note.created_by }}</span>
+              <span class="text-xs text-gray-600">{{ formatTime(note.created_at) }}</span>
             </div>
             <p class="text-sm text-gray-300">{{ note.note }}</p>
           </div>
@@ -150,18 +134,18 @@ function goBack() {
 
       <div class="bg-[#0A2E36] rounded-xl border border-[#0D3B47] p-4 mb-6">
         <h3 class="text-sm font-medium text-gray-200 mb-3">关联警报</h3>
-        <div v-if="associatedAlerts.length === 0" class="py-4 text-center">
+        <div v-if="alerts.length === 0" class="py-4 text-center">
           <p class="text-gray-600 text-sm">暂无关联警报</p>
         </div>
         <div v-else class="space-y-3">
           <div
-            v-for="alert in associatedAlerts"
+            v-for="alert in alerts"
             :key="alert.id"
             class="bg-[#0D3B47] rounded-lg p-3"
           >
             <div class="flex items-center gap-2 mb-1">
               <AlertTriangle class="w-4 h-4" :class="alert.severity === 'critical' ? 'text-[#EF4444]' : 'text-[#F59E0B]'" />
-              <span class="text-xs text-gray-300">{{ POND_NAMES[alert.pondId] }}</span>
+              <span class="text-xs text-gray-300">{{ POND_NAMES[alert.pond_id] }}</span>
               <span class="text-xs text-gray-500">{{ METRIC_LABELS[alert.metric as keyof typeof METRIC_LABELS] }}</span>
               <span
                 class="ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium"
@@ -170,19 +154,19 @@ function goBack() {
                 {{ alert.severity === 'critical' ? '严重' : '警告' }}
               </span>
             </div>
-            <div v-if="alert.humanJudgment" class="flex items-center gap-2 mt-2">
+            <div v-if="alert.human_judgment" class="flex items-center gap-2 mt-2">
               <span class="text-xs text-gray-500">人工判定:</span>
               <span
                 class="px-1.5 py-0.5 rounded text-[10px] font-medium"
                 :class="{
-                  'bg-[#00B4D8]/10 text-[#00B4D8]': alert.humanJudgment === 'false_alarm',
-                  'bg-[#EF4444]/10 text-[#EF4444]': alert.humanJudgment === 'real_anomaly',
-                  'bg-[#F59E0B]/10 text-[#F59E0B]': alert.humanJudgment === 'needs_onsite',
+                  'bg-[#00B4D8]/10 text-[#00B4D8]': alert.human_judgment === 'false_alarm',
+                  'bg-[#EF4444]/10 text-[#EF4444]': alert.human_judgment === 'real_anomaly',
+                  'bg-[#F59E0B]/10 text-[#F59E0B]': alert.human_judgment === 'needs_onsite',
                 }"
               >
-                {{ JUDGMENT_LABELS[alert.humanJudgment] }}
+                {{ JUDGMENT_LABELS[alert.human_judgment] }}
               </span>
-              <span v-if="alert.judgmentNote" class="text-xs text-gray-400">{{ alert.judgmentNote }}</span>
+              <span v-if="alert.judgment_note" class="text-xs text-gray-400">{{ alert.judgment_note }}</span>
             </div>
           </div>
         </div>

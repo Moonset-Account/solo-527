@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useFilterStore } from '@/stores/filter'
-import { mockAlerts } from '@/mock/data'
-import { POND_NAMES, METRIC_LABELS, JUDGMENT_LABELS, type MetricType, type HumanJudgment } from '@/types'
+import { fetchReportData, getReportCsvUrl } from '@/services/api'
+import { POND_NAMES, METRIC_LABELS, type MetricType, type HumanJudgment } from '@/types'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Download, FileSpreadsheet, FileText, BarChart3 } from 'lucide-vue-next'
@@ -14,40 +14,14 @@ const endDate = ref('')
 const selectedPond = ref('pond-1')
 const selectedReportMetrics = ref<MetricType[]>(['dissolved_oxygen', 'temperature', 'ph'])
 const previewReady = ref(false)
+const reportData = ref<any>(null)
 
-const filteredAlerts = computed(() => {
-  let alerts = [...mockAlerts]
-  if (startDate.value) {
-    alerts = alerts.filter(a => new Date(a.triggeredAt) >= new Date(startDate.value))
-  }
-  if (endDate.value) {
-    alerts = alerts.filter(a => new Date(a.triggeredAt) <= new Date(endDate.value + 'T23:59:59'))
-  }
-  if (selectedPond.value) {
-    alerts = alerts.filter(a => a.pondId === selectedPond.value)
-  }
-  return alerts
-})
-
-const alertCount = computed(() => filteredAlerts.value.length)
-
-const ackRate = computed(() => {
-  if (filteredAlerts.value.length === 0) return 0
-  const acked = filteredAlerts.value.filter(a => a.status !== 'pending').length
-  return Math.round((acked / filteredAlerts.value.length) * 100)
-})
-
-const judgmentDist = computed(() => {
-  const dist: Record<string, number> = { false_alarm: 0, real_anomaly: 0, needs_onsite: 0 }
-  for (const a of filteredAlerts.value) {
-    if (a.humanJudgment) {
-      dist[a.humanJudgment] = (dist[a.humanJudgment] || 0) + 1
-    }
-  }
-  return dist
-})
-
-function generateReport() {
+async function generateReport() {
+  reportData.value = await fetchReportData({
+    start: startDate.value || undefined,
+    end: endDate.value || undefined,
+    pondId: selectedPond.value,
+  })
   previewReady.value = true
 }
 
@@ -73,28 +47,12 @@ async function exportPDF() {
 }
 
 function exportExcel() {
-  const headers = ['ID', '类型', '严重级别', '指标', '塘口', '数值', '阈值', '触发时间', '状态', '判定', '备注']
-  const rows = filteredAlerts.value.map(a => [
-    a.id,
-    a.type === 'threshold' ? '阈值' : '离线',
-    a.severity === 'critical' ? '严重' : '警告',
-    METRIC_LABELS[a.metric as keyof typeof METRIC_LABELS] || a.metric,
-    POND_NAMES[a.pondId] || a.pondId,
-    String(a.value),
-    String(a.threshold),
-    a.triggeredAt,
-    a.status === 'pending' ? '待处理' : '已确认',
-    a.humanJudgment ? JUDGMENT_LABELS[a.humanJudgment] : '',
-    a.judgmentNote || '',
-  ])
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = '水质监控报表.csv'
-  link.click()
-  URL.revokeObjectURL(url)
+  const url = getReportCsvUrl({
+    start: startDate.value || undefined,
+    end: endDate.value || undefined,
+    pondId: selectedPond.value,
+  })
+  window.open(url)
 }
 </script>
 
@@ -172,11 +130,11 @@ function exportExcel() {
         </div>
         <div class="bg-[#0D3B47] rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">警报数量</div>
-          <div class="text-sm text-gray-200">{{ alertCount }} 条</div>
+          <div class="text-sm text-gray-200">{{ reportData.total }} 条</div>
         </div>
         <div class="bg-[#0D3B47] rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">确认率</div>
-          <div class="text-sm text-gray-200">{{ ackRate }}%</div>
+          <div class="text-sm text-gray-200">{{ reportData.ack_rate }}%</div>
         </div>
         <div class="bg-[#0D3B47] rounded-lg p-4">
           <div class="text-xs text-gray-500 mb-1">塘口</div>
@@ -189,32 +147,32 @@ function exportExcel() {
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#00B4D8]" />
-            <span class="text-xs text-gray-400">误报: {{ judgmentDist.false_alarm }}</span>
+            <span class="text-xs text-gray-400">误报: {{ reportData.judgment_dist.false_alarm }}</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#EF4444]" />
-            <span class="text-xs text-gray-400">真实异常: {{ judgmentDist.real_anomaly }}</span>
+            <span class="text-xs text-gray-400">真实异常: {{ reportData.judgment_dist.real_anomaly }}</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-[#F59E0B]" />
-            <span class="text-xs text-gray-400">需现场排查: {{ judgmentDist.needs_onsite }}</span>
+            <span class="text-xs text-gray-400">需现场排查: {{ reportData.judgment_dist.needs_onsite }}</span>
           </div>
         </div>
         <div class="flex gap-1 mt-3 h-6 rounded overflow-hidden">
           <div
-            v-if="judgmentDist.false_alarm"
+            v-if="reportData.judgment_dist.false_alarm"
             class="bg-[#00B4D8] transition-all"
-            :style="{ width: `${(judgmentDist.false_alarm / Math.max(filteredAlerts.length, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgment_dist.false_alarm / Math.max(reportData.total, 1)) * 100}%` }"
           />
           <div
-            v-if="judgmentDist.real_anomaly"
+            v-if="reportData.judgment_dist.real_anomaly"
             class="bg-[#EF4444] transition-all"
-            :style="{ width: `${(judgmentDist.real_anomaly / Math.max(filteredAlerts.length, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgment_dist.real_anomaly / Math.max(reportData.total, 1)) * 100}%` }"
           />
           <div
-            v-if="judgmentDist.needs_onsite"
+            v-if="reportData.judgment_dist.needs_onsite"
             class="bg-[#F59E0B] transition-all"
-            :style="{ width: `${(judgmentDist.needs_onsite / Math.max(filteredAlerts.length, 1)) * 100}%` }"
+            :style="{ width: `${(reportData.judgment_dist.needs_onsite / Math.max(reportData.total, 1)) * 100}%` }"
           />
         </div>
       </div>

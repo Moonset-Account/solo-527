@@ -104,17 +104,17 @@ const judgmentOptions: { value: HumanJudgment; color: string }[] = [
                   >
                     {{ activeAlert.severity === 'critical' ? '严重' : '警告' }}
                   </span>
-                  <span class="text-gray-300">{{ POND_NAMES[activeAlert.pondId] }}</span>
+                  <span class="text-gray-300">{{ POND_NAMES[activeAlert.pond_id] }}</span>
                 </div>
                 <div class="text-gray-400">
                   <span>{{ METRIC_LABELS[activeAlert.metric as keyof typeof METRIC_LABELS] }}</span>
                   <span v-if="activeAlert.type === 'threshold'" class="ml-2">
-                    当前值 <span class="text-gray-200">{{ activeAlert.value }}</span> / 阈值 <span class="text-gray-200">{{ activeAlert.threshold }}</span>
+                    当前值 <span class="text-gray-200">{{ activeAlert.value }}</span> / 阈值 <span class="text-gray-200">{{ activeAlert.threshold_value }}</span>
                   </span>
                   <span v-else class="ml-2">传感器离线</span>
                 </div>
                 <div class="text-xs text-gray-500">
-                  触发时间: {{ formatTime(activeAlert.triggeredAt) }}
+                  触发时间: {{ formatTime(activeAlert.triggered_at) }}
                 </div>
               </div>
             </div>
