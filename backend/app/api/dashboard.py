@@ -13,7 +13,7 @@ from app.schemas import (
     TeamTrendItem,
 )
 
-router = APIRouter(prefix="/api/dashboard", tags=["看板数据"])
+router = APIRouter(prefix="/dashboard", tags=["看板数据"])
 
 
 def apply_filters(query, db: Session, floors=None, team_ids=None, type_ids=None, levels=None):

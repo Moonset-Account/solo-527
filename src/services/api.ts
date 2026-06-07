@@ -117,14 +117,24 @@ export const dashboardApi = {
     const params = buildFilterParams(filters);
     params.days = days;
     const response = await api.get('/dashboard/closure-rate-trend', { params });
-    return response.data;
+    return response.data.map((item: any) => ({
+      date: item.date,
+      rate: item.closure_rate,
+      closed: item.closed_hazards,
+      total: item.new_hazards,
+    }));
   },
 
   getOverdueRanking: async (limit: number = 10, filters: FilterCriteria = {}): Promise<OverdueRankingItem[]> => {
     const params = buildFilterParams(filters);
     params.limit = limit;
     const response = await api.get('/dashboard/overdue-ranking', { params });
-    return response.data;
+    return response.data.map((item: any) => ({
+      teamId: item.team_id,
+      teamName: item.team_name,
+      count: item.overdue_count,
+      amount: 0,
+    }));
   },
 
   getFloorHeatmap: async (filters: FilterCriteria = {}): Promise<FloorHeatmapItem[]> => {
@@ -134,7 +144,15 @@ export const dashboardApi = {
     delete params.start_date;
     delete params.end_date;
     const response = await api.get('/dashboard/floor-heatmap', { params });
-    return response.data;
+    return response.data.map((item: any) => ({
+      floor: item.floor,
+      count: item.hazard_count,
+      points: [
+        { name: '一般隐患', count: item.level_1_count },
+        { name: '较大隐患', count: item.level_2_count },
+        { name: '重大隐患', count: item.level_3_count },
+      ],
+    }));
   },
 
   getTeamTrend: async (days: number = 7, filters: FilterCriteria = {}): Promise<TeamTrendItem[]> => {
@@ -142,7 +160,13 @@ export const dashboardApi = {
     params.days = days;
     delete params.team_ids;
     const response = await api.get('/dashboard/team-trend', { params });
-    return response.data;
+    return response.data.map((item: any) => ({
+      team: item.team_name,
+      teamId: item.team_id,
+      date: item.date,
+      completed: 0,
+      total: item.hazard_count,
+    }));
   },
 };
 
@@ -314,18 +338,17 @@ export const masterDataApi = {
 };
 
 export const exportApi = {
-  exportHazards: async (filters: FilterCriteria = {}): Promise<void> => {
+  exportHazards: async (filters: FilterCriteria = {}): Promise<Blob> => {
     const params = buildFilterParams(filters);
     params.format = 'csv';
     const response = await api.get('/export/hazards', {
       params,
       responseType: 'blob',
     });
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `隐患列表_${new Date().toISOString().slice(0, 10)}.csv`);
+    return new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
   },
 
-  exportFines: async (filters: FilterCriteria & { status?: string } = {}): Promise<void> => {
+  exportFines: async (filters: FilterCriteria & { status?: string } = {}): Promise<Blob> => {
     const params = buildFilterParams(filters);
     if (filters.status) {
       params.status = filters.status;
@@ -335,8 +358,7 @@ export const exportApi = {
       params,
       responseType: 'blob',
     });
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `罚款记录_${new Date().toISOString().slice(0, 10)}.csv`);
+    return new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
   },
 };
 

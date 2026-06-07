@@ -6,7 +6,7 @@ from ..core.database import get_db
 from ..models import Team, HazardType, InspectionPoint
 from ..schemas import TeamResponse, HazardTypeResponse, InspectionPointResponse
 
-router = APIRouter(prefix="/api/master", tags=["master"])
+router = APIRouter(prefix="/master", tags=["主数据"])
 
 
 @router.get("/teams", response_model=List[TeamResponse])

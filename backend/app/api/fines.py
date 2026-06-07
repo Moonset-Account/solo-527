@@ -11,7 +11,7 @@ from app.schemas import (
     PaginatedResponse,
 )
 
-router = APIRouter(prefix="/api/fines", tags=["罚款管理"])
+router = APIRouter(prefix="/fines", tags=["罚款管理"])
 
 
 @router.get("", response_model=PaginatedResponse[FineResponse])

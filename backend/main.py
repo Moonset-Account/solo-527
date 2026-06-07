@@ -20,13 +20,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(dashboard.router)
-app.include_router(master.router)
-app.include_router(hazards.router)
-app.include_router(fines.router)
-app.include_router(appeals.router)
-app.include_router(exports.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(master.router, prefix="/api")
+app.include_router(hazards.router, prefix="/api")
+app.include_router(fines.router, prefix="/api")
+app.include_router(appeals.router, prefix="/api")
+app.include_router(exports.router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -11,7 +11,7 @@ from ..core.config import settings
 from ..models import User
 from ..schemas import UserResponse
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["认证"])
 
 SECRET_KEY = settings.SECRET_KEY or "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
