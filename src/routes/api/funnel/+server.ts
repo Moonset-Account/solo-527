@@ -8,6 +8,23 @@ export const POST: RequestHandler = async ({ request }) => {
 		const body: FunnelRequest = await request.json();
 		const { startDate, endDate, activityTypes, communities, ageGroups, channels, weather, caliberVersion } = body;
 
+		let caliberMapping: Record<string, string> = {};
+		if (caliberVersion && caliberVersion !== 'latest') {
+			const caliberResult = await query(
+				'SELECT type_mapping FROM caliber_versions WHERE version_id = $1',
+				[caliberVersion]
+			);
+			if (caliberResult.length > 0 && caliberResult[0].type_mapping) {
+				caliberMapping = typeof caliberResult[0].type_mapping === 'string'
+					? JSON.parse(caliberResult[0].type_mapping)
+					: caliberResult[0].type_mapping;
+			}
+		}
+
+		function applyCaliber(type: string): string {
+			return caliberMapping[type] || type;
+		}
+
 		const whereClauses: string[] = [];
 		const params: any[] = [];
 		let paramIndex = 1;
@@ -19,10 +36,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		if (activityTypes && activityTypes.length > 0) {
-			const placeholders = activityTypes.map((_, i) => `$${paramIndex + i}`).join(', ');
+			const mappedTypes = new Set<string>();
+			activityTypes.forEach(t => {
+				mappedTypes.add(t);
+				Object.entries(caliberMapping).forEach(([oldType, newType]) => {
+					if (newType === t) mappedTypes.add(oldType);
+				});
+			});
+			const typeArray = Array.from(mappedTypes);
+			const placeholders = typeArray.map((_, i) => `$${paramIndex + i}`).join(', ');
 			whereClauses.push(`a.type IN (${placeholders})`);
-			params.push(...activityTypes);
-			paramIndex += activityTypes.length;
+			params.push(...typeArray);
+			paramIndex += typeArray.length;
 		}
 
 		if (communities && communities.length > 0) {
@@ -46,15 +71,19 @@ export const POST: RequestHandler = async ({ request }) => {
 			paramIndex += weather.length;
 		}
 
+		const baseParams = [...params];
 		let ageJoin = '';
+		let ageParams: string[] = [];
 		if (ageGroups && ageGroups.length > 0) {
 			const placeholders = ageGroups.map((_, i) => `$${paramIndex + i}`).join(', ');
 			ageJoin = `JOIN users u ON r.user_id = u.user_id AND u.age_group IN (${placeholders})`;
+			ageParams = [...ageGroups];
 			params.push(...ageGroups);
 			paramIndex += ageGroups.length;
 		}
 
 		const whereSql = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
+		const registrationParams = [...baseParams, ...ageParams];
 
 		const browseSql = `
 			SELECT COUNT(*) * 10 as count
@@ -99,11 +128,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		`;
 
 		const [browseResult, registerResult, checkinResult, cancelResult, feedbackResult] = await Promise.all([
-			query(browseSql, params),
-			query(registerSql, params),
-			query(checkinSql, params),
-			query(cancelSql, params),
-			query(feedbackSql, params)
+			query(browseSql, baseParams),
+			query(registerSql, registrationParams),
+			query(checkinSql, registrationParams),
+			query(cancelSql, registrationParams),
+			query(feedbackSql, registrationParams)
 		]);
 
 		const browseCount = Number(browseResult[0]?.count || 0);
@@ -130,17 +159,30 @@ export const POST: RequestHandler = async ({ request }) => {
 			FROM activities a
 			LEFT JOIN registrations r ON a.activity_id = r.activity_id
 			LEFT JOIN feedbacks f ON r.reg_id = f.reg_id
-			${ageGroups && ageGroups.length > 0 ? 'JOIN users u ON r.user_id = u.user_id' : ''}
+			${ageJoin ? ageJoin.replace('JOIN users u', 'LEFT JOIN users u') : ''}
 			${whereSql}
 			GROUP BY a.type
 			ORDER BY registered DESC
 		`;
 
-		const byTypeResult = await query(byTypeSql, params);
-		const byActivityType = byTypeResult.map(row => ({
-			name: row.type,
-			funnel: [row.registered * 10, Number(row.registered), Number(row.checked_in), Number(row.cancelled), Number(row.feedback)]
-		}));
+		const byTypeResult = await query(byTypeSql, registrationParams);
+		const typeAggregation: Record<string, { registered: number; checked_in: number; cancelled: number; feedback: number }> = {};
+		byTypeResult.forEach(row => {
+			const mappedType = applyCaliber(row.type);
+			if (!typeAggregation[mappedType]) {
+				typeAggregation[mappedType] = { registered: 0, checked_in: 0, cancelled: 0, feedback: 0 };
+			}
+			typeAggregation[mappedType].registered += Number(row.registered) || 0;
+			typeAggregation[mappedType].checked_in += Number(row.checked_in) || 0;
+			typeAggregation[mappedType].cancelled += Number(row.cancelled) || 0;
+			typeAggregation[mappedType].feedback += Number(row.feedback) || 0;
+		});
+		const byActivityType = Object.entries(typeAggregation)
+			.map(([name, data]) => ({
+				name,
+				funnel: [data.registered * 10, data.registered, data.checked_in, data.cancelled, data.feedback]
+			}))
+			.sort((a, b) => b.funnel[1] - a.funnel[1]);
 
 		const cancelReasonsSql = `
 			SELECT cancel_reason_tag as tag, COUNT(*) as count
@@ -153,20 +195,21 @@ export const POST: RequestHandler = async ({ request }) => {
 			GROUP BY cancel_reason_tag
 			ORDER BY count DESC
 		`;
-		const cancelReasonsResult = await query(cancelReasonsSql, params);
+		const cancelReasonsResult = await query(cancelReasonsSql, registrationParams);
 
 		const feedbackTopicsSql = `
-			SELECT UNNEST(topics) as topic, COUNT(*) as count
+			SELECT t.topic as topic, COUNT(*) as count
 			FROM feedbacks f
 			JOIN registrations r ON f.reg_id = r.reg_id
 			JOIN activities a ON r.activity_id = a.activity_id
+			, UNNEST(f.topics) as t(topic)
 			${ageJoin}
 			${whereSql}
-			GROUP BY topic
+			GROUP BY t.topic
 			ORDER BY count DESC
 			LIMIT 10
 		`;
-		const feedbackTopicsResult = await query(feedbackTopicsSql, params);
+		const feedbackTopicsResult = await query(feedbackTopicsSql, registrationParams);
 
 		const minorCheckSql = `
 			SELECT COUNT(*) as count
@@ -176,7 +219,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			${whereSql}
 			AND u.is_minor = true
 		`;
-		const minorResult = await query(minorCheckSql, params);
+		const minorResult = await query(minorCheckSql, baseParams);
 		const hasMinorData = Number(minorResult[0]?.count || 0) > 0;
 
 		return json({

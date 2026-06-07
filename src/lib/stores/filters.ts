@@ -2,12 +2,9 @@ import { writable, derived } from 'svelte/store';
 import type { FilterState, FilterOption, CaliberVersion } from '$lib/types';
 
 function getDefaultDates() {
-	const end = new Date();
-	const start = new Date();
-	start.setMonth(start.getMonth() - 3);
 	return {
-		startDate: start.toISOString().split('T')[0],
-		endDate: end.toISOString().split('T')[0]
+		startDate: '2025-04-01',
+		endDate: '2025-06-30'
 	};
 }
 

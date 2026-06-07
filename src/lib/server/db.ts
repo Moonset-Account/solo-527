@@ -201,12 +201,26 @@ function generateSampleData(database: duckdb.Database) {
 	console.log('Sample data generated successfully');
 }
 
+function convertBigIntToNumber(obj: any): any {
+	if (obj === null || obj === undefined) return obj;
+	if (typeof obj === 'bigint') return Number(obj);
+	if (Array.isArray(obj)) return obj.map(convertBigIntToNumber);
+	if (typeof obj === 'object') {
+		const converted: Record<string, any> = {};
+		for (const key of Object.keys(obj)) {
+			converted[key] = convertBigIntToNumber(obj[key]);
+		}
+		return converted;
+	}
+	return obj;
+}
+
 export function query(sql: string, params: any[] = []): Promise<any[]> {
 	return new Promise((resolve, reject) => {
 		const db = getDb();
 		db.all(sql, ...params, (err, rows) => {
 			if (err) reject(err);
-			else resolve(rows);
+			else resolve(convertBigIntToNumber(rows));
 		});
 	});
 }
