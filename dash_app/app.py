@@ -70,18 +70,30 @@ def _merge_params(sd, ed, team, ath_id, program, stype, exercise, drill_filters)
     if ath_id: p["athlete_id"] = str(ath_id)
     if program: p["program"] = program
     if exercise: p["exercise_name"] = exercise
+    DIM_PARAM_MAP = {
+        "team": "team",
+        "athlete": None,
+        "program": "program",
+        "training_day": None,
+        "exercise": "exercise_name",
+        "metric": None,
+    }
     for dim in DRILL_LEVELS:
         val = drill_filters.get(dim)
-        if val and dim not in p:
-            if dim == "athlete":
-                name_to_id = _athlete_name_to_id()
-                aid = name_to_id.get(val)
-                if aid: p["athlete_id"] = str(aid)
-            elif dim == "training_day":
-                p["start_date"] = val
-                p["end_date"] = val
-            else:
-                p[dim] = val
+        if not val:
+            continue
+        if dim == "athlete":
+            name_to_id = _athlete_name_to_id()
+            aid = name_to_id.get(val)
+            if aid:
+                p["athlete_id"] = str(aid)
+        elif dim == "training_day":
+            p["start_date"] = val
+            p["end_date"] = val
+        else:
+            param_key = DIM_PARAM_MAP.get(dim, dim)
+            if param_key and param_key not in p:
+                p[param_key] = val
     return p
 
 
