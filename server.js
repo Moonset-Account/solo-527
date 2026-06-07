@@ -35,7 +35,7 @@ const remixHandler = createRequestHandler({
 });
 
 const app = express();
-const PORT = process.env.PORT || 8787;
+const PORT = process.env.PORT || 8080;
 
 app.use(compression());
 
@@ -44,6 +44,10 @@ app.use(
     skip: (req) => req.path.startsWith("/resources"),
   })
 );
+
+app.get("/login", (req, res) => {
+  res.redirect(301, "/");
+});
 
 if (viteDevServer) {
   app.use(viteDevServer.middlewares);
@@ -54,23 +58,19 @@ if (viteDevServer) {
   );
 }
 
-app.use(express.static("build/client", { maxAge: "1h" }));
-app.use("/exports", express.static(exportDir));
 app.use(express.json());
+app.use("/api", apiRoutes);
+app.use("/exports", express.static(exportDir));
+app.use(express.static("build/client", { maxAge: "1h" }));
 
 initCache().catch(console.error);
-
-app.use("/api", apiRoutes);
-
-app.get("/login", (req, res) => {
-  res.redirect("/");
-});
 
 app.all("*", remixHandler);
 
 app.listen(PORT, () => {
   console.log(`✅ 服务器运行在 http://localhost:${PORT}`);
   console.log(`✅ 灌溉仪表盘: http://localhost:${PORT}`);
+  console.log(`✅ /login 自动重定向到首页`);
 });
 
 export default app;

@@ -134,10 +134,27 @@ function filterDataByFilters(
     return true;
   };
 
-  const filteredWaterTrend = allWaterTrend.filter((item) => {
+  let filteredWaterTrend = allWaterTrend.filter((item) => {
     if (!filterByDate(item.date)) return false;
+    if (selectedFieldNames.length && item.fieldName && !selectedFieldNames.includes(item.fieldName)) return false;
     return true;
   });
+
+  const aggregatedByDate = new Map<string, WaterTrendItem>();
+  filteredWaterTrend.forEach((item) => {
+    const existing = aggregatedByDate.get(item.date);
+    if (existing) {
+      existing.totalWater += item.totalWater;
+      existing.postRainWater += item.postRainWater;
+      existing.normalWater += item.normalWater;
+      existing.irrigationCount += item.irrigationCount;
+      existing.totalCost += item.totalCost;
+      existing.rainfall += item.rainfall;
+    } else {
+      aggregatedByDate.set(item.date, { ...item });
+    }
+  });
+  filteredWaterTrend = Array.from(aggregatedByDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   const filteredMoistureData = allMoistureData.filter((item) => {
     if (!filterByDate(item.date)) return false;
@@ -152,12 +169,27 @@ function filterDataByFilters(
     return true;
   });
 
-  const filteredStrategyBenefits = allStrategyBenefits.filter((item) => {
+  let filteredStrategyBenefits = allStrategyBenefits.filter((item) => {
     if (selectedStrategyNames.length && !selectedStrategyNames.includes(item.strategyName)) return false;
     if (selectedFieldNames.length && !selectedFieldNames.includes(item.fieldName)) return false;
     if (selectedCropNames.length && !selectedCropNames.includes(item.cropName)) return false;
     return true;
   });
+
+  const aggregatedByStrategy = new Map<string, StrategyBenefitItem>();
+  filteredStrategyBenefits.forEach((item) => {
+    const existing = aggregatedByStrategy.get(item.strategyName);
+    if (existing) {
+      existing.applicationCount += item.applicationCount;
+      existing.totalWater += item.totalWater;
+      existing.totalCost += item.totalCost;
+      existing.avgFieldArea = (existing.avgFieldArea + item.avgFieldArea) / 2;
+      existing.waterSavingRate = (existing.waterSavingRate + item.waterSavingRate) / 2;
+    } else {
+      aggregatedByStrategy.set(item.strategyName, { ...item });
+    }
+  });
+  filteredStrategyBenefits = Array.from(aggregatedByStrategy.values());
 
   const filteredAnomalies = allAnomalies.filter((item) => {
     const itemDate = item.startTime ? item.startTime.split("T")[0] : "";
@@ -217,58 +249,25 @@ export default function Dashboard() {
     { type: "anomalies", label: "⚠️ 异常记录清单" },
   ];
 
-  const simulateExport = useCallback((exportType: string) => {
-    const typeLabel = exportTypes.find((t) => t.type === exportType)?.label || exportType;
-    const taskId = Math.random().toString(36).slice(2, 10);
-
-    const newTask: ExportTask = {
-      id: taskId,
-      type: exportType,
-      typeLabel,
-      status: "pending",
-      progress: 0,
-      createdAt: new Date(),
-    };
-
-    setExportTasks((prev) => [newTask, ...prev]);
-    setShowExportMenu(false);
-    setShowExportPanel(true);
-
-    setTimeout(() => {
-      setExportTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: "processing", progress: 10 } : t))
-      );
-    }, 500);
-
-    const progressInterval = setInterval(() => {
-      setExportTasks((prev) => {
-        const task = prev.find((t) => t.id === taskId);
-        if (!task || task.status === "completed") {
-          clearInterval(progressInterval);
-          return prev;
-        }
-
-        const newProgress = Math.min(task.progress + Math.random() * 20 + 10, 100);
-        const isCompleted = newProgress >= 100;
-
-        return prev.map((t) =>
-          t.id === taskId
-            ? {
-                ...t,
-                progress: isCompleted ? 100 : newProgress,
-                status: isCompleted ? "completed" : "processing",
-                filePath: isCompleted
-                  ? `/exports/${taskId}_${exportType}_${new Date().toISOString().split("T")[0]}.csv`
-                  : undefined,
-              }
-            : t
-        );
-      });
-    }, 800);
-  }, [exportTypes]);
-
   const handleExport = useCallback(
     (exportType: string) => {
+      const typeLabel = exportTypes.find((t) => t.type === exportType)?.label || exportType;
+      const tempId = `temp_${Date.now()}`;
+
+      setExportTasks((prev) => [
+        {
+          id: tempId,
+          type: exportType,
+          typeLabel,
+          status: "processing",
+          progress: 5,
+          createdAt: new Date(),
+        },
+        ...prev,
+      ]);
+      setShowExportPanel(true);
+      setShowExportMenu(false);
+
       fetch("/api/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -277,59 +276,77 @@ export default function Dashboard() {
         .then((r) => r.json())
         .then((data) => {
           if (data.success) {
-            const typeLabel = exportTypes.find((t) => t.type === exportType)?.label || exportType;
-            const newTask: ExportTask = {
-              id: data.taskId,
-              type: exportType,
-              typeLabel,
-              status: "processing",
-              progress: 10,
-              createdAt: new Date(),
-            };
-            setExportTasks((prev) => [newTask, ...prev]);
-            setShowExportPanel(true);
+            setExportTasks((prev) =>
+              prev.map((t) =>
+                t.id === tempId
+                  ? { ...t, id: data.taskId, progress: 10 }
+                  : t
+              )
+            );
+          } else {
+            setExportTasks((prev) =>
+              prev.map((t) =>
+                t.id === tempId
+                  ? { ...t, status: "failed" as const, error: data.error || "创建任务失败" }
+                  : t
+              )
+            );
           }
         })
-        .catch(() => {
-          simulateExport(exportType);
+        .catch((err) => {
+          setExportTasks((prev) =>
+            prev.map((t) =>
+              t.id === tempId
+                ? { ...t, status: "failed" as const, error: err.message || "网络错误" }
+                : t
+            )
+          );
         });
-      setShowExportMenu(false);
     },
-    [filters, exportTypes, simulateExport]
+    [filters, exportTypes]
   );
 
   useEffect(() => {
     if (exportTasks.length > 0) {
-      const activeCount = exportTasks.filter(
-        (t) => t.status === "processing" || t.status === "pending"
-      ).length;
-      if (activeCount === 0) return;
+      const activeTasks = exportTasks.filter(
+        (t) => (t.status === "processing" || t.status === "pending") && !t.id.startsWith("temp_")
+      );
+      if (activeTasks.length === 0) return;
 
       const timer = setInterval(() => {
-        exportTasks
-          .filter((t) => t.status === "processing" || t.status === "pending")
-          .forEach((task) => {
-            fetch(`/api/export/${task.id}`)
-              .then((r) => r.json())
-              .then((data) => {
-                if (data && data.id) {
-                  setExportTasks((prev) =>
-                    prev.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            status: data.status,
-                            progress: data.progress,
-                            filePath: data.publicPath,
-                            error: data.error,
-                          }
-                        : t
-                    )
-                  );
-                }
-              })
-              .catch(() => {});
-          });
+        activeTasks.forEach((task) => {
+          fetch(`/api/export/${task.id}`)
+            .then((r) => {
+              if (!r.ok) throw new Error("任务不存在");
+              return r.json();
+            })
+            .then((data) => {
+              if (data && data.id) {
+                setExportTasks((prev) =>
+                  prev.map((t) =>
+                    t.id === task.id
+                      ? {
+                          ...t,
+                          status: data.status,
+                          progress: data.progress,
+                          filePath: data.publicPath,
+                          error: data.error,
+                        }
+                      : t
+                  )
+                );
+              }
+            })
+            .catch(() => {
+              setExportTasks((prev) =>
+                prev.map((t) =>
+                  t.id === task.id
+                    ? { ...t, status: "failed" as const, error: "任务查询失败" }
+                    : t
+                )
+              );
+            });
+        });
       }, 1500);
 
       return () => clearInterval(timer);
@@ -697,6 +714,14 @@ function generateMockAnomalies(): AnomalyItem[] {
 function generateMockWaterTrend(): WaterTrendItem[] {
   const data: WaterTrendItem[] = [];
   const start = new Date("2025-05-15");
+  const fields = [
+    { id: 1, name: "东一号田", factor: 1.2 },
+    { id: 2, name: "东二号田", factor: 0.95 },
+    { id: 3, name: "西一号田", factor: 1.5 },
+    { id: 4, name: "西二号田", factor: 1.1 },
+    { id: 5, name: "南一号田", factor: 0.8 },
+    { id: 6, name: "北一号田", factor: 1.3 },
+  ];
 
   for (let i = 0; i < 23; i++) {
     const date = new Date(start);
@@ -705,18 +730,23 @@ function generateMockWaterTrend(): WaterTrendItem[] {
 
     const isRainy = [2, 5, 9, 14, 18].includes(i);
     const rainfall = isRainy ? Math.random() * 25 + 8 : Math.random() * 3;
-    const baseWater = 800 + Math.random() * 600;
-    const postRainWater = isRainy ? baseWater * 0.25 : 0;
 
-    data.push({
-      date: dateStr,
-      totalWater: baseWater,
-      postRainWater: postRainWater,
-      normalWater: baseWater - postRainWater,
-      irrigationCount: Math.floor(Math.random() * 6) + 3,
-      totalCost: baseWater * 0.42,
-      rainfall: rainfall,
-      hasRain: isRainy,
+    fields.forEach((field) => {
+      const baseWater = (800 + Math.random() * 600) * field.factor / 6;
+      const postRainWater = isRainy ? baseWater * 0.25 : 0;
+
+      data.push({
+        date: dateStr,
+        fieldId: field.id,
+        fieldName: field.name,
+        totalWater: baseWater,
+        postRainWater: postRainWater,
+        normalWater: baseWater - postRainWater,
+        irrigationCount: Math.floor(Math.random() * 3) + 1,
+        totalCost: baseWater * 0.42,
+        rainfall: rainfall / 6,
+        hasRain: isRainy,
+      });
     });
   }
 
@@ -799,62 +829,45 @@ function generateMockPumpEnergy(): PumpEnergyItem[] {
 }
 
 function generateMockStrategyBenefits(): StrategyBenefitItem[] {
-  return [
-    {
-      strategyId: 1,
-      strategyName: "传统漫灌",
-      strategyType: "traditional",
-      cropName: "冬小麦",
-      fieldName: "西一号田",
-      applicationCount: 45,
-      totalWater: 8500,
-      totalCost: 3825,
-      avgFieldArea: 135,
-      waterPerField: 212.5,
-      waterPerMu: 8.2,
-      waterSavingRate: 0,
-    },
-    {
-      strategyId: 2,
-      strategyName: "喷灌",
-      strategyType: "sprinkler",
-      cropName: "冬小麦",
-      fieldName: "东一号田",
-      applicationCount: 38,
-      totalWater: 5890,
-      totalCost: 2650.5,
-      avgFieldArea: 120,
-      waterPerField: 155,
-      waterPerMu: 6.2,
-      waterSavingRate: 24.4,
-    },
-    {
-      strategyId: 3,
-      strategyName: "滴灌",
-      strategyType: "drip",
-      cropName: "棉花",
-      fieldName: "南一号田",
-      applicationCount: 52,
-      totalWater: 3120,
-      totalCost: 1404,
-      avgFieldArea: 80,
-      waterPerField: 60,
-      waterPerMu: 4.5,
-      waterSavingRate: 45.1,
-    },
-    {
-      strategyId: 4,
-      strategyName: "智能灌溉",
-      strategyType: "smart",
-      cropName: "夏玉米",
-      fieldName: "东二号田",
-      applicationCount: 42,
-      totalWater: 3654,
-      totalCost: 1644.3,
-      avgFieldArea: 95,
-      waterPerField: 87,
-      waterPerMu: 4.3,
-      waterSavingRate: 47.6,
-    },
+  const data: StrategyBenefitItem[] = [];
+  const strategies = [
+    { id: 1, name: "传统漫灌", type: "traditional", savingRate: 0 },
+    { id: 2, name: "喷灌", type: "sprinkler", savingRate: 24 },
+    { id: 3, name: "滴灌", type: "drip", savingRate: 45 },
+    { id: 4, name: "智能灌溉", type: "smart", savingRate: 48 },
   ];
+  const fields = [
+    { id: 1, name: "东一号田", crop: "冬小麦", area: 120 },
+    { id: 2, name: "东二号田", crop: "夏玉米", area: 95 },
+    { id: 3, name: "西一号田", crop: "冬小麦", area: 150 },
+    { id: 4, name: "西二号田", crop: "大豆", area: 110 },
+    { id: 5, name: "南一号田", crop: "棉花", area: 80 },
+    { id: 6, name: "北一号田", crop: "夏玉米", area: 130 },
+  ];
+
+  fields.forEach((field) => {
+    strategies.forEach((strategy) => {
+      const baseWater = 8500 * (field.area / 120);
+      const waterSaving = baseWater * (strategy.savingRate / 100);
+      const actualWater = baseWater - waterSaving;
+      const appCount = Math.floor(40 + Math.random() * 20);
+
+      data.push({
+        strategyId: strategy.id,
+        strategyName: strategy.name,
+        strategyType: strategy.type,
+        cropName: field.crop,
+        fieldName: field.name,
+        applicationCount: appCount,
+        totalWater: actualWater,
+        totalCost: actualWater * 0.42,
+        avgFieldArea: field.area,
+        waterPerField: actualWater,
+        waterPerMu: actualWater / field.area * 666.67,
+        waterSavingRate: strategy.savingRate + (Math.random() - 0.5) * 5,
+      });
+    });
+  });
+
+  return data;
 }

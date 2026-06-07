@@ -36,6 +36,8 @@ export interface SummaryStats {
 
 export interface WaterTrendItem {
   date: string;
+  fieldId?: number;
+  fieldName?: string;
   totalWater: number;
   postRainWater: number;
   normalWater: number;
