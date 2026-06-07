@@ -19,6 +19,9 @@ export async function GET({ url }) {
   const productType = url.searchParams.get('productType');
   if (productType) filters.productType = productType;
   
+  const sources = url.searchParams.get('sources');
+  if (sources) filters.sources = sources.split(',');
+  
   const data = await getHeatmapData(filters);
   return json(data);
 }

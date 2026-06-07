@@ -99,6 +99,8 @@ function createTables() {
       product_id VARCHAR,
       product_name VARCHAR,
       product_type VARCHAR,
+      activity_id VARCHAR,
+      activity_name VARCHAR,
       source_channel VARCHAR,
       time_slot VARCHAR,
       start_minute INTEGER,
@@ -120,6 +122,7 @@ function createTables() {
     CREATE INDEX idx_slots_date ON presentation_slots(date);
     CREATE INDEX idx_slots_anchor ON presentation_slots(anchor_id);
     CREATE INDEX idx_slots_product ON presentation_slots(product_id);
+    CREATE INDEX idx_slots_activity ON presentation_slots(activity_id);
     CREATE INDEX idx_slots_source ON presentation_slots(source_channel);
     CREATE INDEX idx_slots_slot ON presentation_slots(time_slot);
     CREATE INDEX idx_slots_type ON presentation_slots(product_type);
@@ -173,7 +176,7 @@ function insertPresentationSlots(slots) {
   
   const stmt = db.prepare(`
     INSERT INTO presentation_slots VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
   
@@ -187,6 +190,8 @@ function insertPresentationSlots(slots) {
       s.product_id,
       s.product_name,
       s.product_type,
+      s.activity_id,
+      s.activity_name,
       s.source_channel,
       s.time_slot,
       s.start_minute,
@@ -251,6 +256,16 @@ function runAnalytics() {
   db.all('SELECT DISTINCT time_slot FROM presentation_slots LIMIT 5', (err, res) => {
     if (err) console.error(err);
     console.log('讲解时段示例:', res);
+  });
+
+  db.all('SELECT DISTINCT activity_id, activity_name FROM presentation_slots LIMIT 5', (err, res) => {
+    if (err) console.error(err);
+    console.log('讲解时段活动类型:', res);
+  });
+
+  db.all('SELECT DISTINCT source_channel FROM presentation_slots LIMIT 5', (err, res) => {
+    if (err) console.error(err);
+    console.log('讲解时段观众来源:', res);
   });
 }
 

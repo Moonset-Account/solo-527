@@ -145,6 +145,7 @@ function generatePresentationSlots() {
       const presentationCount = randomInt(8, 15);
       for (let i = 0; i < presentationCount; i++) {
         const product = randomChoice(products);
+        const activity = randomChoice(activities);
         const source = randomChoice(sources);
         const timeSlot = randomChoice(timeSlots);
         const startMinute = randomInt(0, 11 * 60);
@@ -165,6 +166,8 @@ function generatePresentationSlots() {
           product_id: product.id,
           product_name: product.name,
           product_type: product.type,
+          activity_id: activity.id,
+          activity_name: activity.name,
           source_channel: source,
           time_slot: timeSlot,
           start_minute: startMinute,

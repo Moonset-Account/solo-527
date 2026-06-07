@@ -72,7 +72,7 @@ function buildWhere(filters, table = 'sessions') {
     params.push(...filters.timeSlots);
   }
   
-  if (table === 'sessions' && filters.activityIds?.length > 0) {
+  if (filters.activityIds?.length > 0) {
     cond.push('activity_id IN (' + filters.activityIds.map(() => '?').join(',') + ')');
     params.push(...filters.activityIds);
   }
