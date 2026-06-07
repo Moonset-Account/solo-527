@@ -31,41 +31,41 @@ const funnelFilterSchema = z.object({
 async function buildFunnelSheet(ctx: { prisma: import("@prisma/client").PrismaClient }, filters?: z.infer<typeof funnelFilterSchema>) {
   const enrollmentWhere: Record<string, unknown> = { isDuplicate: false };
   const waitlistWhere: Record<string, unknown> = {};
+  const refundWhere: Record<string, unknown> = {};
 
   if (filters?.campusIds?.length) {
     enrollmentWhere.campusId = { in: filters.campusIds };
     waitlistWhere.campusId = { in: filters.campusIds };
+    refundWhere.course = { campusId: { in: filters.campusIds } };
   }
   if (filters?.courseIds?.length) {
     enrollmentWhere.courseId = { in: filters.courseIds };
     waitlistWhere.courseId = { in: filters.courseIds };
+    refundWhere.courseId = { in: filters.courseIds };
   }
   if (filters?.channels?.length) {
     enrollmentWhere.channel = { in: filters.channels };
     waitlistWhere.channel = { in: filters.channels };
+    refundWhere.enrollment = { channel: { in: filters.channels } };
   }
   if (filters?.dateRange) {
     enrollmentWhere.enrollTime = { gte: filters.dateRange.start, lte: filters.dateRange.end };
-    waitlistWhere.createdAt = { gte: filters.dateRange.start, lte: filters.dateRange.end };
+    waitlistWhere.originalEnrollTime = { gte: filters.dateRange.start, lte: filters.dateRange.end };
+    refundWhere.refundTime = { gte: filters.dateRange.start, lte: filters.dateRange.end };
   }
   if (filters?.ageGroups?.length) {
     enrollmentWhere.student = { ageGroup: { in: filters.ageGroups } };
     waitlistWhere.student = { ageGroup: { in: filters.ageGroups } };
+    refundWhere.student = { ageGroup: { in: filters.ageGroups } };
   }
 
   const [browseCount, inquiryCount, enrollCount, waitlistCount, convertedCount, refundCount] = await Promise.all([
-    ctx.prisma.enrollment.count({ where: enrollmentWhere }),
-    ctx.prisma.enrollment.count({ where: { ...enrollmentWhere, channel: { not: "" } } }),
+    ctx.prisma.enrollment.count({ where: { ...enrollmentWhere, status: "browse" } }),
+    ctx.prisma.enrollment.count({ where: { ...enrollmentWhere, status: "inquiry" } }),
     ctx.prisma.enrollment.count({ where: { ...enrollmentWhere, status: "enrolled" } }),
     ctx.prisma.waitlistEntry.count({ where: waitlistWhere }),
     ctx.prisma.waitlistEntry.count({ where: { ...waitlistWhere, status: "converted" } }),
-    ctx.prisma.refundRecord.count({
-      where: {
-        ...(filters?.campusIds?.length ? { course: { campusId: { in: filters.campusIds } } } : {}),
-        ...(filters?.courseIds?.length ? { courseId: { in: filters.courseIds } } : {}),
-        ...(filters?.dateRange ? { refundTime: { gte: filters.dateRange.start, lte: filters.dateRange.end } } : {}),
-      },
-    }),
+    ctx.prisma.refundRecord.count({ where: refundWhere }),
   ]);
 
   const stages = [
@@ -94,14 +94,13 @@ async function buildWaitlistSheet(ctx: { prisma: import("@prisma/client").Prisma
     orderBy: { position: "asc" },
   });
 
-  const rows = await Promise.all(
-    entries.map(async (entry) => {
-      const displayName = entry.student.isMinor ? maskName(entry.student.name) : entry.student.name;
+  const adultRows = await Promise.all(
+    entries.filter((e) => !e.student.isMinor).map(async (entry) => {
       const waitDays = entry.waitDays ?? Math.floor((Date.now() - new Date(entry.originalEnrollTime).getTime()) / (1000 * 60 * 60 * 24));
 
       const row: Record<string, unknown> = {
         排位: entry.position,
-        学生姓名: displayName,
+        学生姓名: entry.student.name,
         课程: entry.course.name,
         校区: entry.campus.name,
         年龄段: entry.student.ageGroup,
@@ -109,6 +108,7 @@ async function buildWaitlistSheet(ctx: { prisma: import("@prisma/client").Prisma
         原报名时间: format(new Date(entry.originalEnrollTime), "yyyy-MM-dd HH:mm"),
         等待天数: waitDays,
         状态: entry.status,
+        未成年人: "否",
       };
 
       if (includeAdjustDiff) {
@@ -119,13 +119,40 @@ async function buildWaitlistSheet(ctx: { prisma: import("@prisma/client").Prisma
         row.调整前排名 = latestLog?.oldPosition ?? "";
         row.调整后排名 = latestLog?.newPosition ?? "";
         row.调整原因 = latestLog?.reason ?? "";
+        row.排位变化 = latestLog ? `第${latestLog.oldPosition}位 → 第${latestLog.newPosition}位` : "";
       }
 
       return row;
     }),
   );
 
-  return rows;
+  const minorAggregateMap = new Map<string, { ageGroup: string; status: string; count: number; course: string }>();
+  for (const entry of entries.filter((e) => e.student.isMinor)) {
+    const key = `${entry.student.ageGroup}-${entry.status}-${entry.course.name}`;
+    const existing = minorAggregateMap.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      minorAggregateMap.set(key, { ageGroup: entry.student.ageGroup, status: entry.status, count: 1, course: entry.course.name });
+    }
+  }
+
+  const minorRows: Record<string, unknown>[] = [...minorAggregateMap.values()].map((agg) => ({
+    排位: "-",
+    学生姓名: "（未成年人聚合）",
+    课程: agg.course,
+    校区: "",
+    年龄段: agg.ageGroup,
+    渠道: "",
+    原报名时间: "",
+    等待天数: "",
+    状态: agg.status,
+    未成年人: "是（聚合）",
+    人数: agg.count,
+    ...(includeAdjustDiff ? { 调整前排名: "", 调整后排名: "", 调整原因: "", 排位变化: "" } : {}),
+  }));
+
+  return [...adultRows, ...minorRows];
 }
 
 async function buildRankingSheet(ctx: { prisma: import("@prisma/client").PrismaClient }, filters: z.infer<typeof funnelFilterSchema> | undefined) {
@@ -142,15 +169,16 @@ async function buildRankingSheet(ctx: { prisma: import("@prisma/client").PrismaC
   const courseStats = await Promise.all(
     courses.map(async (course) => {
       const waitlistEntries = course.waitlistEntries;
-      const waitlistCount = waitlistEntries.filter((e) => e.status === "waiting").length;
+      const waitlistCount = waitlistEntries.length;
       const convertedCount = waitlistEntries.filter((e) => e.status === "converted").length;
       const conversionRate = waitlistEntries.length > 0 ? convertedCount / waitlistEntries.length : 0;
 
-      const totalWaitDays = waitlistEntries.reduce((sum, e) => {
+      const waitingEntries = waitlistEntries.filter((e) => e.status === "waiting");
+      const totalWaitDays = waitingEntries.reduce((sum, e) => {
         const days = e.waitDays ?? Math.floor((Date.now() - new Date(e.originalEnrollTime).getTime()) / (1000 * 60 * 60 * 24));
         return sum + days;
       }, 0);
-      const avgWaitDays = waitlistEntries.length > 0 ? Math.round(totalWaitDays / waitlistEntries.length) : 0;
+      const avgWaitDays = waitingEntries.length > 0 ? Math.round(totalWaitDays / waitingEntries.length) : 0;
 
       const isLowSample = waitlistCount < LOW_SAMPLE_THRESHOLD;
       const ratio = course.capacity > 0 ? waitlistCount / course.capacity : 0;
@@ -185,20 +213,7 @@ async function buildRankingSheet(ctx: { prisma: import("@prisma/client").PrismaC
       加开建议: s.suggestion,
     }));
 
-  const lowSampleRows = courseStats
-    .filter((s) => s.isLowSample)
-    .map((s) => ({
-      排名: "-",
-      课程名称: `${s.courseName}（样本不足）`,
-      所属校区: s.campusName,
-      候补人数: s.waitlistCount,
-      班级容量: s.classCapacity,
-      转正率: `${(s.conversionRate * 100).toFixed(1)}%`,
-      平均等待天数: s.avgWaitDays,
-      加开建议: s.suggestion,
-    }));
-
-  return [...normalRows, ...lowSampleRows];
+  return normalRows;
 }
 
 async function buildAdjustHistorySheet(ctx: { prisma: import("@prisma/client").PrismaClient }, filters: z.infer<typeof funnelFilterSchema> | undefined, includeAdjustDiff: boolean) {
@@ -214,7 +229,7 @@ async function buildAdjustHistorySheet(ctx: { prisma: import("@prisma/client").P
   });
 
   return logs.map((log) => {
-    const displayName = log.entry.student.isMinor ? maskName(log.entry.student.name) : log.entry.student.name;
+    const displayName = log.entry.student.isMinor ? "（未成年人）" : log.entry.student.name;
 
     const row: Record<string, unknown> = {
       调整时间: format(new Date(log.createdAt), "yyyy-MM-dd HH:mm"),

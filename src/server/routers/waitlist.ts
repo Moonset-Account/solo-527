@@ -22,7 +22,7 @@ export const waitlistRouter = createTRPCRouter({
           course: true,
           campus: true,
         },
-        orderBy: { position: "asc" },
+        orderBy: [{ status: "asc" }, { position: "asc" }],
       });
 
       return entries.map((entry) => ({
@@ -73,10 +73,58 @@ export const waitlistRouter = createTRPCRouter({
         }
 
         const oldPosition = entry.position;
+        const newPosition = input.newPosition;
+
+        if (oldPosition === newPosition) {
+          return {
+            id: entry.id,
+            studentId: entry.studentId,
+            studentName: maskMinorName(entry.student.name, entry.student.isMinor),
+            isMinor: entry.student.isMinor,
+            courseId: entry.courseId,
+            position: entry.position,
+            status: entry.status,
+            channel: entry.channel,
+            originalEnrollTime: entry.originalEnrollTime.toISOString(),
+            convertedTime: entry.convertedTime?.toISOString() ?? null,
+            waitDays: entry.waitDays,
+            campusId: entry.campusId,
+            ageGroup: entry.student.ageGroup,
+          };
+        }
+
+        const siblings = await tx.waitlistEntry.findMany({
+          where: {
+            courseId: entry.courseId,
+            id: { not: entry.id },
+            status: "waiting",
+          },
+          orderBy: { position: "asc" },
+        });
+
+        if (newPosition < oldPosition) {
+          for (const s of siblings) {
+            if (s.position >= newPosition && s.position < oldPosition) {
+              await tx.waitlistEntry.update({
+                where: { id: s.id },
+                data: { position: s.position + 1 },
+              });
+            }
+          }
+        } else {
+          for (const s of siblings) {
+            if (s.position > oldPosition && s.position <= newPosition) {
+              await tx.waitlistEntry.update({
+                where: { id: s.id },
+                data: { position: s.position - 1 },
+              });
+            }
+          }
+        }
 
         const updated = await tx.waitlistEntry.update({
           where: { id: input.entryId },
-          data: { position: input.newPosition },
+          data: { position: newPosition },
           include: { student: true },
         });
 
@@ -93,7 +141,7 @@ export const waitlistRouter = createTRPCRouter({
             entryId: input.entryId,
             operatorId: firstUser.id,
             oldPosition,
-            newPosition: input.newPosition,
+            newPosition,
             reason: input.reason,
           },
         });
@@ -123,56 +171,75 @@ export const waitlistRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const entry = await ctx.prisma.waitlistEntry.findUnique({
-        where: { id: input.entryId },
-        include: { student: true },
-      });
-
-      if (!entry) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "候补记录不存在",
+      return ctx.prisma.$transaction(async (tx) => {
+        const entry = await tx.waitlistEntry.findUnique({
+          where: { id: input.entryId },
+          include: { student: true },
         });
-      }
 
-      if (entry.status !== "waiting") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "该候补记录不在等待状态",
+        if (!entry) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "候补记录不存在",
+          });
+        }
+
+        if (entry.status !== "waiting") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "该候补记录不在等待状态",
+          });
+        }
+
+        const now = new Date();
+        const waitDays = Math.floor(
+          (now.getTime() - entry.originalEnrollTime.getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+
+        const oldPosition = entry.position;
+
+        const updated = await tx.waitlistEntry.update({
+          where: { id: input.entryId },
+          data: {
+            status: "converted",
+            convertedTime: now,
+            waitDays,
+          },
+          include: { student: true },
         });
-      }
 
-      const now = new Date();
-      const waitDays = Math.floor(
-        (now.getTime() - entry.originalEnrollTime.getTime()) /
-          (1000 * 60 * 60 * 24),
-      );
+        const laterSiblings = await tx.waitlistEntry.findMany({
+          where: {
+            courseId: entry.courseId,
+            status: "waiting",
+            position: { gt: oldPosition },
+          },
+        });
 
-      const updated = await ctx.prisma.waitlistEntry.update({
-        where: { id: input.entryId },
-        data: {
-          status: "converted",
-          convertedTime: now,
-          waitDays,
-        },
-        include: { student: true },
+        for (const s of laterSiblings) {
+          await tx.waitlistEntry.update({
+            where: { id: s.id },
+            data: { position: s.position - 1 },
+          });
+        }
+
+        return {
+          id: updated.id,
+          studentId: updated.studentId,
+          studentName: maskMinorName(updated.student.name, updated.student.isMinor),
+          isMinor: updated.student.isMinor,
+          courseId: updated.courseId,
+          position: updated.position,
+          status: updated.status,
+          channel: updated.channel,
+          originalEnrollTime: updated.originalEnrollTime.toISOString(),
+          convertedTime: updated.convertedTime?.toISOString() ?? null,
+          waitDays: updated.waitDays,
+          campusId: updated.campusId,
+          ageGroup: updated.student.ageGroup,
+        };
       });
-
-      return {
-        id: updated.id,
-        studentId: updated.studentId,
-        studentName: maskMinorName(updated.student.name, updated.student.isMinor),
-        isMinor: updated.student.isMinor,
-        courseId: updated.courseId,
-        position: updated.position,
-        status: updated.status,
-        channel: updated.channel,
-        originalEnrollTime: updated.originalEnrollTime.toISOString(),
-        convertedTime: updated.convertedTime?.toISOString() ?? null,
-        waitDays: updated.waitDays,
-        campusId: updated.campusId,
-        ageGroup: updated.student.ageGroup,
-      };
     }),
 
   history: publicProcedure
