@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import type { ContentItem } from '@/lib/types';
-import { PLATFORM_LABELS, CONTENT_TYPE_LABELS } from '@/lib/types';
+import { PLATFORM_LABELS, CONTENT_TYPE_LABELS, PLATFORM_PRIMARY_METRIC_LABEL, PLATFORM_METRICS } from '@/lib/types';
 
 interface TopContentsTableProps {
   items: ContentItem[];
   onTagClick: (tag: string) => void;
 }
 
-type SortField = 'views' | 'likes' | 'shares' | 'comments' | 'interactionRate';
+type SortField = 'primaryMetric' | 'likes' | 'shares' | 'comments' | 'interactionRate';
 type SortOrder = 'asc' | 'desc';
 
 interface SortHeaderProps {
@@ -38,8 +38,14 @@ function SortHeader({ field, label, sortField, sortOrder, onSort }: SortHeaderPr
   );
 }
 
+function getPrimaryMetricValue(item: ContentItem): number {
+  const metrics = PLATFORM_METRICS[item.platform];
+  if (metrics.primary === 'reads') return item.reads;
+  return item.views;
+}
+
 export default function TopContentsTable({ items, onTagClick }: TopContentsTableProps) {
-  const [sortField, setSortField] = useState<SortField>('views');
+  const [sortField, setSortField] = useState<SortField>('primaryMetric');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [showOnlyAnomaly, setShowOnlyAnomaly] = useState(false);
@@ -47,14 +53,18 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
   const displayItems = showOnlyAnomaly ? items.filter((i) => i.isAnomaly) : items;
 
   const getInteractionRate = (item: ContentItem) => {
-    return item.views > 0
-      ? Number((((item.likes + item.shares + item.comments) / item.views) * 100).toFixed(2))
+    const primaryValue = getPrimaryMetricValue(item);
+    return primaryValue > 0
+      ? Number((((item.likes + item.shares + item.comments) / primaryValue) * 100).toFixed(2))
       : 0;
   };
 
   const getSortValue = (item: ContentItem, field: SortField): number => {
     if (field === 'interactionRate') {
       return getInteractionRate(item);
+    }
+    if (field === 'primaryMetric') {
+      return getPrimaryMetricValue(item);
     }
     return item[field] as number;
   };
@@ -81,7 +91,7 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
           <div>
             <h3 className="text-lg font-semibold text-gray-800">爆款内容拆解</h3>
             <p className="text-sm text-gray-500 mt-1">
-              共 {displayItems.length} 条内容，点击可查看明细
+              共 {displayItems.length} 条内容，点击可查看明细。*核心指标按平台口径：微信=阅读量，抖音/B站=播放量，微博/小红书=曝光量
             </p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -106,7 +116,7 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 平台/类型
               </th>
-              <SortHeader field="views" label="曝光量" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+              <SortHeader field="primaryMetric" label="核心指标*" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="likes" label="点赞" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="shares" label="转发" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
               <SortHeader field="comments" label="评论" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
@@ -146,8 +156,13 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
                     {CONTENT_TYPE_LABELS[item.contentType]}
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                  {item.views.toLocaleString()}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="text-sm text-gray-700 font-medium">
+                    {getPrimaryMetricValue(item).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {PLATFORM_PRIMARY_METRIC_LABEL[item.platform]}
+                  </div>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                   {item.likes.toLocaleString()}
@@ -206,9 +221,10 @@ export default function TopContentsTable({ items, onTagClick }: TopContentsTable
 }
 
 function DetailModal({ item, onClose }: { item: ContentItem; onClose: () => void }) {
+  const primaryValue = getPrimaryMetricValue(item);
   const interactionRate =
-    item.views > 0
-      ? Number((((item.likes + item.shares + item.comments) / item.views) * 100).toFixed(2))
+    primaryValue > 0
+      ? Number((((item.likes + item.shares + item.comments) / primaryValue) * 100).toFixed(2))
       : 0;
 
   return (

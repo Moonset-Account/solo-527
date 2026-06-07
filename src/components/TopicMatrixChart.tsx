@@ -22,13 +22,14 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         trigger: 'item',
-        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        formatter: (params: any) => {
           const dataIndex = params.dataIndex as number;
           const item = data[dataIndex];
           return `
             <div style="font-weight: 600; margin-bottom: 4px;">${item.tag}</div>
             <div>内容数量: ${item.count} 篇</div>
-            <div>平均曝光: ${item.avgViews.toLocaleString()}</div>
+            <div>平均核心指标: ${item.avgPrimaryMetric.toLocaleString()}</div>
             <div>平均点赞: ${item.avgLikes.toLocaleString()}</div>
             <div>互动率: ${item.avgInteractionRate}%</div>
           `;
@@ -41,7 +42,7 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
         bottom: '15%',
       },
       xAxis: {
-        name: '平均曝光量',
+        name: '平均核心指标(阅读/播放/曝光)',
         nameLocation: 'middle',
         nameGap: 30,
         type: 'value',
@@ -78,13 +79,14 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
         {
           type: 'scatter',
           data: data.map((item) => [
-            item.avgViews,
+            item.avgPrimaryMetric,
             item.avgLikes,
             item.count * 5 + 10,
           ]),
           symbolSize: (value: number[]) => value[2],
           itemStyle: {
-            color: (params: echarts.ItemStyleColorCallbackParams) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            color: (params: any) => {
               const dataIndex = params.dataIndex as number;
               const item = data[dataIndex];
               if (item.avgInteractionRate >= 5) return '#10b981';
@@ -96,7 +98,8 @@ export default function TopicMatrixChart({ data }: TopicMatrixChartProps) {
           },
           label: {
             show: true,
-            formatter: (params: echarts.DefaultLabelFormatterCallbackParams) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter: (params: any) => {
               const dataIndex = params.dataIndex as number;
               return data[dataIndex].tag;
             },

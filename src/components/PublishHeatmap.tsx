@@ -26,7 +26,8 @@ export default function PublishHeatmap({ data }: PublishHeatmapProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         position: 'top',
-        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        formatter: (params: any) => {
           const value = params.value as number[];
           return `
             <div style="font-weight: 600; margin-bottom: 4px;">${WEEKDAYS[value[1]]} ${value[0]}:00</div>

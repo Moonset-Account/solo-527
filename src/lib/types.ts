@@ -49,6 +49,7 @@ export interface TopicMatrixItem {
   tag: string;
   count: number;
   avgViews: number;
+  avgPrimaryMetric: number;
   avgLikes: number;
   avgInteractionRate: number;
 }
@@ -97,7 +98,10 @@ export interface TopContent {
   id: string;
   title: string;
   platform: Platform;
+  platformLabel: string;
   views: number;
+  primaryMetric: number;
+  primaryMetricName: string;
   likes: number;
   shares: number;
   comments: number;

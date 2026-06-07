@@ -134,14 +134,16 @@ export function loadData(filters: FilterState): ProcessedData {
 }
 
 export function getTopicMatrix(items: ContentItem[], topN: number = 15): TopicMatrixItem[] {
-  const tagMap = new Map<string, { count: number; totalViews: number; totalLikes: number; totalInteractions: number }>();
+  const tagMap = new Map<string, { count: number; totalViews: number; totalPrimaryMetric: number; totalLikes: number; totalInteractions: number }>();
 
   items.forEach(item => {
+    const primaryValue = getPrimaryMetricValue(item);
     item.tags.forEach(tag => {
-      const existing = tagMap.get(tag) || { count: 0, totalViews: 0, totalLikes: 0, totalInteractions: 0 };
+      const existing = tagMap.get(tag) || { count: 0, totalViews: 0, totalPrimaryMetric: 0, totalLikes: 0, totalInteractions: 0 };
       tagMap.set(tag, {
         count: existing.count + 1,
         totalViews: existing.totalViews + item.views,
+        totalPrimaryMetric: existing.totalPrimaryMetric + primaryValue,
         totalLikes: existing.totalLikes + item.likes,
         totalInteractions: existing.totalInteractions + item.likes + item.shares + item.comments,
       });
@@ -153,8 +155,9 @@ export function getTopicMatrix(items: ContentItem[], topN: number = 15): TopicMa
       tag,
       count: data.count,
       avgViews: Math.round(data.totalViews / data.count),
+      avgPrimaryMetric: Math.round(data.totalPrimaryMetric / data.count),
       avgLikes: Math.round(data.totalLikes / data.count),
-      avgInteractionRate: Number(((data.totalInteractions / data.count) / (data.totalViews / data.count) * 100).toFixed(2)),
+      avgInteractionRate: Number(((data.totalInteractions / data.count) / (data.totalPrimaryMetric / data.count) * 100).toFixed(2)),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, topN);
@@ -201,18 +204,24 @@ export function getInteractionFunnel(items: ContentItem[]): FunnelItem[] {
 
 export function getTopContents(items: ContentItem[], topN: number = 10): TopContent[] {
   return [...items]
-    .map(item => ({
-      id: item.id,
-      title: item.title,
-      platform: item.platform,
-      views: item.views,
-      likes: item.likes,
-      shares: item.shares,
-      comments: item.comments,
-      interactionRate: item.views > 0 ? Number((((item.likes + item.shares + item.comments) / item.views) * 100).toFixed(2)) : 0,
-      tags: item.tags,
-    }))
-    .sort((a, b) => b.views - a.views)
+    .map(item => {
+      const primaryValue = getPrimaryMetricValue(item);
+      return {
+        id: item.id,
+        title: item.title,
+        platform: item.platform,
+        platformLabel: PLATFORM_LABELS[item.platform],
+        views: item.views,
+        primaryMetric: primaryValue,
+        primaryMetricName: PLATFORM_PRIMARY_METRIC_LABEL[item.platform],
+        likes: item.likes,
+        shares: item.shares,
+        comments: item.comments,
+        interactionRate: primaryValue > 0 ? Number((((item.likes + item.shares + item.comments) / primaryValue) * 100).toFixed(2)) : 0,
+        tags: item.tags,
+      };
+    })
+    .sort((a, b) => b.primaryMetric - a.primaryMetric)
     .slice(0, topN);
 }
 

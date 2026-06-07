@@ -24,7 +24,8 @@ export default function InteractionFunnel({ data }: InteractionFunnelProps) {
     const option: echarts.EChartsOption = {
       tooltip: {
         trigger: 'item',
-        formatter: (params: echarts.TooltipFormatterCallbackParams) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        formatter: (params: any) => {
           const dataIndex = params.dataIndex as number;
           const item = data[dataIndex];
           return `
@@ -53,7 +54,8 @@ export default function InteractionFunnel({ data }: InteractionFunnelProps) {
           label: {
             show: true,
             position: 'inside',
-            formatter: (params: echarts.DefaultLabelFormatterCallbackParams) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter: (params: any) => {
               const dataIndex = params.dataIndex as number;
               const item = data[dataIndex];
               return `{name|${item.name}}\n{value|${item.value.toLocaleString()}}`;
