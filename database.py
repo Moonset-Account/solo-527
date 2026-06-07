@@ -175,25 +175,24 @@ def init_timescaledb(db_url=None):
     if db_url is None:
         db_url = get_db_url()
     
-    if 'sqlite' in db_url:
-        print("警告：SQLite 不支持 TimescaleDB，自动回退到普通 SQLite 模式")
-        return init_db(db_url)
+    if 'sqlite' in db_url.lower():
+        raise ValueError("TIMESCALEDB_ENABLED=true 时不支持 SQLite，请配置 PostgreSQL 连接")
+    
+    if 'postgresql' not in db_url.lower():
+        raise ValueError(f"TIMESCALEDB_ENABLED=true 时必须使用 PostgreSQL 连接，当前: {db_url}")
     
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
-            conn.execute(text("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);"))
-            conn.execute(text("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);"))
-            conn.execute(text("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);"))
-            conn.execute(text("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);"))
-            conn.execute(text("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);"))
-            conn.commit()
-        print("TimescaleDB 超表创建成功")
-    except Exception as e:
-        print(f"TimescaleDB 初始化警告（使用普通 PostgreSQL 模式）: {e}")
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
+        conn.execute(text("SELECT create_hypertable('temperature_readings', 'time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('door_events', 'event_time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('alarms', 'alarm_start', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('inbound_records', 'inbound_time', if_not_exists => TRUE);"))
+        conn.execute(text("SELECT create_hypertable('outbound_records', 'outbound_time', if_not_exists => TRUE);"))
+        conn.commit()
     
+    print("✅ TimescaleDB 初始化成功：已创建扩展和所有超表")
     Session = sessionmaker(bind=engine)
     return Session(), engine
