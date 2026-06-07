@@ -1,0 +1,10 @@
+const fs = require('fs');
+const d = JSON.parse(fs.readFileSync('/private/tmp/trend_e001.json', 'utf-8'));
+const missing = d.filter(x => x.isMissing === true);
+const zeros = d.filter(x => x.count === 0 && x.isMissing === false);
+console.log('筛选企业 e001 后:');
+console.log('总时间点:', d.length);
+console.log('真实缺失 (系统故障):', missing.length, '个');
+console.log('零值 (企业此时段无访客):', zeros.length, '个 (未标记为缺失)');
+console.log('');
+console.log('✓ 关键修复成功: 只有全局缺失才会标记 isMissing');

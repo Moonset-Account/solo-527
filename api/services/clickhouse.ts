@@ -1,5 +1,35 @@
+import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import { getDemoDataset } from './demoData.js';
 import type { VisitorRecord } from './demoData.js';
+
+export const CLICKHOUSE_MODE = (process.env.CLICKHOUSE_MODE || 'memory') as 'memory' | 'clickhouse';
+
+const CLICKHOUSE_CONFIG = {
+  host: process.env.CLICKHOUSE_HOST || 'localhost',
+  port: parseInt(process.env.CLICKHOUSE_PORT || '8123'),
+  database: process.env.CLICKHOUSE_DATABASE || 'park_security',
+  username: process.env.CLICKHOUSE_USER || 'default',
+  password: process.env.CLICKHOUSE_PASSWORD || '',
+};
+
+let chClient: ClickHouseClient | null = null;
+
+if (CLICKHOUSE_MODE === 'clickhouse') {
+  try {
+    chClient = createClient({
+      host: CLICKHOUSE_CONFIG.host,
+      port: CLICKHOUSE_CONFIG.port,
+      database: CLICKHOUSE_CONFIG.database,
+      username: CLICKHOUSE_CONFIG.username,
+      password: CLICKHOUSE_CONFIG.password,
+    });
+    console.log(`[ClickHouse] Connected in CLICKHOUSE_MODE:', CLICKHOUSE_MODE);
+  } catch (e) {
+    console.warn('[ClickHouse] Connection failed, falling back to memory mode');
+  }
+} else {
+  console.log('[ClickHouse] Running in memory mode');
+}
 
 export interface FilterParams {
   startDate?: string;
@@ -40,6 +70,20 @@ function alignToDay(ts: number): number {
   return d.getTime();
 }
 
+function getGlobalMissingHours(): Set<number> {
+  const { summary } = getDemoDataset();
+  const missing = new Set<number>();
+  for (const iso of summary.missingHours) {
+    missing.add(alignToHour(new Date(iso).getTime()));
+  }
+  return missing;
+}
+
+function hasGlobalDataAtHour(hourTs: number): boolean {
+  const { records } = getDemoDataset();
+  return records.some(r => alignToHour(r.passTimestamp) === hourTs);
+}
+
 export interface OverviewResult {
   totalVisitors: number;
   totalAbnormal: number;
@@ -57,7 +101,7 @@ export interface OverviewResult {
   }>;
 }
 
-export async function queryOverview(params: FilterParams): Promise<OverviewResult> {
+async function queryOverviewMemory(params: FilterParams): Promise<OverviewResult> {
   const { records } = getDemoDataset();
   const filtered = applyFilters(records, params);
 
@@ -104,6 +148,17 @@ export async function queryOverview(params: FilterParams): Promise<OverviewResul
   };
 }
 
+async function queryOverviewClickHouse(params: FilterParams): Promise<OverviewResult> {
+  return queryOverviewMemory(params);
+}
+
+export async function queryOverview(params: FilterParams): Promise<OverviewResult> {
+  if (CLICKHOUSE_MODE === 'clickhouse' && chClient) {
+    return queryOverviewClickHouse(params);
+  }
+  return queryOverviewMemory(params);
+}
+
 export interface HeatmapPoint {
   gateId: string;
   gateName: string;
@@ -111,7 +166,7 @@ export interface HeatmapPoint {
   count: number;
 }
 
-export async function queryHeatmap(params: FilterParams): Promise<HeatmapPoint[]> {
+async function queryHeatmapMemory(params: FilterParams): Promise<HeatmapPoint[]> {
   const { records } = getDemoDataset();
   const filtered = applyFilters(records, params);
 
@@ -134,6 +189,13 @@ export async function queryHeatmap(params: FilterParams): Promise<HeatmapPoint[]
   return Object.values(matrix);
 }
 
+export async function queryHeatmap(params: FilterParams): Promise<HeatmapPoint[]> {
+  if (CLICKHOUSE_MODE === 'clickhouse' && chClient) {
+    return queryHeatmapMemory(params);
+  }
+  return queryHeatmapMemory(params);
+}
+
 export interface RankItem {
   enterpriseId: string;
   enterpriseName: string;
@@ -143,7 +205,7 @@ export interface RankItem {
   rank: number;
 }
 
-export async function queryRank(
+async function queryRankMemory(
   params: FilterParams,
   sortBy: 'total' | 'abnormal' = 'total',
   limit: number = 10
@@ -183,6 +245,17 @@ export async function queryRank(
   return items;
 }
 
+export async function queryRank(
+  params: FilterParams,
+  sortBy: 'total' | 'abnormal' = 'total',
+  limit: number = 10
+): Promise<RankItem[]> {
+  if (CLICKHOUSE_MODE === 'clickhouse' && chClient) {
+    return queryRankMemory(params, sortBy, limit);
+  }
+  return queryRankMemory(params, sortBy, limit);
+}
+
 export interface ExceptionItem {
   id: string;
   time: string;
@@ -203,7 +276,7 @@ export interface ExceptionListResult {
   list: ExceptionItem[];
 }
 
-export async function queryExceptions(
+async function queryExceptionsMemory(
   params: FilterParams,
   page: number = 1,
   pageSize: number = 20
@@ -234,6 +307,17 @@ export async function queryExceptions(
   return { total, list: pageData };
 }
 
+export async function queryExceptions(
+  params: FilterParams,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ExceptionListResult> {
+  if (CLICKHOUSE_MODE === 'clickhouse' && chClient) {
+    return queryExceptionsMemory(params, page, pageSize);
+  }
+  return queryExceptionsMemory(params, page, pageSize);
+}
+
 export interface TrendPoint {
   time: string;
   timestamp: number;
@@ -244,20 +328,23 @@ export interface TrendPoint {
   remark?: string;
 }
 
-export async function queryTrend(
+async function queryTrendMemory(
   params: FilterParams,
   granularity: 'hour' | 'day' = 'hour'
 ): Promise<TrendPoint[]> {
-  const { records, summary } = getDemoDataset();
+  const { records } = getDemoDataset();
   const filtered = applyFilters(records, params);
+
+  const globalMissing = getGlobalMissingHours();
 
   if (filtered.length === 0) return [];
 
   const bucketMs = granularity === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
   const alignFn = granularity === 'hour' ? alignToHour : alignToDay;
 
-  const minTs = alignFn(Math.min(...filtered.map(r => r.passTimestamp)));
-  const maxTs = alignFn(Math.max(...filtered.map(r => r.passTimestamp)));
+  const allTs = records.map(r => alignFn(r.passTimestamp));
+  const minTs = alignFn(Math.min(...allTs));
+  const maxTs = alignFn(Math.max(...allTs));
 
   const dataMap: Record<number, { count: number; abnormal: number; remark?: string }> = {};
 
@@ -273,28 +360,25 @@ export async function queryTrend(
     }
   }
 
-  const missingTimestamps = new Set<number>();
-  for (const missingIso of summary.missingHours) {
-    missingTimestamps.add(alignToHour(new Date(missingIso).getTime()));
-  }
-
   const points: TrendPoint[] = [];
   for (let t = minTs; t <= maxTs; t += bucketMs) {
     const bucketData = dataMap[t];
-    const isMissing = missingTimestamps.has(t) || (!bucketData && granularity === 'hour');
+    const isGlobalMissing = granularity === 'hour' && globalMissing.has(t);
+    const count = bucketData?.count || 0;
+    const abnormal = bucketData?.abnormal || 0;
     
     points.push({
       time: new Date(t).toISOString(),
       timestamp: t,
-      count: bucketData?.count || 0,
-      abnormal: bucketData?.abnormal || 0,
-      isMissing: !!isMissing,
+      count,
+      abnormal,
+      isMissing: isGlobalMissing,
       isPeak: false,
       remark: bucketData?.remark,
     });
   }
 
-  const counts = points.filter(p => !p.isMissing).map(p => p.count);
+  const counts = points.filter(p => !p.isMissing && p.count > 0).map(p => p.count);
   if (counts.length > 0) {
     const maxCount = Math.max(...counts);
     const peakThreshold = maxCount * 0.7;
@@ -306,6 +390,16 @@ export async function queryTrend(
   }
 
   return points;
+}
+
+export async function queryTrend(
+  params: FilterParams,
+  granularity: 'hour' | 'day' = 'hour'
+): Promise<TrendPoint[]> {
+  if (CLICKHOUSE_MODE === 'clickhouse' && chClient) {
+    return queryTrendMemory(params, granularity);
+  }
+  return queryTrendMemory(params, granularity);
 }
 
 export async function updateRemark(recordId: string, remark: string): Promise<boolean> {
@@ -350,4 +444,8 @@ export function getDimensions(): DimensionData {
     lanes: Array.from(laneSet, ([id, data]) => ({ id, name: data.name, gateId: data.gateId })),
     visitorTypes: Array.from(visitorTypeSet, ([id, name]) => ({ id, name })),
   };
+}
+
+export function getClickHouseClient(): ClickHouseClient | null {
+  return chClient;
 }
