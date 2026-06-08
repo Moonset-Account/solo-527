@@ -67,7 +67,10 @@ namespace ShadowPlatformer.UI
             var save = SaveManager.Instance?.CurrentSave;
             if (save == null || string.IsNullOrEmpty(save.currentLevelId)) return;
             GameManager.Instance.SetGameMode(GameMode.Playing);
-            SceneLoader.Instance.LoadScene(save.currentLevelId);
+            var data = LevelManager.Instance?.GetLevelData(save.currentLevelId);
+            string sceneName = data != null ? data.sceneName : save.currentLevelId;
+            LevelManager.Instance?.StartLevel(save.currentLevelId);
+            SceneLoader.Instance.LoadScene(sceneName);
         }
 
         private void OnNewGame()
@@ -104,11 +107,11 @@ namespace ShadowPlatformer.UI
             _levelButtons.Clear();
 
             var levels = LevelManager.Instance?.GetOrderedLevels();
-            if (levels == null || levelButtonContainer == null || levelButtonPrefab == null) return;
+            if (levels == null || levelButtonContainer == null) return;
 
             foreach (var lvl in levels)
             {
-                var go = Instantiate(levelButtonPrefab, levelButtonContainer);
+                var go = CreateLevelButtonObject(lvl);
                 var lb = go.GetComponent<LevelButton>();
                 if (lb != null)
                 {
@@ -117,6 +120,56 @@ namespace ShadowPlatformer.UI
                     _levelButtons.Add(lb);
                 }
             }
+        }
+
+        private GameObject CreateLevelButtonObject(LevelData data)
+        {
+            var obj = new GameObject("LevelBtn_" + data.levelId);
+            obj.transform.SetParent(levelButtonContainer, false);
+
+            var rect = obj.AddComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(500f, 60f);
+
+            var img = obj.AddComponent<Image>();
+            img.color = new Color(0.2f, 0.2f, 0.3f, 0.9f);
+
+            var button = obj.AddComponent<Button>();
+            button.targetGraphic = img;
+            var colors = button.colors;
+            colors.highlightedColor = new Color(0.4f, 0.4f, 0.6f);
+            colors.pressedColor = new Color(0.15f, 0.15f, 0.2f);
+            button.colors = colors;
+
+            var nameObj = new GameObject("NameText");
+            nameObj.transform.SetParent(obj.transform, false);
+            var nameRect = nameObj.AddComponent<RectTransform>();
+            nameRect.anchorMin = new Vector2(0f, 0f);
+            nameRect.anchorMax = new Vector2(0.7f, 1f);
+            nameRect.offsetMin = new Vector2(10f, 0f);
+            nameRect.offsetMax = new Vector2(-10f, 0f);
+            var nameTmp = nameObj.AddComponent<TextMeshProUGUI>();
+            nameTmp.fontSize = 24;
+            nameTmp.alignment = TextAlignmentOptions.Left;
+
+            var timeObj = new GameObject("TimeText");
+            timeObj.transform.SetParent(obj.transform, false);
+            var timeRect = timeObj.AddComponent<RectTransform>();
+            timeRect.anchorMin = new Vector2(0.7f, 0f);
+            timeRect.anchorMax = new Vector2(1f, 1f);
+            timeRect.offsetMin = new Vector2(5f, 0f);
+            timeRect.offsetMax = new Vector2(-10f, 0f);
+            var timeTmp = timeObj.AddComponent<TextMeshProUGUI>();
+            timeTmp.fontSize = 20;
+            timeTmp.alignment = TextAlignmentOptions.Right;
+
+            var lb = obj.AddComponent<LevelButton>();
+            lb.levelNameText = nameTmp;
+            lb.bestTimeText = timeTmp;
+            lb.completionIcon = null;
+            lb.lockIcon = null;
+            lb.button = button;
+
+            return obj;
         }
 
         private void OnLevelSelected(LevelData level)

@@ -38,12 +38,13 @@ namespace ShadowPlatformer.Game
                     lm.LoadManifest(manifest);
                 }
             }
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void SetupScene()
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            string sceneName = SceneManager.GetActiveScene().name;
+            string sceneName = scene.name;
             var builderObj = new GameObject("SceneBuilder");
             var rsb = builderObj.AddComponent<RuntimeSceneBuilder>();
 

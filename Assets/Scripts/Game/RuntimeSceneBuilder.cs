@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Audio;
 using TMPro;
+using System.Collections.Generic;
 using ShadowPlatformer.Core;
 using ShadowPlatformer.Player;
 using ShadowPlatformer.Light;
@@ -36,6 +37,26 @@ namespace ShadowPlatformer.Game
                     CreateLevelScene();
                     break;
             }
+        }
+
+        private LevelLayout LoadLayout(string id)
+        {
+            string path = "Levels/layout_" + id;
+            var asset = Resources.Load<TextAsset>(path);
+            if (asset != null)
+                return JsonUtility.FromJson<LevelLayout>(asset.text);
+            Debug.LogWarning("Level layout not found: " + path);
+            return null;
+        }
+
+        private LevelData GetNextLevelId(string currentId)
+        {
+            if (LevelManager.Instance == null) return null;
+            var ordered = LevelManager.Instance.GetOrderedLevels();
+            int idx = ordered.FindIndex(l => l.levelId == currentId);
+            if (idx >= 0 && idx < ordered.Count - 1)
+                return ordered[idx + 1];
+            return null;
         }
 
         private void CreateMainMenuUI()
@@ -107,6 +128,8 @@ namespace ShadowPlatformer.Game
 
         private void CreateLevelScene()
         {
+            var layout = LoadLayout(levelId);
+
             GameManager.Instance.SetGameMode(GameMode.Playing);
 
             var camObj = new GameObject("Main Camera");
@@ -128,16 +151,28 @@ namespace ShadowPlatformer.Game
             if (LightManager.Instance != null)
                 LightManager.Instance.directionalLightObject = lightObj;
 
-            CreatePlayer(camCtrl);
+            Vector2 spawnPos = layout != null ? layout.playerSpawn : new Vector2(-5f, 1f);
+            CreatePlayer(camCtrl, spawnPos);
+
+            if (layout != null && LightManager.Instance != null)
+            {
+                LightManager.Instance.currentDirection = layout.startLightDirection;
+                LightManager.Instance.OnDirectionChanged?.Invoke(layout.startLightDirection);
+            }
 
             var levelRoot = new GameObject("LevelRoot");
 
-            CreateGround(levelRoot);
-            CreateLevelPlatforms(levelRoot);
-            CreateLevelMechanisms(levelRoot);
-            CreateHazardZones(levelRoot);
-            CreateLevelExit(levelRoot);
-            CreateCheckpoints(levelRoot);
+            if (layout != null)
+            {
+                BuildFromLayout(layout, levelRoot);
+            }
+            else
+            {
+                CreateStaticPlatform("Ground", new Vector2(0f, -3f), new Vector2(40f, 1f), levelRoot);
+                CreateShadowPlatform("SP_Right", new Vector2(3f, 0f), new Vector2(3f, 0.5f), LightDirection.Right, levelRoot);
+                CreateLevelExit(new Vector2(14f, 3f), "tut_02", levelRoot);
+                CreateCheckpoint("CP_Start", new Vector2(-4f, -2.5f), levelRoot);
+            }
 
             CreateHUD();
             CreateDeathScreen();
@@ -154,14 +189,90 @@ namespace ShadowPlatformer.Game
             if (LevelManager.Instance != null)
                 LevelManager.Instance.StartLevel(levelId);
 
+            if (SaveManager.Instance != null && SaveManager.Instance.CurrentSave != null)
+            {
+                SaveManager.Instance.CurrentSave.currentLevelId = levelId;
+                SaveManager.Instance.SaveGame();
+            }
+
             AudioManager.Instance?.PlayLevelMusic(0);
         }
 
-        private void CreatePlayer(CameraController camCtrl)
+        private void BuildFromLayout(LevelLayout layout, GameObject levelRoot)
+        {
+            if (layout.platforms != null)
+            {
+                foreach (var p in layout.platforms)
+                {
+                    if (p.isShadowPlatform)
+                        CreateShadowPlatform(p.id, p.position, p.size, p.shadowDirection, levelRoot);
+                    else
+                        CreateStaticPlatform(p.id, p.position, p.size, levelRoot);
+                }
+            }
+
+            var triggerMap = new Dictionary<string, MechanismTrigger>();
+            if (layout.triggers != null)
+            {
+                foreach (var t in layout.triggers)
+                {
+                    var mt = CreateTrigger(t, levelRoot);
+                    if (mt != null)
+                        triggerMap[t.id] = mt;
+                }
+            }
+
+            if (layout.receivers != null)
+            {
+                foreach (var r in layout.receivers)
+                {
+                    CreateReceiver(r, levelRoot);
+                }
+            }
+
+            if (layout.triggers != null && layout.triggers.Length > 0 && layout.receivers != null && layout.receivers.Length > 0)
+            {
+                var allTriggers = new List<MechanismTrigger>();
+                foreach (var t in layout.triggers)
+                {
+                    if (triggerMap.TryGetValue(t.id, out var mt))
+                        allTriggers.Add(mt);
+                }
+
+                var allReceivers = levelRoot.GetComponentsInChildren<MechanismReceiver>();
+                if (allTriggers.Count > 0 && allReceivers.Length > 0)
+                {
+                    var linker = levelRoot.AddComponent<MechanismLinker>();
+                    linker.triggers = allTriggers.ToArray();
+                    linker.receivers = allReceivers;
+                }
+            }
+
+            if (layout.hazards != null)
+            {
+                foreach (var h in layout.hazards)
+                    CreateHazard(h, levelRoot);
+            }
+
+            string nextId = "tut_02";
+            var next = GetNextLevelId(layout.levelId);
+            if (next != null)
+                nextId = next.levelId;
+
+            CreateLevelExit(layout.levelExitPosition, nextId, levelRoot);
+
+            if (layout.checkpoints != null)
+            {
+                foreach (var c in layout.checkpoints)
+                    CreateCheckpoint(c.id, c.position, levelRoot);
+            }
+        }
+
+        private void CreatePlayer(CameraController camCtrl, Vector2 spawnPos)
         {
             var playerObj = new GameObject("Player");
             playerObj.tag = "Player";
-            playerObj.transform.position = new Vector2(-5f, 1f);
+            playerObj.transform.position = spawnPos;
             playerObj.layer = LayerMask.NameToLayer("Player");
 
             var rb = playerObj.AddComponent<Rigidbody2D>();
@@ -186,36 +297,6 @@ namespace ShadowPlatformer.Game
             ctrl.groundLayer = LayerMask.GetMask("Default", "Ground");
 
             camCtrl.target = playerObj.transform;
-        }
-
-        private void CreateGround(GameObject parent)
-        {
-            var ground = new GameObject("Ground");
-            ground.transform.SetParent(parent.transform);
-            ground.transform.position = new Vector3(0f, -3f, 0f);
-            ground.layer = LayerMask.NameToLayer("Ground");
-
-            var sr = ground.AddComponent<SpriteRenderer>();
-            sr.color = new Color(0.3f, 0.3f, 0.35f);
-            sr.size = new Vector2(40f, 1f);
-            sr.sprite = CreatePixelSprite();
-
-            var col = ground.AddComponent<BoxCollider2D>();
-            col.size = new Vector2(40f, 1f);
-        }
-
-        private void CreateLevelPlatforms(GameObject parent)
-        {
-            CreateStaticPlatform("Platform_1", new Vector2(-3f, -1f), new Vector2(4f, 0.5f), parent);
-            CreateStaticPlatform("Platform_2", new Vector2(5f, 0f), new Vector2(3f, 0.5f), parent);
-            CreateStaticPlatform("Platform_3", new Vector2(10f, 1f), new Vector2(3f, 0.5f), parent);
-            CreateStaticPlatform("Platform_4", new Vector2(16f, 0f), new Vector2(4f, 0.5f), parent);
-            CreateStaticPlatform("Platform_5", new Vector2(20f, -1f), new Vector2(5f, 0.5f), parent);
-
-            CreateShadowPlatform("SP_Right", new Vector2(3f, 0f), new Vector2(3f, 0.5f), LightDirection.Right, parent);
-            CreateShadowPlatform("SP_Left", new Vector2(7f, 2f), new Vector2(3f, 0.5f), LightDirection.Left, parent);
-            CreateShadowPlatform("SP_Up", new Vector2(11f, 4f), new Vector2(3f, 0.5f), LightDirection.Up, parent);
-            CreateShadowPlatform("SP_Down", new Vector2(15f, 3f), new Vector2(2f, 0.5f), LightDirection.Down, parent);
         }
 
         private void CreateStaticPlatform(string name, Vector2 pos, Vector2 size, GameObject parent)
@@ -253,92 +334,136 @@ namespace ShadowPlatformer.Game
             sp.visibilityRule = ShadowVisibility.WhenLightMatches;
         }
 
-        private void CreateLevelMechanisms(GameObject parent)
+        private MechanismTrigger CreateTrigger(TriggerConfig cfg, GameObject parent)
         {
-            var triggerObj = new GameObject("PressurePlate_1");
-            triggerObj.transform.SetParent(parent.transform);
-            triggerObj.transform.position = new Vector2(5f, -2.5f);
+            var obj = new GameObject("Trigger_" + cfg.id);
+            obj.transform.SetParent(parent.transform);
+            obj.transform.position = cfg.position;
 
-            var tCol = triggerObj.AddComponent<BoxCollider2D>();
-            tCol.size = new Vector2(1.5f, 0.2f);
-            tCol.isTrigger = true;
+            var sr = obj.AddComponent<SpriteRenderer>();
+            var col = obj.AddComponent<BoxCollider2D>();
 
-            var tSr = triggerObj.AddComponent<SpriteRenderer>();
-            tSr.color = new Color(0.8f, 0.6f, 0.2f);
-            tSr.size = new Vector2(1.5f, 0.2f);
-            tSr.sprite = CreatePixelSprite();
+            var mt = obj.AddComponent<MechanismTrigger>();
+            mt.triggerId = cfg.id;
+            mt.triggerType = cfg.type;
+            mt.isOneShot = cfg.isOneShot;
+            mt.timedDuration = cfg.timedDuration;
+            mt.requiredLightDirection = cfg.requiredLightDirection;
 
-            var mt = triggerObj.AddComponent<MechanismTrigger>();
-            mt.triggerType = TriggerType.PressurePlate;
-            mt.triggerId = "pressure_1";
+            switch (cfg.type)
+            {
+                case TriggerType.PressurePlate:
+                    col.size = new Vector2(1.5f, 0.2f);
+                    col.isTrigger = true;
+                    sr.color = new Color(0.8f, 0.6f, 0.2f);
+                    sr.size = new Vector2(1.5f, 0.2f);
+                    break;
+                case TriggerType.Lever:
+                    col.size = new Vector2(0.8f, 1.2f);
+                    col.isTrigger = true;
+                    sr.color = new Color(0.9f, 0.5f, 0.1f);
+                    sr.size = new Vector2(0.5f, 1.2f);
+                    var lever = obj.AddComponent<InteractableLever>();
+                    lever.linkedTrigger = mt;
+                    lever.interactionRadius = 1.5f;
+                    break;
+                case TriggerType.TimedSwitch:
+                    col.size = new Vector2(1f, 0.8f);
+                    col.isTrigger = true;
+                    sr.color = new Color(0.2f, 0.7f, 0.9f);
+                    sr.size = new Vector2(1f, 0.8f);
+                    break;
+                case TriggerType.LightSensor:
+                    col.size = new Vector2(1.5f, 0.3f);
+                    col.isTrigger = false;
+                    sr.color = new Color(0.9f, 0.9f, 0.2f);
+                    sr.size = new Vector2(1.5f, 0.3f);
+                    break;
+            }
 
-            var leverObj = new GameObject("Lever_1");
-            leverObj.transform.SetParent(parent.transform);
-            leverObj.transform.position = new Vector2(10f, -2.5f);
-
-            var lCol = leverObj.AddComponent<BoxCollider2D>();
-            lCol.size = new Vector2(0.8f, 1.2f);
-            lCol.isTrigger = true;
-
-            var lSr = leverObj.AddComponent<SpriteRenderer>();
-            lSr.color = new Color(0.9f, 0.5f, 0.1f);
-            lSr.size = new Vector2(0.5f, 1.2f);
-            lSr.sprite = CreatePixelSprite();
-
-            var leverMt = leverObj.AddComponent<MechanismTrigger>();
-            leverMt.triggerType = TriggerType.Lever;
-            leverMt.triggerId = "lever_1";
-
-            var lever = leverObj.AddComponent<InteractableLever>();
-            lever.linkedTrigger = leverMt;
-            lever.interactionRadius = 1.5f;
-
-            var doorObj = new GameObject("Door_1");
-            doorObj.transform.SetParent(parent.transform);
-            doorObj.transform.position = new Vector2(13f, -2f);
-
-            var dCol = doorObj.AddComponent<BoxCollider2D>();
-            dCol.size = new Vector2(1f, 2f);
-
-            var dSr = doorObj.AddComponent<SpriteRenderer>();
-            dSr.color = new Color(0.7f, 0.2f, 0.2f);
-            dSr.size = new Vector2(1f, 2f);
-            dSr.sprite = CreatePixelSprite();
-
-            var door = doorObj.AddComponent<MechanismReceiver>();
-            door.receiverId = "door_1";
-            door.requiredTriggerIds = new string[] { "pressure_1", "lever_1" };
-            door.requireAllTriggers = false;
-
-            var linker = parent.AddComponent<MechanismLinker>();
-            linker.triggers = new MechanismTrigger[] { mt, leverMt };
-            linker.receivers = new MechanismReceiver[] { door };
+            sr.sprite = CreatePixelSprite();
+            return mt;
         }
 
-        private void CreateHazardZones(GameObject parent)
+        private void CreateReceiver(ReceiverConfig cfg, GameObject parent)
         {
-            var hazard = new GameObject("Hazard_Spikes");
-            hazard.transform.SetParent(parent.transform);
-            hazard.transform.position = new Vector2(1f, -2.6f);
+            var obj = new GameObject("Receiver_" + cfg.id);
+            obj.transform.SetParent(parent.transform);
+            obj.transform.position = cfg.position;
 
-            var hCol = hazard.AddComponent<BoxCollider2D>();
-            hCol.size = new Vector2(2f, 0.3f);
+            var sr = obj.AddComponent<SpriteRenderer>();
+            sr.sprite = CreatePixelSprite();
+
+            if (cfg.isDoor)
+            {
+                var col = obj.AddComponent<BoxCollider2D>();
+                col.size = new Vector2(1f, 2f);
+                sr.color = new Color(0.7f, 0.2f, 0.2f);
+                sr.size = new Vector2(1f, 2f);
+
+                var doorChild = new GameObject("DoorObject");
+                doorChild.transform.SetParent(obj.transform);
+                doorChild.transform.localPosition = Vector3.zero;
+                var doorCol = doorChild.AddComponent<BoxCollider2D>();
+                doorCol.size = new Vector2(1f, 2f);
+                var doorSr = doorChild.AddComponent<SpriteRenderer>();
+                doorSr.color = new Color(0.7f, 0.2f, 0.2f);
+                doorSr.size = new Vector2(1f, 2f);
+                doorSr.sprite = CreatePixelSprite();
+
+                var mr = obj.AddComponent<MechanismReceiver>();
+                mr.receiverId = cfg.id;
+                mr.requiredTriggerIds = cfg.requiredTriggerIds;
+                mr.requireAllTriggers = cfg.requireAllTriggers;
+                mr.doorObject = doorChild;
+                mr.doorOpenByDefault = cfg.doorOpenByDefault;
+            }
+            else if (cfg.isMovingPlatform)
+            {
+                var col = obj.AddComponent<BoxCollider2D>();
+                col.size = new Vector2(3f, 0.5f);
+                sr.color = new Color(0.5f, 0.8f, 0.5f);
+                sr.size = new Vector2(3f, 0.5f);
+                obj.layer = LayerMask.NameToLayer("Ground");
+
+                var targetObj = new GameObject("MoveTarget");
+                targetObj.transform.SetParent(obj.transform.parent);
+                targetObj.transform.position = cfg.position + cfg.moveTargetOffset;
+
+                var mr = obj.AddComponent<MechanismReceiver>();
+                mr.receiverId = cfg.id;
+                mr.requiredTriggerIds = cfg.requiredTriggerIds;
+                mr.requireAllTriggers = cfg.requireAllTriggers;
+                mr.moveTarget = targetObj.transform;
+                mr.moveSpeed = cfg.moveSpeed;
+                mr.isMovingPlatform = true;
+            }
+        }
+
+        private void CreateHazard(HazardConfig cfg, GameObject parent)
+        {
+            var obj = new GameObject("Hazard_" + cfg.id);
+            obj.transform.SetParent(parent.transform);
+            obj.transform.position = cfg.position;
+
+            var hCol = obj.AddComponent<BoxCollider2D>();
+            hCol.size = cfg.size;
             hCol.isTrigger = true;
 
-            var hSr = hazard.AddComponent<SpriteRenderer>();
+            var hSr = obj.AddComponent<SpriteRenderer>();
             hSr.color = new Color(1f, 0.2f, 0.2f, 0.6f);
-            hSr.size = new Vector2(2f, 0.3f);
+            hSr.size = cfg.size;
             hSr.sprite = CreatePixelSprite();
 
-            var hz = hazard.AddComponent<HazardZone>();
-            hz.instantKill = true;
+            var hz = obj.AddComponent<HazardZone>();
+            hz.instantKill = cfg.instantKill;
         }
 
-        private void CreateLevelExit(GameObject parent)
+        private void CreateLevelExit(Vector2 pos, string nextLevelId, GameObject parent)
         {
             var exitObj = new GameObject("LevelExit");
             exitObj.transform.SetParent(parent.transform);
-            exitObj.transform.position = new Vector2(14f, 3f);
+            exitObj.transform.position = pos;
 
             var col = exitObj.AddComponent<BoxCollider2D>();
             col.size = new Vector2(1f, 2f);
@@ -350,14 +475,8 @@ namespace ShadowPlatformer.Game
             sr.sprite = CreatePixelSprite();
 
             var exit = exitObj.AddComponent<LevelExit>();
-            exit.nextLevelId = "tut_02";
-        }
-
-        private void CreateCheckpoints(GameObject parent)
-        {
-            CreateCheckpoint("CP_Start", new Vector2(-4f, -2.5f), parent);
-            CreateCheckpoint("CP_Mid", new Vector2(5f, -2.5f), parent);
-            CreateCheckpoint("CP_Late", new Vector2(12f, -2.5f), parent);
+            exit.nextLevelId = nextLevelId;
+            exit.currentLevelId = levelId;
         }
 
         private void CreateCheckpoint(string name, Vector2 pos, GameObject parent)
@@ -395,6 +514,7 @@ namespace ShadowPlatformer.Game
             tutRect.anchorMin = new Vector2(0.5f, 0.3f);
             tutRect.anchorMax = new Vector2(0.5f, 0.3f);
             tutRect.sizeDelta = new Vector2(800, 80);
+            tutorialPanel.SetActive(false);
             var tutText = CreateText("TutorialText", tutorialPanel.transform, "", 28, Vector2.zero);
             hud.tutorialPanel = tutorialPanel;
             hud.tutorialText = tutText.GetComponent<TMP_Text>();
@@ -408,65 +528,95 @@ namespace ShadowPlatformer.Game
         private void CreateDeathScreen()
         {
             var canvas = CreateCanvas("DeathScreen", RenderMode.ScreenSpaceOverlay);
+            canvas.sortingOrder = 10;
             var scaler = canvas.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
-            var ds = canvas.AddComponent<DeathScreen>();
-            canvas.gameObject.SetActive(false);
-            ds.deathPanel = canvas.gameObject;
+            var panel = CreateUIObject("DeathPanel", canvas.transform);
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var img = panel.AddComponent<Image>();
+            img.color = new Color(0, 0, 0, 0.7f);
+            panel.SetActive(false);
 
-            var msgText = CreateText("DeathMsg", canvas.transform, "", 42, new Vector2(0, 100));
+            var ds = canvas.AddComponent<DeathScreen>();
+            ds.deathPanel = panel;
+
+            var msgText = CreateText("DeathMsg", panel.transform, "", 42, new Vector2(0, 100));
             ds.deathMessageText = msgText.GetComponent<TMP_Text>();
 
-            var retryBtn = CreateButton("RetryBtn", canvas.transform, "重试", new Vector2(0, -20));
+            var retryBtn = CreateButton("RetryBtn", panel.transform, "重试", new Vector2(0, -20));
             ds.retryButton = retryBtn;
-            var menuBtn = CreateButton("MenuBtn", canvas.transform, "主菜单", new Vector2(0, -90));
+            var menuBtn = CreateButton("MenuBtn", panel.transform, "主菜单", new Vector2(0, -90));
             ds.quitButton = menuBtn;
         }
 
         private void CreateLevelCompleteScreen()
         {
             var canvas = CreateCanvas("LevelComplete", RenderMode.ScreenSpaceOverlay);
+            canvas.sortingOrder = 10;
             var scaler = canvas.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
+            var panel = CreateUIObject("CompletePanel", canvas.transform);
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var img = panel.AddComponent<Image>();
+            img.color = new Color(0, 0, 0, 0.7f);
+            panel.SetActive(false);
+
             var lcs = canvas.AddComponent<LevelCompleteScreen>();
-            canvas.gameObject.SetActive(false);
-            lcs.completePanel = canvas.gameObject;
+            lcs.completePanel = panel;
 
-            var titleText = CreateText("CompleteTitle", canvas.transform, "关卡完成!", 52, new Vector2(0, 150));
-            lcs.levelNameText = CreateText("LevelName", canvas.transform, "", 36, new Vector2(0, 80)).GetComponent<TMP_Text>();
-            lcs.timeText = CreateText("Time", canvas.transform, "", 30, new Vector2(0, 20)).GetComponent<TMP_Text>();
-            lcs.deathsText = CreateText("Deaths", canvas.transform, "", 30, new Vector2(0, -20)).GetComponent<TMP_Text>();
+            var titleText = CreateText("CompleteTitle", panel.transform, "关卡完成!", 52, new Vector2(0, 150));
+            lcs.levelNameText = CreateText("LevelName", panel.transform, "", 36, new Vector2(0, 80)).GetComponent<TMP_Text>();
+            lcs.timeText = CreateText("Time", panel.transform, "", 30, new Vector2(0, 20)).GetComponent<TMP_Text>();
+            lcs.deathsText = CreateText("Deaths", panel.transform, "", 30, new Vector2(0, -20)).GetComponent<TMP_Text>();
 
-            var nextBtn = CreateButton("NextBtn", canvas.transform, "下一关", new Vector2(0, -80));
+            var nextBtn = CreateButton("NextBtn", panel.transform, "下一关", new Vector2(0, -80));
             lcs.nextLevelButton = nextBtn;
-            var replayBtn = CreateButton("ReplayBtn", canvas.transform, "重玩", new Vector2(0, -140));
+            var replayBtn = CreateButton("ReplayBtn", panel.transform, "重玩", new Vector2(0, -140));
             lcs.replayButton = replayBtn;
-            var menuBtn = CreateButton("MenuBtn", canvas.transform, "主菜单", new Vector2(0, -200));
+            var menuBtn = CreateButton("MenuBtn", panel.transform, "主菜单", new Vector2(0, -200));
             lcs.menuButton = menuBtn;
         }
 
         private void CreatePauseMenu()
         {
             var canvas = CreateCanvas("PauseMenu", RenderMode.ScreenSpaceOverlay);
+            canvas.sortingOrder = 10;
             var scaler = canvas.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
 
-            var pm = canvas.AddComponent<PauseMenu>();
-            canvas.gameObject.SetActive(false);
-            pm.pausePanel = canvas.gameObject;
+            var panel = CreateUIObject("PausePanel", canvas.transform);
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var img = panel.AddComponent<Image>();
+            img.color = new Color(0, 0, 0, 0.7f);
+            panel.SetActive(false);
 
-            var resumeBtn = CreateButton("ResumeBtn", canvas.transform, "继续", new Vector2(0, 50));
+            var pm = canvas.AddComponent<PauseMenu>();
+            pm.pausePanel = panel;
+
+            var resumeBtn = CreateButton("ResumeBtn", panel.transform, "继续", new Vector2(0, 50));
             pm.resumeButton = resumeBtn;
-            var restartBtn = CreateButton("RestartBtn", canvas.transform, "重启关卡", new Vector2(0, -20));
+            var restartBtn = CreateButton("RestartBtn", panel.transform, "重启关卡", new Vector2(0, -20));
             pm.restartButton = restartBtn;
-            var settingsBtn = CreateButton("SettingsBtn", canvas.transform, "设置", new Vector2(0, -90));
+            var settingsBtn = CreateButton("SettingsBtn", panel.transform, "设置", new Vector2(0, -90));
             pm.settingsButton = settingsBtn;
-            var quitBtn = CreateButton("QuitBtn", canvas.transform, "主菜单", new Vector2(0, -160));
+            var quitBtn = CreateButton("QuitBtn", panel.transform, "主菜单", new Vector2(0, -160));
             pm.quitButton = quitBtn;
         }
 

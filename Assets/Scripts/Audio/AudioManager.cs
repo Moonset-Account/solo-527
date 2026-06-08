@@ -40,6 +40,17 @@ namespace ShadowPlatformer.Audio
             Instance = this;
             DontDestroyOnLoad(gameObject);
 
+            var musicGo = new GameObject("MusicSource");
+            musicGo.transform.SetParent(transform);
+            musicSource = musicGo.AddComponent<AudioSource>();
+            musicSource.loop = true;
+            musicSource.playOnAwake = false;
+
+            var sfxGo = new GameObject("SFXSource");
+            sfxGo.transform.SetParent(transform);
+            sfxSource = sfxGo.AddComponent<AudioSource>();
+            sfxSource.playOnAwake = false;
+
             BuildSfxMap();
         }
 

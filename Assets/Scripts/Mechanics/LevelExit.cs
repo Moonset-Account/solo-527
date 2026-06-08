@@ -8,6 +8,7 @@ namespace ShadowPlatformer.Mechanics
     public class LevelExit : MonoBehaviour
     {
         public string nextLevelId;
+        public string currentLevelId;
         public bool requireAllTriggers;
         public string[] requiredTriggerIds;
 
@@ -25,7 +26,7 @@ namespace ShadowPlatformer.Mechanics
                 }
             }
 
-            Core.EventBus.Instance.RaiseLevelCompleted(nextLevelId);
+            Core.EventBus.Instance.RaiseLevelCompleted(currentLevelId);
         }
 
         public void NotifyTriggerActivated(string triggerId)

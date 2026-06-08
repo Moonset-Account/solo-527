@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using ShadowPlatformer.Core;
+using ShadowPlatformer.Level;
 using ShadowPlatformer.Player;
 
 namespace ShadowPlatformer.UI
@@ -79,11 +80,15 @@ namespace ShadowPlatformer.UI
         public void RestartLevel()
         {
             GameManager.Instance.SetGameMode(GameMode.Playing);
-            var player = FindObjectOfType<PlayerController>();
-            if (player != null)
+            var current = Level.LevelManager.Instance?.CurrentLevel;
+            if (current != null)
             {
-                player.Die();
-                player.Respawn();
+                Level.LevelManager.Instance.StartLevel(current.levelId);
+                SceneLoader.Instance.LoadScene(current.sceneName);
+            }
+            else
+            {
+                SceneLoader.Instance.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
             }
         }
 
