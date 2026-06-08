@@ -148,13 +148,13 @@ namespace Kitchen.Setup
 
         private void EnsurePrefabTemplates()
         {
+            _heldItemRuntimePrefab = BuildHeldItemPrefab();
+            _plateRuntimePrefab = BuildPlatePrefab();
             int count = Enum.GetNames(typeof(StationType)).Length;
             _stationRuntimePrefabs = new GameObject[count];
             for (int i = 0; i < count; i++)
                 _stationRuntimePrefabs[i] = BuildStationPrefab((StationType)i);
             _playerRuntimePrefab = BuildPlayerPrefab();
-            _heldItemRuntimePrefab = BuildHeldItemPrefab();
-            _plateRuntimePrefab = BuildPlatePrefab();
         }
 
         private GameObject BuildPlayerPrefab()

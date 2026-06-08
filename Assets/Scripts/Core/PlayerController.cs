@@ -6,7 +6,7 @@ namespace Kitchen.Core
     public class PlayerController : MonoBehaviour
     {
         private static System.Reflection.MethodInfo _reportAction;
-        private static void TriggerTutorialAction(object action, string id = null)
+        public static void TriggerTutorialAction(TutorialAction action, string id = null)
         {
             try
             {

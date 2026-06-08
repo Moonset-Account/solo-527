@@ -78,7 +78,6 @@ namespace Kitchen.Setup
             AddRecipe("Recipe_Salad", "田园沙拉", 120, 50f, 15, new List<RecipeIngredient>
             {
                 RI("Ingredient_Lettuce", 1, IngredientState.Chopped),
-                RI("Ingredient_Tomato", 1, IngredientState.Chopped),
             }, 1.0f);
 
             AddRecipe("Recipe_Omelette", "煎蛋卷", 150, 45f, 20, new List<RecipeIngredient>
@@ -139,7 +138,7 @@ namespace Kitchen.Setup
             lv.targetScore = 500; lv.oneStarScore = 500; lv.twoStarScore = 900; lv.threeStarScore = 1400;
             lv.orderSpawnInterval = 20f; lv.maxActiveOrders = 2; lv.isUnlockedByDefault = true;
             lv.availableRecipes = new List<RecipeConfig> { _recipes["Recipe_Salad"] };
-            lv.availableIngredients = new List<IngredientConfig> { _ingredients["Ingredient_Lettuce"], _ingredients["Ingredient_Tomato"], _ingredients["Ingredient_Cheese"] };
+            lv.availableIngredients = new List<IngredientConfig> { _ingredients["Ingredient_Lettuce"], _ingredients["Ingredient_Cheese"] };
             lv.stations = new List<StationConfig>
             {
                 S(StationType.IngredientBox, -5.5f, -2.5f, _ingredients["Ingredient_Lettuce"], "box_lettuce"),
