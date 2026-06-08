@@ -80,12 +80,14 @@ export function SettingsPage() {
       confirmRebind('mouse', 'LMB+dbl');
     };
 
+    const circleStateRef = { x: 0, y: 0, angle: 0, accumulated: 0 };
+
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0];
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       touchStartRef.current = { x: t.clientX - rect.left, y: t.clientY - rect.top, time: performance.now() };
       const now = performance.now();
-      if (now - lastTapRef.current < 320) {
+      if (now - lastTapRef.current < 300) {
         confirmRebind('touch', 'DoubleTap');
         lastTapRef.current = 0;
       } else {
@@ -93,6 +95,12 @@ export function SettingsPage() {
       }
       if (e.touches.length === 2) confirmRebind('touch', 'TwoFinger');
       if (e.touches.length === 3) confirmRebind('touch', 'TripleTap');
+      if (e.touches.length === 1) {
+        circleStateRef.x = touchStartRef.current.x;
+        circleStateRef.y = touchStartRef.current.y;
+        circleStateRef.angle = 0;
+        circleStateRef.accumulated = 0;
+      }
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!touchStartRef.current) return;
@@ -102,14 +110,23 @@ export function SettingsPage() {
       const dx = pos.x - touchStartRef.current.x;
       const dy = pos.y - touchStartRef.current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 60) {
-        if (Math.abs(dy) > Math.abs(dx) * 1.8) {
-          confirmRebind('touch', dy < 0 ? 'SwipeUp' : 'SwipeDown');
-        } else if (Math.abs(dx) > Math.abs(dy) * 1.8) {
-          confirmRebind('touch', dx > 0 ? 'SwipeRight' : 'SwipeLeft');
-        } else {
-          confirmRebind('touch', 'SwipeDrag');
-        }
+      if (dist < 8) return;
+      confirmRebind('touch', 'SwipeDrag');
+      const angle = Math.atan2(pos.y - circleStateRef.y, pos.x - circleStateRef.x);
+      circleStateRef.accumulated += Math.abs(angle - circleStateRef.angle);
+      if (circleStateRef.accumulated > Math.PI * 1.5) {
+        confirmRebind('touch', 'Circular');
+        circleStateRef.accumulated = 0;
+      }
+      circleStateRef.x = pos.x;
+      circleStateRef.y = pos.y;
+      circleStateRef.angle = angle;
+      if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 2) {
+        confirmRebind('touch', dy < 0 ? 'SwipeUp' : 'SwipeDown');
+        touchStartRef.current = { ...touchStartRef.current, x: pos.x, y: pos.y };
+      } else if (Math.abs(dx) > 80 && Math.abs(dy) < 40) {
+        confirmRebind('touch', dx > 0 ? 'SwipeRight' : 'SwipeLeft');
+        touchStartRef.current = null;
       }
     };
     const onTouchEnd = (e: TouchEvent) => {
@@ -121,8 +138,8 @@ export function SettingsPage() {
       const dx = pos.x - touchStartRef.current.x;
       const dy = pos.y - touchStartRef.current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dur > 600 && dist < 20) confirmRebind('touch', 'LongPress');
-      else if (dist < 12 && dur < 320) confirmRebind('touch', 'Tap');
+      if (dur > 600 && dist < 15) confirmRebind('touch', 'LongPress');
+      else if (dist < 10 && dur < 300) confirmRebind('touch', 'Tap');
       touchStartRef.current = null;
     };
 

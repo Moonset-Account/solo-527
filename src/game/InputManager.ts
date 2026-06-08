@@ -26,7 +26,7 @@ const KEY_DISPLAY: Record<string, string> = {
   Start: 'Start', Menu: 'Menu', Options: 'Options', Back: 'Back', Select: 'Select',
   DpadUp: '↑', DpadDown: '↓', DpadLeft: '←', DpadRight: '→',
   Tap: '点击', LongPress: '长按', SwipeDrag: '拖拽',
-  SwipeUp: '上滑', SwipeDown: '下滑', SwipeRight: '右滑',
+  SwipeUp: '上滑', SwipeDown: '下滑', SwipeLeft: '左滑', SwipeRight: '右滑',
   Circular: '画圈', DoubleTap: '双击', TwoFinger: '双指', TripleTap: '三击',
 };
 
@@ -270,8 +270,8 @@ export class InputManager {
     if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 2) {
       this.checkAndFire('touch', dy < 0 ? 'SwipeUp' : 'SwipeDown', pos);
       this.touchStartPos = { ...this.touchStartPos, x: pos.x, y: pos.y };
-    } else if (dx > 80 && Math.abs(dy) < 40) {
-      this.checkAndFire('touch', 'SwipeRight', pos);
+    } else if (Math.abs(dx) > 80 && Math.abs(dy) < 40) {
+      this.checkAndFire('touch', dx > 0 ? 'SwipeRight' : 'SwipeLeft', pos);
       this.touchStartPos = null;
     }
   };

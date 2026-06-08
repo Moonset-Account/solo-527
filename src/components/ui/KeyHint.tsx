@@ -23,7 +23,7 @@ const KEY_DISPLAY: Record<string, string> = {
   Start: 'Start', Menu: 'Menu', Options: 'Opt', Back: '←',
   DpadUp: '↑', DpadDown: '↓', DpadLeft: '←', DpadRight: '→',
   Tap: '点击', LongPress: '长按', SwipeDrag: '拖拽',
-  SwipeUp: '↑滑', SwipeDown: '↓滑', SwipeRight: '→滑',
+  SwipeUp: '上滑', SwipeDown: '下滑', SwipeLeft: '左滑', SwipeRight: '右滑',
   Circular: '画圈', DoubleTap: '双击', TwoFinger: '双指', TripleTap: '三击',
 };
 
