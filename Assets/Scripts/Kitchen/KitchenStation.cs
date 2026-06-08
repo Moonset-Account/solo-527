@@ -11,6 +11,8 @@ public abstract class KitchenStation : MonoBehaviour
     protected Ingredient currentIngredient;
     protected Timer processingTimer;
 
+    public float processingProgress => processingTimer != null ? processingTimer.Progress : 0f;
+
     public event Action<KitchenStation> OnStationComplete;
 
     public abstract bool CanInteract(PlayerController player);

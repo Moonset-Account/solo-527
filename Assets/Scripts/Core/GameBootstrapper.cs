@@ -8,26 +8,13 @@ public class GameBootstrapper : MonoBehaviour
 
     private void Awake()
     {
-        CreateInputActionAsset();
+        GameInputActions.CreateAsset();
     }
 
     private void Start()
     {
         LoadLevelDataAssets();
         SubscribeEvents();
-    }
-
-    private void CreateInputActionAsset()
-    {
-        var asset = GameInputActions.CreateAsset();
-        if (MultiplayerInputManager.Instance != null)
-        {
-            var playerInputManager = MultiplayerInputManager.Instance.GetComponent<UnityEngine.InputSystem.PlayerInput.PlayerInputManager>();
-            if (playerInputManager != null)
-            {
-                playerInputManager.playerPrefab = null;
-            }
-        }
     }
 
     private void LoadLevelDataAssets()

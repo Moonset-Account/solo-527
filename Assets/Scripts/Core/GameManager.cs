@@ -33,15 +33,17 @@ public class GameManager : Singleton<GameManager>
         _currentLevelIndex = levelIndex;
         SetState(GameState.Gameplay);
         OnLevelStarted?.Invoke(levelIndex);
-        EventBus.Publish(new LevelStartedEvent { LevelIndex = levelIndex });
+        EventBus.Publish(new GameEvents.LevelStartedEvent { LevelIndex = levelIndex });
     }
 
     public void CompleteLevel()
     {
         int completedLevel = _currentLevelIndex;
+        int score = ScoringManager != null ? ScoringManager.Instance.currentScore : 0;
+        int stars = LevelManager != null ? LevelManager.Instance.GetCurrentStars(score) : 0;
         SetState(GameState.Settlement);
         OnLevelCompleted?.Invoke(completedLevel);
-        EventBus.Publish(new LevelCompletedEvent { LevelIndex = completedLevel });
+        EventBus.Publish(new GameEvents.LevelCompletedEvent { LevelIndex = completedLevel, Score = score, Stars = stars });
     }
 
     public void FailLevel()
@@ -49,7 +51,7 @@ public class GameManager : Singleton<GameManager>
         int failedLevel = _currentLevelIndex;
         SetState(GameState.Failure);
         OnLevelFailed?.Invoke(failedLevel);
-        EventBus.Publish(new LevelFailedEvent { LevelIndex = failedLevel });
+        EventBus.Publish(new GameEvents.LevelFailedEvent { LevelIndex = failedLevel, Reason = "Level Failed" });
     }
 
     public void PauseGame()

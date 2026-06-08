@@ -19,7 +19,7 @@ public class Ingredient : ScriptableObject, ICloneable
 
     public bool CanCook()
     {
-        return currentState == IngredientState.Chopped;
+        return currentState == IngredientState.Chopped && cookTime > 0f;
     }
 
     public bool IsBurned()

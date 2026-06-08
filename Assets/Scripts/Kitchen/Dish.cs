@@ -24,10 +24,13 @@ public class Dish
         if (ingredient == null || ingredient.IsBurned())
             return false;
 
-        int requiredCount = recipe.requiredIngredients.Count;
-        int currentCount = currentIngredients.Count;
-        if (currentCount >= requiredCount)
-            return false;
+        if (recipe != null)
+        {
+            int requiredCount = recipe.requiredIngredients.Count;
+            int currentCount = currentIngredients.Count;
+            if (currentCount >= requiredCount)
+                return false;
+        }
 
         currentIngredients.Add(ingredient);
         return true;
@@ -35,12 +38,18 @@ public class Dish
 
     public bool CanPlate()
     {
+        if (recipe == null)
+            return currentIngredients.Count > 0;
+
         if (currentIngredients.Count != recipe.requiredIngredients.Count)
             return false;
 
         for (int i = 0; i < currentIngredients.Count; i++)
         {
-            if (currentIngredients[i].currentState != IngredientState.Cooked)
+            IngredientState state = currentIngredients[i].currentState;
+            if (state == IngredientState.Burned)
+                return false;
+            if (state == IngredientState.Raw)
                 return false;
         }
 
@@ -49,13 +58,17 @@ public class Dish
 
     public DishRating CalculateRating()
     {
-        if (!isPlated)
+        if (!isPlated || currentIngredients.Count == 0)
             return DishRating.None;
+
+        if (recipe == null)
+            return DishRating.Silver;
 
         int correctCount = 0;
         for (int i = 0; i < currentIngredients.Count; i++)
         {
-            if (currentIngredients[i].currentState == IngredientState.Cooked)
+            if (currentIngredients[i].currentState == IngredientState.Cooked ||
+                currentIngredients[i].currentState == IngredientState.Chopped)
                 correctCount++;
         }
 

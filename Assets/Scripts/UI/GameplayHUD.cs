@@ -20,9 +20,9 @@ public class GameplayHUD : MonoBehaviour
             ScoringManager.Instance.OnComboChanged += OnComboChanged;
         }
 
-        EventBus.Subscribe<OrderSpawnedEvent>(OnOrderSpawned);
-        EventBus.Subscribe<OrderCompletedEvent>(OnOrderCompleted);
-        EventBus.Subscribe<OrderFailedEvent>(OnOrderFailed);
+        EventBus.Subscribe<GameEvents.OrderSpawnedEvent>(OnOrderSpawned);
+        EventBus.Subscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
+        EventBus.Subscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
     }
 
     private void OnDisable()
@@ -33,9 +33,9 @@ public class GameplayHUD : MonoBehaviour
             ScoringManager.Instance.OnComboChanged -= OnComboChanged;
         }
 
-        EventBus.Unsubscribe<OrderSpawnedEvent>(OnOrderSpawned);
-        EventBus.Unsubscribe<OrderCompletedEvent>(OnOrderCompleted);
-        EventBus.Unsubscribe<OrderFailedEvent>(OnOrderFailed);
+        EventBus.Unsubscribe<GameEvents.OrderSpawnedEvent>(OnOrderSpawned);
+        EventBus.Unsubscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
+        EventBus.Unsubscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
     }
 
     private void Update()
@@ -113,7 +113,7 @@ public class GameplayHUD : MonoBehaviour
         comboText.transform.localScale = originalScale;
     }
 
-    private void OnOrderSpawned(OrderSpawnedEvent evt)
+    private void OnOrderSpawned(GameEvents.OrderSpawnedEvent evt)
     {
         if (orderItemPrefab == null || orderQueueContainer == null) return;
 
@@ -125,12 +125,12 @@ public class GameplayHUD : MonoBehaviour
         orderItems.Add(item);
     }
 
-    private void OnOrderCompleted(OrderCompletedEvent evt)
+    private void OnOrderCompleted(GameEvents.OrderCompletedEvent evt)
     {
         RemoveOrderItem(evt.Order);
     }
 
-    private void OnOrderFailed(OrderFailedEvent evt)
+    private void OnOrderFailed(GameEvents.OrderFailedEvent evt)
     {
         RemoveOrderItem(evt.Order);
     }

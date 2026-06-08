@@ -129,8 +129,8 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
         if (GameManager.Instance != null)
             GameManager.Instance.OnLevelStarted += OnLevelStarted;
 
-        EventBus.Subscribe<OrderCompletedEvent>(OnOrderCompleted);
-        EventBus.Subscribe<OrderFailedEvent>(OnOrderFailed);
+        EventBus.Subscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
+        EventBus.Subscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
     }
 
     private void OnDisable()
@@ -138,8 +138,8 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
         if (GameManager.Instance != null)
             GameManager.Instance.OnLevelStarted -= OnLevelStarted;
 
-        EventBus.Unsubscribe<OrderCompletedEvent>(OnOrderCompleted);
-        EventBus.Unsubscribe<OrderFailedEvent>(OnOrderFailed);
+        EventBus.Unsubscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
+        EventBus.Unsubscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
     }
 
     private void OnLevelStarted(int levelIndex)
@@ -149,13 +149,13 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
         StartSession(levelIndex, players, solo);
     }
 
-    private void OnOrderCompleted(OrderCompletedEvent evt)
+    private void OnOrderCompleted(GameEvents.OrderCompletedEvent evt)
     {
         if (currentSession != null)
             currentSession.ordersCompleted++;
     }
 
-    private void OnOrderFailed(OrderFailedEvent evt)
+    private void OnOrderFailed(GameEvents.OrderFailedEvent evt)
     {
         if (currentSession != null)
             currentSession.ordersFailed++;

@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System;
 
 public class LevelManager : Singleton<LevelManager>
 {
@@ -8,7 +7,6 @@ public class LevelManager : Singleton<LevelManager>
     public Timer levelTimer;
     public bool isLevelActive;
 
-    private List<KitchenStation> spawnedStations = new List<KitchenStation>();
     private List<LevelMechanic> activeMechanics = new List<LevelMechanic>();
     private float orderSpawnTimer;
 
@@ -18,7 +16,6 @@ public class LevelManager : Singleton<LevelManager>
         isLevelActive = false;
         levelTimer = new Timer(data.timeLimit);
 
-        SpawnStations(data.stationLayout);
         ApplySpatialConstraints(data.spatialConstraints);
 
         if (data.hasConveyorBelt)
@@ -27,8 +24,6 @@ public class LevelManager : Singleton<LevelManager>
             conveyor.conveyorSpeed = data.conveyorSpeed;
             activeMechanics.Add(conveyor);
         }
-
-        EventBus.Publish(new GameEvents.LevelStartedEvent { LevelIndex = data.levelIndex });
     }
 
     public void StartLevel()
@@ -41,8 +36,6 @@ public class LevelManager : Singleton<LevelManager>
         {
             mechanic.Activate();
         }
-
-        OrderManager.Instance.SpawnOrder();
     }
 
     public int CompleteLevel()
@@ -55,10 +48,6 @@ public class LevelManager : Singleton<LevelManager>
         }
 
         int stars = GetCurrentStars(ScoringManager.Instance.currentScore);
-        int score = ScoringManager.Instance.currentScore;
-
-        EventBus.Publish(new GameEvents.LevelCompletedEvent { LevelIndex = currentLevelData.levelIndex, Score = score, Stars = stars });
-
         return stars;
     }
 
@@ -70,8 +59,6 @@ public class LevelManager : Singleton<LevelManager>
         {
             mechanic.Deactivate();
         }
-
-        EventBus.Publish(new GameEvents.LevelFailedEvent { LevelIndex = currentLevelData.levelIndex, Reason = "Time's Up!" });
     }
 
     public int GetCurrentStars(int score)
@@ -86,19 +73,33 @@ public class LevelManager : Singleton<LevelManager>
 
     private void Update()
     {
-        if (!isLevelActive) return;
+        if (!isLevelActive || currentLevelData == null) return;
 
         float dt = Time.deltaTime;
         levelTimer.Tick(dt);
 
         if (levelTimer.IsFinished)
         {
-            FailLevel();
+            isLevelActive = false;
+            GameManager.Instance.FailLevel();
             return;
         }
 
+        if (OrderManager.Instance != null && ScoringManager.Instance != null)
+        {
+            int targetScore = currentLevelData.targetScore;
+            if (ScoringManager.Instance.currentScore >= targetScore)
+            {
+                isLevelActive = false;
+                GameManager.Instance.CompleteLevel();
+                return;
+            }
+        }
+
         orderSpawnTimer += dt;
-        if (orderSpawnTimer >= currentLevelData.orderInterval && OrderManager.Instance.activeOrders.Count < currentLevelData.maxOrders)
+        if (orderSpawnTimer >= currentLevelData.orderInterval &&
+            OrderManager.Instance != null &&
+            OrderManager.Instance.activeOrders.Count < currentLevelData.maxOrders)
         {
             OrderManager.Instance.SpawnOrder();
             orderSpawnTimer = 0f;
@@ -110,48 +111,10 @@ public class LevelManager : Singleton<LevelManager>
         }
     }
 
-    private void SpawnStations(List<StationLayoutEntry> layout)
-    {
-        foreach (var entry in layout)
-        {
-            if (entry.isLocked) continue;
-
-            var stationObj = new GameObject(entry.stationName);
-            stationObj.transform.position = entry.position;
-            stationObj.transform.rotation = Quaternion.Euler(0f, 0f, entry.rotation);
-
-            KitchenStation station = null;
-            switch (entry.stationType)
-            {
-                case StationType.Prep:
-                    station = stationObj.AddComponent<PrepStation>();
-                    break;
-                case StationType.Cooking:
-                    station = stationObj.AddComponent<CookingStation>();
-                    break;
-                case StationType.Plating:
-                    station = stationObj.AddComponent<PlatingStation>();
-                    break;
-                case StationType.Cleaning:
-                    station = stationObj.AddComponent<CleaningStation>();
-                    break;
-                case StationType.Ingredient:
-                    station = stationObj.AddComponent<IngredientStation>();
-                    break;
-            }
-
-            if (station != null)
-            {
-                station.stationType = entry.stationType;
-                station.stationName = entry.stationName;
-                StationManager.Instance.RegisterStation(station);
-                spawnedStations.Add(station);
-            }
-        }
-    }
-
     private void ApplySpatialConstraints(List<SpatialConstraint> constraints)
     {
+        if (constraints == null) return;
+
         foreach (var constraint in constraints)
         {
             if (constraint.constraintType == SpatialConstraint.ConstraintType.MovingObstacle)
@@ -166,7 +129,7 @@ public class LevelManager : Singleton<LevelManager>
         }
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
         foreach (var mechanic in activeMechanics)
         {
@@ -176,5 +139,6 @@ public class LevelManager : Singleton<LevelManager>
             }
         }
         activeMechanics.Clear();
+        base.OnDestroy();
     }
 }

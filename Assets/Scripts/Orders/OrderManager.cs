@@ -7,8 +7,10 @@ public class OrderManager : Singleton<OrderManager>
     public List<Order> completedOrders;
     public List<Order> failedOrders;
 
+    private List<Recipe> availableRecipes = new List<Recipe>();
     private Timer orderSpawnTimer;
     private int nextOrderID;
+    private static readonly System.Random rng = new System.Random();
 
     protected override void Awake()
     {
@@ -17,6 +19,11 @@ public class OrderManager : Singleton<OrderManager>
         completedOrders = new List<Order>();
         failedOrders = new List<Order>();
         nextOrderID = 0;
+    }
+
+    public void SetAvailableRecipes(List<Recipe> recipes)
+    {
+        availableRecipes = recipes ?? new List<Recipe>();
     }
 
     public void InitializeSpawnTimer(float interval)
@@ -46,7 +53,7 @@ public class OrderManager : Singleton<OrderManager>
         order.OnExpired += () => FailOrder(order);
 
         activeOrders.Add(order);
-        EventBus.Publish(new OrderSpawnedEvent { Order = order });
+        EventBus.Publish(new GameEvents.OrderSpawnedEvent { Order = order });
     }
 
     public void CompleteOrder(Order order, Dish dish)
@@ -58,7 +65,7 @@ public class OrderManager : Singleton<OrderManager>
         activeOrders.Remove(order);
         completedOrders.Add(order);
 
-        EventBus.Publish(new OrderCompletedEvent { Order = order, Dish = dish });
+        EventBus.Publish(new GameEvents.OrderCompletedEvent { Order = order, Dish = dish });
     }
 
     public void FailOrder(Order order)
@@ -69,7 +76,7 @@ public class OrderManager : Singleton<OrderManager>
         activeOrders.Remove(order);
         failedOrders.Add(order);
 
-        EventBus.Publish(new OrderFailedEvent { Order = order });
+        EventBus.Publish(new GameEvents.OrderFailedEvent { Order = order });
     }
 
     public Order GetNextOrder()
@@ -101,7 +108,11 @@ public class OrderManager : Singleton<OrderManager>
 
     private Recipe GetRandomRecipe()
     {
-        return null;
+        if (availableRecipes == null || availableRecipes.Count == 0)
+            return null;
+
+        int index = rng.Next(availableRecipes.Count);
+        return availableRecipes[index];
     }
 
     protected override void OnDestroy()
