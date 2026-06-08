@@ -47,6 +47,17 @@
           "label": "旧报纸"
         },
         {
+          "id": "hs_201_lock",
+          "x": 40,
+          "y": 35,
+          "width": 8,
+          "height": 10,
+          "type": "examine",
+          "targetId": "puzzle_room201_lock",
+          "glowOnHover": true,
+          "label": "上锁的抽屉"
+        },
+        {
           "id": "hs_201_door202",
           "x": 85,
           "y": 20,

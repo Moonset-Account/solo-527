@@ -68,7 +68,7 @@ export default function MainMenu() {
       if (saveData.currentChapter) setChapter(saveData.currentChapter)
       if (saveData.currentRoom) enterRoom(saveData.currentRoom)
       setPhase('playing')
-      navigate('/game')
+      navigate(`/game/${saveData.currentChapter}/${saveData.currentRoom}`)
     }
   }, [navigate, setChapter, enterRoom, setPhase, startAmbient])
 
@@ -83,7 +83,7 @@ export default function MainMenu() {
     setChapter(chapterId)
     if (startRoom) enterRoom(startRoom)
     setPhase('playing')
-    navigate('/game')
+    navigate(`/game/${chapterId}/${startRoom || 'room_201'}`)
   }, [navigate, setChapter, enterRoom, setPhase])
 
   const handleSettings = useCallback(() => {

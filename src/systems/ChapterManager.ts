@@ -1,7 +1,8 @@
-import type { ChapterConfig, PuzzleConfig, Item } from '@/types'
+import type { ChapterConfig, PuzzleConfig, Item, RoomConfig, PuzzleState } from '@/types'
 import chapter1Config from '@/config/chapters/chapter1.json'
 import chapter2Config from '@/config/chapters/chapter2.json'
 import chapter3Config from '@/config/chapters/chapter3.json'
+import tutorialConfig from '@/config/tutorial.json'
 import itemsData from '@/config/items.json'
 import puzzlesData from '@/config/puzzles.json'
 
@@ -10,6 +11,8 @@ const chapters: Record<string, ChapterConfig> = {
   chapter2: chapter2Config as ChapterConfig,
   chapter3: chapter3Config as ChapterConfig,
 }
+
+const tutorialRoom: RoomConfig = tutorialConfig.room as RoomConfig
 
 const items: Record<string, Item> = itemsData as Record<string, Item>
 
@@ -20,7 +23,11 @@ class ChapterManager {
     return chapters[chapterId] || null
   }
 
-  getRoom(chapterId: string, roomId: string) {
+  getRoom(chapterId: string, roomId: string): RoomConfig | null {
+    if (chapterId === 'tutorial') {
+      if (tutorialRoom.id === roomId) return tutorialRoom
+      return null
+    }
     const chapter = this.getChapter(chapterId)
     if (!chapter) return null
     return chapter.rooms.find(r => r.id === roomId) || null
@@ -60,6 +67,16 @@ class ChapterManager {
   isDoorLocked(chapterId: string, roomId: string, hotspotId: string): boolean {
     const door = this.getDoorByHotspot(chapterId, roomId, hotspotId)
     return door?.locked || false
+  }
+
+  isChapterComplete(chapterId: string, puzzleStates: Record<string, PuzzleState>): boolean {
+    const chapterPuzzles = puzzles.filter(p => p.chapter === chapterId)
+    if (chapterPuzzles.length === 0) return false
+    return chapterPuzzles.every(p => puzzleStates[p.id]?.solved)
+  }
+
+  getChapterPuzzleIds(chapterId: string): string[] {
+    return puzzles.filter(p => p.chapter === chapterId).map(p => p.id)
   }
 
   calculateSettlement(chapterId: string, completionTime: number, retryCount: number, hintsUsed: number, cluesFound: number, totalClues: number) {

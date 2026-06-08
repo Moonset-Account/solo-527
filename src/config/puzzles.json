@@ -4,7 +4,7 @@
     "type": "code",
     "chapter": "chapter1",
     "room": "room_201",
-    "description": "201号房门的密码锁",
+    "description": "桌上抽屉的密码锁",
     "solution": "0731",
     "hints": [
       "也许有一封信件上藏着密码",
@@ -12,7 +12,7 @@
       "密码是信件背面的数字：0731"
     ],
     "requiredClues": ["clue_letter_number"],
-    "narrativeOnSolve": "门锁咔嗒一声打开了。房间内弥漫着陈旧的气息...",
+    "narrativeOnSolve": "抽屉咔嗒一声打开了，里面有一张泛黄的住户登记表...",
     "maxAttempts": 5
   },
   {

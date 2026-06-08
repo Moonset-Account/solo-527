@@ -55,6 +55,7 @@ export default function SettlementPage() {
   const { chapterId } = useParams<{ chapterId: string }>()
   const notebook = useGameStore((s) => s.notebook)
   const puzzleStates = useGameStore((s) => s.puzzleStates)
+  const totalPlayTime = useGameStore((s) => s.totalPlayTime)
   const setPhase = useGameStore((s) => s.setPhase)
   const setChapter = useGameStore((s) => s.setChapter)
   const enterRoom = useGameStore((s) => s.enterRoom)
@@ -77,7 +78,7 @@ export default function SettlementPage() {
       return sum + room.items.length * 2
     }, 0) || 1
 
-    const completionTime = 300000
+    const completionTime = totalPlayTime
 
     return chapterManager.calculateSettlement(
       chapterId,
@@ -101,7 +102,7 @@ export default function SettlementPage() {
       setChapter(nextChapter.id)
       enterRoom(nextChapter.startRoom)
       setPhase('playing')
-      navigate(`/chapter/${nextChapter.id}`)
+      navigate(`/game/${nextChapter.id}/${nextChapter.startRoom}`)
     }
   }
 

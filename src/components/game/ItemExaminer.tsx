@@ -31,10 +31,10 @@ export default function ItemExaminer({ itemId, onClose, onCollect }: ItemExamine
   const handleCollect = () => {
     if (alreadyCollected) return
     addItem(itemId)
-    item.clues.forEach((clueText, i) => {
+    item.clues.forEach((clueId) => {
       addClue({
-        id: `${itemId}_clue_${i}`,
-        text: clueText,
+        id: clueId,
+        text: item.examineText || item.description,
         sourceItem: itemId,
         sourceRoom: currentRoom,
         chapter: currentChapter,
@@ -42,10 +42,10 @@ export default function ItemExaminer({ itemId, onClose, onCollect }: ItemExamine
         linkedClues: [],
       })
     })
-    if (flipped && item.backsideClue) {
+    if (item.backsideClue) {
       addClue({
-        id: `${itemId}_backside_clue`,
-        text: item.backsideClue,
+        id: item.backsideClue,
+        text: item.backsideText || '',
         sourceItem: itemId,
         sourceRoom: currentRoom,
         chapter: currentChapter,
@@ -123,7 +123,7 @@ export default function ItemExaminer({ itemId, onClose, onCollect }: ItemExamine
                   }}
                 >
                   <Rotate3D size={16} />
-                  {flipped ? 'Front' : 'Flip'}
+                  {flipped ? '正面' : '翻转'}
                 </button>
               )}
 
@@ -137,7 +137,7 @@ export default function ItemExaminer({ itemId, onClose, onCollect }: ItemExamine
                 }}
               >
                 <PackagePlus size={16} />
-                {alreadyCollected ? 'Collected' : 'Collect'}
+                {alreadyCollected ? '已收集' : '收集'}
               </button>
             </div>
           </div>

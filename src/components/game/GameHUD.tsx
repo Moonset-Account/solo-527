@@ -36,7 +36,7 @@ export default function GameHUD({ onNotebookClick, onHintClick, onMenuClick }: G
             className="flex items-center gap-2 px-4 py-2 rounded-md text-amber-200/70 hover:text-amber-200 hover:shadow-[0_0_12px_rgba(200,168,110,0.3)] transition-all duration-300"
           >
             <BookOpen size={18} />
-            <span className="text-xs font-serif tracking-wide">Notebook</span>
+            <span className="text-xs font-serif tracking-wide">笔记</span>
           </button>
 
           <button
@@ -44,7 +44,7 @@ export default function GameHUD({ onNotebookClick, onHintClick, onMenuClick }: G
             className="flex items-center gap-2 px-4 py-2 rounded-md text-amber-200/70 hover:text-amber-200 hover:shadow-[0_0_12px_rgba(200,168,110,0.3)] transition-all duration-300"
           >
             <Lightbulb size={18} />
-            <span className="text-xs font-serif tracking-wide">Hint ({hintPoints})</span>
+            <span className="text-xs font-serif tracking-wide">提示 ({hintPoints})</span>
           </button>
 
           <button
@@ -52,7 +52,7 @@ export default function GameHUD({ onNotebookClick, onHintClick, onMenuClick }: G
             className="flex items-center gap-2 px-4 py-2 rounded-md text-amber-200/70 hover:text-amber-200 hover:shadow-[0_0_12px_rgba(200,168,110,0.3)] transition-all duration-300"
           >
             <Menu size={18} />
-            <span className="text-xs font-serif tracking-wide">Menu</span>
+            <span className="text-xs font-serif tracking-wide">菜单</span>
           </button>
         </div>
       </div>

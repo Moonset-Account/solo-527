@@ -73,7 +73,8 @@ export default function RoomView({ chapterId, roomId, onHotspotClick }: RoomView
         return (
           <motion.div
             key={hotspot.id}
-            className="absolute cursor-pointer z-10"
+            id={hotspot.id}
+            className="absolute cursor-pointer z-10 group"
             style={{
               left: `${hotspot.x}%`,
               top: `${hotspot.y}%`,
@@ -87,7 +88,11 @@ export default function RoomView({ chapterId, roomId, onHotspotClick }: RoomView
               onHotspotClick(hotspot.id, hotspot.type, hotspot.targetId)
             }
           >
-            <div className="w-full h-full border border-transparent hover:border-[#c8a86e]/30 rounded transition-colors duration-300" />
+            <div className="w-full h-full border border-[#c8a86e]/15 hover:border-[#c8a86e]/40 rounded transition-colors duration-300 relative">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded text-[10px] font-serif text-amber-200/0 group-hover:text-amber-200/80 bg-black/0 group-hover:bg-black/70 whitespace-nowrap transition-all duration-200 pointer-events-none">
+                {hotspot.label}
+              </div>
+            </div>
           </motion.div>
         )
       })}

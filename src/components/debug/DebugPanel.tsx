@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, SkipForward, Settings2, BarChart3, Volume2 } from 'lucide-react'
 import useGameStore from '@/systems/GameStateManager'
@@ -16,6 +17,7 @@ interface DebugPanelProps {
 }
 
 export default function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
+  const navigate = useNavigate()
   const currentChapter = useGameStore((s) => s.currentChapter)
   const currentRoom = useGameStore((s) => s.currentRoom)
   const hintPoints = useGameStore((s) => s.hintPoints)
@@ -40,7 +42,8 @@ export default function DebugPanel({ isOpen, onClose }: DebugPanelProps) {
     setChapter(chapterId)
     enterRoom(roomId)
     setPhase('playing')
-  }, [setChapter, enterRoom, setPhase])
+    navigate(`/game/${chapterId}/${roomId}`)
+  }, [setChapter, enterRoom, setPhase, navigate])
 
   const handleUnlockAllChapters = useCallback(() => {
     allChapters.forEach((ch) => unlockChapter(ch.id))

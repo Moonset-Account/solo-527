@@ -24,7 +24,7 @@ export default function TutorialPage() {
     setChapter('chapter1')
     enterRoom('room_201')
     setPhase('playing')
-    navigate('/chapter/chapter1')
+    navigate('/game/chapter1/room_201')
   }, [navigate, setChapter, enterRoom, setPhase])
 
   const handleNext = useCallback(() => {
