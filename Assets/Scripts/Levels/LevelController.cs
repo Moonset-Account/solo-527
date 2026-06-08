@@ -221,6 +221,8 @@ namespace InkMountainBridge
             }
         }
 
+        public LevelResult lastResult { get; private set; }
+
         public void HandleWin()
         {
             isLevelActive = false;
@@ -243,6 +245,8 @@ namespace InkMountainBridge
                 result.score = scoreCalculator.CalculateScore(result);
             }
 
+            lastResult = result;
+
             if (analyticsRecorder != null)
             {
                 analyticsRecorder.RecordLevelResult(result);
@@ -255,11 +259,6 @@ namespace InkMountainBridge
 
             GameEvents.RaiseLevelCompleted(levelConfig.levelId);
             GameEvents.RaisePhaseChanged(GameState.Settlement);
-
-            if (settlementScreen != null)
-            {
-                settlementScreen.Show(result);
-            }
         }
 
         public void HandleFail(string reason)
@@ -282,12 +281,6 @@ namespace InkMountainBridge
             }
 
             GameEvents.RaiseLevelFailed(reason);
-            GameEvents.RaisePhaseChanged(GameState.Paused);
-
-            if (failPromptController != null)
-            {
-                failPromptController.Show(reason);
-            }
         }
 
         public void ResetLevel()
@@ -357,9 +350,29 @@ namespace InkMountainBridge
             if (scoreCalculator == null) scoreCalculator = FindObjectOfType<ScoreCalculator>();
             if (replayRecorder == null) replayRecorder = FindObjectOfType<ReplayRecorder>();
             if (analyticsRecorder == null) analyticsRecorder = FindObjectOfType<AnalyticsRecorder>();
-            if (failPromptController == null) failPromptController = FindObjectOfType<FailPromptController>();
-            if (settlementScreen == null) settlementScreen = FindObjectOfType<SettlementScreen>();
-            if (tutorialController == null) tutorialController = FindObjectOfType<TutorialController>();
+
+            if (failPromptController == null || settlementScreen == null || tutorialController == null)
+            {
+                Canvas canvas = FindObjectOfType<Canvas>();
+                if (canvas != null)
+                {
+                    if (failPromptController == null)
+                    {
+                        var t = canvas.transform.Find("FailPromptPanel");
+                        if (t != null) failPromptController = t.GetComponent<FailPromptController>();
+                    }
+                    if (settlementScreen == null)
+                    {
+                        var t = canvas.transform.Find("SettlementPanel");
+                        if (t != null) settlementScreen = t.GetComponent<SettlementScreen>();
+                    }
+                    if (tutorialController == null)
+                    {
+                        var t = canvas.transform.Find("TutorialPanel");
+                        if (t != null) tutorialController = t.GetComponent<TutorialController>();
+                    }
+                }
+            }
         }
     }
 }

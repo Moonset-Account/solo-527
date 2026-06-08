@@ -9,27 +9,65 @@ namespace InkMountainBridge
         public Text reasonText;
         public Button retryButton;
         public Button backButton;
-        public Image failCauseIcon;
 
         private Vector3 _originalPosition;
-        private bool listenersRegistered;
+        private bool uiCreated;
 
-        private void Awake()
+        public void Show(string reason)
         {
-            EnsureUIComponents();
-            RegisterListeners();
+            gameObject.SetActive(true);
+
+            if (!uiCreated)
+            {
+                EnsureUIComponents();
+                RegisterListeners();
+                uiCreated = true;
+            }
+
+            if (reasonText != null) reasonText.text = reason;
+            _originalPosition = transform.localPosition;
+            StartCoroutine(ShakeEffect());
         }
 
-        private void OnDestroy()
+        public void Hide()
         {
-            UnregisterListeners();
+            gameObject.SetActive(false);
         }
 
         private void EnsureUIComponents()
         {
-            if (reasonText == null) reasonText = FindOrCreateText("ReasonText", new Vector2(0, 40), 300, 60, 20);
-            if (retryButton == null) retryButton = FindOrCreateButton("RetryButton", "重试", new Vector2(-60, -40), 120, 40);
-            if (backButton == null) backButton = FindOrCreateButton("BackButton", "返回", new Vector2(60, -40), 120, 40);
+            EnsureBackground();
+
+            if (reasonText == null)
+                reasonText = FindOrCreateText("ReasonText", new Vector2(0, 40), 300, 60, 24);
+            if (retryButton == null)
+                retryButton = FindOrCreateButton("RetryButton", "重试", new Vector2(-80, -40), 140, 44);
+            if (backButton == null)
+                backButton = FindOrCreateButton("BackButton", "返回主菜单", new Vector2(80, -40), 140, 44);
+        }
+
+        private void EnsureBackground()
+        {
+            if (transform.Find("Background") != null) return;
+
+            GameObject bg = new GameObject("Background");
+            bg.transform.SetParent(transform, false);
+
+            var rect = bg.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.sizeDelta = Vector2.zero;
+            rect.SetAsFirstSibling();
+
+            bg.AddComponent<CanvasRenderer>();
+            var img = bg.AddComponent<Image>();
+            img.color = new Color(0.08f, 0.06f, 0.07f, 0.85f);
+        }
+
+        private void RegisterListeners()
+        {
+            if (retryButton != null) retryButton.onClick.AddListener(OnRetry);
+            if (backButton != null) backButton.onClick.AddListener(OnBack);
         }
 
         private Text FindOrCreateText(string name, Vector2 anchoredPos, float width, float height, int fontSize)
@@ -49,7 +87,7 @@ namespace InkMountainBridge
             var txt = obj.AddComponent<Text>();
             txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             txt.fontSize = fontSize;
-            txt.color = Color.white;
+            txt.color = new Color(0.95f, 0.3f, 0.3f);
             txt.alignment = TextAnchor.MiddleCenter;
             return txt;
         }
@@ -70,7 +108,7 @@ namespace InkMountainBridge
 
             obj.AddComponent<CanvasRenderer>();
             var img = obj.AddComponent<Image>();
-            img.color = new Color(0.25f, 0.25f, 0.25f, 0.9f);
+            img.color = new Color(0.25f, 0.25f, 0.25f, 0.95f);
 
             var btn = obj.AddComponent<Button>();
             btn.targetGraphic = img;
@@ -96,37 +134,6 @@ namespace InkMountainBridge
             labelTxt.text = label;
 
             return btn;
-        }
-
-        private void RegisterListeners()
-        {
-            if (listenersRegistered) return;
-            listenersRegistered = true;
-
-            if (retryButton != null) retryButton.onClick.AddListener(OnRetry);
-            if (backButton != null) backButton.onClick.AddListener(OnBack);
-        }
-
-        private void UnregisterListeners()
-        {
-            if (!listenersRegistered) return;
-            listenersRegistered = false;
-
-            if (retryButton != null) retryButton.onClick.RemoveListener(OnRetry);
-            if (backButton != null) backButton.onClick.RemoveListener(OnBack);
-        }
-
-        public void Show(string reason)
-        {
-            gameObject.SetActive(true);
-            if (reasonText != null) reasonText.text = reason;
-            _originalPosition = transform.localPosition;
-            StartCoroutine(ShakeEffect());
-        }
-
-        public void Hide()
-        {
-            gameObject.SetActive(false);
         }
 
         public void OnRetry()

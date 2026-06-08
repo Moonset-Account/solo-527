@@ -7,48 +7,102 @@ namespace InkMountainBridge
 {
     public class SettlementScreen : MonoBehaviour
     {
-        [SerializeField] private Text scoreText;
-        [SerializeField] private Text timeText;
-        [SerializeField] private Text materialsText;
-        [SerializeField] private Text integrityText;
-        [SerializeField] private Image[] ratingStars;
-        [SerializeField] private Button retryButton;
-        [SerializeField] private Button nextLevelButton;
-
         public LevelResult result;
+
+        private Text scoreText;
+        private Text timeText;
+        private Text materialsText;
+        private Text integrityText;
+        private Image[] ratingStars;
+        private Button retryButton;
+        private Button nextLevelButton;
 
         private Coroutine scoreAnimationCoroutine;
         private Coroutine starsAnimationCoroutine;
-        private bool listenersRegistered;
+        private bool uiCreated;
 
-        private void Awake()
+        public void Show(LevelResult result)
         {
-            EnsureUIComponents();
-            RegisterListeners();
+            this.result = result;
+            gameObject.SetActive(true);
+
+            if (!uiCreated)
+            {
+                EnsureUIComponents();
+                RegisterListeners();
+                uiCreated = true;
+            }
+
+            if (timeText != null)
+                timeText.text = result.completionTime.ToString("F1") + "s";
+            if (materialsText != null)
+                materialsText.text = result.materialsUsed + " / " + result.totalBudget;
+            if (integrityText != null)
+                integrityText.text = ((1f - result.maxStressRatio) * 100f).ToString("F0") + "%";
+
+            if (scoreAnimationCoroutine != null) StopCoroutine(scoreAnimationCoroutine);
+            scoreAnimationCoroutine = StartCoroutine(AnimateScoreRoutine(result.score));
+
+            int starCount = GetStarCount(result.score);
+            if (starsAnimationCoroutine != null) StopCoroutine(starsAnimationCoroutine);
+            starsAnimationCoroutine = StartCoroutine(AnimateStarsRoutine(starCount));
         }
 
-        private void OnDestroy()
+        public void Hide()
         {
-            UnregisterListeners();
+            if (scoreAnimationCoroutine != null) StopCoroutine(scoreAnimationCoroutine);
+            if (starsAnimationCoroutine != null) StopCoroutine(starsAnimationCoroutine);
+            gameObject.SetActive(false);
         }
 
         private void EnsureUIComponents()
         {
-            if (scoreText == null) scoreText = CreateLabel("ScoreText", new Vector2(0, 120), 300, 40, 28);
-            if (timeText == null) timeText = CreateLabel("TimeText", new Vector2(0, 70), 250, 30, 20);
-            if (materialsText == null) materialsText = CreateLabel("MaterialsText", new Vector2(0, 30), 250, 30, 20);
-            if (integrityText == null) integrityText = CreateLabel("IntegrityText", new Vector2(0, -10), 250, 30, 20);
-            if (retryButton == null) retryButton = CreateButton("RetryButton", "重玩", new Vector2(-80, -80), 120, 40);
-            if (nextLevelButton == null) nextLevelButton = CreateButton("NextLevelButton", "下一关", new Vector2(80, -80), 120, 40);
+            EnsureBackground();
+
+            if (scoreText == null)
+                scoreText = CreateLabel("ScoreText", new Vector2(0, 120), 300, 40, 28);
+            if (timeText == null)
+                timeText = CreateLabel("TimeText", new Vector2(0, 70), 250, 30, 20);
+            if (materialsText == null)
+                materialsText = CreateLabel("MaterialsText", new Vector2(0, 30), 250, 30, 20);
+            if (integrityText == null)
+                integrityText = CreateLabel("IntegrityText", new Vector2(0, -10), 250, 30, 20);
 
             if (ratingStars == null || ratingStars.Length == 0)
             {
                 ratingStars = new Image[3];
                 for (int i = 0; i < 3; i++)
-                {
                     ratingStars[i] = CreateStar($"Star{i}", new Vector2(-60 + i * 60, 40));
-                }
             }
+
+            if (retryButton == null)
+                retryButton = CreateButton("RetryButton", "重玩", new Vector2(-80, -80), 140, 44);
+            if (nextLevelButton == null)
+                nextLevelButton = CreateButton("NextLevelButton", "下一关", new Vector2(80, -80), 140, 44);
+        }
+
+        private void EnsureBackground()
+        {
+            if (transform.Find("Background") != null) return;
+
+            GameObject bg = new GameObject("Background");
+            bg.transform.SetParent(transform, false);
+
+            var rect = bg.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.sizeDelta = Vector2.zero;
+            rect.SetAsFirstSibling();
+
+            bg.AddComponent<CanvasRenderer>();
+            var img = bg.AddComponent<Image>();
+            img.color = new Color(0.06f, 0.08f, 0.07f, 0.9f);
+        }
+
+        private void RegisterListeners()
+        {
+            if (retryButton != null) retryButton.onClick.AddListener(OnRetryClicked);
+            if (nextLevelButton != null) nextLevelButton.onClick.AddListener(OnNextLevelClicked);
         }
 
         private Text CreateLabel(string name, Vector2 anchoredPos, float width, float height, int fontSize)
@@ -89,7 +143,7 @@ namespace InkMountainBridge
 
             obj.AddComponent<CanvasRenderer>();
             var img = obj.AddComponent<Image>();
-            img.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            img.color = new Color(0.2f, 0.2f, 0.2f, 0.95f);
 
             var btn = obj.AddComponent<Button>();
             btn.targetGraphic = img;
@@ -137,51 +191,6 @@ namespace InkMountainBridge
             img.fillAmount = 0f;
 
             return img;
-        }
-
-        private void RegisterListeners()
-        {
-            if (listenersRegistered) return;
-            listenersRegistered = true;
-
-            if (retryButton != null) retryButton.onClick.AddListener(OnRetryClicked);
-            if (nextLevelButton != null) nextLevelButton.onClick.AddListener(OnNextLevelClicked);
-        }
-
-        private void UnregisterListeners()
-        {
-            if (!listenersRegistered) return;
-            listenersRegistered = false;
-
-            if (retryButton != null) retryButton.onClick.RemoveListener(OnRetryClicked);
-            if (nextLevelButton != null) nextLevelButton.onClick.RemoveListener(OnNextLevelClicked);
-        }
-
-        public void Show(LevelResult result)
-        {
-            this.result = result;
-            gameObject.SetActive(true);
-
-            if (timeText != null)
-                timeText.text = result.completionTime.ToString("F1") + "s";
-            if (materialsText != null)
-                materialsText.text = result.materialsUsed + " / " + result.totalBudget;
-            if (integrityText != null)
-                integrityText.text = ((1f - result.maxStressRatio) * 100f).ToString("F0") + "%";
-
-            if (scoreAnimationCoroutine != null) StopCoroutine(scoreAnimationCoroutine);
-            scoreAnimationCoroutine = StartCoroutine(AnimateScoreRoutine(result.score));
-
-            int starCount = GetStarCount(result.score);
-            if (starsAnimationCoroutine != null) StopCoroutine(starsAnimationCoroutine);
-            starsAnimationCoroutine = StartCoroutine(AnimateStarsRoutine(starCount));
-        }
-
-        public void Hide()
-        {
-            if (scoreAnimationCoroutine != null) StopCoroutine(scoreAnimationCoroutine);
-            if (starsAnimationCoroutine != null) StopCoroutine(starsAnimationCoroutine);
-            gameObject.SetActive(false);
         }
 
         public void OnRetryClicked()
