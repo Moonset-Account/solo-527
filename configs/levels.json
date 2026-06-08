@@ -1,0 +1,99 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "First Steps",
+      "grid_width": 8,
+      "grid_height": 6,
+      "starting_money": 500,
+      "required_orders": 2,
+      "time_limit": 180,
+      "available_machines": ["cutter", "packer", "conveyor"],
+      "tutorial_enabled": true,
+      "reputation_start": 100,
+      "reputation_penalty_per_failed_order": 15,
+      "reward_multiplier": 1.0,
+      "star_thresholds": {
+        "bronze": 0.5,
+        "silver": 0.75,
+        "gold": 1.0
+      }
+    },
+    {
+      "id": 2,
+      "name": "Assembly Line",
+      "grid_width": 10,
+      "grid_height": 7,
+      "starting_money": 800,
+      "required_orders": 3,
+      "time_limit": 240,
+      "available_machines": ["cutter", "assembler", "packer", "conveyor", "quality_check"],
+      "tutorial_enabled": false,
+      "reputation_start": 100,
+      "reputation_penalty_per_failed_order": 15,
+      "reward_multiplier": 1.2,
+      "star_thresholds": {
+        "bronze": 0.5,
+        "silver": 0.75,
+        "gold": 1.0
+      }
+    },
+    {
+      "id": 3,
+      "name": "Paint Shop",
+      "grid_width": 10,
+      "grid_height": 8,
+      "starting_money": 1200,
+      "required_orders": 4,
+      "time_limit": 300,
+      "available_machines": ["cutter", "assembler", "painter", "packer", "conveyor", "quality_check"],
+      "tutorial_enabled": false,
+      "reputation_start": 100,
+      "reputation_penalty_per_failed_order": 15,
+      "reward_multiplier": 1.5,
+      "star_thresholds": {
+        "bronze": 0.5,
+        "silver": 0.75,
+        "gold": 1.0
+      }
+    },
+    {
+      "id": 4,
+      "name": "Dual Lines",
+      "grid_width": 12,
+      "grid_height": 9,
+      "starting_money": 1800,
+      "required_orders": 5,
+      "time_limit": 360,
+      "available_machines": ["cutter", "assembler", "painter", "packer", "conveyor", "quality_check"],
+      "tutorial_enabled": false,
+      "reputation_start": 100,
+      "reputation_penalty_per_failed_order": 15,
+      "reward_multiplier": 1.8,
+      "star_thresholds": {
+        "bronze": 0.5,
+        "silver": 0.75,
+        "gold": 1.0
+      }
+    },
+    {
+      "id": 5,
+      "name": "Full Factory",
+      "grid_width": 14,
+      "grid_height": 10,
+      "starting_money": 2500,
+      "required_orders": 7,
+      "time_limit": 420,
+      "available_machines": ["cutter", "assembler", "painter", "packer", "conveyor", "quality_check"],
+      "tutorial_enabled": false,
+      "reputation_start": 100,
+      "reputation_penalty_per_failed_order": 15,
+      "reward_multiplier": 2.2,
+      "star_thresholds": {
+        "bronze": 0.5,
+        "silver": 0.75,
+        "gold": 1.0
+      }
+    }
+  ]
+}

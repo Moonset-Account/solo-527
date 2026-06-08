@@ -1,0 +1,203 @@
+{
+  "orders": {
+    "level_1": [
+      {
+        "id": "L1_O1",
+        "product_type": "packed",
+        "quantity": 3,
+        "deadline_seconds": 150,
+        "reward_base": 100,
+        "penalty": 30,
+        "min_quality_required": 0.7
+      },
+      {
+        "id": "L1_O2",
+        "product_type": "packed",
+        "quantity": 5,
+        "deadline_seconds": 170,
+        "reward_base": 150,
+        "penalty": 40,
+        "min_quality_required": 0.7
+      }
+    ],
+    "level_2": [
+      {
+        "id": "L2_O1",
+        "product_type": "packed",
+        "quantity": 4,
+        "deadline_seconds": 120,
+        "reward_base": 130,
+        "penalty": 45,
+        "min_quality_required": 0.75
+      },
+      {
+        "id": "L2_O2",
+        "product_type": "assembled",
+        "quantity": 6,
+        "deadline_seconds": 140,
+        "reward_base": 160,
+        "penalty": 50,
+        "min_quality_required": 0.75
+      },
+      {
+        "id": "L2_O3",
+        "product_type": "packed",
+        "quantity": 8,
+        "deadline_seconds": 200,
+        "reward_base": 200,
+        "penalty": 60,
+        "min_quality_required": 0.8
+      }
+    ],
+    "level_3": [
+      {
+        "id": "L3_O1",
+        "product_type": "painted",
+        "quantity": 5,
+        "deadline_seconds": 100,
+        "reward_base": 180,
+        "penalty": 55,
+        "min_quality_required": 0.8
+      },
+      {
+        "id": "L3_O2",
+        "product_type": "packed",
+        "quantity": 10,
+        "deadline_seconds": 150,
+        "reward_base": 250,
+        "penalty": 70,
+        "min_quality_required": 0.82
+      },
+      {
+        "id": "L3_O3",
+        "product_type": "assembled",
+        "quantity": 8,
+        "deadline_seconds": 130,
+        "reward_base": 200,
+        "penalty": 65,
+        "min_quality_required": 0.85
+      },
+      {
+        "id": "L3_O4",
+        "product_type": "painted",
+        "quantity": 7,
+        "deadline_seconds": 160,
+        "reward_base": 220,
+        "penalty": 60,
+        "min_quality_required": 0.85
+      }
+    ],
+    "level_4": [
+      {
+        "id": "L4_O1",
+        "product_type": "painted",
+        "quantity": 8,
+        "deadline_seconds": 90,
+        "reward_base": 250,
+        "penalty": 80,
+        "min_quality_required": 0.85
+      },
+      {
+        "id": "L4_O2",
+        "product_type": "packed",
+        "quantity": 12,
+        "deadline_seconds": 120,
+        "reward_base": 300,
+        "penalty": 90,
+        "min_quality_required": 0.85
+      },
+      {
+        "id": "L4_O3",
+        "product_type": "assembled",
+        "quantity": 10,
+        "deadline_seconds": 100,
+        "reward_base": 270,
+        "penalty": 85,
+        "min_quality_required": 0.88
+      },
+      {
+        "id": "L4_O4",
+        "product_type": "painted",
+        "quantity": 6,
+        "deadline_seconds": 80,
+        "reward_base": 200,
+        "penalty": 75,
+        "min_quality_required": 0.9
+      },
+      {
+        "id": "L4_O5",
+        "product_type": "packed",
+        "quantity": 15,
+        "deadline_seconds": 150,
+        "reward_base": 350,
+        "penalty": 100,
+        "min_quality_required": 0.88
+      }
+    ],
+    "level_5": [
+      {
+        "id": "L5_O1",
+        "product_type": "painted",
+        "quantity": 10,
+        "deadline_seconds": 75,
+        "reward_base": 300,
+        "penalty": 100,
+        "min_quality_required": 0.9
+      },
+      {
+        "id": "L5_O2",
+        "product_type": "packed",
+        "quantity": 15,
+        "deadline_seconds": 90,
+        "reward_base": 350,
+        "penalty": 110,
+        "min_quality_required": 0.9
+      },
+      {
+        "id": "L5_O3",
+        "product_type": "assembled",
+        "quantity": 12,
+        "deadline_seconds": 80,
+        "reward_base": 320,
+        "penalty": 105,
+        "min_quality_required": 0.9
+      },
+      {
+        "id": "L5_O4",
+        "product_type": "painted",
+        "quantity": 8,
+        "deadline_seconds": 60,
+        "reward_base": 280,
+        "penalty": 95,
+        "min_quality_required": 0.92
+      },
+      {
+        "id": "L5_O5",
+        "product_type": "packed",
+        "quantity": 20,
+        "deadline_seconds": 110,
+        "reward_base": 400,
+        "penalty": 120,
+        "min_quality_required": 0.9
+      },
+      {
+        "id": "L5_O6",
+        "product_type": "assembled",
+        "quantity": 14,
+        "deadline_seconds": 85,
+        "reward_base": 340,
+        "penalty": 110,
+        "min_quality_required": 0.92
+      },
+      {
+        "id": "L5_O7",
+        "product_type": "painted",
+        "quantity": 18,
+        "deadline_seconds": 120,
+        "reward_base": 420,
+        "penalty": 130,
+        "min_quality_required": 0.92
+      }
+    ]
+  }
+}

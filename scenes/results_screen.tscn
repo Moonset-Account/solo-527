@@ -1,0 +1,199 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/results_screen.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="panel_dark"]
+bg_color = Color(0.15, 0.08, 0.04, 0.95)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.83, 0.64, 0.38, 0.7)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_left = 8
+corner_radius_bottom_right = 8
+content_margin_left = 30.0
+content_margin_top = 24.0
+content_margin_right = 30.0
+content_margin_bottom = 24.0
+
+[sub_resource type="StyleBoxFlat" id="btn_normal"]
+bg_color = Color(0.28, 0.16, 0.09, 1.0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.83, 0.64, 0.38, 0.7)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="btn_hover"]
+bg_color = Color(0.38, 0.22, 0.12, 1.0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.96, 0.76, 0.38, 1.0)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_left = 4
+corner_radius_bottom_right = 4
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+
+[node name="ResultsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ContentPanel" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("panel_dark")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/ContentPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResultTitle" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.957, 0.643, 0.376, 1)
+theme_override_font_sizes/font_size = 36
+text = "Level Complete!"
+horizontal_alignment = 1
+
+[node name="StarsDisplay" type="HBoxContainer" parent="CenterContainer/ContentPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="star1" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StarsDisplay"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.957, 0.643, 0.376, 1)
+theme_override_font_sizes/font_size = 32
+text = "★"
+
+[node name="star2" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StarsDisplay"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.957, 0.643, 0.376, 1)
+theme_override_font_sizes/font_size = 32
+text = "★"
+
+[node name="star3" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StarsDisplay"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.957, 0.643, 0.376, 1)
+theme_override_font_sizes/font_size = 32
+text = "★"
+
+[node name="StatsPanel" type="VBoxContainer" parent="CenterContainer/ContentPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OrdersCompletedLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 18
+text = "Orders: 0/0"
+
+[node name="ProductsDeliveredLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 18
+text = "Products: 0"
+
+[node name="MoneyEarnedLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 18
+text = "Earned: $0"
+
+[node name="TimeElapsedLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 18
+text = "Time: 00:00"
+
+[node name="FailuresLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.85, 0.75, 1)
+theme_override_font_sizes/font_size = 18
+text = "Failures: 0"
+
+[node name="RewardLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.957, 0.643, 0.376, 1)
+theme_override_font_sizes/font_size = 22
+text = "Reward: $0"
+
+[node name="FailureReasonLabel" type="Label" parent="CenterContainer/ContentPanel/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+horizontal_alignment = 1
+
+[node name="ButtonBox" type="HBoxContainer" parent="CenterContainer/ContentPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NextButton" type="Button" parent="CenterContainer/ContentPanel/VBoxContainer/ButtonBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_colors/font_hover_color = Color(1, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+text = "Next Level"
+
+[node name="RetryButton" type="Button" parent="CenterContainer/ContentPanel/VBoxContainer/ButtonBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_colors/font_hover_color = Color(1, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+text = "Retry"
+
+[node name="MenuButton" type="Button" parent="CenterContainer/ContentPanel/VBoxContainer/ButtonBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_colors/font_hover_color = Color(1, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+text = "Main Menu"
+
+[connection signal="pressed" from="CenterContainer/ContentPanel/VBoxContainer/ButtonBox/NextButton" to="." method="_on_next_pressed"]
+[connection signal="pressed" from="CenterContainer/ContentPanel/VBoxContainer/ButtonBox/RetryButton" to="." method="_on_retry_pressed"]
+[connection signal="pressed" from="CenterContainer/ContentPanel/VBoxContainer/ButtonBox/MenuButton" to="." method="_on_menu_pressed"]

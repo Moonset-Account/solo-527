@@ -1,0 +1,139 @@
+{
+  "achievements": [
+    {
+      "id": "first_order",
+      "name": "First Order",
+      "description": "Complete your very first order",
+      "condition_type": "orders_completed",
+      "condition_value": 1,
+      "reward_money": 50,
+      "icon_path": "res://assets/icons/achievements/first_order.png"
+    },
+    {
+      "id": "speed_demon",
+      "name": "Speed Demon",
+      "description": "Complete an order in half the allotted time",
+      "condition_type": "order_completed_in_half_time",
+      "condition_value": 1,
+      "reward_money": 200,
+      "icon_path": "res://assets/icons/achievements/speed_demon.png"
+    },
+    {
+      "id": "quality_nut",
+      "name": "Quality Nut",
+      "description": "Achieve 100% product quality in a level",
+      "condition_type": "perfect_quality_in_level",
+      "condition_value": 1,
+      "reward_money": 300,
+      "icon_path": "res://assets/icons/achievements/quality_nut.png"
+    },
+    {
+      "id": "factory_mogul",
+      "name": "Factory Mogul",
+      "description": "Earn a total of 10000 money across all levels",
+      "condition_type": "total_money_earned",
+      "condition_value": 10000,
+      "reward_money": 500,
+      "icon_path": "res://assets/icons/achievements/factory_mogul.png"
+    },
+    {
+      "id": "no_failures",
+      "name": "No Failures",
+      "description": "Complete a level without any failed orders",
+      "condition_type": "level_no_failed_orders",
+      "condition_value": 1,
+      "reward_money": 250,
+      "icon_path": "res://assets/icons/achievements/no_failures.png"
+    },
+    {
+      "id": "fully_upgraded",
+      "name": "Fully Upgraded",
+      "description": "Max upgrade any machine to level 4",
+      "condition_type": "machine_max_upgraded",
+      "condition_value": 1,
+      "reward_money": 400,
+      "icon_path": "res://assets/icons/achievements/fully_upgraded.png"
+    },
+    {
+      "id": "conveyor_master",
+      "name": "Conveyor Master",
+      "description": "Place 20 conveyor belts in a single level",
+      "condition_type": "conveyors_placed_single_level",
+      "condition_value": 20,
+      "reward_money": 150,
+      "icon_path": "res://assets/icons/achievements/conveyor_master.png"
+    },
+    {
+      "id": "level_1_complete",
+      "name": "First Steps Complete",
+      "description": "Complete Level 1: First Steps",
+      "condition_type": "level_completed",
+      "condition_value": 1,
+      "reward_money": 100,
+      "icon_path": "res://assets/icons/achievements/level_1.png"
+    },
+    {
+      "id": "level_2_complete",
+      "name": "Assembly Line Complete",
+      "description": "Complete Level 2: Assembly Line",
+      "condition_type": "level_completed",
+      "condition_value": 2,
+      "reward_money": 150,
+      "icon_path": "res://assets/icons/achievements/level_2.png"
+    },
+    {
+      "id": "level_3_complete",
+      "name": "Paint Shop Complete",
+      "description": "Complete Level 3: Paint Shop",
+      "condition_type": "level_completed",
+      "condition_value": 3,
+      "reward_money": 200,
+      "icon_path": "res://assets/icons/achievements/level_3.png"
+    },
+    {
+      "id": "level_4_complete",
+      "name": "Dual Lines Complete",
+      "description": "Complete Level 4: Dual Lines",
+      "condition_type": "level_completed",
+      "condition_value": 4,
+      "reward_money": 300,
+      "icon_path": "res://assets/icons/achievements/level_4.png"
+    },
+    {
+      "id": "level_5_complete",
+      "name": "Full Factory Complete",
+      "description": "Complete Level 5: Full Factory",
+      "condition_type": "level_completed",
+      "condition_value": 5,
+      "reward_money": 500,
+      "icon_path": "res://assets/icons/achievements/level_5.png"
+    },
+    {
+      "id": "bottleneck_fixer",
+      "name": "Bottleneck Fixer",
+      "description": "Fix 5 production bottlenecks",
+      "condition_type": "bottlenecks_fixed",
+      "condition_value": 5,
+      "reward_money": 250,
+      "icon_path": "res://assets/icons/achievements/bottleneck_fixer.png"
+    },
+    {
+      "id": "offline_earner",
+      "name": "Offline Earner",
+      "description": "Earn money while away from the factory",
+      "condition_type": "offline_earnings_collected",
+      "condition_value": 1,
+      "reward_money": 100,
+      "icon_path": "res://assets/icons/achievements/offline_earner.png"
+    },
+    {
+      "id": "perfectionist",
+      "name": "Perfectionist",
+      "description": "Earn 3 stars (gold) on any level",
+      "condition_type": "gold_star_earned",
+      "condition_value": 1,
+      "reward_money": 350,
+      "icon_path": "res://assets/icons/achievements/perfectionist.png"
+    }
+  ]
+}

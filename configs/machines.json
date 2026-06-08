@@ -1,0 +1,52 @@
+{
+  "machines": {
+    "cutter": {
+      "cost": 100,
+      "processing_time": 2.0,
+      "quality_rate": 0.9,
+      "color": "#E74C3C",
+      "icon_path": "res://assets/icons/cutter.png",
+      "description": "Cuts raw materials into pieces"
+    },
+    "assembler": {
+      "cost": 150,
+      "processing_time": 3.0,
+      "quality_rate": 0.85,
+      "color": "#3498DB",
+      "icon_path": "res://assets/icons/assembler.png",
+      "description": "Assembles pieces together"
+    },
+    "painter": {
+      "cost": 200,
+      "processing_time": 2.5,
+      "quality_rate": 0.88,
+      "color": "#2ECC71",
+      "icon_path": "res://assets/icons/painter.png",
+      "description": "Paints assembled products"
+    },
+    "packer": {
+      "cost": 120,
+      "processing_time": 1.5,
+      "quality_rate": 0.95,
+      "color": "#F39C12",
+      "icon_path": "res://assets/icons/packer.png",
+      "description": "Packs finished products"
+    },
+    "conveyor": {
+      "cost": 30,
+      "processing_time": 0.5,
+      "quality_rate": 1.0,
+      "color": "#95A5A6",
+      "icon_path": "res://assets/icons/conveyor.png",
+      "description": "Moves products between machines"
+    },
+    "quality_check": {
+      "cost": 180,
+      "processing_time": 1.0,
+      "quality_rate": 1.0,
+      "color": "#9B59B6",
+      "icon_path": "res://assets/icons/quality_check.png",
+      "description": "Inspects product quality"
+    }
+  }
+}

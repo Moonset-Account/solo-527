@@ -1,0 +1,319 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/level_controller.gd" id="1_lctrl"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/ui/results_screen.gd" id="3_rslt"]
+[ext_resource type="Script" path="res://scripts/ui/tutorial_overlay.gd" id="4_tutl"]
+[ext_resource type="Script" path="res://scripts/ui/settings_panel.gd" id="5_stng"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.17, 0.09, 0.06, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.29, 0.22, 0.16, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.29, 0.22, 0.16, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.42, 0.31, 0.23, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="GameLevel" type="Node2D"]
+script = ExtResource("1_lctrl")
+
+[node name="Camera" type="Camera2D" parent="."]
+zoom = Vector2(1.5, 1.5)
+position_smoothing_enabled = true
+limit_left = -100
+limit_top = -100
+limit_right = 1500
+limit_bottom = 1000
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="HUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_hud")
+
+[node name="TopBar" type="HBoxContainer" parent="HUDLayer/HUD"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="MoneyLabel" type="Label" parent="HUDLayer/HUD/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "$0"
+
+[node name="ReputationLabel" type="Label" parent="HUDLayer/HUD/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.69, 0.31, 1)
+text = "Rep: 100"
+
+[node name="TimerLabel" type="Label" parent="HUDLayer/HUD/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "03:00"
+
+[node name="LevelLabel" type="Label" parent="HUDLayer/HUD/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "Level 1"
+
+[node name="OrderPanel" type="Panel" parent="HUDLayer/HUD"]
+layout_mode = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -250.0
+offset_top = 60.0
+offset_right = -10.0
+offset_bottom = 400.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD/OrderPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="HUDLayer/HUD/OrderPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Active Orders"
+
+[node name="OrderList" type="VBoxContainer" parent="HUDLayer/HUD/OrderPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ShopPanel" type="Panel" parent="HUDLayer/HUD"]
+visible = false
+layout_mode = 1
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 100.0
+offset_top = -300.0
+offset_right = -100.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD/ShopPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="HUDLayer/HUD/ShopPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Machine Shop"
+
+[node name="ShopItems" type="HBoxContainer" parent="HUDLayer/HUD/ShopPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ShopCloseButton" type="Button" parent="HUDLayer/HUD/ShopPanel/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 30)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Close"
+
+[node name="UpgradePanel" type="Panel" parent="HUDLayer/HUD"]
+visible = false
+layout_mode = 1
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -350.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUDLayer/HUD/UpgradePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="HUDLayer/HUD/UpgradePanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Upgrades"
+
+[node name="UpgradeList" type="VBoxContainer" parent="HUDLayer/HUD/UpgradePanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="UpgradeCloseButton" type="Button" parent="HUDLayer/HUD/UpgradePanel/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 30)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Close"
+
+[node name="BottleneckIndicator" type="Label" parent="HUDLayer/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 40.0
+offset_right = 150.0
+offset_bottom = 70.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+horizontal_alignment = 1
+text = "\u26A0 Bottleneck detected!"
+
+[node name="MessageLabel" type="Label" parent="HUDLayer/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -20.0
+offset_right = 200.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+modulate = Color(1, 1, 1, 0)
+horizontal_alignment = 1
+text = ""
+
+[node name="BottomBar" type="HBoxContainer" parent="HUDLayer/HUD"]
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -50.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="SpeedButton" type="Button" parent="HUDLayer/HUD/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 36)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "1x Speed"
+
+[node name="PauseButton" type="Button" parent="HUDLayer/HUD/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 36)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Pause"
+
+[node name="ShopButton" type="Button" parent="HUDLayer/HUD/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 36)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Shop [B]"
+
+[node name="ResultsLayer" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="ResultsScreen" type="Control" parent="ResultsLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_rslt")
+
+[node name="TutorialLayer" type="CanvasLayer" parent="."]
+layer = 15
+
+[node name="TutorialOverlay" type="Control" parent="TutorialLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_tutl")
+
+[node name="SettingsLayer" type="CanvasLayer" parent="."]
+layer = 25
+
+[node name="SettingsPanel" type="Control" parent="SettingsLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_stng")
+
+[connection signal="pressed" from="HUDLayer/HUD/BottomBar/SpeedButton" to="." method="_on_speed_button_pressed"]
+[connection signal="pressed" from="HUDLayer/HUD/BottomBar/PauseButton" to="." method="_on_pause_button_pressed"]
+[connection signal="pressed" from="HUDLayer/HUD/BottomBar/ShopButton" to="." method="_on_shop_button_pressed"]
+[connection signal="pressed" from="HUDLayer/HUD/ShopPanel/VBoxContainer/ShopCloseButton" to="." method="_on_shop_close_button_pressed"]
+[connection signal="pressed" from="HUDLayer/HUD/UpgradePanel/VBoxContainer/UpgradeCloseButton" to="." method="_on_upgrade_close_button_pressed"]

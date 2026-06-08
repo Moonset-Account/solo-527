@@ -1,0 +1,46 @@
+{
+  "upgrades": {
+    "cutter": [
+      { "level": 0, "speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "quality_bonus": 0.02, "cost": 150 },
+      { "level": 2, "speed_multiplier": 0.7, "quality_bonus": 0.05, "cost": 350 },
+      { "level": 3, "speed_multiplier": 0.55, "quality_bonus": 0.08, "cost": 700 },
+      { "level": 4, "speed_multiplier": 0.4, "quality_bonus": 0.12, "cost": 1200 }
+    ],
+    "assembler": [
+      { "level": 0, "speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "quality_bonus": 0.02, "cost": 200 },
+      { "level": 2, "speed_multiplier": 0.7, "quality_bonus": 0.05, "cost": 450 },
+      { "level": 3, "speed_multiplier": 0.55, "quality_bonus": 0.08, "cost": 900 },
+      { "level": 4, "speed_multiplier": 0.4, "quality_bonus": 0.12, "cost": 1600 }
+    ],
+    "painter": [
+      { "level": 0, "speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "quality_bonus": 0.02, "cost": 250 },
+      { "level": 2, "speed_multiplier": 0.7, "quality_bonus": 0.05, "cost": 550 },
+      { "level": 3, "speed_multiplier": 0.55, "quality_bonus": 0.08, "cost": 1100 },
+      { "level": 4, "speed_multiplier": 0.4, "quality_bonus": 0.12, "cost": 2000 }
+    ],
+    "packer": [
+      { "level": 0, "speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "quality_bonus": 0.02, "cost": 180 },
+      { "level": 2, "speed_multiplier": 0.7, "quality_bonus": 0.05, "cost": 400 },
+      { "level": 3, "speed_multiplier": 0.55, "quality_bonus": 0.08, "cost": 800 },
+      { "level": 4, "speed_multiplier": 0.4, "quality_bonus": 0.12, "cost": 1400 }
+    ],
+    "conveyor": [
+      { "level": 0, "speed_multiplier": 1.0, "belt_speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "belt_speed_multiplier": 1.3, "quality_bonus": 0.02, "cost": 50 },
+      { "level": 2, "speed_multiplier": 0.7, "belt_speed_multiplier": 1.6, "quality_bonus": 0.05, "cost": 120 },
+      { "level": 3, "speed_multiplier": 0.55, "belt_speed_multiplier": 2.0, "quality_bonus": 0.08, "cost": 250 },
+      { "level": 4, "speed_multiplier": 0.4, "belt_speed_multiplier": 2.5, "quality_bonus": 0.12, "cost": 500 }
+    ],
+    "quality_check": [
+      { "level": 0, "speed_multiplier": 1.0, "quality_bonus": 0, "cost": 0 },
+      { "level": 1, "speed_multiplier": 0.85, "quality_bonus": 0.02, "cost": 220 },
+      { "level": 2, "speed_multiplier": 0.7, "quality_bonus": 0.05, "cost": 500 },
+      { "level": 3, "speed_multiplier": 0.55, "quality_bonus": 0.08, "cost": 1000 },
+      { "level": 4, "speed_multiplier": 0.4, "quality_bonus": 0.12, "cost": 1800 }
+    ]
+  }
+}
