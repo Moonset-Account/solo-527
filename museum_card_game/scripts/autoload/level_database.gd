@@ -8,6 +8,7 @@ func _ready() -> void:
 	_load_levels()
 	_load_exhibits()
 	_load_events()
+	print("[LEVEL_DB] Loaded: ", levels.size(), " levels, ", exhibits.size(), " exhibits, ", events.size(), " events")
 
 func _load_levels() -> void:
 	var file = FileAccess.open("res://data/levels.json", FileAccess.READ)

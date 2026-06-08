@@ -7,11 +7,13 @@ var _hovered_level: int = -1
 
 func _ready() -> void:
 	_build_ui()
+	print("[START_MENU] _ready done, levels count: ", LevelDatabase.get_all_levels().size())
 
 func _build_ui() -> void:
 	var bg = ColorRect.new()
 	bg.color = Color("#1a1a2e")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
 	var root = HBoxContainer.new()
@@ -142,6 +144,7 @@ func _build_ui() -> void:
 	_show_default_info()
 
 func _on_level_selected(level_id: int) -> void:
+	print("[START_MENU] level selected: ", level_id)
 	GameManager.start_level(level_id)
 
 func _on_level_hovered(level_id: int) -> void:

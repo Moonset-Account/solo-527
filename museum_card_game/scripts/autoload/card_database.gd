@@ -13,6 +13,7 @@ func _ready() -> void:
 				for card in data["cards"]:
 					cards[card["id"]] = card
 		file.close()
+	print("[CARD_DB] Loaded: ", cards.size(), " cards")
 
 func get_card(id: String) -> Dictionary:
 	if cards.has(id):

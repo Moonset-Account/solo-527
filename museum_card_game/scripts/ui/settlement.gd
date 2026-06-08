@@ -19,6 +19,7 @@ func _ready() -> void:
 	_build_ui()
 	_connect_signals()
 	_show_result()
+	print("[SETTLEMENT] _ready done, victory=", _is_victory, " level_id=", GameManager.current_level_id)
 
 func _process(delta: float) -> void:
 	if _showing_reward:
@@ -30,6 +31,7 @@ func _build_ui() -> void:
 	var bg = ColorRect.new()
 	bg.color = Color("#0d0d1a")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
 	var center = VBoxContainer.new()

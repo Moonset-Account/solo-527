@@ -40,6 +40,7 @@ func _ready() -> void:
 	_refresh_all()
 	if GameManager.current_state == GameManager.GameState.TUTORIAL:
 		_show_tutorial()
+	print("[GAME_BOARD] _ready done, state=", GameManager.current_state, " hand=", GameManager.hand.size(), " exhibits=", GameManager.exhibits.size())
 
 func _process(delta: float) -> void:
 	if _message_timer > 0:
@@ -65,6 +66,7 @@ func _build_ui() -> void:
 	var bg = ColorRect.new()
 	bg.color = Color("#1a1a2e")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
 	var root_vbox = VBoxContainer.new()
@@ -72,6 +74,7 @@ func _build_ui() -> void:
 	root_vbox.add_theme_constant_override("separation", 0)
 	add_child(root_vbox)
 
+	print("[GAME_BOARD] _build_ui starting...")
 	_build_top_bar(root_vbox)
 	_build_exhibit_area(root_vbox)
 	_build_message_area(root_vbox)
@@ -80,6 +83,7 @@ func _build_ui() -> void:
 	_build_event_popup()
 	_build_tutorial_panel()
 	_build_debug_panel()
+	print("[GAME_BOARD] _build_ui done")
 
 func _build_top_bar(parent: VBoxContainer) -> void:
 	var bar = HBoxContainer.new()
@@ -89,6 +93,7 @@ func _build_top_bar(parent: VBoxContainer) -> void:
 	var bar_bg = ColorRect.new()
 	bar_bg.color = Color("#0f1a2e")
 	bar_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_child(bar_bg)
 
 	var left_spacer = Control.new()
