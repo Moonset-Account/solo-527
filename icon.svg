@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#2d3748"/>
+  <g transform="translate(16 16)">
+    <rect x="0" y="0" width="96" height="96" rx="8" fill="#4299e1"/>
+    <rect x="8" y="8" width="20" height="20" rx="4" fill="#f6e05e" opacity="0.9"/>
+    <rect x="36" y="8" width="20" height="20" rx="4" fill="#68d391" opacity="0.9"/>
+    <rect x="64" y="8" width="20" height="20" rx="4" fill="#fc8181" opacity="0.9"/>
+    <rect x="8" y="36" width="20" height="20" rx="4" fill="#b794f4" opacity="0.9"/>
+    <rect x="36" y="36" width="20" height="20" rx="4" fill="#fbd38d" opacity="0.9"/>
+    <rect x="64" y="36" width="20" height="20" rx="4" fill="#90cdf4" opacity="0.9"/>
+    <rect x="8" y="64" width="20" height="20" rx="4" fill="#f687b3" opacity="0.9"/>
+    <rect x="36" y="64" width="20" height="20" rx="4" fill="#9ae6b4" opacity="0.9"/>
+    <circle cx="74" cy="74" r="10" fill="#fff" stroke="#e53e3e" stroke-width="3"/>
+    <text x="74" y="78" text-anchor="middle" font-size="12" font-weight="bold" fill="#e53e3e">★</text>
+  </g>
+</svg>

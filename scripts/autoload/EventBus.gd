@@ -1,0 +1,17 @@
+extends Node
+
+signal character_moved(character_id: String, from_pos: Vector2i, to_pos: Vector2i)
+signal action_point_changed(character_id: String, new_ap: int, max_ap: int)
+signal task_progress(task_id: String, new_progress: int, max_progress: int)
+signal task_completed(task_id: String)
+signal satisfaction_changed(new_value: int, delta: int, reason: String)
+signal turn_started(turn_number: int, phase: String)
+signal turn_ended(turn_number: int)
+signal battle_ended(victory: bool, stats: Dictionary)
+signal story_event_triggered(event_id: String, event_data: Dictionary)
+signal ui_notification(message: String, type: String)
+signal character_selected(character_id: String)
+signal tile_hovered(tile_pos: Vector2i)
+signal audio_play(sfx_id: String)
+signal level_started(level_id: String)
+signal skill_used(skill_id: String, character_id: String, target_pos: Vector2i)
