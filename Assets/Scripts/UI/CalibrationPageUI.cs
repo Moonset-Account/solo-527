@@ -1,6 +1,6 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using RainAlley.Calibration;
 using RainAlley.Core;
 using RainAlley.GameFlow;
@@ -10,68 +10,50 @@ namespace RainAlley.UI
 {
     public class CalibrationPageUI : MonoBehaviour
     {
-        [Header("页面切换")]
-        public GameObject CalibrationRoot;
-        public GameObject MenuRoot;
-
-        [Header("节拍指示")]
         public GameObject BeatIndicator;
         public Image BeatRingImage;
-        public Color BeatPulseColor = new Color(1f, 0.8f, 0.3f, 1f);
-        private Color _beatRingOriginalColor;
-
-        [Header("进度显示")]
-        public TMP_Text ProgressText;
-        public TMP_Text InstructionText;
+        public Text ProgressText;
+        public Text InstructionText;
         public Image ProgressFill;
-
-        [Header("结果面板")]
         public GameObject ResultPanel;
-        public TMP_Text RecommendedLatencyText;
-        public TMP_Text StandardDeviationText;
-        public TMP_Text WindowDescriptionText;
-        public TMP_Text LatencyDescriptionText;
-
-        [Header("手动调整")]
+        public Text RecommendedLatencyText;
+        public Text StandardDeviationText;
+        public Text WindowDescriptionText;
+        public Text LatencyDescriptionText;
         public GameObject ManualAdjustPanel;
-        public TMP_Text ManualLatencyText;
+        public Text ManualLatencyText;
         public Slider LatencySlider;
         public Button LatencyMinusBtn;
         public Button LatencyPlusBtn;
-        public TMP_Text PerfectWindowText;
-        public TMP_Text GoodWindowText;
+        public Text PerfectWindowText;
+        public Text GoodWindowText;
         public Slider PerfectWindowSlider;
         public Slider GoodWindowSlider;
-
-        [Header("按钮")]
         public Button StartCalibrationBtn;
         public Button SaveAndExitBtn;
         public Button CancelBtn;
         public Button UseRecommendedBtn;
         public Button ResetDefaultBtn;
-
-        [Header("提示")]
-        public TMP_Text HintText;
-        public TMP_Text InputHintText;
+        public Text HintText;
+        public Text InputHintText;
 
         private CalibrationManager _calibration;
         private GameManager _game;
         private bool _inCalibration = false;
+        private bool _initialized = false;
+        private GameObject _calibrationRoot;
+        private Color _beatRingOriginalColor;
 
-        private void Start()
+        public void Init(GameObject root)
         {
+            _calibrationRoot = root;
             _game = GameManager.Instance;
             _calibration = _game.Calibration;
 
-            _beatRingOriginalColor = BeatRingImage != null ? BeatRingImage.color : Color.white;
-
+            if (BeatRingImage != null) _beatRingOriginalColor = BeatRingImage.color;
             BindEvents();
             RefreshManualUI();
-
-            if (_game != null)
-            {
-                _game.OnStateChanged += HandleGameStateChanged;
-            }
+            if (_game != null) _game.OnStateChanged += HandleGameStateChanged;
 
             if (LatencySlider != null)
             {
@@ -90,6 +72,19 @@ namespace RainAlley.UI
             }
 
             SetCalibrationActive(false);
+            _initialized = true;
+        }
+
+        private void OnDestroy()
+        {
+            if (_game != null) _game.OnStateChanged -= HandleGameStateChanged;
+            if (_calibration != null)
+            {
+                _calibration.OnTrialProgress -= OnTrialProgress;
+                _calibration.OnCalibrationComplete -= OnCalibrationComplete;
+                _calibration.OnWindowsUpdated -= OnWindowsUpdated;
+            }
+            if (_game?.Clock != null) _game.Clock.OnBeat -= OnBeatPulse;
         }
 
         private void BindEvents()
@@ -104,35 +99,21 @@ namespace RainAlley.UI
                 UseRecommendedBtn.onClick.AddListener(OnUseRecommended);
             if (ResetDefaultBtn != null)
                 ResetDefaultBtn.onClick.AddListener(OnResetDefaults);
-
             if (LatencyMinusBtn != null)
                 LatencyMinusBtn.onClick.AddListener(() => AdjustLatency(-10));
             if (LatencyPlusBtn != null)
                 LatencyPlusBtn.onClick.AddListener(() => AdjustLatency(10));
-
             if (LatencySlider != null)
                 LatencySlider.onValueChanged.AddListener(OnLatencySliderChanged);
             if (PerfectWindowSlider != null)
                 PerfectWindowSlider.onValueChanged.AddListener(OnPerfectWindowChanged);
             if (GoodWindowSlider != null)
                 GoodWindowSlider.onValueChanged.AddListener(OnGoodWindowChanged);
-
             if (_calibration != null)
             {
                 _calibration.OnTrialProgress += OnTrialProgress;
                 _calibration.OnCalibrationComplete += OnCalibrationComplete;
                 _calibration.OnWindowsUpdated += OnWindowsUpdated;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (_game != null) _game.OnStateChanged -= HandleGameStateChanged;
-            if (_calibration != null)
-            {
-                _calibration.OnTrialProgress -= OnTrialProgress;
-                _calibration.OnCalibrationComplete -= OnCalibrationComplete;
-                _calibration.OnWindowsUpdated -= OnWindowsUpdated;
             }
         }
 
@@ -144,16 +125,13 @@ namespace RainAlley.UI
             RefreshManualUI();
 
             string hint = _game.Input.GetHintForAction(GameInputAction.Judge);
-            if (InputHintText != null)
-                InputHintText.text = $"操作提示：{hint}";
-
-            ShowInstruction("根据雨声和节拍提示，在正确时刻点击按钮。");
+            if (InputHintText != null) InputHintText.text = $"操作提示：{hint}";
+            ShowInstruction("根据雨声和节拍提示，在正确时刻点击判定按钮（空格）");
         }
 
         private void SetCalibrationActive(bool active)
         {
-            if (CalibrationRoot != null) CalibrationRoot.SetActive(active);
-            if (MenuRoot != null) MenuRoot.SetActive(!active);
+            if (_calibrationRoot != null) _calibrationRoot.SetActive(active);
         }
 
         private void OnStartCalibration()
@@ -162,44 +140,37 @@ namespace RainAlley.UI
             if (ResultPanel != null) ResultPanel.SetActive(false);
             if (ManualAdjustPanel != null) ManualAdjustPanel.SetActive(false);
             if (StartCalibrationBtn != null) StartCalibrationBtn.gameObject.SetActive(false);
-
-            ShowInstruction("准备...跟随雨声的节拍点击！");
-
+            ShowInstruction("准备...跟随雨声的节拍点击判定键！");
             _game.StartCalibrationMode();
-
-            if (_game.Clock != null)
-            {
-                _game.Clock.OnBeat += OnBeatPulse;
-            }
-
+            if (_game.Clock != null) _game.Clock.OnBeat += OnBeatPulse;
             OnTrialProgress(0);
         }
 
         private void OnBeatPulse(int beatIdx)
         {
-            if (BeatRingImage != null)
+            if (BeatIndicator != null || BeatRingImage != null)
             {
                 StopAllCoroutines();
                 StartCoroutine(PulseBeatRing());
             }
         }
 
-        private System.Collections.IEnumerator PulseBeatRing()
+        private IEnumerator PulseBeatRing()
         {
             float t = 0;
-            float duration = 0.15f;
+            float duration = 0.18f;
             Vector3 origScale = BeatIndicator != null ? BeatIndicator.transform.localScale : Vector3.one;
             Color origColor = _beatRingOriginalColor;
-
             while (t < duration)
             {
                 t += Time.deltaTime;
                 float k = t / duration;
-                float s = 1f + Mathf.Sin(k * Mathf.PI) * 0.25f;
+                float s = 1f + Mathf.Sin(k * Mathf.PI) * 0.3f;
                 if (BeatIndicator != null)
                     BeatIndicator.transform.localScale = origScale * s;
                 if (BeatRingImage != null)
-                    BeatRingImage.color = Color.Lerp(BeatPulseColor, origColor, k);
+                    BeatRingImage.color = Color.Lerp(
+                        new Color(1f, 0.85f, 0.35f, 0.65f), origColor, k);
                 yield return null;
             }
             if (BeatIndicator != null) BeatIndicator.transform.localScale = origScale;
@@ -209,28 +180,23 @@ namespace RainAlley.UI
         private void OnTrialProgress(int progress)
         {
             int total = _calibration.RequiredTrials;
-            if (ProgressText != null)
-                ProgressText.text = $"{progress} / {total}";
+            if (ProgressText != null) ProgressText.text = $"{progress} / {total}";
             if (ProgressFill != null)
-                ProgressFill.fillAmount = total > 0 ? (float)progress / total : 0;
-
-            if (progress == 0)
-                ShowInstruction("跟随雨声在节拍点击！");
-            else if (progress < total / 2)
-                ShowInstruction("继续保持节奏...");
-            else if (progress < total)
-                ShowInstruction("快完成了，稳定发挥...");
+            {
+                float f = total > 0 ? (float)progress / total : 0f;
+                var rt = ProgressFill.rectTransform;
+                rt.anchorMax = new Vector2(f, 1f);
+            }
+            if (progress == 0) ShowInstruction("跟随雨声节拍点击判定键（空格/F/回车）");
+            else if (progress < total / 2) ShowInstruction("继续保持，稳定你的节奏...");
+            else if (progress < total) ShowInstruction("快完成了，最后几下保持稳定");
         }
 
         private void OnCalibrationComplete(double recommended, double stdDev, double totalLatency)
         {
             _inCalibration = false;
-            if (_game.Clock != null)
-            {
-                _game.Clock.OnBeat -= OnBeatPulse;
-            }
+            if (_game?.Clock != null) _game.Clock.OnBeat -= OnBeatPulse;
             _game.EndCalibrationMode();
-
             if (StartCalibrationBtn != null) StartCalibrationBtn.gameObject.SetActive(true);
             if (ResultPanel != null) ResultPanel.SetActive(true);
             if (ManualAdjustPanel != null) ManualAdjustPanel.SetActive(true);
@@ -238,11 +204,13 @@ namespace RainAlley.UI
             if (RecommendedLatencyText != null)
                 RecommendedLatencyText.text = $"{recommended:F0} ms";
             if (StandardDeviationText != null)
-                StandardDeviationText.text = $"离散度：{stdDev:F0} ms";
+                StandardDeviationText.text = $"稳定性（离散度）：{stdDev:F0} ms";
 
             RefreshManualUI();
 
-            string verdict = stdDev < 25 ? "表现优秀！" : stdDev < 50 ? "表现不错。" : "建议再校准一次。";
+            string verdict = stdDev < 25 ? "表现优秀！判定窗口已自动收紧"
+                          : stdDev < 50 ? "表现不错，窗口适中"
+                          : "稳定性一般，建议再校准一次";
             ShowInstruction($"校准完成！{verdict}");
         }
 
@@ -250,20 +218,20 @@ namespace RainAlley.UI
         {
             _calibration.SetManualLatency(_calibration.Settings.RecommendedLatencyMs);
             RefreshManualUI();
-            ShowHint("已应用推荐延迟");
+            ShowHint("已应用推荐延迟值");
         }
 
         private void OnResetDefaults()
         {
             _calibration.ResetToDefaults();
             RefreshManualUI();
-            ShowHint("已恢复默认设置");
+            ShowHint("已恢复默认校准设置");
         }
 
         private void AdjustLatency(int delta)
         {
-            double newVal = _calibration.Settings.InputLatencyMs + delta;
-            _calibration.SetManualLatency(newVal);
+            double nv = _calibration.Settings.InputLatencyMs + delta;
+            _calibration.SetManualLatency(nv);
             RefreshManualUI();
         }
 
@@ -295,7 +263,6 @@ namespace RainAlley.UI
         private void RefreshManualUI()
         {
             var s = _calibration.Settings;
-
             if (ManualLatencyText != null)
                 ManualLatencyText.text = $"{s.TotalLatencyMs:F0} ms";
             if (LatencySlider != null && !_inCalibration)
@@ -317,7 +284,7 @@ namespace RainAlley.UI
         private void OnSaveAndExit()
         {
             _calibration.SaveSettings();
-            _game.ExitToMenu();
+            _game.ChangeStatePublic(GameState.Menu);
             SetCalibrationActive(false);
         }
 
@@ -325,12 +292,11 @@ namespace RainAlley.UI
         {
             if (_inCalibration)
             {
-                if (_game.Clock != null)
-                    _game.Clock.OnBeat -= OnBeatPulse;
+                if (_game?.Clock != null) _game.Clock.OnBeat -= OnBeatPulse;
                 _game.EndCalibrationMode();
                 _inCalibration = false;
             }
-            _game.ExitToMenu();
+            _game.ChangeStatePublic(GameState.Menu);
             SetCalibrationActive(false);
         }
 
@@ -344,10 +310,10 @@ namespace RainAlley.UI
             if (HintText == null) return;
             HintText.text = msg;
             StopAllCoroutines();
-            StartCoroutine(ClearHintAfter(2.0f));
+            StartCoroutine(ClearHintAfter(2.5f));
         }
 
-        private System.Collections.IEnumerator ClearHintAfter(float seconds)
+        private IEnumerator ClearHintAfter(float seconds)
         {
             yield return new WaitForSeconds(seconds);
             if (HintText != null) HintText.text = "";
@@ -355,8 +321,12 @@ namespace RainAlley.UI
 
         private void HandleGameStateChanged(GameState oldState, GameState newState)
         {
-            if (newState == GameState.Calibration && !CalibrationRoot.activeSelf)
+            if (!_initialized) return;
+            if (newState == GameState.Calibration &&
+                (_calibrationRoot == null || !_calibrationRoot.activeSelf))
+            {
                 OpenPage();
+            }
         }
     }
 }

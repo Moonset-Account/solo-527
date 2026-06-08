@@ -1,31 +1,20 @@
 using UnityEngine;
+using UnityEngine.UI;
 using RainAlley.GameFlow;
+using RainAlley.UI;
+using RainAlley.Audio;
 
 namespace RainAlley
 {
     public class GameBootstrap : MonoBehaviour
     {
-        [Header("核心预制体")]
-        public GameManager GameManagerPrefab;
-
-        [Header("UI 预制体")]
-        public GameObject MainMenuPrefab;
-        public GameObject CalibrationPagePrefab;
-        public GameObject GameplayHUDPrefab;
-        public GameObject ResultsPagePrefab;
-
-        [Header("场景对象")]
-        public Transform UICanvasRoot;
-
         private static bool _bootstrapped = false;
+        public static Transform UICanvasRoot { get; private set; }
+        public static GameManager GM { get; private set; }
 
         private void Awake()
         {
-            if (_bootstrapped)
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (_bootstrapped) { Destroy(gameObject); return; }
             _bootstrapped = true;
             DontDestroyOnLoad(gameObject);
             Bootstrap();
@@ -33,64 +22,82 @@ namespace RainAlley
 
         private void Bootstrap()
         {
-            if (GameManager.Instance == null && GameManagerPrefab != null)
-            {
-                Instantiate(GameManagerPrefab);
-            }
-            else if (GameManager.Instance == null)
-            {
-                var gmGo = new GameObject("GameManager");
-                gmGo.AddComponent<GameManager>();
-            }
+            BuildCamera();
+            BuildCanvas();
+            BuildGameManager();
+            BuildAudio();
+            UIFactory.BuildAll(UICanvasRoot);
+            Debug.Log("[RainAlley] 引导完成：\n" +
+                      "  • GameManager / BeatJudge / ColorStateMachine\n" +
+                      "  • CalibrationManager / TrackObstacleManager / ReplayManager\n" +
+                      "  • LeaderboardManager / InputManager\n" +
+                      "  • 纯代码构建：主菜单 / 校准页 / 游戏HUD / 结算页\n" +
+                      "  • 雨声 + 节拍音效（程序化生成 AudioClip）");
+        }
 
-            if (UICanvasRoot == null)
-            {
-                var canvasGo = new GameObject("UI Canvas");
-                var canvas = canvasGo.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 100;
-                canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                canvasGo.AddComponent<GraphicRaycaster>();
-                UICanvasRoot = canvasGo.transform;
-                DontDestroyOnLoad(canvasGo);
-            }
-
-            if (MainMenuPrefab != null) InstantiateUI(MainMenuPrefab, "MainMenu");
-            if (CalibrationPagePrefab != null) InstantiateUI(CalibrationPagePrefab, "CalibrationPage");
-            if (GameplayHUDPrefab != null) InstantiateUI(GameplayHUDPrefab, "GameplayHUD");
-            if (ResultsPagePrefab != null) InstantiateUI(ResultsPagePrefab, "ResultsPage");
-
+        private void BuildCamera()
+        {
             if (Camera.main == null)
             {
                 var camGo = new GameObject("Main Camera");
                 camGo.tag = "MainCamera";
                 var cam = camGo.AddComponent<Camera>();
                 cam.clearFlags = CameraClearFlags.SolidColor;
-                cam.backgroundColor = new Color(0.1f, 0.12f, 0.18f);
+                cam.backgroundColor = new Color(0.08f, 0.1f, 0.16f, 1f);
+                cam.orthographic = true;
+                cam.orthographicSize = 5f;
+                camGo.AddComponent<AudioListener>();
             }
-
-            if (FindObjectOfType<AudioListener>() == null)
+            else if (Camera.main.GetComponent<AudioListener>() == null)
             {
                 Camera.main.gameObject.AddComponent<AudioListener>();
             }
-
-            Debug.Log("[RainAlley] 引导完成。模块已就绪：\n" +
-                      "  • 节拍判定 (BeatJudge)\n" +
-                      "  • 颜色状态机 (ColorStateMachine)\n" +
-                      "  • 延迟校准 (CalibrationManager)\n" +
-                      "  • 轨道障碍 (TrackObstacleManager)\n" +
-                      "  • 失败回放 (ReplayManager)\n" +
-                      "  • 排行榜 (LeaderboardManager)\n" +
-                      "  • 关卡配置 (LevelConfig x4)\n" +
-                      "  • 输入系统 (InputManager 键盘/触屏)");
         }
 
-        private GameObject InstantiateUI(GameObject prefab, string fallbackName)
+        private void BuildCanvas()
         {
-            if (prefab == null) return null;
-            var go = Instantiate(prefab, UICanvasRoot);
-            go.name = fallbackName;
-            return go;
+            var canvasGo = new GameObject("UI Canvas");
+            canvasGo.layer = 5;
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
+            canvas.pixelPerfect = true;
+
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280, 720);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+
+            canvasGo.AddComponent<GraphicRaycaster>();
+
+            UICanvasRoot = canvasGo.transform;
+            DontDestroyOnLoad(canvasGo);
+
+            var es = FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
+            if (es == null)
+            {
+                var esGo = new GameObject("EventSystem");
+                esGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                esGo.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                DontDestroyOnLoad(esGo);
+            }
+        }
+
+        private void BuildGameManager()
+        {
+            if (GameManager.Instance != null) { GM = GameManager.Instance; return; }
+            var gmGo = new GameObject("GameManager");
+            GM = gmGo.AddComponent<GameManager>();
+        }
+
+        private void BuildAudio()
+        {
+            if (FindObjectOfType<AudioSystem>() == null)
+            {
+                var audioGo = new GameObject("AudioSystem");
+                audioGo.AddComponent<AudioSystem>();
+            }
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -98,7 +105,6 @@ namespace RainAlley
         {
             if (_bootstrapped) return;
             if (FindObjectOfType<GameBootstrap>() != null) return;
-
             var go = new GameObject("[RainAlley Bootstrap]");
             go.AddComponent<GameBootstrap>();
         }

@@ -1,72 +1,63 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using RainAlley.Core;
 using RainAlley.GameFlow;
-using RainAlley.Track;
 using RainAlley.InputSystem;
+using RainAlley.Track;
 
 namespace RainAlley.UI
 {
     public class GameplayHUD : MonoBehaviour
     {
-        [Header("分数和连击")]
-        public TMP_Text ScoreText;
-        public TMP_Text ComboText;
+        public Text ScoreText;
+        public Text ComboText;
         public Animator ComboAnimator;
         public Image ComboShakeImage;
-
-        [Header("判定反馈")]
-        public TMP_Text JudgeText;
+        public Text JudgeText;
         public CanvasGroup JudgeCanvasGroup;
         public RectTransform JudgeRect;
-
-        [Header("颜色提示")]
         public Image UmbrellaColorPreview;
         public Image[] ColorSlotImages;
         public int CurrentColorHighlightIndex = -1;
-
-        [Header("轨道显示")]
         public GameObject DualTrackContainer;
         public Image LeftTrackIndicator;
         public Image RightTrackIndicator;
         public Color TrackActiveColor = new Color(1f, 0.9f, 0.4f);
         public Color TrackInactiveColor = new Color(0.3f, 0.3f, 0.3f);
-
-        [Header("进度条")]
         public Slider ProgressSlider;
-        public TMP_Text BeatProgressText;
-
-        [Header("连击中断反馈")]
+        public Text BeatProgressText;
         public GameObject ComboBreakFlash;
         public AudioSource ComboBreakAudio;
         public CameraShake CameraShakeRef;
-
-        [Header("输入提示")]
-        public TMP_Text InputHintBottom;
-        public TMP_Text InputHintSide;
+        public Text InputHintBottom;
+        public Text InputHintSide;
         public GameObject MobileHintOverlay;
-
-        [Header("暂停")]
         public GameObject PauseOverlay;
         public Button ResumeBtn;
         public Button RestartBtn;
         public Button ExitBtn;
-
-        [Header("颜色配置")]
-        public Color PerfectColor = new Color(1f, 0.9f, 0.3f);
-        public Color EarlyColor = new Color(0.6f, 0.8f, 1f);
-        public Color LateColor = new Color(1f, 0.7f, 0.5f);
-        public Color MissColor = new Color(1f, 0.3f, 0.3f);
+        public Color PerfectColor = new Color(1f, 0.92f, 0.35f);
+        public Color EarlyColor = new Color(0.6f, 0.82f, 1f);
+        public Color LateColor = new Color(1f, 0.75f, 0.5f);
+        public Color MissColor = new Color(1f, 0.4f, 0.4f);
 
         private GameManager _game;
         private int _lastCombo = 0;
         private Coroutine _judgeAnim;
+        private bool _initialized = false;
+        private GameObject _root;
 
-        private void Start()
+        public void Init(GameObject root)
         {
+            _root = root;
             _game = GameManager.Instance;
+
+            if (ResumeBtn != null) ResumeBtn.onClick.AddListener(() => _game.TogglePause());
+            if (RestartBtn != null) RestartBtn.onClick.AddListener(() => _game.RestartLevel());
+            if (ExitBtn != null) ExitBtn.onClick.AddListener(() => _game.ExitToMenu());
+
+            SetupInputHints();
 
             if (_game != null)
             {
@@ -76,11 +67,7 @@ namespace RainAlley.UI
                 _game.OnCountdownTick += HandleCountdown;
             }
 
-            if (ResumeBtn != null) ResumeBtn.onClick.AddListener(() => _game.TogglePause());
-            if (RestartBtn != null) RestartBtn.onClick.AddListener(() => _game.RestartLevel());
-            if (ExitBtn != null) ExitBtn.onClick.AddListener(() => _game.ExitToMenu());
-
-            SetupInputHints();
+            _initialized = true;
             gameObject.SetActive(false);
         }
 
@@ -98,27 +85,27 @@ namespace RainAlley.UI
         private void SetupInputHints()
         {
             if (_game == null || _game.Input == null) return;
-
             bool isMobile = _game.Input.IsMobile;
             if (MobileHintOverlay != null) MobileHintOverlay.SetActive(isMobile);
-
             if (InputHintBottom != null)
-                InputHintBottom.text = _game.Input.GetHintForAction(GameInputAction.Judge);
+                InputHintBottom.text = "判定：" + _game.Input.GetHintForAction(GameInputAction.Judge);
             if (InputHintSide != null)
             {
-                string next = _game.Input.GetHintForAction(GameInputAction.ColorNext);
-                string prev = _game.Input.GetHintForAction(GameInputAction.ColorPrev);
-                string track = _game.Input.GetHintForAction(GameInputAction.TrackToggle);
-                InputHintSide.text = $"下色: {next}\n上色: {prev}\n轨道: {track}";
+                InputHintSide.text =
+                    "下一色：" + _game.Input.GetHintForAction(GameInputAction.ColorNext) + "\n" +
+                    "上一色：" + _game.Input.GetHintForAction(GameInputAction.ColorPrev) + "\n" +
+                    "切轨道：" + _game.Input.GetHintForAction(GameInputAction.TrackToggle);
             }
         }
 
         private void Update()
         {
+            if (!_initialized) return;
             if (_game == null || _game.CurrentLevel == null) return;
             if (_game.CurrentState != GameState.Playing &&
                 _game.CurrentState != GameState.Replay &&
-                _game.CurrentState != GameState.Paused) return;
+                _game.CurrentState != GameState.Paused &&
+                _game.CurrentState != GameState.Countdown) return;
 
             UpdateScoreAndCombo();
             UpdateProgress();
@@ -130,16 +117,13 @@ namespace RainAlley.UI
         {
             var stats = _game.CurrentStats;
             if (ScoreText != null) ScoreText.text = stats.TotalScore.ToString("N0");
-
             int combo = stats.CurrentCombo;
             if (ComboText != null)
             {
                 ComboText.text = combo > 0 ? $"{combo} COMBO" : "";
-                ComboText.color = combo >= 30 ? PerfectColor :
-                                  combo >= 10 ? Color.white :
-                                  Color.gray;
+                ComboText.color = combo >= 30 ? PerfectColor : combo >= 10 ? Color.white : new Color(0.8f, 0.8f, 0.85f);
             }
-            if (ComboAnimator != null && combo != _lastCombo && combo > _lastCombo)
+            if (ComboAnimator != null && combo != _lastCombo && combo > _lastCombo && ComboAnimator.gameObject.activeInHierarchy)
             {
                 ComboAnimator.SetTrigger("Pulse");
             }
@@ -149,8 +133,8 @@ namespace RainAlley.UI
         private void UpdateProgress()
         {
             if (_game.Clock == null || _game.CurrentLevel == null) return;
-            float prog = Mathf.Clamp01((float)_game.Clock.ElapsedMs /
-                (float)(_game.CurrentLevel.TotalBeats * _game.Clock.MsPerBeat));
+            float total = _game.CurrentLevel.TotalBeats * (float)_game.Clock.MsPerBeat;
+            float prog = total > 0 ? Mathf.Clamp01((float)_game.Clock.ElapsedMs / total) : 0f;
             if (ProgressSlider != null) ProgressSlider.value = prog;
             if (BeatProgressText != null)
                 BeatProgressText.text = $"{_game.Clock.CurrentBeatIndex} / {_game.CurrentLevel.TotalBeats}";
@@ -160,7 +144,6 @@ namespace RainAlley.UI
         {
             if (_game.ColorState == null) return;
             var colors = _game.ColorState.GetAvailableColors();
-
             if (UmbrellaColorPreview != null)
                 UmbrellaColorPreview.color = UmbrellaColor.ToUnityColor(_game.ColorState.CurrentColor);
 
@@ -171,7 +154,6 @@ namespace RainAlley.UI
                 {
                     ColorSlotImages[i].gameObject.SetActive(true);
                     ColorSlotImages[i].color = UmbrellaColor.ToUnityColor(colors[i]);
-
                     var outline = ColorSlotImages[i].GetComponent<Outline>();
                     if (outline != null)
                         outline.enabled = colors[i] == _game.ColorState.CurrentColor;
@@ -189,7 +171,6 @@ namespace RainAlley.UI
             bool dual = _game.CurrentLevel.UnlockDualTrack;
             if (DualTrackContainer != null) DualTrackContainer.SetActive(dual);
             if (!dual) return;
-
             TrackPosition cur = _game.ColorState.CurrentTrack;
             if (LeftTrackIndicator != null)
                 LeftTrackIndicator.color = cur == TrackPosition.Left ? TrackActiveColor : TrackInactiveColor;
@@ -199,18 +180,14 @@ namespace RainAlley.UI
 
         private void HandleStateChanged(GameState oldState, GameState newState)
         {
+            if (!_initialized) return;
             bool show = newState == GameState.Playing ||
                         newState == GameState.Countdown ||
                         newState == GameState.Replay ||
                         newState == GameState.Paused;
             gameObject.SetActive(show);
-
             if (PauseOverlay != null) PauseOverlay.SetActive(newState == GameState.Paused);
-
-            if (newState == GameState.Playing)
-            {
-                SetupInputHints();
-            }
+            if (newState == GameState.Playing) SetupInputHints();
         }
 
         private void HandleAnyJudge(JudgeResult result, ObstacleData data)
@@ -221,7 +198,6 @@ namespace RainAlley.UI
         private void ShowJudgeFeedback(JudgeResult result)
         {
             if (JudgeText == null || JudgeCanvasGroup == null) return;
-
             string label = "";
             Color color = Color.white;
             bool success = result.IsSuccessful;
@@ -233,11 +209,11 @@ namespace RainAlley.UI
                     color = success ? PerfectColor : MissColor;
                     break;
                 case JudgeType.Early:
-                    label = success ? "EARLY" : "早 · 错";
+                    label = success ? "EARLY" : "早·错误";
                     color = success ? EarlyColor : MissColor;
                     break;
                 case JudgeType.Late:
-                    label = success ? "LATE" : "晚 · 错";
+                    label = success ? "LATE" : "晚·错误";
                     color = success ? LateColor : MissColor;
                     break;
                 case JudgeType.Miss:
@@ -246,14 +222,14 @@ namespace RainAlley.UI
                     break;
             }
 
-            if (!string.IsNullOrEmpty(label) && !success)
+            if (!success && !string.IsNullOrEmpty(label))
             {
-                if (!result.ColorCorrect) label = "颜色错";
-                else if (!result.TrackCorrect) label = "轨道错";
+                if (!result.ColorCorrect) label = "颜色错误";
+                else if (!result.TrackCorrect) label = "轨道错误";
             }
 
             if (_judgeAnim != null) StopCoroutine(_judgeAnim);
-            _judgeAnim = StartCoroutine(PlayJudgeAnim(label, color, result.IsSuccessful));
+            _judgeAnim = StartCoroutine(PlayJudgeAnim(label, color, success));
         }
 
         private IEnumerator PlayJudgeAnim(string text, Color color, bool success)
@@ -261,17 +237,16 @@ namespace RainAlley.UI
             JudgeText.text = text;
             JudgeText.color = color;
             JudgeCanvasGroup.alpha = 1f;
-
             if (JudgeRect != null)
             {
                 Vector2 origPos = JudgeRect.anchoredPosition;
                 float t = 0;
-                float duration = 0.45f;
-                while (t < duration)
+                float dur = 0.5f;
+                while (t < dur)
                 {
                     t += Time.deltaTime;
-                    float k = t / duration;
-                    JudgeRect.anchoredPosition = origPos + new Vector2(0, 30f * Mathf.Sin(k * Mathf.PI));
+                    float k = t / dur;
+                    JudgeRect.anchoredPosition = origPos + new Vector2(0, 40f * Mathf.Sin(k * Mathf.PI));
                     JudgeCanvasGroup.alpha = Mathf.Lerp(1f, 0f, k);
                     yield return null;
                 }
@@ -282,55 +257,42 @@ namespace RainAlley.UI
                 yield return new WaitForSeconds(0.45f);
                 JudgeCanvasGroup.alpha = 0f;
             }
-
-            if (CameraShakeRef != null && !success)
-                CameraShakeRef.Shake(0.2f, 0.15f);
+            if (CameraShakeRef != null && !success) CameraShakeRef.Shake(0.2f, 0.2f);
         }
 
-        private void HandleComboBroken(int comboSize)
+        private void HandleComboBroken(int size)
         {
-            if (ComboBreakFlash != null)
-                StartCoroutine(FlashComboBreak());
-            if (ComboBreakAudio != null)
-                ComboBreakAudio.Play();
-            if (CameraShakeRef != null && comboSize >= 5)
-                CameraShakeRef.Shake(0.3f, 0.25f);
+            if (ComboBreakFlash != null) StartCoroutine(FlashComboBreak());
+            if (ComboBreakAudio != null) ComboBreakAudio.Play();
+            if (CameraShakeRef != null && size >= 5) CameraShakeRef.Shake(0.3f, 0.3f);
         }
 
         private IEnumerator FlashComboBreak()
         {
             ComboBreakFlash.SetActive(true);
             var img = ComboBreakFlash.GetComponent<Image>();
-            Color c = img != null ? img.color : Color.red;
+            Color c = img != null ? img.color : new Color(1, 0.2f, 0.25f, 0.45f);
             float t = 0;
-            float duration = 0.5f;
-            while (t < duration)
+            float dur = 0.55f;
+            while (t < dur)
             {
                 t += Time.deltaTime;
                 if (img != null)
                 {
-                    c.a = Mathf.Lerp(0.6f, 0f, t / duration);
+                    c.a = Mathf.Lerp(0.5f, 0f, t / dur);
                     img.color = c;
                 }
                 yield return null;
             }
             ComboBreakFlash.SetActive(false);
-            if (img != null) { c.a = 0.6f; img.color = c; }
+            if (img != null) { c.a = 0.5f; img.color = c; }
         }
 
-        private void HandleCountdown(int current, int total, int beatIdx)
+        private void HandleCountdown(int cur, int total, int beat)
         {
             if (JudgeText == null || JudgeCanvasGroup == null) return;
-            if (current <= 0)
-            {
-                JudgeText.text = "开始！";
-                JudgeText.color = PerfectColor;
-            }
-            else
-            {
-                JudgeText.text = current.ToString();
-                JudgeText.color = Color.white;
-            }
+            JudgeText.text = cur <= 0 ? "开始！" : cur.ToString();
+            JudgeText.color = cur <= 0 ? PerfectColor : Color.white;
             JudgeCanvasGroup.alpha = 1f;
             if (_judgeAnim != null) StopCoroutine(_judgeAnim);
         }
@@ -342,7 +304,6 @@ namespace RainAlley.UI
         {
             StartCoroutine(ShakeRoutine(duration, strength));
         }
-
         private IEnumerator ShakeRoutine(float duration, float strength)
         {
             Vector3 orig = transform.localPosition;

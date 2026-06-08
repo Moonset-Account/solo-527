@@ -126,6 +126,9 @@ namespace RainAlley.GameFlow
             {
                 var replayEvents = Replay.TickReplay(Clock.ElapsedMs - _replayStartOffsetMs);
                 foreach (var ev in replayEvents) ApplyReplayEvent(ev);
+
+                if (prevBeat != Clock.CurrentBeatIndex)
+                    CheckEndReplay();
             }
 
             if (TrackMgr != null)
@@ -146,7 +149,22 @@ namespace RainAlley.GameFlow
             }
         }
 
+        private double _replayEndThresholdMs = 0;
+        private int _replayStartBeat = 0;
+        private int _replayFailBeat = 0;
         private double _replayStartOffsetMs = 0;
+
+        private void CheckEndReplay()
+        {
+            double replayDurMs = (_replayFailBeat - _replayStartBeat) * Clock.MsPerBeat;
+            double cur = Clock.ElapsedMs - _replayStartOffsetMs;
+
+            if (cur >= replayDurMs - Clock.MsPerBeat * 0.5 && !Replay.IsReplaying) return;
+            if (cur >= replayDurMs)
+            {
+                ExitReplay();
+            }
+        }
 
         private void ApplyReplayEvent(ReplayInputEvent ev)
         {
@@ -237,19 +255,28 @@ namespace RainAlley.GameFlow
 
             if (Replay.PrepareReplay(failBeat, Clock.MsPerBeat, out int startBeat, out int endBeat))
             {
-                int startIdx = TrackMgr.FindObstacleIndexAtOrBeforeBeat(startBeat);
-                for (int i = Math.Max(0, startIdx); i < TrackMgr.AllObstacles.Count; i++)
+                _replayStartBeat = startBeat;
+                _replayFailBeat = endBeat;
+
+                RollbackStatsToBeat(startBeat);
+
+                TrackMgr.RewindToBeat(startBeat);
+
+                if (GameplaySceneVisuals.Instance != null)
                 {
-                    var o = TrackMgr.AllObstacles[i];
-                    o.Status = o.Data.BeatIndex < startBeat ? o.Status : ObstacleStatus.Pending;
+                    for (int i = GameplaySceneVisuals.Instance.ObstacleSpawnRoot.childCount - 1; i >= 0; i--)
+                    {
+                        Destroy(GameplaySceneVisuals.Instance.ObstacleSpawnRoot.GetChild(i).gameObject);
+                    }
                 }
 
                 Clock.SeekToBeat(startBeat);
                 _replayStartOffsetMs = startBeat * Clock.MsPerBeat;
+
                 Replay.BeginReplay();
                 ChangeState(GameState.Replay);
 
-                ShowHint("回放到前八拍", $"从第 {startBeat + 1} 拍开始\n连击中断，仔细回顾！");
+                ShowHint("回放到前八拍", $"从第 {startBeat + 1} 拍到第 {endBeat} 拍\n回放结束后你可以重新操作！");
             }
             else
             {
@@ -257,6 +284,60 @@ namespace RainAlley.GameFlow
             }
 
             _missStreak = 0;
+        }
+
+        private void RollbackStatsToBeat(int beatIndex)
+        {
+            var list = TrackMgr != null ? TrackMgr.AllObstacles : null;
+            if (list == null) return;
+
+            GameStats rebuilt = new GameStats();
+            foreach (var o in list)
+            {
+                if (o.Data == null || o.Data.BeatIndex >= beatIndex) break;
+                if (o.Status == ObstacleStatus.Judged || o.Status == ObstacleStatus.Missed)
+                {
+                    if (o.Status == ObstacleStatus.Judged || o.Result.Type == JudgeType.Miss)
+                        rebuilt.AddResult(o.Result);
+                }
+            }
+
+            int perfect = rebuilt.PerfectCount;
+            int early = rebuilt.EarlyCount;
+            int late = rebuilt.LateCount;
+            int miss = rebuilt.MissCount;
+            int maxCombo = rebuilt.MaxCombo;
+            int combo = rebuilt.CurrentCombo;
+            int score = rebuilt.TotalScore;
+            int total = rebuilt.TotalObstacles;
+
+            CurrentStats.Reset();
+            for (int i = 0; i < total; i++)
+            {
+                var fake = new JudgeResult();
+                if (i < perfect) fake.Type = JudgeType.Perfect;
+                else if (i < perfect + early) fake.Type = JudgeType.Early;
+                else if (i < perfect + early + late) fake.Type = JudgeType.Late;
+                else fake.Type = JudgeType.Miss;
+                fake.ColorCorrect = true;
+                fake.TrackCorrect = true;
+                switch (fake.Type)
+                {
+                    case JudgeType.Perfect: fake.Score = Judge != null ? Judge.PerfectScore : 300; break;
+                    case JudgeType.Early:
+                    case JudgeType.Late: fake.Score = Judge != null ? Judge.GoodScore : 150; break;
+                    default: fake.Score = 0; fake.ColorCorrect = fake.Type != JudgeType.Miss; break;
+                }
+                if (fake.Type == JudgeType.Miss) { fake.ColorCorrect = false; fake.TrackCorrect = false; }
+                CurrentStats.AddResult(fake);
+            }
+
+            if (maxCombo > CurrentStats.MaxCombo)
+            {
+                var field = typeof(GameStats).GetField("MaxCombo",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (field != null) field.SetValueDirect(__makeref(CurrentStats), maxCombo);
+            }
         }
 
         public void ExitReplay()
@@ -340,6 +421,21 @@ namespace RainAlley.GameFlow
         {
             Clock?.Stop();
             ChangeState(GameState.Menu);
+        }
+
+        public void ChangeStatePublic(GameState newState)
+        {
+            ChangeState(newState);
+        }
+
+        public void ShowHintPublic(string title, string content)
+        {
+            ShowHint(title, content);
+        }
+
+        public void PublicExitReplay()
+        {
+            ExitReplay();
         }
 
         private void ChangeState(GameState newState)

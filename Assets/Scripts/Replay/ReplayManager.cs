@@ -95,6 +95,7 @@ namespace RainAlley.Replay
 
             double replayStartMs = replayStartBeat * msPerBeat;
             double replayEndMs = replayEndBeat * msPerBeat;
+            _replayStartMsStored = replayStartMs;
 
             _replayQueue.Clear();
             foreach (var ev in _currentRunEvents)
@@ -110,6 +111,8 @@ namespace RainAlley.Replay
             _replayQueue.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
             return true;
         }
+
+        private double _replayStartMsStored = 0;
 
         public void BeginReplay()
         {
@@ -143,13 +146,13 @@ namespace RainAlley.Replay
             if (!_isReplaying) return;
 
             _isReplaying = false;
-            TrimEventsAfterReplay();
+            TrimEventsAfterReplayStart();
             OnReplayEnd?.Invoke();
         }
 
-        private void TrimEventsAfterReplay()
+        private void TrimEventsAfterReplayStart()
         {
-            _currentRunEvents.Clear();
+            _currentRunEvents.RemoveAll(ev => ev.TimeMs >= _replayStartMsStored);
         }
 
         public void ClearRun()

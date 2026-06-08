@@ -70,6 +70,33 @@ namespace RainAlley.Track
             _nextPendingIndex = 0;
         }
 
+        public void RewindToBeat(int beatIndex)
+        {
+            _activeWindow.Clear();
+            int firstToReset = -1;
+
+            for (int i = 0; i < _allObstacles.Count; i++)
+            {
+                var obs = _allObstacles[i];
+                if (obs.Data.BeatIndex >= beatIndex)
+                {
+                    if (firstToReset < 0) firstToReset = i;
+                    obs.Status = ObstacleStatus.Pending;
+                    obs.Result = default;
+                }
+            }
+            _nextPendingIndex = Mathf.Max(0, firstToReset);
+        }
+
+        public int FindFirstObstacleIndexAtOrAfterBeat(int beat)
+        {
+            for (int i = 0; i < _allObstacles.Count; i++)
+            {
+                if (_allObstacles[i].Data.BeatIndex >= beat) return i;
+            }
+            return _allObstacles.Count;
+        }
+
         public void Update(double currentTimeMs, double latencyOffsetMs,
                           Func<double, ObstacleData, bool> missCheck)
         {
