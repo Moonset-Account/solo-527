@@ -435,9 +435,10 @@ func _on_card_clicked(index: int) -> void:
 			return
 		var played = GameManager.play_card(index, 0)
 		if played:
-			selected_hand_index = -1
-			_show_feedback(card_data.get("name", "") + "!")
-			_refresh_all()
+			if is_inside_tree():
+				selected_hand_index = -1
+				_show_feedback(card_data.get("name", "") + "!")
+				_refresh_all()
 		else:
 			_show_message("无法打出这张牌")
 
@@ -451,9 +452,10 @@ func _on_exhibit_clicked(exhibit_index: int) -> void:
 	var card_data = CardDatabase.get_card(card_id)
 	var played = GameManager.play_card(selected_hand_index, exhibit_index)
 	if played:
-		_show_feedback(card_data.get("name", "") + " → " + GameManager.exhibits[exhibit_index].get("name", ""))
-		selected_hand_index = -1
-		_refresh_all()
+		if is_inside_tree():
+			_show_feedback(card_data.get("name", "") + " → " + GameManager.exhibits[exhibit_index].get("name", ""))
+			selected_hand_index = -1
+			_refresh_all()
 	else:
 		_show_message("无法在此展品上打出这张牌")
 
@@ -462,6 +464,10 @@ func _on_end_turn() -> void:
 		return
 	selected_hand_index = -1
 	var result = GameManager.end_turn()
+	if not is_inside_tree():
+		return
+	if GameManager.current_state == GameManager.GameState.SETTLEMENT:
+		return
 	_refresh_all()
 	if result.get("event", null) != null and not result.get("won", false) and not result.get("lost", false):
 		_show_event(result["event"])
@@ -484,11 +490,16 @@ func _on_event_triggered(event_data: Dictionary) -> void:
 	pass
 
 func _on_game_state_changed(new_state: GameManager.GameState) -> void:
-	if new_state == GameManager.GameState.SETTLEMENT:
-		pass
+	pass
+
+func _on_state_refresh() -> void:
+	_tutorial_panel.visible = false
+	_refresh_all()
 
 func _on_event_continue() -> void:
 	_event_panel.visible = false
+	if GameManager.current_state == GameManager.GameState.EVENT:
+		GameManager.change_state(GameManager.GameState.PLAYING)
 	_refresh_all()
 
 func _on_tutorial_next() -> void:

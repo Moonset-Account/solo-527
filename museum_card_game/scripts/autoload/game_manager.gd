@@ -74,7 +74,7 @@ func start_level(level_id: int) -> void:
 		var exhibit_data = LevelDatabase.get_exhibit(exhibit_id)
 		if not exhibit_data.is_empty():
 			var runtime_exhibit = exhibit_data.duplicate()
-			runtime_exhibit["current_condition"] = exhibit_data.get("max_condition", 10)
+			runtime_exhibit["current_condition"] = exhibit_data.get("starting_condition", exhibit_data.get("max_condition", 10))
 			runtime_exhibit["marked"] = false
 			runtime_exhibit["prevented"] = false
 			runtime_exhibit["extra_degradation"] = 0
@@ -162,11 +162,6 @@ func end_turn() -> Dictionary:
 		exhibit["marked"] = false
 		exhibit["buff_amount"] = 0
 
-	var event_data = _roll_event()
-	if not event_data.is_empty():
-		result["event"] = event_data
-		change_state(GameState.EVENT)
-
 	turn_number += 1
 	turn_started.emit(turn_number)
 
@@ -174,11 +169,19 @@ func end_turn() -> Dictionary:
 		result["won"] = true
 		level_completed.emit(current_level_id, true)
 		change_state(GameState.SETTLEMENT)
-	elif check_loss():
+		return result
+
+	if check_loss():
 		result["lost"] = true
 		level_completed.emit(current_level_id, false)
 		change_state(GameState.SETTLEMENT)
-	elif current_state == GameState.EVENT:
+		return result
+
+	var event_data = _roll_event()
+	if not event_data.is_empty():
+		result["event"] = event_data
+		change_state(GameState.EVENT)
+	else:
 		change_state(GameState.PLAYING)
 
 	draw_card()

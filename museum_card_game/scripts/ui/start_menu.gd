@@ -172,7 +172,7 @@ func _show_default_info() -> void:
 func _on_reset_progress() -> void:
 	GameManager.max_unlocked_level = 1
 	GameManager.save_progress()
-	get_tree().reload_current_scene()
+	GameManager.change_state(GameManager.GameState.MENU)
 
 func _on_quit() -> void:
 	get_tree().quit()
