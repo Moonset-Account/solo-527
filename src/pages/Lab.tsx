@@ -334,7 +334,7 @@ export default function Lab() {
       case 'drop': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 滴加试剂` : '点击右侧试剂滴加';
       case 'control_temperature': return m === 'keyboard' ? '↑↓ 调整温度，Enter 确认' : '拖动滑块控制温度';
       case 'stir': case 'observe': case 'pour': case 'filter': case 'heat':
-        return m === 'keyboard' ? '按 Space 确认操作' : '点击实验台执行操作';
+        return m === 'keyboard' ? '按 Enter/Space 确认操作' : '点击实验台执行操作';
       default: return '';
     }
   })() : '';

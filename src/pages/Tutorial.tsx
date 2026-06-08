@@ -203,7 +203,7 @@ export default function Tutorial() {
       case 'select_apparatus': return m === 'keyboard' ? `按 1-${apparatusList.length} 选择器材` : '点击底部器材选择';
       case 'add_reagent': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 选择试剂` : '点击右侧试剂添加';
       case 'stir': case 'observe': case 'pour':
-        return m === 'keyboard' ? '按 Space 确认操作' : '点击实验台或操作按钮';
+        return m === 'keyboard' ? '按 Enter/Space 确认操作' : '点击实验台或操作按钮';
       default: return '';
     }
   })() : '';

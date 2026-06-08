@@ -63,6 +63,7 @@ class InputManager {
         'ArrowUp': { type: 'temperature', value: 5 },
         'ArrowDown': { type: 'temperature', value: -5 },
         ' ': { type: 'confirm' },
+        'Enter': { type: 'confirm' },
         'h': { type: 'hint' },
         'Escape': { type: 'pause' },
         'Backspace': { type: 'cancel' },
@@ -93,7 +94,7 @@ class InputManager {
 
   getKeyHint(action: string): string {
     const hints: Record<InputMode, Record<string, string>> = {
-      keyboard: { select: '1-6', add: '7-9', temperature: '↑↓', confirm: 'Space', hint: 'H', pause: 'Esc' },
+      keyboard: { select: '1-6', add: '7-9', temperature: '↑↓', confirm: 'Enter/Space', hint: 'H', pause: 'Esc' },
       mouse: { select: '点击', add: '拖拽', temperature: '滑块', confirm: '点击', hint: '点击', pause: '点击' },
       touch: { select: '点选', add: '点选目标', temperature: '旋钮', confirm: '点按', hint: '点按', pause: '点按' },
     };
