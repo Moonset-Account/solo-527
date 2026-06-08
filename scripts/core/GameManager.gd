@@ -241,6 +241,7 @@ func select_target(exhibit_id: String) -> void:
 	var card_data: Dictionary = pending_target_card.card_data
 	var hand_index: int = pending_target_card.hand_index
 	pending_target_card.clear()
+	change_state(GameState.COMBAT_ACTIVE)
 	EventBus.publish("exhibit_target_mode", [false, []])
 	try_play_card(hand_index, exhibit_id)
 

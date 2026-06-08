@@ -285,7 +285,6 @@ func _on_exhibit_repaired(exhibit_id: String, amount: int, new_progress: int) ->
 		var ex: Dictionary = GameManager.get_exhibit(exhibit_id)
 		exhibit_uis[exhibit_id].update_data(ex)
 		exhibit_uis[exhibit_id].play_repair_animation(amount)
-		EventBus.publish("ui_animation_completed", ["repair_%s" % exhibit_id])
 
 func _on_exhibit_damaged(exhibit_id: String, amount: int, new_condition: int) -> void:
 	if exhibit_uis.has(exhibit_id):

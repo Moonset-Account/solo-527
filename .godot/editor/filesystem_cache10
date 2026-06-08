@@ -4,9 +4,9 @@
 ::res://assets/ui/::1780948180
 icon.svg::CompressedTexture2D::3025061860146594917::1780945838::1780948180::1::::<><><>0<>0<>8a3ca8be856a11221e075d4afd7ea195<>res://.godot/imported/icon.svg-6c8e7c7a8dcdd81e58bcb0386e6e4017.ctex::
 ::res://scenes/::1780946730
-BattleScene.tscn::PackedScene::8724814135982243649::1780947132::0::1::::<><><>0<>0<><>::res://scripts/ui/BattleScene.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
-LevelSelect.tscn::PackedScene::8882854346976024264::1780946679::0::1::::<><><>0<>0<><>::res://scripts/ui/LevelSelect.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
-MainMenu.tscn::PackedScene::24787520941091264::1780946650::0::1::::<><><>0<>0<><>::res://scripts/ui/MainMenu.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
+BattleScene.tscn::PackedScene::8724814135982243649::1780948625::0::1::::<><><>0<>0<><>::res://scripts/ui/BattleScene.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
+LevelSelect.tscn::PackedScene::8882854346976024264::1780948580::0::1::::<><><>0<>0<><>::res://scripts/ui/LevelSelect.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
+MainMenu.tscn::PackedScene::24787520941091264::1780948555::0::1::::<><><>0<>0<><>::res://scripts/ui/MainMenu.gd<>res://scripts/ui/ToastManager.gd<>res://scripts/ui/FloatingTextManager.gd
 ::res://scenes/components/::1780946621
 CardUI.tscn::PackedScene::3598012862064::1780946601::0::1::::<><><>0<>0<><>::res://scripts/ui/CardUI.gd
 ExhibitUI.tscn::PackedScene::328675433968238256::1780946622::0::1::::<><><>0<>0<><>::res://scripts/ui/ExhibitUI.gd
@@ -16,7 +16,7 @@ CardRegistry.gd::GDScript::5027634295784948585::1780948334::0::1::::<>Node<><>0<
 ::res://scripts/core/::1780948180
 AudioManager.gd::GDScript::2281371543273016973::1780948236::0::1::::<>Node<><>0<>0<><>::
 EventBus.gd::GDScript::749600108127858398::1780948409::0::1::::<>Node<><>0<>0<><>::
-GameManager.gd::GDScript::5591447844088917733::1780946012::0::1::::<>Node<><>0<>0<><>::
+GameManager.gd::GDScript::5591447844088917733::1780949036::0::1::::<>Node<><>0<>0<><>::
 ResourceManager.gd::GDScript::2631052197248442165::1780945880::0::1::::<>Node<><>0<>0<><>::
 SaveSystem.gd::GDScript::8633467406168676934::1780945895::0::1::::<>Node<><>0<>0<><>::
 ::res://scripts/exhibits/::1780948180
@@ -25,7 +25,7 @@ ExhibitModel.gd::GDScript::3209614058768908274::1780946236::0::1::::ExhibitModel
 EventSystem.gd::GDScript::5674871137976865460::1780946257::0::1::::<>Node<><>0<>0<><>::
 LevelRegistry.gd::GDScript::5198299716900001874::1780946202::0::1::::<>Node<><>0<>0<><>::
 ::res://scripts/ui/::1780948180
-BattleScene.gd::GDScript::6721416541826025265::1780947152::0::1::::<>Control<><>0<>0<><>::
+BattleScene.gd::GDScript::6721416541826025265::1780949092::0::1::::<>Control<><>0<>0<><>::
 CardUI.gd::GDScript::8900363594147074406::1780948371::0::1::::CardUI<>Control<><>0<>0<><>::
 ExhibitUI.gd::GDScript::5195759447578979954::1780946915::0::1::::ExhibitUI<>Control<><>0<>0<><>::
 FloatingTextManager.gd::GDScript::2702668013615040958::1780946426::0::1::::<>Node2D<><>0<>0<><>::
