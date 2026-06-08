@@ -41,6 +41,7 @@ var session_stats: Dictionary = {
 var pending_target_card: Dictionary = {}
 var pending_animation_count: int = 0
 var level_failure_reasons: Array = []
+var pending_level: String = ""
 
 const CARDS_PER_TURN: int = 5
 

@@ -6,14 +6,14 @@ var chapter_nodes: Dictionary = {}
 
 @onready var back_button: Button = $TopBar/BackButton
 @onready var deck_view_button: Button = $TopBar/DeckViewButton
-@onready var chapters_container: VBoxContainer = $ScrollContainer/ChaptersContainer
+@onready var chapters_container: VBoxContainer = $MainHSplit/ScrollContainer/ChaptersContainer
 @onready var start_button: Button = $BottomBar/StartButton
 @onready var deck_size_label: Label = $BottomBar/DeckSizeLabel
-@onready var level_info_panel: Control = $LevelInfoPanel
-@onready var level_info_name: Label = $LevelInfoPanel/InfoVBox/LevelNameLabel
-@onready var level_info_desc: Label = $LevelInfoPanel/InfoVBox/DescLabel
-@onready var level_info_stats: VBoxContainer = $LevelInfoPanel/InfoVBox/StatsBox
-@onready var deck_preview_container: HBoxContainer = $LevelInfoPanel/InfoVBox/DeckPreviewBox
+@onready var level_info_panel: Control = $MainHSplit/LevelInfoPanel
+@onready var level_info_name: Label = $MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox/LevelNameLabel
+@onready var level_info_desc: Label = $MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox/DescLabel
+@onready var level_info_stats: VBoxContainer = $MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox/StatsBox
+@onready var deck_preview_container: HBoxContainer = $MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox/DeckPreviewBox
 
 func _ready() -> void:
 	anchor_right = 1.0

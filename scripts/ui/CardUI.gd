@@ -185,7 +185,7 @@ func set_selected(selected: bool) -> void:
 			target_color = Color(1.0, 0.9, 0.2, 1)
 			_bounce_animation()
 		else:
-			target_color = CardRegistry.get_rarity_color(card_data.get("rarity", "common"))
+			target_color = CardRegistry.get_rarity_color(card_data.get("rarity", 0))
 		_tween_color(_rarity_border, "color", target_color, 0.15)
 
 func play_discard_animation(to_pos: Vector2, callback: Callable) -> void:
@@ -233,21 +233,22 @@ func _refresh_display() -> void:
 	if _desc_label:
 		_desc_label.text = card_data.get("description", "")
 	if _type_banner:
-		_type_banner.color = CardRegistry.get_card_type_color(card_data.get("type", "tool"))
+		_type_banner.color = CardRegistry.get_card_type_color(card_data.get("type", 0))
 	if _rarity_border:
-		_rarity_border.color = CardRegistry.get_rarity_color(card_data.get("rarity", "common"))
+		_rarity_border.color = CardRegistry.get_rarity_color(card_data.get("rarity", 0))
 	if _art_rect:
 		_art_rect.color = _get_art_color()
 	if _type_icon:
 		var type_text: String = "工"
-		match card_data.get("type", ""):
-			"budget": type_text = "金"
-			"expert": type_text = "师"
+		var type_val: int = card_data.get("type", 0)
+		match type_val:
+			1: type_text = "金"
+			2: type_text = "师"
 		_type_icon.text = type_text
 	_refresh_cost()
 
 func _get_art_color() -> Color:
-	var base: Color = CardRegistry.get_card_type_color(card_data.get("type", "tool"))
+	var base: Color = CardRegistry.get_card_type_color(card_data.get("type", 0))
 	return Color(base.r * 0.35 + 0.12, base.g * 0.35 + 0.1, base.b * 0.35 + 0.1, 1.0)
 
 func _refresh_cost() -> void:

@@ -1,12 +1,12 @@
 extends Control
 ## 主菜单场景 - 游戏入口界面
 
-@onready var title_label: Label = $VBoxContainer/TitleLabel
-@onready var subtitle_label: Label = $VBoxContainer/SubtitleLabel
-@onready var new_game_button: Button = $VBoxContainer/ButtonContainer/NewGameButton
-@onready var continue_button: Button = $VBoxContainer/ButtonContainer/ContinueButton
-@onready var level_select_button: Button = $VBoxContainer/ButtonContainer/LevelSelectButton
-@onready var stats_label: Label = $VBoxContainer/StatsLabel
+@onready var title_label: Label = $DecorativeFrame/VBoxContainer/TitleLabel
+@onready var subtitle_label: Label = $DecorativeFrame/VBoxContainer/SubtitleLabel
+@onready var new_game_button: Button = $DecorativeFrame/VBoxContainer/ButtonContainer/NewGameButton
+@onready var continue_button: Button = $DecorativeFrame/VBoxContainer/ButtonContainer/ContinueButton
+@onready var level_select_button: Button = $DecorativeFrame/VBoxContainer/ButtonContainer/LevelSelectButton
+@onready var stats_label: Label = $DecorativeFrame/VBoxContainer/StatsLabel
 @onready var version_label: Label = $Footer/VersionLabel
 
 func _ready() -> void:

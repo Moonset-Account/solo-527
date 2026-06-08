@@ -79,18 +79,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 visible = false
 
-[node name="PanelStyle" type="StyleBoxFlat" parent="MainHSplit/LevelInfoPanel" index="0"]
-bg_color = Color(0.18, 0.12, 0.08, 0.95)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_left = 10
-corner_radius_bottom_right = 10
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.6, 0.5, 0.3, 0.5)
-
 [node name="InfoVBox" type="VBoxContainer" parent="MainHSplit/LevelInfoPanel"]
 layout_mode = 2
 theme_override_constants/separation = 14

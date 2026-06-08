@@ -3,17 +3,30 @@ extends Node
 ## 可扩展：新增卡牌只需在 CARD_DEFINITIONS 中添加条目
 ## 设计原则：新卡解锁服务策略变化，而非纯数值堆叠
 
-const CardType: = {
-	TOOL = "tool",
-	BUDGET = "budget",
-	EXPERT = "expert"
+enum CardType {
+	TOOL,
+	BUDGET,
+	EXPERT
 }
 
-const Rarity: = {
-	COMMON = "common",
-	UNCOMMON = "uncommon",
-	RARE = "rare",
-	LEGENDARY = "legendary"
+enum Rarity {
+	COMMON,
+	UNCOMMON,
+	RARE,
+	LEGENDARY
+}
+
+const CARDTYPE_STR: Dictionary = {
+	CardType.TOOL: "tool",
+	CardType.BUDGET: "budget",
+	CardType.EXPERT: "expert"
+}
+
+const RARITY_STR: Dictionary = {
+	Rarity.COMMON: "common",
+	Rarity.UNCOMMON: "uncommon",
+	Rarity.RARE: "rare",
+	Rarity.LEGENDARY: "legendary"
 }
 
 const CARD_DEFINITIONS: Dictionary = {
@@ -415,16 +428,16 @@ func draw_reward_cards(count: int, difficulty: String = "normal") -> Array:
 		result.append(card_id)
 	return result
 
-func get_cards_by_type(type_name: String) -> Array:
+func get_cards_by_type(type_val: int) -> Array:
 	var result: Array = []
 	for card_id in CARD_DEFINITIONS:
 		var data: Dictionary = CARD_DEFINITIONS[card_id]
-		if data.get("type", "") == type_name:
+		if data.get("type", -1) == type_val:
 			result.append(card_id)
 	return result
 
-func get_card_type_color(type_name: String) -> Color:
-	match type_name:
+func get_card_type_color(type_val: int) -> Color:
+	match type_val:
 		CardType.TOOL:
 			return Color(0.35, 0.55, 0.85)
 		CardType.BUDGET:
@@ -434,8 +447,8 @@ func get_card_type_color(type_name: String) -> Color:
 		_:
 			return Color(0.7, 0.7, 0.7)
 
-func get_rarity_color(rarity: String) -> Color:
-	match rarity:
+func get_rarity_color(rarity_val: int) -> Color:
+	match rarity_val:
 		Rarity.COMMON:
 			return Color(0.65, 0.65, 0.65)
 		Rarity.UNCOMMON:

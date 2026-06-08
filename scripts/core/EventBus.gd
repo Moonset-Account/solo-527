@@ -49,13 +49,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 func publish(event_name: String, args: Array = []) -> void:
-	if not signal_exists(event_name):
+	if not has_signal(event_name):
 		push_warning("EventBus: Unknown event '%s'" % event_name)
 		return
-	emit_signal(event_name, *args)
+	Callable(self, "emit_signal").callv([event_name] + args)
 
 func subscribe(event_name: String, listener: Callable) -> void:
-	if not signal_exists(event_name):
+	if not has_signal(event_name):
 		push_warning("EventBus: Cannot subscribe to unknown event '%s'" % event_name)
 		return
 	connect(event_name, listener)

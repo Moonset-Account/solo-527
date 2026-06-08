@@ -166,7 +166,7 @@ func _play_tone_for_type(sfx_type: int, volume_scale: float) -> void:
 			frequency = 440.0
 			duration = 0.1
 	
-	var stw: AudioStreamWav = AudioStreamWav.new()
+	var stw: AudioStreamWAV = AudioStreamWAV.new()
 	var data: PackedByteArray = PackedByteArray()
 	var phase: float = 0.0
 	var phase_inc: float = 2.0 * PI * frequency / float(sample_rate)
@@ -181,14 +181,14 @@ func _play_tone_for_type(sfx_type: int, volume_scale: float) -> void:
 		data.append((sample_val >> 8) & 0xff)
 		phase += phase_inc
 	
-	stw.format = AudioStreamWav.FORMAT_16_BITS
+	stw.format = AudioStreamWAV.FORMAT_16_BITS
 	stw.mix_rate = sample_rate
 	stw.stereo = false
 	stw.data = data
 	
 	_play_from_memory(stw)
 
-func _play_from_memory(stream: AudioStreamWav) -> void:
+func _play_from_memory(stream: AudioStreamWAV) -> void:
 	for id in _audio_players:
 		var entry: Dictionary = _audio_players[id]
 		if not entry.busy:
