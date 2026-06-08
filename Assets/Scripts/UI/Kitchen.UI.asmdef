@@ -1,0 +1,24 @@
+{
+    "name": "Kitchen.UI",
+    "rootNamespace": "Kitchen.UI",
+    "references": [
+        "Kitchen.Core",
+        "Kitchen.Gameplay",
+        "Kitchen.Config",
+        "Kitchen.Input",
+        "Kitchen.Save",
+        "Kitchen.Performance",
+        "Kitchen.Levels"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "Unity.TextMeshPro.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

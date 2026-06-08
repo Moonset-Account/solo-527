@@ -1,0 +1,19 @@
+{
+    "name": "Kitchen.Core",
+    "rootNamespace": "Kitchen.Core",
+    "references": [
+        "Kitchen.Config",
+        "Kitchen.Input",
+        "Kitchen.Save",
+        "Kitchen.Performance"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

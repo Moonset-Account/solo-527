@@ -1,0 +1,16 @@
+{
+    "name": "Kitchen.Input",
+    "rootNamespace": "Kitchen.Input",
+    "references": [
+        "Kitchen.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

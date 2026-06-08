@@ -1,0 +1,22 @@
+{
+    "name": "Kitchen.Setup",
+    "rootNamespace": "Kitchen.Setup",
+    "references": [
+        "Kitchen.Core",
+        "Kitchen.Gameplay",
+        "Kitchen.UI",
+        "Kitchen.Levels",
+        "Kitchen.Input",
+        "Kitchen.Save",
+        "Kitchen.Performance"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
