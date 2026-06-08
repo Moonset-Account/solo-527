@@ -1,0 +1,72 @@
+{
+  "id": "chapter3",
+  "title": "第三章",
+  "subtitle": "真相",
+  "intro": "地下室的门后隐藏着最后的真相。你已经非常接近答案了...",
+  "newRule": "排除干扰：多条线索中有干扰项，需要辨别真伪",
+  "difficulty": 1.6,
+  "startRoom": "room_basement",
+  "hintPoints": 5,
+  "rooms": [
+    {
+      "id": "room_basement",
+      "name": "地下室",
+      "backgroundStyle": "linear-gradient(180deg, #080706 0%, #12100c 40%, #0a0908 100%)",
+      "hotspots": [
+        {
+          "id": "hs3_basement_lock",
+          "x": 50,
+          "y": 40,
+          "width": 10,
+          "height": 15,
+          "type": "examine",
+          "targetId": "puzzle_music_lock",
+          "glowOnHover": true,
+          "label": "铁门上的组合锁"
+        },
+        {
+          "id": "hs3_basement_lock_diary",
+          "x": 25,
+          "y": 65,
+          "width": 8,
+          "height": 8,
+          "type": "item",
+          "targetId": "lock_diary",
+          "glowOnHover": true,
+          "label": "带锁的日记"
+        },
+        {
+          "id": "hs3_basement_door_back",
+          "x": 5,
+          "y": 10,
+          "width": 12,
+          "height": 40,
+          "type": "door",
+          "targetId": "room_basement_stairs",
+          "glowOnHover": true,
+          "label": "返回楼梯间"
+        }
+      ],
+      "ambientSound": "ambient_deep",
+      "items": ["lock_diary"],
+      "puzzles": ["puzzle_music_lock"],
+      "narrativeEvents": [
+        {
+          "id": "n3_bs_enter",
+          "trigger": "enter",
+          "text": "地下室深处，一扇沉重的铁门矗立在面前。门上装着一个四位数组合锁...",
+          "delay": 500
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_back_stairs",
+          "hotspotId": "hs3_basement_door_back",
+          "targetRoom": "room_basement_stairs",
+          "locked": false,
+          "label": "楼梯间"
+        }
+      ]
+    }
+  ]
+}

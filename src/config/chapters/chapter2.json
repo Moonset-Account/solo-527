@@ -1,0 +1,122 @@
+{
+  "id": "chapter2",
+  "title": "第二章",
+  "subtitle": "消失的住户",
+  "intro": "随着更多线索浮现，这栋公寓的秘密开始逐渐清晰。203号房的保险箱似乎藏着关键证据...",
+  "newRule": "线索关联：需要将两条线索关联才能推进",
+  "difficulty": 1.3,
+  "startRoom": "room_203",
+  "hintPoints": 5,
+  "rooms": [
+    {
+      "id": "room_203",
+      "name": "203号房·再访",
+      "backgroundStyle": "linear-gradient(180deg, #0f0d0a 0%, #1f1812 35%, #15120e 70%, #0a0908 100%)",
+      "hotspots": [
+        {
+          "id": "hs2_203_safe",
+          "x": 50,
+          "y": 55,
+          "width": 10,
+          "height": 12,
+          "type": "examine",
+          "targetId": "puzzle_safe",
+          "glowOnHover": true,
+          "label": "保险箱"
+        },
+        {
+          "id": "hs2_203_clock",
+          "x": 25,
+          "y": 30,
+          "width": 7,
+          "height": 7,
+          "type": "item",
+          "targetId": "clock_hand",
+          "glowOnHover": true,
+          "label": "墙上的时钟"
+        },
+        {
+          "id": "hs2_203_door_basement",
+          "x": 85,
+          "y": 60,
+          "width": 10,
+          "height": 30,
+          "type": "door",
+          "targetId": "room_basement_stairs",
+          "glowOnHover": true,
+          "label": "通往地下室楼梯"
+        }
+      ],
+      "ambientSound": "ambient_drip",
+      "items": ["clock_hand"],
+      "puzzles": ["puzzle_safe"],
+      "narrativeEvents": [
+        {
+          "id": "n2_203_enter",
+          "trigger": "enter",
+          "text": "再次来到203号房，你注意到角落里有一个被遮挡的保险箱...",
+          "delay": 300
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_basement_stairs",
+          "hotspotId": "hs2_203_door_basement",
+          "targetRoom": "room_basement_stairs",
+          "locked": true,
+          "lockPuzzleId": "puzzle_safe",
+          "label": "地下室楼梯"
+        }
+      ]
+    },
+    {
+      "id": "room_basement_stairs",
+      "name": "地下室楼梯",
+      "backgroundStyle": "linear-gradient(180deg, #0a0908 0%, #15120e 50%, #080706 100%)",
+      "hotspots": [
+        {
+          "id": "hs2_bs_music",
+          "x": 45,
+          "y": 50,
+          "width": 8,
+          "height": 10,
+          "type": "item",
+          "targetId": "music_box",
+          "glowOnHover": true,
+          "label": "台阶上的音乐盒"
+        },
+        {
+          "id": "hs2_bs_door_back",
+          "x": 5,
+          "y": 10,
+          "width": 12,
+          "height": 40,
+          "type": "door",
+          "targetId": "room_203",
+          "glowOnHover": true,
+          "label": "返回203号房"
+        }
+      ],
+      "ambientSound": "ambient_basement",
+      "items": ["music_box"],
+      "puzzles": [],
+      "narrativeEvents": [
+        {
+          "id": "n2_bs_enter",
+          "trigger": "enter",
+          "text": "楼梯间昏暗潮湿，空气中弥漫着霉味。台阶上放着一个精致的音乐盒...",
+          "delay": 500
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_back_203",
+          "hotspotId": "hs2_bs_door_back",
+          "targetRoom": "room_203",
+          "locked": false,
+          "label": "203号房"
+        }
+      ]
+    }
+  ]
+}

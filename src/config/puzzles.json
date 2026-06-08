@@ -1,0 +1,50 @@
+[
+  {
+    "id": "puzzle_room201_lock",
+    "type": "code",
+    "chapter": "chapter1",
+    "room": "room_201",
+    "description": "201号房门的密码锁",
+    "solution": "0731",
+    "hints": [
+      "也许有一封信件上藏着密码",
+      "翻到旧信件的背面看看",
+      "密码是信件背面的数字：0731"
+    ],
+    "requiredClues": ["clue_letter_number"],
+    "narrativeOnSolve": "门锁咔嗒一声打开了。房间内弥漫着陈旧的气息...",
+    "maxAttempts": 5
+  },
+  {
+    "id": "puzzle_safe",
+    "type": "code",
+    "chapter": "chapter2",
+    "room": "room_203",
+    "description": "房间里的保险箱",
+    "solution": "0308",
+    "hints": [
+      "保险箱密码与某个人有关",
+      "日记夹页中提到了密码线索",
+      "密码是林芳的生日——3月8日，即0308"
+    ],
+    "requiredClues": ["clue_safe_hint", "clue_linfang_date"],
+    "narrativeOnSolve": "保险箱缓缓打开了，里面放着一本记录簿...",
+    "maxAttempts": 5
+  },
+  {
+    "id": "puzzle_music_lock",
+    "type": "combination",
+    "chapter": "chapter3",
+    "room": "room_basement",
+    "description": "地下室门上的组合锁",
+    "solution": [3, 1, 4, 2],
+    "hints": [
+      "注意音乐盒上的旋律数字",
+      "旋律对应着组合锁的顺序",
+      "按照3-1-4-2的顺序转动组合锁"
+    ],
+    "requiredClues": ["clue_music_melody", "clue_melody_order"],
+    "narrativeOnSolve": "锁扣弹开，地下室的门缓缓开启，一股阴冷的风扑面而来...",
+    "maxAttempts": 5
+  }
+]

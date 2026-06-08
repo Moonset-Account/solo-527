@@ -1,0 +1,104 @@
+{
+  "old_letter": {
+    "id": "old_letter",
+    "name": "旧信件",
+    "description": "一封泛黄的信件，字迹模糊",
+    "imageKey": "old_letter",
+    "examinable": true,
+    "clues": ["clue_letter_content"],
+    "examineText": "信上写着：'4月15日，我已经无法再忍受这里的夜晚...那个声音又出现了。'",
+    "backsideText": "信的背面有一个潦草的数字：0731",
+    "backsideClue": "clue_letter_number"
+  },
+  "torn_photo": {
+    "id": "torn_photo",
+    "name": "撕裂的照片",
+    "description": "半张老照片，边缘被撕开",
+    "imageKey": "torn_photo",
+    "examinable": true,
+    "clues": ["clue_photo_half"],
+    "examineText": "照片上是一间房间，墙上挂着一面钟，时针指向9",
+    "backsideText": "照片背面写着：'二楼左转第三间'",
+    "backsideClue": "clue_photo_location"
+  },
+  "rusty_key": {
+    "id": "rusty_key",
+    "name": "锈蚀的钥匙",
+    "description": "一把生锈的钥匙，上面刻着'203'",
+    "imageKey": "rusty_key",
+    "examinable": true,
+    "clues": ["clue_key_room"],
+    "examineText": "钥匙柄上刻着房间号203，这是一把房间钥匙"
+  },
+  "diary": {
+    "id": "diary",
+    "name": "租客日记",
+    "description": "一本陈旧的日记本",
+    "imageKey": "diary",
+    "examinable": true,
+    "clues": ["clue_diary_date"],
+    "examineText": "日记记录着一个叫林芳的女人的日常生活。最后一篇日期是3月8日...",
+    "backsideText": "夹页中有一张纸条，写着：'保险箱密码是她的生日'",
+    "backsideClue": "clue_safe_hint"
+  },
+  "newspaper": {
+    "id": "newspaper",
+    "name": "旧报纸",
+    "description": "一份1998年的晚报",
+    "imageKey": "newspaper",
+    "examinable": true,
+    "clues": ["clue_newspaper_report"],
+    "examineText": "头条：'旧公寓住户失踪案，警方已介入调查'"
+  },
+  "music_box": {
+    "id": "music_box",
+    "name": "音乐盒",
+    "description": "一个精致但损坏的音乐盒",
+    "imageKey": "music_box",
+    "examinable": true,
+    "clues": ["clue_music_melody"],
+    "examineText": "音乐盒底部刻着一段旋律：3-1-4-2",
+    "backsideText": "盒盖内侧写着：'按照旋律的顺序'",
+    "backsideClue": "clue_melody_order"
+  },
+  "matchbox": {
+    "id": "matchbox",
+    "name": "火柴盒",
+    "description": "一个印有公寓图案的火柴盒",
+    "imageKey": "matchbox",
+    "examinable": true,
+    "clues": ["clue_matchbox_pattern"],
+    "examineText": "火柴盒上印着旧公寓的外观图，右侧用红笔圈出了一个窗户",
+    "backsideText": "里面还剩3根火柴",
+    "backsideClue": "clue_window_hint"
+  },
+  "clock_hand": {
+    "id": "clock_hand",
+    "name": "钟表指针",
+    "description": "一根从时钟上掉落的分针",
+    "imageKey": "clock_hand",
+    "examinable": true,
+    "clues": ["clue_clock_time"],
+    "examineText": "指针指向的位置有明显的磨损痕迹，似乎长期指向同一个位置"
+  },
+  "tenant_list": {
+    "id": "tenant_list",
+    "name": "租客名册",
+    "description": "公寓的租客登记簿",
+    "imageKey": "tenant_list",
+    "examinable": true,
+    "clues": ["clue_tenant_names"],
+    "examineText": "名册上记录着：201-王建国，202-张秀英，203-林芳，204-陈明远",
+    "backsideText": "203号旁边有个手写的标记：'3月8日搬走？'",
+    "backsideClue": "clue_linfang_date"
+  },
+  "lock_diary": {
+    "id": "lock_diary",
+    "name": "带锁日记",
+    "description": "一本带密码锁的日记",
+    "imageKey": "lock_diary",
+    "examinable": true,
+    "clues": [],
+    "examineText": "日记本被一个三位数密码锁锁住了，需要输入正确密码才能打开"
+  }
+}

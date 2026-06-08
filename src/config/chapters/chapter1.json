@@ -1,0 +1,221 @@
+{
+  "id": "chapter1",
+  "title": "第一章",
+  "subtitle": "旧信与新锁",
+  "intro": "你收到了一封匿名信，指引你来到这栋旧公寓。昏暗的走廊里，一扇半掩的门似乎在等待着什么人...",
+  "newRule": "基础操作：探索房间、检查物品、收集线索",
+  "difficulty": 1.0,
+  "startRoom": "room_201",
+  "hintPoints": 5,
+  "rooms": [
+    {
+      "id": "room_201",
+      "name": "201号房",
+      "backgroundStyle": "linear-gradient(180deg, #1a1410 0%, #2d2018 30%, #1a1410 70%, #0f0d0a 100%)",
+      "hotspots": [
+        {
+          "id": "hs_201_letter",
+          "x": 20,
+          "y": 55,
+          "width": 8,
+          "height": 8,
+          "type": "item",
+          "targetId": "old_letter",
+          "glowOnHover": true,
+          "label": "桌上的信件"
+        },
+        {
+          "id": "hs_201_photo",
+          "x": 55,
+          "y": 45,
+          "width": 7,
+          "height": 7,
+          "type": "item",
+          "targetId": "torn_photo",
+          "glowOnHover": true,
+          "label": "撕裂的照片"
+        },
+        {
+          "id": "hs_201_newspaper",
+          "x": 70,
+          "y": 60,
+          "width": 9,
+          "height": 7,
+          "type": "item",
+          "targetId": "newspaper",
+          "glowOnHover": true,
+          "label": "旧报纸"
+        },
+        {
+          "id": "hs_201_door202",
+          "x": 85,
+          "y": 20,
+          "width": 12,
+          "height": 50,
+          "type": "door",
+          "targetId": "room_202",
+          "glowOnHover": true,
+          "label": "通往202号房"
+        }
+      ],
+      "ambientSound": "ambient_room_creak",
+      "items": ["old_letter", "torn_photo", "newspaper"],
+      "puzzles": ["puzzle_room201_lock"],
+      "narrativeEvents": [
+        {
+          "id": "n201_enter",
+          "trigger": "enter",
+          "text": "201号房的门虚掩着，空气中带着霉味。桌上散落着几样东西...",
+          "delay": 300
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_202",
+          "hotspotId": "hs_201_door202",
+          "targetRoom": "room_202",
+          "locked": false,
+          "label": "202号房"
+        }
+      ]
+    },
+    {
+      "id": "room_202",
+      "name": "202号房",
+      "backgroundStyle": "linear-gradient(180deg, #15120e 0%, #251c14 40%, #1a1510 100%)",
+      "hotspots": [
+        {
+          "id": "hs_202_key",
+          "x": 40,
+          "y": 70,
+          "width": 6,
+          "height": 6,
+          "type": "item",
+          "targetId": "rusty_key",
+          "glowOnHover": true,
+          "label": "地上的钥匙"
+        },
+        {
+          "id": "hs_202_tenant",
+          "x": 60,
+          "y": 40,
+          "width": 8,
+          "height": 10,
+          "type": "item",
+          "targetId": "tenant_list",
+          "glowOnHover": true,
+          "label": "墙上的名册"
+        },
+        {
+          "id": "hs_202_door_back",
+          "x": 5,
+          "y": 20,
+          "width": 12,
+          "height": 50,
+          "type": "door",
+          "targetId": "room_201",
+          "glowOnHover": true,
+          "label": "返回201号房"
+        },
+        {
+          "id": "hs_202_door_203",
+          "x": 85,
+          "y": 20,
+          "width": 12,
+          "height": 50,
+          "type": "door",
+          "targetId": "room_203",
+          "glowOnHover": true,
+          "label": "通往203号房"
+        }
+      ],
+      "ambientSound": "ambient_wind",
+      "items": ["rusty_key", "tenant_list"],
+      "puzzles": [],
+      "narrativeEvents": [
+        {
+          "id": "n202_enter",
+          "trigger": "enter",
+          "text": "202号房比201更暗，窗帘在微风中轻轻摆动。地上似乎有什么闪着微光...",
+          "delay": 300
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_back_201",
+          "hotspotId": "hs_202_door_back",
+          "targetRoom": "room_201",
+          "locked": false,
+          "label": "201号房"
+        },
+        {
+          "id": "door_203",
+          "hotspotId": "hs_202_door_203",
+          "targetRoom": "room_203",
+          "locked": false,
+          "label": "203号房"
+        }
+      ]
+    },
+    {
+      "id": "room_203",
+      "name": "203号房",
+      "backgroundStyle": "linear-gradient(180deg, #0f0d0a 0%, #1f1812 35%, #15120e 70%, #0a0908 100%)",
+      "hotspots": [
+        {
+          "id": "hs_203_diary",
+          "x": 35,
+          "y": 50,
+          "width": 8,
+          "height": 10,
+          "type": "item",
+          "targetId": "diary",
+          "glowOnHover": true,
+          "label": "床头的日记"
+        },
+        {
+          "id": "hs_203_matchbox",
+          "x": 65,
+          "y": 65,
+          "width": 6,
+          "height": 6,
+          "type": "item",
+          "targetId": "matchbox",
+          "glowOnHover": true,
+          "label": "桌上的火柴盒"
+        },
+        {
+          "id": "hs_203_door_back",
+          "x": 5,
+          "y": 20,
+          "width": 12,
+          "height": 50,
+          "type": "door",
+          "targetId": "room_202",
+          "glowOnHover": true,
+          "label": "返回202号房"
+        }
+      ],
+      "ambientSound": "ambient_drip",
+      "items": ["diary", "matchbox"],
+      "puzzles": [],
+      "narrativeEvents": [
+        {
+          "id": "n203_enter",
+          "trigger": "enter",
+          "text": "203号房的门上贴着一张褪色的姓名条：'林芳'。房间出奇地整洁，仿佛主人只是外出...",
+          "delay": 500
+        }
+      ],
+      "doors": [
+        {
+          "id": "door_back_202",
+          "hotspotId": "hs_203_door_back",
+          "targetRoom": "room_202",
+          "locked": false,
+          "label": "202号房"
+        }
+      ]
+    }
+  ]
+}

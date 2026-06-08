@@ -1,0 +1,18 @@
+[
+  {"id": "ambient_hallway", "src": "", "type": "ambient", "volume": 0.3, "loop": true},
+  {"id": "ambient_room_creak", "src": "", "type": "ambient", "volume": 0.2, "loop": true},
+  {"id": "ambient_wind", "src": "", "type": "ambient", "volume": 0.25, "loop": true},
+  {"id": "ambient_drip", "src": "", "type": "ambient", "volume": 0.2, "loop": true},
+  {"id": "ambient_basement", "src": "", "type": "ambient", "volume": 0.15, "loop": true},
+  {"id": "ambient_deep", "src": "", "type": "ambient", "volume": 0.1, "loop": true},
+  {"id": "sfx_click", "src": "", "type": "interaction", "volume": 0.5, "loop": false},
+  {"id": "sfx_item_pickup", "src": "", "type": "interaction", "volume": 0.4, "loop": false},
+  {"id": "sfx_page_turn", "src": "", "type": "interaction", "volume": 0.35, "loop": false},
+  {"id": "sfx_lock_open", "src": "", "type": "interaction", "volume": 0.6, "loop": false},
+  {"id": "sfx_lock_fail", "src": "", "type": "interaction", "volume": 0.4, "loop": false},
+  {"id": "sfx_door_creak", "src": "", "type": "interaction", "volume": 0.5, "loop": false},
+  {"id": "sfx_notebook", "src": "", "type": "interaction", "volume": 0.3, "loop": false},
+  {"id": "atmos_low_hum", "src": "", "type": "atmosphere", "volume": 0.1, "loop": true},
+  {"id": "atmos_footstep", "src": "", "type": "atmosphere", "volume": 0.15, "loop": false},
+  {"id": "music_chapter_transition", "src": "", "type": "music", "volume": 0.3, "loop": false}
+]
