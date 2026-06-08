@@ -2,7 +2,8 @@
     "name": "YouthTrainingManagement.InputSystem",
     "rootNamespace": "YouthTrainingManagement.InputSystem",
     "references": [
-        "YouthTrainingManagement.Core"
+        "YouthTrainingManagement.Core",
+        "YouthTrainingManagement.Models"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

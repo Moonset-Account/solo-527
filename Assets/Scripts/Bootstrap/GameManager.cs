@@ -177,9 +177,11 @@ namespace YouthTrainingManagement.Core
                 PerformanceStats.Enabled = newSettings.ShowPerformanceStats;
             }
 
-            if (InputManager != null && newSettings.InputBindings?.Bindings != null)
+            if (InputManager != null && (newSettings.InputBindings?.Count > 0 || newSettings.SavedInputBindings?.Bindings?.Count > 0))
             {
-                InputManager.SaveBindingsToSettings();
+                if (newSettings.InputBindings?.Count > 0)
+                    Settings.InputBindings = newSettings.InputBindings;
+                InputManager.LoadBindingsFromSettings();
             }
         }
 

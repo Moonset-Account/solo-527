@@ -74,8 +74,8 @@ namespace YouthTrainingManagement.InputSystem
 
         private void LoadBindingsFromSettings()
         {
-            if (_gameManager.Settings?.InputBindings?.Bindings == null) return;
-            foreach (var savedBinding in _gameManager.Settings.InputBindings.Bindings)
+            if (_gameManager.Settings?.SavedInputBindings?.Bindings == null) return;
+            foreach (var savedBinding in _gameManager.Settings.SavedInputBindings.Bindings)
             {
                 if (_actionMap.TryGetValue(savedBinding.ActionId, out var action))
                 {
@@ -90,11 +90,11 @@ namespace YouthTrainingManagement.InputSystem
 
         public void SaveBindingsToSettings()
         {
-            if (_gameManager.Settings?.InputBindings == null) return;
-            _gameManager.Settings.InputBindings.Bindings.Clear();
+            if (_gameManager.Settings?.SavedInputBindings == null) return;
+            _gameManager.Settings.SavedInputBindings.Bindings.Clear();
             foreach (var kvp in _bindings)
             {
-                _gameManager.Settings.InputBindings.Bindings.Add(new M.InputBinding
+                _gameManager.Settings.SavedInputBindings.Bindings.Add(new M.InputBinding
                 {
                     ActionId = kvp.Value.ActionId,
                     DisplayName = kvp.Value.DisplayName,
