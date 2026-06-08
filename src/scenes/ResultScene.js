@@ -308,7 +308,8 @@ export default class ResultScene extends Phaser.Scene {
         this.soundManager.playSFX(SFX_TYPES.CLICK);
         this.scene.start(SCENE_KEYS.REPLAY, {
           levelId: data.levelId,
-          sessionData: data.sessionData
+          sessionData: data.sessionData,
+          resultData: data
         });
       } else {
         this.soundManager.playSFX(SFX_TYPES.ERROR);

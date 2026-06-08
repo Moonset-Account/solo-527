@@ -1010,7 +1010,7 @@ export default class GameScene extends Phaser.Scene {
       }
     }
     const targetSpeed = train.baseSpeed;
-    train.updateSpeed(targetSpeed, deltaMs);
+    train.updateSpeed(targetSpeed, deltaSec * 1000);
   }
 
   onTrainArriveNode(train) {
