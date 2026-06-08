@@ -1,0 +1,20 @@
+{
+  "name": "night-bookstore-puzzle",
+  "version": "1.0.0",
+  "description": "夜间书店整理谜题 - 2D俯视角解谜游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}
