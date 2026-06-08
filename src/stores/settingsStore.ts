@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { SettingsData, InputMode } from '@/types/game';
+import { inputManager } from '@/engine/input/manager';
 
 const STORAGE_KEY = 'chem_lab_settings';
 
@@ -37,6 +38,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setInputMode: (mode) => {
     const settings = { ...get().settings, inputMode: mode };
     persistSettings(settings);
+    inputManager.setMode(mode);
     set({ settings });
   },
   setMusicVolume: (vol) => {

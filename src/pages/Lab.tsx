@@ -33,6 +33,7 @@ export default function Lab() {
   const [expDone, setExpDone] = useState(false);
   const [usedApparatus, setUsedApparatus] = useState<string[]>([]);
   const [showMeasure, setShowMeasure] = useState(false);
+  const [measureValue, setMeasureValue] = useState(0);
   const [inputModeKey, setInputModeKey] = useState(0);
   const [canvasEffects, setCanvasEffects] = useState<ReactionEffect[]>([]);
 
@@ -44,6 +45,7 @@ export default function Lab() {
 
   useEffect(() => {
     if (!level || !experiment) { navigate('/'); return; }
+    inputManager.setMode(inputMode);
     resetLab();
     setPhase('playing');
     setTotalSteps(experiment.steps.length);
@@ -96,6 +98,26 @@ export default function Lab() {
 
     const handleInputAction = (action: InputAction) => {
       if (isPaused || expDone) return;
+
+      if (showMeasure) {
+        switch (action.type) {
+          case 'temperature': {
+            const delta = action.value || 0;
+            setMeasureValue(prev => Math.max(0, Math.min(100, prev + delta)));
+            break;
+          }
+          case 'confirm': {
+            handleMeasureConfirm(measureValue);
+            break;
+          }
+          case 'cancel': {
+            setShowMeasure(false);
+            break;
+          }
+        }
+        return;
+      }
+
       if (!currentStep) return;
 
       switch (action.type) {
@@ -113,11 +135,30 @@ export default function Lab() {
         }
         case 'temperature': {
           const delta = action.value || 0;
-          setTemperature(prev => Math.max(0, Math.min(100, prev + delta)));
+          const newTemp = Math.max(0, Math.min(100, temperature + delta));
+          setTemperature(newTemp);
+          if (currentStep.action === 'control_temperature') {
+            const targetTemp = parseFloat(currentStep.target.split(':')[1] || '0');
+            if (Math.abs(newTemp - targetTemp) <= currentStep.tolerance) {
+              experimentEngine.performAction('control_temperature', currentStep.target, newTemp);
+            }
+          }
           break;
         }
         case 'confirm': {
-          performCanvasAction();
+          if (currentStep.action === 'measure') {
+            setMeasureValue(0);
+            setShowMeasure(true);
+          } else if (currentStep.action === 'control_temperature') {
+            const targetTemp = parseFloat(currentStep.target.split(':')[1] || '0');
+            if (Math.abs(temperature - targetTemp) <= currentStep.tolerance) {
+              experimentEngine.performAction('control_temperature', currentStep.target, temperature);
+            } else {
+              setError(`温度未达标，目标${targetTemp}°C，容差±${currentStep.tolerance}°C`);
+            }
+          } else {
+            performCanvasAction();
+          }
           break;
         }
         case 'hint': {
@@ -130,14 +171,14 @@ export default function Lab() {
           break;
         }
         case 'cancel': {
-          if (showMeasure) { setShowMeasure(false); }
           break;
         }
       }
     };
 
-    return eventEmitter.on('input:action', handleInputAction as (...a: unknown[]) => void);
-  }, [inputMode, isPaused, expDone, currentStep, showMeasure, apparatusList, reagentList]);
+    const unsub = eventEmitter.on('input:action', handleInputAction as (...a: unknown[]) => void);
+    return () => { unsub(); };
+  }, [inputMode, isPaused, expDone, currentStep, showMeasure, measureValue, apparatusList, reagentList, temperature]);
 
   const handleApparatusSelect = useCallback((id: string) => {
     selectApparatus(id);
@@ -151,6 +192,7 @@ export default function Lab() {
     } else if (currentStep?.action === 'measure') {
       if (id === 'graduated_cylinder') {
         selectApparatus(null);
+        setMeasureValue(0);
         setShowMeasure(true);
       }
     }
@@ -209,6 +251,16 @@ export default function Lab() {
     performCanvasAction();
   }, [inputMode, performCanvasAction]);
 
+  useEffect(() => {
+    if (inputMode !== 'touch') return;
+    const handleTouch = (pos: { x: number; y: number }) => {
+      if (isPaused || expDone || !currentStep) return;
+      handleCanvasClick(pos.x, pos.y);
+    };
+    const unsub = eventEmitter.on('input:touch', handleTouch as (...a: unknown[]) => void);
+    return () => { unsub(); };
+  }, [inputMode, isPaused, expDone, currentStep, handleCanvasClick]);
+
   const handleTempChange = useCallback((temp: number) => {
     setTemperature(temp);
     if (currentStep?.action === 'control_temperature') {
@@ -234,6 +286,7 @@ export default function Lab() {
     setExpDone(false);
     setUsedApparatus([]);
     setShowMeasure(false);
+    setMeasureValue(0);
     setCanvasEffects([]);
     experimentEngine.startExperiment(experiment, level.id, level.hintCount);
     setCurrentStep(experimentEngine.getCurrentStep());
@@ -276,10 +329,10 @@ export default function Lab() {
     const m = inputMode;
     switch (currentStep.action) {
       case 'select_apparatus': return m === 'keyboard' ? `按 1-${apparatusList.length} 选择器材` : '点击底部器材选择';
-      case 'measure': return m === 'keyboard' ? '按 Enter 打开量取面板' : '选择量筒后打开量取面板';
+      case 'measure': return m === 'keyboard' ? '按 Enter 打开量取面板，↑↓ 调节，Enter 确认' : '选择量筒后打开量取面板';
       case 'add_reagent': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 选择试剂` : '点击右侧试剂添加';
       case 'drop': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 滴加试剂` : '点击右侧试剂滴加';
-      case 'control_temperature': return m === 'keyboard' ? '↑↓ 调整温度' : '拖动滑块控制温度';
+      case 'control_temperature': return m === 'keyboard' ? '↑↓ 调整温度，Enter 确认' : '拖动滑块控制温度';
       case 'stir': case 'observe': case 'pour': case 'filter': case 'heat':
         return m === 'keyboard' ? '按 Space 确认操作' : '点击实验台执行操作';
       default: return '';
@@ -332,7 +385,7 @@ export default function Lab() {
           {isMeasureStep && !showMeasure && (
             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
               <button
-                onClick={() => setShowMeasure(true)}
+                onClick={() => { setMeasureValue(0); setShowMeasure(true); }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#F5C542]/90 text-[#0a2e2e] font-bold rounded-full text-sm hover:bg-[#F5C542] transition-all shadow-lg animate-pulse"
               >
                 量取 {measureReagentName}
@@ -399,6 +452,8 @@ export default function Lab() {
           targetMl={measureMl}
           tolerance={currentStep?.tolerance || 5}
           reagentName={measureReagentName}
+          value={measureValue}
+          onChange={setMeasureValue}
           onConfirm={handleMeasureConfirm}
           onCancel={() => setShowMeasure(false)}
         />

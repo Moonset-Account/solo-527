@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { inputManager } from '@/engine/input/manager';
 import { Beaker } from 'lucide-react';
 
@@ -6,12 +5,13 @@ interface MeasureDialogProps {
   targetMl: number;
   tolerance: number;
   reagentName: string;
+  value: number;
+  onChange: (ml: number) => void;
   onConfirm: (ml: number) => void;
   onCancel: () => void;
 }
 
-export default function MeasureDialog({ targetMl, tolerance, reagentName, onConfirm, onCancel }: MeasureDialogProps) {
-  const [value, setValue] = useState(0);
+export default function MeasureDialog({ targetMl, tolerance, reagentName, value, onChange, onConfirm, onCancel }: MeasureDialogProps) {
   const mode = inputManager.getMode();
   const inRange = Math.abs(value - targetMl) <= tolerance;
 
@@ -53,7 +53,7 @@ export default function MeasureDialog({ targetMl, tolerance, reagentName, onConf
               min="0"
               max="100"
               value={value}
-              onChange={(e) => setValue(Number(e.target.value))}
+              onChange={(e) => onChange(Number(e.target.value))}
               className="w-full h-2 bg-[#1a3a3a] rounded-lg appearance-none cursor-pointer accent-[#F5C542]"
             />
             <div className="flex justify-between text-[8px] text-gray-500 mt-1">
@@ -83,7 +83,7 @@ export default function MeasureDialog({ targetMl, tolerance, reagentName, onConf
           </div>
 
           <div className="text-[10px] text-gray-500">
-            {mode === 'keyboard' && '提示：↑↓微调 · Enter确认 · Esc取消'}
+            {mode === 'keyboard' && '提示：↑↓微调(每次5mL) · Enter确认 · Esc取消'}
             {mode === 'mouse' && '提示：拖动滑块调整量取值'}
             {mode === 'touch' && '提示：滑动调整量取值'}
           </div>

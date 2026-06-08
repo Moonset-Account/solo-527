@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { LabObject, ReactionEffect } from '@/types/game';
 import { canvasRenderer } from '@/engine/canvas/renderer';
+import { inputManager } from '@/engine/input/manager';
 
 interface LabCanvasProps {
   onObjectClick?: (obj: LabObject) => void;
@@ -38,6 +39,7 @@ export default function LabCanvas({ onObjectClick, onCanvasClick }: LabCanvasPro
     canvas.width = canvasSize.width;
     canvas.height = canvasSize.height;
     canvasRenderer.init(canvas);
+    inputManager.init(canvas);
   }, [canvasSize]);
 
   useEffect(() => {

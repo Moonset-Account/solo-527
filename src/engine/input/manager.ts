@@ -13,6 +13,7 @@ class InputManager {
   private mouseX: number = 0;
   private mouseY: number = 0;
   private hoveredObject: string | null = null;
+  private initialized: boolean = false;
 
   setMode(mode: InputMode): void {
     this.mode = mode;
@@ -22,6 +23,8 @@ class InputManager {
   getMode(): InputMode { return this.mode; }
 
   init(canvas: HTMLCanvasElement): void {
+    if (this.initialized && this.canvas === canvas) return;
+    this.initialized = true;
     this.canvas = canvas;
     this.setupMouse(canvas);
     this.setupKeyboard();

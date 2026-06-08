@@ -31,6 +31,7 @@ export default function Tutorial() {
   const reagentList = experiment.requiredReagents.map(id => getReagentById(id)!).filter(Boolean);
 
   useEffect(() => {
+    inputManager.setMode(inputMode);
     resetLab();
     setPhase('tutorial');
     setTotalSteps(experiment.steps.length);
@@ -104,7 +105,8 @@ export default function Tutorial() {
         }
       }
     };
-    return eventEmitter.on('input:action', handleInputAction as (...a: unknown[]) => void);
+    const unsub = eventEmitter.on('input:action', handleInputAction as (...a: unknown[]) => void);
+    return () => { unsub(); };
   }, [inputMode, currentStep, apparatusList, reagentList]);
 
   const handleApparatusSelect = useCallback((id: string) => {
@@ -169,6 +171,16 @@ export default function Tutorial() {
     if (inputMode === 'keyboard') return;
     performCanvasAction();
   }, [inputMode, performCanvasAction]);
+
+  useEffect(() => {
+    if (inputMode !== 'touch') return;
+    const handleTouch = (pos: { x: number; y: number }) => {
+      if (!currentStep) return;
+      handleCanvasClick(pos.x, pos.y);
+    };
+    const unsub = eventEmitter.on('input:touch', handleTouch as (...a: unknown[]) => void);
+    return () => { unsub(); };
+  }, [inputMode, currentStep, handleCanvasClick]);
 
   const handleHint = useCallback(() => {
     const hint = experimentEngine.useHint();
