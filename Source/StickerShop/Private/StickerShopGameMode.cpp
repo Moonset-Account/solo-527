@@ -1,4 +1,6 @@
 #include "StickerShopGameMode.h"
+#include "StickerShopPlayerController.h"
+#include "StickerShopGameInstance.h"
 #include "StickerDesignComponent.h"
 #include "InventoryComponent.h"
 #include "CustomerSystemComponent.h"
@@ -13,6 +15,7 @@
 AStickerShopGameMode::AStickerShopGameMode()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	PlayerControllerClass = AStickerShopPlayerController::StaticClass();
 
 	DesignComp = CreateDefaultSubobject<UStickerDesignComponent>(TEXT("DesignComp"));
 	InventoryComp = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComp"));
@@ -28,6 +31,14 @@ void AStickerShopGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeGame();
+
+	UStickerShopGameInstance* GI = GetGameInstance<UStickerShopGameInstance>();
+	int32 LevelToStart = 0;
+	if (GI)
+	{
+		LevelToStart = GI->GetCurrentLevelId();
+	}
+	StartLevel(LevelToStart);
 }
 
 void AStickerShopGameMode::InitializeGame()
@@ -202,26 +213,45 @@ FSettlementData AStickerShopGameMode::EndLevel()
 
 	if (CurrentSave)
 	{
+		CurrentSave->Inventory = InventoryComp->GetAllItems();
+		CurrentSave->Ledger = LedgerComp->GetCurrentLedger();
 		SaveComp->RecordLevelSettlement(CurrentSave, Result);
 		SaveComp->RecordPlayerInput(CurrentSave, CurrentLevelId, TEXT("EndLevel"),
 			FString::Printf(TEXT("Score=%d"), Result.Score), Elapsed,
 			Result.bPassed ? TEXT("PASSED") : TEXT("FAILED"));
+		SaveComp->SaveGame(CurrentSave, TEXT("AutoSave"), 0);
 	}
 
 	SettlementComp->ShowSettlement(Result);
 
-	if (!Result.bPassed)
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		FString FailureReason;
-		if (!LevelErrors.IsEmpty())
+		AStickerShopPlayerController* PC = Cast<AStickerShopPlayerController>(It->Get());
+		if (PC)
 		{
-			FailureReason = LevelErrors[0];
+			PC->ShowSettlementUI(Result);
+
+			if (!Result.bPassed)
+			{
+				FString FailureReason;
+				if (!LevelErrors.IsEmpty())
+				{
+					FailureReason = LevelErrors[0];
+				}
+				else
+				{
+					FailureReason = FString::Printf(TEXT("Score %d < Target %d"), Result.Score, Level->TargetScore);
+				}
+				SettlementComp->RequestRetry(CurrentLevelId, FailureReason);
+				PC->ShowRetryPrompt(CurrentLevelId, FailureReason);
+			}
 		}
-		else
-		{
-			FailureReason = FString::Printf(TEXT("Score %d < Target %d"), Result.Score, Level->TargetScore);
-		}
-		SettlementComp->RequestRetry(CurrentLevelId, FailureReason);
+	}
+
+	UStickerShopGameInstance* GI = GetGameInstance<UStickerShopGameInstance>();
+	if (GI)
+	{
+		GI->OnLevelCompleted(Result);
 	}
 
 	Phase = EGamePhase::Settle;
