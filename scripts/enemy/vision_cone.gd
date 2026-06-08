@@ -18,10 +18,14 @@ func _process(_delta: float) -> void:
 
 func _check_vision() -> void:
 	var parent: CharacterBody2D = get_parent() as CharacterBody2D
-	if not parent:
+	if not parent or not parent.is_inside_tree():
 		is_player_visible = false
 		return
-	var space_state: PhysicsDirectSpaceState2D = parent.get_world_2d().direct_space_state
+	var world: World2D = parent.get_world_2d()
+	if not world:
+		is_player_visible = false
+		return
+	var space_state: PhysicsDirectSpaceState2D = world.direct_space_state
 	var half_angle: float = deg_to_rad(vision_angle / 2.0)
 	var was_visible: bool = is_player_visible
 	is_player_visible = false
@@ -37,9 +41,9 @@ func _check_vision() -> void:
 			if collider is Player:
 				is_player_visible = true
 				player_position = result["position"]
+				if not was_visible:
+					emit_signal("player_detected", player_position)
 				break
-	if is_player_visible and not was_visible:
-		emit_signal("player_detected", player_position)
 
 func set_direction(angle: float) -> void:
 	_direction = angle
