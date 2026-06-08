@@ -70,7 +70,7 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
-  init(data: { levelId?: string; level?: LevelConfig }): void {
+  init(data: { levelId?: string; level?: LevelConfig; playbackActions?: ReplayAction[] }): void {
     if (data.level) {
       this.levelConfig = data.level;
     } else {
@@ -100,6 +100,12 @@ export class GameScene extends Phaser.Scene {
     this.inputMapper = new InputMapper(this);
     this.uiStateManager = new UIStateManager();
     this.saveManager = new SaveManager();
+
+    if (data.playbackActions && data.playbackActions.length > 0) {
+      this.isPlaybackMode = true;
+      this.playbackActions = [...data.playbackActions];
+      this.playbackIndex = 0;
+    }
   }
 
   create(): void {
@@ -121,6 +127,17 @@ export class GameScene extends Phaser.Scene {
     this.add.existing(this.replayControls);
 
     this.uiStateManager.setState('idle');
+
+    if (this.isPlaybackMode) {
+      this.startButton.setVisible(false);
+      this.paused = false;
+      this.scheduler.startAllReady();
+      this.showPlaybackOverlay();
+      this.replayControls.setPlaybackMode(true);
+      this.replayControls.setUndoEnabled(false);
+      this.replayControls.setPlaybackEnabled(false);
+      this.audioManager.playClick();
+    }
   }
 
   private drawTrackNetwork(): void {
@@ -635,21 +652,9 @@ export class GameScene extends Phaser.Scene {
     const actions = this.replaySystem.getActions();
     if (actions.length === 0) return;
 
-    this.isPlaybackMode = true;
-    this.playbackActions = [...actions];
-    this.playbackIndex = 0;
-
-    this.replayControls.setPlaybackMode(true);
-    this.replayControls.setUndoEnabled(false);
-    this.replayControls.setPlaybackEnabled(false);
-
-    this.scene.pause();
-    this.scene.restart({ levelId: this.levelConfig.id });
-
-    this.time.delayedCall(200, () => {
-      this.paused = false;
-      this.showPlaybackOverlay();
-      this.audioManager.playClick();
+    this.scene.restart({
+      levelId: this.levelConfig.id,
+      playbackActions: actions,
     });
   }
 

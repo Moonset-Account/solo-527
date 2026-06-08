@@ -7,7 +7,7 @@ export class TrainScheduler {
   private trains: TrainEntity[] = [];
   private gameTime: number = 0;
   private conflicts: Conflict[] = [];
-  private previousDelayState: Map<string, boolean> = new Map();
+  private reportedDelayChains: Set<string> = new Set();
 
   constructor(network: TrackNetwork) {
     this.network = network;
@@ -17,10 +17,9 @@ export class TrainScheduler {
     this.trains = [];
     this.conflicts = [];
     this.gameTime = 0;
-    this.previousDelayState.clear();
+    this.reportedDelayChains.clear();
     for (const td of trainsData) {
       this.trains.push(new TrainEntity(td, this.network));
-      this.previousDelayState.set(td.id, false);
     }
   }
 
@@ -55,53 +54,45 @@ export class TrainScheduler {
     if (waitingTrains.length === 0) return;
 
     const trainsByLocation = new Map<string, TrainEntity[]>();
+    const noContentionTrains: TrainEntity[] = [];
+
     for (const train of waitingTrains) {
       const currentNodeId = train.data.path[train.data.currentPathIndex];
       if (!currentNodeId) continue;
       const node = this.network.getNode(currentNodeId);
       if (!node) continue;
 
-      let locationKey: string;
-      if (node.type === 'signal') {
-        const conns = this.network.getConnections(currentNodeId);
-        locationKey = conns.length > 0 ? conns[0] : currentNodeId;
-      } else if (node.type === 'platform') {
-        locationKey = node.platformId ?? currentNodeId;
-      } else {
-        continue;
-      }
+      if (node.type === 'signal' || node.type === 'platform') {
+        let locationKey: string;
+        if (node.type === 'signal') {
+          const conns = this.network.getConnections(currentNodeId);
+          const nextIdx = train.data.currentPathIndex + 1;
+          const nextNodeId = train.data.path[nextIdx] ?? '';
+          locationKey = `sig-${conns.length > 0 ? conns[0] : currentNodeId}-${nextNodeId}`;
+        } else {
+          locationKey = `plat-${node.platformId ?? currentNodeId}`;
+        }
 
-      if (!trainsByLocation.has(locationKey)) {
-        trainsByLocation.set(locationKey, []);
+        if (!trainsByLocation.has(locationKey)) {
+          trainsByLocation.set(locationKey, []);
+        }
+        trainsByLocation.get(locationKey)!.push(train);
+      } else {
+        noContentionTrains.push(train);
       }
-      trainsByLocation.get(locationKey)!.push(train);
     }
 
     for (const [, trainsAtLocation] of trainsByLocation) {
       if (trainsAtLocation.length <= 1) {
         trainsAtLocation[0].tryResume(this.gameTime);
-        continue;
-      }
-
-      trainsAtLocation.sort((a, b) => b.data.priority - a.data.priority);
-
-      const highest = trainsAtLocation[0];
-      if (highest.tryResume(this.gameTime)) {
-        for (let i = 1; i < trainsAtLocation.length; i++) {
-          const blocked = trainsAtLocation[i];
-          const currentNodeId = blocked.data.path[blocked.data.currentPathIndex];
-          const node = this.network.getNode(currentNodeId);
-          if (node && node.type === 'signal' && !this.network.isSignalBlocked(currentNodeId)) {
-            continue;
-          }
-        }
+      } else {
+        trainsAtLocation.sort((a, b) => b.data.priority - a.data.priority);
+        trainsAtLocation[0].tryResume(this.gameTime);
       }
     }
 
-    for (const train of waitingTrains) {
-      if (train.data.state === 'waiting') {
-        train.tryResume(this.gameTime);
-      }
+    for (const train of noContentionTrains) {
+      train.tryResume(this.gameTime);
     }
   }
 
@@ -109,28 +100,56 @@ export class TrainScheduler {
     const conflicts: Conflict[] = [];
 
     for (const train of this.trains) {
-      const isCurrentlyDelayed = train.data.state === 'waiting' && train.data.currentPathIndex > 0;
-      const wasPreviouslyDelayed = this.previousDelayState.get(train.data.id) ?? false;
-      this.previousDelayState.set(train.data.id, isCurrentlyDelayed);
+      if (train.data.state !== 'waiting') continue;
+      if (train.data.currentPathIndex === 0) continue;
 
-      if (isCurrentlyDelayed && !wasPreviouslyDelayed) {
-        const currentNodeId = train.data.path[train.data.currentPathIndex];
-        if (!currentNodeId) continue;
+      const currentNodeId = train.data.path[train.data.currentPathIndex];
+      if (!currentNodeId) continue;
+      const node = this.network.getNode(currentNodeId);
+      if (!node) continue;
 
-        const blocker = this.findBlockerForTrain(train);
+      if (node.type === 'signal' && this.network.isSignalBlocked(currentNodeId)) {
+        const conflictKey = `${train.data.id}-signal-${currentNodeId}`;
+        if (this.reportedDelayChains.has(conflictKey)) continue;
+
+        const blocker = this.findBlockerOnNextEdge(train);
         if (blocker) {
-          const currentNode = this.network.getNode(currentNodeId);
-          const locationDesc = currentNode
-            ? (currentNode.type === 'platform' ? `站台${currentNode.platformId ?? currentNode.id}` : `节点${currentNodeId}`)
-            : currentNodeId;
-
+          this.reportedDelayChains.add(conflictKey);
           conflicts.push({
             type: 'delay_chain',
             severity: 'warning',
             trains: [train.data.id, blocker.data.id],
             location: currentNodeId,
             time: this.gameTime,
-            message: `${train.data.name} 因 ${blocker.data.name} 占用${locationDesc}而晚点`,
+            message: `${train.data.name} 因 ${blocker.data.name} 占道被信号灯阻挡而晚点`,
+          });
+        } else {
+          this.reportedDelayChains.add(conflictKey);
+          conflicts.push({
+            type: 'delay_chain',
+            severity: 'warning',
+            trains: [train.data.id],
+            location: currentNodeId,
+            time: this.gameTime,
+            message: `${train.data.name} 因前方信号灯红灯而晚点`,
+          });
+        }
+      }
+
+      if (node.type === 'platform') {
+        const occupant = this.findPlatformOccupant(train, currentNodeId);
+        if (occupant) {
+          const conflictKey = `${train.data.id}-platform-${currentNodeId}`;
+          if (this.reportedDelayChains.has(conflictKey)) continue;
+
+          this.reportedDelayChains.add(conflictKey);
+          conflicts.push({
+            type: 'delay_chain',
+            severity: 'warning',
+            trains: [train.data.id, occupant.data.id],
+            location: currentNodeId,
+            time: this.gameTime,
+            message: `${train.data.name} 因 ${occupant.data.name} 占用站台${node.platformId ?? currentNodeId}而晚点`,
           });
         }
       }
@@ -139,48 +158,36 @@ export class TrainScheduler {
     return conflicts;
   }
 
-  private findBlockerForTrain(train: TrainEntity): TrainEntity | null {
-    const currentNodeId = train.data.path[train.data.currentPathIndex];
-    if (!currentNodeId) return null;
+  private findBlockerOnNextEdge(train: TrainEntity): TrainEntity | null {
+    const path = train.data.path;
+    const idx = train.data.currentPathIndex;
+    if (idx >= path.length - 1) return null;
+    const from = path[idx];
+    const to = path[idx + 1];
+    const blockedEdge = [from, to].sort().join('-');
 
-    const node = this.network.getNode(currentNodeId);
-    if (!node) return null;
-
-    if (node.type === 'platform') {
-      for (const other of this.trains) {
-        if (other.data.id === train.data.id) continue;
-        if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
-        const otherNodeId = other.data.path[other.data.currentPathIndex];
-        if (otherNodeId === currentNodeId) {
-          return other;
-        }
-      }
-    }
-
-    if (node.type === 'signal') {
-      const blockedEdge = this.getBlockedEdge(train);
-      if (blockedEdge) {
-        for (const other of this.trains) {
-          if (other.data.id === train.data.id) continue;
-          if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
-          const otherEdge = this.getTrainCurrentEdge(other);
-          if (otherEdge === blockedEdge) {
-            return other;
-          }
-        }
+    for (const other of this.trains) {
+      if (other.data.id === train.data.id) continue;
+      if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
+      const otherEdge = this.getTrainCurrentEdge(other);
+      if (otherEdge === blockedEdge) {
+        return other;
       }
     }
 
     return null;
   }
 
-  private getBlockedEdge(train: TrainEntity): string | null {
-    const path = train.data.path;
-    const idx = train.data.currentPathIndex;
-    if (idx >= path.length - 1) return null;
-    const from = path[idx];
-    const to = path[idx + 1];
-    return [from, to].sort().join('-');
+  private findPlatformOccupant(train: TrainEntity, platformNodeId: string): TrainEntity | null {
+    for (const other of this.trains) {
+      if (other.data.id === train.data.id) continue;
+      if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
+      const otherNodeId = other.data.path[other.data.currentPathIndex];
+      if (otherNodeId === platformNodeId) {
+        return other;
+      }
+    }
+    return null;
   }
 
   setPriority(trainId: string, newPriority: number): number | null {
