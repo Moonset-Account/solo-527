@@ -1,0 +1,102 @@
+[gd_scene load_steps=2 format=3 uid="uid://cardui001"]
+
+[ext_resource type="Script" path="res://scripts/ui/CardUI.gd" id="1_cardui"]
+
+[node name="CardUI" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 140.0
+offset_bottom = 200.0
+mouse_filter = 1
+script = ExtResource("1_cardui")
+
+[node name="CardPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+
+[node name="TypeBanner" type="ColorRect" parent="CardPanel"]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 132.0
+offset_bottom = 8.0
+color = Color(0.4, 0.6, 0.9, 1)
+
+[node name="RarityBorder" type="ColorRect" parent="CardPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 132.0
+offset_bottom = 192.0
+mouse_filter = 2
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="NameLabel" type="Label" parent="CardPanel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 12.0
+offset_right = 126.0
+offset_bottom = 32.0
+text = "卡牌名称"
+horizontal_alignment = 1
+clip_contents = true
+
+[node name="CostContainer" type="HBoxContainer" parent="CardPanel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 34.0
+offset_right = 126.0
+offset_bottom = 52.0
+alignment = 1
+
+[node name="ArtRect" type="ColorRect" parent="CardPanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 56.0
+offset_right = 122.0
+offset_bottom = 110.0
+color = Color(0.2, 0.3, 0.5, 1)
+
+[node name="TypeIcon" type="Label" parent="CardPanel"]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 72.0
+offset_right = 82.0
+offset_bottom = 98.0
+text = "工"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 28
+
+[node name="DescLabel" type="Label" parent="CardPanel"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 114.0
+offset_right = 124.0
+offset_bottom = 180.0
+text = "卡牌描述内容。"
+horizontal_alignment = 1
+autowrap_mode = 2
+clip_contents = true
+theme_override_font_sizes/font_size = 11
+
+[node name="InvalidOverlay" type="ColorRect" parent="CardPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.45)
+mouse_filter = 2
+visible = false
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]

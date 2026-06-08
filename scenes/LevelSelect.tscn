@@ -1,0 +1,172 @@
+[gd_scene load_steps=4 format=3 uid="uid://levelselect001"]
+
+[ext_resource type="Script" path="res://scripts/ui/LevelSelect.gd" id="1_ls"]
+[ext_resource type="Script" path="res://scripts/ui/ToastManager.gd" id="2_toast"]
+[ext_resource type="Script" path="res://scripts/ui/FloatingTextManager.gd" id="3_float"]
+
+[node name="LevelSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ls")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.09, 0.07, 0.05, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 56.0
+theme_override_constants/separation = 16
+
+[node name="BackButton" type="Button" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 40)
+text = "← 返回"
+theme_override_font_sizes/font_size = 15
+
+[node name="TitleLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+text = "章节 & 关卡选择"
+size_flags_horizontal = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(0.9, 0.75, 0.4, 1)
+
+[node name="DeckViewButton" type="Button" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 40)
+text = "🃏 查看卡组"
+theme_override_font_sizes/font_size = 14
+
+[node name="MainHSplit" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 64.0
+offset_right = -16.0
+offset_bottom = -80.0
+split_offset = 680
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainHSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ChaptersContainer" type="VBoxContainer" parent="MainHSplit/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="LevelInfoPanel" type="PanelContainer" parent="MainHSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+visible = false
+
+[node name="PanelStyle" type="StyleBoxFlat" parent="MainHSplit/LevelInfoPanel" index="0"]
+bg_color = Color(0.18, 0.12, 0.08, 0.95)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.6, 0.5, 0.3, 0.5)
+
+[node name="InfoVBox" type="VBoxContainer" parent="MainHSplit/LevelInfoPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="InfoMargin" type="MarginContainer" parent="MainHSplit/LevelInfoPanel/InfoVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="InnerVBox" type="VBoxContainer" parent="MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="LevelNameLabel" type="Label" parent="MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox"]
+layout_mode = 2
+text = "关卡名称"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
+
+[node name="DescLabel" type="Label" parent="MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox"]
+layout_mode = 2
+text = "关卡描述"
+size_flags_vertical = 0
+autowrap_mode = 2
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
+
+[node name="StatsBox" type="VBoxContainer" parent="MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="DeckPreviewBox" type="HBoxContainer" parent="MainHSplit/LevelInfoPanel/InfoVBox/InfoMargin/InnerVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BottomBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -68.0
+offset_right = -16.0
+offset_bottom = -12.0
+theme_override_constants/separation = 16
+
+[node name="DeckSizeLabel" type="Label" parent="BottomBar"]
+layout_mode = 2
+text = "卡组: 0张"
+size_flags_horizontal = 3
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.75, 0.7, 0.6, 1)
+
+[node name="StartButton" type="Button" parent="BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 52)
+text = "✦  开始修复任务  ✦"
+disabled = true
+theme_override_font_sizes/font_size = 20
+
+[node name="ToastManager" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("2_toast")
+
+[node name="FloatingTextManager" type="Node2D" parent="."]
+script = ExtResource("3_float")

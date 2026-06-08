@@ -1,0 +1,159 @@
+[gd_scene load_steps=2 format=3 uid="uid://exhibitui001"]
+
+[ext_resource type="Script" path="res://scripts/ui/ExhibitUI.gd" id="1_exhibitui"]
+
+[node name="ExhibitUI" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 200.0
+offset_bottom = 240.0
+mouse_filter = 1
+script = ExtResource("1_exhibitui")
+
+[node name="FramePanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+
+[node name="SelectionBorder" type="ColorRect" parent="FramePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 192.0
+offset_bottom = 232.0
+color = Color(1, 0.9, 0.2, 0.7)
+mouse_filter = 2
+visible = false
+
+[node name="TargetableGlow" type="ColorRect" parent="FramePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -6.0
+offset_top = -6.0
+offset_right = 198.0
+offset_bottom = 238.0
+color = Color(0.2, 1, 0.3, 0.35)
+mouse_filter = 2
+visible = false
+
+[node name="NameLabel" type="Label" parent="FramePanel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 186.0
+offset_bottom = 26.0
+text = "展品名称"
+horizontal_alignment = 1
+clip_contents = true
+theme_override_font_sizes/font_size = 15
+
+[node name="TagsContainer" type="HBoxContainer" parent="FramePanel"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 28.0
+offset_right = 186.0
+offset_bottom = 42.0
+alignment = 1
+
+[node name="ArtRect" type="ColorRect" parent="FramePanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 46.0
+offset_right = 182.0
+offset_bottom = 120.0
+color = Color(0.5, 0.4, 0.25, 1)
+
+[node name="ProgressSection" type="VBoxContainer" parent="FramePanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 124.0
+offset_right = 182.0
+offset_bottom = 152.0
+theme_override_constants/separation = 2
+
+[node name="ProgressLabel" type="Label" parent="FramePanel/ProgressSection"]
+layout_mode = 2
+text = "修复: 0 / 100"
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
+
+[node name="ProgressBar" type="ProgressBar" parent="FramePanel/ProgressSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 10)
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="ConditionSection" type="VBoxContainer" parent="FramePanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 156.0
+offset_right = 182.0
+offset_bottom = 184.0
+theme_override_constants/separation = 2
+
+[node name="ConditionLabel" type="Label" parent="FramePanel/ConditionSection"]
+layout_mode = 2
+text = "完好度: 100"
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
+
+[node name="ConditionBar" type="ProgressBar" parent="FramePanel/ConditionSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 10)
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="StatusLabel" type="Label" parent="FramePanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 188.0
+offset_right = 182.0
+offset_bottom = 204.0
+text = "状态: 稳定"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 11
+
+[node name="TimerLabel" type="Label" parent="FramePanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 206.0
+offset_right = 182.0
+offset_bottom = 222.0
+text = "⏱ 限时"
+horizontal_alignment = 1
+visible = false
+theme_override_font_sizes/font_size = 12
+
+[node name="CompleteOverlay" type="ColorRect" parent="FramePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.2, 0.7, 0.35, 0.85)
+mouse_filter = 2
+visible = false
+
+[node name="FailOverlay" type="ColorRect" parent="FramePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.7, 0.2, 0.2, 0.85)
+mouse_filter = 2
+visible = false
+
+[connection signal="gui_input" from="." to="." method="_gui_input"]
