@@ -36,10 +36,15 @@ namespace TeaGardenDefense
         private GUIStyle _headerStyle;
         private GUIStyle _towerSlotStyle;
         private GUIStyle _toastStyle;
+        private GUIStyle _logEntryStyle;
         private bool _stylesInit;
 
         private string _toastMessage;
         private float _toastTimer;
+
+        private bool _showLogsPanel;
+        private Vector2 _logScrollPos;
+        private int _logTab; // 0=关键选择 1=存档状态 2=游玩统计
 
         private void Awake()
         {
@@ -90,6 +95,7 @@ namespace TeaGardenDefense
             _headerStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1, 0.95f, 0.5f) } };
             _towerSlotStyle = new GUIStyle(GUI.skin.box) { fontSize = 10, alignment = TextAnchor.LowerCenter, fontStyle = FontStyle.Bold };
             _toastStyle = new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = MakeTex(1, 1, new Color(0, 0, 0, 0.7f)) } };
+            _logEntryStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = true, normal = { textColor = new Color(0.9f, 0.95f, 0.9f) } };
             _stylesInit = true;
         }
 
@@ -212,6 +218,7 @@ namespace TeaGardenDefense
             DrawSelectionInfo();
             DrawPathEditUI();
             if (_showSettlement) DrawSettlementPanel();
+            if (_showLogsPanel) DrawLogsPanel();
         }
 
         private void DrawLoading()
@@ -247,7 +254,13 @@ namespace TeaGardenDefense
             GUI.Label(new Rect(x, y, 80, 28), $"💀 {fails}", _labelStyle); x += 90;
             GUI.Label(new Rect(x, y, 100, 28), $"⚡ {_gm.TimeScale}x", _labelStyle);
 
-            int btnX = w - 320, btnY = 15, btnW = 90, btnH = 30;
+            int btnX = w - 420, btnY = 15, btnW = 90, btnH = 30;
+            Color oldC = GUI.backgroundColor;
+            if (_showLogsPanel) GUI.backgroundColor = new Color(0.9f, 0.75f, 0.3f, 1f);
+            if (GUI.Button(new Rect(btnX, btnY, 100, btnH), "📝 日志/存档", _buttonStyle))
+                _showLogsPanel = !_showLogsPanel;
+            GUI.backgroundColor = oldC;
+            btnX += 106;
             if (GUI.Button(new Rect(btnX, btnY, btnW, btnH), "⏭️ 波次(Space)", _buttonStyle))
                 _gm.StartNextWave();
             btnX += btnW + 6;
@@ -651,7 +664,17 @@ namespace TeaGardenDefense
             foreach (var p in _editPathPoints)
                 level.pathPoints.Add(new PathPoint { x = p.x, y = p.y, z = p.z });
             ConfigManager.Instance.UpdateLevelConfig(level);
-            _gm.Hints?.ShowToast($"路径已更新 ({_editPathPoints.Count}个点)");
+
+            try
+            {
+                ConfigManager.Instance.SaveConfigToDisk();
+                _gm.Hints?.ShowToast($"✅ 路径已保存 ({_editPathPoints.Count}个点, 重启不丢失)");
+            }
+            catch (Exception e)
+            {
+                _gm.Hints?.ShowToast($"路径已更新(内存), 写盘失败: {e.Message}");
+                Debug.LogWarning($"[路径编辑] 保存到磁盘失败: {e}");
+            }
         }
 
         private void DrawSettlementPanel()
@@ -765,6 +788,195 @@ namespace TeaGardenDefense
             GUI.Label(new Rect(x, y, 280, RowH), label, new GUIStyle(GUI.skin.label) { fontSize = 12, normal = { textColor = new Color(0.85f, 0.9f, 0.85f) } });
             GUI.Label(new Rect(x + 170, y, 130, RowH), val, new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } });
             if (x != 0) y += RowH + 2;
+        }
+
+        private void DrawLogsPanel()
+        {
+            int w = 520, h = 440;
+            int x = Screen.width - w - 20, y = topBarHeight + 15;
+
+            GUI.color = new Color(0.05f, 0.08f, 0.05f, 0.96f);
+            GUI.DrawTexture(new Rect(x, y, w, h), MakeTex(1, 1, GUI.color));
+            GUI.color = Color.white;
+            GUI.Box(new Rect(x, y, w, h), "📝 日志 / 存档 / 统计");
+
+            if (GUI.Button(new Rect(x + w - 30, y + 4, 24, 22), "×"))
+                _showLogsPanel = false;
+
+            int tabY = y + 30;
+            int tabW = (w - 40) / 3;
+            for (int i = 0; i < 3; i++)
+            {
+                string tn = i == 0 ? "🎯 关键选择" : (i == 1 ? "💾 存档状态" : "📊 游玩统计");
+                Color old = GUI.backgroundColor;
+                if (_logTab == i) GUI.backgroundColor = new Color(0.45f, 0.7f, 0.4f, 0.9f);
+                if (GUI.Button(new Rect(x + 20 + i * (tabW + 2), tabY, tabW, 26), tn, _buttonStyle))
+                    _logTab = i;
+                GUI.backgroundColor = old;
+            }
+
+            int bodyX = x + 15, bodyY = tabY + 34;
+            int bodyW = w - 30, bodyH = h - (bodyY - y) - 15;
+
+            var save = SaveSystem.Instance;
+            var pd = save?.PlayerData;
+            var gm = _gm;
+            var perf = PerformanceStats.Instance;
+
+            if (_logTab == 0)
+            {
+                GUI.Label(new Rect(bodyX, bodyY, bodyW, 22), $"🔖 关键选择日志 (共{(pd?.choiceLogs?.Count ?? 0)}条)", _labelStyle);
+                int listY = bodyY + 28;
+                int listH = bodyH - 32;
+
+                GUI.color = new Color(0.1f, 0.15f, 0.1f, 0.9f);
+                GUI.DrawTexture(new Rect(bodyX, listY, bodyW, listH), MakeTex(1, 1, GUI.color));
+                GUI.color = Color.white;
+
+                var logs = pd?.choiceLogs;
+                if (logs == null || logs.Count == 0)
+                {
+                    GUI.Label(new Rect(bodyX + 10, listY + 20, bodyW - 20, 40),
+                        "尚未记录关键选择\n(建塔/升级/出售/解锁/开始波次/结算时自动记录)",
+                        new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = new Color(0.8f, 0.85f, 0.8f) } });
+                }
+                else
+                {
+                    float totalH = logs.Count * 38 + 6;
+                    _logScrollPos = GUI.BeginScrollView(new Rect(bodyX, listY, bodyW, listH), _logScrollPos,
+                        new Rect(0, 0, bodyW - 20, totalH));
+                    int ry = 4;
+                    for (int i = logs.Count - 1; i >= 0; i--)
+                    {
+                        var log = logs[i];
+                        Color lc = log.actionType == "victory" ? new Color(0.45f, 0.85f, 0.45f)
+                            : log.actionType == "defeat" ? new Color(0.95f, 0.45f, 0.45f)
+                            : log.actionType.StartsWith("unlock") ? new Color(0.9f, 0.7f, 0.35f)
+                            : log.actionType.StartsWith("upgrade") ? new Color(0.55f, 0.8f, 0.95f)
+                            : new Color(0.85f, 0.85f, 0.85f);
+                        GUI.color = new Color(0.18f, 0.24f, 0.18f, 0.95f);
+                        GUI.DrawTexture(new Rect(4, ry, bodyW - 28, 34), MakeTex(1, 1, GUI.color));
+                        GUI.color = Color.white;
+                        GUI.Label(new Rect(10, ry + 2, 90, 18), $"[{log.timestamp?.Substring(11, 8) ?? "--:--:--"}]",
+                            new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = new Color(0.7f, 0.75f, 0.7f) } });
+                        GUI.Label(new Rect(95, ry + 2, bodyW - 130, 18),
+                            $"{ActionTypeIcon(log.actionType)} {log.actionType.Replace('_', ' ')}",
+                            new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, normal = { textColor = lc } });
+                        GUI.Label(new Rect(10, ry + 18, bodyW - 28, 14), $"  详情: {log.details}",
+                            new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = new Color(0.85f, 0.9f, 0.85f) } });
+                        ry += 38;
+                    }
+                    GUI.EndScrollView();
+                }
+            }
+            else if (_logTab == 1)
+            {
+                GUI.Label(new Rect(bodyX, bodyY, bodyW, 22), $"💾 存档数据 (持久化到磁盘)", _labelStyle);
+                int sy = bodyY + 28;
+                GUI.color = new Color(0.1f, 0.15f, 0.1f, 0.9f);
+                GUI.DrawTexture(new Rect(bodyX, sy, bodyW, bodyH - 32), MakeTex(1, 1, GUI.color));
+                GUI.color = Color.white;
+
+                int gy = sy + 10, gx = bodyX + 15, gw = (bodyW - 40) / 2;
+                DrawStat(ref gy, gx, "🆔 玩家ID", pd?.playerId?.Substring(0, 8) + "...");
+                DrawStat(ref gy, gx + gw + 10, "📅 创建时间", pd?.createdTime?.Substring(0, 10));
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "⏱️ 总游戏时长", $"{(pd != null ? pd.totalPlayTimeSeconds : 0):F0} 秒");
+                DrawStat(ref gy, gx + gw + 10, "💥 总失败次数", $"{pd?.totalFailures ?? 0} 次");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "🔓 已解锁关卡", pd != null ? string.Join(", ", pd.unlockedLevels) : "-");
+                DrawStat(ref gy, gx + gw + 10, "🎚️ 画质等级", $"{pd?.settings?.qualityLevel ?? 0}");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "🎯 目标帧率", $"{pd?.settings?.targetFrameRate ?? 0}Hz");
+                DrawStat(ref gy, gx + gw + 10, "📺 分辨率", $"{pd?.settings?.resolutionWidth ?? 0}x{pd?.settings?.resolutionHeight ?? 0}");
+
+                gy += 12;
+                GUI.Label(new Rect(gx, gy, bodyW - 30, 20), "━━━ 各关卡状态 ━━━", new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.9f, 0.85f, 0.5f) } });
+                gy += 22;
+                var levels = ConfigManager.Instance.GetAllLevels();
+                foreach (var lv in levels)
+                {
+                    bool completed = save.HasLevelCompleted(lv.levelId);
+                    var comp = save.GetLevelCompletion(lv.levelId);
+                    int fails = save.FailureCounts.ContainsKey(lv.levelId) ? save.FailureCounts[lv.levelId] : 0;
+                    Color lvc = completed ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.85f, 0.5f, 0.5f);
+                    GUI.color = new Color(0.15f, 0.22f, 0.15f, 0.9f);
+                    GUI.DrawTexture(new Rect(gx, gy, bodyW - 30, 36), MakeTex(1, 1, GUI.color));
+                    GUI.color = Color.white;
+                    GUI.Label(new Rect(gx + 6, gy + 4, 30, 28), completed ? "✅" : "🔒",
+                        new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.MiddleCenter });
+                    GUI.Label(new Rect(gx + 40, gy + 4, 160, 20), lv.levelName,
+                        new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, normal = { textColor = lvc } });
+                    GUI.Label(new Rect(gx + 40, gy + 20, 200, 14),
+                        $"{(comp != null ? $"{new string('⭐', comp.starsEarned)} 最佳{comp.bestTimeSeconds:F0}s 最高{comp.highestScore}分 游玩{comp.playCount}次" : "尚未通关")}",
+                        new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = new Color(0.8f, 0.85f, 0.8f) } });
+                    GUI.Label(new Rect(gx + bodyW - 130, gy + 10, 120, 18), $"失败: {fails}次",
+                        new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleRight, normal = { textColor = fails > 0 ? new Color(0.95f, 0.6f, 0.6f) : new Color(0.7f, 0.75f, 0.7f) } });
+                    gy += 40;
+                }
+            }
+            else
+            {
+                GUI.Label(new Rect(bodyX, bodyY, bodyW, 22), "📊 游玩统计 (实时+历史)", _labelStyle);
+                int sy = bodyY + 28;
+                GUI.color = new Color(0.1f, 0.15f, 0.1f, 0.9f);
+                GUI.DrawTexture(new Rect(bodyX, sy, bodyW, bodyH - 32), MakeTex(1, 1, GUI.color));
+                GUI.color = Color.white;
+
+                int gy = sy + 10, gx = bodyX + 15, gw = (bodyW - 40) / 2;
+                DrawStat(ref gy, gx, "🏞️ 当前关卡", gm?.CurrentLevel?.levelName ?? "-");
+                DrawStat(ref gy, gx + gw + 10, "⚙️ 游戏状态", gm?.CurrentState.ToString() ?? "-");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "⏱️ 当前用时", $"{gm?.Resources?.ElapsedTime ?? 0:F1} 秒");
+                DrawStat(ref gy, gx + gw + 10, "💰 剩余金币", $"{gm?.Resources?.Gold ?? 0}");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "🏠 基地血量", $"{gm?.Resources?.BaseHealth ?? 0}/{gm?.Resources?.MaxBaseHealth ?? 0}");
+                DrawStat(ref gy, gx + gw + 10, "🌊 波次进度", $"{gm?.Waves?.CurrentWaveNumber ?? 0}/{gm?.Waves?.TotalWaves ?? 0}");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "🗼 已建造塔", $"{gm?.Towers?.TowerCount ?? 0} 座");
+                DrawStat(ref gy, gx + gw + 10, "🐛 场上敌人", $"{gm?.Enemies?.ActiveEnemyCount ?? 0} 只");
+                gy = sy + 10;
+                DrawStat(ref gy, gx, "🌤️ 当前天气", gm?.Weather?.CurrentWeatherName ?? "-");
+                DrawStat(ref gy, gx + gw + 10, "⚡ 倍速", $"{gm?.TimeScale ?? 1:F1}x");
+
+                gy += 12;
+                GUI.Label(new Rect(gx, gy, bodyW - 30, 20), "━━━ 性能计数器 ━━━", new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.9f, 0.85f, 0.5f) } });
+                gy += 22;
+                if (perf != null)
+                {
+                    string[] names = { "TowersBuilt", "TowersUpgraded", "WavesStarted", "EnemiesKilled", "EnemiesPassed", "Victories", "Defeats" };
+                    string[] labels = { "🏹 建塔次数", "⬆️ 升级次数", "🌊 启动波次", "💥 击杀敌数", "🏃 漏网敌数", "🏆 胜利局数", "💀 失败局数" };
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        string val = perf.GetCounterValue(names[i]).ToString();
+                        DrawStat(ref gy, gx, labels[i], val);
+                        if (i % 2 == 1) { }
+                    }
+                    gy += 8;
+                    GUI.Label(new Rect(gx, gy, bodyW - 30, 18),
+                        $"🖥️ FPS: {perf.CurrentFPS:F0}  |  内存: {perf.MemoryUsageMB:F1}MB  |  卡顿: {perf.StutterPercentage:F1}%",
+                        new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.7f, 0.95f, 0.7f) } });
+                }
+                else
+                {
+                    GUI.Label(new Rect(gx, gy, bodyW - 30, 40), "(PerformanceStats未启用，FPS/内存监控暂不可用)",
+                        new GUIStyle(GUI.skin.label) { fontSize = 12, alignment = TextAnchor.UpperCenter, wordWrap = true, normal = { textColor = new Color(0.75f, 0.8f, 0.75f) } });
+                }
+            }
+        }
+
+        private string ActionTypeIcon(string actionType)
+        {
+            if (string.IsNullOrEmpty(actionType)) return "📍";
+            if (actionType.StartsWith("place")) return "🏗️";
+            if (actionType.StartsWith("upgrade")) return "⬆️";
+            if (actionType.StartsWith("sell")) return "💰";
+            if (actionType.StartsWith("unlock")) return "🔓";
+            if (actionType.StartsWith("start_wave") || actionType.StartsWith("wave")) return "🌊";
+            if (actionType == "victory") return "🏆";
+            if (actionType == "defeat") return "💔";
+            if (actionType.StartsWith("path")) return "🛤️";
+            return "📌";
         }
 
         private void OnDrawGizmos()

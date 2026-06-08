@@ -88,34 +88,24 @@ namespace TeaGardenDefense.Core
                 _isBetweenWaves = false;
             }
 
-            List<IEnumerator> spawnCoroutines = new List<IEnumerator>();
-            foreach (var spawn in wave.spawns)
+            bool[] spawnDone = new bool[wave.spawns.Count];
+            for (int i = 0; i < wave.spawns.Count; i++)
             {
-                var coroutine = SpawnEnemyRoutine(spawn);
-                spawnCoroutines.Add(coroutine);
-                _coroutineRunner.StartCoroutine(coroutine);
+                int idx = i;
+                var spawn = wave.spawns[idx];
+                _coroutineRunner.StartCoroutine(TrackedSpawnRoutine(spawn, () => { spawnDone[idx] = true; }));
             }
 
             bool allSpawned = false;
             while (!allSpawned)
             {
                 allSpawned = true;
-                foreach (var spawn in wave.spawns)
+                for (int i = 0; i < spawnDone.Length; i++)
                 {
-                    if (spawn.startDelay > 0) continue;
-                }
-                yield return null;
-
-                allSpawned = true;
-                foreach (var c in spawnCoroutines)
-                {
-                    if (c.MoveNext())
-                    {
-                        allSpawned = false;
-                        break;
-                    }
+                    if (!spawnDone[i]) { allSpawned = false; break; }
                 }
                 if (allSpawned) break;
+                yield return null;
             }
 
             while (_enemyManager.ActiveEnemyCount > 0)
@@ -132,7 +122,7 @@ namespace TeaGardenDefense.Core
             }
         }
 
-        private IEnumerator SpawnEnemyRoutine(WaveSpawn spawn)
+        private IEnumerator TrackedSpawnRoutine(WaveSpawn spawn, Action onDone)
         {
             if (spawn.startDelay > 0)
                 yield return new WaitForSeconds(spawn.startDelay);
@@ -143,6 +133,8 @@ namespace TeaGardenDefense.Core
                 if (i < spawn.count - 1 && spawn.interval > 0)
                     yield return new WaitForSeconds(spawn.interval);
             }
+
+            onDone?.Invoke();
         }
 
         public void Update(float deltaTime)

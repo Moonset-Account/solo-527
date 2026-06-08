@@ -9,7 +9,7 @@ namespace TeaGardenDefense.Tests
 {
     public class AcceptanceTestRunner : MonoBehaviour
     {
-        public bool runOnStart = true;
+        public bool runOnStart = false;
         public float autoTestDelay = 0.5f;
 
         private int _totalTests = 0;
@@ -21,6 +21,11 @@ namespace TeaGardenDefense.Tests
         private bool _saveSuccessReceived = false;
         private bool _settlementDataValid = false;
 
+        private Dictionary<string, int> _savedFailures;
+        private int _savedBaseHP;
+        private int _savedGold;
+        private string _savedLevelId;
+
         private void Start()
         {
             if (runOnStart)
@@ -29,15 +34,57 @@ namespace TeaGardenDefense.Tests
             }
         }
 
+        private void SaveStateBeforeTest()
+        {
+            _savedFailures = new Dictionary<string, int>();
+            try
+            {
+                foreach (var kv in SaveSystem.Instance.FailureCounts)
+                    _savedFailures[kv.Key] = kv.Value;
+                if (GameManager.Instance != null && GameManager.Instance.Resources != null)
+                {
+                    _savedBaseHP = GameManager.Instance.Resources.BaseHealth;
+                    _savedGold = GameManager.Instance.Resources.Gold;
+                }
+                if (GameManager.Instance != null && GameManager.Instance.CurrentLevel != null)
+                    _savedLevelId = GameManager.Instance.CurrentLevel.levelId;
+            }
+            catch { }
+        }
+
+        private void RestoreStateAfterTest()
+        {
+            try
+            {
+                foreach (var kv in _savedFailures)
+                    SaveSystem.Instance.FailureCounts[kv.Key] = kv.Value;
+            }
+            catch { }
+            try
+            {
+                if (!string.IsNullOrEmpty(_savedLevelId) && GameManager.Instance != null)
+                {
+                    GameManager.Instance.LoadLevel(_savedLevelId);
+                    Debug.Log($"[验收测试] 已重置游戏状态到关卡 {_savedLevelId}");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[验收测试] 重置关卡失败: {e.Message}");
+            }
+        }
+
         private IEnumerator RunAcceptanceTests()
         {
             Debug.Log("\n========================================");
-            Debug.Log("   茶园塔防 验收测试 启动");
+            Debug.Log("   茶园塔防 验收测试 启动 (测试模式，完成后还原状态)");
             Debug.Log("========================================\n");
 
             yield return new WaitUntil(() => GameManager.Instance != null);
             yield return new WaitUntil(() => ConfigManager.Instance.IsLoaded);
             yield return new WaitForSeconds(autoTestDelay);
+
+            SaveStateBeforeTest();
 
             yield return RunTest("配置系统", Test_ConfigSystem);
             yield return RunTest("存档序列化", Test_SaveSystem);
@@ -52,6 +99,8 @@ namespace TeaGardenDefense.Tests
             yield return RunTest("性能统计", Test_PerformanceStats);
 
             yield return new WaitForSeconds(0.3f);
+
+            RestoreStateAfterTest();
 
             PrintSummary();
         }

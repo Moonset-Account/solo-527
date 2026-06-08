@@ -9,8 +9,15 @@ namespace TeaGardenDefense
     public class GameBootstrap : MonoBehaviour
     {
         [SerializeField] private string _defaultLevelId = "level_1";
-        [SerializeField] private bool _runSelfTest = true;
+        [SerializeField] private bool _runSelfTest = false;
         [SerializeField] private bool _exportConfigJson = true;
+        [SerializeField] private bool _testMode = false;
+
+        private int _savedFailureL1;
+        private bool _savedHasCompletedL1;
+        private TeaGardenDefense.Core.LevelCompletionData _savedCompletionL1;
+        private int _savedBaseHealth;
+        private int _savedGold;
 
         private void Awake()
         {
@@ -59,8 +66,10 @@ namespace TeaGardenDefense
 
         private IEnumerator RunQuickSelfTest()
         {
-            Debug.Log("=== 茶园塔防 自检开始 ===");
+            Debug.Log("=== 茶园塔防 自检开始 (测试模式，不污染存档) ===");
             yield return new WaitForSeconds(0.3f);
+
+            SaveProductionState();
 
             Test_ConfigLoading();
             yield return new WaitForSeconds(0.1f);
@@ -77,7 +86,63 @@ namespace TeaGardenDefense
             Test_WaveAndEnemySystem();
             yield return new WaitForSeconds(0.1f);
 
-            Debug.Log("=== 茶园塔防 自检完成 ===");
+            RestoreProductionState();
+            ResetGameplaySystemsIfNeeded();
+
+            Debug.Log("=== 茶园塔防 自检完成 (状态已还原) ===");
+        }
+
+        private void SaveProductionState()
+        {
+            try
+            {
+                var save = SaveSystem.Instance;
+                _savedFailureL1 = save.FailureCounts.ContainsKey("level_1") ? save.FailureCounts["level_1"] : 0;
+                _savedHasCompletedL1 = save.HasLevelCompleted("level_1");
+                _savedCompletionL1 = save.GetLevelCompletion("level_1");
+                if (GameManager.Instance != null && GameManager.Instance.Resources != null)
+                {
+                    _savedBaseHealth = GameManager.Instance.Resources.BaseHealth;
+                    _savedGold = GameManager.Instance.Resources.Gold;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SelfTest] 保存状态失败: {e.Message}");
+            }
+        }
+
+        private void RestoreProductionState()
+        {
+            try
+            {
+                var save = SaveSystem.Instance;
+                if (save.FailureCounts.ContainsKey("level_1"))
+                    save.FailureCounts["level_1"] = _savedFailureL1;
+                else if (_savedFailureL1 > 0)
+                    save.FailureCounts["level_1"] = _savedFailureL1;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SelfTest] 还原状态失败: {e.Message}");
+            }
+        }
+
+        private void ResetGameplaySystemsIfNeeded()
+        {
+            try
+            {
+                var gm = GameManager.Instance;
+                if (gm != null && gm.CurrentLevel != null)
+                {
+                    gm.LoadLevel(gm.CurrentLevel.levelId);
+                    Debug.Log("[SelfTest] 已重置游戏状态到关卡开局");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SelfTest] 重置关卡失败: {e.Message}");
+            }
         }
 
         private void Test_ConfigLoading()
@@ -147,9 +212,8 @@ namespace TeaGardenDefense
             save.OnSaveSuccess += type => Debug.Log($"[存档] 保存成功: {type}");
             save.OnSaveFailed += type => Debug.LogWarning($"[存档] 操作失败: {type}");
 
-            save.RecordLevelFailure("level_1");
-            int failCount = save.FailureCounts.ContainsKey("level_1") ? save.FailureCounts["level_1"] : 0;
-            Debug.Log($"      记录失败后: level_1 = {failCount}次");
+            int failCountBefore = save.FailureCounts.ContainsKey("level_1") ? save.FailureCounts["level_1"] : 0;
+            Debug.Log($"      存档中level_1失败次数: {failCountBefore}次（仅读取不修改）");
 
             Debug.Log($"      关卡1状态: {(save.HasLevelCompleted("level_1") ? "已通关" : "未通关")}");
         }
