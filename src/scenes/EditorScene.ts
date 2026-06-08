@@ -628,6 +628,31 @@ export class EditorScene extends Phaser.Scene {
       return;
     }
 
+    const nonTargetShelves = newLevel.bookshelves.filter(s => !s.isTarget);
+    const assignedShelfIds = new Set<string>();
+
+    newLevel.books.forEach(book => {
+      const wrongShelf = nonTargetShelves.find(
+        s => s.id !== book.correctShelfId && !assignedShelfIds.has(s.id)
+      );
+      if (wrongShelf) {
+        book.currentShelfId = wrongShelf.id;
+        book.isPlaced = true;
+        wrongShelf.bookId = book.id;
+        assignedShelfIds.add(wrongShelf.id);
+      } else {
+        const fallbackShelf = newLevel.bookshelves.find(
+          s => s.id !== book.correctShelfId && s.id !== book.currentShelfId && !assignedShelfIds.has(s.id)
+        );
+        if (fallbackShelf) {
+          book.currentShelfId = fallbackShelf.id;
+          book.isPlaced = true;
+          fallbackShelf.bookId = book.id;
+          assignedShelfIds.add(fallbackShelf.id);
+        }
+      }
+    });
+
     configManager.saveCustomLevel(newLevel);
     this.showEditorMessage('✓ 关卡已保存！返回菜单可选择游玩', 'success');
   }

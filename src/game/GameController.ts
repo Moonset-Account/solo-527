@@ -75,7 +75,10 @@ export class GameController {
       );
       this.bookshelves.set(shelfData.id, entity);
 
-      const originalBook = this.level.books.find(b => b.currentShelfId === shelfData.id);
+      let originalBook = this.level.books.find(b => b.currentShelfId === shelfData.id);
+      if (!originalBook && shelfData.bookId) {
+        originalBook = this.level.books.find(b => b.id === shelfData.bookId);
+      }
       if (originalBook) {
         entity.setBook(originalBook);
       }
@@ -291,6 +294,7 @@ export class GameController {
 
   private tryShelfInteraction(shelf: BookshelfEntity): boolean {
     const data = shelf.getData();
+    const bookIdFromShelf = data.bookId || (shelf.hasBook() ? shelf.getBookId() : undefined);
 
     if (this.carryingBook) {
       if (shelf.hasBook()) {
@@ -298,6 +302,8 @@ export class GameController {
         shelf.pulseHighlight();
         return false;
       }
+
+      gameState.saveToHistory();
 
       const book = this.carryingBook;
       const isCorrect = book.correctShelfId === shelf.getId();
@@ -313,6 +319,8 @@ export class GameController {
         audioSystem.play(isCorrect ? 'bookCorrect' : 'bookWrong');
         if (isCorrect) shelf.flashCorrect();
         else shelf.flashWrong();
+
+        gameState.checkWinCondition();
       }
 
       this.carryingBook = null;
@@ -324,11 +332,19 @@ export class GameController {
         return false;
       }
 
-      const book = gameState.getBook(data.bookId!);
+      if (!bookIdFromShelf) {
+        this.showNotification('这个书架是空的', 'info');
+        return false;
+      }
+
+      const book = gameState.getBook(bookIdFromShelf);
       if (!book) return false;
+
+      gameState.saveToHistory();
 
       this.carryingBook = book;
       shelf.setBook(undefined);
+      gameState.removeBookFromShelf(book.id);
       this.showNotification(`拿起了《${book.name}》，去找它的正确位置吧`, 'info');
       audioSystem.play('bookPlace');
       return true;
@@ -361,7 +377,8 @@ export class GameController {
 
   private syncVisualsFromState(): void {
     const state = gameState.getState();
-    if (!state) return;
+    const level = gameState.getLevelConfig();
+    if (!state || !level) return;
 
     state.bookshelfPositions.forEach(bp => {
       const shelf = this.bookshelves.get(bp.id);
@@ -370,6 +387,23 @@ export class GameController {
           bp.position.x * this.tileSize + this.tileSize / 2,
           bp.position.y * this.tileSize + this.tileSize / 2
         );
+      }
+    });
+
+    const shelfBookMap = new Map<string, string>();
+    state.placedBooks.forEach(pb => {
+      shelfBookMap.set(pb.shelfId, pb.bookId);
+    });
+
+    this.bookshelves.forEach((shelf, shelfId) => {
+      const bookId = shelfBookMap.get(shelfId);
+      if (bookId) {
+        const book = level.books.find(b => b.id === bookId);
+        if (book && shelf.getBookId() !== bookId) {
+          shelf.setBook(book);
+        }
+      } else if (shelf.hasBook()) {
+        shelf.setBook(undefined);
       }
     });
 
@@ -397,8 +431,12 @@ export class GameController {
       }
     });
 
-    if (this.carryingBook) {
-      this.level.books.find(b => b.id === this.carryingBook!.id);
+    const allBookIdsInShelves = new Set(state.placedBooks.map(pb => pb.bookId));
+    const unplacedTarget = level.targetBooks.find(id => !allBookIdsInShelves.has(id));
+    if (unplacedTarget) {
+      const bookData = level.books.find(b => b.id === unplacedTarget);
+      if (bookData && !this.carryingBook) {
+      }
     }
   }
 

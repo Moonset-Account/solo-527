@@ -267,6 +267,10 @@ export class BookshelfEntity {
     return !!this.data.bookId;
   }
 
+  public getBookId(): string | undefined {
+    return this.data.bookId;
+  }
+
   public isInMotion(): boolean {
     return this.isMoving;
   }

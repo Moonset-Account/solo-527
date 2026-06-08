@@ -26,14 +26,34 @@ export class GameState {
   initializeFromLevel(level: LevelConfig): void {
     this.levelConfig = deepClone(level);
     this.gridState = level.grid.map(row => [...row]);
+
+    this.levelConfig.bookshelves.forEach(shelf => {
+      if (shelf.bookId) {
+        const book = this.levelConfig!.books.find(b => b.id === shelf.bookId);
+        if (book && !book.currentShelfId) {
+          book.currentShelfId = shelf.id;
+          book.isPlaced = true;
+        }
+      }
+    });
+
+    this.levelConfig.books.forEach(book => {
+      if (book.currentShelfId) {
+        const shelf = this.levelConfig!.bookshelves.find(s => s.id === book.currentShelfId);
+        if (shelf && !shelf.bookId) {
+          shelf.bookId = book.id;
+        }
+        book.isPlaced = true;
+      }
+    });
     
     this.bookshelfStates.clear();
-    level.bookshelves.forEach(shelf => {
+    this.levelConfig.bookshelves.forEach(shelf => {
       this.bookshelfStates.set(shelf.id, { ...shelf.position });
     });
 
     this.bookStates.clear();
-    level.books.forEach(book => {
+    this.levelConfig.books.forEach(book => {
       this.bookStates.set(book.id, {
         shelfId: book.currentShelfId || null,
         placed: book.isPlaced
@@ -41,12 +61,12 @@ export class GameState {
     });
 
     this.clueStates.clear();
-    level.clues.forEach(clue => {
+    this.levelConfig.clues.forEach(clue => {
       this.clueStates.set(clue.id, false);
     });
 
     this.indexCardStates.clear();
-    level.indexCards.forEach(card => {
+    this.levelConfig.indexCards.forEach(card => {
       this.indexCardStates.set(card.id, false);
     });
 
@@ -60,8 +80,10 @@ export class GameState {
       timeElapsed: 0,
       collectedClues: [],
       fixedIndexCards: [],
-      placedBooks: [],
-      bookshelfPositions: level.bookshelves.map(s => ({
+      placedBooks: this.levelConfig.books
+        .filter(b => b.currentShelfId)
+        .map(b => ({ bookId: b.id, shelfId: b.currentShelfId! })),
+      bookshelfPositions: this.levelConfig.bookshelves.map(s => ({
         id: s.id,
         position: { ...s.position }
       })),
@@ -140,11 +162,39 @@ export class GameState {
     const shelf = this.levelConfig?.bookshelves.find(s => s.id === shelfId);
     if (!book || !shelf) return false;
 
+    const prevShelf = this.levelConfig?.bookshelves.find(s => s.bookId === bookId);
+    if (prevShelf && prevShelf.id !== shelfId) {
+      prevShelf.bookId = undefined;
+    }
+
+    shelf.bookId = bookId;
+    book.currentShelfId = shelfId;
     this.bookStates.set(bookId, { shelfId, placed: true });
     if (this.state) {
+      this.state.placedBooks = this.state.placedBooks.filter(pb => pb.bookId !== bookId);
       this.state.placedBooks.push({ bookId, shelfId });
     }
     eventBus.emit(GameEvents.BOOK_PLACED, { bookId, shelfId });
+    return true;
+  }
+
+  removeBookFromShelf(bookId: string): boolean {
+    const book = this.getBook(bookId);
+    const state = this.bookStates.get(bookId);
+    if (!book || !state || !state.shelfId) return false;
+
+    const shelf = this.levelConfig?.bookshelves.find(s => s.id === state.shelfId);
+    if (shelf) {
+      shelf.bookId = undefined;
+    }
+
+    book.currentShelfId = undefined;
+    book.isPlaced = false;
+    this.bookStates.set(bookId, { shelfId: null, placed: false });
+    if (this.state) {
+      this.state.placedBooks = this.state.placedBooks.filter(pb => pb.bookId !== bookId);
+    }
+    eventBus.emit(GameEvents.BOOK_REMOVED, { bookId });
     return true;
   }
 

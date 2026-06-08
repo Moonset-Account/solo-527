@@ -113,6 +113,7 @@ export const GameEvents = {
   CLUE_COLLECTED: 'clue:collected',
   INDEXCARD_FIXED: 'indexcard:fixed',
   BOOK_PLACED: 'book:placed',
+  BOOK_REMOVED: 'book:removed',
   GAME_WIN: 'game:win',
   GAME_FAIL: 'game:fail',
   GAME_PAUSE: 'game:pause',
