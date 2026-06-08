@@ -76,8 +76,7 @@ namespace LightShadowPlatformer
             if (enterParticles != null) enterParticles.Play();
 
             LightShadowPlatformer.Player.PlayerController player =
-                other.GetComponent<LightShadowPlatformer.Player.PlayerController>();
-            player = FindObjectOfType<LightShadowPlatformer.Player.PlayerController>();
+                FindObjectOfType<LightShadowPlatformer.Player.PlayerController>();
             if (player != null)
             {
                 player.CanMove = false;

@@ -3,7 +3,8 @@
     "rootNamespace": "LightShadowPlatformer.UI",
     "references": [
         "LightShadowPlatformer.Core",
-        "LightShadowPlatformer.Player"
+        "LightShadowPlatformer.Player",
+        "LightShadowPlatformer.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

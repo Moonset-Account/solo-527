@@ -2,7 +2,8 @@
     "name": "LightShadowPlatformer.Player",
     "rootNamespace": "LightShadowPlatformer.Player",
     "references": [
-        "LightShadowPlatformer.Core"
+        "LightShadowPlatformer.Core",
+        "LightShadowPlatformer.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -311,7 +311,6 @@ namespace LightShadowPlatformer.Player
             CanMove = false;
             rb.velocity = Vector2.zero;
             rb.gravityScale = 0;
-            if (platformCollider != null) { }
             Collider2D col = GetComponent<Collider2D>();
             if (col != null) col.enabled = false;
 
