@@ -16,6 +16,12 @@ func _ready() -> void:
 	_connect_signals()
 	AudioManager.play_bgm("menu")
 	DebugLog.log_info("主菜单已加载")
+	call_deferred("_auto_enter_level_1")
+
+func _auto_enter_level_1() -> void:
+	print("🧪 AUTOTEST: 自动进入关卡1验证鼠标操作流程...")
+	GameState.current_level_id = "level_1"
+	GameState.goto_battle()
 
 func _build_ui() -> void:
 	var bg := ColorRect.new()
