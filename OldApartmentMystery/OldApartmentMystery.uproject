@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.3",
+	"Category": "Games/Horror",
+	"Description": "旧公寓探索悬疑游戏：遗物整理师还原租客女儿失踪事件。",
+	"Modules": [
+		{
+			"Name": "OldApartmentMystery",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine",
+				"CoreUObject",
+				"UMG",
+				"EnhancedInput",
+				"Slate",
+				"SlateCore",
+				"Json",
+				"JsonUtilities"
+			]
+		}
+	],
+	"Plugins": [
+		{ "Name": "EnhancedInput", "Enabled": true },
+		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+		{ "Name": "LevelEditor", "Enabled": true, "TargetAllowList": [ "Editor" ] }
+	],
+	"TargetPlatforms": [ "Mac", "Windows", "Linux" ]
+}
