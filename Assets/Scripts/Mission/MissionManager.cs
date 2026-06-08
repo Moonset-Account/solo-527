@@ -35,10 +35,9 @@ namespace LakeNavigation
 
             for (int i = 0; i < photoTargets.Count; i++)
             {
-                var target = photoTargets[i];
-                if (target.IsCompleted) continue;
-                float distance = Vector2.Distance(boatPosition, target.GridPosition);
-                if (distance <= target.RequiredProximity && distance < closestDistance)
+                if (photoTargets[i].IsCompleted) continue;
+                float distance = Vector2.Distance(boatPosition, photoTargets[i].GridPosition);
+                if (distance <= photoTargets[i].RequiredProximity && distance < closestDistance)
                 {
                     closestIndex = i;
                     closestDistance = distance;
@@ -47,17 +46,51 @@ namespace LakeNavigation
 
             if (closestIndex < 0) return;
 
-            var closestTarget = photoTargets[closestIndex];
-            PhotoQuality quality = CalculateQuality(closestDistance, closestTarget.RequiredProximity, closestTarget.PreferredWeather);
-            closestTarget.IsCompleted = true;
-            photoTargets[closestIndex] = closestTarget;
-            completedPhotos[closestTarget] = quality;
-            OnPhotoTaken?.Invoke(closestTarget, quality);
-            OnMissionCompleted?.Invoke(closestTarget);
+            var target = photoTargets[closestIndex];
+            PhotoQuality quality = CalculateQuality(closestDistance, target.RequiredProximity, target.PreferredWeather);
+            target.IsCompleted = true;
+            photoTargets[closestIndex] = target;
+            completedPhotos[target] = quality;
+            OnPhotoTaken?.Invoke(target, quality);
+            OnMissionCompleted?.Invoke(target);
+
+            CompleteObjectiveByPhoto(target);
 
             if (AreAllRequiredMissionsCompleted())
             {
                 OnAllMissionsCompleted?.Invoke();
+            }
+        }
+
+        private void CompleteObjectiveByPhoto(PhotoTarget target)
+        {
+            for (int i = 0; i < objectives.Count; i++)
+            {
+                if (objectives[i].IsCompleted) continue;
+                if (objectives[i].LinkedPhotoTargetId == target.Id)
+                {
+                    var obj = objectives[i];
+                    obj.IsCompleted = true;
+                    objectives[i] = obj;
+                    OnObjectiveCompleted?.Invoke(objectives[i]);
+                    return;
+                }
+            }
+        }
+
+        public void CompleteDockObjective()
+        {
+            for (int i = 0; i < objectives.Count; i++)
+            {
+                if (objectives[i].IsCompleted) continue;
+                if (objectives[i].IsDockObjective)
+                {
+                    var obj = objectives[i];
+                    obj.IsCompleted = true;
+                    objectives[i] = obj;
+                    OnObjectiveCompleted?.Invoke(objectives[i]);
+                    return;
+                }
             }
         }
 
@@ -136,10 +169,13 @@ namespace LakeNavigation
             return photoTargets.Count;
         }
 
-        public void CompleteObjective(LevelObjective objective)
+        public void CompleteObjective(int index)
         {
-            objective.IsCompleted = true;
-            OnObjectiveCompleted?.Invoke(objective);
+            if (index < 0 || index >= objectives.Count) return;
+            var obj = objectives[index];
+            obj.IsCompleted = true;
+            objectives[index] = obj;
+            OnObjectiveCompleted?.Invoke(objectives[index]);
 
             if (AreAllRequiredMissionsCompleted())
             {

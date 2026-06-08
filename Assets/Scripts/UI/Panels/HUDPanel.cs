@@ -215,7 +215,7 @@ namespace LakeNavigation
             _compassNeedle.localEulerAngles = new Vector3(0, 0, -angle);
         }
 
-        private void ShowWarning(string message, float countdown)
+        public void ShowWarning(string message, float countdown)
         {
             if (_warningCoroutine != null)
                 StopCoroutine(_warningCoroutine);

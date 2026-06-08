@@ -146,5 +146,7 @@ namespace LakeNavigation
         public bool IsRequired;
         public bool IsCompleted;
         public int ScoreReward;
+        public string LinkedPhotoTargetId;
+        public bool IsDockObjective;
     }
 }

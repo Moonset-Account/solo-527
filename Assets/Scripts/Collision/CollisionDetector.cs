@@ -20,6 +20,7 @@ namespace LakeNavigation
         private List<Vector2> _supplyPickups = new List<Vector2>();
         private List<Vector2> _docks = new List<Vector2>();
         private Dictionary<Vector2, float> _obstacleCooldowns = new Dictionary<Vector2, float>();
+        private MissionManager _missionManager;
         private const float ObstacleCooldownDuration = 2f;
         private const float DockRadius = 1.0f;
 
@@ -30,6 +31,7 @@ namespace LakeNavigation
             _docks = new List<Vector2>(docks);
             _photoTargets = new List<PhotoTarget>(photoTargets);
             _obstacleCooldowns.Clear();
+            _missionManager = FindObjectOfType<MissionManager>();
         }
 
         public void CheckCollisions(Vector2 currentBoatPos)
@@ -38,11 +40,18 @@ namespace LakeNavigation
 
             for (int i = 0; i < _photoTargets.Count; i++)
             {
-                var target = _photoTargets[i];
-                float distance = Vector2.Distance(currentBoatPos, target.GridPosition);
-                if (distance < target.RequiredProximity)
+                if (_photoTargets[i].IsCompleted) continue;
+                if (_missionManager != null && i < _missionManager.photoTargets.Count && _missionManager.photoTargets[i].IsCompleted)
                 {
-                    OnPhotoTargetProximity?.Invoke(target, distance);
+                    var t = _photoTargets[i];
+                    t.IsCompleted = true;
+                    _photoTargets[i] = t;
+                    continue;
+                }
+                float distance = Vector2.Distance(currentBoatPos, _photoTargets[i].GridPosition);
+                if (distance < _photoTargets[i].RequiredProximity)
+                {
+                    OnPhotoTargetProximity?.Invoke(_photoTargets[i], distance);
                 }
             }
 

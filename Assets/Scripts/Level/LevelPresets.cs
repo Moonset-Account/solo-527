@@ -36,8 +36,8 @@ namespace LakeNavigation
             };
             data.Objectives = new List<LevelObjective>
             {
-                new LevelObjective { Description = "Photograph the Heron", IsRequired = true, IsCompleted = false, ScoreReward = 100 },
-                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50 }
+                new LevelObjective { Description = "Photograph the Heron", IsRequired = true, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "heron_01" },
+                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50, IsDockObjective = true }
             };
             data.TimeLimit = 120f;
             data.WeatherSchedule = new List<WeatherScheduleEntry>
@@ -103,8 +103,9 @@ namespace LakeNavigation
             };
             data.Objectives = new List<LevelObjective>
             {
-                new LevelObjective { Description = "Photograph both subjects", IsRequired = true, IsCompleted = false, ScoreReward = 200 },
-                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50 }
+                new LevelObjective { Description = "Photograph the Swan", IsRequired = true, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "swan_01" },
+                new LevelObjective { Description = "Photograph the Water Lily", IsRequired = true, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "lily_01" },
+                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50, IsDockObjective = true }
             };
             data.TimeLimit = 150f;
             data.WeatherSchedule = new List<WeatherScheduleEntry>
@@ -196,9 +197,10 @@ namespace LakeNavigation
             };
             data.Objectives = new List<LevelObjective>
             {
-                new LevelObjective { Description = "Photograph all three subjects", IsRequired = true, IsCompleted = false, ScoreReward = 300 },
-                new LevelObjective { Description = "Navigate through obstacles safely", IsRequired = true, IsCompleted = false, ScoreReward = 150 },
-                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50 }
+                new LevelObjective { Description = "Photograph the Eagle", IsRequired = true, IsCompleted = false, ScoreReward = 150, LinkedPhotoTargetId = "eagle_01" },
+                new LevelObjective { Description = "Photograph the Deer", IsRequired = true, IsCompleted = false, ScoreReward = 150, LinkedPhotoTargetId = "deer_01" },
+                new LevelObjective { Description = "Photograph the Lighthouse", IsRequired = false, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "lighthouse_01" },
+                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50, IsDockObjective = true }
             };
             data.TimeLimit = 180f;
             data.WeatherSchedule = new List<WeatherScheduleEntry>
@@ -302,9 +304,10 @@ namespace LakeNavigation
             };
             data.Objectives = new List<LevelObjective>
             {
-                new LevelObjective { Description = "Photograph all three subjects", IsRequired = true, IsCompleted = false, ScoreReward = 300 },
-                new LevelObjective { Description = "Capture the storm", IsRequired = true, IsCompleted = false, ScoreReward = 200 },
-                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50 }
+                new LevelObjective { Description = "Photograph the Cormorant", IsRequired = true, IsCompleted = false, ScoreReward = 150, LinkedPhotoTargetId = "cormorant_01" },
+                new LevelObjective { Description = "Capture Lightning", IsRequired = true, IsCompleted = false, ScoreReward = 200, LinkedPhotoTargetId = "lightning_01" },
+                new LevelObjective { Description = "Photograph the Flooded Dock", IsRequired = false, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "flooded_dock_01" },
+                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50, IsDockObjective = true }
             };
             data.TimeLimit = 200f;
             data.WeatherSchedule = new List<WeatherScheduleEntry>
@@ -436,9 +439,11 @@ namespace LakeNavigation
             };
             data.Objectives = new List<LevelObjective>
             {
-                new LevelObjective { Description = "Photograph all four subjects", IsRequired = true, IsCompleted = false, ScoreReward = 400 },
-                new LevelObjective { Description = "Collect all supply pickups", IsRequired = false, IsCompleted = false, ScoreReward = 200 },
-                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50 }
+                new LevelObjective { Description = "Photograph the Kingfisher", IsRequired = true, IsCompleted = false, ScoreReward = 150, LinkedPhotoTargetId = "kingfisher_01" },
+                new LevelObjective { Description = "Photograph the Otter", IsRequired = true, IsCompleted = false, ScoreReward = 150, LinkedPhotoTargetId = "otter_01" },
+                new LevelObjective { Description = "Photograph the Ruins", IsRequired = true, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "ruins_01" },
+                new LevelObjective { Description = "Photograph the Waterspout", IsRequired = false, IsCompleted = false, ScoreReward = 100, LinkedPhotoTargetId = "waterspout_01" },
+                new LevelObjective { Description = "Return to dock", IsRequired = true, IsCompleted = false, ScoreReward = 50, IsDockObjective = true }
             };
             data.TimeLimit = 240f;
             data.WeatherSchedule = new List<WeatherScheduleEntry>

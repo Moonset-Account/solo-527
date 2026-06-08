@@ -434,16 +434,13 @@ namespace LakeNavigation
 
         private void OnNextLevel()
         {
-            if (_levelManager != null)
-                _levelManager.LoadLevel(GameManager.Instance.CurrentLevelIndex + 1);
-            GameManager.Instance.ChangeState(GameState.Planning);
+            int nextIndex = GameManager.Instance.CurrentLevelIndex + 1;
+            GameManager.Instance.StartLevel(nextIndex);
         }
 
         private void OnRetry()
         {
-            if (_levelManager != null)
-                _levelManager.LoadLevel(GameManager.Instance.CurrentLevelIndex);
-            GameManager.Instance.ChangeState(GameState.Planning);
+            GameManager.Instance.StartLevel(GameManager.Instance.CurrentLevelIndex);
         }
 
         private void OnEncyclopedia()

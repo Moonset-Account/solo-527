@@ -179,6 +179,7 @@ namespace LakeNavigation
             {
                 if (_missionManager != null && _missionManager.AreAllRequiredMissionsCompleted())
                 {
+                    _missionManager.CompleteDockObjective();
                     CompleteLevel();
                 }
                 else
@@ -264,14 +265,35 @@ namespace LakeNavigation
             }
         }
 
+        private float _lastDockWarningTime;
+        private const float DockWarningCooldown = 5f;
+
         private void OnDockReached(Vector2 dockPosition)
         {
             if (GameManager.Instance.CurrentState != GameState.Sailing)
                 return;
 
-            if (_missionManager != null && _missionManager.AreAllRequiredMissionsCompleted())
+            if (_missionManager == null) return;
+
+            if (_missionManager.AreAllRequiredMissionsCompleted())
             {
+                _missionManager.CompleteDockObjective();
                 CompleteLevel();
+            }
+            else
+            {
+                if (Time.time - _lastDockWarningTime < DockWarningCooldown) return;
+                _lastDockWarningTime = Time.time;
+                int remaining = 0;
+                foreach (var target in _missionManager.photoTargets)
+                {
+                    if (target.IsRequired && !target.IsCompleted) remaining++;
+                }
+                var hud = UIManager.Instance?.GetPanel<HUDPanel>();
+                if (hud != null)
+                {
+                    hud.ShowWarning("Complete " + remaining + " required photo(s) before returning to dock!", 3f);
+                }
             }
         }
 
