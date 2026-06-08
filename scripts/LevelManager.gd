@@ -146,7 +146,11 @@ func _on_drag_start(pos: Vector2) -> void:
 
 func _on_drag_move(pos: Vector2) -> void:
 	if selected_item and is_dragging:
-		pass
+		var target: Vector2 = pos - drag_offset
+		var lerp_factor: float = 0.35
+		selected_item.position = selected_item.position.lerp(target, lerp_factor)
+		if container:
+			_update_item_highlight(selected_item)
 
 func _on_drag_end(pos: Vector2, _valid: bool) -> void:
 	if selected_item == null or not is_dragging:

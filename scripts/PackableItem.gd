@@ -41,7 +41,7 @@ var is_within_container: bool = false
 var spawn_index: int = 0
 
 var _sprite: Node2D = null
-var _collision: CollisionPolygon2D = null
+var _collision: CollisionShape2D = null
 var _highlight: Polygon2D = null
 var _fragile_border: Line2D = null
 var _icon_label: Label = null
@@ -214,13 +214,10 @@ func _create_particles() -> void:
 	add_child(_break_particles)
 
 func _build_collision() -> void:
-	_collision = CollisionPolygon2D.new()
-	var hw: float = dimensions.x * 0.48
-	var hh: float = dimensions.y * 0.48
-	_collision.polygon = PackedVector2Array([
-		Vector2(-hw, -hh), Vector2(hw, -hh),
-		Vector2(hw, hh), Vector2(-hw, hh)
-	])
+	_collision = CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(dimensions.x * 0.96, dimensions.y * 0.96)
+	_collision.shape = shape
 	add_child(_collision)
 	collision_layer = 1
 	collision_mask = 1 + 2 + 4

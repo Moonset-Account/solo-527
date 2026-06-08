@@ -20,7 +20,7 @@ var is_weight_warning: bool = false
 var is_overweight: bool = false
 var _boundary_shape: CollisionShape2D = null
 var _visual_container: Node2D = null
-var _grid_overlay: ColorRect = null
+var _grid_overlay: TextureRect = null
 var _weight_bar: ProgressBar = null
 
 func _ready() -> void:
@@ -61,11 +61,12 @@ func _build_visuals() -> void:
 	inner_bg.color = wood_color.lightened(0.22)
 	_visual_container.add_child(inner_bg)
 	var grid_tex := _create_grid_texture()
-	_grid_overlay = ColorRect.new()
-	_grid_overlay.size = container_size - Vector2(24, 24)
+	_grid_overlay = TextureRect.new()
+	_grid_overlay.custom_minimum_size = container_size - Vector2(24, 24)
 	_grid_overlay.position = -container_size * 0.5 + Vector2(12, 12)
 	_grid_overlay.texture = grid_tex
-	_grid_overlay.color = Color(1, 1, 1, 0.12)
+	_grid_overlay.stretch_mode = TextureRect.STRETCH_TILE
+	_grid_overlay.modulate = Color(1, 1, 1, 0.12)
 	_visual_container.add_child(_grid_overlay)
 	_create_corners()
 
@@ -199,11 +200,11 @@ func remove_all_items() -> void:
 func _flash_background(c: Color) -> void:
 	if _grid_overlay == null:
 		return
-	var original_color: Color = _grid_overlay.color
+	var original_mod: Color = _grid_overlay.modulate
 	var tween := create_tween()
-	_grid_overlay.color = c
+	_grid_overlay.modulate = c
 	tween.set_parallel(true)
-	tween.tween_property(_grid_overlay, "color", Color(1, 1, 1, 0.12), 0.5).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_grid_overlay, "modulate", original_mod, 0.5).set_trans(Tween.TRANS_SINE)
 
 func get_fill_ratio() -> float:
 	var total_area: float = container_size.x * container_size.y
