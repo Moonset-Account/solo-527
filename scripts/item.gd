@@ -328,6 +328,7 @@ func apply_damage(amount: float) -> void:
 	_update_crack_visual()
 	_create_crack_particles()
 	damaged.emit(self, amount)
+	GameManager.fragile_damaged.emit(self, amount)
 	if damage_amount >= fragility:
 		_break_item()
 

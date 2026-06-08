@@ -70,16 +70,23 @@ func perform_undo() -> void:
 			if item and is_instance_valid(item):
 				if item.has_method("unplace"):
 					item.unplace()
-				item.global_position = action.get("prev_position", Vector2.ZERO)
-				item.global_rotation = action.get("prev_rotation", 0.0)
+				item.global_position = _dict_to_vec2(action.get("prev_position", Vector2.ZERO))
+				item.global_rotation = float(action.get("prev_rotation", 0.0))
 				items_in_box.erase(item)
 				AudioManager.play_sfx("undo")
 		"rotate":
 			var item = _find_item_by_id(action.get("item_id", ""))
 			if item and is_instance_valid(item):
-				item.global_rotation = action.get("prev_rotation", 0.0)
+				item.global_rotation = float(action.get("prev_rotation", 0.0))
 				AudioManager.play_sfx("undo")
 	undo_performed.emit()
+
+func _dict_to_vec2(val) -> Vector2:
+	if val is Vector2:
+		return val
+	if val is Dictionary:
+		return Vector2(float(val.get("x", 0.0)), float(val.get("y", 0.0)))
+	return Vector2.ZERO
 
 func _find_item_by_id(item_id: String) -> Node2D:
 	var tree = get_tree()

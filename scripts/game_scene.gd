@@ -100,7 +100,14 @@ func _load_from_save(slot: int) -> void:
 	GameManager.current_score = data.get("score", 0)
 	GameManager.level_time = data.get("time", 0.0)
 	GameManager.fragile_broken_count = data.get("fragile_broken_count", 0)
-	GameManager.undo_stack = data.get("undo_stack", [])
+	var raw_undo = data.get("undo_stack", [])
+	var restored_undo: Array[Dictionary] = []
+	for action in raw_undo:
+		var a = action.duplicate()
+		if a.has("prev_position"):
+			a["prev_position"] = _dict_to_vec2(a["prev_position"])
+		restored_undo.append(a)
+	GameManager.undo_stack = restored_undo
 	GameManager.is_level_active = true
 	GameManager.is_paused = false
 	GameManager.state = GameManager.GameState.PLAYING
@@ -132,6 +139,7 @@ func _load_from_save(slot: int) -> void:
 		if item.damage_amount > 0 and item.is_fragile:
 			item._update_crack_visual()
 		_items.append(item)
+	_box.rebuild_internal_state()
 	if _hud:
 		_hud.set_level_name(_level_config.get("name", level_id))
 
@@ -295,7 +303,7 @@ func _end_drag() -> void:
 	_dragged_item = null
 
 func _release_item(item: RigidBody2D) -> void:
-	var inside_box = _is_inside_box(item)
+	var inside_box = _is_center_in_box(item)
 	if inside_box:
 		item.release_in_box()
 		_is_settling = true
@@ -314,28 +322,42 @@ func _is_inside_box(item: RigidBody2D) -> bool:
 		_box.box_width,
 		_box.box_height
 	)
+	var item_rect = item.get_bounds()
+	var margin = 4.0
+	var inner = box_rect.grow(-margin)
+	return inner.encloses(item_rect)
+
+func _is_center_in_box(item: RigidBody2D) -> bool:
+	if not _box or not is_instance_valid(_box):
+		return false
+	var box_rect = Rect2(
+		_box.global_position.x - _box.box_width / 2.0,
+		_box.global_position.y - _box.box_height / 2.0,
+		_box.box_width,
+		_box.box_height
+	)
 	return box_rect.has_point(item.global_position)
 
 func _finalize_placement(item: RigidBody2D) -> void:
 	if not is_instance_valid(item):
 		return
 	item.finalize_placement()
-	var still_inside = _is_inside_box(item)
-	if still_inside:
-		GameManager.push_undo_action({
-			"type": "place",
-			"item_id": item.item_id,
-			"prev_position": item._original_pos,
-			"prev_rotation": item._original_rot
-		})
-		GameManager.add_item_to_box(item)
-		if _feedback:
-			_feedback.spawn_place_feedback(item.global_position, Color.GREEN)
-	else:
+	if not _is_inside_box(item):
 		item.set_meta("in_box", false)
 		item.is_placed = false
+		GameManager.remove_item_from_box(item)
 		if _feedback:
 			_feedback.spawn_floating_text(item.global_position, "Missed!", Color.RED)
+		return
+	GameManager.push_undo_action({
+		"type": "place",
+		"item_id": item.item_id,
+		"prev_position": item._original_pos,
+		"prev_rotation": item._original_rot
+	})
+	GameManager.add_item_to_box(item)
+	if _feedback:
+		_feedback.spawn_place_feedback(item.global_position, Color.GREEN)
 
 func _get_item_at(pos: Vector2) -> RigidBody2D:
 	var space_state = get_world_2d().direct_space_state
@@ -366,7 +388,15 @@ func _on_item_entered(item: Node2D) -> void:
 	AudioManager.play_sfx("place")
 
 func _on_item_exited(item: Node2D) -> void:
-	if item.get_meta("in_box", false):
+	if _is_settling and _settle_item == item:
+		_is_settling = false
+		_settle_item = null
+	var was_in_box = item.get_meta("in_box", false)
+	var was_placed = item.has_method("unplace") and item.is_placed
+	if was_in_box or was_placed:
+		item.set_meta("in_box", false)
+		if item.has_method("unplace"):
+			item.is_placed = false
 		GameManager.remove_item_from_box(item)
 
 func _on_weight_warning(ratio: float) -> void:
@@ -381,6 +411,7 @@ func _on_overflow() -> void:
 func _on_fragile_damaged(item: Node2D, damage: float) -> void:
 	if _feedback:
 		_feedback.spawn_break_feedback(item.global_position)
+		_feedback.spawn_floating_text(item.global_position + Vector2(0, -20), "Crack!", Color.ORANGE)
 
 func _on_undo() -> void:
 	GameManager.perform_undo()
@@ -403,3 +434,10 @@ func _on_complete() -> void:
 	AudioManager.play_sfx("success")
 	await get_tree().create_timer(1.0).timeout
 	get_tree().change_scene_to_file("res://scenes/result.tscn")
+
+func _dict_to_vec2(val) -> Vector2:
+	if val is Vector2:
+		return val
+	if val is Dictionary:
+		return Vector2(float(val.get("x", 0.0)), float(val.get("y", 0.0)))
+	return Vector2.ZERO

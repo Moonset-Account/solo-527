@@ -145,7 +145,6 @@ func _on_item_exited(body: Node2D) -> void:
 	if body == self or not body.has_meta("item_id"):
 		return
 	_items_inside.erase(body)
-	body.set_meta("in_box", false)
 	item_exited_box.emit(body)
 	_update_weight()
 
@@ -214,3 +213,20 @@ func reset() -> void:
 		_weight_bar.value = 0
 	if _overflow_indicator:
 		_overflow_indicator.color = Color(1, 0, 0, 0)
+
+func rebuild_internal_state() -> void:
+	_items_inside.clear()
+	var tree = get_tree()
+	if not tree:
+		return
+	for node in tree.get_nodes_in_group("items"):
+		if not is_instance_valid(node):
+			continue
+		if not node.get_meta("in_box", false):
+			continue
+		var local_pos = to_local(node.global_position)
+		var half = Vector2(node.item_width, node.item_height) / 2.0
+		var box_inner = Rect2(Vector2(-box_width / 2.0, -box_height / 2.0), Vector2(box_width, box_height))
+		if box_inner.has_point(local_pos):
+			_items_inside.append(node)
+	_update_weight()
