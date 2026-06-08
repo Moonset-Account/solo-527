@@ -179,10 +179,11 @@ export class TrafficSim {
 
       const currentPhaseIdx = intersection.currentPhase % phases.length;
       const currentPhase = phases[currentPhaseIdx];
+      const phaseDuration = currentPhase.cycleLength / phases.length;
 
       intersection.phaseTimer += dt;
 
-      if (intersection.phaseTimer >= currentPhase.greenDuration) {
+      if (intersection.phaseTimer >= phaseDuration) {
         intersection.currentPhase = (currentPhaseIdx + 1) % phases.length;
         intersection.phaseTimer = 0;
       }
@@ -379,6 +380,10 @@ export class TrafficSim {
       return true;
     }
 
+    if (intersection.phaseTimer >= currentPhase.greenDuration) {
+      return false;
+    }
+
     const approachDir = road.direction;
     const ns = approachDir === 'north' || approachDir === 'south';
     const phaseDir = currentPhase.direction;
@@ -518,9 +523,10 @@ export class TrafficSim {
     }
   }
 
-  restoreState(gameTime: number, intersections: IntersectionState[], throughput: number): void {
+  restoreState(gameTime: number, intersections: IntersectionState[], throughput: number, vehicles: VehicleState[]): void {
     this.gameTime = gameTime;
     this.throughputCounter = throughput;
+    this.vehicles = vehicles.map((v) => ({ ...v }));
     for (const is of intersections) {
       const existing = this.intersections.get(is.id);
       if (existing) {

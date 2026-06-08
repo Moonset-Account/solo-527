@@ -111,6 +111,10 @@ export interface SaveData {
   timestamp: number;
   gameTime: number;
   intersections: IntersectionState[];
+  vehicles: VehicleState[];
+  congestionScore: number;
+  throughput: number;
+  avgWaitTime: number;
   stats: PlayStats;
   speed: GameSpeed;
 }

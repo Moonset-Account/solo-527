@@ -51,7 +51,7 @@ interface GameState {
   clearReplay: () => void;
   completeLevel: (levelId: string) => void;
   loadCompletedLevels: () => void;
-  loadSave: (gameTime: number, intersections: IntersectionState[], throughput: number, speed: GameSpeed, failureCount: number, adjustmentHistory: AdjustmentSnapshot[]) => void;
+  loadSave: (gameTime: number, intersections: IntersectionState[], throughput: number, speed: GameSpeed, failureCount: number, adjustmentHistory: AdjustmentSnapshot[], vehicles: VehicleState[], congestionScore: number, avgWaitTime: number) => void;
 }
 
 const COMPLETED_KEY = 'traffic_sim_completed';
@@ -152,6 +152,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     if (!state.level) return;
     const level = state.level;
+    trafficSim.init(level);
     const intersections: IntersectionState[] = level.intersections.map((ic) => ({
       id: ic.id,
       currentPhase: 0,
@@ -201,7 +202,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     } catch {}
   },
 
-  loadSave: (gameTime, intersections, throughput, speed, failureCount, adjustmentHistory) => {
+  loadSave: (gameTime, intersections, throughput, speed, failureCount, adjustmentHistory, vehicles, congestionScore, avgWaitTime) => {
     set({
       phase: 'playing',
       gameTime,
@@ -210,9 +211,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       speed,
       failureCount,
       adjustmentHistory,
-      vehicles: [],
-      congestionScore: 100,
-      avgWaitTime: 0,
+      vehicles,
+      congestionScore,
+      avgWaitTime,
       replayFrames: [],
       selectedIntersection: null,
       lastAdjustment: null,

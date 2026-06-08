@@ -16,6 +16,9 @@ export default function SaveSlots() {
   const throughput = useGameStore((s) => s.throughput);
   const failureCount = useGameStore((s) => s.failureCount);
   const adjustmentHistory = useGameStore((s) => s.adjustmentHistory);
+  const vehicles = useGameStore((s) => s.vehicles);
+  const congestionScore = useGameStore((s) => s.congestionScore);
+  const avgWaitTime = useGameStore((s) => s.avgWaitTime);
   const loadSave = useGameStore((s) => s.loadSave);
 
   const [saves, setSaves] = useState(() => SaveMgr.listSaves());
@@ -30,6 +33,10 @@ export default function SaveSlots() {
       timestamp: Date.now(),
       gameTime,
       intersections,
+      vehicles,
+      congestionScore,
+      throughput,
+      avgWaitTime,
       stats: {
         levelId: level.id,
         playTimeSeconds: gameTime,
@@ -52,16 +59,20 @@ export default function SaveSlots() {
     trafficSim.restoreState(
       data.gameTime,
       data.intersections,
-      0,
+      data.throughput ?? 0,
+      data.vehicles ?? [],
     );
 
     loadSave(
       data.gameTime,
       data.intersections,
-      0,
+      data.throughput ?? 0,
       data.speed ?? 1,
       data.stats?.failureCount ?? 0,
       data.stats?.adjustments ?? [],
+      data.vehicles ?? [],
+      data.congestionScore ?? 100,
+      data.avgWaitTime ?? 0,
     );
   };
 
