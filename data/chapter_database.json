@@ -1,0 +1,99 @@
+{
+	"0": {
+		"name": "第一章：初识修复",
+		"base_budget": 3,
+		"difficulty_scale": 1.0,
+		"new_rule": null,
+		"levels": [
+			{
+				"exhibits": [
+					{"name": "瓷瓶", "max_hp": 5, "type": "ceramic"},
+					{"name": "油画", "max_hp": 4, "type": "painting"}
+				],
+				"events": []
+			},
+			{
+				"exhibits": [
+					{"name": "青铜器", "max_hp": 6, "type": "metal"},
+					{"name": "丝织品", "max_hp": 4, "type": "textile"}
+				],
+				"events": ["decay"]
+			},
+			{
+				"exhibits": [
+					{"name": "石雕", "max_hp": 7, "type": "stone"},
+					{"name": "古籍", "max_hp": 3, "type": "paper"},
+					{"name": "玉器", "max_hp": 5, "type": "jade"}
+				],
+				"events": ["decay", "surprise_damage"]
+			}
+		],
+		"rewards": ["repair_advanced", "budget_grant"]
+	},
+	"1": {
+		"name": "第二章：隐藏损伤",
+		"base_budget": 3,
+		"difficulty_scale": 1.2,
+		"new_rule": "hidden_damage",
+		"levels": [
+			{
+				"exhibits": [
+					{"name": "彩陶", "max_hp": 5, "type": "ceramic", "hidden_damage": 2},
+					{"name": "壁画", "max_hp": 6, "type": "painting", "hidden_damage": 3}
+				],
+				"events": ["decay"]
+			},
+			{
+				"exhibits": [
+					{"name": "银器", "max_hp": 5, "type": "metal", "hidden_damage": 2},
+					{"name": "漆器", "max_hp": 4, "type": "lacquer", "hidden_damage": 2},
+					{"name": "木雕", "max_hp": 6, "type": "wood", "hidden_damage": 1}
+				],
+				"events": ["decay", "hidden_reveal"]
+			},
+			{
+				"exhibits": [
+					{"name": "玻璃器", "max_hp": 4, "type": "glass", "hidden_damage": 3},
+					{"name": "牙雕", "max_hp": 5, "type": "ivory", "hidden_damage": 2},
+					{"name": "铁器", "max_hp": 7, "type": "metal", "hidden_damage": 2}
+				],
+				"events": ["decay", "surprise_damage", "hidden_reveal"]
+			}
+		],
+		"rewards": ["expert_conservator", "tool_uv"]
+	},
+	"2": {
+		"name": "第三章：紧急事态",
+		"base_budget": 4,
+		"difficulty_scale": 1.4,
+		"new_rule": "events",
+		"levels": [
+			{
+				"exhibits": [
+					{"name": "法老面具", "max_hp": 6, "type": "metal"},
+					{"name": "莎草纸", "max_hp": 3, "type": "paper"},
+					{"name": "琥珀", "max_hp": 5, "type": "organic"}
+				],
+				"events": ["decay", "earthquake"]
+			},
+			{
+				"exhibits": [
+					{"name": "唐三彩", "max_hp": 5, "type": "ceramic"},
+					{"name": "敦煌绢画", "max_hp": 4, "type": "textile"},
+					{"name": "青铜鼎", "max_hp": 8, "type": "metal"}
+				],
+				"events": ["decay", "flood", "theft_attempt"]
+			},
+			{
+				"exhibits": [
+					{"name": "紫檀屏风", "max_hp": 7, "type": "wood"},
+					{"name": "翡翠山子", "max_hp": 5, "type": "jade"},
+					{"name": "珐琅钟", "max_hp": 6, "type": "metal"},
+					{"name": "缂丝龙袍", "max_hp": 4, "type": "textile"}
+				],
+				"events": ["decay", "earthquake", "flood", "surprise_damage"]
+			}
+		],
+		"rewards": ["expert_curator", "tool_climate"]
+	}
+}

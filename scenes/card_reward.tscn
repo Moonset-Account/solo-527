@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3 uid="uid://card_reward"]
+
+[ext_resource type="Script" path="res://scripts/ui/card_reward_scene.gd" id="1"]
+
+[node name="CardReward" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.08, 0.16, 1)
+
+[node name="RewardUI" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = load("res://scripts/ui/card_reward_screen.gd")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RewardUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="RewardUI/VBoxContainer"]
+layout_mode = 2
+text = "选择一张新卡加入卡组"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+
+[node name="CardContainer" type="HBoxContainer" parent="RewardUI/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="SkipButton" type="Button" parent="RewardUI/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 45)
+text = "跳过"

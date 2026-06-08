@@ -1,0 +1,17 @@
+{
+	"repair_basic": {"name": "基础修复", "type": "repair", "cost": 1, "repair_value": 2, "description": "修复2点损坏", "rarity": "common"},
+	"repair_advanced": {"name": "精细修复", "type": "repair", "cost": 2, "repair_value": 4, "description": "修复4点损坏", "rarity": "uncommon"},
+	"repair_masterwork": {"name": "大师修复", "type": "repair", "cost": 3, "repair_value": 7, "description": "修复7点损坏", "rarity": "rare"},
+	"budget_grant": {"name": "预算拨款", "type": "budget", "cost": 0, "budget_gain": 2, "description": "获得2点预算", "rarity": "common"},
+	"budget_emergency": {"name": "紧急拨款", "type": "budget", "cost": 0, "budget_gain": 1, "draw": 1, "description": "获得1点预算，抽1张牌", "rarity": "uncommon"},
+	"expert_historian": {"name": "历史学家", "type": "expert", "cost": 1, "effect": "exhibit_info", "description": "查看展品隐藏信息", "rarity": "common"},
+	"expert_conservator": {"name": "修复师", "type": "expert", "cost": 2, "effect": "repair_boost", "repair_bonus": 2, "description": "下一次修复+2", "rarity": "uncommon"},
+	"expert_chemist": {"name": "化学家", "type": "expert", "cost": 2, "effect": "stabilize", "description": "稳定所有展品状态", "rarity": "rare"},
+	"tool_brush": {"name": "软毛刷", "type": "repair", "cost": 1, "repair_value": 1, "effect": "clean", "description": "清除1点污损+修复1点", "rarity": "common"},
+	"tool_glue": {"name": "专用胶水", "type": "repair", "cost": 1, "repair_value": 3, "self_damage": 1, "description": "修复3点但展品受1点冲击", "rarity": "uncommon"},
+	"tool_uv": {"name": "紫外线灯", "type": "repair", "cost": 2, "repair_value": 2, "effect": "reveal", "description": "修复2点并揭示隐藏损伤", "rarity": "rare"},
+	"budget_negotiate": {"name": "谈判协商", "type": "budget", "cost": 0, "budget_gain": 3, "discard": 1, "description": "获得3点预算，弃1张牌", "rarity": "uncommon"},
+	"expert_curator": {"name": "策展人", "type": "expert", "cost": 1, "effect": "skip_event", "description": "跳过下一个负面事件", "rarity": "rare"},
+	"repair_gentle": {"name": "温和修复", "type": "repair", "cost": 1, "repair_value": 1, "effect": "prevent_decay", "description": "修复1点并防止退化", "rarity": "common"},
+	"tool_climate": {"name": "气候控制", "type": "expert", "cost": 2, "effect": "global_stabilize", "description": "所有展品本回合不退化", "rarity": "rare"}
+}
