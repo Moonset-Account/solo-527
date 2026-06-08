@@ -186,7 +186,7 @@ public class GameFlowManager : MonoBehaviour
     {
         _pendingLevelId = levelId;
 
-        if (LevelManager.Instance == null || !LevelManager.Instance.IsLevelUnlocked(levelId))
+        if (LevelManager.Instance != null && !LevelManager.Instance.IsLevelUnlocked(levelId))
         {
             GameEvents.TriggerAudioTriggerRequested("ui_locked", 0.5f);
             return;

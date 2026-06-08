@@ -142,19 +142,46 @@ public class MissionResultPanel : MonoBehaviour
 
         foreach (var result in _results)
         {
-            if (missionResultEntryPrefab == null) continue;
-
-            var entry = Instantiate(missionResultEntryPrefab, missionResultContainer);
-            var texts = entry.GetComponentsInChildren<TMP_Text>();
-
             var missionData = GetMissionData(result.missionId);
 
-            if (texts.Length >= 4)
+            if (missionResultEntryPrefab != null)
             {
-                texts[0].text = missionData != null ? missionData.missionName : result.missionId;
-                texts[1].text = result.isCompleted ? "✓" : "✗";
-                texts[2].text = $"{result.score}";
-                texts[3].text = GetStarDisplay(result.starCount);
+                var entry = Instantiate(missionResultEntryPrefab, missionResultContainer);
+                var texts = entry.GetComponentsInChildren<TMP_Text>();
+
+                if (texts.Length >= 4)
+                {
+                    texts[0].text = missionData != null ? missionData.missionName : result.missionId;
+                    texts[1].text = result.isCompleted ? "✓" : "✗";
+                    texts[2].text = $"{result.score}";
+                    texts[3].text = GetStarDisplay(result.starCount);
+                }
+            }
+            else
+            {
+                var entryRt = UIFactory.CreateContainer(missionResultContainer, $"Mission_{result.missionId}");
+                var hlg = entryRt.GetComponent<HorizontalLayoutGroup>();
+                if (hlg != null) { hlg.spacing = 12f; hlg.childControlWidth = false; hlg.childControlHeight = false; }
+
+                var nameLbl = UIFactory.CreateLabel(entryRt, "Name",
+                    missionData != null ? missionData.missionName : result.missionId, 18, Color.white);
+                var nameRt = nameLbl.GetComponent<RectTransform>();
+                nameRt.sizeDelta = new Vector2(160f, 30f);
+
+                var statusLbl = UIFactory.CreateLabel(entryRt, "Status",
+                    result.isCompleted ? "✓" : "✗", 18, result.isCompleted ? Color.green : Color.red);
+                var statusRt = statusLbl.GetComponent<RectTransform>();
+                statusRt.sizeDelta = new Vector2(30f, 30f);
+
+                var scoreLbl = UIFactory.CreateLabel(entryRt, "Score",
+                    $"{result.score}", 18, Color.white);
+                var scoreRt = scoreLbl.GetComponent<RectTransform>();
+                scoreRt.sizeDelta = new Vector2(80f, 30f);
+
+                var starLbl = UIFactory.CreateLabel(entryRt, "Stars",
+                    GetStarDisplay(result.starCount), 18, new Color(1f, 0.85f, 0.2f));
+                var starRt = starLbl.GetComponent<RectTransform>();
+                starRt.sizeDelta = new Vector2(60f, 30f);
             }
 
             if (result.isCompleted)
@@ -196,19 +223,37 @@ public class MissionResultPanel : MonoBehaviour
         foreach (var result in _results)
         {
             if (string.IsNullOrEmpty(result.collectionItemId)) continue;
-            if (collectionUnlockEntryPrefab == null) continue;
 
             var itemData = CollectionManager.Instance != null
                 ? CollectionManager.Instance.GetItemData(result.collectionItemId)
                 : null;
 
-            var entry = Instantiate(collectionUnlockEntryPrefab, collectionUnlocksContainer);
-            var texts = entry.GetComponentsInChildren<TMP_Text>();
-
-            if (texts.Length >= 2)
+            if (collectionUnlockEntryPrefab != null)
             {
-                texts[0].text = itemData != null ? itemData.displayName : result.collectionItemId;
-                texts[1].text = itemData != null ? itemData.description : "新图鉴解锁!";
+                var entry = Instantiate(collectionUnlockEntryPrefab, collectionUnlocksContainer);
+                var texts = entry.GetComponentsInChildren<TMP_Text>();
+
+                if (texts.Length >= 2)
+                {
+                    texts[0].text = itemData != null ? itemData.displayName : result.collectionItemId;
+                    texts[1].text = itemData != null ? itemData.description : "新图鉴解锁!";
+                }
+            }
+            else
+            {
+                var entryRt = UIFactory.CreateContainer(collectionUnlocksContainer, $"Unlock_{result.collectionItemId}");
+                var hlg = entryRt.GetComponent<HorizontalLayoutGroup>();
+                if (hlg != null) { hlg.spacing = 10f; hlg.childControlWidth = false; hlg.childControlHeight = false; }
+
+                var nameLbl = UIFactory.CreateLabel(entryRt, "ItemName",
+                    itemData != null ? itemData.displayName : result.collectionItemId, 16, new Color(0.3f, 0.9f, 1f));
+                var nRt = nameLbl.GetComponent<RectTransform>();
+                nRt.sizeDelta = new Vector2(120f, 24f);
+
+                var descLbl = UIFactory.CreateLabel(entryRt, "ItemDesc",
+                    itemData != null ? itemData.description : "新图鉴解锁!", 14, new Color(0.8f, 0.8f, 0.8f));
+                var dRt = descLbl.GetComponent<RectTransform>();
+                dRt.sizeDelta = new Vector2(300f, 24f);
             }
         }
     }

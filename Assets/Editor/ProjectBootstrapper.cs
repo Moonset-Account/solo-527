@@ -90,7 +90,7 @@ public static class ProjectBootstrapper
         EnsureDirectory(dir);
 
         CreateMissionData(dir, "mission_01_01", "拍摄白鹭", "驶近湖心小岛，拍摄一只栖息的白鹭",
-            MissionType.Photo, " egret", 8f, 150, 15, 30f, 50,
+            MissionType.Photo, "egret", 8f, 150, 15, 30f, 50,
             "collection_egret", "mission_complete");
 
         CreateMissionData(dir, "mission_01_02", "到达灯塔", "航行至北岸老灯塔附近",

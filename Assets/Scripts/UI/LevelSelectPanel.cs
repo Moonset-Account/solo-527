@@ -34,6 +34,7 @@ public class LevelSelectPanel : MonoBehaviour
             settingsButton.onClick.AddListener(OnSettingsClicked);
 
         LoadLevelList();
+        RefreshLevels();
     }
 
     private void BuildUI()
@@ -121,7 +122,11 @@ public class LevelSelectPanel : MonoBehaviour
 
         foreach (var level in _levels)
         {
-            bool unlocked = LevelManager.Instance != null && LevelManager.Instance.IsLevelUnlocked(level.levelId);
+            bool unlocked;
+            if (LevelManager.Instance != null)
+                unlocked = LevelManager.Instance.IsLevelUnlocked(level.levelId);
+            else
+                unlocked = level.levelId == "level_01";
             int stars = GetLevelStars(level.levelId);
             totalStars += stars;
 

@@ -15,8 +15,84 @@ public class UIStateDispatcher : MonoBehaviour
     public GameObject routePlannerPanel;
 
     private Dictionary<UIState, GameObject> _statePanelMap;
+    private bool _discovered;
 
     private void Awake()
+    {
+        DiscoverPanels();
+        BuildMap();
+    }
+
+    private void DiscoverPanels()
+    {
+        if (_discovered) return;
+        _discovered = true;
+
+        var canvas = GetComponentInParent<Canvas>();
+        Transform searchRoot = canvas != null ? canvas.transform : transform;
+
+        if (mainMenuPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<MainMenuPanel>(true);
+            if (comp != null) mainMenuPanel = comp.gameObject;
+        }
+
+        if (levelSelectPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<LevelSelectPanel>(true);
+            if (comp != null) levelSelectPanel = comp.gameObject;
+        }
+
+        if (hudPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<HUDPanel>(true);
+            if (comp != null) hudPanel = comp.gameObject;
+        }
+
+        if (pausePanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<PausePanel>(true);
+            if (comp != null) pausePanel = comp.gameObject;
+        }
+
+        if (missionResultPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<MissionResultPanel>(true);
+            if (comp != null) missionResultPanel = comp.gameObject;
+        }
+
+        if (settingsPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<SettingsPanel>(true);
+            if (comp != null) settingsPanel = comp.gameObject;
+        }
+
+        if (supplyPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<SupplyPanel>(true);
+            if (comp != null) supplyPanel = comp.gameObject;
+        }
+
+        if (collectionPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<CollectionPanel>(true);
+            if (comp != null) collectionPanel = comp.gameObject;
+        }
+
+        if (mapPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<MapPanel>(true);
+            if (comp != null) mapPanel = comp.gameObject;
+        }
+
+        if (routePlannerPanel == null)
+        {
+            var comp = searchRoot.GetComponentInChildren<RoutePlanner>(true);
+            if (comp != null) routePlannerPanel = comp.gameObject;
+        }
+    }
+
+    private void BuildMap()
     {
         _statePanelMap = new Dictionary<UIState, GameObject>
         {

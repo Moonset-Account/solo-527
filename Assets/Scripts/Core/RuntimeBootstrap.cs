@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 public class RuntimeBootstrap : MonoBehaviour
@@ -18,12 +19,26 @@ public class RuntimeBootstrap : MonoBehaviour
         EnsureSingleton<SceneMgr>();
         EnsureSingleton<UIStateManager>();
         EnsureSingleton<GameFlowManager>();
+        EnsureEventSystem();
 
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
+    private static void EnsureEventSystem()
+    {
+        if (FindObjectOfType<EventSystem>() != null) return;
+
+        var esGo = new GameObject("EventSystem");
+        esGo.AddComponent<EventSystem>();
+        esGo.AddComponent<StandaloneInputModule>();
+        DontDestroyOnLoad(esGo);
+        Debug.Log("[RuntimeBootstrap] 自动创建 EventSystem");
+    }
+
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        EnsureEventSystem();
+
         string sceneName = scene.name;
 
         if (UIStateManager.Instance != null)
