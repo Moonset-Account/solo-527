@@ -1,4 +1,3 @@
-class_name AnalyticsManager
 extends Node
 
 const ANALYTICS_PATH: String = "user://analytics.json"

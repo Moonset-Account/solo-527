@@ -1,4 +1,3 @@
-class_name SettingsManager
 extends Node
 
 signal settings_changed

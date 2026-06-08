@@ -1,4 +1,3 @@
-class_name LevelManager
 extends Node
 
 signal level_loaded(level_id: String)

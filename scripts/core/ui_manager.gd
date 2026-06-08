@@ -1,4 +1,3 @@
-class_name UIManager
 extends Node
 
 signal popup_closed(popup_name: String)

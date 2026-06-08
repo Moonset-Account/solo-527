@@ -1,6 +1,8 @@
 extends Area2D
 class_name Checkpoint
 
+const PlayerScript = preload("res://scripts/player/player.gd")
+
 @export var checkpoint_id: String = ""
 @export var is_active: bool = false
 
@@ -34,5 +36,5 @@ func activate() -> void:
 	checkpoint_reached.emit(checkpoint_id, global_position)
 
 func _on_body_entered(body: Node2D) -> void:
-	if body is Player:
+	if body is PlayerScript:
 		activate()

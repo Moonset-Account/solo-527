@@ -1,6 +1,8 @@
 extends CharacterBody2D
 class_name PatrolGuard
 
+const VisionConeScript = preload("res://scripts/enemy/vision_cone.gd")
+
 enum State { PATROLLING, ALERT, CHASING, RETURNING }
 
 @export var patrol_speed: float = 80
@@ -18,7 +20,7 @@ var current_patrol_index: int = 0
 var alert_timer: float = 0.0
 var last_known_position: Vector2 = Vector2.ZERO
 var move_direction: Vector2 = Vector2.RIGHT
-var vision_cone: VisionCone
+var vision_cone: Node2D
 
 func _ready() -> void:
 	collision_layer = 0
@@ -27,7 +29,7 @@ func _ready() -> void:
 	set_collision_mask_value(1, true)
 	set_collision_mask_value(3, true)
 	set_collision_mask_value(4, true)
-	vision_cone = VisionCone.new()
+	vision_cone = VisionConeScript.new()
 	vision_cone.vision_range = vision_range
 	vision_cone.vision_angle = vision_angle
 	vision_cone.vision_color = vision_color

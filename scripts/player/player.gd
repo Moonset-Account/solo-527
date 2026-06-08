@@ -1,6 +1,8 @@
 extends CharacterBody2D
 class_name Player
 
+const ShelfScript = preload("res://scripts/objects/shelf.gd")
+
 enum State { IDLE, MOVING, SCANNING, DISCOVERED }
 
 @export var move_speed: float = 150
@@ -26,9 +28,9 @@ var _noise_area: Area2D
 var _noise_shape: CollisionShape2D
 
 var _nearby_shelves: Array = []
-var _nearest_shelf: Shelf = null
+var _nearest_shelf: StaticBody2D = null
 var _scanned_shelves: Array = []
-var _fix_target: Shelf = null
+var _fix_target: StaticBody2D = null
 
 const _SCAN_ENERGY_COST: float = 15
 const _ENERGY_REGEN_RATE: float = 8
@@ -114,6 +116,11 @@ func _physics_process(delta):
 
 	queue_redraw()
 
+func _set_state(new_state: State):
+	if current_state != new_state:
+		current_state = new_state
+		emit_signal("state_changed", State.keys()[new_state])
+
 func _update_nearby_shelves():
 	_nearby_shelves = _detect_shelves(scan_range)
 	_scanned_shelves = _detect_shelves(interact_range)
@@ -154,7 +161,7 @@ func _detect_shelves(range_val: float) -> Array:
 	var intersections = space_state.intersect_shape(shape_query)
 	for intersection in intersections:
 		var collider = intersection["collider"]
-		if collider is Shelf:
+		if collider is ShelfScript:
 			results.append(collider)
 	return results
 
@@ -181,9 +188,9 @@ func _start_scanning():
 		_set_state(State.IDLE)
 
 func _try_fix_label():
-	var target := _fix_target
+	var target = _fix_target
 	if target and target._scanned and not target.is_fixed:
-		var sid := target.shelf_id
+		var sid = target.shelf_id
 		target.fix_label()
 		emit_signal("label_fix_attempted", sid)
 		_fix_target = null

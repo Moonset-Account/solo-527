@@ -1,4 +1,3 @@
-class_name AudioManager
 extends Node
 
 const SFX_POOL_SIZE: int = 8

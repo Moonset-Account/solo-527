@@ -1,6 +1,8 @@
 extends Node2D
 class_name VisionCone
 
+const PlayerScript = preload("res://scripts/player/player.gd")
+
 @export var vision_range: float = 200
 @export var vision_angle: float = 45.0
 @export var vision_color: Color = Color(1, 0.8, 0, 0.3)
@@ -38,7 +40,7 @@ func _check_vision() -> void:
 		var result: Dictionary = space_state.intersect_ray(query)
 		if result:
 			var collider: CollisionObject2D = result["collider"]
-			if collider is Player:
+			if collider is PlayerScript:
 				is_player_visible = true
 				player_position = result["position"]
 				if not was_visible:
@@ -49,8 +51,7 @@ func set_direction(angle: float) -> void:
 	_direction = angle
 
 func _draw() -> void:
-	var settings_manager: SettingsManager = get_node_or_null("/root/SettingsManager")
-	if settings_manager and not settings_manager.get_setting("show_vision_cones", true):
+	if SettingsManager and not SettingsManager.get_setting("show_vision_cones", true):
 		return
 	var half_angle: float = deg_to_rad(vision_angle / 2.0)
 	var points: PackedVector2Array = PackedVector2Array()

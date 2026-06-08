@@ -1,4 +1,3 @@
-class_name InputManager
 extends Node
 
 signal move_direction(direction: Vector2)

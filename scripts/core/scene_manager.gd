@@ -1,4 +1,3 @@
-class_name SceneManager
 extends Node
 
 signal scene_changed(scene_name: String)

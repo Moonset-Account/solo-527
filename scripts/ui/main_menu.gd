@@ -11,7 +11,7 @@ var _buttons: Array[Button] = []
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = Vector2(1280, 720)
+	set_deferred("size", Vector2(1280, 720))
 
 	var bg = ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
