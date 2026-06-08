@@ -7,13 +7,17 @@ export class TrafficLightController {
   timer = 0;
 
   constructor(config: TrafficLightConfig) {
-    this.config = { ...config };
+    this.config = { ...config, busPriorityCooldown: 0 };
   }
 
   update(dt: number, approachingBusDistances: number[] = []): void {
+    if (this.config.busPriorityCooldown > 0) {
+      this.config.busPriorityCooldown = Math.max(0, this.config.busPriorityCooldown - dt);
+    }
+
     this.timer += dt;
 
-    if (this.config.busPriorityEnabled && approachingBusDistances.length > 0) {
+    if (this.config.busPriorityEnabled && approachingBusDistances.length > 0 && this.config.busPriorityCooldown <= 0) {
       this.handleBusPriority(approachingBusDistances);
     }
 
@@ -34,25 +38,23 @@ export class TrafficLightController {
     const closeBus = distances.some(d => d < busDetectionRange && d > 0);
     if (!closeBus) return;
 
-    if (this.config.busPriorityCooldown > 0) {
-      this.config.busPriorityCooldown -= 0;
-      return;
-    }
-
     if (this.phase === 'ns-green' || this.phase === 'ew-green') {
       const remainingTime =
         (this.phase === 'ns-green' ? this.config.nsGreenDuration : this.config.ewGreenDuration) - this.timer;
       if (remainingTime > 0 && remainingTime < this.config.busPriorityExtendSeconds) {
         if (this.phase === 'ns-green') {
-          this.config.nsGreenDuration = Math.min(90, this.config.nsGreenDuration + this.config.busPriorityExtendSeconds);
+          this.config.nsGreenDuration += this.config.busPriorityExtendSeconds;
+          this.config.nsGreenDuration = Math.min(90, this.config.nsGreenDuration);
         } else {
-          this.config.ewGreenDuration = Math.min(90, this.config.ewGreenDuration + this.config.busPriorityExtendSeconds);
+          this.config.ewGreenDuration += this.config.busPriorityExtendSeconds;
+          this.config.ewGreenDuration = Math.min(90, this.config.ewGreenDuration);
         }
         this.config.busPriorityCooldown = 30;
       }
     } else {
       this.timer += this.config.busPriorityAdvanceSeconds;
-      if (this.timer >= this.getCurrentPhaseDuration()) {
+      const currentDuration = this.getCurrentPhaseDuration();
+      if (this.timer >= currentDuration) {
         this.phase = PHASE_SEQUENCE[this.phase.replace('-', '') as keyof typeof PHASE_SEQUENCE].next as LightPhase;
         this.timer = 0;
       }
@@ -99,6 +101,6 @@ export class TrafficLightController {
   reset(): void {
     this.phase = 'ns-green';
     this.timer = 0;
-    this.config.busPriorityCooldown = 30;
+    this.config.busPriorityCooldown = 0;
   }
 }

@@ -69,6 +69,19 @@ export interface ReplaySnapshot {
   timestamp: number;
   trafficLightConfig: TrafficLightConfig[];
   scoreSnapshot: ScoreResult;
+  simulationTime: number;
+}
+
+export interface AdjustmentComparison {
+  beforeScore: ScoreResult;
+  afterScore: ScoreResult;
+  beforeConfig: TrafficLightConfig[];
+  afterConfig: TrafficLightConfig[];
+  congestionDelta: number;
+  throughputDelta: number;
+  avgWaitDelta: number;
+  busWaitDelta: number;
+  improved: boolean;
 }
 
 export interface Intersection {
@@ -88,6 +101,7 @@ export interface Vehicle {
   currentSegment: number;
   isWaiting: boolean;
   type: VehicleType;
+  busRouteIndex?: number;
 }
 
 export interface TrafficLightState {

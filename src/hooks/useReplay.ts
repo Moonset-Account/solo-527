@@ -6,11 +6,12 @@ export function useReplay() {
   const { snapshots, addSnapshot, clearSnapshots } = useSimulationStore();
 
   const captureSnapshot = useCallback(
-    (config: TrafficLightConfig[], score: ScoreResult) => {
+    (config: TrafficLightConfig[], score: ScoreResult, simulationTime: number = 0) => {
       const snapshot: ReplaySnapshot = {
         timestamp: Date.now(),
         trafficLightConfig: config.map(c => ({ ...c })),
         scoreSnapshot: { ...score },
+        simulationTime,
       };
       addSnapshot(snapshot);
     },

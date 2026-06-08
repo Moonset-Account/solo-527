@@ -8,20 +8,18 @@ import DebugPanel from '@/components/game/DebugPanel';
 import ScoreBar from '@/components/ui/ScoreBar';
 import TutorialOverlay from '@/components/tutorial/TutorialOverlay';
 import { useSimulation } from '@/hooks/useSimulation';
-import { useReplay } from '@/hooks/useReplay';
 import { useAudio } from '@/hooks/useAudio';
 import { useSimulationStore } from '@/store/simulationStore';
 import { useGameStore } from '@/store/gameStore';
 import { useUIStore } from '@/store/uiStore';
 import { getLevelById } from '@/config/levels';
 import { canTransition } from '@/animation/AnimationState';
-import type { TrafficLightConfig, AnimationState as AnimState } from '@/engine/types';
+import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentComparison, ReplaySnapshot } from '@/engine/types';
 
 function GameContent({ levelId }: { levelId: string }) {
   const navigate = useNavigate();
   const levelConfig = getLevelById(levelId)!;
   const { play } = useAudio();
-  const { captureSnapshot, clearHistory } = useReplay();
 
   const animationState = useSimulationStore(s => s.animationState);
   const trafficLightConfigs = useSimulationStore(s => s.trafficLightConfigs);
@@ -29,8 +27,14 @@ function GameContent({ levelId }: { levelId: string }) {
   const simulationTime = useSimulationStore(s => s.simulationTime);
   const currentScore = useSimulationStore(s => s.currentScore);
   const selectedIntersection = useSimulationStore(s => s.selectedIntersection);
+  const latestComparison = useSimulationStore(s => s.latestComparison);
+  const preAdjustmentSnapshot = useSimulationStore(s => s.preAdjustmentSnapshot);
   const setAnimationState = useSimulationStore(s => s.setAnimationState);
   const setSelectedIntersection = useSimulationStore(s => s.setSelectedIntersection);
+  const setLatestComparison = useSimulationStore(s => s.setLatestComparison);
+  const setPreAdjustmentSnapshot = useSimulationStore(s => s.setPreAdjustmentSnapshot);
+  const addSnapshot = useSimulationStore(s => s.addSnapshot);
+  const clearSnapshots = useSimulationStore(s => s.clearSnapshots);
 
   const showTutorial = useUIStore(s => s.showTutorial);
   const tutorialStep = useUIStore(s => s.tutorialStep);
@@ -46,6 +50,10 @@ function GameContent({ levelId }: { levelId: string }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [fps, setFps] = useState(60);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const replayStartTime = useRef<number | null>(null);
+  const replaySnapshotBeforeReplay = useRef<ReplaySnapshot | null>(null);
 
   const { getSim, updateConfig, reset } = useSimulation(levelConfig);
 
@@ -82,6 +90,41 @@ function GameContent({ levelId }: { levelId: string }) {
     return () => cancelAnimationFrame(animFrame);
   }, []);
 
+  useEffect(() => {
+    if (animationState !== 'replaying') return;
+    if (replayStartTime.current === null) return;
+
+    const elapsed = simulationTime - replayStartTime.current;
+    const replayDuration = 30;
+
+    if (elapsed >= replayDuration) {
+      const sim = getSim();
+      if (sim && replaySnapshotBeforeReplay.current) {
+        const afterScore = currentScore ?? sim.getState().score;
+        if (afterScore) {
+          const before = replaySnapshotBeforeReplay.current;
+          const comparison: AdjustmentComparison = {
+            beforeScore: before.scoreSnapshot,
+            afterScore,
+            beforeConfig: before.trafficLightConfig,
+            afterConfig: trafficLightConfigs,
+            congestionDelta: before.scoreSnapshot.congestionScore - afterScore.congestionScore,
+            throughputDelta: afterScore.throughput - before.scoreSnapshot.throughput,
+            avgWaitDelta: before.scoreSnapshot.avgWaitTime - afterScore.avgWaitTime,
+            busWaitDelta: before.scoreSnapshot.busAvgWaitTime - afterScore.busAvgWaitTime,
+            improved: afterScore.congestionScore < before.scoreSnapshot.congestionScore,
+          };
+          setLatestComparison(comparison);
+          setShowComparison(true);
+        }
+      }
+
+      setAnimationState('paused');
+      replayStartTime.current = null;
+      replaySnapshotBeforeReplay.current = null;
+    }
+  }, [animationState, simulationTime, getSim, currentScore, trafficLightConfigs, setAnimationState, setLatestComparison]);
+
   const tryTransition = useCallback((targetState: AnimState) => {
     if (canTransition(animationState, targetState)) {
       setAnimationState(targetState);
@@ -109,15 +152,29 @@ function GameContent({ levelId }: { levelId: string }) {
   const handleStop = useCallback(() => {
     tryTransition('idle');
     reset();
-    clearHistory();
-  }, [tryTransition, reset, clearHistory]);
+    clearSnapshots();
+    setLatestComparison(null);
+    setPreAdjustmentSnapshot(null);
+    setShowComparison(false);
+  }, [tryTransition, reset, clearSnapshots, setLatestComparison, setPreAdjustmentSnapshot]);
 
   const handleReplay = useCallback(() => {
-    if (currentScore) {
-      captureSnapshot(trafficLightConfigs, currentScore);
-    }
+    if (!preAdjustmentSnapshot) return;
+
+    const sim = getSim();
+    if (!sim) return;
+
+    replaySnapshotBeforeReplay.current = preAdjustmentSnapshot;
+    replayStartTime.current = simulationTime;
+
+    addSnapshot({
+      ...preAdjustmentSnapshot,
+      simulationTime,
+    });
+
+    setShowComparison(false);
     tryTransition('replaying');
-  }, [currentScore, trafficLightConfigs, captureSnapshot, tryTransition]);
+  }, [preAdjustmentSnapshot, getSim, simulationTime, addSnapshot, tryTransition]);
 
   const handleIntersectionClick = useCallback((id: string) => {
     setSelectedIntersection(id);
@@ -125,12 +182,27 @@ function GameContent({ levelId }: { levelId: string }) {
   }, [setSelectedIntersection, play]);
 
   const handleUpdateConfig = useCallback((intersectionId: string, patch: Partial<TrafficLightConfig>) => {
-    if (currentScore) {
-      captureSnapshot(trafficLightConfigs, currentScore);
-    }
+    const sim = getSim();
+    const score = currentScore ?? sim?.getState().score ?? null;
+
+    const snapshot: ReplaySnapshot = {
+      timestamp: Date.now(),
+      trafficLightConfig: trafficLightConfigs.map(c => ({ ...c })),
+      scoreSnapshot: score ?? {
+        congestionScore: 0,
+        throughput: 0,
+        avgWaitTime: 0,
+        busAvgWaitTime: 0,
+        starRating: 0,
+      },
+      simulationTime,
+    };
+    setPreAdjustmentSnapshot(snapshot);
+    setShowComparison(false);
+
     updateConfig(intersectionId, patch);
     play('slider-change');
-  }, [currentScore, trafficLightConfigs, captureSnapshot, updateConfig, play]);
+  }, [currentScore, trafficLightConfigs, simulationTime, getSim, setPreAdjustmentSnapshot, updateConfig, play]);
 
   useEffect(() => {
     if (!levelConfig || levelConfig.timeLimit === 0) return;
@@ -140,13 +212,14 @@ function GameContent({ levelId }: { levelId: string }) {
       if (sim) {
         const finalState = sim.getState();
         if (finalState.score) {
-          completeLevel(levelConfig.id, finalState.score);
+          const beforeScore = preAdjustmentSnapshot?.scoreSnapshot ?? null;
+          completeLevel(levelConfig.id, finalState.score, beforeScore);
           play(finalState.score.starRating > 0 ? 'level-complete' : 'level-fail');
           navigate(`/result/${levelConfig.id}`);
         }
       }
     }
-  }, [simulationTime, levelConfig, animationState, setAnimationState, getSim, completeLevel, play, navigate]);
+  }, [simulationTime, levelConfig, animationState, setAnimationState, getSim, completeLevel, play, navigate, preAdjustmentSnapshot]);
 
   const handleNextTutorial = useCallback(() => {
     if (levelConfig.tutorialSteps && tutorialStep >= levelConfig.tutorialSteps.length - 1) {
@@ -286,11 +359,81 @@ function GameContent({ levelId }: { levelId: string }) {
           onClick={() => {
             reset();
             tryTransition('idle');
+            setLatestComparison(null);
+            setPreAdjustmentSnapshot(null);
+            setShowComparison(false);
           }}
         >
           重置
         </button>
       </div>
+
+      {showComparison && latestComparison && (
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-96 animate-fade-in"
+          style={{
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(16px)',
+            border: `1px solid ${latestComparison.improved ? '#00ff88' : '#ff4444'}44`,
+            borderRadius: '16px',
+            padding: '24px',
+          }}
+        >
+          <h3
+            className="text-lg font-bold mb-4 text-center"
+            style={{
+              fontFamily: 'Orbitron, monospace',
+              color: latestComparison.improved ? '#00ff88' : '#ff4444',
+              textShadow: `0 0 10px ${latestComparison.improved ? '#00ff8844' : '#ff444444'}`,
+            }}
+          >
+            {latestComparison.improved ? '✓ 调整有效' : '✗ 调整需优化'}
+          </h3>
+
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">拥堵评分</span>
+              <span style={{ color: latestComparison.congestionDelta > 0 ? '#00ff88' : '#ff4444' }}>
+                {latestComparison.beforeScore.congestionScore.toFixed(1)} → {latestComparison.afterScore.congestionScore.toFixed(1)}
+                {' '}({latestComparison.congestionDelta > 0 ? '↓' : '↑'}{Math.abs(latestComparison.congestionDelta).toFixed(1)})
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">通行量</span>
+              <span style={{ color: latestComparison.throughputDelta > 0 ? '#00ff88' : '#ff4444' }}>
+                {latestComparison.beforeScore.throughput} → {latestComparison.afterScore.throughput}
+                {' '}({latestComparison.throughputDelta > 0 ? '↑' : '↓'}{Math.abs(latestComparison.throughputDelta)})
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">平均等待</span>
+              <span style={{ color: latestComparison.avgWaitDelta > 0 ? '#00ff88' : '#ff4444' }}>
+                {latestComparison.beforeScore.avgWaitTime.toFixed(1)}s → {latestComparison.afterScore.avgWaitTime.toFixed(1)}s
+              </span>
+            </div>
+            {latestComparison.beforeScore.busAvgWaitTime > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-white/60">公交等待</span>
+                <span style={{ color: latestComparison.busWaitDelta > 0 ? '#00ff88' : '#ff4444' }}>
+                  {latestComparison.beforeScore.busAvgWaitTime.toFixed(1)}s → {latestComparison.afterScore.busAvgWaitTime.toFixed(1)}s
+                </span>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="w-full mt-4 py-2 rounded-lg text-sm font-semibold"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: '#fff',
+            }}
+            onClick={() => setShowComparison(false)}
+          >
+            关闭
+          </button>
+        </div>
+      )}
     </div>
   );
 }

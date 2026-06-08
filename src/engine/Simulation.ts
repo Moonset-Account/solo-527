@@ -142,7 +142,13 @@ export class Simulation {
             ? this.getDirectionBetween(intersection.position, nextIntersection.position)
             : 'east';
           const bus = createVehicle(
-            { intersectionId: firstStop, direction, type: 'bus', busRouteIndex: this.levelConfig.busRoutes.indexOf(busRoute) },
+            {
+              intersectionId: firstStop,
+              direction,
+              type: 'bus',
+              busRouteIndex: this.levelConfig.busRoutes.indexOf(busRoute),
+              busRouteStops: busRoute.stops,
+            },
             this.graph,
           );
           if (bus) this.vehicles.push(bus);

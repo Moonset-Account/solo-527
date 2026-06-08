@@ -2,15 +2,21 @@ import { create } from 'zustand';
 import type { ScoreResult } from '@/engine/types';
 import { LEVEL_MAP } from '@/config/levels';
 
+interface LevelResult {
+  score: ScoreResult;
+  beforeScore: ScoreResult | null;
+}
+
 interface GameStoreState {
   currentLevel: string | null;
   levelResults: Record<string, ScoreResult>;
+  levelComparisons: Record<string, LevelResult>;
   unlockedLevels: string[];
 }
 
 interface GameStoreActions {
   setCurrentLevel: (levelId: string) => void;
-  completeLevel: (levelId: string, result: ScoreResult) => void;
+  completeLevel: (levelId: string, result: ScoreResult, beforeScore?: ScoreResult | null) => void;
   retryLevel: (levelId: string) => void;
   resetGame: () => void;
 }
@@ -20,6 +26,7 @@ const INITIAL_UNLOCKED = ['tutorial', 'level-1'];
 const initialState: GameStoreState = {
   currentLevel: null,
   levelResults: {},
+  levelComparisons: {},
   unlockedLevels: [...INITIAL_UNLOCKED],
 };
 
@@ -41,13 +48,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ currentLevel: levelId });
   },
 
-  completeLevel: (levelId: string, result: ScoreResult) => {
-    const { levelResults, unlockedLevels } = get();
+  completeLevel: (levelId: string, result: ScoreResult, beforeScore?: ScoreResult | null) => {
+    const { levelResults, levelComparisons, unlockedLevels } = get();
     const prevResult = levelResults[levelId];
     const isNewBest = !prevResult || result.starRating > prevResult.starRating;
     const updatedResults = {
       ...levelResults,
       ...(isNewBest ? { [levelId]: result } : {}),
+    };
+
+    const updatedComparisons = {
+      ...levelComparisons,
+      [levelId]: { score: result, beforeScore: beforeScore ?? null },
     };
 
     const nextLevel = getNextLevelId(levelId);
@@ -58,6 +70,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       levelResults: updatedResults,
+      levelComparisons: updatedComparisons,
       unlockedLevels: updatedUnlocked,
     });
   },

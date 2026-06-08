@@ -5,6 +5,7 @@ import type {
   TrafficLightState,
   ScoreResult,
   ReplaySnapshot,
+  AdjustmentComparison,
 } from '@/engine/types';
 
 interface SimulationStoreState {
@@ -16,6 +17,8 @@ interface SimulationStoreState {
   speed: number;
   currentScore: ScoreResult | null;
   snapshots: ReplaySnapshot[];
+  latestComparison: AdjustmentComparison | null;
+  preAdjustmentSnapshot: ReplaySnapshot | null;
 }
 
 interface SimulationStoreActions {
@@ -32,6 +35,8 @@ interface SimulationStoreActions {
   setCurrentScore: (score: ScoreResult | null) => void;
   addSnapshot: (snapshot: ReplaySnapshot) => void;
   clearSnapshots: () => void;
+  setLatestComparison: (comparison: AdjustmentComparison | null) => void;
+  setPreAdjustmentSnapshot: (snapshot: ReplaySnapshot | null) => void;
   resetSimulation: () => void;
 }
 
@@ -46,6 +51,8 @@ const initialState: SimulationStoreState = {
   speed: 1,
   currentScore: null,
   snapshots: [],
+  latestComparison: null,
+  preAdjustmentSnapshot: null,
 };
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
@@ -100,7 +107,15 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
     set({ snapshots: [] });
   },
 
+  setLatestComparison: (comparison: AdjustmentComparison | null) => {
+    set({ latestComparison: comparison });
+  },
+
+  setPreAdjustmentSnapshot: (snapshot: ReplaySnapshot | null) => {
+    set({ preAdjustmentSnapshot: snapshot });
+  },
+
   resetSimulation: () => {
-    set(initialState);
+    set({ ...initialState });
   },
 }));

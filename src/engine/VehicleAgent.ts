@@ -13,6 +13,7 @@ export interface VehicleSpawn {
   direction: Direction;
   type: VehicleType;
   busRouteIndex?: number;
+  busRouteStops?: string[];
 }
 
 export function createVehicle(spawn: VehicleSpawn, graph: RoadGraph): Vehicle | null {
@@ -22,9 +23,17 @@ export function createVehicle(spawn: VehicleSpawn, graph: RoadGraph): Vehicle | 
   const vConfig = spawn.type === 'bus' ? VEHICLE_CONFIG.bus : VEHICLE_CONFIG.car;
   const offset = getSpawnOffset(spawn.direction, intersection.position.x, intersection.position.z);
 
-  const allIntersectionIds = Array.from(graph.intersections.keys());
-  const targetId = allIntersectionIds[Math.floor(Math.random() * allIntersectionIds.length)];
-  const route = graph.getShortestPath(spawn.intersectionId, targetId);
+  let route: string[];
+  if (spawn.type === 'bus' && spawn.busRouteStops && spawn.busRouteStops.length > 1) {
+    route = [...spawn.busRouteStops];
+    for (let i = route.length - 2; i >= 0; i--) {
+      route.push(route[i]);
+    }
+  } else {
+    const allIntersectionIds = Array.from(graph.intersections.keys());
+    const targetId = allIntersectionIds[Math.floor(Math.random() * allIntersectionIds.length)];
+    route = graph.getShortestPath(spawn.intersectionId, targetId);
+  }
 
   return {
     id: nextVehicleId(),
@@ -36,6 +45,7 @@ export function createVehicle(spawn: VehicleSpawn, graph: RoadGraph): Vehicle | 
     currentSegment: 0,
     isWaiting: false,
     type: spawn.type,
+    busRouteIndex: spawn.busRouteIndex,
   };
 }
 
@@ -86,26 +96,41 @@ export function updateVehicle(
   v.isWaiting = false;
   moveVehicle(v, speed);
 
-  if (v.route.length > 0 && v.currentSegment < v.route.length) {
-    const targetId = v.route[Math.min(v.currentSegment + 1, v.route.length - 1)];
+  if (v.route.length > 1 && v.currentSegment < v.route.length - 1) {
+    const targetId = v.route[v.currentSegment + 1];
     const targetIntersection = graph.intersections.get(targetId);
     if (targetIntersection) {
       const dx = targetIntersection.position.x - v.position.x;
       const dz = targetIntersection.position.z - v.position.z;
       const dist = Math.hypot(dx, dz);
-      if (dist < 3) {
+      if (dist < 5) {
+        v.direction = getDirectionFromDelta(dx, dz);
         v.currentSegment++;
-        if (v.currentSegment >= v.route.length - 1) {
-          const allIds = Array.from(graph.intersections.keys());
-          const newTarget = allIds[Math.floor(Math.random() * allIds.length)];
-          v.route = graph.getShortestPath(targetId, newTarget);
-          v.currentSegment = 0;
+
+        if (v.type === 'bus' && v.busRouteIndex !== undefined) {
+          if (v.currentSegment >= v.route.length - 1) {
+            v.currentSegment = 0;
+          }
+        } else {
+          if (v.currentSegment >= v.route.length - 1) {
+            const allIds = Array.from(graph.intersections.keys());
+            const newTarget = allIds[Math.floor(Math.random() * allIds.length)];
+            v.route = graph.getShortestPath(targetId, newTarget);
+            v.currentSegment = 0;
+          }
         }
       }
     }
   }
 
   return v;
+}
+
+function getDirectionFromDelta(dx: number, dz: number): Direction {
+  if (Math.abs(dx) > Math.abs(dz)) {
+    return dx > 0 ? 'east' : 'west';
+  }
+  return dz > 0 ? 'south' : 'north';
 }
 
 function checkApproachingIntersection(vehicle: Vehicle, graph: RoadGraph): boolean {

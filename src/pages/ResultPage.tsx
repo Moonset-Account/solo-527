@@ -11,8 +11,11 @@ export default function ResultPage() {
   const navigate = useNavigate();
   const levelConfig = levelId ? getLevelById(levelId) : null;
   const levelResults = useGameStore(s => s.levelResults);
+  const levelComparisons = useGameStore(s => s.levelComparisons);
 
   const result: ScoreResult | null = levelId ? (levelResults[levelId] ?? null) : null;
+  const comparison = levelId ? (levelComparisons[levelId] ?? null) : null;
+  const beforeScore = comparison?.beforeScore ?? null;
 
   if (!levelConfig || !result) {
     return (
@@ -69,7 +72,7 @@ export default function ResultPage() {
         />
 
         <ComparisonChart
-          before={null}
+          before={beforeScore}
           after={result}
         />
 
