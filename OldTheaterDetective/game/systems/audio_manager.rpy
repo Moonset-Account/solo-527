@@ -12,7 +12,18 @@ init python:
                 "sfx": 1.0,
                 "ambience": 1.0,
             }
+            self._missing_logged = set()
             self._register_defaults()
+
+        def _audio_exists(self, path):
+            try:
+                return renpy.loader.loadable(path)
+            except:
+                return False
+
+        def _log_missing(self, path):
+            if path not in self._missing_logged:
+                self._missing_logged.add(path)
 
         def _register_defaults(self):
             self._bgm_registry["lobby"] = "audio/bgm/theater_lobby.ogg"
@@ -42,37 +53,62 @@ init python:
                 track_path = self._bgm_registry[track]
             else:
                 track_path = track
-            renpy.music.play(track_path, fadein=fade, loop=True)
+            if not self._audio_exists(track_path):
+                self._log_missing(track_path)
+                self._current_bgm = track
+                return
+            try:
+                renpy.music.play(track_path, fadein=fade, loop=True)
+            except:
+                pass
             self._current_bgm = track
 
         def stop_bgm(self, fade=1.0):
-            renpy.music.stop(fadeout=fade)
+            try:
+                renpy.music.stop(fadeout=fade)
+            except:
+                pass
             self._current_bgm = None
 
         def play_sfx(self, name, loop=False):
             if name not in self._sfx_registry:
                 return
             file_path = self._sfx_registry[name]
+            if not self._audio_exists(file_path):
+                self._log_missing(file_path)
+                return
             channel_name = "sfx_" + name
-            if loop:
-                renpy.sound.play(file_path, loop=True)
-            else:
-                renpy.sound.play(file_path, loop=False)
+            try:
+                if loop:
+                    renpy.sound.play(file_path, loop=True)
+                else:
+                    renpy.sound.play(file_path, loop=False)
+            except:
+                pass
             self._active_sfx[name] = channel_name
 
         def stop_sfx(self, name):
             if name in self._active_sfx:
-                renpy.sound.stop()
+                try:
+                    renpy.sound.stop()
+                except:
+                    pass
                 del self._active_sfx[name]
 
         def set_volume(self, category, volume):
             volume = max(0.0, min(1.0, volume))
             if category == "bgm":
                 self._volumes["bgm"] = volume
-                renpy.music.set_volume(volume)
+                try:
+                    renpy.music.set_volume(volume)
+                except:
+                    pass
             elif category == "sfx":
                 self._volumes["sfx"] = volume
-                renpy.sound.set_volume(volume)
+                try:
+                    renpy.sound.set_volume(volume)
+                except:
+                    pass
             elif category == "ambience":
                 self._volumes["ambience"] = volume
 
@@ -85,5 +121,8 @@ init python:
         def play_scene_bgm(self, scene_id, fade=1.0):
             if scene_id in self._bgm_registry:
                 self.play_bgm(scene_id, fade=fade)
+
+        def get_missing_audio(self):
+            return list(self._missing_logged)
 
     store.audio_manager = AudioManager()

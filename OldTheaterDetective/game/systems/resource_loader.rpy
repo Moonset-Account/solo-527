@@ -1,5 +1,7 @@
 init python:
 
+    import os
+
     class ResourceLoader:
 
         def __init__(self):
@@ -9,68 +11,32 @@ init python:
             self._loaded_scenes = set()
             self._register_defaults()
 
+        def _file_exists(self, path):
+            try:
+                return renpy.loader.loadable(path)
+            except:
+                return os.path.isfile(os.path.join(config.gamedir, path))
+
         def _register_defaults(self):
             self._registry["lobby"] = {
-                "images": [
-                    ("bg_lobby", "images/scenes/lobby/bg.jpg"),
-                    ("lobby_chandelier", "images/scenes/lobby/chandelier.png"),
-                    ("lobby_desk", "images/scenes/lobby/desk.png"),
-                    ("lobby_seats", "images/scenes/lobby/seats.png"),
-                ],
-                "audio": [
-                    "audio/bgm/theater_lobby.ogg",
-                    "audio/sfx/clock_tick.ogg",
-                ],
+                "images": [],
+                "audio": [],
             }
             self._registry["stage"] = {
-                "images": [
-                    ("bg_stage", "images/scenes/stage/bg.jpg"),
-                    ("stage_curtain", "images/scenes/stage/curtain.png"),
-                    ("stage_props", "images/scenes/stage/props.png"),
-                    ("stage_lights", "images/scenes/stage/lights.png"),
-                ],
-                "audio": [
-                    "audio/bgm/theater_stage.ogg",
-                    "audio/sfx/footstep.ogg",
-                ],
+                "images": [],
+                "audio": [],
             }
             self._registry["backstage"] = {
-                "images": [
-                    ("bg_backstage", "images/scenes/backstage/bg.jpg"),
-                    ("backstage_shelves", "images/scenes/backstage/shelves.png"),
-                    ("backstage_costumes", "images/scenes/backstage/costumes.png"),
-                    ("backstage_trunk", "images/scenes/backstage/trunk.png"),
-                ],
-                "audio": [
-                    "audio/bgm/theater_backstage.ogg",
-                    "audio/sfx/door_open.ogg",
-                    "audio/sfx/door_close.ogg",
-                ],
+                "images": [],
+                "audio": [],
             }
             self._registry["dressing_room"] = {
-                "images": [
-                    ("bg_dressing_room", "images/scenes/dressing_room/bg.jpg"),
-                    ("dressing_mirror", "images/scenes/dressing_room/mirror.png"),
-                    ("dressing_table", "images/scenes/dressing_room/table.png"),
-                    ("dressing_costumes", "images/scenes/dressing_room/costumes.png"),
-                ],
-                "audio": [
-                    "audio/bgm/theater_dressing.ogg",
-                    "audio/sfx/paper_rustle.ogg",
-                ],
+                "images": [],
+                "audio": [],
             }
             self._registry["prop_room"] = {
-                "images": [
-                    ("bg_prop_room", "images/scenes/prop_room/bg.jpg"),
-                    ("prop_shelf", "images/scenes/prop_room/shelf.png"),
-                    ("prop_cabinet", "images/scenes/prop_room/cabinet.png"),
-                    ("prop_missing_spot", "images/scenes/prop_room/missing_spot.png"),
-                ],
-                "audio": [
-                    "audio/bgm/theater_prop_room.ogg",
-                    "audio/sfx/paper_rustle.ogg",
-                    "audio/sfx/footstep.ogg",
-                ],
+                "images": [],
+                "audio": [],
             }
 
         def register_scene(self, scene_id, image_list, audio_list):
@@ -85,11 +51,16 @@ init python:
             resources = self._registry[scene_id]
             for img_name, img_path in resources.get("images", []):
                 if img_name not in self._loaded_images:
-                    renpy.image(img_name, img_path)
-                    self._loaded_images[img_name] = img_path
+                    if self._file_exists(img_path):
+                        try:
+                            renpy.image(img_name, img_path)
+                            self._loaded_images[img_name] = img_path
+                        except:
+                            pass
+                    else:
+                        self._loaded_images[img_name] = img_path
             for audio_path in resources.get("audio", []):
                 if audio_path not in self._loaded_audio:
-                    renpy.music.register_channel(audio_path, mixer="music", loop=True)
                     self._loaded_audio[audio_path] = True
             self._loaded_scenes.add(scene_id)
 

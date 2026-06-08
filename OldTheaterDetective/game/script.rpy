@@ -5,11 +5,11 @@ define actress = Character("女主角·林雪薇", color="#ff6eb5")
 define stagehand = Character("舞台工人·赵大勇", color="#b5ff6e")
 define props_master = Character("道具主管·王芝兰", color="#ffe06e")
 
-image bg_lobby = "images/scenes/lobby/bg.jpg"
-image bg_stage = "images/scenes/stage/bg.jpg"
-image bg_backstage = "images/scenes/backstage/bg.jpg"
-image bg_dressing_room = "images/scenes/dressing_room/bg.jpg"
-image bg_prop_room = "images/scenes/prop_room/bg.jpg"
+image bg_lobby = Solid("#2a1f3d")
+image bg_stage = Solid("#1a1520")
+image bg_backstage = Solid("#1a1a1a")
+image bg_dressing_room = Solid("#2d1f2d")
+image bg_prop_room = Solid("#1f2a1f")
 
 label start:
     $ store.level_config.set_difficulty(LevelConfig.DIFFICULTY_NORMAL)
@@ -26,7 +26,6 @@ label prologue:
     $ store.ui_state.push_state(UIState.DIALOGUE)
 
     scene bg_lobby with fade
-    $ store.audio_manager.play_scene_bgm("lobby")
 
     narrator "夜幕降临，老剧院的灯光在雨幕中闪烁。"
     narrator "你是一名侦探，接到紧急报案——镇上最珍贵的王冠道具在排练期间神秘失踪。"
@@ -49,106 +48,98 @@ label prologue:
         call screen tutorial_overlay
 
     $ store.ui_state.push_state(UIState.INVESTIGATION)
-    jump lobby_investigation
+    jump prologue_hub
 
-label lobby_investigation:
+label prologue_hub:
+    $ _prologue_evidence = len(store.evidence_board.get_discovered())
+
+    menu prologue_hub_menu:
+        "调查大厅":
+            jump prologue_lobby
+        "调查舞台":
+            jump prologue_stage
+        "调查后台":
+            jump prologue_backstage
+        "查看提示 [H]":
+            $ hint = store.hint_system.get_next_hint()
+            if hint:
+                narrator "[hint['text']]"
+            else:
+                narrator "继续调查各处，收集线索。"
+            jump prologue_hub
+        "完成序幕调查" if _prologue_evidence >= 2:
+            narrator "你已收集到足够的初步线索，对案件有了基本了解。"
+            jump prologue_settlement
+
+    jump prologue_hub
+
+label prologue_lobby:
     scene bg_lobby with fade
-    $ store.audio_manager.play_scene_bgm("lobby")
 
     narrator "大厅里空无一人，但地上有奇怪的粉末痕迹……"
 
-    menu lobby_menu:
+    menu prologue_lobby_menu:
         "采集粉末样本" if not store.evidence_board.is_evidence_discovered("powder_trail"):
             $ store.evidence_board.discover("powder_trail")
             $ analytics_record_choice("lobby_powder", "采集粉末样本")
             detective "这粉末……像是道具室里用来保养道具的特殊粉末。有人从道具室一路走到了大厅。"
-            jump lobby_menu
+            jump prologue_lobby_menu
 
         "查看售票台" if not store.evidence_board.is_evidence_discovered("mysterious_note"):
             $ store.evidence_board.discover("mysterious_note")
             $ analytics_record_choice("lobby_note", "查看售票台")
             detective "售票台的抽屉没有上锁，里面有一张神秘字条，上面写着'今晚行动'。"
-            jump lobby_menu
+            jump prologue_lobby_menu
 
-        "前往舞台":
-            jump stage_investigation
+        "返回":
+            jump prologue_hub
 
-        "前往后台":
-            jump backstage_investigation
-
-        "查看提示":
-            $ hint = store.hint_system.get_next_hint()
-            if hint:
-                narrator "[hint['text']]"
-            else:
-                narrator "暂时没有更多提示了。继续调查吧。"
-            jump lobby_menu
-
-label stage_investigation:
+label prologue_stage:
     scene bg_stage with fade
-    $ store.audio_manager.play_scene_bgm("stage")
 
     narrator "舞台上还残留着排练的痕迹，王冠原本就放在中央的展示台上。"
 
-    menu stage_menu:
+    menu prologue_stage_menu:
         "检查展示台的锁" if not store.evidence_board.is_evidence_discovered("broken_lock"):
             $ store.evidence_board.discover("broken_lock")
             $ analytics_record_choice("stage_lock", "检查展示台的锁")
             detective "锁被撬开了！手法很专业，不是一般人能做到的。"
-            jump stage_menu
+            jump prologue_stage_menu
 
         "查看舞台两侧" if not store.evidence_board.is_evidence_discovered("missing_prop_crown"):
             $ store.evidence_board.discover("missing_prop_crown")
             $ analytics_record_choice("stage_sides", "查看舞台两侧")
             detective "舞台右侧的幕布后面有拖拽的痕迹，似乎有人把重物从这里拖走了。"
-            jump stage_menu
+            jump prologue_stage_menu
 
-        "前往大厅":
-            jump lobby_investigation
+        "返回":
+            jump prologue_hub
 
-        "前往后台":
-            jump backstage_investigation
-
-        "查看提示":
-            $ hint = store.hint_system.get_next_hint()
-            if hint:
-                narrator "[hint['text']]"
-            else:
-                narrator "暂时没有更多提示了。继续调查吧。"
-            jump stage_menu
-
-label backstage_investigation:
+label prologue_backstage:
     scene bg_backstage with fade
-    $ store.audio_manager.play_scene_bgm("backstage")
 
     narrator "后台通道昏暗狭窄，墙上的道具挂架有些是空的。"
 
-    menu backstage_menu:
+    menu prologue_backstage_menu:
         "仔细检查通道尽头" if not store.evidence_board.is_evidence_discovered("hidden_compartment"):
             $ store.evidence_board.discover("hidden_compartment")
             $ analytics_record_choice("backstage_compartment", "检查通道尽头")
             detective "通道尽头有一个暗格！里面是空的，但明显最近被人打开过。这是藏东西的好地方。"
-            jump backstage_menu
+            jump prologue_backstage_menu
 
         "查看配电箱" if not store.evidence_board.is_evidence_discovered("stagehand_toolbox"):
             $ store.evidence_board.discover("stagehand_toolbox")
             $ analytics_record_choice("backstage_toolbox", "查看配电箱和工具箱")
             detective "配电箱的灯在19:30到20:00之间被人关过。旁边的工具箱被道具主管借走过，里面有撬锁工具。"
-            jump backstage_menu
+            jump prologue_backstage_menu
 
-        "前往大厅":
-            jump lobby_investigation
+        "返回":
+            jump prologue_hub
 
-        "前往舞台":
-            jump stage_investigation
-
-        "查看提示":
-            $ hint = store.hint_system.get_next_hint()
-            if hint:
-                narrator "[hint['text']]"
-            else:
-                narrator "暂时没有更多提示了。继续调查吧。"
-            jump backstage_menu
+label prologue_settlement:
+    $ analytics_end("chapter_prologue")
+    narrator "序幕调查结束。你已掌握了初步线索，接下来需要更深入地调查各处。"
+    jump ch1_start
 
 label ch1_start:
     $ store.level_config.advance_to_chapter(LevelConfig.CHAPTER_CH1)
@@ -162,11 +153,14 @@ label ch1_start:
         call screen tutorial_overlay
 
     narrator "调查进入新阶段。你需要在各个场景之间穿梭，收集更多证据。"
+    narrator "按 T 键可以查看时间线，按 E 键可以打开证据板。"
 
     jump ch1_hub
 
 label ch1_hub:
-    menu ch1_location_menu:
+    $ _ch1_complete = store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH1)
+
+    menu ch1_hub_menu:
         "大厅":
             jump ch1_lobby
         "舞台":
@@ -190,15 +184,13 @@ label ch1_hub:
             else:
                 narrator "暂时没有更多提示了。"
             jump ch1_hub
+        "完成本章调查" if _ch1_complete:
+            jump ch1_settlement
 
-    if store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH1):
-        jump ch1_settlement
-    else:
-        jump ch1_hub
+    jump ch1_hub
 
 label ch1_lobby:
     scene bg_lobby with fade
-    $ store.audio_manager.play_scene_bgm("lobby")
 
     menu ch1_lobby_menu:
         "采集粉末样本" if not store.evidence_board.is_evidence_discovered("powder_trail"):
@@ -212,11 +204,8 @@ label ch1_lobby:
         "返回":
             jump ch1_hub
 
-    jump ch1_hub
-
 label ch1_stage:
     scene bg_stage with fade
-    $ store.audio_manager.play_scene_bgm("stage")
 
     menu ch1_stage_menu:
         "检查展示台锁" if not store.evidence_board.is_evidence_discovered("broken_lock"):
@@ -230,11 +219,8 @@ label ch1_stage:
         "返回":
             jump ch1_hub
 
-    jump ch1_hub
-
 label ch1_backstage:
     scene bg_backstage with fade
-    $ store.audio_manager.play_scene_bgm("backstage")
 
     menu ch1_backstage_menu:
         "检查通道尽头" if not store.evidence_board.is_evidence_discovered("hidden_compartment"):
@@ -248,11 +234,8 @@ label ch1_backstage:
         "返回":
             jump ch1_hub
 
-    jump ch1_hub
-
 label ch1_dressing_room:
     scene bg_dressing_room with fade
-    $ store.audio_manager.play_scene_bgm("dressing_room")
 
     narrator "化妆间弥漫着香水的味道，化妆台上整齐地摆放着各种用品。"
 
@@ -267,11 +250,8 @@ label ch1_dressing_room:
         "返回":
             jump ch1_hub
 
-    jump ch1_hub
-
 label ch1_prop_room:
     scene bg_prop_room with fade
-    $ store.audio_manager.play_scene_bgm("prop_room")
 
     narrator "道具室里堆满了各种演出用品，空气中弥漫着木材和颜料的气味。"
 
@@ -287,8 +267,6 @@ label ch1_prop_room:
         "返回":
             jump ch1_hub
 
-    jump ch1_hub
-
 label ch1_settlement:
     $ result = store.settlement_system.calculate_chapter_score(LevelConfig.CHAPTER_CH1)
     $ analytics_end("chapter_ch1")
@@ -298,16 +276,7 @@ label ch1_settlement:
     narrator "矛盾发现：[result['contradictions_found']]"
     narrator "评分：[result['total_score']] 分 —— 等级 [result['grade']]"
 
-    if store.level_config.can_advance_chapter(LevelConfig.CHAPTER_CH1):
-        menu:
-            "进入下一章":
-                jump ch2_start
-            "继续调查":
-                jump ch1_hub
-    else:
-        narrator "还需要更多线索才能进入下一章。继续调查吧。"
-        $ store.settlement_system.record_failure(LevelConfig.CHAPTER_CH1, "insufficient_evidence", "证据不足")
-        jump ch1_hub
+    jump ch2_start
 
 label ch2_start:
     $ store.level_config.advance_to_chapter(LevelConfig.CHAPTER_CH2)
@@ -320,11 +289,14 @@ label ch2_start:
         call screen tutorial_overlay
 
     narrator "现在你可以正式审讯嫌疑人了。你的提问角度会影响嫌疑度。"
+    narrator "按 S 键可以查看嫌疑板。"
 
     jump ch2_hub
 
 label ch2_hub:
-    menu ch2_main_menu:
+    $ _ch2_complete = store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH2)
+
+    menu ch2_hub_menu:
         "审讯导演·陈明远" if not store.suspicion_system.suspects["director"]["interrogated"]:
             jump ch2_interview_director
         "审讯女主角·林雪薇" if not store.suspicion_system.suspects["actress"]["interrogated"]:
@@ -333,14 +305,22 @@ label ch2_hub:
             jump ch2_interview_stagehand
         "审讯道具主管·王芝兰" if not store.suspicion_system.suspects["props_master"]["interrogated"]:
             jump ch2_interview_props_master
+        "重新审讯导演" if store.suspicion_system.suspects["director"]["interrogated"]:
+            jump ch2_interview_director
+        "重新审讯女主角" if store.suspicion_system.suspects["actress"]["interrogated"]:
+            jump ch2_interview_actress
+        "重新审讯舞台工人" if store.suspicion_system.suspects["stagehand"]["interrogated"]:
+            jump ch2_interview_stagehand
+        "重新审讯道具主管" if store.suspicion_system.suspects["props_master"]["interrogated"]:
+            jump ch2_interview_props_master
+        "继续调查场景":
+            jump ch2_scene_hub
         "查看嫌疑板 [S]":
             call screen suspicion_board
             jump ch2_hub
         "查看证据板 [E]":
             call screen evidence_board
             jump ch2_hub
-        "继续调查场景":
-            jump ch2_scene_hub
         "查看提示 [H]":
             $ hint = store.hint_system.get_next_hint()
             if hint:
@@ -348,11 +328,10 @@ label ch2_hub:
             else:
                 narrator "暂时没有更多提示了。"
             jump ch2_hub
+        "完成审讯阶段" if _ch2_complete:
+            jump ch2_settlement
 
-    if store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH2):
-        jump ch2_settlement
-    else:
-        jump ch2_hub
+    jump ch2_hub
 
 label ch2_scene_hub:
     menu ch2_scene_menu:
@@ -371,7 +350,6 @@ label ch2_scene_hub:
 
 label ch2_interview_director:
     scene bg_lobby with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     director "你是来调查王冠失窃的？我当时一直在观众席指导排练，根本没靠近过舞台。"
 
@@ -396,7 +374,6 @@ label ch2_interview_director:
 
 label ch2_interview_actress:
     scene bg_dressing_room with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     actress "王冠不见了？我当时在化妆间准备第二幕的戏份，完全不知道发生了什么。"
 
@@ -420,7 +397,6 @@ label ch2_interview_actress:
 
 label ch2_interview_stagehand:
     scene bg_backstage with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     stagehand "别看我，我只是在后台修灯光。我什么都不知道。"
 
@@ -445,7 +421,6 @@ label ch2_interview_stagehand:
 
 label ch2_interview_props_master:
     scene bg_prop_room with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     props_master "王冠丢了？我17:30就到了，一直在道具室整理物品。那东西不是我负责保管的。"
 
@@ -477,16 +452,7 @@ label ch2_settlement:
     narrator "审讯完成：[result['interrogated']] / [result['interrogated_required']]"
     narrator "评分：[result['total_score']] 分 —— 等级 [result['grade']]"
 
-    if store.level_config.can_advance_chapter(LevelConfig.CHAPTER_CH2):
-        menu:
-            "进入下一章":
-                jump ch3_start
-            "继续调查":
-                jump ch2_hub
-    else:
-        narrator "还需要审讯更多嫌疑人才能进入下一章。"
-        $ store.settlement_system.record_failure(LevelConfig.CHAPTER_CH2, "insufficient_interrogation", "审讯不足")
-        jump ch2_hub
+    jump ch3_start
 
 label ch3_start:
     $ store.level_config.advance_to_chapter(LevelConfig.CHAPTER_CH3)
@@ -503,7 +469,9 @@ label ch3_start:
     jump ch3_hub
 
 label ch3_hub:
-    menu ch3_main_menu:
+    $ _ch3_complete = store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH3)
+
+    menu ch3_hub_menu:
         "用证据对质导演" if store.suspicion_system.suspects["director"]["interrogated"]:
             jump ch3_confront_director
         "用证据对质女主角" if store.suspicion_system.suspects["actress"]["interrogated"]:
@@ -528,15 +496,13 @@ label ch3_hub:
             else:
                 narrator "暂时没有更多提示了。"
             jump ch3_hub
+        "完成质证阶段" if _ch3_complete:
+            jump ch3_settlement
 
-    if store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH3):
-        jump ch3_settlement
-    else:
-        jump ch3_hub
+    jump ch3_hub
 
 label ch3_confront_director:
     scene bg_lobby with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     menu ch3_dir_confront:
         "用'今晚行动'字条质问导演" if store.evidence_board.is_evidence_discovered("mysterious_note"):
@@ -560,7 +526,6 @@ label ch3_confront_director:
 
 label ch3_confront_actress:
     scene bg_dressing_room with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     menu ch3_act_confront:
         "用手套和粉末证据质疑她的说法" if store.evidence_board.is_evidence_discovered("actress_glove") and store.evidence_board.is_evidence_discovered("powder_trail"):
@@ -577,7 +542,6 @@ label ch3_confront_actress:
 
 label ch3_confront_stagehand:
     scene bg_backstage with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     menu ch3_stg_confront:
         "用暗格证据质问赵大勇" if store.evidence_board.is_evidence_discovered("hidden_compartment"):
@@ -593,7 +557,6 @@ label ch3_confront_stagehand:
 
 label ch3_confront_props_master:
     scene bg_prop_room with fade
-    $ store.audio_manager.play_scene_bgm("investigation")
 
     menu ch3_propm_confront:
         "用账本和复制品对质" if store.evidence_board.is_evidence_discovered("props_master_ledger") and store.evidence_board.is_evidence_discovered("duplicate_crown"):
@@ -624,16 +587,7 @@ label ch3_settlement:
     narrator "第三章完成！"
     narrator "评分：[result['total_score']] 分 —— 等级 [result['grade']]"
 
-    if store.level_config.can_advance_chapter(LevelConfig.CHAPTER_CH3):
-        menu:
-            "进入终章":
-                jump ch4_start
-            "继续调查":
-                jump ch3_hub
-    else:
-        narrator "还需要更多证据和审讯才能进入终章。"
-        $ store.settlement_system.record_failure(LevelConfig.CHAPTER_CH3, "insufficient_progress", "进度不足")
-        jump ch3_hub
+    jump ch4_start
 
 label ch4_start:
     $ store.level_config.advance_to_chapter(LevelConfig.CHAPTER_CH4)
@@ -751,7 +705,6 @@ label ending_true:
     $ analytics_end("chapter_ch4")
 
     scene bg_stage with fade
-    $ store.audio_manager.play_scene_bgm("reveal")
 
     narrator "真相大白。"
     narrator "道具主管·王芝兰利用职务之便制作了王冠复制品，在排练期间用撬锁工具打开了展示台的锁，将真品藏在暗格中准备事后转移。"
@@ -770,7 +723,6 @@ label ending_good:
     $ analytics_end("chapter_ch4")
 
     scene bg_stage with fade
-    $ store.audio_manager.play_scene_bgm("reveal")
 
     narrator "正义得到伸张。"
     narrator "虽然你正确指认了凶手，但还有更多证据可以挖掘。真相的全貌或许比你知道的更复杂。"
@@ -828,7 +780,6 @@ label game_end:
     narrator "总重试次数：[final['total_retries']]"
     narrator "总失败次数：[final['total_failures']]"
 
-    $ summary = analytics_get_summary()
     narrator "感谢游玩老剧院侦探故事！"
 
     return
