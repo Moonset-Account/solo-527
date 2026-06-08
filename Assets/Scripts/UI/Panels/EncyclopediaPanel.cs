@@ -51,7 +51,7 @@ namespace LakeNavigation
 
         public override void Setup(Transform parent)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
 
             _tabButtonColors = new ColorBlock
             {

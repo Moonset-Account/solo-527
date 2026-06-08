@@ -73,7 +73,7 @@ namespace LakeNavigation
 
             Text title = titleObj.AddComponent<Text>();
             title.text = "HOW TO PLAY";
-            title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            title.font = UIHelper.DefaultFont;
             title.fontSize = 36;
             title.color = Color.white;
             title.alignment = TextAnchor.MiddleCenter;
@@ -119,7 +119,7 @@ namespace LakeNavigation
 
             Text skipText = skipTextObj.AddComponent<Text>();
             skipText.text = "Skip";
-            skipText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            skipText.font = UIHelper.DefaultFont;
             skipText.fontSize = 22;
             skipText.color = Color.white;
             skipText.alignment = TextAnchor.MiddleCenter;
@@ -155,7 +155,7 @@ namespace LakeNavigation
             stepLabelObj.transform.SetParent(contentObj.transform, false);
 
             Text stepLabel = stepLabelObj.AddComponent<Text>();
-            stepLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            stepLabel.font = UIHelper.DefaultFont;
             stepLabel.fontSize = 20;
             stepLabel.color = new Color32(150, 180, 220, 255);
             stepLabel.alignment = TextAnchor.MiddleCenter;
@@ -167,7 +167,7 @@ namespace LakeNavigation
             textObj.transform.SetParent(contentObj.transform, false);
 
             _stepText = textObj.AddComponent<Text>();
-            _stepText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _stepText.font = UIHelper.DefaultFont;
             _stepText.fontSize = 24;
             _stepText.color = Color.white;
             _stepText.alignment = TextAnchor.MiddleCenter;
@@ -241,7 +241,7 @@ namespace LakeNavigation
 
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
-            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnText.font = UIHelper.DefaultFont;
             btnText.fontSize = 26;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;

@@ -50,6 +50,8 @@ namespace LakeNavigation
 
         private void Update()
         {
+            if (GameManager.Instance != null && GameManager.Instance.CurrentState != GameState.Sailing)
+                return;
             UpdateWeather(Time.deltaTime);
         }
 

@@ -56,7 +56,7 @@ namespace LakeNavigation
         {
             if (_panelObject != null) return;
 
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
             _boatController = FindObjectOfType<BoatController>();
             _supplyManager = FindObjectOfType<SupplyManager>();
             _missionManager = FindObjectOfType<MissionManager>();

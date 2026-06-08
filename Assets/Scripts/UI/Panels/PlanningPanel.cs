@@ -34,7 +34,7 @@ namespace LakeNavigation
 
         public override void Setup(Transform parent)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
             _circleSprite = CreateCircleSprite(64);
 
             _panelObject = new GameObject("PlanningPanel");
@@ -650,22 +650,7 @@ namespace LakeNavigation
 
             var btn = btnObj.AddComponent<Button>();
             btn.targetGraphic = img;
-            btn.colors = new ColorBlock
-            {
-                normalColor = bgColor,
-                highlightedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                pressedColor = new Color32(
-                    Mathf.Max(bgColor.r - 20, 0), Mathf.Max(bgColor.g - 20, 0),
-                    Mathf.Max(bgColor.b - 20, 0), bgColor.a),
-                selectedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                disabledColor = new Color32(80, 80, 80, 128),
-                colorMultiplier = 1f,
-                fadeDuration = 0.1f
-            };
+            btn.colors = UIHelper.MakeColorBlock(bgColor);
             btn.onClick.AddListener(onClick);
 
             var txt = CreateText(btnObj.transform, label, 18, Color.white);

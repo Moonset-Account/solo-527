@@ -115,8 +115,10 @@ namespace LakeNavigation
             if (GameManager.Instance.CurrentState != GameState.Sailing)
                 return;
 
-            _supplyManager.ConsumeOverTime(Time.deltaTime);
-            _missionManager.UpdateTime(Time.deltaTime);
+            if (_supplyManager != null)
+                _supplyManager.ConsumeOverTime(Time.deltaTime);
+            if (_missionManager != null)
+                _missionManager.UpdateTime(Time.deltaTime);
 
             if (_boatController != null && _boatController.health <= 0f)
             {

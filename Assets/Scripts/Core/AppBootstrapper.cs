@@ -6,6 +6,14 @@ namespace LakeNavigation
     {
         private GameConfig _gameConfig;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoInit()
+        {
+            var go = new GameObject("AppBootstrapper");
+            go.AddComponent<AppBootstrapper>();
+            DontDestroyOnLoad(go);
+        }
+
         private void Awake()
         {
             ServiceLocator.Initialize();
@@ -14,43 +22,58 @@ namespace LakeNavigation
             ServiceLocator.Instance.Register(_gameConfig);
 
             var gameManagerObj = new GameObject("GameManager");
-            var gameManager = gameManagerObj.AddComponent<GameManager>();
+            gameManagerObj.AddComponent<GameManager>();
+            DontDestroyOnLoad(gameManagerObj);
 
             var uiManagerObj = new GameObject("UIManager");
-            var uiManager = uiManagerObj.AddComponent<UIManager>();
+            uiManagerObj.AddComponent<UIManager>();
+            DontDestroyOnLoad(uiManagerObj);
 
             var weatherSystemObj = new GameObject("WeatherSystem");
-            var weatherSystem = weatherSystemObj.AddComponent<WeatherSystem>();
+            weatherSystemObj.AddComponent<WeatherSystem>();
+            DontDestroyOnLoad(weatherSystemObj);
 
             var levelManagerObj = new GameObject("LevelManager");
             var levelManager = levelManagerObj.AddComponent<LevelManager>();
+            DontDestroyOnLoad(levelManagerObj);
 
             var boatControllerObj = new GameObject("BoatController");
-            var boatController = boatControllerObj.AddComponent<BoatController>();
+            boatControllerObj.AddComponent<BoatController>();
+            DontDestroyOnLoad(boatControllerObj);
 
             var supplyManagerObj = new GameObject("SupplyManager");
-            var supplyManager = supplyManagerObj.AddComponent<SupplyManager>();
+            supplyManagerObj.AddComponent<SupplyManager>();
+            DontDestroyOnLoad(supplyManagerObj);
 
             var missionManagerObj = new GameObject("MissionManager");
-            var missionManager = missionManagerObj.AddComponent<MissionManager>();
+            missionManagerObj.AddComponent<MissionManager>();
+            DontDestroyOnLoad(missionManagerObj);
 
             var collisionDetectorObj = new GameObject("CollisionDetector");
-            var collisionDetector = collisionDetectorObj.AddComponent<CollisionDetector>();
+            collisionDetectorObj.AddComponent<CollisionDetector>();
+            DontDestroyOnLoad(collisionDetectorObj);
 
             var boatAnimObj = new GameObject("BoatAnimation");
             var boatAnim = boatAnimObj.AddComponent<BoatAnimationController>();
-            boatAnimObj.transform.SetParent(boatController.transform);
-            boatAnim.Initialize(boatController.transform);
+            DontDestroyOnLoad(boatAnimObj);
+            boatAnim.Initialize(boatControllerObj.transform);
 
             var encyclopediaSystemObj = new GameObject("EncyclopediaSystem");
             var encyclopediaSystem = encyclopediaSystemObj.AddComponent<EncyclopediaSystem>();
+            DontDestroyOnLoad(encyclopediaSystemObj);
             encyclopediaSystem.Initialize(DefaultEntries.GetAll());
 
             var sailingControllerObj = new GameObject("SailingController");
-            var sailingController = sailingControllerObj.AddComponent<SailingController>();
+            sailingControllerObj.AddComponent<SailingController>();
+            DontDestroyOnLoad(sailingControllerObj);
+
+            var routePlannerObj = new GameObject("RoutePlanner");
+            routePlannerObj.AddComponent<RoutePlanner>();
+            DontDestroyOnLoad(routePlannerObj);
 
             var inputHandlerObj = new GameObject("InputHandler");
             inputHandlerObj.AddComponent<InputHandler>();
+            DontDestroyOnLoad(inputHandlerObj);
 
             levelManager.levels.Add(LevelPresets.FirstVoyage());
             levelManager.levels.Add(LevelPresets.MistyMorning());
@@ -69,8 +92,11 @@ namespace LakeNavigation
 
         private void OnDestroy()
         {
-            ServiceLocator.Instance.Register<GameConfig>(null);
-            ServiceLocator.Instance.Reset();
+            if (ServiceLocator.Instance != null)
+            {
+                ServiceLocator.Instance.Register<GameConfig>(null);
+                ServiceLocator.Instance.Reset();
+            }
         }
     }
 }

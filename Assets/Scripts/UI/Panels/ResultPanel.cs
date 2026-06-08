@@ -33,7 +33,7 @@ namespace LakeNavigation
 
         public override void Setup(Transform parent)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
 
             _buttonColors = new ColorBlock
             {
@@ -270,7 +270,7 @@ namespace LakeNavigation
             iconObj.transform.SetParent(_failureContainer.transform, false);
             _failIconText = iconObj.AddComponent<Text>();
             _failIconText.font = _font;
-            _failIconText.text = "\u26A0";
+            _failIconText.text = "!!";
             _failIconText.fontSize = 36;
             _failIconText.color = new Color32(255, 180, 0, 255);
             _failIconText.alignment = TextAnchor.MiddleCenter;
@@ -410,11 +410,11 @@ namespace LakeNavigation
         {
             return reason switch
             {
-                FailReason.OutOfFuel => "\u2022 Plan a shorter route with fewer waypoints\n\u2022 Avoid sailing into headwinds to conserve fuel\n\u2022 Check the weather forecast before setting sail",
-                FailReason.OutOfFood => "\u2022 Complete missions more quickly\n\u2022 Choose a more direct route to your targets\n\u2022 Monitor your food gauge carefully during the trip",
-                FailReason.BoatDamaged => "\u2022 Avoid stormy areas when possible\n\u2022 Steer clear of rocky obstacles\n\u2022 Watch for weather warnings and plan alternate routes",
-                FailReason.TimeExpired => "\u2022 Plan a more efficient route\n\u2022 Use tailwinds to your advantage\n\u2022 Skip optional targets and focus on required ones",
-                FailReason.MissionFailed => "\u2022 Focus on required photo targets first\n\u2022 Check which objectives are marked as required\n\u2022 Ensure you reach all required targets before time runs out",
+                FailReason.OutOfFuel => "- Plan a shorter route with fewer waypoints\n- Avoid sailing into headwinds to conserve fuel\n- Check the weather forecast before setting sail",
+                FailReason.OutOfFood => "- Complete missions more quickly\n- Choose a more direct route to your targets\n- Monitor your food gauge carefully during the trip",
+                FailReason.BoatDamaged => "- Avoid stormy areas when possible\n- Steer clear of rocky obstacles\n- Watch for weather warnings and plan alternate routes",
+                FailReason.TimeExpired => "- Plan a more efficient route\n- Use tailwinds to your advantage\n- Skip optional targets and focus on required ones",
+                FailReason.MissionFailed => "- Focus on required photo targets first\n- Check which objectives are marked as required\n- Ensure you reach all required targets before time runs out",
                 _ => ""
             };
         }
@@ -519,22 +519,7 @@ namespace LakeNavigation
 
         private void CreateButton(Transform parent, string label, Color32 bgColor, UnityAction onClick)
         {
-            CreateButton(parent, label, new ColorBlock
-            {
-                normalColor = bgColor,
-                highlightedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                pressedColor = new Color32(
-                    Mathf.Max(bgColor.r - 20, 0), Mathf.Max(bgColor.g - 20, 0),
-                    Mathf.Max(bgColor.b - 20, 0), bgColor.a),
-                selectedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                disabledColor = new Color32(80, 80, 80, 128),
-                colorMultiplier = 1f,
-                fadeDuration = 0.1f
-            }, onClick);
+            CreateButton(parent, label, UIHelper.MakeColorBlock(bgColor), onClick);
         }
     }
 }

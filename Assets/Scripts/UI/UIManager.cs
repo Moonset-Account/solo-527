@@ -22,6 +22,12 @@ namespace LakeNavigation
         private IPanel _currentPanel;
         private Canvas _canvas;
 
+        private static readonly HashSet<Type> OverlayPanelTypes = new HashSet<Type>
+        {
+            typeof(PauseMenuPanel),
+            typeof(SettingsPanel)
+        };
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -90,9 +96,14 @@ namespace LakeNavigation
             Type type = typeof(T);
             if (!_panels.ContainsKey(type)) return;
 
-            if (_currentPanel != null && _currentPanel.IsVisible)
+            bool isOverlay = OverlayPanelTypes.Contains(type);
+
+            foreach (var kvp in _panels)
             {
-                _currentPanel.Hide();
+                if (!kvp.Value.IsVisible) continue;
+                bool existingIsOverlay = OverlayPanelTypes.Contains(kvp.Key);
+                if (!isOverlay) kvp.Value.Hide();
+                else if (existingIsOverlay) kvp.Value.Hide();
             }
 
             _panels[type].Show();
@@ -120,7 +131,8 @@ namespace LakeNavigation
 
         public void UpdateHUD()
         {
-            if (_currentPanel != null && _currentPanel.IsVisible && _currentPanel is HUDPanel hudPanel)
+            var hudPanel = GetPanel<HUDPanel>();
+            if (hudPanel != null && hudPanel.IsVisible)
             {
                 hudPanel.UpdateDisplay();
             }

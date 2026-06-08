@@ -76,13 +76,7 @@ namespace LakeNavigation
 
             _levelSelectContainer.SetActive(true);
 
-            var layout = _levelSelectContainer.AddComponent<VerticalLayoutGroup>();
-            if (_levelSelectContainer.GetComponent<VerticalLayoutGroup>() != null &&
-                _levelSelectContainer.GetComponent<VerticalLayoutGroup>() != layout)
-            {
-                Destroy(_levelSelectContainer.GetComponent<VerticalLayoutGroup>());
-            }
-            layout = _levelSelectContainer.GetComponent<VerticalLayoutGroup>();
+            var layout = _levelSelectContainer.GetComponent<VerticalLayoutGroup>();
             if (layout == null) layout = _levelSelectContainer.AddComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.spacing = 10f;
@@ -96,7 +90,7 @@ namespace LakeNavigation
             headerObj.transform.SetParent(_levelSelectContainer.transform, false);
             var headerText = headerObj.AddComponent<Text>();
             headerText.text = "SELECT LEVEL";
-            headerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            headerText.font = UIHelper.DefaultFont;
             headerText.fontSize = 28;
             headerText.color = new Color32(200, 215, 235, 255);
             headerText.alignment = TextAnchor.MiddleCenter;
@@ -120,16 +114,7 @@ namespace LakeNavigation
                 var button = btnObj.AddComponent<Button>();
                 button.targetGraphic = btnImage;
                 button.interactable = unlocked;
-                button.colors = new ColorBlock
-                {
-                    normalColor = btnColor,
-                    highlightedColor = new Color32(Mathf.Min(btnColor.r + 30, 255), Mathf.Min(btnColor.g + 30, 255), Mathf.Min(btnColor.b + 30, 255), btnColor.a),
-                    pressedColor = new Color32(Mathf.Max(btnColor.r - 20, 0), Mathf.Max(btnColor.g - 20, 0), Mathf.Max(btnColor.b - 20, 0), btnColor.a),
-                    selectedColor = btnColor,
-                    disabledColor = new Color32(80, 80, 80, 128),
-                    colorMultiplier = 1f,
-                    fadeDuration = 0.1f
-                };
+                button.colors = UIHelper.MakeColorBlock(btnColor);
 
                 if (unlocked)
                     button.onClick.AddListener(() => StartLevel(capturedIndex));
@@ -148,7 +133,7 @@ namespace LakeNavigation
                 var nameObj = new GameObject("Name");
                 nameObj.transform.SetParent(hLayout.transform, false);
                 var nameText = nameObj.AddComponent<Text>();
-                nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                nameText.font = UIHelper.DefaultFont;
                 nameText.text = unlocked ? level.LevelName : "???";
                 nameText.fontSize = 20;
                 nameText.color = unlocked ? Color.white : new Color32(140, 140, 140, 255);
@@ -160,7 +145,7 @@ namespace LakeNavigation
                 var starObj = new GameObject("Stars");
                 starObj.transform.SetParent(hLayout.transform, false);
                 var starText = starObj.AddComponent<Text>();
-                starText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                starText.font = UIHelper.DefaultFont;
                 starText.text = unlocked ? new string('\u2605', stars) + new string('\u2606', 3 - stars) : "";
                 starText.fontSize = 18;
                 starText.color = new Color32(255, 215, 0, 255);
@@ -194,7 +179,7 @@ namespace LakeNavigation
 
             Text title = titleObj.AddComponent<Text>();
             title.text = "LAKE NAVIGATOR";
-            title.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            title.font = UIHelper.DefaultFont;
             title.fontSize = 48;
             title.color = Color.white;
             title.alignment = TextAnchor.MiddleCenter;
@@ -211,7 +196,7 @@ namespace LakeNavigation
 
             Text sub = subObj.AddComponent<Text>();
             sub.text = "A Weather Strategy Game";
-            sub.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            sub.font = UIHelper.DefaultFont;
             sub.fontSize = 24;
             sub.color = new Color32(200, 210, 230, 255);
             sub.alignment = TextAnchor.MiddleCenter;
@@ -243,16 +228,7 @@ namespace LakeNavigation
 
             Button button = btnObj.AddComponent<Button>();
             button.targetGraphic = btnImage;
-            button.colors = new ColorBlock
-            {
-                normalColor = bgColor,
-                highlightedColor = new Color32(Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255), Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                pressedColor = new Color32(Mathf.Max(bgColor.r - 20, 0), Mathf.Max(bgColor.g - 20, 0), Mathf.Max(bgColor.b - 20, 0), bgColor.a),
-                selectedColor = bgColor,
-                disabledColor = new Color32(128, 128, 128, 128),
-                colorMultiplier = 1f,
-                fadeDuration = 0.1f
-            };
+            button.colors = UIHelper.MakeColorBlock(bgColor);
             button.onClick.AddListener(onClick);
 
             GameObject textObj = new GameObject("Text");
@@ -266,7 +242,7 @@ namespace LakeNavigation
 
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
-            btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnText.font = UIHelper.DefaultFont;
             btnText.fontSize = 28;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;

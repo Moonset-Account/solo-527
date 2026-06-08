@@ -20,7 +20,7 @@ namespace LakeNavigation
 
         public override void Setup(Transform parent)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
 
             _panelObject = new GameObject("SettingsPanel");
             _panelObject.transform.SetParent(parent, false);
@@ -32,7 +32,7 @@ namespace LakeNavigation
             rt.offsetMax = Vector2.zero;
 
             Image bg = _panelObject.AddComponent<Image>();
-            bg.color = new Color32(20, 28, 45, 255);
+            bg.color = new Color32(20, 28, 45, 210);
 
             VerticalLayoutGroup layout = _panelObject.AddComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
@@ -548,22 +548,7 @@ namespace LakeNavigation
 
             Button button = btnObj.AddComponent<Button>();
             button.targetGraphic = btnImage;
-            button.colors = new ColorBlock
-            {
-                normalColor = bgColor,
-                highlightedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                pressedColor = new Color32(
-                    Mathf.Max(bgColor.r - 20, 0), Mathf.Max(bgColor.g - 20, 0),
-                    Mathf.Max(bgColor.b - 20, 0), bgColor.a),
-                selectedColor = new Color32(
-                    Mathf.Min(bgColor.r + 30, 255), Mathf.Min(bgColor.g + 30, 255),
-                    Mathf.Min(bgColor.b + 30, 255), bgColor.a),
-                disabledColor = new Color32(80, 80, 80, 128),
-                colorMultiplier = 1f,
-                fadeDuration = 0.1f
-            };
+            button.colors = UIHelper.MakeColorBlock(bgColor);
             button.onClick.AddListener(onClick);
 
             GameObject textObj = new GameObject("Text");

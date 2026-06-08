@@ -40,7 +40,7 @@ namespace LakeNavigation
 
         public override void Setup(Transform parent)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = UIHelper.DefaultFont;
             _circleSprite = CreateCircleSprite(64);
 
             _panelObject = new GameObject("HUDPanel");
@@ -159,7 +159,7 @@ namespace LakeNavigation
         {
             if (_checklistTexts.TryGetValue(target.Id, out var text))
             {
-                text.text = "✓ " + target.DisplayName;
+                text.text = "> " + target.DisplayName;
                 text.color = new Color(0.4f, 1f, 0.4f);
             }
         }
@@ -252,7 +252,7 @@ namespace LakeNavigation
 
             foreach (var target in _missionManager.photoTargets)
             {
-                var entry = CreateText(_checklistContainer, (target.IsCompleted ? "✓ " : "○ ") + target.DisplayName,
+                var entry = CreateText(_checklistContainer, (target.IsCompleted ? "> " : "o ") + target.DisplayName,
                     16, target.IsCompleted ? new Color(0.4f, 1f, 0.4f) : Color.white);
                 _checklistTexts[target.Id] = entry;
             }
@@ -509,7 +509,7 @@ namespace LakeNavigation
             };
             btn.onClick.AddListener(OnTakePhotoClicked);
 
-            var txt = CreateText(btnObj.transform, "\U0001F4F7 Take Photo", 22, Color.white);
+            var txt = CreateText(btnObj.transform, "[SPACE] Take Photo", 22, Color.white);
             var tr = txt.GetComponent<RectTransform>();
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
@@ -543,7 +543,7 @@ namespace LakeNavigation
             };
             btn.onClick.AddListener(() => GameManager.Instance.PauseGame());
 
-            var txt = CreateText(btnObj.transform, "\u23F8", 28, Color.white);
+            var txt = CreateText(btnObj.transform, "||", 28, Color.white);
             var tr = txt.GetComponent<RectTransform>();
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
@@ -598,11 +598,11 @@ namespace LakeNavigation
         {
             return w switch
             {
-                WeatherType.Clear => "☀ Clear",
-                WeatherType.Cloudy => "☁ Cloudy",
-                WeatherType.Foggy => "🌫 Foggy",
-                WeatherType.Rainy => "🌧 Rainy",
-                WeatherType.Stormy => "⛈ Stormy",
+                WeatherType.Clear => "Clear",
+                WeatherType.Cloudy => "Cloudy",
+                WeatherType.Foggy => "Foggy",
+                WeatherType.Rainy => "Rainy",
+                WeatherType.Stormy => "STORM",
                 _ => w.ToString()
             };
         }
