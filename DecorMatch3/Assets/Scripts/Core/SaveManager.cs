@@ -59,13 +59,26 @@ namespace DecorMatch3
 
         public SaveData CreateDefaultSave()
         {
+            var profile = new PlayerProfileData
+            {
+                currentLevel = 1,
+                coins = 100,
+                unlockedFurniture = new List<string>(),
+                tutorialCompleted = false,
+                skippedTutorial = false
+            };
+
+            if (ConfigManager.Instance?.FurnitureCatalog != null)
+            {
+                foreach (var f in ConfigManager.Instance.FurnitureCatalog)
+                {
+                    profile.unlockedFurniture.Add(f.furnitureId);
+                }
+            }
+
             return new SaveData
             {
-                playerProfile = new PlayerProfileData
-                {
-                    currentLevel = 1,
-                    coins = 100
-                },
+                playerProfile = profile,
                 levelRecords = new List<LevelRecordData>(),
                 analytics = new AnalyticsData
                 {

@@ -207,8 +207,8 @@ namespace DecorMatch3
                 PlayClick();
                 SaveManager.Instance?.Save();
                 Destroy(panel);
-                GameObject mainPanel = _canvas.transform.Find("MainMenuPanel")?.gameObject;
-                if (mainPanel != null) mainPanel.SetActive(true);
+                GameObject mp = _canvas.transform.Find("MainMenuPanel")?.gameObject;
+                if (mp != null) mp.SetActive(true);
                 GameManager.Instance.ChangeState(GameState.MainMenu);
             });
         }

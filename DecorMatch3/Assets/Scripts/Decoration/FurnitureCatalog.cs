@@ -12,15 +12,10 @@ namespace DecorMatch3
         {
             _allFurniture.Clear();
             var config = ConfigManager.Instance;
-            if (config == null) return;
-            var categories = new[] { "Bed", "Sofa", "Table", "Chair", "Lamp", "Rug", "Curtain", "Shelf", "Desk", "Wardrobe" };
-            foreach (var cat in categories)
+            if (config == null || config.FurnitureCatalog == null) return;
+            foreach (var f in config.FurnitureCatalog)
             {
-                var items = config.GetFurnitureByCategory(cat);
-                if (items != null)
-                {
-                    _allFurniture.AddRange(items);
-                }
+                _allFurniture.Add(f);
             }
         }
 

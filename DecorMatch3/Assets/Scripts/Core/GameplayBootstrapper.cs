@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace DecorMatch3
 {
@@ -24,6 +25,15 @@ namespace DecorMatch3
 
         private int _currentLevelId;
         private LevelConfigData _currentConfig;
+
+        private string _selectedPaletteId;
+        private Room _decorationRoom;
+        private CustomerOrder _currentOrder;
+        private FurnitureCatalog _furnitureCatalog;
+        private Image _roomPreviewImg;
+        private Text _budgetText;
+        private Text _customerFeedbackText;
+        private int _remainingBudget;
 
         private void Start()
         {
@@ -181,63 +191,217 @@ namespace DecorMatch3
 
             CustomerData customer = ConfigManager.Instance?.GetCustomer(config.customerId);
 
+            _decorationRoom = new Room();
+            _decorationRoom.RoomType = "living_room";
+            string[] slotNames = { "seating", "table", "lighting", "storage", "decor" };
+            foreach (var sn in slotNames)
+            {
+                _decorationRoom.Slots.Add(new RoomSlot { SlotName = sn, AllowedCategories = new List<string> { sn } });
+            }
+
+            CustomerOrderData orderData = new CustomerOrderData
+            {
+                customerId = config.customerId,
+                roomType = "living_room",
+                stylePreference = customer != null ? customer.preferredStyle : "modern",
+                budget = 500,
+                colorPreferences = customer != null ? BuildColorPreferences(customer) : new ColorPreferenceData[0],
+                furnitureRequirements = BuildFurnitureRequirements(slotNames)
+            };
+            _currentOrder = CustomerOrder.FromData(orderData, customer);
+            _remainingBudget = orderData.budget;
+            _selectedPaletteId = null;
+
+            _furnitureCatalog = new GameObject("FurnitureCatalog").AddComponent<FurnitureCatalog>();
+            _furnitureCatalog.Initialize();
+
             GameObject panel = CreatePanel("DecorationPanel", _canvas.transform);
 
             GameObject title = CreateTextObj("Title", panel.transform, "装修房间", 30, new Color(1f, 0.85f, 0.3f));
             SetAnchoredPosition(title.GetComponent<RectTransform>(), new Vector2(0, 280), new Vector2(400, 40));
 
             string customerName = customer != null ? customer.displayName : "客户";
-            GameObject customerInfo = CreateTextObj("CustomerInfo", panel.transform, "客户: " + customerName + " | 偏好: " + (customer != null ? customer.preferredStyle : ""), 20, Color.white);
-            SetAnchoredPosition(customerInfo.GetComponent<RectTransform>(), new Vector2(0, 230), new Vector2(500, 30));
+            string preferredStyle = customer != null ? customer.preferredStyle : "";
+            GameObject customerInfo = CreateTextObj("CustomerInfo", panel.transform,
+                "客户: " + customerName + " | 偏好风格: " + preferredStyle, 18, new Color(0.9f, 0.9f, 0.9f));
+            SetAnchoredPosition(customerInfo.GetComponent<RectTransform>(), new Vector2(0, 240), new Vector2(600, 30));
 
+            _roomPreviewImg = null;
             GameObject roomPreview = new GameObject("RoomPreview");
             roomPreview.transform.SetParent(panel.transform, false);
             RectTransform rpRt = roomPreview.AddComponent<RectTransform>();
-            SetAnchoredPosition(rpRt, new Vector2(-150, 20), new Vector2(300, 250));
-            Image rpImg = roomPreview.AddComponent<Image>();
-            rpImg.color = new Color(0.9f, 0.9f, 0.85f);
+            SetAnchoredPosition(rpRt, new Vector2(-200, 20), new Vector2(250, 280));
+            _roomPreviewImg = roomPreview.AddComponent<Image>();
+            _roomPreviewImg.color = new Color(0.9f, 0.9f, 0.85f);
 
-            GameObject paletteArea = new GameObject("PaletteArea");
-            paletteArea.transform.SetParent(panel.transform, false);
-            RectTransform paRt = paletteArea.AddComponent<RectTransform>();
-            SetAnchoredPosition(paRt, new Vector2(180, 60), new Vector2(300, 280));
+            _budgetText = CreateTextObj("BudgetText", panel.transform, "预算: " + _remainingBudget, 20, new Color(1f, 0.9f, 0.3f)).GetComponent<Text>();
+            SetAnchoredPosition(_budgetText.rectTransform, new Vector2(-200, -150), new Vector2(250, 30));
+
+            _customerFeedbackText = CreateTextObj("FeedbackText", panel.transform, "", 16, new Color(0.8f, 0.8f, 0.8f));
+            SetAnchoredPosition(_customerFeedbackText.rectTransform, new Vector2(-200, -190), new Vector2(250, 60));
+
+            GameObject rightPanel = new GameObject("RightPanel");
+            rightPanel.transform.SetParent(panel.transform, false);
+            RectTransform rpPanel = rightPanel.AddComponent<RectTransform>();
+            SetAnchoredPosition(rpPanel, new Vector2(160, 40), new Vector2(350, 420));
+
+            GameObject paletteTitle = CreateTextObj("PaletteTitle", rightPanel.transform, "选择配色方案:", 18, Color.white);
+            SetAnchoredPosition(paletteTitle.GetComponent<RectTransform>(), new Vector2(0, 170), new Vector2(330, 25));
 
             if (ConfigManager.Instance?.ColorPalettes != null)
             {
-                float yOff = 100f;
+                float yOff = 130f;
                 foreach (var palette in ConfigManager.Instance.ColorPalettes)
                 {
                     string pid = palette.paletteId;
-                    GameObject pBtn = CreateButtonObj("Palette_" + pid, paletteArea.transform, palette.displayName, new Vector2(0, yOff));
+                    string pStyle = palette.style;
+                    string pLabel = palette.displayName + " (" + pStyle + ")";
+                    GameObject pBtn = CreateButtonObj("Palette_" + pid, rightPanel.transform, pLabel, new Vector2(0, yOff));
+                    pBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(300, 35);
                     pBtn.GetComponent<Button>().onClick.AddListener(() =>
                     {
                         PlayClick();
-                        Color c;
-                        if (palette.hexColors != null && palette.hexColors.Length > 0 && ColorUtility.TryParseHtmlString(palette.hexColors[0], out c))
+                        _selectedPaletteId = pid;
+                        _decorationRoom.ApplyPalette(pid, palette);
+                        if (palette.hexColors != null && palette.hexColors.Length > 0)
                         {
-                            rpImg.color = c;
+                            Color c;
+                            if (ColorUtility.TryParseHtmlString(palette.hexColors[0], out c))
+                            {
+                                _roomPreviewImg.color = c;
+                            }
                         }
+                        UpdateDecorationFeedback();
                     });
-                    yOff -= 50f;
+                    yOff -= 40f;
                 }
             }
 
-            GameObject submitBtn = CreateButtonObj("SubmitBtn", panel.transform, "提交装修", new Vector2(0, -200));
+            float furnitureY = -40f;
+            string[] categories = { "seating", "table", "lighting", "storage", "decor" };
+            foreach (var cat in categories)
+            {
+                GameObject catLabel = CreateTextObj("Cat_" + cat, rightPanel.transform, cat + ":", 16, new Color(0.7f, 0.9f, 1f));
+                SetAnchoredPosition(catLabel.GetComponent<RectTransform>(), new Vector2(-120, furnitureY), new Vector2(100, 22));
+
+                var furnitureList = _furnitureCatalog.GetByCategory(cat);
+                float btnX = -20f;
+                int shown = 0;
+                foreach (var furniture in furnitureList)
+                {
+                    if (shown >= 2) break;
+                    string fid = furniture.furnitureId;
+                    string fName = furniture.displayName;
+                    GameObject fBtn = CreateButtonObj("F_" + fid, rightPanel.transform, fName, new Vector2(btnX, furnitureY));
+                    fBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(100, 22);
+                    fBtn.GetComponentInChildren<Text>().fontSize = 13;
+                    fBtn.GetComponent<Button>().onClick.AddListener(() =>
+                    {
+                        PlayClick();
+                        if (furniture.cost <= _remainingBudget)
+                        {
+                            RoomSlot slot = _decorationRoom.GetSlot(cat);
+                            if (slot != null)
+                            {
+                                if (!string.IsNullOrEmpty(slot.CurrentFurnitureId))
+                                {
+                                    var oldF = _furnitureCatalog.GetFurniture(slot.CurrentFurnitureId);
+                                    if (oldF != null) _remainingBudget += oldF.cost;
+                                }
+                                slot.CurrentFurnitureId = fid;
+                                _remainingBudget -= furniture.cost;
+                                UpdateBudgetDisplay();
+                                UpdateDecorationFeedback();
+                            }
+                        }
+                    });
+                    btnX += 110f;
+                    shown++;
+                }
+                furnitureY -= 32f;
+            }
+
+            GameObject submitBtn = CreateButtonObj("SubmitBtn", panel.transform, "提交装修", new Vector2(100, -230));
             submitBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 PlayClick();
-                float score = Random.Range(40f, 95f);
-                int stars = score >= 85 ? 3 : score >= 70 ? 2 : score >= 50 ? 1 : 0;
-                string feedback = "风格: " + (score > 60 ? "良好" : "差") + " | 颜色: " + (score > 50 ? "匹配" : "不搭");
-                ShowResultUI(levelId, (int)score, stars, feedback, true);
+                SubmitDecoration(levelId);
             });
 
-            GameObject backBtn = CreateButtonObj("BackBtn", panel.transform, "返回关卡选择", new Vector2(0, -260));
+            GameObject backBtn = CreateButtonObj("BackBtn", panel.transform, "返回主菜单", new Vector2(-100, -230));
             backBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 PlayClick();
                 GameManager.Instance.ReturnToMenu();
             });
+        }
+
+        private ColorPreferenceData[] BuildColorPreferences(CustomerData customer)
+        {
+            if (customer.likedColors == null) return new ColorPreferenceData[0];
+            var prefs = new List<ColorPreferenceData>();
+            foreach (var hex in customer.likedColors)
+            {
+                prefs.Add(new ColorPreferenceData { colorName = hex, weight = 1.0f, hexCode = hex });
+            }
+            if (customer.dislikedColors != null)
+            {
+                foreach (var hex in customer.dislikedColors)
+                {
+                    prefs.Add(new ColorPreferenceData { colorName = hex, weight = -0.5f, hexCode = hex });
+                }
+            }
+            return prefs.ToArray();
+        }
+
+        private FurnitureRequirementData[] BuildFurnitureRequirements(string[] slotNames)
+        {
+            var reqs = new List<FurnitureRequirementData>();
+            foreach (var slot in slotNames)
+            {
+                reqs.Add(new FurnitureRequirementData
+                {
+                    furnitureId = "",
+                    slotName = slot,
+                    required = slot == "seating" || slot == "table",
+                    preferredStyles = new string[0]
+                });
+            }
+            return reqs.ToArray();
+        }
+
+        private void UpdateBudgetDisplay()
+        {
+            if (_budgetText != null) _budgetText.text = "预算: " + _remainingBudget;
+        }
+
+        private void UpdateDecorationFeedback()
+        {
+            if (_customerFeedbackText == null) return;
+            if (_currentOrder == null || _decorationRoom == null) return;
+            float style = CustomerPreference.EvaluateStyleMatch(_decorationRoom, _currentOrder, _furnitureCatalog);
+            float color = CustomerPreference.EvaluateColorMatch(_decorationRoom, _currentOrder);
+            float fulfill = CustomerPreference.EvaluateFulfillment(_decorationRoom, _currentOrder);
+            float budget = CustomerPreference.EvaluateBudget(_decorationRoom, _currentOrder, _furnitureCatalog);
+            _customerFeedbackText.text = "风格:" + style.ToString("F0") + " 颜色:" + color.ToString("F0") + "\n需求:" + fulfill.ToString("F0") + " 预算:" + budget.ToString("F0");
+        }
+
+        private void SubmitDecoration(int levelId)
+        {
+            if (_decorationRoom == null || _currentOrder == null) return;
+            float styleScore = CustomerPreference.EvaluateStyleMatch(_decorationRoom, _currentOrder, _furnitureCatalog);
+            float colorScore = CustomerPreference.EvaluateColorMatch(_decorationRoom, _currentOrder);
+            float fulfillScore = CustomerPreference.EvaluateFulfillment(_decorationRoom, _currentOrder);
+            float budgetScore = CustomerPreference.EvaluateBudget(_decorationRoom, _currentOrder, _furnitureCatalog);
+            float totalScore = Mathf.Clamp(styleScore + colorScore + fulfillScore + budgetScore, 0f, 100f);
+            int stars = CustomerPreference.ScoreToStars(totalScore);
+            string feedback = CustomerPreference.GenerateFeedback(styleScore, colorScore, fulfillScore, budgetScore);
+            if (_furnitureCatalog != null && _furnitureCatalog.gameObject != null)
+            {
+                Destroy(_furnitureCatalog.gameObject);
+            }
+            _furnitureCatalog = null;
+            ShowResultUI(levelId, (int)totalScore, stars, feedback, true);
         }
 
         private void ShowResultUI(int levelId, int score, int stars, string feedback, bool isDecoration)
