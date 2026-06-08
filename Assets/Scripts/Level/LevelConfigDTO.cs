@@ -16,6 +16,7 @@ public class LevelConfigDTO
     public bool hasConveyorBelt;
     public float conveyorSpeed;
     public bool isTutorialLevel;
+    public bool requireAllDishesCleaned;
 
     public List<StationEntryDTO> stationLayout;
     public List<ConstraintDTO> spatialConstraints;

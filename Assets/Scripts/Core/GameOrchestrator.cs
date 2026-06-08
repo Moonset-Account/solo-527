@@ -13,6 +13,7 @@ public class GameOrchestrator : MonoBehaviour
     private TextMeshProUGUI hudScoreText;
     private TextMeshProUGUI hudTimerText;
     private TextMeshProUGUI hudComboText;
+    private TextMeshProUGUI hudCleanHintText;
     private Transform hudOrderContainer;
 
     private TextMeshProUGUI failReasonText;
@@ -204,6 +205,14 @@ public class GameOrchestrator : MonoBehaviour
         orderLayout.childForceExpandHeight = false;
         orderLayout.spacing = 5;
         hudOrderContainer = orderArea.transform;
+
+        hudCleanHintText = CreateText("", panel.transform, 28, new Color(1f, 0.3f, 0.3f));
+        RectTransform cleanHintRect = hudCleanHintText.GetComponent<RectTransform>();
+        cleanHintRect.anchorMin = new Vector2(0.3f, 0.05f);
+        cleanHintRect.anchorMax = new Vector2(1f, 0.15f);
+        cleanHintRect.offsetMin = Vector2.zero;
+        cleanHintRect.offsetMax = Vector2.zero;
+        hudCleanHintText.alignment = TextAlignmentOptions.Center;
 
         GameObject pauseBtnObj = new GameObject("PauseButton");
         pauseBtnObj.transform.SetParent(panel.transform, false);
@@ -530,6 +539,17 @@ public class GameOrchestrator : MonoBehaviour
             int combo = ScoringManager.Instance.comboCount;
             hudComboText.text = combo > 0 ? $"x{combo}" : "";
         }
+
+        if (hudCleanHintText != null && LevelManager.HasInstance && LevelManager.Instance.currentLevelData != null)
+        {
+            LevelData ld = LevelManager.Instance.currentLevelData;
+            bool scoreMet = ScoringManager.Instance.currentScore >= ld.targetScore;
+            bool hasDirty = LevelManager.HasDirtyDishes();
+            if (ld.requireAllDishesCleaned && scoreMet && hasDirty)
+                hudCleanHintText.text = "请清洗脏盘子！";
+            else
+                hudCleanHintText.text = "";
+        }
     }
 
     private void PopulateSettlement()
@@ -712,7 +732,7 @@ public class GameOrchestrator : MonoBehaviour
             if (currentTutorialStep >= levelData.tutorialSteps.Count)
             {
                 if (tutorialHighlight != null)
-                    tutorialHighlight.SetActive(false);
+                    tutorialHighlight.gameObject.SetActive(false);
                 if (tutorialStepText != null)
                     tutorialStepText.gameObject.SetActive(false);
                 GameManager.Instance.TransitionToGameplay();

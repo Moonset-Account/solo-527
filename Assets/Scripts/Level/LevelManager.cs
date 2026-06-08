@@ -95,6 +95,9 @@ public class LevelManager : Singleton<LevelManager>
             int targetScore = currentLevelData.targetScore;
             if (ScoringManager.Instance.currentScore >= targetScore)
             {
+                if (currentLevelData.requireAllDishesCleaned && HasDirtyDishes())
+                    return;
+
                 isLevelActive = false;
                 GameManager.Instance.CompleteLevel();
                 return;
@@ -105,6 +108,20 @@ public class LevelManager : Singleton<LevelManager>
         {
             mechanic.Tick(dt);
         }
+    }
+
+    public bool HasDirtyDishes()
+    {
+        if (!StationManager.HasInstance)
+            return false;
+
+        foreach (KitchenStation station in StationManager.Instance.allStations)
+        {
+            if (station is CleaningStation cleaning && cleaning.dirtyDishes > 0)
+                return true;
+        }
+
+        return false;
     }
 
     private void ApplySpatialConstraints(List<SpatialConstraint> constraints)

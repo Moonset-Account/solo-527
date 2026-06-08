@@ -21,5 +21,6 @@ public class LevelData : ScriptableObject
     public bool hasConveyorBelt;
     public float conveyorSpeed;
     public bool isTutorialLevel;
+    public bool requireAllDishesCleaned;
     public List<TutorialStep> tutorialSteps;
 }

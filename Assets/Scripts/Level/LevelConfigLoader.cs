@@ -69,6 +69,7 @@ public class LevelConfigLoader : MonoBehaviour
         data.hasConveyorBelt = dto.hasConveyorBelt;
         data.conveyorSpeed = dto.conveyorSpeed;
         data.isTutorialLevel = dto.isTutorialLevel;
+        data.requireAllDishesCleaned = dto.requireAllDishesCleaned;
 
         data.stationLayout = new List<StationLayoutEntry>();
         if (dto.stationLayout != null)
