@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0000000000000000000000000000011, type: 3}
+  m_Name: mission_01_02
+  m_EditorClassIdentifier: 
+  missionId: mission_01_02
+  missionName: "\u5230\u8FBE\u706F\u5854"
+  description: "\u822A\u884C\u81F3\u5317\u5CB8\u8001\u706F\u5854\u9644\u8FD1"
+  missionType: 1
+  targetId: lighthouse
+  targetRadius: 6
+  baseScore: 120
+  bonusScorePerSecond: 10
+  timeBonusThreshold: 25
+  qualityBonusMax: 40
+  collectionItemId: collection_lighthouse
+  requiredWeather: 0
+  requireSpecificWeather: 0
+  minVisibility: 0.3
+  maxWindSpeed: 15
+  completionAudioId: mission_complete
+  photoFrameSpritePath: 

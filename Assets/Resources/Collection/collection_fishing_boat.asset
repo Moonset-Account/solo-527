@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0000000000000000000000000000004, type: 3}
+  m_Name: collection_fishing_boat
+  m_EditorClassIdentifier: 
+  itemId: collection_fishing_boat
+  displayName: "\u6E14\u8239"
+  description: "\u505C\u9760\u5728\u7801\u5934\u7684\u8001\u6E14\u8239"
+  loreText: "\u8FD9\u6761\u6E14\u8239\u966A\u4F34\u4E86\u4E09\u4EE3\u6E14\u6C11\uFF0C\u89C1\u8BC1\u4E86\u6E56\u4E0A\u65E0\u6570\u98CE\u98CE\u96E8\u96E8\u3002"
+  category: 4
+  iconPath: 
+  modelPath: 
+  unlockAudioId: 
+  relatedItemIds: []
+  rarity: 0
+  requiredMissionId: 
+  requiredPhotoTargetId: 

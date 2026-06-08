@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f000000000000000000000000000000f, type: 3}
+  m_Name: level_01
+  m_EditorClassIdentifier: 
+  levelId: level_01
+  levelName: "\u6668\u96FE\u521D\u822A"
+  description: "\u5728\u6668\u96FE\u4E2D\u9A76\u8FC7\u6E56\u9762\uFF0C\u5B8C\u6210\u62CD\u6444\u4EFB\u52A1\uFF0C\u5C0F\u5FC3\u96FE\u4E2D\u7684\u6697\u7901\u3002"
+  sceneName: Gameplay
+  startWeather: 2
+  startWindSpeed: 2
+  startWindAngle: 45
+  startFuel: 80
+  startFood: 80
+  startFilm: 20
+  timeLimit: 0
+  missions:
+  - {fileID: 11400000, guid: b0000000000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: b0000000000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: b0000000000000000000000000000003, type: 2}
+  requiredLevelIds: []
+  starThreshold1: 80
+  starThreshold2: 180
+  starThreshold3: 320
+  completionScene: LevelSelect
+  boatStartPosition: {x: 0, y: 0}
+  boatStartHeading: 0
+  lakeMapPath: 
+  supplyDockPositions: []
+  hasTimeLimit: 0
+  weatherChangeFrequency: 1

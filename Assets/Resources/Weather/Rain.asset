@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0000000000000000000000000000021, type: 3}
+  m_Name: Rain
+  m_EditorClassIdentifier: 
+  type: 3
+  minWindSpeed: 2
+  maxWindSpeed: 8
+  minVisibility: 0.3
+  maxVisibility: 0.7
+  minDuration: 30
+  maxDuration: 90
+  transitionDuration: 6
+  fogColor: {r: 0.55, g: 0.6, b: 0.65, a: 1}
+  fogDensity: 0.015
+  ambientAudioClipId: ambient_rain
