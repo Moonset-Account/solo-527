@@ -103,6 +103,7 @@ func _on_next_pressed() -> void:
 	if next_idx >= tutorial_steps.size():
 		_complete_tutorial()
 		return
+	current_step = next_idx
 	GameManager.tutorial_step = next_idx
 	var tween := create_tween()
 	if tutorial_panel:
