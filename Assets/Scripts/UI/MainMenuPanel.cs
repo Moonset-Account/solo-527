@@ -18,8 +18,11 @@ public class MainMenuPanel : MonoBehaviour
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text versionText;
 
+    private bool _uiBuilt;
+
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
         RefreshSlots();
 
         if (settingsButton != null)
@@ -37,50 +40,80 @@ public class MainMenuPanel : MonoBehaviour
 
     private void OnEnable()
     {
-        RefreshSlots();
+        if (_uiBuilt) RefreshSlots();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var title = UIFactory.CreateLabel(transform, "Title", "湖面航行·天气挑战", 42, new Color(1f, 0.95f, 0.8f));
+        var titleRt = title.GetComponent<RectTransform>();
+        titleRt.anchorMin = new Vector2(0.5f, 0.85f);
+        titleRt.anchorMax = new Vector2(0.5f, 0.85f);
+        titleRt.sizeDelta = new Vector2(600f, 80f);
+        title.alignment = TextAlignmentOptions.Center;
+        titleText = title;
+
+        var container = UIFactory.CreateContainer(transform, "SlotContainer");
+        var containerRt = container.GetComponent<RectTransform>();
+        containerRt.anchorMin = new Vector2(0.3f, 0.3f);
+        containerRt.anchorMax = new Vector2(0.7f, 0.75f);
+        containerRt.sizeDelta = Vector2.zero;
+        slotContainer = container;
+
+        settingsButton = UIFactory.CreateButton(transform, "SettingsBtn", "设置", 200f, 50f);
+        var sRt = settingsButton.GetComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(0.02f, 0.02f);
+        sRt.anchorMax = new Vector2(0.02f, 0.02f);
+        sRt.anchoredPosition = new Vector2(0f, 0f);
+
+        collectionButton = UIFactory.CreateButton(transform, "CollectionBtn", "图鉴", 200f, 50f);
+        var cRt = collectionButton.GetComponent<RectTransform>();
+        cRt.anchorMin = new Vector2(0.25f, 0.02f);
+        cRt.anchorMax = new Vector2(0.25f, 0.02f);
+
+        quitButton = UIFactory.CreateButton(transform, "QuitBtn", "退出", 200f, 50f);
+        var qRt = quitButton.GetComponent<RectTransform>();
+        qRt.anchorMin = new Vector2(0.98f, 0.02f);
+        qRt.anchorMax = new Vector2(0.98f, 0.02f);
+
+        var ver = UIFactory.CreateLabel(transform, "Version", $"v{SaveSystem.CurrentVersion}", 16, new Color(0.6f, 0.65f, 0.7f));
+        var vRt = ver.GetComponent<RectTransform>();
+        vRt.anchorMin = new Vector2(0.98f, 0.02f);
+        vRt.anchorMax = new Vector2(0.98f, 0.02f);
+        vRt.anchoredPosition = new Vector2(-80f, 60f);
+        ver.alignment = TextAlignmentOptions.Right;
+        versionText = ver;
     }
 
     private void RefreshSlots()
     {
-        if (slotContainer == null || slotButtonPrefab == null) return;
+        if (slotContainer == null) return;
 
         foreach (Transform child in slotContainer)
             Destroy(child.gameObject);
 
         for (int i = 0; i < SaveSystem.SlotCount; i++)
         {
-            var slotObj = Instantiate(slotButtonPrefab, slotContainer);
+            var slotObj = UIFactory.CreateSlotButton(slotContainer, $"Slot_{i}", i);
             var btn = slotObj.GetComponent<Button>();
             var texts = slotObj.GetComponentsInChildren<TMP_Text>();
 
             bool hasSave = SaveSystem.Instance != null && SaveSystem.Instance.HasSave(i);
             var preview = SaveSystem.Instance != null ? SaveSystem.Instance.GetSaveInfo(i) : null;
 
-            if (texts.Length >= 3)
+            if (texts.Length >= 2)
             {
-                texts[0].text = $"存档 {i + 1}";
-
                 if (hasSave && preview != null)
                 {
-                    texts[1].text = preview.playerName;
-                    texts[2].text = $"★ {preview.totalScore} | {preview.GetSaveTime():yyyy/MM/dd HH:mm}";
+                    texts[0].text = $"存档 {i + 1} - {preview.playerName}";
+                    texts[1].text = $"★ {preview.totalScore}";
                 }
                 else
                 {
-                    texts[1].text = "空";
-                    texts[2].text = "点击开始新游戏";
-                }
-            }
-
-            var deleteBtn = slotObj.transform.Find("DeleteButton");
-            if (deleteBtn != null)
-            {
-                deleteBtn.gameObject.SetActive(hasSave);
-                var delBtnComp = deleteBtn.GetComponent<Button>();
-                if (delBtnComp != null)
-                {
-                    int slotIdx = i;
-                    delBtnComp.onClick.AddListener(() => OnDeleteSlot(slotIdx));
+                    texts[0].text = $"存档 {i + 1}";
+                    texts[1].text = "空 - 点击开始新游戏";
                 }
             }
 
@@ -122,17 +155,13 @@ public class MainMenuPanel : MonoBehaviour
     private void OnSettingsClicked()
     {
         GameEvents.TriggerAudioTriggerRequested("ui_click", 0.5f);
-
-        if (GameFlowManager.Instance != null)
-            GameFlowManager.Instance.OpenSettings();
+        GameFlowManager.Instance?.OpenSettings();
     }
 
     private void OnCollectionClicked()
     {
         GameEvents.TriggerAudioTriggerRequested("ui_click", 0.5f);
-
-        if (GameFlowManager.Instance != null)
-            GameFlowManager.Instance.OpenCollection();
+        GameFlowManager.Instance?.OpenCollection();
     }
 
     private void OnQuitClicked()

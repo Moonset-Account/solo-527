@@ -18,9 +18,12 @@ public class MissionResultPanel : MonoBehaviour
     [SerializeField] private Button nextLevelButton;
 
     private List<MissionResult> _results = new List<MissionResult>();
+    private bool _uiBuilt;
 
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
+
         if (retryButton != null)
             retryButton.onClick.AddListener(OnRetryClicked);
 
@@ -34,6 +37,80 @@ public class MissionResultPanel : MonoBehaviour
     private void OnEnable()
     {
         DisplayResults();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var panel = UIFactory.CreatePanel(transform, "MissionResultPanel", false);
+        var panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.sizeDelta = Vector2.zero;
+
+        var topArea = new GameObject("TopArea");
+        topArea.transform.SetParent(panel.transform, false);
+        var topRt = topArea.AddComponent<RectTransform>();
+        topRt.anchorMin = new Vector2(0f, 0.85f);
+        topRt.anchorMax = new Vector2(1f, 1f);
+        topRt.sizeDelta = new Vector2(-40f, 0f);
+        topRt.anchoredPosition = new Vector2(0f, -10f);
+
+        levelNameText = UIFactory.CreateLabel(topArea.transform, "LevelNameText", "", 32, Color.white);
+        var lnRt = levelNameText.GetComponent<RectTransform>();
+        lnRt.anchorMin = Vector2.zero;
+        lnRt.anchorMax = Vector2.one;
+        lnRt.sizeDelta = Vector2.zero;
+
+        var centerArea = new GameObject("CenterArea");
+        centerArea.transform.SetParent(panel.transform, false);
+        var centerRt = centerArea.AddComponent<RectTransform>();
+        centerRt.anchorMin = new Vector2(0f, 0.2f);
+        centerRt.anchorMax = new Vector2(1f, 0.85f);
+        centerRt.sizeDelta = new Vector2(-40f, 0f);
+
+        var centerLayout = centerArea.AddComponent<VerticalLayoutGroup>();
+        centerLayout.spacing = 8f;
+        centerLayout.childAlignment = TextAnchor.MiddleCenter;
+        centerLayout.childControlWidth = false;
+        centerLayout.childControlHeight = false;
+        centerLayout.childForceExpandWidth = false;
+        centerLayout.childForceExpandHeight = false;
+
+        var resultContainerRt = UIFactory.CreateContainer(centerArea.transform, "MissionResultContainer");
+        missionResultContainer = resultContainerRt;
+
+        totalScoreText = UIFactory.CreateLabel(centerArea.transform, "TotalScoreText", "总分: 0", 26, Color.white);
+
+        starDisplayText = UIFactory.CreateLabel(centerArea.transform, "StarDisplayText", "☆☆☆", 28, new Color(1f, 0.85f, 0.2f));
+
+        var newRecordLabel = UIFactory.CreateLabel(centerArea.transform, "NewRecordBadge", "NEW!", 28, Color.red);
+        newRecordBadge = newRecordLabel.gameObject;
+        newRecordBadge.SetActive(false);
+
+        var unlockContainerRt = UIFactory.CreateContainer(centerArea.transform, "CollectionUnlocksContainer");
+        collectionUnlocksContainer = unlockContainerRt;
+
+        var bottomArea = new GameObject("BottomArea");
+        bottomArea.transform.SetParent(panel.transform, false);
+        var bottomRt = bottomArea.AddComponent<RectTransform>();
+        bottomRt.anchorMin = new Vector2(0f, 0f);
+        bottomRt.anchorMax = new Vector2(1f, 0.2f);
+        bottomRt.sizeDelta = new Vector2(-40f, 0f);
+        bottomRt.anchoredPosition = new Vector2(0f, 10f);
+
+        var bottomLayout = bottomArea.AddComponent<HorizontalLayoutGroup>();
+        bottomLayout.spacing = 20f;
+        bottomLayout.childAlignment = TextAnchor.MiddleCenter;
+        bottomLayout.childControlWidth = false;
+        bottomLayout.childControlHeight = false;
+        bottomLayout.childForceExpandWidth = false;
+        bottomLayout.childForceExpandHeight = false;
+
+        retryButton = UIFactory.CreateButton(bottomArea.transform, "RetryButton", "重试", 160f, 50f);
+        levelSelectButton = UIFactory.CreateButton(bottomArea.transform, "LevelSelectButton", "关卡选择", 160f, 50f);
+        nextLevelButton = UIFactory.CreateButton(bottomArea.transform, "NextLevelButton", "下一关", 160f, 50f);
     }
 
     private void DisplayResults()

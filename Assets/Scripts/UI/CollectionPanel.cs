@@ -21,6 +21,7 @@ public class CollectionPanel : MonoBehaviour
     private CollectionCategory _currentCategory = CollectionCategory.Wildlife;
     private List<CollectionItemData> _allItems = new List<CollectionItemData>();
     private string _selectedItemId;
+    private bool _uiBuilt;
 
     private static readonly string[] CategoryLabels = new string[]
     {
@@ -29,6 +30,8 @@ public class CollectionPanel : MonoBehaviour
 
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
+
         if (backButton != null)
             backButton.onClick.AddListener(OnBackClicked);
 
@@ -43,6 +46,99 @@ public class CollectionPanel : MonoBehaviour
     private void OnEnable()
     {
         RefreshDisplay();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var panel = UIFactory.CreatePanel(transform, "CollectionPanel", false);
+        var panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.sizeDelta = Vector2.zero;
+
+        var topArea = new GameObject("TopArea");
+        topArea.transform.SetParent(panel.transform, false);
+        var topRt = topArea.AddComponent<RectTransform>();
+        topRt.anchorMin = new Vector2(0f, 0.9f);
+        topRt.anchorMax = new Vector2(1f, 1f);
+        topRt.sizeDelta = new Vector2(-20f, 0f);
+        topRt.anchoredPosition = new Vector2(0f, -5f);
+
+        var tabLayout = topArea.AddComponent<HorizontalLayoutGroup>();
+        tabLayout.spacing = 8f;
+        tabLayout.childAlignment = TextAnchor.MiddleCenter;
+        tabLayout.childControlWidth = false;
+        tabLayout.childControlHeight = false;
+        tabLayout.childForceExpandWidth = false;
+        tabLayout.childForceExpandHeight = false;
+
+        categoryTabContainer = topRt;
+
+        var centerArea = new GameObject("CenterArea");
+        centerArea.transform.SetParent(panel.transform, false);
+        var centerRt = centerArea.AddComponent<RectTransform>();
+        centerRt.anchorMin = new Vector2(0f, 0.12f);
+        centerRt.anchorMax = new Vector2(0.6f, 0.9f);
+        centerRt.sizeDelta = new Vector2(-20f, 0f);
+
+        var gridRt = UIFactory.CreateGridContainer(centerArea.transform, "ItemGridContainer", 4, 120f, 120f);
+        itemGridContainer = gridRt;
+
+        var rightArea = new GameObject("RightArea");
+        rightArea.transform.SetParent(panel.transform, false);
+        var rightRt = rightArea.AddComponent<RectTransform>();
+        rightRt.anchorMin = new Vector2(0.6f, 0.12f);
+        rightRt.anchorMax = new Vector2(1f, 0.9f);
+        rightRt.sizeDelta = new Vector2(-20f, 0f);
+
+        var detailPanelObj = UIFactory.CreatePanel(rightArea.transform, "DetailPanel", false);
+        var dpRt = detailPanelObj.GetComponent<RectTransform>();
+        dpRt.anchorMin = Vector2.zero;
+        dpRt.anchorMax = Vector2.one;
+        dpRt.sizeDelta = Vector2.zero;
+        detailPanel = detailPanelObj;
+
+        var detailLayout = detailPanelObj.AddComponent<VerticalLayoutGroup>();
+        detailLayout.spacing = 8f;
+        detailLayout.childAlignment = TextAnchor.UpperCenter;
+        detailLayout.childControlWidth = false;
+        detailLayout.childControlHeight = false;
+        detailLayout.childForceExpandWidth = false;
+        detailLayout.childForceExpandHeight = false;
+
+        var iconGo = new GameObject("DetailIcon");
+        iconGo.transform.SetParent(detailPanelObj.transform, false);
+        var iconRt = iconGo.AddComponent<RectTransform>();
+        iconRt.sizeDelta = new Vector2(100f, 100f);
+        detailIcon = iconGo.AddComponent<Image>();
+        detailIcon.color = Color.white;
+
+        detailNameText = UIFactory.CreateLabel(detailPanelObj.transform, "DetailNameText", "", 22, Color.white);
+        detailDescriptionText = UIFactory.CreateLabel(detailPanelObj.transform, "DetailDescriptionText", "", 16, new Color(0.8f, 0.8f, 0.8f, 1f));
+        detailLoreText = UIFactory.CreateLabel(detailPanelObj.transform, "DetailLoreText", "", 14, new Color(0.6f, 0.6f, 0.6f, 1f));
+
+        detailPanel.SetActive(false);
+
+        var bottomArea = new GameObject("BottomArea");
+        bottomArea.transform.SetParent(panel.transform, false);
+        var bottomRt = bottomArea.AddComponent<RectTransform>();
+        bottomRt.anchorMin = new Vector2(0f, 0f);
+        bottomRt.anchorMax = new Vector2(1f, 0.12f);
+        bottomRt.sizeDelta = new Vector2(-40f, 0f);
+        bottomRt.anchoredPosition = new Vector2(0f, 5f);
+
+        var bottomLayout = bottomArea.AddComponent<HorizontalLayoutGroup>();
+        bottomLayout.spacing = 12f;
+        bottomLayout.childAlignment = TextAnchor.MiddleCenter;
+        bottomLayout.childControlWidth = false;
+        bottomLayout.childControlHeight = false;
+        bottomLayout.childForceExpandWidth = false;
+        bottomLayout.childForceExpandHeight = false;
+
+        completionText = UIFactory.CreateLabel(bottomArea.transform, "CompletionText", "图鉴完成: 0/0 (0%)", 18, Color.white);
+        backButton = UIFactory.CreateSmallButton(bottomArea.transform, "BackButton", "返回", 120f, 40f);
     }
 
     private void LoadAllItems()

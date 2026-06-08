@@ -19,6 +19,7 @@ public class SettingsPanel : MonoBehaviour
     private Dictionary<string, KeyCode> _pendingBindings = new Dictionary<string, KeyCode>();
     private string _listeningAction;
     private bool _isListening;
+    private bool _uiBuilt;
 
     private static readonly string[] ActionLabels = new string[]
     {
@@ -32,6 +33,8 @@ public class SettingsPanel : MonoBehaviour
 
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
+
         if (backButton != null)
             backButton.onClick.AddListener(OnBackClicked);
 
@@ -58,6 +61,71 @@ public class SettingsPanel : MonoBehaviour
 
         LoadCurrentSettings();
         PopulateKeyBindings();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var panel = UIFactory.CreatePanel(transform, "SettingsPanel", false);
+        var panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.sizeDelta = Vector2.zero;
+
+        var scrollArea = new GameObject("ScrollArea");
+        scrollArea.transform.SetParent(panel.transform, false);
+        var scrollRt = scrollArea.AddComponent<RectTransform>();
+        scrollRt.anchorMin = Vector2.zero;
+        scrollRt.anchorMax = new Vector2(1f, 0.88f);
+        scrollRt.sizeDelta = new Vector2(-40f, 0f);
+        scrollRt.anchoredPosition = new Vector2(0f, -10f);
+
+        var container = UIFactory.CreateContainer(scrollArea.transform, "SettingsContainer");
+        var containerRt = container.GetComponent<RectTransform>();
+        containerRt.anchorMin = Vector2.zero;
+        containerRt.anchorMax = Vector2.one;
+        containerRt.sizeDelta = Vector2.zero;
+
+        UIFactory.CreateLabel(container, "MusicVolumeLabel", "音乐音量", 20, Color.white);
+        musicVolumeSlider = UIFactory.CreateSlider(container, "MusicVolumeSlider", 300f, 20f);
+
+        UIFactory.CreateLabel(container, "SFXVolumeLabel", "音效音量", 20, Color.white);
+        sfxVolumeSlider = UIFactory.CreateSlider(container, "SFXVolumeSlider", 300f, 20f);
+
+        UIFactory.CreateLabel(container, "QualityLabel", "画质", 20, Color.white);
+        qualityDropdown = UIFactory.CreateDropdown(container, "QualityDropdown", new string[] { "Low", "Medium", "High", "Ultra" }, 250f, 40f);
+
+        UIFactory.CreateLabel(container, "LanguageLabel", "语言", 20, Color.white);
+        languageDropdown = UIFactory.CreateDropdown(container, "LanguageDropdown", new string[] { "中文", "English" }, 250f, 40f);
+
+        weatherWarningToggle = UIFactory.CreateToggle(container, "WeatherWarningToggle", "天气预警");
+
+        UIFactory.CreateLabel(container, "WeatherTimeScaleLabel", "天气时间缩放", 20, Color.white);
+        weatherTimeScaleSlider = UIFactory.CreateSlider(container, "WeatherTimeScaleSlider", 300f, 20f);
+
+        UIFactory.CreateLabel(container, "KeyBindingLabel", "按键绑定", 20, Color.white);
+        var keyBindContainerRt = UIFactory.CreateContainer(container, "KeyBindingContainer");
+        keyBindingContainer = keyBindContainerRt;
+
+        var bottomArea = new GameObject("BottomArea");
+        bottomArea.transform.SetParent(panel.transform, false);
+        var bottomRt = bottomArea.AddComponent<RectTransform>();
+        bottomRt.anchorMin = new Vector2(0f, 0f);
+        bottomRt.anchorMax = new Vector2(1f, 0.12f);
+        bottomRt.sizeDelta = new Vector2(-40f, 0f);
+        bottomRt.anchoredPosition = new Vector2(0f, 10f);
+
+        var bottomLayout = bottomArea.AddComponent<HorizontalLayoutGroup>();
+        bottomLayout.spacing = 20f;
+        bottomLayout.childAlignment = TextAnchor.MiddleCenter;
+        bottomLayout.childControlWidth = false;
+        bottomLayout.childControlHeight = false;
+        bottomLayout.childForceExpandWidth = false;
+        bottomLayout.childForceExpandHeight = false;
+
+        backButton = UIFactory.CreateButton(bottomArea.transform, "BackButton", "返回", 160f, 50f);
+        applyButton = UIFactory.CreateButton(bottomArea.transform, "ApplyButton", "应用", 160f, 50f);
     }
 
     private void Update()

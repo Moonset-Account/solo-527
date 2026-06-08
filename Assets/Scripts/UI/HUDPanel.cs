@@ -39,6 +39,7 @@ public class HUDPanel : MonoBehaviour
     private SupplySystem _supply;
     private float _warningFlashTimer;
     private bool _isFlashing;
+    private bool _uiBuilt;
 
     private static readonly string[] WeatherLabels = { "晴", "云", "雾", "雨", "暴", "雪" };
     private static readonly string[] WeatherIcons = { "☀", "☁", "🌫", "🌧", "⛈", "❄" };
@@ -68,11 +69,166 @@ public class HUDPanel : MonoBehaviour
 
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
+
         _boat = FindObjectOfType<BoatController>();
         _supply = FindObjectOfType<SupplySystem>();
 
         if (photoIndicator != null) photoIndicator.SetActive(false);
         RefreshMissionList();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var panel = UIFactory.CreatePanel(transform, "HUDPanel", false);
+        var panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.sizeDelta = Vector2.zero;
+
+        var topLeftArea = new GameObject("TopLeftArea");
+        topLeftArea.transform.SetParent(panel.transform, false);
+        var topLeftRt = topLeftArea.AddComponent<RectTransform>();
+        topLeftRt.anchorMin = new Vector2(0f, 0.7f);
+        topLeftRt.anchorMax = new Vector2(0.35f, 1f);
+        topLeftRt.sizeDelta = new Vector2(-20f, -20f);
+        topLeftRt.anchoredPosition = new Vector2(10f, -10f);
+
+        var topLeftLayout = topLeftArea.AddComponent<VerticalLayoutGroup>();
+        topLeftLayout.spacing = 4f;
+        topLeftLayout.childAlignment = TextAnchor.UpperLeft;
+        topLeftLayout.childControlWidth = false;
+        topLeftLayout.childControlHeight = false;
+        topLeftLayout.childForceExpandWidth = false;
+        topLeftLayout.childForceExpandHeight = false;
+
+        fuelBar = UIFactory.CreateBar(topLeftArea.transform, "FuelBar", new Color(0.2f, 0.8f, 0.3f), 200f, 24f);
+        foodBar = UIFactory.CreateBar(topLeftArea.transform, "FoodBar", new Color(1f, 0.6f, 0.2f), 200f, 24f);
+        fuelText = UIFactory.CreateLabel(topLeftArea.transform, "FuelText", "100%", 16, Color.white);
+        foodText = UIFactory.CreateLabel(topLeftArea.transform, "FoodText", "100%", 16, Color.white);
+        filmText = UIFactory.CreateLabel(topLeftArea.transform, "FilmText", "0/0", 16, new Color(0.3f, 0.7f, 1f));
+
+        var topCenterArea = new GameObject("TopCenterArea");
+        topCenterArea.transform.SetParent(panel.transform, false);
+        var topCenterRt = topCenterArea.AddComponent<RectTransform>();
+        topCenterRt.anchorMin = new Vector2(0.35f, 0.7f);
+        topCenterRt.anchorMax = new Vector2(0.65f, 1f);
+        topCenterRt.sizeDelta = new Vector2(0f, -20f);
+        topCenterRt.anchoredPosition = new Vector2(0f, -10f);
+
+        var topCenterLayout = topCenterArea.AddComponent<VerticalLayoutGroup>();
+        topCenterLayout.spacing = 4f;
+        topCenterLayout.childAlignment = TextAnchor.MiddleCenter;
+        topCenterLayout.childControlWidth = false;
+        topCenterLayout.childControlHeight = false;
+        topCenterLayout.childForceExpandWidth = false;
+        topCenterLayout.childForceExpandHeight = false;
+
+        var needleGo = new GameObject("CompassNeedle");
+        needleGo.transform.SetParent(topCenterArea.transform, false);
+        var needleRt = needleGo.AddComponent<RectTransform>();
+        needleRt.sizeDelta = new Vector2(60f, 60f);
+        var needleImg = needleGo.AddComponent<Image>();
+        needleImg.color = Color.red;
+        compassNeedle = needleRt;
+
+        windDirectionText = UIFactory.CreateLabel(topCenterArea.transform, "WindDirectionText", "E", 16, Color.white);
+        windSpeedText = UIFactory.CreateLabel(topCenterArea.transform, "WindSpeedText", "0.0", 16, Color.white);
+
+        var topRightArea = new GameObject("TopRightArea");
+        topRightArea.transform.SetParent(panel.transform, false);
+        var topRightRt = topRightArea.AddComponent<RectTransform>();
+        topRightRt.anchorMin = new Vector2(0.65f, 0.7f);
+        topRightRt.anchorMax = new Vector2(1f, 1f);
+        topRightRt.sizeDelta = new Vector2(-20f, -20f);
+        topRightRt.anchoredPosition = new Vector2(-10f, -10f);
+
+        weatherTypeText = UIFactory.CreateLabel(topRightArea.transform, "WeatherTypeText", "晴", 20, Color.white);
+
+        var wpGo = new GameObject("WeatherPanel");
+        wpGo.transform.SetParent(topRightArea.transform, false);
+        var wpRt = wpGo.AddComponent<RectTransform>();
+        wpRt.sizeDelta = new Vector2(80f, 80f);
+        weatherPanel = wpRt;
+
+        var wIconGo = new GameObject("WeatherIcon");
+        wIconGo.transform.SetParent(wpGo.transform, false);
+        var wIconRt = wIconGo.AddComponent<RectTransform>();
+        wIconRt.anchorMin = Vector2.zero;
+        wIconRt.anchorMax = Vector2.one;
+        wIconRt.sizeDelta = Vector2.zero;
+        weatherIcon = wIconGo.AddComponent<Image>();
+        weatherIcon.color = Color.white;
+
+        var leftArea = new GameObject("LeftArea");
+        leftArea.transform.SetParent(panel.transform, false);
+        var leftRt = leftArea.AddComponent<RectTransform>();
+        leftRt.anchorMin = new Vector2(0f, 0.15f);
+        leftRt.anchorMax = new Vector2(0.3f, 0.7f);
+        leftRt.sizeDelta = new Vector2(-20f, 0f);
+        leftRt.anchoredPosition = new Vector2(10f, 0f);
+
+        var leftLayout = leftArea.AddComponent<VerticalLayoutGroup>();
+        leftLayout.spacing = 6f;
+        leftLayout.childAlignment = TextAnchor.UpperCenter;
+        leftLayout.childControlWidth = false;
+        leftLayout.childControlHeight = false;
+        leftLayout.childForceExpandWidth = false;
+        leftLayout.childForceExpandHeight = false;
+
+        var missionContainerRt = UIFactory.CreateContainer(leftArea.transform, "MissionListContainer");
+        missionListContainer = missionContainerRt;
+        timerText = UIFactory.CreateLabel(leftArea.transform, "TimerText", "00:00", 20, Color.white);
+
+        var bottomCenterArea = new GameObject("BottomCenterArea");
+        bottomCenterArea.transform.SetParent(panel.transform, false);
+        var bcRt = bottomCenterArea.AddComponent<RectTransform>();
+        bcRt.anchorMin = new Vector2(0.3f, 0f);
+        bcRt.anchorMax = new Vector2(0.7f, 0.15f);
+        bcRt.sizeDelta = Vector2.zero;
+
+        var photoGo = new GameObject("PhotoIndicator");
+        photoGo.transform.SetParent(bcRt, false);
+        var photoRt = photoGo.AddComponent<RectTransform>();
+        photoRt.anchorMin = Vector2.zero;
+        photoRt.anchorMax = Vector2.one;
+        photoRt.sizeDelta = Vector2.zero;
+        var photoImg = photoGo.AddComponent<Image>();
+        photoImg.color = new Color(0.2f, 0.8f, 0.3f, 0.5f);
+        photoIndicator = photoGo;
+
+        photoQualityText = UIFactory.CreateLabel(photoGo.transform, "PhotoQualityText", "按 F 拍照", 18, Color.white);
+        var pqRt = photoQualityText.GetComponent<RectTransform>();
+        pqRt.anchorMin = Vector2.zero;
+        pqRt.anchorMax = Vector2.one;
+        pqRt.sizeDelta = Vector2.zero;
+
+        var reticleGo = new GameObject("PhotoReticle");
+        reticleGo.transform.SetParent(photoGo.transform, false);
+        var reticleRt = reticleGo.AddComponent<RectTransform>();
+        reticleRt.anchorMin = Vector2.zero;
+        reticleRt.anchorMax = Vector2.one;
+        reticleRt.sizeDelta = Vector2.zero;
+        photoReticle = reticleGo.AddComponent<Image>();
+        photoReticle.color = new Color(1f, 1f, 1f, 0.3f);
+
+        var bottomArea = new GameObject("BottomArea");
+        bottomArea.transform.SetParent(panel.transform, false);
+        var bottomRt = bottomArea.AddComponent<RectTransform>();
+        bottomRt.anchorMin = new Vector2(0.7f, 0f);
+        bottomRt.anchorMax = new Vector2(1f, 0.15f);
+        bottomRt.sizeDelta = new Vector2(-20f, 0f);
+        bottomRt.anchoredPosition = new Vector2(-10f, 0f);
+
+        var arrowGo = new GameObject("WindArrow");
+        arrowGo.transform.SetParent(bottomArea.transform, false);
+        var arrowRt = arrowGo.AddComponent<RectTransform>();
+        arrowRt.sizeDelta = new Vector2(40f, 40f);
+        var arrowImg = arrowGo.AddComponent<Image>();
+        arrowImg.color = Color.cyan;
+        windArrow = arrowRt;
     }
 
     private void Update()

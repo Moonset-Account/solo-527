@@ -13,6 +13,7 @@ public class LevelSelectPanel : MonoBehaviour
     [SerializeField] private Button settingsButton;
 
     private List<LevelConfig> _levels = new List<LevelConfig>();
+    private bool _uiBuilt;
 
     private void OnEnable()
     {
@@ -21,6 +22,8 @@ public class LevelSelectPanel : MonoBehaviour
 
     private void Start()
     {
+        if (!_uiBuilt) BuildUI();
+
         if (backButton != null)
             backButton.onClick.AddListener(OnBackClicked);
 
@@ -31,6 +34,62 @@ public class LevelSelectPanel : MonoBehaviour
             settingsButton.onClick.AddListener(OnSettingsClicked);
 
         LoadLevelList();
+    }
+
+    private void BuildUI()
+    {
+        _uiBuilt = true;
+
+        var panel = UIFactory.CreatePanel(transform, "LevelSelectPanel", false);
+        var panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = Vector2.zero;
+        panelRt.anchorMax = Vector2.one;
+        panelRt.sizeDelta = Vector2.zero;
+
+        var topArea = new GameObject("TopArea");
+        topArea.transform.SetParent(panel.transform, false);
+        var topRt = topArea.AddComponent<RectTransform>();
+        topRt.anchorMin = new Vector2(0.5f, 1f);
+        topRt.anchorMax = new Vector2(1f, 1f);
+        topRt.pivot = new Vector2(1f, 1f);
+        topRt.sizeDelta = new Vector2(0f, 60f);
+        topRt.anchoredPosition = new Vector2(-20f, -20f);
+
+        totalStarsText = UIFactory.CreateLabel(topArea.transform, "TotalStars", "★ 0", 28, new Color(1f, 0.85f, 0.2f));
+        var starsLabelRt = totalStarsText.GetComponent<RectTransform>();
+        starsLabelRt.anchorMin = Vector2.zero;
+        starsLabelRt.anchorMax = Vector2.one;
+        starsLabelRt.sizeDelta = Vector2.zero;
+
+        var centerArea = new GameObject("CenterArea");
+        centerArea.transform.SetParent(panel.transform, false);
+        var centerRt = centerArea.AddComponent<RectTransform>();
+        centerRt.anchorMin = new Vector2(0f, 0.15f);
+        centerRt.anchorMax = new Vector2(1f, 0.85f);
+        centerRt.sizeDelta = new Vector2(-40f, 0f);
+
+        var gridRt = UIFactory.CreateGridContainer(centerArea.transform, "LevelGrid", 3, 200f, 100f);
+        levelGridContainer = gridRt;
+
+        var bottomArea = new GameObject("BottomArea");
+        bottomArea.transform.SetParent(panel.transform, false);
+        var bottomRt = bottomArea.AddComponent<RectTransform>();
+        bottomRt.anchorMin = new Vector2(0f, 0f);
+        bottomRt.anchorMax = new Vector2(1f, 0.12f);
+        bottomRt.sizeDelta = new Vector2(-40f, 0f);
+        bottomRt.anchoredPosition = new Vector2(0f, 10f);
+
+        var bottomLayout = bottomArea.AddComponent<HorizontalLayoutGroup>();
+        bottomLayout.spacing = 20f;
+        bottomLayout.childAlignment = TextAnchor.MiddleCenter;
+        bottomLayout.childControlWidth = false;
+        bottomLayout.childControlHeight = false;
+        bottomLayout.childForceExpandWidth = false;
+        bottomLayout.childForceExpandHeight = false;
+
+        backButton = UIFactory.CreateSmallButton(bottomArea.transform, "BackButton", "返回", 120f, 40f);
+        collectionButton = UIFactory.CreateSmallButton(bottomArea.transform, "CollectionButton", "图鉴", 120f, 40f);
+        settingsButton = UIFactory.CreateSmallButton(bottomArea.transform, "SettingsButton", "设置", 120f, 40f);
     }
 
     private void LoadLevelList()
@@ -62,34 +121,18 @@ public class LevelSelectPanel : MonoBehaviour
 
         foreach (var level in _levels)
         {
-            if (levelButtonPrefab == null) continue;
-
-            var btnObj = Instantiate(levelButtonPrefab, levelGridContainer);
-            var btn = btnObj.GetComponent<Button>();
-
             bool unlocked = LevelManager.Instance != null && LevelManager.Instance.IsLevelUnlocked(level.levelId);
             int stars = GetLevelStars(level.levelId);
             totalStars += stars;
 
-            var texts = btnObj.GetComponentsInChildren<TMP_Text>();
-            if (texts.Length >= 3)
-            {
-                texts[0].text = level.levelName;
-                texts[1].text = GetStarDisplay(stars);
-                texts[2].text = unlocked ? "" : "🔒";
-            }
+            var btnObj = UIFactory.CreateLevelButton(levelGridContainer, level.levelName, GetStarDisplay(stars), unlocked);
+            var btn = btnObj.GetComponent<Button>();
 
             if (btn != null)
             {
                 string levelId = level.levelId;
                 btn.onClick.AddListener(() => OnLevelClicked(levelId));
                 btn.interactable = unlocked;
-            }
-
-            var images = btnObj.GetComponentsInChildren<Image>();
-            if (!unlocked && images.Length > 0)
-            {
-                images[0].color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
             }
         }
 
