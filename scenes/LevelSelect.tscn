@@ -1,0 +1,116 @@
+[gd_scene load_steps=3 format=3 uid="uid://c_level_select_scene"]
+
+[ext_resource type="Script" path="res://scripts/LevelSelect.gd" id="1_lvsel"]
+
+[node name="LevelSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lvsel")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.09, 0.11, 0.18, 1)
+
+[node name="CPUParticles2D" type="CPUParticles2D" parent="."]
+emitting = true
+amount = 30
+lifetime = 10.0
+preprocess = 3.0
+gravity = Vector2(0, -10)
+initial_velocity_min = 15.0
+initial_velocity_max = 40.0
+spread = 360.0
+color = Color(0.4, 0.7, 1, 0.1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 1256.0
+offset_bottom = 80.0
+theme_override_constants/separation = 16
+
+[node name="BackButton" type="Button" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(120, 48)
+text = "← 返回"
+theme_override_font_sizes/font_size = 16
+
+[node name="HSpacer" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TitleLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "选择关卡"
+theme_override_colors/font_color = Color(1, 0.82, 0.4, 1)
+theme_override_font_sizes/font_size = 34
+
+[node name="HSpacer2" type="Control" parent="TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TotalStarsLabel" type="Label" parent="TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "★ 0"
+horizontal_alignment = 2
+theme_override_colors/font_color = Color(1, 0.82, 0.3, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="StatsLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 40.0
+offset_top = 100.0
+offset_right = 1240.0
+offset_bottom = 130.0
+text = "进度统计"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.65, 0.7, 0.85, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="MainBox" type="VBoxContainer" parent="."]
+offset_left = 40.0
+offset_top = 150.0
+offset_right = 1240.0
+offset_bottom = 640.0
+theme_override_constants/separation = 16
+
+[node name="LevelsGrid" type="GridContainer" parent="MainBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 20
+
+[node name="PageNav" type="HBoxContainer" parent="."]
+offset_left = 440.0
+offset_top = 660.0
+offset_right = 840.0
+offset_bottom = 710.0
+theme_override_constants/separation = 20
+
+[node name="PrevPageBtn" type="Button" parent="PageNav"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(160, 44)
+text = "◀ 上一页"
+theme_override_font_sizes/font_size = 16
+size_flags_horizontal = 3
+
+[node name="NextPageBtn" type="Button" parent="PageNav"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(160, 44)
+text = "下一页 ▶"
+theme_override_font_sizes/font_size = 16
+size_flags_horizontal = 3
