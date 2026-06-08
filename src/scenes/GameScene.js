@@ -188,18 +188,62 @@ export class GameScene extends BaseScene {
       this._h('span', { textContent: label }),
       this._h('span', { className: 'slider-value', textContent: `${defaultValue}${unit}` })
     ]);
+    const dragState = { snapshot: null, startValue: defaultValue, changed: false };
+
     const slider = this._h('input', {
       type: 'range',
       min, max, step, value: defaultValue,
+      onpointerdown: (e) => {
+        if (this._suppressHistoryRecording) return;
+        if (this.elapsed < 5 || !this.baselineMetrics || this.finished || !this.running) return;
+        const val = step === '1' || step === 1 ? parseInt(slider.value) : parseFloat(slider.value);
+        dragState.startValue = val;
+        dragState.snapshot = {
+          before: this._captureMetricsSnapshot(),
+          frames: this.trafficSystem?.recordingFrames?.length || 0,
+          time: this.elapsed,
+          label
+        };
+        dragState.changed = false;
+      },
       oninput: (e) => {
         const val = e.target.value;
         labelLine.querySelector('.slider-value').textContent = `${val}${unit}`;
         const parsed = step === '1' || step === 1 ? parseInt(val) : parseFloat(val);
+        if (dragState.startValue !== parsed) dragState.changed = true;
         let partial = null;
         if (label.includes('周期')) partial = { cycleTime: parsed };
         else if (label.includes('南北绿')) partial = { nsGreenRatio: parsed / 100 };
         else if (label.includes('黄灯')) partial = { yellowDuration: parsed };
-        if (partial) this._applyImmediate(partial, label);
+        if (partial) this._applyConfigOnly(partial);
+      },
+      onpointerup: () => {
+        const finalVal = step === '1' || step === 1 ? parseInt(slider.value) : parseFloat(slider.value);
+        dragState.changed = dragState.changed || (dragState.startValue !== finalVal);
+        if (!dragState.changed || !dragState.snapshot) {
+          dragState.snapshot = null;
+          return;
+        }
+        const s = dragState.snapshot;
+        dragState.snapshot = null;
+        dragState.changed = false;
+        let partial = null;
+        if (label.includes('周期')) partial = { cycleTime: finalVal };
+        else if (label.includes('南北绿')) partial = { nsGreenRatio: finalVal / 100 };
+        else if (label.includes('黄灯')) partial = { yellowDuration: finalVal };
+        if (partial) this._submitAdjustment(s.before, s.frames, s.time, partial);
+      },
+      onchange: () => {
+        if (!dragState.changed || !dragState.snapshot) return;
+        const finalVal = step === '1' || step === 1 ? parseInt(slider.value) : parseFloat(slider.value);
+        const s = dragState.snapshot;
+        dragState.snapshot = null;
+        dragState.changed = false;
+        let partial = null;
+        if (label.includes('周期')) partial = { cycleTime: finalVal };
+        else if (label.includes('南北绿')) partial = { nsGreenRatio: finalVal / 100 };
+        else if (label.includes('黄灯')) partial = { yellowDuration: finalVal };
+        if (partial) this._submitAdjustment(s.before, s.frames, s.time, partial);
       }
     });
     group.appendChild(labelLine);
@@ -207,7 +251,7 @@ export class GameScene extends BaseScene {
     return group;
   }
 
-  _applyImmediate(partial, labelHint) {
+  _applyConfigOnly(partial) {
     const light = this.trafficLights.find(l => l.id === this.selectedIntersection);
     if (light) light.setConfig(partial);
     if (partial.busPriorityEnabled !== undefined) {
@@ -216,25 +260,6 @@ export class GameScene extends BaseScene {
     if (partial.rightTurnOnRed !== undefined) {
       this.trafficLights.forEach(l => l.setConfig({ rightTurnOnRed: partial.rightTurnOnRed }));
     }
-
-    if (this._suppressHistoryRecording) return;
-    if (this.elapsed < 5 || !this.baselineMetrics || this.finished || !this.running) return;
-
-    if (!this._interactionBefore) {
-      this._interactionBefore = this._captureMetricsSnapshot();
-      this._interactionCurFrames = this.trafficSystem?.recordingFrames?.length || 0;
-      this._interactionTimeStart = this.elapsed;
-      this._interactionDescMap = new Map();
-    }
-
-    if (partial.cycleTime !== undefined) this._interactionDescMap.set('cycle', `周期${partial.cycleTime}s`);
-    if (partial.nsGreenRatio !== undefined) this._interactionDescMap.set('ns', `南北绿${Math.round(partial.nsGreenRatio * 100)}%`);
-    if (partial.yellowDuration !== undefined) this._interactionDescMap.set('yw', `黄灯${partial.yellowDuration}s`);
-    if (partial.busPriorityEnabled !== undefined) this._interactionDescMap.set('bp', `公交优先${partial.busPriorityEnabled ? '开' : '关'}`);
-    if (partial.rightTurnOnRed !== undefined) this._interactionDescMap.set('rt', `红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
-
-    if (this._interactionTimer) clearTimeout(this._interactionTimer);
-    this._interactionTimer = setTimeout(() => this._commitInteractionHistory(), 220);
   }
 
   _toggleItem(label, defaultValue) {
@@ -244,9 +269,21 @@ export class GameScene extends BaseScene {
       className: `switch ${defaultValue ? 'active' : ''}`,
       onclick: () => {
         const next = !sw.classList.contains('active');
+        const suppress = this._suppressHistoryRecording;
+        const elapsedOk = this.elapsed >= 5 && this.baselineMetrics && this.running && !this.finished;
+        let snapshot = null;
+        if (!suppress && elapsedOk) {
+          snapshot = {
+            before: this._captureMetricsSnapshot(),
+            frames: this.trafficSystem?.recordingFrames?.length || 0,
+            time: this.elapsed
+          };
+        }
         sw.classList.toggle('active', next);
-        this._applyImmediate(label.includes('公交') ? { busPriorityEnabled: next } : { rightTurnOnRed: next }, label);
+        const partial = label.includes('公交') ? { busPriorityEnabled: next } : { rightTurnOnRed: next };
+        this._applyConfigOnly(partial);
         this.audioManager.playClick();
+        if (snapshot) this._submitAdjustment(snapshot.before, snapshot.frames, snapshot.time, partial);
       }
     });
     item.appendChild(labelEl);
@@ -254,15 +291,11 @@ export class GameScene extends BaseScene {
     return item;
   }
 
-  _commitInteractionHistory() {
-    this._interactionTimer = null;
-    if (!this._interactionBefore || !this._interactionDescMap) return;
-    if (this._interactionDescMap.size === 0) {
-      this._interactionBefore = null;
-      this._interactionDescMap = null;
-      return;
+  _submitAdjustment(before, frameStartRaw, timeStart, partial) {
+    if (this._interactionTimer) {
+      clearTimeout(this._interactionTimer);
+      this._interactionTimer = null;
     }
-
     if (this._pendingTimeoutId) {
       clearTimeout(this._pendingTimeoutId);
       this._pendingTimeoutId = null;
@@ -271,27 +304,28 @@ export class GameScene extends BaseScene {
       const oldId = this.pendingAdjustment.id;
       this.adjustmentHistory = this.adjustmentHistory.filter(e => e.id !== oldId);
       this.pendingAdjustment = null;
-      this._refreshHistoryUI();
     }
 
-    const before = this._interactionBefore;
-    const curFrames = this._interactionCurFrames;
-    const frameStart = Math.max(0, curFrames - 120);
-    const timeStart = this._interactionTimeStart;
+    const frameStart = Math.max(0, frameStartRaw - 120);
     const intName = this.levelData.intersections.find(i => i.id === this.selectedIntersection)?.name || '全局';
-    const orderedKeys = ['cycle', 'ns', 'yw', 'bp', 'rt'];
-    const descParts = orderedKeys.map(k => this._interactionDescMap.get(k)).filter(Boolean);
+    const descParts = [];
+    if (partial.cycleTime !== undefined) descParts.push(`周期${partial.cycleTime}s`);
+    if (partial.nsGreenRatio !== undefined) descParts.push(`南北绿${Math.round(partial.nsGreenRatio * 100)}%`);
+    if (partial.yellowDuration !== undefined) descParts.push(`黄灯${partial.yellowDuration}s`);
+    if (partial.busPriorityEnabled !== undefined) descParts.push(`公交优先${partial.busPriorityEnabled ? '开' : '关'}`);
+    if (partial.rightTurnOnRed !== undefined) descParts.push(`红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
     const adjustDesc = `${intName}：${descParts.join(' · ')}`;
 
-    this._interactionBefore = null;
-    this._interactionDescMap = null;
-    this._interactionCurFrames = 0;
-    this._interactionTimeStart = 0;
-
     const pendingId = `adj_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const curFNow = this.trafficSystem?.recordingFrames?.length || frameStartRaw;
     this.pendingAdjustment = { id: pendingId, desc: adjustDesc, before, frameStart, timeStart };
-    const curFNow = this.trafficSystem?.recordingFrames?.length || curFrames;
-    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: curFNow, timeEnd: this.elapsed, pending: true });
+    this._addToHistory({
+      id: pendingId, desc: adjustDesc,
+      before, after: null, delta: null,
+      frameStart, frameEnd: curFNow,
+      timeStart, timeEnd: this.elapsed,
+      pending: true
+    });
 
     const delaySec = 8;
     const checkMs = delaySec * 1000 / Math.max(1, this.gameState.timeScale || 1);
@@ -300,10 +334,14 @@ export class GameScene extends BaseScene {
       if (!this.running || this.finished || !this.pendingAdjustment || this.pendingAdjustment.id !== pendingId) return;
       const after = this._captureMetricsSnapshot();
       const curF = this.trafficSystem?.recordingFrames?.length || curFNow;
-      const frameEnd = curF;
-      const timeEnd = this.elapsed;
       const delta = this._calcDelta(before, after);
-      const entry = { id: pendingId, desc: adjustDesc, before, after, delta, frameStart, frameEnd, timeStart, timeEnd, pending: false };
+      const entry = {
+        id: pendingId, desc: adjustDesc,
+        before, after, delta,
+        frameStart, frameEnd: curF,
+        timeStart, timeEnd: this.elapsed,
+        pending: false
+      };
       this.pendingAdjustment = null;
       this._replaceHistoryEntry(entry);
       this.baselineMetrics = after;
