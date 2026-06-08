@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <rect width="128" height="128" fill="#2A1A3A" rx="16"/>
+  <rect x="24" y="32" width="80" height="64" fill="#CD853F" rx="4" stroke="#8B6914" stroke-width="3"/>
+  <rect x="30" y="38" width="68" height="52" fill="#DEB887" rx="2"/>
+  <rect x="40" y="48" width="20" height="16" fill="#FF6347" rx="2" opacity="0.8"/>
+  <rect x="66" y="48" width="12" height="12" fill="#87CEEB" rx="6" opacity="0.8"/>
+  <rect x="40" y="70" width="16" height="16" fill="#DDA0DD" rx="2" opacity="0.8"/>
+  <circle cx="76" cy="74" r="8" fill="#98FB98" opacity="0.8"/>
+  <text x="64" y="110" text-anchor="middle" fill="#FFD700" font-size="14" font-weight="bold" font-family="sans-serif">PACK</text>
+</svg>

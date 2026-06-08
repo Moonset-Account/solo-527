@@ -1,0 +1,95 @@
+{
+	"id": "level_02",
+	"chapter": "chapter_01",
+	"chapter_name": "First Move",
+	"name": "Handle With Care",
+	"description": "Pack items carefully - the vase and lamp are fragile!",
+	"box_width": 280,
+	"box_height": 380,
+	"max_weight": 25,
+	"star2_threshold": 1000,
+	"star3_threshold": 1600,
+	"time_limit": 120,
+	"items": [
+		{
+			"id": "vase_1",
+			"template": "vase",
+			"shape": "circle",
+			"width": 35,
+			"height": 35,
+			"weight": 0.5,
+			"is_fragile": true,
+			"fragility": 0.8,
+			"color": "#E6E6FA",
+			"label": "Vase"
+		},
+		{
+			"id": "lamp_1",
+			"template": "lamp",
+			"shape": "rect",
+			"width": 30,
+			"height": 60,
+			"weight": 1.0,
+			"is_fragile": true,
+			"fragility": 1.0,
+			"color": "#FFD700",
+			"label": "Lamp"
+		},
+		{
+			"id": "blanket_1",
+			"template": "blanket",
+			"shape": "rect",
+			"width": 90,
+			"height": 30,
+			"weight": 0.8,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#87CEEB",
+			"label": "Blanket"
+		},
+		{
+			"id": "pot_1",
+			"template": "pot",
+			"shape": "circle",
+			"width": 45,
+			"height": 45,
+			"weight": 3.0,
+			"is_fragile": false,
+			"fragility": 3.0,
+			"color": "#808080",
+			"label": "Pot"
+		},
+		{
+			"id": "clothes_1",
+			"template": "clothes",
+			"shape": "rect",
+			"width": 50,
+			"height": 50,
+			"weight": 0.3,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#DDA0DD",
+			"label": "Clothes"
+		},
+		{
+			"id": "book_1",
+			"template": "book",
+			"shape": "rect",
+			"width": 45,
+			"height": 65,
+			"weight": 1.5,
+			"is_fragile": false,
+			"fragility": 2.0,
+			"color": "#8B4513",
+			"label": "Book"
+		}
+	],
+	"spawn_positions": [
+		{"x": -400, "y": -120},
+		{"x": -400, "y": -40},
+		{"x": -400, "y": 40},
+		{"x": -400, "y": 120},
+		{"x": -450, "y": -80},
+		{"x": -450, "y": 0}
+	]
+}

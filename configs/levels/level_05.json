@@ -1,0 +1,121 @@
+{
+	"id": "level_05",
+	"chapter": "chapter_03",
+	"chapter_name": "Expert Move",
+	"name": "Puzzle Box",
+	"description": "The ultimate packing challenge. Every centimeter counts!",
+	"box_width": 240,
+	"box_height": 360,
+	"max_weight": 28,
+	"star2_threshold": 1800,
+	"star3_threshold": 2800,
+	"time_limit": 75,
+	"items": [
+		{
+			"id": "l_shelf_1",
+			"template": "l_shelf",
+			"shape": "l_shape",
+			"width": 50,
+			"height": 50,
+			"weight": 3.5,
+			"is_fragile": false,
+			"fragility": 3.0,
+			"color": "#696969",
+			"label": "Shelf"
+		},
+		{
+			"id": "t_frame_1",
+			"template": "t_frame",
+			"shape": "t_shape",
+			"width": 55,
+			"height": 55,
+			"weight": 2.0,
+			"is_fragile": true,
+			"fragility": 1.0,
+			"color": "#DAA520",
+			"label": "Frame"
+		},
+		{
+			"id": "globe_1",
+			"template": "globe",
+			"shape": "circle",
+			"width": 40,
+			"height": 40,
+			"weight": 2.5,
+			"is_fragile": true,
+			"fragility": 0.7,
+			"color": "#4682B4",
+			"label": "Globe"
+		},
+		{
+			"id": "typewriter_1",
+			"template": "typewriter",
+			"shape": "rect",
+			"width": 65,
+			"height": 45,
+			"weight": 6.0,
+			"is_fragile": true,
+			"fragility": 1.2,
+			"color": "#2F4F4F",
+			"label": "Typewriter"
+		},
+		{
+			"id": "hatbox_1",
+			"template": "hatbox",
+			"shape": "circle",
+			"width": 50,
+			"height": 50,
+			"weight": 0.8,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#DEB887",
+			"label": "Hatbox"
+		},
+		{
+			"id": "amp_1",
+			"template": "amp",
+			"shape": "rect",
+			"width": 45,
+			"height": 55,
+			"weight": 5.0,
+			"is_fragile": true,
+			"fragility": 1.0,
+			"color": "#8B0000",
+			"label": "Amp"
+		},
+		{
+			"id": "vinyl_1",
+			"template": "vinyl",
+			"shape": "circle",
+			"width": 35,
+			"height": 35,
+			"weight": 1.0,
+			"is_fragile": true,
+			"fragility": 0.6,
+			"color": "#1C1C1C",
+			"label": "Vinyl"
+		},
+		{
+			"id": "towel_1",
+			"template": "towel",
+			"shape": "rect",
+			"width": 70,
+			"height": 25,
+			"weight": 0.5,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#F0E68C",
+			"label": "Towel"
+		}
+	],
+	"spawn_positions": [
+		{"x": -400, "y": -160},
+		{"x": -400, "y": -90},
+		{"x": -400, "y": -20},
+		{"x": -400, "y": 50},
+		{"x": -400, "y": 120},
+		{"x": -460, "y": -130},
+		{"x": -460, "y": -60},
+		{"x": -460, "y": 10}
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"master_volume": 0.8,
+	"sfx_volume": 1.0,
+	"music_volume": 0.6,
+	"fullscreen": false,
+	"vsync": true,
+	"target_fps": 60,
+	"show_fps": false,
+	"show_performance": false,
+	"haptic_enabled": true,
+	"input_method": "auto"
+}

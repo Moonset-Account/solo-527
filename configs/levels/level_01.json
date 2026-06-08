@@ -1,0 +1,82 @@
+{
+	"id": "level_01",
+	"chapter": "chapter_01",
+	"chapter_name": "First Move",
+	"name": "Easy Start",
+	"description": "Pack the basic items into the box. No fragile items here!",
+	"box_width": 300,
+	"box_height": 400,
+	"max_weight": 30,
+	"star2_threshold": 800,
+	"star3_threshold": 1200,
+	"time_limit": 0,
+	"items": [
+		{
+			"id": "book_1",
+			"template": "book",
+			"shape": "rect",
+			"width": 50,
+			"height": 70,
+			"weight": 1.0,
+			"is_fragile": false,
+			"fragility": 2.0,
+			"color": "#8B4513",
+			"label": "Book"
+		},
+		{
+			"id": "book_2",
+			"template": "book",
+			"shape": "rect",
+			"width": 50,
+			"height": 70,
+			"weight": 1.0,
+			"is_fragile": false,
+			"fragility": 2.0,
+			"color": "#A0522D",
+			"label": "Book"
+		},
+		{
+			"id": "box_1",
+			"template": "small_box",
+			"shape": "rect",
+			"width": 60,
+			"height": 60,
+			"weight": 2.0,
+			"is_fragile": false,
+			"fragility": 3.0,
+			"color": "#CD853F",
+			"label": "Box"
+		},
+		{
+			"id": "pillow_1",
+			"template": "pillow",
+			"shape": "rect",
+			"width": 80,
+			"height": 40,
+			"weight": 0.5,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#DEB887",
+			"label": "Pillow"
+		},
+		{
+			"id": "toy_1",
+			"template": "toy",
+			"shape": "circle",
+			"width": 40,
+			"height": 40,
+			"weight": 0.8,
+			"is_fragile": false,
+			"fragility": 2.0,
+			"color": "#FF6347",
+			"label": "Ball"
+		}
+	],
+	"spawn_positions": [
+		{"x": -400, "y": -100},
+		{"x": -400, "y": 0},
+		{"x": -400, "y": 100},
+		{"x": -450, "y": -100},
+		{"x": -450, "y": 0}
+	]
+}

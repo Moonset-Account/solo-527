@@ -1,0 +1,108 @@
+{
+	"id": "level_03",
+	"chapter": "chapter_02",
+	"chapter_name": "Heavy Lifting",
+	"name": "Tetris Move",
+	"description": "Odd-shaped items need creative packing. Watch the weight!",
+	"box_width": 320,
+	"box_height": 420,
+	"max_weight": 40,
+	"star2_threshold": 1500,
+	"star3_threshold": 2200,
+	"time_limit": 90,
+	"items": [
+		{
+			"id": "l_shelf_1",
+			"template": "l_shelf",
+			"shape": "l_shape",
+			"width": 60,
+			"height": 60,
+			"weight": 4.0,
+			"is_fragile": false,
+			"fragility": 3.0,
+			"color": "#696969",
+			"label": "Shelf"
+		},
+		{
+			"id": "t_frame_1",
+			"template": "t_frame",
+			"shape": "t_shape",
+			"width": 60,
+			"height": 60,
+			"weight": 2.5,
+			"is_fragile": true,
+			"fragility": 1.2,
+			"color": "#DAA520",
+			"label": "Frame"
+		},
+		{
+			"id": "crockery_1",
+			"template": "crockery",
+			"shape": "circle",
+			"width": 50,
+			"height": 50,
+			"weight": 2.0,
+			"is_fragile": true,
+			"fragility": 0.6,
+			"color": "#FFF8DC",
+			"label": "Dish"
+		},
+		{
+			"id": "tv_1",
+			"template": "tv",
+			"shape": "rect",
+			"width": 90,
+			"height": 60,
+			"weight": 8.0,
+			"is_fragile": true,
+			"fragility": 1.5,
+			"color": "#2F4F4F",
+			"label": "TV"
+		},
+		{
+			"id": "rug_1",
+			"template": "rug",
+			"shape": "long",
+			"width": 120,
+			"height": 25,
+			"weight": 1.5,
+			"is_fragile": false,
+			"fragility": 5.0,
+			"color": "#B22222",
+			"label": "Rug"
+		},
+		{
+			"id": "tool_1",
+			"template": "toolbox",
+			"shape": "rect",
+			"width": 50,
+			"height": 35,
+			"weight": 5.0,
+			"is_fragile": false,
+			"fragility": 3.0,
+			"color": "#4682B4",
+			"label": "Tools"
+		},
+		{
+			"id": "plant_1",
+			"template": "plant",
+			"shape": "circle",
+			"width": 35,
+			"height": 35,
+			"weight": 1.5,
+			"is_fragile": true,
+			"fragility": 0.9,
+			"color": "#228B22",
+			"label": "Plant"
+		}
+	],
+	"spawn_positions": [
+		{"x": -420, "y": -130},
+		{"x": -420, "y": -50},
+		{"x": -420, "y": 30},
+		{"x": -420, "y": 110},
+		{"x": -470, "y": -90},
+		{"x": -470, "y": -10},
+		{"x": -470, "y": 70}
+	]
+}
