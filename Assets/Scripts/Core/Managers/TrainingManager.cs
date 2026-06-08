@@ -68,13 +68,14 @@ public class TrainingManager : MonoBehaviour
             if (string.IsNullOrEmpty(slot.assignedPlayerId)) continue;
             PlayerData player = team.GetPlayer(slot.assignedPlayerId);
             if (player == null || player.IsInjured()) continue;
-            int baseGain = 5;
+            int baseGain = 7;
             int gain = Mathf.Max(1, Mathf.FloorToInt(baseGain * efficiencyMultiplier));
+            int staminaGain = Mathf.Max(1, Mathf.FloorToInt(baseGain * 0.4f * efficiencyMultiplier));
             switch (slot.type)
             {
                 case TrainingType.Physical:
                     player.ApplyTraining("speed", gain);
-                    player.ApplyTraining("stamina", Mathf.Max(1, gain / 2));
+                    player.ApplyTraining("stamina", staminaGain);
                     break;
                 case TrainingType.Technical:
                     player.ApplyTraining("technique", gain);

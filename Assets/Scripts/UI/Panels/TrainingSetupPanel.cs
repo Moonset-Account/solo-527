@@ -53,7 +53,7 @@ public class TrainingSetupPanel : UIPanel
         if (effLabel != null && GameManager.Instance != null && GameManager.Instance.currentLevel != null)
         {
             float eff = GameManager.Instance.currentLevel.trainingEfficiencyMultiplier;
-            int gainPerSession = Mathf.Max(1, Mathf.FloorToInt(5 * eff));
+            int gainPerSession = Mathf.Max(1, Mathf.FloorToInt(7 * eff));
             effLabel.text = string.Format("训练效率: ×{0:F1}  每次训练+{1}点", eff, gainPerSession);
         }
         RefreshDayList();
