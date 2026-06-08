@@ -1,0 +1,96 @@
+[gd_scene load_steps=2 format=3 uid="uid://results_screen_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/results_screen.gd" id="1_script"]
+
+[node name="ResultsScreen" type="Node2D"]
+
+[node name="Control" type="Control" parent="."]
+script = ExtResource("1_script")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="Panel" parent="Control"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.15
+anchor_top = 0.1
+anchor_right = 0.85
+anchor_bottom = 0.9
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+text = "关卡完成"
+horizontal_alignment = 1
+
+[node name="StarLabel" type="Label" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+text = "☆☆☆"
+horizontal_alignment = 1
+
+[node name="StatsContainer" type="VBoxContainer" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="ScoreRow" type="HBoxContainer" parent="Control/Panel/VBoxContainer/StatsContainer"]
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/ScoreRow"]
+layout_mode = 2
+text = "得分: "
+
+[node name="ScoreValue" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/ScoreRow"]
+layout_mode = 2
+text = "0"
+
+[node name="TimeRow" type="HBoxContainer" parent="Control/Panel/VBoxContainer/StatsContainer"]
+layout_mode = 2
+
+[node name="TimeLabel" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/TimeRow"]
+layout_mode = 2
+text = "用时: "
+
+[node name="TimeValue" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/TimeRow"]
+layout_mode = 2
+text = "0.0s"
+
+[node name="PackedRow" type="HBoxContainer" parent="Control/Panel/VBoxContainer/StatsContainer"]
+layout_mode = 2
+
+[node name="PackedLabel" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/PackedRow"]
+layout_mode = 2
+text = "已装箱: "
+
+[node name="PackedValue" type="Label" parent="Control/Panel/VBoxContainer/StatsContainer/PackedRow"]
+layout_mode = 2
+text = "0"
+
+[node name="ButtonContainer" type="HBoxContainer" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="NextButton" type="Button" parent="Control/Panel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "下一关"
+
+[node name="ReplayButton" type="Button" parent="Control/Panel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "重玩"
+
+[node name="LevelSelectButton" type="Button" parent="Control/Panel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "返回关卡选择"

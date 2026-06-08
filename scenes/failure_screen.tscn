@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3 uid="uid://failure_screen_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/failure_screen.gd" id="1_script"]
+
+[node name="FailureScreen" type="Node2D"]
+
+[node name="Control" type="Control" parent="."]
+script = ExtResource("1_script")
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="Panel" parent="Control"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.15
+anchor_top = 0.1
+anchor_right = 0.85
+anchor_bottom = 0.9
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+text = "装箱失败"
+horizontal_alignment = 1
+
+[node name="ReasonLabel" type="Label" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
+[node name="TipLabel" type="Label" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
+[node name="ButtonContainer" type="HBoxContainer" parent="Control/Panel/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="RetryButton" type="Button" parent="Control/Panel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "重试"
+
+[node name="LevelSelectButton" type="Button" parent="Control/Panel/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+text = "返回关卡选择"

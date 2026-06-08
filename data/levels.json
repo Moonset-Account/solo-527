@@ -1,0 +1,346 @@
+{
+  "levels": [
+    {
+      "level_id": 1,
+      "level_name": "初次装箱",
+      "box_width": 300,
+      "box_height": 400,
+      "max_weight": 20,
+      "star_thresholds": [34, 67, 100],
+      "par_time": 60,
+      "tutorial_hints": [
+        "拖动物品放入箱子中",
+        "尝试将物品整齐排列，节省空间",
+        "将所有物品装入箱子即可获得三星评价"
+      ],
+      "items": [
+        {
+          "item_name": "书本",
+          "shape_type": "rect",
+          "width": 80,
+          "height": 120,
+          "weight": 3,
+          "is_fragile": false,
+          "color": "#4A90D9"
+        },
+        {
+          "item_name": "收纳盒",
+          "shape_type": "rect",
+          "width": 100,
+          "height": 80,
+          "weight": 5,
+          "is_fragile": false,
+          "color": "#7B68EE"
+        },
+        {
+          "item_name": "相册",
+          "shape_type": "rect",
+          "width": 120,
+          "height": 60,
+          "weight": 2,
+          "is_fragile": false,
+          "color": "#50C878"
+        }
+      ]
+    },
+    {
+      "level_id": 2,
+      "level_name": "易碎警告",
+      "box_width": 350,
+      "box_height": 450,
+      "max_weight": 25,
+      "star_thresholds": [40, 60, 100],
+      "par_time": 90,
+      "tutorial_hints": [
+        "注意易碎物品！不要把重物放在它们上面",
+        "易碎物品最好放在箱子的顶部或角落",
+        "合理安排重物和轻物的位置"
+      ],
+      "items": [
+        {
+          "item_name": "铁工具箱",
+          "shape_type": "rect",
+          "width": 100,
+          "height": 70,
+          "weight": 10,
+          "is_fragile": false,
+          "color": "#708090"
+        },
+        {
+          "item_name": "花瓶",
+          "shape_type": "circle",
+          "width": 60,
+          "height": 60,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#FFB6C1"
+        },
+        {
+          "item_name": "玻璃杯",
+          "shape_type": "circle",
+          "width": 50,
+          "height": 50,
+          "weight": 1,
+          "is_fragile": true,
+          "color": "#E6E6FA"
+        },
+        {
+          "item_name": "书本",
+          "shape_type": "rect",
+          "width": 90,
+          "height": 110,
+          "weight": 4,
+          "is_fragile": false,
+          "color": "#4A90D9"
+        },
+        {
+          "item_name": "毛毯",
+          "shape_type": "rect",
+          "width": 130,
+          "height": 80,
+          "weight": 3,
+          "is_fragile": false,
+          "color": "#DEB887"
+        }
+      ]
+    },
+    {
+      "level_id": 3,
+      "level_name": "形状挑战",
+      "box_width": 350,
+      "box_height": 500,
+      "max_weight": 30,
+      "star_thresholds": [34, 50, 100],
+      "par_time": 120,
+      "tutorial_hints": [
+        "L形和T形物品需要巧妙地嵌入空隙中",
+        "先放置形状特殊的物品，再填充普通物品",
+        "注意物品之间的缝隙可以利用"
+      ],
+      "items": [
+        {
+          "item_name": "L形书架",
+          "shape_type": "l_shape",
+          "width": 120,
+          "height": 120,
+          "weight": 8,
+          "is_fragile": false,
+          "color": "#CD853F"
+        },
+        {
+          "item_name": "T形衣架",
+          "shape_type": "t_shape",
+          "width": 100,
+          "height": 120,
+          "weight": 5,
+          "is_fragile": false,
+          "color": "#8B4513"
+        },
+        {
+          "item_name": "瓷碗",
+          "shape_type": "circle",
+          "width": 70,
+          "height": 70,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#FFDAB9"
+        },
+        {
+          "item_name": "收纳箱",
+          "shape_type": "rect",
+          "width": 90,
+          "height": 100,
+          "weight": 6,
+          "is_fragile": false,
+          "color": "#2E8B57"
+        },
+        {
+          "item_name": "画框",
+          "shape_type": "rect",
+          "width": 110,
+          "height": 80,
+          "weight": 3,
+          "is_fragile": true,
+          "color": "#FFFACD"
+        },
+        {
+          "item_name": "水壶",
+          "shape_type": "circle",
+          "width": 60,
+          "height": 60,
+          "weight": 4,
+          "is_fragile": false,
+          "color": "#B22222"
+        }
+      ]
+    },
+    {
+      "level_id": 4,
+      "level_name": "重量危机",
+      "box_width": 400,
+      "box_height": 500,
+      "max_weight": 35,
+      "star_thresholds": [29, 57, 100],
+      "par_time": 150,
+      "tutorial_hints": [
+        "重物必须放在底部，否则会压碎易碎品！",
+        "注意箱子的最大承重限制",
+        "轻的易碎品放在重物的上方或侧面"
+      ],
+      "items": [
+        {
+          "item_name": "哑铃",
+          "shape_type": "rect",
+          "width": 80,
+          "height": 60,
+          "weight": 15,
+          "is_fragile": false,
+          "color": "#696969"
+        },
+        {
+          "item_name": "铸铁锅",
+          "shape_type": "circle",
+          "width": 90,
+          "height": 90,
+          "weight": 12,
+          "is_fragile": false,
+          "color": "#A0522D"
+        },
+        {
+          "item_name": "水晶摆件",
+          "shape_type": "rect",
+          "width": 70,
+          "height": 90,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#E0FFFF"
+        },
+        {
+          "item_name": "陶瓷茶壶",
+          "shape_type": "circle",
+          "width": 65,
+          "height": 65,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#FFE4E1"
+        },
+        {
+          "item_name": "工具箱",
+          "shape_type": "rect",
+          "width": 110,
+          "height": 80,
+          "weight": 10,
+          "is_fragile": false,
+          "color": "#556B2F"
+        },
+        {
+          "item_name": "枕头",
+          "shape_type": "rect",
+          "width": 100,
+          "height": 70,
+          "weight": 1,
+          "is_fragile": false,
+          "color": "#DDA0DD"
+        },
+        {
+          "item_name": "相框",
+          "shape_type": "rect",
+          "width": 80,
+          "height": 100,
+          "weight": 3,
+          "is_fragile": true,
+          "color": "#FFF8DC"
+        }
+      ]
+    },
+    {
+      "level_id": 5,
+      "level_name": "终极搬家",
+      "box_width": 400,
+      "box_height": 550,
+      "max_weight": 40,
+      "star_thresholds": [25, 50, 100],
+      "par_time": 180,
+      "tutorial_hints": [
+        "这是最终挑战！所有形状都会出现",
+        "重物垫底，易碎品置顶，异形品填补缝隙",
+        "合理利用L形和T形的凹槽空间是关键",
+        "注意总重量不要超过限制！"
+      ],
+      "items": [
+        {
+          "item_name": "保险箱",
+          "shape_type": "rect",
+          "width": 100,
+          "height": 90,
+          "weight": 18,
+          "is_fragile": false,
+          "color": "#2F4F4F"
+        },
+        {
+          "item_name": "L形台灯",
+          "shape_type": "l_shape",
+          "width": 110,
+          "height": 110,
+          "weight": 5,
+          "is_fragile": false,
+          "color": "#DAA520"
+        },
+        {
+          "item_name": "T形衣架",
+          "shape_type": "t_shape",
+          "width": 100,
+          "height": 120,
+          "weight": 4,
+          "is_fragile": false,
+          "color": "#8B0000"
+        },
+        {
+          "item_name": "玻璃花瓶",
+          "shape_type": "circle",
+          "width": 70,
+          "height": 70,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#F0FFF0"
+        },
+        {
+          "item_name": "酒杯",
+          "shape_type": "circle",
+          "width": 50,
+          "height": 50,
+          "weight": 1,
+          "is_fragile": true,
+          "color": "#FFF0F5"
+        },
+        {
+          "item_name": "运动水壶",
+          "shape_type": "circle",
+          "width": 55,
+          "height": 55,
+          "weight": 3,
+          "is_fragile": false,
+          "color": "#FF6347"
+        },
+        {
+          "item_name": "文件夹",
+          "shape_type": "rect",
+          "width": 90,
+          "height": 120,
+          "weight": 4,
+          "is_fragile": false,
+          "color": "#4682B4"
+        },
+        {
+          "item_name": "瓷盘",
+          "shape_type": "circle",
+          "width": 60,
+          "height": 60,
+          "weight": 2,
+          "is_fragile": true,
+          "color": "#F5F5DC"
+        }
+      ]
+    }
+  ]
+}
