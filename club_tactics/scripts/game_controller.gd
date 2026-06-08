@@ -15,6 +15,7 @@ var _action_points: ActionPoints = null
 var _task_system: TaskSystem = null
 var _event_system: EventSystem = null
 var _satisfaction_system: SatisfactionSystem = null
+var _feedback_system: FeedbackSystem = null
 var _units: Array[Unit] = []
 var _selected_unit: Unit = null
 var _current_level_data: LevelData = null
@@ -35,6 +36,8 @@ func _ready() -> void:
 	add_child(_event_system)
 	_satisfaction_system = SatisfactionSystem.new()
 	add_child(_satisfaction_system)
+	_feedback_system = FeedbackSystem.new()
+	add_child(_feedback_system)
 	_setup_level()
 	_connect_signals()
 	_start_game()
@@ -80,6 +83,7 @@ func _setup_level() -> void:
 		_units.append(unit)
 	_hud = HUD.new()
 	add_child(_hud)
+	_feedback_system.setup(_hud.get_satisfaction_bar())
 	_hud.get_end_turn_button().pressed.connect(_on_end_turn)
 	_hud.get_skill_button().pressed.connect(_on_use_skill)
 	_pause_menu = PauseMenu.new()
@@ -124,6 +128,7 @@ func _on_turn_started(turn: int) -> void:
 	_task_system.tick_tasks()
 	_check_game_over()
 	_update_hud()
+	SFXGenerator.play_click()
 
 func _on_cell_selected(pos: Vector2i) -> void:
 	if _phase == Phase.SELECT_UNIT:
@@ -160,6 +165,7 @@ func _select_unit(unit: Unit) -> void:
 	_hud.show_unit_info(unit)
 	_action_points.sync_to(unit.max_ap, unit.current_ap)
 	_update_hud()
+	SFXGenerator.play_click()
 
 func _deselect_unit() -> void:
 	if _selected_unit != null:
@@ -176,6 +182,8 @@ func _move_unit(unit: Unit, target: Vector2i) -> void:
 	if unit.move_to(target, _action_points):
 		unit.update_display_position(_cell_size)
 		_hud.show_feedback("移动成功", Color.CYAN)
+		SFXGenerator.play_move()
+		_feedback_system.flash_screen(Color.CYAN, 0.2)
 		DataRecorder.log_event("unit_moved", {"unit": unit.data.id, "to": str(target)})
 		var task: TaskData = _task_system.get_task_at_position(target)
 		if task != null:
@@ -187,6 +195,7 @@ func _move_unit(unit: Unit, target: Vector2i) -> void:
 			_grid_map.highlight_cells(_reachable_cells)
 	else:
 		_hud.show_feedback("行动点不足", Color.RED)
+		SFXGenerator.play_click()
 		_phase = Phase.SELECT_MOVE
 		_reachable_cells = _grid_map.get_reachable_positions(unit.grid_position, unit.data.movement_range)
 		_grid_map.highlight_cells(_reachable_cells)
@@ -197,6 +206,7 @@ func _execute_task(unit: Unit, task: TaskData) -> void:
 	if power > 0:
 		_task_system.apply_power_to_task(task, power, task.task_type)
 		_hud.show_feedback("%s执行任务！力量%d" % [unit.data.display_name, power], Color.GREEN)
+		_feedback_system.flash_screen(Color.GREEN, 0.3)
 		DataRecorder.log_event("task_executed", {"unit": unit.data.id, "task": task.id, "power": power})
 	else:
 		_hud.show_feedback("行动点不足或无法执行", Color.RED)
@@ -213,8 +223,19 @@ func _on_use_skill() -> void:
 		_hud.show_feedback("行动点不足", Color.RED)
 		return
 	_action_points.spend(1)
-	_hud.show_feedback("%s使用了技能！" % _selected_unit.data.display_name, Color.YELLOW)
-	DataRecorder.log_event("skill_used", {"unit": _selected_unit.data.id})
+	var skill_id: String = _selected_unit.activate_skill()
+	var skill_name: String = "技能"
+	match skill_id:
+		"exhibition_boost":
+			skill_name = "布展强化"
+		"publicity_boost":
+			skill_name = "宣传强化"
+		"reception_boost":
+			skill_name = "接待强化"
+	_hud.show_feedback("%s使用了%s！下次行动力量+2" % [_selected_unit.data.display_name, skill_name], Color.YELLOW)
+	SFXGenerator.play_event()
+	_feedback_system.flash_screen(Color.YELLOW, 0.25)
+	DataRecorder.log_event("skill_used", {"unit": _selected_unit.data.id, "skill": skill_id})
 	_update_hud()
 
 func _on_end_turn() -> void:
@@ -230,8 +251,6 @@ func _on_unit_moved(unit: Unit, from: Vector2i, to: Vector2i) -> void:
 func _on_unit_action_completed(unit: Unit) -> void:
 	pass
 
-
-
 func _on_ap_changed(current: int, maximum: int) -> void:
 	_hud.update_ap(current, maximum)
 
@@ -241,12 +260,18 @@ func _on_ap_depleted() -> void:
 func _on_task_completed(task: TaskData) -> void:
 	_satisfaction_system.modify_satisfaction(task.satisfaction_reward)
 	_hud.show_feedback("任务完成: %s！满意度+%d" % [task.display_name, int(task.satisfaction_reward)], Color.GREEN)
+	SFXGenerator.play_task_complete()
+	_feedback_system.shake_satisfaction_bar()
+	_feedback_system.flash_screen(Color.GREEN, 0.4)
 	_event_system.check_events(EventData.TriggerCondition.TASK_COMPLETE, _turn_manager.current_turn, _satisfaction_system.get_satisfaction())
 	_update_hud()
 
 func _on_task_failed(task: TaskData) -> void:
 	_satisfaction_system.modify_satisfaction(-task.satisfaction_penalty)
 	_hud.show_feedback("任务失败: %s！满意度-%d" % [task.display_name, int(task.satisfaction_penalty)], Color.RED)
+	SFXGenerator.play_task_fail()
+	_feedback_system.shake_satisfaction_bar()
+	_feedback_system.flash_screen(Color.RED, 0.4)
 	_update_hud()
 
 func _on_all_tasks_completed() -> void:
@@ -256,6 +281,8 @@ func _on_all_tasks_completed() -> void:
 func _on_event_triggered(event: EventData) -> void:
 	_satisfaction_system.modify_satisfaction(event.satisfaction_modifier)
 	_hud.show_feedback("事件: %s (满意度%+.0f)" % [event.display_name, event.satisfaction_modifier], Color.YELLOW)
+	SFXGenerator.play_event()
+	_feedback_system.flash_screen(Color.YELLOW, 0.3)
 	_phase = Phase.SELECT_UNIT
 
 func _on_satisfaction_changed(value: float) -> void:
@@ -263,6 +290,7 @@ func _on_satisfaction_changed(value: float) -> void:
 
 func _on_satisfaction_critical(value: float) -> void:
 	_hud.show_feedback("警告：满意度过低！", Color.RED)
+	_feedback_system.shake_satisfaction_bar()
 
 func _on_satisfaction_failed() -> void:
 	_lose_level("满意度降至零！")
@@ -276,6 +304,14 @@ func _on_all_turns_ended() -> void:
 func _check_game_over() -> void:
 	if _satisfaction_system.get_satisfaction() <= 0:
 		_lose_level("满意度降至零")
+
+func _save_playtest_data() -> void:
+	DataRecorder.end_session()
+	var dir: String = "user://playtest/"
+	DirAccess.make_dir_recursive_absolute(dir)
+	var timestamp: String = Time.get_datetime_string_from_system().replace(":", "-")
+	var path: String = "%slevel_%d_%s.json" % [dir, GameManager.current_level, timestamp]
+	DataRecorder.save_to_file(path)
 
 func _win_level() -> void:
 	_phase = Phase.WAITING
@@ -291,6 +327,7 @@ func _win_level() -> void:
 	)
 	_level_complete.visible = true
 	DataRecorder.log_event("level_complete", {"score": score, "satisfaction": sat})
+	_save_playtest_data()
 
 func _lose_level(reason: String) -> void:
 	_phase = Phase.WAITING
@@ -299,6 +336,7 @@ func _lose_level(reason: String) -> void:
 	_level_failed.show_results(sat, _current_level_data.satisfaction_threshold, reason)
 	_level_failed.visible = true
 	DataRecorder.log_event("level_failed", {"reason": reason, "satisfaction": sat})
+	_save_playtest_data()
 
 func _on_tutorial_finished() -> void:
 	DataRecorder.log_event("tutorial_finished", {})

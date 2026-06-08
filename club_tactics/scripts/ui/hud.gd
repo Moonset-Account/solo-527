@@ -105,14 +105,23 @@ func update_tasks(tasks: Array[TaskData]) -> void:
         _task_list.add_child(lbl)
 
 func show_unit_info(unit: Unit) -> void:
-    _info_label.text = "[b]%s[/b]\n布展: %d | 宣传: %d | 接待: %d\nAP: %d/%d | 移动范围: %d" % [
+    var skill_text: String = ""
+    if unit.is_skill_active():
+        if unit.exhibition_bonus > 0:
+            skill_text = " [布展+%d]" % unit.exhibition_bonus
+        elif unit.publicity_bonus > 0:
+            skill_text = " [宣传+%d]" % unit.publicity_bonus
+        elif unit.reception_bonus > 0:
+            skill_text = " [接待+%d]" % unit.reception_bonus
+    _info_label.text = "[b]%s[/b]\n布展: %d | 宣传: %d | 接待: %d\nAP: %d/%d | 移动范围: %d%s" % [
         unit.data.display_name,
-        unit.data.exhibition_power,
-        unit.data.publicity_power,
-        unit.data.reception_power,
+        unit.data.exhibition_power + unit.exhibition_bonus,
+        unit.data.publicity_power + unit.publicity_bonus,
+        unit.data.reception_power + unit.reception_bonus,
         unit.current_ap,
         unit.max_ap,
-        unit.data.movement_range
+        unit.data.movement_range,
+        skill_text
     ]
     _skill_button.visible = true
 
@@ -136,3 +145,6 @@ func get_end_turn_button() -> Button:
 
 func get_skill_button() -> Button:
     return _skill_button
+
+func get_satisfaction_bar() -> ProgressBar:
+    return _satisfaction_bar

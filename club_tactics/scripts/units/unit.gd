@@ -11,6 +11,10 @@ var current_ap: int = 0
 var max_ap: int = 3
 var is_selected: bool = false
 var has_acted: bool = false
+var exhibition_bonus: int = 0
+var publicity_bonus: int = 0
+var reception_bonus: int = 0
+var _skill_active: bool = false
 var _sprite: ColorRect = null
 var _label: Label = null
 var _move_cost: int = 1
@@ -45,6 +49,10 @@ func _create_visual() -> void:
 func reset_ap() -> void:
 	current_ap = max_ap
 	has_acted = false
+	exhibition_bonus = 0
+	publicity_bonus = 0
+	reception_bonus = 0
+	_skill_active = false
 
 func can_move(ap_system: ActionPoints) -> bool:
 	return ap_system.has_enough(_move_cost)
@@ -71,23 +79,47 @@ func perform_action(task_type: int, ap_system: ActionPoints) -> int:
 	var power: int = 0
 	match task_type:
 		TaskData.TaskType.EXHIBITION:
-			power = data.exhibition_power
+			power = data.exhibition_power + exhibition_bonus
 		TaskData.TaskType.PUBLICITY:
-			power = data.publicity_power
+			power = data.publicity_power + publicity_bonus
 		TaskData.TaskType.RECEPTION:
-			power = data.reception_power
+			power = data.reception_power + reception_bonus
+	exhibition_bonus = 0
+	publicity_bonus = 0
+	reception_bonus = 0
+	_skill_active = false
 	unit_action_completed.emit(self)
 	return power
 
 func get_power_for_task(task_type: int) -> int:
 	match task_type:
 		TaskData.TaskType.EXHIBITION:
-			return data.exhibition_power
+			return data.exhibition_power + exhibition_bonus
 		TaskData.TaskType.PUBLICITY:
-			return data.publicity_power
+			return data.publicity_power + publicity_bonus
 		TaskData.TaskType.RECEPTION:
-			return data.reception_power
+			return data.reception_power + reception_bonus
 	return 0
+
+func activate_skill() -> String:
+	var skill_id: String = ""
+	if data.skill_ids.size() == 0:
+		return ""
+	skill_id = data.skill_ids[0]
+	if _skill_active and data.skill_ids.size() > 1:
+		skill_id = data.skill_ids[1]
+	match skill_id:
+		"exhibition_boost":
+			exhibition_bonus += 2
+		"publicity_boost":
+			publicity_bonus += 2
+		"reception_boost":
+			reception_bonus += 2
+	_skill_active = true
+	return skill_id
+
+func is_skill_active() -> bool:
+	return _skill_active
 
 func set_selected(selected: bool) -> void:
 	is_selected = selected
