@@ -149,12 +149,12 @@ namespace PuppetTheater.Story
         {
             int delta = grade switch
             {
-                JudgmentGrade.Perfect => 2,
-                JudgmentGrade.Great => 1,
+                JudgmentGrade.Perfect => -2,
+                JudgmentGrade.Great => -1,
                 JudgmentGrade.Good => 0,
-                JudgmentGrade.Early => -1,
-                JudgmentGrade.Late => -1,
-                JudgmentGrade.Miss => -2,
+                JudgmentGrade.Early => 1,
+                JudgmentGrade.Late => 1,
+                JudgmentGrade.Miss => 2,
                 _ => 0
             };
 

@@ -15,6 +15,16 @@ namespace PuppetTheater.Core
 {
     public class DemoSceneBootstrap : MonoBehaviour
     {
+        private static Font _cachedFont;
+
+        private static Font GetDefaultFont()
+        {
+            if (_cachedFont != null) return _cachedFont;
+            _cachedFont = Font.CreateDynamicFontFromOSFont("Arial", 14);
+            if (_cachedFont == null)
+                _cachedFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            return _cachedFont;
+        }
         private GameSession _session;
         private BeatManager _beatManager;
         private LightStateSystem _lightStateSystem;
@@ -39,6 +49,8 @@ namespace PuppetTheater.Core
         private Text _titleText;
         private GameObject _calibrationPanel;
         private GameObject _resultPanel;
+        private GameObject _leaderboardPanel;
+        private Text _leaderboardContentText;
         private Text _calibrationStatusText;
 
         private StoryScriptData _storyScript;
@@ -79,6 +91,11 @@ namespace PuppetTheater.Core
             if (Input.GetKeyDown(KeyCode.C) && !_sessionStarted)
             {
                 ToggleCalibrationPanel();
+            }
+
+            if (Input.GetKeyDown(KeyCode.L) && !_sessionStarted)
+            {
+                ToggleLeaderboardPanel();
             }
 
             if (_calibrationPanel.activeSelf && Input.GetKeyDown(KeyCode.S) && !_calibrationPage.IsCalibrating)
@@ -284,6 +301,28 @@ namespace PuppetTheater.Core
 
             _calibrationStatusText = CreateChildText(_calibrationPanel, "CalibStatus", 18, TextAnchor.MiddleCenter);
             _calibrationStatusText.text = "按 C 开始校准\n听到节拍声后按空格对齐";
+
+            _leaderboardPanel = CreatePanel("LeaderboardPanel", new Color(0.05f, 0.05f, 0.1f, 0.95f));
+            _leaderboardPanel.transform.SetParent(_canvas.transform, false);
+            var lbRect = _leaderboardPanel.GetComponent<RectTransform>();
+            lbRect.anchorMin = new Vector2(0.15f, 0.1f);
+            lbRect.anchorMax = new Vector2(0.85f, 0.9f);
+            _leaderboardPanel.SetActive(false);
+
+            var lbTitle = CreateChildText(_leaderboardPanel, "LbTitle", 24, TextAnchor.UpperCenter);
+            lbTitle.text = "🏆 正式演出排行榜 🏆\n（练习模式成绩不记录）\n\n";
+            var lbTitleRt = lbTitle.GetComponent<RectTransform>();
+            lbTitleRt.anchorMin = new Vector2(0.05f, 0.85f);
+            lbTitleRt.anchorMax = new Vector2(0.95f, 0.98f);
+            lbTitleRt.offsetMin = Vector2.zero;
+            lbTitleRt.offsetMax = Vector2.zero;
+
+            _leaderboardContentText = CreateChildText(_leaderboardPanel, "LbContent", 16, TextAnchor.UpperLeft);
+            var lbContentRt = _leaderboardContentText.GetComponent<RectTransform>();
+            lbContentRt.anchorMin = new Vector2(0.05f, 0.05f);
+            lbContentRt.anchorMax = new Vector2(0.95f, 0.85f);
+            lbContentRt.offsetMin = Vector2.zero;
+            lbContentRt.offsetMax = Vector2.zero;
 
             _titleText = CreateChildText(canvasGo, "Title", 22, TextAnchor.MiddleCenter);
             var titleRt = _titleText.GetComponent<RectTransform>();
@@ -523,9 +562,10 @@ namespace PuppetTheater.Core
             _hudPanel.SetActive(false);
             _resultPanel.SetActive(false);
             _calibrationPanel.SetActive(false);
+            _leaderboardPanel.SetActive(false);
 
             _titleText.gameObject.SetActive(true);
-            _titleText.text = "🎭 木偶剧场灯光节奏 🎭\n\n按 Enter 开始正式演出\n按 P 开始练习模式\n按 C 进行延迟校准\n\n键盘: Q红 W蓝 E绿 R黄 T紫 Space白";
+            _titleText.text = "🎭 木偶剧场灯光节奏 🎭\n\n按 Enter 开始正式演出\n按 P 开始练习模式\n按 C 进行延迟校准\n按 L 查看排行榜\n\n键盘: Q红 W蓝 E绿 R黄 T紫 Space白";
         }
 
         private void ToggleCalibrationPanel()
@@ -541,6 +581,53 @@ namespace PuppetTheater.Core
             {
                 _calibrationPage.StopCalibration();
             }
+        }
+
+        private void ToggleLeaderboardPanel()
+        {
+            bool show = !_leaderboardPanel.activeSelf;
+            _leaderboardPanel.SetActive(show);
+
+            if (show)
+            {
+                RefreshLeaderboard();
+            }
+        }
+
+        private void RefreshLeaderboard()
+        {
+            if (_leaderboardSystem == null || _leaderboardContentText == null) return;
+
+            var entries = _leaderboardSystem.GetTopEntries(10);
+
+            if (entries == null || entries.Count == 0)
+            {
+                _leaderboardContentText.text = "暂无记录\n完成正式演出后成绩将在此显示";
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("排名  玩家      分数     连击  准确率  剧情分支");
+            sb.AppendLine(new string('─', 50));
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var e = entries[i];
+                string branchName = e.branch switch
+                {
+                    StoryBranch.Heroic => "英雄",
+                    StoryBranch.Tragic => "悲剧",
+                    StoryBranch.Comedic => "喜剧",
+                    StoryBranch.Mysterious => "悬疑",
+                    _ => "默认"
+                };
+                sb.AppendLine($"{i + 1,3}.  {e.playerName,-8}  {e.score,6:F0}   {e.maxCombo,4}   {e.accuracy * 100f,5:F1}%  {branchName}");
+                sb.AppendLine($"      早拍:{e.earlyCount} 晚拍:{e.lateCount} 漏拍:{e.missCount}  Perfect:{e.perfectCount} Great:{e.greatCount} Good:{e.goodCount}");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("按 L 关闭排行榜");
+            _leaderboardContentText.text = sb.ToString();
         }
 
         private void UpdateHUD()
@@ -635,7 +722,7 @@ namespace PuppetTheater.Core
             var go = new GameObject($"Hud_{suffix}");
             go.transform.SetParent(_hudPanel.transform, false);
             var text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = GetDefaultFont();
             text.fontSize = size;
             text.color = Color.white;
             text.alignment = anchor;
@@ -647,7 +734,7 @@ namespace PuppetTheater.Core
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
             var text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = GetDefaultFont();
             text.fontSize = size;
             text.color = Color.white;
             text.alignment = anchor;
@@ -661,7 +748,7 @@ namespace PuppetTheater.Core
             img.color = new Color(0.3f, 0.3f, 0.4f);
             var btn = go.AddComponent<Button>();
             var text = go.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = GetDefaultFont();
             text.fontSize = 16;
             text.color = Color.white;
             text.text = label;

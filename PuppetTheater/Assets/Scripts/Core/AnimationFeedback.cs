@@ -513,7 +513,7 @@ namespace PuppetTheater.Core
                 if (rb != null)
                 {
                     Vector2 dir = (Vector2.up * 2f + Vector2.right * UnityEngine.Random.Range(-1f, 1f)).normalized;
-                    rb.linearVelocity = dir * 5f;
+                    rb.velocity = dir * 5f;
                 }
 
                 Destroy(proj, projectileLifetime);
