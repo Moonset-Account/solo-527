@@ -24,12 +24,17 @@ var orders_failed: int = 0
 var total_rewards: int = 0
 var total_penalties: int = 0
 var products_delivered: int = 0
+var products_failed: int = 0
 var spawn_timer: float = 0.0
-var spawn_interval: float = 5.0
+var spawn_interval: float = 4.0
 var game_speed: float = 1.0
+var conveyors_placed: int = 0
+var bottlenecks_fixed: int = 0
 
 var _spawn_points: Array[Vector2i] = []
 var _delivery_points: Array[Vector2i] = []
+var _prev_bottleneck_count: int = 0
+var _hud_update_timer: float = 0.0
 
 var _spawn_delivery_map: Dictionary = {
 	1: {"spawn": [Vector2i(0, 2)], "delivery": [Vector2i(7, 2)]},
@@ -43,11 +48,14 @@ func _ready() -> void:
 	factory_grid = FactoryGrid.new()
 	factory_grid.name = "FactoryGrid"
 	add_child(factory_grid)
-	factory_grid.product_reached_end.connect(_on_product_reached_end)
+	factory_grid.product_delivered.connect(_on_product_delivered)
+	factory_grid.entity_placed.connect(_on_entity_placed)
 
 	order_system = OrderSystem.new()
 	order_system.name = "OrderSystem"
 	add_child(order_system)
+	order_system.order_completed.connect(_on_order_completed)
+	order_system.order_failed.connect(_on_order_failed_signal)
 
 	upgrade_system = UpgradeSystem.new()
 	upgrade_system.name = "UpgradeSystem"
@@ -56,6 +64,8 @@ func _ready() -> void:
 	bottleneck_detector = BottleneckDetector.new()
 	bottleneck_detector.name = "BottleneckDetector"
 	add_child(bottleneck_detector)
+	bottleneck_detector.bottleneck_found.connect(_on_bottleneck_found)
+	bottleneck_detector.bottleneck_cleared.connect(_on_bottleneck_cleared)
 
 	achievement_system = AchievementSystem.new()
 	achievement_system.name = "AchievementSystem"
@@ -87,7 +97,11 @@ func setup_level(config: LevelConfig) -> void:
 	total_rewards = 0
 	total_penalties = 0
 	products_delivered = 0
+	products_failed = 0
 	spawn_timer = 0.0
+	conveyors_placed = 0
+	bottlenecks_fixed = 0
+	_prev_bottleneck_count = 0
 	is_running = false
 
 	_setup_spawn_delivery_points()
@@ -106,8 +120,8 @@ func setup_level(config: LevelConfig) -> void:
 	if AnalyticsManager:
 		AnalyticsManager.start_level_analytics(str(level_config.level_id))
 
-	_update_hud()
 	_connect_signals()
+	_update_hud()
 	level_ready.emit()
 	if level_config.tutorial_enabled:
 		_show_tutorial()
@@ -120,7 +134,9 @@ func _process(delta: float) -> void:
 func start_level() -> void:
 	is_running = true
 	spawn_timer = spawn_interval * 0.5
-	AnalyticsManager.record_choice(int(GameManager.current_level_id), "level_start", {"speed": game_speed})
+	order_system.start_orders()
+	if AnalyticsManager:
+		AnalyticsManager.record_choice(int(GameManager.current_level_id), "level_start", {"speed": game_speed})
 
 func pause_level() -> void:
 	is_running = false
@@ -134,7 +150,6 @@ func update_level(delta: float) -> void:
 	time_updated.emit(get_time_remaining())
 
 	order_system.update_orders(scaled_delta)
-	_check_order_failures()
 
 	spawn_timer -= scaled_delta
 	if spawn_timer <= 0.0:
@@ -143,6 +158,15 @@ func update_level(delta: float) -> void:
 
 	if bottleneck_detector:
 		bottleneck_detector.scan_for_bottlenecks(factory_grid)
+
+	_hud_update_timer += delta
+	if _hud_update_timer >= 0.5:
+		_hud_update_timer = 0.0
+		_update_hud_orders()
+		_check_achievements()
+
+	if offline_earnings:
+		offline_earnings.update_earning_rate(float(total_rewards), level_timer)
 
 	var lose_reason := check_lose_condition()
 	if lose_reason != "":
@@ -157,16 +181,18 @@ func check_win_condition() -> bool:
 
 func check_lose_condition() -> String:
 	if level_config and get_time_remaining() <= 0.0:
-		return "Time ran out! You needed %d more orders." % (level_config.required_orders - orders_completed)
+		return "Time ran out! Completed %d/%d orders." % [orders_completed, level_config.required_orders]
 	if GameManager.reputation <= 0:
-		return "Reputation dropped to zero! Too many failed orders."
+		return "Reputation dropped to zero! Too many failed orders damaged your reputation."
 	return ""
 
 func complete_level() -> void:
 	is_running = false
 	var completion_rate := float(orders_completed) / float(maxi(level_config.required_orders, 1))
 	var stars := level_config.get_star_rating(completion_rate)
-	total_rewards += int(completion_rate * 500)
+	var bonus := int(completion_rate * 500)
+	total_rewards += bonus
+	GameManager.add_money(bonus)
 
 	if AnalyticsManager:
 		AnalyticsManager.record_level_complete(str(level_config.level_id), level_timer, stars)
@@ -178,6 +204,20 @@ func complete_level() -> void:
 		data.money = GameManager.money
 		data.reputation = GameManager.reputation
 		data.total_earnings += total_rewards
+		data.play_time_seconds += level_timer
+		data.total_failures += products_failed
+		data.record_key_choice("level_complete", {
+			"level_id": level_config.level_id,
+			"stars": stars,
+			"time": level_timer,
+			"orders_completed": orders_completed,
+			"orders_failed": orders_failed,
+			"products_delivered": products_delivered,
+			"products_failed": products_failed,
+			"total_rewards": total_rewards,
+			"conveyors_placed": conveyors_placed,
+			"bottlenecks_fixed": bottlenecks_fixed,
+		})
 		if not data.completed_levels.has(str(level_config.level_id)):
 			data.completed_levels[str(level_config.level_id)] = {"stars": stars, "best_time": level_timer}
 		else:
@@ -186,6 +226,9 @@ func complete_level() -> void:
 				existing["stars"] = stars
 			if level_timer < existing.get("best_time", 9999.0):
 				existing["best_time"] = level_timer
+		for ach_id in achievement_system.unlocked_achievements:
+			if not data.achievements.has(ach_id):
+				data.achievements.append(ach_id)
 		data.last_save_timestamp = int(Time.get_unix_time_from_system())
 		SaveManager.save_game(data)
 	GameManager.complete_level(stars)
@@ -196,38 +239,98 @@ func fail_level(reason: String) -> void:
 	is_running = false
 	if AnalyticsManager:
 		AnalyticsManager.record_failure(str(level_config.level_id), reason)
+	if SaveManager:
+		var data: SaveData = SaveManager.load_game()
+		if data == null:
+			data = SaveData.new()
+		data.play_time_seconds += level_timer
+		data.total_failures += 1
+		data.record_key_choice("level_fail", {
+			"level_id": level_config.level_id,
+			"reason": reason,
+			"time": level_timer,
+			"orders_completed": orders_completed,
+			"products_delivered": products_delivered,
+			"products_failed": products_failed,
+		})
+		data.last_save_timestamp = int(Time.get_unix_time_from_system())
+		SaveManager.save_game(data)
 	GameManager.fail_level(reason)
 	level_lost.emit(reason)
 	_show_failure(reason)
 
-func _on_product_reached_end(product: Product) -> void:
-	if product.is_finished():
-		products_delivered += 1
-		var matched := order_system.deliver_product("packed", product.get_total_quality())
-		if matched:
-			orders_completed += 1
-			var reward := int(100 * level_config.reward_multiplier * product.get_total_quality())
-			total_rewards += reward
-			GameManager.add_money(reward)
-			order_completed.emit(str(orders_completed), reward)
-		else:
-			var base_reward := int(30 * level_config.reward_multiplier * product.get_total_quality())
-			total_rewards += base_reward
-			GameManager.add_money(base_reward)
-		order_progress_updated.emit()
-	elif product.is_failed():
-		GameManager.lose_reputation(5)
+func _on_product_delivered(product: Product) -> void:
+	var product_type: String = product.get_product_type_name()
+	var quality := product.get_total_quality()
 
-func _check_order_failures() -> void:
-	for order in order_system.failed_orders:
-		if not order.is_active:
-			continue
-	var failed_count := order_system.failed_orders.size()
-	if failed_count > orders_failed:
-		var new_failures := failed_count - orders_failed
-		orders_failed = failed_count
-		for i in range(new_failures):
-			GameManager.lose_reputation(level_config.reputation_penalty)
+	if product.is_failed():
+		products_failed += 1
+		GameManager.lose_reputation(level_config.reputation_penalty)
+		return
+
+	products_delivered += 1
+	var matched := order_system.deliver_product(product_type, quality)
+	if matched:
+		var reward := _calculate_reward(product_type, quality)
+		total_rewards += reward
+		GameManager.add_money(reward)
+	else:
+		var base_reward := int(20 * level_config.reward_multiplier * quality)
+		total_rewards += base_reward
+		GameManager.add_money(base_reward)
+	order_progress_updated.emit()
+
+func _calculate_reward(product_type: String, quality: float) -> int:
+	var base := 50
+	match product_type:
+		"cut": base = 60
+		"assembled": base = 100
+		"painted": base = 130
+		"packed": base = 150
+	return int(base * level_config.reward_multiplier * quality)
+
+func _on_order_completed(order_id: String, reward: int) -> void:
+	orders_completed += 1
+	total_rewards += reward
+	order_completed.emit(order_id, reward)
+	if AnalyticsManager:
+		AnalyticsManager.record_choice(int(GameManager.current_level_id), "order_complete", {"order_id": order_id, "reward": reward})
+
+func _on_order_failed_signal(order_id: String, penalty: int) -> void:
+	orders_failed += 1
+	total_penalties += penalty
+	GameManager.lose_reputation(level_config.reputation_penalty)
+	order_failed.emit(order_id, penalty)
+
+func _on_entity_placed(entity: Node2D, grid_pos: Vector2i) -> void:
+	if entity is ConveyorBelt:
+		conveyors_placed += 1
+	if AnalyticsManager:
+		var type_name := "unknown"
+		if entity is Machine:
+			type_name = entity.machine_type
+		elif entity is ConveyorBelt:
+			type_name = "conveyor"
+		elif entity is QualityCheck:
+			type_name = "quality_check"
+		AnalyticsManager.record_choice(int(GameManager.current_level_id), "place_entity", {"type": type_name, "pos": "%d,%d" % [grid_pos.x, grid_pos.y]})
+
+func _on_bottleneck_found(pos: Vector2i, severity: float) -> void:
+	factory_grid.highlight_bottleneck(pos)
+	var worst := bottleneck_detector.get_worst_bottleneck()
+	if worst:
+		var suggestion := bottleneck_detector.get_suggestion(worst)
+		var hud: Control = get_node_or_null("HUDLayer/HUD")
+		if hud and hud.has_method("show_bottleneck_warning"):
+			hud.show_bottleneck_warning(Vector2(pos), suggestion)
+
+func _on_bottleneck_cleared(pos: Vector2i) -> void:
+	factory_grid.clear_highlights()
+	if bottleneck_detector.get_bottlenecks().is_empty():
+		var hud: Control = get_node_or_null("HUDLayer/HUD")
+		if hud and hud.has_method("clear_bottleneck_warning"):
+			hud.clear_bottleneck_warning()
+		bottlenecks_fixed += 1
 
 func spawn_raw_product() -> void:
 	if _spawn_points.is_empty():
@@ -240,6 +343,9 @@ func spawn_raw_product() -> void:
 	var delivery: Vector2i = _delivery_points.pick_random() if _delivery_points.size() > 0 else Vector2i(-1, -1)
 	if delivery.x >= 0:
 		product.path = factory_grid.find_path(spawn_point, delivery)
+		product.path_index = 1 if product.path.size() > 1 else 0
+	else:
+		product.path = [spawn_point]
 		product.path_index = 0
 	factory_grid.products.append(product)
 	factory_grid.add_child(product)
@@ -270,9 +376,12 @@ func get_level_stats() -> Dictionary:
 		"orders_completed": orders_completed,
 		"orders_failed": orders_failed,
 		"products_delivered": products_delivered,
+		"products_failed": products_failed,
 		"total_rewards": total_rewards,
 		"total_penalties": total_penalties,
 		"stars": stars,
+		"conveyors_placed": conveyors_placed,
+		"bottlenecks_fixed": bottlenecks_fixed,
 	}
 
 func cleanup() -> void:
@@ -281,6 +390,8 @@ func cleanup() -> void:
 		factory_grid.clear_grid()
 	if order_system:
 		order_system.reset()
+	if bottleneck_detector:
+		bottleneck_detector.reset()
 	_spawn_points.clear()
 	_delivery_points.clear()
 
@@ -303,6 +414,18 @@ func _update_hud() -> void:
 	if GameManager:
 		GameManager.money_changed.emit(GameManager.money)
 		GameManager.reputation_changed.emit(GameManager.reputation)
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud and hud.has_method("update_level_info") and level_config:
+		hud.update_level_info(level_config.level_name, level_config.level_id)
+	_update_hud_orders()
+
+func _update_hud_orders() -> void:
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud and hud.has_method("update_orders") and order_system:
+		var orders_data := order_system.get_all_orders_data()
+		hud.update_orders(orders_data)
+
+func _check_achievements() -> void:
 	if achievement_system:
 		achievement_system.check_achievements({
 			"orders_completed": orders_completed,
@@ -310,16 +433,32 @@ func _update_hud() -> void:
 			"last_completed_level": level_config.level_id if level_config else 0,
 			"no_failed_orders": orders_failed == 0,
 			"gold_stars": level_config.get_star_rating(float(orders_completed) / float(maxi(level_config.required_orders, 1))) if level_config else 0,
+			"conveyors_placed": conveyors_placed,
+			"bottlenecks_fixed": bottlenecks_fixed,
+			"offline_earnings_collected": 0,
+			"max_upgraded_machines": 0,
+			"half_time_orders": 0,
+			"perfect_quality": products_failed == 0 and products_delivered > 0,
 		})
+		if achievement_system.unlocked_achievements.size() > 0:
+			var hud: Control = get_node_or_null("HUDLayer/HUD")
+			if hud and hud.has_method("show_message"):
+				for ach_id in achievement_system.unlocked_achievements:
+					var ach_data := achievement_system._get_achievement_data(ach_id)
+					hud.show_message("Achievement: %s!" % ach_data.get("name", "Unknown"), 3.0)
 
 func _on_speed_button_pressed() -> void:
 	if game_speed == 1.0:
 		set_game_speed(2.0)
+	elif game_speed == 2.0:
+		set_game_speed(3.0)
 	else:
 		set_game_speed(1.0)
 	var hud: Control = get_node_or_null("HUDLayer/HUD")
 	if hud and hud.has_method("set_speed"):
 		hud.set_speed(game_speed)
+	if AnalyticsManager:
+		AnalyticsManager.record_choice(int(GameManager.current_level_id), "speed_change", {"speed": game_speed})
 
 func _on_pause_button_pressed() -> void:
 	if is_running:

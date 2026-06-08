@@ -5,7 +5,7 @@ signal cell_occupied(grid_pos)
 signal cell_cleared(grid_pos)
 signal entity_placed(entity, grid_pos)
 signal entity_removed(entity, grid_pos)
-signal product_reached_end(product)
+signal product_delivered(product)
 
 const CELL_SIZE: int = 64
 
@@ -40,26 +40,82 @@ func _load_machine_costs() -> void:
 
 func _process(delta: float) -> void:
 	var to_deliver: Array[Product] = []
+	var to_remove: Array[Product] = []
+
 	for product in products:
-		if product.current_cell in delivery_points and product.is_finished():
-			to_deliver.append(product)
+		if product.state == Product.ProductState.DELIVERED:
 			continue
-		if product.path.size() > 0 and product.path_index < product.path.size():
-			var target_cell: Vector2i = product.path[product.path_index]
-			var target_pos: Vector2 = get_cell_center(target_cell)
-			var dir: Vector2 = target_pos - product.global_position
-			var speed: float = product.move_speed * CELL_SIZE
-			if dir.length() <= speed * delta:
-				product.global_position = target_pos
-				product.current_cell = target_cell
+
+		if product.state == Product.ProductState.PROCESSING:
+			var entity = get_entity_at(product.current_cell)
+			if entity is Machine and entity.is_processing:
+				product.processing_time_remaining = entity.processing_timer
+				product.queue_redraw()
+			continue
+
+		if product.path.size() == 0 or product.path_index >= product.path.size():
+			if product.current_cell in delivery_points and product.is_deliverable():
+				to_deliver.append(product)
+			continue
+
+		var target_cell: Vector2i = product.path[product.path_index]
+		var target_pos: Vector2 = get_cell_center(target_cell)
+		var direction: Vector2 = target_pos - product.global_position
+		var move_speed: float = product.move_speed * CELL_SIZE
+
+		var current_entity = get_entity_at(product.current_cell)
+		if current_entity is ConveyorBelt:
+			move_speed *= current_entity.get_speed_multiplier()
+
+		var target_entity = get_entity_at(target_cell)
+		if target_entity is Machine and not target_entity.can_accept_product():
+			continue
+
+		if direction.length() <= move_speed * delta:
+			product.global_position = target_pos
+			product.current_cell = target_cell
+
+			if target_cell in delivery_points:
+				if product.is_deliverable():
+					to_deliver.append(product)
+				else:
+					to_remove.append(product)
+				continue
+
+			var entity = get_entity_at(target_cell)
+
+			if entity is Machine:
+				var machine: Machine = entity
+				machine.start_processing(product)
+				continue
+
+			if entity is QualityCheck:
+				var qc: QualityCheck = entity
+				qc.inspect_product(product)
+				if product.is_failed():
+					to_remove.append(product)
+					continue
 				product.path_index += 1
-				var entity = get_entity_at(target_cell)
-				if entity and entity.has_method("process_product"):
-					entity.process_product(product)
-			else:
-				product.global_position += dir.normalized() * speed * delta
+				continue
+
+			product.path_index += 1
+		else:
+			product.global_position += direction.normalized() * move_speed * delta
+
 	for product in to_deliver:
-		deliver_product(product)
+		product.state = Product.ProductState.DELIVERED
+		product_delivered.emit(product)
+		_remove_product(product)
+
+	for product in to_remove:
+		_remove_product(product)
+
+func _remove_product(product: Product) -> void:
+	if product in products:
+		products.erase(product)
+	if is_instance_valid(product):
+		remove_child(product)
+		product.queue_free()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
@@ -234,6 +290,9 @@ func spawn_product() -> Product:
 	var nearest_delivery: Vector2i = delivery_points[0] if delivery_points.size() > 0 else Vector2i(-1, -1)
 	if nearest_delivery.x >= 0:
 		product.path = find_path(sp, nearest_delivery)
+		product.path_index = 1 if product.path.size() > 1 else 0
+	else:
+		product.path = [sp]
 		product.path_index = 0
 	products.append(product)
 	add_child(product)
@@ -245,17 +304,14 @@ func add_product_at(product: Product, pos: Vector2i) -> void:
 	var nearest_delivery: Vector2i = delivery_points[0] if delivery_points.size() > 0 else Vector2i(-1, -1)
 	if nearest_delivery.x >= 0:
 		product.path = find_path(pos, nearest_delivery)
-		product.path_index = 0
+		product.path_index = 1 if product.path.size() > 1 else 0
 	if not products.has(product):
 		products.append(product)
 
 func deliver_product(product: Product) -> void:
-	if product in products:
-		products.erase(product)
-	product_reached_end.emit(product)
-	if is_instance_valid(product):
-		remove_child(product)
-		product.queue_free()
+	product.state = Product.ProductState.DELIVERED
+	product_delivered.emit(product)
+	_remove_product(product)
 
 func find_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	if from == to:

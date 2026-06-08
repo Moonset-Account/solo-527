@@ -51,8 +51,8 @@ func auto_save() -> void:
 		data = SaveData.new()
 	data.money = GameManager.money
 	data.reputation = GameManager.reputation
+	data.current_level = int(GameManager.current_level_id)
 	data.last_save_timestamp = int(Time.get_unix_time_from_system())
-	data.play_time_seconds += 60.0
 	save_game(data)
 
 func get_save_info() -> Dictionary:

@@ -115,11 +115,21 @@ func update_deadlines(delta: float) -> Array[Order]:
 		expired.append(order)
 	return expired
 
+const STAGE_PRIORITY: Dictionary = {
+	"raw": 0,
+	"cut": 1,
+	"assembled": 2,
+	"painted": 3,
+	"packed": 4,
+}
+
 func deliver_product(product_type: String, quality: float) -> bool:
+	var product_priority: int = STAGE_PRIORITY.get(product_type, 0)
 	for order in active_orders:
 		if not order.is_active:
 			continue
-		if order.product_type != product_type:
+		var order_priority: int = STAGE_PRIORITY.get(order.product_type, 0)
+		if product_priority < order_priority:
 			continue
 		if quality < order.min_quality:
 			continue
@@ -130,14 +140,23 @@ func deliver_product(product_type: String, quality: float) -> bool:
 		return true
 	return false
 
-func find_matching_order(product: Product) -> Order:
+func find_matching_order(product_type: String, quality: float) -> Order:
 	for order in active_orders:
 		if not order.is_active:
 			continue
-		if product.is_finished() and order.product_type == "packed":
-			if product.get_total_quality() >= order.min_quality:
+		if order.product_type == product_type:
+			if quality >= order.min_quality:
 				return order
 	return null
+
+func get_total_pending_quantity(product_type: String) -> int:
+	var total := 0
+	for order in active_orders:
+		if not order.is_active:
+			continue
+		if order.product_type == product_type:
+			total += order.quantity - order.quantity_delivered
+	return total
 
 func complete_order(order: Order) -> void:
 	order.is_active = false
@@ -184,6 +203,34 @@ func get_progress() -> Dictionary:
 		"failed": failed_orders.size(),
 		"active": active_orders.size()
 	}
+
+func get_all_orders_data() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for order in active_orders:
+		result.append({
+			"id": order.id,
+			"product_type": order.product_type,
+			"quantity": order.quantity,
+			"quantity_delivered": order.quantity_delivered,
+			"time_remaining": order.time_remaining,
+			"reward_base": order.reward_base,
+			"penalty": order.penalty,
+			"min_quality": order.min_quality,
+			"is_active": order.is_active,
+		})
+	for order in completed_orders:
+		result.append({
+			"id": order.id,
+			"product_type": order.product_type,
+			"quantity": order.quantity,
+			"quantity_delivered": order.quantity_delivered,
+			"time_remaining": 0.0,
+			"reward_base": order.reward_base,
+			"penalty": order.penalty,
+			"min_quality": order.min_quality,
+			"is_active": false,
+		})
+	return result
 
 func reset() -> void:
 	active_orders.clear()

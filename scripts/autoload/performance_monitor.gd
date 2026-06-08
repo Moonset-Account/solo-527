@@ -77,3 +77,14 @@ func get_performance_summary() -> Dictionary:
 
 func is_performance_warning() -> bool:
 	return get_avg_fps() < 30.0
+
+func get_average_fps() -> float:
+	return get_avg_fps()
+
+func get_average_frame_time() -> float:
+	if frame_time_samples.is_empty():
+		return 0.0
+	var total: float = 0.0
+	for sample in frame_time_samples:
+		total += sample
+	return (total / frame_time_samples.size()) / 1000.0

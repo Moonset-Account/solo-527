@@ -176,11 +176,13 @@ func format_time(seconds: float) -> String:
 	return "%02d:%02d" % [mins, secs]
 
 func _populate_stats(stats: Dictionary) -> void:
-	orders_completed_label.text = "Orders: %d completed" % int(stats.get("orders_completed", 0))
-	products_delivered_label.text = "Products Delivered: %d" % int(stats.get("products_delivered", 0))
-	money_earned_label.text = "Money Earned: $%d" % int(stats.get("total_rewards", 0))
+	orders_completed_label.text = "Orders: %d completed / %d failed" % [int(stats.get("orders_completed", 0)), int(stats.get("orders_failed", 0))]
+	products_delivered_label.text = "Products: %d delivered / %d failed" % [int(stats.get("products_delivered", 0)), int(stats.get("products_failed", 0))]
+	money_earned_label.text = "Money Earned: $%d (Penalties: $%d)" % [int(stats.get("total_rewards", 0)), int(stats.get("total_penalties", 0))]
 	time_elapsed_label.text = "Time: %s" % format_time(float(stats.get("time_elapsed", 0.0)))
-	failures_label.text = "Failures: %d" % int(stats.get("orders_failed", 0))
+	var conveyors: int = int(stats.get("conveyors_placed", 0))
+	var bn_fixed: int = int(stats.get("bottlenecks_fixed", 0))
+	failures_label.text = "Conveyors: %d | Bottlenecks Fixed: %d" % [conveyors, bn_fixed]
 
 func _clear_stars() -> void:
 	for child in stars_display.get_children():

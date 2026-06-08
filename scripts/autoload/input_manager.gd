@@ -49,6 +49,9 @@ func get_key_for_action(action: String) -> Key:
 func get_all_mappings() -> Dictionary:
 	return _current_mappings.duplicate()
 
+func get_all_actions() -> Array:
+	return _current_mappings.keys()
+
 func save_mappings() -> void:
 	var file = FileAccess.open(MAPPINGS_PATH, FileAccess.WRITE)
 	if file == null:

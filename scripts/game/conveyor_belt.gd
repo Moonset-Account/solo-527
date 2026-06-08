@@ -1,28 +1,22 @@
 class_name ConveyorBelt
 extends Node2D
 
-signal product_entered(product: Product)
-signal product_exited(product: Product)
-
 @export var direction: int = 0
 @export var speed: float = 60.0
 @export var grid_position: Vector2i = Vector2i.ZERO
 @export var upgrade_level: int = 0
 
-var products_on_belt: Array[Product] = []
-var belt_length: float = 64.0
-
 var _upgrade_data: Array = []
 var _belt_speed_multiplier: float = 1.0
 
-var _direction_vectors: Dictionary = {
+const DIRECTION_VECTORS: Dictionary = {
 	0: Vector2.RIGHT,
 	1: Vector2.DOWN,
 	2: Vector2.LEFT,
 	3: Vector2.UP,
 }
 
-var _direction_arrows: Dictionary = {
+const DIRECTION_ARROWS: Dictionary = {
 	0: "→",
 	1: "↓",
 	2: "←",
@@ -49,56 +43,11 @@ func _update_belt_speed() -> void:
 		var level_data: Dictionary = _upgrade_data[upgrade_level - 1]
 		_belt_speed_multiplier = float(level_data.get("belt_speed_multiplier", 1.0))
 
-func _process(delta: float) -> void:
-	var move_speed := get_speed()
-	var direction_vector: Vector2 = _direction_vectors.get(direction, Vector2.RIGHT)
-	var to_remove: Array[Product] = []
-	for product: Product in products_on_belt:
-		if not product.is_moving:
-			product.is_moving = true
-		var offset: Vector2 = direction_vector * move_speed * delta
-		product.position += offset
-		var belt_start := Vector2(grid_position.x * 64.0, grid_position.y * 64.0)
-		var distance := product.position.distance_to(belt_start)
-		if distance >= belt_length:
-			to_remove.append(product)
-	for product: Product in to_remove:
-		remove_product(product)
-		product_exited.emit(product)
-
-func process_product(product: Product) -> void:
-	add_product(product)
-
-func add_product(product: Product) -> void:
-	if not has_space():
-		return
-	product.is_moving = true
-	product.current_belt = self
-	var belt_start := Vector2(grid_position.x * 64.0, grid_position.y * 64.0)
-	product.position = belt_start
-	products_on_belt.append(product)
-	product_entered.emit(product)
-
-func remove_product(product: Product) -> void:
-	var idx := products_on_belt.find(product)
-	if idx >= 0:
-		products_on_belt.remove_at(idx)
-		product.is_moving = false
-		product.current_belt = null
+func get_speed_multiplier() -> float:
+	return _belt_speed_multiplier
 
 func set_direction(dir: int) -> void:
 	direction = wrapi(dir, 0, 4)
-
-func get_speed() -> float:
-	return speed * _belt_speed_multiplier
-
-func has_space() -> bool:
-	return products_on_belt.size() < 2
-
-func get_end_position() -> Vector2:
-	var direction_vector: Vector2 = _direction_vectors.get(direction, Vector2.RIGHT)
-	var belt_start := Vector2(grid_position.x * 64.0, grid_position.y * 64.0)
-	return belt_start + direction_vector * belt_length
 
 func upgrade() -> bool:
 	var cost := get_upgrade_cost()
@@ -120,5 +69,5 @@ func _draw() -> void:
 	var col := Color(0.58, 0.58, 0.58)
 	draw_rect(Rect2(-24, -24, 48, 48), col)
 	draw_rect(Rect2(-24, -24, 48, 48), Color(0.4, 0.4, 0.4), false, 1.0)
-	var arrow: String = _direction_arrows.get(direction, "→")
+	var arrow: String = DIRECTION_ARROWS.get(direction, "→")
 	draw_string(ThemeDB.fallback_font, Vector2(-6, 6), arrow, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
