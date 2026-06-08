@@ -1,0 +1,18 @@
+{
+    "levelId": "tut_01",
+    "playerSpawn": { "x": -5, "y": 1 },
+    "levelExitPosition": { "x": 10, "y": 4 },
+    "startLightDirection": 0,
+    "platforms": [
+        { "id": "ground", "position": { "x": 0, "y": -2 }, "size": { "x": 20, "y": 0.5 }, "isShadowPlatform": false, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_01", "position": { "x": 3, "y": 0.5 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_02", "position": { "x": 7, "y": 2.5 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 1, "shadowVisibility": 0 }
+    ],
+    "triggers": [],
+    "receivers": [],
+    "hazards": [],
+    "checkpoints": [
+        { "id": "cp_start", "position": { "x": -4, "y": -1 } }
+    ],
+    "requiredTriggerIdsForExit": []
+}

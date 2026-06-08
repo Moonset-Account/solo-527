@@ -1,0 +1,14 @@
+{
+    "levelId": "tut_01",
+    "levelName": "初识光影",
+    "sceneName": "Level_Tutorial_01",
+    "order": 1,
+    "tutorialText": "按 [Q] 切换灯光方向，让影子平台出现！走到出口即可过关。",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["LightSwitch", "ShadowPlatform"],
+    "difficultyRating": 1.0,
+    "prerequisiteLevelIds": []
+}

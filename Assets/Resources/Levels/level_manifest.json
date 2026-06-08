@@ -1,0 +1,88 @@
+{
+    "levels": [
+        {
+            "levelId": "tut_01",
+            "levelName": "初识光影",
+            "sceneName": "Level_Tutorial_01",
+            "order": 1,
+            "tutorialText": "按 [Q] 切换灯光方向，让影子平台出现！走到出口即可过关。",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["LightSwitch", "ShadowPlatform"],
+            "difficultyRating": 1.0,
+            "prerequisiteLevelIds": []
+        },
+        {
+            "levelId": "tut_02",
+            "levelName": "踏板机关",
+            "sceneName": "Level_Tutorial_02",
+            "order": 2,
+            "tutorialText": "踩下踏板可以打开门，注意踏板离开后会关闭！",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["PressurePlate", "Door"],
+            "difficultyRating": 1.5,
+            "prerequisiteLevelIds": ["tut_01"]
+        },
+        {
+            "levelId": "tut_03",
+            "levelName": "光影陷阱",
+            "sceneName": "Level_Tutorial_03",
+            "order": 3,
+            "tutorialText": "光线传感器只在特定光照方向下激活，善用光源切换！",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["LightSensor", "Hazard"],
+            "difficultyRating": 2.0,
+            "prerequisiteLevelIds": ["tut_02"]
+        },
+        {
+            "levelId": "lvl_01",
+            "levelName": "交错的影子",
+            "sceneName": "Level_01",
+            "order": 4,
+            "tutorialText": "多段影子平台需要你在不同光源间切换，把握时机！",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["MultiShadowSwitch"],
+            "difficultyRating": 3.0,
+            "prerequisiteLevelIds": ["tut_03"]
+        },
+        {
+            "levelId": "lvl_02",
+            "levelName": "机关交织",
+            "sceneName": "Level_02",
+            "order": 5,
+            "tutorialText": "踏板 + 光影平台 + 陷阱，综合运用你学到的一切！",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["CombinedMechanics"],
+            "difficultyRating": 4.0,
+            "prerequisiteLevelIds": ["lvl_01"]
+        },
+        {
+            "levelId": "lvl_03",
+            "levelName": "终极试炼",
+            "sceneName": "Level_03",
+            "order": 6,
+            "tutorialText": "所有机关的终极组合，祝你好运！",
+            "isCompleted": false,
+            "bestTime": 0,
+            "deathCount": 0,
+            "startLightDirection": 0,
+            "introducedMechanics": ["TimedSwitch", "MultiSensor"],
+            "difficultyRating": 5.0,
+            "prerequisiteLevelIds": ["lvl_02"]
+        }
+    ]
+}

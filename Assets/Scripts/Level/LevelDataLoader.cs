@@ -1,7 +1,6 @@
 using UnityEngine;
 using ShadowPlatformer.Level;
 using ShadowPlatformer.Light;
-using ShadowPlatformer.Core;
 
 namespace ShadowPlatformer.Level
 {

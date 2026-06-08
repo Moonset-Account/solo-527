@@ -1,0 +1,14 @@
+{
+    "levelId": "tut_03",
+    "levelName": "光影陷阱",
+    "sceneName": "Level_Tutorial_03",
+    "order": 3,
+    "tutorialText": "光线传感器只在特定光照方向下激活，善用光源切换！",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["LightSensor", "Hazard"],
+    "difficultyRating": 2.0,
+    "prerequisiteLevelIds": ["tut_02"]
+}

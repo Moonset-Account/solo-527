@@ -1,0 +1,26 @@
+{
+    "levelId": "tut_03",
+    "playerSpawn": { "x": -8, "y": 1 },
+    "levelExitPosition": { "x": 12, "y": 5 },
+    "startLightDirection": 0,
+    "platforms": [
+        { "id": "ground", "position": { "x": 0, "y": -2 }, "size": { "x": 28, "y": 0.5 }, "isShadowPlatform": false, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_left", "position": { "x": -3, "y": 1 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_up", "position": { "x": 3, "y": 3 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 2, "shadowVisibility": 0 },
+        { "id": "sp_right", "position": { "x": 8, "y": 5 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 1, "shadowVisibility": 0 }
+    ],
+    "triggers": [
+        { "id": "sensor_01", "type": 3, "position": { "x": 0, "y": -1.5 }, "isOneShot": false, "timedDuration": 0, "requiredLightDirection": 2 }
+    ],
+    "receivers": [
+        { "id": "door_sensor", "requiredTriggerIds": ["sensor_01"], "requireAllTriggers": true, "position": { "x": 6, "y": 2 }, "isDoor": true, "doorOpenByDefault": false, "isMovingPlatform": false, "moveTargetOffset": { "x": 0, "y": 0 }, "moveSpeed": 2 }
+    ],
+    "hazards": [
+        { "id": "spikes_01", "position": { "x": 0, "y": -1.7 }, "size": { "x": 4, "y": 0.3 }, "instantKill": true }
+    ],
+    "checkpoints": [
+        { "id": "cp_01", "position": { "x": -7, "y": -1 } },
+        { "id": "cp_02", "position": { "x": 4, "y": 2.5 } }
+    ],
+    "requiredTriggerIdsForExit": []
+}

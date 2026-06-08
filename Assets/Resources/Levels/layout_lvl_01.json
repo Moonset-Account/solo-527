@@ -1,0 +1,25 @@
+{
+    "levelId": "lvl_01",
+    "playerSpawn": { "x": -10, "y": 1 },
+    "levelExitPosition": { "x": 14, "y": 7 },
+    "startLightDirection": 0,
+    "platforms": [
+        { "id": "ground_l", "position": { "x": -8, "y": -2 }, "size": { "x": 8, "y": 0.5 }, "isShadowPlatform": false, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "ground_r", "position": { "x": 10, "y": -2 }, "size": { "x": 8, "y": 0.5 }, "isShadowPlatform": false, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_r1", "position": { "x": -4, "y": 1 }, "size": { "x": 2.5, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 0, "shadowVisibility": 0 },
+        { "id": "sp_l1", "position": { "x": -1, "y": 3 }, "size": { "x": 2.5, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 1, "shadowVisibility": 0 },
+        { "id": "sp_u1", "position": { "x": 3, "y": 5 }, "size": { "x": 2.5, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 2, "shadowVisibility": 0 },
+        { "id": "sp_d1", "position": { "x": 7, "y": 4 }, "size": { "x": 2.5, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 3, "shadowVisibility": 0 },
+        { "id": "sp_r2", "position": { "x": 10, "y": 6 }, "size": { "x": 3, "y": 0.5 }, "isShadowPlatform": true, "shadowDirection": 0, "shadowVisibility": 0 }
+    ],
+    "triggers": [],
+    "receivers": [],
+    "hazards": [
+        { "id": "pit", "position": { "x": 1, "y": -3 }, "size": { "x": 6, "y": 1 }, "instantKill": true }
+    ],
+    "checkpoints": [
+        { "id": "cp_01", "position": { "x": -9, "y": -1 } },
+        { "id": "cp_02", "position": { "x": 3, "y": 4.5 } }
+    ],
+    "requiredTriggerIdsForExit": []
+}

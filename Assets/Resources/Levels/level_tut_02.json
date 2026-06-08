@@ -1,0 +1,14 @@
+{
+    "levelId": "tut_02",
+    "levelName": "踏板机关",
+    "sceneName": "Level_Tutorial_02",
+    "order": 2,
+    "tutorialText": "踩下踏板可以打开门，注意踏板离开后会关闭！",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["PressurePlate", "Door"],
+    "difficultyRating": 1.5,
+    "prerequisiteLevelIds": ["tut_01"]
+}
