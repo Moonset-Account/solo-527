@@ -1,0 +1,584 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 24
+  productGUID: 1a2b3c4d5e6f7890abcdef1234567890
+  AndroidProfiler: 0
+  AndroidFilterTouchesWhenObscured: 0
+  AndroidEnableSustainedPerformanceMode: 0
+  defaultScreenOrientation: 3
+  targetDevice: 2
+  useOnDemandResources: 0
+  accelerometerFrequency: 60
+  companyName: ShadowPlatformer
+  productName: Shadow Platformer
+  defaultCursor: {fileID: 0}
+  cursorHotspot: {x: 0, y: 0}
+  m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+  m_ShowUnitySplashScreen: 1
+  m_ShowUnitySplashLogo: 1
+  m_SplashScreenOverlayOpacity: 1
+  m_SplashScreenAnimation: 1
+  m_SplashScreenLogoStyle: 1
+  m_SplashScreenDrawMode: 0
+  m_SplashScreenBackgroundAnimationZoom: 1
+  m_SplashScreenBackgroundLogoZoom: 1
+  m_SplashScreenBackgroundLandscapeZoom: 1
+  m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+  m_SplashScreenOverlayColor: {r: 0, g: 0, b: 0, a: 1}
+  m_SplashScreenOverlayBlend: 0
+  m_SplashScreenLogos: []
+  m_SplashScreenSignature: Unity
+  m_VectorLogos: []
+  defaultScreenWidth: 1920
+  defaultScreenHeight: 1080
+  defaultScreenWidthWeb: 960
+  defaultScreenHeightWeb: 600
+  m_StereoRenderingPath: 0
+  m_ActiveColorSpace: 0
+  m_MTRendering: 1
+  mipStripping: 0
+  numberOfMipsStripped: 0
+  m_ShaderStrippingMode: 0
+  m_ShaderVariantLogLevel: 0
+  m_StripUnusedShaders: 0
+  m_IPhoneBundleIdentifier: com.Company.ProductName
+  m_IPhoneOrientation: 3
+  m_IPhoneSplashScreen: {fileID: 0}
+  m_IPhoneSplashScreen2x: {fileID: 0}
+  m_IPhoneSplashScreen3x: {fileID: 0}
+  m_IPhoneSplashScreeniPad: {fileID: 0}
+  m_IPhoneSplashScreeniPad2x: {fileID: 0}
+  m_IPhoneSplashScreeniPad3x: {fileID: 0}
+  m_IOSLaunchScreenBackgroundPortrait: {fileID: 0}
+  m_IOSLaunchScreenBackgroundLandscape: {fileID: 0}
+  m_IOSLaunchScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IOSLaunchScreenFillPct: 100
+  m_IOSLaunchScreenSize: 100
+  m_IOSLaunchScreenCustomXibPath: 
+  m_IOSLaunchScreeniPadBackgroundPortrait: {fileID: 0}
+  m_IOSLaunchScreeniPadBackgroundLandscape: {fileID: 0}
+  m_IOSLaunchScreeniPadBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IOSLaunchScreeniPadFillPct: 100
+  m_IOSLaunchScreeniPadSize: 100
+  m_IOSLaunchScreeniPadCustomXibPath: 
+  m_IOSUseLaunchScreenStoryboard: 0
+  m_IOSLaunchScreenStoryboardName: 
+  m_SystemFont: 
+  m_HomeScreenAPNs: 0
+  m_AllowDeviceNameForAirPlay: 0
+  m_AppleDeveloperTeamID: 
+  m_AppleEnableAutomaticSigning: 0
+  m_iOSManualProvisioningProfileID: 
+  m_iOSManualProvisioningProfileType: 0
+  m_iOSAppleLoginEnabled: 0
+  m_EnableIL2CPP: 0
+  m_EnableMono: 1
+  m_ScriptingBackend: 0
+  m_IL2CPPCompilerConfiguration: 0
+  m_IL2CPPUseUniversalCRT: 0
+  m_PlatformTarget: 0
+  m_StandaloneWindowsX86_64: 0
+  m_StandaloneWindowsX86: 0
+  m_MacOSTarget: 0
+  m_macOSArchitecture: 2
+  m_LinuxTarget: 0
+  m_LinuxArchitecture: 0
+  m_WSAEnableFramelessWindow: 0
+  m_WSAEnableSwapChainPanel: 0
+  m_WSAEnableRTA: 0
+  m_WSAUWPDefaultTileBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_WSAUWPSplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_WSAUWPTileShortName: 
+  m_WSAUWPTileShowName: 0
+  m_WSAUWPTileForegroundColor: 0
+  m_WSAUWPTileBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_WSAUWPSplashScreenImage: {fileID: 0}
+  m_WSAUWPTileLogo: {fileID: 0}
+  m_WSAUWPTileSmallLogo: {fileID: 0}
+  m_WSAUWPTileWideLogo: {fileID: 0}
+  m_WSAUWPTileLargeLogo: {fileID: 0}
+  m_WSAUWPAppStoreImage: {fileID: 0}
+  m_WSAStartOnLaunch: 0
+  m_WSAEnableCheckUpdate: 0
+  m_androidTargetDevice: 0
+  m_AndroidMinSdkVersion: 22
+  m_AndroidTargetSdkVersion: 0
+  m_AndroidInstallLocation: 1
+  m_AndroidPreferExternal: 0
+  m_AndroidIsGame: 1
+  m_AndroidGamepadSupport: 0
+  m_AndroidBanner: {fileID: 0}
+  m_AndroidIsGamepad: 0
+  m_consoleAudioDsp: 0
+  m_StripEngineCode: 1
+  m_AdvertisingIdentifier: 0
+  m_DontUseSystemFont: 0
+  m_UseCustomMainManifest: 0
+  m_UseCustomLauncherManifest: 0
+  m_CustomManifestText: 
+  m_CustomLauncherManifestText: 
+  m_androidScreenOrientation: 3
+  m_AndroidAspectRatio: 1
+  m_androidAspectRatioCustom: 1.78
+  m_AndroidMaxAspectRatio: 2.1
+  m_AndroidBuildApkPerDpi: 0
+  m_AndroidKeystoreName: 
+  m_AndroidKeystorePassword: 
+  m_AndroidKeyaliasName: 
+  m_AndroidKeyaliasPassword: 
+  m_AndroidCustomKeystore: 0
+  m_AndroidDebugKeystoreName: 
+  m_AndroidDebugKeystorePassword: 
+  m_AndroidDebugKeyaliasName: 
+  m_AndroidDebugKeyaliasPassword: 
+  m_AndroidValidateKeystore: 0
+  m_TizenProductDescription: 
+  m_TizenProductURL: 
+  m_TizenSigningProfileName: 
+  m_TizenGPSPermissions: 0
+  m_TizenMinScreenWidth: 0
+  m_TizenMinScreenHeight: 0
+  m_TizenTargetScreenDpi: 0
+  m_webGLMemorySize: 256
+  m_webGLExceptionSupport: 1
+  m_webGLNameFilesAsThreads: 0
+  m_webGLDataCaching: 1
+  m_webGLDebugSymbols: 0
+  m_webGLEmscriptenArgs: 
+  m_webGLModulesDirectory: 
+  m_webGLTemplate: APPLICATION:Default
+  m_webGLAnalyzeBuildSize: 0
+  m_webGLUseEmbeddedResources: 0
+  m_webGLCompressionFormat: 1
+  m_webGLWasmArithmeticExceptions: 0
+  m_webGLLinkerTarget: 1
+  m_webGLThreadsSupport: 0
+  m_webGLCompute: 0
+  m_webGLGraphicsJobs: 0
+  m_webGLInitialMemorySize: 32
+  m_webGLMaximumMemorySize: 2048
+  m_webGLMemoryGrowthMode: 2
+  m_webGLMemoryLinearGrowthStep: 16
+  m_webGLMemoryGeometricGrowthStep: 0.2
+  m_webGLMemoryGeometricGrowthCap: 96
+  m_webGLPowerPreference: 2
+  m_PSP2PackageIcon: {fileID: 0}
+  m_PSP2SplashScreen: {fileID: 0}
+  m_PSP2BackgroundImage: {fileID: 0}
+  m_PSP2BackgroundMusic: {fileID: 0}
+  m_PSP2TrophyIcon: {fileID: 0}
+  m_PSP2OverlaySettings: 0
+  m_PSP2ShowSplash: 1
+  m_PSP2ParamTitle: 
+  m_PSP2ParamCategory: 0
+  m_PSP2ParamContentVersion: 
+  m_PSP2ParamParentalLevel: 0
+  m_PSP2ParamShortTitle: 
+  m_PSP2ParamTitleID: 
+  m_PSP2PackageType: 0
+  m_PSP2PackageVersion: 
+  m_PSP2MediaInstallPath: 
+  m_PSP2BootAnimation: {fileID: 0}
+  m_PSP2BootAnimationAspectRatio: 0
+  m_PSMAssetsPath: 
+  m_PSMCompress: 0
+  m_PSMTargetCompress: 0
+  m_PSMQuality: 0
+  m_PSMDevMode: 0
+  m_PSMReadme: 
+  m_PSP2LiveAreaBgImage: {fileID: 0}
+  m_PSP2LiveAreaIcon: {fileID: 0}
+  m_PSP2LiveAreaStartupImage: {fileID: 0}
+  m_PSP2LiveAreaLogoImage: {fileID: 0}
+  m_SamsungTVResolution: 0
+  m_SamsungTVAuthor: 
+  m_SamsungTVDescription: 
+  m_SamsungTVCategory: 
+  m_SamsungTVIcon: {fileID: 0}
+  m_SamsungTVBanner: {fileID: 0}
+  m_SamsungTVDistributor: 
+  m_SamsungTVCountry: 
+  m_SamsungTVDeviceType: 0
+  m_SamsungTVDeviceModel: 
+  m_SamsungTVFirmware: 
+  m_SamsungTVResolutionList: 
+  m_SamsungTVAdditionalPackages: 
+  m_SamsungTVUseIAL: 0
+  m_SamsungTVRemoteMouseSupport: 0
+  m_StandalonePlatforms: 010000000200000003000000
+  m_StandaloneWindowsX86_64Enable: 0
+  m_StandaloneWindowsX86Enable: 0
+  m_MacOSEnable: 1
+  m_LinuxEnable: 0
+  m_StandaloneOSXEnable: 1
+  m_LinuxArchitectureEnable: 0
+  m_BrowserEnable: 0
+  m_BrowserDpiAwareness: 1
+  m_BrowserRunInBackground: 0
+  m_BrowserAllowFullscreen: 1
+  m_BrowserWidth: 960
+  m_BrowserHeight: 600
+  m_BrowserEmbedded: 0
+  m_BrowserLocation: 0
+  m_BrowserTemplate: 0
+  m_BrowserCaching: 0
+  m_BrowserDebug: 0
+  m_BrowserCompression: 0
+  m_BrowserWasmArch: 0
+  m_BrowserExceptionSupport: 0
+  m_BrowserGraphicsApi: 0
+  m_BrowserInitialMemory: 0
+  m_BrowserMaximumMemory: 0
+  m_BrowserMemoryGrowth: 0
+  m_BrowserLinker: 0
+  m_BrowserThreads: 0
+  m_BrowserCompute: 0
+  m_BrowserNameTemplate: 
+  m_SwitchTitleNames_0: 
+  m_SwitchTitleNames_1: 
+  m_SwitchTitleNames_2: 
+  m_SwitchTitleNames_3: 
+  m_SwitchTitleNames_4: 
+  m_SwitchTitleNames_5: 
+  m_SwitchTitleNames_6: 
+  m_SwitchTitleNames_7: 
+  m_SwitchTitleNames_8: 
+  m_SwitchTitleNames_9: 
+  m_SwitchTitleNames_10: 
+  m_SwitchTitleNames_11: 
+  m_SwitchTitleNames_12: 
+  m_SwitchTitleNames_13: 
+  m_SwitchTitleNames_14: 
+  m_SwitchTitleNames_15: 
+  m_SwitchPublisherNames_0: 
+  m_SwitchPublisherNames_1: 
+  m_SwitchPublisherNames_2: 
+  m_SwitchPublisherNames_3: 
+  m_SwitchPublisherNames_4: 
+  m_SwitchPublisherNames_5: 
+  m_SwitchPublisherNames_6: 
+  m_SwitchPublisherNames_7: 
+  m_SwitchPublisherNames_8: 
+  m_SwitchPublisherNames_9: 
+  m_SwitchPublisherNames_10: 
+  m_SwitchPublisherNames_11: 
+  m_SwitchPublisherNames_12: 
+  m_SwitchPublisherNames_13: 
+  m_SwitchPublisherNames_14: 
+  m_SwitchPublisherNames_15: 
+  m_SwitchIcons_0: {fileID: 0}
+  m_SwitchIcons_1: {fileID: 0}
+  m_SwitchIcons_2: {fileID: 0}
+  m_SwitchIcons_3: {fileID: 0}
+  m_SwitchIcons_4: {fileID: 0}
+  m_SwitchIcons_5: {fileID: 0}
+  m_SwitchIcons_6: {fileID: 0}
+  m_SwitchIcons_7: {fileID: 0}
+  m_SwitchIcons_8: {fileID: 0}
+  m_SwitchIcons_9: {fileID: 0}
+  m_SwitchIcons_10: {fileID: 0}
+  m_SwitchIcons_11: {fileID: 0}
+  m_SwitchIcons_12: {fileID: 0}
+  m_SwitchIcons_13: {fileID: 0}
+  m_SwitchIcons_14: {fileID: 0}
+  m_SwitchIcons_15: {fileID: 0}
+  m_SwitchSmallIcons_0: {fileID: 0}
+  m_SwitchSmallIcons_1: {fileID: 0}
+  m_SwitchSmallIcons_2: {fileID: 0}
+  m_SwitchSmallIcons_3: {fileID: 0}
+  m_SwitchSmallIcons_4: {fileID: 0}
+  m_SwitchSmallIcons_5: {fileID: 0}
+  m_SwitchSmallIcons_6: {fileID: 0}
+  m_SwitchSmallIcons_7: {fileID: 0}
+  m_SwitchSmallIcons_8: {fileID: 0}
+  m_SwitchSmallIcons_9: {fileID: 0}
+  m_SwitchSmallIcons_10: {fileID: 0}
+  m_SwitchSmallIcons_11: {fileID: 0}
+  m_SwitchSmallIcons_12: {fileID: 0}
+  m_SwitchSmallIcons_13: {fileID: 0}
+  m_SwitchSmallIcons_14: {fileID: 0}
+  m_SwitchSmallIcons_15: {fileID: 0}
+  m_SwitchManualHTML: 
+  m_SwitchAccessibleURLs: 
+  m_SwitchLegalInformation: 
+  m_SwitchMainThreadStackSize: 1048576
+  m_SwitchPresenceGroupId: 
+  m_SwitchPresenceId: 
+  m_SwitchRaceFriendId: 
+  m_SwitchDisplayVersion: 0.0.1
+  m_SwitchStartupUserAccount: 0
+  m_SwitchTouchScreenUsage: 0
+  m_SwitchSupportedLanguagesMask: 0
+  m_SwitchLogoType: 0
+  m_SwitchApplicationErrorCodeCategory: 
+  m_SwitchUserAccountSaveDataSize: 0
+  m_SwitchUserAccountSaveDataJournalSize: 0
+  m_SwitchApplicationAttribute: 0
+  m_SwitchCardSpecSize: -1
+  m_SwitchCardSpecClock: -1
+  m_SwitchRatingsMask: 0
+  m_SwitchRatingsInt_0: 0
+  m_SwitchRatingsInt_1: 0
+  m_SwitchRatingsInt_2: 0
+  m_SwitchRatingsInt_3: 0
+  m_SwitchRatingsInt_4: 0
+  m_SwitchRatingsInt_5: 0
+  m_SwitchRatingsInt_6: 0
+  m_SwitchRatingsInt_7: 0
+  m_SwitchRatingsInt_8: 0
+  m_SwitchRatingsInt_9: 0
+  m_SwitchRatingsInt_10: 0
+  m_SwitchRatingsInt_11: 0
+  m_SwitchRatingsInt_12: 0
+  m_SwitchRatingsInt_13: 0
+  m_SwitchRatingsInt_14: 0
+  m_SwitchRatingsInt_15: 0
+  m_SwitchRatingsInt_16: 0
+  m_SwitchRatingsInt_17: 0
+  m_SwitchRatingsInt_18: 0
+  m_SwitchRatingsInt_19: 0
+  m_SwitchRatingsInt_20: 0
+  m_SwitchRatingsInt_21: 0
+  m_SwitchRatingsInt_22: 0
+  m_SwitchRatingsInt_23: 0
+  m_SwitchLocalCommunicationIds_0: 
+  m_SwitchLocalCommunicationIds_1: 
+  m_SwitchLocalCommunicationIds_2: 
+  m_SwitchLocalCommunicationIds_3: 
+  m_SwitchLocalCommunicationIds_4: 
+  m_SwitchLocalCommunicationIds_5: 
+  m_SwitchLocalCommunicationIds_6: 
+  m_SwitchLocalCommunicationIds_7: 
+  m_SwitchParentalControl: 0
+  m_SwitchAllowsScreenshot: 1
+  m_SwitchAllowsVideoCapture: 1
+  m_SwitchAllowsRuntimeAddOnContentInstall: 0
+  m_SwitchDataLossConfirmation: 0
+  m_SwitchSupportedNpadStyles: 22
+  m_SwitchNativeFsCacheSize: 32
+  m_SwitchIsHoldTypeHorizontal: 0
+  m_SwitchSupportedNpadCount: 8
+  m_SwitchSocketConfigEnabled: 0
+  m_SwitchTcpInitialSendBufferSize: 32
+  m_SwitchTcpInitialReceiveBufferSize: 64
+  m_SwitchTcpAutoSendBufferSizeMax: 256
+  m_SwitchTcpAutoReceiveBufferSizeMax: 256
+  m_SwitchUdpSendBufferSize: 9
+  m_SwitchUdpReceiveBufferSize: 42
+  m_SwitchSocketBufferEfficiency: 4
+  m_SwitchSocketConcurrencyLimit: 14
+  m_SwitchUseLegacyRuntime: 0
+  m_SwitchMicroSleepForYield: 1
+  m_SwitchEnableNRCD: 0
+  m_PSMEnable: 0
+  m_PSMUseIL2CPP: 0
+  m_PSMPath: 
+  m_xboxOneDisableKinectGpuReservation: 1
+  m_xboxOneEnableInternetOptimization: 0
+  m_xboxOneEnableProfiling: 0
+  m_xboxOneDisableEn4: 0
+  m_xboxOneDisableEn5: 0
+  m_xboxOneDisableEn6: 0
+  m_xboxOneDisableEn7: 0
+  m_xboxOneDisableEn8: 0
+  m_xboxOneDisableEn9: 0
+  m_xboxOneDisableEn10: 0
+  m_xboxOneDisableEn11: 0
+  m_xboxOneDisableEn12: 0
+  m_xboxOneDisableEn13: 0
+  m_xboxOneDisableEn14: 0
+  m_xboxOneDisableEn15: 0
+  m_xboxOnePresentImmediateThreshold: 0
+  m_xboxOnePresentIntervalThreshold: 0
+  m_xboxOnePresentLateThreshold: 0
+  m_xboxOnePresentLateByOneFrame: 0
+  m_xboxOnePresentEarlyThreshold: 0
+  m_xboxOnePresentEarlyByOneFrame: 0
+  m_xboxOneGPUDEVR: 0
+  m_xboxOneGPUDEVRQuote: 0
+  m_xboxOneGPUDEVRCustom: 0
+  m_xboxOneGPUDEVR1: 0
+  m_xboxOneGPUDEVR2: 0
+  m_xboxOneGPUDEVR3: 0
+  m_xboxOneGPUDEVR4: 0
+  m_xboxOneGPUDEVR5: 0
+  m_xboxOneGPUDEVR6: 0
+  m_xboxOneGPUDEVR7: 0
+  m_xboxOneGPUDEVR8: 0
+  m_xboxOneGPUDEVR9: 0
+  m_xboxOneGPUDEVR10: 0
+  m_xboxOneGPUDEVR11: 0
+  m_xboxOneGPUDEVR12: 0
+  m_xboxOneGPUDEVR13: 0
+  m_xboxOneGPUDEVR14: 0
+  m_xboxOneGPUDEVR15: 0
+  m_xboxOneOptimizeFrameBuffer: 0
+  m_xboxOneCertification: 0
+  m_xboxOneCertificationContentID: 
+  m_xboxOneCertificationProductID: 
+  m_xboxOneCertificationKitID: 
+  m_xboxOneContentRating: 0
+  m_xboxOneVersion: 0
+  m_xboxOneProductDescription: 
+  m_xboxOneTitleInformation: 
+  m_xboxOneIsContentPackage: 0
+  m_xboxOneEnableGPUVariability: 1
+  m_xboxOneSockets: {}
+  m_xboxOneSplashScreen: {fileID: 0}
+  m_xboxOneAllowedProductIds: 
+  m_xboxOnePersistentLocalStorageSize: 0
+  m_xboxOneXTitleMemory: 8
+  m_xboxOneOverrideIdentityName: 
+  m_xboxOneOverrideIdentityPublisher: 
+  m_XboxOneXdkRuntimePath: 
+  m_XboxOneXdkExtraSdks: []
+  m_XboxOnePackageEncryption: 0
+  m_vtSupport: 0
+  m_inAppPlayerSupport: 0
+  m_AmazonAppStoreConfig: 
+  m_AndroidMinSdkVersionArm64: 22
+  m_AndroidTargetSdkVersionArm64: 0
+  m_AndroidIsGameArm64: 0
+  m_AndroidGamepadSupportArm64: 0
+  m_AndroidBuildApkPerDpiArm64: 0
+  m_AndroidSplashScreenScale: 0
+  m_androidSplashScreen: {fileID: 0}
+  m_AndroidBanners: []
+  m_AndroidKeystorePath: 
+  m_AndroidKeystorePassword: 
+  m_AndroidKeyaliasName: 
+  m_AndroidKeyaliasPassword: 
+  m_AndroidCustomKeystore: 0
+  m_AndroidDebugKeystoreName: 
+  m_AndroidDebugKeystorePassword: 
+  m_AndroidDebugKeyaliasName: 
+  m_AndroidDebugKeyaliasPassword: 
+  m_AndroidValidateKeystore: 0
+  m_AndroidCustomKeystorePath: 
+  resolutionDialogBanner: {fileID: 0}
+  m_BuildTemplates: []
+  m_AppBundleIdentifier: 
+  m_SplashScreenLogos: []
+  m_SplashScreenBackgroundColor: {r: 0.13333334, g: 0.12156863, b: 0.1254902, a: 1}
+  m_ShowUnitySplashScreen: 1
+  m_ShowUnitySplashLogo: 1
+  m_SplashScreenOverlayOpacity: 1
+  m_SplashScreenAnimation: 1
+  m_SplashScreenLogoStyle: 1
+  m_SplashScreenDrawMode: 0
+  m_SplashScreenBackgroundAnimationZoom: 1
+  m_SplashScreenBackgroundLogoZoom: 1
+  m_SplashScreenBackgroundLandscapeZoom: 1
+  m_SplashScreenBackgroundPortraitZoom: 1
+  m_VirtualRealitySplashScreen: {fileID: 0}
+  m_HolographicTrackingLossScreen: {fileID: 0}
+  defaultScreenWidth: 1920
+  defaultScreenHeight: 1080
+  defaultScreenWidthWeb: 960
+  defaultScreenHeightWeb: 600
+  m_StereoRenderingPath: 0
+  m_ActiveColorSpace: 0
+  m_MTRendering: 1
+  m_StackTraceTypes: 010000000100000001000000010000000100000001000000
+  m_ScriptingDefineSymbols: 
+  m_ScriptingBackend: 0
+  m_IL2CPPCompilerConfiguration: 0
+  m_ScriptingRuntimeVersion: 1
+  m_ApiCompatibilityLevel: 3
+  m_ActiveInputHandler: 0
+  m_ForceSingleInstance: 0
+  m_StripEngineCode: 1
+  m_StackTraceTypesForIl2Cpp: 
+  m_ForceClonableModelImports: 0
+  m_DefaultSkin: 0
+  m_CameraUsageDescription: 
+  m_LocationUsageDescription: 
+  m_MicrophoneUsageDescription: 
+  m_NetworkUsageDescription: 
+  m_BlueuetoothUsageDescription: 
+  m_GalleryUsageDescription: 
+  m_FaceIDUsageDescription: 
+  m_ControllerBackgroundApp: 0
+  m_AlwaysEnableHomeButton: 0
+  m_EnableMotionFps: 0
+  m_EnableInAppBilling: 0
+  m_BitCode: 0
+  m_SigningTeamID: 
+  m_EnableAutomaticSigning: 0
+  m_ProvisioningProfileId: 
+  m_ProvisioningProfileType: 0
+  m_RequireARMBuild: 0
+  m_AppleDeveloperTeamID: 
+  m_iOSManualProvisioningProfileID: 
+  m_iOSManualProvisioningProfileType: 0
+  m_EnableiOS64bit: 1
+  m_EnableIL2CPP: 0
+  m_EnableMono: 1
+  m_iOSLinkingBehaviour: 0
+  m_EnableObjCAutomaticReferenceCounting: 1
+  m_iOSSDKVersion: 0
+  m_iOSTargetDevice: 1
+  m_iOSAllowHTTPDownload: 1
+  m_iOSAppIcon1024: {fileID: 0}
+  m_iOSLaunchScreenStoryboardName: 
+  m_iOSTvOSAppIcon1024: {fileID: 0}
+  m_iOSTvOSTopShelfImage: {fileID: 0}
+  m_iOSTvOSTopShelfImageWide: {fileID: 0}
+  m_iOSTvOSLaunchScreenStoryboardName: 
+  m_iOSLaunchScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_iOSLaunchScreenFillPct: 100
+  m_iOSLaunchScreenSize: 100
+  m_iOSLaunchScreenCustomXibPath: 
+  m_iOSLaunchScreeniPadBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_iOSLaunchScreeniPadFillPct: 100
+  m_iOSLaunchScreeniPadSize: 100
+  m_iOSLaunchScreeniPadCustomXibPath: 
+  m_iOSUseLaunchScreenStoryboard: 0
+  m_iOSLaunchScreenBackgroundPortrait: {fileID: 0}
+  m_iOSLaunchScreenBackgroundLandscape: {fileID: 0}
+  m_iOSLaunchScreeniPadBackgroundPortrait: {fileID: 0}
+  m_iOSLaunchScreeniPadBackgroundLandscape: {fileID: 0}
+  m_StandalonePlatforms: 010000000200000003000000
+  m_StandaloneWindowsX86_64Enable: 0
+  m_StandaloneWindowsX86Enable: 0
+  m_MacOSEnable: 1
+  m_LinuxEnable: 0
+  m_StandaloneOSXEnable: 1
+  fullscreenMode: 1
+  defaultGraphicsAPI: 0
+  m_SupportedAspectRatios:
+    4:3: 1
+    5:4: 1
+    16:10: 1
+    16:9: 1
+    Others: 1
+  bundleVersion: 0.1
+  preloadedAssets: []
+  metroInputSource: 0
+  wsaTransparentSwapchain: 0
+  m_HolographicPauseOnTrackingLoss: 1
+  xboxOneDisableKinectGpuReservation: 1
+  xboxOneEnableInternetOptimization: 0
+  vrEditorSettings: {}
+  cloudServicesEnabled: {}
+  luminVersion:
+    m_VersionCode: 1
+    m_VersionName: 
+  facebookSdkVersion: 
+  facebookAppId: 
+  facebookCookies: 1
+  facebookLogging: 1
+  facebookStatus: 1
+  facebookXfbml: 0
+  facebookFrictionlessRequests: 1
+  apiCompatibilityLevel: 3
+  cloudProjectId: 
+  projectName: 
+  organizationId: 
+  cloudEnabled: 0
+  enableNativePlatformBackendsForNewInputSystem: 0
+  disableOldInputManagerSupport: 0
+  legacyClampBlendShapeWeights: 0

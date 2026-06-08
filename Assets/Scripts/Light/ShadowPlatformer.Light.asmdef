@@ -1,6 +1,6 @@
 {
     "name": "ShadowPlatformer.Light",
-    "references": ["ShadowPlatformer.Core"],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

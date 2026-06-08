@@ -1,6 +1,6 @@
 {
     "name": "ShadowPlatformer.Save",
-    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Audio"],
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Audio", "ShadowPlatformer.Player"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

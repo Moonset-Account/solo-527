@@ -1,6 +1,6 @@
 {
     "name": "ShadowPlatformer.UI",
-    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Level", "ShadowPlatformer.Save", "ShadowPlatformer.Light", "ShadowPlatformer.Audio"],
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Level", "ShadowPlatformer.Save", "ShadowPlatformer.Light", "ShadowPlatformer.Audio", "ShadowPlatformer.Player", "ShadowPlatformer.Mechanics"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

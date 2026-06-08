@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEditor;
 using ShadowPlatformer.Level;
+using ShadowPlatformer.Light;
+using ShadowPlatformer.Mechanics;
 using System.IO;
 
 namespace ShadowPlatformer.Editor
@@ -109,12 +111,12 @@ namespace ShadowPlatformer.Editor
                 var t = _currentLayout.triggers[i];
                 EditorGUILayout.BeginVertical("box");
                 t.id = EditorGUILayout.TextField("ID", t.id);
-                t.type = (Mechanisms.TriggerType)EditorGUILayout.EnumPopup("Type", t.type);
+                t.type = (TriggerType)EditorGUILayout.EnumPopup("Type", t.type);
                 t.position = EditorGUILayout.Vector2Field("Position", t.position);
                 t.isOneShot = EditorGUILayout.Toggle("One Shot", t.isOneShot);
-                if (t.type == Mechanisms.TriggerType.TimedSwitch)
+                if (t.type == TriggerType.TimedSwitch)
                     t.timedDuration = EditorGUILayout.FloatField("Duration", t.timedDuration);
-                if (t.type == Mechanisms.TriggerType.LightSensor)
+                if (t.type == TriggerType.LightSensor)
                     t.requiredLightDirection = (Light.LightDirection)EditorGUILayout.EnumPopup("Req Light", t.requiredLightDirection);
                 if (GUILayout.Button("Remove"))
                 {

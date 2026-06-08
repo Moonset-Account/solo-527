@@ -15,10 +15,14 @@ namespace ShadowPlatformer.Level
         private LevelData _currentLevel;
         private float _levelTimer;
         private int _currentDeaths;
+        private bool _isTimerRunning;
 
         public LevelData CurrentLevel => _currentLevel;
         public float LevelTimer => _levelTimer;
         public int CurrentDeaths => _currentDeaths;
+
+        public event System.Action<string> OnLevelStarted;
+        public event System.Action OnLevelTimerTick;
 
         private void Awake()
         {
@@ -78,7 +82,8 @@ namespace ShadowPlatformer.Level
             _currentLevel = data;
             _levelTimer = 0f;
             _currentDeaths = 0;
-            Core.EventBus.Instance.RaiseLevelStarted(levelId);
+            _isTimerRunning = true;
+            OnLevelStarted?.Invoke(levelId);
         }
 
         public void CompleteCurrentLevel()
@@ -88,6 +93,7 @@ namespace ShadowPlatformer.Level
             if (_levelTimer < _currentLevel.bestTime || _currentLevel.bestTime <= 0f)
                 _currentLevel.bestTime = _levelTimer;
             _currentLevel.deathCount = _currentDeaths;
+            _isTimerRunning = false;
         }
 
         public void RecordDeath()
@@ -107,7 +113,7 @@ namespace ShadowPlatformer.Level
 
         private void Update()
         {
-            if (_currentLevel != null && Core.GameManager.Instance.CurrentMode == Core.GameMode.Playing)
+            if (_isTimerRunning)
                 _levelTimer += Time.deltaTime;
         }
 

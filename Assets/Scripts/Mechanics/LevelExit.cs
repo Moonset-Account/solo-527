@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections.Generic;
+using ShadowPlatformer.Core;
 using ShadowPlatformer.Player;
 
 namespace ShadowPlatformer.Mechanics

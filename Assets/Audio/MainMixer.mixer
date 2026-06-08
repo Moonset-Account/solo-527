@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!241 &24100000
+AudioMixerController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: MainMixer
+  m_EffectID: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
+  m_Groups:
+  - m_Mute: 0
+    m_Solo: 0
+    m_BypassEffects: 0
+    m_Gain: 0
+    m_Name: Master
+    m_Children:
+    - {fileID: 24100002}
+    - {fileID: 24100004}
+    m_GUID: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d7
+    m_AudioMixer: {fileID: 24100000}
+    m_Effects: []
+  - m_Mute: 0
+    m_Solo: 0
+    m_BypassEffects: 0
+    m_Gain: 0
+    m_Name: Music
+    m_Children: []
+    m_GUID: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e8
+    m_AudioMixer: {fileID: 24100000}
+    m_Effects: []
+  - m_Mute: 0
+    m_Solo: 0
+    m_BypassEffects: 0
+    m_Gain: 0
+    m_Name: SFX
+    m_Children: []
+    m_GUID: c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f9
+    m_AudioMixer: {fileID: 24100000}
+    m_Effects: []
+  m_MasterVolume: 0
+  m_AudioMixerGroupViews:
+  - name: Master
+    m_GUIDs:
+    - a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d7
+    - b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e8
+    - c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f9
+  m_CurrentViewIndex: 0
+  m_ExposedParameters:
+  - name: MasterVolume
+    guid: d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a0
+    exposedParamType: 1
+    min: -80
+    max: 0
+    defaultValue: 0
+  - name: MusicVolume
+    guid: e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b1
+    exposedParamType: 1
+    min: -80
+    max: 0
+    defaultValue: -2
+  - name: SFXVolume
+    guid: f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c2
+    exposedParamType: 1
+    min: -80
+    max: 0
+    defaultValue: 0
+--- !u!243 &24100002
+AudioMixerGroupController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Music
+  m_AudioMixer: {fileID: 24100000}
+  m_GroupID: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e8
+  m_Children: []
+  m_Volume: e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b1
+  m_Pitch: 00000000000000000000000000000000
+  m_Mute: 0
+  m_Solo: 0
+  m_BypassEffects: 0
+  m_Effects: []
+  m_MuteEffect: {fileID: 0}
+--- !u!243 &24100004
+AudioMixerGroupController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SFX
+  m_AudioMixer: {fileID: 24100000}
+  m_GroupID: c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f9
+  m_Children: []
+  m_Volume: f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c2
+  m_Pitch: 00000000000000000000000000000000
+  m_Mute: 0
+  m_Solo: 0
+  m_BypassEffects: 0
+  m_Effects: []
+  m_MuteEffect: {fileID: 0}

@@ -1,10 +1,12 @@
 using UnityEngine;
+using System.Collections;
+using ShadowPlatformer.Core;
 using ShadowPlatformer.Level;
 using ShadowPlatformer.Player;
 using ShadowPlatformer.Light;
 using ShadowPlatformer.Save;
 
-namespace ShadowPlatformer.Core
+namespace ShadowPlatformer.Game
 {
     public class GameLoopController : MonoBehaviour
     {
@@ -17,23 +19,12 @@ namespace ShadowPlatformer.Core
 
             EventBus.Instance.OnPlayerDeath += OnPlayerDeath;
             EventBus.Instance.OnLevelCompleted += OnLevelCompleted;
-
-            if (LevelManager.Instance != null)
-                LevelManager.Instance.OnLevelStarted += OnLevelManagerStarted;
         }
 
         private void OnDestroy()
         {
             EventBus.Instance.OnPlayerDeath -= OnPlayerDeath;
             EventBus.Instance.OnLevelCompleted -= OnLevelCompleted;
-
-            if (LevelManager.Instance != null)
-                LevelManager.Instance.OnLevelStarted -= OnLevelManagerStarted;
-        }
-
-        private void OnLevelManagerStarted(string levelId)
-        {
-            EventBus.Instance.RaiseLevelStarted(levelId);
         }
 
         private void InitializeManagers()

@@ -1,6 +1,6 @@
 {
     "name": "ShadowPlatformer.Level",
-    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Light", "ShadowPlatformer.Mechanics", "ShadowPlatformer.Save"],
+    "references": ["ShadowPlatformer.Light", "ShadowPlatformer.Mechanics", "ShadowPlatformer.Save"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

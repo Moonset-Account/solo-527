@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using ShadowPlatformer.Mechanics;
+
 namespace ShadowPlatformer.Level
 {
     [Serializable]
@@ -20,7 +22,7 @@ namespace ShadowPlatformer.Level
     public class TriggerConfig
     {
         public string id;
-        public Mechanisms.TriggerType type;
+        public TriggerType type;
         public Vector2 position;
         public bool isOneShot;
         public float timedDuration;

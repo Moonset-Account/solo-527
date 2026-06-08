@@ -1,0 +1,23 @@
+{
+    "name": "ShadowPlatformer.Game",
+    "references": [
+        "ShadowPlatformer.Core",
+        "ShadowPlatformer.Level",
+        "ShadowPlatformer.Player",
+        "ShadowPlatformer.Light",
+        "ShadowPlatformer.Mechanics",
+        "ShadowPlatformer.Save",
+        "ShadowPlatformer.Audio",
+        "ShadowPlatformer.UI",
+        "ShadowPlatformer.Analytics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

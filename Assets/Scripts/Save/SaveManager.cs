@@ -1,18 +1,46 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ShadowPlatformer.Save
 {
+    [Serializable]
+    public class StringLevelSavePair
+    {
+        public string key;
+        public LevelSaveData value;
+    }
+
     [Serializable]
     public class GameSaveData
     {
         public string currentLevelId;
         public string lastCheckpointId;
         public Vector2 lastCheckpointPosition;
-        public Dictionary<string, LevelSaveData> levelSaves = new Dictionary<string, LevelSaveData>();
+        public List<StringLevelSavePair> levelSaves = new List<StringLevelSavePair>();
         public SettingsData settings = new SettingsData();
         public float totalPlayTime;
+
+        public LevelSaveData GetLevelSave(string levelId)
+        {
+            var pair = levelSaves.FirstOrDefault(p => p.key == levelId);
+            return pair?.value;
+        }
+
+        public void SetLevelSave(string levelId, LevelSaveData data)
+        {
+            var pair = levelSaves.FirstOrDefault(p => p.key == levelId);
+            if (pair != null)
+                pair.value = data;
+            else
+                levelSaves.Add(new StringLevelSavePair { key = levelId, value = data });
+        }
+
+        public bool HasLevelSave(string levelId)
+        {
+            return levelSaves.Any(p => p.key == levelId);
+        }
     }
 
     [Serializable]
@@ -67,10 +95,15 @@ namespace ShadowPlatformer.Save
 
         public void SaveLevelCompletion(string levelId, float time, int deaths)
         {
-            if (!_currentSave.levelSaves.ContainsKey(levelId))
-                _currentSave.levelSaves[levelId] = new LevelSaveData { levelId = levelId };
+            LevelSaveData ls;
+            if (_currentSave.HasLevelSave(levelId))
+                ls = _currentSave.GetLevelSave(levelId);
+            else
+            {
+                ls = new LevelSaveData { levelId = levelId };
+                _currentSave.SetLevelSave(levelId, ls);
+            }
 
-            var ls = _currentSave.levelSaves[levelId];
             ls.isCompleted = true;
             ls.lastCheckpointId = null;
             if (time < ls.bestTime || ls.bestTime <= 0f)
@@ -105,6 +138,8 @@ namespace ShadowPlatformer.Save
                 _currentSave = new GameSaveData();
             }
 
+            if (_currentSave == null)
+                _currentSave = new GameSaveData();
             if (_currentSave.settings == null)
                 _currentSave.settings = new SettingsData();
         }

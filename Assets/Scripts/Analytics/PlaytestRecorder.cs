@@ -6,12 +6,34 @@ using ShadowPlatformer.Core;
 namespace ShadowPlatformer.Analytics
 {
     [Serializable]
+    public class StringStringPair
+    {
+        public string key;
+        public string value;
+    }
+
+    [Serializable]
     public class PlaytestEvent
     {
         public string eventType;
         public float timestamp;
         public string levelId;
-        public Dictionary<string, string> data;
+        public List<StringStringPair> data = new List<StringStringPair>();
+
+        public void SetData(string key, string value)
+        {
+            var pair = data.Find(p => p.key == key);
+            if (pair != null)
+                pair.value = value;
+            else
+                data.Add(new StringStringPair { key = key, value = value });
+        }
+
+        public string GetData(string key)
+        {
+            var pair = data.Find(p => p.key == key);
+            return pair?.value;
+        }
     }
 
     [Serializable]
@@ -88,24 +110,24 @@ namespace ShadowPlatformer.Analytics
             _lastFlushTime = 0f;
         }
 
-        public void RecordEvent(string eventType, string levelId = null, Dictionary<string, string> data = null)
+        public void RecordEvent(string eventType, string levelId = null, List<StringStringPair> data = null)
         {
             var evt = new PlaytestEvent
             {
                 eventType = eventType,
                 timestamp = _sessionTime,
-                levelId = levelId ?? Level.LevelManager.Instance?.CurrentLevel?.levelId ?? "",
-                data = data ?? new Dictionary<string, string>()
+                levelId = levelId ?? Level.LevelManager.Instance?.CurrentLevel?.levelId ?? ""
             };
+            if (data != null)
+                evt.data = data;
             _session.events.Add(evt);
         }
 
         private void RecordPlayerDeath()
         {
-            RecordEvent("PlayerDeath", data: new Dictionary<string, string>
-            {
-                { "deaths", Level.LevelManager.Instance?.CurrentDeaths.ToString() ?? "0" }
-            });
+            var data = new List<StringStringPair>();
+            data.Add(new StringStringPair { key = "deaths", value = Level.LevelManager.Instance?.CurrentDeaths.ToString() ?? "0" });
+            RecordEvent("PlayerDeath", data: data);
         }
 
         private void RecordLevelStart(string levelId)
@@ -115,19 +137,17 @@ namespace ShadowPlatformer.Analytics
 
         private void RecordLevelComplete(string levelId)
         {
-            RecordEvent("LevelComplete", levelId, new Dictionary<string, string>
-            {
-                { "time", Level.LevelManager.Instance?.LevelTimer.ToString("F2") ?? "0" },
-                { "deaths", Level.LevelManager.Instance?.CurrentDeaths.ToString() ?? "0" }
-            });
+            var data = new List<StringStringPair>();
+            data.Add(new StringStringPair { key = "time", value = Level.LevelManager.Instance?.LevelTimer.ToString("F2") ?? "0" });
+            data.Add(new StringStringPair { key = "deaths", value = Level.LevelManager.Instance?.CurrentDeaths.ToString() ?? "0" });
+            RecordEvent("LevelComplete", levelId, data);
         }
 
         private void RecordLightSwitch()
         {
-            RecordEvent("LightSwitch", data: new Dictionary<string, string>
-            {
-                { "direction", Light.LightManager.Instance?.currentDirection.ToString() ?? "Unknown" }
-            });
+            var data = new List<StringStringPair>();
+            data.Add(new StringStringPair { key = "direction", value = Light.LightManager.Instance?.currentDirection.ToString() ?? "Unknown" });
+            RecordEvent("LightSwitch", data: data);
         }
 
         private void RecordCheckpoint()

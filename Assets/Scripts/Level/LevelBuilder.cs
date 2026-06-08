@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
+using ShadowPlatformer.Mechanics;
+using ShadowPlatformer.Save;
 
 namespace ShadowPlatformer.Level
 {
@@ -80,16 +82,16 @@ namespace ShadowPlatformer.Level
             {
                 GameObject prefab = t.type switch
                 {
-                    Mechanisms.TriggerType.PressurePlate => triggerPrefabs_PressurePlate,
-                    Mechanisms.TriggerType.Lever => triggerPrefabs_Lever,
-                    Mechanisms.TriggerType.TimedSwitch => triggerPrefabs_TimedSwitch,
-                    Mechanisms.TriggerType.LightSensor => triggerPrefabs_LightSensor,
+                    TriggerType.PressurePlate => triggerPrefabs_PressurePlate,
+                    TriggerType.Lever => triggerPrefabs_Lever,
+                    TriggerType.TimedSwitch => triggerPrefabs_TimedSwitch,
+                    TriggerType.LightSensor => triggerPrefabs_LightSensor,
                     _ => null
                 };
                 if (prefab == null) continue;
                 var go = Instantiate(prefab, t.position, Quaternion.identity, levelRoot);
                 go.name = $"Trigger_{t.id}";
-                var mt = go.GetComponent<Mechanisms.MechanismTrigger>();
+                var mt = go.GetComponent<MechanismTrigger>();
                 if (mt != null)
                 {
                     mt.triggerId = t.id;
@@ -112,7 +114,7 @@ namespace ShadowPlatformer.Level
                 if (prefab == null) continue;
                 var go = Instantiate(prefab, r.position, Quaternion.identity, levelRoot);
                 go.name = $"Receiver_{r.id}";
-                var mr = go.GetComponent<Mechanisms.MechanismReceiver>();
+                var mr = go.GetComponent<MechanismReceiver>();
                 if (mr != null)
                 {
                     mr.receiverId = r.id;
@@ -134,7 +136,7 @@ namespace ShadowPlatformer.Level
                 go.name = $"Hazard_{h.id}";
                 var col = go.GetComponent<BoxCollider2D>();
                 if (col != null) col.size = h.size;
-                var hz = go.GetComponent<Mechanisms.HazardZone>();
+                var hz = go.GetComponent<HazardZone>();
                 if (hz != null) hz.instantKill = h.instantKill;
                 _spawnedObjects.Add(go);
             }
@@ -148,7 +150,7 @@ namespace ShadowPlatformer.Level
                 if (checkpointPrefab == null) continue;
                 var go = Instantiate(checkpointPrefab, c.position, Quaternion.identity, levelRoot);
                 go.name = $"Checkpoint_{c.id}";
-                var cp = go.GetComponent<Save.Checkpoint>();
+                var cp = go.GetComponent<Checkpoint>();
                 if (cp != null) cp.checkpointId = c.id;
                 _spawnedObjects.Add(go);
             }
@@ -159,7 +161,7 @@ namespace ShadowPlatformer.Level
             if (levelExitPrefab == null) return;
             var go = Instantiate(levelExitPrefab, layout.levelExitPosition, Quaternion.identity, levelRoot);
             go.name = "LevelExit";
-            var exit = go.GetComponent<Mechanisms.LevelExit>();
+            var exit = go.GetComponent<LevelExit>();
             if (exit != null && layout.requiredTriggerIdsForExit != null)
                 exit.requiredTriggerIds = layout.requiredTriggerIdsForExit;
             _spawnedObjects.Add(go);
