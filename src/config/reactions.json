@@ -1,0 +1,103 @@
+[
+  {
+    "id": "neutralization_hcl_naoh",
+    "name": "酸碱中和反应",
+    "reactants": [
+      { "reagentId": "hcl", "minAmount": 10 },
+      { "reagentId": "naoh", "minAmount": 10 }
+    ],
+    "products": [
+      { "reagentId": "nacl", "amount": 15 }
+    ],
+    "temperatureRange": { "min": 10, "max": 80 },
+    "duration": 3.0,
+    "visualEffect": "heat",
+    "effectColor": "#ffaa55",
+    "exothermic": 15,
+    "description": "盐酸与氢氧化钠中和生成氯化钠和水，放出热量。HCl + NaOH → NaCl + H₂O"
+  },
+  {
+    "id": "precipitate_agcl",
+    "name": "氯化银白色沉淀",
+    "reactants": [
+      { "reagentId": "agno3", "minAmount": 5 },
+      { "reagentId": "nacl", "minAmount": 5 }
+    ],
+    "products": [],
+    "duration": 1.5,
+    "visualEffect": "precipitate",
+    "effectColor": "#ffffff",
+    "description": "银离子与氯离子生成不溶于水的白色沉淀。Ag⁺ + Cl⁻ → AgCl↓"
+  },
+  {
+    "id": "color_fe_scn",
+    "name": "铁离子显色反应",
+    "reactants": [
+      { "reagentId": "fe3plus", "minAmount": 3 },
+      { "reagentId": "kscn", "minAmount": 3 }
+    ],
+    "products": [],
+    "duration": 0.8,
+    "visualEffect": "color_change",
+    "effectColor": "#cc0033",
+    "description": "Fe³⁺与SCN⁻形成血红色的硫氰酸铁配合物。"
+  },
+  {
+    "id": "gas_co2",
+    "name": "碳酸氢钠与酸反应产气",
+    "reactants": [
+      { "reagentId": "nahco3", "minAmount": 15 },
+      { "reagentId": "hcl", "minAmount": 10 }
+    ],
+    "products": [
+      { "reagentId": "nacl", "amount": 10 }
+    ],
+    "duration": 4.0,
+    "visualEffect": "gas",
+    "effectColor": "#ffffff",
+    "exothermic": 2,
+    "description": "小苏打与酸反应剧烈产生CO₂气泡。NaHCO₃ + HCl → NaCl + H₂O + CO₂↑"
+  },
+  {
+    "id": "indicator_pink",
+    "name": "酚酞遇碱变红",
+    "reactants": [
+      { "reagentId": "phenolphthalein", "minAmount": 2 },
+      { "reagentId": "naoh", "minAmount": 10 }
+    ],
+    "products": [],
+    "duration": 1.0,
+    "visualEffect": "color_change",
+    "effectColor": "#ff3366",
+    "description": "酚酞在碱性溶液中（pH>8.2）呈现玫红色。"
+  },
+  {
+    "id": "kmno4_decolor_h2o2",
+    "name": "高锰酸钾氧化褪色",
+    "reactants": [
+      { "reagentId": "kmno4", "minAmount": 5 },
+      { "reagentId": "h2o2", "minAmount": 10 }
+    ],
+    "products": [],
+    "temperatureRange": { "min": 15, "max": 60 },
+    "duration": 5.0,
+    "visualEffect": "color_change",
+    "effectColor": "#663300",
+    "exothermic": 10,
+    "description": "酸性条件下高锰酸钾被H₂O₂还原，紫色褪去。"
+  },
+  {
+    "id": "h2o2_decompose",
+    "name": "过氧化氢催化分解",
+    "reactants": [
+      { "reagentId": "h2o2", "minAmount": 20 },
+      { "reagentId": "fe3plus", "minAmount": 2 }
+    ],
+    "products": [],
+    "duration": 6.0,
+    "visualEffect": "gas",
+    "effectColor": "#ffffff",
+    "exothermic": 8,
+    "description": "Fe³⁺催化H₂O₂快速分解产生大量氧气气泡。"
+  }
+]

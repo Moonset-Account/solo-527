@@ -1,0 +1,71 @@
+[
+  {
+    "id": "beaker_250",
+    "name": "250mL烧杯",
+    "type": "beaker",
+    "capacity": 250,
+    "renderParams": { "width": 120, "height": 140, "radius": 10 },
+    "heatable": true,
+    "stirrable": true,
+    "measurable": true
+  },
+  {
+    "id": "beaker_100",
+    "name": "100mL烧杯",
+    "type": "beaker",
+    "capacity": 100,
+    "renderParams": { "width": 80, "height": 100, "radius": 8 },
+    "heatable": true,
+    "stirrable": true,
+    "measurable": true
+  },
+  {
+    "id": "flask_erlenmeyer_250",
+    "name": "250mL锥形瓶",
+    "type": "flask",
+    "capacity": 250,
+    "renderParams": { "width": 100, "height": 160, "radius": 12 },
+    "heatable": true,
+    "stirrable": true
+  },
+  {
+    "id": "burette_50",
+    "name": "50mL滴定管",
+    "type": "burette",
+    "capacity": 50,
+    "renderParams": { "width": 30, "height": 280, "radius": 4 },
+    "measurable": true
+  },
+  {
+    "id": "pipette_25",
+    "name": "25mL移液管",
+    "type": "pipette",
+    "capacity": 25,
+    "renderParams": { "width": 16, "height": 200, "radius": 2 },
+    "measurable": true
+  },
+  {
+    "id": "thermometer",
+    "name": "温度计",
+    "type": "thermometer",
+    "capacity": 0,
+    "renderParams": { "width": 12, "height": 200, "radius": 2 },
+    "measurable": true
+  },
+  {
+    "id": "burner",
+    "name": "酒精灯",
+    "type": "burner",
+    "capacity": 0,
+    "renderParams": { "width": 70, "height": 100, "radius": 20 },
+    "heatable": true
+  },
+  {
+    "id": "stirrer_magnetic",
+    "name": "磁力搅拌器",
+    "type": "stirrer",
+    "capacity": 0,
+    "renderParams": { "width": 120, "height": 40, "radius": 8 },
+    "stirrable": true
+  }
+]

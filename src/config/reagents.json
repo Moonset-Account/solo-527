@@ -1,0 +1,140 @@
+[
+  {
+    "id": "water",
+    "name": "蒸馏水",
+    "formula": "H₂O",
+    "color": "#cceeff",
+    "glowColor": "#88ddff",
+    "density": 1.0,
+    "toxicity": 0,
+    "description": "纯净的蒸馏水，化学实验中最常用的溶剂。",
+    "hazardLevel": "safe",
+    "boilingPoint": 100,
+    "freezingPoint": 0
+  },
+  {
+    "id": "hcl",
+    "name": "盐酸",
+    "formula": "HCl",
+    "color": "#f0e8d0",
+    "glowColor": "#ffffaa",
+    "density": 1.18,
+    "toxicity": 2,
+    "description": "无色透明的强酸溶液，具有刺激性气味。使用时需佩戴护目镜和手套。",
+    "hazardLevel": "warning",
+    "boilingPoint": 110
+  },
+  {
+    "id": "naoh",
+    "name": "氢氧化钠溶液",
+    "formula": "NaOH",
+    "color": "#e8e8ff",
+    "glowColor": "#aaaaff",
+    "density": 1.33,
+    "toxicity": 3,
+    "description": "强碱溶液，具有腐蚀性，可与酸发生中和反应。",
+    "hazardLevel": "warning",
+    "boilingPoint": 135
+  },
+  {
+    "id": "cuso4",
+    "name": "硫酸铜溶液",
+    "formula": "CuSO₄",
+    "color": "#3399ff",
+    "glowColor": "#44bbff",
+    "density": 1.20,
+    "toxicity": 2,
+    "description": "蓝色的铜盐溶液，常用于检测还原糖（斐林试剂）。",
+    "hazardLevel": "caution",
+    "boilingPoint": 102
+  },
+  {
+    "id": "agno3",
+    "name": "硝酸银溶液",
+    "formula": "AgNO₃",
+    "color": "#ffffff",
+    "glowColor": "#ddddff",
+    "density": 1.50,
+    "toxicity": 3,
+    "description": "无色透明溶液，遇氯离子产生白色氯化银沉淀，用于检验Cl⁻。",
+    "hazardLevel": "warning"
+  },
+  {
+    "id": "nacl",
+    "name": "氯化钠溶液",
+    "formula": "NaCl",
+    "color": "#f8f8f8",
+    "glowColor": "#eeeeee",
+    "density": 1.08,
+    "toxicity": 0,
+    "description": "食盐的水溶液，中性盐溶液。",
+    "hazardLevel": "safe"
+  },
+  {
+    "id": "phenolphthalein",
+    "name": "酚酞指示剂",
+    "formula": "C₂₀H₁₄O₄",
+    "color": "#ffffff",
+    "glowColor": "#ffeeee",
+    "density": 0.95,
+    "toxicity": 1,
+    "description": "酸碱指示剂：酸性/中性无色，碱性（pH>8.2）变红色。",
+    "hazardLevel": "caution"
+  },
+  {
+    "id": "nahco3",
+    "name": "碳酸氢钠溶液",
+    "formula": "NaHCO₃",
+    "color": "#fffaf0",
+    "glowColor": "#fff8d0",
+    "density": 1.10,
+    "toxicity": 0,
+    "description": "小苏打水溶液，弱碱性，遇酸产生CO₂气泡。",
+    "hazardLevel": "safe"
+  },
+  {
+    "id": "fe3plus",
+    "name": "三氯化铁溶液",
+    "formula": "FeCl₃",
+    "color": "#ff8800",
+    "glowColor": "#ffaa33",
+    "density": 1.35,
+    "toxicity": 2,
+    "description": "橙黄色的Fe³⁺溶液，遇KSCN变血红色。",
+    "hazardLevel": "caution"
+  },
+  {
+    "id": "kscn",
+    "name": "硫氰酸钾溶液",
+    "formula": "KSCN",
+    "color": "#f0f0f0",
+    "glowColor": "#dddddd",
+    "density": 1.05,
+    "toxicity": 2,
+    "description": "无色溶液，用于检验Fe³⁺离子，生成血红色配合物。",
+    "hazardLevel": "warning"
+  },
+  {
+    "id": "kmno4",
+    "name": "高锰酸钾溶液",
+    "formula": "KMnO₄",
+    "color": "#990066",
+    "glowColor": "#cc00aa",
+    "density": 1.05,
+    "toxicity": 2,
+    "description": "深紫色强氧化剂溶液，反应后颜色褪去或变棕色。",
+    "hazardLevel": "warning"
+  },
+  {
+    "id": "h2o2",
+    "name": "过氧化氢溶液",
+    "formula": "H₂O₂",
+    "color": "#eeffff",
+    "glowColor": "#aaffff",
+    "density": 1.11,
+    "toxicity": 1,
+    "description": "双氧水，分解产生氧气和水，可作为氧化剂。",
+    "hazardLevel": "caution",
+    "boilingPoint": 150
+  }
+]

@@ -1,0 +1,508 @@
+[
+  {
+    "id": "lv01_salt_dissolve",
+    "name": "初识实验台：溶液配置",
+    "description": "学习使用烧杯、配置简单的氯化钠溶液。",
+    "difficulty": 1,
+    "objective": "在烧杯中配置氯化钠溶液并观察溶解现象",
+    "timeLimit": 300,
+    "maxScore": 1000,
+    "starThresholds": [600, 800, 950],
+    "availableReagents": ["water", "nacl", "phenolphthalein"],
+    "availableEquipment": ["beaker_250", "beaker_100", "stirrer_magnetic"],
+    "initialEquipmentPlacement": [
+      { "equipmentId": "beaker_250", "x": 400, "y": 380 },
+      { "equipmentId": "stirrer_magnetic", "x": 400, "y": 480 }
+    ],
+    "steps": [
+      {
+        "id": "s1",
+        "type": "pour",
+        "title": "加入蒸馏水",
+        "description": "向250mL烧杯中加入80~120mL蒸馏水",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "water",
+        "targetVolume": 100,
+        "tolerance": 20,
+        "maxScore": 200,
+        "penaltyForError": 30,
+        "hints": ["点击或拖拽试剂瓶到烧杯上方", "注意观察体积刻度"],
+        "triggersKnowledge": "kc_solvent"
+      },
+      {
+        "id": "s2",
+        "type": "pour",
+        "title": "加入氯化钠",
+        "description": "向同一烧杯中加入20~40mL氯化钠溶液",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "nacl",
+        "targetVolume": 30,
+        "tolerance": 10,
+        "maxScore": 250,
+        "penaltyForError": 40,
+        "triggersKnowledge": "kc_solute"
+      },
+      {
+        "id": "s3",
+        "type": "stir",
+        "title": "搅拌溶解",
+        "description": "开启磁力搅拌器，搅拌3秒以上使溶液均匀",
+        "targetEquipment": "beaker_250",
+        "duration": 3,
+        "maxScore": 300,
+        "penaltyForError": 30,
+        "hints": ["选中烧杯后点击搅拌按钮", "或按S键"],
+        "triggersKnowledge": "kc_stirring"
+      },
+      {
+        "id": "s4",
+        "type": "observe",
+        "title": "观察结果",
+        "description": "观察溶液状态，完成实验",
+        "duration": 2,
+        "maxScore": 250,
+        "penaltyForError": 0
+      }
+    ],
+    "reactions": [],
+    "knowledgeCards": [
+      {
+        "id": "kc_solvent",
+        "title": "什么是溶剂？",
+        "content": "溶剂是能够溶解其他物质的液体。水是最常用的溶剂，被称为\"万能溶剂\"。实验中使用蒸馏水可以避免杂质干扰。",
+        "category": "concept",
+        "icon": "FlaskConical"
+      },
+      {
+        "id": "kc_solute",
+        "title": "溶质与溶液",
+        "content": "被溶解的物质叫溶质，溶质+溶剂=溶液。氯化钠（NaCl）是食盐的主要成分，易溶于水形成无色透明的盐水溶液。",
+        "category": "concept",
+        "icon": "Beaker"
+      },
+      {
+        "id": "kc_stirring",
+        "title": "为什么要搅拌？",
+        "content": "搅拌可以加速溶质分子扩散，使溶解更快更均匀。但注意搅拌速度不宜过快，避免溶液溅出造成误差或危险。",
+        "category": "concept",
+        "icon": "CircleDot"
+      }
+    ],
+    "safetyNotes": [
+      "本实验所有试剂均为安全等级",
+      "试剂取用要注意不要超过容器容量的2/3",
+      "搅拌时防止溶液溅出"
+    ]
+  },
+  {
+    "id": "lv02_neutralization",
+    "name": "酸碱中和：寻找变色终点",
+    "description": "用酚酞作指示剂进行盐酸滴定氢氧化钠，观察颜色变化。",
+    "difficulty": 2,
+    "objective": "利用酚酞指示剂观察酸碱中和反应的颜色变化",
+    "timeLimit": 420,
+    "maxScore": 1200,
+    "starThresholds": [720, 960, 1100],
+    "availableReagents": ["naoh", "hcl", "phenolphthalein", "water"],
+    "availableEquipment": ["beaker_100", "flask_erlenmeyer_250", "burette_50", "stirrer_magnetic"],
+    "initialEquipmentPlacement": [
+      { "equipmentId": "flask_erlenmeyer_250", "x": 380, "y": 360 },
+      { "equipmentId": "burette_50", "x": 380, "y": 140 },
+      { "equipmentId": "stirrer_magnetic", "x": 380, "y": 490 }
+    ],
+    "prerequisiteLevels": ["lv01_salt_dissolve"],
+    "steps": [
+      {
+        "id": "s1",
+        "type": "pour",
+        "title": "加入NaOH溶液",
+        "description": "向锥形瓶中加入40~60mL氢氧化钠溶液",
+        "targetEquipment": "flask_erlenmeyer_250",
+        "targetReagent": "naoh",
+        "targetVolume": 50,
+        "tolerance": 10,
+        "maxScore": 200,
+        "penaltyForError": 30,
+        "triggersKnowledge": "kc_strong_base"
+      },
+      {
+        "id": "s2",
+        "type": "pour",
+        "title": "滴加酚酞",
+        "description": "滴加2~5滴酚酞指示剂",
+        "targetEquipment": "flask_erlenmeyer_250",
+        "targetReagent": "phenolphthalein",
+        "targetVolume": 3,
+        "tolerance": 3,
+        "maxScore": 200,
+        "penaltyForError": 25,
+        "triggersKnowledge": "kc_indicator"
+      },
+      {
+        "id": "s3",
+        "type": "stir",
+        "title": "摇匀",
+        "description": "开启搅拌2秒使溶液混合均匀，观察颜色",
+        "targetEquipment": "flask_erlenmeyer_250",
+        "duration": 2,
+        "maxScore": 150,
+        "penaltyForError": 20
+      },
+      {
+        "id": "s4",
+        "type": "pour",
+        "title": "缓慢滴加盐酸",
+        "description": "使用滴定管缓慢加入30~70mL盐酸，观察颜色变化",
+        "targetEquipment": "flask_erlenmeyer_250",
+        "targetReagent": "hcl",
+        "targetVolume": 50,
+        "tolerance": 20,
+        "maxScore": 400,
+        "penaltyForError": 40,
+        "hints": ["少量多次加入", "颜色褪去即到达终点"],
+        "triggersKnowledge": "kc_neutralization"
+      },
+      {
+        "id": "s5",
+        "type": "observe",
+        "title": "观察与记录",
+        "description": "观察颜色由红色变为无色，记录现象",
+        "duration": 2,
+        "maxScore": 250,
+        "penaltyForError": 0
+      }
+    ],
+    "reactions": ["neutralization_hcl_naoh", "indicator_pink"],
+    "knowledgeCards": [
+      {
+        "id": "kc_strong_base",
+        "title": "强碱：氢氧化钠",
+        "content": "NaOH是强碱，pH>7。具有腐蚀性，使用时需戴手套和护目镜。若不慎接触皮肤，应用大量清水冲洗。",
+        "category": "safety",
+        "icon": "ShieldAlert"
+      },
+      {
+        "id": "kc_indicator",
+        "title": "酸碱指示剂",
+        "content": "酚酞是常用指示剂：pH<8.2无色，8.2-10粉红色，>10红色。利用颜色突变可判断滴定终点。",
+        "category": "formula",
+        "icon": "Palette"
+      },
+      {
+        "id": "kc_neutralization",
+        "title": "中和反应原理",
+        "content": "酸+碱→盐+水。HCl+NaOH→NaCl+H₂O。中和反应为放热反应，可观察到溶液温度略有上升。",
+        "category": "concept",
+        "icon": "Atom"
+      }
+    ],
+    "safetyNotes": [
+      "氢氧化钠和盐酸有腐蚀性，避免直接接触皮肤",
+      "如不慎溅入眼睛，立即用大量清水冲洗并求助",
+      "滴定操作要缓慢，防止液体飞溅"
+    ]
+  },
+  {
+    "id": "lv03_precipitate",
+    "name": "沉淀反应：检验氯离子",
+    "description": "用硝酸银检验氯化钠中的氯离子，生成白色沉淀。",
+    "difficulty": 2,
+    "objective": "通过沉淀反应检验溶液中的Cl⁻离子",
+    "timeLimit": 360,
+    "maxScore": 1100,
+    "starThresholds": [660, 880, 1020],
+    "availableReagents": ["nacl", "agno3", "hcl", "water"],
+    "availableEquipment": ["beaker_100", "beaker_250", "thermometer"],
+    "initialEquipmentPlacement": [
+      { "equipmentId": "beaker_100", "x": 300, "y": 380 },
+      { "equipmentId": "beaker_250", "x": 500, "y": 380 },
+      { "equipmentId": "thermometer", "x": 700, "y": 250 }
+    ],
+    "prerequisiteLevels": ["lv01_salt_dissolve"],
+    "steps": [
+      {
+        "id": "s1",
+        "type": "pour",
+        "title": "配置NaCl溶液",
+        "description": "在100mL烧杯中加入20~40mL氯化钠溶液",
+        "targetEquipment": "beaker_100",
+        "targetReagent": "nacl",
+        "targetVolume": 30,
+        "tolerance": 10,
+        "maxScore": 200,
+        "penaltyForError": 30
+      },
+      {
+        "id": "s2",
+        "type": "pour",
+        "title": "加入硝酸银",
+        "description": "向氯化钠溶液中加入10~25mL硝酸银溶液",
+        "targetEquipment": "beaker_100",
+        "targetReagent": "agno3",
+        "targetVolume": 18,
+        "tolerance": 8,
+        "maxScore": 350,
+        "penaltyForError": 40,
+        "triggersKnowledge": "kc_precipitate"
+      },
+      {
+        "id": "s3",
+        "type": "observe",
+        "title": "观察白色沉淀",
+        "description": "观察生成的白色AgCl沉淀",
+        "duration": 3,
+        "maxScore": 300,
+        "penaltyForError": 0,
+        "triggersKnowledge": "kc_agcl"
+      },
+      {
+        "id": "s4",
+        "type": "pour",
+        "title": "对照实验",
+        "description": "向250mL烧杯加入30~50mL蒸馏水，再加硝酸银作对照",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "water",
+        "targetVolume": 40,
+        "tolerance": 10,
+        "maxScore": 250,
+        "penaltyForError": 20
+      }
+    ],
+    "reactions": ["precipitate_agcl"],
+    "knowledgeCards": [
+      {
+        "id": "kc_precipitate",
+        "title": "什么是沉淀反应？",
+        "content": "两种溶液混合后，离子结合生成不溶于水的物质（沉淀），从溶液中析出。这是离子检验的重要方法。",
+        "category": "concept",
+        "icon": "Sparkles"
+      },
+      {
+        "id": "kc_agcl",
+        "title": "氯化银沉淀",
+        "content": "AgCl是白色难溶物，反应方程式：AgNO₃ + NaCl → AgCl↓ + NaNO₃。此反应可用于检验Cl⁻离子的存在。AgCl见光会逐渐分解变黑。",
+        "category": "formula",
+        "icon": "FileText"
+      }
+    ],
+    "safetyNotes": [
+      "硝酸银有腐蚀性且会使皮肤变黑",
+      "使用时戴手套，滴加时避免洒出",
+      "实验后废液请妥善处理"
+    ]
+  },
+  {
+    "id": "lv04_heat_crystallization",
+    "name": "温度控制：加热浓缩",
+    "description": "使用酒精灯加热溶液，观察温度变化和浓缩效果。",
+    "difficulty": 3,
+    "objective": "掌握加热操作，控制温度在指定范围",
+    "timeLimit": 480,
+    "maxScore": 1300,
+    "starThresholds": [780, 1040, 1200],
+    "availableReagents": ["cuso4", "water"],
+    "availableEquipment": ["beaker_250", "burner", "thermometer", "stirrer_magnetic"],
+    "initialEquipmentPlacement": [
+      { "equipmentId": "beaker_250", "x": 400, "y": 380 },
+      { "equipmentId": "burner", "x": 400, "y": 520 },
+      { "equipmentId": "thermometer", "x": 560, "y": 230 },
+      { "equipmentId": "stirrer_magnetic", "x": 400, "y": 490 }
+    ],
+    "prerequisiteLevels": ["lv01_salt_dissolve", "lv02_neutralization"],
+    "steps": [
+      {
+        "id": "s1",
+        "type": "pour",
+        "title": "配置硫酸铜溶液",
+        "description": "向烧杯中加入60~100mL蒸馏水",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "water",
+        "targetVolume": 80,
+        "tolerance": 20,
+        "maxScore": 150,
+        "penaltyForError": 20
+      },
+      {
+        "id": "s2",
+        "type": "pour",
+        "title": "加入硫酸铜",
+        "description": "加入30~50mL蓝色硫酸铜溶液",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "cuso4",
+        "targetVolume": 40,
+        "tolerance": 10,
+        "maxScore": 200,
+        "penaltyForError": 25,
+        "triggersKnowledge": "kc_cuso4"
+      },
+      {
+        "id": "s3",
+        "type": "heat",
+        "title": "升温至50-60°C",
+        "description": "点燃酒精灯，缓慢加热至50°C~60°C，注意不要超过70°C",
+        "targetEquipment": "beaker_250",
+        "targetTemperature": 55,
+        "tolerance": 10,
+        "maxScore": 350,
+        "penaltyForError": 40,
+        "hints": ["按↑键或点击加热按钮升温", "按↓键停止加热或降温", "密切关注温度计读数"],
+        "triggersKnowledge": "kc_heating_safety"
+      },
+      {
+        "id": "s4",
+        "type": "stir",
+        "title": "边加热边搅拌",
+        "description": "保持温度50°C以上，持续搅拌4秒",
+        "targetEquipment": "beaker_250",
+        "duration": 4,
+        "maxScore": 300,
+        "penaltyForError": 30
+      },
+      {
+        "id": "s5",
+        "type": "cool",
+        "title": "冷却至室温",
+        "description": "停止加热，让溶液冷却至30°C以下",
+        "targetEquipment": "beaker_250",
+        "targetTemperature": 28,
+        "tolerance": 5,
+        "maxScore": 300,
+        "penaltyForError": 20
+      }
+    ],
+    "reactions": [],
+    "knowledgeCards": [
+      {
+        "id": "kc_cuso4",
+        "title": "硫酸铜五水合物",
+        "content": "CuSO₄·5H₂O俗称蓝矾、胆矾。蓝色晶体，受热失去结晶水变为白色无水CuSO₄，加水又恢复蓝色。利用此性质可检验水的存在。",
+        "category": "concept",
+        "icon": "Droplets"
+      },
+      {
+        "id": "kc_heating_safety",
+        "title": "加热安全操作",
+        "content": "1. 预热：均匀受热后再定点加热；2. 不要超过容器容量2/3防止暴沸溢出；3. 过热时立即撤去热源；4. 加热后容器很烫，使用坩埚钳拿取。",
+        "category": "safety",
+        "icon": "Flame"
+      }
+    ],
+    "safetyNotes": [
+      "酒精灯使用注意防火",
+      "加热时保持安全距离",
+      "过热液体不要立即触摸容器",
+      "温度超过80°C将触发安全警告"
+    ]
+  },
+  {
+    "id": "lv05_ion_detection",
+    "name": "综合实验：离子检验",
+    "description": "使用KSCN检验Fe³⁺，组合多个化学操作。",
+    "difficulty": 4,
+    "objective": "综合运用所学知识完成Fe³⁺离子检验",
+    "timeLimit": 540,
+    "maxScore": 1500,
+    "starThresholds": [900, 1200, 1400],
+    "availableReagents": ["fe3plus", "kscn", "hcl", "water", "nacl", "agno3"],
+    "availableEquipment": ["beaker_100", "beaker_250", "flask_erlenmeyer_250", "burner", "stirrer_magnetic"],
+    "initialEquipmentPlacement": [
+      { "equipmentId": "beaker_100", "x": 280, "y": 380 },
+      { "equipmentId": "beaker_250", "x": 500, "y": 380 },
+      { "equipmentId": "stirrer_magnetic", "x": 500, "y": 490 }
+    ],
+    "prerequisiteLevels": ["lv02_neutralization", "lv03_precipitate"],
+    "steps": [
+      {
+        "id": "s1",
+        "type": "pour",
+        "title": "分装Fe³⁺溶液",
+        "description": "向100mL烧杯中加入20~40mL三氯化铁溶液",
+        "targetEquipment": "beaker_100",
+        "targetReagent": "fe3plus",
+        "targetVolume": 30,
+        "tolerance": 10,
+        "maxScore": 200,
+        "penaltyForError": 30
+      },
+      {
+        "id": "s2",
+        "type": "pour",
+        "title": "滴加KSCN指示剂",
+        "description": "加入3~8mL硫氰酸钾溶液",
+        "targetEquipment": "beaker_100",
+        "targetReagent": "kscn",
+        "targetVolume": 5,
+        "tolerance": 3,
+        "maxScore": 350,
+        "penaltyForError": 40,
+        "triggersKnowledge": "kc_fe3_detect"
+      },
+      {
+        "id": "s3",
+        "type": "observe",
+        "title": "观察血红色",
+        "description": "观察溶液变为血红色，记录现象",
+        "duration": 2,
+        "maxScore": 250,
+        "penaltyForError": 0
+      },
+      {
+        "id": "s4",
+        "type": "pour",
+        "title": "验证实验：先加盐酸",
+        "description": "向250mL烧杯中加入15~30mL盐酸（排除CO₃²⁻干扰）",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "hcl",
+        "targetVolume": 20,
+        "tolerance": 8,
+        "maxScore": 200,
+        "penaltyForError": 20,
+        "triggersKnowledge": "kc_acidify"
+      },
+      {
+        "id": "s5",
+        "type": "pour",
+        "title": "加NaCl和AgNO₃",
+        "description": "先加20~30mL NaCl，再加10~20mL AgNO₃验证Cl⁻",
+        "targetEquipment": "beaker_250",
+        "targetReagent": "nacl",
+        "targetVolume": 25,
+        "tolerance": 8,
+        "maxScore": 250,
+        "penaltyForError": 25
+      },
+      {
+        "id": "s6",
+        "type": "stir",
+        "title": "搅拌观察",
+        "description": "搅拌2秒观察白色沉淀生成",
+        "targetEquipment": "beaker_250",
+        "duration": 2,
+        "maxScore": 250,
+        "penaltyForError": 20
+      }
+    ],
+    "reactions": ["color_fe_scn", "precipitate_agcl"],
+    "knowledgeCards": [
+      {
+        "id": "kc_fe3_detect",
+        "title": "Fe³⁺的检验",
+        "content": "Fe³⁺ + nSCN⁻ → [Fe(SCN)ₙ]⁽³⁻ⁿ⁾⁺。随着SCN⁻浓度增加，配合物由浅红变血红。此反应灵敏度极高，可检出微量Fe³⁺。",
+        "category": "formula",
+        "icon": "SearchCheck"
+      },
+      {
+        "id": "kc_acidify",
+        "title": "为什么要加酸酸化？",
+        "content": "检验Cl⁻前加稀HNO₃或HCl酸化，是为了排除CO₃²⁻、SO₃²⁻等阴离子的干扰——它们也会与Ag⁺生成白色沉淀，但可溶于酸。",
+        "category": "concept",
+        "icon": "Lightbulb"
+      }
+    ],
+    "safetyNotes": [
+      "本实验涉及多种试剂，请看清标签再取用",
+      "KSCN有一定毒性，避免入口和接触伤口",
+      "实验完成后请分类处理废液"
+    ]
+  }
+]
