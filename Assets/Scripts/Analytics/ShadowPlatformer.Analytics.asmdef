@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.Analytics",
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Level", "ShadowPlatformer.Light"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

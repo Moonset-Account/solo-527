@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.Mechanics",
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Light", "ShadowPlatformer.Player"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.UI",
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Level", "ShadowPlatformer.Save", "ShadowPlatformer.Light", "ShadowPlatformer.Audio"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

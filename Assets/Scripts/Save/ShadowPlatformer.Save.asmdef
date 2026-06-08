@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.Save",
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Audio"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

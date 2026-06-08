@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.Level",
+    "references": ["ShadowPlatformer.Core", "ShadowPlatformer.Light", "ShadowPlatformer.Mechanics", "ShadowPlatformer.Save"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

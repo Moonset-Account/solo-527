@@ -1,0 +1,14 @@
+{
+    "levelId": "lvl_02",
+    "levelName": "机关交织",
+    "sceneName": "Level_02",
+    "order": 5,
+    "tutorialText": "踏板 + 光影平台 + 陷阱，综合运用你学到的一切！",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["CombinedMechanics"],
+    "difficultyRating": 4.0,
+    "prerequisiteLevelIds": ["lvl_01"]
+}

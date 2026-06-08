@@ -1,0 +1,14 @@
+{
+    "levelId": "lvl_03",
+    "levelName": "终极试炼",
+    "sceneName": "Level_03",
+    "order": 6,
+    "tutorialText": "所有机关的终极组合，祝你好运！",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["TimedSwitch", "MultiSensor"],
+    "difficultyRating": 5.0,
+    "prerequisiteLevelIds": ["lvl_02"]
+}

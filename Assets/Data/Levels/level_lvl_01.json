@@ -1,0 +1,14 @@
+{
+    "levelId": "lvl_01",
+    "levelName": "交错的影子",
+    "sceneName": "Level_01",
+    "order": 4,
+    "tutorialText": "多段影子平台需要你在不同光源间切换，把握时机！",
+    "isCompleted": false,
+    "bestTime": 0,
+    "deathCount": 0,
+    "startLightDirection": 0,
+    "introducedMechanics": ["MultiShadowSwitch"],
+    "difficultyRating": 3.0,
+    "prerequisiteLevelIds": ["tut_03"]
+}

@@ -1,0 +1,13 @@
+{
+    "name": "ShadowPlatformer.Editor",
+    "references": ["ShadowPlatformer.Level", "ShadowPlatformer.Light", "ShadowPlatformer.Mechanics"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
