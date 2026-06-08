@@ -1,0 +1,198 @@
+{
+	"id": "level_01",
+	"name": "Library After Hours",
+	"segments": [
+		{
+			"id": "seg_01",
+			"player_start": { "x": 80, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_01_01",
+					"position": { "x": 400, "y": 300 },
+					"correct_label": "Fiction A-D",
+					"current_label": "Fiction E-H",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_01_02",
+					"position": { "x": 800, "y": 500 },
+					"correct_label": "History",
+					"current_label": "Science",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_01_01",
+					"patrol_points": [
+						{ "x": 500, "y": 400 },
+						{ "x": 700, "y": 400 },
+						{ "x": 500, "y": 400 }
+					],
+					"speed": 60.0,
+					"vision_range": 200.0,
+					"vision_angle": 45.0,
+					"vision_color": "#ff4444"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_01_01", "position": { "x": 1200, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 300, "y": 200 }, "size": { "w": 20, "h": 200 } },
+				{ "position": { "x": 600, "y": 350 }, "size": { "w": 150, "h": 20 } },
+				{ "position": { "x": 900, "y": 400 }, "size": { "w": 20, "h": 250 } }
+			]
+		},
+		{
+			"id": "seg_02",
+			"player_start": { "x": 1280, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_02_01",
+					"position": { "x": 1500, "y": 250 },
+					"correct_label": "Philosophy",
+					"current_label": "Art",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_02_02",
+					"position": { "x": 1800, "y": 450 },
+					"correct_label": "Music",
+					"current_label": "Philosophy",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_02_03",
+					"position": { "x": 2100, "y": 300 },
+					"correct_label": "Science A-M",
+					"current_label": "History",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_02_01",
+					"patrol_points": [
+						{ "x": 1450, "y": 350 },
+						{ "x": 1700, "y": 350 },
+						{ "x": 1450, "y": 550 },
+						{ "x": 1450, "y": 350 }
+					],
+					"speed": 80.0,
+					"vision_range": 220.0,
+					"vision_angle": 50.0,
+					"vision_color": "#ff6644"
+				},
+				{
+					"id": "guard_02_02",
+					"patrol_points": [
+						{ "x": 2000, "y": 400 },
+						{ "x": 2300, "y": 400 },
+						{ "x": 2300, "y": 200 },
+						{ "x": 2000, "y": 400 }
+					],
+					"speed": 75.0,
+					"vision_range": 200.0,
+					"vision_angle": 45.0,
+					"vision_color": "#ff6644"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_02_01", "position": { "x": 2400, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 1400, "y": 150 }, "size": { "w": 20, "h": 180 } },
+				{ "position": { "x": 1650, "y": 350 }, "size": { "w": 120, "h": 20 } },
+				{ "position": { "x": 1900, "y": 200 }, "size": { "w": 20, "h": 250 } },
+				{ "position": { "x": 2200, "y": 450 }, "size": { "w": 100, "h": 20 } }
+			]
+		},
+		{
+			"id": "seg_03",
+			"player_start": { "x": 2560, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_03_01",
+					"position": { "x": 2750, "y": 200 },
+					"correct_label": "Geography",
+					"current_label": "Fiction A-D",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_02",
+					"position": { "x": 2950, "y": 400 },
+					"correct_label": "Poetry",
+					"current_label": "Music",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_03",
+					"position": { "x": 3200, "y": 250 },
+					"correct_label": "Biography",
+					"current_label": "Science A-M",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_04",
+					"position": { "x": 3500, "y": 500 },
+					"correct_label": "Science N-Z",
+					"current_label": "Geography",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_03_01",
+					"patrol_points": [
+						{ "x": 2700, "y": 300 },
+						{ "x": 2900, "y": 300 },
+						{ "x": 2700, "y": 500 },
+						{ "x": 2700, "y": 300 }
+					],
+					"speed": 90.0,
+					"vision_range": 240.0,
+					"vision_angle": 55.0,
+					"vision_color": "#ff2222"
+				},
+				{
+					"id": "guard_03_02",
+					"patrol_points": [
+						{ "x": 3000, "y": 450 },
+						{ "x": 3300, "y": 450 },
+						{ "x": 3300, "y": 250 },
+						{ "x": 3000, "y": 450 }
+					],
+					"speed": 95.0,
+					"vision_range": 230.0,
+					"vision_angle": 50.0,
+					"vision_color": "#ff2222"
+				},
+				{
+					"id": "guard_03_03",
+					"patrol_points": [
+						{ "x": 3400, "y": 300 },
+						{ "x": 3600, "y": 300 },
+						{ "x": 3600, "y": 550 },
+						{ "x": 3400, "y": 550 },
+						{ "x": 3400, "y": 300 }
+					],
+					"speed": 85.0,
+					"vision_range": 250.0,
+					"vision_angle": 60.0,
+					"vision_color": "#ff2222"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_03_01", "position": { "x": 3700, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 2650, "y": 150 }, "size": { "w": 20, "h": 200 } },
+				{ "position": { "x": 2850, "y": 350 }, "size": { "w": 100, "h": 20 } },
+				{ "position": { "x": 3100, "y": 200 }, "size": { "w": 20, "h": 180 } },
+				{ "position": { "x": 3350, "y": 400 }, "size": { "w": 80, "h": 20 } },
+				{ "position": { "x": 3550, "y": 250 }, "size": { "w": 20, "h": 300 } }
+			]
+		}
+	]
+}

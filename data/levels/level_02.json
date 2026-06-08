@@ -1,0 +1,368 @@
+{
+	"id": "level_02",
+	"name": "Museum Midnight",
+	"segments": [
+		{
+			"id": "seg_01",
+			"player_start": { "x": 80, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_01_01",
+					"position": { "x": 350, "y": 300 },
+					"correct_label": "Renaissance",
+					"current_label": "Modern",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_01_02",
+					"position": { "x": 700, "y": 450 },
+					"correct_label": "Sculpture",
+					"current_label": "Photography",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_01_03",
+					"position": { "x": 1000, "y": 250 },
+					"correct_label": "Ceramics",
+					"current_label": "Renaissance",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_01_01",
+					"patrol_points": [
+						{ "x": 400, "y": 400 },
+						{ "x": 800, "y": 400 },
+						{ "x": 400, "y": 400 }
+					],
+					"speed": 75.0,
+					"vision_range": 210.0,
+					"vision_angle": 50.0,
+					"vision_color": "#ff5533"
+				},
+				{
+					"id": "guard_01_02",
+					"patrol_points": [
+						{ "x": 600, "y": 200 },
+						{ "x": 600, "y": 550 },
+						{ "x": 900, "y": 550 },
+						{ "x": 900, "y": 200 },
+						{ "x": 600, "y": 200 }
+					],
+					"speed": 70.0,
+					"vision_range": 200.0,
+					"vision_angle": 45.0,
+					"vision_color": "#ff5533"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_01_01", "position": { "x": 1200, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 250, "y": 180 }, "size": { "w": 20, "h": 220 } },
+				{ "position": { "x": 500, "y": 350 }, "size": { "w": 130, "h": 20 } },
+				{ "position": { "x": 850, "y": 300 }, "size": { "w": 20, "h": 200 } },
+				{ "position": { "x": 1050, "y": 450 }, "size": { "w": 100, "h": 20 } }
+			]
+		},
+		{
+			"id": "seg_02",
+			"player_start": { "x": 1280, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_02_01",
+					"position": { "x": 1480, "y": 200 },
+					"correct_label": "Egyptian",
+					"current_label": "Greek",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_02_02",
+					"position": { "x": 1750, "y": 400 },
+					"correct_label": "Roman",
+					"current_label": "Egyptian",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_02_03",
+					"position": { "x": 2050, "y": 300 },
+					"correct_label": "Medieval",
+					"current_label": "Ceramics",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_02_04",
+					"position": { "x": 2300, "y": 500 },
+					"correct_label": "Viking",
+					"current_label": "Modern",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_02_01",
+					"patrol_points": [
+						{ "x": 1400, "y": 300 },
+						{ "x": 1700, "y": 300 },
+						{ "x": 1700, "y": 500 },
+						{ "x": 1400, "y": 300 }
+					],
+					"speed": 90.0,
+					"vision_range": 230.0,
+					"vision_angle": 55.0,
+					"vision_color": "#ff4422"
+				},
+				{
+					"id": "guard_02_02",
+					"patrol_points": [
+						{ "x": 1900, "y": 450 },
+						{ "x": 2200, "y": 450 },
+						{ "x": 2200, "y": 250 },
+						{ "x": 1900, "y": 250 },
+						{ "x": 1900, "y": 450 }
+					],
+					"speed": 85.0,
+					"vision_range": 220.0,
+					"vision_angle": 50.0,
+					"vision_color": "#ff4422"
+				},
+				{
+					"id": "guard_02_03",
+					"patrol_points": [
+						{ "x": 2300, "y": 350 },
+						{ "x": 2450, "y": 350 },
+						{ "x": 2450, "y": 550 },
+						{ "x": 2300, "y": 350 }
+					],
+					"speed": 80.0,
+					"vision_range": 210.0,
+					"vision_angle": 45.0,
+					"vision_color": "#ff4422"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_02_01", "position": { "x": 2400, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 1350, "y": 150 }, "size": { "w": 20, "h": 180 } },
+				{ "position": { "x": 1600, "y": 350 }, "size": { "w": 120, "h": 20 } },
+				{ "position": { "x": 1850, "y": 200 }, "size": { "w": 20, "h": 280 } },
+				{ "position": { "x": 2100, "y": 400 }, "size": { "w": 100, "h": 20 } },
+				{ "position": { "x": 2350, "y": 250 }, "size": { "w": 20, "h": 200 } }
+			]
+		},
+		{
+			"id": "seg_03",
+			"player_start": { "x": 2560, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_03_01",
+					"position": { "x": 2750, "y": 200 },
+					"correct_label": "Impressionism",
+					"current_label": "Sculpture",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_02",
+					"position": { "x": 3000, "y": 400 },
+					"correct_label": "Abstract",
+					"current_label": "Viking",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_03",
+					"position": { "x": 3250, "y": 250 },
+					"correct_label": "Surrealism",
+					"current_label": "Roman",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_04",
+					"position": { "x": 3500, "y": 500 },
+					"correct_label": "Pop Art",
+					"current_label": "Impressionism",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_03_05",
+					"position": { "x": 3700, "y": 300 },
+					"correct_label": "Cubism",
+					"current_label": "Abstract",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_03_01",
+					"patrol_points": [
+						{ "x": 2700, "y": 300 },
+						{ "x": 2900, "y": 300 },
+						{ "x": 2900, "y": 550 },
+						{ "x": 2700, "y": 300 }
+					],
+					"speed": 100.0,
+					"vision_range": 250.0,
+					"vision_angle": 55.0,
+					"vision_color": "#ff2211"
+				},
+				{
+					"id": "guard_03_02",
+					"patrol_points": [
+						{ "x": 3100, "y": 350 },
+						{ "x": 3400, "y": 350 },
+						{ "x": 3400, "y": 200 },
+						{ "x": 3100, "y": 200 },
+						{ "x": 3100, "y": 350 }
+					],
+					"speed": 95.0,
+					"vision_range": 240.0,
+					"vision_angle": 55.0,
+					"vision_color": "#ff2211"
+				},
+				{
+					"id": "guard_03_03",
+					"patrol_points": [
+						{ "x": 3500, "y": 400 },
+						{ "x": 3750, "y": 400 },
+						{ "x": 3750, "y": 250 },
+						{ "x": 3500, "y": 250 },
+						{ "x": 3500, "y": 400 }
+					],
+					"speed": 105.0,
+					"vision_range": 260.0,
+					"vision_angle": 60.0,
+					"vision_color": "#ff2211"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_03_01", "position": { "x": 3700, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 2650, "y": 150 }, "size": { "w": 20, "h": 200 } },
+				{ "position": { "x": 2850, "y": 350 }, "size": { "w": 100, "h": 20 } },
+				{ "position": { "x": 3050, "y": 200 }, "size": { "w": 20, "h": 180 } },
+				{ "position": { "x": 3300, "y": 450 }, "size": { "w": 120, "h": 20 } },
+				{ "position": { "x": 3550, "y": 300 }, "size": { "w": 20, "h": 250 } },
+				{ "position": { "x": 3800, "y": 400 }, "size": { "w": 80, "h": 20 } }
+			]
+		},
+		{
+			"id": "seg_04",
+			"player_start": { "x": 3840, "y": 560 },
+			"shelves": [
+				{
+					"id": "shelf_04_01",
+					"position": { "x": 4050, "y": 180 },
+					"correct_label": "Baroque",
+					"current_label": "Cubism",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_04_02",
+					"position": { "x": 4250, "y": 400 },
+					"correct_label": "Neoclassical",
+					"current_label": "Pop Art",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_04_03",
+					"position": { "x": 4500, "y": 250 },
+					"correct_label": "Romanticism",
+					"current_label": "Baroque",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_04_04",
+					"position": { "x": 4750, "y": 500 },
+					"correct_label": "Realism",
+					"current_label": "Surrealism",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_04_05",
+					"position": { "x": 4950, "y": 300 },
+					"correct_label": "Art Nouveau",
+					"current_label": "Realism",
+					"is_fixed": false
+				},
+				{
+					"id": "shelf_04_06",
+					"position": { "x": 5100, "y": 450 },
+					"correct_label": "Minimalism",
+					"current_label": "Neoclassical",
+					"is_fixed": false
+				}
+			],
+			"guards": [
+				{
+					"id": "guard_04_01",
+					"patrol_points": [
+						{ "x": 3950, "y": 350 },
+						{ "x": 4200, "y": 350 },
+						{ "x": 4200, "y": 200 },
+						{ "x": 3950, "y": 200 },
+						{ "x": 3950, "y": 350 }
+					],
+					"speed": 110.0,
+					"vision_range": 260.0,
+					"vision_angle": 60.0,
+					"vision_color": "#ee1100"
+				},
+				{
+					"id": "guard_04_02",
+					"patrol_points": [
+						{ "x": 4350, "y": 300 },
+						{ "x": 4600, "y": 300 },
+						{ "x": 4600, "y": 550 },
+						{ "x": 4350, "y": 550 },
+						{ "x": 4350, "y": 300 }
+					],
+					"speed": 115.0,
+					"vision_range": 270.0,
+					"vision_angle": 65.0,
+					"vision_color": "#ee1100"
+				},
+				{
+					"id": "guard_04_03",
+					"patrol_points": [
+						{ "x": 4700, "y": 400 },
+						{ "x": 4950, "y": 400 },
+						{ "x": 4950, "y": 200 },
+						{ "x": 4700, "y": 200 },
+						{ "x": 4700, "y": 400 }
+					],
+					"speed": 110.0,
+					"vision_range": 250.0,
+					"vision_angle": 60.0,
+					"vision_color": "#ee1100"
+				},
+				{
+					"id": "guard_04_04",
+					"patrol_points": [
+						{ "x": 5050, "y": 350 },
+						{ "x": 5200, "y": 350 },
+						{ "x": 5200, "y": 550 },
+						{ "x": 5050, "y": 350 }
+					],
+					"speed": 120.0,
+					"vision_range": 280.0,
+					"vision_angle": 70.0,
+					"vision_color": "#ee1100"
+				}
+			],
+			"checkpoints": [
+				{ "id": "cp_04_01", "position": { "x": 5000, "y": 560 } }
+			],
+			"walls": [
+				{ "position": { "x": 3900, "y": 150 }, "size": { "w": 20, "h": 200 } },
+				{ "position": { "x": 4100, "y": 300 }, "size": { "w": 80, "h": 20 } },
+				{ "position": { "x": 4300, "y": 200 }, "size": { "w": 20, "h": 250 } },
+				{ "position": { "x": 4550, "y": 400 }, "size": { "w": 110, "h": 20 } },
+				{ "position": { "x": 4800, "y": 250 }, "size": { "w": 20, "h": 180 } },
+				{ "position": { "x": 5000, "y": 350 }, "size": { "w": 100, "h": 20 } },
+				{ "position": { "x": 5150, "y": 200 }, "size": { "w": 20, "h": 300 } }
+			]
+		}
+	]
+}

@@ -1,0 +1,35 @@
+[gd_scene load_steps=6 format=3 uid="uid://c4f7y8n2k9pxw"]
+
+[ext_resource type="Script" path="res://scripts/core/game_controller.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="2_script"]
+[ext_resource type="Script" path="res://scripts/player/noise_component.gd" id="3_script"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="4_script"]
+[ext_resource type="Script" path="res://scripts/objects/scan_effect.gd" id="5_script"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(24, 24)
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="LevelContainer" type="Node2D" parent="."]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+script = ExtResource("2_script")
+
+[node name="NoiseComponent" type="Node2D" parent="Player"]
+script = ExtResource("3_script")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position_smoothing_enabled = true
+position_smoothing_speed = 5.0
+
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 10
+script = ExtResource("4_script")
+
+[node name="ScanEffect" type="Node2D" parent="."]
+script = ExtResource("5_script")
