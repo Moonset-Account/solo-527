@@ -126,13 +126,8 @@ export class PuzzleValidator {
   }
 
   validateReorder(lineIndex, orderedChars) {
-    const puzzle = this.levelConfig.puzzle
-    const allLines = [...(puzzle.lines || []), ...(puzzle.reorderLines || [])]
-    const reorderLines = puzzle.lines?.filter(l => l.shuffled) || []
-    const linesWithReorder = puzzle.lines ? puzzle.lines.filter(l => l.shuffled) : []
-    const extraReorder = puzzle.reorderLines || []
-    const targetLine = (linesWithReorder[lineIndex]) || extraReorder[lineIndex] || (reorderLines[lineIndex])
-    
+    const targetLine = this._findReorderLineByGlobalLineIdx(lineIndex)
+
     if (!targetLine) return { valid: false, reason: '诗句不存在' }
 
     const correctText = targetLine.text
@@ -230,5 +225,37 @@ export class PuzzleValidator {
     }
 
     return reasons
+  }
+
+  _getAllReorderInfos() {
+    const puzzle = this.levelConfig.puzzle
+    const infos = []
+    let reorderCounter = 0
+    puzzle.lines?.forEach((line, idx) => {
+      if (line.shuffled) {
+        infos.push({ lineIdx: idx, reorderIdx: reorderCounter, line })
+        reorderCounter++
+      }
+    })
+    puzzle.reorderLines?.forEach((line, idx) => {
+      infos.push({ lineIdx: (puzzle.lines?.length || 0) + idx, reorderIdx: reorderCounter, line })
+      reorderCounter++
+    })
+    return infos
+  }
+
+  _findReorderLineByGlobalLineIdx(globalLineIdx) {
+    const puzzle = this.levelConfig.puzzle
+    if (puzzle.lines && puzzle.lines[globalLineIdx] && puzzle.lines[globalLineIdx].shuffled) {
+      return puzzle.lines[globalLineIdx]
+    }
+    if (puzzle.reorderLines) {
+      const baseIdx = puzzle.lines?.length || 0
+      const localIdx = globalLineIdx - baseIdx
+      if (localIdx >= 0 && localIdx < puzzle.reorderLines.length) {
+        return puzzle.reorderLines[localIdx]
+      }
+    }
+    return null
   }
 }

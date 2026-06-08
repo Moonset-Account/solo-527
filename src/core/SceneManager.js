@@ -21,9 +21,12 @@ export class SceneManager {
     if (this.currentSceneName === name) return
 
     this.isTransitioning = true
+    this._phase = 'fadeIn'
     this.nextSceneName = name
     this.transitionAlpha = 0
-    this.services.audioManager.playSfx('scene_change')
+    if (this.services.audioManager) {
+      this.services.audioManager.playSfx('scene_change')
+    }
   }
 
   _doChangeScene() {
@@ -33,6 +36,7 @@ export class SceneManager {
 
     const SceneClass = this.scenes[this.nextSceneName]
     if (SceneClass) {
+      this.services.sceneManager = this
       this.currentScene = new SceneClass(this.ctx, this.canvas, this.services)
       this.currentSceneName = this.nextSceneName
       if (this.currentScene.onEnter) {
@@ -41,18 +45,25 @@ export class SceneManager {
     }
 
     this.nextSceneName = null
-    this.isTransitioning = false
+    this._phase = 'fadeOut'
   }
 
   update(deltaTime) {
     if (this.isTransitioning) {
-      if (this.nextSceneName && this.transitionAlpha < 1) {
-        this.transitionAlpha = Math.min(1, this.transitionAlpha + deltaTime * 2)
-        if (this.transitionAlpha >= 1) {
-          this._doChangeScene()
+      if (this._phase === 'fadeIn') {
+        if (this.transitionAlpha < 1) {
+          this.transitionAlpha = Math.min(1, this.transitionAlpha + deltaTime * 2.5)
+          if (this.transitionAlpha >= 1) {
+            this._doChangeScene()
+          }
         }
-      } else if (this.currentScene && this.transitionAlpha > 0) {
-        this.transitionAlpha = Math.max(0, this.transitionAlpha - deltaTime * 2)
+      } else if (this._phase === 'fadeOut') {
+        this.transitionAlpha = Math.max(0, this.transitionAlpha - deltaTime * 2.5)
+        if (this.transitionAlpha <= 0) {
+          this.transitionAlpha = 0
+          this.isTransitioning = false
+          this._phase = null
+        }
       }
     }
 
