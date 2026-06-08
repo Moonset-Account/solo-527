@@ -156,40 +156,22 @@ export class RoadNetwork {
     const r = this._range;
     const ints = this.levelData.intersections;
 
-    const northGate = this._findNearestIntersection(r.centerX, r.minZ, ints, 'n');
-    const southGate = this._findNearestIntersection(r.centerX, r.maxZ, ints, 's');
-    const eastGate = this._findNearestIntersection(r.maxX, r.centerZ, ints, 'e');
-    const westGate = this._findNearestIntersection(r.minX, r.centerZ, ints, 'w');
+    const gates = [
+      { spawnId: 'spawn_n',  fromDir: 's', toDir: 'n',  gate: this._findNearestIntersection(r.centerX, r.minZ, ints, 'n') },
+      { spawnId: 'spawn_s',  fromDir: 'n', toDir: 's',  gate: this._findNearestIntersection(r.centerX, r.maxZ, ints, 's') },
+      { spawnId: 'spawn_e',  fromDir: 'w', toDir: 'e',  gate: this._findNearestIntersection(r.maxX, r.centerZ, ints, 'e') },
+      { spawnId: 'spawn_w',  fromDir: 'e', toDir: 'w',  gate: this._findNearestIntersection(r.minX, r.centerZ, ints, 'w') },
+      { spawnId: 'spawn_ne', fromDir: 'sw', toDir: 'ne', gate: this._findNearestIntersection(r.maxX, r.minZ, ints, 'ne') },
+      { spawnId: 'spawn_sw', fromDir: 'ne', toDir: 'sw', gate: this._findNearestIntersection(r.minX, r.maxZ, ints, 'sw') },
+      { spawnId: 'spawn_nw', fromDir: 'se', toDir: 'nw', gate: this._findNearestIntersection(r.minX, r.minZ, ints, 'nw') },
+      { spawnId: 'spawn_se', fromDir: 'nw', toDir: 'se', gate: this._findNearestIntersection(r.maxX, r.maxZ, ints, 'se') }
+    ];
 
-    if (northGate) {
-      roads.push({ from: 'spawn_n', to: northGate.id, dir: 's', lanes: 2 });
-      roads.push({ from: northGate.id, to: 'spawn_n', dir: 'n', lanes: 2 });
-    }
-    if (southGate) {
-      roads.push({ from: 'spawn_s', to: southGate.id, dir: 'n', lanes: 2 });
-      roads.push({ from: southGate.id, to: 'spawn_s', dir: 's', lanes: 2 });
-    }
-    if (eastGate) {
-      roads.push({ from: 'spawn_e', to: eastGate.id, dir: 'w', lanes: 2 });
-      roads.push({ from: eastGate.id, to: 'spawn_e', dir: 'e', lanes: 2 });
-    }
-    if (westGate) {
-      roads.push({ from: 'spawn_w', to: westGate.id, dir: 'e', lanes: 2 });
-      roads.push({ from: westGate.id, to: 'spawn_w', dir: 'w', lanes: 2 });
-    }
-
-    if (ints.length >= 4) {
-      const neGate = this._findNearestIntersection(r.maxX, r.minZ, ints, 'ne');
-      const swGate = this._findNearestIntersection(r.minX, r.maxZ, ints, 'sw');
-      if (neGate) {
-        roads.push({ from: 'spawn_ne', to: neGate.id, dir: 'sw', lanes: 2 });
-        roads.push({ from: neGate.id, to: 'spawn_ne', dir: 'ne', lanes: 2 });
-      }
-      if (swGate) {
-        roads.push({ from: 'spawn_sw', to: swGate.id, dir: 'ne', lanes: 2 });
-        roads.push({ from: swGate.id, to: 'spawn_sw', dir: 'sw', lanes: 2 });
-      }
-    }
+    gates.forEach(({ spawnId, fromDir, toDir, gate }) => {
+      if (!gate) return;
+      roads.push({ from: spawnId, to: gate.id, dir: fromDir, lanes: 2 });
+      roads.push({ from: gate.id, to: spawnId, dir: toDir, lanes: 2 });
+    });
     return roads;
   }
 
@@ -200,35 +182,52 @@ export class RoadNetwork {
       const dx = tx - i.x;
       const dz = tz - i.z;
       let score = 0;
+      const absDx = Math.abs(dx);
+      const absDz = Math.abs(dz);
       switch (dir) {
         case 'n':
-          if (Math.abs(dx) > 30) return;
-          score = -Math.abs(dx) - dz * 0.5;
+          if (absDx > 45) return;
+          score = -absDx * 1.2 - dz * 0.6;
           break;
         case 's':
-          if (Math.abs(dx) > 30) return;
-          score = -Math.abs(dx) + dz * 0.5;
+          if (absDx > 45) return;
+          score = -absDx * 1.2 + dz * 0.6;
           break;
         case 'e':
-          if (Math.abs(dz) > 30) return;
-          score = -Math.abs(dz) + dx * 0.5;
+          if (absDz > 45) return;
+          score = -absDz * 1.2 + dx * 0.6;
           break;
         case 'w':
-          if (Math.abs(dz) > 30) return;
-          score = -Math.abs(dz) - dx * 0.5;
+          if (absDz > 45) return;
+          score = -absDz * 1.2 - dx * 0.6;
           break;
         case 'ne':
-          score = -Math.abs(dx) - Math.abs(dz);
+          score = -(absDx + absDz) * 1.0 + Math.max(-dx, 0, dz) * 0.3;
           break;
         case 'sw':
-          score = -Math.abs(dx) - Math.abs(dz);
+          score = -(absDx + absDz) * 1.0 + Math.max(dx, 0, -dz) * 0.3;
           break;
+        case 'nw':
+          score = -(absDx + absDz) * 1.0 + Math.max(dx, 0, dz) * 0.3;
+          break;
+        case 'se':
+          score = -(absDx + absDz) * 1.0 + Math.max(-dx, 0, -dz) * 0.3;
+          break;
+        default:
+          score = -(absDx + absDz);
       }
       if (score > bestScore) {
         bestScore = score;
         best = i;
       }
     });
+    if (!best && ints.length > 0) {
+      let minDist = Infinity;
+      ints.forEach((i) => {
+        const d = (tx - i.x) ** 2 + (tz - i.z) ** 2;
+        if (d < minDist) { minDist = d; best = i; }
+      });
+    }
     return best;
   }
 

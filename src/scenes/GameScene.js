@@ -45,7 +45,8 @@ export class GameScene extends BaseScene {
     }
     setTimeout(() => {
       this.baselineMetrics = this._captureMetricsSnapshot();
-    }, 2000);
+      this._showToast('✅ 基线已建立，可以开始调整策略', 'success', 2500);
+    }, 5000);
   }
 
   _buildScene() {
@@ -198,12 +199,33 @@ export class GameScene extends BaseScene {
       oninput: (e) => {
         const val = e.target.value;
         labelLine.querySelector('.slider-value').textContent = `${val}${unit}`;
+        const parsed = step === '1' || step === 1 ? parseInt(val) : parseFloat(val);
+        if (step === '1' || step === 1) {
+          if (label.includes('周期')) this._applyImmediate({ cycleTime: parsed });
+          else if (label.includes('南北绿')) this._applyImmediate({ nsGreenRatio: parsed / 100 });
+          else if (label.includes('黄灯')) this._applyImmediate({ yellowDuration: parsed });
+        }
+      },
+      onchange: (e) => {
+        const val = e.target.value;
+        labelLine.querySelector('.slider-value').textContent = `${val}${unit}`;
         onChange(val);
       }
     });
     group.appendChild(labelLine);
     group.appendChild(slider);
     return group;
+  }
+
+  _applyImmediate(partial) {
+    const light = this.trafficLights.find(l => l.id === this.selectedIntersection);
+    if (light) light.setConfig(partial);
+    if (partial.busPriorityEnabled !== undefined) {
+      this.trafficLights.forEach(l => l.setConfig({ busPriorityEnabled: partial.busPriorityEnabled }));
+    }
+    if (partial.rightTurnOnRed !== undefined) {
+      this.trafficLights.forEach(l => l.setConfig({ rightTurnOnRed: partial.rightTurnOnRed }));
+    }
   }
 
   _toggleItem(label, defaultValue, onChange) {
@@ -214,6 +236,7 @@ export class GameScene extends BaseScene {
       onclick: () => {
         const next = !sw.classList.contains('active');
         sw.classList.toggle('active', next);
+        this._applyImmediate(label.includes('公交') ? { busPriorityEnabled: next } : { rightTurnOnRed: next });
         onChange(next);
         this.audioManager.playClick();
       }
@@ -224,8 +247,22 @@ export class GameScene extends BaseScene {
   }
 
   _updateConfig(partial) {
+    if (this.elapsed < 4 || !this.baselineMetrics || this.finished || !this.running) return;
+
+    if (this._pendingTimeoutId) {
+      clearTimeout(this._pendingTimeoutId);
+      this._pendingTimeoutId = null;
+    }
+    if (this.pendingAdjustment) {
+      const oldId = this.pendingAdjustment.id;
+      this.adjustmentHistory = this.adjustmentHistory.filter(e => e.id !== oldId);
+      this.pendingAdjustment = null;
+      this._refreshHistoryUI();
+    }
+
     const before = this._captureMetricsSnapshot();
-    const frameStart = this.trafficSystem?.recordingFrames?.length || 0;
+    const curFrames = this.trafficSystem?.recordingFrames?.length || 0;
+    const frameStart = Math.max(0, curFrames - 120);
     const timeStart = this.elapsed;
     const intName = this.levelData.intersections.find(i => i.id === this.selectedIntersection)?.name || '全局';
     const descParts = [];
@@ -236,25 +273,18 @@ export class GameScene extends BaseScene {
     if (partial.rightTurnOnRed !== undefined) descParts.push(`红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
     const adjustDesc = `${intName}：${descParts.join(' · ')}`;
 
-    const light = this.trafficLights.find(l => l.id === this.selectedIntersection);
-    if (light) light.setConfig(partial);
-    if (partial.busPriorityEnabled !== undefined) {
-      this.trafficLights.forEach(l => l.setConfig({ busPriorityEnabled: partial.busPriorityEnabled }));
-    }
-    if (partial.rightTurnOnRed !== undefined) {
-      this.trafficLights.forEach(l => l.setConfig({ rightTurnOnRed: partial.rightTurnOnRed }));
-    }
-
     const pendingId = `adj_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     this.pendingAdjustment = { id: pendingId, desc: adjustDesc, before, frameStart, timeStart };
-    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: frameStart, timeEnd: timeStart, pending: true });
+    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: curFrames, timeEnd: timeStart, pending: true });
 
-    const delaySec = 6;
+    const delaySec = 8;
     const checkMs = delaySec * 1000 / Math.max(1, this.gameState.timeScale || 1);
-    setTimeout(() => {
+    this._pendingTimeoutId = setTimeout(() => {
+      this._pendingTimeoutId = null;
       if (!this.running || this.finished || !this.pendingAdjustment || this.pendingAdjustment.id !== pendingId) return;
       const after = this._captureMetricsSnapshot();
-      const frameEnd = this.trafficSystem?.recordingFrames?.length || frameStart;
+      const curF = this.trafficSystem?.recordingFrames?.length || curFrames;
+      const frameEnd = Math.min(curF, curF + 0);
       const timeEnd = this.elapsed;
       const delta = this._calcDelta(before, after);
       const entry = { id: pendingId, desc: adjustDesc, before, after, delta, frameStart, frameEnd, timeStart, timeEnd, pending: false };
@@ -464,20 +494,21 @@ export class GameScene extends BaseScene {
     if (!this.trafficSystem) return;
     const recording = this.trafficSystem.getRecording();
     if (!recording || recording.length < 30) {
-      this._showToast('⚠️ 录制数据不足', 'warning');
+      this._showToast('⚠️ 录制数据不足（请先模拟 10+ 秒）', 'warning');
       return;
     }
     const startF = Math.max(0, entry.frameStart);
-    const endF = Math.min(recording.length - 1, entry.frameEnd + recording.length / 12);
-    if (endF - startF < 15) {
-      this._showToast('⚠️ 调整片段太短，无法回放', 'warning');
+    const extraTail = Math.min(recording.length - 1, (entry.frameEnd || recording.length - 1) + 480);
+    const endF = Math.min(recording.length - 1, Math.max(extraTail, entry.frameEnd + 180));
+    if (endF - startF < 30 || startF >= recording.length || endF <= startF) {
+      this._showToast('⚠️ 调整片段录制中，请稍后再试', 'warning');
       return;
     }
     const seg = recording.slice(startF, endF + 1);
     this.replaySystem.stop();
     this.replaySystem.loadRecording(seg);
     this.replaySystem.play({
-      speed: (this.gameState.speed || 1) * 1.2,
+      speed: Math.max(1, (this.gameState.speed || 1) * 1.0),
       onUpdate: (p) => {
         const pc = document.getElementById('progress-percent');
         if (pc) pc.textContent = `策略回放 ${Math.floor(p.progress * 100)}%`;
@@ -490,7 +521,8 @@ export class GameScene extends BaseScene {
     });
     const pp = document.getElementById('progress-phase');
     if (pp) pp.textContent = '策略片段回放中...';
-    this._showToast('🎬 正在回放调整前后对比片段', 'info');
+    const durSec = Math.round((endF - startF) / 60);
+    this._showToast(`🎬 回放调整前后片段（${durSec}秒，含调整前2s + 调整后效果）`, 'info', 3500);
   }
 
   _buildComparisonPanel() {
