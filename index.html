@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旧公寓 · 遗物整理录</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============ 游戏画布层 ============ -->
+<div id="game-container">
+  <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+  <!-- 后处理效果层 -->
+  <div id="postfx-layer">
+    <div id="vignette"></div>
+    <div id="film-grain"></div>
+    <div id="flash-overlay"></div>
+  </div>
+</div>
+
+<!-- ============ 主 HUD 层 ============ -->
+<div id="hud-layer" class="hidden">
+  <!-- 中心准星 -->
+  <div id="crosshair"></div>
+
+  <!-- 交互提示 -->
+  <div id="interact-prompt" class="hidden">
+    <span class="key-hint">[E]</span>
+    <span id="interact-text">检查物品</span>
+  </div>
+
+  <!-- 章节标题 -->
+  <div id="chapter-title-overlay" class="hidden">
+    <div id="chapter-number">第 一 章</div>
+    <div id="chapter-title">尘封的客厅</div>
+  </div>
+
+  <!-- 目标面板 -->
+  <div id="objectives-panel">
+    <div class="panel-title">◇ 当前目标</div>
+    <ul id="objectives-list"></ul>
+  </div>
+
+  <!-- 旁白栏 -->
+  <div id="narration-bar" class="hidden">
+    <div id="narration-text"></div>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div id="toast-container"></div>
+
+  <!-- 冷却锁定显示 -->
+  <div id="lock-cooldown-display" class="hidden">
+    尝试过多，<span id="cooldown-time">5.0</span>s 后重试
+  </div>
+
+  <!-- 底部快捷栏 -->
+  <div id="bottom-bar">
+    <div class="shortcut-item"><span class="sk">[N]</span> 笔记</div>
+    <div class="shortcut-item"><span class="sk">[I]</span> 物品</div>
+    <div class="shortcut-item"><span class="sk">[ESC]</span> 菜单</div>
+    <div id="chapter-indicator">第 <span id="cur-chapter-num">1</span> 章</div>
+  </div>
+</div>
+
+<!-- ============ 主菜单层 ============ -->
+<div id="main-menu" class="menu-layer">
+  <div class="menu-bg"></div>
+  <div class="menu-content">
+    <h1 class="game-title">遗物整理录</h1>
+    <p class="game-subtitle">— 建国南路二段 37 号 5 楼 —</p>
+    <div class="menu-buttons">
+      <button class="menu-btn" id="btn-new-game">开始新游戏</button>
+      <button class="menu-btn" id="btn-continue">继续游戏</button>
+      <button class="menu-btn" id="btn-level-select">关卡选择</button>
+      <button class="menu-btn" id="btn-settings">设置</button>
+      <button class="menu-btn" id="btn-telemetry-export">导出试玩数据</button>
+    </div>
+    <p class="menu-footer">WASD 移动 · 鼠标环顾 · E 交互</p>
+  </div>
+</div>
+
+<!-- ============ 关卡选择层 ============ -->
+<div id="level-select" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="level-select-content">
+    <h2>选择章节</h2>
+    <div id="chapters-grid"></div>
+    <div class="menu-buttons-row">
+      <button class="menu-btn secondary" id="btn-level-back">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 设置层 ============ -->
+<div id="settings-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="settings-content">
+    <h2>设置</h2>
+    <div class="settings-tabs">
+      <button class="tab-btn active" data-tab="audio">音频</button>
+      <button class="tab-btn" data-tab="display">画面</button>
+      <button class="tab-btn" data-tab="controls">控制</button>
+      <button class="tab-btn" data-tab="gameplay">游戏性</button>
+    </div>
+    <div class="tab-content" id="tab-audio">
+      <div class="setting-row"><label>主音量</label><input type="range" id="vol-master" min="0" max="100" value="100"><span id="vol-master-val">100</span></div>
+      <div class="setting-row"><label>音效</label><input type="range" id="vol-sfx" min="0" max="100" value="100"><span id="vol-sfx-val">100</span></div>
+      <div class="setting-row"><label>环境音</label><input type="range" id="vol-ambient" min="0" max="100" value="80"><span id="vol-ambient-val">80</span></div>
+      <div class="setting-row"><label>UI音量</label><input type="range" id="vol-ui" min="0" max="100" value="100"><span id="vol-ui-val">100</span></div>
+    </div>
+    <div class="tab-content hidden" id="tab-display">
+      <div class="setting-row"><label>画面亮度</label><input type="range" id="disp-brightness" min="50" max="150" value="100"><span id="disp-brightness-val">100</span></div>
+      <div class="setting-row"><label><input type="checkbox" id="disp-filmgrain" checked> 胶片颗粒</label></div>
+      <div class="setting-row"><label><input type="checkbox" id="disp-vignette" checked> 氛围暗角</label></div>
+    </div>
+    <div class="tab-content hidden" id="tab-controls">
+      <div class="setting-row"><label>鼠标灵敏度</label><input type="range" id="ctrl-sensitivity" min="20" max="200" value="100"><span id="ctrl-sensitivity-val">100</span></div>
+      <div class="setting-row"><label>视野 FOV</label><input type="range" id="ctrl-fov" min="50" max="100" value="75"><span id="ctrl-fov-val">75</span></div>
+    </div>
+    <div class="tab-content hidden" id="tab-gameplay">
+      <div class="setting-row"><label>自动保存（分钟）</label><input type="range" id="game-autosave" min="1" max="15" value="5"><span id="game-autosave-val">5</span></div>
+      <div class="setting-row"><label><input type="checkbox" id="game-hints" checked> 谜题提示</label></div>
+      <div class="setting-row"><label><input type="checkbox" id="game-subtitles" checked> 显示旁白字幕</label></div>
+    </div>
+    <div class="menu-buttons-row">
+      <button class="menu-btn primary" id="btn-settings-apply">应用</button>
+      <button class="menu-btn secondary" id="btn-settings-reset">重置默认</button>
+      <button class="menu-btn secondary" id="btn-settings-back">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 暂停菜单层 ============ -->
+<div id="pause-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="pause-content">
+    <h2>已暂停</h2>
+    <div class="menu-buttons-col">
+      <button class="menu-btn" id="btn-resume">继续游戏</button>
+      <button class="menu-btn" id="btn-save-game">保存</button>
+      <button class="menu-btn" id="btn-load-game">读取存档</button>
+      <button class="menu-btn" id="btn-pause-settings">设置</button>
+      <button class="menu-btn danger" id="btn-return-menu">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 存档/读档层 ============ -->
+<div id="save-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="save-content">
+    <h2 id="save-menu-title">存档</h2>
+    <div class="save-layout">
+      <div id="save-slots-list"></div>
+      <div id="save-details" class="hidden">
+        <div class="detail-row"><span>章节</span><span id="detail-chapter">-</span></div>
+        <div class="detail-row"><span>保存时间</span><span id="detail-time">-</span></div>
+        <div class="detail-row"><span>游戏用时</span><span id="detail-playtime">-</span></div>
+        <div class="detail-row"><span>收集物品</span><span id="detail-items">-</span></div>
+        <div class="detail-row"><span>阅读笔记</span><span id="detail-notes">-</span></div>
+        <div class="detail-row"><span>解开谜题</span><span id="detail-puzzles">-</span></div>
+      </div>
+    </div>
+    <div class="menu-buttons-row">
+      <button class="menu-btn primary" id="btn-save-confirm">确认</button>
+      <button class="menu-btn danger" id="btn-save-delete">删除</button>
+      <button class="menu-btn secondary" id="btn-save-back">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 笔记本层 ============ -->
+<div id="notebook-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="notebook-container">
+    <div class="notebook-tabs">
+      <button class="note-tab active" data-note-tab="notes">📓 笔记</button>
+      <button class="note-tab" data-note-tab="clues">🔍 线索</button>
+      <button class="note-tab" data-note-tab="inventory">🎒 物品</button>
+    </div>
+    <div class="notebook-body">
+      <!-- 笔记 -->
+      <div class="note-tab-pane" id="pane-notes">
+        <div class="notes-left">
+          <div class="notes-list" id="notes-list"></div>
+        </div>
+        <div class="notes-right paper-bg">
+          <div class="note-header">
+            <h3 id="note-title">—</h3>
+            <p class="note-meta" id="note-meta">—</p>
+          </div>
+          <div class="note-content" id="note-content"></div>
+          <div class="note-nav">
+            <button id="note-prev" class="menu-btn small">← 上一页</button>
+            <span id="note-page-indicator">1 / 1</span>
+            <button id="note-next" class="menu-btn small">下一页 →</button>
+          </div>
+        </div>
+      </div>
+      <!-- 线索 -->
+      <div class="note-tab-pane hidden" id="pane-clues">
+        <div id="clues-list"></div>
+      </div>
+      <!-- 物品 -->
+      <div class="note-tab-pane hidden" id="pane-inventory">
+        <div id="inventory-grid"></div>
+      </div>
+    </div>
+    <button class="notebook-close" id="btn-notebook-close">✕ 关闭 [ESC]</button>
+  </div>
+</div>
+
+<!-- ============ 锁谜题层 ============ -->
+<div id="lock-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="lock-container">
+    <div class="lock-hint" id="lock-hint">输入密码...</div>
+    <div class="lock-body">
+      <div id="lock-digits"></div>
+    </div>
+    <div class="lock-numpad">
+      <button class="num-btn" data-digit="1">1</button>
+      <button class="num-btn" data-digit="2">2</button>
+      <button class="num-btn" data-digit="3">3</button>
+      <button class="num-btn" data-digit="4">4</button>
+      <button class="num-btn" data-digit="5">5</button>
+      <button class="num-btn" data-digit="6">6</button>
+      <button class="num-btn" data-digit="7">7</button>
+      <button class="num-btn" data-digit="8">8</button>
+      <button class="num-btn" data-digit="9">9</button>
+      <button class="num-btn" id="btn-lock-clear">清除</button>
+      <button class="num-btn" data-digit="0">0</button>
+      <button class="num-btn" id="btn-lock-confirm">确认</button>
+    </div>
+    <div class="lock-footer">
+      <button class="menu-btn secondary small" id="btn-lock-close">放弃 [右键]</button>
+      <span id="lock-attempts">尝试: 0 / 3</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 物品检查层 ============ -->
+<div id="examine-menu" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="examine-container">
+    <div class="examine-scene" id="examine-scene">
+      <div id="examine-item-display"></div>
+      <div class="examine-hotspots" id="examine-hotspots"></div>
+    </div>
+    <div class="examine-info">
+      <h3 id="examine-name">物品名</h3>
+      <p id="examine-desc">物品描述</p>
+      <div id="examine-flavor" class="examine-flavor"></div>
+      <div class="examine-actions">
+        <button class="menu-btn primary" id="btn-examine-pickup">拾取 [E]</button>
+        <button class="menu-btn secondary" id="btn-examine-close">放回 [ESC]</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 过关结算层 ============ -->
+<div id="chapter-complete" class="menu-layer hidden">
+  <div class="menu-bg dim"></div>
+  <div class="complete-container">
+    <div class="complete-badge" id="complete-badge">第 1 章 完成</div>
+    <h2 id="complete-chapter-title">尘封的客厅</h2>
+    <div class="divider"></div>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div id="unlock-notice" class="unlock-notice hidden"></div>
+    <div class="menu-buttons-col">
+      <button class="menu-btn primary" id="btn-next-chapter">继续下一章 →</button>
+      <button class="menu-btn secondary" id="btn-replay-chapter">重玩本章</button>
+      <button class="menu-btn secondary" id="btn-complete-menu">返回主菜单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 加载过渡层 ============ -->
+<div id="loading-screen" class="menu-layer hidden">
+  <div class="loading-bg"></div>
+  <div class="loading-content">
+    <div class="loading-spinner"></div>
+    <p id="loading-text">正在进入旧公寓...</p>
+    <div class="loading-tip" id="loading-tip">提示: 仔细检查每样物品的背面，或许有惊喜。</div>
+  </div>
+</div>
+
+<!-- ============ 开场警示 ============ -->
+<div id="start-mask" class="menu-layer">
+  <div class="start-mask-content">
+    <p class="mask-text">点击屏幕任意处开始</p>
+    <p class="mask-subtext">（建议佩戴耳机，灯光调暗）</p>
+  </div>
+</div>
+
+<!-- ============ 脚本 ============ -->
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
