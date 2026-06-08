@@ -79,9 +79,9 @@ export default function Settings() {
             <h2 className="text-white font-bold text-sm mb-4">按键提示参考</h2>
             <div className="bg-[#0a2e2e]/80 rounded-xl border border-[#1a5a5a] p-4">
               <div className="grid grid-cols-2 gap-2 text-xs">
-                {['select', 'add', 'temperature', 'confirm', 'hint', 'pause'].map(action => (
+                {['select', 'add', 'temperature', 'confirm', 'hint', 'pause', 'cancel'].map(action => (
                   <div key={action} className="flex justify-between p-1.5">
-                    <span className="text-gray-400">{action === 'select' ? '选择器材' : action === 'add' ? '添加试剂' : action === 'temperature' ? '控制温度' : action === 'confirm' ? '确认步骤' : action === 'hint' ? '提示' : '暂停'}</span>
+                    <span className="text-gray-400">{action === 'select' ? '选择器材' : action === 'add' ? '添加试剂' : action === 'temperature' ? '控制温度' : action === 'confirm' ? '确认步骤' : action === 'hint' ? '提示' : action === 'pause' ? '暂停' : '取消/关闭'}</span>
                     <span className="text-[#F5C542] font-mono">{inputManager.getKeyHint(action)}</span>
                   </div>
                 ))}

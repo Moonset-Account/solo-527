@@ -356,7 +356,7 @@ export default function Lab() {
           <button onClick={handleRetry} className="p-1.5 text-gray-400 hover:text-[#F5C542] transition-colors" title="重试">
             <RotateCcw className="w-4 h-4" />
           </button>
-          <button onClick={() => { setPaused(!isPaused); isPaused ? experimentEngine.resume() : experimentEngine.pause(); }} className="p-1.5 text-gray-400 hover:text-[#F5C542] transition-colors" title="暂停">
+          <button onClick={() => { setPaused(!isPaused); isPaused ? experimentEngine.resume() : experimentEngine.pause(); }} className="p-1.5 text-gray-400 hover:text-[#F5C542] transition-colors" title="暂停(P)">
             {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
           </button>
         </div>
