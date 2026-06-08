@@ -433,20 +433,31 @@ func _recheck_pressure() -> void:
 			AudioManager.play_sfx("glass_break")
 
 func get_bounds() -> Rect2:
-	var bounds = Rect2(global_position, Vector2.ZERO)
-	var found = false
+	var points: PackedVector2Array = []
 	for child in get_children():
 		if child is CollisionShape2D and child.shape:
 			var rect = child.shape.get_rect()
-			var world_rect = Rect2(global_position + rect.position + child.position, rect.size)
-			if not found:
-				bounds = world_rect
-				found = true
-			else:
-				bounds = bounds.merge(world_rect)
-	if not found:
-		bounds = Rect2(global_position - Vector2(item_width, item_height)/2, Vector2(item_width, item_height))
-	return bounds
+			var local_corners = [
+				rect.position,
+				rect.position + Vector2(rect.size.x, 0),
+				rect.position + Vector2(0, rect.size.y),
+				rect.position + rect.size
+			]
+			for corner in local_corners:
+				var world_corner = global_transform * (corner + child.position)
+				points.append(world_corner)
+	if points.is_empty():
+		return Rect2(global_position - Vector2(item_width, item_height) / 2, Vector2(item_width, item_height))
+	var min_x := INF
+	var min_y := INF
+	var max_x := -INF
+	var max_y := -INF
+	for p in points:
+		min_x = min(min_x, p.x)
+		min_y = min(min_y, p.y)
+		max_x = max(max_x, p.x)
+		max_y = max(max_y, p.y)
+	return Rect2(min_x, min_y, max_x - min_x, max_y - min_y)
 
 func serialize() -> Dictionary:
 	return {

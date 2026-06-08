@@ -322,10 +322,30 @@ func _is_inside_box(item: RigidBody2D) -> bool:
 		_box.box_width,
 		_box.box_height
 	)
-	var item_rect = item.get_bounds()
-	var margin = 4.0
-	var inner = box_rect.grow(-margin)
-	return inner.encloses(item_rect)
+	var margin = 2.0
+	for child in item.get_children():
+		if not (child is CollisionShape2D and child.shape):
+			continue
+		if child.shape is CircleShape2D:
+			var center = item.global_transform * child.position
+			var r = child.shape.radius + margin
+			var inner = box_rect.grow(-r)
+			if not inner.has_point(center):
+				return false
+		else:
+			var rect = child.shape.get_rect()
+			var corners = [
+				rect.position,
+				rect.position + Vector2(rect.size.x, 0),
+				rect.position + Vector2(0, rect.size.y),
+				rect.position + rect.size
+			]
+			var inner = box_rect.grow(-margin)
+			for corner in corners:
+				var world_corner = item.global_transform * (corner + child.position)
+				if not inner.has_point(world_corner):
+					return false
+	return true
 
 func _is_center_in_box(item: RigidBody2D) -> bool:
 	if not _box or not is_instance_valid(_box):
@@ -338,16 +358,54 @@ func _is_center_in_box(item: RigidBody2D) -> bool:
 	)
 	return box_rect.has_point(item.global_position)
 
+func _check_item_overlap(item: RigidBody2D) -> bool:
+	var space_state = get_world_2d().direct_space_state
+	var shrink = 2.0
+	for child in item.get_children():
+		if not (child is CollisionShape2D and child.shape):
+			continue
+		var test_shape: Shape2D = null
+		if child.shape is RectangleShape2D:
+			var s = child.shape.size - Vector2(shrink * 2, shrink * 2)
+			if s.x <= 0 or s.y <= 0:
+				continue
+			var rs = RectangleShape2D.new()
+			rs.size = s
+			test_shape = rs
+		elif child.shape is CircleShape2D:
+			var r = child.shape.radius - shrink
+			if r <= 0:
+				continue
+			var cs = CircleShape2D.new()
+			cs.radius = r
+			test_shape = cs
+		else:
+			test_shape = child.shape
+		if not test_shape:
+			continue
+		var query = PhysicsShapeQueryParameters2D.new()
+		query.shape = test_shape
+		query.transform = item.global_transform * child.transform
+		query.collision_mask = 1
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		query.exclude = [item.get_rid()]
+		var results = space_state.intersect_shape(query)
+		for result in results:
+			var collider = result.get("collider")
+			if collider and collider != item and collider.has_meta("item_id") and collider.get_meta("in_box", false):
+				return true
+	return false
+
 func _finalize_placement(item: RigidBody2D) -> void:
 	if not is_instance_valid(item):
 		return
 	item.finalize_placement()
 	if not _is_inside_box(item):
-		item.set_meta("in_box", false)
-		item.is_placed = false
-		GameManager.remove_item_from_box(item)
-		if _feedback:
-			_feedback.spawn_floating_text(item.global_position, "Missed!", Color.RED)
+		_reject_placement(item, "Out of box!", Color.RED)
+		return
+	if _check_item_overlap(item):
+		_reject_placement(item, "Overlap!", Color.ORANGE)
 		return
 	GameManager.push_undo_action({
 		"type": "place",
@@ -358,6 +416,13 @@ func _finalize_placement(item: RigidBody2D) -> void:
 	GameManager.add_item_to_box(item)
 	if _feedback:
 		_feedback.spawn_place_feedback(item.global_position, Color.GREEN)
+
+func _reject_placement(item: RigidBody2D, msg: String, color: Color) -> void:
+	item.set_meta("in_box", false)
+	item.is_placed = false
+	GameManager.remove_item_from_box(item)
+	if _feedback:
+		_feedback.spawn_floating_text(item.global_position, msg, color)
 
 func _get_item_at(pos: Vector2) -> RigidBody2D:
 	var space_state = get_world_2d().direct_space_state
