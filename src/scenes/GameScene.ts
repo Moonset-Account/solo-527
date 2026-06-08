@@ -758,17 +758,6 @@ export class GameScene extends Phaser.Scene {
           this.highlightObjects.delete(shelf.id);
         });
       }
-
-      const bookObj = this.bookObjects.get(hint.highlightArea.bookId);
-      if (bookObj) {
-        this.tweens.add({
-          targets: bookObj,
-          alpha: { from: 0.5, to: 1 },
-          duration: 400,
-          yoyo: true,
-          repeat: 4,
-        });
-      }
     }
   }
 
