@@ -58,7 +58,7 @@ namespace Kitchen.Gameplay
             HeldItem plate = availablePlates[availablePlates.Count - 1];
             availablePlates.RemoveAt(availablePlates.Count - 1);
 
-            if (player.PickUpItem(plate))
+            if (player.PickUpItem(plate, stationId))
             {
             }
             else
@@ -88,9 +88,10 @@ namespace Kitchen.Gameplay
             availablePlates.RemoveAt(availablePlates.Count - 1);
 
             ingredient.DestroyItem();
-            player.PlaceItem();
+            player.PlaceItem(stationId);
             plate.PlateWith(match);
-            player.PickUpItem(plate);
+            player.PickUpItem(plate, stationId);
+            PlayerController.TriggerTutorialAction(TutorialAction.PlateFood, stationId);
         }
 
         private RecipeConfig FindMatchingRecipe(HeldItem ingredient)

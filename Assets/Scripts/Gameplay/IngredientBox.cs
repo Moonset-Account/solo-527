@@ -50,7 +50,7 @@ namespace Kitchen.Gameplay
             HeldItem item = itemObj.GetComponent<HeldItem>();
             item.Initialize(storedIngredient);
 
-            if (player.PickUpItem(item))
+            if (player.PickUpItem(item, stationId))
             {
                 currentStock--;
                 if (currentStock <= 0)
@@ -70,7 +70,7 @@ namespace Kitchen.Gameplay
             HeldItem held = player.HeldItem;
             if (held.CurrentState == IngredientState.Raw && held.ingredient == storedIngredient)
             {
-                HeldItem returned = player.PlaceItem();
+                HeldItem returned = player.PlaceItem(stationId);
                 returned?.DestroyItem();
                 currentStock = Mathf.Min(maxStock, currentStock + 1);
             }

@@ -39,7 +39,7 @@ namespace Kitchen.Gameplay
 
         private void PlaceItemFromPlayer(PlayerController player)
         {
-            HeldItem item = player.PlaceItem();
+            HeldItem item = player.PlaceItem(stationId);
             if (item == null) return;
 
             currentItem = item;
@@ -55,7 +55,7 @@ namespace Kitchen.Gameplay
 
         private void PickUpItem(PlayerController player)
         {
-            if (player.PickUpItem(currentItem))
+            if (player.PickUpItem(currentItem, stationId))
             {
                 currentItem = null;
             }
@@ -68,6 +68,7 @@ namespace Kitchen.Gameplay
             {
                 isChopping = false;
                 if (chopParticles != null) chopParticles.Play();
+                PlayerController.TriggerTutorialAction(TutorialAction.ChopIngredient, stationId);
             });
             if (!started) isChopping = false;
         }

@@ -234,6 +234,8 @@ namespace Kitchen.Setup
             for (int x = 0; x < 10; x++) for (int y = 0; y < 10; y++) t2d.SetPixel(x, y, Color.white);
             t2d.Apply(); hsr.sprite = Sprite.Create(t2d, new Rect(0, 0, 10, 10), new Vector2(0.5f, 0.5f));
 
+            SpriteRenderer sr = hsr;
+
             if (type == StationType.IngredientBox)
             {
                 GameObject icon = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -247,42 +249,42 @@ namespace Kitchen.Setup
             {
                 case StationType.IngredientBox:
                     IngredientBox ib = go.AddComponent<IngredientBox>();
-                    ib.stationType = type; ib.highlightRenderer = null; ib.interactionRadius = 1.5f;
+                    ib.stationType = type; ib.highlightRenderer = sr; ib.interactionRadius = 1.5f;
                     ib.heldItemPrefab = _heldItemRuntimePrefab;
                     ib.spawnPoint = slotPoint.transform;
                     ib.maxStock = 99; ib.respawnDelay = 1.5f;
                     break;
                 case StationType.CuttingBoard:
                     CuttingBoard cb = go.AddComponent<CuttingBoard>();
-                    cb.stationType = type; cb.highlightRenderer = null; cb.interactionRadius = 1.5f;
+                    cb.stationType = type; cb.highlightRenderer = sr; cb.interactionRadius = 1.5f;
                     cb.itemSlot = slotPoint.transform;
                     break;
                 case StationType.Stove:
                     Stove stv = go.AddComponent<Stove>();
-                    stv.stationType = type; stv.highlightRenderer = null; stv.interactionRadius = 1.8f;
+                    stv.stationType = type; stv.highlightRenderer = sr; stv.interactionRadius = 1.8f;
                     break;
                 case StationType.PlateStack:
                     PlateStack ps = go.AddComponent<PlateStack>();
-                    ps.stationType = type; ps.highlightRenderer = null; ps.interactionRadius = 1.5f;
+                    ps.stationType = type; ps.highlightRenderer = sr; ps.interactionRadius = 1.5f;
                     ps.platePrefab = _plateRuntimePrefab;
                     ps.stackPoint = slotPoint.transform; ps.maxPlates = 8;
                     break;
                 case StationType.ServingWindow:
                     ServingWindow sw = go.AddComponent<ServingWindow>();
-                    sw.stationType = type; sw.highlightRenderer = null; sw.interactionRadius = 1.5f;
+                    sw.stationType = type; sw.highlightRenderer = sr; sw.interactionRadius = 1.5f;
                     break;
                 case StationType.Sink:
                     Sink sk = go.AddComponent<Sink>();
-                    sk.stationType = type; sk.highlightRenderer = null; sk.interactionRadius = 1.5f;
+                    sk.stationType = type; sk.highlightRenderer = sr; sk.interactionRadius = 1.5f;
                     sk.dirtyStackPoint = slotPoint.transform; sk.cleanStackPoint = slotPoint.transform;
                     break;
                 case StationType.Trash:
                     TrashBin tb = go.AddComponent<TrashBin>();
-                    tb.stationType = type; tb.highlightRenderer = null; tb.interactionRadius = 1.5f;
+                    tb.stationType = type; tb.highlightRenderer = sr; tb.interactionRadius = 1.5f;
                     break;
                 default:
                     CounterDummy sb = go.AddComponent<CounterDummy>();
-                    sb.stationType = type; sb.highlightRenderer = null; sb.interactionRadius = 1.5f;
+                    sb.stationType = type; sb.highlightRenderer = sr; sb.interactionRadius = 1.5f;
                     break;
             }
             return go;
@@ -370,7 +372,9 @@ namespace Kitchen.Setup
             if (gm == null) return;
             gm.OnStateChanged += (oldS, newS) =>
             {
-                if (newS == GameManager.GameState.Countdown && gm.currentLevelConfig != null)
+                bool shouldBuildStations = (newS == GameManager.GameState.Tutorial || newS == GameManager.GameState.Countdown)
+                                           && gm.currentLevelConfig != null;
+                if (shouldBuildStations)
                     BuildLevelStations(gm.currentLevelConfig);
                 if (newS == GameManager.GameState.MainMenu)
                 {

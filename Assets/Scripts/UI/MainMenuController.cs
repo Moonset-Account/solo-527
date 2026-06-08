@@ -85,6 +85,11 @@ namespace Kitchen.UI
                         waitingText.text = count == 0 ? "等待玩家按 确认键 加入..." : $"已加入 {count} 名玩家";
                     }
                 }
+                else if (isSinglePlayerMode && startGameButton != null)
+                {
+                    startGameButton.interactable = selectedLevel != null;
+                    if (waitingText != null) waitingText.text = selectedLevel != null ? "已就绪，点击开始" : "请先选择上方关卡";
+                }
             }
         }
 
@@ -123,7 +128,7 @@ namespace Kitchen.UI
             for (int i = levelCardContainer.childCount - 1; i >= 0; i--)
                 Destroy(levelCardContainer.GetChild(i).gameObject);
 
-            LevelConfig[] levels = Resources.LoadAll<LevelConfig>("Config/Levels");
+            LevelConfig[] levels = LevelConfigRegistry.GetAllLevels();
             List<LevelConfig> sorted = new List<LevelConfig>(levels);
             sorted.Sort((a, b) => a.orderIndex.CompareTo(b.orderIndex));
 

@@ -95,6 +95,7 @@ namespace Kitchen.Core
             }
 
             OnActivePlayerChanged?.Invoke(activePlayerIndex);
+            PlayerController.TriggerTutorialAction(TutorialAction.SwitchCharacter);
         }
 
         public void SetActivePlayer(int index)

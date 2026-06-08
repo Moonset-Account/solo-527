@@ -27,10 +27,11 @@ namespace Kitchen.Gameplay
             int score = OrderManager.Instance.SubmitPlatedItem(held.platedRecipe);
 
             if (successParticles != null) successParticles.Play();
+            PlayerController.TriggerTutorialAction(TutorialAction.ServeOrder, stationId);
 
             Kitchen.Core.GameManager.Instance?.BroadcastMessage("OnServed", score);
 
-            HeldItem served = player.PlaceItem();
+            HeldItem served = player.PlaceItem(stationId);
             if (served != null)
             {
                 served.SetDirty();

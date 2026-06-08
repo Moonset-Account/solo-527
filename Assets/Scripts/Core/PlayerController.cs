@@ -101,7 +101,7 @@ namespace Kitchen.Core
             }
         }
 
-        public bool PickUpItem(HeldItem item)
+        public bool PickUpItem(HeldItem item, string tutorialStationId = null)
         {
             if (isHoldingItem) return false;
             isHoldingItem = true;
@@ -109,18 +109,18 @@ namespace Kitchen.Core
             item.transform.SetParent(holdPoint);
             item.transform.localPosition = Vector3.zero;
             item.transform.localRotation = Quaternion.identity;
-            TriggerTutorialAction(TutorialAction.PickUpIngredient);
+            TriggerTutorialAction(TutorialAction.PickUpIngredient, tutorialStationId);
             return true;
         }
 
-        public HeldItem PlaceItem()
+        public HeldItem PlaceItem(string tutorialStationId = null)
         {
             if (!isHoldingItem) return null;
             HeldItem item = heldItem;
             heldItem = null;
             isHoldingItem = false;
             item.transform.SetParent(null);
-            TriggerTutorialAction(TutorialAction.PlaceItem);
+            TriggerTutorialAction(TutorialAction.PlaceItem, tutorialStationId);
             return item;
         }
 
