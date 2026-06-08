@@ -45,13 +45,13 @@ func _ready() -> void:
     _end_turn_button = Button.new()
     _end_turn_button.text = "结束回合"
     _end_turn_button.position = Vector2(1050, 670)
-    _end_turn_button.min_size = Vector2(150, 40)
+    _end_turn_button.custom_minimum_size = Vector2(150, 40)
     add_child(_end_turn_button)
 
     _skill_button = Button.new()
     _skill_button.text = "使用技能"
     _skill_button.position = Vector2(870, 670)
-    _skill_button.min_size = Vector2(150, 40)
+    _skill_button.custom_minimum_size = Vector2(150, 40)
     _skill_button.visible = false
     add_child(_skill_button)
 
@@ -124,6 +124,11 @@ func show_unit_info(unit: Unit) -> void:
         skill_text
     ]
     _skill_button.visible = true
+    _skill_button.disabled = unit.is_skill_active()
+    if unit.is_skill_active():
+        _skill_button.text = "技能已使用"
+    else:
+        _skill_button.text = "使用技能"
 
 func hide_unit_info() -> void:
     _info_label.text = ""

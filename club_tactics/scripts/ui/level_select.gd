@@ -24,7 +24,7 @@ func _ready() -> void:
         if i == 0:
             level_name = "教程"
         btn.text = level_name
-        btn.min_size = Vector2(180, 80)
+        btn.custom_minimum_size = Vector2(180, 80)
         btn.disabled = i > GameManager.max_unlocked_level
         btn.pressed.connect(_on_level_pressed.bind(i))
         grid.add_child(btn)
@@ -33,7 +33,7 @@ func _ready() -> void:
     _back_button = Button.new()
     _back_button.text = "返回"
     _back_button.position = Vector2(540, 630)
-    _back_button.min_size = Vector2(200, 50)
+    _back_button.custom_minimum_size = Vector2(200, 50)
     add_child(_back_button)
     _back_button.pressed.connect(_on_back)
 

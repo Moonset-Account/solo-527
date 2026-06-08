@@ -28,7 +28,7 @@ func _ready() -> void:
     _master_slider.min_value = 0.0
     _master_slider.max_value = 100.0
     _master_slider.value = 100.0
-    _master_slider.min_size = Vector2(500, 30)
+    _master_slider.custom_minimum_size = Vector2(500, 30)
     _master_slider.value_changed.connect(_on_master_changed)
     vbox.add_child(_master_slider)
 
@@ -39,7 +39,7 @@ func _ready() -> void:
     _bgm_slider.min_value = 0.0
     _bgm_slider.max_value = 100.0
     _bgm_slider.value = 70.0
-    _bgm_slider.min_size = Vector2(500, 30)
+    _bgm_slider.custom_minimum_size = Vector2(500, 30)
     _bgm_slider.value_changed.connect(_on_bgm_changed)
     vbox.add_child(_bgm_slider)
 
@@ -50,13 +50,13 @@ func _ready() -> void:
     _sfx_slider.min_value = 0.0
     _sfx_slider.max_value = 100.0
     _sfx_slider.value = 100.0
-    _sfx_slider.min_size = Vector2(500, 30)
+    _sfx_slider.custom_minimum_size = Vector2(500, 30)
     _sfx_slider.value_changed.connect(_on_sfx_changed)
     vbox.add_child(_sfx_slider)
 
     _back_button = Button.new()
     _back_button.text = "返回"
-    _back_button.min_size = Vector2(200, 50)
+    _back_button.custom_minimum_size = Vector2(200, 50)
     vbox.add_child(_back_button)
     _back_button.pressed.connect(_on_back)
 

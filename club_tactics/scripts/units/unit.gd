@@ -102,12 +102,11 @@ func get_power_for_task(task_type: int) -> int:
 	return 0
 
 func activate_skill() -> String:
-	var skill_id: String = ""
+	if _skill_active:
+		return ""
 	if data.skill_ids.size() == 0:
 		return ""
-	skill_id = data.skill_ids[0]
-	if _skill_active and data.skill_ids.size() > 1:
-		skill_id = data.skill_ids[1]
+	var skill_id: String = data.skill_ids[0]
 	match skill_id:
 		"exhibition_boost":
 			exhibition_bonus += 2

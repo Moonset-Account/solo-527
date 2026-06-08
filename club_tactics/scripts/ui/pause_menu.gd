@@ -19,6 +19,7 @@ var _sfx_slider: HSlider = null
 var _settings_back: Button = null
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_overlay = ColorRect.new()
 	_overlay.color = Color(0, 0, 0, 0.6)
 	_overlay.size = Vector2(1280, 720)
@@ -32,22 +33,26 @@ func _ready() -> void:
 
 	_resume_button = Button.new()
 	_resume_button.text = "继续游戏"
-	_resume_button.min_size = Vector2(300, 50)
+	_resume_button.custom_minimum_size = Vector2(300, 50)
+	_resume_button.process_mode = Node.PROCESS_MODE_ALWAYS
 	vbox.add_child(_resume_button)
 
 	_settings_button = Button.new()
 	_settings_button.text = "设置"
-	_settings_button.min_size = Vector2(300, 50)
+	_settings_button.custom_minimum_size = Vector2(300, 50)
+	_settings_button.process_mode = Node.PROCESS_MODE_ALWAYS
 	vbox.add_child(_settings_button)
 
 	_restart_button = Button.new()
 	_restart_button.text = "重新开始"
-	_restart_button.min_size = Vector2(300, 50)
+	_restart_button.custom_minimum_size = Vector2(300, 50)
+	_restart_button.process_mode = Node.PROCESS_MODE_ALWAYS
 	vbox.add_child(_restart_button)
 
 	_quit_button = Button.new()
 	_quit_button.text = "返回主菜单"
-	_quit_button.min_size = Vector2(300, 50)
+	_quit_button.custom_minimum_size = Vector2(300, 50)
+	_quit_button.process_mode = Node.PROCESS_MODE_ALWAYS
 	vbox.add_child(_quit_button)
 
 	_resume_button.pressed.connect(_on_resume)
@@ -64,6 +69,7 @@ func _build_settings_panel() -> void:
 	_settings_panel.position = Vector2(340, 120)
 	_settings_panel.size = Vector2(600, 480)
 	_settings_panel.visible = false
+	_settings_panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_settings_panel)
 
 	var inner: VBoxContainer = VBoxContainer.new()
@@ -83,7 +89,7 @@ func _build_settings_panel() -> void:
 	_master_slider.min_value = 0.0
 	_master_slider.max_value = 100.0
 	_master_slider.value = 100.0
-	_master_slider.min_size = Vector2(500, 30)
+	_master_slider.custom_minimum_size = Vector2(500, 30)
 	_master_slider.value_changed.connect(_on_master_changed)
 	inner.add_child(_master_slider)
 
@@ -94,7 +100,7 @@ func _build_settings_panel() -> void:
 	_bgm_slider.min_value = 0.0
 	_bgm_slider.max_value = 100.0
 	_bgm_slider.value = 70.0
-	_bgm_slider.min_size = Vector2(500, 30)
+	_bgm_slider.custom_minimum_size = Vector2(500, 30)
 	_bgm_slider.value_changed.connect(_on_bgm_changed)
 	inner.add_child(_bgm_slider)
 
@@ -105,13 +111,14 @@ func _build_settings_panel() -> void:
 	_sfx_slider.min_value = 0.0
 	_sfx_slider.max_value = 100.0
 	_sfx_slider.value = 100.0
-	_sfx_slider.min_size = Vector2(500, 30)
+	_sfx_slider.custom_minimum_size = Vector2(500, 30)
 	_sfx_slider.value_changed.connect(_on_sfx_changed)
 	inner.add_child(_sfx_slider)
 
 	_settings_back = Button.new()
 	_settings_back.text = "返回暂停菜单"
-	_settings_back.min_size = Vector2(200, 45)
+	_settings_back.custom_minimum_size = Vector2(200, 45)
+	_settings_back.process_mode = Node.PROCESS_MODE_ALWAYS
 	_settings_back.pressed.connect(_on_settings_back)
 	inner.add_child(_settings_back)
 

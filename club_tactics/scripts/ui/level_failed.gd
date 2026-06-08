@@ -37,13 +37,13 @@ func _ready() -> void:
 
     _retry_button = Button.new()
     _retry_button.text = "重新尝试"
-    _retry_button.min_size = Vector2(300, 50)
+    _retry_button.custom_minimum_size = Vector2(300, 50)
     vbox.add_child(_retry_button)
     _retry_button.pressed.connect(_on_retry)
 
     _menu_button = Button.new()
     _menu_button.text = "返回主菜单"
-    _menu_button.min_size = Vector2(300, 50)
+    _menu_button.custom_minimum_size = Vector2(300, 50)
     vbox.add_child(_menu_button)
     _menu_button.pressed.connect(_on_menu)
 

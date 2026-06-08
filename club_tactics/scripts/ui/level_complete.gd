@@ -42,13 +42,13 @@ func _ready() -> void:
 
     _next_button = Button.new()
     _next_button.text = "下一关"
-    _next_button.min_size = Vector2(300, 50)
+    _next_button.custom_minimum_size = Vector2(300, 50)
     vbox.add_child(_next_button)
     _next_button.pressed.connect(_on_next)
 
     _menu_button = Button.new()
     _menu_button.text = "返回主菜单"
-    _menu_button.min_size = Vector2(300, 50)
+    _menu_button.custom_minimum_size = Vector2(300, 50)
     vbox.add_child(_menu_button)
     _menu_button.pressed.connect(_on_menu)
 

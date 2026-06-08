@@ -219,11 +219,13 @@ func _execute_task(unit: Unit, task: TaskData) -> void:
 func _on_use_skill() -> void:
 	if _selected_unit == null:
 		return
-	if not _action_points.has_enough(1):
-		_hud.show_feedback("行动点不足", Color.RED)
+	if _selected_unit.is_skill_active():
+		_hud.show_feedback("本回合已使用过技能", Color.ORANGE)
 		return
-	_action_points.spend(1)
 	var skill_id: String = _selected_unit.activate_skill()
+	if skill_id == "":
+		_hud.show_feedback("该角色没有技能", Color.RED)
+		return
 	var skill_name: String = "技能"
 	match skill_id:
 		"exhibition_boost":
