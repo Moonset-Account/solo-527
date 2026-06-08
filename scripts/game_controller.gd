@@ -274,8 +274,6 @@ func _update_timer_display() -> void:
 func _on_assign_robot(target: StringName) -> void:
 	if _state != GameState.PLAYING:
 		return
-	if _tutorial.is_showing():
-		return
 	var duration = _repair_duration
 	if _resource_manager.get_value(ResourceManager.SOLAR) < 20.0 and _current_level.unlocked_resources.has(ResourceManager.SOLAR):
 		duration *= 1.5
@@ -441,5 +439,4 @@ func _on_back_to_menu() -> void:
 	_show_menu()
 
 func _on_tutorial_done() -> void:
-	if _current_level and not _tutorial.is_finished():
-		_tutorial.trigger("after_start")
+	pass

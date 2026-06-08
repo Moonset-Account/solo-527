@@ -10,6 +10,7 @@ var _panel: PanelContainer
 var _text_label: RichTextLabel
 var _next_button: Button
 var _visible_flag: bool = false
+var _finished: bool = false
 
 func _ready() -> void:
 	anchor_right = 1.0
@@ -27,6 +28,7 @@ func _ready() -> void:
 	style.set_corner_radius_all(8)
 	_panel.add_theme_stylebox_override("panel", style)
 	_panel.visible = false
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 	_text_label = RichTextLabel.new()
@@ -48,30 +50,48 @@ func setup(steps: Array[Dictionary]) -> void:
 	_steps = steps
 	_current_step = -1
 	_trigger_states.clear()
-	_trigger_states["start"] = true
+	_visible_flag = false
+	_finished = false
+	_panel.visible = false
 
 func trigger(trigger_name: String) -> void:
 	_trigger_states[trigger_name] = true
-	if _current_step < 0:
-		_try_advance()
+	if _finished:
+		return
+	if _current_step == -1:
+		if _steps.size() > 0 and _steps[0].get("trigger", "") == trigger_name:
+			_current_step = 0
+			_show_step(0)
+		return
+	_try_advance_by_trigger(trigger_name)
 
-func _try_advance() -> void:
+func _try_advance_by_trigger(trigger_name: String) -> void:
+	if _current_step + 1 >= _steps.size():
+		return
+	var next = _steps[_current_step + 1]
+	if next.get("trigger", "") == trigger_name:
+		_current_step += 1
+		_show_step(_current_step)
+
+func _on_next() -> void:
 	if _current_step + 1 >= _steps.size():
 		_hide_tutorial()
+		_finished = true
 		tutorial_completed.emit()
 		return
 	var next = _steps[_current_step + 1]
 	var trigger = next.get("trigger", "")
-	if _trigger_states.get(trigger, false):
+	if trigger == "" or _trigger_states.get(trigger, false):
 		_current_step += 1
 		_show_step(_current_step)
+	else:
+		_hide_tutorial()
 
 func _show_step(index: int) -> void:
 	if index < 0 or index >= _steps.size():
 		return
 	var step = _steps[index]
-	var text = step.get("text", "")
-	_text_label.text = text
+	_text_label.text = step.get("text", "")
 	_panel.visible = true
 	_visible_flag = true
 
@@ -79,11 +99,8 @@ func _hide_tutorial() -> void:
 	_panel.visible = false
 	_visible_flag = false
 
-func _on_next() -> void:
-	_try_advance()
-
 func is_showing() -> bool:
 	return _visible_flag
 
 func is_finished() -> bool:
-	return _current_step >= _steps.size() - 1 and not _visible_flag
+	return _finished

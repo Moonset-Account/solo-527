@@ -1,10 +1,10 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1780893690
+::res://::1780894280
 ::res://assets/::1780893327
 ::res://scenes/::1780893662
 main.tscn::PackedScene::-1::1780893662::0::1::::<><><>0<>0<><>::res://scripts/game_controller.gd
 ::res://scripts/::1780893693
-game_controller.gd::GDScript::7696453501684322320::1780893873::0::1::::GameController<>Node<><>0<>0<><>::
+game_controller.gd::GDScript::7696453501684322320::1780894568::0::1::::GameController<>Node<><>0<>0<><>::
 ::res://scripts/models/::1780893693
 game_event.gd::GDScript::3687431137419311110::1780893383::0::1::::GameEvent<>RefCounted<><>0<>0<><>::
 level_config.gd::GDScript::5169391085670802361::1780893412::0::1::::LevelConfig<>RefCounted<><>0<>0<><>::
@@ -13,11 +13,11 @@ robot_queue.gd::GDScript::4738607573805772316::1780893374::0::1::::RobotQueue<>N
 ::res://scripts/systems/::1780893693
 event_scheduler.gd::GDScript::4912714528628299728::1780893399::0::1::::EventScheduler<>Node<><>0<>0<><>::
 failure_reason.gd::GDScript::8784854661434993967::1780893566::0::1::::FailureReason<>RefCounted<><>0<>0<><>::
-level_registry.gd::GDScript::3581242573120770195::1780893456::0::1::::LevelRegistry<>RefCounted<><>0<>0<><>::
+level_registry.gd::GDScript::3581242573120770195::1780894609::0::1::::LevelRegistry<>RefCounted<><>0<>0<><>::
 save_manager.gd::GDScript::3875812810024219166::1780893736::0::1::::SaveManager<>RefCounted<><>0<>0<><>::
 ::res://scripts/ui/::1780893693
 event_log.gd::GDScript::6126019685312646504::1780893516::0::1::::EventLog<>VBoxContainer<><>0<>0<><>::
 failure_screen.gd::GDScript::3764709706718876922::1780893585::0::1::::FailureScreen<>Control<><>0<>0<><>::
 resource_panel.gd::GDScript::2379394392983394898::1780893485::0::1::::ResourcePanel<>HBoxContainer<><>0<>0<><>::
 robot_queue_panel.gd::GDScript::3980633713432636438::1780893503::0::1::::RobotQueuePanel<>VBoxContainer<><>0<>0<><>::
-tutorial_overlay.gd::GDScript::1716922790598979377::1780893539::0::1::::TutorialOverlay<>Control<><>0<>0<><>::
+tutorial_overlay.gd::GDScript::1716922790598979377::1780894522::0::1::::TutorialOverlay<>Control<><>0<>0<><>::
