@@ -15,6 +15,11 @@ var tutorial_completed: bool = false
 var tutorial_step: int = 0
 var caught_count: int = 0
 
+const LEVEL_SCENE_MAP := {
+	"tutorial": "res://scenes/levels/TutorialLevel.tscn",
+	"level_01": "res://scenes/levels/Level_01.tscn",
+}
+
 var _pending_segment_reset: bool = false
 var _level_scene_path: String = ""
 
@@ -33,11 +38,9 @@ func _connect_events() -> void:
 
 func start_game() -> void:
 	SaveManager.load_settings()
-	if SaveManager.get_save_data("tutorial_completed", false):
-		tutorial_completed = true
-		load_level(current_level_id)
-	else:
-		start_tutorial()
+	SaveManager.load_save()
+	tutorial_completed = SaveManager.get_save_data("tutorial_completed", false)
+	load_level(current_level_id)
 
 func start_tutorial() -> void:
 	current_state = GameState.TUTORIAL
@@ -58,9 +61,8 @@ func advance_tutorial_step() -> void:
 			EventBus.emit_tutorial_step_changed(3)
 		4:
 			EventBus.emit_tutorial_step_changed(4)
-		5:
-			_:
-				complete_tutorial()
+		_:
+			complete_tutorial()
 
 func complete_tutorial() -> void:
 	tutorial_completed = true
@@ -79,7 +81,10 @@ func load_level(level_id: String) -> void:
 	fixed_shelves = 0
 	caught_count = 0
 	current_state = GameState.PLAYING
-	_level_scene_path = "res://scenes/levels/%s.tscn" % level_id.capitalize()
+	if LEVEL_SCENE_MAP.has(level_id):
+		_level_scene_path = LEVEL_SCENE_MAP[level_id]
+	else:
+		_level_scene_path = "res://scenes/levels/Level_01.tscn"
 	get_tree().change_scene_to_file(_level_scene_path)
 	EventBus.emit_level_started(level_id)
 	EventBus.emit_music_play("level_" + level_id)

@@ -82,7 +82,7 @@ func _generate_cone_points() -> PackedVector2Array:
 		var ray_length := view_distance
 		var space_state := get_world_2d().direct_space_state
 		var query := PhysicsRayQueryParameters2D.create(global_position, global_position + ray_dir * ray_length, 8)
-		query.exclude = [self.get_rid()]
+		query.exclude = [get_rid()]
 		var hit := space_state.intersect_ray(query)
 		if hit:
 			var local_hit := to_local(hit.position)
@@ -94,16 +94,18 @@ func _check_line_of_sight() -> void:
 	var valid_bodies := _detection_area.get_overlapping_bodies()
 	detected_bodies.clear()
 	var has_player := false
+	var player_body: Node2D = null
 	for body in valid_bodies:
 		if body.is_in_group("player"):
 			if _has_line_of_sight_to(body.global_position):
 				detected_bodies.append(body)
+				player_body = body
 				has_player = true
 	if has_player and not _player_detected:
 		_player_detected = true
 		set_alerted(true)
 		if detection_callback.is_valid():
-			detection_callback.call(body)
+			detection_callback.call(player_body)
 	elif not has_player and _player_detected:
 		_player_detected = false
 		set_alerted(false)
@@ -111,7 +113,7 @@ func _check_line_of_sight() -> void:
 func _has_line_of_sight_to(target_pos: Vector2) -> bool:
 	var space_state := get_world_2d().direct_space_state
 	var ray_params := PhysicsRayQueryParameters2D.create(global_position, target_pos, 8)
-	ray_params.exclude = [self.get_rid()]
+	ray_params.exclude = [get_rid()]
 	var hit := space_state.intersect_ray(ray_params)
 	return hit.is_empty()
 
@@ -122,7 +124,7 @@ func set_alerted(alerted: bool) -> void:
 		current_color = alert_color
 		tween.tween_property(_vision_polygon, "color", alert_color, 0.15)
 	else:
-		current_color = tween.interpolate_value(base_color, alert_color, base_color, 0.3)
+		current_color = base_color
 		tween.tween_property(_vision_polygon, "color", base_color, 0.3)
 
 func is_alerted() -> bool:

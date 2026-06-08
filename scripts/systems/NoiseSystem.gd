@@ -59,10 +59,11 @@ func get_noises_in_range(world_pos: Vector2, max_range: float) -> Array:
 	return result
 
 func get_strongest_noise_in_range(world_pos: Vector2, max_range: float) -> Dictionary:
-	var noises := get_noises_in_range(world_pos, max_range)
+	var noises: Array = get_noises_in_range(world_pos, max_range)
 	if noises.is_empty():
 		return {}
-	return noises[0]
+	var result: Dictionary = noises[0]
+	return result
 
 func _update_noises(delta: float) -> void:
 	var to_remove: Array = []

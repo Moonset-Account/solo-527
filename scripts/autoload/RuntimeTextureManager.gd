@@ -100,7 +100,12 @@ func _generate_player_textures() -> void:
 		_save_img_as_tex(img, "res://assets/art/characters/player_run_%d.png" % i)
 	for i in 2:
 		var img := _make_robot_crouch(48, 48, i)
-		_save_img_as_tex(img, "res://assets/art/characters/player_crouch_idle.png" if i == 0 else "res://assets/art/characters/player_crouch_walk_%d.png" % i)
+		var path: String = ""
+		if i == 0:
+			path = "res://assets/art/characters/player_crouch_idle.png"
+		else:
+			path = "res://assets/art/characters/player_crouch_walk_%d.png" % i
+		_save_img_as_tex(img, path)
 		_save_img_as_tex(img, "res://assets/art/characters/player_crouch_walk_%d.png" % i)
 	for i in 3:
 		var img := _make_robot_image(48, 64, 0, false, 0)
@@ -140,29 +145,35 @@ func _make_robot_image(width: int, height: int, leg_offset: int, running: bool, 
 				img.set_pixel(x, y, pal["body"])
 	for y in range(body_top + 8, body_top + 13):
 		for x in range(body_left + 4, body_right - 4):
-			if y < body_top + 10 or y > body_top + 10:
+			if y != body_top + 10:
 				img.set_pixel(x, y, pal["accent"])
 	if variant % 3 == 0:
 		for y in range(body_top + 18, body_top + 25):
 			for x in range(body_left + 7, body_right - 7):
-				var c := pal["eye"]
+				var c: Color = pal["eye"]
 				c.a = 0.6
 				img.set_pixel(x, y, c)
-	leg_col := pal["leg"]
-	var leg_top := body_bottom
-	var leg_bottom := height - 2
-	var leg_width := 4
-	var positions := [cx - 9, cx - 3, cx + 3, cx + 9]
+	var leg_col: Color = pal["leg"]
+	var leg_top: int = body_bottom
+	var leg_bottom: int = height - 2
+	var leg_width: int = 4
+	var positions: Array = [cx - 9, cx - 3, cx + 3, cx + 9]
 	for idx in positions.size():
-		var loff := 0
+		var loff: int = 0
 		if running:
-			loff = -2 if (idx + variant) % 2 == 0 else 2
+			if (idx + variant) % 2 == 0:
+				loff = -2
+			else:
+				loff = 2
 		elif leg_offset != 0:
-			loff = -1 if idx % 2 == 0 else 1
-		var lx := positions[idx] + loff
+			if idx % 2 == 0:
+				loff = -1
+			else:
+				loff = 1
+		var lx: int = positions[idx] + loff
 		for y in range(leg_top, leg_bottom):
 			for w in range(leg_width):
-				var px := lx - 2 + w
+				var px: int = lx - 2 + w
 				if px >= 0 and px < width and y >= 0 and y < height:
 					img.set_pixel(px, y, leg_col)
 	return img
@@ -190,13 +201,13 @@ func _make_robot_crouch(width: int, height: int, variant: int) -> Image:
 	for y in range(body_top + int((body_bottom - body_top) * 0.4), body_top + int((body_bottom - body_top) * 0.4) + 4):
 		for x in range(body_left + 5, body_right - 5):
 			img.set_pixel(x, y, pal["accent"])
-	var leg_top := body_bottom - 3
-	var positions := [cx - 9, cx - 3, cx + 3, cx + 9]
+	var leg_top: int = body_bottom - 3
+	var positions: Array = [cx - 9, cx - 3, cx + 3, cx + 9]
 	for idx in positions.size():
-		var lx := positions[idx]
+		var lx: int = positions[idx]
 		for y in range(leg_top, height - 1):
 			for w in range(5):
-				var px := lx - 2 + w
+				var px: int = lx - 2 + w
 				if px >= 0 and px < width and y >= 0 and y < height:
 					img.set_pixel(px, y, pal["leg"])
 	return img
@@ -206,9 +217,9 @@ func _draw_scan_beam(img: Image, variant: int) -> void:
 	var height := img.get_height()
 	var start_x := int(width * 0.72)
 	var start_y := int(height * 0.4)
-	var beam_color := PALETTE_ROBOT["eye"]
+	var beam_color: Color = PALETTE_ROBOT["eye"]
 	beam_color.a = 0.7
-	var glow := PALETTE_ROBOT["accent"]
+	var glow: Color = PALETTE_ROBOT["accent"]
 	glow.a = 0.35
 	for step in range(width - start_x - 2):
 		var wobble := int(sin(step * 0.35 + variant * 1.2) * 2.5)
@@ -243,13 +254,23 @@ func _make_shelf_image(width: int, height: int, variant: int) -> Image:
 	var frame_r := width - 4
 	var levels := 4
 	var level_step := int(height / (levels + 1))
-	var frame_color := pal["frame"]
-	var frame_dark := pal["frame_dark"]
+	var frame_color: Color = pal["frame"]
+	var frame_dark: Color = pal["frame_dark"]
 	for y in range(height):
 		for x in range(frame_l - 2, frame_l + 3):
-			img.set_pixel(x, y, frame_color if x >= frame_l else frame_dark)
+			var pixel_color_l: Color
+			if x >= frame_l:
+				pixel_color_l = frame_color
+			else:
+				pixel_color_l = frame_dark
+			img.set_pixel(x, y, pixel_color_l)
 		for x in range(frame_r - 2, frame_r + 3):
-			img.set_pixel(x, y, frame_color if x < frame_r else frame_dark)
+			var pixel_color_r: Color
+			if x < frame_r:
+				pixel_color_r = frame_color
+			else:
+				pixel_color_r = frame_dark
+			img.set_pixel(x, y, pixel_color_r)
 	for lv in range(levels + 1):
 		var y := int(level_step * (lv + 0.5))
 		for x in range(frame_l - 2, frame_r + 2):
@@ -339,7 +360,12 @@ func _make_checkpoint_image(width: int, height: int) -> Image:
 	for y in range(base_top, base_bottom):
 		for x in range(base_l, base_r):
 			var edge := y < base_top + 2 or y > base_bottom - 3 or x < base_l + 2 or x > base_r - 3
-			img.set_pixel(x, y, pal["base"] if not edge else Color(pal["base"].r * 0.6, pal["base"].g * 0.6, pal["base"].b * 0.6))
+			var base_pixel: Color
+			if not edge:
+				base_pixel = pal["base"]
+			else:
+				base_pixel = Color(pal["base"].r * 0.6, pal["base"].g * 0.6, pal["base"].b * 0.6)
+			img.set_pixel(x, y, base_pixel)
 	var pole_cx := cx
 	var pole_top := int(height * 0.05)
 	var pole_bottom := base_top
@@ -350,10 +376,10 @@ func _make_checkpoint_image(width: int, height: int) -> Image:
 	var diamond_r := 14
 	for y in range(diamond_cy - diamond_r, diamond_cy + diamond_r):
 		for x in range(cx - diamond_r, cx + diamond_r):
-			var md := abs(x - cx) + abs(y - diamond_cy)
+			var md: int = abs(x - cx) + abs(y - diamond_cy)
 			if md <= diamond_r:
 				var dist_ratio := 1.0 - float(md) / diamond_r
-				var c := pal["glow"]
+				var c: Color = pal["glow"]
 				c.a = dist_ratio
 				img.set_pixel(x, y, c)
 	return img
@@ -362,7 +388,11 @@ func _generate_ui_icon() -> void:
 	var sizes := [[16, 16], [32, 32], [64, 64], [128, 128], [256, 256], [512, 512]]
 	for sz in sizes:
 		var img := _make_icon(sz[0], sz[1])
-		var path := "res://assets/art/ui/icon.png" if sz[0] == 128 else "res://assets/art/ui/icon_%d.png" % sz[0]
+		var path: String = ""
+		if sz[0] == 128:
+			path = "res://assets/art/ui/icon.png"
+		else:
+			path = "res://assets/art/ui/icon_%d.png" % sz[0]
 		_save_img_as_tex(img, path)
 	_save_img_as_tex(_make_icon(128, 128), "res://icon.png")
 
@@ -384,13 +414,13 @@ func _make_icon(size: int, _size_y: int) -> Image:
 					img.set_pixel(x, y, pal["robot"])
 	var eye_y := cy - int(robot_r * 0.2)
 	var eye_dx := int(robot_r * 0.45)
-	var eye_r := max(2, int(robot_r * 0.18))
+	var eye_r: int = max(2, int(robot_r * 0.18))
 	for side in [-1, 1]:
-		var ecx := cx + side * eye_dx
+		var ecx: int = cx + side * eye_dx
 		for y in range(eye_y - eye_r, eye_y + eye_r + 1):
 			for x in range(ecx - eye_r, ecx + eye_r + 1):
-				var dx := x - ecx
-				var dy := y - eye_y
+				var dx: int = x - ecx
+				var dy: int = y - eye_y
 				if dx * dx + dy * dy <= eye_r * eye_r:
 					img.set_pixel(x, y, pal["eye"])
 	var ring_r := int(size * 0.4)
@@ -406,7 +436,7 @@ func _make_icon(size: int, _size_y: int) -> Image:
 				if w == 0:
 					img.set_pixel(x, y, pal["ring"])
 				else:
-					var c := pal["ring"]
+					var c: Color = pal["ring"]
 					c.a = 0.4
 					img.set_pixel(x, y, c)
 	return img

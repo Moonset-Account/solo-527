@@ -153,7 +153,7 @@ func _update_systems(delta: float) -> void:
 			scan_system.process_scan(delta)
 	if noise_system and is_moving:
 		var speed_factor := velocity.length() / move_speed
-		var noise_strength := noise_system.calculate_movement_noise(velocity.length(), is_crouching, is_running)
+		var noise_strength: float = noise_system.calculate_movement_noise(velocity.length(), is_crouching, is_running)
 		if noise_strength > 0.02:
 			_step_timer -= delta
 			if _step_timer <= 0.0:

@@ -69,7 +69,7 @@ func _auto_select_target() -> void:
 			locked_target = null
 			scan_target_unlocked.emit()
 		return
-	var best := nearby_targets[0]
+	var best: Dictionary = nearby_targets[0]
 	if best["shelf"] != locked_target:
 		locked_target = best["shelf"]
 		scan_target_locked.emit(locked_target)

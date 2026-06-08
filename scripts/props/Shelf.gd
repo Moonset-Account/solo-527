@@ -42,7 +42,7 @@ func _update_label_display() -> void:
 			label_display.text = "[分析中...] %s" % wrong_label
 			label_display.modulate = Color(1.0, 0.9, 0.3)
 		elif is_being_fixed:
-			label_display.text = "[修复中...] %s → %s" % (wrong_label, correct_label)
+			label_display.text = "[修复中...] %s → %s" % [wrong_label, correct_label]
 			label_display.modulate = Color(0.5, 0.8, 1.0)
 		else:
 			label_display.text = "[!] %s" % wrong_label

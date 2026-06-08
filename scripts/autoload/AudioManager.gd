@@ -25,10 +25,10 @@ func _setup_audio_buses() -> void:
 		AudioServer.set_bus_name(0, "Master")
 	if AudioServer.get_bus_count() > 1 and AudioServer.get_bus_name(1) != "Music":
 		AudioServer.set_bus_name(1, "Music")
-		AudioServer.set_bus_send(1, "Master", 0)
+		AudioServer.set_bus_send(1, &"Master")
 	if AudioServer.get_bus_count() > 2 and AudioServer.get_bus_name(2) != "SFX":
 		AudioServer.set_bus_name(2, "SFX")
-		AudioServer.set_bus_send(2, "Master", 0)
+		AudioServer.set_bus_send(2, &"Master")
 
 func _create_sfx_pool() -> void:
 	for i in SFX_POOL_SIZE:

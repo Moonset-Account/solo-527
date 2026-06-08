@@ -112,7 +112,7 @@ func _assign_default_texture(sprite: Sprite2D) -> void:
 		var icon_path := "res://assets/art/ui/icon.png"
 		if ResourceLoader.exists(icon_path):
 			sprite.texture = load(icon_path)
-	elif parent.name.to_lower().contains("player") or "player" in sprite.get_path().to_lower():
+	elif parent.name.to_lower().contains("player") or "player" in String(sprite.get_path()).to_lower():
 		if _player_tex_cache.has("idle_0"):
 			sprite.texture = _player_tex_cache["idle_0"]
 

@@ -1,23 +1,48 @@
-[gd_scene load_steps=2 format=3 uid="uid://player_scene_main"]
+[gd_scene load_steps=17 format=3 uid="uid://player_scene_main"]
 
 [ext_resource type="Script" path="res://scripts/player/PlayerController.gd" id="1_player"]
-
-[node name="Player" type="CharacterBody2D"]
-collision_layer = 1
-collision_mask = 0
-script = ExtResource("1_player")
-
-[node name="BodyCollision" type="CollisionShape2D" parent="."]
-position = Vector2(0, 0)
-shape = SubResource("RectangleShape2D_main_body")
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_main_body"]
 size = Vector2(28, 48)
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-sprite_frames = SubResource("SpriteFrames_player_anim")
-animation = "idle"
-autoplay = "idle"
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_idle"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_1"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_2"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_3"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_1"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_2"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_3"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_idle"]
+size = Vector2(48, 48)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_walk_1"]
+size = Vector2(48, 48)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_walk_2"]
+size = Vector2(48, 48)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_1"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_2"]
+size = Vector2(48, 64)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_3"]
+size = Vector2(48, 64)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_player_anim"]
 animations = [{
@@ -100,44 +125,19 @@ animations = [{
 "speed": 5.0
 }]
 
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_idle"]
-size = Vector2(48, 64)
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_player")
 
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_1"]
-size = Vector2(48, 64)
+[node name="BodyCollision" type="CollisionShape2D" parent="."]
+position = Vector2(0, 0)
+shape = SubResource("RectangleShape2D_main_body")
 
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_2"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_walk_3"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_1"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_2"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_run_3"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_idle"]
-size = Vector2(48, 48)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_walk_1"]
-size = Vector2(48, 48)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_crouch_walk_2"]
-size = Vector2(48, 48)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_1"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_2"]
-size = Vector2(48, 64)
-
-[sub_resource type="PlaceholderTexture2D" id="Texture2D_player_scan_3"]
-size = Vector2(48, 64)
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_player_anim")
+animation = "idle"
+autoplay = "idle"
 
 [node name="ScanOrigin" type="Node2D" parent="."]
 position = Vector2(8, -8)

@@ -1,4 +1,4 @@
-extends CanvasLayer
+extends Control
 ## 设置页面 - 音量、显示、控制等选项
 
 @onready var master_slider: HSlider = $Panel/VBox/MasterRow/ValueSlider
@@ -19,10 +19,25 @@ var _return_scene_path: String = ""
 var _from_pause_menu: bool = false
 
 func _ready() -> void:
+	_detect_return_mode()
 	_load_settings_to_ui()
 	_connect_signals()
 	_animate_panel_in()
-	_return_scene_path = "res://scenes/ui/MainMenu.tscn"
+	if _return_scene_path.is_empty():
+		_return_scene_path = "res://scenes/ui/MainMenu.tscn"
+
+func _detect_return_mode() -> void:
+	var parent_check := get_parent()
+	if parent_check:
+		var parent_name_check := parent_check.name
+		if "pause" in parent_name_check.to_lower() or "hud" in parent_name_check.to_lower() or "overlay" in parent_name_check.to_lower():
+			_from_pause_menu = true
+			return
+		var root_children := get_tree().current_scene
+		if root_children and root_children.name != "Settings":
+			if root_children.get_node_or_null("HUD") or root_children.has_method("is_tutorial_level"):
+				_from_pause_menu = true
+				return
 
 func _load_settings_to_ui() -> void:
 	if master_slider:
@@ -85,19 +100,19 @@ func _update_value_label(label: Label, value: int) -> void:
 		label.text = "%d%%" % value
 
 func _on_master_volume_changed(value: float) -> void:
-	var linear_val := clamp(value / 100.0, 0.0, 1.0)
+	var linear_val: float = clamp(value / 100.0, 0.0, 1.0)
 	SaveManager.set_setting("master_volume", linear_val)
 	_update_value_label(master_value_label, int(value))
 	SaveManager._save_settings()
 
 func _on_sfx_volume_changed(value: float) -> void:
-	var linear_val := clamp(value / 100.0, 0.0, 1.0)
+	var linear_val: float = clamp(value / 100.0, 0.0, 1.0)
 	SaveManager.set_setting("sfx_volume", linear_val)
 	_update_value_label(sfx_value_label, int(value))
 	SaveManager._save_settings()
 
 func _on_music_volume_changed(value: float) -> void:
-	var linear_val := clamp(value / 100.0, 0.0, 1.0)
+	var linear_val: float = clamp(value / 100.0, 0.0, 1.0)
 	SaveManager.set_setting("music_volume", linear_val)
 	_update_value_label(music_value_label, int(value))
 	SaveManager._save_settings()

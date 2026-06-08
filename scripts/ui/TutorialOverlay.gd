@@ -66,7 +66,7 @@ func _show_step(step_idx: int) -> void:
 	if step_idx >= tutorial_steps.size():
 		_complete_tutorial()
 		return
-	var step_data := tutorial_steps[step_idx]
+	var step_data: Dictionary = tutorial_steps[step_idx]
 	if step_title:
 		step_title.text = step_data["title"]
 		_animate_label_in(step_title)

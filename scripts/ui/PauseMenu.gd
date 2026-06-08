@@ -58,7 +58,7 @@ func _on_resume_pressed() -> void:
 func _on_settings_pressed() -> void:
 	EventBus.emit_sfx_play("menu_confirm")
 	var settings_scene := load("res://scenes/ui/Settings.tscn")
-	var settings_inst := settings_scene.instantiate()
+	var settings_inst: Control = settings_scene.instantiate()
 	settings_inst.name = "SettingsOverlay"
 	settings_inst.add_to_group("settings_overlay")
 	add_child(settings_inst)

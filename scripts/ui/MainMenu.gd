@@ -1,4 +1,4 @@
-extends CanvasLayer
+extends Control
 ## 主菜单 - 游戏入口界面
 
 @onready var start_btn: Button = $VBox/StartButton

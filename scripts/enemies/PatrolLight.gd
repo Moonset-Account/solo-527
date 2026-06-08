@@ -170,15 +170,10 @@ func _update_light_visual(delta: float) -> void:
 				indicator_color = Color(1, 0.7, 0.2)
 			_:
 				indicator_color = Color(1, 0.95, 0.3)
-		if light_indicator is ColorRect:
-			light_indicator.color = indicator_color
-		elif light_indicator is Polygon2D:
+		if light_indicator is Polygon2D:
+			(light_indicator as Polygon2D).color = indicator_color
 			var pulse := 1.0 + 0.1 * sin(Time.get_ticks_msec() * 0.005)
 			light_indicator.scale = Vector2(pulse, pulse)
-	if _noise_cue_timer > 0.0:
-		_noise_cue_timer -= delta
-		if noise_cue_visible:
-			pass
 
 func _check_noise_sensor(delta: float) -> void:
 	if not noise_system:
@@ -186,7 +181,7 @@ func _check_noise_sensor(delta: float) -> void:
 	if current_state == PatrolState.ALERTED or current_state == PatrolState.CAUGHT:
 		return
 	var noise_range := base_view_distance * 1.5
-	var strongest_noise := noise_system.get_strongest_noise_in_range(global_position, noise_range)
+	var strongest_noise: Dictionary = noise_system.get_strongest_noise_in_range(global_position, noise_range)
 	if not strongest_noise.is_empty():
 		var str: float = strongest_noise.get("strength", 0.0)
 		if str > noise_sensitivity:
