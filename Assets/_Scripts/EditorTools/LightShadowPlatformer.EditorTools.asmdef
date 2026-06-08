@@ -5,7 +5,8 @@
         "LightShadowPlatformer.Core",
         "LightShadowPlatformer.Player",
         "LightShadowPlatformer.UI",
-        "LightShadowPlatformer.Gameplay"
+        "LightShadowPlatformer.Gameplay",
+        "LightShadowPlatformer.Level"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

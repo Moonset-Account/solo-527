@@ -125,7 +125,7 @@ namespace LightShadowPlatformer.EditorTools
             return PlaceholderResourceGenerator.CreateBoxSprite(
                 new Color(0.5f, 0.35f, 0.2f),
                 new Color(0.3f, 0.2f, 0.1f),
-                48, 96, 3, 16f);
+                96, 3, 16f);
         }
 
         public static Sprite SwitchButton()
@@ -139,7 +139,7 @@ namespace LightShadowPlatformer.EditorTools
             return PlaceholderResourceGenerator.CreateBoxSprite(
                 new Color(0.5f, 0.5f, 0.55f),
                 new Color(0.3f, 0.3f, 0.35f),
-                96, 32, 2, 16f);
+                96, 3, 16f);
         }
 
         public static Sprite Portal()

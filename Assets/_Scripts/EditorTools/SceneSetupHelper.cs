@@ -44,7 +44,7 @@ namespace LightShadowPlatformer.EditorTools
 
         private void SetupLevelBuilder(GameObject root, int idx)
         {
-            Level.LevelBuilder lb = root.AddComponent<Level.LevelBuilder>();
+            LightShadowPlatformer.Level.LevelBuilder lb = root.AddComponent<LightShadowPlatformer.Level.LevelBuilder>();
             lb.levelIndex = idx;
             lb.killY = -15f;
             lb.cameraMinBounds = new Vector2(-20f, -5f);
@@ -97,7 +97,8 @@ namespace LightShadowPlatformer.EditorTools
             pole.transform.SetParent(go.transform, false);
             SpriteRenderer poleSr = pole.AddComponent<SpriteRenderer>();
             poleSr.sortingLayerName = "Foreground";
-            poleSr.sprite = PlaceholderResourceGenerator.CreateSolidTexture(8, 192, new Color(0.5f, 0.4f, 0.3f)).CreateSprite(new Rect(0,0,8,192), new Vector2(0.5f, 0), 16f);
+            Texture2D poleTex = PlaceholderResourceGenerator.CreateSolidTexture(8, 192, new Color(0.5f, 0.4f, 0.3f));
+            poleSr.sprite = Sprite.Create(poleTex, new Rect(0, 0, 8, 192), new Vector2(0.5f, 0f), 16f);
 
             GameObject flag = new GameObject("Flag");
             flag.transform.SetParent(pole.transform, false);
@@ -111,7 +112,7 @@ namespace LightShadowPlatformer.EditorTools
             bc.size = new Vector2(2f, 3f);
             bc.offset = new Vector2(0, 1.5f);
 
-            Checkpoint cp = go.AddComponent<Checkpoint>();
+            LightShadowPlatformer.Checkpoint cp = go.AddComponent<LightShadowPlatformer.Checkpoint>();
             cp.checkpointId = id;
             cp.flagRenderer = flagSr;
             cp.poleRenderer = poleSr;
@@ -139,7 +140,7 @@ namespace LightShadowPlatformer.EditorTools
             cc.isTrigger = true;
             cc.radius = 1.2f;
 
-            LevelGoal lg = go.AddComponent<LevelGoal>();
+            LightShadowPlatformer.LevelGoal lg = go.AddComponent<LightShadowPlatformer.LevelGoal>();
             lg.portalRenderer = sr;
             lg.levelIndex = 0;
 
@@ -165,7 +166,7 @@ namespace LightShadowPlatformer.EditorTools
             bc.size = size * 0.8f;
             bc.offset = new Vector2(0, size.y * 0.3f);
 
-            Hazard.HazardBase hb = go.AddComponent<Hazard.HazardBase>();
+            LightShadowPlatformer.Hazard.HazardBase hb = go.AddComponent<LightShadowPlatformer.Hazard.HazardBase>();
             hb.hazardRenderer = sr;
             hb.hazardCollider = bc;
 
@@ -191,13 +192,16 @@ namespace LightShadowPlatformer.EditorTools
             baseGo.transform.localPosition = new Vector3(0, -0.3f, 0);
             SpriteRenderer baseSr = baseGo.AddComponent<SpriteRenderer>();
             baseSr.sortingLayerName = "Foreground";
-            baseSr.sprite = PlaceholderResourceGenerator.CreateBoxSprite(new Color(0.4f,0.4f,0.4f), new Color(0.2f,0.2f,0.2f), 48, 16, 3, 16f);
+            baseSr.sprite = PlaceholderResourceGenerator.CreateBoxSprite(
+                new Color(0.4f, 0.4f, 0.4f), new Color(0.2f, 0.2f, 0.2f), 48, 3, 16f);
+            baseSr.drawMode = SpriteDrawMode.Sliced;
+            baseSr.size = new Vector2(0.9f, 0.5f);
 
             BoxCollider2D bc = go.AddComponent<BoxCollider2D>();
             bc.isTrigger = true;
             bc.size = new Vector2(1.5f, 2f);
 
-            InteractableSwitch sw = go.AddComponent<InteractableSwitch>();
+            LightShadowPlatformer.InteractableSwitch sw = go.AddComponent<LightShadowPlatformer.InteractableSwitch>();
             sw.switchId = id;
             sw.linkedDoorIds = linkedDoorIds;
             sw.switchRenderer = sr;
@@ -215,17 +219,20 @@ namespace LightShadowPlatformer.EditorTools
             SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
             sr.sortingLayerName = "Foreground";
             sr.sprite = PlaceholderSprites.Door();
+            sr.drawMode = SpriteDrawMode.Sliced;
+            sr.size = new Vector2(1.4f, 3.1f);
             sr.color = new Color(0.6f, 0.4f, 0.25f);
 
             BoxCollider2D bc = go.AddComponent<BoxCollider2D>();
-            bc.size = new Vector2(1.5f, 3f);
+            bc.size = new Vector2(1.3f, 3f);
+            bc.offset = new Vector2(0, 1.5f);
 
-            DoorController dc = go.AddComponent<DoorController>();
+            LightShadowPlatformer.DoorController dc = go.AddComponent<LightShadowPlatformer.DoorController>();
             dc.doorId = id;
             dc.startsOpen = open;
             dc.doorRenderer = sr;
             dc.doorCollider = bc;
-            dc.doorType = DoorController.DoorType.VerticalSlide;
+            dc.doorType = LightShadowPlatformer.DoorController.DoorType.VerticalSlide;
             dc.moveDistance = 3.2f;
 
             return go;
@@ -246,12 +253,50 @@ namespace LightShadowPlatformer.EditorTools
             cc.isTrigger = true;
             cc.radius = 0.4f;
 
-            Collectible col = go.AddComponent<Collectible>();
+            LightShadowPlatformer.Collectible col = go.AddComponent<LightShadowPlatformer.Collectible>();
             col.collectibleId = id;
             col.itemRenderer = sr;
-            col.type = Collectible.CollectibleType.Gem;
+            col.type = LightShadowPlatformer.Collectible.CollectibleType.Gem;
 
             return go;
+        }
+
+        public static GameObject CreatePressurePlate(Vector3 position, string id, string[] linkedDoorIds)
+        {
+            GameObject go = new GameObject($"Plate_{id}");
+            go.transform.position = position;
+
+            SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+            sr.sortingLayerName = "Foreground";
+            sr.sprite = PlaceholderSprites.PressurePlate();
+            sr.drawMode = SpriteDrawMode.Sliced;
+            sr.size = new Vector2(2.2f, 0.5f);
+
+            BoxCollider2D bc = go.AddComponent<BoxCollider2D>();
+            bc.isTrigger = true;
+            bc.size = new Vector2(2f, 0.8f);
+            bc.offset = new Vector2(0, 0.2f);
+
+            LightShadowPlatformer.PressurePlate pp = go.AddComponent<LightShadowPlatformer.PressurePlate>();
+            pp.plateId = id;
+            pp.plateRenderer = sr;
+            pp.linkedDoorIds = linkedDoorIds;
+
+            return go;
+        }
+
+        public static GameObject CreateBackground(Vector2 camMin, Vector2 camMax, Color? bgColor = null)
+        {
+            GameObject bg = new GameObject("Background");
+            bg.transform.position = new Vector3((camMin.x + camMax.x) * 0.5f, (camMin.y + camMax.y) * 0.5f, 10f);
+            SpriteRenderer sr = bg.AddComponent<SpriteRenderer>();
+            sr.sortingLayerName = "Background";
+            sr.sortingOrder = -100;
+            sr.sprite = PlaceholderResourceGenerator.CreateSprite(
+                bgColor ?? new Color(0.15f, 0.16f, 0.22f), 4, 4, 1f);
+            sr.drawMode = SpriteDrawMode.Sliced;
+            sr.size = new Vector2(camMax.x - camMin.x + 100, camMax.y - camMin.y + 100);
+            return bg;
         }
     }
 }

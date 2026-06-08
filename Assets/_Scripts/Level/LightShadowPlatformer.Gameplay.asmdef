@@ -1,9 +1,10 @@
 {
-    "name": "LightShadowPlatformer.Gameplay",
-    "rootNamespace": "LightShadowPlatformer",
+    "name": "LightShadowPlatformer.Level",
+    "rootNamespace": "LightShadowPlatformer.Level",
     "references": [
         "LightShadowPlatformer.Core",
-        "LightShadowPlatformer.Player"
+        "LightShadowPlatformer.Player",
+        "LightShadowPlatformer.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

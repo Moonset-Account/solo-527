@@ -102,19 +102,19 @@ namespace LightShadowPlatformer.EditorTools
             gc.transform.SetParent(player.transform, false);
             gc.transform.localPosition = new Vector3(0, -0.85f, 0);
 
-            Player.PlayerController pc = player.AddComponent<Player.PlayerController>();
+            LightShadowPlatformer.Player.PlayerController pc = player.AddComponent<LightShadowPlatformer.Player.PlayerController>();
             pc.rb = rb;
             pc.bodyRenderer = sr;
             pc.groundCheck = gc.transform;
-            pc.groundLayer = LayerMask.GetMask("Platform", "LightPlatform", "ShadowPlatform");
+            pc.groundLayer = LayerMask.GetMask("Platform", "LightPlatform", "ShadowPlatform", "Default");
             pc.platformLayer = LayerMask.GetMask("LightPlatform", "ShadowPlatform");
 
-            Player.PlayerAnimator pa = sprite.AddComponent<Player.PlayerAnimator>();
+            LightShadowPlatformer.Player.PlayerAnimator pa = sprite.AddComponent<LightShadowPlatformer.Player.PlayerAnimator>();
             pa.controller = pc;
             pa.bodyRenderer = sr;
             pa.animator = sprite.AddComponent<Animator>();
 
-            Player.PlayerAudio pa2 = player.AddComponent<Player.PlayerAudio>();
+            LightShadowPlatformer.Player.PlayerAudio pa2 = player.AddComponent<LightShadowPlatformer.Player.PlayerAudio>();
             pa2.controller = pc;
 
             string path = "Assets/_Prefabs/Player/Player.prefab";
@@ -152,8 +152,7 @@ namespace LightShadowPlatformer.EditorTools
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            GameObject bootstrap = new GameObject("[Bootstrap]");
-            bootstrap.AddComponent<Core.SceneBootstrap>();
+            // SceneBootstrap is auto-created via RuntimeInitializeOnLoadMethod in Runtime.SceneBootstrap
 
             GameObject env = new GameObject("Environment");
             GameObject bg = new GameObject("Background");
@@ -183,7 +182,7 @@ namespace LightShadowPlatformer.EditorTools
             cam.backgroundColor = new Color(0.12f, 0.13f, 0.18f);
             cam.clearFlags = CameraClearFlags.SolidColor;
             mainCam.AddComponent<AudioListener>();
-            Camera.CameraController cc = mainCam.AddComponent<Camera.CameraController>();
+            LightShadowPlatformer.Camera.CameraController cc = mainCam.AddComponent<LightShadowPlatformer.Camera.CameraController>();
             cc.useBounds = true;
             cc.minBounds = new Vector2(-50, -10);
             cc.maxBounds = new Vector2(150, 20);
@@ -191,7 +190,7 @@ namespace LightShadowPlatformer.EditorTools
             if (levelIndex >= 0)
             {
                 GameObject level = new GameObject($"[Level{levelIndex + 1}]");
-                Level.LevelBuilder lb = level.AddComponent<Level.LevelBuilder>();
+                LightShadowPlatformer.Level.LevelBuilder lb = level.AddComponent<LightShadowPlatformer.Level.LevelBuilder>();
                 lb.levelIndex = levelIndex;
                 lb.killY = -15f;
 
