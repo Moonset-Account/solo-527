@@ -1,0 +1,94 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "集市初开",
+      "description": "学习基本的采购和定价",
+      "days_to_complete": 3,
+      "target_profit": 50,
+      "starting_gold": 100,
+      "customer_count_range": [3, 5],
+      "available_items": ["vegetable", "fruit", "grain"],
+      "rules": [],
+      "tutorial_enabled": true,
+      "tip_messages": [
+        "白天采购材料，晚上调整价格吸引顾客！",
+        "定价太高顾客不会买，太低则亏本。",
+        "注意易腐物品的保质期！"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "手艺人的到来",
+      "description": "解锁手工艺品，学会应对不同顾客",
+      "days_to_complete": 5,
+      "target_profit": 150,
+      "starting_gold": 120,
+      "customer_count_range": [4, 7],
+      "available_items": ["vegetable", "fruit", "grain", "cloth", "pottery"],
+      "rules": ["customer_preferences"],
+      "tutorial_enabled": true,
+      "tip_messages": [
+        "不同顾客偏好不同商品类别！",
+        "观察顾客类型，陈列他们喜欢的商品。",
+        "升级摊位可以增加陈列位。"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "远方商旅",
+      "description": "奢侈品和药材登场，竞争加剧",
+      "days_to_complete": 5,
+      "target_profit": 300,
+      "starting_gold": 150,
+      "customer_count_range": [5, 9],
+      "available_items": ["vegetable", "fruit", "grain", "cloth", "pottery", "spice", "silk", "herb"],
+      "rules": ["customer_preferences", "market_events"],
+      "tutorial_enabled": false,
+      "tip_messages": [
+        "市场事件会影响供需！",
+        "囤货可能在事件中获得高利润。",
+        "药材对某些顾客很有吸引力。"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "集市风云",
+      "description": "天气和节日影响客流，考验应变能力",
+      "days_to_complete": 7,
+      "target_profit": 600,
+      "starting_gold": 200,
+      "customer_count_range": [6, 12],
+      "available_items": ["vegetable", "fruit", "grain", "cloth", "pottery", "spice", "silk", "herb"],
+      "rules": ["customer_preferences", "market_events", "weather_effects", "festivals"],
+      "tutorial_enabled": false,
+      "tip_messages": [
+        "雨天食材需求降低，药材需求上升！",
+        "节日期间客流大增，提前备货！",
+        "合理搭配商品种类可以吸引更多顾客。"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "集市大亨",
+      "description": "最终挑战，成为小镇最大的集市",
+      "days_to_complete": 10,
+      "target_profit": 1200,
+      "starting_gold": 250,
+      "customer_count_range": [8, 15],
+      "available_items": ["vegetable", "fruit", "grain", "cloth", "pottery", "spice", "silk", "herb"],
+      "rules": ["customer_preferences", "market_events", "weather_effects", "festivals", "competitors"],
+      "tutorial_enabled": false,
+      "tip_messages": [
+        "竞争对手可能抢走你的顾客！",
+        "升级摊位和商品质量是制胜关键。",
+        "保持库存多样性，应对各种顾客。"
+      ]
+    }
+  ],
+  "difficulty_scale": {
+    "profit_multiplier_per_level": 1.4,
+    "customer_multiplier_per_level": 1.2,
+    "event_frequency_per_level": 0.15
+  }
+}

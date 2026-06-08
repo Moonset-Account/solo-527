@@ -1,0 +1,147 @@
+{
+  "customer_types": [
+    {
+      "id": "villager",
+      "name": "村民",
+      "preferred_categories": ["food"],
+      "budget_range": [10, 30],
+      "patience": 3,
+      "bargain_chance": 0.3,
+      "appearance_weight": 40
+    },
+    {
+      "id": "artisan",
+      "name": "工匠",
+      "preferred_categories": ["craft"],
+      "budget_range": [15, 50],
+      "patience": 4,
+      "bargain_chance": 0.2,
+      "appearance_weight": 25
+    },
+    {
+      "id": "merchant",
+      "name": "行商",
+      "preferred_categories": ["luxury", "craft"],
+      "budget_range": [30, 80],
+      "patience": 5,
+      "bargain_chance": 0.4,
+      "appearance_weight": 15
+    },
+    {
+      "id": "healer",
+      "name": "医者",
+      "preferred_categories": ["medicine"],
+      "budget_range": [12, 40],
+      "patience": 4,
+      "bargain_chance": 0.15,
+      "appearance_weight": 10
+    },
+    {
+      "id": "noble",
+      "name": "贵族",
+      "preferred_categories": ["luxury"],
+      "budget_range": [50, 120],
+      "patience": 2,
+      "bargain_chance": 0.1,
+      "appearance_weight": 5
+    },
+    {
+      "id": "traveler",
+      "name": "旅人",
+      "preferred_categories": ["food", "medicine"],
+      "budget_range": [8, 25],
+      "patience": 3,
+      "bargain_chance": 0.25,
+      "appearance_weight": 5
+    }
+  ],
+  "purchase_logic": {
+    "price_sensitivity_base": 0.7,
+    "preference_bonus": 0.3,
+    "display_bonus": 0.15,
+    "bargain_discount_max": 0.2,
+    "stock_out_penalty": 0.5
+  },
+  "weather_effects": [
+    {
+      "id": "sunny",
+      "name": "晴天",
+      "customer_modifier": 1.0,
+      "category_modifiers": {"food": 1.0, "craft": 1.0, "luxury": 1.0, "medicine": 1.0},
+      "weight": 50
+    },
+    {
+      "id": "rainy",
+      "name": "雨天",
+      "customer_modifier": 0.7,
+      "category_modifiers": {"food": 0.7, "craft": 0.9, "luxury": 1.0, "medicine": 1.3},
+      "weight": 25
+    },
+    {
+      "id": "windy",
+      "name": "大风",
+      "customer_modifier": 0.85,
+      "category_modifiers": {"food": 0.9, "craft": 0.8, "luxury": 1.0, "medicine": 1.1},
+      "weight": 15
+    },
+    {
+      "id": "festival",
+      "name": "节日",
+      "customer_modifier": 1.5,
+      "category_modifiers": {"food": 1.3, "craft": 1.2, "luxury": 1.5, "medicine": 0.8},
+      "weight": 10
+    }
+  ],
+  "market_events": [
+    {
+      "id": "supply_shortage",
+      "name": "供货短缺",
+      "description": "某类商品进价上涨50%",
+      "affected_category": "random",
+      "cost_modifier": 1.5,
+      "price_modifier": 1.3,
+      "duration": 1,
+      "weight": 20
+    },
+    {
+      "id": "traveling_merchant",
+      "name": "远方客商",
+      "description": "稀有商品打折供应",
+      "affected_category": "luxury",
+      "cost_modifier": 0.6,
+      "price_modifier": 1.0,
+      "duration": 1,
+      "weight": 15
+    },
+    {
+      "id": "harvest_season",
+      "name": "丰收季节",
+      "description": "食材类进价下降30%",
+      "affected_category": "food",
+      "cost_modifier": 0.7,
+      "price_modifier": 0.85,
+      "duration": 2,
+      "weight": 25
+    },
+    {
+      "id": "plague_rumor",
+      "name": "瘟疫传闻",
+      "description": "药材需求激增",
+      "affected_category": "medicine",
+      "cost_modifier": 1.0,
+      "price_modifier": 2.0,
+      "duration": 1,
+      "weight": 10
+    },
+    {
+      "id": "peaceful_day",
+      "name": "太平日子",
+      "description": "一切如常，客流稳定",
+      "affected_category": "none",
+      "cost_modifier": 1.0,
+      "price_modifier": 1.0,
+      "duration": 1,
+      "weight": 30
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/settings.gd" id="1"]
+
+[node name="Settings" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.12, 0.18, 0.12, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 50
+offset_top = 30
+offset_right = -50
+offset_bottom = -30
+theme_override_constants/separation = 15
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "设置"
+horizontal_alignment = 1
+
+[node name="SettingsPanel" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/SettingsPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/SettingsPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="VSyncCheck" type="CheckBox" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "垂直同步"
+
+[node name="FpsLabel" type="Label" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.9, 0.9, 0.8, 1)
+text = "目标帧率:"
+
+[node name="FpsOption" type="OptionButton" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 35)
+
+[node name="TipsCheck" type="CheckBox" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "显示经营提示"
+
+[node name="InputHeader" type="Label" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "输入设置"
+
+[node name="InputContainer" type="VBoxContainer" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResetInputButton" type="Button" parent="VBoxContainer/SettingsPanel/ScrollContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 35)
+theme_override_font_sizes/font_size = 16
+text = "重置为默认按键"
+
+[node name="StatsPanel" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/StatsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="StatsHeader" type="Label" parent="VBoxContainer/StatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+text = "性能统计"
+
+[node name="FpsLabel" type="Label" parent="VBoxContainer/StatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "FPS: --"
+
+[node name="FrameTimeLabel" type="Label" parent="VBoxContainer/StatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "帧时间: --"
+
+[node name="MemLabel" type="Label" parent="VBoxContainer/StatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "内存: --"
+
+[node name="NodeLabel" type="Label" parent="VBoxContainer/StatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "节点数: --"
+
+[node name="BackButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 45)
+theme_override_font_sizes/font_size = 20
+text = "返回"

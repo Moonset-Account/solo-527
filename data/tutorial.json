@@ -1,0 +1,112 @@
+{
+  "steps": [
+    {
+      "id": "welcome",
+      "phase": "intro",
+      "message": "欢迎来到小镇集市！你将经营自己的摊位。",
+      "highlight": null,
+      "action": "click_to_continue",
+      "skippable": true
+    },
+    {
+      "id": "day_phase_intro",
+      "phase": "day",
+      "message": "白天是采购时间！点击商品来购买材料，注意你的金币。",
+      "highlight": "shop_panel",
+      "action": "buy_first_item",
+      "skippable": true
+    },
+    {
+      "id": "day_phase_budget",
+      "phase": "day",
+      "message": "注意金币余额，不要花光所有钱！留一些以备不时之需。",
+      "highlight": "gold_display",
+      "action": "click_to_continue",
+      "skippable": true
+    },
+    {
+      "id": "night_phase_intro",
+      "phase": "night",
+      "message": "晚上要设置商品价格！拖动滑块调整售价。",
+      "highlight": "pricing_panel",
+      "action": "set_first_price",
+      "skippable": true
+    },
+    {
+      "id": "night_phase_display",
+      "phase": "night",
+      "message": "将商品放到陈列位上，顾客只会购买陈列出的商品。",
+      "highlight": "display_slots",
+      "action": "place_first_item",
+      "skippable": true
+    },
+    {
+      "id": "night_phase_customer_hint",
+      "phase": "night",
+      "message": "不同顾客偏好不同类别，注意观察！",
+      "highlight": "customer_preview",
+      "action": "click_to_continue",
+      "skippable": true
+    },
+    {
+      "id": "settlement_intro",
+      "phase": "settlement",
+      "message": "看看今天的经营成果！盈亏都在这里显示。",
+      "highlight": "profit_display",
+      "action": "click_to_continue",
+      "skippable": true
+    },
+    {
+      "id": "upgrade_hint",
+      "phase": "settlement",
+      "message": "赚到钱后可以升级摊位，提升经营效率！",
+      "highlight": "upgrade_panel",
+      "action": "click_to_continue",
+      "skippable": true
+    }
+  ],
+  "tips": [
+    {
+      "id": "perishable_warning",
+      "trigger": "bought_perishable",
+      "message": "易腐商品会在保质期后变质，注意及时出售！",
+      "priority": 1,
+      "max_show_times": 2
+    },
+    {
+      "id": "low_gold_warning",
+      "trigger": "gold_below_20",
+      "message": "金币不足！考虑降低采购量或提高售价。",
+      "priority": 2,
+      "max_show_times": 3
+    },
+    {
+      "id": "high_stock_warning",
+      "trigger": "stock_over_80_percent",
+      "message": "库存快满了！优先出售即将过期的商品。",
+      "priority": 1,
+      "max_show_times": 2
+    },
+    {
+      "id": "no_display_items",
+      "trigger": "night_no_display",
+      "message": "还没有陈列任何商品！顾客不会购买未陈列的商品。",
+      "priority": 3,
+      "max_show_times": 1
+    },
+    {
+      "id": "price_too_high",
+      "trigger": "price_above_2x",
+      "message": "定价偏高可能会吓跑顾客，试试降低一点。",
+      "priority": 2,
+      "max_show_times": 2
+    },
+    {
+      "id": "upgrade_available",
+      "trigger": "can_afford_upgrade",
+      "message": "可以升级摊位了！升级能带来更多客流和利润。",
+      "priority": 1,
+      "max_show_times": 3
+    }
+  ]
+}

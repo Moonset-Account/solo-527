@@ -1,0 +1,103 @@
+{
+  "upgrades": [
+    {
+      "id": "stall_size_1",
+      "name": "摊位扩展·初",
+      "description": "增加2个陈列位",
+      "cost": 80,
+      "effect": {"display_slots": 2},
+      "prerequisite": null,
+      "level_available": 1
+    },
+    {
+      "id": "stall_size_2",
+      "name": "摊位扩展·中",
+      "description": "增加3个陈列位",
+      "cost": 200,
+      "effect": {"display_slots": 3},
+      "prerequisite": "stall_size_1",
+      "level_available": 2
+    },
+    {
+      "id": "stall_size_3",
+      "name": "摊位扩展·大",
+      "description": "增加4个陈列位",
+      "cost": 500,
+      "effect": {"display_slots": 4},
+      "prerequisite": "stall_size_2",
+      "level_available": 3
+    },
+    {
+      "id": "storage_1",
+      "name": "仓库扩建·初",
+      "description": "库存容量增加50%",
+      "cost": 60,
+      "effect": {"storage_multiplier": 1.5},
+      "prerequisite": null,
+      "level_available": 1
+    },
+    {
+      "id": "storage_2",
+      "name": "仓库扩建·中",
+      "description": "库存容量翻倍",
+      "cost": 180,
+      "effect": {"storage_multiplier": 2.0},
+      "prerequisite": "storage_1",
+      "level_available": 2
+    },
+    {
+      "id": "signage",
+      "name": "招牌装饰",
+      "description": "顾客耐心+1",
+      "cost": 100,
+      "effect": {"patience_bonus": 1},
+      "prerequisite": null,
+      "level_available": 2
+    },
+    {
+      "id": "display_quality",
+      "name": "精美陈列架",
+      "description": "陈列加成效果翻倍",
+      "cost": 250,
+      "effect": {"display_bonus_multiplier": 2.0},
+      "prerequisite": "stall_size_2",
+      "level_available": 3
+    },
+    {
+      "id": "preservation",
+      "name": "保鲜设备",
+      "description": "易腐物品保质期+2天",
+      "cost": 150,
+      "effect": {"shelf_life_bonus": 2},
+      "prerequisite": "storage_1",
+      "level_available": 2
+    },
+    {
+      "id": "reputation",
+      "name": "口碑传播",
+      "description": "每日额外增加1-2名顾客",
+      "cost": 300,
+      "effect": {"extra_customers": 2},
+      "prerequisite": "signage",
+      "level_available": 3
+    },
+    {
+      "id": "bulk_discount",
+      "name": "批发优惠",
+      "description": "采购成本降低15%",
+      "cost": 400,
+      "effect": {"cost_discount": 0.85},
+      "prerequisite": "storage_2",
+      "level_available": 4
+    }
+  ],
+  "base_stats": {
+    "display_slots": 4,
+    "storage_multiplier": 1.0,
+    "patience_bonus": 0,
+    "display_bonus_multiplier": 1.0,
+    "shelf_life_bonus": 0,
+    "extra_customers": 0,
+    "cost_discount": 1.0
+  }
+}

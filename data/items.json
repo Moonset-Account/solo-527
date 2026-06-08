@@ -1,0 +1,91 @@
+{
+  "items": [
+    {
+      "id": "vegetable",
+      "name": "蔬菜",
+      "base_cost": 5,
+      "base_price": 10,
+      "category": "food",
+      "perishable": true,
+      "shelf_life": 2,
+      "stack_size": 20
+    },
+    {
+      "id": "fruit",
+      "name": "水果",
+      "base_cost": 8,
+      "base_price": 15,
+      "category": "food",
+      "perishable": true,
+      "shelf_life": 3,
+      "stack_size": 15
+    },
+    {
+      "id": "grain",
+      "name": "粮食",
+      "base_cost": 3,
+      "base_price": 7,
+      "category": "food",
+      "perishable": false,
+      "shelf_life": 0,
+      "stack_size": 30
+    },
+    {
+      "id": "cloth",
+      "name": "布匹",
+      "base_cost": 12,
+      "base_price": 22,
+      "category": "craft",
+      "perishable": false,
+      "shelf_life": 0,
+      "stack_size": 10
+    },
+    {
+      "id": "pottery",
+      "name": "陶器",
+      "base_cost": 10,
+      "base_price": 18,
+      "category": "craft",
+      "perishable": false,
+      "shelf_life": 0,
+      "stack_size": 8
+    },
+    {
+      "id": "spice",
+      "name": "香料",
+      "base_cost": 15,
+      "base_price": 28,
+      "category": "luxury",
+      "perishable": false,
+      "shelf_life": 0,
+      "stack_size": 10
+    },
+    {
+      "id": "silk",
+      "name": "丝绸",
+      "base_cost": 25,
+      "base_price": 45,
+      "category": "luxury",
+      "perishable": false,
+      "shelf_life": 0,
+      "stack_size": 5
+    },
+    {
+      "id": "herb",
+      "name": "草药",
+      "base_cost": 6,
+      "base_price": 12,
+      "category": "medicine",
+      "perishable": true,
+      "shelf_life": 4,
+      "stack_size": 12
+    }
+  ],
+  "categories": ["food", "craft", "luxury", "medicine"],
+  "category_names": {
+    "food": "食材",
+    "craft": "手工艺",
+    "luxury": "奢侈品",
+    "medicine": "药材"
+  }
+}
