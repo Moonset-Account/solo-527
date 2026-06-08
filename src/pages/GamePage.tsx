@@ -14,7 +14,10 @@ import { useGameStore } from '@/store/gameStore';
 import { useUIStore } from '@/store/uiStore';
 import { getLevelById } from '@/config/levels';
 import { canTransition } from '@/animation/AnimationState';
-import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentComparison, ReplaySnapshot } from '@/engine/types';
+import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentComparison, ReplaySnapshot, ScoreResult } from '@/engine/types';
+
+type ReplayPhase = 'idle' | 'before' | 'after' | 'done';
+const REPLAY_PHASE_DURATION = 20;
 
 function GameContent({ levelId }: { levelId: string }) {
   const navigate = useNavigate();
@@ -40,6 +43,7 @@ function GameContent({ levelId }: { levelId: string }) {
   const tutorialStep = useUIStore(s => s.tutorialStep);
   const showDebugPanel = useUIStore(s => s.showDebugPanel);
   const panelCollapsed = useUIStore(s => s.panelCollapsed);
+  const toggleDebugPanel = useUIStore(s => s.toggleDebugPanel);
   const setPanelCollapsed = useUIStore(s => s.setPanelCollapsed);
   const nextTutorialStep = useUIStore(s => s.nextTutorialStep);
   const prevTutorialStep = useUIStore(s => s.prevTutorialStep);
@@ -51,11 +55,14 @@ function GameContent({ levelId }: { levelId: string }) {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [fps, setFps] = useState(60);
   const [showComparison, setShowComparison] = useState(false);
+  const [replayPhase, setReplayPhase] = useState<ReplayPhase>('idle');
+  const [replayPhaseLabel, setReplayPhaseLabel] = useState('');
 
-  const replayStartTime = useRef<number | null>(null);
-  const replaySnapshotBeforeReplay = useRef<ReplaySnapshot | null>(null);
+  const replayStartSimTime = useRef<number>(0);
+  const beforeReplayScore = useRef<ScoreResult | null>(null);
+  const savedAfterConfigs = useRef<TrafficLightConfig[]>([]);
 
-  const { getSim, updateConfig, reset } = useSimulation(levelConfig);
+  const { getSim, updateConfig, applyAllConfigs, reset } = useSimulation(levelConfig);
 
   useEffect(() => {
     if (levelConfig.tutorialSteps && levelConfig.id === 'tutorial') {
@@ -91,39 +98,56 @@ function GameContent({ levelId }: { levelId: string }) {
   }, []);
 
   useEffect(() => {
-    if (animationState !== 'replaying') return;
-    if (replayStartTime.current === null) return;
+    if (replayPhase === 'idle' || replayPhase === 'done') return;
 
-    const elapsed = simulationTime - replayStartTime.current;
-    const replayDuration = 30;
+    const sim = getSim();
+    if (!sim) return;
 
-    if (elapsed >= replayDuration) {
-      const sim = getSim();
-      if (sim && replaySnapshotBeforeReplay.current) {
-        const afterScore = currentScore ?? sim.getState().score;
-        if (afterScore) {
-          const before = replaySnapshotBeforeReplay.current;
+    const elapsed = sim.time - replayStartSimTime.current;
+
+    if (replayPhase === 'before') {
+      setReplayPhaseLabel('调整前回放中...');
+      if (elapsed >= REPLAY_PHASE_DURATION) {
+        const state = sim.getState();
+        beforeReplayScore.current = state.score;
+
+        applyAllConfigs(savedAfterConfigs.current);
+
+        replayStartSimTime.current = sim.time;
+        setReplayPhase('after');
+      }
+    } else if (replayPhase === 'after') {
+      setReplayPhaseLabel('调整后回放中...');
+      if (elapsed >= REPLAY_PHASE_DURATION) {
+        const state = sim.getState();
+        const afterScore = state.score;
+        const beforeScore = beforeReplayScore.current;
+
+        if (afterScore && beforeScore) {
           const comparison: AdjustmentComparison = {
-            beforeScore: before.scoreSnapshot,
+            beforeScore,
             afterScore,
-            beforeConfig: before.trafficLightConfig,
-            afterConfig: trafficLightConfigs,
-            congestionDelta: before.scoreSnapshot.congestionScore - afterScore.congestionScore,
-            throughputDelta: afterScore.throughput - before.scoreSnapshot.throughput,
-            avgWaitDelta: before.scoreSnapshot.avgWaitTime - afterScore.avgWaitTime,
-            busWaitDelta: before.scoreSnapshot.busAvgWaitTime - afterScore.busAvgWaitTime,
-            improved: afterScore.congestionScore < before.scoreSnapshot.congestionScore,
+            beforeConfig: preAdjustmentSnapshot?.trafficLightConfig ?? [],
+            afterConfig: savedAfterConfigs.current,
+            congestionDelta: beforeScore.congestionScore - afterScore.congestionScore,
+            throughputDelta: afterScore.throughput - beforeScore.throughput,
+            avgWaitDelta: beforeScore.avgWaitTime - afterScore.avgWaitTime,
+            busWaitDelta: beforeScore.busAvgWaitTime - afterScore.busAvgWaitTime,
+            improved: afterScore.congestionScore < beforeScore.congestionScore,
           };
           setLatestComparison(comparison);
           setShowComparison(true);
         }
-      }
 
-      setAnimationState('paused');
-      replayStartTime.current = null;
-      replaySnapshotBeforeReplay.current = null;
+        sim.setRunning(false);
+        setAnimationState('paused');
+        setReplayPhase('done');
+        setReplayPhaseLabel('');
+        beforeReplayScore.current = null;
+        savedAfterConfigs.current = [];
+      }
     }
-  }, [animationState, simulationTime, getSim, currentScore, trafficLightConfigs, setAnimationState, setLatestComparison]);
+  }, [replayPhase, simulationTime, getSim, applyAllConfigs, preAdjustmentSnapshot, setLatestComparison, setAnimationState]);
 
   const tryTransition = useCallback((targetState: AnimState) => {
     if (canTransition(animationState, targetState)) {
@@ -134,22 +158,28 @@ function GameContent({ levelId }: { levelId: string }) {
   }, [animationState, setAnimationState, play]);
 
   const handlePlay = useCallback(() => {
+    if (replayPhase !== 'idle' && replayPhase !== 'done') return;
+    setReplayPhase('idle');
+    setReplayPhaseLabel('');
     tryTransition('playing');
     const sim = getSim();
     if (sim && !sim.isRunning) {
       sim.setRunning(true);
     }
-  }, [tryTransition, getSim]);
+  }, [replayPhase, tryTransition, getSim]);
 
   const handlePause = useCallback(() => {
     tryTransition('paused');
   }, [tryTransition]);
 
   const handleFastForward = useCallback(() => {
+    if (replayPhase !== 'idle' && replayPhase !== 'done') return;
     tryTransition('fastForward');
-  }, [tryTransition]);
+  }, [replayPhase, tryTransition]);
 
   const handleStop = useCallback(() => {
+    setReplayPhase('idle');
+    setReplayPhaseLabel('');
     tryTransition('idle');
     reset();
     clearSnapshots();
@@ -164,17 +194,24 @@ function GameContent({ levelId }: { levelId: string }) {
     const sim = getSim();
     if (!sim) return;
 
-    replaySnapshotBeforeReplay.current = preAdjustmentSnapshot;
-    replayStartTime.current = simulationTime;
+    savedAfterConfigs.current = trafficLightConfigs.map(c => ({ ...c }));
 
     addSnapshot({
       ...preAdjustmentSnapshot,
-      simulationTime,
+      simulationTime: sim.time,
     });
 
+    applyAllConfigs(preAdjustmentSnapshot.trafficLightConfig);
+
+    replayStartSimTime.current = sim.time;
+    beforeReplayScore.current = null;
+    setReplayPhase('before');
     setShowComparison(false);
-    tryTransition('replaying');
-  }, [preAdjustmentSnapshot, getSim, simulationTime, addSnapshot, tryTransition]);
+
+    sim.setRunning(true);
+    sim.setSpeed(3);
+    setAnimationState('replaying');
+  }, [preAdjustmentSnapshot, getSim, trafficLightConfigs, addSnapshot, applyAllConfigs, setAnimationState]);
 
   const handleIntersectionClick = useCallback((id: string) => {
     setSelectedIntersection(id);
@@ -206,6 +243,7 @@ function GameContent({ levelId }: { levelId: string }) {
 
   useEffect(() => {
     if (!levelConfig || levelConfig.timeLimit === 0) return;
+    if (replayPhase !== 'idle' && replayPhase !== 'done') return;
     if (simulationTime >= levelConfig.timeLimit && animationState !== 'idle') {
       setAnimationState('idle');
       const sim = getSim();
@@ -219,7 +257,7 @@ function GameContent({ levelId }: { levelId: string }) {
         }
       }
     }
-  }, [simulationTime, levelConfig, animationState, setAnimationState, getSim, completeLevel, play, navigate, preAdjustmentSnapshot]);
+  }, [simulationTime, levelConfig, animationState, replayPhase, setAnimationState, getSim, completeLevel, play, navigate, preAdjustmentSnapshot]);
 
   const handleNextTutorial = useCallback(() => {
     if (levelConfig.tutorialSteps && tutorialStep >= levelConfig.tutorialSteps.length - 1) {
@@ -237,6 +275,8 @@ function GameContent({ levelId }: { levelId: string }) {
   const timeRemaining = levelConfig.timeLimit > 0
     ? Math.max(0, levelConfig.timeLimit - simulationTime)
     : 0;
+
+  const isReplaying = replayPhase === 'before' || replayPhase === 'after';
 
   return (
     <div className="relative w-full h-screen overflow-hidden" style={{ background: '#0a0e1a' }}>
@@ -326,14 +366,31 @@ function GameContent({ levelId }: { levelId: string }) {
           style={{
             background: 'rgba(0,0,0,0.5)',
             backdropFilter: 'blur(8px)',
-            color: '#00ff88',
+            color: isReplaying ? '#ff8800' : '#00ff88',
             fontFamily: 'Orbitron, monospace',
-            textShadow: '0 0 8px #00ff8844',
+            textShadow: isReplaying
+              ? '0 0 8px #ff880044'
+              : '0 0 8px #00ff8844',
           }}
         >
-          {levelConfig.name}
+          {isReplaying ? replayPhaseLabel : levelConfig.name}
         </div>
       </div>
+
+      {isReplaying && (
+        <div
+          className="absolute top-14 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full text-xs font-semibold"
+          style={{
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            color: replayPhase === 'before' ? '#ff8800' : '#00ff88',
+            border: `1px solid ${replayPhase === 'before' ? 'rgba(255,136,0,0.3)' : 'rgba(0,255,136,0.3)'}`,
+          }}
+        >
+          {replayPhase === 'before' ? '▶ 调整前配置回放' : '▶ 调整后配置回放'}
+          {' · 3x'}
+        </div>
+      )}
 
       <div className="absolute bottom-20 right-4 z-20 flex gap-2">
         <button
@@ -359,12 +416,26 @@ function GameContent({ levelId }: { levelId: string }) {
           onClick={() => {
             reset();
             tryTransition('idle');
+            setReplayPhase('idle');
+            setReplayPhaseLabel('');
             setLatestComparison(null);
             setPreAdjustmentSnapshot(null);
             setShowComparison(false);
           }}
         >
           重置
+        </button>
+        <button
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+          style={{
+            background: showDebugPanel ? 'rgba(255,136,0,0.15)' : 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(8px)',
+            color: '#ff8800',
+            border: `1px solid ${showDebugPanel ? 'rgba(255,136,0,0.5)' : 'rgba(255,136,0,0.3)'}`,
+          }}
+          onClick={toggleDebugPanel}
+        >
+          Debug
         </button>
       </div>
 
@@ -380,7 +451,7 @@ function GameContent({ levelId }: { levelId: string }) {
           }}
         >
           <h3
-            className="text-lg font-bold mb-4 text-center"
+            className="text-lg font-bold mb-1 text-center"
             style={{
               fontFamily: 'Orbitron, monospace',
               color: latestComparison.improved ? '#00ff88' : '#ff4444',
@@ -389,6 +460,9 @@ function GameContent({ levelId }: { levelId: string }) {
           >
             {latestComparison.improved ? '✓ 调整有效' : '✗ 调整需优化'}
           </h3>
+          <p className="text-center text-xs text-white/40 mb-4">
+            回放对比 · 各 {REPLAY_PHASE_DURATION} 秒
+          </p>
 
           <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center">
@@ -428,7 +502,11 @@ function GameContent({ levelId }: { levelId: string }) {
               border: '1px solid rgba(255,255,255,0.15)',
               color: '#fff',
             }}
-            onClick={() => setShowComparison(false)}
+            onClick={() => {
+              setShowComparison(false);
+              setReplayPhase('idle');
+              setReplayPhaseLabel('');
+            }}
           >
             关闭
           </button>

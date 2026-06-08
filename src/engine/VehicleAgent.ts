@@ -104,7 +104,6 @@ export function updateVehicle(
       const dz = targetIntersection.position.z - v.position.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 5) {
-        v.direction = getDirectionFromDelta(dx, dz);
         v.currentSegment++;
 
         if (v.type === 'bus' && v.busRouteIndex !== undefined) {
@@ -119,6 +118,16 @@ export function updateVehicle(
             v.currentSegment = 0;
           }
         }
+
+        const nextTargetId = v.route[v.currentSegment + 1];
+        const nextTarget = graph.intersections.get(nextTargetId);
+        if (nextTarget) {
+          const ndx = nextTarget.position.x - v.position.x;
+          const ndz = nextTarget.position.z - v.position.z;
+          v.direction = getDirectionFromDelta(ndx, ndz);
+        }
+      } else {
+        v.direction = getDirectionFromDelta(dx, dz);
       }
     }
   }

@@ -78,6 +78,11 @@ export function useSimulation(levelConfig: LevelConfig) {
     useSimulationStore.getState().updateTrafficLightConfig(intersectionId, patch);
   }, []);
 
+  const applyAllConfigs = useCallback((configs: TrafficLightConfig[]) => {
+    simRef.current?.applyAllConfigs(configs);
+    useSimulationStore.getState().initTrafficLightConfigs(configs);
+  }, []);
+
   const reset = useCallback(() => {
     simRef.current?.reset();
     lastTimeRef.current = 0;
@@ -88,6 +93,7 @@ export function useSimulation(levelConfig: LevelConfig) {
   return {
     getSim,
     updateConfig,
+    applyAllConfigs,
     reset,
   };
 }

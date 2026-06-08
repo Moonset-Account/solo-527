@@ -228,6 +228,15 @@ export class Simulation {
     }
   }
 
+  applyAllConfigs(configs: TrafficLightConfig[]): void {
+    for (const config of configs) {
+      const tl = this.trafficLights.get(config.intersectionId);
+      if (tl) {
+        tl.setConfig(config);
+      }
+    }
+  }
+
   getState(): SimulationState {
     const trafficLightStates: TrafficLightState[] = [];
     for (const tl of this.trafficLights.values()) {
