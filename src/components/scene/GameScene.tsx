@@ -20,12 +20,13 @@ export default function GameScene() {
 
   const roadMeshes = useMemo(() => {
     if (!level) return [];
-    const intersectionIds = new Set(level.intersections.map((i) => i.id));
+    const seen = new Set<string>();
     return level.roads.map((road) => {
-      const fromPos = level.intersections.find((i) => i.id === road.from)?.position;
-      const toPos = level.intersections.find((i) => i.id === road.to)?.position;
-      if (!fromPos || !toPos) return null;
-      return { id: road.id, from: fromPos, to: toPos, lanes: road.lanes, direction: road.direction };
+      if (seen.has(road.id)) return null;
+      seen.add(road.id);
+      const pos = trafficSim.getRoadPosition(road.id + '-in') ?? trafficSim.getRoadPosition(road.id);
+      if (!pos) return null;
+      return { id: road.id, from: pos.from, to: pos.to, lanes: road.lanes, direction: road.direction };
     }).filter(Boolean);
   }, [level]);
 
@@ -33,7 +34,7 @@ export default function GameScene() {
     return vehicles.map((v) => {
       const pos = trafficSim.getRoadPosition(v.roadId);
       if (!pos) return null;
-      const road = level?.roads.find((r) => r.id === v.roadId);
+      const road = trafficSim.getRoads().find((r) => r.id === v.roadId);
       if (!road) return null;
       return {
         ...v,
@@ -41,7 +42,7 @@ export default function GameScene() {
         lanes: road.lanes,
       };
     }).filter(Boolean);
-  }, [vehicles, level]);
+  }, [vehicles]);
 
   if (!level) return null;
 

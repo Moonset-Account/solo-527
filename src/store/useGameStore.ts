@@ -9,7 +9,7 @@ import type {
   SignalPhaseConfig,
   AdjustmentSnapshot,
 } from '@/types';
-import * as StatsTracker from '@/engine/StatsTracker';
+import { trafficSim } from '@/engine/TrafficSim';
 
 interface GameState {
   level: LevelConfig | null;
@@ -25,6 +25,9 @@ interface GameState {
   selectedIntersection: string | null;
   lastAdjustment: AdjustmentSnapshot | null;
   completedLevels: string[];
+  failureCount: number;
+  adjustmentHistory: AdjustmentSnapshot[];
+  playTimeSeconds: number;
 
   startLevel: (level: LevelConfig) => void;
   setPhase: (phase: GamePhase) => void;
@@ -48,6 +51,7 @@ interface GameState {
   clearReplay: () => void;
   completeLevel: (levelId: string) => void;
   loadCompletedLevels: () => void;
+  loadSave: (gameTime: number, intersections: IntersectionState[], throughput: number, speed: GameSpeed, failureCount: number, adjustmentHistory: AdjustmentSnapshot[]) => void;
 }
 
 const COMPLETED_KEY = 'traffic_sim_completed';
@@ -66,6 +70,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedIntersection: null,
   lastAdjustment: null,
   completedLevels: [],
+  failureCount: 0,
+  adjustmentHistory: [],
+  playTimeSeconds: 0,
 
   startLevel: (level: LevelConfig) => {
     const intersections: IntersectionState[] = level.intersections.map((ic) => ({
@@ -74,7 +81,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       phaseTimer: 0,
       phases: ic.signalPhases.map((p) => ({ ...p })),
     }));
-    StatsTracker.startLevel(level.id);
     set({
       level,
       phase: 'playing',
@@ -88,6 +94,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       replayFrames: [],
       selectedIntersection: null,
       lastAdjustment: null,
+      failureCount: 0,
+      adjustmentHistory: [],
+      playTimeSeconds: 0,
     });
   },
 
@@ -98,18 +107,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   updateGameTime: (dt: number) => {
     const state = get();
     if (state.phase !== 'playing') return;
-    StatsTracker.updatePlayTime(dt);
-    set({ gameTime: state.gameTime + dt });
+    set({ gameTime: state.gameTime + dt, playTimeSeconds: state.playTimeSeconds + dt });
   },
 
   updateSimulation: (vehicles, intersections, score, throughput, waitTime) => {
-    const state = get();
-    StatsTracker.recordScore({
-      timestamp: state.gameTime,
-      congestionScore: score,
-      throughput,
-      avgWaitTime: waitTime,
-    });
     set({
       vehicles,
       intersections,
@@ -127,12 +128,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       before,
       after,
     };
-    StatsTracker.recordAdjustment(snapshot);
     const intersections = state.intersections.map((is) => {
       if (is.id !== intersectionId) return is;
       return { ...is, phases: after.map((p) => ({ ...p })) };
     });
-    set({ intersections, lastAdjustment: snapshot });
+    trafficSim.updateIntersectionPhases(intersectionId, after);
+    set({
+      intersections,
+      lastAdjustment: snapshot,
+      adjustmentHistory: [...state.adjustmentHistory, snapshot],
+    });
   },
 
   selectIntersection: (id) => set({ selectedIntersection: id }),
@@ -146,7 +151,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   restartLevel: () => {
     const state = get();
     if (!state.level) return;
-    StatsTracker.incrementFailure();
     const level = state.level;
     const intersections: IntersectionState[] = level.intersections.map((ic) => ({
       id: ic.id,
@@ -154,7 +158,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       phaseTimer: 0,
       phases: ic.signalPhases.map((p) => ({ ...p })),
     }));
-    StatsTracker.startLevel(level.id);
     set({
       phase: 'playing',
       speed: 1,
@@ -167,6 +170,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       replayFrames: [],
       selectedIntersection: null,
       lastAdjustment: null,
+      failureCount: state.failureCount + 1,
+      adjustmentHistory: [],
+      playTimeSeconds: 0,
     });
   },
 
@@ -193,5 +199,23 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
     } catch {}
+  },
+
+  loadSave: (gameTime, intersections, throughput, speed, failureCount, adjustmentHistory) => {
+    set({
+      phase: 'playing',
+      gameTime,
+      intersections,
+      throughput,
+      speed,
+      failureCount,
+      adjustmentHistory,
+      vehicles: [],
+      congestionScore: 100,
+      avgWaitTime: 0,
+      replayFrames: [],
+      selectedIntersection: null,
+      lastAdjustment: null,
+    });
   },
 }));

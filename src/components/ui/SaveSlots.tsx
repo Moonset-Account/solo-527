@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '@/store/useGameStore';
 import { useUIStore } from '@/store/useUIStore';
+import { trafficSim } from '@/engine/TrafficSim';
 import * as SaveMgr from '@/engine/SaveMgr';
 import * as AudioTrigger from '@/engine/AudioTrigger';
 import type { SaveData } from '@/types';
@@ -12,8 +13,10 @@ export default function SaveSlots() {
   const gameTime = useGameStore((s) => s.gameTime);
   const intersections = useGameStore((s) => s.intersections);
   const speed = useGameStore((s) => s.speed);
-  const stats = useGameStore((s) => s.level);
-  const startLevel = useGameStore((s) => s.startLevel);
+  const throughput = useGameStore((s) => s.throughput);
+  const failureCount = useGameStore((s) => s.failureCount);
+  const adjustmentHistory = useGameStore((s) => s.adjustmentHistory);
+  const loadSave = useGameStore((s) => s.loadSave);
 
   const [saves, setSaves] = useState(() => SaveMgr.listSaves());
 
@@ -30,8 +33,8 @@ export default function SaveSlots() {
       stats: {
         levelId: level.id,
         playTimeSeconds: gameTime,
-        failureCount: 0,
-        adjustments: [],
+        failureCount,
+        adjustments: adjustmentHistory,
         scoreHistory: [],
       },
       speed,
@@ -45,6 +48,21 @@ export default function SaveSlots() {
     const data = SaveMgr.load(slot);
     if (!data) return;
     AudioTrigger.playUIClick();
+
+    trafficSim.restoreState(
+      data.gameTime,
+      data.intersections,
+      0,
+    );
+
+    loadSave(
+      data.gameTime,
+      data.intersections,
+      0,
+      data.speed ?? 1,
+      data.stats?.failureCount ?? 0,
+      data.stats?.adjustments ?? [],
+    );
   };
 
   const handleDelete = (slot: string) => {
@@ -95,28 +113,30 @@ export default function SaveSlots() {
               )}
             </div>
             {data ? (
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-[10px] text-white/40">
-                  {data.levelId} | {data.gameTime.toFixed(0)}s
-                </span>
-                <button
-                  onClick={() => handleLoad(slot)}
-                  className="text-[10px] text-[#0abde3] transition hover:text-white"
-                >
-                  读取
-                </button>
-                <button
-                  onClick={() => handleDelete(slot)}
-                  className="text-[10px] text-[#e74c3c] transition hover:text-white"
-                >
-                  删除
-                </button>
-                <button
-                  onClick={() => handleExport(data)}
-                  className="text-[10px] text-white/40 transition hover:text-white"
-                >
-                  导出
-                </button>
+              <div>
+                <div className="mt-1 text-[10px] text-white/40">
+                  {data.levelId} | {data.gameTime.toFixed(0)}s | 失败{data.stats?.failureCount ?? 0} | 调整{data.stats?.adjustments?.length ?? 0}次
+                </div>
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    onClick={() => handleLoad(slot)}
+                    className="text-[10px] text-[#0abde3] transition hover:text-white"
+                  >
+                    读取
+                  </button>
+                  <button
+                    onClick={() => handleDelete(slot)}
+                    className="text-[10px] text-[#e74c3c] transition hover:text-white"
+                  >
+                    删除
+                  </button>
+                  <button
+                    onClick={() => handleExport(data)}
+                    className="text-[10px] text-white/40 transition hover:text-white"
+                  >
+                    导出
+                  </button>
+                </div>
               </div>
             ) : (
               <span className="text-[10px] text-white/20">空</span>

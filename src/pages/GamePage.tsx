@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/useGameStore';
 import { useUIStore } from '@/store/useUIStore';
@@ -31,10 +31,17 @@ export default function GamePage() {
   const congestionScore = useGameStore((s) => s.congestionScore);
   const setPhase = useGameStore((s) => s.setPhase);
   const restartLevel = useGameStore((s) => s.restartLevel);
-  const completedLevels = useGameStore((s) => s.completedLevels);
+  const completeLevel = useGameStore((s) => s.completeLevel);
+  const throughput = useGameStore((s) => s.throughput);
+  const avgWaitTime = useGameStore((s) => s.avgWaitTime);
+  const failureCount = useGameStore((s) => s.failureCount);
+  const adjustmentHistory = useGameStore((s) => s.adjustmentHistory);
+  const playTimeSeconds = useGameStore((s) => s.playTimeSeconds);
+  const gameTime = useGameStore((s) => s.gameTime);
   const cameraMode = useUIStore((s) => s.cameraMode);
   const setCameraMode = useUIStore((s) => s.setCameraMode);
   const [initialized, setInitialized] = useState(false);
+  const completedRef = useRef(false);
 
   useSimulation();
   useAudio();
@@ -46,19 +53,20 @@ export default function GamePage() {
       trafficSim.init(data as any);
       startLevel(data as any);
       setInitialized(true);
+      completedRef.current = false;
     }
   }, [levelId]);
 
   useEffect(() => {
-    if (phase === 'paused' && level && initialized) {
-      const gameTime = useGameStore.getState().gameTime;
-      if (gameTime >= level.timeLimit) {
-        if (congestionScore <= level.targetScore) {
-        } else {
-        }
-      }
+    if (completedRef.current) return;
+    if (!level || phase !== 'paused') return;
+    if (gameTime < level.timeLimit) return;
+
+    if (congestionScore <= level.targetScore) {
+      completedRef.current = true;
+      completeLevel(level.id);
     }
-  }, [phase, level, congestionScore, initialized]);
+  }, [phase, gameTime, level, congestionScore, completeLevel]);
 
   const handleBack = () => {
     setPhase('menu');
@@ -66,19 +74,18 @@ export default function GamePage() {
     AudioTrigger.playUIClick();
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === ' ') {
-      e.preventDefault();
-      const currentPhase = useGameStore.getState().phase;
-      useGameStore.getState().setPhase(currentPhase === 'playing' ? 'paused' : 'playing');
-    }
-    if (e.key === '1') useGameStore.getState().setSpeed(1);
-    if (e.key === '2') useGameStore.getState().setSpeed(2);
-    if (e.key === '4') useGameStore.getState().setSpeed(4);
-    if (e.key === 'r' || e.key === 'R') restartLevel();
-  };
-
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        const currentPhase = useGameStore.getState().phase;
+        useGameStore.getState().setPhase(currentPhase === 'playing' ? 'paused' : 'playing');
+      }
+      if (e.key === '1') useGameStore.getState().setSpeed(1);
+      if (e.key === '2') useGameStore.getState().setSpeed(2);
+      if (e.key === '4') useGameStore.getState().setSpeed(4);
+      if (e.key === 'r' || e.key === 'R') useGameStore.getState().restartLevel();
+    };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
@@ -92,7 +99,7 @@ export default function GamePage() {
   }
 
   const isLevelComplete = phase === 'complete';
-  const isTimeUp = phase === 'paused' && useGameStore.getState().gameTime >= level.timeLimit;
+  const isTimeUp = phase === 'paused' && gameTime >= level.timeLimit;
   const didWin = congestionScore <= level.targetScore;
 
   return (
@@ -125,7 +132,7 @@ export default function GamePage() {
       <ReplayPanel />
       <SaveSlots />
 
-      {phase === 'paused' && !isTimeUp && (
+      {phase === 'paused' && !isTimeUp && !isLevelComplete && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="rounded-lg border border-white/10 bg-[#1a1a2e] p-8 text-center">
             <h2 className="mb-4 font-['Orbitron'] text-xl text-white/80">暂停</h2>
@@ -141,7 +148,7 @@ export default function GamePage() {
 
       {(isLevelComplete || isTimeUp) && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="rounded-lg border border-white/10 bg-[#1a1a2e] p-8 text-center">
+          <div className="w-96 rounded-lg border border-white/10 bg-[#1a1a2e] p-8 text-center">
             {didWin ? (
               <>
                 <h2 className="mb-2 font-['Orbitron'] text-2xl text-[#2ecc71]">
@@ -150,9 +157,33 @@ export default function GamePage() {
                 <p className="mb-1 text-sm text-white/60">
                   拥堵评分: <span className="text-[#2ecc71]">{congestionScore}</span> / 目标 ≤{level.targetScore}
                 </p>
-                <p className="mb-4 text-xs text-white/30">
-                  通行量: {useGameStore.getState().throughput}
+                <p className="mb-1 text-xs text-white/40">
+                  通行量: {throughput} | 等待车辆: {avgWaitTime.toFixed(0)}
                 </p>
+                <div className="mb-3 mt-3 rounded border border-white/5 bg-white/5 p-2">
+                  <p className="text-[10px] text-white/40">试玩记录</p>
+                  <div className="mt-1 flex justify-between text-[10px]">
+                    <span className="text-white/30">用时</span>
+                    <span className="text-white/60">{playTimeSeconds.toFixed(0)}s</span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-[10px]">
+                    <span className="text-white/30">失败次数</span>
+                    <span className="text-white/60">{failureCount}</span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-[10px]">
+                    <span className="text-white/30">信号调整</span>
+                    <span className="text-white/60">{adjustmentHistory.length} 次</span>
+                  </div>
+                  {adjustmentHistory.length > 0 && (
+                    <div className="mt-1 max-h-16 overflow-auto text-[9px] text-white/20">
+                      {adjustmentHistory.slice(-3).map((adj, i) => (
+                        <div key={i}>
+                          {adj.intersectionId} @ {adj.timestamp.toFixed(0)}s
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => navigate('/')}
@@ -162,6 +193,7 @@ export default function GamePage() {
                   </button>
                   <button
                     onClick={() => {
+                      completedRef.current = false;
                       restartLevel();
                     }}
                     className="rounded bg-[#0abde3]/20 px-4 py-2 font-['Orbitron'] text-xs text-[#0abde3] transition hover:bg-[#0abde3]/30"
@@ -178,7 +210,25 @@ export default function GamePage() {
                 <p className="mb-1 text-sm text-white/60">
                   拥堵评分: <span className="text-[#e74c3c]">{congestionScore}</span> / 目标 ≤{level.targetScore}
                 </p>
-                <p className="mb-4 text-xs text-white/30">
+                <p className="mb-1 text-xs text-white/40">
+                  通行量: {throughput} | 等待车辆: {avgWaitTime.toFixed(0)}
+                </p>
+                <div className="mb-3 mt-3 rounded border border-white/5 bg-white/5 p-2">
+                  <p className="text-[10px] text-white/40">试玩记录</p>
+                  <div className="mt-1 flex justify-between text-[10px]">
+                    <span className="text-white/30">用时</span>
+                    <span className="text-white/60">{playTimeSeconds.toFixed(0)}s</span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-[10px]">
+                    <span className="text-white/30">失败次数</span>
+                    <span className="text-white/60">{failureCount}</span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-[10px]">
+                    <span className="text-white/30">信号调整</span>
+                    <span className="text-white/60">{adjustmentHistory.length} 次</span>
+                  </div>
+                </div>
+                <p className="mb-3 text-xs text-white/30">
                   调整信号灯策略后重试
                 </p>
                 <div className="flex gap-3">
@@ -190,6 +240,7 @@ export default function GamePage() {
                   </button>
                   <button
                     onClick={() => {
+                      completedRef.current = false;
                       restartLevel();
                     }}
                     className="rounded bg-[#e74c3c]/20 px-4 py-2 font-['Orbitron'] text-xs text-[#e74c3c] transition hover:bg-[#e74c3c]/30"

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/useGameStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -17,6 +18,10 @@ export default function HomePage() {
   const completedLevels = useGameStore((s) => s.completedLevels);
   const loadCompletedLevels = useGameStore((s) => s.loadCompletedLevels);
   useAudio();
+
+  useEffect(() => {
+    loadCompletedLevels();
+  }, [loadCompletedLevels]);
 
   const latestSave = SaveMgr.getLatestSave();
   const isUnlocked = (idx: number) => {

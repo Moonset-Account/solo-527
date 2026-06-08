@@ -21,12 +21,9 @@ interface Road {
   speedLimit: number;
   direction: Direction;
   length: number;
-}
-
-interface SpawnPoint {
-  roadId: string;
-  direction: Direction;
-  isEdge: boolean;
+  isInbound: boolean;
+  isOutbound: boolean;
+  originalRoadId: string;
 }
 
 const VEHICLE_COLORS = [
@@ -35,21 +32,24 @@ const VEHICLE_COLORS = [
   '#d35400', '#c0392b', '#16a085', '#27ae60', '#2980b9',
 ];
 
-const BUS_COLOR = '#3498db';
+function oppositeDir(d: Direction): Direction {
+  const m: Record<Direction, Direction> = { north: 'south', south: 'north', east: 'west', west: 'east' };
+  return m[d];
+}
 
 export class TrafficSim {
   private roads: Road[] = [];
   private intersections: Map<string, IntersectionState> = new Map();
   private intersectionPositions: Map<string, [number, number]> = new Map();
   private vehicles: VehicleState[] = [];
-  private spawnPoints: SpawnPoint[] = [];
+  private inboundRoads: Road[] = [];
+  private outboundRoads: Road[] = [];
   private level: LevelConfig | null = null;
   private gameTime: number = 0;
   private spawnAccumulators: Map<string, number> = new Map();
   private nextVehicleId: number = 0;
   private throughputCounter: number = 0;
   private totalWaitTime: number = 0;
-  private waitingVehicleCount: number = 0;
 
   getVehicles(): VehicleState[] {
     return this.vehicles;
@@ -75,12 +75,6 @@ export class TrafficSim {
     this.nextVehicleId = 0;
     this.throughputCounter = 0;
     this.totalWaitTime = 0;
-    this.waitingVehicleCount = 0;
-
-    this.roads = level.roads.map((r) => ({
-      ...r,
-      length: ROAD_LENGTH,
-    }));
 
     this.intersections.clear();
     this.intersectionPositions.clear();
@@ -94,26 +88,78 @@ export class TrafficSim {
       this.intersectionPositions.set(ic.id, ic.position);
     }
 
-    this.spawnPoints = [];
     const intersectionIds = new Set(level.intersections.map((i) => i.id));
-    for (const road of this.roads) {
-      const isFromEdge = !intersectionIds.has(road.from);
-      const isToEdge = !intersectionIds.has(road.to);
-      if (isFromEdge) {
-        this.spawnPoints.push({
-          roadId: road.id,
-          direction: road.direction,
-          isEdge: true,
-        });
-      }
+    this.roads = [];
+    this.inboundRoads = [];
+    this.outboundRoads = [];
+
+    for (const r of level.roads) {
+      const isFromEdge = !intersectionIds.has(r.from);
+      const isToEdge = !intersectionIds.has(r.to);
+
       if (isToEdge) {
-        this.spawnPoints.push({
-          roadId: road.id,
-          direction: road.direction,
-          isEdge: true,
-        });
+        const inRoad: Road = {
+          id: r.id + '-in',
+          from: r.to,
+          to: r.from,
+          lanes: r.lanes,
+          speedLimit: r.speedLimit,
+          direction: r.direction,
+          length: ROAD_LENGTH,
+          isInbound: true,
+          isOutbound: false,
+          originalRoadId: r.id,
+        };
+        const outRoad: Road = {
+          ...r,
+          length: ROAD_LENGTH,
+          isInbound: false,
+          isOutbound: true,
+          originalRoadId: r.id,
+        };
+        this.roads.push(inRoad, outRoad);
+        this.inboundRoads.push(inRoad);
+        this.outboundRoads.push(outRoad);
+      } else if (isFromEdge) {
+        const inRoad: Road = {
+          ...r,
+          length: ROAD_LENGTH,
+          isInbound: true,
+          isOutbound: false,
+          originalRoadId: r.id,
+        };
+        const outRoad: Road = {
+          id: r.id + '-out',
+          from: r.to,
+          to: r.from,
+          lanes: r.lanes,
+          speedLimit: r.speedLimit,
+          direction: r.direction,
+          length: ROAD_LENGTH,
+          isInbound: false,
+          isOutbound: true,
+          originalRoadId: r.id,
+        };
+        this.roads.push(inRoad, outRoad);
+        this.inboundRoads.push(inRoad);
+        this.outboundRoads.push(outRoad);
+      } else {
+        const road: Road = {
+          ...r,
+          length: ROAD_LENGTH,
+          isInbound: false,
+          isOutbound: false,
+          originalRoadId: r.id,
+        };
+        this.roads.push(road);
       }
-      this.spawnAccumulators.set(road.id, 0);
+
+      this.spawnAccumulators.set(r.id + '-in', 0);
+      this.spawnAccumulators.set(r.id, 0);
+    }
+
+    for (const route of level.busRoutes) {
+      this.spawnAccumulators.set('bus-' + route.id, 0);
     }
   }
 
@@ -127,20 +173,17 @@ export class TrafficSim {
   }
 
   private updateSignals(dt: number): void {
-    for (const [id, intersection] of this.intersections) {
+    for (const [, intersection] of this.intersections) {
       const phases = intersection.phases;
       if (phases.length === 0) continue;
 
       const currentPhaseIdx = intersection.currentPhase % phases.length;
       const currentPhase = phases[currentPhaseIdx];
-      const greenDur = currentPhase.greenDuration;
-      const cycleLen = currentPhase.cycleLength;
 
       intersection.phaseTimer += dt;
 
-      if (intersection.phaseTimer >= greenDur) {
-        const nextIdx = (currentPhaseIdx + 1) % phases.length;
-        intersection.currentPhase = nextIdx;
+      if (intersection.phaseTimer >= currentPhase.greenDuration) {
+        intersection.currentPhase = (currentPhaseIdx + 1) % phases.length;
         intersection.phaseTimer = 0;
       }
     }
@@ -157,40 +200,56 @@ export class TrafficSim {
       }
     }
 
-    for (const sp of this.spawnPoints) {
-      const road = this.roads.find((r) => r.id === sp.roadId);
-      if (!road) continue;
-
-      const baseRate = 0.3 * density;
-      const accum = this.spawnAccumulators.get(sp.roadId) ?? 0;
+    for (const inRoad of this.inboundRoads) {
+      const baseRate = 0.35 * density;
+      const key = inRoad.id;
+      const accum = this.spawnAccumulators.get(key) ?? 0;
       const newAccum = accum + baseRate * dt;
 
       if (newAccum >= 1) {
         const canSpawn = !this.vehicles.some(
-          (v) => v.roadId === sp.roadId && v.position < VEHICLE_LENGTH * 2,
+          (v) => v.roadId === inRoad.id && v.position < VEHICLE_LENGTH * 2,
         );
         if (canSpawn) {
-          this.spawnVehicle(sp.roadId, road);
+          this.spawnVehicleOnRoad(inRoad);
         }
-        this.spawnAccumulators.set(sp.roadId, newAccum - 1);
+        this.spawnAccumulators.set(key, newAccum - 1);
       } else {
-        this.spawnAccumulators.set(sp.roadId, newAccum);
+        this.spawnAccumulators.set(key, newAccum);
+      }
+    }
+
+    for (const road of this.roads) {
+      if (road.isInbound || road.isOutbound) continue;
+      const baseRate = 0.2 * density;
+      const key = road.id;
+      const accum = this.spawnAccumulators.get(key) ?? 0;
+      const newAccum = accum + baseRate * dt;
+      if (newAccum >= 1) {
+        const canSpawn = !this.vehicles.some(
+          (v) => v.roadId === road.id && v.position < VEHICLE_LENGTH * 2,
+        );
+        if (canSpawn) {
+          this.spawnVehicleOnRoad(road);
+        }
+        this.spawnAccumulators.set(key, newAccum - 1);
+      } else {
+        this.spawnAccumulators.set(key, newAccum);
       }
     }
 
     this.spawnBuses(dt);
   }
 
-  private spawnVehicle(roadId: string, road: Road): void {
-    const isBus = false;
+  private spawnVehicleOnRoad(road: Road): void {
     const lane = Math.floor(Math.random() * road.lanes);
     this.vehicles.push({
       id: `v-${this.nextVehicleId++}`,
-      roadId,
+      roadId: road.id,
       position: 0,
       speed: MAX_SPEED * 0.5,
       lane,
-      isBus,
+      isBus: false,
       color: VEHICLE_COLORS[Math.floor(Math.random() * VEHICLE_COLORS.length)],
       waiting: false,
     });
@@ -201,10 +260,10 @@ export class TrafficSim {
     for (const route of this.level.busRoutes) {
       if (route.stops.length === 0) continue;
       const firstStop = route.stops[0];
-      const road = this.roads.find(
-        (r) => r.from === firstStop || r.to === firstStop,
+      const inRoad = this.inboundRoads.find(
+        (r) => r.to === firstStop,
       );
-      if (!road) continue;
+      if (!inRoad) continue;
 
       const key = `bus-${route.id}`;
       let accum = this.spawnAccumulators.get(key) ?? 0;
@@ -212,16 +271,15 @@ export class TrafficSim {
 
       if (accum >= 1) {
         const canSpawn = !this.vehicles.some(
-          (v) => v.roadId === road.id && v.position < VEHICLE_LENGTH * 3 && v.isBus,
+          (v) => v.roadId === inRoad.id && v.position < VEHICLE_LENGTH * 3 && v.isBus,
         );
         if (canSpawn) {
-          const lane = 0;
           this.vehicles.push({
             id: `bus-${this.nextVehicleId++}`,
-            roadId: road.id,
+            roadId: inRoad.id,
             position: 0,
             speed: MAX_SPEED * 0.4,
-            lane,
+            lane: 0,
             isBus: true,
             busRouteId: route.id,
             color: route.color,
@@ -243,7 +301,7 @@ export class TrafficSim {
       vehiclesOnRoad.set(v.roadId, list);
     }
 
-    for (const [roadId, list] of vehiclesOnRoad) {
+    for (const [, list] of vehiclesOnRoad) {
       list.sort((a, b) => b.position - a.position);
     }
 
@@ -265,18 +323,25 @@ export class TrafficSim {
         }
       }
 
-      const nearIntersection = v.position >= road.length - 1.5 && v.position < road.length;
-      if (nearIntersection) {
-        const isGreen = this.isGreenForRoad(v.roadId, v.isBus, v.busRouteId);
-        if (!isGreen) {
-          const stopPos = road.length - 0.5;
-          const distToStop = stopPos - v.position;
-          if (distToStop > 0) {
-            targetSpeed = Math.min(targetSpeed, distToStop * 0.1);
+      const approachingEnd = v.position >= road.length - 2.0 && v.position < road.length;
+      if (approachingEnd) {
+        const intersectionId = road.to;
+        const intersection = this.intersections.get(intersectionId);
+
+        if (intersection) {
+          const isGreen = this.isGreenForVehicle(road, intersection, v.isBus, v.busRouteId);
+          if (!isGreen) {
+            const stopPos = road.length - 0.4;
+            const distToStop = stopPos - v.position;
+            if (distToStop > 0) {
+              targetSpeed = Math.min(targetSpeed, distToStop * 0.08);
+            } else {
+              targetSpeed = 0;
+            }
+            v.waiting = true;
           } else {
-            targetSpeed = 0;
+            v.waiting = false;
           }
-          v.waiting = true;
         } else {
           v.waiting = false;
         }
@@ -294,26 +359,19 @@ export class TrafficSim {
       v.position += v.speed * dt;
 
       if (v.position >= road.length) {
-        this.handleIntersectionCrossing(v, road);
+        this.handleRoadEnd(v, road);
       }
     }
 
     this.totalWaitTime += dt * this.vehicles.filter((v) => v.waiting).length;
-    this.waitingVehicleCount = this.vehicles.filter((v) => v.waiting).length;
   }
 
-  private isGreenForRoad(
-    roadId: string,
+  private isGreenForVehicle(
+    road: Road,
+    intersection: IntersectionState,
     isBus: boolean,
     busRouteId?: string,
   ): boolean {
-    const road = this.roads.find((r) => r.id === roadId);
-    if (!road) return true;
-
-    const intersectionId = road.to;
-    const intersection = this.intersections.get(intersectionId);
-    if (!intersection) return true;
-
     const currentPhaseIdx = intersection.currentPhase % intersection.phases.length;
     const currentPhase = intersection.phases[currentPhaseIdx];
 
@@ -321,31 +379,34 @@ export class TrafficSim {
       return true;
     }
 
-    const dir = road.direction;
-    const ns = dir === 'north' || dir === 'south';
+    const approachDir = road.direction;
+    const ns = approachDir === 'north' || approachDir === 'south';
     const phaseDir = currentPhase.direction;
     const phaseNS = phaseDir === 'north' || phaseDir === 'south';
 
-    if (ns && phaseNS) return true;
-    if (!ns && !phaseNS) return true;
-
-    return false;
+    return (ns && phaseNS) || (!ns && !phaseNS);
   }
 
-  private handleIntersectionCrossing(v: VehicleState, road: Road): void {
-    const intersectionId = road.to;
-    const isEdge = !this.intersections.has(intersectionId);
-
-    if (isEdge) {
+  private handleRoadEnd(v: VehicleState, road: Road): void {
+    if (road.isOutbound) {
       this.throughputCounter++;
       v.position = road.length + 1;
       return;
     }
 
-    const outRoads = this.roads.filter(
+    const intersectionId = road.to;
+
+    if (!this.intersections.has(intersectionId)) {
+      this.throughputCounter++;
+      v.position = road.length + 1;
+      return;
+    }
+
+    const exitRoads = this.roads.filter(
       (r) => r.from === intersectionId && r.id !== road.id,
     );
-    if (outRoads.length === 0) {
+
+    if (exitRoads.length === 0) {
       this.throughputCounter++;
       v.position = road.length + 1;
       return;
@@ -357,8 +418,8 @@ export class TrafficSim {
         const stopIdx = route.stops.indexOf(intersectionId);
         if (stopIdx >= 0 && stopIdx < route.stops.length - 1) {
           const nextStop = route.stops[stopIdx + 1];
-          const nextRoad = outRoads.find(
-            (r) => r.to === nextStop || r.from === nextStop,
+          const nextRoad = exitRoads.find(
+            (r) => r.to === nextStop,
           );
           if (nextRoad) {
             v.roadId = nextRoad.id;
@@ -370,7 +431,21 @@ export class TrafficSim {
       }
     }
 
-    const nextRoad = outRoads[Math.floor(Math.random() * outRoads.length)];
+    const outRoads = exitRoads.filter((r) => r.isOutbound);
+    const throughRoads = exitRoads.filter((r) => !r.isOutbound && !r.isInbound);
+
+    let nextRoad: Road;
+    const pickOut = Math.random() < 0.6 && outRoads.length > 0;
+    if (pickOut) {
+      nextRoad = outRoads[Math.floor(Math.random() * outRoads.length)];
+    } else if (throughRoads.length > 0) {
+      nextRoad = throughRoads[Math.floor(Math.random() * throughRoads.length)];
+    } else {
+      nextRoad = outRoads.length > 0
+        ? outRoads[Math.floor(Math.random() * outRoads.length)]
+        : exitRoads[Math.floor(Math.random() * exitRoads.length)];
+    }
+
     v.roadId = nextRoad.id;
     v.position = 0;
     v.lane = Math.min(v.lane, nextRoad.lanes - 1);
@@ -385,26 +460,35 @@ export class TrafficSim {
   }
 
   getAvgWaitTime(): number {
-    if (this.vehicles.length === 0) return 0;
-    return this.totalWaitTime / Math.max(1, this.gameTime);
+    return this.vehicles.filter((v) => v.waiting).length;
   }
 
   getRoadPosition(roadId: string): { from: [number, number]; to: [number, number] } | null {
     const road = this.roads.find((r) => r.id === roadId);
     if (!road) return null;
-    const fromPos = this.intersectionPositions.get(road.from) ?? this.getEdgePosition(road.from, road.direction);
-    const toPos = this.intersectionPositions.get(road.to) ?? this.getEdgePosition(road.to, road.direction);
+
+    const fromPos = this.intersectionPositions.get(road.from)
+      ?? this.getEdgePosition(road.from, road);
+    const toPos = this.intersectionPositions.get(road.to)
+      ?? this.getEdgePosition(road.to, road);
     if (!fromPos || !toPos) return null;
     return { from: fromPos, to: toPos };
   }
 
-  private getEdgePosition(edgeId: string, direction: Direction): [number, number] {
+  private getEdgePosition(edgeId: string, road: Road): [number, number] | null {
+    if (!this.level) return null;
+
+    const intId = road.isInbound ? road.to : road.from;
+    const intPos = this.intersectionPositions.get(intId);
+    if (!intPos) return null;
+
+    const dir = road.direction;
     const offset = ROAD_LENGTH;
-    switch (direction) {
-      case 'north': return [0, offset];
-      case 'south': return [0, -offset];
-      case 'east': return [offset, 0];
-      case 'west': return [-offset, 0];
+    switch (dir) {
+      case 'north': return [intPos[0], intPos[1] + offset];
+      case 'south': return [intPos[0], intPos[1] - offset];
+      case 'east': return [intPos[0] + offset, intPos[1]];
+      case 'west': return [intPos[0] - offset, intPos[1]];
     }
   }
 
@@ -416,6 +500,14 @@ export class TrafficSim {
     return this.roads;
   }
 
+  getInboundRoads(): Road[] {
+    return this.inboundRoads;
+  }
+
+  getOutboundRoads(): Road[] {
+    return this.outboundRoads;
+  }
+
   updateIntersectionPhases(
     intersectionId: string,
     phases: SignalPhaseConfig[],
@@ -424,6 +516,23 @@ export class TrafficSim {
     if (intersection) {
       intersection.phases = phases.map((p) => ({ ...p }));
     }
+  }
+
+  restoreState(gameTime: number, intersections: IntersectionState[], throughput: number): void {
+    this.gameTime = gameTime;
+    this.throughputCounter = throughput;
+    for (const is of intersections) {
+      const existing = this.intersections.get(is.id);
+      if (existing) {
+        existing.currentPhase = is.currentPhase;
+        existing.phaseTimer = is.phaseTimer;
+        existing.phases = is.phases.map((p) => ({ ...p }));
+      }
+    }
+  }
+
+  getWaitingCount(): number {
+    return this.vehicles.filter((v) => v.waiting).length;
   }
 }
 
