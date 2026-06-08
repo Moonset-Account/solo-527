@@ -1,5 +1,4 @@
 extends Node
-class_name LevelDatabase
 
 var levels: Array = []
 var exhibits: Dictionary = {}

@@ -1,5 +1,4 @@
 extends Node
-class_name GameManager
 
 enum GameState { MENU, TUTORIAL, PLAYING, EVENT, SETTLEMENT }
 
@@ -56,6 +55,7 @@ func load_progress() -> void:
 func start_level(level_id: int) -> void:
 	var level_data = LevelDatabase.get_level(level_id)
 	if level_data.is_empty():
+		push_error("[GM] start_level: level not found: " + str(level_id))
 		return
 
 	current_level_id = level_id
@@ -86,6 +86,10 @@ func start_level(level_id: int) -> void:
 
 	for i in range(5):
 		draw_card()
+
+	print("[GM] start_level: id=", level_id, " budget=", budget, " exhibits=", exhibits.size(), " hand=", hand.size())
+	for ex in exhibits:
+		print("[GM]   exhibit: ", ex.get("name", "?"), " condition=", ex.get("current_condition", 0), "/", ex.get("max_condition", 0))
 
 	if level_data.get("is_tutorial", false):
 		change_state(GameState.TUTORIAL)
@@ -133,6 +137,8 @@ func play_card(hand_index: int, exhibit_index: int) -> bool:
 
 	_apply_card_effects(card_data, exhibit_index)
 
+	print("[GM] play_card: ", card_data.get("name", "?"), " -> exhibit[", exhibit_index, "]", " budget=", budget)
+
 	hand.remove_at(hand_index)
 	discard.append(card_id)
 
@@ -142,6 +148,7 @@ func play_card(hand_index: int, exhibit_index: int) -> bool:
 	_apply_discount_to_hand()
 
 	if check_win():
+		print("[GM] WIN detected after play_card!")
 		level_completed.emit(current_level_id, true)
 		change_state(GameState.SETTLEMENT)
 	elif check_loss():

@@ -1,5 +1,4 @@
 extends Node
-class_name CardDatabase
 
 var cards: Dictionary = {}
 var unlocked_cards: Array = []
