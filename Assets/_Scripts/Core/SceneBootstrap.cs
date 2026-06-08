@@ -5,16 +5,6 @@ namespace LightShadowPlatformer.Core
 {
     public class SceneBootstrap : MonoBehaviour
     {
-        [Header("Prefabs")]
-        public GameManager gameManagerPrefab;
-        public SaveManager saveManagerPrefab;
-        public SettingsManager settingsManagerPrefab;
-        public AudioManager audioManagerPrefab;
-        public EventManager eventManagerPrefab;
-        public LightManager lightManagerPrefab;
-        public UI.UIManager uiManagerPrefab;
-
-        [Header("Managers")]
         public GameManager gameManager;
         public SaveManager saveManager;
         public SettingsManager settingsManager;
@@ -22,9 +12,8 @@ namespace LightShadowPlatformer.Core
         public LightManager lightManager;
         public UI.UIManager uiManager;
 
-        [Header("Debug")]
         public bool verboseLogging = true;
-        public bool skipToLevel = -1;
+        public int skipToLevel = -1;
 
         private static bool _bootstrapped;
 
@@ -38,27 +27,32 @@ namespace LightShadowPlatformer.Core
 
         private void Awake()
         {
-            if (_bootstrapped)
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (_bootstrapped) { Destroy(gameObject); return; }
             _bootstrapped = true;
             DontDestroyOnLoad(gameObject);
-
             InitializeCoreManagers();
         }
 
         private void Start()
         {
+            BuildCurrentSceneWithRuntime();
+
             if (skipToLevel >= 0 && GameManager.Instance != null)
             {
                 GameManager.Instance.LoadLevel(skipToLevel);
+                return;
             }
-            else if (GameManager.Instance != null && SceneManager.GetActiveScene().buildIndex > 0)
+
+            int bi = SceneManager.GetActiveScene().buildIndex;
+            if (bi > 0 && GameManager.Instance != null)
             {
-                int levelIdx = Mathf.Max(0, SceneManager.GetActiveScene().buildIndex - 1);
+                int levelIdx = Mathf.Max(0, bi - 1);
                 GameManager.Instance.currentLevelIndex = levelIdx;
+                GameManager.Instance.ChangeState(GameManager.GameState.Playing);
+            }
+            else if (bi == 0 && GameManager.Instance != null)
+            {
+                GameManager.Instance.ChangeState(GameManager.GameState.MainMenu);
             }
 
             SetupSceneReferences();
@@ -74,57 +68,66 @@ namespace LightShadowPlatformer.Core
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
+        private void BuildCurrentSceneWithRuntime()
+        {
+            int bi = SceneManager.GetActiveScene().buildIndex;
+            var type = bi switch
+            {
+                0 => Runtime.SceneType.MainMenu,
+                1 => Runtime.SceneType.Level01,
+                2 => Runtime.SceneType.Level02,
+                3 => Runtime.SceneType.Level03,
+                _ => Runtime.SceneType.MainMenu
+            };
+
+            Runtime.RuntimeSceneBuilder.EnsureAllManagersExist();
+            Runtime.RuntimeSceneBuilder.Build(type);
+            Runtime.RuntimeUIFactory.EnsureAllUI();
+            Runtime.RuntimeAudioFactory.EnsureAllAudio();
+            Runtime.RuntimeAnimationFactory.EnsureAnimators();
+        }
+
         private void InitializeCoreManagers()
         {
-            Log("Initializing core managers...");
+            Log("Initializing core managers (asmdef)...");
 
-            if (EventManager.Instance == null) { }
-
-            gameManager = CreateManager(gameManagerPrefab, "GameManager") as GameManager;
-            saveManager = CreateManager(saveManagerPrefab, "SaveManager") as SaveManager;
-            settingsManager = CreateManager(settingsManagerPrefab, "SettingsManager") as SettingsManager;
-            audioManager = CreateManager(audioManagerPrefab, "AudioManager") as AudioManager;
-            uiManager = CreateManager(uiManagerPrefab, "UIManager") as UI.UIManager;
-            lightManager = CreateManager(lightManagerPrefab, "LightManager") as LightManager;
+            gameManager = CreateOrFind<GameManager>("GameManager");
+            saveManager = CreateOrFind<SaveManager>("SaveManager");
+            settingsManager = CreateOrFind<SettingsManager>("SettingsManager");
+            audioManager = CreateOrFind<AudioManager>("AudioManager");
+            uiManager = CreateOrFind<UI.UIManager>("UIManager");
+            lightManager = CreateOrFind<LightManager>("LightManager");
 
             Log("Core managers initialized.");
         }
 
-        private MonoBehaviour CreateManager(Object prefab, string name)
+        private T CreateOrFind<T>(string name) where T : MonoBehaviour
         {
-            GameObject go = null;
-
-            if (prefab != null)
+            T existing = FindObjectOfType<T>();
+            if (existing != null)
             {
-                go = Instantiate(prefab) as GameObject;
-                go.name = $"[{name}]";
+                DontDestroyOnLoad(existing.gameObject);
+                return existing;
             }
-            else
-            {
-                go = new GameObject($"[{name}]");
-                System.Type t = System.Type.GetType($"LightShadowPlatformer.Core.{name}, Assembly-CSharp");
-                if (t != null)
-                {
-                    MonoBehaviour comp = go.AddComponent(t) as MonoBehaviour;
-                    DontDestroyOnLoad(go);
-                    return comp;
-                }
-                if (name == "UIManager")
-                {
-                    var comp = go.AddComponent<UI.UIManager>();
-                    DontDestroyOnLoad(go);
-                    return comp;
-                }
-            }
-
-            if (go != null) DontDestroyOnLoad(go);
-            return go?.GetComponent<MonoBehaviour>();
+            GameObject go = new GameObject($"[{name}]");
+            T comp = go.AddComponent<T>();
+            DontDestroyOnLoad(go);
+            return comp;
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            Log($"Scene loaded: {scene.name}");
+            Log($"Scene loaded: {scene.name} (idx={scene.buildIndex})");
+            BuildCurrentSceneWithRuntime();
             SetupSceneReferences();
+            int bi = scene.buildIndex;
+            if (bi == 0 && GameManager.Instance != null)
+                GameManager.Instance.ChangeState(GameManager.GameState.MainMenu);
+            else if (bi > 0 && GameManager.Instance != null)
+            {
+                GameManager.Instance.currentLevelIndex = bi - 1;
+                GameManager.Instance.ChangeState(GameManager.GameState.Playing);
+            }
         }
 
         private void SetupSceneReferences()
@@ -146,23 +149,27 @@ namespace LightShadowPlatformer.Core
             UI.HUDController hud = FindObjectOfType<UI.HUDController>();
             hud?.CountTotalCollectibles();
             hud?.Refresh();
+
+            UI.UIManager uim = UI.UIManager.Instance;
+            if (uim != null)
+            {
+                int bi = SceneManager.GetActiveScene().buildIndex;
+                if (bi == 0) { uim.ShowMainMenu(); uim.HideHUD(); }
+                else { uim.HideMainMenu(); uim.ShowHUD(); }
+            }
         }
 
         private T FindSceneObject<T>(string nameContains) where T : Component
         {
             T[] all = FindObjectsOfType<T>();
             foreach (var o in all)
-            {
-                if (o.gameObject.name.Contains(nameContains))
-                    return o;
-            }
+                if (o.gameObject.name.Contains(nameContains)) return o;
             return all.Length > 0 ? all[0] : null;
         }
 
         private void Log(string msg)
         {
-            if (verboseLogging)
-                Debug.Log($"[SceneBootstrap] {msg}");
+            if (verboseLogging) Debug.Log($"[SceneBootstrap] {msg}");
         }
     }
 }

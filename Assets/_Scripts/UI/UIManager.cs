@@ -144,11 +144,21 @@ namespace LightShadowPlatformer.UI
             if (!immediate) StartCoroutine(FadeOut());
         }
 
+        public void HideMainMenu()
+        {
+            SetCanvasActive(mainMenuCanvas, false);
+        }
+
         public void ShowHUD()
         {
             HideAllCanvases();
             SetCanvasActive(hudCanvas, true);
             if (hudController != null) hudController.Refresh();
+        }
+
+        public void HideHUD()
+        {
+            SetCanvasActive(hudCanvas, false);
         }
 
         public void ShowPauseMenu()

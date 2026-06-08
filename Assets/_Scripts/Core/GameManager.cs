@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LightShadowPlatformer.Core
 {
@@ -71,7 +72,8 @@ namespace LightShadowPlatformer.Core
         {
             currentLevelIndex = Mathf.Clamp(levelIndex, 0, totalLevels - 1);
             ChangeState(GameState.Playing);
-            EventManager.Instance.TriggerLevelLoaded(currentLevelIndex);
+            int buildIndex = Mathf.Clamp(currentLevelIndex + 1, 0, SceneManager.sceneCountInBuildSettings - 1);
+            SceneManager.LoadScene(buildIndex);
         }
 
         public void CompleteLevel()
@@ -96,6 +98,8 @@ namespace LightShadowPlatformer.Core
         public void ReturnToMainMenu()
         {
             ChangeState(GameState.MainMenu);
+            if (SceneManager.GetActiveScene().buildIndex != 0)
+                SceneManager.LoadScene(0);
         }
 
         public void TogglePause()

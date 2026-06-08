@@ -347,5 +347,63 @@ namespace LightShadowPlatformer.Core
             if (sfxSource != null) sfxSource.UnPause();
             if (uiSource != null) uiSource.UnPause();
         }
+
+        public void ResetRuntimeClips()
+        {
+            jumpSfx = landSfx = doubleJumpSfx = walkSfx = playerDeathSfx = checkpointSfx =
+            lightSwitchSfx = switchSfx = doorOpenSfx = doorCloseSfx = plateDownSfx = plateUpSfx =
+            collectSfx = keyCollectSfx = levelCompleteSfx = menuClickSfx = menuHoverSfx =
+            pauseSfx = unpauseSfx = tutorialSfx = uiConfirmSfx = uiCancelSfx = gameCompleteSfx =
+            fallDamageSfx = hazardDeathSfx = platformAppearSfx = platformDisappearSfx = null;
+
+            mainMenuMusic = level01Music = level02Music = level03Music = victoryMusic = gameOverMusic = null;
+        }
+
+        public void SetSfxClip(SfxType type, AudioClip clip)
+        {
+            switch (type)
+            {
+                case SfxType.Jump: jumpSfx = clip; break;
+                case SfxType.Land: landSfx = clip; break;
+                case SfxType.DoubleJump: doubleJumpSfx = clip; break;
+                case SfxType.Walk: walkSfx = clip; break;
+                case SfxType.PlayerDeath: playerDeathSfx = clip; break;
+                case SfxType.Checkpoint: checkpointSfx = clip; break;
+                case SfxType.LightSwitch: lightSwitchSfx = clip; break;
+                case SfxType.Switch: switchSfx = clip; break;
+                case SfxType.DoorOpen: doorOpenSfx = clip; break;
+                case SfxType.DoorClose: doorCloseSfx = clip; break;
+                case SfxType.PlateDown: plateDownSfx = clip; break;
+                case SfxType.PlateUp: plateUpSfx = clip; break;
+                case SfxType.Collect: collectSfx = clip; break;
+                case SfxType.KeyCollect: keyCollectSfx = clip; break;
+                case SfxType.LevelComplete: levelCompleteSfx = clip; break;
+                case SfxType.MenuClick: menuClickSfx = clip; break;
+                case SfxType.MenuHover: menuHoverSfx = clip; break;
+                case SfxType.Pause: pauseSfx = clip; break;
+                case SfxType.Unpause: unpauseSfx = clip; break;
+                case SfxType.Tutorial: tutorialSfx = clip; break;
+                case SfxType.UIConfirm: uiConfirmSfx = clip; break;
+                case SfxType.UICancel: uiCancelSfx = clip; break;
+                case SfxType.GameComplete: gameCompleteSfx = clip; break;
+                case SfxType.FallDamage: fallDamageSfx = clip; break;
+                case SfxType.HazardDeath: hazardDeathSfx = clip; break;
+                case SfxType.PlatformAppear: platformAppearSfx = clip; break;
+                case SfxType.PlatformDisappear: platformDisappearSfx = clip; break;
+            }
+        }
+
+        public void SetMusicClip(MusicType type, AudioClip clip)
+        {
+            switch (type)
+            {
+                case MusicType.MainMenu: mainMenuMusic = clip; break;
+                case MusicType.Level01: level01Music = clip; break;
+                case MusicType.Level02: level02Music = clip; break;
+                case MusicType.Level03: level03Music = clip; break;
+                case MusicType.Victory: victoryMusic = clip; break;
+                case MusicType.GameOver: gameOverMusic = clip; break;
+            }
+        }
     }
 }

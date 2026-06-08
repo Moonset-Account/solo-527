@@ -1,11 +1,9 @@
 {
-    "name": "LightShadowPlatformer.EditorTools",
-    "rootNamespace": "LightShadowPlatformer.EditorTools",
+    "name": "LightShadowPlatformer.Gameplay",
+    "rootNamespace": "LightShadowPlatformer",
     "references": [
         "LightShadowPlatformer.Core",
-        "LightShadowPlatformer.Player",
-        "LightShadowPlatformer.UI",
-        "LightShadowPlatformer.Gameplay"
+        "LightShadowPlatformer.Player"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

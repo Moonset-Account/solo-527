@@ -1,6 +1,6 @@
 {
-    "name": "LightShadowPlatformer.EditorTools",
-    "rootNamespace": "LightShadowPlatformer.EditorTools",
+    "name": "LightShadowPlatformer.Runtime",
+    "rootNamespace": "LightShadowPlatformer.Runtime",
     "references": [
         "LightShadowPlatformer.Core",
         "LightShadowPlatformer.Player",

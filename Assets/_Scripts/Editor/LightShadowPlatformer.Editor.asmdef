@@ -4,7 +4,9 @@
     "references": [
         "LightShadowPlatformer.Core",
         "LightShadowPlatformer.Player",
-        "LightShadowPlatformer.UI"
+        "LightShadowPlatformer.UI",
+        "LightShadowPlatformer.Gameplay",
+        "LightShadowPlatformer.EditorTools"
     ],
     "includePlatforms": [
         "Editor"
