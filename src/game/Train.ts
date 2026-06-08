@@ -87,6 +87,15 @@ export class TrainEntity {
       return false;
     }
 
+    const nextIdx = this.data.currentPathIndex + 1;
+    if (nextIdx < this.data.path.length) {
+      const nextNodeId = this.data.path[nextIdx];
+      const nextNode = this.network.getNode(nextNodeId);
+      if (nextNode && nextNode.type === 'signal' && this.network.isSignalBlocked(nextNodeId)) {
+        return false;
+      }
+    }
+
     for (const entry of this.data.schedule) {
       if (entry.nodeId === currentNodeId && entry.action === 'stop') {
         if (gameTime < entry.departureTime) return false;

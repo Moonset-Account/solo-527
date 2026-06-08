@@ -65,10 +65,7 @@ export class TrainScheduler {
       if (node.type === 'signal' || node.type === 'platform') {
         let locationKey: string;
         if (node.type === 'signal') {
-          const conns = this.network.getConnections(currentNodeId);
-          const nextIdx = train.data.currentPathIndex + 1;
-          const nextNodeId = train.data.path[nextIdx] ?? '';
-          locationKey = `sig-${conns.length > 0 ? conns[0] : currentNodeId}-${nextNodeId}`;
+          locationKey = `sig-${currentNodeId}`;
         } else {
           locationKey = `plat-${node.platformId ?? currentNodeId}`;
         }
@@ -78,6 +75,19 @@ export class TrainScheduler {
         }
         trainsByLocation.get(locationKey)!.push(train);
       } else {
+        const nextIdx = train.data.currentPathIndex + 1;
+        if (nextIdx < train.data.path.length) {
+          const nextNodeId = train.data.path[nextIdx];
+          const nextNode = this.network.getNode(nextNodeId);
+          if (nextNode && nextNode.type === 'signal') {
+            const locationKey = `sig-${nextNodeId}`;
+            if (!trainsByLocation.has(locationKey)) {
+              trainsByLocation.set(locationKey, []);
+            }
+            trainsByLocation.get(locationKey)!.push(train);
+            continue;
+          }
+        }
         noContentionTrains.push(train);
       }
     }
@@ -101,56 +111,62 @@ export class TrainScheduler {
 
     for (const train of this.trains) {
       if (train.data.state !== 'waiting') continue;
-      if (train.data.currentPathIndex === 0) continue;
+      if (train.data.currentPathIndex === 0 && train.data.progress === 0) continue;
 
       const currentNodeId = train.data.path[train.data.currentPathIndex];
       if (!currentNodeId) continue;
-      const node = this.network.getNode(currentNodeId);
-      if (!node) continue;
+      const currentNode = this.network.getNode(currentNodeId);
 
-      if (node.type === 'signal' && this.network.isSignalBlocked(currentNodeId)) {
-        const conflictKey = `${train.data.id}-signal-${currentNodeId}`;
-        if (this.reportedDelayChains.has(conflictKey)) continue;
+      if (currentNode) {
+        const nextIdx = train.data.currentPathIndex + 1;
+        if (nextIdx < train.data.path.length) {
+          const nextNodeId = train.data.path[nextIdx];
+          const nextNode = this.network.getNode(nextNodeId);
 
-        const blocker = this.findBlockerOnNextEdge(train);
-        if (blocker) {
-          this.reportedDelayChains.add(conflictKey);
-          conflicts.push({
-            type: 'delay_chain',
-            severity: 'warning',
-            trains: [train.data.id, blocker.data.id],
-            location: currentNodeId,
-            time: this.gameTime,
-            message: `${train.data.name} 因 ${blocker.data.name} 占道被信号灯阻挡而晚点`,
-          });
-        } else {
-          this.reportedDelayChains.add(conflictKey);
-          conflicts.push({
-            type: 'delay_chain',
-            severity: 'warning',
-            trains: [train.data.id],
-            location: currentNodeId,
-            time: this.gameTime,
-            message: `${train.data.name} 因前方信号灯红灯而晚点`,
-          });
+          if (nextNode && nextNode.type === 'signal' && this.network.isSignalBlocked(nextNodeId)) {
+            const conflictKey = `${train.data.id}-signal-${nextNodeId}`;
+            if (!this.reportedDelayChains.has(conflictKey)) {
+              this.reportedDelayChains.add(conflictKey);
+              const blocker = this.findBlockerPastSignal(nextNodeId, train.data.path, nextIdx);
+              if (blocker) {
+                conflicts.push({
+                  type: 'delay_chain',
+                  severity: 'warning',
+                  trains: [train.data.id, blocker.data.id],
+                  location: nextNodeId,
+                  time: this.gameTime,
+                  message: `${train.data.name} 因 ${blocker.data.name} 占道被信号灯阻挡而晚点`,
+                });
+              } else {
+                conflicts.push({
+                  type: 'delay_chain',
+                  severity: 'warning',
+                  trains: [train.data.id],
+                  location: nextNodeId,
+                  time: this.gameTime,
+                  message: `${train.data.name} 因前方信号灯红灯而晚点`,
+                });
+              }
+            }
+          }
         }
-      }
 
-      if (node.type === 'platform') {
-        const occupant = this.findPlatformOccupant(train, currentNodeId);
-        if (occupant) {
-          const conflictKey = `${train.data.id}-platform-${currentNodeId}`;
-          if (this.reportedDelayChains.has(conflictKey)) continue;
-
-          this.reportedDelayChains.add(conflictKey);
-          conflicts.push({
-            type: 'delay_chain',
-            severity: 'warning',
-            trains: [train.data.id, occupant.data.id],
-            location: currentNodeId,
-            time: this.gameTime,
-            message: `${train.data.name} 因 ${occupant.data.name} 占用站台${node.platformId ?? currentNodeId}而晚点`,
-          });
+        if (currentNode.type === 'platform') {
+          const occupant = this.findPlatformOccupant(train, currentNodeId);
+          if (occupant) {
+            const conflictKey = `${train.data.id}-platform-${currentNodeId}`;
+            if (!this.reportedDelayChains.has(conflictKey)) {
+              this.reportedDelayChains.add(conflictKey);
+              conflicts.push({
+                type: 'delay_chain',
+                severity: 'warning',
+                trains: [train.data.id, occupant.data.id],
+                location: currentNodeId,
+                time: this.gameTime,
+                message: `${train.data.name} 因 ${occupant.data.name} 占用站台${currentNode.platformId ?? currentNodeId}而晚点`,
+              });
+            }
+          }
         }
       }
     }
@@ -158,20 +174,24 @@ export class TrainScheduler {
     return conflicts;
   }
 
-  private findBlockerOnNextEdge(train: TrainEntity): TrainEntity | null {
-    const path = train.data.path;
-    const idx = train.data.currentPathIndex;
-    if (idx >= path.length - 1) return null;
-    const from = path[idx];
-    const to = path[idx + 1];
-    const blockedEdge = [from, to].sort().join('-');
-
+  private findBlockerPastSignal(signalNodeId: string, trainPath: string[], signalPathIdx: number): TrainEntity | null {
     for (const other of this.trains) {
-      if (other.data.id === train.data.id) continue;
       if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
-      const otherEdge = this.getTrainCurrentEdge(other);
-      if (otherEdge === blockedEdge) {
+      const otherNodeId = other.data.path[other.data.currentPathIndex];
+      if (otherNodeId === signalNodeId) {
         return other;
+      }
+    }
+
+    if (signalPathIdx + 1 < trainPath.length) {
+      const afterSignalNodeId = trainPath[signalPathIdx + 1];
+      const edgeKey = [signalNodeId, afterSignalNodeId].sort().join('-');
+      for (const other of this.trains) {
+        if (other.data.state !== 'running' && other.data.state !== 'waiting') continue;
+        const otherEdge = this.getTrainCurrentEdge(other);
+        if (otherEdge === edgeKey) {
+          return other;
+        }
       }
     }
 
