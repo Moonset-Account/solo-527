@@ -1,0 +1,17 @@
+{
+    "name": "LightShadowPlatformer.UI",
+    "rootNamespace": "LightShadowPlatformer.UI",
+    "references": [
+        "LightShadowPlatformer.Core",
+        "LightShadowPlatformer.Player"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

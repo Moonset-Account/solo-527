@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Player
+  - ShadowPlatform
+  - LightPlatform
+  - Hazard
+  - Checkpoint
+  - Door
+  - Switch
+  - Collectible
+  - Goal
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  -
+  - Water
+  - UI
+  -
+  -
+  - Player
+  - Platform
+  - ShadowPlatform
+  - LightPlatform
+  - Hazard
+  - Interactive
+  - Background
+  - Lights
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  -
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 1010101010
+    locked: 0
+  - name: Platforms
+    uniqueID: 1111111111
+    locked: 0
+  - name: Player
+    uniqueID: 1212121212
+    locked: 0
+  - name: Foreground
+    uniqueID: 1313131313
+    locked: 0
+  - name: UI
+    uniqueID: 1414141414
+    locked: 0

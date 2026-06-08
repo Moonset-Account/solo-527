@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1041 &1
+EditorUserBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_SelectedPlatformGroup: 4
+  m_SelectedBuildTarget: 19
+  m_AndroidTargetArchitectures: 1
+  m_AndroidTargetDevices: 0
+  m_iOSSdkVersion: 988
+  m_iOSTargetOSVersionString: 11.0
+  m_XcodeVersion: 1420
+  m_tvOSSdkVersion: 0
+  m_tvOSRequireExtendedGameController: 0
+  m_tvOSTargetOSVersionString: 11.0
+  m_BuildTargetIcons: []
+  m_BuildTargetPlatformIcons: []
+  m_BuildTargetBatching: []
+  m_BuildTargetGraphicsJobs: []
+  m_BuildTargetGraphicsJobMode: []
+  m_BuildTargetGraphicsAPIs: []
+  m_BuildTargetVRSettings: []
+  m_EnabledBuildTargets: []
+  m_BuildAppBundle: 0
+  m_ForceInstallation: 0
+  m_Compression: 2
+  m_PatchOutputFolder:
+  m_BuildLocation: /Users
+  m_SymlinkLibraries: 0
+  m_RuntimeClassFilter: 1
+  m_ManagedStrippingLevelAndroid: 0
+  m_ManagedStrippingLevelIOS: 0
+  m_ConnectProfiler: 0
+  m_ConnectProfiler: 0
+  m_BuildWithDeepProfilingSupport: 0
+  m_IsGPUProfilerFixEnabled: 0
+  m_AllowScriptDebugging: 0
+  m_SymlinkSources: 0
+  m_CreateSolution: 1
+  m_RefreshSolution: 0
+  m_DevelopmentBuild: 0
+  m_AllowDebugging: 0
+  m_ConnectProfiler: 0
+  m_BuildWithDeepProfilingSupport: 0
+  m_WaitForManagedDebugger: 0
+  m_WaitForManagedDebuggerTimeout: 0
+  m_PlayModeTestRunnerEnabled: 0
+  m_RunPlayModeTestAsEditModeTest: 0
+  m_SyncTextureCompression: 0
+  m_RebuildTextureCompression: 0
+  m_TextureCompressionFormatForPlatform: 0
+  m_CompressLightmaps: 1
+  m_CompressTexturesOnImport: 1
+  m_UseAPODelta: 0
+  m_UseDeterministicCompilation: 1
+  m_AdditionalCompilerArguments:
+  m_MaxConcurrentShaderJobs: 4
+  m_ShaderHardCodedBufferSize: 64
+  m_CacheServerMode: 0
+  m_CacheServerEndpoint:
+  m_CacheServerNamespacePrefix: default
+  m_CacheServerEnableDownload: 1
+  m_CacheServerEnableUpload: 1
+  m_CacheServerEnableAuth: 0
+  m_CacheServerEnableTls: 0
+  m_CacheServerAuthToken:
+  m_MonoDevelopEditor: /Applications/Unity/Unity.app/Contents/MonoDevelop/bin/MonoDevelop.app
+  m_ExternalScriptEditor: code
+  m_ExternalScriptEditorArgs: $(ProjectPath)
+  m_KillOthers: 0
+  m_GenerateAll: 0
+  m_UseXbuild: 1
+  m_ProjectKindGuid: 349c5851-65df-11da-9384-00065b846f21
+  m_EditorAssembliesSelectedBuildTarget: 19
+  m_RoscppAllocator: 0
+  m_RoscppAllocatorConfiguration: 0
+  m_NonEditorAssembliesSelectedBuildTarget: 19
+  m_ShowInternalizedPackages: 0
+  m_AssetPipelineMode: 1
+  m_CacheServerEnableDownload: 1
+  m_CacheServerEnableUpload: 1
+  m_CacheServerEnableAuth: 0
+  m_CacheServerEnableTls: 0
+  m_CacheServerAuthToken:
+  m_CacheServerEndpoint:
+  m_CacheServerNamespacePrefix: default
+  m_EnableTextureStreamingInEditMode: 1
+  m_EnableTextureStreamingInPlayMode: 1
+  m_EnableEditorAsyncCPUTextureLoading: 1
+  m_ShaderPrefs:
+    m_AlwaysShowShaderVariant: 0
+    m_LightmapKeepPlainData: 0
+    m_ShaderVariantLimit: 128
+    m_ShaderMessageLimit: 8
+    m_ShaderInspectorVariantLimit: 32
+    m_SRPBatcher: 1
