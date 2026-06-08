@@ -58,6 +58,11 @@ namespace SpaceCourier.UI
         protected override void Awake()
         {
             base.Awake();
+        }
+
+        public override void BindEvents()
+        {
+            base.BindEvents();
 
             if (availableTabButton != null) availableTabButton.onClick.AddListener(() => SwitchTab(TabType.Available));
             if (activeTabButton != null) activeTabButton.onClick.AddListener(() => SwitchTab(TabType.Active));

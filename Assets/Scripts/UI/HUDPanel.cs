@@ -78,6 +78,11 @@ namespace SpaceCourier.UI
         protected override void Awake()
         {
             base.Awake();
+        }
+
+        public override void BindEvents()
+        {
+            base.BindEvents();
 
             if (confirmRouteButton != null) confirmRouteButton.onClick.AddListener(OnConfirmRoute);
             if (refuelButton != null) refuelButton.onClick.AddListener(OnRefuel);

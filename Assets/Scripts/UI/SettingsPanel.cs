@@ -43,6 +43,11 @@ namespace SpaceCourier.UI
         protected override void Awake()
         {
             base.Awake();
+        }
+
+        public override void BindEvents()
+        {
+            base.BindEvents();
 
             if (masterVolumeSlider != null) masterVolumeSlider.onValueChanged.AddListener(OnMasterVolumeChanged);
             if (musicVolumeSlider != null) musicVolumeSlider.onValueChanged.AddListener(OnMusicVolumeChanged);

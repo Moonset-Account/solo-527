@@ -42,6 +42,11 @@ namespace SpaceCourier.UI
         protected override void Awake()
         {
             base.Awake();
+        }
+
+        public override void BindEvents()
+        {
+            base.BindEvents();
 
             if (startButton != null) startButton.onClick.AddListener(OnStartButtonClicked);
             if (continueButton != null) continueButton.onClick.AddListener(OnContinueButtonClicked);

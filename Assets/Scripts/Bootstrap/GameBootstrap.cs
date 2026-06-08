@@ -1121,6 +1121,7 @@ namespace SpaceCourier.Bootstrap
             levelSelectObj.SetActive(false);
 
             panel.backgroundImage = bgImg;
+            panel.BindEvents();
 
             return panel;
         }
@@ -1320,6 +1321,7 @@ namespace SpaceCourier.Bootstrap
             feedbackCG.blocksRaycasts = false;
             feedbackCG.interactable = false;
             panel.feedbackCanvasGroup = feedbackCG;
+            panel.BindEvents();
 
             return panel;
         }
@@ -1434,6 +1436,7 @@ namespace SpaceCourier.Bootstrap
             var closeDetailBtn = CreateButton(detailRt, "CloseDetailBtn", "← 返回", new Vector2(250, 60), new Vector2(150, -100), new Color(0.4f, 0.4f, 0.5f), Color.white, 20);
 
             detailPanelObj.SetActive(false);
+            panel.BindEvents();
 
             return panel;
         }
@@ -1569,6 +1572,7 @@ namespace SpaceCourier.Bootstrap
             panel.continueButton = continueBtn;
 
             outcomePanelObj.SetActive(false);
+            panel.BindEvents();
 
             return panel;
         }
@@ -1714,6 +1718,7 @@ namespace SpaceCourier.Bootstrap
 
             var saveBtn = CreateButton(panelRt, "SaveBtn", "💾 保存记录", new Vector2(200, 50), new Vector2(0, -550), new Color(0.3f, 0.35f, 0.5f), Color.white, 16);
             panel.saveRecordButton = saveBtn;
+            panel.BindEvents();
 
             return panel;
         }
@@ -1836,6 +1841,7 @@ namespace SpaceCourier.Bootstrap
 
             var exportBtn = CreateButton(panelRt, "ExportBtn", "📤 导出数据", new Vector2(220, 50), new Vector2(0, -510), new Color(0.35f, 0.3f, 0.5f), Color.white, 16);
             panel.exportDataButton = exportBtn;
+            panel.BindEvents();
 
             return panel;
         }

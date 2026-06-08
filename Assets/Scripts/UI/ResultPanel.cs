@@ -58,6 +58,12 @@ namespace SpaceCourier.UI
         protected override void Awake()
         {
             base.Awake();
+        }
+
+        public override void BindEvents()
+        {
+            base.BindEvents();
+
             if (retryButton != null) retryButton.onClick.AddListener(OnRetry);
             if (returnToMenuButton != null) returnToMenuButton.onClick.AddListener(OnReturnToMenu);
             if (saveRecordButton != null) saveRecordButton.onClick.AddListener(OnSaveRecord);

@@ -28,6 +28,10 @@ namespace SpaceCourier.UI
             if (panelRect == null) panelRect = GetComponent<RectTransform>();
             if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
             if (canvasGroup == null && panelRect != null) canvasGroup = panelRect.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        public virtual void BindEvents()
+        {
             if (closeButton != null)
             {
                 closeButton.onClick.AddListener(OnCloseButtonClicked);
