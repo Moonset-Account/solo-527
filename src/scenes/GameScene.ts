@@ -3,7 +3,7 @@ import { TrackNetwork } from '../game/TrackNetwork.js';
 import { SignalSystem } from '../game/SignalSystem.js';
 import { TrainScheduler } from '../game/TrainScheduler.js';
 import { TrainEntity } from '../game/Train.js';
-import { LevelConfig, Conflict } from '../data/types.js';
+import { LevelConfig, Conflict, ReplayAction } from '../data/types.js';
 import { AudioManager } from '../core/AudioManager.js';
 import { InputMapper } from '../core/InputMapper.js';
 import { UIStateManager } from '../core/UIStateManager.js';
@@ -61,6 +61,11 @@ export class GameScene extends Phaser.Scene {
   private lastPanelUpdate: number = 0;
   private panelUpdateInterval: number = 500;
 
+  private isPlaybackMode: boolean = false;
+  private playbackActions: ReplayAction[] = [];
+  private playbackIndex: number = 0;
+  private playbackOverlay?: Phaser.GameObjects.Container;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -83,6 +88,9 @@ export class GameScene extends Phaser.Scene {
     this.nodeVisuals.clear();
     this.speedButtons = [];
     this.activeSpeedIndex = 0;
+    this.isPlaybackMode = false;
+    this.playbackActions = [];
+    this.playbackIndex = 0;
 
     this.network = new TrackNetwork(this.levelConfig.nodes, this.levelConfig.edges);
     this.signalSystem = new SignalSystem(this.network);
@@ -253,7 +261,9 @@ export class GameScene extends Phaser.Scene {
 
   private createUI(): void {
     const trainData = this.scheduler.getTrains().map(t => t.data);
-    this.schedulePanel = new TrainSchedulePanel(this, 20, 20, trainData);
+    this.schedulePanel = new TrainSchedulePanel(this, 20, 20, trainData, (trainId, newPriority) => {
+      this.handlePriorityChange(trainId, newPriority);
+    });
     this.schedulePanel.setDepth(100);
 
     this.timelineBar = new TimelineBar(this, 240, 30, this.levelConfig.timeLimit);
@@ -273,9 +283,14 @@ export class GameScene extends Phaser.Scene {
     this.conflictAlert = new ConflictAlert(this, 640, 80);
     this.conflictAlert.setDepth(200);
 
-    this.replayControls = new ReplayControls(this, 1050, 680, () => this.undoAction(), () => this.resetLevel());
+    this.replayControls = new ReplayControls(this, 1050, 680,
+      () => this.undoAction(),
+      () => this.resetLevel(),
+      () => this.startPlayback()
+    );
     this.replayControls.setDepth(100);
     this.replayControls.setUndoEnabled(false);
+    this.replayControls.setPlaybackEnabled(false);
 
     this.levelNameText = this.add.text(this.cameras.main.width - 20, 20, this.levelConfig.name, {
       fontFamily: FONT_FAMILY,
@@ -307,7 +322,11 @@ export class GameScene extends Phaser.Scene {
     this.inputMapper.bind('p', () => this.togglePause());
     this.inputMapper.bind('r', () => this.resetLevel());
     this.inputMapper.bind('escape', () => {
-      this.scene.start('MenuScene');
+      if (this.isPlaybackMode) {
+        this.stopPlayback();
+      } else {
+        this.scene.start('MenuScene');
+      }
     });
   }
 
@@ -346,6 +365,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.isPlaybackMode) {
+      this.updatePlayback(delta);
+      return;
+    }
+
     if (this.paused || this.gameOver) return;
 
     const adjustedDelta = delta * this.speedMultiplier;
@@ -369,6 +393,7 @@ export class GameScene extends Phaser.Scene {
     this.checkGameEnd();
 
     this.replayControls.setUndoEnabled(this.replaySystem.getActionCount() > 0);
+    this.replayControls.setPlaybackEnabled(this.replaySystem.getActionCount() > 0);
   }
 
   private updateTrainSpritesAll(): void {
@@ -420,6 +445,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleJunction(nodeId: string): void {
+    if (this.isPlaybackMode) return;
     const node = this.network.getNode(nodeId);
     if (!node || node.type !== 'junction') return;
 
@@ -457,6 +483,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleSignal(nodeId: string): void {
+    if (this.isPlaybackMode) return;
     const node = this.network.getNode(nodeId);
     if (!node || node.type !== 'signal') return;
 
@@ -479,6 +506,30 @@ export class GameScene extends Phaser.Scene {
       const color = newState === 'green' ? 0x2a9d8f : 0xe63946;
       visual.signalCircle.setFillStyle(color);
     }
+  }
+
+  private handlePriorityChange(trainId: string, newPriority: number): void {
+    if (this.isPlaybackMode) return;
+    const train = this.scheduler.getTrains().find(t => t.data.id === trainId);
+    if (!train) return;
+
+    const oldPriority = train.data.priority;
+    if (newPriority === oldPriority) return;
+
+    this.scheduler.setPriority(trainId, newPriority);
+
+    this.replaySystem.record({
+      time: this.gameTime,
+      type: 'priority',
+      nodeId: trainId,
+      prevState: oldPriority,
+      newState: newPriority,
+    });
+
+    this.audioManager.playClick();
+
+    const trainData = this.scheduler.getTrains().map(t => t.data);
+    this.schedulePanel.updateTrains(trainData);
   }
 
   private onConflict(conflict: Conflict): void {
@@ -534,16 +585,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private togglePause(): void {
-    if (this.gameOver) return;
+    if (this.gameOver || this.isPlaybackMode) return;
     this.paused = !this.paused;
     this.uiStateManager.setState(this.paused ? 'paused' : 'idle');
   }
 
   private resetLevel(): void {
+    if (this.isPlaybackMode) {
+      this.stopPlayback();
+    }
     this.scene.restart({ levelId: this.levelConfig.id });
   }
 
   private undoAction(): void {
+    if (this.isPlaybackMode) return;
     const action = this.replaySystem.undoLast();
     if (!action) return;
 
@@ -566,9 +621,125 @@ export class GameScene extends Phaser.Scene {
           visual.signalCircle.setFillStyle(color);
         }
       }
+    } else if (action.type === 'priority') {
+      this.scheduler.setPriority(action.nodeId, action.prevState as number);
+      const trainData = this.scheduler.getTrains().map(t => t.data);
+      this.schedulePanel.updateTrains(trainData);
     }
 
     this.replayControls.setUndoEnabled(this.replaySystem.getActionCount() > 0);
+    this.replayControls.setPlaybackEnabled(this.replaySystem.getActionCount() > 0);
+  }
+
+  private startPlayback(): void {
+    const actions = this.replaySystem.getActions();
+    if (actions.length === 0) return;
+
+    this.isPlaybackMode = true;
+    this.playbackActions = [...actions];
+    this.playbackIndex = 0;
+
+    this.replayControls.setPlaybackMode(true);
+    this.replayControls.setUndoEnabled(false);
+    this.replayControls.setPlaybackEnabled(false);
+
+    this.scene.pause();
+    this.scene.restart({ levelId: this.levelConfig.id });
+
+    this.time.delayedCall(200, () => {
+      this.paused = false;
+      this.showPlaybackOverlay();
+      this.audioManager.playClick();
+    });
+  }
+
+  private stopPlayback(): void {
+    this.isPlaybackMode = false;
+    this.playbackActions = [];
+    this.playbackIndex = 0;
+
+    this.replayControls.setPlaybackMode(false);
+
+    if (this.playbackOverlay) {
+      this.playbackOverlay.destroy();
+      this.playbackOverlay = undefined;
+    }
+
+    this.scene.restart({ levelId: this.levelConfig.id });
+  }
+
+  private showPlaybackOverlay(): void {
+    this.playbackOverlay = this.add.container(this.cameras.main.centerX, this.cameras.main.height - 110).setDepth(300);
+
+    const bg = this.add.rectangle(0, 0, 300, 40, 0x1e293b, 0.9).setStrokeStyle(1, 0x22c55e);
+    this.playbackOverlay.add(bg);
+
+    const label = this.add.text(0, 0, '回放模式', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '16px',
+      color: '#22c55e',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.playbackOverlay.add(label);
+
+    const stopBtn = createButton(this, 140, 0, '停止', 'btn_neutral', () => {
+      this.stopPlayback();
+    });
+    this.playbackOverlay.add(stopBtn);
+  }
+
+  private updatePlayback(delta: number): void {
+    const adjustedDelta = delta * this.speedMultiplier;
+    this.gameTime += adjustedDelta / 1000;
+
+    while (this.playbackIndex < this.playbackActions.length) {
+      const action = this.playbackActions[this.playbackIndex];
+      if (action.time > this.gameTime) break;
+
+      this.applyPlaybackAction(action);
+      this.playbackIndex++;
+    }
+
+    this.scheduler.update(adjustedDelta);
+    this.updateTrainSpritesAll();
+    this.timelineBar.setTime(this.gameTime);
+
+    const trainData = this.scheduler.getTrains().map(t => t.data);
+    this.schedulePanel.updateTrains(trainData);
+
+    if (this.playbackIndex >= this.playbackActions.length) {
+      this.time.delayedCall(2000, () => {
+        this.stopPlayback();
+      });
+    }
+  }
+
+  private applyPlaybackAction(action: ReplayAction): void {
+    if (action.type === 'switch') {
+      const node = this.network.getNode(action.nodeId);
+      if (node && node.type === 'junction') {
+        node.switchState = action.newState as number;
+        const visual = this.nodeVisuals.get(action.nodeId);
+        if (visual && visual.directionLine) {
+          this.drawJunctionDirection(visual.directionLine, node);
+        }
+        this.audioManager.playSwitch();
+      }
+    } else if (action.type === 'signal') {
+      const node = this.network.getNode(action.nodeId);
+      if (node && node.type === 'signal') {
+        node.signalState = action.newState as 'red' | 'green';
+        const visual = this.nodeVisuals.get(action.nodeId);
+        if (visual && visual.signalCircle) {
+          const color = node.signalState === 'green' ? 0x2a9d8f : 0xe63946;
+          visual.signalCircle.setFillStyle(color);
+        }
+        this.audioManager.playSignal();
+      }
+    } else if (action.type === 'priority') {
+      this.scheduler.setPriority(action.nodeId, action.newState as number);
+      this.audioManager.playClick();
+    }
   }
 
   private calculateStars(): number {

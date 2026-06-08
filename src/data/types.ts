@@ -83,7 +83,7 @@ export interface SaveData {
 
 export interface ReplayAction {
   time: number;
-  type: 'switch' | 'signal';
+  type: 'switch' | 'signal' | 'priority';
   nodeId: string;
   prevState: number | string;
   newState: number | string;
