@@ -1,4 +1,4 @@
-import { ArrowLeft, Filter, Trophy, Search, Sparkles, Info, FlaskConical as FlaskConicalIcon, Shield as ShieldIcon, Play } from 'lucide-react';
+import { ArrowLeft, Filter, Trophy, Search, Sparkles, Info, FlaskConicalIcon, ShieldIcon, PlayIcon } from 'lucide-react';
 import { GameButton } from '../ui/GameButton';
 import { GlassCard } from '../ui/GlassCard';
 import { LevelCard } from '../levels/LevelCard';
@@ -178,7 +178,7 @@ export function LevelsPage() {
               )}
               <div className="flex gap-3 pt-2">
                 <GameButton variant="ghost" className="flex-1" onClick={() => setSelectedInfo(null)}>关闭</GameButton>
-                <GameButton className="flex-1" icon={<Play />}
+                <GameButton className="flex-1" icon={<PlayIcon />}
                   onClick={() => { selectLevel(selectedLevel.id); setSelectedInfo(null); }}>
                   开始实验
                 </GameButton>
@@ -190,8 +190,3 @@ export function LevelsPage() {
     </div>
   );
 }
-
-function FlaskConicalIcon() {
-  return <FlaskConicalIconEl />;
-}
-import { FlaskConical as FlaskConicalIconEl, Shield as ShieldIcon, Play } from 'lucide-react';

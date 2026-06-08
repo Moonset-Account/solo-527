@@ -1,5 +1,5 @@
-import { ArrowLeft, Volume2, VolumeX, Monitor, Gamepad2, Keyboard, Smartphone, Database, Download, Upload, Trash2, Save, RotateCcw, Sparkles, Eye, EyeOff, Palette } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ArrowLeft, Volume2, VolumeX, Monitor, Gamepad2, Keyboard, Smartphone, Database, Download, Upload, Trash2, Save, RotateCcw, Sparkles, Eye, EyeOff, Palette, MousePointer2 } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 import { GameButton, cn } from '../ui/GameButton';
 import { Slider } from '../ui/Slider';
 import { GlassCard } from '../ui/GlassCard';
@@ -12,9 +12,9 @@ import { validateAllConfigs } from '../../utils/config';
 
 const DEVICES: { id: InputDevice; name: string; icon: typeof Keyboard }[] = [
   { id: 'keyboard', name: '键盘', icon: Keyboard },
-  { id: 'mouse', name: '鼠标', icon: Gamepad2 },
+  { id: 'mouse', name: '鼠标', icon: MousePointer2 },
   { id: 'gamepad', name: '游戏手柄', icon: Gamepad2 },
-  { id: 'touch', name: '触摸', icon: Smartphone },
+  { id: 'touch', name: '触摸手势', icon: Smartphone },
 ];
 
 export function SettingsPage() {
@@ -24,8 +24,172 @@ export function SettingsPage() {
   const navigate = useGameNavStore(s => s.navigate);
   const [tab, setTab] = useState<'audio' | 'graphics' | 'input' | 'data'>('audio');
   const [rebinding, setRebinding] = useState<{ action: InputAction } | null>(null);
+  const [rebindDevice, setRebindDevice] = useState<InputDevice>(settings.currentInputDevice);
   const importRef = useRef<HTMLInputElement>(null);
   const configStatus = validateAllConfigs();
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const lastTapRef = useRef(0);
+  const prevGamepadBtns = useRef<Set<string>>(new Set());
+  const gamepadRafRef = useRef<number | null>(null);
+
+  const actionLabels: Record<InputAction, string> = {
+    select: '选择/确认', cancel: '取消/返回', drag: '拖拽',
+    heat_up: '升温加热', cool_down: '降温/撤热', stir: '搅拌',
+    pour: '倒取试剂', menu: '打开菜单', pause: '暂停', help: '帮助',
+  };
+
+  const confirmRebind = (device: InputDevice, keyName: string) => {
+    if (!rebinding) return;
+    rebind(rebinding.action, device, keyName);
+    setRebinding(null);
+    if (gamepadRafRef.current) cancelAnimationFrame(gamepadRafRef.current);
+    gamepadRafRef.current = null;
+  };
+
+  useEffect(() => {
+    if (!rebinding) {
+      if (gamepadRafRef.current) cancelAnimationFrame(gamepadRafRef.current);
+      gamepadRafRef.current = null;
+      return;
+    }
+
+    const device = rebindDevice;
+    const btnMap: Record<number, string> = {
+      0: 'A', 1: 'B', 2: 'X', 3: 'Y',
+      4: 'LB', 5: 'RB', 6: 'LT', 7: 'RT',
+      8: 'Back', 9: 'Start', 10: 'Select', 11: 'Options',
+      12: 'DpadUp', 13: 'DpadDown', 14: 'DpadLeft', 15: 'DpadRight',
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      confirmRebind('keyboard', e.code || e.key);
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      const btn = e.button === 0 ? 'LMB' : e.button === 1 ? 'MMB' : 'RMB';
+      confirmRebind('mouse', btn);
+    };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      confirmRebind('mouse', e.deltaY < 0 ? 'ScrollUp' : 'ScrollDown');
+    };
+    const onDbl = (e: MouseEvent) => {
+      e.preventDefault();
+      confirmRebind('mouse', 'LMB+dbl');
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      touchStartRef.current = { x: t.clientX - rect.left, y: t.clientY - rect.top, time: performance.now() };
+      const now = performance.now();
+      if (now - lastTapRef.current < 320) {
+        confirmRebind('touch', 'DoubleTap');
+        lastTapRef.current = 0;
+      } else {
+        lastTapRef.current = now;
+      }
+      if (e.touches.length === 2) confirmRebind('touch', 'TwoFinger');
+      if (e.touches.length === 3) confirmRebind('touch', 'TripleTap');
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const t = e.touches[0];
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const pos = { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      const dx = pos.x - touchStartRef.current.x;
+      const dy = pos.y - touchStartRef.current.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 60) {
+        if (Math.abs(dy) > Math.abs(dx) * 1.8) {
+          confirmRebind('touch', dy < 0 ? 'SwipeUp' : 'SwipeDown');
+        } else if (Math.abs(dx) > Math.abs(dy) * 1.8) {
+          confirmRebind('touch', dx > 0 ? 'SwipeRight' : 'SwipeLeft');
+        } else {
+          confirmRebind('touch', 'SwipeDrag');
+        }
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const dur = performance.now() - touchStartRef.current.time;
+      const t = e.changedTouches[0];
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const pos = { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      const dx = pos.x - touchStartRef.current.x;
+      const dy = pos.y - touchStartRef.current.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dur > 600 && dist < 20) confirmRebind('touch', 'LongPress');
+      else if (dist < 12 && dur < 320) confirmRebind('touch', 'Tap');
+      touchStartRef.current = null;
+    };
+
+    const pollGamepad = () => {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = gamepads.find(g => g && g.connected);
+      if (gp) {
+        const current = new Set<string>();
+        gp.buttons.forEach((b, i) => {
+          if (b.pressed || b.value > 0.5) {
+            const name = btnMap[i];
+            if (name) current.add(name);
+          }
+        });
+        current.forEach(name => {
+          if (!prevGamepadBtns.current.has(name)) {
+            confirmRebind('gamepad', name);
+          }
+        });
+        prevGamepadBtns.current = current;
+      }
+      if (rebinding) gamepadRafRef.current = requestAnimationFrame(pollGamepad);
+    };
+
+    const onContext = (e: Event) => e.preventDefault();
+
+    if (device === 'keyboard') {
+      window.addEventListener('keydown', onKeyDown, true);
+      window.addEventListener('contextmenu', onContext);
+    } else if (device === 'mouse') {
+      window.addEventListener('mousedown', onMouseDown, true);
+      window.addEventListener('wheel', onWheel, { capture: true, passive: false } as AddEventListenerOptions);
+      window.addEventListener('dblclick', onDbl, true);
+      window.addEventListener('contextmenu', onContext);
+    } else if (device === 'touch') {
+      const el = document.body;
+      el.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+      el.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+      el.addEventListener('touchend', onTouchEnd, { capture: true });
+    } else if (device === 'gamepad') {
+      prevGamepadBtns.current.clear();
+      gamepadRafRef.current = requestAnimationFrame(pollGamepad);
+    }
+
+    const timeout = setTimeout(() => {
+      setRebinding(null);
+    }, 10000);
+
+    return () => {
+      clearTimeout(timeout);
+      if (gamepadRafRef.current) cancelAnimationFrame(gamepadRafRef.current);
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('contextmenu', onContext);
+      window.removeEventListener('mousedown', onMouseDown, true);
+      window.removeEventListener('wheel', onWheel, true);
+      window.removeEventListener('dblclick', onDbl, true);
+      const el = document.body;
+      el.removeEventListener('touchstart', onTouchStart, true);
+      el.removeEventListener('touchmove', onTouchMove, true);
+      el.removeEventListener('touchend', onTouchEnd, true);
+    };
+  }, [rebinding, rebindDevice]);
+
+  const beginRebindForDevice = (action: InputAction, device: InputDevice) => {
+    setRebindDevice(device);
+    setRebinding({ action });
+  };
 
   const handleImport = async (file: File) => {
     const ok = await importData(file);
@@ -218,49 +382,55 @@ export function SettingsPage() {
             </GlassCard>
 
             <GlassCard
-              title={<span className="flex items-center gap-2"><Keyboard className="w-5 h-5 text-cyan-300" />按键绑定 · {DEVICES.find(d => d.id === settings.currentInputDevice)?.name}</span>}
-              icon={<Keyboard className="w-5 h-5" />}>
+              title={<span className="flex items-center gap-2">
+                {(DEVICES.find(d => d.id === settings.currentInputDevice)?.icon || Keyboard) && (() => {
+                  const DevIcon = DEVICES.find(d => d.id === settings.currentInputDevice)?.icon || Keyboard;
+                  return <DevIcon className="w-5 h-5 text-cyan-300" />;
+                })()}
+                按键绑定 · {DEVICES.find(d => d.id === settings.currentInputDevice)?.name}
+              </span>}
+              icon={(() => {
+                const DevIcon = DEVICES.find(d => d.id === settings.currentInputDevice)?.icon || Keyboard;
+                return <DevIcon className="w-5 h-5" />;
+              })()}>
+              <div className="mb-3 p-3 rounded-xl bg-slate-800/30 border border-slate-700/30 text-xs text-slate-300">
+                {settings.currentInputDevice === 'keyboard' && '💡 点击「重绑」后按下任意键盘按键完成绑定。支持功能键。'}
+                {settings.currentInputDevice === 'mouse' && '💡 点击「重绑」后执行鼠标操作（点击/滚轮/双击）完成绑定。'}
+                {settings.currentInputDevice === 'gamepad' && '💡 请先连接手柄并按下任意按键激活，然后点击「重绑」按下目标按钮。'}
+                {settings.currentInputDevice === 'touch' && '💡 建议在触摸设备上操作。点击「重绑」后执行目标手势（点击/长按/滑动等）。'}
+              </div>
               <div className="space-y-2">
-                {(['select', 'cancel', 'heat_up', 'cool_down', 'stir', 'pour', 'pause', 'help'] as InputAction[]).map(action => {
-                  const actionLabels: Record<InputAction, string> = {
-                    select: '选择/确认', cancel: '取消/返回', drag: '拖拽',
-                    heat_up: '升温加热', cool_down: '降温/撤热', stir: '搅拌',
-                    pour: '倒取试剂', menu: '打开菜单', pause: '暂停', help: '帮助',
-                  };
-                  return (
-                    <div key={action}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 hover:border-slate-600/50 transition-all">
-                      <div>
-                        <div className="font-medium text-sm text-slate-100">{actionLabels[action]}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <KeyHint action={action} device={settings.currentInputDevice} bindings={settings.inputs[settings.currentInputDevice].bindings}
-                          label="" />
-                        <button
-                          onClick={() => {
-                            setRebinding({ action });
-                            setTimeout(() => {
-                              const handler = (e: KeyboardEvent) => {
-                                rebind(action, settings.currentInputDevice, e.code || e.key);
-                                window.removeEventListener('keydown', handler);
-                                setRebinding(null);
-                              };
-                              window.addEventListener('keydown', handler, { once: true });
-                            }, 0);
-                          }}
-                          className={cn(
-                            'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                            rebinding?.action === action
-                              ? 'bg-cyan-500/30 border border-cyan-400/60 text-cyan-100 animate-pulse'
-                              : 'bg-slate-700/50 border border-slate-600/50 text-slate-300 hover:bg-slate-600/60',
-                          )}
-                        >
-                          {rebinding?.action === action ? '按下按键...' : '重绑'}
-                        </button>
-                      </div>
+                {(['select', 'cancel', 'heat_up', 'cool_down', 'stir', 'pour', 'pause', 'help'] as InputAction[]).map(action => (
+                  <div key={action}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 hover:border-slate-600/50 transition-all">
+                    <div>
+                      <div className="font-medium text-sm text-slate-100">{actionLabels[action]}</div>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-2">
+                      <KeyHint action={action} device={settings.currentInputDevice} bindings={settings.inputs[settings.currentInputDevice].bindings}
+                        label="" />
+                      <button
+                        onClick={() => beginRebindForDevice(action, settings.currentInputDevice)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          rebinding?.action === action && rebindDevice === settings.currentInputDevice
+                            ? 'bg-cyan-500/30 border border-cyan-400/60 text-cyan-100 animate-pulse'
+                            : 'bg-slate-700/50 border border-slate-600/50 text-slate-300 hover:bg-slate-600/60',
+                        )}
+                      >
+                        {rebinding?.action === action && rebindDevice === settings.currentInputDevice ? (() => {
+                          const prompts: Record<InputDevice, string> = {
+                            keyboard: '按下按键...',
+                            mouse: '点击/滚轮...',
+                            gamepad: '按下手柄键...',
+                            touch: '执行手势...',
+                          };
+                          return prompts[settings.currentInputDevice];
+                        })() : '重绑'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="mt-4 flex justify-end">
                 <GameButton variant="ghost" size="sm" icon={<RotateCcw className="w-4 h-4" />} onClick={resetInputBindings}>
