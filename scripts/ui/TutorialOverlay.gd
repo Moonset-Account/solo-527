@@ -99,17 +99,22 @@ func _animate_label_in(label: Label) -> void:
 
 func _on_next_pressed() -> void:
 	EventBus.emit_sfx_play("menu_confirm")
-	GameManager.advance_tutorial_step()
+	var next_idx: int = current_step + 1
+	if next_idx >= tutorial_steps.size():
+		_complete_tutorial()
+		return
+	GameManager.tutorial_step = next_idx
 	var tween := create_tween()
 	if tutorial_panel:
 		tween.tween_property(tutorial_panel, "modulate:a", 0.0, 0.15)
 		tween.tween_callback(Callable(self, "_do_next_step"))
 
 func _do_next_step() -> void:
-	if current_step >= tutorial_steps.size() - 1:
+	if current_step >= tutorial_steps.size():
 		_complete_tutorial()
 	else:
-		_show_step(current_step + 1)
+		EventBus.emit_tutorial_step_changed(current_step)
+		_show_step(current_step)
 
 func _on_skip_pressed() -> void:
 	EventBus.emit_sfx_play("menu_cancel")
