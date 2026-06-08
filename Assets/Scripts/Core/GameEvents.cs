@@ -129,6 +129,9 @@ namespace SpaceCourier.Core
             public string ChoiceType;
             public string ChoiceValue;
             public int TurnNumber;
+            public int FuelAtChoice;
+            public int ReputationAtChoice;
+            public string OutcomeNote;
         }
     }
 }

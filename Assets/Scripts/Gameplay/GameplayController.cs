@@ -101,6 +101,23 @@ namespace SpaceCourier.Gameplay
                 return result;
             }
 
+            string routeStr = "";
+            int totalFuelCost = 0;
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                totalFuelCost += dataManager.CalculateFuelCost(path[i], path[i + 1]);
+            }
+            for (int i = 0; i < path.Count; i++)
+            {
+                var n = dataManager.GetNode(path[i]);
+                routeStr += (n != null ? n.NodeName : $"#{path[i]}") + (i < path.Count - 1 ? "→" : "");
+            }
+            RecordCriticalChoice(
+                "RouteSelection",
+                $"{routeStr} (Jumps:{path.Count - 1})",
+                $"FuelCost:{totalFuelCost}"
+            );
+
             turnManager.StartTravelTurn();
 
             var runtimeData = dataManager.RuntimeData;
@@ -340,13 +357,17 @@ namespace SpaceCourier.Gameplay
         public void RecordCriticalChoice(string choiceType, string choiceValue, string outcomeNote = "")
         {
             var runtimeData = dataManager.RuntimeData;
+            var tn = turnManager?.CurrentTurn ?? 0;
+            var fuel = fuelManager?.CurrentFuel ?? 0;
+            var rep = reputationManager?.CurrentReputation ?? 0;
+
             runtimeData.CriticalChoices.Add(new CriticalChoiceRecord
             {
                 ChoiceType = choiceType,
                 ChoiceValue = choiceValue,
-                TurnNumber = turnManager.CurrentTurn,
-                FuelAtChoice = fuelManager.CurrentFuel,
-                ReputationAtChoice = reputationManager?.CurrentReputation ?? 0,
+                TurnNumber = tn,
+                FuelAtChoice = fuel,
+                ReputationAtChoice = rep,
                 OutcomeNote = outcomeNote
             });
 
@@ -354,7 +375,10 @@ namespace SpaceCourier.Gameplay
             {
                 ChoiceType = choiceType,
                 ChoiceValue = choiceValue,
-                TurnNumber = turnManager.CurrentTurn
+                TurnNumber = tn,
+                FuelAtChoice = fuel,
+                ReputationAtChoice = rep,
+                OutcomeNote = outcomeNote
             });
         }
     }

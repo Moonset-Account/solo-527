@@ -37,7 +37,30 @@ namespace SpaceCourier.SaveSystem
             reputationManager = GameManager.Instance?.GetModule<ReputationManager>(ModuleType.ReputationManager);
             saveManager = GameManager.Instance?.GetModule<SaveManager>(ModuleType.SaveManager);
 
+            EventBus.Subscribe<GameEvents.CriticalChoiceMade>(OnCriticalChoiceMade);
+
             Debug.Log("[PlayRecorder] Initialized.");
+        }
+
+        private void OnCriticalChoiceMade(GameEvents.CriticalChoiceMade e)
+        {
+            if (!isRecording || currentSession == null) return;
+            RecordCriticalChoice(
+                e.ChoiceType,
+                e.ChoiceValue,
+                e.TurnNumber,
+                e.FuelAtChoice,
+                e.ReputationAtChoice,
+                e.OutcomeNote
+            );
+        }
+
+        public void Shutdown()
+        {
+            EventBus.Unsubscribe<GameEvents.CriticalChoiceMade>(OnCriticalChoiceMade);
+            SavePlayRecord();
+            isRecording = false;
+            Debug.Log("[PlayRecorder] Shutdown.");
         }
 
         public void StartSession(int levelId)
@@ -370,16 +393,6 @@ namespace SpaceCourier.SaveSystem
                 });
             }
             return result;
-        }
-
-        public void Shutdown()
-        {
-            if (isRecording && currentSession != null)
-            {
-                SavePlayRecord();
-                isRecording = false;
-            }
-            Debug.Log("[PlayRecorder] Shutdown.");
         }
     }
 }

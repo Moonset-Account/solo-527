@@ -436,8 +436,8 @@ namespace SpaceCourier.Bootstrap
 
         private void EnterGameplay()
         {
-            SetupStarMap();
             SetupGameplayController();
+            SetupStarMap();
 
             uiManager?.ShowHUD();
             hudPanel?.RefreshAll();
