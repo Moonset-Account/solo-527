@@ -146,7 +146,7 @@ namespace LakeNavigation
                 starObj.transform.SetParent(hLayout.transform, false);
                 var starText = starObj.AddComponent<Text>();
                 starText.font = UIHelper.DefaultFont;
-                starText.text = unlocked ? new string('\u2605', stars) + new string('\u2606', 3 - stars) : "";
+                starText.text = unlocked ? new string('*', stars) + new string('o', 3 - stars) : "";
                 starText.fontSize = 18;
                 starText.color = new Color32(255, 215, 0, 255);
                 starText.alignment = TextAnchor.MiddleRight;
@@ -234,18 +234,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
             btnText.font = UIHelper.DefaultFont;
             btnText.fontSize = 28;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 60f;

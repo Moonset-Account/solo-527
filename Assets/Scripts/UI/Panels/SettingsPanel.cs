@@ -252,7 +252,7 @@ namespace LakeNavigation
 
             GameObject fillAreaObj = new GameObject("Fill Area");
             fillAreaObj.transform.SetParent(sliderObj.transform, false);
-            RectTransform fillAreaRt = fillAreaObj.GetComponent<RectTransform>();
+            RectTransform fillAreaRt = fillAreaObj.AddComponent<RectTransform>();
             fillAreaRt.anchorMin = Vector2.zero;
             fillAreaRt.anchorMax = Vector2.one;
             fillAreaRt.offsetMin = new Vector2(3, 3);
@@ -260,17 +260,17 @@ namespace LakeNavigation
 
             GameObject fillObj = new GameObject("Fill");
             fillObj.transform.SetParent(fillAreaObj.transform, false);
+            Image fillImg = fillObj.AddComponent<Image>();
+            fillImg.color = new Color32(70, 130, 180, 255);
             RectTransform fillRt = fillObj.GetComponent<RectTransform>();
             fillRt.anchorMin = Vector2.zero;
             fillRt.anchorMax = new Vector2(0.75f, 1f);
             fillRt.offsetMin = Vector2.zero;
             fillRt.offsetMax = Vector2.zero;
-            Image fillImg = fillObj.AddComponent<Image>();
-            fillImg.color = new Color32(70, 130, 180, 255);
 
             GameObject handleAreaObj = new GameObject("Handle Slide Area");
             handleAreaObj.transform.SetParent(sliderObj.transform, false);
-            RectTransform handleAreaRt = handleAreaObj.GetComponent<RectTransform>();
+            RectTransform handleAreaRt = handleAreaObj.AddComponent<RectTransform>();
             handleAreaRt.anchorMin = Vector2.zero;
             handleAreaRt.anchorMax = Vector2.one;
             handleAreaRt.offsetMin = new Vector2(8, 0);
@@ -278,12 +278,12 @@ namespace LakeNavigation
 
             GameObject handleObj = new GameObject("Handle");
             handleObj.transform.SetParent(handleAreaObj.transform, false);
+            Image handleImg = handleObj.AddComponent<Image>();
+            handleImg.color = Color.white;
             RectTransform handleRt = handleObj.GetComponent<RectTransform>();
             handleRt.sizeDelta = new Vector2(20, 24);
             handleRt.anchorMin = new Vector2(0.75f, 0.5f);
             handleRt.anchorMax = new Vector2(0.75f, 0.5f);
-            Image handleImg = handleObj.AddComponent<Image>();
-            handleImg.color = Color.white;
 
             slider = sliderObj.AddComponent<Slider>();
             slider.fillRect = fillRt;
@@ -394,18 +394,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = "Reset Progress";
             btnText.font = _font;
             btnText.fontSize = 22;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 50f;
@@ -437,18 +437,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = "Back";
             btnText.font = _font;
             btnText.fontSize = 24;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 55f;
@@ -554,18 +554,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
             btnText.font = _font;
             btnText.fontSize = 22;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 45f;

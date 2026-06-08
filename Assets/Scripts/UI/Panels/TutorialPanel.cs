@@ -111,18 +111,18 @@ namespace LakeNavigation
             GameObject skipTextObj = new GameObject("Text");
             skipTextObj.transform.SetParent(skipObj.transform, false);
 
-            RectTransform skipTextRt = skipTextObj.GetComponent<RectTransform>();
-            skipTextRt.anchorMin = Vector2.zero;
-            skipTextRt.anchorMax = Vector2.one;
-            skipTextRt.offsetMin = Vector2.zero;
-            skipTextRt.offsetMax = Vector2.zero;
-
             Text skipText = skipTextObj.AddComponent<Text>();
             skipText.text = "Skip";
             skipText.font = UIHelper.DefaultFont;
             skipText.fontSize = 22;
             skipText.color = Color.white;
             skipText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform skipTextRt = skipTextObj.GetComponent<RectTransform>();
+            skipTextRt.anchorMin = Vector2.zero;
+            skipTextRt.anchorMax = Vector2.one;
+            skipTextRt.offsetMin = Vector2.zero;
+            skipTextRt.offsetMax = Vector2.zero;
 
             LayoutElement skipLe = skipObj.AddComponent<LayoutElement>();
             skipLe.preferredHeight = 40f;
@@ -233,18 +233,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
             btnText.font = UIHelper.DefaultFont;
             btnText.fontSize = 26;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 55f;

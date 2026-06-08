@@ -161,7 +161,7 @@ namespace LakeNavigation
                 starObj.transform.SetParent(starsRow.transform, false);
                 _starTexts[i] = starObj.AddComponent<Text>();
                 _starTexts[i].font = _font;
-                _starTexts[i].text = "\u2605";
+                _starTexts[i].text = "*";
                 _starTexts[i].fontSize = 44;
                 _starTexts[i].alignment = TextAnchor.MiddleCenter;
                 LayoutElement starLe = starObj.AddComponent<LayoutElement>();
@@ -363,7 +363,7 @@ namespace LakeNavigation
             for (int i = 0; i < 3; i++)
             {
                 bool filled = i < LastResult.StarCount;
-                _starTexts[i].text = filled ? "\u2605" : "\u2606";
+                _starTexts[i].text = filled ? "*" : "o";
                 _starTexts[i].color = filled ? goldColor : grayColor;
             }
 
@@ -499,18 +499,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
             btnText.font = _font;
             btnText.fontSize = 22;
             btnText.color = Color.white;
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = Vector2.zero;
+            textRt.offsetMax = Vector2.zero;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 50f;

@@ -187,14 +187,14 @@ namespace LakeNavigation
             GameObject fillObj = new GameObject("Fill");
             fillObj.transform.SetParent(barObj.transform, false);
 
+            _progressBarFill = fillObj.AddComponent<Image>();
+            _progressBarFill.color = new Color32(70, 180, 130, 255);
+
             RectTransform fillRt = fillObj.GetComponent<RectTransform>();
             fillRt.anchorMin = Vector2.zero;
             fillRt.anchorMax = new Vector2(0f, 1f);
             fillRt.offsetMin = Vector2.zero;
             fillRt.offsetMax = Vector2.zero;
-
-            _progressBarFill = fillObj.AddComponent<Image>();
-            _progressBarFill.color = new Color32(70, 180, 130, 255);
         }
 
         private void CreateCategoryTabs()
@@ -277,18 +277,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
-            RectTransform textRt = textObj.GetComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = new Vector2(8, 0);
-            textRt.offsetMax = new Vector2(-8, 0);
-
             Text btnText = textObj.AddComponent<Text>();
             btnText.text = label;
             btnText.font = _font;
             btnText.fontSize = 16;
             btnText.color = new Color32(180, 200, 230, 255);
             btnText.alignment = TextAnchor.MiddleCenter;
+
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.offsetMin = new Vector2(8, 0);
+            textRt.offsetMax = new Vector2(-8, 0);
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.minWidth = 80f;
@@ -373,18 +373,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(btnObj.transform, false);
 
+            Text btnText = textObj.AddComponent<Text>();
+            btnText.text = "Back";
+            btnText.font = _font;
+            btnText.fontSize = 22;
+            btnText.color = Color.white;
+            btnText.alignment = TextAnchor.MiddleCenter;
+
             RectTransform textRt = textObj.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = Vector2.zero;
             textRt.offsetMax = Vector2.zero;
-
-            Text btnText = textObj.AddComponent<Text>();
-            btnText.text = "Back";
-            btnText.font = _font;
-            btnText.fontSize = 24;
-            btnText.color = Color.white;
-            btnText.alignment = TextAnchor.MiddleCenter;
 
             LayoutElement le = btnObj.AddComponent<LayoutElement>();
             le.preferredHeight = 50f;
@@ -613,18 +613,18 @@ namespace LakeNavigation
             GameObject textObj = new GameObject("Text");
             textObj.transform.SetParent(tagObj.transform, false);
 
+            Text tagText = textObj.AddComponent<Text>();
+            tagText.text = tagLabel;
+            tagText.font = _font;
+            tagText.fontSize = 14;
+            tagText.color = new Color32(tagColor.r, tagColor.g, tagColor.b, 255);
+            tagText.alignment = TextAnchor.MiddleCenter;
+
             RectTransform textRt = textObj.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
             textRt.offsetMin = new Vector2(4, 0);
             textRt.offsetMax = new Vector2(-4, 0);
-
-            Text tagText = textObj.AddComponent<Text>();
-            tagText.text = tagLabel;
-            tagText.font = _font;
-            tagText.fontSize = 12;
-            tagText.color = tagColor;
-            tagText.alignment = TextAnchor.MiddleCenter;
         }
 
         private Text CreateLabel(Transform parent, string text, int fontSize, Color color, TextAnchor alignment)

@@ -268,6 +268,7 @@ namespace LakeNavigation
         {
             var obj = new GameObject(name);
             obj.transform.SetParent(parent, false);
+            obj.AddComponent<RectTransform>();
             return obj;
         }
 
