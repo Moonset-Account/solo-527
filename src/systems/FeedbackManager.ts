@@ -69,7 +69,7 @@ export class FeedbackManager {
     this.activeTweens.push(tween);
   }
 
-  playHighlightPulse(target: Phaser.GameObjects.Shape, duration: number = 2000): void {
+  playHighlightPulse(target: Phaser.GameObjects.GameObject, duration: number = 2000): void {
     const tween = this.scene.tweens.add({
       targets: target,
       alpha: { from: 0.2, to: 0.6 },

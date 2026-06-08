@@ -87,14 +87,13 @@ export class HintManager {
     const book = this.levelData.books.find((b) => b.id === bookId);
     if (!book) return null;
 
+    const currentShelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
+
     if (!book.isMisplaced) {
-      const shelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
-      return `《${book.title}》目前在${shelf?.label ?? '某书架'}上，它的分类标记与所在书架一致——也许它并不是错位的？`;
+      return `《${book.title}》的分类标记「${book.category}」与${currentShelf?.label ?? '当前书架'}的标签一致——也许它并不是错位的？`;
     }
 
-    const correctShelf = this.levelData.shelves.find((s) => s.id === book.correctShelfId);
-    const currentShelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
-    return `《${book.title}》的借阅卡显示它属于${correctShelf?.label ?? '某书架'}，但它现在在${currentShelf?.label ?? '另一书架'}——这就是矛盾所在`;
+    return `《${book.title}》的借阅卡归属区域与它当前所在的书架标签存在矛盾——这就是你判断的依据`;
   }
 
   resetForNewLevel(): void {

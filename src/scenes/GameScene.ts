@@ -512,10 +512,11 @@ export class GameScene extends Phaser.Scene {
     const px = width / 2;
     const py = height / 2;
 
-    this.detailPanel = this.add.container(px, py).setDepth(100);
+    const panel = this.add.container(px, py).setDepth(100);
+    this.detailPanel = panel;
 
     const panelBg = this.add.image(0, 0, 'panel').setDisplaySize(500, 300);
-    this.detailPanel.add(panelBg);
+    panel.add(panelBg);
 
     const title = this.add.text(0, -120, `《${book.title}》`, {
       fontSize: '20px',
@@ -523,15 +524,13 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'sans-serif',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.detailPanel.add(title);
+    panel.add(title);
 
     const shelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
-    const correctShelf = this.levelData.shelves.find((s) => s.id === book.correctShelfId);
 
     const info = this.add.text(0, -70, [
-      `分类：${book.category}`,
+      `分类标记：${book.category}`,
       `当前书架：${shelf?.label ?? '未知'}`,
-      `应属书架：${correctShelf?.label ?? '未知'}`,
       `被标记为嫌疑：${this.clueBoardManager.isMarked(book.id) ? '是' : '否'}`,
     ].join('\n'), {
       fontSize: '14px',
@@ -539,7 +538,7 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'sans-serif',
       lineSpacing: 8,
     }).setOrigin(0.5);
-    this.detailPanel.add(info);
+    panel.add(info);
 
     const relatedClues = this.levelData.clues.filter((c) => c.relatedBookIds.includes(book.id));
     const discoveredClueIds = this.clueBoardManager.getDiscoveredClues().map((c) => c.id);
@@ -552,7 +551,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
       }).setOrigin(0.5);
-      this.detailPanel.add(clueTitle);
+      panel.add(clueTitle);
 
       visibleClues.forEach((clue, i) => {
         const clueText = this.add.text(0, 35 + i * 22, `• ${clue.description}`, {
@@ -561,7 +560,7 @@ export class GameScene extends Phaser.Scene {
           fontFamily: 'sans-serif',
           wordWrap: { width: 440 },
         }).setOrigin(0.5);
-        this.detailPanel.add(clueText);
+        panel.add(clueText);
       });
     } else {
       const noClue = this.add.text(0, 10, '暂无已发现的关联线索\n（检查书架可能发现更多）', {
@@ -570,7 +569,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'sans-serif',
         align: 'center',
       }).setOrigin(0.5);
-      this.detailPanel.add(noClue);
+      panel.add(noClue);
     }
 
     const closeBtn = this.add.image(200, -130, 'button').setDisplaySize(60, 30).setInteractive({ useHandCursor: true });
@@ -579,8 +578,8 @@ export class GameScene extends Phaser.Scene {
       color: '#e2e8f0',
       fontFamily: 'sans-serif',
     }).setOrigin(0.5);
-    this.detailPanel.add(closeBtn);
-    this.detailPanel.add(closeText);
+    panel.add(closeBtn);
+    panel.add(closeText);
 
     closeBtn.on('pointerdown', () => {
       this.detailPanel?.destroy(true);
@@ -617,15 +616,15 @@ export class GameScene extends Phaser.Scene {
       const book = this.levelData.books.find((b) => b.id === bookId)!;
       const shelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
       reasons.push(
-        `你标记了《${book.title}》，但它在${shelf?.label ?? '当前书架'}上的位置是正确的——它的分类标记与所在书架一致`
+        `你标记了《${book.title}》，但它的分类标记「${book.category}」与${shelf?.label ?? '当前书架'}的标签一致——没有矛盾线索表明它错位了`
       );
     });
 
     missedIds.forEach((bookId) => {
       const book = this.levelData.books.find((b) => b.id === bookId)!;
-      const correctShelf = this.levelData.shelves.find((s) => s.id === book.correctShelfId);
+      const currentShelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
       missed.push(
-        `你遗漏了《${book.title}》——它应属于${correctShelf?.label ?? '另一书架'}，但仍在当前错误位置`
+        `你遗漏了《${book.title}》——它的借阅卡归属区域与${currentShelf?.label ?? '当前书架'}的标签存在矛盾，而你未标记它`
       );
     });
 
@@ -647,11 +646,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     const { width, height } = this.cameras.main;
-    this.detailPanel = this.add.container(width / 2, height / 2).setDepth(100);
+    const panel = this.add.container(width / 2, height / 2).setDepth(100);
+    this.detailPanel = panel;
 
     const panelH = Math.min(400, 100 + (reasons.length + missed.length) * 40);
     const panelBg = this.add.image(0, 0, 'panel').setDisplaySize(600, panelH);
-    this.detailPanel.add(panelBg);
+    panel.add(panelBg);
 
     const header = this.add.text(0, -panelH / 2 + 25, '判断有误', {
       fontSize: '20px',
@@ -659,7 +659,7 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'sans-serif',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.detailPanel.add(header);
+    panel.add(header);
 
     let yPos = -panelH / 2 + 60;
 
@@ -670,7 +670,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
       }).setOrigin(0.5);
-      this.detailPanel.add(wrongHeader);
+      panel.add(wrongHeader);
       yPos += 24;
 
       reasons.forEach((reason) => {
@@ -680,7 +680,7 @@ export class GameScene extends Phaser.Scene {
           fontFamily: 'sans-serif',
           wordWrap: { width: 540 },
         }).setOrigin(0.5);
-        this.detailPanel.add(text);
+        panel.add(text);
         yPos += 30;
       });
     }
@@ -693,7 +693,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
       }).setOrigin(0.5);
-      this.detailPanel.add(missHeader);
+      panel.add(missHeader);
       yPos += 24;
 
       missed.forEach((m) => {
@@ -703,7 +703,7 @@ export class GameScene extends Phaser.Scene {
           fontFamily: 'sans-serif',
           wordWrap: { width: 540 },
         }).setOrigin(0.5);
-        this.detailPanel.add(text);
+        panel.add(text);
         yPos += 30;
       });
     }
@@ -713,7 +713,7 @@ export class GameScene extends Phaser.Scene {
       color: '#64748b',
       fontFamily: 'sans-serif',
     }).setOrigin(0.5);
-    this.detailPanel.add(attemptsText);
+    panel.add(attemptsText);
 
     const retryBtn = this.add.image(0, panelH / 2 - 15, 'button').setDisplaySize(120, 36).setInteractive({ useHandCursor: true });
     const retryText = this.add.text(0, panelH / 2 - 15, '继续排查', {
@@ -721,8 +721,8 @@ export class GameScene extends Phaser.Scene {
       color: '#e2e8f0',
       fontFamily: 'sans-serif',
     }).setOrigin(0.5);
-    this.detailPanel.add(retryBtn);
-    this.detailPanel.add(retryText);
+    panel.add(retryBtn);
+    panel.add(retryText);
 
     retryBtn.on('pointerdown', () => {
       this.detailPanel?.destroy(true);
@@ -846,10 +846,9 @@ export class GameScene extends Phaser.Scene {
     correctIds.forEach((bookId) => {
       if (!markedSuspects.includes(bookId)) {
         const book = this.levelData.books.find((b) => b.id === bookId)!;
-        const correctShelf = this.levelData.shelves.find((s) => s.id === book.correctShelfId);
         const currentShelf = this.levelData.shelves.find((s) => s.id === book.currentShelfId);
         missed.push(
-          `《${book.title}》是错位的——它应属于${correctShelf?.label ?? '某书架'}，但被放在了${currentShelf?.label ?? '另一书架'}`
+          `《${book.title}》——它的借阅卡归属区域与${currentShelf?.label ?? '当前书架'}的标签存在矛盾，你未发现这处矛盾`
         );
       }
     });

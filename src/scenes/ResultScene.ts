@@ -13,7 +13,7 @@ interface ResultSceneData {
 }
 
 export class ResultScene extends Phaser.Scene {
-  private data!: ResultSceneData;
+  private sceneData!: ResultSceneData;
   private audioManager!: AudioManager;
 
   constructor() {
@@ -21,7 +21,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   init(data: ResultSceneData): void {
-    this.data = data;
+    this.sceneData = data;
     this.audioManager = new AudioManager(this);
   }
 
@@ -30,7 +30,7 @@ export class ResultScene extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x0a0a1a, 0.97);
 
-    if (this.data.success) {
+    if (this.sceneData.success) {
       this.renderSuccess(width, height);
     } else {
       this.renderFailure(width, height);
@@ -50,7 +50,7 @@ export class ResultScene extends Phaser.Scene {
     const shelf = this.add.rectangle(width / 2, 160, 500, 2, 0x334155);
     shelf.setOrigin(0.5);
 
-    const completionText = this.add.text(width / 2, 200, this.data.levelData.completionMessage, {
+    const completionText = this.add.text(width / 2, 200, this.sceneData.levelData.completionMessage, {
       fontSize: '15px',
       color: '#e2e8f0',
       fontFamily: 'sans-serif',
@@ -59,7 +59,7 @@ export class ResultScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
 
     const stats = this.add.text(width / 2, 340, [
-      `章节：第${this.data.levelData.chapter}章`,
+      `章节：第${this.sceneData.levelData.chapter}章`,
       `总错误次数：${SaveManager.getInstance().getData().totalWrongAttempts}`,
     ].join('\n'), {
       fontSize: '14px',
@@ -68,11 +68,11 @@ export class ResultScene extends Phaser.Scene {
       lineSpacing: 6,
     }).setOrigin(0.5, 0);
 
-    if (this.data.nextChapter) {
+    if (this.sceneData.nextChapter) {
       this.createButton(width / 2, 460, '进入下一章', () => {
-        SaveManager.getInstance().setCurrentChapter(this.data.nextChapter!);
+        SaveManager.getInstance().setCurrentChapter(this.sceneData.nextChapter!);
         this.scene.start('GameScene', {
-          chapter: this.data.nextChapter,
+          chapter: this.sceneData.nextChapter,
           levelIndex: 0,
         });
       });
@@ -89,9 +89,9 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    this.createButton(width / 2, 540 + (this.data.nextChapter ? 0 : -20), '重新挑战本章', () => {
+    this.createButton(width / 2, 540 + (this.sceneData.nextChapter ? 0 : -20), '重新挑战本章', () => {
       this.scene.start('GameScene', {
-        chapter: this.data.levelData.chapter,
+        chapter: this.sceneData.levelData.chapter,
         levelIndex: 0,
       });
     });
@@ -103,7 +103,7 @@ export class ResultScene extends Phaser.Scene {
     let titleText: string;
     let titleColor: string;
 
-    if (this.data.failureReason === 'timeout') {
+    if (this.sceneData.failureReason === 'timeout') {
       titleText = '⏰ 闭馆时间已到';
       titleColor = '#f59e0b';
     } else {
@@ -120,7 +120,7 @@ export class ResultScene extends Phaser.Scene {
 
     let yPos = 120;
 
-    if (this.data.reasons && this.data.reasons.length > 0) {
+    if (this.sceneData.reasons && this.sceneData.reasons.length > 0) {
       this.add.text(width / 2, yPos, '失败原因分析', {
         fontSize: '16px',
         color: '#fbbf24',
@@ -129,7 +129,7 @@ export class ResultScene extends Phaser.Scene {
       }).setOrigin(0.5);
       yPos += 30;
 
-      this.data.reasons.forEach((reason) => {
+      this.sceneData.reasons.forEach((reason) => {
         const text = this.add.text(width / 2, yPos, `• ${reason}`, {
           fontSize: '13px',
           color: '#fca5a5',
@@ -140,7 +140,7 @@ export class ResultScene extends Phaser.Scene {
       });
     }
 
-    if (this.data.missed && this.data.missed.length > 0) {
+    if (this.sceneData.missed && this.sceneData.missed.length > 0) {
       yPos += 10;
       this.add.text(width / 2, yPos, '你遗漏的错位藏书', {
         fontSize: '16px',
@@ -150,7 +150,7 @@ export class ResultScene extends Phaser.Scene {
       }).setOrigin(0.5);
       yPos += 30;
 
-      this.data.missed.forEach((m) => {
+      this.sceneData.missed.forEach((m) => {
         const text = this.add.text(width / 2, yPos, `• ${m}`, {
           fontSize: '13px',
           color: '#93c5fd',
@@ -172,7 +172,7 @@ export class ResultScene extends Phaser.Scene {
 
     this.createButton(width / 2, yPos, '重新挑战本章', () => {
       this.scene.start('GameScene', {
-        chapter: this.data.levelData.chapter,
+        chapter: this.sceneData.levelData.chapter,
         levelIndex: 0,
       });
     });
