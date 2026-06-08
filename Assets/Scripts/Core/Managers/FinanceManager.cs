@@ -25,11 +25,16 @@ public class FinanceManager : MonoBehaviour
     {
         if (team == null) return;
         team.budget -= weeklySalaryCost;
-        if (team.lastMatchResult == MatchResult.Win)
+    }
+
+    public void ApplyMatchBonus(TeamData team, MatchResult result)
+    {
+        if (team == null) return;
+        if (result == MatchResult.Win)
         {
             team.budget += matchWinBonus;
         }
-        else if (team.lastMatchResult == MatchResult.Draw)
+        else if (result == MatchResult.Draw)
         {
             team.budget += matchDrawBonus;
         }

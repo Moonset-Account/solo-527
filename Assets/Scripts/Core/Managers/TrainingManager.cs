@@ -59,7 +59,7 @@ public class TrainingManager : MonoBehaviour
         weeklySchedule[dayIndex].assignedPlayerId = "";
     }
 
-    public void ApplyWeeklyTraining(TeamData team)
+    public void ApplyWeeklyTraining(TeamData team, float efficiencyMultiplier = 1f)
     {
         if (team == null || team.players == null) return;
         foreach (var slot in weeklySchedule)
@@ -68,12 +68,13 @@ public class TrainingManager : MonoBehaviour
             if (string.IsNullOrEmpty(slot.assignedPlayerId)) continue;
             PlayerData player = team.GetPlayer(slot.assignedPlayerId);
             if (player == null || player.IsInjured()) continue;
-            int gain = 2;
+            int baseGain = 2;
+            int gain = Mathf.Max(1, Mathf.RoundToInt(baseGain * efficiencyMultiplier));
             switch (slot.type)
             {
                 case TrainingType.Physical:
                     player.ApplyTraining("speed", gain);
-                    player.ApplyTraining("stamina", 1);
+                    player.ApplyTraining("stamina", Mathf.Max(1, gain / 2));
                     break;
                 case TrainingType.Technical:
                     player.ApplyTraining("technique", gain);

@@ -88,7 +88,7 @@ public class GameManager : MonoBehaviour
     public void AdvanceWeek()
     {
         currentWeek++;
-        TrainingManager.Instance.ApplyWeeklyTraining(currentTeam);
+        TrainingManager.Instance.ApplyWeeklyTraining(currentTeam, currentLevel.trainingEfficiencyMultiplier);
         InjuryManager.Instance.ProcessWeeklyInjuries(currentTeam, currentLevel.injuryRateMultiplier);
         FinanceManager.Instance.ProcessWeeklyFinance(currentTeam);
         CheckForMatch();
@@ -121,6 +121,7 @@ public class GameManager : MonoBehaviour
             matchData.result = MatchResult.Win;
             currentTeam.seasonWins++;
             currentTeam.reputation += 3;
+            FinanceManager.Instance.ApplyMatchBonus(currentTeam, MatchResult.Win);
         }
         else if (ourScore < oppScore)
         {
@@ -133,6 +134,7 @@ public class GameManager : MonoBehaviour
             matchData.result = MatchResult.Draw;
             currentTeam.seasonDraws++;
             currentTeam.reputation += 1;
+            FinanceManager.Instance.ApplyMatchBonus(currentTeam, MatchResult.Draw);
         }
         currentTeam.lastMatchResult = matchData.result;
         currentTeam.lastMatchOurScore = ourScore;
