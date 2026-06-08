@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3 uid="uid://level00000000001"]
+
+[ext_resource type="Script" path="res://scripts/ui/LevelSelect.gd" id="1_lvl"]
+
+[node name="LevelSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lvl")
+
+[node name="back_button" type="Button" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="levels_container" type="GridContainer" parent="."]
+visible = false
+layout_mode = 0
+columns = 2
+
+[node name="title_label" type="Label" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="info_label" type="Label" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="selected_level_panel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 0

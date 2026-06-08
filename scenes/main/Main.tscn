@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3 uid="uid://main00000000001"]
+
+[ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1_menu"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="title_label" type="Label" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="start_button" type="Button" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="levels_button" type="Button" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="settings_button" type="Button" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="quit_button" type="Button" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="version_label" type="Label" parent="."]
+visible = false
+layout_mode = 0
+
+[node name="input_mode_label" type="Label" parent="."]
+visible = false
+layout_mode = 0
