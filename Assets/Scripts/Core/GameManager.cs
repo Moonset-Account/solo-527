@@ -153,11 +153,7 @@ namespace SpaceCourier.Core
             SetGameState(GameState.Playing);
             isGameRunning = true;
 
-            var recorder = GetModule<SpaceCourier.SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
-            if (recorder != null)
-            {
-                recorder.StartSession(levelId);
-            }
+            InvokeModuleMethod(ModuleType.PlayRecorder, "StartSession", levelId);
 
             EventBus.Publish(new GameEvents.GameStarted { LevelId = levelId });
             Debug.Log($"[GameManager] Game started with level {levelId}");
@@ -184,11 +180,7 @@ namespace SpaceCourier.Core
             isGameRunning = false;
             SetGameState(GameState.Ended);
 
-            var recorder = GetModule<SpaceCourier.SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
-            if (recorder != null)
-            {
-                recorder.EndSession(isVictory, reason, score);
-            }
+            InvokeModuleMethod(ModuleType.PlayRecorder, "EndSession", isVictory, reason, score);
 
             EventBus.Publish(new GameEvents.GameEnded
             {
@@ -198,6 +190,39 @@ namespace SpaceCourier.Core
             });
 
             Debug.Log($"[GameManager] Game ended. Victory: {isVictory}, Reason: {reason}, Score: {score}");
+        }
+
+        private void InvokeModuleMethod(ModuleType type, string methodName, params object[] args)
+        {
+            if (modules.TryGetValue(type, out var module))
+            {
+                try
+                {
+                    var t = module.GetType();
+                    var method = t.GetMethod(methodName,
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.IgnoreCase);
+                    if (method != null)
+                    {
+                        method.Invoke(module, args);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[GameManager] Method {methodName} not found on module {type}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[GameManager] Error invoking {methodName} on {type}: {e.Message}");
+                }
+            }
+        }
+
+        public IModule GetModule(ModuleType type)
+        {
+            modules.TryGetValue(type, out var m);
+            return m;
         }
 
         public void ReturnToMenu()

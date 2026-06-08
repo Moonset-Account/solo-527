@@ -3,7 +3,8 @@
     "rootNamespace": "SpaceCourier.SaveSystem",
     "references": [
         "SpaceCourier.Core",
-        "SpaceCourier.Data"
+        "SpaceCourier.Data",
+        "SpaceCourier.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

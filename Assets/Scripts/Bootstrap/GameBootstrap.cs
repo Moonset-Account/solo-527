@@ -12,14 +12,25 @@ using SpaceCourier.StarMap;
 using SpaceCourier.UI;
 using SpaceCourier.SaveSystem;
 using SpaceCourier.Audio;
-using SpaceCourier.AnimationSystem;
 using SpaceCourier.Animation;
 using DataDiff = SpaceCourier.Data.Difficulty;
 
 namespace SpaceCourier.Bootstrap
 {
+    [DefaultExecutionOrder(-1000)]
     public class GameBootstrap : MonoBehaviour
     {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void EnsureBootstrapExists()
+        {
+            if (FindObjectOfType<GameBootstrap>() == null)
+            {
+                Debug.Log("[Bootstrap] No GameBootstrap found in scene, auto-creating.");
+                var obj = new GameObject("_Bootstrap_Auto");
+                obj.AddComponent<GameBootstrap>();
+            }
+        }
+
         private static readonly Color COLOR_BG_DARK = new Color(0.03f, 0.04f, 0.08f);
         private static readonly Color COLOR_PANEL_BG = new Color(0.08f, 0.1f, 0.18f, 0.95f);
         private static readonly Color COLOR_ACCENT = new Color(0.2f, 0.7f, 1f);

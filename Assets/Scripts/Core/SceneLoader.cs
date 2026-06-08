@@ -106,8 +106,8 @@ namespace SpaceCourier.Core
 
         public void PreloadSceneAssets(string sceneName)
         {
-            var uiManager = GameManager.Instance?.GetModule<UI.UIManager>(ModuleType.UIManager);
-            if (uiManager != null)
+            var hasUI = GameManager.Instance?.GetModule(ModuleType.UIManager) != null;
+            if (hasUI)
             {
                 PreloadAsset<AudioClip>($"Audio/{sceneName}_bgm");
             }
