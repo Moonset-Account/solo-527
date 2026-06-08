@@ -24,9 +24,22 @@ namespace InkMountainBridge
         public MaterialType CurrentMaterial => currentMaterial;
         public bool IsPlacementValid => isPlacementValid;
 
+        public void SetLevelConfig(LevelConfig config)
+        {
+            levelConfig = config;
+            if (config != null && config.availableMaterials != null)
+            {
+                materialBudget[MaterialType.Beam] = config.availableMaterials.beamCount;
+                materialBudget[MaterialType.Rope] = config.availableMaterials.ropeCount;
+                materialBudget[MaterialType.StonePier] = config.availableMaterials.pierCount;
+            }
+        }
+
         private void Start()
         {
             mainCamera = Camera.main;
+            if (bridgeStructure == null)
+                bridgeStructure = FindObjectOfType<BridgeStructure>();
             if (levelConfig != null && levelConfig.availableMaterials != null)
             {
                 materialBudget[MaterialType.Beam] = levelConfig.availableMaterials.beamCount;

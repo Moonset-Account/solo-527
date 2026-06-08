@@ -13,11 +13,23 @@ namespace InkMountainBridge
         private void Start()
         {
             levelController = FindObjectOfType<LevelController>();
+            if (levelController == null) return;
 
-            LevelConfig config = GetLevelConfig(levelId);
-            if (config != null && levelController != null)
+            if (allLevelConfigs == null || allLevelConfigs.Count == 0)
             {
-                levelController.Initialize(config);
+                LevelConfig config = CreateConfigById(levelId);
+                if (config != null)
+                {
+                    levelController.Initialize(config);
+                    levelController.StartBuildPhase();
+                }
+                return;
+            }
+
+            LevelConfig found = GetLevelConfig(levelId);
+            if (found != null)
+            {
+                levelController.Initialize(found);
                 levelController.StartBuildPhase();
             }
         }
@@ -35,6 +47,17 @@ namespace InkMountainBridge
             }
 
             return null;
+        }
+
+        private LevelConfig CreateConfigById(int id)
+        {
+            switch (id)
+            {
+                case 1: return LevelConfig_Tutorial.Create();
+                case 2: return LevelConfig_Challenge.Create();
+                case 3: return LevelConfig_FailTest.Create();
+                default: return null;
+            }
         }
     }
 }

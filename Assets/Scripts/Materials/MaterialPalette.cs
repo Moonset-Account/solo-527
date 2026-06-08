@@ -8,52 +8,99 @@ namespace InkMountainBridge
         [SerializeField] private Button beamButton;
         [SerializeField] private Button ropeButton;
         [SerializeField] private Button pierButton;
+        [SerializeField] private Button testBridgeButton;
         [SerializeField] private GameObject selectedHighlight;
         [SerializeField] private MaterialBudgetManager budgetManager;
 
+        private BridgeBuilder bridgeBuilder;
         private MaterialType selectedType;
+
+        private void Start()
+        {
+            bridgeBuilder = FindObjectOfType<BridgeBuilder>();
+            AutoWireButtons();
+            UpdatePalette();
+        }
+
+        private void AutoWireButtons()
+        {
+            if (beamButton == null)
+                beamButton = FindChildButtonByName("BeamButton");
+            if (ropeButton == null)
+                ropeButton = FindChildButtonByName("RopeButton");
+            if (pierButton == null)
+                pierButton = FindChildButtonByName("PierButton");
+            if (testBridgeButton == null)
+                testBridgeButton = FindChildButtonByName("TestBridgeButton");
+        }
+
+        private Button FindChildButtonByName(string name)
+        {
+            var t = transform.Find(name);
+            if (t != null) return t.GetComponent<Button>();
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                var child = transform.GetChild(i);
+                if (child.name.Contains(name) || child.name.Contains(name.Replace("Button", "")))
+                    return child.GetComponent<Button>();
+            }
+            return null;
+        }
 
         private void OnEnable()
         {
             GameEvents.OnMaterialUsed += OnMaterialUsed;
-            beamButton?.onClick.AddListener(SelectBeam);
-            ropeButton?.onClick.AddListener(SelectRope);
-            pierButton?.onClick.AddListener(SelectPier);
+
+            if (beamButton != null) beamButton.onClick.AddListener(SelectBeam);
+            if (ropeButton != null) ropeButton.onClick.AddListener(SelectRope);
+            if (pierButton != null) pierButton.onClick.AddListener(SelectPier);
+            if (testBridgeButton != null) testBridgeButton.onClick.AddListener(OnTestBridgeClicked);
         }
 
         private void OnDisable()
         {
             GameEvents.OnMaterialUsed -= OnMaterialUsed;
-            beamButton?.onClick.RemoveListener(SelectBeam);
-            ropeButton?.onClick.RemoveListener(SelectRope);
-            pierButton?.onClick.RemoveListener(SelectPier);
-        }
 
-        private void Start()
-        {
-            UpdatePalette();
+            if (beamButton != null) beamButton.onClick.RemoveListener(SelectBeam);
+            if (ropeButton != null) ropeButton.onClick.RemoveListener(SelectRope);
+            if (pierButton != null) pierButton.onClick.RemoveListener(SelectPier);
+            if (testBridgeButton != null) testBridgeButton.onClick.RemoveListener(OnTestBridgeClicked);
         }
 
         public void SelectBeam()
         {
             selectedType = MaterialType.Beam;
             HighlightSelected(MaterialType.Beam);
+            if (bridgeBuilder != null) bridgeBuilder.SelectMaterial(MaterialType.Beam);
         }
 
         public void SelectRope()
         {
             selectedType = MaterialType.Rope;
             HighlightSelected(MaterialType.Rope);
+            if (bridgeBuilder != null) bridgeBuilder.SelectMaterial(MaterialType.Rope);
         }
 
         public void SelectPier()
         {
             selectedType = MaterialType.StonePier;
             HighlightSelected(MaterialType.StonePier);
+            if (bridgeBuilder != null) bridgeBuilder.SelectMaterial(MaterialType.StonePier);
+        }
+
+        public void OnTestBridgeClicked()
+        {
+            var levelController = FindObjectOfType<LevelController>();
+            if (levelController != null)
+            {
+                levelController.StartTestPhase();
+            }
         }
 
         public void UpdatePalette()
         {
+            if (budgetManager == null) return;
+
             if (beamButton != null)
             {
                 beamButton.interactable = budgetManager.GetRemaining(MaterialType.Beam) > 0;
@@ -81,8 +128,7 @@ namespace InkMountainBridge
 
         public void HighlightSelected(MaterialType type)
         {
-            if (selectedHighlight == null)
-                return;
+            if (selectedHighlight == null) return;
 
             selectedHighlight.SetActive(true);
             switch (type)

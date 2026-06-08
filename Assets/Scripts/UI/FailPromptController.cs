@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 namespace InkMountainBridge
 {
@@ -45,13 +46,19 @@ namespace InkMountainBridge
         public void OnRetry()
         {
             Hide();
-            GameEvents.RaisePhaseChanged(GameState.Building);
+
+            var levelController = FindObjectOfType<LevelController>();
+            if (levelController != null)
+            {
+                levelController.ResetLevel();
+                levelController.StartBuildPhase();
+            }
         }
 
         public void OnBack()
         {
             Hide();
-            GameEvents.RaisePhaseChanged(GameState.Menu);
+            SceneManager.LoadScene("MainMenu");
         }
 
         private System.Collections.IEnumerator ShakeEffect()

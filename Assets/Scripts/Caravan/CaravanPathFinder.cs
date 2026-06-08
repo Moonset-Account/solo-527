@@ -12,6 +12,12 @@ namespace InkMountainBridge
 
         private List<Vector2> cachedPath = new List<Vector2>();
 
+        public void SetEndpoints(Vector2 start, Vector2 end)
+        {
+            startPoint = start;
+            endPoint = end;
+        }
+
         public List<Vector2> CalculatePath()
         {
             cachedPath.Clear();

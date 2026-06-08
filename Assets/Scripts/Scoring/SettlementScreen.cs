@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 
 namespace InkMountainBridge
@@ -19,14 +20,25 @@ namespace InkMountainBridge
         private Coroutine scoreAnimationCoroutine;
         private Coroutine starsAnimationCoroutine;
 
+        private void Awake()
+        {
+            if (retryButton != null)
+                retryButton.onClick.AddListener(OnRetryClicked);
+            if (nextLevelButton != null)
+                nextLevelButton.onClick.AddListener(OnNextLevelClicked);
+        }
+
         public void Show(LevelResult result)
         {
             this.result = result;
             gameObject.SetActive(true);
 
-            timeText.text = result.completionTime.ToString("F1") + "s";
-            materialsText.text = result.materialsUsed + " / " + result.totalBudget;
-            integrityText.text = ((1f - result.maxStressRatio) * 100f).ToString("F0") + "%";
+            if (timeText != null)
+                timeText.text = result.completionTime.ToString("F1") + "s";
+            if (materialsText != null)
+                materialsText.text = result.materialsUsed + " / " + result.totalBudget;
+            if (integrityText != null)
+                integrityText.text = ((1f - result.maxStressRatio) * 100f).ToString("F0") + "%";
 
             if (scoreAnimationCoroutine != null) StopCoroutine(scoreAnimationCoroutine);
             scoreAnimationCoroutine = StartCoroutine(AnimateScoreRoutine(result.score));
@@ -57,12 +69,37 @@ namespace InkMountainBridge
 
         public void OnRetryClicked()
         {
-            GameEvents.RaiseLevelStarted(null);
+            Hide();
+
+            var levelController = FindObjectOfType<LevelController>();
+            if (levelController != null)
+            {
+                levelController.ResetLevel();
+                levelController.StartBuildPhase();
+            }
         }
 
         public void OnNextLevelClicked()
         {
-            GameEvents.RaiseLevelCompleted(result.levelId + 1);
+            Hide();
+
+            int nextId = result != null ? result.levelId + 1 : 1;
+
+            string[] levelSceneNames = { "", "Tutorial", "Challenge", "FailTest" };
+            if (nextId >= 1 && nextId < levelSceneNames.Length)
+            {
+                var bootstrap = FindObjectOfType<GameBootstrap>();
+                if (bootstrap != null)
+                {
+                    bootstrap.StartLevelById(nextId);
+                    return;
+                }
+                SceneManager.LoadScene(levelSceneNames[nextId]);
+            }
+            else
+            {
+                SceneManager.LoadScene("MainMenu");
+            }
         }
 
         private IEnumerator AnimateScoreRoutine(int targetScore)
@@ -76,11 +113,13 @@ namespace InkMountainBridge
                 elapsed += Time.deltaTime;
                 float t = elapsed / duration;
                 current = Mathf.RoundToInt(Mathf.Lerp(0, targetScore, t));
-                scoreText.text = current.ToString();
+                if (scoreText != null)
+                    scoreText.text = current.ToString();
                 yield return null;
             }
 
-            scoreText.text = targetScore.ToString();
+            if (scoreText != null)
+                scoreText.text = targetScore.ToString();
             scoreAnimationCoroutine = null;
         }
 
@@ -119,12 +158,6 @@ namespace InkMountainBridge
             if (score >= 600) return 2;
             if (score > 0) return 1;
             return 0;
-        }
-
-        private void Awake()
-        {
-            retryButton.onClick.AddListener(OnRetryClicked);
-            nextLevelButton.onClick.AddListener(OnNextLevelClicked);
         }
     }
 }

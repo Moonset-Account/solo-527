@@ -30,17 +30,33 @@ namespace InkMountainBridge
                 currentHealth = maxHealth;
                 stamina = characterConfig.carryCapacity;
             }
+            else
+            {
+                maxHealth = 100f;
+                currentHealth = maxHealth;
+                moveSpeed = 3f;
+            }
+
+            if (rigidbody2D == null)
+                rigidbody2D = GetComponent<Rigidbody2D>();
         }
 
         public void StartCrossing()
         {
-            if (pathPoints.Count == 0) return;
-
             isMoving = true;
             hasArrived = false;
             isDrowning = false;
             currentPathIndex = 0;
-            transform.position = pathPoints[0];
+
+            if (pathPoints.Count > 0)
+            {
+                transform.position = pathPoints[0];
+            }
+        }
+
+        public void SetPath(List<Vector2> newPath)
+        {
+            pathPoints = newPath ?? new List<Vector2>();
         }
 
         public void StopCrossing()

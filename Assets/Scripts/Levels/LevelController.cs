@@ -28,6 +28,8 @@ namespace InkMountainBridge
             levelTimer = 0f;
             isLevelActive = false;
 
+            AutoFindReferences();
+
             if (bridgeStructure != null)
             {
                 foreach (var anchor in config.anchorPoints)
@@ -49,6 +51,7 @@ namespace InkMountainBridge
 
             if (bridgeBuilder != null)
             {
+                bridgeBuilder.SetLevelConfig(config);
                 bridgeBuilder.enabled = false;
             }
 
@@ -80,7 +83,7 @@ namespace InkMountainBridge
 
         public void StartBuildPhase()
         {
-            isLevelActive = true;
+            isLevelActive = false;
             levelTimer = 0f;
             GameEvents.RaisePhaseChanged(GameState.Building);
 
@@ -112,6 +115,8 @@ namespace InkMountainBridge
 
         public void StartTestPhase()
         {
+            isLevelActive = true;
+            levelTimer = 0f;
             GameEvents.RaisePhaseChanged(GameState.Testing);
 
             if (bridgeBuilder != null)
@@ -128,6 +133,30 @@ namespace InkMountainBridge
             {
                 caravanController.enabled = true;
                 caravanController.moveSpeed = levelConfig.caravanSpeed;
+
+                var pathFinder = caravanController.GetComponent<CaravanPathFinder>();
+                if (pathFinder != null && bridgeStructure != null)
+                {
+                    pathFinder.bridgeStructure = bridgeStructure;
+
+                    float halfWidth = levelConfig.valleyWidth / 2f;
+                    Vector2 start = new Vector2(-halfWidth, 0f);
+                    Vector2 end = new Vector2(halfWidth, 0f);
+
+                    if (levelConfig.anchorPoints != null && levelConfig.anchorPoints.Length >= 2)
+                    {
+                        start = levelConfig.anchorPoints[0];
+                        end = levelConfig.anchorPoints[levelConfig.anchorPoints.Length - 1];
+                    }
+
+                    pathFinder.SetEndpoints(start, end);
+                    var path = pathFinder.CalculatePath();
+                    if (path != null && path.Count > 0)
+                    {
+                        caravanController.SetPath(path);
+                    }
+                }
+
                 caravanController.StartCrossing();
             }
 
@@ -315,6 +344,22 @@ namespace InkMountainBridge
             {
                 OnTestPhaseUpdate(Time.deltaTime);
             }
+        }
+
+        private void AutoFindReferences()
+        {
+            if (bridgeStructure == null) bridgeStructure = FindObjectOfType<BridgeStructure>();
+            if (bridgeBuilder == null) bridgeBuilder = FindObjectOfType<BridgeBuilder>();
+            if (forceSimulator == null) forceSimulator = FindObjectOfType<ForceSimulator>();
+            if (weatherSystem == null) weatherSystem = FindObjectOfType<WeatherSystem>();
+            if (caravanController == null) caravanController = FindObjectOfType<CaravanController>();
+            if (materialBudgetManager == null) materialBudgetManager = FindObjectOfType<MaterialBudgetManager>();
+            if (scoreCalculator == null) scoreCalculator = FindObjectOfType<ScoreCalculator>();
+            if (replayRecorder == null) replayRecorder = FindObjectOfType<ReplayRecorder>();
+            if (analyticsRecorder == null) analyticsRecorder = FindObjectOfType<AnalyticsRecorder>();
+            if (failPromptController == null) failPromptController = FindObjectOfType<FailPromptController>();
+            if (settlementScreen == null) settlementScreen = FindObjectOfType<SettlementScreen>();
+            if (tutorialController == null) tutorialController = FindObjectOfType<TutorialController>();
         }
     }
 }

@@ -24,6 +24,30 @@ namespace InkMountainBridge
                 return;
             }
             Instance = this;
+
+            AutoFindPanels();
+        }
+
+        private void AutoFindPanels()
+        {
+            if (hudPanel == null) hudPanel = FindChildByName("HUDPanel");
+            if (buildPanel == null) buildPanel = FindChildByName("BuildPanel");
+            if (testPanel == null) testPanel = FindChildByName("TestPanel");
+            if (settlementPanel == null) settlementPanel = FindChildByName("SettlementPanel");
+            if (tutorialPanel == null) tutorialPanel = FindChildByName("TutorialPanel");
+            if (pausePanel == null) pausePanel = FindChildByName("PausePanel");
+            if (failPromptPanel == null) failPromptPanel = FindChildByName("FailPromptPanel");
+        }
+
+        private GameObject FindChildByName(string name)
+        {
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                var child = transform.GetChild(i);
+                if (child.name.Contains(name) || child.name == name)
+                    return child.gameObject;
+            }
+            return null;
         }
 
         private void OnEnable()
@@ -51,7 +75,7 @@ namespace InkMountainBridge
                 case GameState.Settlement:
                     break;
                 case GameState.Paused:
-                    ShowPauseMenu();
+                    ShowFailPrompt("");
                     break;
             }
         }
@@ -64,61 +88,67 @@ namespace InkMountainBridge
         public void ShowHUD()
         {
             HideAll();
-            hudPanel.SetActive(true);
+            if (hudPanel != null) hudPanel.SetActive(true);
         }
 
         public void ShowBuildPanel()
         {
             HideAll();
-            hudPanel.SetActive(true);
-            buildPanel.SetActive(true);
+            if (hudPanel != null) hudPanel.SetActive(true);
+            if (buildPanel != null) buildPanel.SetActive(true);
         }
 
         public void ShowTestPanel()
         {
             HideAll();
-            hudPanel.SetActive(true);
-            testPanel.SetActive(true);
+            if (hudPanel != null) hudPanel.SetActive(true);
+            if (testPanel != null) testPanel.SetActive(true);
         }
 
         public void ShowSettlement(LevelResult result)
         {
             HideAll();
-            settlementPanel.SetActive(true);
+            if (settlementPanel != null) settlementPanel.SetActive(true);
         }
 
         public void ShowTutorial(string[] steps)
         {
             HideAll();
-            tutorialPanel.SetActive(true);
-            var controller = tutorialPanel.GetComponent<TutorialController>();
-            if (controller != null)
-                controller.StartTutorial(steps);
+            if (tutorialPanel != null)
+            {
+                tutorialPanel.SetActive(true);
+                var controller = tutorialPanel.GetComponent<TutorialController>();
+                if (controller != null)
+                    controller.StartTutorial(steps);
+            }
         }
 
         public void ShowPauseMenu()
         {
-            pausePanel.SetActive(true);
+            if (pausePanel != null) pausePanel.SetActive(true);
         }
 
         public void ShowFailPrompt(string reason)
         {
             HideAll();
-            failPromptPanel.SetActive(true);
-            var controller = failPromptPanel.GetComponent<FailPromptController>();
-            if (controller != null)
-                controller.Show(reason);
+            if (failPromptPanel != null)
+            {
+                failPromptPanel.SetActive(true);
+                var controller = failPromptPanel.GetComponent<FailPromptController>();
+                if (controller != null)
+                    controller.Show(reason);
+            }
         }
 
         public void HideAll()
         {
-            hudPanel.SetActive(false);
-            buildPanel.SetActive(false);
-            testPanel.SetActive(false);
-            settlementPanel.SetActive(false);
-            tutorialPanel.SetActive(false);
-            pausePanel.SetActive(false);
-            failPromptPanel.SetActive(false);
+            if (hudPanel != null) hudPanel.SetActive(false);
+            if (buildPanel != null) buildPanel.SetActive(false);
+            if (testPanel != null) testPanel.SetActive(false);
+            if (settlementPanel != null) settlementPanel.SetActive(false);
+            if (tutorialPanel != null) tutorialPanel.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (failPromptPanel != null) failPromptPanel.SetActive(false);
         }
     }
 }
