@@ -150,8 +150,8 @@ namespace LightShadowPlatformer.EditorTools
 
         public static Sprite Background()
         {
-            return PlaceholderResourceGenerator.CreateSolidTexture(
-                32, 32, new Color(0.15f, 0.17f, 0.22f));
+            return PlaceholderResourceGenerator.CreateSprite(
+                new Color(0.15f, 0.17f, 0.22f), 32, 32, 1f);
         }
     }
 

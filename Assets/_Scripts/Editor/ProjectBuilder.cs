@@ -165,8 +165,11 @@ namespace LightShadowPlatformer.EditorTools
             bgSr.drawMode = SpriteDrawMode.Sliced;
 
             GameObject lightGo = new GameObject("GlobalLight");
-            UnityEngine.Rendering.Universal.Light2D global = null;
-            try { global = lightGo.AddComponent<UnityEngine.Rendering.Universal.Light2D>(); }
+            try
+            {
+                System.Type light2dType = System.Type.GetType("UnityEngine.Rendering.Universal.Light2D, Unity.RenderPipelines.Universal.Runtime");
+                if (light2dType != null) lightGo.AddComponent(light2dType);
+            }
             catch { }
             Light l = lightGo.AddComponent<Light>();
             l.type = LightType.Point;
