@@ -56,7 +56,7 @@ public class GameOrchestrator : MonoBehaviour
 
     private void Start()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.HasInstance)
             GameManager.Instance.OnGameStateChanged += OnGameStateChanged;
 
         allLevels = RuntimeDataFactory.CreateAllLevels();
@@ -83,7 +83,7 @@ public class GameOrchestrator : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.HasInstance)
             GameManager.Instance.OnGameStateChanged -= OnGameStateChanged;
     }
 
@@ -363,13 +363,16 @@ public class GameOrchestrator : MonoBehaviour
         CreateText("设置", panel.transform, 48, Color.white);
 
         CreateText("主音量", panel.transform, 24, Color.white);
-        masterSlider = CreateSlider(AudioManager.Instance.masterVolume, panel.transform, v => AudioManager.Instance.SetMasterVolume(v));
+        float masterVal = AudioManager.HasInstance ? AudioManager.Instance.masterVolume : 0.8f;
+        masterSlider = CreateSlider(masterVal, panel.transform, v => { if (AudioManager.HasInstance) AudioManager.Instance.SetMasterVolume(v); });
 
         CreateText("音乐音量", panel.transform, 24, Color.white);
-        musicSlider = CreateSlider(AudioManager.Instance.musicVolume, panel.transform, v => AudioManager.Instance.SetMusicVolume(v));
+        float musicVal = AudioManager.HasInstance ? AudioManager.Instance.musicVolume : 0.7f;
+        musicSlider = CreateSlider(musicVal, panel.transform, v => { if (AudioManager.HasInstance) AudioManager.Instance.SetMusicVolume(v); });
 
         CreateText("音效音量", panel.transform, 24, Color.white);
-        sfxSlider = CreateSlider(AudioManager.Instance.sfxVolume, panel.transform, v => AudioManager.Instance.SetSFXVolume(v));
+        float sfxVal = AudioManager.HasInstance ? AudioManager.Instance.sfxVolume : 0.8f;
+        sfxSlider = CreateSlider(sfxVal, panel.transform, v => { if (AudioManager.HasInstance) AudioManager.Instance.SetSFXVolume(v); });
 
         GameObject toggleObj = new GameObject("FullscreenToggle");
         toggleObj.transform.SetParent(panel.transform, false);
@@ -800,7 +803,7 @@ public class GameOrchestrator : MonoBehaviour
         }
         orderUIItems.Clear();
 
-        if (PlayerManager.Instance != null)
+        if (PlayerManager.HasInstance)
             PlayerManager.Instance.players.Clear();
     }
 

@@ -50,11 +50,11 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
         currentSession.endTime = DateTime.Now;
         currentSession.totalTimeSeconds = (float)(currentSession.endTime - currentSession.startTime).TotalSeconds;
 
-        if (LevelManager.Instance != null && LevelManager.Instance.currentLevelData != null)
+        if (LevelManager.HasInstance && LevelManager.Instance.currentLevelData != null)
         {
-            currentSession.score = ScoringManager.Instance.currentScore;
-            currentSession.starsEarned = ScoringManager.Instance.CalculateStars(
-                currentSession.score, LevelManager.Instance.currentLevelData);
+            currentSession.score = ScoringManager.HasInstance ? ScoringManager.Instance.currentScore : 0;
+            currentSession.starsEarned = ScoringManager.HasInstance ? ScoringManager.Instance.CalculateStars(
+                currentSession.score, LevelManager.Instance.currentLevelData) : 0;
         }
 
         sessionHistory.Add(currentSession);
@@ -75,9 +75,9 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
         var checkpoint = new CheckpointData
         {
             timestamp = (float)(DateTime.Now - currentSession.startTime).TotalSeconds,
-            score = ScoringManager.Instance != null ? ScoringManager.Instance.currentScore : 0,
-            ordersCompleted = OrderManager.Instance != null ? OrderManager.Instance.completedOrders.Count : 0,
-            activeOrders = OrderManager.Instance != null ? OrderManager.Instance.activeOrders.Count : 0,
+            score = ScoringManager.HasInstance ? ScoringManager.Instance.currentScore : 0,
+            ordersCompleted = OrderManager.HasInstance ? OrderManager.Instance.completedOrders.Count : 0,
+            activeOrders = OrderManager.HasInstance ? OrderManager.Instance.activeOrders.Count : 0,
             failureCount = currentSession.failureCount
         };
         currentSession.checkpoints.Add(checkpoint);
@@ -126,7 +126,7 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
 
     private void OnEnable()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.HasInstance)
             GameManager.Instance.OnLevelStarted += OnLevelStarted;
 
         EventBus.Subscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
@@ -135,7 +135,7 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
 
     private void OnDisable()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.HasInstance)
             GameManager.Instance.OnLevelStarted -= OnLevelStarted;
 
         EventBus.Unsubscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
@@ -144,8 +144,8 @@ public class AnalyticsManager : Singleton<AnalyticsManager>
 
     private void OnLevelStarted(int levelIndex)
     {
-        int players = PlayerManager.Instance != null ? PlayerManager.Instance.activePlayerCount : 1;
-        bool solo = PlayerManager.Instance != null && PlayerManager.Instance.isSoloMode;
+        int players = PlayerManager.HasInstance ? PlayerManager.Instance.activePlayerCount : 1;
+        bool solo = PlayerManager.HasInstance && PlayerManager.Instance.isSoloMode;
         StartSession(levelIndex, players, solo);
     }
 

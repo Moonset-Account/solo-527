@@ -96,8 +96,8 @@ public static class RuntimeDataFactory
         {
             new TutorialStep { stepIndex = 0, description = "走向食材站，按E取食材", targetStationType = StationType.Ingredient, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, -2), highlightRadius = 1.5f },
             new TutorialStep { stepIndex = 1, description = "走到备菜台，按E切菜", targetStationType = StationType.Prep, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(-2, 0), highlightRadius = 1.5f },
-            new TutorialStep { stepIndex = 2, description = "走到灶台，按E烹饪", targetStationType = StationType.Cooking, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(2, 0), highlightRadius = 1.5f },
-            new TutorialStep { stepIndex = 3, description = "走到装盘台，按E装盘", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, 2), highlightRadius = 1.5f }
+            new TutorialStep { stepIndex = 2, description = "走到装盘台，按E装盘（沙拉无需烹饪）", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, 2), highlightRadius = 1.5f },
+            new TutorialStep { stepIndex = 3, description = "按E送餐完成订单！", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, 2), highlightRadius = 1.5f }
         };
 
         return data;

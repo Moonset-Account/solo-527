@@ -15,12 +15,13 @@ public class UIManager : Singleton<UIManager>
     protected override void Awake()
     {
         base.Awake();
-        GameManager.Instance.OnGameStateChanged += OnGameStateChanged;
+        if (GameManager.HasInstance)
+            GameManager.Instance.OnGameStateChanged += OnGameStateChanged;
     }
 
     private void OnDestroy()
     {
-        if (GameManager.Instance != null)
+        if (GameManager.HasInstance)
             GameManager.Instance.OnGameStateChanged -= OnGameStateChanged;
     }
 

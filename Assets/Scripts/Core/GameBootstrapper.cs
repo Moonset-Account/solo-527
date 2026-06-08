@@ -5,10 +5,11 @@ public class GameBootstrapper : MonoBehaviour
 {
     [SerializeField] private string levelDataResourcesPath = "Data/Levels";
     private List<LevelData> loadedLevelDatas = new List<LevelData>();
+    private UnityEngine.InputSystem.InputActionAsset inputAsset;
 
     private void Awake()
     {
-        GameInputActions.CreateAsset();
+        inputAsset = GameInputActions.CreateAsset();
     }
 
     private void Start()

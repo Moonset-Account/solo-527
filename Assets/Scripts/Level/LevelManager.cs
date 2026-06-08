@@ -85,7 +85,7 @@ public class LevelManager : Singleton<LevelManager>
             return;
         }
 
-        if (OrderManager.Instance != null && ScoringManager.Instance != null)
+        if (OrderManager.HasInstance && ScoringManager.HasInstance)
         {
             int targetScore = currentLevelData.targetScore;
             if (ScoringManager.Instance.currentScore >= targetScore)
@@ -98,7 +98,7 @@ public class LevelManager : Singleton<LevelManager>
 
         orderSpawnTimer += dt;
         if (orderSpawnTimer >= currentLevelData.orderInterval &&
-            OrderManager.Instance != null &&
+            OrderManager.HasInstance &&
             OrderManager.Instance.activeOrders.Count < currentLevelData.maxOrders)
         {
             OrderManager.Instance.SpawnOrder();
