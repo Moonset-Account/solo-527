@@ -85,7 +85,7 @@ func _build_ui() -> void:
 
 	_allocation_panel = AllocationPanel.new()
 	_allocation_panel.name = "AllocationPanel"
-	_allocation_panel.setup(_game_controller.resource_manager)
+	_allocation_panel.setup(_game_controller.resource_manager, _game_controller.equipment_system)
 	add_child(_allocation_panel)
 
 	_settlement_panel = NightSettlementPanel.new()

@@ -18,6 +18,11 @@ func should_show_tutorial(night: int) -> bool:
 		return false
 	return night <= 2
 
+func should_restrict_events(night: int) -> bool:
+	if _tutorial_done:
+		return false
+	return night == 1
+
 func get_tutorial_events_for_night(night: int) -> Array[String]:
 	if night == 1:
 		return ["tutorial_power_drain"]

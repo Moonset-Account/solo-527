@@ -78,6 +78,18 @@ func show_result(result: NightResult) -> void:
 		for rid: String in result.repairs_made:
 			bbcode += "  %s 已修复\n" % rid
 
+	bbcode += "\n[b]分配效果：[/b]\n"
+	var choices: Dictionary = result.allocation_choices
+	for key: Variant in choices:
+		var type_name := ResourceType.type_name(int(key))
+		var alloc_val: int = choices[key]
+		bbcode += "  %s: 投入 %d 点" % [type_name, alloc_val]
+		if int(key) == ResourceType.Type.REPAIR:
+			bbcode += " (%d人修复)" % alloc_val
+		else:
+			bbcode += " (减损 -%d)" % (alloc_val * 2)
+		bbcode += "\n"
+
 	bbcode += "\n[b]资源变化：[/b]\n"
 	for key: String in result.resources_before:
 		var before: int = result.resources_before[key]

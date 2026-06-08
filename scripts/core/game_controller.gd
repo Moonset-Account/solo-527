@@ -68,11 +68,10 @@ func start_night() -> void:
 	_current_night += 1
 	audio_manager.trigger_alarm(AudioManager.AlarmType.NIGHT_START)
 
+	event_scheduler.set_tutorial_mode(tutorial_manager.should_restrict_events(_current_night))
+
 	if tutorial_manager.should_show_tutorial(_current_night):
-		event_scheduler.set_tutorial_mode(true)
 		tutorial_manager.start_night_tutorial(_current_night)
-	else:
-		event_scheduler.set_tutorial_mode(false)
 
 	change_state(GameState.NIGHT_ACTIVE)
 	night_started.emit(_current_night)
