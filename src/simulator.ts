@@ -93,7 +93,7 @@ function getResistance(comp: CircuitComponent): number {
     case ComponentType.Resistor:
       return comp.value;
     case ComponentType.Bulb:
-      return 0.1;
+      return (BULB_RATED_VOLTAGE * BULB_RATED_VOLTAGE) / Math.max(comp.value || 1, 0.5);
     case ComponentType.Switch:
       return comp.state?.closed ? 0 : Infinity;
     case ComponentType.Capacitor:
@@ -154,12 +154,14 @@ export class Simulator {
         current = voltage / totalResistance;
       }
 
-      const isShortCircuit = totalResistance < 1;
+      const hasLoad = loop.components.some(c => c.type === ComponentType.Bulb || c.type === ComponentType.Resistor);
+      const isShortCircuit = !hasLoad && totalResistance < 1;
 
       for (const comp of loop.components) {
         switch (comp.type) {
           case ComponentType.Bulb: {
-            const voltageAcross = current * 0.1;
+            const bulbR = getResistance(comp);
+            const voltageAcross = current * bulbR;
             comp.state.brightness = Math.min(1, voltageAcross / BULB_RATED_VOLTAGE);
             if (isShortCircuit) {
               comp.state.brightness = 0;

@@ -59,6 +59,8 @@ class App {
   private levelStartTime = 0;
   private ghostX = 0;
   private ghostY = 0;
+  private dragNewCleanup: (() => void) | null = null;
+  private isLoadingSave = false;
 
   constructor() {
     this.canvas = document.getElementById('circuit-canvas') as HTMLCanvasElement;
@@ -205,14 +207,18 @@ class App {
 
   private setupLevelCallbacks() {
     this.levels.setOnLevelChange((level) => {
-      this.graph.clear();
+      if (!this.isLoadingSave) {
+        this.graph.clear();
+      }
       this.selectedComponentId = null;
       this.selectedWireId = null;
       this.levelCompleted = false;
       this.levelStartTime = Date.now();
       this.currentHintIdx = 0;
 
-      this.analytics.startLevel(level.id);
+      if (!this.isLoadingSave) {
+        this.analytics.startLevel(level.id);
+      }
       this.levels.startFreePlayTimer();
 
       this.ui.buildPalette(level.availableComponents, (type) => {
@@ -221,7 +227,7 @@ class App {
       this.ui.updateLevelBadge(level.name);
       this.ui.hideSettlement();
 
-      if (level.tutorialSteps.length > 0) {
+      if (level.tutorialSteps.length > 0 && !this.isLoadingSave) {
         this.tutorial.start(level.tutorialSteps);
       }
 
@@ -232,6 +238,10 @@ class App {
           this.analytics.serialize(),
           this.settings,
         );
+      }
+
+      if (!this.isLoadingSave) {
+        this.updatePinConnectedStates();
       }
     });
   }
@@ -252,6 +262,7 @@ class App {
   private loadFromShareOrSave() {
     const shareData = this.saveManager.loadFromShare(window.location.href);
     if (shareData) {
+      this.isLoadingSave = true;
       this.saveManager.loadIntoGraph(this.graph, shareData);
       if (shareData.level) {
         this.levels.loadLevel(shareData.level);
@@ -262,12 +273,15 @@ class App {
       if (shareData.analytics) {
         this.analytics.deserialize(shareData.analytics);
       }
+      this.isLoadingSave = false;
+      this.updatePinConnectedStates();
       return;
     }
 
     if (this.saveManager.hasSave()) {
       const saveData = this.saveManager.load();
       if (saveData) {
+        this.isLoadingSave = true;
         this.saveManager.loadIntoGraph(this.graph, saveData);
         if (saveData.level) {
           this.levels.loadLevel(saveData.level);
@@ -278,6 +292,8 @@ class App {
         if (saveData.analytics) {
           this.analytics.deserialize(saveData.analytics);
         }
+        this.isLoadingSave = false;
+        this.updatePinConnectedStates();
       }
     }
   }
@@ -290,20 +306,80 @@ class App {
     }
     const saveData = this.saveManager.load();
     if (!saveData) return;
-    this.graph.clear();
+    this.isLoadingSave = true;
     this.saveManager.loadIntoGraph(this.graph, saveData);
     if (saveData.level) {
       this.levels.loadLevel(saveData.level);
     }
+    this.isLoadingSave = false;
+    this.updatePinConnectedStates();
     this.ui.showHint('已加载存档');
     setTimeout(() => this.ui.hideHint(), 2000);
   }
 
   private startDragNew(type: ComponentType) {
+    if (this.dragNewCleanup) {
+      this.dragNewCleanup();
+      this.dragNewCleanup = null;
+    }
     this.mode = InteractionMode.DraggingNew;
     this.draggingNewType = type;
-    const pos = this.input.getWorldPos();
-    this.draggingNewComp = ComponentFactory.create(type, pos.x, pos.y);
+    const rect = this.canvas.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const worldPos = this.camera.screenToWorld(cx, cy);
+    this.draggingNewComp = ComponentFactory.create(type, worldPos.x, worldPos.y);
+
+    const handleMove = (e: MouseEvent) => {
+      if (!this.draggingNewComp) return;
+      const canvasRect = this.canvas.getBoundingClientRect();
+      const sx = e.clientX - canvasRect.left;
+      const sy = e.clientY - canvasRect.top;
+      const w = this.camera.screenToWorld(sx, sy);
+      let nx = w.x;
+      let ny = w.y;
+      if (this.settings.snapToGrid) {
+        const s = this.camera.snapToGrid(nx, ny);
+        nx = s.x;
+        ny = s.y;
+      }
+      this.draggingNewComp!.x = nx;
+      this.draggingNewComp!.y = ny;
+      for (const pin of this.draggingNewComp!.pins) {
+        pin.updateWorldPos();
+      }
+    };
+
+    const handleUp = (e: MouseEvent) => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      this.dragNewCleanup = null;
+
+      if (this.draggingNewComp) {
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const sx = e.clientX - canvasRect.left;
+        const sy = e.clientY - canvasRect.top;
+        const isOverCanvas = sx >= 0 && sy >= 0 && sx <= canvasRect.width && sy <= canvasRect.height;
+
+        if (isOverCanvas) {
+          this.graph.addComponent(this.draggingNewComp);
+          this.analytics.recordComponentPlace(this.draggingNewComp.type);
+          this.tutorial.checkCondition('component_placed:' + this.draggingNewComp.type);
+          this.tutorial.checkCondition('all_components_placed');
+          this.selectComponent(this.draggingNewComp.id);
+        }
+        this.draggingNewComp = null;
+        this.draggingNewType = null;
+        this.mode = InteractionMode.Idle;
+      }
+    };
+
+    this.dragNewCleanup = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
   }
 
   private showHint() {
@@ -526,36 +602,8 @@ class App {
   }
 
   private handleDraggingNew() {
-    const worldPos = this.input.getWorldPos();
+    if (this.dragNewCleanup) return;
     if (!this.draggingNewComp) {
-      this.mode = InteractionMode.Idle;
-      return;
-    }
-
-    let newX = worldPos.x;
-    let newY = worldPos.y;
-
-    if (this.settings.snapToGrid) {
-      const snapped = this.camera.snapToGrid(newX, newY);
-      newX = snapped.x;
-      newY = snapped.y;
-    }
-
-    this.draggingNewComp.x = newX;
-    this.draggingNewComp.y = newY;
-    for (const pin of this.draggingNewComp.pins) {
-      pin.updateWorldPos();
-    }
-
-    if (!this.input.isMouseDown(0)) {
-      this.graph.addComponent(this.draggingNewComp);
-      this.analytics.recordComponentPlace(this.draggingNewComp.type);
-      this.tutorial.checkCondition('component_placed:' + this.draggingNewComp.type);
-      this.tutorial.checkCondition('all_components_placed');
-      this.selectComponent(this.draggingNewComp.id);
-
-      this.draggingNewComp = null;
-      this.draggingNewType = null;
       this.mode = InteractionMode.Idle;
     }
   }
