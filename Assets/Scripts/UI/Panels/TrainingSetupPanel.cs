@@ -9,6 +9,7 @@ public class TrainingSetupPanel : UIPanel
     public Transform playerSelectContent;
     public Button confirmBtn;
     public Button cancelBtn;
+    public Text effLabel;
     private ScrollRect dayScroll;
     private ScrollRect playerScroll;
     private int selectedDayIndex = -1;
@@ -20,6 +21,7 @@ public class TrainingSetupPanel : UIPanel
         if (uiCreated) return;
         uiCreated = true;
         UIHelper.CreateTitle(transform, "Title", "训练安排", 32);
+        effLabel = UIHelper.CreateText(transform, "EffLabel", "", new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.88f), 16);
         UIHelper.CreateText(transform, "DayLabel", "点击日程项切换训练类型，点击球员指派:", new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.84f), 16);
         dayScroll = UIHelper.CreateScrollList(transform, "DayList", new Vector2(0.05f, 0.45f), new Vector2(0.95f, 0.78f), out dayListContent);
         UIHelper.CreateText(transform, "PlayerLabel", "可选球员:", new Vector2(0.05f, 0.39f), new Vector2(0.95f, 0.45f), 16);
@@ -48,6 +50,12 @@ public class TrainingSetupPanel : UIPanel
                 editSchedule.Add(new TrainingSlot { type = TrainingType.Rest, assignedPlayerId = "" });
         }
         selectedDayIndex = -1;
+        if (effLabel != null && GameManager.Instance != null && GameManager.Instance.currentLevel != null)
+        {
+            float eff = GameManager.Instance.currentLevel.trainingEfficiencyMultiplier;
+            int gainPerSession = Mathf.Max(1, Mathf.FloorToInt(5 * eff));
+            effLabel.text = string.Format("训练效率: ×{0:F1}  每次训练+{1}点", eff, gainPerSession);
+        }
         RefreshDayList();
         RefreshPlayerList();
     }

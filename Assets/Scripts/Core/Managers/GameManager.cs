@@ -91,21 +91,25 @@ public class GameManager : MonoBehaviour
         TrainingManager.Instance.ApplyWeeklyTraining(currentTeam, currentLevel.trainingEfficiencyMultiplier);
         InjuryManager.Instance.ProcessWeeklyInjuries(currentTeam, currentLevel.injuryRateMultiplier);
         FinanceManager.Instance.ProcessWeeklyFinance(currentTeam);
-        CheckForMatch();
-        CheckGameEnd();
+        bool hadMatch = CheckForMatch();
+        if (!hadMatch)
+        {
+            CheckGameEnd();
+        }
     }
 
-    void CheckForMatch()
+    bool CheckForMatch()
     {
-        if (currentLevel == null || currentLevel.scheduledMatches == null) return;
+        if (currentLevel == null || currentLevel.scheduledMatches == null) return false;
         foreach (var match in currentLevel.scheduledMatches)
         {
             if (match.matchDay == currentWeek && match.result == MatchResult.NotPlayed)
             {
                 TriggerMatch(match);
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     public void TriggerMatch(MatchData matchData)
@@ -163,10 +167,6 @@ public class GameManager : MonoBehaviour
         {
             currentState = GameState.GameOver;
             return;
-        }
-        if (currentState == GameState.Result || currentState == GameState.MatchDay)
-        {
-            currentState = GameState.Playing;
         }
     }
 

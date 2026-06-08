@@ -17,6 +17,7 @@ public class MainGamePanel : UIPanel
     public Button settingsBtn;
     public Transform playerListContent;
     public Transform trainingGridContent;
+    public Text trainingLabelText;
     private ScrollRect playerScroll;
     private ScrollRect trainingScroll;
     private bool uiCreated;
@@ -33,7 +34,7 @@ public class MainGamePanel : UIPanel
         reputationText = UIHelper.CreateText(transform, "ReputationText", "", new Vector2(0f, 0.82f), new Vector2(0.5f, 0.88f), 20);
         recordText = UIHelper.CreateText(transform, "RecordText", "", new Vector2(0.5f, 0.82f), new Vector2(1f, 0.88f), 20);
 
-        UIHelper.CreateText(transform, "TrainingLabel", "本周训练安排:", new Vector2(0.02f, 0.72f), new Vector2(0.98f, 0.78f), 18);
+        trainingLabelText = UIHelper.CreateText(transform, "TrainingLabel", "本周训练安排:", new Vector2(0.02f, 0.72f), new Vector2(0.98f, 0.78f), 18);
         trainingScroll = UIHelper.CreateScrollList(transform, "TrainingGrid", new Vector2(0.02f, 0.52f), new Vector2(0.98f, 0.72f), out trainingGridContent);
 
         UIHelper.CreateText(transform, "PlayerLabel", "球员列表:", new Vector2(0.02f, 0.47f), new Vector2(0.98f, 0.52f), 18);
@@ -73,6 +74,13 @@ public class MainGamePanel : UIPanel
         budgetText.text = "预算: " + GameManager.Instance.currentTeam.budget;
         reputationText.text = "声望: " + GameManager.Instance.currentTeam.reputation;
         recordText.text = string.Format("胜{0} 负{1} 平{2}", GameManager.Instance.currentTeam.seasonWins, GameManager.Instance.currentTeam.seasonLosses, GameManager.Instance.currentTeam.seasonDraws);
+
+        if (trainingLabelText != null && GameManager.Instance.currentLevel != null)
+        {
+            float eff = GameManager.Instance.currentLevel.trainingEfficiencyMultiplier;
+            int gainPerSession = Mathf.Max(1, Mathf.FloorToInt(5 * eff));
+            trainingLabelText.text = string.Format("本周训练安排: (效率×{0:F1} 每次+{1})", eff, gainPerSession);
+        }
 
         for (int i = trainingGridContent.childCount - 1; i >= 0; i--)
             Destroy(trainingGridContent.GetChild(i).gameObject);

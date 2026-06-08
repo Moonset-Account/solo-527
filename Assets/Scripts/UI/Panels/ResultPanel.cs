@@ -29,6 +29,7 @@ public class ResultPanel : UIPanel
         continueBtn.onClick.RemoveAllListeners();
         continueBtn.onClick.AddListener(() =>
         {
+            GameManager.Instance.currentState = GameState.Playing;
             GameManager.Instance.CheckGameEnd();
             if (GameManager.Instance.currentState == GameState.GameOver)
                 UIManager.Instance.ShowPanel("GameOver");
