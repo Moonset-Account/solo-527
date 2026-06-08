@@ -33,6 +33,7 @@ var _board_center: Control
 var _tiles_layer: Node2D
 var _chars_layer: Node2D
 var _overlay_layer: Node2D
+var _board_click_control: Control
 var _ui_top: PanelContainer
 var _ui_bottom: PanelContainer
 var _ui_side: PanelContainer
@@ -236,7 +237,7 @@ func _build_ui() -> void:
 	_board_container = Control.new()
 	_board_container.anchor_right = 1.0
 	_board_container.anchor_bottom = 1.0
-	_board_container.mouse_filter = 2
+	_board_container.mouse_filter = 0
 	var board_style := StyleBoxFlat.new()
 	board_style.bg_color = Color(0.12, 0.15, 0.22)
 	board_style.corner_radius_top_left = 12
@@ -283,10 +284,11 @@ func _build_ui() -> void:
 	var board_click := Control.new()
 	board_click.anchor_right = 1.0
 	board_click.anchor_bottom = 1.0
-	board_click.mouse_filter = 2
+	board_click.mouse_filter = 1
 	board_click.gui_input.connect(_on_board_gui_input)
 	board_click.mouse_entered.connect(func(): _use_keyboard_cursor = false)
 	board_sub.add_child(board_click)
+	_board_click_control = board_click
 
 	_ui_side = PanelContainer.new()
 	_ui_side.anchor_left = 1.0
@@ -457,7 +459,7 @@ func _render_character(inst: Dictionary) -> void:
 	node.size = Vector2(TILE_SIZE - 8, TILE_SIZE - 8)
 	var screen_pos: Vector2 = _tile_to_screen(inst["pos"]) + Vector2(4, 4)
 	node.position = screen_pos
-	node.mouse_filter = 1
+	node.mouse_filter = 0
 
 	var pc := PanelContainer.new()
 	pc.anchor_right = 1.0
@@ -580,7 +582,6 @@ func _render_task(t: Dictionary) -> void:
 	pb.add_theme_stylebox_override("fill", fill2)
 	vb.add_child(pb)
 
-	overlay_pos := screen + Vector2(0, -14)
 	var name_lbl := Label.new()
 	name_lbl.name = "task_name"
 	name_lbl.text = str(t.get("name", ""))
@@ -592,6 +593,9 @@ func _render_task(t: Dictionary) -> void:
 	name_lbl.mouse_filter = 0
 	_overlay_layer.add_child(name_lbl)
 	node.z_index = 1
+	_tiles_layer.add_child(node)
+	t["node"] = node
+	t["name_label"] = name_lbl
 
 func _connect_bus() -> void:
 	EventBus.satisfaction_changed.connect(_on_satisfaction_changed)
@@ -1157,15 +1161,16 @@ func _refresh_char_ap(inst: Dictionary) -> void:
 	EventBus.action_point_changed.emit(inst["id"], inst["ap"], inst["max_ap"])
 
 func _refresh_task_visual(t: Dictionary) -> void:
-	var node: Node = _overlay_layer.get_node_or_null("task_%s" % t["id"])
-	var chars_layer_node: Node = _chars_layer.get_parent().get_node_or_null("task_%s" % t["id"])
-	for root in [_tiles_layer, _overlay_layer]:
-		for n in root.get_children():
-			if str(n.name) == "task_%s" % t["id"]:
-				_update_task_node(n, t)
-	for n in _chars_layer.get_parent().get_children():
-		if str(n.name).begins_with("task_") and str(n.name) == ("task_%s" % t["id"]):
-			_update_task_node(n, t)
+	var main_node: Control = t.get("node", null)
+	_update_task_node(main_node, t)
+	var name_lbl: Control = t.get("name_label", null)
+	if name_lbl and is_instance_valid(name_lbl):
+		if t.get("completed", false):
+			name_lbl.modulate = Color(0.7, 0.7, 0.7)
+			name_lbl.text = "✅ " + str(t.get("name", ""))
+		else:
+			name_lbl.modulate = Color.WHITE
+			name_lbl.text = str(t.get("name", ""))
 
 func _update_task_node(node: Node, t: Dictionary) -> void:
 	if node == null or not is_instance_valid(node):
