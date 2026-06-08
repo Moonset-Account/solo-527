@@ -1,0 +1,71 @@
+metrics:
+  satisfaction_score:
+    description: "菜品满意度得分（1-5分）"
+    formula: "AVG(ratings.score)"
+    adjustment: "贝叶斯平滑：adjusted = (n * avg + prior_weight * prior_score) / (n + prior_weight)，prior_weight=5, prior_score=3.0"
+    min_sample: 10
+    min_sample_rule: "评价数 < 10 的菜品不进入低分榜，使用贝叶斯平滑得分参与矩阵展示但标记为'样本不足'"
+
+  order_count:
+    description: "订单数量"
+    formula: "COUNT(orders.id)"
+    filter: "排除退餐订单：is_cancelled = FALSE"
+
+  cancel_rate:
+    description: "退餐率"
+    formula: "SUM(is_cancelled) / COUNT(*) * 100"
+    unit: "%"
+    threshold:
+      warning: 8
+      critical: 12
+
+  gross_margin:
+    description: "毛利"
+    formula: "(sell_price - cost_price) * quantity"
+    margin_rate: "毛利率 = (sell_price - cost_price) / sell_price * 100"
+    unit: "%"
+
+  revenue:
+    description: "营业收入"
+    formula: "SUM(sell_price * quantity)"
+    filter: "排除退餐订单"
+
+  cost:
+    description: "成本"
+    formula: "SUM(cost_price * quantity)"
+    filter: "包含退餐订单成本（食材已消耗）"
+
+dimensions:
+  window:
+    description: "就餐窗口"
+    values: ["川味窗口", "粤菜窗口", "面食窗口", "快餐窗口", "特色小炒", "清真窗口"]
+
+  cuisine_type:
+    description: "菜系"
+    values: ["川菜", "粤菜", "面食", "快餐", "小炒", "清真"]
+
+  meal_period:
+    description: "时段"
+    values: ["早餐", "午餐", "晚餐"]
+
+  cost_range:
+    description: "成本区间"
+    ranges:
+      - label: "低价 (0-4元)"
+        min: 0
+        max: 4
+      - label: "中价 (4-7元)"
+        min: 4
+        max: 7
+      - label: "高价 (7元+)"
+        min: 7
+        max: 999
+
+  month:
+    description: "月份"
+    values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+weather_correlation:
+  description: "天气与销量/满意度的关联分析"
+  method: "按天气类型分组，计算各组平均销量和满意度，与总体均值比较偏差"
+  dimensions: ["weather_type"]
