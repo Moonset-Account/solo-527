@@ -72,6 +72,15 @@ export interface ReplaySnapshot {
   simulationTime: number;
 }
 
+export interface SimulationStateSnapshot {
+  vehicles: Vehicle[];
+  time: number;
+  trafficLightConfigs: TrafficLightConfig[];
+  trafficLightStates: TrafficLightState[];
+  spawnAccumulators: Record<string, number>;
+  levelConfig: LevelConfig;
+}
+
 export interface AdjustmentComparison {
   beforeScore: ScoreResult;
   afterScore: ScoreResult;

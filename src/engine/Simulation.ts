@@ -1,4 +1,4 @@
-import type { Vehicle, Direction, TrafficLightConfig, TrafficLightState, ScoreResult, LevelConfig } from '@/engine/types';
+import type { Vehicle, Direction, TrafficLightConfig, TrafficLightState, ScoreResult, LevelConfig, SimulationStateSnapshot } from '@/engine/types';
 import { RoadGraph } from './RoadGraph';
 import { TrafficLightController } from './TrafficLightController';
 import { createVehicle, updateVehicle, resetVehicleCounter } from './VehicleAgent';
@@ -235,6 +235,62 @@ export class Simulation {
         tl.setConfig(config);
       }
     }
+  }
+
+  captureSnapshot(): SimulationStateSnapshot {
+    const accs: Record<string, number> = {};
+    for (const [key, val] of this.spawnAccumulators) {
+      accs[key] = val;
+    }
+
+    const tlStates: TrafficLightState[] = [];
+    for (const tl of this.trafficLights.values()) {
+      tlStates.push(tl.getState());
+    }
+
+    return {
+      vehicles: this.vehicles.map(v => ({
+        ...v,
+        position: { ...v.position },
+        route: [...v.route],
+      })),
+      time: this.time,
+      trafficLightConfigs: tlStates.map(s => ({
+        intersectionId: s.intersectionId,
+        nsGreenDuration: s.nsGreenDuration,
+        ewGreenDuration: s.ewGreenDuration,
+        yellowDuration: 3,
+        busPriorityEnabled: s.busPriorityEnabled,
+        busPriorityAdvanceSeconds: 5,
+        busPriorityExtendSeconds: 5,
+        busPriorityCooldown: s.busPriorityCooldown,
+      })),
+      trafficLightStates: tlStates,
+      spawnAccumulators: accs,
+      levelConfig: this.levelConfig,
+    };
+  }
+
+  static createFromSnapshot(snapshot: SimulationStateSnapshot, trafficLightConfigs: TrafficLightConfig[]): Simulation {
+    const sim = new Simulation(snapshot.levelConfig);
+
+    sim.time = snapshot.time;
+    sim.vehicles = snapshot.vehicles.map(v => ({
+      ...v,
+      position: { ...v.position },
+      route: [...v.route],
+    }));
+
+    for (const [key, val] of Object.entries(snapshot.spawnAccumulators)) {
+      sim.spawnAccumulators.set(key, val);
+    }
+
+    sim.trafficLights.clear();
+    for (const config of trafficLightConfigs) {
+      sim.trafficLights.set(config.intersectionId, new TrafficLightController(config));
+    }
+
+    return sim;
   }
 
   getState(): SimulationState {

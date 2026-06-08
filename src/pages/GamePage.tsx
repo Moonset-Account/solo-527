@@ -14,10 +14,23 @@ import { useGameStore } from '@/store/gameStore';
 import { useUIStore } from '@/store/uiStore';
 import { getLevelById } from '@/config/levels';
 import { canTransition } from '@/animation/AnimationState';
-import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentComparison, ReplaySnapshot, ScoreResult } from '@/engine/types';
+import { Simulation } from '@/engine/Simulation';
+import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentComparison, SimulationStateSnapshot, ScoreResult, TrafficLightState } from '@/engine/types';
 
 type ReplayPhase = 'idle' | 'before' | 'after' | 'done';
-const REPLAY_PHASE_DURATION = 20;
+const REPLAY_DURATION = 20;
+
+function runSimForDuration(sim: Simulation, duration: number, stepSize: number = 0.05): void {
+  let remaining = duration;
+  sim.setRunning(true);
+  sim.setSpeed(1);
+  while (remaining > 0) {
+    const dt = Math.min(stepSize, remaining);
+    sim.update(dt);
+    remaining -= dt;
+  }
+  sim.setRunning(false);
+}
 
 function GameContent({ levelId }: { levelId: string }) {
   const navigate = useNavigate();
@@ -31,12 +44,10 @@ function GameContent({ levelId }: { levelId: string }) {
   const currentScore = useSimulationStore(s => s.currentScore);
   const selectedIntersection = useSimulationStore(s => s.selectedIntersection);
   const latestComparison = useSimulationStore(s => s.latestComparison);
-  const preAdjustmentSnapshot = useSimulationStore(s => s.preAdjustmentSnapshot);
   const setAnimationState = useSimulationStore(s => s.setAnimationState);
   const setSelectedIntersection = useSimulationStore(s => s.setSelectedIntersection);
   const setLatestComparison = useSimulationStore(s => s.setLatestComparison);
   const setPreAdjustmentSnapshot = useSimulationStore(s => s.setPreAdjustmentSnapshot);
-  const addSnapshot = useSimulationStore(s => s.addSnapshot);
   const clearSnapshots = useSimulationStore(s => s.clearSnapshots);
 
   const showTutorial = useUIStore(s => s.showTutorial);
@@ -58,11 +69,14 @@ function GameContent({ levelId }: { levelId: string }) {
   const [replayPhase, setReplayPhase] = useState<ReplayPhase>('idle');
   const [replayPhaseLabel, setReplayPhaseLabel] = useState('');
 
-  const replayStartSimTime = useRef<number>(0);
-  const beforeReplayScore = useRef<ScoreResult | null>(null);
-  const savedAfterConfigs = useRef<TrafficLightConfig[]>([]);
+  const savedBeforeConfig = useRef<TrafficLightConfig[]>([]);
+  const savedAfterConfig = useRef<TrafficLightConfig[]>([]);
+  const savedSnapshot = useRef<SimulationStateSnapshot | null>(null);
+  const beforeScoreRef = useRef<ScoreResult | null>(null);
+  const beforeVehiclesRef = useRef<any[]>([]);
+  const beforeTlStatesRef = useRef<TrafficLightState[]>([]);
 
-  const { getSim, updateConfig, applyAllConfigs, reset } = useSimulation(levelConfig);
+  const { getSim, updateConfig, reset } = useSimulation(levelConfig);
 
   useEffect(() => {
     if (levelConfig.tutorialSteps && levelConfig.id === 'tutorial') {
@@ -98,56 +112,64 @@ function GameContent({ levelId }: { levelId: string }) {
   }, []);
 
   useEffect(() => {
-    if (replayPhase === 'idle' || replayPhase === 'done') return;
+    if (replayPhase !== 'before') return;
 
-    const sim = getSim();
-    if (!sim) return;
+    setReplayPhaseLabel('调整前回放中...');
 
-    const elapsed = sim.time - replayStartSimTime.current;
+    const snapshot = savedSnapshot.current;
+    const beforeConfig = savedBeforeConfig.current;
+    if (!snapshot) return;
 
-    if (replayPhase === 'before') {
-      setReplayPhaseLabel('调整前回放中...');
-      if (elapsed >= REPLAY_PHASE_DURATION) {
-        const state = sim.getState();
-        beforeReplayScore.current = state.score;
+    const beforeSim = Simulation.createFromSnapshot(snapshot, beforeConfig);
+    runSimForDuration(beforeSim, REPLAY_DURATION);
+    const beforeState = beforeSim.getState();
+    beforeScoreRef.current = beforeState.score;
+    beforeVehiclesRef.current = beforeState.vehicles;
+    beforeTlStatesRef.current = beforeState.trafficLightStates;
 
-        applyAllConfigs(savedAfterConfigs.current);
+    setVehicles([...beforeState.vehicles]);
 
-        replayStartSimTime.current = sim.time;
-        setReplayPhase('after');
-      }
-    } else if (replayPhase === 'after') {
-      setReplayPhaseLabel('调整后回放中...');
-      if (elapsed >= REPLAY_PHASE_DURATION) {
-        const state = sim.getState();
-        const afterScore = state.score;
-        const beforeScore = beforeReplayScore.current;
+    setReplayPhase('after');
+  }, [replayPhase]);
 
-        if (afterScore && beforeScore) {
-          const comparison: AdjustmentComparison = {
-            beforeScore,
-            afterScore,
-            beforeConfig: preAdjustmentSnapshot?.trafficLightConfig ?? [],
-            afterConfig: savedAfterConfigs.current,
-            congestionDelta: beforeScore.congestionScore - afterScore.congestionScore,
-            throughputDelta: afterScore.throughput - beforeScore.throughput,
-            avgWaitDelta: beforeScore.avgWaitTime - afterScore.avgWaitTime,
-            busWaitDelta: beforeScore.busAvgWaitTime - afterScore.busAvgWaitTime,
-            improved: afterScore.congestionScore < beforeScore.congestionScore,
-          };
-          setLatestComparison(comparison);
-          setShowComparison(true);
-        }
+  useEffect(() => {
+    if (replayPhase !== 'after') return;
 
-        sim.setRunning(false);
-        setAnimationState('paused');
-        setReplayPhase('done');
-        setReplayPhaseLabel('');
-        beforeReplayScore.current = null;
-        savedAfterConfigs.current = [];
-      }
+    setReplayPhaseLabel('调整后回放中...');
+
+    const snapshot = savedSnapshot.current;
+    const afterConfig = savedAfterConfig.current;
+    if (!snapshot) return;
+
+    const afterSim = Simulation.createFromSnapshot(snapshot, afterConfig);
+    runSimForDuration(afterSim, REPLAY_DURATION);
+    const afterState = afterSim.getState();
+    const afterScore = afterState.score;
+
+    setVehicles([...afterState.vehicles]);
+
+    const beforeScore = beforeScoreRef.current;
+    if (afterScore && beforeScore) {
+      const comparison: AdjustmentComparison = {
+        beforeScore,
+        afterScore,
+        beforeConfig: savedBeforeConfig.current,
+        afterConfig: savedAfterConfig.current,
+        congestionDelta: beforeScore.congestionScore - afterScore.congestionScore,
+        throughputDelta: afterScore.throughput - beforeScore.throughput,
+        avgWaitDelta: beforeScore.avgWaitTime - afterScore.avgWaitTime,
+        busWaitDelta: beforeScore.busAvgWaitTime - afterScore.busAvgWaitTime,
+        improved: afterScore.congestionScore < beforeScore.congestionScore,
+      };
+      setLatestComparison(comparison);
+      setShowComparison(true);
     }
-  }, [replayPhase, simulationTime, getSim, applyAllConfigs, preAdjustmentSnapshot, setLatestComparison, setAnimationState]);
+
+    setAnimationState('paused');
+    setReplayPhase('done');
+    setReplayPhaseLabel('');
+    beforeScoreRef.current = null;
+  }, [replayPhase, setLatestComparison, setAnimationState]);
 
   const tryTransition = useCallback((targetState: AnimState) => {
     if (canTransition(animationState, targetState)) {
@@ -161,6 +183,7 @@ function GameContent({ levelId }: { levelId: string }) {
     if (replayPhase !== 'idle' && replayPhase !== 'done') return;
     setReplayPhase('idle');
     setReplayPhaseLabel('');
+    setShowComparison(false);
     tryTransition('playing');
     const sim = getSim();
     if (sim && !sim.isRunning) {
@@ -189,29 +212,16 @@ function GameContent({ levelId }: { levelId: string }) {
   }, [tryTransition, reset, clearSnapshots, setLatestComparison, setPreAdjustmentSnapshot]);
 
   const handleReplay = useCallback(() => {
-    if (!preAdjustmentSnapshot) return;
-
     const sim = getSim();
     if (!sim) return;
+    if (!savedSnapshot.current) return;
 
-    savedAfterConfigs.current = trafficLightConfigs.map(c => ({ ...c }));
-
-    addSnapshot({
-      ...preAdjustmentSnapshot,
-      simulationTime: sim.time,
-    });
-
-    applyAllConfigs(preAdjustmentSnapshot.trafficLightConfig);
-
-    replayStartSimTime.current = sim.time;
-    beforeReplayScore.current = null;
     setReplayPhase('before');
     setShowComparison(false);
 
-    sim.setRunning(true);
-    sim.setSpeed(3);
+    sim.setRunning(false);
     setAnimationState('replaying');
-  }, [preAdjustmentSnapshot, getSim, trafficLightConfigs, addSnapshot, applyAllConfigs, setAnimationState]);
+  }, [getSim, setAnimationState]);
 
   const handleIntersectionClick = useCallback((id: string) => {
     setSelectedIntersection(id);
@@ -220,26 +230,20 @@ function GameContent({ levelId }: { levelId: string }) {
 
   const handleUpdateConfig = useCallback((intersectionId: string, patch: Partial<TrafficLightConfig>) => {
     const sim = getSim();
-    const score = currentScore ?? sim?.getState().score ?? null;
 
-    const snapshot: ReplaySnapshot = {
-      timestamp: Date.now(),
-      trafficLightConfig: trafficLightConfigs.map(c => ({ ...c })),
-      scoreSnapshot: score ?? {
-        congestionScore: 0,
-        throughput: 0,
-        avgWaitTime: 0,
-        busAvgWaitTime: 0,
-        starRating: 0,
-      },
-      simulationTime,
-    };
-    setPreAdjustmentSnapshot(snapshot);
+    const currentConfigs = trafficLightConfigs.map(c => ({ ...c }));
+
+    savedBeforeConfig.current = currentConfigs;
+    savedAfterConfig.current = currentConfigs.map(c =>
+      c.intersectionId === intersectionId ? { ...c, ...patch } : c,
+    );
+    savedSnapshot.current = sim ? sim.captureSnapshot() : null;
+    setPreAdjustmentSnapshot(null);
     setShowComparison(false);
 
     updateConfig(intersectionId, patch);
     play('slider-change');
-  }, [currentScore, trafficLightConfigs, simulationTime, getSim, setPreAdjustmentSnapshot, updateConfig, play]);
+  }, [trafficLightConfigs, getSim, setPreAdjustmentSnapshot, updateConfig, play]);
 
   useEffect(() => {
     if (!levelConfig || levelConfig.timeLimit === 0) return;
@@ -250,14 +254,13 @@ function GameContent({ levelId }: { levelId: string }) {
       if (sim) {
         const finalState = sim.getState();
         if (finalState.score) {
-          const beforeScore = preAdjustmentSnapshot?.scoreSnapshot ?? null;
-          completeLevel(levelConfig.id, finalState.score, beforeScore);
+          completeLevel(levelConfig.id, finalState.score, null);
           play(finalState.score.starRating > 0 ? 'level-complete' : 'level-fail');
           navigate(`/result/${levelConfig.id}`);
         }
       }
     }
-  }, [simulationTime, levelConfig, animationState, replayPhase, setAnimationState, getSim, completeLevel, play, navigate, preAdjustmentSnapshot]);
+  }, [simulationTime, levelConfig, animationState, replayPhase, setAnimationState, getSim, completeLevel, play, navigate]);
 
   const handleNextTutorial = useCallback(() => {
     if (levelConfig.tutorialSteps && tutorialStep >= levelConfig.tutorialSteps.length - 1) {
@@ -387,8 +390,8 @@ function GameContent({ levelId }: { levelId: string }) {
             border: `1px solid ${replayPhase === 'before' ? 'rgba(255,136,0,0.3)' : 'rgba(0,255,136,0.3)'}`,
           }}
         >
-          {replayPhase === 'before' ? '▶ 调整前配置回放' : '▶ 调整后配置回放'}
-          {' · 3x'}
+          {replayPhase === 'before' ? '▶ 调整前配置 · 同起点回放' : '▶ 调整后配置 · 同起点回放'}
+          {' · '}{REPLAY_DURATION}s
         </div>
       )}
 
@@ -461,7 +464,7 @@ function GameContent({ levelId }: { levelId: string }) {
             {latestComparison.improved ? '✓ 调整有效' : '✗ 调整需优化'}
           </h3>
           <p className="text-center text-xs text-white/40 mb-4">
-            回放对比 · 各 {REPLAY_PHASE_DURATION} 秒
+            同起点回放对比 · 各 {REPLAY_DURATION} 秒
           </p>
 
           <div className="space-y-3 text-sm">
@@ -506,6 +509,10 @@ function GameContent({ levelId }: { levelId: string }) {
               setShowComparison(false);
               setReplayPhase('idle');
               setReplayPhaseLabel('');
+              const sim = getSim();
+              if (sim) {
+                setVehicles([...sim.vehicles]);
+              }
             }}
           >
             关闭
