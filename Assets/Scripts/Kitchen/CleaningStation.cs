@@ -12,7 +12,9 @@ public class CleaningStation : KitchenStation
 
     public override bool CanInteract(PlayerController player)
     {
-        if (isOccupied)
+        if (player == null || isOccupied)
+            return false;
+        if (player.CarriedIngredient != null || player.CarriedDish != null)
             return false;
         return dirtyDishes > 0;
     }

@@ -36,6 +36,14 @@ public class GameManager : Singleton<GameManager>
         EventBus.Publish(new GameEvents.LevelStartedEvent { LevelIndex = levelIndex });
     }
 
+    public void StartTutorial(int levelIndex)
+    {
+        _currentLevelIndex = levelIndex;
+        SetState(GameState.Tutorial);
+        OnLevelStarted?.Invoke(levelIndex);
+        EventBus.Publish(new GameEvents.LevelStartedEvent { LevelIndex = levelIndex });
+    }
+
     public void CompleteLevel()
     {
         int completedLevel = _currentLevelIndex;
@@ -56,7 +64,7 @@ public class GameManager : Singleton<GameManager>
 
     public void PauseGame()
     {
-        if (_currentState == GameState.Gameplay)
+        if (_currentState == GameState.Gameplay || _currentState == GameState.Tutorial)
         {
             SetState(GameState.Paused);
             Time.timeScale = 0f;
@@ -67,8 +75,12 @@ public class GameManager : Singleton<GameManager>
     {
         if (_currentState == GameState.Paused)
         {
-            SetState(GameState.Gameplay);
             Time.timeScale = 1f;
+            if (LevelManager.HasInstance && LevelManager.Instance.currentLevelData != null &&
+                LevelManager.Instance.currentLevelData.isTutorialLevel)
+                SetState(GameState.Tutorial);
+            else
+                SetState(GameState.Gameplay);
         }
     }
 
@@ -77,6 +89,12 @@ public class GameManager : Singleton<GameManager>
         Time.timeScale = 1f;
         _currentLevelIndex = -1;
         SetState(GameState.Menu);
+    }
+
+    public void TransitionToGameplay()
+    {
+        if (_currentState == GameState.Tutorial)
+            SetState(GameState.Gameplay);
     }
 
     private void SetState(GameState newState)

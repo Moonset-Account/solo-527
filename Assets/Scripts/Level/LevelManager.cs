@@ -8,13 +8,19 @@ public class LevelManager : Singleton<LevelManager>
     public bool isLevelActive;
 
     private List<LevelMechanic> activeMechanics = new List<LevelMechanic>();
-    private float orderSpawnTimer;
 
     public void LoadLevel(LevelData data)
     {
         currentLevelData = data;
         isLevelActive = false;
         levelTimer = new Timer(data.timeLimit);
+
+        foreach (var mechanic in activeMechanics)
+        {
+            if (mechanic != null)
+                Destroy(mechanic);
+        }
+        activeMechanics.Clear();
 
         ApplySpatialConstraints(data.spatialConstraints);
 
@@ -30,7 +36,6 @@ public class LevelManager : Singleton<LevelManager>
     {
         isLevelActive = true;
         levelTimer.Start();
-        orderSpawnTimer = 0f;
 
         foreach (var mechanic in activeMechanics)
         {
@@ -94,15 +99,6 @@ public class LevelManager : Singleton<LevelManager>
                 GameManager.Instance.CompleteLevel();
                 return;
             }
-        }
-
-        orderSpawnTimer += dt;
-        if (orderSpawnTimer >= currentLevelData.orderInterval &&
-            OrderManager.HasInstance &&
-            OrderManager.Instance.activeOrders.Count < currentLevelData.maxOrders)
-        {
-            OrderManager.Instance.SpawnOrder();
-            orderSpawnTimer = 0f;
         }
 
         foreach (var mechanic in activeMechanics)

@@ -63,7 +63,7 @@ public static class RuntimeDataFactory
         LevelData data = ScriptableObject.CreateInstance<LevelData>();
         data.levelName = "烹饪入门";
         data.levelIndex = 0;
-        data.description = "学习基本操作：取食材、切菜、烹饪和装盘";
+        data.description = "学习基本操作：取食材、切菜、装盘和送餐";
         data.timeLimit = 180f;
         data.orderInterval = 30f;
         data.maxOrders = 2;
@@ -84,20 +84,19 @@ public static class RuntimeDataFactory
 
         data.stationLayout = new List<StationLayoutEntry>
         {
-            new StationLayoutEntry { stationType = StationType.Ingredient, position = new Vector3(0, -2, 0), rotation = 0f, stationName = "食材站", isLocked = false },
-            new StationLayoutEntry { stationType = StationType.Prep, position = new Vector3(-2, 0, 0), rotation = 0f, stationName = "备菜台", isLocked = false },
-            new StationLayoutEntry { stationType = StationType.Cooking, position = new Vector3(2, 0, 0), rotation = 0f, stationName = "灶台", isLocked = false },
-            new StationLayoutEntry { stationType = StationType.Plating, position = new Vector3(0, 2, 0), rotation = 0f, stationName = "装盘台", isLocked = false }
+            new StationLayoutEntry { stationType = StationType.Ingredient, position = new Vector3(-3, 0, 0), rotation = 0f, stationName = "食材站", isLocked = false },
+            new StationLayoutEntry { stationType = StationType.Prep, position = new Vector3(-1, 0, 0), rotation = 0f, stationName = "备菜台", isLocked = false },
+            new StationLayoutEntry { stationType = StationType.Plating, position = new Vector3(1, 0, 0), rotation = 0f, stationName = "装盘台", isLocked = false },
+            new StationLayoutEntry { stationType = StationType.Cleaning, position = new Vector3(3, 0, 0), rotation = 0f, stationName = "清洗台", isLocked = false }
         };
 
         data.spatialConstraints = new List<SpatialConstraint>();
 
         data.tutorialSteps = new List<TutorialStep>
         {
-            new TutorialStep { stepIndex = 0, description = "走向食材站，按E取食材", targetStationType = StationType.Ingredient, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, -2), highlightRadius = 1.5f },
-            new TutorialStep { stepIndex = 1, description = "走到备菜台，按E切菜", targetStationType = StationType.Prep, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(-2, 0), highlightRadius = 1.5f },
-            new TutorialStep { stepIndex = 2, description = "走到装盘台，按E装盘（沙拉无需烹饪）", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, 2), highlightRadius = 1.5f },
-            new TutorialStep { stepIndex = 3, description = "按E送餐完成订单！", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(0, 2), highlightRadius = 1.5f }
+            new TutorialStep { stepIndex = 0, description = "走向食材站，按E取食材", targetStationType = StationType.Ingredient, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(-3, 0), highlightRadius = 1.5f },
+            new TutorialStep { stepIndex = 1, description = "走到备菜台，按E切菜", targetStationType = StationType.Prep, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(-1, 0), highlightRadius = 1.5f },
+            new TutorialStep { stepIndex = 2, description = "走到装盘台，按E装盘后取餐", targetStationType = StationType.Plating, requiredAction = "Interact", isCompleted = false, highlightPosition = new Vector2(1, 0), highlightRadius = 1.5f }
         };
 
         return data;

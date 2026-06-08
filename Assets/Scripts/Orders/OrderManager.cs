@@ -10,6 +10,7 @@ public class OrderManager : Singleton<OrderManager>
     private List<Recipe> availableRecipes = new List<Recipe>();
     private Timer orderSpawnTimer;
     private int nextOrderID;
+    private int maxActiveOrders = GameConstants.MAX_ORDERS_ON_SCREEN;
     private static readonly System.Random rng = new System.Random();
 
     protected override void Awake()
@@ -31,6 +32,12 @@ public class OrderManager : Singleton<OrderManager>
         orderSpawnTimer = new Timer(interval);
         orderSpawnTimer.OnFinished += OnSpawnTimerComplete;
         orderSpawnTimer.Start();
+        SpawnOrder();
+    }
+
+    public void SetMaxActiveOrders(int max)
+    {
+        maxActiveOrders = max > 0 ? max : GameConstants.MAX_ORDERS_ON_SCREEN;
     }
 
     private void OnSpawnTimerComplete()
@@ -41,7 +48,7 @@ public class OrderManager : Singleton<OrderManager>
 
     public void SpawnOrder()
     {
-        if (activeOrders.Count >= GameConstants.MAX_ORDERS_ON_SCREEN)
+        if (activeOrders.Count >= maxActiveOrders)
             return;
 
         Recipe recipe = GetRandomRecipe();

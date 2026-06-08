@@ -32,6 +32,7 @@ public class GameOrchestrator : MonoBehaviour
     private List<GameObject> orderUIItems = new List<GameObject>();
 
     private int currentTutorialStep;
+    private bool isGameplayInitialized;
     private TextMeshProUGUI tutorialStepText;
     private Image tutorialHighlight;
     private GameObject settingsPanel;
@@ -72,6 +73,7 @@ public class GameOrchestrator : MonoBehaviour
         EventBus.Subscribe<GameEvents.OrderSpawnedEvent>(OnOrderSpawned);
         EventBus.Subscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
         EventBus.Subscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
+        EventBus.Subscribe<GameEvents.PlayerInteractEvent>(OnPlayerInteract);
     }
 
     private void OnDisable()
@@ -79,6 +81,7 @@ public class GameOrchestrator : MonoBehaviour
         EventBus.Unsubscribe<GameEvents.OrderSpawnedEvent>(OnOrderSpawned);
         EventBus.Unsubscribe<GameEvents.OrderCompletedEvent>(OnOrderCompleted);
         EventBus.Unsubscribe<GameEvents.OrderFailedEvent>(OnOrderFailed);
+        EventBus.Unsubscribe<GameEvents.PlayerInteractEvent>(OnPlayerInteract);
     }
 
     private void OnDestroy()
@@ -438,14 +441,20 @@ public class GameOrchestrator : MonoBehaviour
     {
         ShowPanel(next);
 
-        if (next == GameState.Gameplay || next == GameState.Tutorial)
+        if ((next == GameState.Gameplay || next == GameState.Tutorial) && !isGameplayInitialized)
+        {
             StartGameplay();
+            isGameplayInitialized = true;
+        }
 
         if (next == GameState.Settlement)
             PopulateSettlement();
 
         if (next == GameState.Failure)
             PopulateFailure();
+
+        if (next == GameState.Menu)
+            isGameplayInitialized = false;
     }
 
     private void StartGameplay()
@@ -467,6 +476,7 @@ public class GameOrchestrator : MonoBehaviour
         LevelManager.Instance.LoadLevel(levelData);
         OrderManager.Instance.SetAvailableRecipes(levelData.availableRecipes);
         OrderManager.Instance.InitializeSpawnTimer(levelData.orderInterval);
+        OrderManager.Instance.SetMaxActiveOrders(levelData.maxOrders);
         ScoringManager.Instance.ResetLevelScore();
 
         SpawnLevelStations(levelData);
@@ -672,9 +682,26 @@ public class GameOrchestrator : MonoBehaviour
         }
     }
 
+    private void OnPlayerInteract(GameEvents.PlayerInteractEvent e)
+    {
+        if (GameManager.Instance.CurrentState != GameState.Tutorial)
+            return;
+
+        LevelData levelData = LevelManager.HasInstance ? LevelManager.Instance.currentLevelData : null;
+        if (levelData == null || levelData.tutorialSteps == null || currentTutorialStep >= levelData.tutorialSteps.Count)
+            return;
+
+        TutorialStep step = levelData.tutorialSteps[currentTutorialStep];
+        if (e.StationType == step.targetStationType)
+        {
+            step.isCompleted = true;
+            levelData.tutorialSteps[currentTutorialStep] = step;
+        }
+    }
+
     private void UpdateTutorialProgress()
     {
-        LevelData levelData = LevelManager.Instance.currentLevelData;
+        LevelData levelData = LevelManager.HasInstance ? LevelManager.Instance.currentLevelData : null;
         if (levelData == null || levelData.tutorialSteps == null || currentTutorialStep >= levelData.tutorialSteps.Count)
             return;
 
@@ -684,7 +711,11 @@ public class GameOrchestrator : MonoBehaviour
             currentTutorialStep++;
             if (currentTutorialStep >= levelData.tutorialSteps.Count)
             {
-                GameManager.Instance.CompleteLevel();
+                if (tutorialHighlight != null)
+                    tutorialHighlight.SetActive(false);
+                if (tutorialStepText != null)
+                    tutorialStepText.gameObject.SetActive(false);
+                GameManager.Instance.TransitionToGameplay();
             }
             else
             {
@@ -724,8 +755,18 @@ public class GameOrchestrator : MonoBehaviour
 
     private void StartLevel(int levelIndex)
     {
-        if (levelIndex >= 0 && levelIndex < allLevels.Count)
+        if (levelIndex < 0 || levelIndex >= allLevels.Count)
+            return;
+
+        LevelData levelData = allLevels[levelIndex];
+        if (levelData.isTutorialLevel)
+        {
+            GameManager.Instance.StartTutorial(levelIndex);
+        }
+        else
+        {
             GameManager.Instance.StartLevel(levelIndex);
+        }
     }
 
     private void OnOrderSpawned(GameEvents.OrderSpawnedEvent e)
@@ -802,6 +843,9 @@ public class GameOrchestrator : MonoBehaviour
                 Destroy(obj);
         }
         orderUIItems.Clear();
+
+        if (StationManager.HasInstance)
+            StationManager.Instance.allStations.Clear();
 
         if (PlayerManager.HasInstance)
             PlayerManager.Instance.players.Clear();

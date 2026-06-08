@@ -58,7 +58,7 @@ public class PlatingStation : KitchenStation
 
     private Recipe FindMatchingRecipe(Ingredient ingredient)
     {
-        if (LevelManager.Instance == null || LevelManager.Instance.currentLevelData == null)
+        if (!LevelManager.HasInstance || LevelManager.Instance.currentLevelData == null)
             return null;
 
         foreach (Recipe recipe in LevelManager.Instance.currentLevelData.availableRecipes)

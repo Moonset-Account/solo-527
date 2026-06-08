@@ -36,7 +36,10 @@ public class PlayerController : MonoBehaviour
     {
         if (CarriedDish != null)
         {
-            return TryDeliverDish();
+            bool delivered = TryDeliverDish();
+            if (delivered)
+                EventBus.Publish(new GameEvents.PlayerInteractEvent { PlayerIndex = playerIndex, StationType = StationType.Plating });
+            return delivered;
         }
 
         KitchenStation nearest = StationManager.Instance.GetNearestStation(transform.position, interactRange);
@@ -81,6 +84,18 @@ public class PlayerController : MonoBehaviour
 
             ScoringManager.Instance.AddScore(baseScore, rating, timeBonus);
             orderMgr.CompleteOrder(matchingOrder, CarriedDish);
+
+            if (StationManager.HasInstance)
+            {
+                foreach (KitchenStation station in StationManager.Instance.allStations)
+                {
+                    if (station is CleaningStation cleaning)
+                    {
+                        cleaning.dirtyDishes++;
+                        break;
+                    }
+                }
+            }
 
             CarriedDish = null;
             UpdateCarryVisual();

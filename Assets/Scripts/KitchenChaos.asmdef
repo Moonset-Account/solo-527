@@ -2,7 +2,7 @@
     "name": "KitchenChaos",
     "rootNamespace": "KitchenChaos",
     "references": [
-        "UnityEngine.InputSystem",
+        "Unity.InputSystem",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
