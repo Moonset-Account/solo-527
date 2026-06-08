@@ -4,16 +4,8 @@ const SAVE_PATH: String = "user://save_data.json"
 const SEGMENT_PATH: String = "user://segment_data.json"
 
 func save_game(data: Dictionary) -> void:
-	var save_data: Dictionary = {
-		"current_level": data.get("current_level", ""),
-		"current_segment": data.get("current_segment", ""),
-		"player_position": data.get("player_position", {"x": 0.0, "y": 0.0}),
-		"fixed_labels_count": data.get("fixed_labels_count", 0),
-		"total_labels_count": data.get("total_labels_count", 0),
-		"play_time": data.get("play_time", 0.0),
-		"discovered_count": data.get("discovered_count", 0),
-		"saved_at": Time.get_datetime_string_from_system()
-	}
+	var save_data: Dictionary = data.duplicate()
+	save_data["saved_at"] = Time.get_datetime_string_from_system()
 	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(save_data, "\t"))

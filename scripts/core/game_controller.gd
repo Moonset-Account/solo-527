@@ -144,13 +144,22 @@ func _on_level_completed() -> void:
 	if _level_completed_flag:
 		return
 	_level_completed_flag = true
-	AnalyticsManager.end_level_tracking()
 	AnalyticsManager.record_choice("level_complete", {
 		"level_id": LevelManager.current_level_id,
 		"play_time": _play_time,
 		"failure_count": _failure_count,
 		"labels_fixed": _fixed_count,
 		"total_labels": _total_labels
+	})
+	AnalyticsManager.end_level_tracking()
+	SaveManager.save_game({
+		"current_level": LevelManager.current_level_id,
+		"current_segment": _current_segment_index,
+		"fixed_labels": _fixed_count,
+		"total_labels": _total_labels,
+		"play_time": _play_time,
+		"failure_count": _failure_count,
+		"completed": true
 	})
 	UIManager.show_notification("关卡完成! 用时: %.1fs 失败: %d次" % [_play_time, _failure_count], 3.0)
 	level_completed.emit()
