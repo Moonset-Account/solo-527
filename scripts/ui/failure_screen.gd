@@ -14,8 +14,7 @@ func setup(reason: String) -> void:
 func _ready() -> void:
 	retry_button.pressed.connect(_on_retry)
 	level_select_button.pressed.connect(_on_level_select)
-	if failure_reason == "" and "failure_reason" in GameManager:
-		failure_reason = GameManager.failure_reason
+	failure_reason = GameManager.failure_reason
 	_display_failure()
 
 func _display_failure() -> void:
@@ -24,15 +23,13 @@ func _display_failure() -> void:
 	tip_label.text = _get_tip_for_reason(failure_reason)
 
 func _get_tip_for_reason(reason: String) -> String:
-	match reason:
-		"易碎品被压碎了!":
-			return "尝试把重物放在底部，易碎品放在上面"
-		"箱子超重了!":
-			return "注意箱子底部的重量指示器"
-		"时间到!":
-			return "先放大件物品会更快"
-		_:
-			return "再试一次吧！"
+	if reason.find("易碎品") >= 0:
+		return "尝试把重物放在底部，易碎品放在上面"
+	if reason.find("超重") >= 0:
+		return "注意箱子底部的重量指示器，不要超过限重"
+	if reason.find("时间") >= 0:
+		return "先放大件物品会更快完成装箱"
+	return "再试一次吧！"
 
 func _on_retry() -> void:
 	GameManager.change_state(GameManager.GameState.PLAYING)

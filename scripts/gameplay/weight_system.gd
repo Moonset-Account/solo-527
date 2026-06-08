@@ -1,11 +1,10 @@
+class_name WeightSystem
 extends Node
 
 func calculate_pressure_map(items: Array) -> Dictionary:
 	var pressure_map: Dictionary = {}
 	var column_width: float = 32.0
-	var items_by_y = items.duplicate()
-	items_by_y.sort_custom(func(a, b): return a.global_position.y < b.global_position.y)
-	for item in items_by_y:
+	for item in items:
 		if not "item_data" in item or not item.item_data:
 			continue
 		var data: ItemData = item.item_data
@@ -16,18 +15,18 @@ func calculate_pressure_map(items: Array) -> Dictionary:
 				pressure_map[col] = {}
 			if not pressure_map[col].has(item):
 				pressure_map[col][item] = 0.0
-	for item in items_by_y:
+	for item in items:
 		if not "item_data" in item or not item.item_data:
 			continue
 		var data: ItemData = item.item_data
 		var col_start: int = int(item.global_position.x / column_width)
 		var col_end: int = int((item.global_position.x + data.width) / column_width)
-		for other in items_by_y:
+		for other in items:
 			if other == item:
 				continue
 			if not "item_data" in other or not other.item_data:
 				continue
-			if other.global_position.y > item.global_position.y:
+			if other.global_position.y < item.global_position.y:
 				var other_col_start: int = int(other.global_position.x / column_width)
 				var other_col_end: int = int((other.global_position.x + other.item_data.width) / column_width)
 				for col in range(max(col_start, other_col_start), min(col_end, other_col_end) + 1):

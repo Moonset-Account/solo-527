@@ -1,3 +1,4 @@
+class_name PackingBox
 extends StaticBody2D
 
 signal item_entered(item)

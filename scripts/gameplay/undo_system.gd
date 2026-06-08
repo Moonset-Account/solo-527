@@ -1,3 +1,4 @@
+class_name UndoSystem
 extends Node
 
 signal action_undone(action)
