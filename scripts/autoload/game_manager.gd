@@ -86,6 +86,9 @@ func set_tutorial_skipped(skipped: bool) -> void:
 func get_analytics() -> Dictionary:
 	return _analytics.duplicate()
 
+func set_analytics_field(key: String, value: Variant) -> void:
+	_analytics[key] = value
+
 func get_smoothed_difficulty() -> float:
 	var key = "%d_%d" % [current_chapter, current_level]
 	var retries = _analytics["retry_counts"].get(key, 0)

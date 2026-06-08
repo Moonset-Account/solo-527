@@ -29,6 +29,13 @@ func _on_continue_pressed() -> void:
 	SceneManager.go_to_battle(GameManager.current_chapter, GameManager.current_level)
 
 func _on_tutorial_pressed() -> void:
+	if GameManager.player_deck.get_card_count() == 0:
+		GameManager.reset_run()
+		var starter_ids = GameResources.get_starter_deck_card_ids()
+		for card_id in starter_ids:
+			var card = GameResources.create_card_by_id(card_id)
+			if card:
+				GameManager.player_deck.add_card(card)
 	SceneManager.go_to_tutorial()
 
 func _on_settings_pressed() -> void:

@@ -378,6 +378,6 @@ func _on_pause_pressed() -> void:
 	get_tree().paused = true
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and GameManager.is_in_battle:
+	if event.is_action_pressed("pause") and GameManager.is_in_battle and not get_tree().paused:
 		_on_pause_pressed()
 		get_viewport().set_input_as_handled()

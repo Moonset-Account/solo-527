@@ -9,8 +9,8 @@ var current_step: int = 0
 var total_steps: int = 9
 
 @onready var tutorial_text: RichTextLabel = $VBoxContainer/TutorialText
-@onready var next_button: Button = $VBoxContainer/NextButton
-@onready var skip_button: Button = $VBoxContainer/SkipButton
+@onready var next_button: Button = $VBoxContainer/HBoxContainer/NextButton
+@onready var skip_button: Button = $VBoxContainer/HBoxContainer/SkipButton
 @onready var step_label: Label = $VBoxContainer/StepLabel
 @onready var demo_area: Control = $VBoxContainer/DemoArea
 
@@ -30,7 +30,7 @@ func _init_step_texts() -> void:
 		3: "[b]预算系统[/b]\n\n每回合你会获得一定数量的预算点数。\n- 修复工具卡通常需要1-3点预算\n- 预算卡本身免费，还能增加预算\n- 合理规划预算是关键！",
 		4: "[b]展品修复[/b]\n\n展品有不同的HP值，HP归零则被毁坏。\n- [color=green]已修复[/color]：HP已满\n- [color=yellow]损坏[/color]：需要修复\n- [color=red]危急[/color]：急需关注！\n- [color=dark_red]毁坏[/color]：无法修复（游戏失败）\n\n修复所有展品即可过关！",
 		5: "[b]专家卡策略[/b]\n\n专家卡虽然不直接修复，但能改变战局：\n- 历史学家：查看展品隐藏信息\n- 修复师：增强下一次修复效果\n- 化学家：稳定所有展品\n- 策展人：跳过下一个负面事件",
-		6: "[b]结束回合[/b]\n\n当你无法或不想出牌时，点击"结束回合"：\n1. 结算回合事件\n2. 展品可能自然退化\n3. 抽一张新牌\n4. 预算恢复满额",
+		6: "[b]结束回合[/b]\n\n当你无法或不想出牌时，点击「结束回合」：\n1. 结算回合事件\n2. 展品可能自然退化\n3. 抽一张新牌\n4. 预算恢复满额",
 		7: "[b]随机事件[/b]\n\n从第二章开始，每回合可能触发随机事件：\n- 地震：所有展品受伤\n- 水灾：纸类和丝织品重伤\n- 盗贼：随机展品受伤\n- 隐藏损伤：未揭示的损伤显现\n\n使用策展人或气候控制卡可以应对！",
 		8: "[b]准备就绪！[/b]\n\n你已经了解了所有基础操作！\n\n策略提示：\n- 不要忽视专家卡的价值\n- 优先修复危急展品\n- 保留预算卡应对紧急情况\n- 揭示隐藏损伤后再集中修复\n\n祝你好运，修复大师！",
 	}

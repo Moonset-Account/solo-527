@@ -4,9 +4,9 @@ signal resume_pressed
 signal settings_pressed
 signal quit_to_menu_pressed
 
-@onready var resume_button: Button = $VBoxContainer/ResumeButton
-@onready var settings_button: Button = $VBoxContainer/SettingsButton
-@onready var quit_button: Button = $VBoxContainer/QuitButton
+@onready var resume_button: Button = $Panel/VBoxContainer/ResumeButton
+@onready var settings_button: Button = $Panel/VBoxContainer/SettingsButton
+@onready var quit_button: Button = $Panel/VBoxContainer/QuitButton
 
 func _ready() -> void:
 	resume_button.grab_focus()

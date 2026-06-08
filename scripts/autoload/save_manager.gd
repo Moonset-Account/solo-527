@@ -89,19 +89,18 @@ func _deserialize_deck(data: Dictionary) -> void:
 				GameManager.player_deck.add_card(card)
 
 func _deserialize_analytics(data: Dictionary) -> void:
-	var analytics = GameManager.get_analytics()
 	if data.has("failure_steps"):
-		analytics["failure_steps"] = data["failure_steps"]
+		GameManager.set_analytics_field("failure_steps", data["failure_steps"])
 	if data.has("retry_counts"):
-		analytics["retry_counts"] = data["retry_counts"]
+		GameManager.set_analytics_field("retry_counts", data["retry_counts"])
 	if data.has("tutorial_skipped"):
-		analytics["tutorial_skipped"] = data["tutorial_skipped"]
+		GameManager.set_analytics_field("tutorial_skipped", data["tutorial_skipped"])
 	if data.has("total_plays"):
-		analytics["total_plays"] = int(data["total_plays"])
+		GameManager.set_analytics_field("total_plays", int(data["total_plays"]))
 	if data.has("total_wins"):
-		analytics["total_wins"] = int(data["total_wins"])
+		GameManager.set_analytics_field("total_wins", int(data["total_wins"]))
 	if data.has("chapters_completed"):
-		analytics["chapters_completed"] = int(data["chapters_completed"])
+		GameManager.set_analytics_field("chapters_completed", int(data["chapters_completed"]))
 
 func _ready() -> void:
 	if has_save():

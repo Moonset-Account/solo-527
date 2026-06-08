@@ -22,15 +22,16 @@ func _ready() -> void:
 func change_scene(scene_path: String, with_transition: bool = true) -> void:
 	if _is_transitioning:
 		return
-	if with_transition:
+	if with_transition and _get_transition_layer() != null:
 		_is_transitioning = true
 		transition_started.emit()
 		await _fade_out()
-	_do_change(scene_path)
-	if with_transition:
+		_do_change(scene_path)
 		await _fade_in()
 		_is_transitioning = false
 		transition_finished.emit()
+	else:
+		_do_change(scene_path)
 	scene_changed.emit(scene_path)
 
 func _do_change(scene_path: String) -> void:
@@ -58,8 +59,7 @@ func _fade_in() -> void:
 		await anim.animation_finished
 
 func _get_transition_layer() -> CanvasLayer:
-	var root = get_tree().root
-	return root.get_node_or_null("TransitionLayer")
+	return null
 
 func go_to_main_menu() -> void:
 	change_scene(SCENE_MAIN_MENU)
