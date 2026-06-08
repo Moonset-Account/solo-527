@@ -9,6 +9,7 @@ signal closed
 @onready var sfx_value_label: Label = $VBoxContainer/SfxBox/SfxValue
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	music_slider.value = AudioManager.get_music_volume() * 100
 	sfx_slider.value = AudioManager.get_sfx_volume() * 100
 	_update_labels()

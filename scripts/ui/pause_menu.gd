@@ -9,6 +9,7 @@ signal quit_to_menu_pressed
 @onready var quit_button: Button = $Panel/VBoxContainer/QuitButton
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	resume_button.grab_focus()
 	resume_button.pressed.connect(_on_resume)
 	settings_button.pressed.connect(_on_settings)
