@@ -19,18 +19,7 @@ import type { TrafficLightConfig, AnimationState as AnimState, AdjustmentCompari
 
 type ReplayPhase = 'idle' | 'before' | 'after' | 'done';
 const REPLAY_DURATION = 20;
-
-function runSimForDuration(sim: Simulation, duration: number, stepSize: number = 0.05): void {
-  let remaining = duration;
-  sim.setRunning(true);
-  sim.setSpeed(1);
-  while (remaining > 0) {
-    const dt = Math.min(stepSize, remaining);
-    sim.update(dt);
-    remaining -= dt;
-  }
-  sim.setRunning(false);
-}
+const REPLAY_SPEED = 3;
 
 function GameContent({ levelId }: { levelId: string }) {
   const navigate = useNavigate();
@@ -63,18 +52,23 @@ function GameContent({ levelId }: { levelId: string }) {
   const completeLevel = useGameStore(s => s.completeLevel);
 
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [vehicles, setVehicles] = useState<any[]>([]);
   const [fps, setFps] = useState(60);
   const [showComparison, setShowComparison] = useState(false);
   const [replayPhase, setReplayPhase] = useState<ReplayPhase>('idle');
   const [replayPhaseLabel, setReplayPhaseLabel] = useState('');
+  const [displayVehicles, setDisplayVehicles] = useState<any[]>([]);
+  const [displayTlStates, setDisplayTlStates] = useState<TrafficLightState[]>([]);
 
   const savedBeforeConfig = useRef<TrafficLightConfig[]>([]);
   const savedAfterConfig = useRef<TrafficLightConfig[]>([]);
   const savedSnapshot = useRef<SimulationStateSnapshot | null>(null);
   const beforeScoreRef = useRef<ScoreResult | null>(null);
-  const beforeVehiclesRef = useRef<any[]>([]);
-  const beforeTlStatesRef = useRef<TrafficLightState[]>([]);
+
+  const replaySimRef = useRef<Simulation | null>(null);
+  const replayRafRef = useRef<number>(0);
+  const replayLastTimeRef = useRef<number>(0);
+  const replayStartSimTimeRef = useRef<number>(0);
+  const replayPhaseRef = useRef<ReplayPhase>('idle');
 
   const { getSim, updateConfig, reset } = useSimulation(levelConfig);
 
@@ -86,13 +80,16 @@ function GameContent({ levelId }: { levelId: string }) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const sim = getSim();
-      if (sim) {
-        setVehicles([...sim.vehicles]);
+      if (replayPhase === 'idle' || replayPhase === 'done') {
+        const sim = getSim();
+        if (sim) {
+          setDisplayVehicles([...sim.vehicles]);
+        }
+        setDisplayTlStates(trafficLightStates);
       }
     }, 150);
     return () => clearInterval(interval);
-  }, [getSim]);
+  }, [getSim, trafficLightStates, replayPhase]);
 
   useEffect(() => {
     let animFrame: number;
@@ -111,65 +108,99 @@ function GameContent({ levelId }: { levelId: string }) {
     return () => cancelAnimationFrame(animFrame);
   }, []);
 
+  const startReplayLoop = useCallback(() => {
+    replayLastTimeRef.current = 0;
+
+    const tick = (timestamp: number) => {
+      const sim = replaySimRef.current;
+      if (!sim) return;
+
+      if (replayLastTimeRef.current === 0) {
+        replayLastTimeRef.current = timestamp;
+      }
+
+      const rawDt = (timestamp - replayLastTimeRef.current) / 1000;
+      const dt = Math.min(rawDt, 0.1);
+      replayLastTimeRef.current = timestamp;
+
+      const phase = replayPhaseRef.current;
+
+      if (sim.isRunning) {
+        const scaledDt = dt * REPLAY_SPEED;
+        sim.setSpeed(1);
+        sim.update(scaledDt);
+
+        setDisplayVehicles([...sim.vehicles]);
+        const state = sim.getState();
+        setDisplayTlStates(state.trafficLightStates);
+
+        const elapsed = sim.time - replayStartSimTimeRef.current;
+
+        if (phase === 'before' && elapsed >= REPLAY_DURATION) {
+          beforeScoreRef.current = state.score;
+          sim.setRunning(false);
+
+          const snapshot = savedSnapshot.current;
+          const afterConfig = savedAfterConfig.current;
+          if (snapshot) {
+            const afterSim = Simulation.createFromSnapshot(snapshot, afterConfig);
+            replaySimRef.current = afterSim;
+            replayStartSimTimeRef.current = afterSim.time;
+            replayLastTimeRef.current = 0;
+            afterSim.setRunning(true);
+            afterSim.setSpeed(1);
+            replayPhaseRef.current = 'after';
+            setReplayPhase('after');
+            setReplayPhaseLabel('调整后回放中...');
+          }
+          replayRafRef.current = requestAnimationFrame(tick);
+          return;
+        }
+
+        if (phase === 'after' && elapsed >= REPLAY_DURATION) {
+          const afterScore = state.score;
+          const beforeScore = beforeScoreRef.current;
+          sim.setRunning(false);
+
+          if (afterScore && beforeScore) {
+            const comparison: AdjustmentComparison = {
+              beforeScore,
+              afterScore,
+              beforeConfig: savedBeforeConfig.current,
+              afterConfig: savedAfterConfig.current,
+              congestionDelta: beforeScore.congestionScore - afterScore.congestionScore,
+              throughputDelta: afterScore.throughput - beforeScore.throughput,
+              avgWaitDelta: beforeScore.avgWaitTime - afterScore.avgWaitTime,
+              busWaitDelta: beforeScore.busAvgWaitTime - afterScore.busAvgWaitTime,
+              improved: afterScore.congestionScore < beforeScore.congestionScore,
+            };
+            setLatestComparison(comparison);
+            setShowComparison(true);
+          }
+
+          setAnimationState('paused');
+          replayPhaseRef.current = 'done';
+          setReplayPhase('done');
+          setReplayPhaseLabel('');
+          replaySimRef.current = null;
+          beforeScoreRef.current = null;
+          return;
+        }
+      }
+
+      replayRafRef.current = requestAnimationFrame(tick);
+    };
+
+    replayRafRef.current = requestAnimationFrame(tick);
+  }, [setLatestComparison, setAnimationState]);
+
   useEffect(() => {
-    if (replayPhase !== 'before') return;
-
-    setReplayPhaseLabel('调整前回放中...');
-
-    const snapshot = savedSnapshot.current;
-    const beforeConfig = savedBeforeConfig.current;
-    if (!snapshot) return;
-
-    const beforeSim = Simulation.createFromSnapshot(snapshot, beforeConfig);
-    runSimForDuration(beforeSim, REPLAY_DURATION);
-    const beforeState = beforeSim.getState();
-    beforeScoreRef.current = beforeState.score;
-    beforeVehiclesRef.current = beforeState.vehicles;
-    beforeTlStatesRef.current = beforeState.trafficLightStates;
-
-    setVehicles([...beforeState.vehicles]);
-
-    setReplayPhase('after');
-  }, [replayPhase]);
-
-  useEffect(() => {
-    if (replayPhase !== 'after') return;
-
-    setReplayPhaseLabel('调整后回放中...');
-
-    const snapshot = savedSnapshot.current;
-    const afterConfig = savedAfterConfig.current;
-    if (!snapshot) return;
-
-    const afterSim = Simulation.createFromSnapshot(snapshot, afterConfig);
-    runSimForDuration(afterSim, REPLAY_DURATION);
-    const afterState = afterSim.getState();
-    const afterScore = afterState.score;
-
-    setVehicles([...afterState.vehicles]);
-
-    const beforeScore = beforeScoreRef.current;
-    if (afterScore && beforeScore) {
-      const comparison: AdjustmentComparison = {
-        beforeScore,
-        afterScore,
-        beforeConfig: savedBeforeConfig.current,
-        afterConfig: savedAfterConfig.current,
-        congestionDelta: beforeScore.congestionScore - afterScore.congestionScore,
-        throughputDelta: afterScore.throughput - beforeScore.throughput,
-        avgWaitDelta: beforeScore.avgWaitTime - afterScore.avgWaitTime,
-        busWaitDelta: beforeScore.busAvgWaitTime - afterScore.busAvgWaitTime,
-        improved: afterScore.congestionScore < beforeScore.congestionScore,
-      };
-      setLatestComparison(comparison);
-      setShowComparison(true);
-    }
-
-    setAnimationState('paused');
-    setReplayPhase('done');
-    setReplayPhaseLabel('');
-    beforeScoreRef.current = null;
-  }, [replayPhase, setLatestComparison, setAnimationState]);
+    return () => {
+      if (replayRafRef.current) {
+        cancelAnimationFrame(replayRafRef.current);
+      }
+    };
+  }, []);
 
   const tryTransition = useCallback((targetState: AnimState) => {
     if (canTransition(animationState, targetState)) {
@@ -181,6 +212,9 @@ function GameContent({ levelId }: { levelId: string }) {
 
   const handlePlay = useCallback(() => {
     if (replayPhase !== 'idle' && replayPhase !== 'done') return;
+    if (replayRafRef.current) cancelAnimationFrame(replayRafRef.current);
+    replaySimRef.current = null;
+    replayPhaseRef.current = 'idle';
     setReplayPhase('idle');
     setReplayPhaseLabel('');
     setShowComparison(false);
@@ -201,6 +235,9 @@ function GameContent({ levelId }: { levelId: string }) {
   }, [replayPhase, tryTransition]);
 
   const handleStop = useCallback(() => {
+    if (replayRafRef.current) cancelAnimationFrame(replayRafRef.current);
+    replaySimRef.current = null;
+    replayPhaseRef.current = 'idle';
     setReplayPhase('idle');
     setReplayPhaseLabel('');
     tryTransition('idle');
@@ -212,16 +249,26 @@ function GameContent({ levelId }: { levelId: string }) {
   }, [tryTransition, reset, clearSnapshots, setLatestComparison, setPreAdjustmentSnapshot]);
 
   const handleReplay = useCallback(() => {
-    const sim = getSim();
-    if (!sim) return;
-    if (!savedSnapshot.current) return;
+    const snapshot = savedSnapshot.current;
+    if (!snapshot) return;
+
+    const mainSim = getSim();
+    if (mainSim) mainSim.setRunning(false);
+
+    const beforeSim = Simulation.createFromSnapshot(snapshot, savedBeforeConfig.current);
+    replaySimRef.current = beforeSim;
+    replayStartSimTimeRef.current = beforeSim.time;
+    beforeScoreRef.current = null;
 
     setReplayPhase('before');
+    replayPhaseRef.current = 'before';
+    setReplayPhaseLabel('调整前回放中...');
     setShowComparison(false);
-
-    sim.setRunning(false);
     setAnimationState('replaying');
-  }, [getSim, setAnimationState]);
+
+    beforeSim.setRunning(true);
+    startReplayLoop();
+  }, [getSim, setAnimationState, startReplayLoop]);
 
   const handleIntersectionClick = useCallback((id: string) => {
     setSelectedIntersection(id);
@@ -286,8 +333,8 @@ function GameContent({ levelId }: { levelId: string }) {
       <div className="absolute inset-0">
         <GameScene
           layout={levelConfig.roadLayout}
-          vehicles={vehicles}
-          trafficLightStates={trafficLightStates}
+          vehicles={displayVehicles}
+          trafficLightStates={displayTlStates}
           onIntersectionClick={handleIntersectionClick}
         />
       </div>
@@ -340,7 +387,7 @@ function GameContent({ levelId }: { levelId: string }) {
       {showDebugPanel && (
         <div className="absolute bottom-20 left-4 z-20 w-56">
           <DebugPanel
-            vehicles={vehicles}
+            vehicles={displayVehicles}
             time={simulationTime}
             fps={fps}
             showHeatmap={showHeatmap}
@@ -391,7 +438,7 @@ function GameContent({ levelId }: { levelId: string }) {
           }}
         >
           {replayPhase === 'before' ? '▶ 调整前配置 · 同起点回放' : '▶ 调整后配置 · 同起点回放'}
-          {' · '}{REPLAY_DURATION}s
+          {' · '}{REPLAY_SPEED}x · {REPLAY_DURATION}s
         </div>
       )}
 
@@ -417,9 +464,12 @@ function GameContent({ levelId }: { levelId: string }) {
             border: '1px solid rgba(0,255,136,0.3)',
           }}
           onClick={() => {
+            if (replayRafRef.current) cancelAnimationFrame(replayRafRef.current);
+            replaySimRef.current = null;
             reset();
             tryTransition('idle');
-            setReplayPhase('idle');
+            replayPhaseRef.current = 'idle';
+    setReplayPhase('idle');
             setReplayPhaseLabel('');
             setLatestComparison(null);
             setPreAdjustmentSnapshot(null);
@@ -464,7 +514,7 @@ function GameContent({ levelId }: { levelId: string }) {
             {latestComparison.improved ? '✓ 调整有效' : '✗ 调整需优化'}
           </h3>
           <p className="text-center text-xs text-white/40 mb-4">
-            同起点回放对比 · 各 {REPLAY_DURATION} 秒
+            同起点回放对比 · 各 {REPLAY_DURATION} 秒 · {REPLAY_SPEED}x
           </p>
 
           <div className="space-y-3 text-sm">
@@ -507,12 +557,14 @@ function GameContent({ levelId }: { levelId: string }) {
             }}
             onClick={() => {
               setShowComparison(false);
-              setReplayPhase('idle');
+              replayPhaseRef.current = 'idle';
+    setReplayPhase('idle');
               setReplayPhaseLabel('');
               const sim = getSim();
               if (sim) {
-                setVehicles([...sim.vehicles]);
+                setDisplayVehicles([...sim.vehicles]);
               }
+              setDisplayTlStates(trafficLightStates);
             }}
           >
             关闭

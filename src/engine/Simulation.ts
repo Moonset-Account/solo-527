@@ -287,7 +287,13 @@ export class Simulation {
 
     sim.trafficLights.clear();
     for (const config of trafficLightConfigs) {
-      sim.trafficLights.set(config.intersectionId, new TrafficLightController(config));
+      const tl = new TrafficLightController(config);
+      const savedState = snapshot.trafficLightStates.find(s => s.intersectionId === config.intersectionId);
+      if (savedState) {
+        tl.phase = savedState.phase;
+        tl.timer = savedState.timer;
+      }
+      sim.trafficLights.set(config.intersectionId, tl);
     }
 
     return sim;
