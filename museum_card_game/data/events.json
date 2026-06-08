@@ -1,0 +1,52 @@
+{
+  "events": [
+    {
+      "id": "humidity_crisis",
+      "name": "湿度失控",
+      "description": "博物馆空调系统故障，湿度飙升，所有展品加速恶化！",
+      "min_turn": 2,
+      "probability": 0.3,
+      "effects": [{"type": "degrade_all", "value": 2}]
+    },
+    {
+      "id": "generous_donor",
+      "name": "慷慨捐赠",
+      "description": "一位热心捐赠者为你提供了额外预算！",
+      "min_turn": 1,
+      "probability": 0.25,
+      "effects": [{"type": "gain_budget", "value": 3}]
+    },
+    {
+      "id": "equipment_failure",
+      "name": "设备故障",
+      "description": "修复工具出现故障，下回合无法使用工具卡！",
+      "min_turn": 3,
+      "probability": 0.2,
+      "effects": [{"type": "block_tools", "value": 1}]
+    },
+    {
+      "id": "expert_arrival",
+      "name": "专家到访",
+      "description": "一位国际专家临时到访，下回合可免费使用一次专家卡！",
+      "min_turn": 2,
+      "probability": 0.25,
+      "effects": [{"type": "free_expert", "value": 1}]
+    },
+    {
+      "id": "inspection_boost",
+      "name": "展品巡检",
+      "description": "例行巡检发现了修复重点，下回合所有修复效果+2！",
+      "min_turn": 3,
+      "probability": 0.25,
+      "effects": [{"type": "buff_restore", "value": 2}]
+    },
+    {
+      "id": "surprise_audit",
+      "name": "突击检查",
+      "description": "上级突击检查，随机一件展品承受额外压力！",
+      "min_turn": 4,
+      "probability": 0.2,
+      "effects": [{"type": "degrade_random", "value": 3}]
+    }
+  ]
+}

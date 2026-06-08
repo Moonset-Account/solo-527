@@ -1,0 +1,70 @@
+{
+  "exhibits": [
+    {
+      "id": "ancient_vase",
+      "name": "古代瓷瓶",
+      "description": "一件精美的宋代瓷瓶，表面有细小裂纹",
+      "max_condition": 15,
+      "degradation_rate": 1,
+      "required_tools": ["basic_clean", "deep_repair"],
+      "point_value": 100,
+      "hidden_damage": 0,
+      "special": ""
+    },
+    {
+      "id": "oil_painting",
+      "name": "古典油画",
+      "description": "文艺复兴时期的油画，色彩暗淡",
+      "max_condition": 20,
+      "degradation_rate": 2,
+      "required_tools": ["basic_clean", "deep_repair"],
+      "point_value": 150,
+      "hidden_damage": 2,
+      "special": "hidden_damage"
+    },
+    {
+      "id": "bronze_statue",
+      "name": "青铜雕像",
+      "description": "战国时期青铜雕像，铜锈严重",
+      "max_condition": 25,
+      "degradation_rate": 1,
+      "required_tools": ["deep_repair", "precision_tool"],
+      "point_value": 200,
+      "hidden_damage": 3,
+      "special": "needs_marked"
+    },
+    {
+      "id": "silk_scroll",
+      "name": "丝绸画卷",
+      "description": "唐代丝绸画卷，极为脆弱",
+      "max_condition": 12,
+      "degradation_rate": 3,
+      "required_tools": ["basic_clean", "stabilize"],
+      "point_value": 250,
+      "hidden_damage": 0,
+      "special": "fragile"
+    },
+    {
+      "id": "jade_artifact",
+      "name": "玉器珍品",
+      "description": "新石器时代玉器，有多处微裂",
+      "max_condition": 18,
+      "degradation_rate": 2,
+      "required_tools": ["deep_repair", "chemistry_analysis"],
+      "point_value": 300,
+      "hidden_damage": 4,
+      "special": "hidden_damage"
+    },
+    {
+      "id": "imperial_crown",
+      "name": "帝王皇冠",
+      "description": "皇帝加冕皇冠，宝石松动，金属氧化",
+      "max_condition": 30,
+      "degradation_rate": 2,
+      "required_tools": ["deep_repair", "precision_tool", "restore_master"],
+      "point_value": 500,
+      "hidden_damage": 5,
+      "special": "boss"
+    }
+  ]
+}

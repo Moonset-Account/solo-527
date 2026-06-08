@@ -1,0 +1,69 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "初入博物馆",
+      "description": "你的第一天！学习基本的修复流程，修复一件简单的展品。",
+      "exhibits": ["ancient_vase"],
+      "starting_budget": 5,
+      "max_turns": 8,
+      "deck_cards": ["basic_clean", "basic_clean", "basic_clean", "deep_repair", "budget_card", "stabilize"],
+      "reward_card": "chemistry_analysis",
+      "reward_description": "解锁「化学分析」—— 标记展品，为组合技做准备",
+      "is_tutorial": true,
+      "event_chance": 0.0
+    },
+    {
+      "id": 2,
+      "name": "画廊危机",
+      "description": "画廊中两件展品同时需要修复，学会管理多个目标。",
+      "exhibits": ["ancient_vase", "oil_painting"],
+      "starting_budget": 7,
+      "max_turns": 10,
+      "deck_cards": ["basic_clean", "basic_clean", "deep_repair", "deep_repair", "budget_card", "stabilize", "chemistry_analysis", "expert_appraise"],
+      "reward_card": "uv_inspect",
+      "reward_description": "解锁「紫外线检测」—— 揭示隐藏损伤，改变决策方式",
+      "is_tutorial": false,
+      "event_chance": 0.15
+    },
+    {
+      "id": 3,
+      "name": "文物急诊室",
+      "description": "一件极度脆弱的展品需要你的紧急处理，同时还有其他任务。",
+      "exhibits": ["silk_scroll", "oil_painting"],
+      "starting_budget": 8,
+      "max_turns": 8,
+      "deck_cards": ["basic_clean", "basic_clean", "deep_repair", "stabilize", "stabilize", "budget_card", "chemistry_analysis", "fundraise", "expert_appraise"],
+      "reward_card": "emergency_fix",
+      "reward_description": "解锁「紧急修复」—— 零费用快速修复，但有代价",
+      "is_tutorial": false,
+      "event_chance": 0.25
+    },
+    {
+      "id": 4,
+      "name": "镇馆之宝",
+      "description": "玉器珍品面临严重隐藏损伤，需要精确的修复策略。",
+      "exhibits": ["jade_artifact", "bronze_statue"],
+      "starting_budget": 10,
+      "max_turns": 12,
+      "deck_cards": ["basic_clean", "deep_repair", "deep_repair", "stabilize", "budget_card", "budget_card", "chemistry_analysis", "uv_inspect", "precision_tool", "expert_appraise", "conservation_law"],
+      "reward_card": "team_collab",
+      "reward_description": "解锁「团队协作」—— 全体修复，应对多目标压力",
+      "is_tutorial": false,
+      "event_chance": 0.30
+    },
+    {
+      "id": 5,
+      "name": "皇冠的秘密",
+      "description": "帝王皇冠是终极挑战！隐藏损伤、持续恶化、多种修复需求……你准备好了吗？",
+      "exhibits": ["imperial_crown", "silk_scroll"],
+      "starting_budget": 12,
+      "max_turns": 14,
+      "deck_cards": ["basic_clean", "deep_repair", "deep_repair", "stabilize", "budget_card", "chemistry_analysis", "uv_inspect", "precision_tool", "emergency_fix", "conservation_law", "expert_appraise", "team_collab"],
+      "reward_card": "restore_master",
+      "reward_description": "解锁「修复大师」—— 完全修复一个展品的终极能力",
+      "is_tutorial": false,
+      "event_chance": 0.35
+    }
+  ]
+}

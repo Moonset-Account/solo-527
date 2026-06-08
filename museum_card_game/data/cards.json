@@ -1,0 +1,144 @@
+{
+  "cards": [
+    {
+      "id": "basic_clean",
+      "name": "基础清洁",
+      "card_type": "tool",
+      "cost": 1,
+      "description": "对展品进行基础清洁，恢复3点状态",
+      "effects": [{"type": "restore", "value": 3}],
+      "rarity": "common",
+      "unlock_level": 0
+    },
+    {
+      "id": "deep_repair",
+      "name": "深度修复",
+      "card_type": "tool",
+      "cost": 2,
+      "description": "对展品进行深度修复，恢复6点状态",
+      "effects": [{"type": "restore", "value": 6}],
+      "rarity": "common",
+      "unlock_level": 0
+    },
+    {
+      "id": "stabilize",
+      "name": "稳固处理",
+      "card_type": "tool",
+      "cost": 1,
+      "description": "暂时阻止展品恶化，本回合不降低状态",
+      "effects": [{"type": "prevent_degradation", "value": 1}],
+      "rarity": "common",
+      "unlock_level": 0
+    },
+    {
+      "id": "budget_card",
+      "name": "追加预算",
+      "card_type": "budget",
+      "cost": 0,
+      "description": "获得2点预算点数",
+      "effects": [{"type": "gain_budget", "value": 2}],
+      "rarity": "common",
+      "unlock_level": 0
+    },
+    {
+      "id": "efficiency_review",
+      "name": "效率审查",
+      "card_type": "budget",
+      "cost": 0,
+      "description": "本回合所有工具卡费用-1",
+      "effects": [{"type": "discount", "value": 1}],
+      "rarity": "uncommon",
+      "unlock_level": 0
+    },
+    {
+      "id": "expert_appraise",
+      "name": "专家鉴定",
+      "card_type": "expert",
+      "cost": 2,
+      "description": "揭示展品隐藏损伤，并修复4点状态",
+      "effects": [{"type": "reveal_hidden", "value": 1}, {"type": "restore", "value": 4}],
+      "rarity": "uncommon",
+      "unlock_level": 0
+    },
+    {
+      "id": "chemistry_analysis",
+      "name": "化学分析",
+      "card_type": "tool",
+      "cost": 1,
+      "description": "标记展品，本回合下一次修复效果+3",
+      "effects": [{"type": "buff_next_restore", "value": 3}],
+      "rarity": "uncommon",
+      "unlock_level": 1
+    },
+    {
+      "id": "uv_inspect",
+      "name": "紫外线检测",
+      "card_type": "tool",
+      "cost": 1,
+      "description": "揭示所有展品的隐藏损伤层数",
+      "effects": [{"type": "reveal_all_hidden", "value": 0}],
+      "rarity": "uncommon",
+      "unlock_level": 2
+    },
+    {
+      "id": "emergency_fix",
+      "name": "紧急修复",
+      "card_type": "tool",
+      "cost": 0,
+      "description": "立即恢复5点状态，但展品下回合额外恶化2点",
+      "effects": [{"type": "restore", "value": 5}, {"type": "add_degradation", "value": 2}],
+      "rarity": "uncommon",
+      "unlock_level": 3
+    },
+    {
+      "id": "team_collab",
+      "name": "团队协作",
+      "card_type": "expert",
+      "cost": 3,
+      "description": "对所有展品各恢复2点状态",
+      "effects": [{"type": "restore_all", "value": 2}],
+      "rarity": "rare",
+      "unlock_level": 4
+    },
+    {
+      "id": "precision_tool",
+      "name": "精密工具",
+      "card_type": "tool",
+      "cost": 2,
+      "description": "对指定展品恢复8点状态，需要目标展品已标记",
+      "effects": [{"type": "restore_if_marked", "value": 8}],
+      "rarity": "rare",
+      "unlock_level": 2
+    },
+    {
+      "id": "conservation_law",
+      "name": "文物保护法",
+      "card_type": "expert",
+      "cost": 2,
+      "description": "本回合所有展品停止恶化",
+      "effects": [{"type": "prevent_all_degradation", "value": 1}],
+      "rarity": "rare",
+      "unlock_level": 3
+    },
+    {
+      "id": "restore_master",
+      "name": "修复大师",
+      "card_type": "expert",
+      "cost": 4,
+      "description": "完全修复一个展品（恢复至满状态）",
+      "effects": [{"type": "full_restore", "value": 0}],
+      "rarity": "rare",
+      "unlock_level": 4
+    },
+    {
+      "id": "fundraise",
+      "name": "募捐活动",
+      "card_type": "budget",
+      "cost": 0,
+      "description": "获得3点预算，但本回合无法使用专家卡",
+      "effects": [{"type": "gain_budget", "value": 3}, {"type": "block_expert", "value": 1}],
+      "rarity": "uncommon",
+      "unlock_level": 1
+    }
+  ]
+}
