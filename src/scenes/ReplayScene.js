@@ -227,20 +227,31 @@ export default class ReplayScene extends Phaser.Scene {
       const sy = node ? node.y + (signalConfig.offsetY || -40) : 0;
       const signal = new Signal({
         ...signalConfig,
-        x: sx, y: sy
+        x: sx, y: sy,
+        mode: signalConfig.mode === 'manual' ? SIGNAL_MODES.MANUAL : SIGNAL_MODES.AUTO,
+        state: this.mapSignalState(signalConfig.state)
       });
       this.gameState.signals.push(signal);
     });
-    level.trains.forEach(trainConfig => {
-      const startNode = this.gameState.nodes[trainConfig.startNodeId];
+    (level.schedules || []).forEach(schedConfig => {
+      const startNode = this.gameState.nodes[schedConfig.startNodeId];
       const train = new Train({
-        ...trainConfig,
+        ...schedConfig,
         x: startNode ? startNode.x : 0,
         y: startNode ? startNode.y : 0,
-        currentNodeId: trainConfig.startNodeId
+        currentNodeId: schedConfig.startNodeId,
+        state: TRAIN_STATES.WAITING
       });
       this.gameState.trains.push(train);
     });
+  }
+
+  mapSignalState(stateStr) {
+    switch (stateStr) {
+      case 'green': return SIGNAL_STATES.GREEN;
+      case 'yellow': return SIGNAL_STATES.YELLOW;
+      case 'red': default: return SIGNAL_STATES.RED;
+    }
   }
 
   buildSegments() {
@@ -406,7 +417,7 @@ export default class ReplayScene extends Phaser.Scene {
   backToResult() {
     this.soundManager.playSFX(SFX_TYPES.CLICK);
     if (this.resultData) {
-      this.scene.start(SCENE_KEYS.RESULT, this.resultData);
+      this.scene.start(SCENE_KEYS.RESULT, { result: this.resultData });
     } else {
       this.scene.start(SCENE_KEYS.MENU);
     }
