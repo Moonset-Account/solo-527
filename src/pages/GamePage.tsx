@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import useGameStore from '@/systems/GameStateManager'
 import chapterManager from '@/systems/ChapterManager'
 import saveManager from '@/systems/SaveManager'
@@ -37,6 +37,7 @@ export default function GamePage() {
   const [notebookOpen, setNotebookOpen] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState<string | null>(null)
   const [clueMissingMessage, setClueMissingMessage] = useState<string | null>(null)
+  const [collectToast, setCollectToast] = useState<string | null>(null)
 
   const prevRoomRef = useRef<string | null>(null)
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -119,7 +120,7 @@ export default function GamePage() {
             const missing = puzzle.requiredClues.filter(id => !collectedClueIds.has(id))
             if (missing.length > 0) {
               soundManager.play('sfx_lock_fail')
-              setClueMissingMessage('线索不足，无法解开此谜题。先收集更多线索吧。')
+              setClueMissingMessage('还缺少关键线索。试试检查房间里的物品，收集更多线索后再来。')
               setTimeout(() => setClueMissingMessage(null), 3000)
               break
             }
@@ -160,8 +161,9 @@ export default function GamePage() {
 
   const handleItemCollect = useCallback(() => {
     soundManager.play('sfx_item_pickup')
+    setCollectToast('线索已收入笔记')
     setNotebookOpen(true)
-    setTimeout(() => setNotebookOpen(false), 2000)
+    setTimeout(() => setCollectToast(null), 2000)
     stopExamining()
   }, [stopExamining])
 
@@ -203,6 +205,7 @@ export default function GamePage() {
 
         setTimeout(() => {
           clearActivePuzzle()
+          clearNarrative()
           navigate(`/settlement/${chapterId}`)
         }, 2500)
       } else {
@@ -211,7 +214,7 @@ export default function GamePage() {
     } else {
       clearActivePuzzle()
     }
-  }, [activePuzzleId, effectiveChapterId, clearActivePuzzle, setNarrativeText, navigate])
+  }, [activePuzzleId, effectiveChapterId, clearActivePuzzle, setNarrativeText, clearNarrative, navigate])
 
   const handlePuzzleClose = useCallback(() => {
     clearActivePuzzle()
@@ -280,6 +283,21 @@ export default function GamePage() {
               {clueMissingMessage}
             </p>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {collectToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg border border-amber-700/40 bg-amber-950/90 backdrop-blur-sm"
+          >
+            <p className="font-serif text-amber-200 text-sm tracking-wide">
+              {collectToast}
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
 

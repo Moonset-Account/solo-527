@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import RoomView from '@/components/game/RoomView'
 import ItemExaminer from '@/components/game/ItemExaminer'
+import NotebookPanel from '@/components/notebook/NotebookPanel'
 import TutorialOverlay from '@/components/tutorial/TutorialOverlay'
 import useGameStore from '@/systems/GameStateManager'
 import analyticsTracker from '@/systems/AnalyticsTracker'
@@ -19,11 +20,14 @@ export default function TutorialPage() {
   const examineItem = useGameStore((s) => s.examineItem)
   const stopExamining = useGameStore((s) => s.stopExamining)
   const itemBeingExamined = useGameStore((s) => s.itemBeingExamined)
+  const notebook = useGameStore((s) => s.notebook)
 
   const [steps] = useState<TutorialStep[]>(
     () => tutorialConfig.steps as TutorialStep[]
   )
   const [currentStep, setCurrentStep] = useState(0)
+  const [notebookOpen, setNotebookOpen] = useState(false)
+  const [collectToast, setCollectToast] = useState<string | null>(null)
 
   const goToChapter1 = useCallback(() => {
     setChapter('chapter1')
@@ -66,6 +70,9 @@ export default function TutorialPage() {
   )
 
   const handleItemCollect = useCallback(() => {
+    setCollectToast('线索已收入笔记')
+    setNotebookOpen(true)
+    setTimeout(() => setCollectToast(null), 2000)
     stopExamining()
   }, [stopExamining])
 
@@ -92,6 +99,26 @@ export default function TutorialPage() {
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {collectToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-lg border border-amber-700/40 bg-amber-950/90 backdrop-blur-sm"
+          >
+            <p className="font-serif text-amber-200 text-sm tracking-wide">
+              {collectToast}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <NotebookPanel
+        isOpen={notebookOpen}
+        onClose={() => setNotebookOpen(false)}
+      />
 
       <TutorialOverlay
         steps={steps}

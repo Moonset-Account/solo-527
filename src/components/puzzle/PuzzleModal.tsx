@@ -93,6 +93,8 @@ export default function PuzzleModal({ puzzleId, onSolve, onClose, onUseHint }: P
     onUseHint()
   }, [puzzleConfig, currentHintLevel, hintPoints, puzzleId, useHintPoint, updatePuzzleState, onUseHint])
 
+  const inputRefs = useState<Array<HTMLInputElement | null>>(() => Array(4).fill(null))[0]
+
   const handleCodeInput = useCallback((index: number, value: string) => {
     const digit = value.replace(/[^0-9]/g, '').slice(-1)
     setInputValues((prev) => {
@@ -100,7 +102,11 @@ export default function PuzzleModal({ puzzleId, onSolve, onClose, onUseHint }: P
       next[index] = digit || '0'
       return next
     })
-  }, [])
+    if (digit && index < inputValues.length - 1) {
+      const nextInput = inputRefs[index + 1]
+      if (nextInput) nextInput.focus()
+    }
+  }, [inputRefs])
 
   const handleWheelUp = useCallback((index: number) => {
     setWheelValues((prev) => {
@@ -183,11 +189,12 @@ export default function PuzzleModal({ puzzleId, onSolve, onClose, onUseHint }: P
                 {inputValues.map((val, i) => (
                   <input
                     key={i}
+                    ref={(el) => { inputRefs[i] = el }}
                     type="text"
                     inputMode="numeric"
-                    maxLength={1}
-                    value={val === '0' && !inputValues[i] ? '' : val}
+                    value={val}
                     onChange={(e) => handleCodeInput(i, e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-14 h-16 text-center text-2xl font-bold text-amber-200 rounded border border-[#5a5040]/80 bg-[#1a1612]/80 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] focus:outline-none focus:border-amber-600/60 focus:shadow-[0_0_12px_rgba(200,168,110,0.2)] transition-all"
                   />
                 ))}

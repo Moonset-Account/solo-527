@@ -43,14 +43,16 @@ export default function NarrativeOverlay({ text, onComplete }: NarrativeOverlayP
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-x-0 bottom-0 z-40 cursor-pointer"
-        onClick={handleClick}
+        className="fixed inset-x-0 bottom-0 z-40 pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="bg-black/60 backdrop-blur-sm px-8 py-6">
+        <div
+          className="bg-black/60 backdrop-blur-sm px-8 py-6 cursor-pointer pointer-events-auto"
+          onClick={handleClick}
+        >
           <p className="font-serif text-lg leading-relaxed text-[#c8a86e] max-w-3xl mx-auto">
             {displayedText}
             {!isComplete && (
