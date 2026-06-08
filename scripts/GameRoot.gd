@@ -1,7 +1,7 @@
 extends Node2D
 class_name GameRoot
 
-@onready var level_manager_node: LevelManager = $LevelManager
+@onready var level_manager_node: LevelManager = null
 @onready var hud_node: GameHUD = $HUD
 @onready var debug_panel_node: DebugPanel = $DebugPanel
 @onready var result_screen_node: ResultScreen = $ResultScreen
@@ -30,13 +30,14 @@ func start_level(level_id_param: int) -> void:
 	current_level_id = level_id_param
 	if level_manager_node:
 		level_manager_node.queue_free()
+		level_manager_node = null
+	GameManager.start_level(level_id_param)
 	var new_lm = load("res://scripts/LevelManager.gd").new()
 	new_lm.name = "LevelManager"
 	new_lm.level_id = level_id_param
 	add_child(new_lm)
 	level_manager_node = new_lm
 	call_deferred("_bind_managers")
-	GameManager.start_level(level_id_param)
 	if pause_panel_node:
 		pause_panel_node.visible = false
 	if result_screen_node:

@@ -373,6 +373,9 @@ func animate_rotation_to(target_deg: float) -> void:
 func get_bounds_rect() -> Rect2:
 	return Rect2(global_position - dimensions * 0.5, dimensions)
 
+func get_global_rect() -> Rect2:
+	return get_bounds_rect()
+
 func overlaps_item(other: PackableItem) -> bool:
 	var a: Rect2 = get_bounds_rect()
 	var b: Rect2 = other.get_bounds_rect()
@@ -385,9 +388,9 @@ func get_weight_on_top(other_item: PackableItem) -> float:
 	var overlap: Rect2 = my_rect.intersection(other_rect)
 	if not overlap.has_area():
 		return 0.0
-	if other.position.y < position.y - dimensions.y * 0.2:
+	if other_item.global_position.y < global_position.y - dimensions.y * 0.2:
 		return other_item.weight * 1.2
-	elif other.position.y < position.y:
+	elif other_item.global_position.y < global_position.y:
 		return other_item.weight * 0.8
 	return 0.0
 
