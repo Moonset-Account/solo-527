@@ -346,6 +346,60 @@ func _ready() -> void:
         return [ok, info]
     , "完整经营流程验证", passed, total)
     
+    # 测试19: SettingsDialog OptionButton切换后标签和操作说明立即刷新
+    _safe_test(func ():
+        var scene = GameAssets.load_scene("res://scenes/ui/SettingsDialog.tscn")
+        if scene == null:
+            return [false, "场景加载失败"]
+        var dlg = scene.instantiate()
+        add_child(dlg)
+        InputMapper.set_input_mode(0)
+        var lbl_before = dlg.current_input_label.text
+        dlg._on_input_mode_selected(2)
+        var lbl_after = dlg.current_input_label.text
+        var hints_changed = (dlg.hints_preview_container != null)
+        var preview_rows_before = 0
+        var preview_rows_after = 0
+        if hints_changed:
+            preview_rows_before = dlg.hints_preview_container.get_child_count()
+        InputMapper.set_input_mode(2)
+        dlg._rebuild_hints_preview()
+        if hints_changed:
+            preview_rows_after = dlg.hints_preview_container.get_child_count()
+        InputMapper.set_input_mode(0)
+        dlg.queue_free()
+        var ok = (lbl_before != lbl_after) and hints_changed and (preview_rows_after > 0)
+        var info = "输入标签切换前: %s\n     切换到手柄后: %s\n" % [lbl_before, lbl_after]
+        info += "   操作说明行数: %d → 手柄模式 %d (都>0说明切换后不会清空)" % [preview_rows_before, preview_rows_after]
+        return [ok, info]
+    , "设置页输入同步刷新", passed, total)
+    
+    # 测试20: DIALOG上下文下切换输入模式 InputHintsBar 不清空并显示经营按键
+    _safe_test(func ():
+        var ihb = load("res://scripts/ui/InputHintsBar.gd").new()
+        add_child(ihb)
+        UIState.set_context(UIState.UIContext.GAME)
+        GameManager.start_new_game("level_1")
+        InputMapper.set_input_mode(0)
+        ihb._update_hints()
+        var game_kb = ihb.input_hints_container.get_child_count()
+        # 切换到 DIALOG 上下文（打开设置对话框时的状态）
+        UIState.set_context(UIState.UIContext.DIALOG)
+        InputMapper.set_input_mode(1)
+        ihb._on_input_mode_changed(1)
+        var dialog_gp = ihb.input_hints_container.get_child_count()
+        # 再切回键鼠模式
+        InputMapper.set_input_mode(0)
+        ihb._on_input_mode_changed(0)
+        var dialog_kb = ihb.input_hints_container.get_child_count()
+        UIState.set_context(UIState.UIContext.GAME)
+        ihb.queue_free()
+        var ok = (game_kb > 0 and dialog_gp > 0 and dialog_kb > 0)
+        var info = "GAME+键鼠: %d个按键提示, DIALOG+手柄: %d个, DIALOG+键鼠: %d个\n" % [game_kb, dialog_gp, dialog_kb]
+        info += "   三种情况都>0: %s (说明对话框打开时切换输入方式不会清空底部提示)" % str(ok)
+        return [ok, info]
+    , "DIALOG输入切换不清空", passed, total)
+    
     print("\n" + _repeat_str("=", 60))
     print("📊 核心系统验证结果: %d / %d 项通过" % [passed[0], total[0]])
     if passed[0] == total[0]:
@@ -355,6 +409,7 @@ func _ready() -> void:
         print("   → 新手引导、经营建议、音频反馈、星级评定正常")
         print("   → 教程跳过、设置对话框、输入提示切换正常")
         print("   → SettingsDialog选项卡挂载、HintsBar刷新、完整流程正常")
+        print("   → 设置页标签同步、对话框打开时不清空底部提示 ✓")
     elif passed[0] >= total[0] - 2:
         print("👍 大部分通过 (%d项), 可能存在小问题" % (passed[0]))
     else:

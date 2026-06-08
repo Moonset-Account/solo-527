@@ -90,7 +90,7 @@ func _get_context_actions() -> Array:
                 {"action": "ui_left", "label": "上一关"},
                 {"action": "ui_right", "label": "下一关"},
             ]
-        UIState.UIContext.GAME:
+        UIState.UIContext.GAME, UIState.UIContext.DIALOG:
             if GameManager.current_phase == GameManager.Phase.PURCHASE:
                 return [
                     {"action": "ui_accept", "label": "选择/购买"},
@@ -110,6 +110,11 @@ func _get_context_actions() -> Array:
             return [
                 {"action": "ui_accept", "label": "调整"},
                 {"action": "ui_cancel", "label": "保存返回"},
+            ]
+        UIState.UIContext.TUTORIAL:
+            return [
+                {"action": "ui_accept", "label": "下一步"},
+                {"action": "ui_cancel", "label": "跳过"},
             ]
     return []
 

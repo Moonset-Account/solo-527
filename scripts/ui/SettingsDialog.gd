@@ -11,6 +11,8 @@ var sfx_volume_slider: HSlider
 var fullscreen_checkbox: CheckBox
 var hints_checkbox: CheckBox
 var input_mode_option: OptionButton
+var current_input_label: Label
+var hints_preview_container: VBoxContainer
 var reset_progress_button: Button
 var close_button: Button
 
@@ -116,9 +118,9 @@ func _build_audio_tab() -> void:
 func _build_input_tab() -> void:
     _add_section_header(input_tab, "输入方式")
     
-    var mode_label = Label.new()
-    mode_label.text = "当前输入: " + InputMapper.get_input_mode_name()
-    input_tab.add_child(mode_label)
+    current_input_label = Label.new()
+    current_input_label.text = "当前输入: " + InputMapper.get_input_mode_name()
+    input_tab.add_child(current_input_label)
     
     var option_label = Label.new()
     option_label.text = "默认输入方式:"
@@ -133,30 +135,38 @@ func _build_input_tab() -> void:
     input_tab.add_child(input_mode_option)
     
     _add_section_header(input_tab, "操作说明")
+    hints_preview_container = VBoxContainer.new()
+    hints_preview_container.add_theme_constant_override("separation", 6)
+    input_tab.add_child(hints_preview_container)
+    _rebuild_hints_preview()
+
+func _rebuild_hints_preview() -> void:
+    if hints_preview_container == null:
+        return
+    for child in hints_preview_container.get_children():
+        child.queue_free()
     var hints = InputMapper.get_all_action_hints()
+    var action_names = {
+        "ui_accept": "确认/选择",
+        "ui_cancel": "取消/返回",
+        "game_purchase": "采购",
+        "game_sell": "销售",
+        "game_inventory": "背包",
+        "game_next_phase": "下一阶段",
+        "game_pause": "暂停",
+        "ui_up": "上",
+        "ui_down": "下",
+        "ui_left": "左",
+        "ui_right": "右"
+    }
     for action in hints.keys():
         var row = HBoxContainer.new()
         row.add_theme_constant_override("separation", 10)
-        input_tab.add_child(row)
-        
-        var action_names = {
-            "ui_accept": "确认/选择",
-            "ui_cancel": "取消/返回",
-            "game_purchase": "采购",
-            "game_sell": "销售",
-            "game_inventory": "背包",
-            "game_next_phase": "下一阶段",
-            "game_pause": "暂停",
-            "ui_up": "上",
-            "ui_down": "下",
-            "ui_left": "左",
-            "ui_right": "右"
-        }
+        hints_preview_container.add_child(row)
         var name_lbl = Label.new()
         name_lbl.text = action_names.get(action, action)
         name_lbl.custom_minimum_size = Vector2(100, 0)
         row.add_child(name_lbl)
-        
         var key_lbl = Label.new()
         key_lbl.text = hints[action]
         key_lbl.modulate = Color(0.3, 0.7, 1.0)
@@ -229,6 +239,9 @@ func _on_input_mode_selected(index: int) -> void:
     SaveManager.update_setting("input_mode", index)
     if index > 0:
         InputMapper.set_input_mode(int(index - 1))
+    if current_input_label != null:
+        current_input_label.text = "当前输入: " + InputMapper.get_input_mode_name()
+    _rebuild_hints_preview()
 
 func _on_reset_progress_pressed() -> void:
     AudioManager.play_sfx("click")
