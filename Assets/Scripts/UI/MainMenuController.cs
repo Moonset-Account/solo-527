@@ -224,7 +224,6 @@ namespace Kitchen.UI
             int playerCount = isSinglePlayerMode ? 1 : Kitchen.Input.InputManager.Instance?.ConnectedPlayers.Count ?? 1;
             if (playerCount < selectedLevel.minPlayers) return;
 
-            GameManager.Instance.ChangeState(GameManager.GameState.Playing);
             PlayerManager.Instance?.ClearAllPlayers();
 
             if (isSinglePlayerMode)

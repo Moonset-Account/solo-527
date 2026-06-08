@@ -199,7 +199,7 @@ namespace Kitchen.Save
 
         private void UnlockNextLevel(int currentOrderIndex)
         {
-            LevelConfig[] allLevels = Resources.LoadAll<LevelConfig>("Config/Levels");
+            LevelConfig[] allLevels = Kitchen.Config.LevelConfigRegistry.GetAllLevels();
             foreach (var lv in allLevels)
             {
                 if (lv.orderIndex == currentOrderIndex + 1)

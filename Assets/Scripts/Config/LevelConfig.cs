@@ -80,4 +80,9 @@ namespace Kitchen.Config
         CrowdedSpace,
         SlipperyFloor
     }
+
+    public static class LevelConfigRegistry
+    {
+        public static System.Func<LevelConfig[]> GetAllLevels = () => new LevelConfig[0];
+    }
 }

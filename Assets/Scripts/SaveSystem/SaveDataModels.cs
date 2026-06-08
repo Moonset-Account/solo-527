@@ -41,6 +41,7 @@ namespace Kitchen.Save
         public float masterVolume = 1f;
         public float musicVolume = 0.8f;
         public float sfxVolume = 1f;
+        public float uiVolume = 1f;
         public int targetFrameRate = 60;
         public bool vsyncEnabled = true;
         public FullScreenMode fullscreenMode = FullScreenMode.FullScreenWindow;
@@ -50,6 +51,8 @@ namespace Kitchen.Save
         public bool showPerformanceStats = false;
         public bool screenShakeEnabled = true;
         public bool subtitlesEnabled = true;
+        public bool rumbleEnabled = true;
+        public bool inputHintsEnabled = true;
         public string language = "zh-CN";
     }
 

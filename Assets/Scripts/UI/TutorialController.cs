@@ -37,12 +37,14 @@ namespace Kitchen.UI
 
         private void OnEnable()
         {
-            GameManager.OnStateChanged += HandleStateChanged;
+            if (GameManager.Instance != null)
+                GameManager.Instance.OnStateChanged += HandleStateChanged;
         }
 
         private void OnDisable()
         {
-            GameManager.OnStateChanged -= HandleStateChanged;
+            if (GameManager.Instance != null)
+                GameManager.Instance.OnStateChanged -= HandleStateChanged;
         }
 
         private void HandleStateChanged(GameManager.GameState oldS, GameManager.GameState newS)

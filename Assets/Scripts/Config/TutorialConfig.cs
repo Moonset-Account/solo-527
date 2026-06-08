@@ -31,6 +31,8 @@ namespace Kitchen.Config
         PressInteract,
         PressMove,
         PickUpIngredient,
+        PlaceItem,
+        DiscardItem,
         ChopIngredient,
         CookIngredient,
         PlateFood,

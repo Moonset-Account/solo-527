@@ -6,8 +6,6 @@ using Kitchen.Save;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Audio;
-
 namespace Kitchen.UI
 {
     public class SettingsMenuController : MonoBehaviour
@@ -36,7 +34,6 @@ namespace Kitchen.UI
         public Toggle showPerfStatsToggle;
 
         [Header("Audio")]
-        public AudioMixer mixer;
         public Slider masterVolumeSlider;
         public Slider musicVolumeSlider;
         public Slider sfxVolumeSlider;
@@ -59,6 +56,27 @@ namespace Kitchen.UI
         public GameObject bindingRowPrefab;
         public Button resetBindingsButton;
         public Button saveBindingsButton;
+
+        [Header("Extra General")]
+        public Toggle showFPS;
+        public Toggle rumbleToggle;
+        public Toggle inputHints;
+        [Header("Extra Graphics")]
+        public Toggle adaptiveQuality;
+        [Header("Extra Input")]
+        public TMP_Dropdown switchPlayerKey;
+        public Slider interactAxisThreshold;
+        public Button resetToDefaults;
+        [Header("Extra Top")]
+        public Button closeButton;
+        [Header("Extra Audio")]
+        public Slider masterVolume;
+        public Slider musicVolume;
+        public Slider sfxVolume;
+        public Slider uiVolume;
+        [Header("Extra Bottom")]
+        public Button applyButton;
+        public Button resetButton;
 
         private SettingsSaveData currentSettings;
         private int selectedPlayerIndex;
@@ -84,6 +102,11 @@ namespace Kitchen.UI
             if (saveBindingsButton != null) saveBindingsButton.onClick.AddListener(SaveBindings);
 
             if (playerSelectDropdown != null) playerSelectDropdown.onValueChanged.AddListener(OnPlayerSelected);
+
+            if (closeButton != null) closeButton.onClick.AddListener(Close);
+            if (applyButton != null) applyButton.onClick.AddListener(() => { SaveToSettings(); });
+            if (resetButton != null) resetButton.onClick.AddListener(() => { currentSettings = new SettingsSaveData(); LoadFromSettings(); });
+            if (resetToDefaults != null) resetToDefaults.onClick.AddListener(ResetBindings);
 
             PopulateGraphicsDropdowns();
             SwitchTab(0);
@@ -136,6 +159,15 @@ namespace Kitchen.UI
             if (vsyncToggle != null) vsyncToggle.isOn = currentSettings.vsyncEnabled;
             if (autoAdaptToggle != null) autoAdaptToggle.isOn = FrameRateAdapter.Instance?.enableAutoAdapt ?? true;
 
+            if (showFPS != null) showFPS.isOn = currentSettings.showPerformanceStats;
+            if (rumbleToggle != null) rumbleToggle.isOn = currentSettings.rumbleEnabled;
+            if (inputHints != null) inputHints.isOn = currentSettings.inputHintsEnabled;
+            if (adaptiveQuality != null) adaptiveQuality.isOn = FrameRateAdapter.Instance?.enableAutoAdapt ?? true;
+            if (masterVolume != null) masterVolume.value = currentSettings.masterVolume;
+            if (musicVolume != null) musicVolume.value = currentSettings.musicVolume;
+            if (sfxVolume != null) sfxVolume.value = currentSettings.sfxVolume;
+            if (uiVolume != null) uiVolume.value = currentSettings.uiVolume;
+
             PopulateBindings(selectedPlayerIndex);
         }
 
@@ -156,12 +188,16 @@ namespace Kitchen.UI
                 currentSettings.targetFrameRate = fps;
             currentSettings.vsyncEnabled = vsyncToggle != null && vsyncToggle.isOn;
 
-            if (mixer != null)
-            {
-                mixer.SetFloat("MasterVol", Mathf.Log10(Mathf.Max(0.001f, currentSettings.masterVolume)) * 20);
-                mixer.SetFloat("MusicVol", Mathf.Log10(Mathf.Max(0.001f, currentSettings.musicVolume)) * 20);
-                mixer.SetFloat("SFXVol", Mathf.Log10(Mathf.Max(0.001f, currentSettings.sfxVolume)) * 20);
-            }
+            AudioListener.volume = currentSettings.masterVolume;
+
+            if (showFPS != null) currentSettings.showPerformanceStats = showFPS.isOn;
+            if (rumbleToggle != null) currentSettings.rumbleEnabled = rumbleToggle.isOn;
+            if (inputHints != null) currentSettings.inputHintsEnabled = inputHints.isOn;
+            if (masterVolume != null) currentSettings.masterVolume = masterVolume.value;
+            if (musicVolume != null) currentSettings.musicVolume = musicVolume.value;
+            if (sfxVolume != null) currentSettings.sfxVolume = sfxVolume.value;
+            if (uiVolume != null) currentSettings.uiVolume = uiVolume.value;
+            if (adaptiveQuality != null && FrameRateAdapter.Instance != null) FrameRateAdapter.Instance.enableAutoAdapt = adaptiveQuality.isOn;
 
             SaveManager.Instance?.UpdateSettings(currentSettings);
             SaveManager.Instance?.ApplySettings();

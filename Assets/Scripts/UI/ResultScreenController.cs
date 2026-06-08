@@ -175,7 +175,7 @@ namespace Kitchen.UI
             {
                 foreach (var hazard in level.hazards)
                 {
-                    if (gm.LevelTimer > 0 && gm.levelDurationSeconds - gm.LevelTimer > hazard.triggerTime)
+                    if (gm.LevelTimer > 0 && level.levelDurationSeconds - gm.LevelTimer > hazard.triggerTime)
                     {
                         if (hazard.type == HazardType.Fire) failureSteps.Add("注意火灾！灶台不要长时间离人");
                         if (hazard.type == HazardType.CrowdedSpace) failureSteps.Add("空间受限，尽量避免在狭窄通道堆放");
@@ -204,7 +204,7 @@ namespace Kitchen.UI
         private void UnlockNextLevels(LevelConfig current, bool success, int stars)
         {
             if (!success) return;
-            LevelConfig[] allLevels = Resources.LoadAll<LevelConfig>("Config/Levels");
+            LevelConfig[] allLevels = LevelConfigRegistry.GetAllLevels();
             foreach (var lv in allLevels)
             {
                 if (lv.orderIndex == current.orderIndex + 1)
@@ -229,7 +229,7 @@ namespace Kitchen.UI
         public void OnNextLevel()
         {
             LevelConfig current = GameManager.Instance.currentLevelConfig;
-            LevelConfig[] allLevels = Resources.LoadAll<LevelConfig>("Config/Levels");
+            LevelConfig[] allLevels = LevelConfigRegistry.GetAllLevels();
             LevelConfig next = null;
             foreach (var lv in allLevels)
             {

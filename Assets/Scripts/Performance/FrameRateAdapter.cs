@@ -137,7 +137,7 @@ namespace Kitchen.Performance
         {
             if (PerformanceStats.Instance == null) return;
 
-            float p95 = PerformanceStats.Instance.averageFPS;
+            float p95 = PerformanceStats.Instance.AverageFPS;
             float targetPercent = p95 / (float)targetFramerate;
 
             adaptationLog.Add(p95);

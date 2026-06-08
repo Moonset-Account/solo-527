@@ -1,9 +1,29 @@
 using UnityEngine;
+using Kitchen.Config;
 
 namespace Kitchen.Core
 {
     public class PlayerController : MonoBehaviour
     {
+        private static System.Reflection.MethodInfo _reportAction;
+        private static void TriggerTutorialAction(object action, string id = null)
+        {
+            try
+            {
+                if (_reportAction == null)
+                {
+                    System.Type t = System.Type.GetType("Kitchen.UI.TutorialController, Kitchen.UI");
+                    if (t != null) _reportAction = t.GetMethod("ReportAction", new[] { typeof(TutorialAction), typeof(string) });
+                }
+                if (_reportAction != null)
+                {
+                    UnityEngine.Object[] all = UnityEngine.Object.FindObjectsOfType(System.Type.GetType("Kitchen.UI.TutorialController, Kitchen.UI"));
+                    if (all != null && all.Length > 0) _reportAction.Invoke(all[0], new object[] { action, id });
+                }
+            }
+            catch { }
+        }
+
         [Header("Movement")]
         public float moveSpeed = 5f;
         public float rotationSpeed = 10f;
@@ -60,6 +80,10 @@ namespace Kitchen.Core
         {
             if (!isControllable) return;
             moveInput = input;
+            if (input.sqrMagnitude > 0.01f)
+            {
+                TriggerTutorialAction(TutorialAction.PressMove);
+            }
         }
 
         public void TryInteract()
@@ -68,6 +92,7 @@ namespace Kitchen.Core
 
             if (currentInteractable != null)
             {
+                TriggerTutorialAction(TutorialAction.PressInteract);
                 currentInteractable.Interact(this);
             }
             else if (isHoldingItem)
@@ -84,6 +109,7 @@ namespace Kitchen.Core
             item.transform.SetParent(holdPoint);
             item.transform.localPosition = Vector3.zero;
             item.transform.localRotation = Quaternion.identity;
+            TriggerTutorialAction(TutorialAction.PickUpIngredient);
             return true;
         }
 
@@ -94,11 +120,13 @@ namespace Kitchen.Core
             heldItem = null;
             isHoldingItem = false;
             item.transform.SetParent(null);
+            TriggerTutorialAction(TutorialAction.PlaceItem);
             return item;
         }
 
         private void DropHeldItem()
         {
+            TriggerTutorialAction(TutorialAction.DiscardItem);
             if (!isHoldingItem) return;
             heldItem.transform.SetParent(null);
             heldItem = null;

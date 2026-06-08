@@ -3,7 +3,6 @@
     "rootNamespace": "Kitchen.Core",
     "references": [
         "Kitchen.Config",
-        "Kitchen.Input",
         "Kitchen.Save",
         "Kitchen.Performance"
     ],

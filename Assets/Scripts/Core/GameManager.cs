@@ -9,6 +9,8 @@ namespace Kitchen.Core
     {
         public static GameManager Instance { get; private set; }
 
+        public static Func<LevelConfig[]> GetAllConfiguredLevels = () => new LevelConfig[0];
+
         public enum GameState
         {
             Boot,
