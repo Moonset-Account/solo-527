@@ -17,6 +17,8 @@ namespace LakeNavigation
         private GameConfig _gameConfig;
 
         private const float DockProximityRadius = 1.0f;
+        private float _lastDockWarningTime;
+        private const float DockWarningCooldown = 5f;
 
         private void Awake()
         {
@@ -177,15 +179,7 @@ namespace LakeNavigation
 
             if (atDock)
             {
-                if (_missionManager != null && _missionManager.AreAllRequiredMissionsCompleted())
-                {
-                    _missionManager.CompleteDockObjective();
-                    CompleteLevel();
-                }
-                else
-                {
-                    FailLevel(FailReason.MissionFailed);
-                }
+                HandleDockArrival();
             }
         }
 
@@ -265,35 +259,51 @@ namespace LakeNavigation
             }
         }
 
-        private float _lastDockWarningTime;
-        private const float DockWarningCooldown = 5f;
-
         private void OnDockReached(Vector2 dockPosition)
+        {
+            HandleDockArrival();
+        }
+
+        private void HandleDockArrival()
         {
             if (GameManager.Instance.CurrentState != GameState.Sailing)
                 return;
 
             if (_missionManager == null) return;
 
+            _missionManager.CompleteDockObjective();
+
             if (_missionManager.AreAllRequiredMissionsCompleted())
             {
-                _missionManager.CompleteDockObjective();
                 CompleteLevel();
             }
             else
             {
-                if (Time.time - _lastDockWarningTime < DockWarningCooldown) return;
-                _lastDockWarningTime = Time.time;
-                int remaining = 0;
-                foreach (var target in _missionManager.photoTargets)
-                {
-                    if (target.IsRequired && !target.IsCompleted) remaining++;
-                }
-                var hud = UIManager.Instance?.GetPanel<HUDPanel>();
-                if (hud != null)
-                {
-                    hud.ShowWarning("Complete " + remaining + " required photo(s) before returning to dock!", 3f);
-                }
+                ShowIncompleteMissionsWarning();
+            }
+        }
+
+        private void ShowIncompleteMissionsWarning()
+        {
+            if (Time.time - _lastDockWarningTime < DockWarningCooldown) return;
+            _lastDockWarningTime = Time.time;
+
+            int remainingPhotos = 0;
+            foreach (var target in _missionManager.photoTargets)
+            {
+                if (target.IsRequired && !target.IsCompleted) remainingPhotos++;
+            }
+
+            string msg;
+            if (remainingPhotos > 0)
+                msg = remainingPhotos + " required photo(s) remaining! Sail to the target and press [SPACE].";
+            else
+                msg = "Some required objectives are not yet complete!";
+
+            var hud = UIManager.Instance?.GetPanel<HUDPanel>();
+            if (hud != null)
+            {
+                hud.ShowWarning(msg, 4f);
             }
         }
 
