@@ -79,6 +79,17 @@ namespace DecorMatch3
         public void LoadLevel(int levelId)
         {
             CurrentLevelId = levelId;
+            Scene currentScene = SceneManager.GetActiveScene();
+            if (currentScene.name == "Gameplay")
+            {
+                var boot = FindObjectOfType<GameplayBootstrapper>();
+                if (boot != null)
+                {
+                    boot.LaunchLevel(levelId);
+                    ChangeState(GameState.Playing);
+                    return;
+                }
+            }
             StartCoroutine(LoadSceneAndStart("Gameplay", () =>
             {
                 var boot = FindObjectOfType<GameplayBootstrapper>();
@@ -94,6 +105,17 @@ namespace DecorMatch3
         public void LoadDecoration(int levelId)
         {
             CurrentLevelId = levelId;
+            Scene currentScene = SceneManager.GetActiveScene();
+            if (currentScene.name == "Gameplay")
+            {
+                var boot = FindObjectOfType<GameplayBootstrapper>();
+                if (boot != null)
+                {
+                    boot.LaunchDecoration(levelId);
+                    ChangeState(GameState.Decoration);
+                    return;
+                }
+            }
             StartCoroutine(LoadSceneAndStart("Gameplay", () =>
             {
                 var boot = FindObjectOfType<GameplayBootstrapper>();

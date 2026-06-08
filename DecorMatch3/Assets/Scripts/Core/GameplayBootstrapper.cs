@@ -32,6 +32,7 @@ namespace DecorMatch3
 
         public void LaunchLevel(int levelId)
         {
+            EnsureCanvasAndCamera();
             _currentLevelId = levelId;
             _currentConfig = ConfigManager.Instance?.GetLevel(levelId);
             if (_currentConfig == null)
@@ -53,6 +54,7 @@ namespace DecorMatch3
 
         public void LaunchDecoration(int levelId)
         {
+            EnsureCanvasAndCamera();
             _currentLevelId = levelId;
             ClearGameplayUI();
             BuildDecorationUI(levelId);

@@ -20,7 +20,7 @@ namespace DecorMatch3
 
             if (_continuePanel != null)
             {
-                _continuePanel.SetActive(SaveManager.Instance != null && SaveManager.Instance.HasSave());
+                _continuePanel.SetActive(SaveManager.Instance != null && SaveManager.Instance.HasSave);
             }
         }
 

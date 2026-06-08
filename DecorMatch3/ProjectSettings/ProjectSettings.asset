@@ -1,0 +1,92 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 23
+  productGUID: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
+  AndroidProfiler: 0
+  AndroidFilterTouchesWhenObscured: 0
+  AndroidEnableSustainedPerformanceMode: 0
+  defaultScreenOrientation: 3
+  targetDevice: 2
+  useOnDemandResources: 0
+  accelerometerFrequency: 60
+  companyName: DecorMatch3
+  productName: "\u88C5\u4FEE\u914D\u8272\u4E09\u6D88"
+  defaultCursor: {fileID: 0}
+  cursorHotspot: {x: 0, y: 0}
+  m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+  m_ShowUnitySplashScreen: 1
+  m_ShowUnitySplashLogo: 1
+  m_SplashScreenOverlayOpacity: 1
+  m_SplashScreenAnimation: 1
+  m_SplashScreenLogoStyle: 1
+  m_SplashScreenDrawMode: 0
+  m_CustomSplashScreenBackground: {fileID: 0}
+  m_StartInFullscreen: 1
+  m_RenderingPath: 1
+  m_MobileRenderingPath: 1
+  m_NumFullscreenModes: 3
+  m_DefaultScreenWidth: 1920
+  m_DefaultScreenHeight: 1080
+  m_DefaultScreenWidthWeb: 960
+  m_DefaultScreenHeightWeb: 600
+  m_StereoRenderingPath: 0
+  m_ActiveColorSpace: 0
+  m_MTRendering: 1
+  mipStripping: 0
+  numberOfMipsStripped: 0
+  m_StackTraceTypes: 010000000100000001000000010000000100000001000000
+  iosShowActivityIndicatorOnLoading: -1
+  androidShowActivityIndicatorOnLoading: -1
+  displayResolutionDialog: 1
+  iosAppInBackgroundBehavior: 0
+  validateXcodeSchemas: 1
+  useCustomMainManifest: 0
+  bundleVersion: 0.1
+  preloadedAssets: []
+  metroInputSource: 0
+  wsaTransparentSwapchain: 0
+  m_HolographicPauseOnTrackingLoss: 1
+  xboxOneDisableKinectGpuReservation: 1
+  xboxOneEnable7thCore: 1
+  vrSettings:
+    enable360StereoCapture: 0
+  isWsaHolographicRemotingEnabled: 0
+  protectGraphicsMemory: 0
+  enableFrameTimingStats: 0
+  useHDRDisplay: 0
+  D3DHDRBitDepth: 0
+  m_ColorGamuts: 00000000
+  targetPixelDensity: 30
+  resolutionScalingMode: 0
+  resetResolutionOnWindowResize: 0
+  forceSingleInstance: 0
+  managedStrippingLevel: 1
+  scriptingBackend: 0
+  il2cppCompilerConfiguration: 0
+  managedStackTraceLogType: 0
+  incrementalIl2cppBuild: {}
+  il2cppCodeGeneration: {}
+  allowUnsafeCode: 0
+  useDeterministicCompilation: 1
+  additionalIl2CppArgs: 
+  scriptingRuntimeVersion: 1
+  gcIncremental: 0
+  gcWBarrierValidation: 0
+  apiCompatibilityLevel: 3
+  m_ApiCompatibilityLevel: 3
+  m_ConfigurableApiCompatibilityLevels: {}
+  m_TargetPlatform: 7
+  m_CustomTargetPlatform: 
+  m_ScriptingDefineSymbols: {}
+  m_ForceFileSystem: 0
+  m_StrippingLevel: 0
+  m_StrippingStrigs: {}
+  m_InternalBuildId: 0
+  m_SpritePackerPadding: 4
+  m_SpriteAtlasRequired: 0
+  m_SpriteAtlasCozySettings: {}
+  m_BuildDate: 
+  m_GamepadSupportLevel: 0

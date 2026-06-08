@@ -11,6 +11,20 @@ namespace DecorMatch3
         private void Start()
         {
             Setup();
+            GameEvents.OnStateChanged += OnStateChanged;
+        }
+
+        private void OnStateChanged(GameState state)
+        {
+            switch (state)
+            {
+                case GameState.LevelSelect:
+                    BuildLevelSelectUI();
+                    break;
+                case GameState.Settings:
+                    BuildSettingsUI();
+                    break;
+            }
         }
 
         public void Setup()
@@ -72,7 +86,6 @@ namespace DecorMatch3
             {
                 PlayClick();
                 GameManager.Instance.ChangeState(GameState.LevelSelect);
-                BuildLevelSelectUI();
             });
             continueBtn.SetActive(hasSave);
 
@@ -80,7 +93,7 @@ namespace DecorMatch3
             settingsBtn.GetComponent<Button>().onClick.AddListener(() =>
             {
                 PlayClick();
-                BuildSettingsUI();
+                GameManager.Instance.ChangeState(GameState.Settings);
             });
 
             GameObject quitBtn = CreateButton("QuitBtn", panel.transform, "退出", 150);
@@ -171,6 +184,9 @@ namespace DecorMatch3
 
         private void BuildSettingsUI()
         {
+            GameObject mainPanel = _canvas.transform.Find("MainMenuPanel")?.gameObject;
+            if (mainPanel != null) mainPanel.SetActive(false);
+
             GameObject panel = CreatePanel("SettingsPanel", _canvas.transform);
 
             GameObject titleObj = CreateText("Title", panel.transform, "设置", 30, Color.white);
@@ -191,6 +207,9 @@ namespace DecorMatch3
                 PlayClick();
                 SaveManager.Instance?.Save();
                 Destroy(panel);
+                GameObject mainPanel = _canvas.transform.Find("MainMenuPanel")?.gameObject;
+                if (mainPanel != null) mainPanel.SetActive(true);
+                GameManager.Instance.ChangeState(GameState.MainMenu);
             });
         }
 
@@ -260,6 +279,11 @@ namespace DecorMatch3
             {
                 AudioManager.Instance.PlaySFX("button_click");
             }
+        }
+
+        private void OnDestroy()
+        {
+            GameEvents.OnStateChanged -= OnStateChanged;
         }
     }
 }
