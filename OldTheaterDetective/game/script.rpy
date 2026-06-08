@@ -158,6 +158,7 @@ label ch1_start:
     jump ch1_hub
 
 label ch1_hub:
+    $ _return_hub = "ch1_hub"
     $ _ch1_complete = store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH1)
 
     menu ch1_hub_menu:
@@ -202,7 +203,7 @@ label ch1_lobby:
             detective "售票台抽屉里有一张写着'今晚行动'的字条。"
             jump ch1_lobby_menu
         "返回":
-            jump ch1_hub
+            jump scene_return
 
 label ch1_stage:
     scene bg_stage with fade
@@ -217,7 +218,7 @@ label ch1_stage:
             detective "右侧幕布后有拖拽痕迹，有人把重物从这里拖走了。"
             jump ch1_stage_menu
         "返回":
-            jump ch1_hub
+            jump scene_return
 
 label ch1_backstage:
     scene bg_backstage with fade
@@ -232,7 +233,7 @@ label ch1_backstage:
             detective "配电箱在19:30到20:00间被关过。工具箱曾被道具主管借走，内有撬锁工具。"
             jump ch1_backstage_menu
         "返回":
-            jump ch1_hub
+            jump scene_return
 
 label ch1_dressing_room:
     scene bg_dressing_room with fade
@@ -248,7 +249,7 @@ label ch1_dressing_room:
             detective "衣柜里有一件沾了灰的演出服，似乎最近被穿过。口袋里有些碎屑。"
             jump ch1_dressing_menu
         "返回":
-            jump ch1_hub
+            jump scene_return
 
 label ch1_prop_room:
     scene bg_prop_room with fade
@@ -265,7 +266,8 @@ label ch1_prop_room:
             detective "工作台上有制作复制品的工具和材料。一个复制品王冠已经完成了！但真品在哪里？"
             jump ch1_prop_menu
         "返回":
-            jump ch1_hub
+            jump scene_return
+
 
 label ch1_settlement:
     $ result = store.settlement_system.calculate_chapter_score(LevelConfig.CHAPTER_CH1)
@@ -274,6 +276,7 @@ label ch1_settlement:
     narrator "第一章完成！"
     narrator "证据收集：[result['evidence_found']] / [result['evidence_total']]"
     narrator "矛盾发现：[result['contradictions_found']]"
+    narrator "线索连接：[result['connections_made']]"
     narrator "评分：[result['total_score']] 分 —— 等级 [result['grade']]"
 
     jump ch2_start
@@ -294,6 +297,7 @@ label ch2_start:
     jump ch2_hub
 
 label ch2_hub:
+    $ _return_hub = "ch2_hub"
     $ _ch2_complete = store.level_config.is_chapter_complete(LevelConfig.CHAPTER_CH2)
 
     menu ch2_hub_menu:
@@ -346,7 +350,7 @@ label ch2_scene_hub:
         "道具室":
             jump ch1_prop_room
         "返回审讯":
-            jump ch2_hub
+            jump interview_return
 
 label ch2_interview_director:
     scene bg_lobby with fade
@@ -370,7 +374,7 @@ label ch2_interview_director:
         "结束审讯":
             $ store.suspicion_system.mark_interrogated("director")
             narrator "导演的说辞有些地方值得推敲，需要更多证据来验证。"
-            jump ch2_hub
+            jump interview_return
 
 label ch2_interview_actress:
     scene bg_dressing_room with fade
@@ -393,7 +397,7 @@ label ch2_interview_actress:
         "结束审讯":
             $ store.suspicion_system.mark_interrogated("actress")
             narrator "林雪薇看起来很紧张，但她的话似乎也有几分道理。"
-            jump ch2_hub
+            jump interview_return
 
 label ch2_interview_stagehand:
     scene bg_backstage with fade
@@ -417,7 +421,7 @@ label ch2_interview_stagehand:
         "结束审讯":
             $ store.suspicion_system.mark_interrogated("stagehand")
             narrator "赵大勇的反应很激烈，他似乎在隐藏什么，也可能只是不想被冤枉。"
-            jump ch2_hub
+            jump interview_return
 
 label ch2_interview_props_master:
     scene bg_prop_room with fade
@@ -442,7 +446,7 @@ label ch2_interview_props_master:
         "结束审讯":
             $ store.suspicion_system.mark_interrogated("props_master")
             narrator "王芝兰在推卸责任，但她说导演让她做复制品——这又是另一条线索。"
-            jump ch2_hub
+            jump interview_return
 
 label ch2_settlement:
     $ result = store.settlement_system.calculate_chapter_score(LevelConfig.CHAPTER_CH2)
@@ -480,6 +484,12 @@ label ch3_hub:
             jump ch3_confront_stagehand
         "用证据对质道具主管" if store.suspicion_system.suspects["props_master"]["interrogated"]:
             jump ch3_confront_props_master
+        "审讯尚未问话的嫌疑人" if not store.suspicion_system.suspects["director"]["interrogated"] or not store.suspicion_system.suspects["actress"]["interrogated"] or not store.suspicion_system.suspects["stagehand"]["interrogated"] or not store.suspicion_system.suspects["props_master"]["interrogated"]:
+            jump ch3_interview_hub
+        "重新审讯嫌疑人":
+            jump ch3_interview_hub
+        "继续调查场景":
+            jump ch3_scene_hub
         "查看嫌疑板 [S]":
             call screen suspicion_board
             jump ch3_hub
@@ -500,6 +510,36 @@ label ch3_hub:
             jump ch3_settlement
 
     jump ch3_hub
+
+label ch3_interview_hub:
+    $ _return_hub = "ch3_hub"
+    menu ch3_interview_menu:
+        "审讯导演·陈明远":
+            jump ch2_interview_director
+        "审讯女主角·林雪薇":
+            jump ch2_interview_actress
+        "审讯舞台工人·赵大勇":
+            jump ch2_interview_stagehand
+        "审讯道具主管·王芝兰":
+            jump ch2_interview_props_master
+        "返回质证菜单":
+            jump ch3_hub
+
+label ch3_scene_hub:
+    $ _return_hub = "ch3_hub"
+    menu ch3_scene_menu:
+        "大厅":
+            jump ch1_lobby
+        "舞台":
+            jump ch1_stage
+        "后台":
+            jump ch1_backstage
+        "化妆间":
+            jump ch1_dressing_room
+        "道具室":
+            jump ch1_prop_room
+        "返回质证菜单":
+            $ renpy.jump("ch3_hub")
 
 label ch3_confront_director:
     scene bg_lobby with fade
@@ -769,6 +809,12 @@ label ending_bad:
             jump ch4_accusation
         "接受结局":
             jump game_end
+
+label interview_return:
+    $ renpy.jump(_return_hub)
+
+label scene_return:
+    $ renpy.jump(_return_hub)
 
 label game_end:
     $ final = store.settlement_system.calculate_final_score()

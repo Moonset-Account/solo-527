@@ -2,23 +2,169 @@ screen evidence_board():
     tag overlay
     zorder 100
 
+    default _connect_mode = False
+    default _selected_a = None
+    default _selected_b = None
+    default _connect_result = None
+
     frame:
         xalign 0.5
         yalign 0.5
-        xsize 1000
-        ysize 650
+        xsize 1100
+        ysize 720
         background "#1a1a2e"
 
         vbox:
             xalign 0.5
             yalign 0.5
-            spacing 10
+            spacing 8
 
-            text "证据板" size 28 color "#e0e0ff" xalign 0.5
+            hbox:
+                xalign 0.5
+                spacing 20
+                text "证据板" size 28 color "#e0e0ff"
+                text "已连接：{0}".format(store.evidence_board.get_connection_count()) size 18 color "#888888" yalign 0.5
+
+            if _connect_mode:
+                frame:
+                    xsize 1060
+                    background "#5c1a1a"
+                    padding (15, 8)
+
+                    vbox:
+                        spacing 4
+                        text "连接线索模式" size 18 color "#ff6b6b"
+                        if _selected_a is None:
+                            text "请选择第一条证据" size 14 color "#ffd700"
+                        elif _selected_b is None:
+                            $ ev_a = store.evidence_board.evidence.get(_selected_a, {})
+                            text "已选：{0}  —  请选择第二条证据".format(ev_a.get("name", _selected_a)) size 14 color "#ffd700"
+                        else:
+                            $ ev_a = store.evidence_board.evidence.get(_selected_a, {})
+                            $ ev_b = store.evidence_board.evidence.get(_selected_b, {})
+                            text "已选：{0}  ←→  {1}".format(ev_a.get("name", ""), ev_b.get("name", "")) size 14 color "#ffd700"
+            elif _connect_result is not None:
+                frame:
+                    xsize 1060
+                    background "#1a5c1a" if _connect_result.get("success") else "#5c1a1a"
+                    padding (15, 8)
+
+                    vbox:
+                        spacing 4
+                        if _connect_result.get("success"):
+                            $ type_labels = {"corroborate": "印证", "contradict": "矛盾", "causal": "因果", "location": "地点"}
+                            text "连接成功！[{0}] {1}".format(type_labels.get(_connect_result["type"], ""), _connect_result["title"]) size 18 color "#6bff6b"
+                            text _connect_result["description"] size 14 color "#e0e0ff"
+                            if _connect_result.get("insight"):
+                                text "💡 {0}".format(_connect_result["insight"]) size 14 color "#ffd700"
+                        else:
+                            $ reason_labels = {"already_connected": "这两条证据已经连接过了", "invalid_connection": "这两条证据之间没有发现直接关联", "same_evidence": "不能连接同一条证据"}
+                            text reason_labels.get(_connect_result.get("reason"), "无法连接") size 18 color "#ff6b6b"
+                            text "再试试其他组合吧。" size 14 color "#c8c8c8"
+
+            hbox:
+                xsize 1060
+                spacing 8
+
+                frame:
+                    xsize 520
+                    ysize 460
+                    background "#16213e"
+
+                    vbox:
+                        spacing 4
+                        text "已发现证据" size 16 color "#e0e0ff" xalign 0.5
+
+                        viewport:
+                            scrollbars "vertical"
+                            mousewheel True
+                            ysize 410
+
+                            vbox:
+                                spacing 4
+                                xsize 500
+
+                                for evid in store.evidence_board.get_discovered():
+                                    $ is_sel = (_selected_a == evid["id"]) or (_selected_b == evid["id"])
+                                    $ sel_bg = "#3d1a5c" if is_sel else "#0f3460"
+
+                                    if _connect_mode:
+                                        button:
+                                            background sel_bg
+                                            xsize 490
+                                            padding (12, 8)
+
+                                            action [
+                                                SetScreenVariable("_selected_a", evid["id"]) if _selected_a is None else (
+                                                    SetScreenVariable("_selected_b", evid["id"]) if _selected_b is None and evid["id"] != _selected_a else (
+                                                        SetScreenVariable("_selected_b", None)
+                                                    )
+                                                )
+                                            ]
+
+                                            vbox:
+                                                spacing 2
+                                                text evid["name"] size 18 color "#ffd700"
+                                                text evid["description"] size 13 color "#c8c8c8"
+                                                text "地点：{0} | 时间：{1}".format(evid.get("location", "未知"), evid.get("timestamp", "未知")) size 11 color "#888888"
+                                    else:
+                                        frame:
+                                            background sel_bg
+                                            xsize 490
+                                            padding (12, 8)
+
+                                            vbox:
+                                                spacing 2
+                                                text evid["name"] size 18 color "#ffd700"
+                                                text evid["description"] size 13 color "#c8c8c8"
+                                                text "地点：{0} | 时间：{1}".format(evid.get("location", "未知"), evid.get("timestamp", "未知")) size 11 color "#888888"
+
+                frame:
+                    xsize 520
+                    ysize 460
+                    background "#16213e"
+
+                    vbox:
+                        spacing 4
+                        text "已建立的连接" size 16 color "#e0e0ff" xalign 0.5
+
+                        viewport:
+                            scrollbars "vertical"
+                            mousewheel True
+                            ysize 410
+
+                            vbox:
+                                spacing 4
+                                xsize 500
+
+                                for conn in store.evidence_board.get_player_connections():
+                                    $ ev_a = store.evidence_board.evidence.get(conn["evidence_a"], {})
+                                    $ ev_b = store.evidence_board.evidence.get(conn["evidence_b"], {})
+                                    $ type_labels = {"corroborate": "印证", "contradict": "矛盾", "causal": "因果", "location": "地点"}
+                                    $ type_colors = {"corroborate": "#6bff6b", "contradict": "#ff6b6b", "causal": "#6bb5ff", "location": "#ffd700"}
+
+                                    frame:
+                                        background "#0f3460"
+                                        xsize 490
+                                        padding (12, 8)
+
+                                        vbox:
+                                            spacing 2
+                                            hbox:
+                                                spacing 8
+                                                text "[{0}]".format(type_labels.get(conn["type"], "")) size 12 color type_colors.get(conn["type"], "#c8c8c8")
+                                                text conn.get("title", "") size 14 color "#ffd700"
+                                            text "{0}  ←→  {1}".format(ev_a.get("name", ""), ev_b.get("name", "")) size 13 color "#c8c8c8"
+                                            text conn["description"] size 12 color "#a0a0a0"
+                                            if conn.get("insight"):
+                                                text "💡 {0}".format(conn["insight"]) size 12 color "#ffe06e"
+
+                                if not store.evidence_board.get_player_connections():
+                                    text "尚未建立任何连接。选择两条证据来发现它们之间的关联。" size 13 color "#888888"
 
             frame:
-                xsize 960
-                ysize 480
+                xsize 1060
+                ysize 70
                 background "#16213e"
 
                 viewport:
@@ -26,37 +172,42 @@ screen evidence_board():
                     mousewheel True
 
                     vbox:
-                        spacing 8
-                        xsize 920
-
-                        for evid in store.evidence_board.get_discovered():
-                            frame:
-                                background "#0f3460"
-                                xsize 900
-                                padding (15, 10)
-
-                                vbox:
-                                    spacing 4
-                                    text evid["name"] size 20 color "#ffd700"
-                                    text evid["description"] size 15 color "#c8c8c8"
-                                    text "地点：{0} | 时间：{1}".format(evid.get("location", "未知"), evid.get("timestamp", "未知")) size 13 color "#888888"
-
-            frame:
-                background "#0f3460"
-                xsize 960
-                ysize 80
-
-                viewport:
-                    scrollbars "vertical"
-                    mousewheel True
-
-                    vbox:
-                        spacing 4
-                        text "矛盾线索：" size 15 color "#ff6b6b"
+                        spacing 3
+                        text "自动发现的矛盾线索：" size 14 color "#ff6b6b"
                         for contra in store.evidence_board.check_contradictions():
-                            text "◆ {0}".format(contra["description"]) size 13 color "#ff9999"
+                            $ label = " [已连接]" if contra.get("player_connected") else ""
+                            text "◆ {0}{1}".format(contra["description"], label) size 12 color "#ff9999"
+                        if not store.evidence_board.check_contradictions():
+                            text "暂无" size 12 color "#888888"
 
-            textbutton "关闭 [ESC]" action [Hide("evidence_board"), Function(store.ui_state.pop_state)] xalign 0.5
+            hbox:
+                xalign 0.5
+                spacing 15
+
+                if _connect_mode and _selected_a is not None and _selected_b is not None:
+                    textbutton "确认连接" action [
+                        SetScreenVariable("_connect_result", store.evidence_board.try_connect(_selected_a, _selected_b)),
+                        SetScreenVariable("_connect_mode", False),
+                        SetScreenVariable("_selected_a", None),
+                        SetScreenVariable("_selected_b", None),
+                    ]
+                    textbutton "取消" action [
+                        SetScreenVariable("_connect_mode", False),
+                        SetScreenVariable("_selected_a", None),
+                        SetScreenVariable("_selected_b", None),
+                    ]
+                elif not _connect_mode:
+                    textbutton "连接线索" action [
+                        SetScreenVariable("_connect_mode", True),
+                        SetScreenVariable("_selected_a", None),
+                        SetScreenVariable("_selected_b", None),
+                        SetScreenVariable("_connect_result", None),
+                    ]
+
+                textbutton "关闭 [ESC]" action [
+                    Hide("evidence_board"),
+                    Function(store.ui_state.pop_state),
+                ]
 
 screen timeline():
     tag overlay
@@ -177,7 +328,7 @@ screen suspicion_board():
                                         if suspect["alibi_verified"]:
                                             text "不在场已验证" size 13 color "#6bff6b"
                                         else:
-                                            text "不在场未验证" size 13 color "#ff9999"
+                                            text "不在场未验证" size 13 color="#ff9999"
                                     if suspect["evidence_against"]:
                                         text "不利证据：{0}".format(", ".join(suspect["evidence_against"])) size 12 color "#ff9999"
 

@@ -32,19 +32,21 @@ init python:
             req_interrogated = chapter.get("required_suspects_interrogated", 0)
 
             contradictions = store.evidence_board.check_contradictions()
+            player_connections = store.evidence_board.get_connection_count()
 
             hints_used = store.hint_system.get_hints_given_count()
             hint_threshold = chapter.get("hint_threshold", 3)
 
             retry_count = self._retry_counts.get(chapter_id, 0)
 
-            evidence_score = (discovered_in_chapter / max(1, total_evidence_in_chapter)) * 40
-            interrogation_score = min(interrogated / max(1, req_interrogated), 1.0) * 25
-            contradiction_score = min(len(contradictions) / 3.0, 1.0) * 20
+            evidence_score = (discovered_in_chapter / max(1, total_evidence_in_chapter)) * 35
+            interrogation_score = min(interrogated / max(1, req_interrogated), 1.0) * 20
+            contradiction_score = min(len(contradictions) / 3.0, 1.0) * 10
+            connection_score = min(player_connections / 5.0, 1.0) * 20
             hint_penalty = max(0, (hints_used - hint_threshold)) * 3
             retry_penalty = retry_count * 5
 
-            total = max(0, min(100, evidence_score + interrogation_score + contradiction_score - hint_penalty - retry_penalty))
+            total = max(0, min(100, evidence_score + interrogation_score + contradiction_score + connection_score - hint_penalty - retry_penalty))
 
             grade = self.GRADE_C
             if total >= 90:
@@ -60,6 +62,7 @@ init python:
                 "evidence_score": evidence_score,
                 "interrogation_score": interrogation_score,
                 "contradiction_score": contradiction_score,
+                "connection_score": connection_score,
                 "hint_penalty": hint_penalty,
                 "retry_penalty": retry_penalty,
                 "total_score": total,
@@ -69,6 +72,7 @@ init python:
                 "interrogated": interrogated,
                 "interrogated_required": req_interrogated,
                 "contradictions_found": len(contradictions),
+                "connections_made": player_connections,
                 "hints_used": hints_used,
                 "retries": retry_count,
                 "timestamp": time.time(),
