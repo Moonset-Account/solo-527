@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="NightEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/night_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "sonar_interference"
+display_name = "声呐干扰"
+description = "深层洋流产生噪声干扰，声呐效率下降"
+severity = 1
+affected_system = 2
+power_drain = 0
+oxygen_drain = 0
+sonar_drain = 20
+structure_damage = 0
+weight = 0.9
+cooldown_nights = 2
+min_night = 2
+requires_sonar = true

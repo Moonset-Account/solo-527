@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="NightEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/night_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "oxygen_leak"
+display_name = "氧气泄漏"
+description = "密封舱壁出现裂缝，氧气持续外泄"
+severity = 2
+affected_system = 1
+power_drain = 0
+oxygen_drain = 20
+sonar_drain = 0
+structure_damage = 0
+weight = 0.8
+cooldown_nights = 3
+min_night = 1

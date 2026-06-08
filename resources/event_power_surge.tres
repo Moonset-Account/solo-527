@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="NightEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/night_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "power_surge"
+display_name = "电力浪涌"
+description = "海底电缆异常，电力系统受到冲击"
+severity = 1
+affected_system = 0
+power_drain = 15
+oxygen_drain = 0
+sonar_drain = 0
+structure_damage = 0
+weight = 1.0
+cooldown_nights = 2
+min_night = 1

@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://hud"]
+
+[node name="HUD" type="CanvasLayer"]
+
+[node name="NightLabel" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+text = "第 1 夜"

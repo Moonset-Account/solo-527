@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="NightEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/night_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "hull_breach"
+display_name = "船体裂缝"
+description = "深海压力导致灯塔底部出现裂缝"
+severity = 3
+affected_system = 4
+power_drain = 10
+oxygen_drain = 15
+sonar_drain = 0
+structure_damage = 20
+weight = 0.3
+cooldown_nights = 5
+min_night = 4
