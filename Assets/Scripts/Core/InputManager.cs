@@ -51,7 +51,7 @@ namespace TeaGardenDefense.Core
             var save = SaveSystem.Instance;
             if (!save.IsPlayerDataLoaded) return;
 
-            foreach (var kvp in save.PlayerData.inputMappings)
+            foreach (var kvp in save.InputMappings)
             {
                 if (Enum.TryParse<KeyCode>(kvp.Value.primaryKey, out var primary))
                     _primaryKeys[kvp.Key] = primary;

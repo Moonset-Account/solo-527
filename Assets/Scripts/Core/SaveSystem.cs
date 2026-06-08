@@ -30,8 +30,18 @@ namespace TeaGardenDefense.Core
         public event Action<string> OnSaveFailed;
         public event Action<string> OnSaveSuccess;
 
-        public PlayerSaveData PlayerData { get; private set; }
+        private PlayerSaveData _playerData;
+
+        private Dictionary<string, LevelCompletionData> _completedLevels;
+        private Dictionary<string, int> _failureCounts;
+        private Dictionary<string, InputMappingData> _inputMappings;
+
+        public PlayerSaveData PlayerData => _playerData;
         public GameSessionData CurrentSession { get; private set; }
+
+        public Dictionary<string, LevelCompletionData> CompletedLevels => _completedLevels;
+        public Dictionary<string, int> FailureCounts => _failureCounts;
+        public Dictionary<string, InputMappingData> InputMappings => _inputMappings;
 
         public bool IsPlayerDataLoaded { get; private set; }
 
@@ -40,6 +50,9 @@ namespace TeaGardenDefense.Core
             _saveDir = Path.Combine(Application.persistentDataPath, "Saves");
             _playerSavePath = Path.Combine(_saveDir, "player_data.json");
             _gameSessionPath = Path.Combine(_saveDir, "current_session.json");
+            _completedLevels = new Dictionary<string, LevelCompletionData>();
+            _failureCounts = new Dictionary<string, int>();
+            _inputMappings = new Dictionary<string, InputMappingData>();
         }
 
         public void Initialize()
@@ -55,49 +68,65 @@ namespace TeaGardenDefense.Core
         {
             try
             {
+                PlayerSaveData raw = null;
                 if (File.Exists(_playerSavePath))
                 {
                     string encryptedJson = ReadEncrypted(_playerSavePath);
                     if (!string.IsNullOrEmpty(encryptedJson))
                     {
-                        try
-                        {
-                            PlayerData = JsonUtility.FromJson<PlayerSaveData>(encryptedJson);
-                        }
-                        catch
-                        {
-                            PlayerData = CreateDefaultPlayerData();
-                        }
+                        try { raw = JsonUtility.FromJson<PlayerSaveData>(encryptedJson); }
+                        catch { raw = null; }
                     }
-                    else
-                    {
-                        PlayerData = CreateDefaultPlayerData();
-                    }
-                }
-                else
-                {
-                    PlayerData = CreateDefaultPlayerData();
-                    SavePlayerData();
                 }
 
-                if (PlayerData == null)
+                if (raw == null)
                 {
-                    PlayerData = CreateDefaultPlayerData();
+                    raw = CreateDefaultPlayerData();
                 }
-                if (PlayerData.unlockedLevels == null) PlayerData.unlockedLevels = new List<string>();
-                if (PlayerData.completedLevels == null) PlayerData.completedLevels = new Dictionary<string, LevelCompletionData>();
-                if (PlayerData.failureCounts == null) PlayerData.failureCounts = new Dictionary<string, int>();
-                if (PlayerData.inputMappings == null) PlayerData.inputMappings = new Dictionary<string, InputMappingData>();
-                if (PlayerData.settings == null) PlayerData.settings = new GameSettingsData();
-                if (PlayerData.choiceLogs == null) PlayerData.choiceLogs = new List<ChoiceLogEntry>();
+
+                _playerData = raw;
+
+                if (_playerData.unlockedLevels == null)
+                    _playerData.unlockedLevels = new List<string> { "level_1" };
+                if (_playerData.choiceLogs == null)
+                    _playerData.choiceLogs = new List<ChoiceLogEntry>();
+                if (_playerData.settings == null)
+                    _playerData.settings = CreateDefaultSettings();
+                if (string.IsNullOrEmpty(_playerData.playerId))
+                    _playerData.playerId = Guid.NewGuid().ToString();
+                if (string.IsNullOrEmpty(_playerData.createdTime))
+                    _playerData.createdTime = DateTime.Now.ToString("o");
+
+                _completedLevels = StringKeyValueSerializer.Deserialize<LevelCompletionData>(
+                    _playerData.completedLevelKeys, _playerData.completedLevelValues);
+                _failureCounts = StringKeyValueSerializer.DeserializeInt(
+                    _playerData.failureCountKeys, _playerData.failureCountValues);
+                _inputMappings = StringKeyValueSerializer.Deserialize<InputMappingData>(
+                    _playerData.inputMappingKeys, _playerData.inputMappingValues);
+
+                if (_completedLevels == null) _completedLevels = new Dictionary<string, LevelCompletionData>();
+                if (_failureCounts == null) _failureCounts = new Dictionary<string, int>();
+                if (_inputMappings == null || _inputMappings.Count == 0)
+                    _inputMappings = GetDefaultInputMappings();
+
+                if (_playerData.unlockedLevels.Count == 0)
+                    _playerData.unlockedLevels.Add("level_1");
 
                 IsPlayerDataLoaded = true;
-                OnPlayerDataLoaded?.Invoke(PlayerData);
+                OnPlayerDataLoaded?.Invoke(_playerData);
+
+                if (!File.Exists(_playerSavePath))
+                {
+                    SavePlayerData();
+                }
             }
             catch (Exception e)
             {
-                Debug.LogError($"[Save] 加载玩家数据失败: {e.Message}");
-                PlayerData = CreateDefaultPlayerData();
+                Debug.LogError($"[Save] 加载玩家数据失败: {e.Message}\n{e.StackTrace}");
+                _playerData = CreateDefaultPlayerData();
+                _completedLevels = new Dictionary<string, LevelCompletionData>();
+                _failureCounts = new Dictionary<string, int>();
+                _inputMappings = GetDefaultInputMappings();
                 IsPlayerDataLoaded = true;
                 OnSaveFailed?.Invoke("player_load");
             }
@@ -107,8 +136,16 @@ namespace TeaGardenDefense.Core
         {
             try
             {
-                PlayerData.lastSaveTime = DateTime.Now.ToString("o");
-                string json = JsonUtility.ToJson(PlayerData, true);
+                _playerData.lastSaveTime = DateTime.Now.ToString("o");
+
+                StringKeyValueSerializer.Serialize(_completedLevels,
+                    out _playerData.completedLevelKeys, out _playerData.completedLevelValues);
+                StringKeyValueSerializer.SerializeInt(_failureCounts,
+                    out _playerData.failureCountKeys, out _playerData.failureCountValues);
+                StringKeyValueSerializer.Serialize(_inputMappings,
+                    out _playerData.inputMappingKeys, out _playerData.inputMappingValues);
+
+                string json = JsonUtility.ToJson(_playerData, true);
                 WriteEncrypted(_playerSavePath, json);
                 OnSaveSuccess?.Invoke("player");
             }
@@ -121,54 +158,54 @@ namespace TeaGardenDefense.Core
 
         public bool HasLevelCompleted(string levelId)
         {
-            return PlayerData.completedLevels.ContainsKey(levelId);
+            return _completedLevels.ContainsKey(levelId);
         }
 
         public LevelCompletionData GetLevelCompletion(string levelId)
         {
-            if (PlayerData.completedLevels.TryGetValue(levelId, out var data))
+            if (_completedLevels.TryGetValue(levelId, out var data))
                 return data;
             return null;
         }
 
         public void RecordLevelCompletion(string levelId, LevelCompletionData completionData)
         {
-            if (PlayerData.completedLevels.ContainsKey(levelId))
+            if (_completedLevels.ContainsKey(levelId))
             {
-                var existing = PlayerData.completedLevels[levelId];
+                var existing = _completedLevels[levelId];
                 completionData.bestTimeSeconds = Math.Min(existing.bestTimeSeconds, completionData.bestTimeSeconds);
                 completionData.fewestFailures = Math.Min(existing.fewestFailures, completionData.fewestFailures);
                 completionData.highestScore = Math.Max(existing.highestScore, completionData.highestScore);
                 completionData.playCount = existing.playCount + 1;
                 completionData.starsEarned = Math.Max(existing.starsEarned, completionData.starsEarned);
             }
-            PlayerData.completedLevels[levelId] = completionData;
-            PlayerData.totalPlayTimeSeconds += completionData.bestTimeSeconds;
-            if (!PlayerData.unlockedLevels.Contains(levelId))
-                PlayerData.unlockedLevels.Add(levelId);
+            _completedLevels[levelId] = completionData;
+            _playerData.totalPlayTimeSeconds += completionData.bestTimeSeconds;
+            if (!_playerData.unlockedLevels.Contains(levelId))
+                _playerData.unlockedLevels.Add(levelId);
             SavePlayerData();
         }
 
         public void RecordLevelFailure(string levelId)
         {
-            PlayerData.totalFailures++;
-            if (PlayerData.failureCounts.ContainsKey(levelId))
-                PlayerData.failureCounts[levelId]++;
+            _playerData.totalFailures++;
+            if (_failureCounts.ContainsKey(levelId))
+                _failureCounts[levelId]++;
             else
-                PlayerData.failureCounts[levelId] = 1;
+                _failureCounts[levelId] = 1;
             SavePlayerData();
         }
 
         public void UnlockLevel(string levelId)
         {
-            if (!PlayerData.unlockedLevels.Contains(levelId))
-                PlayerData.unlockedLevels.Add(levelId);
+            if (!_playerData.unlockedLevels.Contains(levelId))
+                _playerData.unlockedLevels.Add(levelId);
             SavePlayerData();
         }
 
         public bool IsLevelUnlocked(string levelId)
         {
-            return PlayerData.unlockedLevels.Contains(levelId);
+            return _playerData.unlockedLevels.Contains(levelId);
         }
 
         public void SaveGameSession(GameSessionData session)
@@ -229,7 +266,7 @@ namespace TeaGardenDefense.Core
 
         public void UpdateInputMapping(string action, KeyCode primaryKey, KeyCode secondaryKey = KeyCode.None)
         {
-            PlayerData.inputMappings[action] = new InputMappingData
+            _inputMappings[action] = new InputMappingData
             {
                 actionName = action,
                 primaryKey = primaryKey.ToString(),
@@ -240,33 +277,33 @@ namespace TeaGardenDefense.Core
 
         public InputMappingData GetInputMapping(string action)
         {
-            if (PlayerData.inputMappings.TryGetValue(action, out var mapping))
+            if (_inputMappings.TryGetValue(action, out var mapping))
                 return mapping;
             return GetDefaultInputMapping(action);
         }
 
         public void UpdateSettings(GameSettingsData settings)
         {
-            PlayerData.settings = settings;
+            _playerData.settings = settings;
             SavePlayerData();
         }
 
         public void RecordChoiceLog(ChoiceLogEntry entry)
         {
-            if (PlayerData.choiceLogs.Count > 1000)
+            if (_playerData.choiceLogs.Count > 1000)
             {
-                PlayerData.choiceLogs.RemoveRange(0, PlayerData.choiceLogs.Count - 1000);
+                _playerData.choiceLogs.RemoveRange(0, _playerData.choiceLogs.Count - 1000);
             }
-            PlayerData.choiceLogs.Add(entry);
+            _playerData.choiceLogs.Add(entry);
         }
 
         public List<ChoiceLogEntry> GetRecentChoices(int count = 50)
         {
-            int total = PlayerData.choiceLogs.Count;
+            int total = _playerData.choiceLogs.Count;
             int start = Math.Max(0, total - count);
             int take = Math.Min(count, total - start);
             if (take <= 0) return new List<ChoiceLogEntry>();
-            return PlayerData.choiceLogs.GetRange(start, take);
+            return _playerData.choiceLogs.GetRange(start, take);
         }
 
         private PlayerSaveData CreateDefaultPlayerData()
@@ -277,28 +314,30 @@ namespace TeaGardenDefense.Core
                 createdTime = DateTime.Now.ToString("o"),
                 lastSaveTime = "",
                 unlockedLevels = new List<string> { "level_1" },
-                completedLevels = new Dictionary<string, LevelCompletionData>(),
-                failureCounts = new Dictionary<string, int>(),
-                inputMappings = GetDefaultInputMappings(),
-                settings = new GameSettingsData
-                {
-                    masterVolume = 1f,
-                    musicVolume = 0.8f,
-                    sfxVolume = 1f,
-                    targetFrameRate = 60,
-                    qualityLevel = 2,
-                    isFullscreen = true,
-                    resolutionWidth = 1920,
-                    resolutionHeight = 1080,
-                    showFPS = true,
-                    showTutorial = true,
-                    timeScale = 1f
-                },
+                settings = CreateDefaultSettings(),
                 totalPlayTimeSeconds = 0,
                 totalFailures = 0,
                 choiceLogs = new List<ChoiceLogEntry>()
             };
             return data;
+        }
+
+        private GameSettingsData CreateDefaultSettings()
+        {
+            return new GameSettingsData
+            {
+                masterVolume = 1f,
+                musicVolume = 0.8f,
+                sfxVolume = 1f,
+                targetFrameRate = 60,
+                qualityLevel = 2,
+                isFullscreen = true,
+                resolutionWidth = 1920,
+                resolutionHeight = 1080,
+                showFPS = true,
+                showTutorial = true,
+                timeScale = 1f
+            };
         }
 
         private Dictionary<string, InputMappingData> GetDefaultInputMappings()
@@ -408,7 +447,10 @@ namespace TeaGardenDefense.Core
             {
                 Directory.Delete(_saveDir, true);
             }
-            PlayerData = CreateDefaultPlayerData();
+            _playerData = CreateDefaultPlayerData();
+            _completedLevels = new Dictionary<string, LevelCompletionData>();
+            _failureCounts = new Dictionary<string, int>();
+            _inputMappings = GetDefaultInputMappings();
             Initialize();
         }
     }
@@ -420,13 +462,58 @@ namespace TeaGardenDefense.Core
         public string createdTime;
         public string lastSaveTime;
         public List<string> unlockedLevels;
-        public SerializableDictionary<string, LevelCompletionData> completedLevels;
-        public SerializableDictionary<string, int> failureCounts;
-        public SerializableDictionary<string, InputMappingData> inputMappings;
         public GameSettingsData settings;
         public double totalPlayTimeSeconds;
         public int totalFailures;
         public List<ChoiceLogEntry> choiceLogs;
+
+        public List<string> completedLevelKeys;
+        public List<LevelCompletionData> completedLevelValues;
+
+        public List<string> failureCountKeys;
+        public List<int> failureCountValues;
+
+        public List<string> inputMappingKeys;
+        public List<InputMappingData> inputMappingValues;
+    }
+
+    public static class StringKeyValueSerializer
+    {
+        public static void Serialize<T>(Dictionary<string, T> dict,
+            out List<string> keys, out List<T> values)
+        {
+            keys = new List<string>();
+            values = new List<T>();
+            if (dict == null) return;
+            foreach (var kvp in dict)
+            {
+                keys.Add(kvp.Key);
+                values.Add(kvp.Value);
+            }
+        }
+
+        public static Dictionary<string, T> Deserialize<T>(List<string> keys, List<T> values)
+        {
+            var result = new Dictionary<string, T>();
+            if (keys == null || values == null) return result;
+            int count = Math.Min(keys.Count, values.Count);
+            for (int i = 0; i < count; i++)
+            {
+                result[keys[i]] = values[i];
+            }
+            return result;
+        }
+
+        public static void SerializeInt(Dictionary<string, int> dict,
+            out List<string> keys, out List<int> values)
+        {
+            Serialize(dict, out keys, out values);
+        }
+
+        public static Dictionary<string, int> DeserializeInt(List<string> keys, List<int> values)
+        {
+            return Deserialize(keys, values);
+        }
     }
 
     [Serializable]
@@ -500,32 +587,5 @@ namespace TeaGardenDefense.Core
         public int goldBefore;
         public int goldAfter;
         public int waveNumber;
-    }
-
-    [Serializable]
-    public class SerializableDictionary<TKey, TValue> : Dictionary<TKey, TValue>, ISerializationCallbackReceiver
-    {
-        [SerializeField] private List<TKey> keys = new List<TKey>();
-        [SerializeField] private List<TValue> values = new List<TValue>();
-
-        public void OnBeforeSerialize()
-        {
-            keys.Clear();
-            values.Clear();
-            foreach (var kvp in this)
-            {
-                keys.Add(kvp.Key);
-                values.Add(kvp.Value);
-            }
-        }
-
-        public void OnAfterDeserialize()
-        {
-            this.Clear();
-            for (int i = 0; i < Math.Min(keys.Count, values.Count); i++)
-            {
-                this[keys[i]] = values[i];
-            }
-        }
     }
 }

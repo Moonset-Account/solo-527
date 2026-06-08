@@ -12,6 +12,16 @@ namespace TeaGardenDefense
         public bool addDebugConsole = true;
         public string startLevelId = "level_1";
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoInitialize()
+        {
+            if (FindObjectOfType<SceneInitializer>() == null)
+            {
+                var go = new GameObject("[SceneInitializer]");
+                go.AddComponent<SceneInitializer>();
+            }
+        }
+
         private void Awake()
         {
             if (addMainCamera && Camera.main == null)

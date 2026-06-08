@@ -121,8 +121,8 @@ namespace TeaGardenDefense.Tests
             Assert(save.PlayerData != null, "PlayerData不为空");
             Assert(!string.IsNullOrEmpty(save.PlayerData.playerId), "玩家ID已生成");
             Assert(save.PlayerData.settings != null, "设置已初始化");
-            Assert(save.PlayerData.inputMappings != null, "输入映射已初始化");
-            Assert(save.PlayerData.inputMappings.Count > 0, $"输入映射不为空 (实际: {save.PlayerData.inputMappings.Count})");
+            Assert(save.InputMappings != null, "输入映射已初始化");
+            Assert(save.InputMappings.Count > 0, $"输入映射不为空 (实际: {save.InputMappings.Count})");
 
             save.OnSaveSuccess += OnSaveSuccess;
             save.OnSaveFailed += OnSaveFailed;
@@ -202,7 +202,7 @@ namespace TeaGardenDefense.Tests
             Assert(mid != end, "中点不同于终点");
 
             float progress = path.GetNormalizedProgress(path.TotalLength * 0.3f);
-            Assert(Mathf.Approximately(progress, 0.3f, 0.01f), "路径进度计算正确");
+            Assert(Mathf.Abs(progress - 0.3f) < 0.01f, "路径进度计算正确");
 
             yield return null;
         }
@@ -317,15 +317,18 @@ namespace TeaGardenDefense.Tests
             var settlement = GameManager.Instance.Settlement;
             Assert(settlement != null, "结算系统存在");
 
-            Settlement.SettlementData data = GameManager.Instance.Settlement.QuickRetryStats();
+            TeaGardenDefense.Core.SettlementData data = GameManager.Instance.Settlement.QuickRetryStats();
             Assert(data != null, "快速统计数据可用");
             Assert(data.levelId == GameManager.Instance.CurrentLevel.levelId, "统计关卡ID匹配");
             Assert(data.totalWaves >= 0, "波次数正常");
             _settlementDataValid = true;
 
-            SaveSystem.Instance.RecordLevelFailure(GameManager.Instance.CurrentLevel.levelId);
-            Assert(SaveSystem.Instance.PlayerData.failureCounts.ContainsKey(GameManager.Instance.CurrentLevel.levelId),
+            string levelId = GameManager.Instance.CurrentLevel.levelId;
+            SaveSystem.Instance.RecordLevelFailure(levelId);
+            Assert(SaveSystem.Instance.FailureCounts.ContainsKey(levelId),
                 "失败计数已记录");
+            Assert(SaveSystem.Instance.FailureCounts[levelId] >= 1,
+                $"失败次数>=1 (实际: {SaveSystem.Instance.FailureCounts[levelId]})");
 
             yield return null;
         }

@@ -140,7 +140,7 @@ namespace TeaGardenDefense
             Debug.Log($"      显示FPS: {save.PlayerData.settings.showFPS}");
             Debug.Log($"      启用教程: {save.PlayerData.settings.showTutorial}");
             Debug.Log($"      目标帧率: {save.PlayerData.settings.targetFrameRate}Hz");
-            Debug.Log($"      输入映射数: {save.PlayerData.inputMappings.Count}");
+            Debug.Log($"      输入映射数: {save.InputMappings.Count}");
             Debug.Log($"      累计失败: {save.PlayerData.totalFailures}次");
             Debug.Log($"      总游戏时长: {save.PlayerData.totalPlayTimeSeconds:F0}秒");
 
@@ -148,7 +148,8 @@ namespace TeaGardenDefense
             save.OnSaveFailed += type => Debug.LogWarning($"[存档] 操作失败: {type}");
 
             save.RecordLevelFailure("level_1");
-            Debug.Log($"      记录失败后: level_1 = {save.PlayerData.failureCounts["level_1"]}次");
+            int failCount = save.FailureCounts.ContainsKey("level_1") ? save.FailureCounts["level_1"] : 0;
+            Debug.Log($"      记录失败后: level_1 = {failCount}次");
 
             Debug.Log($"      关卡1状态: {(save.HasLevelCompleted("level_1") ? "已通关" : "未通关")}");
         }
