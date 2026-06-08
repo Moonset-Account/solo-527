@@ -1,6 +1,6 @@
-#if FALSE
 using System;
 using UnityEngine;
+using YouthTrainingManagement.Config;
 using YouthTrainingManagement.UI;
 
 namespace YouthTrainingManagement.Core
@@ -301,4 +301,3 @@ namespace YouthTrainingManagement.Core
         }
     }
 }
-#endif

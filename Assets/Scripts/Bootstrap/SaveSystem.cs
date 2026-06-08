@@ -4,110 +4,12 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
+using YouthTrainingManagement.Core;
+using YouthTrainingManagement.InputSystem;
 using YouthTrainingManagement.Models;
 
 namespace YouthTrainingManagement.Core
 {
-    [Serializable]
-    public class GameSaveData
-    {
-        public string Version;
-        public long Timestamp;
-        public PlayerModel[] Players;
-        public SeasonModel Season;
-        public FinanceModel Finance;
-        public GameStats Stats;
-        public int TutorialStep;
-        public string Checksum;
-    }
-
-    [Serializable]
-    public class GameSettings
-    {
-        public int TargetFrameRate = 60;
-        public int TargetFramerate { get => TargetFrameRate; set => TargetFrameRate = value; }
-        public float MasterVolume = 1f;
-        public float MusicVolume = 0.7f;
-        public float SFXVolume = 0.8f;
-        public float SfxVolume { get => SFXVolume; set => SFXVolume = value; }
-        public float UIVolume = 1f;
-        public float UiVolume { get => UIVolume; set => UIVolume = value; }
-        public bool ShowTutorialOnFirstLaunch = true;
-        public bool CompletedTutorial = false;
-        public bool HasSeenTutorial { get => CompletedTutorial; set => CompletedTutorial = value; }
-        public bool ShowFPSCounter = true;
-        public bool ShowPerformanceStats { get => ShowFPSCounter; set => ShowFPSCounter = value; }
-        public bool VSyncEnabled = true;
-        public bool VSync { get => VSyncEnabled; set => VSyncEnabled = value; }
-        public float AnimationSpeed = 1f;
-        public float UiAnimationSpeed { get => AnimationSpeed; set => AnimationSpeed = value; }
-        public float ScreenShakeIntensity = 0.5f;
-        public int QualityLevel = 2;
-        public string Language = "en";
-        public YouthTrainingManagement.Models.InputBindings SavedInputBindings = new YouthTrainingManagement.Models.InputBindings();
-
-        [NonSerialized] private Dictionary<GameAction, YouthTrainingManagement.Models.KeyBinding> _bindingsCache;
-        public Dictionary<GameAction, YouthTrainingManagement.Models.KeyBinding> InputBindings
-        {
-            get
-            {
-                if (_bindingsCache != null) return _bindingsCache;
-                _bindingsCache = new Dictionary<GameAction, YouthTrainingManagement.Models.KeyBinding>();
-                if (SavedInputBindings?.Bindings != null)
-                {
-                    foreach (var b in SavedInputBindings.Bindings)
-                    {
-                        if (Enum.TryParse<GameAction>(b.ActionId, true, out var ga) ||
-                            !string.IsNullOrEmpty(b.ActionId) && b.ActionId.Length > 2 &&
-                            Enum.TryParse<GameAction>(System.Threading.Thread.CurrentThread.CurrentCulture.TextInfo.ToTitleCase(b.ActionId.Replace("_","")), true, out ga))
-                        {
-                            _bindingsCache[ga] = new YouthTrainingManagement.Models.KeyBinding { PrimaryKey = b.PrimaryKey, SecondaryKey = b.SecondaryKey };
-                        }
-                    }
-                }
-                return _bindingsCache;
-            }
-            set
-            {
-                _bindingsCache = value;
-                if (value == null) return;
-                SavedInputBindings ??= new YouthTrainingManagement.Models.InputBindings();
-                SavedInputBindings.Bindings.Clear();
-                foreach (var kvp in value)
-                {
-                    SavedInputBindings.Bindings.Add(new YouthTrainingManagement.Models.InputBinding
-                    {
-                        ActionId = kvp.Key.ToString(),
-                        DisplayName = kvp.Key.ToString(),
-                        PrimaryKey = kvp.Value.PrimaryKey,
-                        SecondaryKey = kvp.Value.SecondaryKey,
-                        CanBeRemapped = true,
-                        Category = "General"
-                    });
-                }
-            }
-        }
-
-        public GameSettings Clone()
-        {
-            var clone = (GameSettings)MemberwiseClone();
-            clone.SavedInputBindings = new YouthTrainingManagement.Models.InputBindings();
-            clone._bindingsCache = new Dictionary<GameAction, YouthTrainingManagement.Models.KeyBinding>();
-            if (SavedInputBindings?.Bindings != null)
-                foreach (var b in SavedInputBindings.Bindings)
-                    clone.SavedInputBindings.Bindings.Add(new YouthTrainingManagement.Models.InputBinding
-                    {
-                        ActionId = b.ActionId, DisplayName = b.DisplayName,
-                        PrimaryKey = b.PrimaryKey, SecondaryKey = b.SecondaryKey,
-                        CanBeRemapped = b.CanBeRemapped, Category = b.Category
-                    });
-            foreach (var kvp in InputBindings)
-                clone._bindingsCache[kvp.Key] = kvp.Value;
-            return clone;
-        }
-    }
-
-#if FALSE
     public class SaveSystem
     {
         private readonly GameManager _gameManager;
@@ -132,6 +34,7 @@ namespace YouthTrainingManagement.Core
             {
                 EnsureDirectoryExists();
                 LoadSettings();
+                EnsureDefaultInputBindings();
                 IsInitialized = true;
                 Debug.Log($"SaveSystem initialized. Save path: {_saveFilePath}");
             }
@@ -139,6 +42,15 @@ namespace YouthTrainingManagement.Core
             {
                 Debug.LogError($"Failed to initialize SaveSystem: {ex.Message}");
                 IsInitialized = false;
+            }
+        }
+
+        private void EnsureDefaultInputBindings()
+        {
+            if (_gameManager.Settings?.InputBindings == null || _gameManager.Settings.InputBindings.Count == 0)
+            {
+                _gameManager.Settings.InputBindings = InputManager.GetDefaultBindings();
+                Debug.Log("SaveSystem: Applied default input bindings");
             }
         }
 
@@ -157,12 +69,12 @@ namespace YouthTrainingManagement.Core
                 File.WriteAllText(_saveFilePath, encrypted);
                 SaveSettings();
                 Debug.Log("Game saved successfully.");
-                _gameManager.FeedbackSystem.ShowFeedback("Game Saved", FeedbackType.Info);
+                _gameManager.FeedbackSystem?.ShowFeedback("Game Saved", FeedbackType.Info);
             }
             catch (Exception ex)
             {
                 Debug.LogError($"Failed to save game: {ex.Message}");
-                _gameManager.FeedbackSystem.ShowFeedback("Failed to save game", FeedbackType.Error);
+                _gameManager.FeedbackSystem?.ShowFeedback("Failed to save game", FeedbackType.Error);
             }
         }
 
@@ -188,13 +100,13 @@ namespace YouthTrainingManagement.Core
 
                 ApplySaveData(saveData);
                 Debug.Log("Game loaded successfully.");
-                _gameManager.FeedbackSystem.ShowFeedback("Game Loaded", FeedbackType.Success);
+                _gameManager.FeedbackSystem?.ShowFeedback("Game Loaded", FeedbackType.Success);
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"Failed to load game: {ex.Message}");
-                _gameManager.FeedbackSystem.ShowFeedback("Failed to load game", FeedbackType.Error);
+                _gameManager.FeedbackSystem?.ShowFeedback("Failed to load game", FeedbackType.Error);
                 return false;
             }
         }
@@ -358,5 +270,4 @@ namespace YouthTrainingManagement.Core
             }
         }
     }
-#endif
 }

@@ -2,62 +2,15 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using YouthTrainingManagement.Core;
+using YouthTrainingManagement.Models;
+using M = YouthTrainingManagement.Models;
 
 namespace YouthTrainingManagement.InputSystem
 {
-    [Serializable]
-    public class InputBinding
-    {
-        public string ActionId;
-        public string DisplayName;
-        public KeyCode PrimaryKey;
-        public KeyCode SecondaryKey;
-        public bool CanBeRemapped;
-        public string Category;
-    }
-
-    [Serializable]
-    public class InputBindings
-    {
-        public List<InputBinding> Bindings = new List<InputBinding>();
-    }
-
-    [Serializable]
-    public struct KeyBinding
-    {
-        public KeyCode PrimaryKey;
-        public KeyCode SecondaryKey;
-    }
-
-    public enum GameAction
-    {
-        Pause,
-        OpenSettings,
-        SaveGame,
-        LoadGame,
-        AdvancePhase,
-        SelectAll,
-        DeselectAll,
-        NavigateUp,
-        NavigateDown,
-        NavigateLeft,
-        NavigateRight,
-        Confirm,
-        Cancel,
-        OpenTraining,
-        OpenRecovery,
-        OpenMatch,
-        OpenSquad,
-        OpenFixtures,
-        OpenFinance,
-        QuickSave,
-        QuickLoad
-    }
-
     public class InputManager
     {
         private readonly GameManager _gameManager;
-        private readonly Dictionary<GameAction, InputBinding> _bindings = new Dictionary<GameAction, InputBinding>();
+        private readonly Dictionary<GameAction, M.InputBinding> _bindings = new Dictionary<GameAction, M.InputBinding>();
         private readonly Dictionary<string, GameAction> _actionMap = new Dictionary<string, GameAction>();
 
         public event Action<GameAction> OnActionTriggered;
@@ -105,7 +58,7 @@ namespace YouthTrainingManagement.InputSystem
 
             foreach (var def in defaults)
             {
-                var binding = new InputBinding
+                var binding = new M.InputBinding
                 {
                     ActionId = def.id,
                     DisplayName = def.name,
@@ -141,7 +94,7 @@ namespace YouthTrainingManagement.InputSystem
             _gameManager.Settings.InputBindings.Bindings.Clear();
             foreach (var kvp in _bindings)
             {
-                _gameManager.Settings.InputBindings.Bindings.Add(new InputBinding
+                _gameManager.Settings.InputBindings.Bindings.Add(new M.InputBinding
                 {
                     ActionId = kvp.Value.ActionId,
                     DisplayName = kvp.Value.DisplayName,
@@ -271,12 +224,12 @@ namespace YouthTrainingManagement.InputSystem
             _rebindCallback = null;
         }
 
-        public InputBinding GetBinding(GameAction action)
+        public M.InputBinding GetBinding(GameAction action)
         {
             return _bindings.TryGetValue(action, out var b) ? b : null;
         }
 
-        public IEnumerable<InputBinding> GetBindingsByCategory(string category)
+        public IEnumerable<M.InputBinding> GetBindingsByCategory(string category)
         {
             foreach (var kvp in _bindings)
             {
@@ -302,9 +255,9 @@ namespace YouthTrainingManagement.InputSystem
             _gameManager.FeedbackSystem.ShowFeedback("Input bindings reset to defaults", FeedbackType.Success);
         }
 
-        public static Dictionary<GameAction, KeyBinding> GetDefaultBindings()
+        public static Dictionary<GameAction, M.KeyBinding> GetDefaultBindings()
         {
-            var defaults = new Dictionary<GameAction, KeyBinding>();
+            var defaults = new Dictionary<GameAction, M.KeyBinding>();
             var map = new (GameAction action, KeyCode primary, KeyCode secondary)[]
             {
                 (GameAction.Pause, KeyCode.Escape, KeyCode.P),
@@ -329,7 +282,7 @@ namespace YouthTrainingManagement.InputSystem
                 (GameAction.Cancel, KeyCode.Backspace, KeyCode.Escape),
             };
             foreach (var m in map)
-                defaults[m.action] = new KeyBinding { PrimaryKey = m.primary, SecondaryKey = m.secondary };
+                defaults[m.action] = new M.KeyBinding { PrimaryKey = m.primary, SecondaryKey = m.secondary };
             return defaults;
         }
 
@@ -345,7 +298,7 @@ namespace YouthTrainingManagement.InputSystem
             IsListeningForRebind = true;
         }
 
-        public void SetBindings(Dictionary<GameAction, KeyBinding> bindings)
+        public void SetBindings(Dictionary<GameAction, M.KeyBinding> bindings)
         {
             if (bindings == null) return;
             foreach (var kvp in bindings)

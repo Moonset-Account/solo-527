@@ -1,3 +1,4 @@
+#if FALSE
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -269,3 +270,4 @@ namespace YouthTrainingManagement.Core
         }
     }
 }
+#endif

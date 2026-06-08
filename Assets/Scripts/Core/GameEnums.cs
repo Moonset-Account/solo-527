@@ -81,4 +81,29 @@ namespace YouthTrainingManagement.Core
         Info,
         Achievement
     }
+
+    public enum GameAction
+    {
+        Pause,
+        OpenSettings,
+        SaveGame,
+        LoadGame,
+        AdvancePhase,
+        SelectAll,
+        DeselectAll,
+        NavigateUp,
+        NavigateDown,
+        NavigateLeft,
+        NavigateRight,
+        Confirm,
+        Cancel,
+        OpenTraining,
+        OpenRecovery,
+        OpenMatch,
+        OpenSquad,
+        OpenFixtures,
+        OpenFinance,
+        QuickSave,
+        QuickLoad
+    }
 }

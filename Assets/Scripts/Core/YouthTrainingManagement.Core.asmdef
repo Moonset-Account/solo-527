@@ -2,10 +2,7 @@
     "name": "YouthTrainingManagement.Core",
     "rootNamespace": "YouthTrainingManagement.Core",
     "references": [
-        "YouthTrainingManagement.Models",
-        "YouthTrainingManagement.Utils",
-        "YouthTrainingManagement.InputSystem",
-        "YouthTrainingManagement.Audio"
+        "YouthTrainingManagement.Models"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -13,7 +10,7 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": ["__ASMDEF_DISABLED__"],
+    "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
 }
