@@ -1,0 +1,18 @@
+{
+    "name": "YouthTrainingManagement.Config",
+    "rootNamespace": "YouthTrainingManagement.Config",
+    "references": [
+        "YouthTrainingManagement.Core",
+        "YouthTrainingManagement.Models",
+        "YouthTrainingManagement.Utils"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

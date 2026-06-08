@@ -1,0 +1,22 @@
+{
+    "name": "YouthTrainingManagement.UI",
+    "rootNamespace": "YouthTrainingManagement.UI",
+    "references": [
+        "YouthTrainingManagement.Core",
+        "YouthTrainingManagement.Models",
+        "YouthTrainingManagement.Systems",
+        "YouthTrainingManagement.InputSystem",
+        "YouthTrainingManagement.Audio",
+        "YouthTrainingManagement.Animation",
+        "YouthTrainingManagement.Config"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
