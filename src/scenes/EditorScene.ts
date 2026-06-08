@@ -629,51 +629,42 @@ export class EditorScene extends Phaser.Scene {
     }
 
     const nonTargetShelves = newLevel.bookshelves.filter(s => !s.isTarget);
-    const assignedShelfIds = new Set<string>();
-
-    const allCandidateShelves = newLevel.bookshelves.filter(s => s.id);
+    const occupiedIds = new Set<string>();
+    let hasAssignmentError = false;
 
     newLevel.books.forEach(book => {
-      let shelfForBook = nonTargetShelves.find(
-        s => s.id !== book.correctShelfId && !assignedShelfIds.has(s.id)
-      );
-
-      if (!shelfForBook) {
-        shelfForBook = allCandidateShelves.find(
-          s => s.id !== book.correctShelfId && !assignedShelfIds.has(s.id)
-        );
-      }
-
-      if (!shelfForBook) {
-        shelfForBook = allCandidateShelves.find(
-          s => s.id !== book.correctShelfId
-        );
-      }
-
-      if (shelfForBook) {
-        book.currentShelfId = shelfForBook.id;
-        book.isPlaced = true;
-        if (!shelfForBook.bookId) {
-          shelfForBook.bookId = book.id;
+      if (book.currentShelfId && book.currentShelfId !== book.correctShelfId) {
+        const preAssigned = nonTargetShelves.find(s => s.id === book.currentShelfId);
+        if (preAssigned && !occupiedIds.has(preAssigned.id)) {
+          occupiedIds.add(preAssigned.id);
+          preAssigned.bookId = book.id;
+          book.isPlaced = true;
+          return;
         }
-        assignedShelfIds.add(shelfForBook.id);
+      }
+      book.currentShelfId = undefined;
+      book.isPlaced = false;
+      const freeShelf = nonTargetShelves.find(s => !occupiedIds.has(s.id));
+      if (freeShelf) {
+        book.currentShelfId = freeShelf.id;
+        book.isPlaced = true;
+        freeShelf.bookId = book.id;
+        occupiedIds.add(freeShelf.id);
+      } else {
+        hasAssignmentError = true;
       }
     });
+
+    if (hasAssignmentError) {
+      const unassigned = newLevel.books.filter(b => !b.currentShelfId).length;
+      this.showEditorMessage(`分配失败：有${unassigned}本书没有独立错放位置，请先添加更多非目标书架`, 'error');
+      return;
+    }
 
     newLevel.bookshelves.forEach(shelf => {
-      const bookOnShelf = newLevel.books.find(b => b.currentShelfId === shelf.id);
-      if (bookOnShelf) {
-        shelf.bookId = bookOnShelf.id;
-      }
+      const assigned = newLevel.books.find(b => b.currentShelfId === shelf.id);
+      if (assigned) shelf.bookId = assigned.id;
     });
-
-    const unassigned = newLevel.books.filter(b => !b.currentShelfId);
-    if (unassigned.length > 0) {
-      this.showEditorMessage(
-        `警告：有${unassigned.length}本书没有找到合适错放位置，进入关卡后会自动分配`,
-        'warning'
-      );
-    }
 
     configManager.saveCustomLevel(newLevel);
     this.showEditorMessage('✓ 关卡已保存！返回菜单可选择游玩', 'success');

@@ -52,7 +52,7 @@ export class GameScene extends Phaser.Scene {
     let resumed = false;
     const stored = gameState.tryRestoreProgress();
     if (stored && stored.levelId === this.level.id && !stored.state.isCompleted) {
-      resumed = gameState.restoreFromSerialized(stored);
+      resumed = gameState.restoreFromState(this.level, stored.state);
       if (resumed) {
         const cfg = gameState.getLevelConfig();
         if (cfg) this.level = cfg;

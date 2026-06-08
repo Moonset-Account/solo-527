@@ -136,11 +136,6 @@ export interface SaveData {
   settings: GameSettings;
   completedLevels: string[];
   currentLevelState?: GameStateData;
-  serializedLevelProgress?: {
-    levelId: string;
-    levelConfig: LevelConfig;
-    state: GameStateData;
-  };
   levelProgress: Record<string, {
     bestSteps: number;
     bestTime: number;

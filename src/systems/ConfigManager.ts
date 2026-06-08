@@ -153,13 +153,20 @@ export class ConfigManager {
         errors.push(`目标书籍数量(${level.targetBooks.length})与书籍配置(${level.books.length})不匹配`);
       }
       const targetCount = level.bookshelves.filter(s => s.isTarget).length;
-      if (targetCount < level.targetBooks.length) {
-        errors.push(`目标书架不足：需要至少${level.targetBooks.length}个目标书架，当前只有${targetCount}个`);
+      const nonTargetCount = level.bookshelves.filter(s => !s.isTarget).length;
+      const totalCount = level.bookshelves.length;
+      const bookCount = level.targetBooks.length;
+
+      if (targetCount < bookCount) {
+        errors.push(`目标书架不足：需要至少${bookCount}个目标书架（每本书1个正确位置），当前只有${targetCount}个`);
       }
-      const totalShelfCount = level.bookshelves.length;
-      if (totalShelfCount < level.targetBooks.length + 1) {
-        errors.push(`书架总数不足：每本书都需要一个初始错放位置，建议书架数至少为目标书数+1（当前${totalShelfCount}）`);
+      if (nonTargetCount < bookCount) {
+        errors.push(`错放书架不足：需要至少${bookCount}个非目标书架（每本书1个初始错放位置），当前只有${nonTargetCount}个`);
       }
+      if (totalCount < bookCount * 2) {
+        errors.push(`书架总数不足：需要${bookCount}个目标+${bookCount}个非目标，共${bookCount * 2}个；当前${totalCount}个`);
+      }
+
       level.targetBooks.forEach(bookId => {
         const book = level.books.find(b => b.id === bookId);
         if (!book) {

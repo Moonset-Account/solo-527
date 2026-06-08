@@ -3,12 +3,6 @@ import { eventBus, GameEvents } from './EventBus';
 import { deepClone } from './utils';
 import { saveSystem } from '@systems/SaveSystem';
 
-export interface SerializedLevelState {
-  levelId: string;
-  levelConfig: LevelConfig;
-  state: GameStateData;
-}
-
 export class GameState {
   private static instance: GameState;
   private state: GameStateData | null = null;
@@ -79,35 +73,30 @@ export class GameState {
   saveCurrentProgressToStorage(): void {
     if (!this.state || !this.levelConfig) return;
     try {
-      const serialized: SerializedLevelState = {
-        levelId: this.levelConfig.id,
-        levelConfig: deepClone(this.levelConfig),
-        state: deepClone(this.state)
-      };
-      (saveSystem as any).saveSerializedLevelState(serialized);
+      const snapshot = deepClone(this.state);
+      saveSystem.saveLevelState(this.levelConfig.id, snapshot);
     } catch (e) {
       console.warn('[GameState] autosave failed:', e);
     }
   }
 
-  tryRestoreProgress(): SerializedLevelState | null {
+  tryRestoreProgress(): { levelId: string; state: GameStateData } | null {
     try {
-      const data = (saveSystem as any).loadSerializedLevelState() as SerializedLevelState | undefined;
-      if (!data || !data.levelConfig || !data.state) return null;
-      return data;
+      const state = saveSystem.loadLevelState();
+      if (!state || !state.currentLevelId) return null;
+      return { levelId: state.currentLevelId, state };
     } catch (e) {
       console.warn('[GameState] restore failed:', e);
       return null;
     }
   }
 
-  restoreFromSerialized(serialized: SerializedLevelState): boolean {
+  restoreFromState(baseLevel: LevelConfig, saved: GameStateData): boolean {
     try {
       this.autoSaveEnabled = false;
-      this.initializeFromLevel(serialized.levelConfig);
+      this.initializeFromLevel(baseLevel);
       if (!this.state || !this.levelConfig) return false;
 
-      const saved = serialized.state;
       this.state.playerPosition = { ...saved.playerPosition };
       this.state.playerDirection = saved.playerDirection;
       this.state.stepsTaken = saved.stepsTaken;
@@ -122,13 +111,8 @@ export class GameState {
       this.state.isCompleted = saved.isCompleted;
       if (saved.failedReason) this.state.failedReason = saved.failedReason;
 
-      saved.collectedClues.forEach(cid => {
-        this.clueStates.set(cid, true);
-      });
-
-      saved.fixedIndexCards.forEach(cid => {
-        this.indexCardStates.set(cid, true);
-      });
+      saved.collectedClues.forEach(cid => this.clueStates.set(cid, true));
+      saved.fixedIndexCards.forEach(cid => this.indexCardStates.set(cid, true));
 
       this.levelConfig.bookshelves.forEach(shelf => {
         shelf.bookId = undefined;
@@ -240,16 +224,22 @@ export class GameState {
 
     const { bookshelves, books, targetBooks } = this.levelConfig;
 
+    const availableWrongShelves = bookshelves.filter(s => !s.isTarget).map(s => s.id);
+    const occupiedWrongShelfSet = new Set<string>();
+    const bookAssignedMap = new Map<string, string>();
+
     targetBooks.forEach(bookId => {
       const book = books.find(b => b.id === bookId);
       if (!book) return;
 
       if (book.currentShelfId && book.currentShelfId !== book.correctShelfId) {
         const shelf = bookshelves.find(s => s.id === book.currentShelfId);
-        if (shelf && !shelf.bookId) {
-          shelf.bookId = book.id;
+        if (shelf && !occupiedWrongShelfSet.has(shelf.id)) {
+          occupiedWrongShelfSet.add(shelf.id);
+          bookAssignedMap.set(book.id, shelf.id);
+          if (!shelf.bookId) shelf.bookId = book.id;
           book.isPlaced = true;
-          this.bookStates.set(book.id, { shelfId: book.currentShelfId, placed: true });
+          this.bookStates.set(book.id, { shelfId: shelf.id, placed: true });
           return;
         }
       }
@@ -257,42 +247,55 @@ export class GameState {
       book.currentShelfId = undefined;
       book.isPlaced = false;
 
-      const candidateShelfIds = bookshelves
-        .filter(s => s.id !== book.correctShelfId)
-        .map(s => s.id);
-
-      const occupiedShelfIds = new Set<string>();
-      books.forEach(other => {
-        if (other.id !== book.id && other.currentShelfId) {
-          occupiedShelfIds.add(other.currentShelfId);
-        }
-      });
-
-      let chosenShelfId: string | undefined;
-
-      for (const sid of candidateShelfIds) {
-        if (!occupiedShelfIds.has(sid)) {
-          chosenShelfId = sid;
+      let nextShelfId: string | undefined;
+      for (const sid of availableWrongShelves) {
+        if (!occupiedWrongShelfSet.has(sid)) {
+          nextShelfId = sid;
           break;
         }
       }
 
-      if (!chosenShelfId && candidateShelfIds.length > 0) {
-        const otherTargets = candidateShelfIds.filter(
-          sid => bookshelves.find(s => s.id === sid)?.isTarget && sid !== book.correctShelfId
-        );
-        chosenShelfId = otherTargets[0] || candidateShelfIds[0];
+      if (!nextShelfId) {
+        const allShelvesExceptCorrect = bookshelves
+          .filter(s => s.id !== book.correctShelfId)
+          .map(s => s.id);
+        for (const sid of allShelvesExceptCorrect) {
+          if (!occupiedWrongShelfSet.has(sid)) {
+            nextShelfId = sid;
+            break;
+          }
+        }
       }
 
-      if (chosenShelfId) {
-        const chosenShelf = bookshelves.find(s => s.id === chosenShelfId);
+      if (nextShelfId) {
+        const chosenShelf = bookshelves.find(s => s.id === nextShelfId);
         if (chosenShelf) {
-          book.currentShelfId = chosenShelfId;
+          occupiedWrongShelfSet.add(nextShelfId);
+          bookAssignedMap.set(book.id, nextShelfId);
+          book.currentShelfId = nextShelfId;
           book.isPlaced = true;
-          if (!chosenShelf.bookId) {
-            chosenShelf.bookId = book.id;
+          chosenShelf.bookId = book.id;
+          this.bookStates.set(book.id, { shelfId: nextShelfId, placed: true });
+        }
+      } else {
+        console.warn(`[GameState] 无法为《${book.name}》分配独立错放书架，书架数量不足`);
+      }
+    });
+
+    bookshelves.forEach(shelf => {
+      const bookOnShelf = books.find(b => b.id === shelf.bookId);
+      if (bookOnShelf) {
+        const expectedShelfId = bookAssignedMap.get(bookOnShelf.id);
+        if (!expectedShelfId || expectedShelfId !== shelf.id) {
+          if (!occupiedWrongShelfSet.has(shelf.id) && bookOnShelf.correctShelfId !== shelf.id) {
+            occupiedWrongShelfSet.add(shelf.id);
+            bookAssignedMap.set(bookOnShelf.id, shelf.id);
+            bookOnShelf.currentShelfId = shelf.id;
+            bookOnShelf.isPlaced = true;
+            this.bookStates.set(bookOnShelf.id, { shelfId: shelf.id, placed: true });
+          } else {
+            shelf.bookId = undefined;
           }
-          this.bookStates.set(book.id, { shelfId: chosenShelfId, placed: true });
         }
       }
     });
@@ -300,7 +303,7 @@ export class GameState {
     books.forEach(book => {
       if (book.currentShelfId) {
         const bs = this.bookStates.get(book.id);
-        if (!bs) {
+        if (!bs || !bs.shelfId) {
           this.bookStates.set(book.id, { shelfId: book.currentShelfId, placed: true });
         }
       }
