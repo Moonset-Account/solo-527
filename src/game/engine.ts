@@ -1,4 +1,4 @@
-import type { LevelConfig, GridCell, Product, Position, Direction, BottleneckInfo, EngineResult } from "@/game/types";
+import type { LevelConfig, GridCell, Product, Position, Direction, BottleneckInfo, EngineResult, DeliveredProduct } from "@/game/types";
 import { MACHINE_TYPES } from "@/config/machines";
 
 const STAGE_COLORS = ["#D4A84B", "#C45D2C", "#4A7C59", "#7B68AE", "#E8DCC8"];
@@ -59,6 +59,7 @@ export class GameEngine {
   private _totalDelivered: number = 0;
   private _consecutiveNoRejects: number = 0;
   private _deliveredThisFrame: number = 0;
+  private _deliveredProducts: DeliveredProduct[] = [];
   private _rejectedThisFrame: number = 0;
 
   init(level: LevelConfig) {
@@ -122,6 +123,7 @@ export class GameEngine {
 
   update(deltaTime: number, grid: GridCell[][]): EngineResult {
     this._deliveredThisFrame = 0;
+    this._deliveredProducts = [];
     this._rejectedThisFrame = 0;
 
     if (!this.level || grid.length === 0) return this.emptyResult();
@@ -150,6 +152,7 @@ export class GameEngine {
       products: this.toPublicProducts(),
       bottlenecks: this.detectBottlenecks(grid),
       deliveredThisFrame: this._deliveredThisFrame,
+      deliveredProducts: this._deliveredProducts,
       rejectedThisFrame: this._rejectedThisFrame,
       totalProduced: this._totalProduced,
       totalDelivered: this._totalDelivered,
@@ -207,6 +210,7 @@ export class GameEngine {
         return this.updateExiting(product, dt, grid);
       case "done":
         this._deliveredThisFrame++;
+        this._deliveredProducts.push({ stage: product.stage, quality: product.quality });
         this._totalDelivered++;
         return "done";
       case "rejected":
@@ -424,6 +428,7 @@ export class GameEngine {
       products: [],
       bottlenecks: [],
       deliveredThisFrame: 0,
+      deliveredProducts: [],
       rejectedThisFrame: 0,
       totalProduced: 0,
       totalDelivered: 0,

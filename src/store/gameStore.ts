@@ -10,6 +10,7 @@ import type {
   GlobalStats,
   LevelCompleteInfo,
   Position,
+  DeliveredProduct,
 } from "@/game/types";
 import { LEVEL_CONFIGS } from "@/config/levels";
 import { MACHINE_TYPES } from "@/config/machines";
@@ -113,6 +114,7 @@ function generateAvailableOrders(levelId: string): ActiveOrder[] {
       delivered: 0,
       timeRemaining: template.timeLimit,
       completed: false,
+      requiredStages: template.requiredStages,
     };
   }).filter(Boolean) as ActiveOrder[];
 }
@@ -214,13 +216,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       timeRemaining: Math.max(0, order.timeRemaining - scaledDt),
     }));
 
-    let deliveredThisFrame = result.deliveredThisFrame;
-    if (deliveredThisFrame > 0) {
+    if (result.deliveredProducts.length > 0) {
+      const pool: DeliveredProduct[] = [...result.deliveredProducts];
       const updatedOrders = activeOrders.map((order) => {
         if (order.completed) return order;
-        const toDeliver = Math.min(deliveredThisFrame, order.required - order.delivered);
-        deliveredThisFrame -= toDeliver;
-        const newDelivered = order.delivered + toDeliver;
+        let matched = 0;
+        const remaining: DeliveredProduct[] = [];
+        for (const dp of pool) {
+          if (dp.stage >= order.requiredStages && matched < order.required - order.delivered) {
+            matched++;
+          } else {
+            remaining.push(dp);
+          }
+        }
+        pool.length = 0;
+        pool.push(...remaining);
+        const newDelivered = order.delivered + matched;
         return {
           ...order,
           delivered: newDelivered,
@@ -450,7 +461,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     });
   },
 
-  claimOfflineReward: () => set({ offlineReward: null }),
+  claimOfflineReward: () => {
+    const state = get();
+    const reward = state.offlineReward;
+    if (!reward) return;
+    const newCoins = state.coins + reward.coins;
+    const newStats: GlobalStats = {
+      ...state.stats,
+      totalCoinsEarned: state.stats.totalCoinsEarned + reward.coins,
+      totalProductsMade: state.stats.totalProductsMade + reward.products,
+    };
+    set({
+      offlineReward: null,
+      coins: newCoins,
+      stats: newStats,
+    });
+    get().save();
+  },
 
   dismissAchievement: (id) => set({ newAchievements: get().newAchievements.filter((a) => a.id !== id) }),
 
@@ -502,6 +529,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       delivered: o.delivered,
       timeRemaining: o.timeRemaining,
       completed: o.completed,
+      requiredStages: o.requiredStages,
     }));
     const saveData = {
       version: 2,
@@ -566,6 +594,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             delivered: o.delivered,
             timeRemaining: o.timeRemaining,
             completed: o.completed,
+            requiredStages: o.requiredStages ?? (() => {
+              const t = ORDER_TEMPLATES.find((t) => t.id === o.templateId);
+              return t ? t.requiredStages : 1;
+            })(),
           }));
           const availableOrders = generateAvailableOrders(data.currentLevelId);
 

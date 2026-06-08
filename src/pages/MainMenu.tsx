@@ -1,13 +1,41 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Factory, Trophy, BarChart3, Settings, Play } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
+import { useUIStore } from "@/store/uiStore";
+import OfflineReward from "@/components/OfflineReward";
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const hasSave = useGameStore((s) => s.hasSave);
   const load = useGameStore((s) => s.load);
+  const offlineReward = useGameStore((s) => s.offlineReward);
+  const calculateOfflineReward = useGameStore((s) => s.calculateOfflineReward);
+  const setHasSave = useGameStore((s) => s.setHasSave);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("retro_factory_save");
+    if (raw) {
+      try {
+        const data = JSON.parse(raw);
+        if (data.version && data.coins !== undefined) {
+          setHasSave(true);
+          if (data.lastSaveTime) {
+            calculateOfflineReward();
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [setHasSave, calculateOfflineReward]);
 
   const handleContinue = () => {
+    load();
+    navigate("/level-select");
+  };
+
+  const handleNewGame = () => {
     load();
     navigate("/level-select");
   };
@@ -34,7 +62,7 @@ export default function MainMenu() {
         <div className="flex flex-col gap-3 w-64">
           <button
             className="rivet-btn-primary px-6 py-3 text-xl"
-            onClick={() => navigate("/level-select")}
+            onClick={handleNewGame}
           >
             <Play size={20} className="inline mr-2" />
             开始游戏
@@ -75,6 +103,8 @@ export default function MainMenu() {
           </button>
         </div>
       </div>
+
+      {offlineReward && <OfflineReward />}
     </div>
   );
 }

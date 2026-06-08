@@ -69,6 +69,7 @@ export interface ActiveOrder {
   delivered: number;
   timeRemaining: number;
   completed: boolean;
+  requiredStages: number;
 }
 
 export interface LevelConfig {
@@ -160,10 +161,16 @@ export interface OfflineReward {
   duration: number;
 }
 
+export interface DeliveredProduct {
+  stage: number;
+  quality: number;
+}
+
 export interface EngineResult {
   products: Product[];
   bottlenecks: BottleneckInfo[];
   deliveredThisFrame: number;
+  deliveredProducts: DeliveredProduct[];
   rejectedThisFrame: number;
   totalProduced: number;
   totalDelivered: number;

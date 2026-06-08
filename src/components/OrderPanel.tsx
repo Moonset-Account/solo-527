@@ -36,6 +36,8 @@ function getOrderInfo(order: ActiveOrder) {
   return ORDER_TEMPLATES.find((t) => t.id === order.templateId);
 }
 
+const STAGE_LABELS = ["", "冲压", "切割", "焊接", "喷涂", "全流程"];
+
 export default function OrderPanel() {
   const orderPanelOpen = useUIStore((s) => s.orderPanelOpen);
   const toggleOrderPanel = useUIStore((s) => s.toggleOrderPanel);
@@ -90,6 +92,9 @@ export default function OrderPanel() {
                           <Clock size={12} /> {formatTime(info.timeLimit)}
                         </span>
                       </div>
+                      <div className="text-xs font-terminal text-factory-cream/60 mt-0.5">
+                        工序: {STAGE_LABELS[info.requiredStages] || `${info.requiredStages}道`}
+                      </div>
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs font-terminal text-factory-gold">⬡{info.coinReward}</span>
                         <button
@@ -136,6 +141,9 @@ export default function OrderPanel() {
                         <span className={`flex items-center gap-1 ${isUrgent ? "text-factory-red animate-pulseBottleneck" : ""}`}>
                           <Clock size={12} /> {formatTime(order.timeRemaining)}
                         </span>
+                      </div>
+                      <div className="text-xs font-terminal text-factory-cream/50 mb-1">
+                        需{STAGE_LABELS[info.requiredStages] || `${info.requiredStages}道工序`}
                       </div>
                       <div className="w-full bg-factory-dark h-1.5 mb-1">
                         <div
