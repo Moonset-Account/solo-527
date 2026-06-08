@@ -178,43 +178,63 @@ export class RoadNetwork {
   _findNearestIntersection(tx, tz, ints, dir) {
     let best = null;
     let bestScore = -Infinity;
+    const xs = ints.map(i => i.x);
+    const zs = ints.map(i => i.z);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+    const rangeX = Math.max(1, maxX - minX);
+    const rangeZ = Math.max(1, maxZ - minZ);
+
     ints.forEach((i) => {
       const dx = tx - i.x;
       const dz = tz - i.z;
-      let score = 0;
+      const dist = Math.sqrt(dx * dx + dz * dz);
       const absDx = Math.abs(dx);
       const absDz = Math.abs(dz);
+      let score = 0;
+      const normX = (i.x - minX) / rangeX;
+      const normZ = (i.z - minZ) / rangeZ;
+      let dirPref = 0;
+
       switch (dir) {
         case 'n':
-          if (absDx > 45) return;
-          score = -absDx * 1.2 - dz * 0.6;
+          if (absDx > Math.max(45, rangeX * 1.2)) return;
+          dirPref = -normZ;
+          score = -absDx * 1.2 - dz * 0.6 + dirPref * rangeZ * 1.0;
           break;
         case 's':
-          if (absDx > 45) return;
-          score = -absDx * 1.2 + dz * 0.6;
+          if (absDx > Math.max(45, rangeX * 1.2)) return;
+          dirPref = normZ;
+          score = -absDx * 1.2 + dz * 0.6 + dirPref * rangeZ * 1.0;
           break;
         case 'e':
-          if (absDz > 45) return;
-          score = -absDz * 1.2 + dx * 0.6;
+          if (absDz > Math.max(45, rangeZ * 1.2)) return;
+          dirPref = normX;
+          score = -absDz * 1.2 + dx * 0.6 + dirPref * rangeX * 1.0;
           break;
         case 'w':
-          if (absDz > 45) return;
-          score = -absDz * 1.2 - dx * 0.6;
+          if (absDz > Math.max(45, rangeZ * 1.2)) return;
+          dirPref = -normX;
+          score = -absDz * 1.2 - dx * 0.6 + dirPref * rangeX * 1.0;
           break;
         case 'ne':
-          score = -(absDx + absDz) * 1.0 + Math.max(-dx, 0, dz) * 0.3;
+          dirPref = normX + normZ;
+          score = dirPref * Math.max(rangeX, rangeZ) * 2.5 - dist * 0.6;
           break;
         case 'sw':
-          score = -(absDx + absDz) * 1.0 + Math.max(dx, 0, -dz) * 0.3;
+          dirPref = -normX + -normZ;
+          score = dirPref * Math.max(rangeX, rangeZ) * 2.5 - dist * 0.6;
           break;
         case 'nw':
-          score = -(absDx + absDz) * 1.0 + Math.max(dx, 0, dz) * 0.3;
+          dirPref = -normX + normZ;
+          score = dirPref * Math.max(rangeX, rangeZ) * 2.5 - dist * 0.6;
           break;
         case 'se':
-          score = -(absDx + absDz) * 1.0 + Math.max(-dx, 0, -dz) * 0.3;
+          dirPref = normX + -normZ;
+          score = dirPref * Math.max(rangeX, rangeZ) * 2.5 - dist * 0.6;
           break;
         default:
-          score = -(absDx + absDz);
+          score = -dist;
       }
       if (score > bestScore) {
         bestScore = score;

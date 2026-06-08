@@ -157,20 +157,15 @@ export class GameScene extends BaseScene {
     }
 
     const title1 = this._createElement('div', 'control-title', '🚦 信号灯设置');
-    const groupCycle = this._sliderGroup('信号灯周期', 60, 30, 120, 1, '秒',
-      (v) => this._updateConfig({ cycleTime: parseInt(v) }));
-    const groupRatio = this._sliderGroup('南北绿灯占比', 50, 20, 75, 1, '%',
-      (v) => this._updateConfig({ nsGreenRatio: parseInt(v) / 100 }));
-    const groupYellow = this._sliderGroup('黄灯时间', 3, 2, 6, 1, '秒',
-      (v) => this._updateConfig({ yellowDuration: parseInt(v) }));
+    const groupCycle = this._sliderGroup('信号灯周期', 60, 30, 120, 1, '秒');
+    const groupRatio = this._sliderGroup('南北绿灯占比', 50, 20, 75, 1, '%');
+    const groupYellow = this._sliderGroup('黄灯时间', 3, 2, 6, 1, '秒');
 
     const title2 = this._createElement('div', 'control-title', '⚙️ 规则设置');
     const toggleGroup = this._createElement('div', 'toggle-group');
 
-    const toggleBus = this._toggleItem('🚌 公交优先', false,
-      (v) => this._updateConfig({ busPriorityEnabled: v }));
-    const toggleTurn = this._toggleItem('↪️ 红灯允许右转', true,
-      (v) => this._updateConfig({ rightTurnOnRed: v }));
+    const toggleBus = this._toggleItem('🚌 公交优先', false);
+    const toggleTurn = this._toggleItem('↪️ 红灯允许右转', true);
 
     toggleGroup.appendChild(toggleBus);
     toggleGroup.appendChild(toggleTurn);
@@ -186,7 +181,7 @@ export class GameScene extends BaseScene {
     this._refreshSliders();
   }
 
-  _sliderGroup(label, defaultValue, min, max, step, unit, onChange) {
+  _sliderGroup(label, defaultValue, min, max, step, unit) {
     const key = label;
     const group = this._h('div', { className: 'slider-group', dataset: { key } });
     const labelLine = this._h('div', { className: 'slider-label' }, [
@@ -200,16 +195,11 @@ export class GameScene extends BaseScene {
         const val = e.target.value;
         labelLine.querySelector('.slider-value').textContent = `${val}${unit}`;
         const parsed = step === '1' || step === 1 ? parseInt(val) : parseFloat(val);
-        if (step === '1' || step === 1) {
-          if (label.includes('周期')) this._applyImmediate({ cycleTime: parsed });
-          else if (label.includes('南北绿')) this._applyImmediate({ nsGreenRatio: parsed / 100 });
-          else if (label.includes('黄灯')) this._applyImmediate({ yellowDuration: parsed });
-        }
-      },
-      onchange: (e) => {
-        const val = e.target.value;
-        labelLine.querySelector('.slider-value').textContent = `${val}${unit}`;
-        onChange(val);
+        let partial = null;
+        if (label.includes('周期')) partial = { cycleTime: parsed };
+        else if (label.includes('南北绿')) partial = { nsGreenRatio: parsed / 100 };
+        else if (label.includes('黄灯')) partial = { yellowDuration: parsed };
+        if (partial) this._applyImmediate(partial, label);
       }
     });
     group.appendChild(labelLine);
@@ -217,7 +207,7 @@ export class GameScene extends BaseScene {
     return group;
   }
 
-  _applyImmediate(partial) {
+  _applyImmediate(partial, labelHint) {
     const light = this.trafficLights.find(l => l.id === this.selectedIntersection);
     if (light) light.setConfig(partial);
     if (partial.busPriorityEnabled !== undefined) {
@@ -226,9 +216,28 @@ export class GameScene extends BaseScene {
     if (partial.rightTurnOnRed !== undefined) {
       this.trafficLights.forEach(l => l.setConfig({ rightTurnOnRed: partial.rightTurnOnRed }));
     }
+
+    if (this._suppressHistoryRecording) return;
+    if (this.elapsed < 5 || !this.baselineMetrics || this.finished || !this.running) return;
+
+    if (!this._interactionBefore) {
+      this._interactionBefore = this._captureMetricsSnapshot();
+      this._interactionCurFrames = this.trafficSystem?.recordingFrames?.length || 0;
+      this._interactionTimeStart = this.elapsed;
+      this._interactionDescMap = new Map();
+    }
+
+    if (partial.cycleTime !== undefined) this._interactionDescMap.set('cycle', `周期${partial.cycleTime}s`);
+    if (partial.nsGreenRatio !== undefined) this._interactionDescMap.set('ns', `南北绿${Math.round(partial.nsGreenRatio * 100)}%`);
+    if (partial.yellowDuration !== undefined) this._interactionDescMap.set('yw', `黄灯${partial.yellowDuration}s`);
+    if (partial.busPriorityEnabled !== undefined) this._interactionDescMap.set('bp', `公交优先${partial.busPriorityEnabled ? '开' : '关'}`);
+    if (partial.rightTurnOnRed !== undefined) this._interactionDescMap.set('rt', `红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
+
+    if (this._interactionTimer) clearTimeout(this._interactionTimer);
+    this._interactionTimer = setTimeout(() => this._commitInteractionHistory(), 220);
   }
 
-  _toggleItem(label, defaultValue, onChange) {
+  _toggleItem(label, defaultValue) {
     const item = this._createElement('div', 'toggle-item');
     const labelEl = this._createElement('div', 'toggle-label', label);
     const sw = this._h('div', {
@@ -236,8 +245,7 @@ export class GameScene extends BaseScene {
       onclick: () => {
         const next = !sw.classList.contains('active');
         sw.classList.toggle('active', next);
-        this._applyImmediate(label.includes('公交') ? { busPriorityEnabled: next } : { rightTurnOnRed: next });
-        onChange(next);
+        this._applyImmediate(label.includes('公交') ? { busPriorityEnabled: next } : { rightTurnOnRed: next }, label);
         this.audioManager.playClick();
       }
     });
@@ -246,8 +254,14 @@ export class GameScene extends BaseScene {
     return item;
   }
 
-  _updateConfig(partial) {
-    if (this.elapsed < 4 || !this.baselineMetrics || this.finished || !this.running) return;
+  _commitInteractionHistory() {
+    this._interactionTimer = null;
+    if (!this._interactionBefore || !this._interactionDescMap) return;
+    if (this._interactionDescMap.size === 0) {
+      this._interactionBefore = null;
+      this._interactionDescMap = null;
+      return;
+    }
 
     if (this._pendingTimeoutId) {
       clearTimeout(this._pendingTimeoutId);
@@ -260,22 +274,24 @@ export class GameScene extends BaseScene {
       this._refreshHistoryUI();
     }
 
-    const before = this._captureMetricsSnapshot();
-    const curFrames = this.trafficSystem?.recordingFrames?.length || 0;
+    const before = this._interactionBefore;
+    const curFrames = this._interactionCurFrames;
     const frameStart = Math.max(0, curFrames - 120);
-    const timeStart = this.elapsed;
+    const timeStart = this._interactionTimeStart;
     const intName = this.levelData.intersections.find(i => i.id === this.selectedIntersection)?.name || '全局';
-    const descParts = [];
-    if (partial.cycleTime !== undefined) descParts.push(`周期${partial.cycleTime}s`);
-    if (partial.nsGreenRatio !== undefined) descParts.push(`南北绿${Math.round(partial.nsGreenRatio * 100)}%`);
-    if (partial.yellowDuration !== undefined) descParts.push(`黄灯${partial.yellowDuration}s`);
-    if (partial.busPriorityEnabled !== undefined) descParts.push(`公交优先${partial.busPriorityEnabled ? '开' : '关'}`);
-    if (partial.rightTurnOnRed !== undefined) descParts.push(`红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
+    const orderedKeys = ['cycle', 'ns', 'yw', 'bp', 'rt'];
+    const descParts = orderedKeys.map(k => this._interactionDescMap.get(k)).filter(Boolean);
     const adjustDesc = `${intName}：${descParts.join(' · ')}`;
+
+    this._interactionBefore = null;
+    this._interactionDescMap = null;
+    this._interactionCurFrames = 0;
+    this._interactionTimeStart = 0;
 
     const pendingId = `adj_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     this.pendingAdjustment = { id: pendingId, desc: adjustDesc, before, frameStart, timeStart };
-    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: curFrames, timeEnd: timeStart, pending: true });
+    const curFNow = this.trafficSystem?.recordingFrames?.length || curFrames;
+    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: curFNow, timeEnd: this.elapsed, pending: true });
 
     const delaySec = 8;
     const checkMs = delaySec * 1000 / Math.max(1, this.gameState.timeScale || 1);
@@ -283,8 +299,8 @@ export class GameScene extends BaseScene {
       this._pendingTimeoutId = null;
       if (!this.running || this.finished || !this.pendingAdjustment || this.pendingAdjustment.id !== pendingId) return;
       const after = this._captureMetricsSnapshot();
-      const curF = this.trafficSystem?.recordingFrames?.length || curFrames;
-      const frameEnd = Math.min(curF, curF + 0);
+      const curF = this.trafficSystem?.recordingFrames?.length || curFNow;
+      const frameEnd = curF;
       const timeEnd = this.elapsed;
       const delta = this._calcDelta(before, after);
       const entry = { id: pendingId, desc: adjustDesc, before, after, delta, frameStart, frameEnd, timeStart, timeEnd, pending: false };
@@ -336,12 +352,14 @@ export class GameScene extends BaseScene {
     const cfg = light.getConfig();
     const sliders = document.querySelectorAll('.control-panel input[type="range"]');
     if (sliders.length >= 3) {
+      this._suppressHistoryRecording = true;
       sliders[0].value = cfg.cycleTime;
       sliders[0].dispatchEvent(new Event('input'));
       sliders[1].value = cfg.nsGreenRatio * 100;
       sliders[1].dispatchEvent(new Event('input'));
       sliders[2].value = cfg.yellowDuration;
       sliders[2].dispatchEvent(new Event('input'));
+      setTimeout(() => { this._suppressHistoryRecording = false; }, 50);
     }
   }
 
