@@ -1,0 +1,72 @@
+{
+  "id": "ch1_l1",
+  "chapter": 1,
+  "title": "第一章：初入书海",
+  "description": "安静的图书馆里，几本书似乎不在它们该在的位置。检查书架编号和借阅卡，找出错位的藏书。",
+  "shelves": [
+    { "id": "S1", "label": "1号书架", "category": "文学", "x": 80, "y": 200, "width": 200, "height": 300, "reachable": true, "requiresLadder": false },
+    { "id": "S2", "label": "2号书架", "category": "科学", "x": 320, "y": 200, "width": 200, "height": 300, "reachable": true, "requiresLadder": false },
+    { "id": "S3", "label": "3号书架", "category": "历史", "x": 560, "y": 200, "width": 200, "height": 300, "reachable": true, "requiresLadder": false },
+    { "id": "S4", "label": "4号书架", "category": "哲学", "x": 800, "y": 200, "width": 200, "height": 300, "reachable": true, "requiresLadder": false }
+  ],
+  "books": [
+    { "id": "B1", "title": "唐诗三百首", "correctShelfId": "S1", "currentShelfId": "S1", "isMisplaced": false, "row": 0, "col": 0, "category": "文学" },
+    { "id": "B2", "title": "量子力学导论", "correctShelfId": "S2", "currentShelfId": "S2", "isMisplaced": false, "row": 0, "col": 1, "category": "科学" },
+    { "id": "B3", "title": "史记选读", "correctShelfId": "S3", "currentShelfId": "S3", "isMisplaced": false, "row": 0, "col": 0, "category": "历史" },
+    { "id": "B4", "title": "存在与时间", "correctShelfId": "S4", "currentShelfId": "S4", "isMisplaced": false, "row": 0, "col": 0, "category": "哲学" },
+    { "id": "B5", "title": "化学原理", "correctShelfId": "S2", "currentShelfId": "S1", "isMisplaced": true, "row": 1, "col": 0, "category": "科学" },
+    { "id": "B6", "title": "宋词鉴赏", "correctShelfId": "S1", "currentShelfId": "S3", "isMisplaced": true, "row": 1, "col": 0, "category": "文学" }
+  ],
+  "clues": [
+    {
+      "id": "C1",
+      "type": "borrowing_card",
+      "description": "借阅卡#12：《化学原理》— 归属区域：科学（2号书架），最后借阅者：李明",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S2", "S1"],
+      "isMisleading": false,
+      "contradictionWith": "B5_current"
+    },
+    {
+      "id": "C2",
+      "type": "borrowing_card",
+      "description": "借阅卡#7：《宋词鉴赏》— 归属区域：文学（1号书架），最后借阅者：王芳",
+      "relatedBookIds": ["B6"],
+      "relatedShelfIds": ["S1", "S3"],
+      "isMisleading": false,
+      "contradictionWith": "B6_current"
+    },
+    {
+      "id": "C3",
+      "type": "shelf_label",
+      "description": "1号书架标签：「文学」— 目前存放：《唐诗三百首》《化学原理》",
+      "relatedBookIds": ["B1", "B5"],
+      "relatedShelfIds": ["S1"],
+      "isMisleading": false
+    },
+    {
+      "id": "C4",
+      "type": "shelf_label",
+      "description": "3号书架标签：「历史」— 目前存放：《史记选读》《宋词鉴赏》",
+      "relatedBookIds": ["B3", "B6"],
+      "relatedShelfIds": ["S3"],
+      "isMisleading": false
+    },
+    {
+      "id": "C5",
+      "type": "light_hint",
+      "description": "手电筒照过1号书架下层，一本封面印着「科学」分类标记的书映入眼帘",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S1"],
+      "isMisleading": false
+    }
+  ],
+  "misplacedBookIds": ["B5", "B6"],
+  "hasLadder": false,
+  "hasTimer": false,
+  "timeLimitSeconds": 0,
+  "hintTier1": "看看每本书的借阅卡，上面的归属区域是否和它现在所在的分类一致？",
+  "hintTier2": "1号书架上有一本不属于「文学」的书，3号书架上也有不对劲的",
+  "hintHighlightArea": { "shelfId": "S1", "bookId": "B5" },
+  "completionMessage": "你发现了错位的藏书！《化学原理》属于2号科学书架，《宋词鉴赏》属于1号文学书架。作为夜班管理员的你，第一步巡查顺利完成。"
+}

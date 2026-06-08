@@ -1,0 +1,82 @@
+{
+  "id": "ch2_l1",
+  "chapter": 2,
+  "title": "第二章：高处的秘密",
+  "description": "闭馆时间将至，高层书架需要借助移动书梯才能检查。在时间耗尽前找出所有错位藏书！",
+  "shelves": [
+    { "id": "S1", "label": "1号书架", "category": "文学", "x": 80, "y": 120, "width": 200, "height": 200, "reachable": true, "requiresLadder": false },
+    { "id": "S2", "label": "2号书架", "category": "科学", "x": 320, "y": 120, "width": 200, "height": 200, "reachable": true, "requiresLadder": false },
+    { "id": "S3", "label": "3号书架（高层）", "category": "历史", "x": 560, "y": 60, "width": 200, "height": 360, "reachable": false, "requiresLadder": true },
+    { "id": "S4", "label": "4号书架（高层）", "category": "哲学", "x": 800, "y": 60, "width": 200, "height": 360, "reachable": false, "requiresLadder": true }
+  ],
+  "books": [
+    { "id": "B1", "title": "红楼梦", "correctShelfId": "S1", "currentShelfId": "S1", "isMisplaced": false, "row": 0, "col": 0, "category": "文学" },
+    { "id": "B2", "title": "相对论浅说", "correctShelfId": "S2", "currentShelfId": "S2", "isMisplaced": false, "row": 0, "col": 0, "category": "科学" },
+    { "id": "B3", "title": "世界通史", "correctShelfId": "S3", "currentShelfId": "S3", "isMisplaced": false, "row": 0, "col": 0, "category": "历史" },
+    { "id": "B4", "title": "理想国", "correctShelfId": "S4", "currentShelfId": "S3", "isMisplaced": true, "row": 1, "col": 0, "category": "哲学" },
+    { "id": "B5", "title": "时间简史", "correctShelfId": "S2", "currentShelfId": "S4", "isMisplaced": true, "row": 0, "col": 1, "category": "科学" },
+    { "id": "B6", "title": "道德经", "correctShelfId": "S4", "currentShelfId": "S4", "isMisplaced": false, "row": 1, "col": 0, "category": "哲学" },
+    { "id": "B7", "title": "万历十五年", "correctShelfId": "S3", "currentShelfId": "S1", "isMisplaced": true, "row": 1, "col": 0, "category": "历史" }
+  ],
+  "clues": [
+    {
+      "id": "C1",
+      "type": "borrowing_card",
+      "description": "借阅卡#3：《理想国》— 归属区域：哲学（4号书架），最后借阅者：张伟",
+      "relatedBookIds": ["B4"],
+      "relatedShelfIds": ["S4", "S3"],
+      "isMisleading": false,
+      "contradictionWith": "B4_current"
+    },
+    {
+      "id": "C2",
+      "type": "borrowing_card",
+      "description": "借阅卡#9：《时间简史》— 归属区域：科学（2号书架），最后借阅者：陈丽",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S2", "S4"],
+      "isMisleading": false,
+      "contradictionWith": "B5_current"
+    },
+    {
+      "id": "C3",
+      "type": "borrowing_card",
+      "description": "借阅卡#15：《万历十五年》— 归属区域：历史（3号书架），最后借阅者：赵军",
+      "relatedBookIds": ["B7"],
+      "relatedShelfIds": ["S3", "S1"],
+      "isMisleading": false,
+      "contradictionWith": "B7_current"
+    },
+    {
+      "id": "C4",
+      "type": "dust_trace",
+      "description": "3号书架高层有一本书的封面没有灰尘，似乎最近被人放上去",
+      "relatedBookIds": ["B4"],
+      "relatedShelfIds": ["S3"],
+      "isMisleading": false
+    },
+    {
+      "id": "C5",
+      "type": "light_hint",
+      "description": "手电筒照向4号书架高层，一本封面有「科学」标记的书反射出光点",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S4"],
+      "isMisleading": false
+    },
+    {
+      "id": "C6",
+      "type": "shelf_label",
+      "description": "1号书架标签：「文学」— 目前下层有一本封面与周围格格不入的书",
+      "relatedBookIds": ["B7"],
+      "relatedShelfIds": ["S1"],
+      "isMisleading": false
+    }
+  ],
+  "misplacedBookIds": ["B4", "B5", "B7"],
+  "hasLadder": true,
+  "hasTimer": true,
+  "timeLimitSeconds": 120,
+  "hintTier1": "高层书架上可能藏着线索——试试移动书梯？注意借阅卡上的归属区域和书架分类的矛盾",
+  "hintTier2": "3号书架高层有一本没有灰尘的书；4号书架高层有本不属于那里的科学书；1号书架下层有本历史书",
+  "hintHighlightArea": { "shelfId": "S3", "bookId": "B4" },
+  "completionMessage": "时间刚好！你借助移动书梯找到了所有错位书：《理想国》应在4号哲学书架，《时间简史》应在2号科学书架，《万历十五年》应在3号历史书架。闭馆前的巡查圆满完成！"
+}

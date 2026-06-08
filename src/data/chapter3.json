@@ -1,0 +1,108 @@
+{
+  "id": "ch3_l1",
+  "chapter": 3,
+  "title": "第三章：迷雾重重",
+  "description": "有人故意制造混乱！误导线索混在其中，你需要辨别真伪，在闭馆前找出真正的错位藏书。",
+  "shelves": [
+    { "id": "S1", "label": "1号书架", "category": "文学", "x": 80, "y": 120, "width": 200, "height": 200, "reachable": true, "requiresLadder": false },
+    { "id": "S2", "label": "2号书架", "category": "科学", "x": 320, "y": 120, "width": 200, "height": 200, "reachable": true, "requiresLadder": false },
+    { "id": "S3", "label": "3号书架（高层）", "category": "历史", "x": 560, "y": 60, "width": 200, "height": 360, "reachable": false, "requiresLadder": true },
+    { "id": "S4", "label": "4号书架（高层）", "category": "哲学", "x": 800, "y": 60, "width": 200, "height": 360, "reachable": false, "requiresLadder": true }
+  ],
+  "books": [
+    { "id": "B1", "title": "人间词话", "correctShelfId": "S1", "currentShelfId": "S1", "isMisplaced": false, "row": 0, "col": 0, "category": "文学" },
+    { "id": "B2", "title": "物理学基础", "correctShelfId": "S2", "currentShelfId": "S2", "isMisplaced": false, "row": 0, "col": 0, "category": "科学" },
+    { "id": "B3", "title": "全球通史", "correctShelfId": "S3", "currentShelfId": "S3", "isMisplaced": false, "row": 0, "col": 0, "category": "历史" },
+    { "id": "B4", "title": "纯粹理性批判", "correctShelfId": "S4", "currentShelfId": "S4", "isMisplaced": false, "row": 0, "col": 0, "category": "哲学" },
+    { "id": "B5", "title": "天文学导论", "correctShelfId": "S2", "currentShelfId": "S3", "isMisplaced": true, "row": 1, "col": 0, "category": "科学" },
+    { "id": "B6", "title": "论语新解", "correctShelfId": "S4", "currentShelfId": "S1", "isMisplaced": true, "row": 1, "col": 0, "category": "哲学" },
+    { "id": "B7", "title": "资治通鉴", "correctShelfId": "S3", "currentShelfId": "S4", "isMisplaced": true, "row": 1, "col": 1, "category": "历史" },
+    { "id": "B8", "title": "物种起源", "correctShelfId": "S2", "currentShelfId": "S2", "isMisplaced": false, "row": 1, "col": 0, "category": "科学" }
+  ],
+  "clues": [
+    {
+      "id": "C1",
+      "type": "borrowing_card",
+      "description": "借阅卡#5：《天文学导论》— 归属区域：科学（2号书架），最后借阅者：刘洋",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S2", "S3"],
+      "isMisleading": false,
+      "contradictionWith": "B5_current"
+    },
+    {
+      "id": "C2",
+      "type": "borrowing_card",
+      "description": "借阅卡#11：《论语新解》— 归属区域：哲学（4号书架），最后借阅者：孙明",
+      "relatedBookIds": ["B6"],
+      "relatedShelfIds": ["S4", "S1"],
+      "isMisleading": false,
+      "contradictionWith": "B6_current"
+    },
+    {
+      "id": "C3",
+      "type": "borrowing_card",
+      "description": "借阅卡#18：《资治通鉴》— 归属区域：历史（3号书架），最后借阅者：周航",
+      "relatedBookIds": ["B7"],
+      "relatedShelfIds": ["S3", "S4"],
+      "isMisleading": false,
+      "contradictionWith": "B7_current"
+    },
+    {
+      "id": "C4",
+      "type": "misleading",
+      "description": "借阅卡#22：《物种起源》— 归属区域：历史（3号书架），最后借阅者：黄磊。但封面明明标着「科学」分类",
+      "relatedBookIds": ["B8"],
+      "relatedShelfIds": ["S2", "S3"],
+      "isMisleading": true,
+      "contradictionWith": "C1"
+    },
+    {
+      "id": "C5",
+      "type": "misleading",
+      "description": "灯光照过1号书架，《人间词话》的书脊颜色与《论语新解》不同——但这只说明它们不是同一类书",
+      "relatedBookIds": ["B1", "B6"],
+      "relatedShelfIds": ["S1"],
+      "isMisleading": true
+    },
+    {
+      "id": "C6",
+      "type": "dust_trace",
+      "description": "3号书架高层有一本书周围灰尘被蹭掉，说明最近被人触碰过",
+      "relatedBookIds": ["B5"],
+      "relatedShelfIds": ["S3"],
+      "isMisleading": false
+    },
+    {
+      "id": "C7",
+      "type": "light_hint",
+      "description": "4号书架高层手电筒照到一本封面有「历史」分类标记的书",
+      "relatedBookIds": ["B7"],
+      "relatedShelfIds": ["S4"],
+      "isMisleading": false
+    },
+    {
+      "id": "C8",
+      "type": "shelf_label",
+      "description": "1号书架标签：「文学」— 下层有一本封面与周围完全不同的书",
+      "relatedBookIds": ["B6"],
+      "relatedShelfIds": ["S1"],
+      "isMisleading": false
+    },
+    {
+      "id": "C9",
+      "type": "misleading",
+      "description": "一张被丢弃的纸条写着：「物理学的书都不在正确位置」——但这只是个恶作剧",
+      "relatedBookIds": ["B2"],
+      "relatedShelfIds": ["S2"],
+      "isMisleading": true
+    }
+  ],
+  "misplacedBookIds": ["B5", "B6", "B7"],
+  "hasLadder": true,
+  "hasTimer": true,
+  "timeLimitSeconds": 150,
+  "hintTier1": "有些线索是故意误导你的。对比借阅卡的归属区域与书籍的实际分类标记——只有二者矛盾的才是真正的错位线索",
+  "hintTier2": "《物种起源》在2号科学书架上，那张借阅卡是伪造的；《物理学基础》的位置是正确的，纸条是假线索",
+  "hintHighlightArea": { "shelfId": "S3", "bookId": "B5" },
+  "completionMessage": "你识破了所有误导线索！《天文学导论》属于2号科学书架，《论语新解》属于4号哲学书架，《资治通鉴》属于3号历史书架。关于《物种起源》的那张借阅卡是伪造的——书本身就在正确位置。夜班管理员的直觉果然敏锐！"
+}
