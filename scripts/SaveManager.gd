@@ -33,18 +33,22 @@ func _load_save() -> void:
 	if file:
 		var json_str: String = file.get_as_text()
 		file.close()
-		var parse_result: JSONParseResult = JSON.parse(json_str)
-		if parse_result.error == OK and parse_result.result is Dictionary:
-			var data: Dictionary = parse_result.result
-			if data.has("level_results"):
-				level_results = data["level_results"]
-			if data.has("settings"):
-				settings_data = settings_data.duplicate()
-				settings_data.merge(data["settings"], true)
-			if data.has("achievements"):
-				achievements = data["achievements"]
-			if data.has("stats"):
-				stats.merge(data["stats"], true)
+		if json_str.strip_edges().is_empty():
+			return
+		var json := JSON.new()
+		var err: Error = json.parse(json_str)
+		if err == OK:
+			var data = json.data
+			if data is Dictionary:
+				if data.has("level_results"):
+					level_results = data["level_results"]
+				if data.has("settings"):
+					settings_data = settings_data.duplicate()
+					settings_data.merge(data["settings"], true)
+				if data.has("achievements"):
+					achievements = data["achievements"]
+				if data.has("stats"):
+					stats.merge(data["stats"], true)
 
 func save_game() -> void:
 	var data := {
@@ -118,9 +122,11 @@ func add_play_session(session_data: Dictionary) -> void:
 	if file:
 		var json_str: String = file.get_as_text()
 		file.close()
-		var parse_result: JSONParseResult = JSON.parse(json_str)
-		if parse_result.error == OK and parse_result.result is Array:
-			sessions = parse_result.result
+		if not json_str.strip_edges().is_empty():
+			var json := JSON.new()
+			var err: Error = json.parse(json_str)
+			if err == OK and json.data is Array:
+				sessions = json.data
 	sessions.append(session_data)
 	if sessions.size() > 100:
 		sessions = sessions.slice(sessions.size() - 100, sessions.size())
@@ -135,9 +141,12 @@ func get_play_sessions(limit: int = 20) -> Array:
 		return []
 	var json_str: String = file.get_as_text()
 	file.close()
-	var parse_result: JSONParseResult = JSON.parse(json_str)
-	if parse_result.error == OK and parse_result.result is Array:
-		var arr: Array = parse_result.result
+	if json_str.strip_edges().is_empty():
+		return []
+	var json := JSON.new()
+	var err: Error = json.parse(json_str)
+	if err == OK and json.data is Array:
+		var arr: Array = json.data
 		if limit > 0 and arr.size() > limit:
 			return arr.slice(arr.size() - limit, arr.size())
 		return arr

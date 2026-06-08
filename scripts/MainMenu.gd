@@ -56,13 +56,8 @@ func _process(_delta: float) -> void:
 func _on_start_pressed() -> void:
 	AudioManager.play_sfx(AudioManager.SFX.BUTTON_CLICK)
 	PlaySessionRecorder.record_event("main_menu_start", {})
+	GameManager.pending_start_level_id = 1
 	get_tree().change_scene_to_file("res://scenes/GameScene.tscn")
-	var root: Node = get_tree().root
-	await get_tree().process_frame
-	if root.has_node("GameRoot"):
-		root.get_node("GameRoot").start_level(1)
-	else:
-		GameManager.start_level(1)
 
 func _on_levels_pressed() -> void:
 	AudioManager.play_sfx(AudioManager.SFX.BUTTON_CLICK)

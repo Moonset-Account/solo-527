@@ -38,6 +38,7 @@ var max_container_weight: float = 500.0
 var current_container_weight: float = 0.0
 var unlocked_levels: Array = [1]
 var unlocked_items: Array = []
+var pending_start_level_id: int = 0
 var total_stars_earned: int = 0
 
 func _ready() -> void:

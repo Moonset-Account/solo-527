@@ -156,13 +156,8 @@ func _create_level_card(level_id: int) -> Control:
 func _on_level_pressed(level_id: int) -> void:
 	AudioManager.play_sfx(AudioManager.SFX.BUTTON_CLICK)
 	PlaySessionRecorder.record_event("level_select_pick", {"level_id": level_id})
+	GameManager.pending_start_level_id = level_id
 	get_tree().change_scene_to_file("res://scenes/GameScene.tscn")
-	var root: Node = get_tree().root
-	await get_tree().process_frame
-	if root.has_node("GameRoot"):
-		root.get_node("GameRoot").start_level(level_id)
-	else:
-		GameManager.start_level(level_id)
 
 func _on_back() -> void:
 	AudioManager.play_sfx(AudioManager.SFX.BUTTON_CLICK)

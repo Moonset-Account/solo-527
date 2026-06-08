@@ -37,16 +37,6 @@ func _load_items() -> void:
 
 func _connect_signals() -> void:
 	InputManager.debug_toggle_pressed.connect(toggle)
-	visibility_btn.pressed.connect(toggle)
-	spawn_btn.pressed.connect(_on_spawn_item)
-	weight_slider.value_changed.connect(_on_weight_changed)
-	time_slider.value_changed.connect(_on_time_changed)
-	gravity_chk.toggled.connect(_on_gravity_toggle)
-	snap_chk.toggled.connect(_on_snap_toggle)
-	complete_btn.pressed.connect(_on_force_complete)
-	fail_btn.pressed.connect(_on_force_fail)
-	export_log_btn.pressed.connect(_on_export_log)
-	clear_save_btn.pressed.connect(_on_clear_save)
 
 func bind_level_manager(lm: LevelManager) -> void:
 	level_manager = lm

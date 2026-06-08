@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://c_game_scene"]
+[gd_scene load_steps=5 format=3 uid="uid://c_game_scene_v2"]
 
 [ext_resource type="Script" path="res://scripts/GameRoot.gd" id="1_gameroot"]
 [ext_resource type="Script" path="res://scripts/GameHUD.gd" id="2_hud"]
@@ -62,7 +62,7 @@ offset_left = 16.0
 offset_top = 10.0
 offset_right = 1264.0
 offset_bottom = 88.0
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="LevelInfoLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
@@ -75,7 +75,7 @@ theme_override_font_sizes/font_size = 18
 [node name="ScoreLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(160, 0)
+custom_minimum_size = Vector2(150, 0)
 text = "得分：0"
 theme_override_colors/font_color = Color(0.55, 0.9, 0.7, 1)
 theme_override_font_sizes/font_size = 20
@@ -83,32 +83,29 @@ theme_override_font_sizes/font_size = 20
 [node name="TimerLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(160, 0)
+custom_minimum_size = Vector2(150, 0)
 text = "时间：00:00"
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 20
 
-[node name="WeightBarBox" type="VBoxContainer" parent="HUD/TopBar"]
-layout_mode = 2
-custom_minimum_size = Vector2(180, 0)
-
-[node name="WeightLabel" type="Label" parent="HUD/TopBar/WeightBarBox"]
+[node name="WeightLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "0 / 500 kg"
+custom_minimum_size = Vector2(110, 0)
+text = "0/500kg"
 theme_override_font_sizes/font_size = 13
 
-[node name="WeightBar" type="ProgressBar" parent="HUD/TopBar/WeightBarBox"]
+[node name="WeightBar" type="ProgressBar" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(0, 14)
+custom_minimum_size = Vector2(120, 14)
 max_value = 1.0
 value = 0.0
 
 [node name="ItemsCounter" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(100, 0)
 text = "物品：0/0"
 theme_override_colors/font_color = Color(0.75, 0.8, 0.95, 1)
 theme_override_font_sizes/font_size = 15
@@ -116,7 +113,7 @@ theme_override_font_sizes/font_size = 15
 [node name="MistakesLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
+custom_minimum_size = Vector2(90, 0)
 text = "失误：0"
 theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
 theme_override_font_sizes/font_size = 15
@@ -124,25 +121,25 @@ theme_override_font_sizes/font_size = 15
 [node name="FragileStatus" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(140, 0)
+custom_minimum_size = Vector2(110, 0)
 text = "易碎：0 完好"
 theme_override_colors/font_color = Color(0.9, 0.55, 1, 1)
 theme_override_font_sizes/font_size = 14
 
-[node name="HSpacerTop" type="Control" parent="HUD/TopBar"]
+[node name="HSpaceTop" type="Control" parent="HUD/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="PauseBtn" type="Button" parent="HUD/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(70, 44)
+custom_minimum_size = Vector2(60, 44)
 text = "⏸"
 theme_override_font_sizes/font_size = 20
 
 [node name="ComboBanner" type="Label" parent="HUD"]
 unique_name_in_owner = true
-offset_left = 960.0
+offset_left = 980.0
 offset_top = 150.0
 offset_right = 1250.0
 offset_bottom = 200.0
@@ -155,7 +152,7 @@ theme_override_font_sizes/font_size = 28
 unique_name_in_owner = true
 offset_left = 0.0
 offset_top = -4.0
-offset_right = 70.0
+offset_right = 80.0
 offset_bottom = 52.0
 text = "x0"
 theme_override_colors/font_color = Color(1, 0.5, 0.3, 1)
@@ -166,33 +163,33 @@ offset_left = 16.0
 offset_top = 660.0
 offset_right = 1264.0
 offset_bottom = 712.0
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="UndoBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(100, 44)
+custom_minimum_size = Vector2(90, 44)
 text = "↶ 撤销"
 theme_override_font_sizes/font_size = 14
 
 [node name="RedoBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(100, 44)
+custom_minimum_size = Vector2(90, 44)
 text = "↷ 重做"
 theme_override_font_sizes/font_size = 14
 
 [node name="RotateLeftBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(110, 44)
+custom_minimum_size = Vector2(100, 44)
 text = "↺ Q 左转"
 theme_override_font_sizes/font_size = 14
 
 [node name="RotateRightBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(110, 44)
+custom_minimum_size = Vector2(100, 44)
 text = "↻ E 右转"
 theme_override_font_sizes/font_size = 14
 
@@ -200,7 +197,7 @@ theme_override_font_sizes/font_size = 14
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "拖拽移动 · 滚轮旋转 · Ctrl+Z撤销 · 空格提交"
+text = "拖拽：左键移动 · 滚轮旋转 · Ctrl+Z撤销 · 空格提交"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.55, 0.6, 0.75, 1)
 theme_override_font_sizes/font_size = 13
@@ -208,14 +205,14 @@ theme_override_font_sizes/font_size = 13
 [node name="ResetBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(100, 44)
+custom_minimum_size = Vector2(90, 44)
 text = "↻ 重置"
 theme_override_font_sizes/font_size = 14
 
 [node name="SubmitBtn" type="Button" parent="HUD/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(130, 44)
 text = "✔ 提交过关"
 theme_override_colors/font_color = Color(0.1, 0.2, 0.1, 1)
 theme_override_font_sizes/font_size = 15
@@ -270,131 +267,6 @@ text = "下一条"
 theme_override_font_sizes/font_size = 15
 size_flags_horizontal = 3
 
-[node name="ResultScreen" type="Control" parent="."]
-unique_name_in_owner = true
-visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("3_result")
-
-[node name="Dim" type="ColorRect" parent="ResultScreen"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0, 0, 0, 0.65)
-mouse_filter = 1
-
-[node name="ResultPanel" type="PanelContainer" parent="ResultScreen"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.45
-anchor_right = 0.5
-anchor_bottom = 0.45
-offset_left = -360.0
-offset_top = -290.0
-offset_right = 360.0
-offset_bottom = 310.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="MainVBox" type="VBoxContainer" parent="ResultScreen/ResultPanel"]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="ResultTitle" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "搬家完成！"
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.4, 0.95, 0.55, 1)
-theme_override_font_sizes/font_size = 40
-
-[node name="ResultSubtitle" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = ""
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
-theme_override_font_sizes/font_size = 18
-
-[node name="StarsContainer" type="HBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 14
-custom_minimum_size = Vector2(0, 80)
-
-[node name="FinalScore" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "总分：0"
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 30
-
-[node name="BreakdownBox" type="VBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(520, 0)
-theme_override_constants/separation = 4
-
-[node name="StatsGrid" type="GridContainer" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-columns = 2
-theme_override_constants/h_separation = 30
-theme_override_constants/v_separation = 4
-
-[node name="UnlocksLabel" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "🔓 解锁内容"
-horizontal_alignment = 1
-visible = false
-theme_override_colors/font_color = Color(0.8, 1, 0.7, 1)
-theme_override_font_sizes/font_size = 16
-
-[node name="UnlocksBox" type="VBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-visible = false
-theme_override_constants/separation = 4
-
-[node name="ButtonsRow" type="HBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="BackBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(140, 48)
-text = "关卡选择"
-theme_override_font_sizes/font_size = 15
-size_flags_horizontal = 3
-
-[node name="RetryBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(140, 48)
-text = "再来一次"
-theme_override_font_sizes/font_size = 15
-size_flags_horizontal = 3
-
-[node name="NextLevelBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(160, 48)
-text = "下一关 ▶"
-theme_override_colors/font_color = Color(0.1, 0.2, 0.1, 1)
-theme_override_font_sizes/font_size = 16
-size_flags_horizontal = 3
-
 [node name="PausePanel" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
@@ -420,9 +292,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -200.0
-offset_top = -180.0
+offset_top = -200.0
 offset_right = 200.0
-offset_bottom = 200.0
+offset_bottom = 220.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -460,6 +332,131 @@ custom_minimum_size = Vector2(0, 44)
 text = "退出到主菜单"
 theme_override_font_sizes/font_size = 15
 
+[node name="ResultScreen" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_result")
+
+[node name="Dim" type="ColorRect" parent="ResultScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.65)
+mouse_filter = 1
+
+[node name="ResultPanel" type="PanelContainer" parent="ResultScreen"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.45
+anchor_right = 0.5
+anchor_bottom = 0.45
+offset_left = -360.0
+offset_top = -300.0
+offset_right = 360.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainVBox" type="VBoxContainer" parent="ResultScreen/ResultPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResultTitle" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "搬家完成！"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.4, 0.95, 0.55, 1)
+theme_override_font_sizes/font_size = 38
+
+[node name="ResultSubtitle" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 17
+
+[node name="StarsContainer" type="HBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 14
+custom_minimum_size = Vector2(0, 76)
+
+[node name="FinalScore" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "总分：0"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+
+[node name="BreakdownBox" type="VBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(520, 0)
+theme_override_constants/separation = 4
+
+[node name="StatsGrid" type="GridContainer" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 30
+theme_override_constants/v_separation = 4
+
+[node name="UnlocksLabel" type="Label" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔓 解锁内容"
+horizontal_alignment = 1
+visible = false
+theme_override_colors/font_color = Color(0.8, 1, 0.7, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="UnlocksBox" type="VBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 4
+
+[node name="ButtonsRow" type="HBoxContainer" parent="ResultScreen/ResultPanel/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(140, 48)
+text = "关卡选择"
+theme_override_font_sizes/font_size = 15
+size_flags_horizontal = 3
+
+[node name="RetryBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(140, 48)
+text = "再来一次"
+theme_override_font_sizes/font_size = 15
+size_flags_horizontal = 3
+
+[node name="NextLevelBtn" type="Button" parent="ResultScreen/ResultPanel/MainVBox/ButtonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(160, 48)
+text = "下一关 ▶"
+theme_override_colors/font_color = Color(0.1, 0.2, 0.1, 1)
+theme_override_font_sizes/font_size = 16
+size_flags_horizontal = 3
+
 [node name="DebugPanel" type="Control" parent="."]
 unique_name_in_owner = true
 anchors_preset = 3
@@ -472,6 +469,15 @@ grow_horizontal = 0
 grow_vertical = 2
 script = ExtResource("4_debug")
 
+[node name="ToggleBtn" type="Button" parent="DebugPanel"]
+unique_name_in_owner = true
+offset_left = 4.0
+offset_top = 40.0
+offset_right = 100.0
+offset_bottom = 76.0
+text = "🛠️调试"
+theme_override_font_sizes/font_size = 13
+
 [node name="DebugPanelRoot" type="PanelContainer" parent="DebugPanel"]
 unique_name_in_owner = true
 layout_mode = 1
@@ -479,7 +485,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
-offset_top = 80.0
+offset_top = 84.0
 offset_right = -4.0
 offset_bottom = -4.0
 grow_horizontal = 2
@@ -493,7 +499,7 @@ theme_override_constants/separation = 10
 [node name="Title" type="Label" parent="DebugPanel/DebugPanelRoot/VB"]
 text = "🛠️  调试控制台"
 theme_override_colors/font_color = Color(0.5, 1, 0.8, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 17
 
 [node name="StatsLabel" type="Label" parent="DebugPanel/DebugPanelRoot/VB"]
 unique_name_in_owner = true
@@ -609,11 +615,20 @@ layout_mode = 2
 text = "清除存档"
 size_flags_horizontal = 3
 
-[node name="ToggleBtn" type="Button" parent="DebugPanel"]
-unique_name_in_owner = true
-offset_left = 4.0
-offset_top = 40.0
-offset_right = 92.0
-offset_bottom = 74.0
-text = "🛠️调试"
-theme_override_font_sizes/font_size = 13
+[connection signal="pressed" from="PausePanel/Panel/VB/ResumeBtn" to="." method="_on_resume" flags=1]
+[connection signal="pressed" from="PausePanel/Panel/VB/RetryBtn" to="." method="_on_pause_retry" flags=1]
+[connection signal="pressed" from="PausePanel/Panel/VB/MenuBtn" to="." method="_on_pause_menu" flags=1]
+[connection signal="pressed" from="PausePanel/Panel/VB/QuitBtn" to="." method="_on_pause_quit" flags=1]
+[connection signal="pressed" from="ResultScreen/ResultPanel/MainVBox/ButtonsRow/BackBtn" to="ResultScreen" method="_on_back" flags=1]
+[connection signal="pressed" from="ResultScreen/ResultPanel/MainVBox/ButtonsRow/RetryBtn" to="ResultScreen" method="_on_retry" flags=1]
+[connection signal="pressed" from="ResultScreen/ResultPanel/MainVBox/ButtonsRow/NextLevelBtn" to="ResultScreen" method="_on_next_level" flags=1]
+[connection signal="pressed" from="DebugPanel/ToggleBtn" to="DebugPanel" method="toggle" flags=1]
+[connection signal="pressed" from="DebugPanel/DebugPanelRoot/VB/SpawnSection/Row/SpawnBtn" to="DebugPanel" method="_on_spawn_item" flags=1]
+[connection signal="value_changed" from="DebugPanel/DebugPanelRoot/VB/SlidersSection/WeightRow/WeightSlider" to="DebugPanel" method="_on_weight_changed" flags=1]
+[connection signal="value_changed" from="DebugPanel/DebugPanelRoot/VB/SlidersSection/TimeRow/TimeSlider" to="DebugPanel" method="_on_time_changed" flags=1]
+[connection signal="toggled" from="DebugPanel/DebugPanelRoot/VB/TogglesRow/GravityChk" to="DebugPanel" method="_on_gravity_toggle" flags=1]
+[connection signal="toggled" from="DebugPanel/DebugPanelRoot/VB/TogglesRow/SnapChk" to="DebugPanel" method="_on_snap_toggle" flags=1]
+[connection signal="pressed" from="DebugPanel/DebugPanelRoot/VB/ActionRow1/CompleteBtn" to="DebugPanel" method="_on_force_complete" flags=1]
+[connection signal="pressed" from="DebugPanel/DebugPanelRoot/VB/ActionRow1/FailBtn" to="DebugPanel" method="_on_force_fail" flags=1]
+[connection signal="pressed" from="DebugPanel/DebugPanelRoot/VB/ActionRow2/ExportLog" to="DebugPanel" method="_on_export_log" flags=1]
+[connection signal="pressed" from="DebugPanel/DebugPanelRoot/VB/ActionRow2/ClearSaveBtn" to="DebugPanel" method="_on_clear_save" flags=1]

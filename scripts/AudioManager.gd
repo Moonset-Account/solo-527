@@ -1,7 +1,7 @@
 extends Node
 
-var sfx_bus: AudioBus = null
-var music_bus: AudioBus = null
+var sfx_bus: int = 0
+var music_bus: int = 1
 var sfx_players: Dictionary = {}
 var music_player: AudioStreamPlayer = null
 var ambient_player: AudioStreamPlayer = null
@@ -48,15 +48,15 @@ func _init_buses() -> void:
 
 func _init_players() -> void:
 	music_player = AudioStreamPlayer.new()
-	music_player.bus = "Music"
+	music_player.bus = &"Music"
 	add_child(music_player)
 	ambient_player = AudioStreamPlayer.new()
-	ambient_player.bus = "Music"
+	ambient_player.bus = &"Music"
 	ambient_player.volume_db = -10.0
 	add_child(ambient_player)
 	for i in range(8):
 		var p: AudioStreamPlayer = AudioStreamPlayer.new()
-		p.bus = "SFX"
+		p.bus = &"SFX"
 		p.name = "SFXPlayer_%d" % i
 		add_child(p)
 		sfx_players[i] = p
@@ -118,7 +118,7 @@ func _get_free_sfx_player() -> AudioStreamPlayer:
 		if not p.playing:
 			return p
 	var new_p: AudioStreamPlayer = AudioStreamPlayer.new()
-	new_p.bus = "SFX"
+	new_p.bus = &"SFX"
 	add_child(new_p)
 	sfx_players[sfx_players.size()] = new_p
 	return new_p

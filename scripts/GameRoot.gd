@@ -18,6 +18,9 @@ func _ready() -> void:
 	GameManager.level_failed.connect(_on_level_failed)
 	GameManager.level_started.connect(_on_level_started)
 	InputManager.pause_pressed.connect(_on_pause_pressed)
+	if GameManager.pending_start_level_id > 0:
+		start_level(GameManager.pending_start_level_id)
+		GameManager.pending_start_level_id = 0
 
 func _process(delta: float) -> void:
 	if hud_node and hud_node.is_inside_tree():
@@ -63,14 +66,14 @@ func _setup_background() -> void:
 func _setup_pause() -> void:
 	if not pause_panel_node:
 		return
-	if pause_panel_node.has_node("ResumeBtn"):
-		pause_panel_node.get_node("ResumeBtn").pressed.connect(_on_resume)
-	if pause_panel_node.has_node("RetryBtn"):
-		pause_panel_node.get_node("RetryBtn").pressed.connect(_on_pause_retry)
-	if pause_panel_node.has_node("MenuBtn"):
-		pause_panel_node.get_node("MenuBtn").pressed.connect(_on_pause_menu)
-	if pause_panel_node.has_node("QuitBtn"):
-		pause_panel_node.get_node("QuitBtn").pressed.connect(_on_pause_quit)
+	if pause_panel_node.has_node("%ResumeBtn"):
+		pause_panel_node.get_node("%ResumeBtn").pressed.connect(_on_resume)
+	if pause_panel_node.has_node("%RetryBtn"):
+		pause_panel_node.get_node("%RetryBtn").pressed.connect(_on_pause_retry)
+	if pause_panel_node.has_node("%MenuBtn"):
+		pause_panel_node.get_node("%MenuBtn").pressed.connect(_on_pause_menu)
+	if pause_panel_node.has_node("%QuitBtn"):
+		pause_panel_node.get_node("%QuitBtn").pressed.connect(_on_pause_quit)
 
 func _on_state_changed(new_state: int) -> void:
 	match new_state:
