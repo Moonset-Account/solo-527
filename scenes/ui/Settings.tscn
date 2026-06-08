@@ -1,0 +1,203 @@
+[gd_scene load_steps=2 format=3 uid="uid://settings_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/Settings.gd" id="1_set"]
+
+[node name="Settings" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_set")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.07, 0.12, 1)
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 300.0
+offset_top = 80.0
+offset_right = 980.0
+offset_bottom = 640.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+theme_override_colors/font_color = Color(0.7, 0.9, 1, 1)
+text = "设置"
+horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 60)
+
+[node name="AudioLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+text = "——  音频  ——"
+horizontal_alignment = 1
+
+[node name="MasterRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/MasterRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "主音量"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="ValueSlider" type="HSlider" parent="Panel/VBox/MasterRow"]
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+value = 80.0
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(300, 0)
+
+[node name="ValueLabel" type="Label" parent="Panel/VBox/MasterRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.6, 0.9, 1, 1)
+text = "80%"
+custom_minimum_size = Vector2(70, 0)
+
+[node name="SfxRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/SfxRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "音效"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="ValueSlider" type="HSlider" parent="Panel/VBox/SfxRow"]
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+value = 70.0
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(300, 0)
+
+[node name="ValueLabel" type="Label" parent="Panel/VBox/SfxRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.6, 0.9, 1, 1)
+text = "70%"
+custom_minimum_size = Vector2(70, 0)
+
+[node name="MusicRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/MusicRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "音乐"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="ValueSlider" type="HSlider" parent="Panel/VBox/MusicRow"]
+layout_mode = 2
+min_value = 0.0
+max_value = 100.0
+value = 50.0
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(300, 0)
+
+[node name="ValueLabel" type="Label" parent="Panel/VBox/MusicRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.6, 0.9, 1, 1)
+text = "50%"
+custom_minimum_size = Vector2(70, 0)
+
+[node name="DisplayLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+text = "——  显示  ——"
+horizontal_alignment = 1
+
+[node name="FullscreenRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/FullscreenRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "全屏模式"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="Toggle" type="CheckBox" parent="Panel/VBox/FullscreenRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+
+[node name="VsyncRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/VsyncRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "垂直同步"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="Toggle" type="CheckBox" parent="Panel/VBox/VsyncRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+
+[node name="ControlsLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+text = "——  控制  ——"
+horizontal_alignment = 1
+
+[node name="CrouchRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Panel/VBox/CrouchRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "蹲伏切换"
+custom_minimum_size = Vector2(140, 0)
+
+[node name="Toggle" type="CheckBox" parent="Panel/VBox/CrouchRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+button_pressed = true
+
+[node name="ButtonsRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+custom_minimum_size = Vector2(0, 60)
+
+[node name="DefaultsButton" type="Button" parent="Panel/VBox/ButtonsRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "恢复默认"
+custom_minimum_size = Vector2(180, 48)
+
+[node name="BackButton" type="Button" parent="Panel/VBox/ButtonsRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "返回"
+custom_minimum_size = Vector2(200, 48)

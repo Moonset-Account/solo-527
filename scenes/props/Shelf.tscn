@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3 uid="uid://shelf_scene_obj"]
+
+[ext_resource type="Script" path="res://scripts/props/Shelf.gd" id="1_shelf"]
+
+[node name="Shelf" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_shelf")
+
+[node name="ShelfCollision" type="CollisionShape2D" parent="."]
+position = Vector2(0, 0)
+shape = SubResource("RectangleShape2D_shelf_body")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_shelf_body"]
+size = Vector2(60, 96)
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = SubResource("Texture2D_shelf_tex")
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_shelf_tex"]
+size = Vector2(64, 128)
+
+[node name="LabelDisplay" type="Label" parent="."]
+offset_left = -48.0
+offset_top = -80.0
+offset_right = 48.0
+offset_bottom = -58.0
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 0.6, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 14
+text = "[!] SKU-999"
+clip_contents = true
+
+[node name="StatusIndicator" type="ColorRect" parent="."]
+offset_left = -8.0
+offset_top = -100.0
+offset_right = 8.0
+offset_bottom = -84.0
+color = Color(1, 0.4, 0.4, 0.9)
+
+[node name="ScanRing" type="Polygon2D" parent="."]
+color = Color(0.2, 1, 0.5, 0.6)
+polygon = PackedVector2Array(60, 0, 51.96, -30, 30, -51.96, -1.53081e-07, -60, -30, -51.96, -51.96, -30, -60, -2.04108e-07, -51.96, 30, -30, 51.96, 1.02054e-07, 60, 30, 51.96, 51.96, 30)
+visible = false
+
+[node name="Highlight" type="ColorRect" parent="."]
+offset_left = -40.0
+offset_top = -72.0
+offset_right = 40.0
+offset_bottom = 72.0
+color = Color(0.2, 1, 0.4, 0.3)
+mouse_filter = 2
+visible = false

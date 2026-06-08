@@ -1,0 +1,37 @@
+[gd_scene load_steps=2 format=3 uid="uid://checkpoint_scene_obj"]
+
+[ext_resource type="Script" path="res://scripts/props/Checkpoint.gd" id="1_cp"]
+
+[node name="Checkpoint" type="Area2D"]
+script = ExtResource("1_cp")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = SubResource("Texture2D_cp_base")
+modulate = Color(0.8, 0.9, 1, 0.7)
+
+[sub_resource type="PlaceholderTexture2D" id="Texture2D_cp_base"]
+size = Vector2(64, 128)
+
+[node name="Indicator" type="Polygon2D" parent="."]
+color = Color(0.6, 0.8, 1, 0.7)
+polygon = PackedVector2Array(0, -40, -14, -14, -40, 0, -14, 14, 0, 40, 14, 14, 40, 0, 14, -14)
+position = Vector2(0, -60)
+
+[node name="CheckpointCollision" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_cp_col")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_cp_col"]
+size = Vector2(50, 80)
+
+[node name="Label" type="Label" parent="."]
+offset_left = -30.0
+offset_top = 10.0
+offset_right = 30.0
+offset_bottom = 32.0
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(0.7, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 14
+text = "段 0"

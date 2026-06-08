@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3 uid="uid://pause_menu_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/PauseMenu.gd" id="1_pm"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+script = ExtResource("1_pm")
+
+[node name="DimOverlay" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 440.0
+offset_top = 160.0
+offset_right = 840.0
+offset_bottom = 560.0
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+theme_override_colors/font_color = Color(0.8, 0.9, 1, 1)
+text = "已暂停"
+horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 60)
+
+[node name="ResumeButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "继续游戏"
+custom_minimum_size = Vector2(320, 56)
+
+[node name="SettingsButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "设置"
+custom_minimum_size = Vector2(320, 52)
+
+[node name="RestartSegButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "重置当前段"
+custom_minimum_size = Vector2(320, 52)
+
+[node name="MenuButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "返回主菜单"
+custom_minimum_size = Vector2(320, 52)

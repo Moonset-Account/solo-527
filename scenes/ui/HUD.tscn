@@ -1,0 +1,209 @@
+[gd_scene load_steps=2 format=3 uid="uid://hud_scene_ui"]
+
+[ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1_hud"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="HUDLayout" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="HBoxContainer" parent="HUDLayout"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 1260.0
+offset_bottom = 90.0
+theme_override_constants/separation = 16
+
+[node name="EnergyContainer" type="VBoxContainer" parent="HUDLayout/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+custom_minimum_size = Vector2(200, 0)
+
+[node name="EnergyLabel" type="Label" parent="HUDLayout/TopBar/EnergyContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.3, 0.9, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+text = "能量 100%"
+
+[node name="EnergyBar" type="ProgressBar" parent="HUDLayout/TopBar/EnergyContainer"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+custom_minimum_size = Vector2(200, 18)
+
+[node name="ScanContainer" type="VBoxContainer" parent="HUDLayout/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+custom_minimum_size = Vector2(260, 0)
+
+[node name="ScanLabel" type="Label" parent="HUDLayout/TopBar/ScanContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.3, 0.9, 0.7, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+text = "扫描进度"
+visible = false
+
+[node name="PhaseLabel" type="Label" parent="HUDLayout/TopBar/ScanContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.7, 1, 0.8, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+text = ""
+visible = false
+
+[node name="ScanBar" type="ProgressBar" parent="HUDLayout/TopBar/ScanContainer"]
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = false
+custom_minimum_size = Vector2(260, 18)
+visible = false
+
+[node name="ObjectiveContainer" type="VBoxContainer" parent="HUDLayout/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+size_flags_horizontal = 3
+
+[node name="ObjectiveLabel" type="Label" parent="HUDLayout/TopBar/ObjectiveContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 0.95, 0.7, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
+theme_override_constants/outline_size = 4
+text = "任务：扫描并修复所有错误标签"
+
+[node name="ProgressLabel" type="Label" parent="HUDLayout/TopBar/ObjectiveContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.85, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+text = "修复进度：0 / 5"
+
+[node name="AlertContainer" type="HBoxContainer" parent="HUDLayout/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 2
+
+[node name="AlertLabel" type="Label" parent="HUDLayout/TopBar/AlertContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.7, 0.7, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+text = "警戒"
+
+[node name="AlertLight1" type="ColorRect" parent="HUDLayout/TopBar/AlertContainer"]
+layout_mode = 2
+color = Color(0.3, 0.3, 0.35, 0.8)
+custom_minimum_size = Vector2(20, 20)
+
+[node name="AlertLight2" type="ColorRect" parent="HUDLayout/TopBar/AlertContainer"]
+layout_mode = 2
+color = Color(0.3, 0.3, 0.35, 0.8)
+custom_minimum_size = Vector2(20, 20)
+
+[node name="AlertLight3" type="ColorRect" parent="HUDLayout/TopBar/AlertContainer"]
+layout_mode = 2
+color = Color(0.3, 0.3, 0.35, 0.8)
+custom_minimum_size = Vector2(20, 20)
+
+[node name="ScanReticle" type="Control" parent="HUDLayout"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+visible = false
+
+[node name="ReticleCircle" type="Polygon2D" parent="HUDLayout/ScanReticle"]
+color = Color(0.2, 1, 0.5, 0.7)
+polygon = PackedVector2Array(50, 0, 43.3, -25, 25, -43.3, 1.27567e-06, -50, -25, -43.3, -43.3, -25, -50, -1.7009e-06, -43.3, 25, -25, 43.3, -8.50448e-07, 50, 25, 43.3, 43.3, 25)
+position = Vector2(60, 60)
+
+[node name="Toast" type="Control" parent="HUDLayout"]
+anchors_preset = 7
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 340.0
+offset_top = -120.0
+offset_right = 940.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="ToastPanel" type="PanelContainer" parent="HUDLayout/Toast"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ToastLabel" type="Label" parent="HUDLayout/Toast/ToastPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "提示信息"
+
+[node name="CaughtOverlay" type="ColorRect" parent="HUDLayout"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 0.2, 0.15, 0)
+mouse_filter = 2
+visible = false
+
+[node name="CaughtLabel" type="Label" parent="HUDLayout/CaughtOverlay"]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 280.0
+offset_right = 1280.0
+offset_bottom = 360.0
+theme_override_font_sizes/font_size = 56
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.2, 0, 0, 1)
+theme_override_constants/outline_size = 6
+text = "被发现了！"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CaughtHint" type="Label" parent="HUDLayout/CaughtOverlay"]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 370.0
+offset_right = 1280.0
+offset_bottom = 410.0
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 0.9, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0.2, 0, 0, 0.9)
+theme_override_constants/outline_size = 5
+text = "正在重置当前段..."
+horizontal_alignment = 1
+vertical_alignment = 1
