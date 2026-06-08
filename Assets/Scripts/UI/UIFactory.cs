@@ -195,19 +195,19 @@ namespace RainAlley.UI
                 TextAnchor.UpperLeft, new Color(0.65f, 0.8f, 1f)).GetComponent<Text>();
             UIUtils.SetAnchors(comp.StandardDeviationText.rectTransform,
                 new Vector2(0, 1f), new Vector2(1f, 1f),
-                new Vector2(500, 40), new Vector2(30, -125));
+                new Vector2(30, -165), new Vector2(-30, -125), new Vector2(0.5f, 1f));
 
             comp.WindowDescriptionText = UIUtils.NewText("WinDesc", resultPanel.transform, "", 18,
                 TextAnchor.UpperLeft, new Color(0.8f, 0.95f, 0.85f)).GetComponent<Text>();
             UIUtils.SetAnchors(comp.WindowDescriptionText.rectTransform,
                 new Vector2(0, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(500, 80), new Vector2(30, -20));
+                new Vector2(30, -60), new Vector2(-30, 20), new Vector2(0.5f, 0.5f));
 
             comp.LatencyDescriptionText = UIUtils.NewText("LatDesc", resultPanel.transform, "", 17,
                 TextAnchor.UpperLeft, new Color(0.75f, 0.9f, 1f)).GetComponent<Text>();
             UIUtils.SetAnchors(comp.LatencyDescriptionText.rectTransform,
                 new Vector2(0, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(500, 80), new Vector2(30, -110));
+                new Vector2(30, -150), new Vector2(-30, -70), new Vector2(0.5f, 0.5f));
 
             comp.ResultPanel = resultPanel;
 
@@ -225,7 +225,7 @@ namespace RainAlley.UI
             UIUtils.NewText("ManualTitle", manualPanel.transform, "手动调整", 24,
                 TextAnchor.UpperLeft, new Color(1f, 0.92f, 0.75f));
             UIUtils.SetAnchors(manualPanel.transform.Find("ManualTitle").GetComponent<RectTransform>(),
-                new Vector2(0, 1f), new Vector2(1, 1f),
+                new Vector2(0, 1f), new Vector2(0, 1f),
                 new Vector2(300, 40), new Vector2(20, -15));
 
             UIUtils.NewText("LatLabel", manualPanel.transform, "输入延迟：", 18,
@@ -486,12 +486,12 @@ namespace RainAlley.UI
             var statsPanel = UIUtils.NewPanel("StatsPanel", root.transform, new Color(0.1f, 0.14f, 0.22f, 0.96f));
             UIUtils.SetAnchors(statsPanel.GetComponent<RectTransform>(),
                 new Vector2(0.55f, 0.55f), new Vector2(0.95f, 0.92f),
-                Vector2.zero, Vector2.zero);
+                Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
 
             UIUtils.NewText("StatsTitle", statsPanel.transform, "判定分布", 26,
                 TextAnchor.UpperLeft, new Color(1f, 0.92f, 0.75f));
             UIUtils.SetAnchors(statsPanel.transform.Find("StatsTitle").GetComponent<RectTransform>(),
-                new Vector2(0, 1f), new Vector2(1f, 1f),
+                new Vector2(0, 1f), new Vector2(0, 1f),
                 new Vector2(200, 40), new Vector2(20, -15));
 
             string[] labels = { "PERFECT 完美拍", "EARLY 早拍", "LATE 晚拍", "MISS 失误" };
@@ -583,12 +583,12 @@ namespace RainAlley.UI
             var lbPanel = UIUtils.NewPanel("LeaderboardPanel", root.transform, new Color(0.08f, 0.12f, 0.2f, 0.96f));
             UIUtils.SetAnchors(lbPanel.GetComponent<RectTransform>(),
                 new Vector2(0.55f, 0.08f), new Vector2(0.95f, 0.48f),
-                Vector2.zero, Vector2.zero);
+                Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
 
             UIUtils.NewText("LBTitle", lbPanel.transform, "本地排行榜", 22,
                 TextAnchor.UpperLeft, new Color(1f, 0.92f, 0.75f));
             UIUtils.SetAnchors(lbPanel.transform.Find("LBTitle").GetComponent<RectTransform>(),
-                new Vector2(0, 1f), new Vector2(1f, 1f),
+                new Vector2(0, 1f), new Vector2(0, 1f),
                 new Vector2(200, 35), new Vector2(20, -10));
             comp.LeaderboardContainer = lbPanel.GetComponent<RectTransform>();
 

@@ -186,6 +186,16 @@ namespace RainAlley.UI
             rt.anchoredPosition = pos;
         }
 
+        public static void SetAnchors(RectTransform rt, Vector2 anchorMin, Vector2 anchorMax,
+                                       Vector2 offsetMin, Vector2 offsetMax, Vector2 pivot)
+        {
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.offsetMin = offsetMin;
+            rt.offsetMax = offsetMax;
+            rt.pivot = pivot;
+        }
+
         public static Outline AddOutline(GameObject go, Color color, int dist = 2)
         {
             var o = go.AddComponent<Outline>();
