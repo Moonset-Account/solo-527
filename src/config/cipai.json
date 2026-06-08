@@ -1,0 +1,181 @@
+[
+  {
+    "id": "cp_rumengling",
+    "name": "如梦令",
+    "alias": "忆仙姿",
+    "description": "单调小令，三十三字。全词七句，五仄韵一叠韵，音节短促，婉约含蓄，宜抒发瞬间感悟与深情。",
+    "origin": "后唐庄宗李存勖创调，原名《忆仙姿》，苏轼嫌其名不雅，取词中“如梦，如梦”句改为今名。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ze", "expected": "仄仄仄平平仄" },
+        { "tone": "ze", "expected": "仄仄仄平平仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "仄仄仄平平仄" },
+        { "tone": "ze", "expected": "平仄" },
+        { "tone": "ze", "expected": "平仄" },
+        { "tone": "ze", "expected": "仄仄仄平平仄" }
+      ],
+      "lowerTune": [],
+      "rhymeScheme": "仄韵一韵到底，末两句叠句叠韵",
+      "totalLines": 7,
+      "lineLengths": [6, 6, 5, 6, 2, 2, 6]
+    },
+    "representativeWorks": ["poem_rml_1", "poem_rml_2"],
+    "imagery": ["溪亭", "日暮", "归路", "鸥鹭", "藕花", "雨疏", "风骤", "海棠", "残酒"]
+  },
+  {
+    "id": "cp_huanxisha",
+    "name": "浣溪沙",
+    "alias": "浣溪纱",
+    "description": "双调小令，四十二字。上片三句三平韵，下片三句两平韵。体制短小精炼，最宜抒发闲愁淡恨，为词中极常见之调。",
+    "origin": "唐教坊曲名，因西施浣纱于若耶溪而得名。最早见于晚唐韩偓词。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ping", "expected": "仄仄平平仄仄平" },
+        { "tone": "ping", "expected": "平平仄仄仄平平" },
+        { "tone": "ping", "expected": "平平仄仄仄平平" }
+      ],
+      "lowerTune": [
+        { "tone": "ze", "expected": "仄仄平平平仄仄" },
+        { "tone": "ping", "expected": "平平仄仄仄平平" },
+        { "tone": "ping", "expected": "平平仄仄仄平平" }
+      ],
+      "rhymeScheme": "平韵一韵到底，上片三句皆韵，下片二三句韵",
+      "totalLines": 6,
+      "lineLengths": [7, 7, 7, 7, 7, 7]
+    },
+    "representativeWorks": ["poem_hxs_1", "poem_hxs_2"],
+    "imagery": ["新词", "旧亭台", "夕阳", "落花", "归燕", "香径", "轻寒", "飞花", "丝雨", "画屏"]
+  },
+  {
+    "id": "cp_dielianhua",
+    "name": "蝶恋花",
+    "alias": "凤栖梧",
+    "description": "双调六十字，上下片各五句四仄韵。婉丽绵密，声情幽咽，最宜抒写缠绵悱恻之情。",
+    "origin": "唐教坊曲，本名《鹊踏枝》，晏殊改为今名。又名《凤栖梧》《黄金缕》《卷珠帘》。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ze", "expected": "仄仄平平平仄仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ze", "expected": "仄仄平平平仄仄" },
+        { "tone": "ze", "expected": "平平仄仄平平仄" }
+      ],
+      "lowerTune": [
+        { "tone": "ze", "expected": "仄仄平平平仄仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ze", "expected": "仄仄平平平仄仄" },
+        { "tone": "ze", "expected": "平平仄仄平平仄" }
+      ],
+      "rhymeScheme": "仄韵一韵到底，上下片各四韵",
+      "totalLines": 10,
+      "lineLengths": [7, 4, 5, 7, 7, 7, 4, 5, 7, 7]
+    },
+    "representativeWorks": ["poem_dlh_1", "poem_dlh_2"],
+    "imagery": ["危楼", "春愁", "烟光", "凭阑", "庭院", "杨柳", "帘幕", "秋千", "残照", "落花"]
+  },
+  {
+    "id": "cp_shuidiaogetou",
+    "name": "水调歌头",
+    "alias": "元会曲",
+    "description": "双调九十五字，上片九句四平韵，下片十句四平韵。气势开阔，格调高远，宜抒写豪放旷达之思。",
+    "origin": "隋炀帝开汴河自制《水调歌》，唐人演为大曲。此调截取大曲之首遍，故名歌头。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "平平仄仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄仄" },
+        { "tone": "ze", "expected": "仄仄平平仄仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" }
+      ],
+      "lowerTune": [
+        { "tone": "ze", "expected": "仄平仄" },
+        { "tone": "ze", "expected": "平仄仄" },
+        { "tone": "ping", "expected": "仄平平" },
+        { "tone": "ze", "expected": "平平仄仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄仄" },
+        { "tone": "ze", "expected": "仄仄平平仄仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" }
+      ],
+      "rhymeScheme": "平韵一韵到底",
+      "totalLines": 19,
+      "lineLengths": [5, 5, 4, 5, 6, 6, 5, 5, 5, 3, 3, 3, 4, 7, 6, 6, 5, 5, 5]
+    },
+    "representativeWorks": ["poem_sdgt_1", "poem_sdgt_2"],
+    "imagery": ["明月", "青天", "宫阙", "琼楼", "清影", "婵娟", "朱阁", "无眠", "悲欢", "离合"]
+  },
+  {
+    "id": "cp_niannujiao",
+    "name": "念奴娇",
+    "alias": "大江东去",
+    "description": "双调一百字，上下片各十句四仄韵。声调高亢雄浑，气势磅礴，最宜抒写壮志豪情与苍凉感怀。",
+    "origin": "唐天宝间名倡念奴得名。元稹《连昌宫词》有“力士传呼觅念奴”之句。苏轼《赤壁怀古》最为千古绝唱。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ze", "expected": "仄平平仄" },
+        { "tone": "ze", "expected": "仄平仄" },
+        { "tone": "ze", "expected": "平仄平平平仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ze", "expected": "平仄仄" },
+        { "tone": "ze", "expected": "平仄平平仄仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ze", "expected": "平平仄仄" },
+        { "tone": "ze", "expected": "仄仄平平仄" },
+        { "tone": "ping", "expected": "平平平仄" },
+        { "tone": "ze", "expected": "仄平平仄平仄" }
+      ],
+      "lowerTune": [
+        { "tone": "ping", "expected": "平仄平仄平平" },
+        { "tone": "ze", "expected": "仄平平仄仄" },
+        { "tone": "ze", "expected": "平平平仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ping", "expected": "平仄平" },
+        { "tone": "ze", "expected": "平仄平平平仄" },
+        { "tone": "ping", "expected": "仄仄平平" },
+        { "tone": "ze", "expected": "平平平仄仄" },
+        { "tone": "ze", "expected": "仄平平仄" },
+        { "tone": "ping", "expected": "平平平仄" },
+        { "tone": "ze", "expected": "仄平平仄平仄" }
+      ],
+      "rhymeScheme": "仄韵一韵到底，多用入声韵",
+      "totalLines": 22,
+      "lineLengths": [4, 3, 6, 4, 3, 6, 4, 4, 5, 4, 6, 6, 5, 4, 4, 3, 6, 4, 5, 4, 4, 6]
+    },
+    "representativeWorks": ["poem_nnj_1", "poem_nnj_2"],
+    "imagery": ["大江", "惊涛", "乱石", "豪杰", "羽扇", "纶巾", "华发", "江月", "洞庭", "扁舟"]
+  },
+  {
+    "id": "cp_pusaman",
+    "name": "菩萨蛮",
+    "alias": "子夜歌",
+    "description": "双调四十四字，上下片各四句两仄韵两平韵，换韵频繁。情致缠绵，辞藻华美，为花间派代表词调。",
+    "origin": "唐宣宗时女蛮国进贡，其人危髻金冠，璎珞被体，号菩萨蛮队，遂制此曲。温庭筠最擅此调。",
+    "metricalPattern": {
+      "upperTune": [
+        { "tone": "ze", "expected": "仄平平仄平平仄" },
+        { "tone": "ze", "expected": "仄平仄仄平平仄" },
+        { "tone": "ping", "expected": "仄仄仄平平" },
+        { "tone": "ping", "expected": "仄平平仄平" }
+      ],
+      "lowerTune": [
+        { "tone": "ze", "expected": "仄平平仄仄" },
+        { "tone": "ze", "expected": "平仄平平仄" },
+        { "tone": "ping", "expected": "平仄仄平平" },
+        { "tone": "ping", "expected": "平平平仄平" }
+      ],
+      "rhymeScheme": "上下片各先两仄韵后两平韵，共四换韵",
+      "totalLines": 8,
+      "lineLengths": [7, 7, 5, 5, 5, 5, 5, 5]
+    },
+    "representativeWorks": ["poem_psm_1", "poem_psm_2"],
+    "imagery": ["蛾眉", "香腮", "金鹧鸪", "绣罗襦", "梳妆", "画屏", "江南", "春水"]
+  }
+]

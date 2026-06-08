@@ -1,0 +1,298 @@
+[
+  {
+    "id": "ch_rumengling",
+    "ciPaiId": "cp_rumengling",
+    "name": "第一章·如梦令",
+    "description": "初入词境，从短小精悍的如梦令开始。字少句短，适合入门拼句。平仄提示全开，意象引导丰富，轻松感受宋词之美。",
+    "unlockRequirement": "none",
+    "rules": {
+      "showToneHint": true,
+      "showImageryHint": true,
+      "requireRhymeMatch": false,
+      "requireAntithesis": false,
+      "allowSwapAdjacent": true,
+      "showPositionHint": true,
+      "maxErrors": 10,
+      "scoreMultiplier": 1.0
+    },
+    "levels": [
+      {
+        "id": "lv_rml_1",
+        "poemId": "poem_rml_1",
+        "difficulty": 1,
+        "timeLimit": 300,
+        "hintPoints": 5,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": true,
+          "showPositionHint": true,
+          "maxErrors": 10
+        },
+        "unlockCondition": "none"
+      },
+      {
+        "id": "lv_rml_2",
+        "poemId": "poem_rml_2",
+        "difficulty": 1,
+        "timeLimit": 280,
+        "hintPoints": 4,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": true,
+          "showPositionHint": true,
+          "maxErrors": 8
+        },
+        "unlockCondition": "complete lv_rml_1"
+      }
+    ]
+  },
+  {
+    "id": "ch_huanxisha",
+    "ciPaiId": "cp_huanxisha",
+    "name": "第二章·浣溪沙",
+    "description": "词句渐长，七言为主，对仗初现端倪。保留平仄与意象提示，开始关注韵脚搭配，体会浣溪沙的婉约风韵。",
+    "unlockRequirement": "complete ch_rumengling",
+    "rules": {
+      "showToneHint": true,
+      "showImageryHint": true,
+      "requireRhymeMatch": true,
+      "requireAntithesis": false,
+      "allowSwapAdjacent": true,
+      "showPositionHint": true,
+      "maxErrors": 8,
+      "scoreMultiplier": 1.2
+    },
+    "levels": [
+      {
+        "id": "lv_hxs_1",
+        "poemId": "poem_hxs_1",
+        "difficulty": 2,
+        "timeLimit": 360,
+        "hintPoints": 4,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": true,
+          "requireRhymeMatch": true,
+          "showPositionHint": true,
+          "maxErrors": 8
+        },
+        "unlockCondition": "complete ch_rumengling"
+      },
+      {
+        "id": "lv_hxs_2",
+        "poemId": "poem_hxs_2",
+        "difficulty": 2,
+        "timeLimit": 340,
+        "hintPoints": 3,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": true,
+          "requireRhymeMatch": true,
+          "showPositionHint": true,
+          "maxErrors": 6
+        },
+        "unlockCondition": "complete lv_hxs_1"
+      }
+    ]
+  },
+  {
+    "id": "ch_dielianhua",
+    "ciPaiId": "cp_dielianhua",
+    "name": "第三章·蝶恋花",
+    "description": "上下阕分明，长短句交错，节奏变幻莫测。意象提示缩减，需要更多自主判断，感受蝶恋花的深情缠绵。",
+    "unlockRequirement": "complete ch_huanxisha",
+    "rules": {
+      "showToneHint": true,
+      "showImageryHint": false,
+      "requireRhymeMatch": true,
+      "requireAntithesis": false,
+      "allowSwapAdjacent": true,
+      "showPositionHint": false,
+      "maxErrors": 6,
+      "scoreMultiplier": 1.5
+    },
+    "levels": [
+      {
+        "id": "lv_dlh_1",
+        "poemId": "poem_dlh_1",
+        "difficulty": 3,
+        "timeLimit": 420,
+        "hintPoints": 3,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "showPositionHint": false,
+          "maxErrors": 6
+        },
+        "unlockCondition": "complete ch_huanxisha"
+      },
+      {
+        "id": "lv_dlh_2",
+        "poemId": "poem_dlh_2",
+        "difficulty": 3,
+        "timeLimit": 400,
+        "hintPoints": 2,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "showPositionHint": false,
+          "maxErrors": 5
+        },
+        "unlockCondition": "complete lv_dlh_1"
+      }
+    ]
+  },
+  {
+    "id": "ch_shuidiaogetou",
+    "ciPaiId": "cp_shuidiaogetou",
+    "name": "第四章·水调歌头",
+    "description": "长调初试，篇幅宏大，气象万千。取消相邻互换特权，平仄提示仅在上阕可见，考验对长篇词作的整体把控力。",
+    "unlockRequirement": "complete ch_dielianhua",
+    "rules": {
+      "showToneHint": false,
+      "showImageryHint": false,
+      "requireRhymeMatch": true,
+      "requireAntithesis": false,
+      "allowSwapAdjacent": false,
+      "showPositionHint": false,
+      "maxErrors": 5,
+      "scoreMultiplier": 2.0
+    },
+    "levels": [
+      {
+        "id": "lv_sdgt_1",
+        "poemId": "poem_sdgt_1",
+        "difficulty": 4,
+        "timeLimit": 540,
+        "hintPoints": 3,
+        "rules": {
+          "showToneHint": true,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "allowSwapAdjacent": true,
+          "maxErrors": 5
+        },
+        "unlockCondition": "complete ch_dielianhua"
+      },
+      {
+        "id": "lv_sdgt_2",
+        "poemId": "poem_sdgt_2",
+        "difficulty": 4,
+        "timeLimit": 520,
+        "hintPoints": 2,
+        "rules": {
+          "showToneHint": false,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "allowSwapAdjacent": false,
+          "maxErrors": 4
+        },
+        "unlockCondition": "complete lv_sdgt_1"
+      }
+    ]
+  },
+  {
+    "id": "ch_niannujiao",
+    "ciPaiId": "cp_niannujiao",
+    "name": "第五章·念奴娇",
+    "description": "豪放词巅峰，波澜壮阔，气吞山河。所有辅助提示关闭，对仗要求启动，容错极低，唯有真才实学方可过关。",
+    "unlockRequirement": "complete ch_shuidiaogetou",
+    "rules": {
+      "showToneHint": false,
+      "showImageryHint": false,
+      "requireRhymeMatch": true,
+      "requireAntithesis": true,
+      "allowSwapAdjacent": false,
+      "showPositionHint": false,
+      "maxErrors": 3,
+      "scoreMultiplier": 3.0
+    },
+    "levels": [
+      {
+        "id": "lv_nnj_1",
+        "poemId": "poem_nnj_1",
+        "difficulty": 5,
+        "timeLimit": 600,
+        "hintPoints": 2,
+        "rules": {
+          "showToneHint": false,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "requireAntithesis": true,
+          "allowSwapAdjacent": false,
+          "maxErrors": 3
+        },
+        "unlockCondition": "complete ch_shuidiaogetou"
+      },
+      {
+        "id": "lv_nnj_2",
+        "poemId": "poem_nnj_2",
+        "difficulty": 5,
+        "timeLimit": 580,
+        "hintPoints": 1,
+        "rules": {
+          "showToneHint": false,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "requireAntithesis": true,
+          "allowSwapAdjacent": false,
+          "maxErrors": 2
+        },
+        "unlockCondition": "complete lv_nnj_1"
+      }
+    ]
+  },
+  {
+    "id": "ch_pusaman",
+    "ciPaiId": "cp_pusaman",
+    "name": "第六章·菩萨蛮",
+    "description": "花间词祖，换韵频繁，短促与绵长交替。集前五章之大成，韵脚变换与对仗双重要求，词艺巅峰的终极考验。",
+    "unlockRequirement": "complete ch_niannujiao",
+    "rules": {
+      "showToneHint": false,
+      "showImageryHint": false,
+      "requireRhymeMatch": true,
+      "requireAntithesis": true,
+      "allowSwapAdjacent": false,
+      "showPositionHint": false,
+      "maxErrors": 2,
+      "scoreMultiplier": 4.0
+    },
+    "levels": [
+      {
+        "id": "lv_psm_1",
+        "poemId": "poem_psm_1",
+        "difficulty": 4,
+        "timeLimit": 480,
+        "hintPoints": 1,
+        "rules": {
+          "showToneHint": false,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "requireAntithesis": true,
+          "allowSwapAdjacent": false,
+          "maxErrors": 2
+        },
+        "unlockCondition": "complete ch_niannujiao"
+      },
+      {
+        "id": "lv_psm_2",
+        "poemId": "poem_psm_2",
+        "difficulty": 4,
+        "timeLimit": 460,
+        "hintPoints": 0,
+        "rules": {
+          "showToneHint": false,
+          "showImageryHint": false,
+          "requireRhymeMatch": true,
+          "requireAntithesis": true,
+          "allowSwapAdjacent": false,
+          "maxErrors": 1
+        },
+        "unlockCondition": "complete lv_psm_1"
+      }
+    ]
+  }
+]

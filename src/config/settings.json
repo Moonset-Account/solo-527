@@ -1,0 +1,16 @@
+{
+  "musicVolume": 0.5,
+  "sfxVolume": 0.7,
+  "showFps": false,
+  "frameRateMode": "auto",
+  "inputMapping": {
+    "up": "ArrowUp",
+    "down": "ArrowDown",
+    "left": "ArrowLeft",
+    "right": "ArrowRight",
+    "confirm": "Space",
+    "undo": "KeyZ",
+    "hint": "KeyH",
+    "pause": "Escape"
+  }
+}
