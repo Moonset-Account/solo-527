@@ -31,16 +31,21 @@ export class GameScene extends BaseScene {
     this.replaySystem = null;
     this.selectedIntersection = this.levelData.intersections[0]?.id || null;
     this.prevResult = params.prevResult || null;
+    this.adjustmentHistory = [];
+    this.pendingAdjustment = null;
+    this.baselineMetrics = null;
     this._buildScene();
     this._buildHUD();
     this._buildControlPanel();
     this._buildSimControls();
-    if (this.comparisonMetrics) {
-      this._buildComparisonPanel();
-    }
+    this._buildAdjustmentHistoryPanel();
+    this._buildComparisonPanel();
     if (this.levelData.tutorialHints?.length && !params.skippedTutorial) {
       setTimeout(() => this._showLevelTutorial(), 500);
     }
+    setTimeout(() => {
+      this.baselineMetrics = this._captureMetricsSnapshot();
+    }, 2000);
   }
 
   _buildScene() {
@@ -59,6 +64,7 @@ export class GameScene extends BaseScene {
     this.busSystem = new BusSystem(
       this.renderEngine.scene, this.roadNetwork, this.trafficLights, this.levelData
     );
+    this.busSystem.trafficSystem = this.trafficSystem;
     this.replaySystem = new ReplaySystem(this.renderEngine.scene);
     this.trafficSystem.start();
   }
@@ -218,6 +224,18 @@ export class GameScene extends BaseScene {
   }
 
   _updateConfig(partial) {
+    const before = this._captureMetricsSnapshot();
+    const frameStart = this.trafficSystem?.recordingFrames?.length || 0;
+    const timeStart = this.elapsed;
+    const intName = this.levelData.intersections.find(i => i.id === this.selectedIntersection)?.name || '全局';
+    const descParts = [];
+    if (partial.cycleTime !== undefined) descParts.push(`周期${partial.cycleTime}s`);
+    if (partial.nsGreenRatio !== undefined) descParts.push(`南北绿${Math.round(partial.nsGreenRatio * 100)}%`);
+    if (partial.yellowDuration !== undefined) descParts.push(`黄灯${partial.yellowDuration}s`);
+    if (partial.busPriorityEnabled !== undefined) descParts.push(`公交优先${partial.busPriorityEnabled ? '开' : '关'}`);
+    if (partial.rightTurnOnRed !== undefined) descParts.push(`红灯右转${partial.rightTurnOnRed ? '开' : '关'}`);
+    const adjustDesc = `${intName}：${descParts.join(' · ')}`;
+
     const light = this.trafficLights.find(l => l.id === this.selectedIntersection);
     if (light) light.setConfig(partial);
     if (partial.busPriorityEnabled !== undefined) {
@@ -226,6 +244,60 @@ export class GameScene extends BaseScene {
     if (partial.rightTurnOnRed !== undefined) {
       this.trafficLights.forEach(l => l.setConfig({ rightTurnOnRed: partial.rightTurnOnRed }));
     }
+
+    const pendingId = `adj_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    this.pendingAdjustment = { id: pendingId, desc: adjustDesc, before, frameStart, timeStart };
+    this._addToHistory({ ...this.pendingAdjustment, after: null, delta: null, frameEnd: frameStart, timeEnd: timeStart, pending: true });
+
+    const delaySec = 6;
+    const checkMs = delaySec * 1000 / Math.max(1, this.gameState.timeScale || 1);
+    setTimeout(() => {
+      if (!this.running || this.finished || !this.pendingAdjustment || this.pendingAdjustment.id !== pendingId) return;
+      const after = this._captureMetricsSnapshot();
+      const frameEnd = this.trafficSystem?.recordingFrames?.length || frameStart;
+      const timeEnd = this.elapsed;
+      const delta = this._calcDelta(before, after);
+      const entry = { id: pendingId, desc: adjustDesc, before, after, delta, frameStart, frameEnd, timeStart, timeEnd, pending: false };
+      this.pendingAdjustment = null;
+      this._replaceHistoryEntry(entry);
+      this.baselineMetrics = after;
+      this._showDeltaToast(delta, adjustDesc);
+      this.audioManager.play(delta.congestion <= 0 && delta.avgSpeed >= 0 ? 'success' : 'warning', 0.4);
+    }, checkMs);
+  }
+
+  _captureMetricsSnapshot() {
+    const tm = this.trafficSystem?.getMetrics() || { congestionIndex: 0, averageSpeedKmh: 0, throughput: 0, stoppedCount: 0, totalVehicles: 0 };
+    const bm = this.busSystem?.getMetrics() || { onTimeRate: 100, arrivals: 0, scheduled: 0 };
+    return {
+      congestion: tm.congestionIndex || 0,
+      avgSpeed: tm.averageSpeedKmh || 0,
+      busOnTime: bm.onTimeRate || 0,
+      throughput: tm.throughput || 0,
+      stoppedCount: tm.stoppedCount || 0,
+      totalVehicles: tm.totalVehicles || 0,
+      time: this.elapsed || 0
+    };
+  }
+
+  _calcDelta(before, after) {
+    return {
+      congestion: +(after.congestion - before.congestion).toFixed(1),
+      avgSpeed: +(after.avgSpeed - before.avgSpeed).toFixed(1),
+      busOnTime: +(after.busOnTime - before.busOnTime).toFixed(1),
+      throughput: +(after.throughput - before.throughput).toFixed(1)
+    };
+  }
+
+  _showDeltaToast(delta, desc) {
+    const parts = [];
+    const cSign = delta.congestion <= 0 ? '✅' : '⚠️';
+    parts.push(`拥堵 ${delta.congestion > 0 ? '+' : ''}${delta.congestion}%`);
+    const sSign = delta.avgSpeed >= 0 ? '✅' : '⚠️';
+    parts.push(`速度 ${delta.avgSpeed > 0 ? '+' : ''}${delta.avgSpeed}km/h`);
+    const bSign = delta.busOnTime >= 0 ? '✅' : '⚠️';
+    parts.push(`准点 ${delta.busOnTime > 0 ? '+' : ''}${delta.busOnTime}%`);
+    this._showToast(`📊 ${desc} → ${parts.join(' | ')}`, delta.congestion <= -3 || delta.avgSpeed >= 2 ? 'success' : delta.congestion >= 5 ? 'error' : 'info', 5000);
   }
 
   _refreshSliders() {
@@ -279,9 +351,152 @@ export class GameScene extends BaseScene {
     this._mountUI(container);
   }
 
+  _addToHistory(entry) {
+    this.adjustmentHistory.push(entry);
+    this._refreshHistoryUI();
+  }
+
+  _replaceHistoryEntry(entry) {
+    const idx = this.adjustmentHistory.findIndex(e => e.id === entry.id);
+    if (idx >= 0) this.adjustmentHistory[idx] = entry;
+    else this.adjustmentHistory.push(entry);
+    this._refreshHistoryUI();
+  }
+
+  _refreshHistoryUI() {
+    if (!this._historyList) return;
+    this._historyList.innerHTML = '';
+    if (this.adjustmentHistory.length === 0) {
+      const empty = this._createElement('div', 'history-empty', '调整信号灯或规则后，此处记录每次策略效果对比');
+      empty.style.cssText = 'color:#7a8aa5;font-size:12px;padding:10px;text-align:center;line-height:1.6';
+      this._historyList.appendChild(empty);
+      return;
+    }
+    const list = [...this.adjustmentHistory].reverse();
+    list.forEach((entry, idx) => {
+      const item = this._createElement('div', 'history-item');
+      item.style.cssText = 'padding:8px 10px;border-bottom:1px solid #2a3548;border-radius:4px;margin-bottom:4px;background:rgba(255,255,255,0.02)';
+      const head = this._h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } }, [
+        this._h('span', { style: { fontSize: '12px', fontWeight: '600', color: '#e0e8f5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }, textContent: `${list.length - idx}. ${entry.desc}` }),
+        this._h('span', { style: { fontSize: '10px', color: '#7a8aa5' }, textContent: `t=${Math.round(entry.timeStart)}s` })
+      ]);
+      item.appendChild(head);
+
+      if (entry.pending) {
+        const pending = this._createElement('div', '', '⏳ 正在评估效果...');
+        pending.style.cssText = 'color:#ffa94d;font-size:11px;animation: pulse 1.2s infinite';
+        item.appendChild(pending);
+      } else if (entry.delta) {
+        const deltaRow = this._h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' } });
+        const d = entry.delta;
+        const deltaCells = [
+          { label: '拥堵', val: d.congestion, unit: '%', better: d.congestion <= 0 },
+          { label: '速度', val: d.avgSpeed, unit: 'km/h', better: d.avgSpeed >= 0 },
+          { label: '准点', val: d.busOnTime, unit: '%', better: d.busOnTime >= 0 },
+          { label: '吞吐', val: d.throughput, unit: '/分', better: d.throughput >= 0 }
+        ];
+        deltaCells.forEach(c => {
+          const sign = c.val > 0 ? '+' : '';
+          const color = c.better ? '#49c77e' : c.val === 0 ? '#8a9ab5' : '#ff6b6b';
+          const cell = this._h('span', {
+            style: {
+              fontSize: '11px', padding: '2px 6px', borderRadius: '3px',
+              background: c.better ? 'rgba(73,199,126,0.12)' : c.val === 0 ? 'rgba(138,154,181,0.1)' : 'rgba(255,107,107,0.12)',
+              color, fontWeight: '600', whiteSpace: 'nowrap'
+            },
+            textContent: `${c.label} ${sign}${c.val}${c.unit}`
+          });
+          deltaRow.appendChild(cell);
+        });
+        item.appendChild(deltaRow);
+
+        const btnRow = this._h('div', { style: { display: 'flex', gap: '6px', justifyContent: 'flex-end' } });
+        const replayBtn = this._h('button', {
+          className: 'btn btn-small',
+          style: { fontSize: '11px', padding: '3px 8px', background: 'rgba(79,140,255,0.2)', color: '#8ab4ff', border: '1px solid rgba(79,140,255,0.3)' },
+          textContent: '🎬 回放片段',
+          onclick: () => {
+            this.audioManager.playClick();
+            this._replayAdjustmentSegment(entry);
+          }
+        });
+        const compareBtn = this._h('button', {
+          className: 'btn btn-small',
+          style: { fontSize: '11px', padding: '3px 8px', background: 'rgba(255,169,77,0.15)', color: '#ffc78a', border: '1px solid rgba(255,169,77,0.3)' },
+          textContent: '📊 锁定对比',
+          onclick: () => {
+            this.audioManager.playClick();
+            this.prevDisplay = {
+              avgSpeed: entry.before.avgSpeed,
+              congestion: entry.before.congestion,
+              busOnTime: entry.before.busOnTime,
+              throughput: entry.before.throughput
+            };
+            this._comparisonLocked = entry;
+            if (this._lockLabel) this._lockLabel.textContent = `🔒 锁定：${entry.desc.slice(0, 22)}`;
+            this._showToast('已锁定为对比基准', 'info', 2500);
+          }
+        });
+        btnRow.appendChild(compareBtn);
+        btnRow.appendChild(replayBtn);
+        item.appendChild(btnRow);
+      }
+      this._historyList.appendChild(item);
+    });
+  }
+
+  _buildAdjustmentHistoryPanel() {
+    const panel = this._createElement('div', 'panel history-panel');
+    panel.style.cssText = 'position:absolute;left:20px;bottom:110px;width:340px;max-height:280px;display:flex;flex-direction:column';
+    const head = this._h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } }, [
+      this._createElement('div', 'control-title', '� 策略调整历史'),
+      (this._lockLabel = this._h('span', { style: { fontSize: '10px', color: '#ffa94d' }, textContent: '' }))
+    ]);
+    panel.appendChild(head);
+    this._historyList = this._createElement('div', 'history-list');
+    this._historyList.style.cssText = 'overflow-y:auto;flex:1;padding-right:2px;max-height:230px';
+    panel.appendChild(this._historyList);
+    this._mountUI(panel);
+    this._refreshHistoryUI();
+  }
+
+  _replayAdjustmentSegment(entry) {
+    if (!this.trafficSystem) return;
+    const recording = this.trafficSystem.getRecording();
+    if (!recording || recording.length < 30) {
+      this._showToast('⚠️ 录制数据不足', 'warning');
+      return;
+    }
+    const startF = Math.max(0, entry.frameStart);
+    const endF = Math.min(recording.length - 1, entry.frameEnd + recording.length / 12);
+    if (endF - startF < 15) {
+      this._showToast('⚠️ 调整片段太短，无法回放', 'warning');
+      return;
+    }
+    const seg = recording.slice(startF, endF + 1);
+    this.replaySystem.stop();
+    this.replaySystem.loadRecording(seg);
+    this.replaySystem.play({
+      speed: (this.gameState.speed || 1) * 1.2,
+      onUpdate: (p) => {
+        const pc = document.getElementById('progress-percent');
+        if (pc) pc.textContent = `策略回放 ${Math.floor(p.progress * 100)}%`;
+      },
+      onComplete: () => {
+        this._showToast('✅ 策略回放完成', 'success');
+        const pp = document.getElementById('progress-phase');
+        if (pp) pp.textContent = '模拟进行中';
+      }
+    });
+    const pp = document.getElementById('progress-phase');
+    if (pp) pp.textContent = '策略片段回放中...';
+    this._showToast('🎬 正在回放调整前后对比片段', 'info');
+  }
+
   _buildComparisonPanel() {
     const panel = this._createElement('div', 'panel comparison-panel');
-    const title = this._createElement('div', 'control-title', '📈 本次 vs 上次');
+    panel.style.cssText = 'position:absolute;right:20px;top:80px;width:320px';
+    const title = this._createElement('div', 'control-title', '📈 实时指标对比');
 
     const labels = {
       avgSpeed: '平均速度(km/h)',
@@ -290,7 +505,7 @@ export class GameScene extends BaseScene {
       throughput: '车辆吞吐(/分)'
     };
 
-    this.prevDisplay = this.comparisonMetrics;
+    this.prevDisplay = this.comparisonMetrics || null;
     const keys = ['avgSpeed', 'congestion', 'busOnTime', 'throughput'];
     const chart = this._createElement('div', 'chart-container');
     const barsWrap = this._createElement('div', 'chart-bars');
@@ -298,55 +513,81 @@ export class GameScene extends BaseScene {
 
     keys.forEach((k) => {
       const group = this._createElement('div', 'chart-bar-group');
-      const val = this._createElement('div', 'chart-bar-value', '--');
+      const valRow = this._h('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: '4px', minHeight: '20px' } });
+      const val = this._h('div', { className: 'chart-bar-value', style: { fontSize: '13px' }, textContent: '--' });
+      const deltaTag = this._h('span', { style: { fontSize: '10px', fontWeight: '700' }, textContent: '' });
+      valRow.appendChild(val);
+      valRow.appendChild(deltaTag);
       const bar1 = this._createElement('div', 'chart-bar');
       bar1.style.height = '0%';
       const bar2 = this._createElement('div', 'chart-bar comparison');
       bar2.style.height = '0%';
       const lab = this._createElement('div', 'chart-bar-label', labels[k]);
-      group.appendChild(val);
+      group.appendChild(valRow);
       group.appendChild(bar1);
       group.appendChild(bar2);
       group.appendChild(lab);
       barsWrap.appendChild(group);
-      this.chartBarWraps[k] = { group, val, bar1, bar2, lab };
+      this.chartBarWraps[k] = { group, val, deltaTag, bar1, bar2, lab };
     });
 
     chart.appendChild(barsWrap);
-    const legend = this._h('div', { style: { display: 'flex', gap: '16px', justifyContent: 'center', fontSize: '12px', color: '#8a9ab5', marginTop: '4px' } }, [
-      this._h('span', { textContent: '■ 当前' }, [this._h('span', { style: { color: '#4f8cff' }, textContent: '' })]),
-      this._h('span', { textContent: '■ 上次' }, [this._h('span', { style: { color: '#ffa94d' }, textContent: '' })])
+    const legend = this._h('div', { style: { display: 'flex', gap: '16px', justifyContent: 'center', fontSize: '12px', color: '#8a9ab5', marginTop: '6px', flexWrap: 'wrap' } }, [
+      this._h('span', { textContent: '■ 当前', style: { color: '#4f8cff' } }),
+      this._h('span', { textContent: '■ 基线(调整前/上次)', style: { color: '#ffa94d' } })
+    ]);
+    const hint = this._h('div', { style: { marginTop: '6px', fontSize: '10px', color: '#7a8aa5', textAlign: 'center', lineHeight: '1.5' } }, [
+      this._h('span', { textContent: '提示：在策略调整历史点"锁定对比"可固定基线 · 绿色Δ=改善 / 红色Δ=恶化' })
     ]);
 
     panel.appendChild(title);
     panel.appendChild(chart);
     panel.appendChild(legend);
+    panel.appendChild(hint);
     this._mountUI(panel);
   }
 
   _updateComparison(current) {
-    if (!this.chartBarWraps || !this.prevDisplay) return;
+    if (!this.chartBarWraps) return;
     const c = current;
-    const p = this.prevDisplay;
+    const baseline = this.baselineMetrics;
+    if (!baseline && !this.prevDisplay) return;
+
+    const compareBase = this.prevDisplay || {
+      avgSpeed: baseline.avgSpeed || 0,
+      congestion: baseline.congestion || 0,
+      busOnTime: baseline.busOnTime || 0,
+      throughput: baseline.throughput || 0
+    };
+
+    const currentVals = {
+      avgSpeed: c.averageSpeedKmh || 0,
+      congestion: c.congestionIndex || 0,
+      busOnTime: c.busOnTimeRate || 0,
+      throughput: c.throughput || 0
+    };
 
     const pairs = [
-      { k: 'avgSpeed', a: c.averageSpeedKmh || 0, b: p.avgSpeed || 0, max: 50 },
-      { k: 'congestion', a: c.congestionIndex || 0, b: p.congestion || 0, max: 100, reverse: true },
-      { k: 'busOnTime', a: c.busOnTimeRate || 0, b: p.busOnTime || 0, max: 100 },
-      { k: 'throughput', a: c.throughput || 0, b: p.throughput || 0, max: 40 }
+      { k: 'avgSpeed', a: currentVals.avgSpeed, b: compareBase.avgSpeed || 0, max: 50, unit: 'km/h', better: (a, b) => a >= b },
+      { k: 'congestion', a: currentVals.congestion, b: compareBase.congestion || 0, max: 100, unit: '%', better: (a, b) => a <= b },
+      { k: 'busOnTime', a: currentVals.busOnTime, b: compareBase.busOnTime || 0, max: 100, unit: '%', better: (a, b) => a >= b },
+      { k: 'throughput', a: currentVals.throughput, b: compareBase.throughput || 0, max: 40, unit: '/分', better: (a, b) => a >= b }
     ];
 
-    pairs.forEach(({ k, a, b, max, reverse }) => {
+    pairs.forEach(({ k, a, b, max, unit, better }) => {
       const w = this.chartBarWraps[k];
       if (!w) return;
       const h1 = Math.max(5, Math.min(100, (a / max) * 100));
-      const h2 = Math.max(5, Math.min(100, (b / max) * 100));
+      const h2 = Math.max(5, Math.min(100, ((b || 0) / max) * 100));
       w.bar1.style.height = `${h1}%`;
       w.bar2.style.height = `${h2}%`;
       w.val.textContent = `${a.toFixed(1)}`;
-      if (reverse) {
-        w.bar1.style.opacity = a < b ? '1' : '0.85';
-      }
+      const delta = a - b;
+      const sign = delta > 0 ? '+' : '';
+      const isBetter = better(a, b);
+      const dColor = Math.abs(delta) < 0.05 ? '#8a9ab5' : isBetter ? '#49c77e' : '#ff6b6b';
+      w.deltaTag.style.color = dColor;
+      w.deltaTag.textContent = Math.abs(delta) < 0.05 ? '' : `${sign}${delta.toFixed(1)}${unit}`;
     });
   }
 

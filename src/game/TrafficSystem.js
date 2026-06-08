@@ -133,17 +133,18 @@ export class TrafficSystem {
       const dx = light.x - v.position.x;
       const dz = light.z - v.position.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < minDist && dist < 40) {
+      if (dist < minDist && dist < 55) {
         minDist = dist;
         nearestIntersection = light;
       }
     }
 
-    if (nearestIntersection && minDist < 25) {
+    if (nearestIntersection && minDist < 38) {
       ctx.isIntersectionArea = true;
       const vDir = this._getVehicleDirection(v);
-      const stopDist = 5.5;
-      if (minDist < 22 && minDist > stopDist) {
+      const stopDist = 7.0;
+      const triggerDist = 32;
+      if (minDist < triggerDist && minDist > stopDist) {
         ctx.shouldStop = nearestIntersection.shouldStop(vDir);
         if (v.isBus && ctx.shouldStop) {
           const granted = nearestIntersection.grantBusPriority(vDir);
@@ -152,6 +153,8 @@ export class TrafficSystem {
           }
         }
         ctx.stopDistance = minDist - stopDist;
+      } else if (minDist <= stopDist) {
+        ctx.shouldStop = false;
       }
     }
 
@@ -160,13 +163,13 @@ export class TrafficSystem {
       const dx = other.position.x - v.position.x;
       const dz = other.position.z - v.position.z;
       const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > 20) continue;
+      if (dist > 30) continue;
       const headingDiff = Math.abs(this._angleDiff(other.heading, v.heading));
-      if (headingDiff < 0.5 && dist < ctx.carInFrontDist) {
+      if (headingDiff < 0.6 && dist < ctx.carInFrontDist) {
         const fwdX = Math.sin(v.heading);
         const fwdZ = Math.cos(v.heading);
         const fwdDot = dx * fwdX + dz * fwdZ;
-        if (fwdDot > -0.5 && dist < ctx.carInFrontDist) {
+        if (fwdDot > -1.0 && dist < ctx.carInFrontDist) {
           ctx.carInFront = other;
           ctx.carInFrontDist = dist;
         }
@@ -333,10 +336,13 @@ export class TrafficSystem {
     let avgSpeed = 0;
     let busCount = 0;
     let busAvgSpeed = 0;
+    let slowVehicles = 0;
+    let queuedBackPressure = 0;
     for (const v of this.vehicles) {
       const s = v.getAverageSpeed() * 3.6;
       avgSpeed += s;
       if (v.isStopped()) stoppedCount++;
+      if (s < 10) slowVehicles++;
       if (v.isBus) {
         busCount++;
         busAvgSpeed += s;
@@ -344,9 +350,16 @@ export class TrafficSystem {
     }
     avgSpeed = total > 0 ? avgSpeed / total : 0;
     busAvgSpeed = busCount > 0 ? busAvgSpeed / busCount : 0;
+    queuedBackPressure = total > 0
+      ? (stoppedCount * 1.0 + slowVehicles * 0.5) / total
+      : 0;
 
     const congestion = total > 0
-      ? Math.min(100, (stoppedCount / total) * 100 * 1.2 + (1 - Math.min(1, avgSpeed / 30)) * 40)
+      ? Math.min(100,
+          queuedBackPressure * 130
+          + Math.max(0, 50 - avgSpeed) * 0.8
+          + (1 - Math.min(1, avgSpeed / 30)) * 35
+        )
       : 0;
 
     return {
@@ -356,6 +369,7 @@ export class TrafficSystem {
       vehiclesSpawned: this.vehiclesSpawned,
       vehiclesArrived: this.vehiclesArrived,
       stoppedCount,
+      slowVehicles,
       averageSpeedKmh: avgSpeed,
       busAverageSpeedKmh: busAvgSpeed,
       busCount,
