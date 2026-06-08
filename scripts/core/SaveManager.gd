@@ -6,6 +6,7 @@ const SETTINGS_PATH: String = "user://settings.cfg"
 var level_progress: Dictionary = {}
 var total_money_earned: int = 0
 var games_played: int = 0
+var tutorial_skipped: bool = false
 var settings: Dictionary = {
     "master_volume": 0.8,
     "bgm_volume": 0.6,
@@ -60,6 +61,7 @@ func save_progress() -> void:
     var config = ConfigFile.new()
     config.set_value("Progress", "total_money_earned", total_money_earned)
     config.set_value("Progress", "games_played", games_played)
+    config.set_value("Progress", "tutorial_skipped", tutorial_skipped)
     config.set_value("Progress", "levels", level_progress)
     
     var error = config.save(SAVE_PATH)
@@ -74,6 +76,7 @@ func load_progress() -> void:
     if error == OK:
         total_money_earned = config.get_value("Progress", "total_money_earned", 0)
         games_played = config.get_value("Progress", "games_played", 0)
+        tutorial_skipped = config.get_value("Progress", "tutorial_skipped", false)
         level_progress = config.get_value("Progress", "levels", {})
         print("[SaveManager] 进度已加载")
     else:

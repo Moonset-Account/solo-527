@@ -219,13 +219,59 @@ func _ready() -> void:
         return [ok, info]
     , "新手引导/经营建议", passed, total)
     
+    # 测试13: 跳过教程方法存在+保存
+    _safe_test(func ():
+        var ta = load("res://scripts/game/TutorialAdvice.gd").new()
+        add_child(ta)
+        var pre_skipped = SaveManager.tutorial_skipped
+        SaveManager.tutorial_skipped = false
+        ta.skip_tutorial()
+        var post_skipped = SaveManager.tutorial_skipped
+        var completed = ta.is_complete()
+        SaveManager.tutorial_skipped = pre_skipped
+        ta.queue_free()
+        var ok = post_skipped and completed
+        var info = "skip_tutorial() 方法存在 ✓, tutorial_skipped: %s, is_complete: %s" % [str(post_skipped), str(completed)]
+        return [ok, info]
+    , "教程跳过方法+存档持久化", passed, total)
+    
+    # 测试14: SettingsDialog场景根节点类型
+    _safe_test(func ():
+        var scene = GameAssets.load_scene("res://scenes/ui/SettingsDialog.tscn")
+        if scene == null:
+            return [false, "场景加载失败"]
+        var inst = scene.instantiate()
+        var is_ok = inst is AcceptDialog
+        var info = "场景根节点类型: " + inst.get_class()
+        if not is_ok:
+            info += " (应为 AcceptDialog)"
+        inst.free()
+        return [is_ok, info]
+    , "SettingsDialog根节点类型", passed, total)
+    
+    # 测试15: 输入方式切换→InputHintsBar响应
+    _safe_test(func ():
+        InputMapper.set_input_mode(0)
+        var kb_hint = InputMapper.get_action_hint("ui_accept")
+        InputMapper.set_input_mode(1)
+        var gp_hint = InputMapper.get_action_hint("ui_accept")
+        InputMapper.set_input_mode(2)
+        var tc_hint = InputMapper.get_action_hint("ui_accept")
+        InputMapper.set_input_mode(0)
+        var all_diff = (kb_hint != gp_hint and gp_hint != tc_hint)
+        var info = "键鼠模式ui_accept=[%s]\n     手柄模式ui_accept=[%s]\n     触屏模式ui_accept=[%s]" % [kb_hint, gp_hint, tc_hint]
+        info += "\n   三种模式按键不同: %s" % str(all_diff)
+        return [all_diff, info]
+    , "输入方式切换/按键提示切换", passed, total)
+    
     print("\n" + _repeat_str("=", 60))
     print("📊 核心系统验证结果: %d / %d 项通过" % [passed[0], total[0]])
     if passed[0] == total[0]:
-        print("🎉 12/12 项全部通过验证！")
+        print("🎉 %d/%d 项全部通过验证！" % [total[0], total[0]])
         print("   → 采购流程、库存系统、结算状态正常")
         print("   → 多输入切换、存档系统、摊位升级、顾客系统正常")
         print("   → 新手引导、经营建议、音频反馈、星级评定正常")
+        print("   → 教程跳过、设置对话框、输入提示切换正常")
     elif passed[0] >= total[0] - 2:
         print("👍 大部分通过 (%d项), 可能存在小问题" % (passed[0]))
     else:

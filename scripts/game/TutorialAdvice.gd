@@ -83,6 +83,13 @@ func complete_tutorial() -> void:
     tutorial_completed = true
     UIState.end_tutorial()
 
+func skip_tutorial() -> void:
+    tutorial_completed = true
+    SaveManager.tutorial_skipped = true
+    SaveManager.save_progress()
+    UIState.end_tutorial()
+    EventBus.emit_event("tutorial_skipped")
+
 func is_complete() -> bool:
     return tutorial_completed or SaveManager.tutorial_skipped
 

@@ -17,7 +17,7 @@ var close_button: Button
 func _ready() -> void:
     title = "⚙️  游戏设置"
     unresizable = false
-    custom_minimum_size = Vector2(520, 500)
+    min_size = Vector2i(520, 500)
     
     if not _is_children_ready():
         _build_ui()
