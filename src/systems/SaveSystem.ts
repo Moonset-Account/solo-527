@@ -2,6 +2,7 @@ import { SaveData, GameSettings, GameStateData, LevelConfig } from '@core/types'
 import { DEFAULT_SETTINGS, STORAGE_KEYS, SAVE_VERSION } from '@config/defaults';
 import { eventBus, GameEvents } from '@core/EventBus';
 import { deepClone } from '@core/utils';
+import type { SerializedLevelState } from '@core/GameState';
 
 export class SaveSystem {
   private static instance: SaveSystem;
@@ -145,7 +146,17 @@ export class SaveSystem {
 
   clearLevelState(): void {
     delete this.saveData.currentLevelState;
+    delete this.saveData.serializedLevelProgress;
     this.save();
+  }
+
+  saveSerializedLevelState(data: SerializedLevelState): void {
+    (this.saveData as any).serializedLevelProgress = deepClone(data);
+    this.save();
+  }
+
+  loadSerializedLevelState(): SerializedLevelState | undefined {
+    return (this.saveData as any).serializedLevelProgress as SerializedLevelState | undefined;
   }
 
   getCustomLevels(): LevelConfig[] {

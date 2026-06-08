@@ -148,6 +148,37 @@ export class ConfigManager {
       errors.push('至少需要一个书架');
     }
 
+    if (level.targetBooks && level.bookshelves && level.targetBooks.length > 0) {
+      if (level.books.length !== level.targetBooks.length) {
+        errors.push(`目标书籍数量(${level.targetBooks.length})与书籍配置(${level.books.length})不匹配`);
+      }
+      const targetCount = level.bookshelves.filter(s => s.isTarget).length;
+      if (targetCount < level.targetBooks.length) {
+        errors.push(`目标书架不足：需要至少${level.targetBooks.length}个目标书架，当前只有${targetCount}个`);
+      }
+      const totalShelfCount = level.bookshelves.length;
+      if (totalShelfCount < level.targetBooks.length + 1) {
+        errors.push(`书架总数不足：每本书都需要一个初始错放位置，建议书架数至少为目标书数+1（当前${totalShelfCount}）`);
+      }
+      level.targetBooks.forEach(bookId => {
+        const book = level.books.find(b => b.id === bookId);
+        if (!book) {
+          errors.push(`目标书籍${bookId}不存在于书籍列表`);
+          return;
+        }
+        if (!book.correctShelfId) {
+          errors.push(`书籍${book.name}没有配置correctShelfId`);
+          return;
+        }
+        const correctShelf = level.bookshelves.find(s => s.id === book.correctShelfId);
+        if (!correctShelf) {
+          errors.push(`书籍${book.name}的correctShelfId(${book.correctShelfId})不存在`);
+        } else if (!correctShelf.isTarget) {
+          errors.push(`书籍${book.name}的correctShelfId必须是目标书架(isTarget=true)`);
+        }
+      });
+    }
+
     return {
       valid: errors.length === 0,
       errors

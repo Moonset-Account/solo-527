@@ -1,6 +1,13 @@
 import { GameStateData, LevelConfig, Point, Direction, TileType, BookshelfData, BookData, ClueData, IndexCardData } from './types';
 import { eventBus, GameEvents } from './EventBus';
 import { deepClone } from './utils';
+import { saveSystem } from '@systems/SaveSystem';
+
+export interface SerializedLevelState {
+  levelId: string;
+  levelConfig: LevelConfig;
+  state: GameStateData;
+}
 
 export class GameState {
   private static instance: GameState;
@@ -13,14 +20,147 @@ export class GameState {
   private indexCardStates: Map<string, boolean> = new Map();
   private actionHistory: GameStateData[] = [];
   private maxHistorySize = 100;
+  private autoSaveEnabled = true;
+  private pendingAutoSaveTimer: any = null;
 
-  private constructor() {}
+  private constructor() {
+    this.bindAutoSaveEvents();
+  }
 
   static getInstance(): GameState {
     if (!GameState.instance) {
       GameState.instance = new GameState();
     }
     return GameState.instance;
+  }
+
+  private bindAutoSaveEvents(): void {
+    const schedule = () => this.scheduleAutoSave();
+
+    eventBus.on(GameEvents.PLAYER_MOVE, schedule);
+    eventBus.on(GameEvents.PLAYER_PUSH, schedule);
+    eventBus.on(GameEvents.CLUE_COLLECTED, schedule);
+    eventBus.on(GameEvents.INDEXCARD_FIXED, schedule);
+    eventBus.on(GameEvents.BOOK_PLACED, schedule);
+    eventBus.on(GameEvents.BOOK_REMOVED, schedule);
+    eventBus.on(GameEvents.UNDO_ACTION, schedule);
+
+    eventBus.on(GameEvents.GAME_WIN, () => {
+      this.cancelPendingAutoSave();
+      saveSystem.clearLevelState();
+    });
+    eventBus.on(GameEvents.GAME_FAIL, () => {
+      this.cancelPendingAutoSave();
+      saveSystem.clearLevelState();
+    });
+    eventBus.on(GameEvents.LEVEL_RESTART, () => {
+      this.cancelPendingAutoSave();
+      saveSystem.clearLevelState();
+    });
+  }
+
+  private scheduleAutoSave(): void {
+    if (!this.autoSaveEnabled || !this.state || this.state.isCompleted) return;
+
+    this.cancelPendingAutoSave();
+
+    this.pendingAutoSaveTimer = setTimeout(() => {
+      this.saveCurrentProgressToStorage();
+    }, 200);
+  }
+
+  private cancelPendingAutoSave(): void {
+    if (this.pendingAutoSaveTimer !== null) {
+      clearTimeout(this.pendingAutoSaveTimer);
+      this.pendingAutoSaveTimer = null;
+    }
+  }
+
+  saveCurrentProgressToStorage(): void {
+    if (!this.state || !this.levelConfig) return;
+    try {
+      const serialized: SerializedLevelState = {
+        levelId: this.levelConfig.id,
+        levelConfig: deepClone(this.levelConfig),
+        state: deepClone(this.state)
+      };
+      (saveSystem as any).saveSerializedLevelState(serialized);
+    } catch (e) {
+      console.warn('[GameState] autosave failed:', e);
+    }
+  }
+
+  tryRestoreProgress(): SerializedLevelState | null {
+    try {
+      const data = (saveSystem as any).loadSerializedLevelState() as SerializedLevelState | undefined;
+      if (!data || !data.levelConfig || !data.state) return null;
+      return data;
+    } catch (e) {
+      console.warn('[GameState] restore failed:', e);
+      return null;
+    }
+  }
+
+  restoreFromSerialized(serialized: SerializedLevelState): boolean {
+    try {
+      this.autoSaveEnabled = false;
+      this.initializeFromLevel(serialized.levelConfig);
+      if (!this.state || !this.levelConfig) return false;
+
+      const saved = serialized.state;
+      this.state.playerPosition = { ...saved.playerPosition };
+      this.state.playerDirection = saved.playerDirection;
+      this.state.stepsTaken = saved.stepsTaken;
+      this.state.timeElapsed = saved.timeElapsed;
+      this.state.collectedClues = [...saved.collectedClues];
+      this.state.fixedIndexCards = [...saved.fixedIndexCards];
+      this.state.placedBooks = saved.placedBooks.map(pb => ({ ...pb }));
+      this.state.bookshelfPositions = saved.bookshelfPositions.map(bp => ({
+        id: bp.id,
+        position: { ...bp.position }
+      }));
+      this.state.isCompleted = saved.isCompleted;
+      if (saved.failedReason) this.state.failedReason = saved.failedReason;
+
+      saved.collectedClues.forEach(cid => {
+        this.clueStates.set(cid, true);
+      });
+
+      saved.fixedIndexCards.forEach(cid => {
+        this.indexCardStates.set(cid, true);
+      });
+
+      this.levelConfig.bookshelves.forEach(shelf => {
+        shelf.bookId = undefined;
+        const pos = saved.bookshelfPositions.find(bp => bp.id === shelf.id);
+        if (pos) {
+          this.bookshelfStates.set(shelf.id, { ...pos.position });
+          shelf.position = { ...pos.position };
+        }
+      });
+
+      this.levelConfig.books.forEach(book => {
+        const placed = saved.placedBooks.find(pb => pb.bookId === book.id);
+        if (placed) {
+          book.currentShelfId = placed.shelfId;
+          book.isPlaced = true;
+          this.bookStates.set(book.id, { shelfId: placed.shelfId, placed: true });
+          const shelf = this.levelConfig!.bookshelves.find(s => s.id === placed.shelfId);
+          if (shelf) shelf.bookId = book.id;
+        } else {
+          book.currentShelfId = undefined;
+          book.isPlaced = false;
+          this.bookStates.set(book.id, { shelfId: null, placed: false });
+        }
+      });
+
+      this.autoSaveEnabled = true;
+      return true;
+    } catch (e) {
+      console.error('[GameState] restore error:', e);
+      this.autoSaveEnabled = true;
+      return false;
+    }
   }
 
   initializeFromLevel(level: LevelConfig): void {
@@ -72,6 +212,8 @@ export class GameState {
 
     this.actionHistory = [];
 
+    this.ensureAllTargetBooksOnWrongShelves();
+
     this.state = {
       currentLevelId: level.id,
       playerPosition: { ...level.playerStart },
@@ -91,6 +233,78 @@ export class GameState {
     };
 
     eventBus.emit(GameEvents.LEVEL_START, level);
+  }
+
+  private ensureAllTargetBooksOnWrongShelves(): void {
+    if (!this.levelConfig) return;
+
+    const { bookshelves, books, targetBooks } = this.levelConfig;
+
+    targetBooks.forEach(bookId => {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+
+      if (book.currentShelfId && book.currentShelfId !== book.correctShelfId) {
+        const shelf = bookshelves.find(s => s.id === book.currentShelfId);
+        if (shelf && !shelf.bookId) {
+          shelf.bookId = book.id;
+          book.isPlaced = true;
+          this.bookStates.set(book.id, { shelfId: book.currentShelfId, placed: true });
+          return;
+        }
+      }
+
+      book.currentShelfId = undefined;
+      book.isPlaced = false;
+
+      const candidateShelfIds = bookshelves
+        .filter(s => s.id !== book.correctShelfId)
+        .map(s => s.id);
+
+      const occupiedShelfIds = new Set<string>();
+      books.forEach(other => {
+        if (other.id !== book.id && other.currentShelfId) {
+          occupiedShelfIds.add(other.currentShelfId);
+        }
+      });
+
+      let chosenShelfId: string | undefined;
+
+      for (const sid of candidateShelfIds) {
+        if (!occupiedShelfIds.has(sid)) {
+          chosenShelfId = sid;
+          break;
+        }
+      }
+
+      if (!chosenShelfId && candidateShelfIds.length > 0) {
+        const otherTargets = candidateShelfIds.filter(
+          sid => bookshelves.find(s => s.id === sid)?.isTarget && sid !== book.correctShelfId
+        );
+        chosenShelfId = otherTargets[0] || candidateShelfIds[0];
+      }
+
+      if (chosenShelfId) {
+        const chosenShelf = bookshelves.find(s => s.id === chosenShelfId);
+        if (chosenShelf) {
+          book.currentShelfId = chosenShelfId;
+          book.isPlaced = true;
+          if (!chosenShelf.bookId) {
+            chosenShelf.bookId = book.id;
+          }
+          this.bookStates.set(book.id, { shelfId: chosenShelfId, placed: true });
+        }
+      }
+    });
+
+    books.forEach(book => {
+      if (book.currentShelfId) {
+        const bs = this.bookStates.get(book.id);
+        if (!bs) {
+          this.bookStates.set(book.id, { shelfId: book.currentShelfId, placed: true });
+        }
+      }
+    });
   }
 
   getState(): GameStateData | null {

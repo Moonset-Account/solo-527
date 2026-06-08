@@ -49,11 +49,34 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    let resumed = false;
+    const stored = gameState.tryRestoreProgress();
+    if (stored && stored.levelId === this.level.id && !stored.state.isCompleted) {
+      resumed = gameState.restoreFromSerialized(stored);
+      if (resumed) {
+        const cfg = gameState.getLevelConfig();
+        if (cfg) this.level = cfg;
+      }
+    }
+
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.cameras.main.fadeIn(300, 0, 0, 0);
 
     this.gameController = new GameController(this, this.level);
     this.gameController.initialize();
+
+    if (resumed) {
+      const state = gameState.getState();
+      if (state) {
+        const { x, y } = state.playerPosition;
+        const ts = this.gameController.tileSize;
+        this.gameController.player.sprite.setPosition(
+          x * ts + ts / 2,
+          y * ts + ts / 2
+        );
+        this.gameController.syncVisualsFromState();
+      }
+    }
 
     this.hud = new HUD(this, this.gameController);
     this.notificationManager = new NotificationManager(this);
@@ -68,9 +91,13 @@ export class GameScene extends Phaser.Scene {
 
     eventBus.emit(GameEvents.LEVEL_START, this.level);
     
-    const saved = saveSystem.loadLevelState();
-    if (saved && saved.currentLevelId === this.level.id && !saved.isCompleted) {
-      this.showResumeOption();
+    if (resumed) {
+      eventBus.emit(GameEvents.NOTIFICATION, {
+        id: `resume_${Date.now()}`,
+        message: '已自动恢复上次未完成的进度，按 R 可重新开始',
+        type: 'info',
+        duration: 5000
+      });
     }
 
     this.scale.on('resize', () => this.onResize());

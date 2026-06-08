@@ -631,27 +631,49 @@ export class EditorScene extends Phaser.Scene {
     const nonTargetShelves = newLevel.bookshelves.filter(s => !s.isTarget);
     const assignedShelfIds = new Set<string>();
 
+    const allCandidateShelves = newLevel.bookshelves.filter(s => s.id);
+
     newLevel.books.forEach(book => {
-      const wrongShelf = nonTargetShelves.find(
+      let shelfForBook = nonTargetShelves.find(
         s => s.id !== book.correctShelfId && !assignedShelfIds.has(s.id)
       );
-      if (wrongShelf) {
-        book.currentShelfId = wrongShelf.id;
-        book.isPlaced = true;
-        wrongShelf.bookId = book.id;
-        assignedShelfIds.add(wrongShelf.id);
-      } else {
-        const fallbackShelf = newLevel.bookshelves.find(
-          s => s.id !== book.correctShelfId && s.id !== book.currentShelfId && !assignedShelfIds.has(s.id)
+
+      if (!shelfForBook) {
+        shelfForBook = allCandidateShelves.find(
+          s => s.id !== book.correctShelfId && !assignedShelfIds.has(s.id)
         );
-        if (fallbackShelf) {
-          book.currentShelfId = fallbackShelf.id;
-          book.isPlaced = true;
-          fallbackShelf.bookId = book.id;
-          assignedShelfIds.add(fallbackShelf.id);
+      }
+
+      if (!shelfForBook) {
+        shelfForBook = allCandidateShelves.find(
+          s => s.id !== book.correctShelfId
+        );
+      }
+
+      if (shelfForBook) {
+        book.currentShelfId = shelfForBook.id;
+        book.isPlaced = true;
+        if (!shelfForBook.bookId) {
+          shelfForBook.bookId = book.id;
         }
+        assignedShelfIds.add(shelfForBook.id);
       }
     });
+
+    newLevel.bookshelves.forEach(shelf => {
+      const bookOnShelf = newLevel.books.find(b => b.currentShelfId === shelf.id);
+      if (bookOnShelf) {
+        shelf.bookId = bookOnShelf.id;
+      }
+    });
+
+    const unassigned = newLevel.books.filter(b => !b.currentShelfId);
+    if (unassigned.length > 0) {
+      this.showEditorMessage(
+        `警告：有${unassigned.length}本书没有找到合适错放位置，进入关卡后会自动分配`,
+        'warning'
+      );
+    }
 
     configManager.saveCustomLevel(newLevel);
     this.showEditorMessage('✓ 关卡已保存！返回菜单可选择游玩', 'success');

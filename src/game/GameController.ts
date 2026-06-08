@@ -14,7 +14,7 @@ import { audioSystem } from '@systems/AudioSystem';
 export class GameController {
   private scene: Phaser.Scene;
   private level: LevelConfig;
-  private tileSize: number;
+  public tileSize: number;
   private animationDuration: number;
 
   public tileMap!: TileMapRenderer;
@@ -26,7 +26,7 @@ export class GameController {
   private isProcessing: boolean = false;
   private pendingAction: boolean = false;
   private selectedShelf: BookshelfEntity | null = null;
-  private carryingBook: BookData | null = null;
+  public carryingBook: BookData | null = null;
   private lastInteractAt: number = 0;
 
   constructor(scene: Phaser.Scene, level: LevelConfig) {
@@ -37,12 +37,18 @@ export class GameController {
   }
 
   initialize(): void {
-    gameState.initializeFromLevel(this.level);
+    const stateLevel = gameState.getLevelConfig();
+    if (stateLevel) {
+      this.level = stateLevel;
+    } else {
+      gameState.initializeFromLevel(this.level);
+    }
     this.createTileMap();
     this.createPlayer();
     this.createBookshelves();
     this.createClues();
     this.createIndexCards();
+    this.syncVisualsFromState();
   }
 
   private createTileMap(): void {
@@ -375,7 +381,7 @@ export class GameController {
     eventBus.emit(GameEvents.LEVEL_RESTART);
   }
 
-  private syncVisualsFromState(): void {
+  public syncVisualsFromState(): void {
     const state = gameState.getState();
     const level = gameState.getLevelConfig();
     if (!state || !level) return;
