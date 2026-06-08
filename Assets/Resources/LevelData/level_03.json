@@ -1,0 +1,86 @@
+{
+  "levelId": "level_03",
+  "levelName": "市级挑战",
+  "description": "代表城市出战市级赛事，对手实力明显提升，需要合理分配训练与恢复资源",
+  "difficulty": 5,
+  "totalWeeks": 16,
+  "budgetStart": 70000,
+  "targetWins": 8,
+  "targetReputation": 60,
+  "scheduledMatches": [
+    {
+      "matchId": "L03M01",
+      "opponentName": "金陵少年",
+      "opponentStrength": 58,
+      "matchDay": 2,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M02",
+      "opponentName": "钱塘联队",
+      "opponentStrength": 55,
+      "matchDay": 4,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M03",
+      "opponentName": "羊城青训",
+      "opponentStrength": 62,
+      "matchDay": 6,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M04",
+      "opponentName": "春城之星",
+      "opponentStrength": 50,
+      "matchDay": 8,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M05",
+      "opponentName": "星城小将",
+      "opponentStrength": 60,
+      "matchDay": 10,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M06",
+      "opponentName": "洪城育苗",
+      "opponentStrength": 53,
+      "matchDay": 12,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M07",
+      "opponentName": "榕城少年",
+      "opponentStrength": 65,
+      "matchDay": 14,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L03M08",
+      "opponentName": "江城联队",
+      "opponentStrength": 57,
+      "matchDay": 16,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    }
+  ],
+  "injuryRateMultiplier": 1.2,
+  "trainingEfficiencyMultiplier": 0.9
+}

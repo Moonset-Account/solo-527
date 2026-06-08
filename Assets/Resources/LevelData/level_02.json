@@ -1,0 +1,68 @@
+{
+  "levelId": "level_02",
+  "levelName": "区域联赛",
+  "description": "参加区域联赛，面对更成熟的对手，考验战术调整与球员轮换能力",
+  "difficulty": 3,
+  "totalWeeks": 12,
+  "budgetStart": 80000,
+  "targetWins": 5,
+  "targetReputation": 45,
+  "scheduledMatches": [
+    {
+      "matchId": "L02M01",
+      "opponentName": "海淀联队",
+      "opponentStrength": 45,
+      "matchDay": 2,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L02M02",
+      "opponentName": "朝阳之星",
+      "opponentStrength": 50,
+      "matchDay": 4,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L02M03",
+      "opponentName": "松江青训",
+      "opponentStrength": 42,
+      "matchDay": 6,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L02M04",
+      "opponentName": "锦城少年",
+      "opponentStrength": 48,
+      "matchDay": 8,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L02M05",
+      "opponentName": "琴台小将",
+      "opponentStrength": 53,
+      "matchDay": 10,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L02M06",
+      "opponentName": "鹭岛育苗",
+      "opponentStrength": 40,
+      "matchDay": 12,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    }
+  ],
+  "injuryRateMultiplier": 1.0,
+  "trainingEfficiencyMultiplier": 1.0
+}

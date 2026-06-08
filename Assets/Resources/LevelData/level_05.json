@@ -1,0 +1,122 @@
+{
+  "levelId": "level_05",
+  "levelName": "全国大赛",
+  "description": "全国最高级别青年赛事，各路豪强齐聚，伤病高发、训练效率骤降，只有真正的强队才能笑到最后",
+  "difficulty": 10,
+  "totalWeeks": 24,
+  "budgetStart": 50000,
+  "targetWins": 16,
+  "targetReputation": 90,
+  "scheduledMatches": [
+    {
+      "matchId": "L05M01",
+      "opponentName": "京城精英",
+      "opponentStrength": 85,
+      "matchDay": 2,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M02",
+      "opponentName": "魔都联队",
+      "opponentStrength": 82,
+      "matchDay": 4,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M03",
+      "opponentName": "羊城之星",
+      "opponentStrength": 88,
+      "matchDay": 6,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M04",
+      "opponentName": "锦城雄鹰",
+      "opponentStrength": 75,
+      "matchDay": 8,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M05",
+      "opponentName": "星城猛虎",
+      "opponentStrength": 90,
+      "matchDay": 10,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M06",
+      "opponentName": "金陵蛟龙",
+      "opponentStrength": 78,
+      "matchDay": 12,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M07",
+      "opponentName": "钱塘飞龙",
+      "opponentStrength": 83,
+      "matchDay": 14,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M08",
+      "opponentName": "春城战马",
+      "opponentStrength": 70,
+      "matchDay": 16,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M09",
+      "opponentName": "江城铁骑",
+      "opponentStrength": 87,
+      "matchDay": 18,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M10",
+      "opponentName": "泉城雄狮",
+      "opponentStrength": 72,
+      "matchDay": 20,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M11",
+      "opponentName": "姑苏剑客",
+      "opponentStrength": 80,
+      "matchDay": 22,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L05M12",
+      "opponentName": "雁城苍鹰",
+      "opponentStrength": 76,
+      "matchDay": 24,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    }
+  ],
+  "injuryRateMultiplier": 2.0,
+  "trainingEfficiencyMultiplier": 0.7
+}

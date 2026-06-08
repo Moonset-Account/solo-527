@@ -1,0 +1,50 @@
+{
+  "levelId": "level_01",
+  "levelName": "青训起步",
+  "description": "初次带队参加青训赛事，积累基础比赛经验，培养年轻球员的基本竞技能力",
+  "difficulty": 1,
+  "totalWeeks": 8,
+  "budgetStart": 100000,
+  "targetWins": 2,
+  "targetReputation": 30,
+  "scheduledMatches": [
+    {
+      "matchId": "L01M01",
+      "opponentName": "东城青训",
+      "opponentStrength": 35,
+      "matchDay": 2,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L01M02",
+      "opponentName": "南山少年",
+      "opponentStrength": 30,
+      "matchDay": 4,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L01M03",
+      "opponentName": "北园小将",
+      "opponentStrength": 38,
+      "matchDay": 6,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L01M04",
+      "opponentName": "西湖育苗",
+      "opponentStrength": 33,
+      "matchDay": 8,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    }
+  ],
+  "injuryRateMultiplier": 0.8,
+  "trainingEfficiencyMultiplier": 1.2
+}

@@ -1,0 +1,104 @@
+{
+  "levelId": "level_04",
+  "levelName": "省级选拔",
+  "description": "全省强队云集的选拔赛，伤病风险加剧、经费紧张，需要在有限资源下争夺出线名额",
+  "difficulty": 7,
+  "totalWeeks": 20,
+  "budgetStart": 60000,
+  "targetWins": 12,
+  "targetReputation": 75,
+  "scheduledMatches": [
+    {
+      "matchId": "L04M01",
+      "opponentName": "泉城精英",
+      "opponentStrength": 72,
+      "matchDay": 2,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M02",
+      "opponentName": "商都青训",
+      "opponentStrength": 68,
+      "matchDay": 4,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M03",
+      "opponentName": "姑苏少年",
+      "opponentStrength": 75,
+      "matchDay": 6,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M04",
+      "opponentName": "蓉城之星",
+      "opponentStrength": 65,
+      "matchDay": 8,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M05",
+      "opponentName": "雁城联队",
+      "opponentStrength": 78,
+      "matchDay": 10,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M06",
+      "opponentName": "龙城育苗",
+      "opponentStrength": 62,
+      "matchDay": 12,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M07",
+      "opponentName": "凤城小将",
+      "opponentStrength": 80,
+      "matchDay": 14,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M08",
+      "opponentName": "锦城精英",
+      "opponentStrength": 70,
+      "matchDay": 16,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M09",
+      "opponentName": "榕城联队",
+      "opponentStrength": 76,
+      "matchDay": 18,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    },
+    {
+      "matchId": "L04M10",
+      "opponentName": "洪城之星",
+      "opponentStrength": 60,
+      "matchDay": 20,
+      "result": 0,
+      "ourScore": 0,
+      "opponentScore": 0
+    }
+  ],
+  "injuryRateMultiplier": 1.5,
+  "trainingEfficiencyMultiplier": 0.8
+}
