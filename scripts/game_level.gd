@@ -9,6 +9,8 @@ var level_time_limit: float = 120.0
 var items_total_count: int = 0
 var is_level_active: bool = false
 var _lose_triggered: bool = false
+var _overweight_timer: float = 0.0
+var _overweight_grace: float = 2.0
 
 var score_label: Label
 var timer_label: Label
@@ -158,8 +160,8 @@ func _on_body_entered_box(body: Node2D) -> void:
 		box_items_inside[body] = false
 
 func _on_body_exited_box(body: Node2D) -> void:
-	if box_items_inside.has(body):
-		if box_items_inside[body]:
+	if box_items_inside.has(body) and box_items_inside[body]:
+		if body is RigidBody2D and not body.is_dragging:
 			box_items_inside[body] = false
 
 func get_total_weight() -> float:
@@ -250,6 +252,8 @@ func _update_hud() -> void:
 	weight_label.text = "重量: " + str(snappedf(current_w, 0.1)) + "/" + str(snappedf(box_max_weight, 0.1))
 	if current_w > box_max_weight:
 		weight_label.add_theme_color_override("font_color", Color.RED)
+		if _overweight_timer > 0.0:
+			weight_label.text = "重量: " + str(snappedf(current_w, 0.1)) + "/" + str(snappedf(box_max_weight, 0.1)) + " ⚠"
 	else:
 		weight_label.add_theme_color_override("font_color", Color.WHITE)
 	GameManager.last_time = level_timer
@@ -260,14 +264,16 @@ func _on_item_dropped(item: RigidBody2D) -> void:
 	if box_items_inside[item]:
 		return
 	box_items_inside[item] = true
-	undo_system.push_action({"type": "place", "item": item, "prev_pos": item.global_position})
+	var staging_pos = item_staging_positions.get(item.get_instance_id(), Vector2(550, 100))
+	undo_system.push_action({"type": "place", "item": item, "staging_pos": staging_pos})
 
 func _on_item_picked_up(item: RigidBody2D) -> void:
 	if not box_items_inside.has(item):
 		return
 	if box_items_inside[item]:
+		var prev_pos := item.global_position
 		box_items_inside[item] = false
-		undo_system.push_action({"type": "remove", "item": item, "was_packed": true})
+		undo_system.push_action({"type": "remove", "item": item, "prev_pos": prev_pos})
 
 func _on_finish_pressed() -> void:
 	if not is_level_active:
@@ -304,8 +310,12 @@ func _check_lose_condition() -> bool:
 		_on_level_failed("易碎品被压碎了: " + ", ".join(crushed_names))
 		return true
 	if is_overweight():
-		_on_level_failed("箱子超重了! 当前:" + str(snappedf(get_total_weight(), 0.1)) + "kg 上限:" + str(snappedf(box_max_weight, 0.1)) + "kg")
-		return true
+		_overweight_timer += get_process_delta_time()
+		if _overweight_timer >= _overweight_grace:
+			_on_level_failed("箱子超重了! 当前:" + str(snappedf(get_total_weight(), 0.1)) + "kg 上限:" + str(snappedf(box_max_weight, 0.1)) + "kg")
+			return true
+	else:
+		_overweight_timer = 0.0
 	return false
 
 func _on_level_complete() -> void:
@@ -357,7 +367,7 @@ func _on_undo_pressed() -> void:
 	var item_ref = action.get("item", null)
 	if action_type == "place" and is_instance_valid(item_ref):
 		box_items_inside[item_ref] = false
-		var staging_pos = item_staging_positions.get(item_ref.get_instance_id(), Vector2(550, 100))
+		var staging_pos = action.get("staging_pos", item_staging_positions.get(item_ref.get_instance_id(), Vector2(550, 100)))
 		item_ref.global_position = staging_pos
 		item_ref.linear_velocity = Vector2.ZERO
 		item_ref.angular_velocity = 0.0
@@ -367,6 +377,15 @@ func _on_undo_pressed() -> void:
 			item_ref.freeze = false
 	elif action_type == "remove" and is_instance_valid(item_ref):
 		box_items_inside[item_ref] = true
+		var prev_pos = action.get("prev_pos", Vector2.ZERO)
+		if prev_pos != Vector2.ZERO:
+			item_ref.global_position = prev_pos
+			item_ref.linear_velocity = Vector2.ZERO
+			item_ref.angular_velocity = 0.0
+			item_ref.freeze = true
+			await get_tree().create_timer(0.05).timeout
+			if is_instance_valid(item_ref):
+				item_ref.freeze = false
 
 func spawn_items_from_config(config: Dictionary) -> void:
 	var items_data = config.get("items", [])
