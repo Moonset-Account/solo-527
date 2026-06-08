@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "tutorial"
+display_name = "教程：初识社团"
+description = "学习基本操作，完成简单的布展任务"
+grid_width = 6
+grid_height = 5
+turn_limit = 4
+satisfaction_threshold = 40.0
+initial_satisfaction = 50.0
+character_ids = Array[String](["xiaoming"])
+task_list = Array[TaskData]([])
+event_list = Array[EventData]([])
+obstacle_positions = Array[Vector2i]([])
+is_tutorial = true
+tutorial_steps = Array[String](["欢迎来到社团活动战术棋！点击角色选中他。", "蓝色高亮区域是可移动范围，点击移动角色。", "将角色移动到绿色任务格旁边，然后点击'执行任务'。", "完成任务会提升满意度！试着完成所有任务吧。", "教程完成！你已掌握基本操作。"])

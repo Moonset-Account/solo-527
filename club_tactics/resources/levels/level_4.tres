@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "level_4"
+display_name = "年度盛典"
+description = "社团年度盛典，所有任务类型全面考验！"
+grid_width = 10
+grid_height = 8
+turn_limit = 7
+satisfaction_threshold = 70.0
+initial_satisfaction = 35.0
+character_ids = Array[String](["xiaoming", "xiaohong", "xiaoli", "xiaozhang", "xiaowang"])
+task_list = Array[TaskData]([])
+event_list = Array[EventData]([])
+obstacle_positions = Array[Vector2i]([])
+is_tutorial = false
+tutorial_steps = Array[String]([])

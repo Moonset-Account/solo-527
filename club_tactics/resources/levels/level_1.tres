@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "level_1"
+display_name = "社团招新展"
+description = "第一次社团招新展览，需要完成布展和宣传任务"
+grid_width = 8
+grid_height = 6
+turn_limit = 5
+satisfaction_threshold = 55.0
+initial_satisfaction = 50.0
+character_ids = Array[String](["xiaoming", "xiaohong"])
+task_list = Array[TaskData]([])
+event_list = Array[EventData]([])
+obstacle_positions = Array[Vector2i]([])
+is_tutorial = false
+tutorial_steps = Array[String]([])

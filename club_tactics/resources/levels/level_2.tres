@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "level_2"
+display_name = "文化节宣传"
+description = "文化节即将来临，需要大力宣传并做好接待准备"
+grid_width = 8
+grid_height = 6
+turn_limit = 6
+satisfaction_threshold = 60.0
+initial_satisfaction = 45.0
+character_ids = Array[String](["xiaoming", "xiaohong", "xiaoli"])
+task_list = Array[TaskData]([])
+event_list = Array[EventData]([])
+obstacle_positions = Array[Vector2i]([])
+is_tutorial = false
+tutorial_steps = Array[String]([])

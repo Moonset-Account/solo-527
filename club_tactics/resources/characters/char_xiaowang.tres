@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CharacterData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "xiaowang"
+display_name = "小王"
+color = Color(0.7, 0.4, 0.8, 1)
+max_ap = 3
+exhibition_power = 1
+publicity_power = 2
+reception_power = 3
+movement_range = 2
+skill_ids = Array[String](["reception_boost"])
+portrait_path = ""
