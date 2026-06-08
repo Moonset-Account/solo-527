@@ -8,11 +8,20 @@ interface ValidationResult {
 }
 
 export class StepValidator {
+  private static REAGENT_ACTIONS = new Set(['add_reagent', 'drop', 'pour', 'measure']);
+
+  private normalizeActionType(type: string): string {
+    if (StepValidator.REAGENT_ACTIONS.has(type)) return 'add_reagent';
+    return type;
+  }
+
   validate(step: Step, gameState: GameState, playerAction: StepAction): ValidationResult {
     const errors: ErrorCondition[] = [];
     const warnings: string[] = [];
 
-    const actionMatch = step.action.type === playerAction.type;
+    const expectedNorm = this.normalizeActionType(step.action.type);
+    const actualNorm = this.normalizeActionType(playerAction.type);
+    const actionMatch = expectedNorm === actualNorm;
     if (!actionMatch) {
       errors.push({
         id: 'err_action_type',
@@ -91,7 +100,7 @@ export class StepValidator {
     const expectedReagentId = step.action.reagentId;
     const actionReagentId = action.reagentId;
 
-    if (expectedReagentId && action.type === 'add_reagent') {
+    if (expectedReagentId && StepValidator.REAGENT_ACTIONS.has(action.type)) {
       if (actionReagentId && actionReagentId !== expectedReagentId) {
         errors.push({
           id: 'err_reagent_wrong',
@@ -118,13 +127,26 @@ export class StepValidator {
       }
     }
 
-    if (action.type === 'add_reagent' && !actionReagentId) {
+    if (StepValidator.REAGENT_ACTIONS.has(action.type) && !actionReagentId) {
       errors.push({
         id: 'err_reagent_unspecified',
         type: 'reagent_missing',
         message: `未指定要添加的试剂`,
         severity: 'error',
       });
+    }
+
+    if (expectedReagentId && action.amount && step.action.amount) {
+      const tolerance = step.action.amount * 0.5;
+      const diff = Math.abs(action.amount - step.action.amount);
+      if (diff > tolerance && diff > 5) {
+        errors.push({
+          id: 'err_amount_mismatch',
+          type: 'amount_mismatch',
+          message: `用量不准确，期望约${step.action.amount}${step.action.type === 'drop' ? '滴' : 'mL'}，实际${action.amount}${step.action.type === 'drop' ? '滴' : 'mL'}`,
+          severity: 'warning',
+        });
+      }
     }
 
     return errors;

@@ -69,6 +69,8 @@ export default function Game() {
 
   const [showHints, setShowHints] = useState(false);
   const [observationLog, setObservationLog] = useState<string[]>([]);
+  const [pendingReagent, setPendingReagent] = useState<Reagent | null>(null);
+  const [reagentAmount, setReagentAmount] = useState<number>(10);
 
   const {
     currentLevel,
@@ -256,6 +258,8 @@ export default function Game() {
     [isPaused, isComplete, isFailed, placeStoreEquipment, handleValidateAndAdvance, addLog],
   );
 
+  const REAGENT_ACTION_TYPES = new Set(['add_reagent', 'drop', 'pour', 'measure']);
+
   const handleAddReagent = useCallback(
     (reagent: Reagent) => {
       if (isPaused || isComplete || isFailed) return;
@@ -269,7 +273,27 @@ export default function Game() {
         return;
       }
 
-      addStoreReagent(reagent, 10, container.id);
+      const stepSuggestedAmount = currentStep?.action?.amount ?? 10;
+      setReagentAmount(stepSuggestedAmount);
+      setPendingReagent(reagent);
+    },
+    [isPaused, isComplete, isFailed, addSafetyAlert, currentStep],
+  );
+
+  const confirmAddReagent = useCallback(
+    (reagent: Reagent, amount: number) => {
+      if (isPaused || isComplete || isFailed) return;
+
+      const gameState = useGameStore.getState();
+      const container = [...gameState.placedEquipment].reverse().find((e) =>
+        ['beaker', 'flask', 'test_tube', 'graduated_cylinder'].includes(e.type),
+      );
+      if (!container) {
+        addSafetyAlert('请先放置容器再添加试剂', 'error');
+        return;
+      }
+
+      addStoreReagent(reagent, amount, container.id);
 
       if (rendererRef.current) {
         const liquidLevel = Math.min(0.8, gameState.addedReagents.length * 0.15 + 0.15);
@@ -280,15 +304,21 @@ export default function Game() {
         );
       }
 
-      addLog('add_reagent', `添加试剂: ${reagent.name}(${reagent.formula})`, { reagentId: reagent.id });
+      const actionType = currentStep?.action?.type ?? 'add_reagent';
+      const normalizedType = REAGENT_ACTION_TYPES.has(actionType) ? actionType : 'add_reagent';
+
+      addLog('add_reagent', `添加试剂: ${reagent.name}(${reagent.formula}) ${amount}${actionType === 'drop' ? '滴' : 'mL'}`, { reagentId: reagent.id, amount });
 
       handleValidateAndAdvance({
-        type: 'add_reagent',
+        type: normalizedType,
         reagentId: reagent.id,
         equipmentId: container.id,
+        amount,
       });
+
+      setPendingReagent(null);
     },
-    [isPaused, isComplete, isFailed, addStoreReagent, addSafetyAlert, handleValidateAndAdvance, addLog],
+    [isPaused, isComplete, isFailed, addStoreReagent, addSafetyAlert, handleValidateAndAdvance, addLog, currentStep],
   );
 
   const handleTemperatureChange = useCallback(
@@ -305,7 +335,7 @@ export default function Game() {
   const handleToggleHeating = useCallback(() => {
     if (isPaused || isComplete || isFailed) return;
     toggleHeating();
-    const newHeating = !useGameStore.getState().isHeating;
+    const newHeating = useGameStore.getState().isHeating;
     if (rendererRef.current) {
       rendererRef.current.setHeating(newHeating);
     }
@@ -317,7 +347,7 @@ export default function Game() {
   const handleToggleStirring = useCallback(() => {
     if (isPaused || isComplete || isFailed) return;
     toggleStirring();
-    const newStirring = !useGameStore.getState().isStirring;
+    const newStirring = useGameStore.getState().isStirring;
     if (rendererRef.current) {
       rendererRef.current.setStirring(newStirring);
     }
@@ -347,6 +377,8 @@ export default function Game() {
     equipmentPosIndexRef.current = 0;
     setObservationLog([]);
     setShowHints(false);
+    setPendingReagent(null);
+    setReagentAmount(10);
     if (level) {
       initLevel(level);
     }
@@ -835,8 +867,8 @@ export default function Game() {
                       key={reagent.id}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-sm transition-all hover:brightness-110"
                       style={{
-                        background: 'transparent',
-                        border: '1px solid var(--border-color)',
+                        background: pendingReagent?.id === reagent.id ? 'rgba(255,184,0,0.15)' : 'transparent',
+                        border: `1px solid ${pendingReagent?.id === reagent.id ? 'var(--accent-amber)' : 'var(--border-color)'}`,
                         color: 'var(--text-primary)',
                       }}
                       onClick={() => handleAddReagent(reagent)}
@@ -858,6 +890,89 @@ export default function Game() {
                   );
                 })}
               </div>
+
+              {/* Amount selector */}
+              {pendingReagent && (
+                <div
+                  className="mx-2 mb-2 p-2 rounded-lg animate-fade-in-up"
+                  style={{ background: 'rgba(255,184,0,0.08)', border: '1px solid var(--accent-amber)' }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold" style={{ color: 'var(--accent-amber)' }}>
+                      {pendingReagent.name} — 用量
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      className="px-2 py-0.5 rounded text-xs font-bold"
+                      style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                      onClick={() => setReagentAmount(Math.max(1, reagentAmount - 5))}
+                    >−</button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={reagentAmount}
+                      onChange={(e) => setReagentAmount(Math.max(1, Math.min(200, Number(e.target.value))))}
+                      className="w-14 text-center text-sm font-mono rounded px-1 py-0.5"
+                      style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--accent-green)' }}
+                    />
+                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      {currentStep?.action?.type === 'drop' ? '滴' : 'mL'}
+                    </span>
+                    <button
+                      className="px-2 py-0.5 rounded text-xs font-bold"
+                      style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                      onClick={() => setReagentAmount(Math.min(200, reagentAmount + 5))}
+                    >+</button>
+                  </div>
+                  <div className="flex gap-1 flex-wrap mb-2">
+                    {currentStep?.action?.type === 'drop' ? (
+                      <>
+                        {[1, 2, 3, 5].map((v) => (
+                          <button
+                            key={v}
+                            className="px-2 py-0.5 rounded text-xs transition-all"
+                            style={{
+                              background: reagentAmount === v ? 'var(--accent-amber)' : 'var(--bg-primary)',
+                              border: `1px solid ${reagentAmount === v ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+                              color: reagentAmount === v ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                            }}
+                            onClick={() => setReagentAmount(v)}
+                          >{v}滴</button>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {[5, 10, 20, 50, 100].map((v) => (
+                          <button
+                            key={v}
+                            className="px-2 py-0.5 rounded text-xs transition-all"
+                            style={{
+                              background: reagentAmount === v ? 'var(--accent-amber)' : 'var(--bg-primary)',
+                              border: `1px solid ${reagentAmount === v ? 'var(--accent-amber)' : 'var(--border-color)'}`,
+                              color: reagentAmount === v ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                            }}
+                            onClick={() => setReagentAmount(v)}
+                          >{v}mL</button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="flex-1 px-2 py-1 rounded text-xs font-bold transition-all"
+                      style={{ background: 'var(--accent-green)', color: 'var(--bg-primary)' }}
+                      onClick={() => confirmAddReagent(pendingReagent, reagentAmount)}
+                    >✓ 确认添加</button>
+                    <button
+                      className="px-2 py-1 rounded text-xs font-bold transition-all"
+                      style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                      onClick={() => setPendingReagent(null)}
+                    >取消</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Observation Log */}
