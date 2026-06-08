@@ -38,10 +38,10 @@ var _hud_update_timer: float = 0.0
 
 var _spawn_delivery_map: Dictionary = {
 	1: {"spawn": [Vector2i(0, 2)], "delivery": [Vector2i(7, 2)]},
-	2: {"spawn": [Vector2i(0, 3)], "delivery": [Vector2i(9, 3)]},
-	3: {"spawn": [Vector2i(0, 4)], "delivery": [Vector2i(9, 4)]},
-	4: {"spawn": [Vector2i(0, 4), Vector2i(0, 5)], "delivery": [Vector2i(11, 4), Vector2i(11, 5)]},
-	5: {"spawn": [Vector2i(0, 4), Vector2i(0, 5), Vector2i(0, 6)], "delivery": [Vector2i(13, 4), Vector2i(13, 5), Vector2i(13, 6)]},
+	2: {"spawn": [Vector2i(0, 1), Vector2i(0, 5)], "delivery": [Vector2i(9, 1), Vector2i(9, 5)]},
+	3: {"spawn": [Vector2i(0, 2), Vector2i(0, 6)], "delivery": [Vector2i(9, 2), Vector2i(9, 6)]},
+	4: {"spawn": [Vector2i(0, 2), Vector2i(0, 5), Vector2i(0, 7)], "delivery": [Vector2i(11, 2), Vector2i(11, 5), Vector2i(11, 7)]},
+	5: {"spawn": [Vector2i(0, 2), Vector2i(0, 4), Vector2i(0, 6), Vector2i(0, 8)], "delivery": [Vector2i(13, 2), Vector2i(13, 4), Vector2i(13, 6), Vector2i(13, 8)]},
 }
 
 func _ready() -> void:
@@ -335,20 +335,7 @@ func _on_bottleneck_cleared(pos: Vector2i) -> void:
 func spawn_raw_product() -> void:
 	if _spawn_points.is_empty():
 		return
-	var spawn_point: Vector2i = _spawn_points.pick_random()
-	var product := Product.new()
-	product.product_type = "standard"
-	product.current_cell = spawn_point
-	product.position = factory_grid.get_cell_center(spawn_point)
-	var delivery: Vector2i = _delivery_points.pick_random() if _delivery_points.size() > 0 else Vector2i(-1, -1)
-	if delivery.x >= 0:
-		product.path = factory_grid.find_path(spawn_point, delivery)
-		product.path_index = 1 if product.path.size() > 1 else 0
-	else:
-		product.path = [spawn_point]
-		product.path_index = 0
-	factory_grid.products.append(product)
-	factory_grid.add_child(product)
+	factory_grid.spawn_product()
 
 func set_game_speed(speed: float) -> void:
 	game_speed = speed
@@ -487,6 +474,20 @@ func _on_upgrade_close_button_pressed() -> void:
 	if hud and hud.has_method("toggle_upgrades"):
 		hud.toggle_upgrades()
 
+func _show_upgrade_for_machine(machine: Machine) -> void:
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud and hud.has_method("toggle_upgrades"):
+		if not hud.is_upgrade_open:
+			hud.toggle_upgrades()
+		hud.populate_upgrade_panel([machine], upgrade_system)
+
+func _on_settings_button_pressed() -> void:
+	var settings: Control = get_node_or_null("SettingsLayer/SettingsPanel")
+	if settings:
+		settings.visible = not settings.visible
+		if settings.visible and settings.has_method("refresh_input_list"):
+			settings.refresh_input_list()
+
 func _populate_shop(hud: Control) -> void:
 	if not hud or not level_config:
 		return
@@ -525,6 +526,17 @@ func _connect_signals() -> void:
 	if tutorial:
 		if tutorial.has_signal("tutorial_finished"):
 			tutorial.tutorial_finished.connect(_on_tutorial_finished)
+
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud:
+		if hud.has_signal("settings_toggled"):
+			hud.settings_toggled.connect(_on_settings_button_pressed)
+		if hud.has_signal("upgrade_toggled"):
+			hud.upgrade_toggled.connect(func() -> void:
+				var h: Control = get_node_or_null("HUDLayer/HUD")
+				if h and h.is_upgrade_open:
+					h.populate_upgrade_panel(factory_grid.get_all_machines(), upgrade_system)
+			)
 
 func _show_results(stars: int) -> void:
 	var results: Control = get_node_or_null("ResultsLayer/ResultsScreen")

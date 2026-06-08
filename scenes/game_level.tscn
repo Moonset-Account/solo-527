@@ -273,6 +273,22 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
 text = "Shop [B]"
 
+[node name="UpgradeButton" type="Button" parent="HUDLayer/HUD/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 36)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Upgrades"
+
+[node name="SettingsButton" type="Button" parent="HUDLayer/HUD/BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 36)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_colors/font_color = Color(0.96, 0.64, 0.38, 1)
+text = "Settings"
+
 [node name="ResultsLayer" type="CanvasLayer" parent="."]
 layer = 20
 

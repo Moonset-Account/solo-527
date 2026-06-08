@@ -12,11 +12,12 @@ var state: ProductState = ProductState.MOVING
 var processing_time_remaining: float = 0.0
 
 var current_cell: Vector2i = Vector2i.ZERO
-var path: Array[Vector2i] = []
-var path_index: int = 0
+var target_cell: Vector2i = Vector2i.ZERO
 var move_speed: float = 1.0
 var creation_time: float = 0.0
 var processing_history: Array[Dictionary] = []
+var waiting_for_target: bool = true
+var just_exited_machine: bool = false
 
 const STAGE_NAMES: Dictionary = {
 	ProductStage.RAW: "Raw",
@@ -47,10 +48,8 @@ static func get_stage_from_type(type_name: String) -> ProductStage:
 
 func _ready() -> void:
 	creation_time = Time.get_ticks_msec() / 1000.0
-
-func set_stage(new_stage: ProductStage) -> void:
-	stage = new_stage
-	queue_redraw()
+	target_cell = current_cell
+	waiting_for_target = true
 
 func advance_to_stage(new_stage: ProductStage) -> void:
 	if stage == ProductStage.FAILED:
@@ -104,8 +103,8 @@ func reset() -> void:
 	processing_time_remaining = 0.0
 	processing_history.clear()
 	current_cell = Vector2i.ZERO
-	path.clear()
-	path_index = 0
+	target_cell = Vector2i.ZERO
+	waiting_for_target = true
 
 func get_color() -> Color:
 	var colors: Dictionary = {
@@ -125,9 +124,5 @@ func _draw() -> void:
 		draw_rect(Rect2(-10, -10, 20, 20), col, false, 2.0)
 	if state == ProductState.PROCESSING:
 		draw_rect(Rect2(-10, 6, 20, 3), Color(0.3, 0.3, 0.3))
-		var max_time := maxf(processing_time_remaining, 0.01)
-		var total_time := creation_time
-		if processing_history.size() > 0:
-			var last := processing_history[-1]
-			total_time = maxf(float(last.get("timestamp", 0.0)) + max_time - Time.get_ticks_msec() / 1000.0, 0.01)
-		draw_rect(Rect2(-10, 6, 20 * 0.5, 3), Color.GREEN)
+		var ratio := 1.0 - clampf(processing_time_remaining / 3.0, 0.0, 1.0)
+		draw_rect(Rect2(-10, 6, 20 * ratio, 3), Color.GREEN)

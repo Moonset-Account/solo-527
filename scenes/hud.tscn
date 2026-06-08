@@ -86,6 +86,12 @@ theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
 theme_override_font_sizes/font_size = 18
 text = "00:00"
 
+[node name="LevelLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_font_sizes/font_size = 18
+text = "Level 1"
+
 [node name="OrderPanel" type="Panel" parent="."]
 layout_mode = 1
 anchors_preset = 11
@@ -253,3 +259,21 @@ theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("btn_normal")
 theme_override_styles/hover = SubResource("btn_hover")
 text = "Shop"
+
+[node name="UpgradeButton" type="Button" parent="BottomBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_colors/font_hover_color = Color(1, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+text = "Upgrades"
+
+[node name="SettingsButton" type="Button" parent="BottomBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.76, 0.38, 1)
+theme_override_colors/font_hover_color = Color(1, 0.85, 0.5, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+text = "Settings"

@@ -4,6 +4,7 @@ signal pause_pressed
 signal speed_toggled
 signal shop_toggled
 signal upgrade_toggled
+signal settings_toggled
 
 @onready var money_label: Label = $TopBar/MoneyLabel
 @onready var reputation_label: Label = $TopBar/ReputationLabel
@@ -14,9 +15,13 @@ signal upgrade_toggled
 @onready var bottleneck_indicator: Label = $BottleneckIndicator
 @onready var speed_button: Button = $BottomBar/SpeedButton
 @onready var pause_button: Button = $BottomBar/PauseButton
+@onready var shop_button: Button = $BottomBar/ShopButton
+@onready var upgrade_button: Button = $BottomBar/UpgradeButton
+@onready var settings_button: Button = $BottomBar/SettingsButton
 
 var is_shop_open: bool = false
 var is_upgrade_open: bool = false
+var is_settings_open: bool = false
 var current_speed: float = 1.0
 
 var _message_label: Label
@@ -32,6 +37,9 @@ func _ready() -> void:
 	upgrade_panel.visible = false
 	speed_button.pressed.connect(_on_speed_pressed)
 	pause_button.pressed.connect(_on_pause_pressed)
+	shop_button.pressed.connect(toggle_shop)
+	upgrade_button.pressed.connect(toggle_upgrades)
+	settings_button.pressed.connect(_on_settings_pressed)
 	if GameManager:
 		GameManager.money_changed.connect(update_money)
 		GameManager.reputation_changed.connect(update_reputation)
@@ -121,6 +129,7 @@ func clear_bottleneck_warning() -> void:
 func toggle_shop() -> void:
 	is_shop_open = not is_shop_open
 	is_upgrade_open = false
+	is_settings_open = false
 	upgrade_panel.visible = false
 	shop_panel.visible = is_shop_open
 	shop_toggled.emit()
@@ -128,6 +137,7 @@ func toggle_shop() -> void:
 func toggle_upgrades() -> void:
 	is_upgrade_open = not is_upgrade_open
 	is_shop_open = false
+	is_settings_open = false
 	shop_panel.visible = false
 	upgrade_panel.visible = is_upgrade_open
 	upgrade_toggled.emit()
@@ -193,3 +203,11 @@ func _on_speed_pressed() -> void:
 
 func _on_pause_pressed() -> void:
 	pause_pressed.emit()
+
+func _on_settings_pressed() -> void:
+	is_settings_open = not is_settings_open
+	is_shop_open = false
+	is_upgrade_open = false
+	shop_panel.visible = false
+	upgrade_panel.visible = false
+	settings_toggled.emit()

@@ -9,6 +9,13 @@ signal product_delivered(product)
 
 const CELL_SIZE: int = 64
 
+const DIR_VECTORS: Dictionary = {
+	0: Vector2i(1, 0),
+	1: Vector2i(0, 1),
+	2: Vector2i(-1, 0),
+	3: Vector2i(0, -1),
+}
+
 @export var grid_width: int = 8
 @export var grid_height: int = 6
 
@@ -19,6 +26,7 @@ var delivery_points: Array[Vector2i] = []
 var hovered_cell: Vector2i = Vector2i(-1, -1)
 var selected_entity_type: String = ""
 var is_placing: bool = false
+var placing_direction: int = 0
 
 var _bottleneck_cells: Array[Vector2i] = []
 var _machine_costs: Dictionary = {}
@@ -53,54 +61,32 @@ func _process(delta: float) -> void:
 				product.queue_redraw()
 			continue
 
-		if product.path.size() == 0 or product.path_index >= product.path.size():
-			if product.current_cell in delivery_points and product.is_deliverable():
-				to_deliver.append(product)
-			continue
+		if product.waiting_for_target:
+			var next := _resolve_next_cell(product)
+			if next == product.current_cell:
+				if product.current_cell in delivery_points and product.is_deliverable():
+					to_deliver.append(product)
+				elif product.current_cell in delivery_points and product.is_failed():
+					to_remove.append(product)
+				continue
+			product.target_cell = next
+			product.waiting_for_target = false
 
-		var target_cell: Vector2i = product.path[product.path_index]
-		var target_pos: Vector2 = get_cell_center(target_cell)
+		var target_pos: Vector2 = get_cell_center(product.target_cell)
 		var direction: Vector2 = target_pos - product.global_position
-		var move_speed: float = product.move_speed * CELL_SIZE
+		var speed: float = product.move_speed * CELL_SIZE
 
 		var current_entity = get_entity_at(product.current_cell)
 		if current_entity is ConveyorBelt:
-			move_speed *= current_entity.get_speed_multiplier()
+			speed *= current_entity.get_speed_multiplier()
 
-		var target_entity = get_entity_at(target_cell)
-		if target_entity is Machine and not target_entity.can_accept_product():
-			continue
-
-		if direction.length() <= move_speed * delta:
+		if direction.length() <= speed * delta:
 			product.global_position = target_pos
-			product.current_cell = target_cell
-
-			if target_cell in delivery_points:
-				if product.is_deliverable():
-					to_deliver.append(product)
-				else:
-					to_remove.append(product)
-				continue
-
-			var entity = get_entity_at(target_cell)
-
-			if entity is Machine:
-				var machine: Machine = entity
-				machine.start_processing(product)
-				continue
-
-			if entity is QualityCheck:
-				var qc: QualityCheck = entity
-				qc.inspect_product(product)
-				if product.is_failed():
-					to_remove.append(product)
-					continue
-				product.path_index += 1
-				continue
-
-			product.path_index += 1
+			product.current_cell = product.target_cell
+			product.waiting_for_target = true
+			_on_product_arrived(product, to_deliver, to_remove)
 		else:
-			product.global_position += direction.normalized() * move_speed * delta
+			product.global_position += direction.normalized() * speed * delta
 
 	for product in to_deliver:
 		product.state = Product.ProductState.DELIVERED
@@ -110,12 +96,97 @@ func _process(delta: float) -> void:
 	for product in to_remove:
 		_remove_product(product)
 
-func _remove_product(product: Product) -> void:
-	if product in products:
-		products.erase(product)
-	if is_instance_valid(product):
-		remove_child(product)
-		product.queue_free()
+func _resolve_next_cell(product: Product) -> Vector2i:
+	var cell := product.current_cell
+
+	var entity = get_entity_at(cell)
+	if entity is ConveyorBelt:
+		var dir: int = entity.direction
+		var next: Vector2i = cell + DIR_VECTORS.get(dir, Vector2i.RIGHT)
+		if _is_valid_cell(next):
+			var target_entity = get_entity_at(next)
+			if target_entity is Machine and not target_entity.can_accept_product():
+				return cell
+			return next
+		return cell
+
+	if entity is Machine:
+		if product.just_exited_machine:
+			product.just_exited_machine = false
+			return _find_adjacent_exit(cell)
+		if entity.can_accept_product():
+			entity.start_processing(product)
+			return cell
+		return cell
+
+	if entity is QualityCheck:
+		return _find_adjacent_exit(cell)
+
+	if cell in spawn_points:
+		return _find_adjacent_exit(cell)
+
+	if cell in delivery_points:
+		return cell
+
+	return _find_adjacent_exit(cell)
+
+func _find_adjacent_exit(cell: Vector2i) -> Vector2i:
+	var offsets: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]
+
+	for offset in offsets:
+		var adj: Vector2i = cell + offset
+		if not _is_valid_cell(adj):
+			continue
+		if adj in delivery_points:
+			return adj
+
+	for offset in offsets:
+		var adj: Vector2i = cell + offset
+		if not _is_valid_cell(adj):
+			continue
+		var entity = get_entity_at(adj)
+		if entity is ConveyorBelt:
+			return adj
+
+	for offset in offsets:
+		var adj: Vector2i = cell + offset
+		if not _is_valid_cell(adj):
+			continue
+		var entity = get_entity_at(adj)
+		if entity is Machine and entity.can_accept_product():
+			return adj
+
+	return cell
+
+func _on_product_arrived(product: Product, to_deliver: Array, to_remove: Array) -> void:
+	var cell := product.current_cell
+
+	if cell in delivery_points:
+		if product.is_deliverable():
+			to_deliver.append(product)
+		else:
+			to_remove.append(product)
+		return
+
+	var entity = get_entity_at(cell)
+
+	if entity is Machine:
+		var machine: Machine = entity
+		if machine.can_accept_product():
+			machine.start_processing(product)
+		else:
+			product.waiting_for_target = true
+		return
+
+	if entity is QualityCheck:
+		var qc: QualityCheck = entity
+		qc.inspect_product(product)
+		if product.is_failed():
+			to_remove.append(product)
+		return
+
+func _is_valid_cell(cell: Vector2i) -> bool:
+	return cell.x >= 0 and cell.x < grid_width and cell.y >= 0 and cell.y < grid_height
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
@@ -125,43 +196,87 @@ func _input(event: InputEvent) -> void:
 			queue_redraw()
 	elif event is InputEventMouseButton and event.pressed:
 		var grid_pos: Vector2i = world_to_grid(get_global_mouse_position())
-		if event.button_index == MOUSE_BUTTON_LEFT and is_placing and selected_entity_type != "":
-			if can_place_at(grid_pos):
-				place_entity(selected_entity_type, grid_pos)
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if is_placing and selected_entity_type != "":
+				if can_place_at(grid_pos):
+					place_entity(selected_entity_type, grid_pos, placing_direction)
+			else:
+				var clicked_entity = get_entity_at(grid_pos)
+				if clicked_entity is Machine:
+					_show_upgrade_for(clicked_entity)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			if is_placing:
+				is_placing = false
+				selected_entity_type = ""
+			else:
+				if get_entity_at(grid_pos) != null:
+					remove_entity(grid_pos)
+
+	if event is InputEventKey and event.pressed and not event.echo:
+		if Input.is_action_just_pressed("place_machine"):
+			if is_placing and selected_entity_type != "":
+				var grid_pos: Vector2i = world_to_grid(get_global_mouse_position())
+				if can_place_at(grid_pos):
+					place_entity(selected_entity_type, grid_pos, placing_direction)
+		elif Input.is_action_just_pressed("rotate_belt"):
+			placing_direction = wrapi(placing_direction + 1, 0, 4)
+			queue_redraw()
+		elif Input.is_action_just_pressed("remove_machine"):
+			var grid_pos: Vector2i = world_to_grid(get_global_mouse_position())
 			if get_entity_at(grid_pos) != null:
 				remove_entity(grid_pos)
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_T:
-			_rotate_selected()
-		elif event.keycode == KEY_ESCAPE:
+		elif Input.is_action_just_pressed("open_shop"):
+			var lc := get_parent()
+			if lc and lc.has_method("_on_shop_button_pressed"):
+				lc._on_shop_button_pressed()
+		elif Input.is_action_just_pressed("toggle_pause"):
+			var lc := get_parent()
+			if lc and lc.has_method("_on_pause_button_pressed"):
+				lc._on_pause_button_pressed()
+		elif Input.is_action_just_pressed("speed_up"):
+			var lc := get_parent()
+			if lc and lc.has_method("_on_speed_button_pressed"):
+				lc._on_speed_button_pressed()
+		elif Input.is_action_just_pressed("cancel"):
 			is_placing = false
 			selected_entity_type = ""
 
-func _rotate_selected() -> void:
-	pass
+func _show_upgrade_for(machine: Machine) -> void:
+	var lc := get_parent()
+	if lc and lc.has_method("_show_upgrade_for_machine"):
+		lc._show_upgrade_for_machine(machine)
 
 func _draw() -> void:
 	for x in range(grid_width + 1):
 		draw_line(Vector2(x * CELL_SIZE, 0), Vector2(x * CELL_SIZE, grid_height * CELL_SIZE), Color(0.4, 0.4, 0.4, 0.8), 1.0)
 	for y in range(grid_height + 1):
 		draw_line(Vector2(0, y * CELL_SIZE), Vector2(grid_width * CELL_SIZE, y * CELL_SIZE), Color(0.4, 0.4, 0.4, 0.8), 1.0)
+
 	if hovered_cell.x >= 0 and hovered_cell.x < grid_width and hovered_cell.y >= 0 and hovered_cell.y < grid_height:
 		var rect: Rect2 = Rect2(hovered_cell * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
 		draw_rect(rect, Color(1.0, 1.0, 0.0, 0.3))
+		if is_placing and selected_entity_type == "conveyor":
+			var arrow_dir: Vector2i = DIR_VECTORS.get(placing_direction, Vector2i.RIGHT)
+			var from_pos: Vector2 = get_cell_center(hovered_cell)
+			var to_pos: Vector2 = from_pos + Vector2(arrow_dir) * 20.0
+			draw_line(from_pos, to_pos, Color.YELLOW, 3.0)
+
 	for sp in spawn_points:
 		var rect: Rect2 = Rect2(sp * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
 		draw_rect(rect, Color(0.0, 1.0, 0.0, 0.25))
 		draw_rect(rect, Color(0.0, 1.0, 0.0, 0.6), false, 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(sp.x * CELL_SIZE + 8, sp.y * CELL_SIZE + 40), "IN", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.GREEN)
+
 	for dp in delivery_points:
 		var rect: Rect2 = Rect2(dp * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
 		draw_rect(rect, Color(1.0, 0.0, 0.0, 0.25))
 		draw_rect(rect, Color(1.0, 0.0, 0.0, 0.6), false, 2.0)
 		draw_string(ThemeDB.fallback_font, Vector2(dp.x * CELL_SIZE + 4, dp.y * CELL_SIZE + 40), "OUT", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color.RED)
+
 	for bp in _bottleneck_cells:
 		var rect: Rect2 = Rect2(bp * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
 		draw_rect(rect, Color(1.0, 0.5, 0.0, 0.4))
+
 	for pos in grid:
 		var entity = grid[pos]
 		var cell_rect: Rect2 = Rect2(pos * CELL_SIZE, Vector2(CELL_SIZE, CELL_SIZE))
@@ -181,7 +296,11 @@ func _draw() -> void:
 					draw_string(ThemeDB.fallback_font, Vector2(pos.x * CELL_SIZE + 4, pos.y * CELL_SIZE + 36), "PAK", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.2, 0.8, 0.4))
 		elif entity is ConveyorBelt:
 			draw_rect(cell_rect, Color(0.6, 0.6, 0.6, 0.25))
-			draw_string(ThemeDB.fallback_font, Vector2(pos.x * CELL_SIZE + 8, pos.y * CELL_SIZE + 36), ">>", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.7, 0.7))
+			var arrow_dir: Vector2i = DIR_VECTORS.get(entity.direction, Vector2i.RIGHT)
+			var center: Vector2 = get_cell_center(pos)
+			var arrow_end: Vector2 = center + Vector2(arrow_dir) * 16.0
+			draw_line(center - Vector2(arrow_dir) * 16.0, arrow_end, Color(0.8, 0.8, 0.3, 0.8), 2.0)
+			draw_circle(arrow_end, 4.0, Color(0.8, 0.8, 0.3, 0.8))
 		elif entity is QualityCheck:
 			draw_rect(cell_rect, Color(1.0, 1.0, 0.2, 0.3))
 			draw_string(ThemeDB.fallback_font, Vector2(pos.x * CELL_SIZE + 2, pos.y * CELL_SIZE + 36), "QC", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 1.0, 0.3))
@@ -283,76 +402,27 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 func spawn_product() -> Product:
 	if spawn_points.is_empty():
 		return null
-	var sp: Vector2i = spawn_points[0]
+	var sp: Vector2i = spawn_points.pick_random()
 	var product: Product = Product.new()
 	product.current_cell = sp
+	product.target_cell = sp
 	product.global_position = get_cell_center(sp)
-	var nearest_delivery: Vector2i = delivery_points[0] if delivery_points.size() > 0 else Vector2i(-1, -1)
-	if nearest_delivery.x >= 0:
-		product.path = find_path(sp, nearest_delivery)
-		product.path_index = 1 if product.path.size() > 1 else 0
-	else:
-		product.path = [sp]
-		product.path_index = 0
+	product.waiting_for_target = true
 	products.append(product)
 	add_child(product)
 	return product
-
-func add_product_at(product: Product, pos: Vector2i) -> void:
-	product.current_cell = pos
-	product.global_position = get_cell_center(pos)
-	var nearest_delivery: Vector2i = delivery_points[0] if delivery_points.size() > 0 else Vector2i(-1, -1)
-	if nearest_delivery.x >= 0:
-		product.path = find_path(pos, nearest_delivery)
-		product.path_index = 1 if product.path.size() > 1 else 0
-	if not products.has(product):
-		products.append(product)
 
 func deliver_product(product: Product) -> void:
 	product.state = Product.ProductState.DELIVERED
 	product_delivered.emit(product)
 	_remove_product(product)
 
-func find_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
-	if from == to:
-		return [from]
-	var visited: Dictionary = {}
-	var queue: Array = [[from, [from]]]
-	visited[from] = true
-	while queue.size() > 0:
-		var current: Array = queue.pop_front()
-		var current_pos: Vector2i = current[0]
-		var current_path: Array[Vector2i] = current[1]
-		for adj in get_adjacent_cells(current_pos):
-			if visited.has(adj):
-				continue
-			var new_path: Array[Vector2i] = current_path.duplicate()
-			new_path.append(adj)
-			if adj == to:
-				return new_path
-			visited[adj] = true
-			queue.append([adj, new_path])
-	var fallback_path: Array[Vector2i] = [from]
-	var step: Vector2i = from
-	while step != to:
-		var diff: Vector2i = to - step
-		if abs(diff.x) >= abs(diff.y):
-			step = step + Vector2i(sign(diff.x), 0)
-		else:
-			step = step + Vector2i(0, sign(diff.y))
-		if fallback_path.has(step):
-			break
-		fallback_path.append(step)
-	return fallback_path
-
-func get_adjacent_cells(pos: Vector2i) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	var offsets: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	for offset in offsets:
-		var adj: Vector2i = pos + offset
-		if adj.x >= 0 and adj.x < grid_width and adj.y >= 0 and adj.y < grid_height:
-			result.append(adj)
-	return result
+func _remove_product(product: Product) -> void:
+	if product in products:
+		products.erase(product)
+	if is_instance_valid(product):
+		remove_child(product)
+		product.queue_free()
 
 func get_all_machines() -> Array[Machine]:
 	var result: Array[Machine] = []
@@ -406,9 +476,6 @@ func get_occupancy_map() -> Dictionary:
 			type_name = "quality_check"
 		result[pos] = type_name
 	return result
-
-func auto_connect_machines() -> void:
-	pass
 
 func highlight_bottleneck(pos: Vector2i) -> void:
 	if not _bottleneck_cells.has(pos):

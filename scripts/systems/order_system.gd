@@ -115,21 +115,11 @@ func update_deadlines(delta: float) -> Array[Order]:
 		expired.append(order)
 	return expired
 
-const STAGE_PRIORITY: Dictionary = {
-	"raw": 0,
-	"cut": 1,
-	"assembled": 2,
-	"painted": 3,
-	"packed": 4,
-}
-
 func deliver_product(product_type: String, quality: float) -> bool:
-	var product_priority: int = STAGE_PRIORITY.get(product_type, 0)
 	for order in active_orders:
 		if not order.is_active:
 			continue
-		var order_priority: int = STAGE_PRIORITY.get(order.product_type, 0)
-		if product_priority < order_priority:
+		if order.product_type != product_type:
 			continue
 		if quality < order.min_quality:
 			continue

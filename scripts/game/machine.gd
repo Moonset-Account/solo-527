@@ -87,7 +87,8 @@ func _complete_processing() -> void:
 	current_product.record_processing(machine_type, current_product.get_total_quality())
 	current_product.state = Product.ProductState.MOVING
 	current_product.processing_time_remaining = 0.0
-	current_product.path_index += 1
+	current_product.waiting_for_target = true
+	current_product.just_exited_machine = true
 	var finished_product := current_product
 	current_product = null
 	is_processing = false
