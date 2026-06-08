@@ -1,0 +1,18 @@
+{
+  "items": [
+    {"furnitureId":"sofa_modern","displayName":"现代沙发","category":"seating","style":"modern","compatibleColors":["#FFFFFF","#4A90D9","#2C3E50","#E74C3C"],"cost":200,"comfortScore":0.8,"aestheticScore":0.7,"functionalityScore":0.9},
+    {"furnitureId":"sofa_classic","displayName":"古典沙发","category":"seating","style":"classic","compatibleColors":["#8B4513","#DAA520","#F5DEB3","#800020"],"cost":250,"comfortScore":0.9,"aestheticScore":0.8,"functionalityScore":0.7},
+    {"furnitureId":"sofa_cozy","displayName":"温馨沙发","category":"seating","style":"cozy","compatibleColors":["#FFB6C1","#F0E68C","#87CEEB","#DDA0DD"],"cost":180,"comfortScore":0.95,"aestheticScore":0.6,"functionalityScore":0.8},
+    {"furnitureId":"table_modern","displayName":"现代茶几","category":"table","style":"modern","compatibleColors":["#FFFFFF","#2C3E50","#95A5A6","#34495E"],"cost":120,"comfortScore":0.5,"aestheticScore":0.8,"functionalityScore":0.85},
+    {"furnitureId":"table_classic","displayName":"古典茶几","category":"table","style":"classic","compatibleColors":["#8B4513","#DAA520","#F5DEB3","#A0522D"],"cost":150,"comfortScore":0.5,"aestheticScore":0.9,"functionalityScore":0.75},
+    {"furnitureId":"lamp_modern","displayName":"现代落地灯","category":"lighting","style":"modern","compatibleColors":["#FFFFFF","#2C3E50","#E74C3C","#F39C12"],"cost":80,"comfortScore":0.6,"aestheticScore":0.85,"functionalityScore":0.9},
+    {"furnitureId":"lamp_cozy","displayName":"温馨台灯","category":"lighting","style":"cozy","compatibleColors":["#FFB6C1","#F0E68C","#FFA07A","#FFD700"],"cost":60,"comfortScore":0.9,"aestheticScore":0.7,"functionalityScore":0.8},
+    {"furnitureId":"shelf_modern","displayName":"现代书架","category":"storage","style":"modern","compatibleColors":["#FFFFFF","#2C3E50","#95A5A6","#34495E"],"cost":160,"comfortScore":0.4,"aestheticScore":0.75,"functionalityScore":0.95},
+    {"furnitureId":"shelf_classic","displayName":"古典书柜","category":"storage","style":"classic","compatibleColors":["#8B4513","#DAA520","#F5DEB3","#800020"],"cost":200,"comfortScore":0.4,"aestheticScore":0.85,"functionalityScore":0.9},
+    {"furnitureId":"vase_modern","displayName":"现代花瓶","category":"decor","style":"modern","compatibleColors":["#FFFFFF","#E74C3C","#2C3E50","#3498DB"],"cost":40,"comfortScore":0.3,"aestheticScore":0.9,"functionalityScore":0.3},
+    {"furnitureId":"vase_cozy","displayName":"温馨摆件","category":"decor","style":"cozy","compatibleColors":["#FFB6C1","#F0E68C","#DDA0DD","#87CEEB"],"cost":30,"comfortScore":0.5,"aestheticScore":0.8,"functionalityScore":0.2},
+    {"furnitureId":"rug_minimal","displayName":"简约地毯","category":"decor","style":"minimal","compatibleColors":["#ECF0F1","#BDC3C7","#2C3E50","#95A5A6"],"cost":90,"comfortScore":0.8,"aestheticScore":0.7,"functionalityScore":0.5},
+    {"furnitureId":"curtain_modern","displayName":"现代窗帘","category":"decor","style":"modern","compatibleColors":["#FFFFFF","#2C3E50","#3498DB","#E74C3C"],"cost":70,"comfortScore":0.7,"aestheticScore":0.8,"functionalityScore":0.6},
+    {"furnitureId":"chair_minimal","displayName":"简约座椅","category":"seating","style":"minimal","compatibleColors":["#ECF0F1","#BDC3C7","#2C3E50","#3498DB"],"cost":100,"comfortScore":0.6,"aestheticScore":0.75,"functionalityScore":0.85}
+  ]
+}

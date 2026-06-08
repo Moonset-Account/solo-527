@@ -1,0 +1,13 @@
+{
+    "m_Name": "DecorMatch3.Runtime.Tests",
+    "references": ["DecorMatch3.Runtime"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": ["nunit.framework"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

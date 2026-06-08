@@ -1,0 +1,10 @@
+{
+  "items": [
+    {"paletteId":"palette_warm","displayName":"暖阳之家","style":"cozy","hexColors":["#FFB6C1","#FFA07A","#FFD700","#F0E68C","#FF8C00"],"harmonyScore":0.9},
+    {"paletteId":"palette_cool","displayName":"清冷都市","style":"modern","hexColors":["#2C3E50","#3498DB","#95A5A6","#ECF0F1","#1ABC9C"],"harmonyScore":0.85},
+    {"paletteId":"palette_classic","displayName":"古典雅韵","style":"classic","hexColors":["#8B4513","#DAA520","#F5DEB3","#800020","#FAEBD7"],"harmonyScore":0.88},
+    {"paletteId":"palette_nature","displayName":"自然清新","style":"cozy","hexColors":["#228B22","#90EE90","#F0E68C","#8B4513","#FAFAD2"],"harmonyScore":0.82},
+    {"paletteId":"palette_minimal","displayName":"极简空间","style":"minimal","hexColors":["#FFFFFF","#ECF0F1","#BDC3C7","#2C3E50","#95A5A6"],"harmonyScore":0.92},
+    {"paletteId":"palette_vibrant","displayName":"活力派对","style":"modern","hexColors":["#E74C3C","#3498DB","#F39C12","#2ECC71","#9B59B6"],"harmonyScore":0.75}
+  ]
+}

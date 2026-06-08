@@ -1,0 +1,9 @@
+{
+  "items": [
+    {"customerId":"customer_01","displayName":"小雨","personality":"温柔浪漫","preferredStyle":"cozy","likedColors":["#FFB6C1","#DDA0DD","#87CEEB","#F0E68C"],"dislikedColors":["#2C3E50","#34495E"],"strictness":0.3,"portraitSprite":"customer_01"},
+    {"customerId":"customer_02","displayName":"明辉","personality":"时尚前卫","preferredStyle":"modern","likedColors":["#FFFFFF","#2C3E50","#E74C3C","#3498DB"],"dislikedColors":["#FFB6C1","#DDA0DD"],"strictness":0.5,"portraitSprite":"customer_02"},
+    {"customerId":"customer_03","displayName":"雅芳","personality":"典雅端庄","preferredStyle":"classic","likedColors":["#8B4513","#DAA520","#F5DEB3","#800020"],"dislikedColors":["#E74C3C","#3498DB"],"strictness":0.7,"portraitSprite":"customer_03"},
+    {"customerId":"customer_04","displayName":"志远","personality":"简约克制","preferredStyle":"minimal","likedColors":["#ECF0F1","#BDC3C7","#2C3E50","#95A5A6"],"dislikedColors":["#FFB6C1","#DAA520","#800020"],"strictness":0.6,"portraitSprite":"customer_04"},
+    {"customerId":"customer_05","displayName":"梦琪","personality":"挑剔完美","preferredStyle":"modern","likedColors":["#FFFFFF","#3498DB","#2C3E50","#F39C12"],"dislikedColors":["#FFB6C1","#8B4513","#F5DEB3"],"strictness":0.9,"portraitSprite":"customer_05"}
+  ]
+}
