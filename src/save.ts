@@ -33,7 +33,7 @@ export class SaveManager {
     graph.deserialize(data);
   }
 
-  share(graph: CircuitGraph, levelId: string): string {
+  share(graph: CircuitGraph, levelId: string, analytics: any): string {
     const serialized = graph.serialize();
     const data: SaveData = {
       version: APP_CONFIG.APP_VERSION,
@@ -41,10 +41,10 @@ export class SaveManager {
       level: levelId,
       components: (serialized as any).components,
       wires: (serialized as any).wires,
-      analytics: null,
+      analytics,
       settings: null as any,
     };
-    const encoded = btoa(JSON.stringify(data));
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
     return window.location.origin + window.location.pathname + '?circuit=' + encoded;
   }
 
@@ -53,9 +53,16 @@ export class SaveManager {
       const params = new URL(url).searchParams;
       const circuit = params.get('circuit');
       if (!circuit) return null;
-      return JSON.parse(atob(circuit)) as SaveData;
+      return JSON.parse(decodeURIComponent(escape(atob(circuit)))) as SaveData;
     } catch {
-      return null;
+      try {
+        const params = new URL(url).searchParams;
+        const circuit = params.get('circuit');
+        if (!circuit) return null;
+        return JSON.parse(atob(circuit)) as SaveData;
+      } catch {
+        return null;
+      }
     }
   }
 

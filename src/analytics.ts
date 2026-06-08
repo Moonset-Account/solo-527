@@ -98,6 +98,7 @@ export class AnalyticsTracker {
     return {
       history: this.history,
       totalRetries: this.totalRetries,
+      currentData: this.currentData,
     };
   }
 
@@ -107,6 +108,9 @@ export class AnalyticsTracker {
     }
     if (typeof data.totalRetries === 'number') {
       this.totalRetries = data.totalRetries;
+    }
+    if (data.currentData) {
+      this.currentData = { ...this.createDefaultData(), ...data.currentData };
     }
   }
 }

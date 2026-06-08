@@ -166,7 +166,7 @@ class App {
 
     document.getElementById('btn-share')!.addEventListener('click', () => {
       const level = this.levels.getCurrentLevel();
-      const url = this.saveManager.share(this.graph, level?.id ?? '');
+      const url = this.saveManager.share(this.graph, level?.id ?? '', this.analytics.serialize());
       navigator.clipboard.writeText(url).then(() => {
         this.ui.showHint('分享链接已复制到剪贴板');
         setTimeout(() => this.ui.hideHint(), 2000);
@@ -184,7 +184,11 @@ class App {
     document.getElementById('btn-settings')!.addEventListener('click', () => {
       this.engine.pause();
       this.ui.showSettings(this.settings, (newSettings) => {
+        const keysChanged = JSON.stringify(this.settings.keyBindings) !== JSON.stringify(newSettings.keyBindings);
         this.settings = newSettings;
+        if (keysChanged) {
+          this.bindKeyActions();
+        }
       });
     });
 
@@ -311,6 +315,13 @@ class App {
     if (saveData.level) {
       this.levels.loadLevel(saveData.level);
     }
+    if (saveData.settings) {
+      this.settings = saveData.settings as Settings;
+      this.bindKeyActions();
+    }
+    if (saveData.analytics) {
+      this.analytics.deserialize(saveData.analytics);
+    }
     this.isLoadingSave = false;
     this.updatePinConnectedStates();
     this.ui.showHint('已加载存档');
@@ -395,6 +406,7 @@ class App {
   private resetLevel() {
     const level = this.levels.getCurrentLevel();
     if (!level) return;
+    this.analytics.recordFailure('level_reset');
     this.analytics.recordRetry();
     this.graph.clear();
     this.selectedComponentId = null;
@@ -461,27 +473,31 @@ class App {
     this.ghostY = worldPos.y;
 
     if (this.input.isActionPressed('pause')) {
-      this.input.consumeKey('Space');
+      const keys = this.settings.keyBindings.pause;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
       this.engine.pause();
       this.ui.showPause();
       return;
     }
 
     if (this.input.isActionPressed('hint')) {
-      this.input.consumeKey('h');
+      const keys = this.settings.keyBindings.hint;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
       this.showHint();
       return;
     }
 
     if (this.input.isActionPressed('delete')) {
       this.deleteSelected();
-      this.input.consumeKey('Delete');
+      const keys = this.settings.keyBindings.delete;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
       return;
     }
 
     if (this.input.isActionPressed('rotate')) {
       this.rotateSelected();
-      this.input.consumeKey('r');
+      const keys = this.settings.keyBindings.rotate;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
       return;
     }
 
@@ -637,6 +653,8 @@ class App {
           this.tutorial.checkCondition('wire_connected');
           this.tutorial.checkCondition('circuit_complete');
           this.updatePinConnectedStates();
+        } else {
+          this.analytics.recordFailure('wire_rejected');
         }
       }
 
@@ -651,6 +669,9 @@ class App {
   }
 
   private cancelWiring() {
+    if (this.wiringStartCompId !== null) {
+      this.analytics.recordFailure('wire_cancelled');
+    }
     this.mode = InteractionMode.Idle;
     this.wiringStartCompId = null;
     this.wiringStartPinIdx = null;
@@ -704,12 +725,14 @@ class App {
 
   private deleteSelected() {
     if (this.selectedComponentId) {
+      this.analytics.recordFailure('component_deleted');
       this.graph.removeComponent(this.selectedComponentId);
       this.selectedComponentId = null;
       this.ui.hidePropsPanel();
       this.updatePinConnectedStates();
     }
     if (this.selectedWireId) {
+      this.analytics.recordFailure('wire_deleted');
       this.graph.removeWire(this.selectedWireId);
       this.selectedWireId = null;
       this.updatePinConnectedStates();

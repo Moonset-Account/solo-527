@@ -172,6 +172,84 @@ export class UIManager {
       this.settingsContent.appendChild(row);
     }
 
+    const keySection = document.createElement('div');
+    keySection.style.cssText = 'margin-top: 16px; padding-top: 12px; border-top: 1px solid #3a3a5a;';
+    const keyTitle = document.createElement('h3');
+    keyTitle.textContent = '快捷键';
+    keyTitle.style.cssText = 'color: #e94560; margin: 0 0 8px 0; font-size: 14px;';
+    keySection.appendChild(keyTitle);
+
+    const keyLabels: Record<keyof import('./config').KeyBindings, string> = {
+      delete: '删除',
+      rotate: '旋转',
+      undo: '撤销',
+      redo: '重做',
+      save: '保存',
+      load: '加载',
+      pause: '暂停',
+      hint: '提示',
+      pan: '平移',
+      zoomIn: '放大',
+      zoomOut: '缩小',
+    };
+
+    const keyOrder: (keyof import('./config').KeyBindings)[] = [
+      'delete', 'rotate', 'undo', 'redo', 'save', 'load', 'pause', 'hint',
+    ];
+
+    for (const action of keyOrder) {
+      const row = document.createElement('div');
+      row.className = 'prop-row';
+      const label = document.createElement('label');
+      label.textContent = keyLabels[action];
+      label.style.cssText = 'min-width: 60px;';
+      const btn = document.createElement('button');
+      btn.textContent = settings.keyBindings[action].join(', ');
+      btn.style.cssText = 'flex: 1; padding: 4px 8px; background: #2a2a4a; border: 1px solid #5a6a8a; border-radius: 4px; color: #ccc; cursor: pointer; font-size: 12px; text-align: center;';
+      let listening = false;
+      const newKeys: string[] = [];
+      btn.addEventListener('click', () => {
+        if (listening) return;
+        listening = true;
+        newKeys.length = 0;
+        btn.textContent = '按下新快捷键...';
+        btn.style.borderColor = '#e94560';
+
+        const onKeyDown = (e: KeyboardEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === 'Escape') {
+            cleanup();
+            btn.textContent = settings.keyBindings[action].join(', ');
+            return;
+          }
+          const key = e.key;
+          if (!newKeys.includes(key)) {
+            newKeys.push(key);
+            btn.textContent = newKeys.join(', ');
+          }
+          if (newKeys.length >= 2 || ['Enter', 'Space', 'Tab'].includes(key)) {
+            cleanup();
+            const updatedBindings = { ...settings.keyBindings, [action]: [...newKeys] };
+            onChange({ ...settings, keyBindings: updatedBindings });
+          }
+        };
+
+        const cleanup = () => {
+          listening = false;
+          btn.style.borderColor = '#5a6a8a';
+          window.removeEventListener('keydown', onKeyDown);
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+      });
+      row.appendChild(label);
+      row.appendChild(btn);
+      keySection.appendChild(row);
+    }
+
+    this.settingsContent.appendChild(keySection);
+
     this.overlaySettings.classList.add('visible');
   }
 
