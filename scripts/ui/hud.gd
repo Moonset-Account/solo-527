@@ -62,14 +62,14 @@ func _ready() -> void:
 	add_child(segment_indicator)
 
 	noise_indicator = Control.new()
-	noise_indicator.set_anchors_preset(Control.PRESET_BOTTOM_CENTER)
+	noise_indicator.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	noise_indicator.position = Vector2(-20, -50)
 	noise_indicator.size = Vector2(40, 40)
 	noise_indicator.theme = theme
 	add_child(noise_indicator)
 
 	alert_status = Label.new()
-	alert_status.set_anchors_preset(Control.PRESET_TOP_CENTER)
+	alert_status.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	alert_status.position = Vector2(-60, 10)
 	alert_status.size = Vector2(120, 24)
 	alert_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

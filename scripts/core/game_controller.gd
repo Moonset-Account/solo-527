@@ -1,6 +1,11 @@
 extends Node2D
 class_name GameController
 
+const PatrolGuardScript = preload("res://scripts/enemy/patrol_guard.gd")
+const ShelfScript = preload("res://scripts/objects/shelf.gd")
+const WallScript = preload("res://scripts/objects/wall.gd")
+const CheckpointScript = preload("res://scripts/objects/checkpoint.gd")
+
 @onready var level_container: Node2D = $LevelContainer
 @onready var player: CharacterBody2D = $Player
 @onready var hud: CanvasLayer = $HUD
@@ -14,7 +19,7 @@ var _total_labels: int = 0
 var _spawn_position: Vector2 = Vector2(100, 360)
 var _is_resetting: bool = false
 var _failure_count: int = 0
-var _guards: Array[PatrolGuard] = []
+var _guards: Array = []
 
 signal segment_completed(segment_index: int)
 signal level_completed()
@@ -39,7 +44,9 @@ func _process(delta: float) -> void:
 	if hud and hud.has_method("set_alert"):
 		var any_alert := false
 		for g in _guards:
-			if g.current_state == PatrolGuard.State.ALERT or g.current_state == PatrolGuard.State.CHASING:
+			if not is_instance_valid(g):
+				continue
+			if g.current_state == PatrolGuardScript.State.ALERT or g.current_state == PatrolGuardScript.State.CHASING:
 				any_alert = true
 				break
 		hud.set_alert(any_alert)
@@ -202,7 +209,7 @@ func _update_hud() -> void:
 		hud.update_segment(_current_segment_index + 1, total)
 
 func _create_wall(data: Dictionary) -> StaticBody2D:
-	var w := Wall.new()
+	var w = WallScript.new()
 	var pos = data.get("position", {"x": 0, "y": 0})
 	w.global_position = Vector2(float(pos.get("x", 0)), float(pos.get("y", 0)))
 	var size = data.get("size", {"w": 64, "h": 64})
@@ -215,7 +222,7 @@ func _create_wall(data: Dictionary) -> StaticBody2D:
 	return w
 
 func _create_shelf(data: Dictionary) -> StaticBody2D:
-	var s := Shelf.new()
+	var s = ShelfScript.new()
 	var pos = data.get("position", {"x": 0, "y": 0})
 	s.global_position = Vector2(float(pos.get("x", 0)), float(pos.get("y", 0)))
 	s.shelf_id = data.get("id", "")
@@ -230,7 +237,7 @@ func _create_shelf(data: Dictionary) -> StaticBody2D:
 	return s
 
 func _create_guard(data: Dictionary) -> CharacterBody2D:
-	var g := PatrolGuard.new()
+	var g = PatrolGuardScript.new()
 	var patrol_raw = data.get("patrol_points", [])
 	var points: Array[Vector2] = []
 	for pt in patrol_raw:
@@ -250,7 +257,7 @@ func _create_guard(data: Dictionary) -> CharacterBody2D:
 	return g
 
 func _create_checkpoint(data: Dictionary) -> Area2D:
-	var cp := Checkpoint.new()
+	var cp = CheckpointScript.new()
 	var pos = data.get("position", {"x": 0, "y": 0})
 	cp.global_position = Vector2(float(pos.get("x", 0)), float(pos.get("y", 0)))
 	cp.checkpoint_id = data.get("id", "")
