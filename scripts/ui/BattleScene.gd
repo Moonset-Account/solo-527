@@ -53,9 +53,9 @@ func _ready() -> void:
 	_setup_theme()
 	_connect_event_listeners()
 	_connect_ui_buttons()
-	var pending: String = GameManager.get("pending_level") if "pending_level" in GameManager else ""
+	var pending: String = GameManager.pending_level
 	if pending != "":
-		GameManager.set("pending_level", "")
+		GameManager.pending_level = ""
 		call_deferred("_start_pending_level", pending)
 
 func _start_pending_level(level_id: String) -> void:
@@ -480,7 +480,7 @@ func _on_reward_card_clicked(_card_ui: Control, card_id: String, _ui_ref) -> voi
 func _on_retry_pressed() -> void:
 	AudioManager.play_ui_click()
 	var level_id: String = GameManager.current_level_id
-	GameManager.set("pending_level", level_id)
+	GameManager.pending_level = level_id
 	GameManager.retry_level()
 	get_tree().change_scene_to_file("res://scenes/BattleScene.tscn")
 

@@ -225,7 +225,7 @@ func _on_start_pressed() -> void:
 
 func _transition_to_battle(level_id: String) -> void:
 	EventBus.publish("scene_changing", ["BattleScene"])
-	GameManager.set("pending_level", level_id)
+	GameManager.pending_level = level_id
 	var t: Tween = create_tween().set_trans(Tween.TRANS_SINE)
 	t.tween_property(self, "modulate:a", 0.0, 0.35)
 	t.tween_callback(func():
