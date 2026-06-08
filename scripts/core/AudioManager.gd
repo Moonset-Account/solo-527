@@ -1,8 +1,8 @@
 extends Node
 
-@onready var _master_bus: AudioBusLayout = null
-@onready var _bgm_player: AudioStreamPlayer = null
-@onready var _sfx_players: Array[AudioStreamPlayer] = []
+var _master_bus: AudioBusLayout = null
+var _bgm_player: AudioStreamPlayer = null
+var _sfx_players: Array[AudioStreamPlayer] = []
 
 var master_volume: float = 0.8
 var bgm_volume: float = 0.6

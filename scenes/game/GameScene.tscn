@@ -4,21 +4,3 @@
 
 [node name="GameScene" type="Node2D"]
 script = ExtResource("1_game")
-
-[node name="purchase_panel" type="Control" parent="."]
-visible = false
-
-[node name="sell_panel" type="Control" parent="."]
-visible = false
-
-[node name="settlement_panel" type="Control" parent="."]
-visible = false
-
-[node name="hud" type="Control" parent="."]
-visible = false
-
-[node name="tutorial_overlay" type="Control" parent="."]
-visible = false
-
-[node name="advice_panel" type="Control" parent="."]
-visible = false

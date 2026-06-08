@@ -116,3 +116,15 @@ func get_recommended_price(item_id: String) -> int:
     if item.is_empty():
         return 20
     return int(item.get("cost_price", 10) * 2.2)
+
+func calculate_stars(level_id: String, final_money: int) -> int:
+    var level = get_level(level_id)
+    var target = level.get("target_money", 1000)
+    var ratio = float(final_money) / float(target)
+    if ratio >= 1.5:
+        return 3
+    elif ratio >= 1.0:
+        return 2
+    elif ratio >= 0.5:
+        return 1
+    return 0

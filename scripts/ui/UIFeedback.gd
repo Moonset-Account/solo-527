@@ -1,3 +1,4 @@
+class_name UIFeedback
 extends Control
 
 var _hint_label: Label = null

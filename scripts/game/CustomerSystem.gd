@@ -1,3 +1,4 @@
+class_name CustomerSystem
 extends Node
 
 class Customer:

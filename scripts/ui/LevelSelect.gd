@@ -1,10 +1,10 @@
 extends Control
 
-@onready var back_button: Button
-@onready var levels_container: GridContainer
-@onready var title_label: Label
-@onready var info_label: Label
-@onready var selected_level_panel: PanelContainer
+var back_button: Button
+var levels_container: GridContainer
+var title_label: Label
+var info_label: Label
+var selected_level_panel: PanelContainer
 
 var _level_ids: Array = []
 var _level_buttons: Dictionary = {}
@@ -163,7 +163,7 @@ func _build_level_grid() -> void:
         money_label.modulate = Color(0.9, 0.9, 0.9)
         vbox.add_child(money_label)
         
-        var stars_str = "⭐" * progress.get("best_stars", 0) + "☆" * (3 - progress.get("best_stars", 0))
+        var stars_str = _repeat_str("⭐", progress.get("best_stars", 0)) + _repeat_str("☆", (3 - progress.get("best_stars", 0)))
         var stars_label = Label.new()
         stars_label.text = stars_str
         stars_label.add_theme_font_size_override("font_size", 18)
@@ -207,7 +207,7 @@ func _select_level(level_id: String) -> void:
         items_str += ItemsDB.get_item_name(item_id) + "、"
     items_str = items_str.trim_suffix("、")
     
-    var stars_str = "⭐" * progress.get("best_stars", 0) + "☆" * (3 - progress.get("best_stars", 0))
+    var stars_str = _repeat_str("⭐", progress.get("best_stars", 0)) + _repeat_str("☆", (3 - progress.get("best_stars", 0)))
     
     var prerequisite = level_data.get("prerequisite", "")
     var prereq_str = "无"

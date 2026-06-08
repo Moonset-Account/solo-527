@@ -1,14 +1,15 @@
+class_name PurchasePanel
 extends Control
 
-@onready var items_list: VBoxContainer
-@onready var inventory_panel: PanelContainer
-@onready var inventory_list: GridContainer
-@onready var selected_item_label: Label
-@onready var selected_item_info: Label
-@onready var purchase_count_spin: SpinBox
-@onready var purchase_button: Button
-@onready var total_cost_label: Label
-@onready var phase_indicator: ColorRect
+var items_list: VBoxContainer
+var inventory_panel: PanelContainer
+var inventory_list: GridContainer
+var selected_item_label: Label
+var selected_item_info: Label
+var purchase_count_spin: SpinBox
+var purchase_button: Button
+var total_cost_label: Label
+var phase_indicator: ColorRect
 
 var _available_items: Array = []
 var _selected_item_id: String = ""
@@ -20,8 +21,8 @@ func _ready() -> void:
     if not _is_children_ready():
         _build_ui()
     
-    customer_system = CustomerSystem.new()
-    tutorial_advice = TutorialAdvice.new()
+    customer_system = load("res://scripts/game/CustomerSystem.gd").new()
+    tutorial_advice = load("res://scripts/game/TutorialAdvice.gd").new()
     
     _connect_signals()
     _load_available_items()
@@ -261,7 +262,7 @@ func _create_item_card(item_id: String, item_data: Dictionary) -> PanelContainer
     
     var hbox = HBoxContainer.new()
     hbox.add_theme_constant_override("separation", 12)
-    hbox.alignment = BoxContainer.ALIGNMENT_CENTER_BEGIN
+    hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
     card.add_child(hbox)
     
     var icon = TextureRect.new()

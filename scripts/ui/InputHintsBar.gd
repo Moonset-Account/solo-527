@@ -1,7 +1,8 @@
+class_name InputHintsBar
 extends Control
 
-@onready var input_hints_container: HBoxContainer
-@onready var hints_panel: PanelContainer
+var input_hints_container: HBoxContainer
+var hints_panel: PanelContainer
 
 var _action_hints: Array = []
 var _visible: bool = true

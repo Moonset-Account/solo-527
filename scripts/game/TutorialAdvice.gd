@@ -1,3 +1,4 @@
+class_name TutorialAdvice
 extends Node
 
 var current_tutorial_step: int = 0

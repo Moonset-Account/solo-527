@@ -103,6 +103,22 @@ func continue_after_settlement() -> void:
     EventBus.emit_event("game_state_changed", current_state)
     next_phase()
 
+func _end_day_simulation(sim_start: int, sim_cost: int, sim_revenue: int, sim_customers: int) -> Dictionary:
+    var sim_report: Dictionary = {
+        "start_money": sim_start,
+        "purchase_cost": sim_cost,
+        "sales_revenue": sim_revenue,
+        "customers_served": sim_customers,
+        "items_sold": {"apple": sim_customers / 2, "bread": max(1, sim_customers / 3)},
+        "end_money": sim_start - sim_cost + sim_revenue,
+        "profit": sim_revenue - sim_cost
+    }
+    current_day += 1
+    last_settlement = sim_report
+    return sim_report
+
+var last_settlement: Dictionary = {}
+
 func _complete_level() -> void:
     var level = LevelConfig.get_level(current_level_id)
     var target_money = level.get("target_money", 1000)

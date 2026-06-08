@@ -1,18 +1,19 @@
+class_name TutorialOverlay
 extends Control
 
-@onready var step_title: Label
-@onready var step_content: RichTextLabel
-@onready var progress_label: Label
-@onready var progress_bar: ProgressBar
-@onready var prev_button: Button
-@onready var next_button: Button
-@onready var skip_button: Button
+var step_title: Label
+var step_content: RichTextLabel
+var progress_label: Label
+var progress_bar: ProgressBar
+var prev_button: Button
+var next_button: Button
+var skip_button: Button
 
 var tutorial_system = null
 var _current_step_idx: int = 0
 
 func _ready() -> void:
-    tutorial_system = TutorialAdvice.new()
+    tutorial_system = load("res://scripts/game/TutorialAdvice.gd").new()
     if not _is_children_ready():
         _build_ui()
     
@@ -71,7 +72,7 @@ func _build_ui() -> void:
     dialog_panel.add_child(main_vbox)
     
     var top_row = HBoxContainer.new()
-    top_row.alignment = BoxContainer.ALIGNMENT_CENTER_BEGIN
+    top_row.alignment = BoxContainer.ALIGNMENT_BEGIN
     top_row.add_theme_constant_override("separation", 12)
     main_vbox.add_child(top_row)
     

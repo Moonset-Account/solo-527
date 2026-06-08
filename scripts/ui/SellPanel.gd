@@ -1,16 +1,17 @@
+class_name SellPanel
 extends Control
 
-@onready var stall_display: GridContainer
-@onready var customer_area: VBoxContainer
-@onready var selected_slot_label: Label
-@onready var price_spin: SpinBox
-@onready var set_price_button: Button
-@onready var inventory_scroll: ScrollContainer
-@onready var inventory_grid: GridContainer
-@onready var customer_info_label: Label
-@onready var customer_mood_label: Label
-@onready var progress_label: Label
-@onready var night_overlay: ColorRect
+var stall_display: GridContainer
+var customer_area: VBoxContainer
+var selected_slot_label: Label
+var price_spin: SpinBox
+var set_price_button: Button
+var inventory_scroll: ScrollContainer
+var inventory_grid: GridContainer
+var customer_info_label: Label
+var customer_mood_label: Label
+var progress_label: Label
+var night_overlay: ColorRect
 
 var customer_system = null
 var _selected_slot: int = -1
@@ -21,9 +22,15 @@ var _tutorial_advice = null
 
 const CUSTOMER_SPAWN_INTERVAL: float = 2.5
 
+func _repeat_str(s: String, n: int) -> String:
+    var result: String = ""
+    for i in range(max(0, n)):
+        result += s
+    return result
+
 func _ready() -> void:
-    customer_system = CustomerSystem.new()
-    _tutorial_advice = TutorialAdvice.new()
+    customer_system = load("res://scripts/game/CustomerSystem.gd").new()
+    _tutorial_advice = load("res://scripts/game/TutorialAdvice.gd").new()
     
     if not _is_children_ready():
         _build_ui()
@@ -524,7 +531,7 @@ func _spawn_next_customer() -> void:
         int(_current_customer.budget * 0.5),
         _current_customer.budget,
         desired_str,
-        "❤️" * int(ceil(_current_customer.patience * 5))
+        _repeat_str("❤️", int(ceili(_current_customer.patience * 5)))
     ]
     customer_mood_label.text = "😊"
     AudioManager.play_sfx("customer_arrive")

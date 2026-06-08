@@ -1,18 +1,18 @@
 extends AcceptDialog
 
-@onready var tab_container: TabContainer
-@onready var audio_tab: VBoxContainer
-@onready var input_tab: VBoxContainer
-@onready var gameplay_tab: VBoxContainer
+var tab_container: TabContainer
+var audio_tab: VBoxContainer
+var input_tab: VBoxContainer
+var gameplay_tab: VBoxContainer
 
-@onready var master_volume_slider: HSlider
-@onready var bgm_volume_slider: HSlider
-@onready var sfx_volume_slider: HSlider
-@onready var fullscreen_checkbox: CheckBox
-@onready var hints_checkbox: CheckBox
-@onready var input_mode_option: OptionButton
-@onready var reset_progress_button: Button
-@onready var close_button: Button
+var master_volume_slider: HSlider
+var bgm_volume_slider: HSlider
+var sfx_volume_slider: HSlider
+var fullscreen_checkbox: CheckBox
+var hints_checkbox: CheckBox
+var input_mode_option: OptionButton
+var reset_progress_button: Button
+var close_button: Button
 
 func _ready() -> void:
     title = "⚙️  游戏设置"

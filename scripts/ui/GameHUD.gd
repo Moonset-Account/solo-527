@@ -1,13 +1,14 @@
+class_name GameHUD
 extends Control
 
-@onready var money_label: Label
-@onready var day_label: Label
-@onready var phase_label: Label
-@onready var stall_level_label: Label
-@onready var customer_count_label: Label
-@onready var pause_button: Button
-@onready var next_phase_button: Button
-@onready var upgrade_button: Button
+var money_label: Label
+var day_label: Label
+var phase_label: Label
+var stall_level_label: Label
+var customer_count_label: Label
+var pause_button: Button
+var next_phase_button: Button
+var upgrade_button: Button
 
 var ui_feedback = null
 var input_hints_bar = null
@@ -28,7 +29,7 @@ func _is_children_ready() -> bool:
     return money_label != null and day_label != null
 
 func _build_ui() -> void:
-    ui_feedback = UIFeedback.new()
+    ui_feedback = load("res://scripts/ui/UIFeedback.gd").new()
     add_child(ui_feedback)
     
     var top_panel = PanelContainer.new()
@@ -85,7 +86,7 @@ func _build_ui() -> void:
     next_phase_button.custom_minimum_size = Vector2(200, 45)
     top_hbox.add_child(next_phase_button)
     
-    input_hints_bar = InputHintsBar.new()
+    input_hints_bar = load("res://scripts/ui/InputHintsBar.gd").new()
     add_child(input_hints_bar)
 
 func _create_info_label(text: String, color: Color) -> Label:

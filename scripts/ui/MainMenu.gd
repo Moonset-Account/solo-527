@@ -1,12 +1,12 @@
 extends Control
 
-@onready var title_label: Label
-@onready var start_button: Button
-@onready var levels_button: Button
-@onready var settings_button: Button
-@onready var quit_button: Button
-@onready var version_label: Label
-@onready var input_mode_label: Label
+var title_label: Label
+var start_button: Button
+var levels_button: Button
+var settings_button: Button
+var quit_button: Button
+var version_label: Label
+var input_mode_label: Label
 
 var _current_focus_index: int = 0
 var _menu_buttons: Array = []

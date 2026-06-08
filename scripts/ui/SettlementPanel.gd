@@ -1,17 +1,18 @@
+class_name SettlementPanel
 extends Control
 
-@onready var day_title_label: Label
-@onready var start_money_label: Label
-@onready var purchase_cost_label: Label
-@onready var sales_revenue_label: Label
-@onready var profit_label: Label
-@onready var end_money_label: Label
-@onready var customers_label: Label
-@onready var items_sold_list: VBoxContainer
-@onready var rating_label: Label
-@onready var continue_button: Button
-@onready var trend_label: Label
-@onready var advice_text: RichTextLabel
+var day_title_label: Label
+var start_money_label: Label
+var purchase_cost_label: Label
+var sales_revenue_label: Label
+var profit_label: Label
+var end_money_label: Label
+var customers_label: Label
+var items_sold_list: VBoxContainer
+var rating_label: Label
+var continue_button: Button
+var trend_label: Label
+var advice_text: RichTextLabel
 
 var tutorial_advice = null
 
@@ -22,7 +23,7 @@ func _repeat_str(s: String, n: int) -> String:
     return result
 
 func _ready() -> void:
-    tutorial_advice = TutorialAdvice.new()
+    tutorial_advice = load("res://scripts/game/TutorialAdvice.gd").new()
     
     if not _is_children_ready():
         _build_ui()

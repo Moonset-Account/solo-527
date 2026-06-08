@@ -1,16 +1,22 @@
 extends Node2D
 
-@onready var purchase_panel: Control
-@onready var sell_panel: Control
-@onready var settlement_panel: Control
-@onready var hud: Control
-@onready var tutorial_overlay: Control
-@onready var advice_panel: Control
+var purchase_panel: Control
+var sell_panel: Control
+var settlement_panel: Control
+var hud: Control
+var tutorial_overlay: Control
+var advice_panel: Control
 
 var _background: ColorRect = null
 var _ambient_decorations: Array = []
 var _advice_timer: Timer = null
 var _advice_shown_for_phase: bool = false
+
+func _repeat_str(s: String, n: int) -> String:
+    var result: String = ""
+    for i in range(max(0, n)):
+        result += s
+    return result
 
 func _ready() -> void:
     name = "GameScene"
@@ -36,23 +42,23 @@ func _build_scene() -> void:
     
     _build_ambient_decorations()
     
-    hud = GameHUD.new()
+    hud = load("res://scripts/ui/GameHUD.gd").new()
     hud.name = "GameHUD"
     add_child(hud)
     
-    purchase_panel = PurchasePanel.new()
+    purchase_panel = load("res://scripts/ui/PurchasePanel.gd").new()
     purchase_panel.name = "PurchasePanel"
     add_child(purchase_panel)
     
-    sell_panel = SellPanel.new()
+    sell_panel = load("res://scripts/ui/SellPanel.gd").new()
     sell_panel.name = "SellPanel"
     add_child(sell_panel)
     
-    settlement_panel = SettlementPanel.new()
+    settlement_panel = load("res://scripts/ui/SettlementPanel.gd").new()
     settlement_panel.name = "SettlementPanel"
     add_child(settlement_panel)
     
-    tutorial_overlay = TutorialOverlay.new()
+    tutorial_overlay = load("res://scripts/ui/TutorialOverlay.gd").new()
     tutorial_overlay.name = "TutorialOverlay"
     add_child(tutorial_overlay)
     
@@ -132,7 +138,7 @@ func _build_advice_panel() -> void:
     
     var title_row = HBoxContainer.new()
     title_row.add_theme_constant_override("separation", 8)
-    title_row.alignment = BoxContainer.ALIGNMENT_CENTER_BEGIN
+    title_row.alignment = BoxContainer.ALIGNMENT_BEGIN
     vbox.add_child(title_row)
     
     var icon = Label.new()
@@ -236,7 +242,7 @@ func _on_level_completed(level_id: String, stars: int) -> void:
     
     var dialog = AcceptDialog.new()
     dialog.title = "🎉 关卡完成！"
-    dialog.dialog_text = "\n\n恭喜完成关卡！\n\n最终金额: %d 金币\n评价: %s\n\n是否继续到其他关卡？\n" % [GameManager.money, "⭐" * stars + "☆" * (3 - stars)]
+    dialog.dialog_text = "\n\n恭喜完成关卡！\n\n最终金额: %d 金币\n评价: %s\n\n是否继续到其他关卡？\n" % [GameManager.money, _repeat_str("⭐", stars) + _repeat_str("☆", (3 - stars))]
     dialog.confirmed.connect(func(): GameManager.go_to_level_select())
     dialog.canceled.connect(func(): GameManager.go_to_main_menu())
     dialog.add_button("🏠 返回主菜单", true, "cancel")
@@ -276,7 +282,7 @@ func _show_phase_advice() -> void:
     if GameManager.current_phase == GameManager.Phase.PURCHASE and purchase_panel and purchase_panel.has_method("get_advice_for_phase"):
         advice_data = purchase_panel.get_advice_for_phase()
     elif GameManager.current_phase == GameManager.Phase.SELL and sell_panel and sell_panel.has_method("get_advice_data"):
-        var ta = TutorialAdvice.new()
+        var ta = load("res://scripts/game/TutorialAdvice.gd").new()
         advice_data = ta.generate_advice(GameManager.current_phase, sell_panel.get_advice_data())
     
     if advice_data.is_empty():

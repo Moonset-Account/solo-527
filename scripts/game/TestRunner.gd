@@ -13,10 +13,16 @@ var results: Array = []
 var test_start_time: int = 0
 var current_test: TestResult = null
 
+func _repeat_str(s: String, n: int) -> String:
+    var result: String = ""
+    for i in range(max(0, n)):
+        result += s
+    return result
+
 func _ready() -> void:
-    print("\n" + "="*60)
+    print("\n" + _repeat_str("=", 60))
     print("🏪 小镇集市经营模拟 - 验收测试")
-    print("="*60)
+    print(_repeat_str("=", 60))
     name = "TestRunner"
     
 func run_all_tests() -> void:
@@ -526,9 +532,9 @@ func _print_summary(total_time_ms: int) -> void:
         else:
             failed += 1
     
-    print("\n" + "="*60)
+    print("\n" + _repeat_str("=", 60))
     print("📊 测试总结")
-    print("="*60)
+    print(_repeat_str("=", 60))
     print("总计: %d 项测试" % results.size())
     print("✅ 通过: %d 项" % passed)
     print("❌ 失败: %d 项" % failed)
@@ -540,12 +546,12 @@ func _print_summary(total_time_ms: int) -> void:
             if not r.passed:
                 print("  - %s: %s" % [r.test_name, r.message])
     
-    print("\n" + "="*60)
+    print("\n" + _repeat_str("=", 60))
     if failed == 0:
         print("🎉 所有测试通过！游戏核心功能验收合格！")
     else:
         print("⚠️  存在%d项失败，请检查上述问题。" % failed)
-    print("="*60 + "\n")
+    print(_repeat_str("=", 60) + "\n")
     
     _write_test_report(total_time_ms, passed, failed)
 
@@ -556,7 +562,7 @@ func _write_test_report(total_time_ms: int, passed: int, failed: int) -> void:
     
     file.store_string("🏪 小镇集市经营模拟 - 验收测试报告\n")
     file.store_string("报告生成时间: " + Time.get_datetime_string_from_system() + "\n")
-    file.store_string("=" * 60 + "\n\n")
+    file.store_string(_repeat_str("=", 60) + "\n\n")
     
     for r in results:
         var status = "✅" if r.passed else "❌"
@@ -564,7 +570,7 @@ func _write_test_report(total_time_ms: int, passed: int, failed: int) -> void:
         if not r.passed:
             file.store_string("   原因: %s\n" % r.message)
     
-    file.store_string("\n" + "=" * 60 + "\n")
+    file.store_string("\n" + _repeat_str("=", 60) + "\n")
     file.store_string("总计: %d | 通过: %d | 失败: %d | 耗时: %dms\n" % [results.size(), passed, failed, total_time_ms])
     
     if failed == 0:
