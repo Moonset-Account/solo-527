@@ -5,18 +5,32 @@ using System.Collections.Generic;
 
 public class TrainingSetupPanel : UIPanel
 {
-    public Transform dayListContainer;
-    public GameObject dayItemPrefab;
-    public Transform playerSelectContainer;
-    public GameObject playerSelectItemPrefab;
+    public Transform dayListContent;
+    public Transform playerSelectContent;
     public Button confirmBtn;
     public Button cancelBtn;
-
+    private ScrollRect dayScroll;
+    private ScrollRect playerScroll;
     private int selectedDayIndex = -1;
     private List<TrainingSlot> editSchedule;
+    private bool uiCreated;
+
+    public override void OnInit()
+    {
+        if (uiCreated) return;
+        uiCreated = true;
+        UIHelper.CreateTitle(transform, "Title", "训练安排", 32);
+        UIHelper.CreateText(transform, "DayLabel", "点击日程项切换训练类型，点击球员指派:", new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.84f), 16);
+        dayScroll = UIHelper.CreateScrollList(transform, "DayList", new Vector2(0.05f, 0.45f), new Vector2(0.95f, 0.78f), out dayListContent);
+        UIHelper.CreateText(transform, "PlayerLabel", "可选球员:", new Vector2(0.05f, 0.39f), new Vector2(0.95f, 0.45f), 16);
+        playerScroll = UIHelper.CreateScrollList(transform, "PlayerList", new Vector2(0.05f, 0.12f), new Vector2(0.95f, 0.39f), out playerSelectContent);
+        confirmBtn = UIHelper.CreateButton(transform, "ConfirmBtn", "确认", new Vector2(0.55f, 0.03f), new Vector2(0.75f, 0.1f), 22, UIHelper.AccentColor);
+        cancelBtn = UIHelper.CreateButton(transform, "CancelBtn", "取消", new Vector2(0.8f, 0.03f), new Vector2(0.95f, 0.1f), 22);
+    }
 
     public override void OnShow()
     {
+        OnInit();
         confirmBtn.onClick.RemoveAllListeners();
         confirmBtn.onClick.AddListener(OnConfirm);
         cancelBtn.onClick.RemoveAllListeners();
@@ -26,37 +40,28 @@ public class TrainingSetupPanel : UIPanel
         if (TrainingManager.Instance != null)
         {
             foreach (var slot in TrainingManager.Instance.weeklySchedule)
-            {
                 editSchedule.Add(new TrainingSlot { type = slot.type, assignedPlayerId = slot.assignedPlayerId });
-            }
         }
         else
         {
             for (int i = 0; i < 7; i++)
-            {
                 editSchedule.Add(new TrainingSlot { type = TrainingType.Rest, assignedPlayerId = "" });
-            }
         }
-
+        selectedDayIndex = -1;
         RefreshDayList();
         RefreshPlayerList();
     }
 
     void RefreshDayList()
     {
-        foreach (Transform child in dayListContainer)
-        {
-            Destroy(child.gameObject);
-        }
+        for (int i = dayListContent.childCount - 1; i >= 0; i--)
+            Destroy(dayListContent.GetChild(i).gameObject);
 
         string[] dayNames = { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
         string[] typeNames = { "体能", "技术", "战术", "心理", "休息" };
-        TrainingType[] types = { TrainingType.Physical, TrainingType.Technical, TrainingType.Tactical, TrainingType.Mental, TrainingType.Rest };
 
         for (int i = 0; i < editSchedule.Count; i++)
         {
-            GameObject item = Instantiate(dayItemPrefab, dayListContainer);
-            int dayIdx = i;
             var slot = editSchedule[i];
             string playerName = "未指派";
             if (GameManager.Instance != null && GameManager.Instance.currentTeam != null)
@@ -64,28 +69,26 @@ public class TrainingSetupPanel : UIPanel
                 var p = GameManager.Instance.currentTeam.GetPlayer(slot.assignedPlayerId);
                 if (p != null) playerName = p.playerName;
             }
-            int typeIdx = Array.IndexOf(types, slot.type);
-            string typeName = typeIdx >= 0 ? typeNames[typeIdx] : "休息";
-            item.GetComponentInChildren<Text>().text = dayNames[i] + ": " + typeName + " - " + playerName;
-            item.GetComponent<Button>().onClick.AddListener(() => SelectDay(dayIdx));
+            string typeName = ((int)slot.type < typeNames.Length) ? typeNames[(int)slot.type] : "休息";
+            string selected = (i == selectedDayIndex) ? " [选中]" : "";
+            Button item = UIHelper.CreateListItem(dayListContent, "Day" + i, dayNames[i] + " | " + typeName + " | " + playerName + selected, 40);
+            int dayIdx = i;
+            item.onClick.AddListener(() => SelectDay(dayIdx));
         }
     }
 
     void RefreshPlayerList()
     {
-        foreach (Transform child in playerSelectContainer)
-        {
-            Destroy(child.gameObject);
-        }
+        for (int i = playerSelectContent.childCount - 1; i >= 0; i--)
+            Destroy(playerSelectContent.GetChild(i).gameObject);
 
         if (GameManager.Instance == null || GameManager.Instance.currentTeam == null) return;
-
         foreach (var player in GameManager.Instance.currentTeam.players)
         {
-            GameObject item = Instantiate(playerSelectItemPrefab, playerSelectContainer);
-            item.GetComponentInChildren<Text>().text = string.Format("{0} ({1}) 体能:{2}", player.playerName, player.position, player.stamina);
+            string info = string.Format("{0} ({1}) 体能:{2} {3}", player.playerName, player.position, player.stamina, player.state);
+            Button item = UIHelper.CreateListItem(playerSelectContent, player.playerId, info, 35);
             string pid = player.playerId;
-            item.GetComponent<Button>().onClick.AddListener(() => AssignPlayer(pid));
+            item.onClick.AddListener(() => AssignPlayer(pid));
         }
     }
 
@@ -97,9 +100,7 @@ public class TrainingSetupPanel : UIPanel
             int nextType = ((int)editSchedule[selectedDayIndex].type + 1) % 5;
             editSchedule[selectedDayIndex].type = (TrainingType)nextType;
             if (editSchedule[selectedDayIndex].type == TrainingType.Rest)
-            {
                 editSchedule[selectedDayIndex].assignedPlayerId = "";
-            }
             RefreshDayList();
         }
     }
@@ -117,15 +118,10 @@ public class TrainingSetupPanel : UIPanel
         if (TrainingManager.Instance != null)
         {
             for (int i = 0; i < editSchedule.Count && i < TrainingManager.Instance.weeklySchedule.Count; i++)
-            {
                 TrainingManager.Instance.SetDayTraining(i, editSchedule[i].type, editSchedule[i].assignedPlayerId);
-            }
         }
         UIManager.Instance.ShowPanel("MainGame");
     }
 
-    void OnCancel()
-    {
-        UIManager.Instance.ShowPanel("MainGame");
-    }
+    void OnCancel() { UIManager.Instance.ShowPanel("MainGame"); }
 }

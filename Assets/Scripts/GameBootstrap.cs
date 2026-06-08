@@ -5,16 +5,19 @@ using System.Collections.Generic;
 
 public class GameBootstrap : MonoBehaviour
 {
-    public Canvas mainCanvas;
-    public GameObject panelContainerPrefab;
-    public Font defaultFont;
+    public static bool initialized = false;
 
-    void Start()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void AutoInitialize()
     {
-        DontDestroyOnLoad(gameObject);
+        if (initialized) return;
+        initialized = true;
+
+        GameObject root = new GameObject("[GameRoot]");
+        DontDestroyOnLoad(root);
 
         GameObject managersObj = new GameObject("Managers");
-        managersObj.transform.SetParent(transform);
+        managersObj.transform.SetParent(root.transform);
         managersObj.AddComponent<GameManager>();
         managersObj.AddComponent<TrainingManager>();
         managersObj.AddComponent<MatchManager>();
@@ -24,24 +27,26 @@ public class GameBootstrap : MonoBehaviour
         managersObj.AddComponent<AudioManager>();
         managersObj.AddComponent<DebugLogger>();
 
-        if (mainCanvas == null)
-        {
-            GameObject canvasObj = new GameObject("MainCanvas");
-            mainCanvas = canvasObj.AddComponent<Canvas>();
-            mainCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasObj.AddComponent<CanvasScaler>();
-            canvasObj.AddComponent<GraphicRaycaster>();
-            CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920, 1080);
-        }
+        GameObject canvasObj = new GameObject("MainCanvas");
+        canvasObj.transform.SetParent(root.transform);
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+        canvasObj.AddComponent<GraphicRaycaster>();
+
+        GameObject eventSystemObj = new GameObject("EventSystem");
+        eventSystemObj.transform.SetParent(root.transform);
+        eventSystemObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        eventSystemObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
 
         GameObject uiManagerObj = new GameObject("UIManager");
-        uiManagerObj.transform.SetParent(mainCanvas.transform, false);
+        uiManagerObj.transform.SetParent(canvasObj.transform, false);
         UIManager uiManager = uiManagerObj.AddComponent<UIManager>();
 
         GameObject panelContainer = new GameObject("PanelContainer");
-        panelContainer.transform.SetParent(mainCanvas.transform, false);
+        panelContainer.transform.SetParent(canvasObj.transform, false);
         RectTransform containerRect = panelContainer.AddComponent<RectTransform>();
         containerRect.anchorMin = Vector2.zero;
         containerRect.anchorMax = Vector2.one;
@@ -56,22 +61,22 @@ public class GameBootstrap : MonoBehaviour
         DebugLogger.Instance.Log("Bootstrap", "Game initialized successfully");
     }
 
-    void CreateAllPanels(UIManager uiManager, Transform container)
+    static void CreateAllPanels(UIManager uiManager, Transform container)
     {
         CreatePanel<MainMenuPanel>(uiManager, container, "MainMenu");
         CreatePanel<TutorialPanel>(uiManager, container, "Tutorial");
         CreatePanel<LevelSelectPanel>(uiManager, container, "LevelSelect");
         CreatePanel<MainGamePanel>(uiManager, container, "MainGame");
+        CreatePanel<TrainingSetupPanel>(uiManager, container, "TrainingSetup");
         CreatePanel<PlayerDetailPanel>(uiManager, container, "PlayerDetail");
         CreatePanel<SchedulePanel>(uiManager, container, "Schedule");
         CreatePanel<FinancePanel>(uiManager, container, "Finance");
         CreatePanel<ResultPanel>(uiManager, container, "Result");
-        CreatePanel<TrainingSetupPanel>(uiManager, container, "TrainingSetup");
         CreatePanel<GameOverPanel>(uiManager, container, "GameOver");
         CreatePanel<SettingsPanel>(uiManager, container, "Settings");
     }
 
-    T CreatePanel<T>(UIManager uiManager, Transform container, string panelName) where T : UIPanel
+    static T CreatePanel<T>(UIManager uiManager, Transform container, string panelName) where T : UIPanel
     {
         GameObject panelObj = new GameObject(panelName);
         panelObj.transform.SetParent(container, false);
