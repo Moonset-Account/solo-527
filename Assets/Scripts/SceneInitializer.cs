@@ -70,6 +70,13 @@ namespace TeaGardenDefense
                 gameObject.AddComponent<DebugConsole>();
             }
 
+            if (FindObjectOfType<GameView>() == null)
+            {
+                var gvGo = new GameObject("[GameView]");
+                gvGo.AddComponent<GameView>();
+                DontDestroyOnLoad(gvGo);
+            }
+
             if (runAcceptanceTests && FindObjectOfType<AcceptanceTestRunner>() == null)
             {
                 gameObject.AddComponent<AcceptanceTestRunner>();
