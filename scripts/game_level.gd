@@ -25,7 +25,7 @@ var level_config: Dictionary = {}
 var level_id: String = ""
 var spawned_items: Array = []
 var item_staging_positions: Dictionary = {}
-var box_items_inside: Dictionary = {}
+var _item_pickup_info: Dictionary = {}
 var box_detection_area: Area2D
 var box_width: float = 300.0
 var box_height: float = 400.0
@@ -44,19 +44,41 @@ func _ready() -> void:
 	ScoreManager.start_scoring(level_id)
 	is_level_active = true
 
-func get_packed_count() -> int:
-	var count := 0
-	for item in box_items_inside:
-		if box_items_inside[item]:
-			count += 1
-	return count
+func _is_position_in_box(pos: Vector2) -> bool:
+	var box_pos := box_node.global_position
+	var half_w := box_width / 2.0
+	var half_h := box_height / 2.0
+	return pos.x > box_pos.x - half_w and pos.x < box_pos.x + half_w and pos.y > box_pos.y - half_h and pos.y < box_pos.y + half_h
+
+func _is_item_in_box(item: Node2D) -> bool:
+	if not is_instance_valid(item):
+		return false
+	if item.is_dragging:
+		return false
+	return _is_position_in_box(item.global_position)
 
 func get_packed_items() -> Array:
 	var result: Array = []
-	for item in box_items_inside:
-		if box_items_inside[item]:
+	for item in spawned_items:
+		if _is_item_in_box(item):
 			result.append(item)
 	return result
+
+func get_packed_count() -> int:
+	return get_packed_items().size()
+
+func get_total_weight() -> float:
+	var total: float = 0.0
+	for item in get_packed_items():
+		if "item_data" in item and item.item_data:
+			total += item.item_data.weight
+	return total
+
+func is_overweight() -> bool:
+	return get_total_weight() > box_max_weight
+
+func check_fragile_under_pressure() -> Array:
+	return weight_system.check_fragile_integrity(get_packed_items())
 
 func _process(delta: float) -> void:
 	if not is_level_active:
@@ -150,33 +172,8 @@ func _create_box() -> void:
 	area_rect.size = Vector2(box_width, box_height)
 	area_shape.shape = area_rect
 	box_detection_area.add_child(area_shape)
-	box_detection_area.body_entered.connect(_on_body_entered_box)
-	box_detection_area.body_exited.connect(_on_body_exited_box)
 	box_detection_area.collision_mask = 2
 	box_node.add_child(box_detection_area)
-
-func _on_body_entered_box(body: Node2D) -> void:
-	if body is RigidBody2D and not box_items_inside.has(body):
-		box_items_inside[body] = false
-
-func _on_body_exited_box(body: Node2D) -> void:
-	if box_items_inside.has(body) and box_items_inside[body]:
-		if body is RigidBody2D and not body.is_dragging:
-			box_items_inside[body] = false
-
-func get_total_weight() -> float:
-	var total: float = 0.0
-	for item in box_items_inside:
-		if box_items_inside[item] and "item_data" in item and item.item_data:
-			total += item.item_data.weight
-	return total
-
-func is_overweight() -> bool:
-	return get_total_weight() > box_max_weight
-
-func check_fragile_under_pressure() -> Array:
-	var packed = get_packed_items()
-	return weight_system.check_fragile_integrity(packed)
 
 func _create_hud() -> void:
 	hud_layer = CanvasLayer.new()
@@ -258,22 +255,26 @@ func _update_hud() -> void:
 		weight_label.add_theme_color_override("font_color", Color.WHITE)
 	GameManager.last_time = level_timer
 
-func _on_item_dropped(item: RigidBody2D) -> void:
-	if not box_items_inside.has(item):
-		return
-	if box_items_inside[item]:
-		return
-	box_items_inside[item] = true
-	var staging_pos = item_staging_positions.get(item.get_instance_id(), Vector2(550, 100))
-	undo_system.push_action({"type": "place", "item": item, "staging_pos": staging_pos})
-
 func _on_item_picked_up(item: RigidBody2D) -> void:
-	if not box_items_inside.has(item):
-		return
-	if box_items_inside[item]:
-		var prev_pos := item.global_position
-		box_items_inside[item] = false
+	var was_in_box = _is_position_in_box(item.global_position)
+	_item_pickup_info[item] = {
+		"was_in_box": was_in_box,
+		"pickup_pos": item.global_position
+	}
+
+func _on_item_dropped(item: RigidBody2D) -> void:
+	var is_in_box = _is_position_in_box(item.global_position)
+	var info = _item_pickup_info.get(item, {"was_in_box": false, "pickup_pos": Vector2.ZERO})
+	var was_in_box = info.get("was_in_box", false)
+
+	if is_in_box and not was_in_box:
+		var staging_pos = item_staging_positions.get(item.get_instance_id(), Vector2(550, 100))
+		undo_system.push_action({"type": "place", "item": item, "staging_pos": staging_pos})
+	elif not is_in_box and was_in_box:
+		var prev_pos: Vector2 = info.get("pickup_pos", item.global_position)
 		undo_system.push_action({"type": "remove", "item": item, "prev_pos": prev_pos})
+
+	_item_pickup_info.erase(item)
 
 func _on_finish_pressed() -> void:
 	if not is_level_active:
@@ -366,7 +367,6 @@ func _on_undo_pressed() -> void:
 	var action_type = action.get("type", "")
 	var item_ref = action.get("item", null)
 	if action_type == "place" and is_instance_valid(item_ref):
-		box_items_inside[item_ref] = false
 		var staging_pos = action.get("staging_pos", item_staging_positions.get(item_ref.get_instance_id(), Vector2(550, 100)))
 		item_ref.global_position = staging_pos
 		item_ref.linear_velocity = Vector2.ZERO
@@ -376,7 +376,6 @@ func _on_undo_pressed() -> void:
 		if is_instance_valid(item_ref):
 			item_ref.freeze = false
 	elif action_type == "remove" and is_instance_valid(item_ref):
-		box_items_inside[item_ref] = true
 		var prev_pos = action.get("prev_pos", Vector2.ZERO)
 		if prev_pos != Vector2.ZERO:
 			item_ref.global_position = prev_pos
