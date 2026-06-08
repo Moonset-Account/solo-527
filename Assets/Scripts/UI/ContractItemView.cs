@@ -34,6 +34,172 @@ namespace SpaceCourier.UI
 
         public event Action<ContractData, ContractState> OnClicked;
 
+        private void Awake()
+        {
+            EnsureComponents();
+        }
+
+        private void EnsureComponents()
+        {
+            var rt = GetComponent<RectTransform>();
+            if (rt == null)
+            {
+                rt = gameObject.AddComponent<RectTransform>();
+            }
+            if (rt.sizeDelta == Vector2.zero)
+            {
+                rt.sizeDelta = new Vector2(560, 100);
+            }
+
+            if (backgroundImage == null)
+            {
+                backgroundImage = GetComponent<Image>();
+                if (backgroundImage == null)
+                {
+                    backgroundImage = gameObject.AddComponent<Image>();
+                    backgroundImage.color = availableColor;
+                }
+            }
+            if (itemButton == null)
+            {
+                itemButton = GetComponent<Button>();
+                if (itemButton == null)
+                {
+                    itemButton = gameObject.AddComponent<Button>();
+                    itemButton.targetGraphic = backgroundImage;
+                }
+            }
+
+            if (statusIndicator == null)
+            {
+                var obj = new GameObject("StatusIndicator");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0, 0);
+                iRT.anchorMax = new Vector2(0, 1);
+                iRT.offsetMin = new Vector2(0, 4);
+                iRT.offsetMax = new Vector2(6, -4);
+                var img = obj.AddComponent<Image>();
+                img.color = Color.gray;
+                statusIndicator = img;
+            }
+
+            var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+            TMP_FontAsset font = fonts.Length > 0 ? fonts[0] : null;
+
+            if (titleText == null)
+            {
+                var obj = new GameObject("TitleText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.1f, 0.58f);
+                iRT.anchorMax = new Vector2(0.75f, 0.58f);
+                iRT.offsetMin = new Vector2(8, -12);
+                iRT.offsetMax = new Vector2(-4, 12);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 20;
+                txt.color = Color.white;
+                txt.alignment = TextAlignmentOptions.Left;
+                txt.font = font;
+                titleText = txt;
+            }
+
+            if (destinationText == null)
+            {
+                var obj = new GameObject("DestinationText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.1f, 0.28f);
+                iRT.anchorMax = new Vector2(0.5f, 0.28f);
+                iRT.offsetMin = new Vector2(8, -8);
+                iRT.offsetMax = new Vector2(-4, 8);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 15;
+                txt.color = new Color(0.75f, 0.85f, 1f);
+                txt.alignment = TextAlignmentOptions.Left;
+                txt.font = font;
+                destinationText = txt;
+            }
+
+            if (timerText == null)
+            {
+                var obj = new GameObject("TimerText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.1f, 0.08f);
+                iRT.anchorMax = new Vector2(0.5f, 0.08f);
+                iRT.offsetMin = new Vector2(8, -8);
+                iRT.offsetMax = new Vector2(-4, 8);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 14;
+                txt.color = Color.white;
+                txt.alignment = TextAlignmentOptions.Left;
+                txt.font = font;
+                timerText = txt;
+            }
+
+            if (rewardText == null)
+            {
+                var obj = new GameObject("RewardText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.75f, 0.6f);
+                iRT.anchorMax = new Vector2(1f, 0.6f);
+                iRT.offsetMin = new Vector2(4, -10);
+                iRT.offsetMax = new Vector2(-8, 10);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 15;
+                txt.color = new Color(0.4f, 0.9f, 0.5f);
+                txt.alignment = TextAlignmentOptions.Right;
+                txt.font = font;
+                rewardText = txt;
+            }
+
+            if (cargoTypeText == null)
+            {
+                var obj = new GameObject("CargoTypeText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.5f, 0.08f);
+                iRT.anchorMax = new Vector2(0.75f, 0.08f);
+                iRT.offsetMin = new Vector2(4, -8);
+                iRT.offsetMax = new Vector2(-4, 8);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 13;
+                txt.color = new Color(1f, 0.8f, 0.3f);
+                txt.alignment = TextAlignmentOptions.Left;
+                txt.font = font;
+                cargoTypeText = txt;
+            }
+
+            if (riskIndicator == null)
+            {
+                var obj = new GameObject("RiskIndicator");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.88f, 0.25f);
+                iRT.anchorMax = new Vector2(0.88f, 0.25f);
+                iRT.sizeDelta = new Vector2(18, 18);
+                var img = obj.AddComponent<Image>();
+                img.color = Color.gray;
+                riskIndicator = img;
+            }
+
+            if (mainContractBadge == null)
+            {
+                var obj = new GameObject("MainContractBadge");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.92f, 0.72f);
+                iRT.anchorMax = new Vector2(0.92f, 0.72f);
+                iRT.sizeDelta = new Vector2(20, 20);
+                var img = obj.AddComponent<Image>();
+                img.color = new Color(1f, 0.82f, 0.25f);
+                img.enabled = false;
+                mainContractBadge = img;
+            }
+        }
+
         public void Initialize(ContractData data, ContractDisplayType type)
         {
             contractData = data;

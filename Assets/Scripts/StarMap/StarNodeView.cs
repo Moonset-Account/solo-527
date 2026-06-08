@@ -40,6 +40,176 @@ namespace SpaceCourier.StarMap
         public event Action<int, bool> OnHovered;
         public event Action<int> OnClicked;
 
+        private void Awake()
+        {
+            EnsureComponents();
+        }
+
+        private void EnsureComponents()
+        {
+            if (nodeRenderer == null)
+            {
+                var nodeSpriteChild = transform.Find("NodeSprite");
+                if (nodeSpriteChild != null) nodeRenderer = nodeSpriteChild.GetComponent<SpriteRenderer>();
+                if (nodeRenderer == null)
+                {
+                    nodeRenderer = gameObject.GetComponent<SpriteRenderer>();
+                    if (nodeRenderer == null)
+                    {
+                        var sr = gameObject.AddComponent<SpriteRenderer>();
+                        sr.sprite = CreateCircleSprite(32, Color.white);
+                        sr.sortingOrder = 10;
+                        nodeRenderer = sr;
+                    }
+                }
+            }
+            if (haloRenderer == null)
+            {
+                var haloChild = transform.Find("RingGlow");
+                if (haloChild != null) haloRenderer = haloChild.GetComponent<SpriteRenderer>();
+                if (haloRenderer == null)
+                {
+                    var haloObj = new GameObject("RingGlow");
+                    haloObj.transform.SetParent(transform, false);
+                    haloObj.transform.localScale = Vector3.one * 1.8f;
+                    var sr = haloObj.AddComponent<SpriteRenderer>();
+                    sr.sprite = CreateCircleSprite(40, Color.white);
+                    sr.sortingOrder = 5;
+                    sr.color = defaultHaloColor;
+                    haloRenderer = sr;
+                }
+            }
+            if (selectorRenderer == null)
+            {
+                var selObj = new GameObject("Selector");
+                selObj.transform.SetParent(transform, false);
+                selObj.transform.localScale = Vector3.one * 2.2f;
+                var sr = selObj.AddComponent<SpriteRenderer>();
+                sr.sprite = CreateRingSprite(48, 4, Color.white);
+                sr.sortingOrder = 6;
+                sr.enabled = false;
+                selectorRenderer = sr;
+            }
+            if (nameLabel == null)
+            {
+                var labelChild = transform.Find("Label");
+                if (labelChild != null) nameLabel = labelChild.GetComponent<TMPro.TextMeshPro>();
+                if (nameLabel == null)
+                {
+                    var lblObj = new GameObject("Label");
+                    lblObj.transform.SetParent(transform, false);
+                    lblObj.transform.localPosition = new Vector3(0f, -1.1f, 0f);
+                    var tmpro = lblObj.AddComponent<TMPro.TextMeshPro>();
+                    tmpro.alignment = TMPro.TextAlignmentOptions.Center;
+                    tmpro.fontSize = 14;
+                    tmpro.color = Color.white;
+                    tmpro.sortingOrder = 15;
+                    var fonts = Resources.FindObjectsOfTypeAll<TMPro.TMP_FontAsset>();
+                    if (fonts.Length > 0) tmpro.font = fonts[0];
+                    nameLabel = tmpro;
+                }
+            }
+            if (fuelStationIndicator == null)
+            {
+                var fsObj = new GameObject("FuelStationIndicator");
+                fsObj.transform.SetParent(transform, false);
+                fsObj.transform.localPosition = new Vector3(0.6f, 0.5f, 0f);
+                fsObj.transform.localScale = Vector3.one * 0.5f;
+                var fsSr = fsObj.AddComponent<SpriteRenderer>();
+                fsSr.sprite = CreateCircleSprite(16, new Color(0.3f, 0.85f, 0.4f));
+                fsSr.sortingOrder = 12;
+                fuelStationIndicator = fsObj;
+                fuelStationIndicator.SetActive(false);
+            }
+            if (dangerIndicator == null)
+            {
+                var dObj = new GameObject("DangerIndicator");
+                dObj.transform.SetParent(transform, false);
+                dObj.transform.localPosition = new Vector3(-0.6f, 0.5f, 0f);
+                dObj.transform.localScale = Vector3.one * 0.5f;
+                var dSr = dObj.AddComponent<SpriteRenderer>();
+                dSr.sprite = CreateTriangleSprite(16, new Color(1f, 0.4f, 0.3f));
+                dSr.sortingOrder = 12;
+                dangerIndicator = dObj;
+                dangerIndicator.SetActive(false);
+            }
+            if (hitCollider == null)
+            {
+                hitCollider = GetComponent<Collider2D>();
+                if (hitCollider == null)
+                {
+                    var col = gameObject.AddComponent<CircleCollider2D>();
+                    col.radius = 0.8f;
+                    hitCollider = col;
+                }
+            }
+        }
+
+        private static Sprite CreateCircleSprite(int size, Color color)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var pixels = new Color[size * size];
+            float r = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - r + 0.5f;
+                    float dy = y - r + 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    pixels[y * size + x] = d <= r ? color : new Color(0, 0, 0, 0);
+                    if (d > r - 2f && d <= r) pixels[y * size + x].a *= (r - d) / 2f;
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        private static Sprite CreateRingSprite(int size, int thickness, Color color)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var pixels = new Color[size * size];
+            float outerR = size * 0.5f;
+            float innerR = outerR - thickness;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - outerR + 0.5f;
+                    float dy = y - outerR + 0.5f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    pixels[y * size + x] = (d <= outerR && d >= innerR) ? color : new Color(0, 0, 0, 0);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
+        private static Sprite CreateTriangleSprite(int size, Color color)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float t = (float)y / size;
+                    float halfW = (0.5f * t) * size;
+                    float cx = size * 0.5f;
+                    bool inside = y < size && x > cx - halfW && x < cx + halfW;
+                    pixels[y * size + x] = inside ? color : new Color(0, 0, 0, 0);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        }
+
         public void Initialize(StarNodeData data, Vector3 position, float scale)
         {
             nodeData = data;

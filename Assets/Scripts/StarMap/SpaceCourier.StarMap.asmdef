@@ -6,7 +6,7 @@
         "SpaceCourier.Data",
         "SpaceCourier.Gameplay",
         "SpaceCourier.InputSystem",
-        "Unity.TextMeshPro"
+        "SpaceCourier.Animation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -10,13 +10,17 @@
         "SpaceCourier.SaveSystem",
         "SpaceCourier.Audio",
         "SpaceCourier.Animation",
+        "SpaceCourier.InputSystem",
+        "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
-    "precompiledReferences": [],
+    "precompiledReferences": [
+        "UnityEngine.UI.dll"
+    ],
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace SpaceCourier.Core
@@ -15,6 +16,21 @@ namespace SpaceCourier.Core
         public GameState CurrentState { get; private set; } = GameState.Menu;
 
         public event Action<GameState> OnGameStateChanged;
+
+        private static readonly Dictionary<ModuleType, string> ModuleTypeNames = new Dictionary<ModuleType, string>
+        {
+            { ModuleType.DataManager, "SpaceCourier.DataModule.DataManager" },
+            { ModuleType.TurnManager, "SpaceCourier.Gameplay.TurnManager" },
+            { ModuleType.FuelManager, "SpaceCourier.Gameplay.FuelManager" },
+            { ModuleType.ReputationManager, "SpaceCourier.Gameplay.ReputationManager" },
+            { ModuleType.EventManager, "SpaceCourier.Gameplay.EventManager" },
+            { ModuleType.UIManager, "SpaceCourier.UI.UIManager" },
+            { ModuleType.SaveManager, "SpaceCourier.SaveSystem.SaveManager" },
+            { ModuleType.AudioManager, "SpaceCourier.Audio.AudioManager" },
+            { ModuleType.SceneLoader, "SpaceCourier.Core.SceneLoader" },
+            { ModuleType.InputManager, "SpaceCourier.InputSystem.InputManager" },
+            { ModuleType.PlayRecorder, "SpaceCourier.SaveSystem.PlayRecorder" }
+        };
 
         protected override void Awake()
         {
@@ -38,39 +54,66 @@ namespace SpaceCourier.Core
 
         private void RegisterAllModules()
         {
-            var moduleTypes = new Dictionary<ModuleType, Type>
+            var initOrder = new[]
             {
-                { ModuleType.DataManager, typeof(DataModule.DataManager) },
-                { ModuleType.TurnManager, typeof(Gameplay.TurnManager) },
-                { ModuleType.FuelManager, typeof(Gameplay.FuelManager) },
-                { ModuleType.ReputationManager, typeof(Gameplay.ReputationManager) },
-                { ModuleType.EventManager, typeof(Gameplay.EventManager) },
-                { ModuleType.UIManager, typeof(UI.UIManager) },
-                { ModuleType.SaveManager, typeof(SaveSystem.SaveManager) },
-                { ModuleType.AudioManager, typeof(Audio.AudioManager) },
-                { ModuleType.SceneLoader, typeof(Core.SceneLoader) },
-                { ModuleType.InputManager, typeof(Input.InputManager) },
-                { ModuleType.PlayRecorder, typeof(SaveSystem.PlayRecorder) }
+                ModuleType.SceneLoader,
+                ModuleType.DataManager,
+                ModuleType.SaveManager,
+                ModuleType.AudioManager,
+                ModuleType.InputManager,
+                ModuleType.PlayRecorder,
+                ModuleType.UIManager,
+                ModuleType.TurnManager,
+                ModuleType.FuelManager,
+                ModuleType.ReputationManager,
+                ModuleType.EventManager
             };
 
-            foreach (var kvp in moduleTypes)
+            foreach (var moduleType in initOrder)
             {
-                var component = gameObject.GetComponent(kvp.Value) ?? gameObject.AddComponent(kvp.Value);
-                if (component is IModule module)
+                try
                 {
-                    modules[kvp.Key] = module;
+                    Type type = FindModuleType(moduleType);
+                    if (type == null)
+                    {
+                        Debug.LogWarning($"[GameManager] Could not find type for module {moduleType}");
+                        continue;
+                    }
+
+                    var component = gameObject.GetComponent(type) ?? gameObject.AddComponent(type);
+                    if (component is IModule module)
+                    {
+                        modules[moduleType] = module;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[GameManager] Error registering module {moduleType}: {e.Message}");
                 }
             }
+        }
+
+        private Type FindModuleType(ModuleType moduleType)
+        {
+            if (ModuleTypeNames.TryGetValue(moduleType, out var typeName))
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    var t = assembly.GetType(typeName);
+                    if (t != null) return t;
+                }
+            }
+            return Type.GetType(typeName + ",Assembly-CSharp") ?? Type.GetType(typeName);
         }
 
         private void InitializeModules()
         {
             var initOrder = new[]
             {
+                ModuleType.SceneLoader,
                 ModuleType.DataManager,
                 ModuleType.SaveManager,
                 ModuleType.AudioManager,
-                ModuleType.SceneLoader,
                 ModuleType.InputManager,
                 ModuleType.PlayRecorder,
                 ModuleType.UIManager,
@@ -110,8 +153,11 @@ namespace SpaceCourier.Core
             SetGameState(GameState.Playing);
             isGameRunning = true;
 
-            var recorder = GetModule<SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
-            recorder?.StartSession(levelId);
+            var recorder = GetModule<SpaceCourier.SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
+            if (recorder != null)
+            {
+                recorder.StartSession(levelId);
+            }
 
             EventBus.Publish(new GameEvents.GameStarted { LevelId = levelId });
             Debug.Log($"[GameManager] Game started with level {levelId}");
@@ -138,8 +184,11 @@ namespace SpaceCourier.Core
             isGameRunning = false;
             SetGameState(GameState.Ended);
 
-            var recorder = GetModule<SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
-            recorder?.EndSession(isVictory, reason, score);
+            var recorder = GetModule<SpaceCourier.SaveSystem.PlayRecorder>(ModuleType.PlayRecorder);
+            if (recorder != null)
+            {
+                recorder.EndSession(isVictory, reason, score);
+            }
 
             EventBus.Publish(new GameEvents.GameEnded
             {

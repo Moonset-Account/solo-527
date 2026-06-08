@@ -48,6 +48,128 @@ namespace SpaceCourier.StarMap
         public event Action<int, int, string> OnRoutePlanned;
         public event Action<string, bool> OnFeedbackMessage;
 
+        private void Awake()
+        {
+            EnsureSetup();
+        }
+
+        private void EnsureSetup()
+        {
+            var smRoot = GameObject.Find("StarMapRoot");
+            if (smRoot == null)
+            {
+                smRoot = new GameObject("StarMapRoot");
+            }
+
+            if (nodesContainer == null)
+            {
+                var t = smRoot.transform.Find("NodesContainer");
+                if (t != null) nodesContainer = t;
+                if (nodesContainer == null)
+                {
+                    var obj = new GameObject("NodesContainer");
+                    obj.transform.SetParent(smRoot.transform, false);
+                    nodesContainer = obj.transform;
+                }
+            }
+            if (connectionsContainer == null)
+            {
+                var t = smRoot.transform.Find("ConnectionsContainer");
+                if (t != null) connectionsContainer = t;
+                if (connectionsContainer == null)
+                {
+                    var obj = new GameObject("ConnectionsContainer");
+                    obj.transform.SetParent(smRoot.transform, false);
+                    connectionsContainer = obj.transform;
+                }
+            }
+            if (shipTransform == null)
+            {
+                var t = smRoot.transform.Find("Ship");
+                if (t != null) shipTransform = t;
+                if (shipTransform == null)
+                {
+                    var obj = new GameObject("Ship");
+                    obj.transform.SetParent(smRoot.transform, false);
+                    var sr = obj.AddComponent<SpriteRenderer>();
+                    sr.sprite = CreateTriangleSprite();
+                    sr.sortingOrder = 50;
+                    sr.color = new Color(1f, 0.78f, 0.25f);
+                    obj.transform.localScale = Vector3.one * 0.6f;
+                    shipTransform = obj.transform;
+                }
+            }
+            if (routeLineRenderer == null)
+            {
+                var lrObj = smRoot.transform.Find("RouteLine")?.gameObject;
+                if (lrObj == null)
+                {
+                    lrObj = new GameObject("RouteLine");
+                    lrObj.transform.SetParent(smRoot.transform, false);
+                    var lr = lrObj.AddComponent<LineRenderer>();
+                    lr.material = new Material(Shader.Find("Sprites/Default"));
+                    lr.startWidth = 0.18f;
+                    lr.endWidth = 0.18f;
+                    lr.startColor = Color.cyan;
+                    lr.endColor = new Color(0.6f, 0.3f, 1f);
+                    lr.positionCount = 0;
+                    lr.numCornerVertices = 4;
+                    lr.sortingOrder = 40;
+                    routeLineRenderer = lr;
+                }
+                else
+                {
+                    routeLineRenderer = lrObj.GetComponent<LineRenderer>();
+                }
+            }
+            if (starNodePrefab == null)
+            {
+                var templateObj = new GameObject("StarNodeTemplate");
+                templateObj.transform.SetParent(smRoot.transform, false);
+                templateObj.AddComponent<StarNodeView>();
+                templateObj.SetActive(false);
+                starNodePrefab = templateObj;
+            }
+            if (connectionPrefab == null)
+            {
+                var connObj = new GameObject("ConnectionTemplate");
+                connObj.transform.SetParent(smRoot.transform, false);
+                var lr = connObj.AddComponent<LineRenderer>();
+                lr.material = new Material(Shader.Find("Sprites/Default"));
+                lr.startWidth = 0.08f;
+                lr.endWidth = 0.08f;
+                lr.startColor = new Color(0.2f, 0.35f, 0.6f, 0.5f);
+                lr.endColor = new Color(0.2f, 0.35f, 0.6f, 0.5f);
+                lr.positionCount = 2;
+                lr.numCornerVertices = 2;
+                lr.sortingOrder = 1;
+                connObj.SetActive(false);
+                connectionPrefab = connObj;
+            }
+        }
+
+        private static Sprite CreateTriangleSprite()
+        {
+            int size = 48;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float t = (float)y / size;
+                    float halfW = (0.9f * t) * size;
+                    float cx = size * 0.5f;
+                    bool inside = x > cx - halfW && x < cx + halfW;
+                    pixels[y * size + x] = inside ? Color.white : new Color(0, 0, 0, 0);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.3f), 100f);
+        }
+
         public void Initialize()
         {
             dataManager = GameManager.Instance?.GetModule<DataManager>(ModuleType.DataManager);

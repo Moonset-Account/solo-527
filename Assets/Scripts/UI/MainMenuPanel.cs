@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using SpaceCourier.Core;
+using DataDiff = SpaceCourier.Data.Difficulty;
 
 namespace SpaceCourier.UI
 {
@@ -136,10 +137,10 @@ namespace SpaceCourier.UI
 
         private void CreateDefaultLevelButtons()
         {
-            CreateLevelButton(1, "贸易走廊", "新手教程任务：完成主要医疗物资的运输", Difficulty.Tutorial);
+            CreateLevelButton(1, "贸易走廊", "新手教程任务：完成主要医疗物资的运输", DataDiff.Tutorial);
         }
 
-        private void CreateLevelButton(int id, string name, string desc, Difficulty diff)
+        private void CreateLevelButton(int id, string name, string desc, DataDiff diff)
         {
             if (levelButtonContainer == null || levelButtonPrefab == null) return;
 
@@ -151,7 +152,7 @@ namespace SpaceCourier.UI
 
         private void CreateLevelButton(Data.LevelData level)
         {
-            CreateLevelButton(level.LevelId, level.LevelName, level.Description, level.Difficulty);
+            CreateLevelButton(level.LevelId, level.LevelName, level.Description, (DataDiff)level.Difficulty);
         }
 
         private void HandleLevelSelected(int levelId)
@@ -185,14 +186,5 @@ namespace SpaceCourier.UI
             if (quitButton != null) quitButton.onClick.RemoveListener(OnQuitButtonClicked);
             if (levelSelectBackButton != null) levelSelectBackButton.onClick.RemoveListener(OnLevelSelectBack);
         }
-    }
-
-    public enum Difficulty
-    {
-        Tutorial,
-        Easy,
-        Normal,
-        Hard,
-        Expert
     }
 }

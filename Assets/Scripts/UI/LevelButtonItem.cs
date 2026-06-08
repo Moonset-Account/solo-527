@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using DataDiff = SpaceCourier.Data.Difficulty;
 
 namespace SpaceCourier.UI
 {
@@ -23,10 +24,125 @@ namespace SpaceCourier.UI
         public Color expertColor = new Color(1f, 0.3f, 0.3f);
         public Color tutorialColor = new Color(0.8f, 0.7f, 1f);
 
-        private int levelId;
+        public int levelId;
         public event Action<int> OnClicked;
 
-        public void Initialize(int id, string name, string description, Difficulty diff)
+        private void Awake()
+        {
+            EnsureComponents();
+        }
+
+        private void EnsureComponents()
+        {
+            var rt = GetComponent<RectTransform>();
+            if (rt == null)
+            {
+                rt = gameObject.AddComponent<RectTransform>();
+            }
+            if (rt.sizeDelta == Vector2.zero)
+            {
+                rt.sizeDelta = new Vector2(200, 140);
+            }
+
+            if (backgroundImage == null)
+            {
+                backgroundImage = GetComponent<Image>();
+                if (backgroundImage == null)
+                {
+                    backgroundImage = gameObject.AddComponent<Image>();
+                    backgroundImage.color = Color.Lerp(hardColor, Color.black, 0.8f);
+                }
+            }
+            if (button == null)
+            {
+                button = GetComponent<Button>();
+                if (button == null)
+                {
+                    button = gameObject.AddComponent<Button>();
+                    button.targetGraphic = backgroundImage;
+                }
+            }
+
+            var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+            TMP_FontAsset font = fonts.Length > 0 ? fonts[0] : null;
+
+            if (levelNameText == null)
+            {
+                var obj = new GameObject("LevelNameText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.05f, 0.65f);
+                iRT.anchorMax = new Vector2(0.95f, 0.65f);
+                iRT.offsetMin = new Vector2(0, -14);
+                iRT.offsetMax = new Vector2(0, 14);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 22;
+                txt.color = Color.white;
+                txt.alignment = TextAlignmentOptions.Center;
+                txt.font = font;
+                levelNameText = txt;
+            }
+            if (levelDescriptionText == null)
+            {
+                var obj = new GameObject("LevelDescText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.05f, 0.42f);
+                iRT.anchorMax = new Vector2(0.95f, 0.56f);
+                iRT.offsetMin = Vector2.zero;
+                iRT.offsetMax = Vector2.zero;
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 14;
+                txt.color = new Color(0.85f, 0.88f, 0.95f);
+                txt.alignment = TextAlignmentOptions.Center;
+                txt.enableWordWrapping = true;
+                txt.font = font;
+                levelDescriptionText = txt;
+            }
+            if (difficultyText == null)
+            {
+                var obj = new GameObject("DifficultyText");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.05f, 0.2f);
+                iRT.anchorMax = new Vector2(0.95f, 0.2f);
+                iRT.offsetMin = new Vector2(0, -10);
+                iRT.offsetMax = new Vector2(0, 10);
+                var txt = obj.AddComponent<TextMeshProUGUI>();
+                txt.fontSize = 16;
+                txt.color = hardColor;
+                txt.alignment = TextAlignmentOptions.Center;
+                txt.font = font;
+                difficultyText = txt;
+            }
+            if (difficultyIcon == null)
+            {
+                var obj = new GameObject("DifficultyIcon");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.5f, 0.85f);
+                iRT.anchorMax = new Vector2(0.5f, 0.85f);
+                iRT.sizeDelta = new Vector2(18, 18);
+                var img = obj.AddComponent<Image>();
+                img.color = Color.gray;
+                difficultyIcon = img;
+            }
+            if (lockIcon == null)
+            {
+                var obj = new GameObject("LockIcon");
+                obj.transform.SetParent(transform, false);
+                var iRT = obj.AddComponent<RectTransform>();
+                iRT.anchorMin = new Vector2(0.9f, 0.1f);
+                iRT.anchorMax = new Vector2(0.9f, 0.1f);
+                iRT.sizeDelta = new Vector2(16, 16);
+                var img = obj.AddComponent<Image>();
+                img.color = new Color(0.5f, 0.5f, 0.6f, 0.8f);
+                img.enabled = false;
+                lockIcon = img;
+            }
+        }
+
+        public void Initialize(int id, string name, string description, DataDiff diff)
         {
             levelId = id;
 
@@ -45,28 +161,28 @@ namespace SpaceCourier.UI
             }
         }
 
-        private string GetDifficultyString(Difficulty diff)
+        private string GetDifficultyString(DataDiff diff)
         {
             switch (diff)
             {
-                case Difficulty.Tutorial: return "教程";
-                case Difficulty.Easy: return "简单";
-                case Difficulty.Normal: return "普通";
-                case Difficulty.Hard: return "困难";
-                case Difficulty.Expert: return "专家";
+                case DataDiff.Tutorial: return "教程";
+                case DataDiff.Easy: return "简单";
+                case DataDiff.Normal: return "普通";
+                case DataDiff.Hard: return "困难";
+                case DataDiff.Expert: return "专家";
                 default: return "未知";
             }
         }
 
-        private Color GetDifficultyColor(Difficulty diff)
+        private Color GetDifficultyColor(DataDiff diff)
         {
             switch (diff)
             {
-                case Difficulty.Tutorial: return tutorialColor;
-                case Difficulty.Easy: return easyColor;
-                case Difficulty.Normal: return normalColor;
-                case Difficulty.Hard: return hardColor;
-                case Difficulty.Expert: return expertColor;
+                case DataDiff.Tutorial: return tutorialColor;
+                case DataDiff.Easy: return easyColor;
+                case DataDiff.Normal: return normalColor;
+                case DataDiff.Hard: return hardColor;
+                case DataDiff.Expert: return expertColor;
                 default: return Color.gray;
             }
         }
