@@ -39,6 +39,16 @@ export class AnalyticsTracker {
     this.currentData.startTime = Date.now();
   }
 
+  restartLevel(levelId: string): void {
+    const prevFailures = [...this.currentData.failureSteps];
+    const prevRetries = this.currentData.retries;
+    this.currentData = this.createDefaultData();
+    this.currentData.levelId = levelId;
+    this.currentData.startTime = Date.now();
+    this.currentData.failureSteps = prevFailures;
+    this.currentData.retries = prevRetries;
+  }
+
   recordFailure(step: string): void {
     const existing = this.currentData.failureSteps.find(f => f.step === step);
     if (existing) {

@@ -114,22 +114,16 @@ class App {
   }
 
   private bindKeyActions() {
-    for (const key of this.settings.keyBindings.delete) {
-      this.input.bindAction('delete', this.settings.keyBindings.delete);
-      break;
-    }
-    for (const key of this.settings.keyBindings.rotate) {
-      this.input.bindAction('rotate', this.settings.keyBindings.rotate);
-      break;
-    }
-    for (const key of this.settings.keyBindings.hint) {
-      this.input.bindAction('hint', this.settings.keyBindings.hint);
-      break;
-    }
-    for (const key of this.settings.keyBindings.pause) {
-      this.input.bindAction('pause', this.settings.keyBindings.pause);
-      break;
-    }
+    this.input.bindAction('delete', this.settings.keyBindings.delete);
+    this.input.bindAction('rotate', this.settings.keyBindings.rotate);
+    this.input.bindAction('hint', this.settings.keyBindings.hint);
+    this.input.bindAction('pause', this.settings.keyBindings.pause);
+    this.input.bindAction('save', this.settings.keyBindings.save);
+    this.input.bindAction('load', this.settings.keyBindings.load);
+    this.input.bindAction('undo', this.settings.keyBindings.undo);
+    this.input.bindAction('redo', this.settings.keyBindings.redo);
+    this.input.bindAction('zoomIn', this.settings.keyBindings.zoomIn);
+    this.input.bindAction('zoomOut', this.settings.keyBindings.zoomOut);
   }
 
   private setupUICallbacks() {
@@ -414,7 +408,7 @@ class App {
     this.levelCompleted = false;
     this.levelStartTime = Date.now();
     this.currentHintIdx = 0;
-    this.analytics.startLevel(level.id);
+    this.analytics.restartLevel(level.id);
     this.levels.startFreePlayTimer();
     if (level.tutorialSteps.length > 0) {
       this.tutorial.start(level.tutorialSteps);
@@ -498,6 +492,39 @@ class App {
       this.rotateSelected();
       const keys = this.settings.keyBindings.rotate;
       if (keys.length > 0) this.input.consumeKey(keys[0]);
+      return;
+    }
+
+    if (this.input.isActionPressed('save')) {
+      const keys = this.settings.keyBindings.save;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
+      const level = this.levels.getCurrentLevel();
+      this.saveManager.save(this.graph, level?.id ?? '', this.analytics.serialize(), this.settings);
+      this.ui.showHint('已保存');
+      setTimeout(() => this.ui.hideHint(), 2000);
+      return;
+    }
+
+    if (this.input.isActionPressed('load')) {
+      const keys = this.settings.keyBindings.load;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
+      this.loadSave();
+      return;
+    }
+
+    if (this.input.isActionPressed('zoomIn')) {
+      const keys = this.settings.keyBindings.zoomIn;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
+      const center = this.input.getMousePos();
+      this.camera.zoomAt(1.1, center.screenX, center.screenY);
+      return;
+    }
+
+    if (this.input.isActionPressed('zoomOut')) {
+      const keys = this.settings.keyBindings.zoomOut;
+      if (keys.length > 0) this.input.consumeKey(keys[0]);
+      const center = this.input.getMousePos();
+      this.camera.zoomAt(0.9, center.screenX, center.screenY);
       return;
     }
 
@@ -630,16 +657,19 @@ class App {
 
     if (this.input.isMouseClicked(0)) {
       const hit = this.graph.hitTest(worldPos.x, worldPos.y);
+      let wireCompleted = false;
 
       if (hit.type === 'pin' && hit.id && hit.pinIndex !== undefined) {
         if (hit.id === this.wiringStartCompId && hit.pinIndex === this.wiringStartPinIdx) {
-          this.cancelWiring();
+          this.cancelWiring(true);
+          this.input.consumeClick();
           return;
         }
 
         const startComp = this.graph.getComponent(this.wiringStartCompId!);
         if (startComp && hit.id === this.wiringStartCompId) {
-          this.cancelWiring();
+          this.cancelWiring(true);
+          this.input.consumeClick();
           return;
         }
 
@@ -653,23 +683,24 @@ class App {
           this.tutorial.checkCondition('wire_connected');
           this.tutorial.checkCondition('circuit_complete');
           this.updatePinConnectedStates();
+          wireCompleted = true;
         } else {
           this.analytics.recordFailure('wire_rejected');
         }
       }
 
-      this.cancelWiring();
+      this.cancelWiring(!wireCompleted);
       this.input.consumeClick();
     }
 
     if (this.input.isMouseClicked(2)) {
-      this.cancelWiring();
+      this.cancelWiring(true);
       this.input.consumeClick();
     }
   }
 
-  private cancelWiring() {
-    if (this.wiringStartCompId !== null) {
+  private cancelWiring(asFailure: boolean = false) {
+    if (asFailure && this.wiringStartCompId !== null) {
       this.analytics.recordFailure('wire_cancelled');
     }
     this.mode = InteractionMode.Idle;

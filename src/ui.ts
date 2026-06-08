@@ -204,7 +204,7 @@ export class UIManager {
       label.textContent = keyLabels[action];
       label.style.cssText = 'min-width: 60px;';
       const btn = document.createElement('button');
-      btn.textContent = settings.keyBindings[action].join(', ');
+      btn.textContent = settings.keyBindings[action].join('+');
       btn.style.cssText = 'flex: 1; padding: 4px 8px; background: #2a2a4a; border: 1px solid #5a6a8a; border-radius: 4px; color: #ccc; cursor: pointer; font-size: 12px; text-align: center;';
       let listening = false;
       const newKeys: string[] = [];
@@ -220,19 +220,22 @@ export class UIManager {
           e.stopPropagation();
           if (e.key === 'Escape') {
             cleanup();
-            btn.textContent = settings.keyBindings[action].join(', ');
+            btn.textContent = settings.keyBindings[action].join('+');
             return;
           }
-          const key = e.key;
-          if (!newKeys.includes(key)) {
-            newKeys.push(key);
-            btn.textContent = newKeys.join(', ');
+          if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+            const modKey = e.key;
+            if (!newKeys.includes(modKey)) {
+              newKeys.push(modKey);
+              btn.textContent = newKeys.join('+');
+            }
+            return;
           }
-          if (newKeys.length >= 2 || ['Enter', 'Space', 'Tab'].includes(key)) {
-            cleanup();
-            const updatedBindings = { ...settings.keyBindings, [action]: [...newKeys] };
-            onChange({ ...settings, keyBindings: updatedBindings });
-          }
+          newKeys.push(e.key);
+          btn.textContent = newKeys.join('+');
+          cleanup();
+          const updatedBindings = { ...settings.keyBindings, [action]: [...newKeys] };
+          onChange({ ...settings, keyBindings: updatedBindings });
         };
 
         const cleanup = () => {
