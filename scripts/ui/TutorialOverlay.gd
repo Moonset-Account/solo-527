@@ -5,8 +5,8 @@ extends CanvasLayer
 @onready var step_title: Label = $TutorialPanel/VBox/StepTitle
 @onready var step_content: RichTextLabel = $TutorialPanel/VBox/StepContent
 @onready var step_indicator: Label = $TutorialPanel/VBox/StepIndicator
-@onready var next_btn: Button = $TutorialPanel/VBox/NextButton
-@onready var skip_btn: Button = $TutorialPanel/VBox/SkipButton
+@onready var next_btn: Button = $TutorialPanel/VBox/ButtonsRow/NextButton
+@onready var skip_btn: Button = $TutorialPanel/VBox/ButtonsRow/SkipButton
 @onready var step_highlighter: ColorRect = $StepHighlighter
 @onready var step_panel: VBoxContainer = $TutorialPanel/VBox
 
@@ -75,7 +75,10 @@ func _show_step(step_idx: int) -> void:
 	if step_indicator:
 		step_indicator.text = "教程进度 %d / %d" % [step_idx + 1, tutorial_steps.size()]
 	if next_btn:
-		next_btn.text = step_data["next_hint"] if step_idx == tutorial_steps.size() - 1 else "下一步 ▶"
+		if step_idx == tutorial_steps.size() - 1:
+			next_btn.text = step_data["next_hint"]
+		else:
+			next_btn.text = "下一步 ▶"
 	if tutorial_panel:
 		tutorial_panel.visible = true
 		tutorial_panel.modulate.a = 0.0

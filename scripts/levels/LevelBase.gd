@@ -100,13 +100,13 @@ func _setup_ui() -> void:
 	var pause_scene := load("res://scenes/ui/PauseMenu.tscn")
 	pause_overlay = pause_scene.instantiate()
 	add_child(pause_overlay)
-	if is_tutorial:
+	if is_tutorial and not GameManager.tutorial_completed:
 		var tutorial_scene := load("res://scenes/ui/TutorialOverlay.tscn")
 		tutorial_overlay = tutorial_scene.instantiate()
 		add_child(tutorial_overlay)
 
 func _setup_level_meta() -> void:
-	if is_tutorial:
+	if is_tutorial and not GameManager.tutorial_completed:
 		GameManager.current_state = GameManager.GameState.TUTORIAL
 	else:
 		GameManager.current_state = GameManager.GameState.PLAYING

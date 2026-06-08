@@ -90,7 +90,7 @@ func load_level(level_id: String) -> void:
 	EventBus.emit_music_play("level_" + level_id)
 
 func pause_game() -> void:
-	if current_state != GameState.PLAYING and current_state != GameState.SEGMENT_FAIL:
+	if current_state != GameState.PLAYING and current_state != GameState.SEGMENT_FAIL and current_state != GameState.TUTORIAL:
 		return
 	var prev_state = current_state
 	current_state = GameState.PAUSED
@@ -118,7 +118,7 @@ func request_segment_reset() -> void:
 	EventBus.emit_segment_reset()
 
 func is_playing() -> bool:
-	return current_state == GameState.PLAYING
+	return current_state == GameState.PLAYING or current_state == GameState.TUTORIAL
 
 func set_total_shelves(count: int) -> void:
 	total_shelves = count
