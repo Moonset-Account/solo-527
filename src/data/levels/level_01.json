@@ -1,0 +1,33 @@
+{
+  "id": "level_01",
+  "name": "星空书架",
+  "width": 10,
+  "height": 8,
+  "maxSteps": 40,
+  "difficulty": 1,
+  "tiles": [
+    {"x":0,"y":0,"type":"wall"},{"x":1,"y":0,"type":"wall"},{"x":2,"y":0,"type":"wall"},{"x":3,"y":0,"type":"wall"},{"x":4,"y":0,"type":"wall"},{"x":5,"y":0,"type":"wall"},{"x":6,"y":0,"type":"wall"},{"x":7,"y":0,"type":"wall"},{"x":8,"y":0,"type":"wall"},{"x":9,"y":0,"type":"wall"},
+    {"x":0,"y":1,"type":"wall"},{"x":1,"y":1,"type":"floor"},{"x":2,"y":1,"type":"floor"},{"x":3,"y":1,"type":"shelf_slot"},{"x":4,"y":1,"type":"floor"},{"x":5,"y":1,"type":"floor"},{"x":6,"y":1,"type":"shelf_slot"},{"x":7,"y":1,"type":"floor"},{"x":8,"y":1,"type":"floor"},{"x":9,"y":1,"type":"wall"},
+    {"x":0,"y":2,"type":"wall"},{"x":1,"y":2,"type":"floor"},{"x":2,"y":2,"type":"wall"},{"x":3,"y":2,"type":"floor"},{"x":4,"y":2,"type":"floor"},{"x":5,"y":2,"type":"wall"},{"x":6,"y":2,"type":"floor"},{"x":7,"y":2,"type":"wall"},{"x":8,"y":2,"type":"floor"},{"x":9,"y":2,"type":"wall"},
+    {"x":0,"y":3,"type":"wall"},{"x":1,"y":3,"type":"floor"},{"x":2,"y":3,"type":"floor"},{"x":3,"y":3,"type":"index_stand"},{"x":4,"y":3,"type":"floor"},{"x":5,"y":3,"type":"floor"},{"x":6,"y":3,"type":"index_stand"},{"x":7,"y":3,"type":"floor"},{"x":8,"y":3,"type":"floor"},{"x":9,"y":3,"type":"wall"},
+    {"x":0,"y":4,"type":"wall"},{"x":1,"y":4,"type":"floor"},{"x":2,"y":4,"type":"wall"},{"x":3,"y":4,"type":"floor"},{"x":4,"y":4,"type":"floor"},{"x":5,"y":4,"type":"wall"},{"x":6,"y":4,"type":"floor"},{"x":7,"y":4,"type":"wall"},{"x":8,"y":4,"type":"floor"},{"x":9,"y":4,"type":"wall"},
+    {"x":0,"y":5,"type":"wall"},{"x":1,"y":5,"type":"floor"},{"x":2,"y":5,"type":"floor"},{"x":3,"y":5,"type":"shelf_slot"},{"x":4,"y":5,"type":"floor"},{"x":5,"y":5,"type":"floor"},{"x":6,"y":5,"type":"shelf_slot"},{"x":7,"y":5,"type":"floor"},{"x":8,"y":5,"type":"floor"},{"x":9,"y":5,"type":"wall"},
+    {"x":0,"y":6,"type":"wall"},{"x":1,"y":6,"type":"floor"},{"x":2,"y":6,"type":"floor"},{"x":3,"y":6,"type":"floor"},{"x":4,"y":6,"type":"floor"},{"x":5,"y":6,"type":"floor"},{"x":6,"y":6,"type":"floor"},{"x":7,"y":6,"type":"floor"},{"x":8,"y":6,"type":"floor"},{"x":9,"y":6,"type":"wall"},
+    {"x":0,"y":7,"type":"wall"},{"x":1,"y":7,"type":"wall"},{"x":2,"y":7,"type":"wall"},{"x":3,"y":7,"type":"wall"},{"x":4,"y":7,"type":"wall"},{"x":5,"y":7,"type":"wall"},{"x":6,"y":7,"type":"wall"},{"x":7,"y":7,"type":"wall"},{"x":8,"y":7,"type":"wall"},{"x":9,"y":7,"type":"wall"}
+  ],
+  "entities": [
+    {"x":2,"y":1,"type":"bookshelf","bookId":"shelf_01"},
+    {"x":7,"y":1,"type":"bookshelf","bookId":"shelf_02"},
+    {"x":4,"y":5,"type":"bookshelf","bookId":"shelf_03"},
+    {"x":1,"y":6,"type":"book","bookId":"book_01","targetX":3,"targetY":1,"isMisplaced":true},
+    {"x":8,"y":6,"type":"book","bookId":"book_02","targetX":6,"targetY":1,"isMisplaced":true},
+    {"x":5,"y":4,"type":"book","bookId":"book_03","targetX":3,"targetY":5,"isMisplaced":true},
+    {"x":4,"y":6,"type":"clue_item","bookId":"book_01"},
+    {"x":5,"y":6,"type":"clue_item","bookId":"book_02"}
+  ],
+  "clues": [
+    {"id":"clue_01","text":"《星光之书》属于左侧第一个书架","bookId":"book_01","x":4,"y":6},
+    {"id":"clue_02","text":"《月影笔记》放在右侧书架上","bookId":"book_02","x":5,"y":6}
+  ],
+  "playerStart": {"x":1,"y":1}
+}

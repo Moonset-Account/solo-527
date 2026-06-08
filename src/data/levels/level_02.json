@@ -1,0 +1,37 @@
+{
+  "id": "level_02",
+  "name": "迷宫书廊",
+  "width": 12,
+  "height": 8,
+  "maxSteps": 50,
+  "difficulty": 2,
+  "tiles": [
+    {"x":0,"y":0,"type":"wall"},{"x":1,"y":0,"type":"wall"},{"x":2,"y":0,"type":"wall"},{"x":3,"y":0,"type":"wall"},{"x":4,"y":0,"type":"wall"},{"x":5,"y":0,"type":"wall"},{"x":6,"y":0,"type":"wall"},{"x":7,"y":0,"type":"wall"},{"x":8,"y":0,"type":"wall"},{"x":9,"y":0,"type":"wall"},{"x":10,"y":0,"type":"wall"},{"x":11,"y":0,"type":"wall"},
+    {"x":0,"y":1,"type":"wall"},{"x":1,"y":1,"type":"floor"},{"x":2,"y":1,"type":"floor"},{"x":3,"y":1,"type":"wall"},{"x":4,"y":1,"type":"floor"},{"x":5,"y":1,"type":"floor"},{"x":6,"y":1,"type":"floor"},{"x":7,"y":1,"type":"wall"},{"x":8,"y":1,"type":"floor"},{"x":9,"y":1,"type":"floor"},{"x":10,"y":1,"type":"floor"},{"x":11,"y":1,"type":"wall"},
+    {"x":0,"y":2,"type":"wall"},{"x":1,"y":2,"type":"floor"},{"x":2,"y":2,"type":"shelf_slot"},{"x":3,"y":2,"type":"wall"},{"x":4,"y":2,"type":"floor"},{"x":5,"y":2,"type":"wall"},{"x":6,"y":2,"type":"floor"},{"x":7,"y":2,"type":"wall"},{"x":8,"y":2,"type":"floor"},{"x":9,"y":2,"type":"shelf_slot"},{"x":10,"y":2,"type":"floor"},{"x":11,"y":2,"type":"wall"},
+    {"x":0,"y":3,"type":"wall"},{"x":1,"y":3,"type":"floor"},{"x":2,"y":3,"type":"index_stand"},{"x":3,"y":3,"type":"wall"},{"x":4,"y":3,"type":"floor"},{"x":5,"y":3,"type":"floor"},{"x":6,"y":3,"type":"floor"},{"x":7,"y":3,"type":"wall"},{"x":8,"y":3,"type":"floor"},{"x":9,"y":3,"type":"index_stand"},{"x":10,"y":3,"type":"floor"},{"x":11,"y":3,"type":"wall"},
+    {"x":0,"y":4,"type":"wall"},{"x":1,"y":4,"type":"floor"},{"x":2,"y":4,"type":"floor"},{"x":3,"y":4,"type":"wall"},{"x":4,"y":4,"type":"floor"},{"x":5,"y":4,"type":"wall"},{"x":6,"y":4,"type":"floor"},{"x":7,"y":4,"type":"wall"},{"x":8,"y":4,"type":"floor"},{"x":9,"y":4,"type":"floor"},{"x":10,"y":4,"type":"floor"},{"x":11,"y":4,"type":"wall"},
+    {"x":0,"y":5,"type":"wall"},{"x":1,"y":5,"type":"floor"},{"x":2,"y":5,"type":"shelf_slot"},{"x":3,"y":5,"type":"floor"},{"x":4,"y":5,"type":"floor"},{"x":5,"y":5,"type":"floor"},{"x":6,"y":5,"type":"floor"},{"x":7,"y":5,"type":"floor"},{"x":8,"y":5,"type":"floor"},{"x":9,"y":5,"type":"shelf_slot"},{"x":10,"y":5,"type":"floor"},{"x":11,"y":5,"type":"wall"},
+    {"x":0,"y":6,"type":"wall"},{"x":1,"y":6,"type":"floor"},{"x":2,"y":6,"type":"floor"},{"x":3,"y":6,"type":"floor"},{"x":4,"y":6,"type":"floor"},{"x":5,"y":6,"type":"floor"},{"x":6,"y":6,"type":"floor"},{"x":7,"y":6,"type":"floor"},{"x":8,"y":6,"type":"floor"},{"x":9,"y":6,"type":"floor"},{"x":10,"y":6,"type":"floor"},{"x":11,"y":6,"type":"wall"},
+    {"x":0,"y":7,"type":"wall"},{"x":1,"y":7,"type":"wall"},{"x":2,"y":7,"type":"wall"},{"x":3,"y":7,"type":"wall"},{"x":4,"y":7,"type":"wall"},{"x":5,"y":7,"type":"wall"},{"x":6,"y":7,"type":"wall"},{"x":7,"y":7,"type":"wall"},{"x":8,"y":7,"type":"wall"},{"x":9,"y":7,"type":"wall"},{"x":10,"y":7,"type":"wall"},{"x":11,"y":7,"type":"wall"}
+  ],
+  "entities": [
+    {"x":1,"y":1,"type":"bookshelf","bookId":"shelf_01"},
+    {"x":4,"y":1,"type":"bookshelf","bookId":"shelf_02"},
+    {"x":8,"y":1,"type":"bookshelf","bookId":"shelf_03"},
+    {"x":10,"y":2,"type":"bookshelf","bookId":"shelf_04"},
+    {"x":3,"y":5,"type":"bookshelf","bookId":"shelf_05"},
+    {"x":1,"y":6,"type":"book","bookId":"book_01","targetX":2,"targetY":2,"isMisplaced":true},
+    {"x":10,"y":6,"type":"book","bookId":"book_02","targetX":9,"targetY":5,"isMisplaced":true},
+    {"x":5,"y":6,"type":"book","bookId":"book_03","targetX":9,"targetY":2,"isMisplaced":true},
+    {"x":3,"y":6,"type":"clue_item","bookId":"book_01"},
+    {"x":7,"y":6,"type":"clue_item","bookId":"book_02"},
+    {"x":8,"y":6,"type":"clue_item","bookId":"book_03"}
+  ],
+  "clues": [
+    {"id":"clue_01","text":"《星辰图鉴》应在左侧第一个书架位","bookId":"book_01","x":3,"y":6},
+    {"id":"clue_02","text":"《暗影手札》属于右下方书架","bookId":"book_02","x":7,"y":6},
+    {"id":"clue_03","text":"《时光碎片》放在右上方书架位","bookId":"book_03","x":8,"y":6}
+  ],
+  "playerStart": {"x":1,"y":1}
+}
