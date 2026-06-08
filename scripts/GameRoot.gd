@@ -22,9 +22,8 @@ func _ready() -> void:
 		start_level(GameManager.pending_start_level_id)
 		GameManager.pending_start_level_id = 0
 
-func _process(delta: float) -> void:
-	if hud_node and hud_node.is_inside_tree():
-		hud_node.update_hud_periodic()
+func _process(_delta: float) -> void:
+	pass
 
 func start_level(level_id_param: int) -> void:
 	current_level_id = level_id_param

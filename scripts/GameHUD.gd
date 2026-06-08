@@ -34,6 +34,9 @@ func _ready() -> void:
 	_setup_buttons()
 	_reset_ui()
 
+func _process(_delta: float) -> void:
+	update_hud_periodic()
+
 func _connect_signals() -> void:
 	GameManager.score_updated.connect(_on_score_updated)
 	GameManager.timer_updated.connect(_on_timer_updated)

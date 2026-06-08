@@ -116,11 +116,6 @@ func _create_item_from_config(cfg: Dictionary, spawn_idx: int) -> PackableItem:
 	return item
 
 func _process(delta: float) -> void:
-	if selected_item and is_dragging:
-		var new_pos: Vector2 = selected_item.position.lerp(InputManager.get_last_position() - drag_offset, delta * 22.0)
-		selected_item.position = new_pos
-		if container:
-			_update_item_highlight(selected_item)
 	GameManager.update(delta)
 	_check_combo_timeout(delta)
 
@@ -186,16 +181,16 @@ func _validate_placement(item: PackableItem) -> void:
 		return
 	var in_bounds: bool = container.is_item_within_bounds(item)
 	var has_collisions: bool = container.has_item_collisions(item)
-	var inside: bool = container.items_inside.has(item)
+	var already_placed: bool = (item.item_state == PackableItem.ItemState.IN_CONTAINER)
 	if in_bounds and not has_collisions:
-		if not inside:
+		if not already_placed:
 			_push_item_into_container(item)
 		else:
 			_update_container_fragile_checks()
 		_on_successful_placement(item)
 	elif in_bounds and has_collisions:
 		_reject_placement(item, "与其他物品重叠")
-	elif not in_bounds and inside:
+	elif not in_bounds and already_placed:
 		_pop_item_from_container(item)
 	else:
 		_return_item_to_tray(item)
