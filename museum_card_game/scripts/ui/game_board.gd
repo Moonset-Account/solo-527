@@ -321,7 +321,11 @@ func _build_debug_panel() -> void:
 	btn_full_heal.pressed.connect(func():
 		for ex in GameManager.exhibits:
 			ex["current_condition"] = ex["max_condition"]
-		_refresh_all()
+		if GameManager.check_win():
+			GameManager.level_completed.emit(GameManager.current_level_id, true)
+			GameManager.change_state(GameManager.GameState.SETTLEMENT)
+		else:
+			_refresh_all()
 	)
 	inner.add_child(btn_full_heal)
 
@@ -335,7 +339,11 @@ func _build_debug_panel() -> void:
 	btn_kill.pressed.connect(func():
 		if GameManager.exhibits.size() > 0:
 			GameManager.exhibits[0]["current_condition"] = 0
-		_refresh_all()
+			if GameManager.check_loss():
+				GameManager.level_completed.emit(GameManager.current_level_id, false)
+				GameManager.change_state(GameManager.GameState.SETTLEMENT)
+			else:
+				_refresh_all()
 	)
 	inner.add_child(btn_kill)
 

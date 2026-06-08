@@ -1,9 +1,9 @@
 extends Control
 
-var _result_vbox: VBoxContainer
 var _title_label: Label
 var _subtitle_label: Label
 var _stats_label: Label
+var _goal_label: Label
 var _reward_container: VBoxContainer
 var _reward_card_label: Label
 var _reward_desc_label: Label
@@ -37,35 +37,40 @@ func _build_ui() -> void:
 	var center = VBoxContainer.new()
 	center.set_anchors_preset(Control.PRESET_CENTER)
 	center.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_theme_constant_override("separation", 16)
-	center.custom_minimum_size = Vector2(600, 500)
-	center.position = Vector2(340, 110)
+	center.add_theme_constant_override("separation", 10)
+	center.custom_minimum_size = Vector2(640, 580)
+	center.position = Vector2(320, 70)
 	add_child(center)
 
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 40)
+	_title_label.add_theme_font_size_override("font_size", 36)
 	center.add_child(_title_label)
 
 	_subtitle_label = Label.new()
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_size_override("font_size", 18)
+	_subtitle_label.add_theme_font_size_override("font_size", 16)
 	_subtitle_label.add_theme_color_override("font_color", Color("#aaaaaa"))
 	center.add_child(_subtitle_label)
 
-	var sep = HSeparator.new()
-	center.add_child(sep)
+	var sep1 = HSeparator.new()
+	center.add_child(sep1)
 
 	_stats_label = Label.new()
-	_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_stats_label.add_theme_font_size_override("font_size", 16)
+	_stats_label.add_theme_font_size_override("font_size", 15)
 	_stats_label.add_theme_color_override("font_color", Color("#cccccc"))
 	_stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	center.add_child(_stats_label)
 
+	_goal_label = Label.new()
+	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_goal_label.add_theme_font_size_override("font_size", 16)
+	_goal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	center.add_child(_goal_label)
+
 	_reward_container = VBoxContainer.new()
 	_reward_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	_reward_container.add_theme_constant_override("separation", 8)
+	_reward_container.add_theme_constant_override("separation", 6)
 	center.add_child(_reward_container)
 
 	var reward_header = Label.new()
@@ -91,7 +96,7 @@ func _build_ui() -> void:
 	_reward_container.visible = false
 
 	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
+	spacer.custom_minimum_size = Vector2(0, 16)
 	center.add_child(spacer)
 
 	var btn_hbox = HBoxContainer.new()
@@ -136,13 +141,18 @@ func _show_result() -> void:
 		_title_label.text = "💔 修复失败"
 		_title_label.add_theme_color_override("font_color", Color("#e94560"))
 		if GameManager.turn_number > GameManager.max_turns:
-			_subtitle_label.text = "回合数已耗尽！"
+			_subtitle_label.text = "回合数已耗尽！展品未能及时修复。"
 		else:
-			_subtitle_label.text = "有展品的状态降到了0！"
+			var dead_names: Array = []
+			for ex in GameManager.exhibits:
+				if int(ex.get("current_condition", 0)) <= 0:
+					dead_names.append(ex.get("name", "???"))
+			_subtitle_label.text = "展品损坏！" + " ".join(dead_names) + " 的状态降到了0。"
 		_btn_next.visible = false
 		_reward_container.visible = false
 
 	_build_stats()
+	_build_goal()
 
 	_btn_retry.visible = true
 
@@ -167,10 +177,11 @@ func _show_reward() -> void:
 
 func _build_stats() -> void:
 	var stats_text = ""
-	stats_text += "关卡: " + _level_data.get("name", "") + "\n"
-	stats_text += "使用回合: " + str(GameManager.turn_number) + "/" + str(GameManager.max_turns) + "\n"
-	stats_text += "剩余预算: " + str(GameManager.budget) + "\n"
+	stats_text += "📋 关卡: 第" + str(GameManager.current_level_id) + "章 - " + _level_data.get("name", "") + "\n"
+	stats_text += "📅 回合: " + str(GameManager.turn_number) + " / " + str(GameManager.max_turns) + "\n"
+	stats_text += "💰 剩余预算: " + str(GameManager.budget) + "\n"
 
+	stats_text += "\n🏺 展品状态:\n"
 	var total_points = 0
 	var total_condition = 0
 	var total_max = 0
@@ -181,24 +192,74 @@ func _build_stats() -> void:
 		total_max += max_c
 		if cond >= max_c:
 			total_points += int(ex.get("point_value", 0))
-		stats_text += ex.get("name", "???") + ": " + str(cond) + "/" + str(max_c) + "\n"
+		var status_icon = "✅" if cond >= max_c else ("❌" if cond <= 0 else "🔧")
+		var deg = int(ex.get("degradation_rate", 0))
+		stats_text += "  " + status_icon + " " + ex.get("name", "???") + ": " + str(cond) + "/" + str(max_c)
+		if cond > 0 and cond < max_c:
+			stats_text += " (每回合-" + str(deg) + ")"
+		stats_text += "\n"
 
-	stats_text += "\n获得分值: " + str(total_points)
+	var ratio = float(total_condition) / float(max(total_max, 1))
+	stats_text += "\n🏆 修复进度: " + str(total_condition) + "/" + str(total_max) + " (" + str(int(ratio * 100)) + "%)"
+	stats_text += "\n💎 获得分值: " + str(total_points)
 
-	var rating = ""
 	if _is_victory:
-		var efficiency = float(total_condition) / float(max(total_max, 1))
-		if efficiency >= 1.0 and GameManager.budget >= 5:
-			rating = "⭐⭐⭐ 完美修复！"
-		elif efficiency >= 0.8:
-			rating = "⭐⭐ 良好修复"
+		stats_text += "\n\n⭐ 评级: "
+		if ratio >= 1.0 and GameManager.budget >= 5:
+			stats_text += "⭐⭐⭐ 完美修复！"
+		elif ratio >= 0.8:
+			stats_text += "⭐⭐ 良好修复"
 		else:
-			rating = "⭐ 勉强过关"
-		stats_text += "\n\n评级: " + rating
+			stats_text += "⭐ 勉强过关"
 
 	_stats_label.text = stats_text
 
+func _build_goal() -> void:
+	var goal_text = ""
+
+	if _is_victory:
+		var next_id = GameManager.current_level_id + 1
+		var next_level = LevelDatabase.get_level(next_id)
+		if not next_level.is_empty():
+			var reward_card_id = _level_data.get("reward_card", "")
+			var card_info = ""
+			if not reward_card_id.is_empty():
+				var card_data = CardDatabase.get_card(reward_card_id)
+				if not card_data.is_empty():
+					card_info = "\n新卡牌「" + card_data.get("name", "") + "」已加入牌组！"
+			goal_text = "🎯 下一步: 进入第" + str(next_id) + "章「" + next_level.get("name", "") + "」" + card_info
+		else:
+			goal_text = "🎯 恭喜！你已完成所有关卡！"
+	else:
+		goal_text = "🎯 下一步: 重新挑战第" + str(GameManager.current_level_id) + "章「" + _level_data.get("name", "") + "」"
+		var tip = _get_failure_tip()
+		if not tip.is_empty():
+			goal_text += "\n💡 提示: " + tip
+
+	_goal_label.text = goal_text
+	if _is_victory:
+		_goal_label.add_theme_color_override("font_color", Color("#2ecc71"))
+	else:
+		_goal_label.add_theme_color_override("font_color", Color("#f39c12"))
+
+func _get_failure_tip() -> String:
+	var tips: Array = []
+	if GameManager.budget <= 1:
+		tips.append("预算不足时，优先使用追加预算卡或低费工具卡")
+	var dead_count = 0
+	for ex in GameManager.exhibits:
+		if int(ex.get("current_condition", 0)) <= 0:
+			dead_count += 1
+	if dead_count > 0:
+		tips.append("展品状态为0即失败，注意优先修复濒危展品")
+	if GameManager.turn_number > GameManager.max_turns:
+		tips.append("回合有限，不要犹豫，尽快出牌修复展品")
+	if tips.is_empty():
+		tips.append("合理分配预算，优先处理恶化速率高的展品")
+	return tips[randi() % tips.size()]
+
 func _on_retry() -> void:
+	print("[SETTLEMENT] retry clicked, level_id=", GameManager.current_level_id)
 	GameManager.retry_level()
 
 func _on_next() -> void:
