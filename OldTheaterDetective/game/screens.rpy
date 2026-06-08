@@ -5,7 +5,6 @@ screen evidence_board():
     default _connect_mode = False
     default _selected_a = None
     default _selected_b = None
-    default _connect_result = None
 
     frame:
         xalign 0.5
@@ -43,23 +42,23 @@ screen evidence_board():
                             $ ev_a = store.evidence_board.evidence.get(_selected_a, {})
                             $ ev_b = store.evidence_board.evidence.get(_selected_b, {})
                             text "已选：{0}  ←→  {1}".format(ev_a.get("name", ""), ev_b.get("name", "")) size 14 color "#ffd700"
-            elif _connect_result is not None:
+            elif store._pending_connect_result is not None:
                 frame:
                     xsize 1060
-                    background "#1a5c1a" if _connect_result.get("success") else "#5c1a1a"
+                    background "#1a5c1a" if store._pending_connect_result.get("success") else "#5c1a1a"
                     padding (15, 8)
 
                     vbox:
                         spacing 4
-                        if _connect_result.get("success"):
+                        if store._pending_connect_result.get("success"):
                             $ type_labels = {"corroborate": "印证", "contradict": "矛盾", "causal": "因果", "location": "地点"}
-                            text "连接成功！[{0}] {1}".format(type_labels.get(_connect_result["type"], ""), _connect_result["title"]) size 18 color "#6bff6b"
-                            text _connect_result["description"] size 14 color "#e0e0ff"
-                            if _connect_result.get("insight"):
-                                text "💡 {0}".format(_connect_result["insight"]) size 14 color "#ffd700"
+                            text "连接成功！[{0}] {1}".format(type_labels.get(store._pending_connect_result["type"], ""), store._pending_connect_result["title"]) size 18 color "#6bff6b"
+                            text store._pending_connect_result["description"] size 14 color "#e0e0ff"
+                            if store._pending_connect_result.get("insight"):
+                                text "💡 {0}".format(store._pending_connect_result["insight"]) size 14 color "#ffd700"
                         else:
                             $ reason_labels = {"already_connected": "这两条证据已经连接过了", "invalid_connection": "这两条证据之间没有发现直接关联", "same_evidence": "不能连接同一条证据"}
-                            text reason_labels.get(_connect_result.get("reason"), "无法连接") size 18 color "#ff6b6b"
+                            text reason_labels.get(store._pending_connect_result.get("reason"), "无法连接") size 18 color "#ff6b6b"
                             text "再试试其他组合吧。" size 14 color "#c8c8c8"
 
             hbox:
@@ -186,7 +185,7 @@ screen evidence_board():
 
                 if _connect_mode and _selected_a is not None and _selected_b is not None:
                     textbutton "确认连接" action [
-                        SetScreenVariable("_connect_result", store.evidence_board.try_connect(_selected_a, _selected_b)),
+                        Function(store._do_connect_and_store, _selected_a, _selected_b),
                         SetScreenVariable("_connect_mode", False),
                         SetScreenVariable("_selected_a", None),
                         SetScreenVariable("_selected_b", None),
@@ -201,10 +200,11 @@ screen evidence_board():
                         SetScreenVariable("_connect_mode", True),
                         SetScreenVariable("_selected_a", None),
                         SetScreenVariable("_selected_b", None),
-                        SetScreenVariable("_connect_result", None),
+                        Function(store.__setattr__, "_pending_connect_result", None),
                     ]
 
                 textbutton "关闭 [ESC]" action [
+                    Function(store.__setattr__, "_pending_connect_result", None),
                     Hide("evidence_board"),
                     Function(store.ui_state.pop_state),
                 ]

@@ -212,4 +212,8 @@ init python:
         def get_connection_count(self):
             return len(self.player_connections)
 
+    def _do_connect_and_store(evid_a, evid_b):
+        store._pending_connect_result = store.evidence_board.try_connect(evid_a, evid_b)
+
+    store._pending_connect_result = None
     store.evidence_board = EvidenceBoard()
