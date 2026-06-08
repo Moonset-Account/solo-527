@@ -266,6 +266,7 @@ func _on_product_delivered(product: Product) -> void:
 	if product.is_failed():
 		products_failed += 1
 		GameManager.lose_reputation(level_config.reputation_penalty)
+		_show_delivery_message("FAILED delivery!", Color.RED)
 		return
 
 	products_delivered += 1
@@ -274,10 +275,12 @@ func _on_product_delivered(product: Product) -> void:
 		var reward := _calculate_reward(product_type, quality)
 		total_rewards += reward
 		GameManager.add_money(reward)
+		_show_delivery_message("+%s $%d" % [product_type.to_upper(), reward], Color.GOLD)
 	else:
 		var base_reward := int(20 * level_config.reward_multiplier * quality)
 		total_rewards += base_reward
 		GameManager.add_money(base_reward)
+		_show_delivery_message("+%s (no order) $%d" % [product_type.to_upper(), base_reward], Color.GRAY)
 	order_progress_updated.emit()
 
 func _calculate_reward(product_type: String, quality: float) -> int:
@@ -291,8 +294,8 @@ func _calculate_reward(product_type: String, quality: float) -> int:
 
 func _on_order_completed(order_id: String, reward: int) -> void:
 	orders_completed += 1
-	total_rewards += reward
 	order_completed.emit(order_id, reward)
+	_show_delivery_message("Order %s COMPLETE! +$%d" % [order_id, reward], Color.GREEN)
 	if AnalyticsManager:
 		AnalyticsManager.record_choice(int(GameManager.current_level_id), "order_complete", {"order_id": order_id, "reward": reward})
 
@@ -301,6 +304,7 @@ func _on_order_failed_signal(order_id: String, penalty: int) -> void:
 	total_penalties += penalty
 	GameManager.lose_reputation(level_config.reputation_penalty)
 	order_failed.emit(order_id, penalty)
+	_show_delivery_message("Order %s FAILED! -$%d" % [order_id, penalty], Color.RED)
 
 func _on_entity_placed(entity: Node2D, grid_pos: Vector2i) -> void:
 	if entity is ConveyorBelt:
@@ -457,21 +461,24 @@ func _on_pause_button_pressed() -> void:
 		var btn: Button = hud.get_node("BottomBar/PauseButton")
 		btn.text = "Resume" if not is_running else "Pause"
 
-func _on_shop_button_pressed() -> void:
+func _on_shop_toggled() -> void:
 	var hud: Control = get_node_or_null("HUDLayer/HUD")
-	if hud and hud.has_method("toggle_shop"):
-		hud.toggle_shop()
-		if hud.is_shop_open:
-			_populate_shop(hud)
+	if hud and hud.is_shop_open:
+		_populate_shop(hud)
+
+func _on_upgrade_toggled() -> void:
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud and hud.is_upgrade_open:
+		hud.populate_upgrade_panel(factory_grid.get_all_machines(), upgrade_system)
 
 func _on_shop_close_button_pressed() -> void:
 	var hud: Control = get_node_or_null("HUDLayer/HUD")
-	if hud and hud.has_method("toggle_shop"):
+	if hud and hud.is_shop_open:
 		hud.toggle_shop()
 
 func _on_upgrade_close_button_pressed() -> void:
 	var hud: Control = get_node_or_null("HUDLayer/HUD")
-	if hud and hud.has_method("toggle_upgrades"):
+	if hud and hud.is_upgrade_open:
 		hud.toggle_upgrades()
 
 func _show_upgrade_for_machine(machine: Machine) -> void:
@@ -529,14 +536,12 @@ func _connect_signals() -> void:
 
 	var hud: Control = get_node_or_null("HUDLayer/HUD")
 	if hud:
+		if hud.has_signal("shop_toggled"):
+			hud.shop_toggled.connect(_on_shop_toggled)
 		if hud.has_signal("settings_toggled"):
 			hud.settings_toggled.connect(_on_settings_button_pressed)
 		if hud.has_signal("upgrade_toggled"):
-			hud.upgrade_toggled.connect(func() -> void:
-				var h: Control = get_node_or_null("HUDLayer/HUD")
-				if h and h.is_upgrade_open:
-					h.populate_upgrade_panel(factory_grid.get_all_machines(), upgrade_system)
-			)
+			hud.upgrade_toggled.connect(_on_upgrade_toggled)
 
 func _show_results(stars: int) -> void:
 	var results: Control = get_node_or_null("ResultsLayer/ResultsScreen")
@@ -581,3 +586,8 @@ func _show_tutorial() -> void:
 
 func _on_tutorial_finished() -> void:
 	start_level()
+
+func _show_delivery_message(text: String, color: Color = Color.WHITE) -> void:
+	var hud: Control = get_node_or_null("HUDLayer/HUD")
+	if hud and hud.has_method("show_message"):
+		hud.show_message(text, 2.5, color)

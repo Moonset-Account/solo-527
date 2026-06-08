@@ -182,10 +182,10 @@ func set_speed(speed: float) -> void:
 	current_speed = speed
 	speed_button.text = "%dx" % int(speed)
 
-func show_message(text: String, duration: float = 2.0) -> void:
+func show_message(text: String, duration: float = 2.0, msg_color: Color = Color(1, 1, 0.8)) -> void:
 	_message_label.text = text
 	_message_label.visible = true
-	_message_label.modulate.a = 1.0
+	_message_label.modulate = Color(msg_color, 1.0)
 	if _message_tween and _message_tween.is_valid():
 		_message_tween.kill()
 	_message_tween = create_tween()

@@ -227,8 +227,10 @@ func _input(event: InputEvent) -> void:
 				remove_entity(grid_pos)
 		elif Input.is_action_just_pressed("open_shop"):
 			var lc := get_parent()
-			if lc and lc.has_method("_on_shop_button_pressed"):
-				lc._on_shop_button_pressed()
+			if lc:
+				var hud: Control = lc.get_node_or_null("HUDLayer/HUD")
+				if hud and hud.has_method("toggle_shop"):
+					hud.toggle_shop()
 		elif Input.is_action_just_pressed("toggle_pause"):
 			var lc := get_parent()
 			if lc and lc.has_method("_on_pause_button_pressed"):
