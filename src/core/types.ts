@@ -126,6 +126,7 @@ export interface GameStateData {
   fixedIndexCards: string[];
   placedBooks: { bookId: string; shelfId: string }[];
   bookshelfPositions: { id: string; position: Point }[];
+  carryingBookId: string | null;
   isCompleted: boolean;
   failedReason?: string;
 }

@@ -108,6 +108,7 @@ export class GameState {
         id: bp.id,
         position: { ...bp.position }
       }));
+      this.state.carryingBookId = saved.carryingBookId || null;
       this.state.isCompleted = saved.isCompleted;
       if (saved.failedReason) this.state.failedReason = saved.failedReason;
 
@@ -213,6 +214,7 @@ export class GameState {
         id: s.id,
         position: { ...s.position }
       })),
+      carryingBookId: null,
       isCompleted: false
     };
 
@@ -390,6 +392,9 @@ export class GameState {
     if (this.state) {
       this.state.placedBooks = this.state.placedBooks.filter(pb => pb.bookId !== bookId);
       this.state.placedBooks.push({ bookId, shelfId });
+      if (this.state.carryingBookId === bookId) {
+        this.state.carryingBookId = null;
+      }
     }
     eventBus.emit(GameEvents.BOOK_PLACED, { bookId, shelfId });
     return true;
@@ -410,9 +415,14 @@ export class GameState {
     this.bookStates.set(bookId, { shelfId: null, placed: false });
     if (this.state) {
       this.state.placedBooks = this.state.placedBooks.filter(pb => pb.bookId !== bookId);
+      this.state.carryingBookId = bookId;
     }
     eventBus.emit(GameEvents.BOOK_REMOVED, { bookId });
     return true;
+  }
+
+  getCarryingBookId(): string | null {
+    return this.state?.carryingBookId || null;
   }
 
   isBookCorrectlyPlaced(bookId: string): boolean {

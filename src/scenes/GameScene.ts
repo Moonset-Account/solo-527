@@ -75,6 +75,13 @@ export class GameScene extends Phaser.Scene {
           y * ts + ts / 2
         );
         this.gameController.syncVisualsFromState();
+
+        if (state.carryingBookId) {
+          const carriedBook = gameState.getBook(state.carryingBookId);
+          if (carriedBook) {
+            this.gameController.carryingBook = carriedBook;
+          }
+        }
       }
     }
 
@@ -250,6 +257,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.fadeOut(250, 0, 0, 0);
     this.time.delayedCall(250, () => {
       this.cleanup();
+      saveSystem.clearLevelState();
       this.scene.restart({ levelId: this.levelId });
     });
   }
