@@ -1,0 +1,91 @@
+{
+  "id": "level-4",
+  "name": "复杂枢纽",
+  "description": "三个路口组成的城市枢纽，包含十字路口和T型路口。三条公交线路交叉运行，高峰期车流密集，需要精细调控每一个信号灯。",
+  "intersections": [
+    {
+      "id": "int-1",
+      "position": [0, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "south", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "east", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "west", "greenDuration": 8, "cycleLength": 40, "busPriority": false }
+      ]
+    },
+    {
+      "id": "int-2",
+      "position": [8, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "south", "greenDuration": 8, "cycleLength": 40, "busPriority": false },
+        { "direction": "east", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "west", "greenDuration": 8, "cycleLength": 40, "busPriority": true }
+      ]
+    },
+    {
+      "id": "int-3",
+      "position": [0, 8],
+      "type": "t-junction",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "south", "greenDuration": 8, "cycleLength": 40, "busPriority": false },
+        { "direction": "east", "greenDuration": 8, "cycleLength": 40, "busPriority": true },
+        { "direction": "west", "greenDuration": 8, "cycleLength": 40, "busPriority": false }
+      ]
+    }
+  ],
+  "roads": [
+    { "id": "road-n1", "from": "int-1", "to": "edge-north-1", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-s1", "from": "int-1", "to": "edge-south-1", "lanes": 2, "speedLimit": 40, "direction": "south" },
+    { "id": "road-w1", "from": "int-1", "to": "edge-west-1", "lanes": 2, "speedLimit": 40, "direction": "west" },
+    { "id": "road-n2", "from": "int-2", "to": "edge-north-2", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-s2", "from": "int-2", "to": "edge-south-2", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-e2", "from": "int-2", "to": "edge-east-2", "lanes": 3, "speedLimit": 50, "direction": "east" },
+    { "id": "road-w3", "from": "int-3", "to": "edge-west-3", "lanes": 2, "speedLimit": 40, "direction": "west" },
+    { "id": "road-1-2-e", "from": "int-1", "to": "int-2", "lanes": 4, "speedLimit": 60, "direction": "east" },
+    { "id": "road-1-3-n", "from": "int-1", "to": "int-3", "lanes": 4, "speedLimit": 60, "direction": "north" },
+    { "id": "road-2-1-w", "from": "int-2", "to": "int-1", "lanes": 4, "speedLimit": 60, "direction": "west" },
+    { "id": "road-3-1-s", "from": "int-3", "to": "int-1", "lanes": 4, "speedLimit": 60, "direction": "south" },
+    { "id": "road-3-2-e", "from": "int-3", "to": "edge-east-3", "lanes": 3, "speedLimit": 50, "direction": "east" },
+    { "id": "road-n3", "from": "int-3", "to": "edge-north-3", "lanes": 2, "speedLimit": 40, "direction": "north" }
+  ],
+  "busRoutes": [
+    {
+      "id": "bus-1",
+      "name": "1路公交",
+      "stops": ["int-1", "int-2"],
+      "frequency": 6,
+      "color": "#3498db"
+    },
+    {
+      "id": "bus-2",
+      "name": "2路公交",
+      "stops": ["int-1", "int-3"],
+      "frequency": 8,
+      "color": "#e74c3c"
+    },
+    {
+      "id": "bus-3",
+      "name": "3路公交",
+      "stops": ["int-3", "int-1", "int-2"],
+      "frequency": 10,
+      "color": "#2ecc71"
+    }
+  ],
+  "trafficSchedule": [
+    { "timeRange": [0, 7], "densityMultiplier": 0.5, "peakType": "both" },
+    { "timeRange": [7, 9], "densityMultiplier": 1.6, "peakType": "both" },
+    { "timeRange": [9, 12], "densityMultiplier": 0.8, "peakType": "both" },
+    { "timeRange": [12, 14], "densityMultiplier": 1.0, "peakType": "both" },
+    { "timeRange": [14, 17], "densityMultiplier": 0.9, "peakType": "both" },
+    { "timeRange": [17, 19], "densityMultiplier": 1.8, "peakType": "both" },
+    { "timeRange": [19, 24], "densityMultiplier": 0.6, "peakType": "both" }
+  ],
+  "targetScore": 60,
+  "timeLimit": 300,
+  "initialCycleLength": 40,
+  "initialGreenDuration": 8
+}

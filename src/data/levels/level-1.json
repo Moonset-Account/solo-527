@@ -1,0 +1,32 @@
+{
+  "id": "level-1",
+  "name": "十字路口",
+  "description": "一个简单的十字路口，学习基本的信号灯控制。低车流量，没有高峰时段，适合新手入门。",
+  "intersections": [
+    {
+      "id": "int-1",
+      "position": [0, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 15, "cycleLength": 30, "busPriority": false },
+        { "direction": "south", "greenDuration": 15, "cycleLength": 30, "busPriority": false },
+        { "direction": "east", "greenDuration": 15, "cycleLength": 30, "busPriority": false },
+        { "direction": "west", "greenDuration": 15, "cycleLength": 30, "busPriority": false }
+      ]
+    }
+  ],
+  "roads": [
+    { "id": "road-n1", "from": "int-1", "to": "edge-north", "lanes": 2, "speedLimit": 40, "direction": "north" },
+    { "id": "road-s1", "from": "int-1", "to": "edge-south", "lanes": 2, "speedLimit": 40, "direction": "south" },
+    { "id": "road-e1", "from": "int-1", "to": "edge-east", "lanes": 2, "speedLimit": 40, "direction": "east" },
+    { "id": "road-w1", "from": "int-1", "to": "edge-west", "lanes": 2, "speedLimit": 40, "direction": "west" }
+  ],
+  "busRoutes": [],
+  "trafficSchedule": [
+    { "timeRange": [0, 24], "densityMultiplier": 0.3, "peakType": "morning" }
+  ],
+  "targetScore": 30,
+  "timeLimit": 120,
+  "initialCycleLength": 30,
+  "initialGreenDuration": 15
+}

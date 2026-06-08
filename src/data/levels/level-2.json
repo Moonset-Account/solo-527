@@ -1,0 +1,42 @@
+{
+  "id": "level-2",
+  "name": "早高峰",
+  "description": "早高峰时段的十字路口，车流量激增，需要合理分配绿灯时间。一条公交线路经过，注意公交优先信号。",
+  "intersections": [
+    {
+      "id": "int-1",
+      "position": [0, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 12, "cycleLength": 30, "busPriority": true },
+        { "direction": "south", "greenDuration": 12, "cycleLength": 30, "busPriority": true },
+        { "direction": "east", "greenDuration": 12, "cycleLength": 30, "busPriority": false },
+        { "direction": "west", "greenDuration": 12, "cycleLength": 30, "busPriority": false }
+      ]
+    }
+  ],
+  "roads": [
+    { "id": "road-n1", "from": "int-1", "to": "edge-north", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-s1", "from": "int-1", "to": "edge-south", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-e1", "from": "int-1", "to": "edge-east", "lanes": 2, "speedLimit": 40, "direction": "east" },
+    { "id": "road-w1", "from": "int-1", "to": "edge-west", "lanes": 2, "speedLimit": 40, "direction": "west" }
+  ],
+  "busRoutes": [
+    {
+      "id": "bus-1",
+      "name": "1路公交",
+      "stops": ["int-1"],
+      "frequency": 10,
+      "color": "#3498db"
+    }
+  ],
+  "trafficSchedule": [
+    { "timeRange": [0, 7], "densityMultiplier": 0.5, "peakType": "morning" },
+    { "timeRange": [7, 9], "densityMultiplier": 1.5, "peakType": "morning" },
+    { "timeRange": [9, 24], "densityMultiplier": 0.7, "peakType": "morning" }
+  ],
+  "targetScore": 40,
+  "timeLimit": 180,
+  "initialCycleLength": 30,
+  "initialGreenDuration": 12
+}

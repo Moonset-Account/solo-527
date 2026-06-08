@@ -1,0 +1,66 @@
+{
+  "id": "level-3",
+  "name": "双路口联动",
+  "description": "两个相邻的十字路口需要协调控制，两条公交线路穿行其中。早晚高峰交替出现，考验你的全局调度能力。",
+  "intersections": [
+    {
+      "id": "int-1",
+      "position": [0, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 10, "cycleLength": 35, "busPriority": true },
+        { "direction": "south", "greenDuration": 10, "cycleLength": 35, "busPriority": false },
+        { "direction": "east", "greenDuration": 10, "cycleLength": 35, "busPriority": true },
+        { "direction": "west", "greenDuration": 10, "cycleLength": 35, "busPriority": false }
+      ]
+    },
+    {
+      "id": "int-2",
+      "position": [8, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 10, "cycleLength": 35, "busPriority": true },
+        { "direction": "south", "greenDuration": 10, "cycleLength": 35, "busPriority": false },
+        { "direction": "east", "greenDuration": 10, "cycleLength": 35, "busPriority": true },
+        { "direction": "west", "greenDuration": 10, "cycleLength": 35, "busPriority": false }
+      ]
+    }
+  ],
+  "roads": [
+    { "id": "road-n1", "from": "int-1", "to": "edge-north-1", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-s1", "from": "int-1", "to": "edge-south-1", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-w1", "from": "int-1", "to": "edge-west-1", "lanes": 2, "speedLimit": 40, "direction": "west" },
+    { "id": "road-e2", "from": "int-2", "to": "edge-east-2", "lanes": 3, "speedLimit": 50, "direction": "east" },
+    { "id": "road-n2", "from": "int-2", "to": "edge-north-2", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-s2", "from": "int-2", "to": "edge-south-2", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-1-2-e", "from": "int-1", "to": "int-2", "lanes": 4, "speedLimit": 60, "direction": "east" },
+    { "id": "road-1-2-w", "from": "int-2", "to": "int-1", "lanes": 4, "speedLimit": 60, "direction": "west" }
+  ],
+  "busRoutes": [
+    {
+      "id": "bus-1",
+      "name": "1路公交",
+      "stops": ["int-1", "int-2"],
+      "frequency": 8,
+      "color": "#3498db"
+    },
+    {
+      "id": "bus-2",
+      "name": "2路公交",
+      "stops": ["int-1", "int-2"],
+      "frequency": 12,
+      "color": "#e74c3c"
+    }
+  ],
+  "trafficSchedule": [
+    { "timeRange": [0, 7], "densityMultiplier": 0.4, "peakType": "both" },
+    { "timeRange": [7, 9], "densityMultiplier": 1.2, "peakType": "both" },
+    { "timeRange": [9, 17], "densityMultiplier": 0.6, "peakType": "both" },
+    { "timeRange": [17, 19], "densityMultiplier": 1.3, "peakType": "both" },
+    { "timeRange": [19, 24], "densityMultiplier": 0.5, "peakType": "both" }
+  ],
+  "targetScore": 50,
+  "timeLimit": 240,
+  "initialCycleLength": 35,
+  "initialGreenDuration": 10
+}

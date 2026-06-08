@@ -1,0 +1,118 @@
+{
+  "id": "level-5",
+  "name": "终极挑战",
+  "description": "四个路口组成的城市核心路网，包含十字路口、T型路口和复杂路口。四条公交线路全面覆盖，极端高峰车流，只有最优秀的交通指挥官才能通关。",
+  "intersections": [
+    {
+      "id": "int-1",
+      "position": [0, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "south", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "east", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "west", "greenDuration": 6, "cycleLength": 45, "busPriority": true }
+      ]
+    },
+    {
+      "id": "int-2",
+      "position": [8, 0],
+      "type": "cross",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "south", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "east", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "west", "greenDuration": 6, "cycleLength": 45, "busPriority": true }
+      ]
+    },
+    {
+      "id": "int-3",
+      "position": [0, 8],
+      "type": "t-junction",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "south", "greenDuration": 6, "cycleLength": 45, "busPriority": false },
+        { "direction": "east", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "west", "greenDuration": 6, "cycleLength": 45, "busPriority": false }
+      ]
+    },
+    {
+      "id": "int-4",
+      "position": [8, 8],
+      "type": "complex",
+      "signalPhases": [
+        { "direction": "north", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "south", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "east", "greenDuration": 6, "cycleLength": 45, "busPriority": true },
+        { "direction": "west", "greenDuration": 6, "cycleLength": 45, "busPriority": true }
+      ]
+    }
+  ],
+  "roads": [
+    { "id": "road-w1", "from": "int-1", "to": "edge-west-1", "lanes": 3, "speedLimit": 50, "direction": "west" },
+    { "id": "road-s1", "from": "int-1", "to": "edge-south-1", "lanes": 2, "speedLimit": 40, "direction": "south" },
+    { "id": "road-n2", "from": "int-2", "to": "edge-north-2", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-e2", "from": "int-2", "to": "edge-east-2", "lanes": 3, "speedLimit": 50, "direction": "east" },
+    { "id": "road-w3", "from": "int-3", "to": "edge-west-3", "lanes": 2, "speedLimit": 40, "direction": "west" },
+    { "id": "road-n3", "from": "int-3", "to": "edge-north-3", "lanes": 2, "speedLimit": 40, "direction": "north" },
+    { "id": "road-e4", "from": "int-4", "to": "edge-east-4", "lanes": 3, "speedLimit": 50, "direction": "east" },
+    { "id": "road-s4", "from": "int-4", "to": "edge-south-4", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-1-2-e", "from": "int-1", "to": "int-2", "lanes": 4, "speedLimit": 60, "direction": "east" },
+    { "id": "road-2-1-w", "from": "int-2", "to": "int-1", "lanes": 4, "speedLimit": 60, "direction": "west" },
+    { "id": "road-1-3-n", "from": "int-1", "to": "int-3", "lanes": 4, "speedLimit": 60, "direction": "north" },
+    { "id": "road-3-1-s", "from": "int-3", "to": "int-1", "lanes": 4, "speedLimit": 60, "direction": "south" },
+    { "id": "road-2-4-n", "from": "int-2", "to": "int-4", "lanes": 4, "speedLimit": 60, "direction": "north" },
+    { "id": "road-4-2-s", "from": "int-4", "to": "int-2", "lanes": 4, "speedLimit": 60, "direction": "south" },
+    { "id": "road-3-4-e", "from": "int-3", "to": "int-4", "lanes": 4, "speedLimit": 60, "direction": "east" },
+    { "id": "road-4-3-w", "from": "int-4", "to": "int-3", "lanes": 4, "speedLimit": 60, "direction": "west" },
+    { "id": "road-1-4-ne", "from": "int-1", "to": "int-4", "lanes": 3, "speedLimit": 50, "direction": "north" },
+    { "id": "road-4-1-sw", "from": "int-4", "to": "int-1", "lanes": 3, "speedLimit": 50, "direction": "south" },
+    { "id": "road-2-3-nw", "from": "int-2", "to": "int-3", "lanes": 3, "speedLimit": 50, "direction": "west" },
+    { "id": "road-3-2-se", "from": "int-3", "to": "int-2", "lanes": 3, "speedLimit": 50, "direction": "east" }
+  ],
+  "busRoutes": [
+    {
+      "id": "bus-1",
+      "name": "1路公交",
+      "stops": ["int-1", "int-2", "int-4"],
+      "frequency": 5,
+      "color": "#3498db"
+    },
+    {
+      "id": "bus-2",
+      "name": "2路公交",
+      "stops": ["int-1", "int-3", "int-4"],
+      "frequency": 7,
+      "color": "#e74c3c"
+    },
+    {
+      "id": "bus-3",
+      "name": "3路公交",
+      "stops": ["int-3", "int-1", "int-2"],
+      "frequency": 8,
+      "color": "#2ecc71"
+    },
+    {
+      "id": "bus-4",
+      "name": "4路公交",
+      "stops": ["int-3", "int-4", "int-2"],
+      "frequency": 6,
+      "color": "#f39c12"
+    }
+  ],
+  "trafficSchedule": [
+    { "timeRange": [0, 6], "densityMultiplier": 0.4, "peakType": "both" },
+    { "timeRange": [6, 7], "densityMultiplier": 0.8, "peakType": "both" },
+    { "timeRange": [7, 9], "densityMultiplier": 2.0, "peakType": "both" },
+    { "timeRange": [9, 11], "densityMultiplier": 0.9, "peakType": "both" },
+    { "timeRange": [11, 14], "densityMultiplier": 1.2, "peakType": "both" },
+    { "timeRange": [14, 17], "densityMultiplier": 1.0, "peakType": "both" },
+    { "timeRange": [17, 19], "densityMultiplier": 2.2, "peakType": "both" },
+    { "timeRange": [19, 21], "densityMultiplier": 1.1, "peakType": "both" },
+    { "timeRange": [21, 24], "densityMultiplier": 0.5, "peakType": "both" }
+  ],
+  "targetScore": 70,
+  "timeLimit": 360,
+  "initialCycleLength": 45,
+  "initialGreenDuration": 6
+}
