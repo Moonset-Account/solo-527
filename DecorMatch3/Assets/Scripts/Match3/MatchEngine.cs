@@ -27,6 +27,11 @@ namespace DecorMatch3
                 while (col < width)
                 {
                     TileType type = board[row, col];
+                    if (type == TileType.None)
+                    {
+                        col++;
+                        continue;
+                    }
                     int startCol = col;
                     while (col < width && board[row, col] == type)
                     {
@@ -52,6 +57,11 @@ namespace DecorMatch3
                 while (row < height)
                 {
                     TileType type = board[row, col];
+                    if (type == TileType.None)
+                    {
+                        row++;
+                        continue;
+                    }
                     int startRow = row;
                     while (row < height && board[row, col] == type)
                     {

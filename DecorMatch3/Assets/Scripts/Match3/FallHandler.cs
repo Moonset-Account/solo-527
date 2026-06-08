@@ -65,7 +65,7 @@ namespace DecorMatch3
                 if (!fall.isNew)
                 {
                     result[fall.toRow, fall.toCol] = result[fall.fromRow, fall.fromCol];
-                    result[fall.fromRow, fall.fromCol] = default(TileType);
+                    result[fall.fromRow, fall.fromCol] = TileType.None;
                 }
             }
 
@@ -73,7 +73,7 @@ namespace DecorMatch3
             {
                 if (fall.isNew)
                 {
-                    result[fall.toRow, fall.toCol] = default(TileType);
+                    result[fall.toRow, fall.toCol] = TileType.None;
                 }
             }
 
@@ -88,7 +88,7 @@ namespace DecorMatch3
             {
                 for (int col = 0; col < width; col++)
                 {
-                    if (board[row, col] == default(TileType))
+                    if (board[row, col] == TileType.None)
                     {
                         empty.Add(new Vector2Int(col, row));
                     }

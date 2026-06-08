@@ -7,32 +7,25 @@ namespace DecorMatch3
     public class BoardVisual : MonoBehaviour
     {
         private Board _board;
-        private GameObject _tilePrefab;
         private ObjectPool<Tile> _tilePool;
-        private float _cellSize = 1f;
+        private float _cellSize = 0.9f;
         private List<GameObject> _activeEffects = new List<GameObject>();
 
         public void Initialize(Board board)
         {
             _board = board;
-            CreateTilePrefab();
             _tilePool = new ObjectPool<Tile>(() =>
             {
-                GameObject obj = Instantiate(_tilePrefab, transform);
+                GameObject obj = new GameObject("Tile");
+                obj.transform.SetParent(transform);
+                SpriteRenderer sr = obj.AddComponent<SpriteRenderer>();
+                sr.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 4f);
+                obj.AddComponent<BoxCollider2D>();
                 Tile tile = obj.AddComponent<Tile>();
                 return tile;
             });
 
             CreateBoardVisuals();
-        }
-
-        private void CreateTilePrefab()
-        {
-            _tilePrefab = new GameObject("TilePrefab");
-            SpriteRenderer sr = _tilePrefab.AddComponent<SpriteRenderer>();
-            sr.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 4f);
-            BoxCollider2D col = _tilePrefab.AddComponent<BoxCollider2D>();
-            _tilePrefab.SetActive(false);
         }
 
         private void CreateBoardVisuals()
@@ -42,7 +35,10 @@ namespace DecorMatch3
                 for (int col = 0; col < _board.Width; col++)
                 {
                     TileType type = _board.GetTileTypeAt(row, col);
-                    CreateTileVisual(type, row, col);
+                    if (type != TileType.None)
+                    {
+                        CreateTileVisual(type, row, col);
+                    }
                 }
             }
         }
@@ -53,7 +49,10 @@ namespace DecorMatch3
             tile.gameObject.SetActive(true);
             tile.Initialize(type, row, col);
             tile.SetPosition(GridToWorldPosition(row, col));
-            _board.Tiles[row, col] = tile;
+            if (row >= 0 && row < _board.Height && col >= 0 && col < _board.Width)
+            {
+                _board.Tiles[row, col] = tile;
+            }
         }
 
         public void UpdateBoardVisual()
@@ -63,27 +62,37 @@ namespace DecorMatch3
                 for (int col = 0; col < _board.Width; col++)
                 {
                     Tile tile = _board.Tiles[row, col];
-                    if (tile != null)
+                    TileType type = _board.GetTileTypeAt(row, col);
+
+                    if (tile != null && tile.IsMatched)
                     {
-                        if (tile.IsMatched)
+                        tile.PlayMatchAnimation();
+                        _board.Tiles[row, col] = null;
+                        StartCoroutine(ReturnTileToPool(tile, 0.3f));
+                        continue;
+                    }
+
+                    if (tile != null && tile.IsFalling)
+                    {
+                        tile.PlayFallAnimation(GridToWorldPosition(tile.Row, tile.Col));
+                        tile.IsFalling = false;
+                        continue;
+                    }
+
+                    if (tile == null && type != TileType.None)
+                    {
+                        CreateTileVisual(type, row, col);
+                        Tile newTile = _board.Tiles[row, col];
+                        if (newTile != null)
                         {
-                            tile.PlayMatchAnimation();
-                            StartCoroutine(ReturnTileToPool(tile, 0.3f));
-                        }
-                        else if (tile.IsFalling)
-                        {
-                            tile.PlayFallAnimation(GridToWorldPosition(tile.Row, tile.Col));
-                            tile.IsFalling = false;
-                        }
-                        else
-                        {
-                            tile.UpdateVisual();
+                            Vector3 targetPos = GridToWorldPosition(row, col);
+                            newTile.SetPosition(targetPos + Vector3.up * 2f);
+                            newTile.PlayFallAnimation(targetPos);
                         }
                     }
-                    else
+                    else if (tile != null)
                     {
-                        TileType type = _board.GetTileTypeAt(row, col);
-                        CreateTileVisual(type, row, col);
+                        tile.UpdateVisual();
                     }
                 }
             }
@@ -103,6 +112,7 @@ namespace DecorMatch3
                     Tile tile = _board.Tiles[row, col];
                     if (tile != null)
                     {
+                        tile.Reset();
                         _tilePool.Return(tile);
                     }
                     _board.Tiles[row, col] = null;
@@ -121,6 +131,7 @@ namespace DecorMatch3
 
         private void SpawnMatchEffect(TileType type)
         {
+            if (type == TileType.None) return;
             GameObject effect = new GameObject("MatchEffect");
             effect.transform.SetParent(transform);
             effect.transform.position = Vector3.zero;

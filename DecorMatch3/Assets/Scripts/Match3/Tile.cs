@@ -75,15 +75,24 @@ namespace DecorMatch3
 
         public void UpdateVisual()
         {
-            if (_spriteRenderer != null && TileColors.TryGetValue(TileType, out Color color))
+            if (_spriteRenderer != null)
             {
-                _spriteRenderer.color = color;
+                if (TileType == TileType.None)
+                {
+                    _spriteRenderer.enabled = false;
+                    return;
+                }
+                _spriteRenderer.enabled = true;
+                if (TileColors.TryGetValue(TileType, out Color color))
+                {
+                    _spriteRenderer.color = color;
+                }
             }
         }
 
         public void Reset()
         {
-            TileType = TileType.Paint;
+            TileType = TileType.None;
             Row = 0;
             Col = 0;
             IsMatched = false;

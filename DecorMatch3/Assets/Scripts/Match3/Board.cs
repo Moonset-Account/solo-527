@@ -14,6 +14,7 @@ namespace DecorMatch3
         public bool IsAnimating { get; private set; }
 
         public event Action<List<MatchGroup>> OnBoardStabilized;
+        public event Action OnVisualUpdateNeeded;
 
         private TileType[,] _boardData;
         private float _cellSize = 1f;
@@ -112,7 +113,7 @@ namespace DecorMatch3
                     int row = pos.y;
                     int col = pos.x;
                     removed[row, col] = true;
-                    _boardData[row, col] = default(TileType);
+                    _boardData[row, col] = TileType.None;
 
                     if (Tiles[row, col] != null)
                     {
@@ -130,12 +131,12 @@ namespace DecorMatch3
 
                 for (int row = Height - 1; row >= 0; row--)
                 {
-                    if (_boardData[row, col] != default(TileType))
+                    if (_boardData[row, col] != TileType.None)
                     {
                         if (row != writeRow)
                         {
                             _boardData[writeRow, col] = _boardData[row, col];
-                            _boardData[row, col] = default(TileType);
+                            _boardData[row, col] = TileType.None;
 
                             if (Tiles[row, col] != null)
                             {
@@ -159,7 +160,7 @@ namespace DecorMatch3
             {
                 for (int row = 0; row < Height; row++)
                 {
-                    if (_boardData[row, col] == default(TileType))
+                    if (_boardData[row, col] == TileType.None)
                     {
                         _boardData[row, col] = GetRandomTileType();
                     }
@@ -182,13 +183,16 @@ namespace DecorMatch3
 
                 _accumulatedMatches.AddRange(matches);
                 RemoveMatches(matches);
-                yield return new WaitForSeconds(0.3f);
+                OnVisualUpdateNeeded?.Invoke();
+                yield return new WaitForSeconds(0.35f);
 
                 ApplyGravity();
-                yield return new WaitForSeconds(0.15f);
+                OnVisualUpdateNeeded?.Invoke();
+                yield return new WaitForSeconds(0.2f);
 
                 FillEmptySpaces();
-                yield return new WaitForSeconds(0.2f);
+                OnVisualUpdateNeeded?.Invoke();
+                yield return new WaitForSeconds(0.25f);
             }
 
             if (CheckDeadlock())
@@ -245,7 +249,7 @@ namespace DecorMatch3
         {
             if (row < 0 || row >= Height || col < 0 || col >= Width)
             {
-                return default(TileType);
+                return TileType.None;
             }
             return _boardData[row, col];
         }

@@ -71,10 +71,12 @@ namespace DecorMatch3
             _currentMoves--;
             GameEvents.TriggerMovesChanged(_currentMoves);
 
+            _comboSystem.StartCombo();
+
             int matchScore = 0;
             foreach (MatchGroup match in matches)
             {
-                _comboSystem.OnMatchFound(match.count);
+                _comboSystem.IncrementCombo();
                 matchScore += GetScoreForMatch(match);
                 _collectedMaterials += match.count;
                 GameEvents.TriggerTileMatched(match.count, match.type);

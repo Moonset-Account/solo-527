@@ -2,6 +2,7 @@ namespace DecorMatch3
 {
     public enum TileType
     {
+        None = -1,
         Paint = 0,
         Wallpaper = 1,
         Fabric = 2,

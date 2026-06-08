@@ -9,6 +9,7 @@ namespace DecorMatch3
         public static GameManager Instance { get; private set; }
 
         public GameState CurrentState { get; private set; }
+        public int CurrentLevelId { get; private set; }
 
         private void Awake()
         {
@@ -36,7 +37,7 @@ namespace DecorMatch3
         public void ChangeState(GameState newState)
         {
             CurrentState = newState;
-            GameEvents.OnStateChanged?.Invoke(newState);
+            GameEvents.TriggerStateChanged(newState);
         }
 
         public void StartNewGame()
@@ -48,39 +49,65 @@ namespace DecorMatch3
 
         public void LoadLevel(int levelId)
         {
-            StartCoroutine(LoadLevelCoroutine(levelId));
+            CurrentLevelId = levelId;
+            StartCoroutine(LoadSceneAndStart("Gameplay", () =>
+            {
+                ChangeState(GameState.Playing);
+                var bootstrapper = FindObjectOfType<GameplayBootstrapper>();
+                if (bootstrapper != null)
+                {
+                    bootstrapper.LaunchLevel(levelId);
+                }
+            }));
         }
 
-        private IEnumerator LoadLevelCoroutine(int levelId)
+        public void LoadDecoration(int levelId)
         {
-            ChangeState(GameState.Loading);
-            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync($"Level_{levelId}");
-            while (!asyncLoad.isDone)
+            CurrentLevelId = levelId;
+            StartCoroutine(LoadSceneAndStart("Gameplay", () =>
             {
-                yield return null;
-            }
-            ChangeState(GameState.Playing);
+                ChangeState(GameState.Decoration);
+                var bootstrapper = FindObjectOfType<GameplayBootstrapper>();
+                if (bootstrapper != null)
+                {
+                    bootstrapper.LaunchDecoration(levelId);
+                }
+            }));
         }
 
         public void ReturnToMenu()
         {
-            StartCoroutine(ReturnToMenuCoroutine());
-        }
-
-        private IEnumerator ReturnToMenuCoroutine()
-        {
-            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("MainMenu");
-            while (!asyncLoad.isDone)
+            StartCoroutine(LoadSceneAndStart("MainMenu", () =>
             {
-                yield return null;
-            }
-            ChangeState(GameState.Menu);
+                ChangeState(GameState.MainMenu);
+                var bootstrapper = FindObjectOfType<MainMenuBootstrapper>();
+                if (bootstrapper != null)
+                {
+                    bootstrapper.Setup();
+                }
+            }));
         }
 
         public void QuitGame()
         {
             SaveManager.Instance.Save();
             Application.Quit();
+        }
+
+        private IEnumerator LoadSceneAndStart(string sceneName, System.Action onLoaded)
+        {
+            ChangeState(GameState.Loading);
+            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
+            if (asyncLoad == null)
+            {
+                Debug.LogError("Failed to load scene: " + sceneName);
+                yield break;
+            }
+            while (!asyncLoad.isDone)
+            {
+                yield return null;
+            }
+            onLoaded?.Invoke();
         }
 
         private void Update()
