@@ -670,7 +670,8 @@ export class GameScene extends Phaser.Scene {
       this.playbackOverlay = undefined;
     }
 
-    this.scene.restart({ levelId: this.levelConfig.id });
+    this.paused = true;
+    this.uiStateManager.setState('paused');
   }
 
   private showPlaybackOverlay(): void {
@@ -695,7 +696,6 @@ export class GameScene extends Phaser.Scene {
 
   private updatePlayback(delta: number): void {
     const adjustedDelta = delta * this.speedMultiplier;
-    this.gameTime += adjustedDelta / 1000;
 
     while (this.playbackIndex < this.playbackActions.length) {
       const action = this.playbackActions[this.playbackIndex];
@@ -705,18 +705,31 @@ export class GameScene extends Phaser.Scene {
       this.playbackIndex++;
     }
 
+    if (this.playbackIndex >= this.playbackActions.length) {
+      this.isPlaybackMode = false;
+      this.replayControls.setPlaybackMode(false);
+      if (this.playbackOverlay) {
+        this.playbackOverlay.destroy();
+        this.playbackOverlay = undefined;
+      }
+      this.paused = false;
+    }
+
     this.scheduler.update(adjustedDelta);
+    this.gameTime = this.scheduler.getGameTime();
     this.updateTrainSpritesAll();
     this.timelineBar.setTime(this.gameTime);
 
     const trainData = this.scheduler.getTrains().map(t => t.data);
     this.schedulePanel.updateTrains(trainData);
 
-    if (this.playbackIndex >= this.playbackActions.length) {
-      this.time.delayedCall(2000, () => {
-        this.stopPlayback();
-      });
+    const newConflicts = this.scheduler.getConflicts();
+    if (newConflicts.length > 0) {
+      const last = newConflicts[newConflicts.length - 1];
+      this.conflictAlert.showConflict(last);
     }
+
+    this.checkGameEnd();
   }
 
   private applyPlaybackAction(action: ReplayAction): void {

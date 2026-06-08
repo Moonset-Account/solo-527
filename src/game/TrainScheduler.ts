@@ -8,6 +8,7 @@ export class TrainScheduler {
   private gameTime: number = 0;
   private conflicts: Conflict[] = [];
   private reportedDelayChains: Set<string> = new Set();
+  private heldLocations: Map<string, string> = new Map();
 
   constructor(network: TrackNetwork) {
     this.network = network;
@@ -18,6 +19,7 @@ export class TrainScheduler {
     this.conflicts = [];
     this.gameTime = 0;
     this.reportedDelayChains.clear();
+    this.heldLocations.clear();
     for (const td of trainsData) {
       this.trains.push(new TrainEntity(td, this.network));
     }
@@ -27,7 +29,11 @@ export class TrainScheduler {
     this.gameTime += delta / 1000;
     const newConflicts: Conflict[] = [];
 
-    this.resumeByPriority();
+    const blockedPlatforms = this.computeOccupiedPlatforms();
+    const blockedNodeIds = this.computeBlockedNodeIds(blockedPlatforms);
+
+    this.releaseHeldLocations();
+    this.resumeByPriority(blockedNodeIds);
 
     for (const train of this.trains) {
       if (train.data.state === 'waiting') {
@@ -37,19 +43,82 @@ export class TrainScheduler {
         }
       }
 
-      const result = train.update(delta, this.gameTime);
+      const result = train.update(delta, this.gameTime, blockedNodeIds);
       if (result.atNode) {
         newConflicts.push(...this.checkConflictsAtNode(train, result.atNode));
       }
     }
 
     newConflicts.push(...this.checkSameTrackConflicts());
-    newConflicts.push(...this.checkDelayChainConflicts());
+    newConflicts.push(...this.checkDelayChainConflicts(blockedNodeIds));
     this.conflicts.push(...newConflicts);
     return newConflicts;
   }
 
-  private resumeByPriority(): void {
+  private computeOccupiedPlatforms(): Set<string> {
+    const occupied = new Set<string>();
+    const platformTrains = new Map<string, string>();
+
+    for (const train of this.trains) {
+      if (train.data.state !== 'running' && train.data.state !== 'waiting') continue;
+      const nodeId = train.data.path[train.data.currentPathIndex];
+      if (!nodeId) continue;
+      const node = this.network.getNode(nodeId);
+      if (node && node.type === 'platform') {
+        platformTrains.set(nodeId, train.data.id);
+        occupied.add(nodeId);
+      }
+    }
+
+    return occupied;
+  }
+
+  private computeBlockedNodeIds(occupiedPlatforms: Set<string>): Set<string> {
+    return new Set(occupiedPlatforms);
+  }
+
+  private releaseHeldLocations(): void {
+    for (const [locationKey, trainId] of this.heldLocations) {
+      const train = this.trains.find(t => t.data.id === trainId);
+      if (!train) {
+        this.heldLocations.delete(locationKey);
+        continue;
+      }
+
+      if (train.data.state === 'crashed' || train.data.state === 'arrived') {
+        this.heldLocations.delete(locationKey);
+        continue;
+      }
+
+      if (locationKey.startsWith('sig-')) {
+        const signalNodeId = locationKey.substring(4);
+        const currentNodeId = train.data.path[train.data.currentPathIndex];
+        const currentEdge = this.getTrainCurrentEdge(train);
+
+        if (currentNodeId === signalNodeId) {
+          continue;
+        }
+
+        if (currentEdge && currentEdge.includes(signalNodeId)) {
+          continue;
+        }
+
+        this.heldLocations.delete(locationKey);
+      } else if (locationKey.startsWith('plat-')) {
+        const platNodeId = locationKey.substring(5);
+        const currentNodeId = train.data.path[train.data.currentPathIndex];
+        if (currentNodeId === platNodeId) {
+          continue;
+        }
+
+        this.heldLocations.delete(locationKey);
+      } else {
+        this.heldLocations.delete(locationKey);
+      }
+    }
+  }
+
+  private resumeByPriority(blockedNodeIds: Set<string>): void {
     const waitingTrains = this.trains.filter(t => t.data.state === 'waiting');
     if (waitingTrains.length === 0) return;
 
@@ -62,12 +131,28 @@ export class TrainScheduler {
       const node = this.network.getNode(currentNodeId);
       if (!node) continue;
 
-      if (node.type === 'signal' || node.type === 'platform') {
-        let locationKey: string;
-        if (node.type === 'signal') {
-          locationKey = `sig-${currentNodeId}`;
-        } else {
-          locationKey = `plat-${node.platformId ?? currentNodeId}`;
+      let locationKey: string | null = null;
+
+      if (node.type === 'signal') {
+        locationKey = `sig-${currentNodeId}`;
+      } else if (node.type === 'platform') {
+        locationKey = `plat-${node.platformId ?? currentNodeId}`;
+      } else {
+        const nextIdx = train.data.currentPathIndex + 1;
+        if (nextIdx < train.data.path.length) {
+          const nextNodeId = train.data.path[nextIdx];
+          const nextNode = this.network.getNode(nextNodeId);
+          if (nextNode && nextNode.type === 'signal') {
+            locationKey = `sig-${nextNodeId}`;
+          } else if (nextNode && nextNode.type === 'platform') {
+            locationKey = `plat-${nextNode.platformId ?? nextNodeId}`;
+          }
+        }
+      }
+
+      if (locationKey) {
+        if (this.heldLocations.has(locationKey)) {
+          continue;
         }
 
         if (!trainsByLocation.has(locationKey)) {
@@ -75,38 +160,31 @@ export class TrainScheduler {
         }
         trainsByLocation.get(locationKey)!.push(train);
       } else {
-        const nextIdx = train.data.currentPathIndex + 1;
-        if (nextIdx < train.data.path.length) {
-          const nextNodeId = train.data.path[nextIdx];
-          const nextNode = this.network.getNode(nextNodeId);
-          if (nextNode && nextNode.type === 'signal') {
-            const locationKey = `sig-${nextNodeId}`;
-            if (!trainsByLocation.has(locationKey)) {
-              trainsByLocation.set(locationKey, []);
-            }
-            trainsByLocation.get(locationKey)!.push(train);
-            continue;
-          }
-        }
         noContentionTrains.push(train);
       }
     }
 
-    for (const [, trainsAtLocation] of trainsByLocation) {
+    for (const [locationKey, trainsAtLocation] of trainsByLocation) {
       if (trainsAtLocation.length <= 1) {
-        trainsAtLocation[0].tryResume(this.gameTime);
+        const train = trainsAtLocation[0];
+        if (train.tryResume(this.gameTime, blockedNodeIds)) {
+          this.heldLocations.set(locationKey, train.data.id);
+        }
       } else {
         trainsAtLocation.sort((a, b) => b.data.priority - a.data.priority);
-        trainsAtLocation[0].tryResume(this.gameTime);
+        const winner = trainsAtLocation[0];
+        if (winner.tryResume(this.gameTime, blockedNodeIds)) {
+          this.heldLocations.set(locationKey, winner.data.id);
+        }
       }
     }
 
     for (const train of noContentionTrains) {
-      train.tryResume(this.gameTime);
+      train.tryResume(this.gameTime, blockedNodeIds);
     }
   }
 
-  private checkDelayChainConflicts(): Conflict[] {
+  private checkDelayChainConflicts(blockedNodeIds: Set<string>): Conflict[] {
     const conflicts: Conflict[] = [];
 
     for (const train of this.trains) {
@@ -149,12 +227,30 @@ export class TrainScheduler {
               }
             }
           }
+
+          if (nextNode && nextNode.type === 'platform' && blockedNodeIds.has(nextNodeId)) {
+            const occupant = this.findPlatformOccupant(train, nextNodeId);
+            if (occupant) {
+              const conflictKey = `${train.data.id}-platform-${nextNodeId}`;
+              if (!this.reportedDelayChains.has(conflictKey)) {
+                this.reportedDelayChains.add(conflictKey);
+                conflicts.push({
+                  type: 'delay_chain',
+                  severity: 'warning',
+                  trains: [train.data.id, occupant.data.id],
+                  location: nextNodeId,
+                  time: this.gameTime,
+                  message: `${train.data.name} 因 ${occupant.data.name} 占用站台${nextNode.platformId ?? nextNodeId}而晚点`,
+                });
+              }
+            }
+          }
         }
 
         if (currentNode.type === 'platform') {
           const occupant = this.findPlatformOccupant(train, currentNodeId);
           if (occupant) {
-            const conflictKey = `${train.data.id}-platform-${currentNodeId}`;
+            const conflictKey = `${train.data.id}-platform-waiting-${currentNodeId}`;
             if (!this.reportedDelayChains.has(conflictKey)) {
               this.reportedDelayChains.add(conflictKey);
               conflicts.push({
@@ -163,7 +259,7 @@ export class TrainScheduler {
                 trains: [train.data.id, occupant.data.id],
                 location: currentNodeId,
                 time: this.gameTime,
-                message: `${train.data.name} 因 ${occupant.data.name} 占用站台${currentNode.platformId ?? currentNodeId}而晚点`,
+                message: `${train.data.name} 因 ${occupant.data.name} 占用站台${currentNode.platformId ?? currentNodeId}而等待出发`,
               });
             }
           }

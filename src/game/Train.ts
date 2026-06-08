@@ -12,7 +12,7 @@ export class TrainEntity {
     this.network = network;
   }
 
-  update(delta: number, gameTime: number): { arrived: boolean; crashed: boolean; delayed: boolean; atNode: string | null } {
+  update(delta: number, gameTime: number, blockedNodeIds?: Set<string>): { arrived: boolean; crashed: boolean; delayed: boolean; atNode: string | null } {
     if (this.data.state !== 'running') return { arrived: false, crashed: false, delayed: false, atNode: null };
 
     const result = { arrived: false, crashed: false, delayed: false, atNode: null as string | null };
@@ -36,7 +36,15 @@ export class TrainEntity {
       const node = this.network.getNode(nextNodeId);
       if (node) {
         result.atNode = nextNodeId;
+
         if (node.type === 'signal' && this.network.isSignalBlocked(nextNodeId)) {
+          this.data.state = 'waiting';
+          this.data.progress = 0.95;
+          result.delayed = true;
+          return result;
+        }
+
+        if (node.type === 'platform' && blockedNodeIds && blockedNodeIds.has(nextNodeId)) {
           this.data.state = 'waiting';
           this.data.progress = 0.95;
           result.delayed = true;
@@ -77,7 +85,7 @@ export class TrainEntity {
     return result;
   }
 
-  tryResume(gameTime: number): boolean {
+  tryResume(gameTime: number, blockedNodeIds?: Set<string>): boolean {
     if (this.data.state !== 'waiting') return false;
     const currentNodeId = this.data.path[this.data.currentPathIndex];
     if (!currentNodeId) return false;
@@ -92,6 +100,9 @@ export class TrainEntity {
       const nextNodeId = this.data.path[nextIdx];
       const nextNode = this.network.getNode(nextNodeId);
       if (nextNode && nextNode.type === 'signal' && this.network.isSignalBlocked(nextNodeId)) {
+        return false;
+      }
+      if (nextNode && nextNode.type === 'platform' && blockedNodeIds && blockedNodeIds.has(nextNodeId)) {
         return false;
       }
     }
