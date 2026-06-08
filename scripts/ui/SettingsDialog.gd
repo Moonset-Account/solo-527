@@ -35,12 +35,15 @@ func _build_ui() -> void:
     tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
     add_child(tab_container)
     
-    audio_tab = _create_tab("🔊 音频")
-    input_tab = _create_tab("🎮 输入")
-    gameplay_tab = _create_tab("🎯 游戏")
-    tab_container.add_child(audio_tab)
-    tab_container.add_child(input_tab)
-    tab_container.add_child(gameplay_tab)
+    var audio_scroll = _create_tab("🔊 音频")
+    var input_scroll = _create_tab("🎮 输入")
+    var gameplay_scroll = _create_tab("🎯 游戏")
+    tab_container.add_child(audio_scroll)
+    tab_container.add_child(input_scroll)
+    tab_container.add_child(gameplay_scroll)
+    audio_tab = audio_scroll.get_child(0)
+    input_tab = input_scroll.get_child(0)
+    gameplay_tab = gameplay_scroll.get_child(0)
     
     _build_audio_tab()
     _build_input_tab()
@@ -63,7 +66,7 @@ func _build_ui() -> void:
     close_button.custom_minimum_size = Vector2(120, 40)
     btn_row.add_child(close_button)
 
-func _create_tab(name: String) -> VBoxContainer:
+func _create_tab(name: String) -> ScrollContainer:
     var scroll = ScrollContainer.new()
     scroll.name = name
     scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -74,7 +77,7 @@ func _create_tab(name: String) -> VBoxContainer:
     vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     scroll.add_child(vbox)
     
-    return vbox
+    return scroll
 
 func _add_section_header(parent: VBoxContainer, text: String) -> void:
     var label = Label.new()

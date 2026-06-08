@@ -264,6 +264,88 @@ func _ready() -> void:
         return [all_diff, info]
     , "输入方式切换/按键提示切换", passed, total)
     
+    # 测试16: SettingsDialog 选项卡内容正确挂载
+    _safe_test(func ():
+        var scene = GameAssets.load_scene("res://scenes/ui/SettingsDialog.tscn")
+        if scene == null:
+            return [false, "场景加载失败"]
+        var dlg = scene.instantiate()
+        add_child(dlg)
+        var tab_container_ok = (dlg.tab_container != null and dlg.tab_container.get_child_count() >= 3)
+        var audio_ok = (dlg.audio_tab != null and dlg.audio_tab.get_child_count() > 0)
+        var input_ok = (dlg.input_tab != null and dlg.input_mode_option != null)
+        var game_ok = (dlg.gameplay_tab != null and dlg.fullscreen_checkbox != null)
+        var tab_count = 0
+        if dlg.tab_container != null:
+            tab_count = dlg.tab_container.get_child_count()
+        var audio_children = 0
+        if dlg.audio_tab != null:
+            audio_children = dlg.audio_tab.get_child_count()
+        dlg.queue_free()
+        var ok = tab_container_ok and audio_ok and input_ok and game_ok
+        var info = "TabContainer子节点数: %d (应>=3)\n" % tab_count
+        info += "     音频选项卡节点: %d个 (应>0)\n" % audio_children
+        info += "     音频选项卡: %s, 输入选项卡: %s, 游戏选项卡: %s" % [str(audio_ok), str(input_ok), str(game_ok)]
+        return [ok, info]
+    , "SettingsDialog选项卡挂载", passed, total)
+    
+    # 测试17: InputHintsBar 输入模式切换后立即刷新显示
+    _safe_test(func ():
+        var ihb = load("res://scripts/ui/InputHintsBar.gd").new()
+        add_child(ihb)
+        UIState.set_context(UIState.UIContext.MAIN_MENU)
+        InputMapper.set_input_mode(0)
+        ihb._update_hints()
+        var kb_children = ihb.input_hints_container.get_child_count()
+        InputMapper.set_input_mode(1)
+        ihb._on_input_mode_changed(1)
+        var gp_children = ihb.input_hints_container.get_child_count()
+        InputMapper.set_input_mode(0)
+        ihb.queue_free()
+        var ok = (kb_children > 0 and gp_children > 0)
+        var info = "切换到键鼠后子节点数: %d\n" % kb_children
+        info += "     切换到手柄后子节点数: %d (两次都>0即可, 表示都有按键提示显示)" % gp_children
+        return [ok, info]
+    , "InputHintsBar动态刷新", passed, total)
+    
+    # 测试18: 完整经营流程 - 从模拟主菜单进入到GameScene跳过引导切换输入
+    _safe_test(func ():
+        # 模拟主菜单流程：打开设置→切换到手柄→切回键鼠
+        UIState.set_context(UIState.UIContext.MAIN_MENU)
+        InputMapper.set_input_mode(0)
+        var main_kb = InputMapper.get_input_mode_name()
+        # 模拟切换到手柄
+        InputMapper.set_input_mode(1)
+        var main_gp = InputMapper.get_input_mode_name()
+        # 模拟进入关卡选择
+        UIState.set_context(UIState.UIContext.LEVEL_SELECT)
+        # 模拟开始游戏
+        GameManager.start_new_game("level_1")
+        UIState.set_context(UIState.UIContext.GAME)
+        # 模拟GameScene初始化，检查经营界面各个面板是否可用
+        var hud = load("res://scripts/ui/GameHUD.gd").new()
+        var pp = load("res://scripts/ui/PurchasePanel.gd").new()
+        var sp = load("res://scripts/ui/SellPanel.gd").new()
+        var to = load("res://scripts/ui/TutorialOverlay.gd").new()
+        add_child(hud); add_child(pp); add_child(sp); add_child(to)
+        # 模拟跳过新手引导
+        to.tutorial_system.reset_tutorial()
+        to.tutorial_system.skip_tutorial()
+        var skip_ok = SaveManager.tutorial_skipped
+        # 切换到手柄模式
+        InputMapper.set_input_mode(1)
+        var game_gp = InputMapper.get_input_mode_name()
+        var game_ui = GameManager.money > 0 and hud.money_label != null and pp.purchase_button != null and sp.stall_display != null
+        hud.queue_free(); pp.queue_free(); sp.queue_free(); to.queue_free()
+        InputMapper.set_input_mode(0)
+        SaveManager.tutorial_skipped = false
+        var ok = skip_ok and game_ui and (main_gp != main_kb) and (game_gp == main_gp)
+        var info = "主菜单输入: %s → 切换: %s\n" % [main_kb, main_gp]
+        info += "     跳过引导: %s, 经营界面面板构建: %s\n" % [str(skip_ok), str(game_ui)]
+        info += "     GameScene手柄模式: %s (一致)" % game_gp
+        return [ok, info]
+    , "完整经营流程验证", passed, total)
+    
     print("\n" + _repeat_str("=", 60))
     print("📊 核心系统验证结果: %d / %d 项通过" % [passed[0], total[0]])
     if passed[0] == total[0]:
@@ -272,6 +354,7 @@ func _ready() -> void:
         print("   → 多输入切换、存档系统、摊位升级、顾客系统正常")
         print("   → 新手引导、经营建议、音频反馈、星级评定正常")
         print("   → 教程跳过、设置对话框、输入提示切换正常")
+        print("   → SettingsDialog选项卡挂载、HintsBar刷新、完整流程正常")
     elif passed[0] >= total[0] - 2:
         print("👍 大部分通过 (%d项), 可能存在小问题" % (passed[0]))
     else:

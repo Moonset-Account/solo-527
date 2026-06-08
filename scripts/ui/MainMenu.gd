@@ -212,8 +212,8 @@ func _open_settings_dialog() -> void:
     if settings_dialog != null:
         var dialog = settings_dialog.instantiate()
         dialog.name = "SettingsDialog"
-        dialog.popup_centered()
         add_child(dialog)
+        dialog.popup_centered()
         UIState.open_dialog(dialog)
 
 func _on_input_mode_changed(_mode) -> void:
