@@ -69,9 +69,9 @@ namespace InkMountainBridge
 
             UseBudget(currentMaterial);
 
-            GameEvents.OnMaterialUsed?.Invoke(currentMaterial, GetRemainingBudget(currentMaterial));
+            GameEvents.RaiseMaterialUsed(currentMaterial, GetRemainingBudget(currentMaterial));
 
-            GameEvents.OnInputRecorded?.Invoke(new InputRecord
+            GameEvents.RaiseInputRecorded(new InputRecord
             {
                 timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 action = "PlaceElement",
@@ -94,7 +94,7 @@ namespace InkMountainBridge
 
             bridgeStructure.RemoveElement(element);
 
-            GameEvents.OnInputRecorded?.Invoke(new InputRecord
+            GameEvents.RaiseInputRecorded(new InputRecord
             {
                 timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 action = "RemoveElement",
@@ -256,7 +256,7 @@ namespace InkMountainBridge
                 materialBudget[type]--;
                 if (materialBudget[type] <= 0)
                 {
-                    GameEvents.OnBudgetExceeded?.Invoke();
+                    GameEvents.RaiseBudgetExceeded();
                 }
             }
         }

@@ -82,7 +82,7 @@ namespace InkMountainBridge
         {
             isLevelActive = true;
             levelTimer = 0f;
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Building);
+            GameEvents.RaisePhaseChanged(GameState.Building);
 
             if (bridgeBuilder != null)
             {
@@ -112,7 +112,7 @@ namespace InkMountainBridge
 
         public void StartTestPhase()
         {
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Testing);
+            GameEvents.RaisePhaseChanged(GameState.Testing);
 
             if (bridgeBuilder != null)
             {
@@ -159,11 +159,11 @@ namespace InkMountainBridge
                 weatherSystem.UpdateWeather(dt);
             }
 
-            if (caravanController != null && caravanController.isMoving)
+            if (caravanController != null && (caravanController.isMoving || caravanController.isDrowning))
             {
-                caravanController.UpdateMovement(dt);
+                caravanController.Tick(dt);
 
-                if (forceSimulator != null)
+                if (forceSimulator != null && caravanController.isMoving)
                 {
                     forceSimulator.ApplyCaravanLoad(caravanController.transform.position, levelConfig.caravanWeight);
                 }
@@ -224,8 +224,8 @@ namespace InkMountainBridge
                 replayRecorder.StopRecording();
             }
 
-            GameEvents.OnLevelCompleted?.Invoke(levelConfig.levelId);
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Settlement);
+            GameEvents.RaiseLevelCompleted(levelConfig.levelId);
+            GameEvents.RaisePhaseChanged(GameState.Settlement);
 
             if (settlementScreen != null)
             {
@@ -252,8 +252,8 @@ namespace InkMountainBridge
                 replayRecorder.StopRecording();
             }
 
-            GameEvents.OnLevelFailed?.Invoke(reason);
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Paused);
+            GameEvents.RaiseLevelFailed(reason);
+            GameEvents.RaisePhaseChanged(GameState.Paused);
 
             if (failPromptController != null)
             {

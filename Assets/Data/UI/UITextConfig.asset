@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f600010000000000002003, type: 3}
+  m_Name: UITextConfig
+  m_EditorClassIdentifier: 
+  entries:
+  - key: tutorialWelcome
+    value: "\u6B22\u8FCE\u6765\u5230\u6C34\u58A8\u5C71\u8DEF\u4FEE\u6865\u8BB0\uFF01"
+  - key: tutorialPlaceBeam
+    value: "\u70B9\u51FB\u5E76\u62D6\u62FD\u653E\u7F6E\u6728\u6881"
+  - key: tutorialPlaceRope
+    value: "\u7528\u7EF3\u7D22\u8FDE\u63A5\u4E24\u70B9"
+  - key: tutorialPlacePier
+    value: "\u653E\u7F6E\u77F3\u58A9\u652F\u6491\u67F1"
+  - key: tutorialTestBridge
+    value: "\u6309\u4E0B\u6D4B\u8BD5\u6309\u94AE"
+  - key: tutorialComplete
+    value: "\u6559\u7A0B\u5B8C\u6210\uFF01"
+  - key: budgetExceeded
+    value: "\u6750\u6599\u9884\u7B97\u5DF2\u7528\u5B8C\uFF01"
+  - key: bridgeCollapsed
+    value: "\u6865\u6881\u5D29\u585E\u4E86\uFF01"
+  - key: caravanDrowned
+    value: "\u5546\u961F\u6EA2\u6C34\u4E86\uFF01"
+  - key: caravanArrived
+    value: "\u5546\u961F\u5B89\u5168\u5230\u8FBE\uFF01"
+  - key: weatherWarningRain
+    value: "\u96E8\u5929\u589E\u52A0\u6865\u6881\u8D1F\u91CD"
+  - key: weatherWarningWind
+    value: "\u98CE\u529B\u4EA7\u751F\u6A2A\u5411\u538B\u529B"
+  - key: weatherWarningStorm
+    value: "\u66B4\u98CE\u96E8\u6765\u88AD\uFF01"
+  - key: retryPrompt
+    value: "\u91CD\u8BD5\uFF1F"
+  - key: settlementTitle
+    value: "\u7ED3\u7B97"
+  - key: settlementScore
+    value: "\u5F97\u5206"
+  - key: settlementMaterials
+    value: "\u6750\u6599\u4F7F\u7528"
+  - key: settlementTime
+    value: "\u7528\u65F6"
+  - key: levelComplete
+    value: "\u5173\u5361\u5B8C\u6210\uFF01"
+  - key: levelFailed
+    value: "\u5173\u5361\u5931\u8D25"

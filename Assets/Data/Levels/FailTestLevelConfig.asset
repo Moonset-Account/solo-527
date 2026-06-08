@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f600010000000000000006, type: 3}
+  m_Name: FailTestLevelConfig
+  m_EditorClassIdentifier:
+  levelId: 3
+  levelName: "\u65AD\u6865\u5371\u5D16"
+  valleyWidth: 20
+  valleyDepth: 12
+  anchorPoints:
+  - {x: -10, y: 0}
+  - {x: 10, y: 0}
+  availableMaterials:
+    beamCount: 3
+    ropeCount: 2
+    pierCount: 1
+    maxTotalWeight: 150
+  weatherType: 3
+  maxWindForce: 60
+  maxRainWeight: 40
+  timeLimit: 60
+  targetScore: 999
+  isTutorial: 0
+  forceFailOnComplete: 1
+  tutorialSteps:
+  - "\u8FD9\u5EA7\u6865\u6CE8\u5B9A\u4F1A\u584C\u2014\u2014\u6545\u610F\u4F53\u9A8C\u5931\u8D25\u6D41\u7A0B"
+  - "\u6750\u6599\u8FDC\u8FDC\u4E0D\u591F\uFF0C\u5929\u6C14\u6781\u5176\u6076\u52A3"
+  - "\u89C2\u5BDF\u6865\u6881\u5E94\u529B\u548C\u5D29\u6E83\u52A8\u753B"
+  - "\u4F53\u9A8C\u5931\u8D25\u63D0\u793A\u548C\u91CD\u8BD5\u6D41\u7A0B"
+  caravanWeight: 120
+  caravanSpeed: 2

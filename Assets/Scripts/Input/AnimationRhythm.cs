@@ -84,7 +84,7 @@ namespace InkMountainBridge
                 float t = Mathf.Clamp01(elapsed / weatherTransitionDuration);
                 float eased = Ease(t, EaseType.EaseInOut);
                 float current = Mathf.Lerp(fromIntensity, toIntensity, eased);
-                GameEvents.OnWeatherChanged?.Invoke(WeatherType.Rain);
+                GameEvents.RaiseWeatherChanged(WeatherType.Rain);
                 yield return null;
             }
         }

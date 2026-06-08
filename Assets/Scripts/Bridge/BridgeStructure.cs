@@ -144,7 +144,7 @@ namespace InkMountainBridge
 
                 if (element.CurrentStress > 0f && element.CurrentStress / element.MaxStress > 0.8f)
                 {
-                    GameEvents.OnStressWarning?.Invoke(element.CurrentStress / element.MaxStress);
+                    GameEvents.RaiseStressWarning(element.CurrentStress / element.MaxStress);
                 }
             }
         }
@@ -167,13 +167,8 @@ namespace InkMountainBridge
             if (count > 0)
             {
                 center /= count;
-                GameEvents.OnBridgeCollapsed?.Invoke(center);
+                GameEvents.RaiseBridgeCollapsed(center);
             }
-        }
-
-        private void Update()
-        {
-            SimulatePhysics(Time.deltaTime);
         }
     }
 }

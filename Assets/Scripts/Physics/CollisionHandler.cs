@@ -23,7 +23,7 @@ namespace InkMountainBridge
 
             element.Break();
 
-            GameEvents.OnBridgeCollapsed?.Invoke(breakPoint);
+            GameEvents.RaiseBridgeCollapsed(breakPoint);
         }
 
         public void HandleCaravanCollision(GameObject caravan, BridgeElement element)

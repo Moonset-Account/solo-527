@@ -45,13 +45,13 @@ namespace InkMountainBridge
         public void OnRetry()
         {
             Hide();
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Building);
+            GameEvents.RaisePhaseChanged(GameState.Building);
         }
 
         public void OnBack()
         {
             Hide();
-            GameEvents.OnPhaseChanged?.Invoke(GameState.Menu);
+            GameEvents.RaisePhaseChanged(GameState.Menu);
         }
 
         private System.Collections.IEnumerator ShakeEffect()

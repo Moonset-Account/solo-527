@@ -70,7 +70,7 @@ namespace InkMountainBridge
             }
 
             currentWeather = type;
-            GameEvents.OnWeatherChanged?.Invoke(type);
+            GameEvents.RaiseWeatherChanged(type);
         }
 
         public void UpdateWeather(float dt)
@@ -141,11 +141,6 @@ namespace InkMountainBridge
             {
                 particleSystems[type] = ps;
             }
-        }
-
-        private void Update()
-        {
-            UpdateWeather(Time.deltaTime);
         }
     }
 }

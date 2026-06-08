@@ -28,35 +28,35 @@ namespace InkMountainBridge
         {
             currentLevel = levelConfig;
             gameState = GameState.Building;
-            GameEvents.OnLevelStarted?.Invoke(levelConfig);
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
+            GameEvents.RaiseLevelStarted(levelConfig);
+            GameEvents.RaisePhaseChanged(gameState);
         }
 
         public void EnterBuildPhase()
         {
             gameState = GameState.Building;
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
+            GameEvents.RaisePhaseChanged(gameState);
         }
 
         public void EnterTestPhase()
         {
             gameState = GameState.Testing;
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
+            GameEvents.RaisePhaseChanged(gameState);
         }
 
         public void HandleLevelComplete()
         {
             gameState = GameState.Settlement;
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
+            GameEvents.RaisePhaseChanged(gameState);
             int score = CalculateScore();
-            GameEvents.OnLevelCompleted?.Invoke(score);
+            GameEvents.RaiseLevelCompleted(score);
         }
 
         public void HandleLevelFail(string reason)
         {
             gameState = GameState.Settlement;
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
-            GameEvents.OnLevelFailed?.Invoke(reason);
+            GameEvents.RaisePhaseChanged(gameState);
+            GameEvents.RaiseLevelFailed(reason);
         }
 
         public void RetryLevel()
@@ -71,7 +71,7 @@ namespace InkMountainBridge
         {
             gameState = GameState.Menu;
             currentLevel = null;
-            GameEvents.OnPhaseChanged?.Invoke(gameState);
+            GameEvents.RaisePhaseChanged(gameState);
         }
 
         private int CalculateScore()

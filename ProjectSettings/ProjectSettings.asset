@@ -1,0 +1,324 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 24
+  productGUID: a3f7c2e18b4d5604eb9a31d6f8c20573
+  AndroidProfiler: 0
+  AndroidFilterTouchesWhenObscured: 0
+  AndroidEnableSustainedPerformanceMode: 0
+  defaultScreenOrientation: 3
+  targetDevice: 2
+  useOnDemandResources: 0
+  accelerometerFrequency: 60
+  companyName: InkMountainStudio
+  productName: "\u6C34\u58A8\u5C71\u8DEF\u4FEE\u6865\u8BB0"
+  defaultCursor: {instanceID: 0}
+  cursorHotspot: {x: 0, y: 0}
+  m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+  m_ShowUnitySplashScreen: 1
+  m_ShowUnitySplashLogo: 1
+  m_SplashScreenOverlayOpacity: 1
+  m_SplashScreenAnimation: 1
+  m_SplashScreenLogoStyle: 1
+  m_SplashScreenDrawMode: 0
+  m_SplashScreenBackgroundAnimationZoom: 1
+  m_SplashScreenBackgroundAnimationZoomType: 0
+  m_CustomSplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_AndroidSplashScreenScaleMode: 0
+  m_AndroidSplashScreenOverlayOpacity: 1
+  m_iOSSplashScreenBackgroundType: 0
+  m_iOSSplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IPhoneSplashScreenScaleMode: 0
+  m_IPhoneSplashScreenOverlayOpacity: 1
+  resolutionDialogBanner: {instanceID: 0}
+  m_BuildTargetNames:
+  - Standalone
+  m_BuildTargetPlatformIcons:
+  - m_BuildTarget: Standalone
+    m_Icons:
+    - m_Size: 1024
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 512
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 256
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 128
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 64
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 48
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 32
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+    - m_Size: 16
+      m_Texture: {instanceID: 0}
+      m_Platform: ''
+  m_PresetIconsAreSynchronised: 0
+  m_PresetPlatformIcons:
+  - m_BuildTarget: Standalone
+    m_Icons:
+    - m_Size: 1024
+      m_Texture: {instanceID: 0}
+    - m_Size: 512
+      m_Texture: {instanceID: 0}
+    - m_Size: 256
+      m_Texture: {instanceID: 0}
+    - m_Size: 128
+      m_Texture: {instanceID: 0}
+    - m_Size: 64
+      m_Texture: {instanceID: 0}
+    - m_Size: 48
+      m_Texture: {instanceID: 0}
+    - m_Size: 32
+      m_Texture: {instanceID: 0}
+    - m_Size: 16
+      m_Texture: {instanceID: 0}
+  m_SplashScreenLogos: []
+  m_VirtualRealitySplashScreen: {instanceID: 0}
+  m_HolographicTrackingLossScreen: {instanceID: 0}
+  defaultScreenWidth: 1920
+  defaultScreenHeight: 1080
+  defaultScreenWidthWeb: 960
+  defaultScreenHeightWeb: 600
+  m_StereoRenderingPath: 0
+  m_ActiveColorSpace: 0
+  unsupportedMSAAFallback: 0
+  m_MTRendering: 1
+  mipStripping: 0
+  numberOfMipsStripped: 0
+  m_StackTraceTypes: 010000000100000001000000010000000100000001000000
+  m_StripDebugSymbols: 0
+  m_StripEngineCode: 1
+  m_StripIFunctions: 1
+  m_StripRaycastHelpers: 0
+  m_StackTraceVerbose: 0
+  iosAppIdentifier: ''
+  tvOSAppIdentifier: ''
+  iosExporter: ''
+  tvOSExporter: ''
+  apiCompatibilityLevel: 3
+  activeInputHandler: 0
+  windowsGamepadBackendHint: 0
+  cloudProjectId: ''
+  framebufferDepthMemorylessMode: 0
+  qualitySettingsChange: 0
+  vuforiaEnabled: 0
+  m_ScriptingBackend:
+    Standalone: 0
+  m_Il2CppCompilerConfiguration:
+    Standalone: 0
+  m_StrippingLevel:
+    Standalone: 0
+  m_GCIncremental: 0
+  m_GCIncrementalStrategy: 1
+  m_AllowDownloadingWhilePlaying: 0
+  m_InternetReachability: 0
+  m_DisabledLauncherImpls: {}
+  m_DisabledEngineModuleNames: []
+  m_GraphicsJobMode:
+    Standalone: 0
+  m_GraphicsJobs:
+    Standalone: 1
+  m_BuildTargetGraphicsAPIs:
+  - m_BuildTarget: Standalone
+    m_APIs: 0b000000
+    m_Automatic: 1
+  m_BuildTargetGraphicsJobModes:
+  - m_BuildTarget: Standalone
+    m_GraphicsJobMode: 0
+  m_CustomRenderingPath: 0
+  m_SkinOnGPU: 0
+  m_RenderingPath: 1
+  m_DynamicBatching: 0
+  m_SpriteBatchVertexThreshold: 300
+  m_GPUSkinning: 1
+  m_EnableBakedLightmaps: 1
+  m_EnableRealtimeLightmaps: 0
+  m_MetalEditorSupport: 1
+  m_MetalSupport: 1
+  m_MetalFramebufferOnly: 0
+  m_MetalSharedBufferSyncInterval: 0
+  m_ProfilerBufferSize: 33554432
+  m_ProfilerMaxUsedMemory: 268435456
+  m_Web3dMode: 0
+  m_CameraUsageDescription: ''
+  m_MicrophoneUsageDescription: ''
+  m_PhotoLibraryUsageDescription: ''
+  m_BLWidgetUsageDescription: ''
+  m_NetworkUsageDescription: ''
+  m_SensorUsageDescription: ''
+  m_LocationUsageDescription: ''
+  m_FaceIDUsageDescription: ''
+  m_Development: 0
+  m_Constrained: 0
+  m_AppleDeveloperTeamID: ''
+  m_iOSManualProvisioningProfileID: ''
+  m_iOSManualProvisioningProfileType: 0
+  m_tvOSManualProvisioningProfileID: ''
+  m_tvOSManualProvisioningProfileType: 0
+  m_iOSManualSigning: 0
+  m_tvOSManualSigning: 0
+  m_iOSAppStorePath: ''
+  m_tvOSAppStorePath: ''
+  m_OSXAppStoreCategory: ''
+  m_OSXAppStoreCategoryURL: ''
+  m_LaunchScreenFillPct: 100
+  m_LaunchScreenSizeMode: 0
+  m_LaunchScreenOrientation: 0
+  m_LaunchScreeniPadFillPct: 100
+  m_LaunchScreeniPadSizeMode: 0
+  m_LaunchScreeniPadOrientation: 0
+  m_OverrideIPhoneOrientation: 0
+  m_OverrideIPadOrientation: 0
+  m_iOSLaunchScreenType: 0
+  m_iOSSplashScreenBackgroundType: 0
+  m_iOSSplashScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_iOSSplashScreenFillPct: 100
+  m_iOSSplashScreenSizeMode: 0
+  m_iOSSplashScreenOrientation: 0
+  m_iOSLaunchScreenFillPct: 100
+  m_iOSLaunchScreenSizeMode: 0
+  m_iOSLaunchScreenOrientation: 0
+  m_iOSLaunchScreeniPadFillPct: 100
+  m_iOSLaunchScreeniPadSizeMode: 0
+  m_iOSLaunchScreeniPadOrientation: 0
+  m_iOSLaunchScreenStoryboardName: ''
+  m_iOSLaunchScreeniPadStoryboardName: ''
+  m_iOSDeviceFamilies: 1
+  m_iOSRequireARKit: 0
+  m_iOSLaunchScreenBackgroundType: 0
+  m_iOSLaunchScreenBackgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  m_iOSLaunchScreenBackgroundPortrait: {instanceID: 0}
+  m_iOSLaunchScreenBackgroundLandscape: {instanceID: 0}
+  m_iOSLaunchScreeniPadBackgroundPortrait: {instanceID: 0}
+  m_iOSLaunchScreeniPadBackgroundLandscape: {instanceID: 0}
+  m_useAnimatedAutorotation: 0
+  m_AppleEnableAutomaticSigning: 0
+  m_iOSManualProvisioningProfileID: ''
+  m_tvOSManualProvisioningProfileID: ''
+  m_OSXManualProvisioningProfileID: ''
+  m_iOSManualProvisioningProfileType: 0
+  m_tvOSManualProvisioningProfileType: 0
+  m_OSXManualProvisioningProfileType: 0
+  m_RequireES30: 0
+  m_RequireES31: 0
+  m_RequireES31AEP: 0
+  m_RequireES32: 0
+  m_AppleEnableProMotion: 0
+  m_DevelopmentTeam: ''
+  m_ManualProvisioningProfileID: ''
+  m_ManualProvisioningProfileType: 0
+  m_AutomaticallyAddPlatformCapabilities: 1
+  m_EnabledXcodeTargets: 1
+  m_RequirePulse: 0
+  m_SqliteCompileFlags: ''
+  m_SqlitePreprocess: ''
+  m_SwitchNetLibKey: ''
+  m_SwitchMediaPluginKey: ''
+  m_SwitchPlayerConnectionDebug: 0
+  m_SwitchSleepMode: 0
+  m_SwitchEnableFileSystemAccess: 0
+  m_SwitchScreenOrientationBehavior: 0
+  m_SwitchFPS: 0
+  m_SwitchCurrentThermalMode: 0
+  m_SwitchBaseHeapSize: 0
+  m_SwitchGpuPageSize: 0
+  m_SwitchGpuHeapSize: 0
+  m_SwitchGpuTimeSlice: 0
+  m_SwitchGpuCustomDRAMSize: 0
+  m_SwitchNVNShaderCache: 0
+  m_SwitchNVNGraphicsFirmwareMemory: 0
+  m_SwitchMaxWorkerCount: 0
+  m_SwitchNewKeyboard: 0
+  m_SwitchMemoryReleaseMode: 0
+  m_StadiaTargetFps: 0
+  m_StadiaTargetResolution: 0
+  m_StadiaShareMode: 0
+  m_StadiaFeatureLevel: 0
+  m_StadiaLanguage: 0
+  m_WebGLMemorySize: 256
+  m_WebGLLinkerTarget: 1
+  m_WebGLCompressionFormat: 0
+  m_WebGLNameFilesAsHashes: 0
+  m_WebGLDataCaching: 1
+  m_WebGLDebugSymbols: 0
+  m_WebGLEmscriptenArgs: ''
+  m_WebGLTemplate: APPLICATION:Default
+  m_WebGLAnalyzeBuildSize: 0
+  m_WebGLUseEmbeddedResources: 0
+  m_WebGLCompressionFormat: 1
+  m_WebGLWasmStreaming: 0
+  m_WebGLLinkerTarget: 1
+  m_WebGLExceptionSupport: 1
+  m_WebGLNameFilesAsHashes: 0
+  m_RenderingPath: 1
+  m_DynamicBatching: 0
+  m_GraphicsJobs: 0
+  m_SpriteBatchVertexThreshold: 300
+  m_GraphicsJobMode: 0
+  m_BuildTargetGraphicsJobs:
+  - m_BuildTarget: Standalone
+    m_GraphicsJob: 1
+  m_BuildTargetGraphicsJobModes:
+  - m_BuildTarget: Standalone
+    m_GraphicsJobMode: 0
+  m_BuildTargetGraphicsAPIs:
+  - m_BuildTarget: Standalone
+    m_APIs: 0b000000
+    m_Automatic: 1
+  m_ColorSpace: 0
+  m_LightmapStripping: 0
+  m_FogStripping: 0
+  m_InstancingStripping: 0
+  m_LightmapKeepPlain: 1
+  m_LightmapKeepDirCombined: 1
+  m_LightmapKeepDynamicPlain: 1
+  m_LightmapKeepDynamicDirCombined: 1
+  m_LightmapKeepShadowMask: 1
+  m_LightmapKeepDirShadow: 1
+  m_LightmapKeepDirShadowCombined: 1
+  m_FogKeepLinear: 1
+  m_FogKeepExp: 1
+  m_FogKeepExp2: 1
+  m_CameraUsageDescription: ''
+  m_LocationUsageDescription: ''
+  m_MicrophoneUsageDescription: ''
+  m_PhotoLibraryUsageDescription: ''
+  m_BLWidgetUsageDescription: ''
+  m_NetworkUsageDescription: ''
+  m_SensorUsageDescription: ''
+  m_FaceIDUsageDescription: ''
+  m_OverrideDefaultApplicationIdentifier: 0
+  m_AndroidTargetArchitectures: 1
+  m_AndroidSplashScreenScale: 0
+  m_AndroidMinifyRelease: 0
+  m_AndroidMinifyDebug: 0
+  m_AndroidBuildApkPerCpuArchitecture: 0
+  m_AndroidValidateAppBundleSize: 1
+  m_AndroidKeystoreName: ''
+  m_AndroidKeystorePassword: ''
+  m_AndroidKeyaliasName: ''
+  m_AndroidKeyaliasPassword: ''
+  m_AndroidBuildSystem: 0
+  m_AndroidBundleVersionCode: 1
+  m_AndroidMinimalNetProfile: 0
+  m_AndroidTargetDevice: 0
+  m_AndroidSdkVersion: 0
+  m_AndroidInstallLocation: 1
+  m_AndroidPreferExternal: 0
+  m_AndroidBanner: {instanceID: 0}
+  m_PackageName: com.InkMountainBridge.ShuiMoShanLuXiuQiaoJi
+  m_AppIdentifier: com.InkMountainBridge.ShuiMoShanLuXiuQiaoJi
+  m_BundleVersion: 1.0
+  m_BundleVersionCode: 1
+  m_ShortBundleVersion: '1.0'
+  m_IsShowingSplashScreen: 1

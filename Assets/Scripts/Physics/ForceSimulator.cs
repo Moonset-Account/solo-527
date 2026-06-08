@@ -35,7 +35,7 @@ namespace InkMountainBridge
                 float stressRatio = element.MaxStress > 0f ? element.CurrentStress / element.MaxStress : 0f;
                 if (stressRatio > 0.8f)
                 {
-                    GameEvents.OnStressWarning?.Invoke(stressRatio);
+                    GameEvents.RaiseStressWarning(stressRatio);
                 }
             }
         }
@@ -62,7 +62,7 @@ namespace InkMountainBridge
                     float stressRatio = element.MaxStress > 0f ? element.CurrentStress / element.MaxStress : 0f;
                     if (stressRatio > 0.8f)
                     {
-                        GameEvents.OnStressWarning?.Invoke(stressRatio);
+                        GameEvents.RaiseStressWarning(stressRatio);
                     }
                 }
             }
@@ -94,11 +94,6 @@ namespace InkMountainBridge
             }
             total += caravanLoad;
             return total;
-        }
-
-        private void Update()
-        {
-            SimulateStep(Time.deltaTime);
         }
     }
 }

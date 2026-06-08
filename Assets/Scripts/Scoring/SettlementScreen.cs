@@ -57,12 +57,12 @@ namespace InkMountainBridge
 
         public void OnRetryClicked()
         {
-            GameEvents.OnLevelStarted?.Invoke(null);
+            GameEvents.RaiseLevelStarted(null);
         }
 
         public void OnNextLevelClicked()
         {
-            GameEvents.OnLevelCompleted?.Invoke(result.levelId + 1);
+            GameEvents.RaiseLevelCompleted(result.levelId + 1);
         }
 
         private IEnumerator AnimateScoreRoutine(int targetScore)

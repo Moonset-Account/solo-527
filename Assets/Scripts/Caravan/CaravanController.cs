@@ -135,13 +135,18 @@ namespace InkMountainBridge
             drownTimer = 0f;
         }
 
-        private void Update()
+        public void Tick(float dt)
         {
-            UpdateMovement(Time.deltaTime);
+            if (!isMoving && !isDrowning) return;
+
+            if (isMoving)
+            {
+                UpdateMovement(dt);
+            }
 
             if (isDrowning)
             {
-                drownTimer += Time.deltaTime;
+                drownTimer += dt;
                 if (characterConfig != null && drownTimer >= characterConfig.drownTime)
                 {
                     Fail("Drowned");
@@ -153,13 +158,13 @@ namespace InkMountainBridge
         {
             isMoving = false;
             hasArrived = true;
-            GameEvents.OnCaravanArrived?.Invoke();
+            GameEvents.RaiseCaravanArrived();
         }
 
         public void Fail(string cause)
         {
             isMoving = false;
-            GameEvents.OnCaravanFailed?.Invoke(cause);
+            GameEvents.RaiseCaravanFailed(cause);
         }
     }
 }

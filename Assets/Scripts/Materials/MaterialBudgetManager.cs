@@ -22,10 +22,10 @@ namespace InkMountainBridge
 
             DeductUsed(type);
             currentTotalWeight += weight;
-            GameEvents.OnMaterialUsed?.Invoke(type, GetRemaining(type));
+            GameEvents.RaiseMaterialUsed(type, GetRemaining(type));
 
             if (GetBudgetPercentage() > 1.0f)
-                GameEvents.OnBudgetExceeded?.Invoke();
+                GameEvents.RaiseBudgetExceeded();
 
             return true;
         }
@@ -36,7 +36,7 @@ namespace InkMountainBridge
             currentTotalWeight -= weight;
             if (currentTotalWeight < 0f)
                 currentTotalWeight = 0f;
-            GameEvents.OnMaterialUsed?.Invoke(type, GetRemaining(type));
+            GameEvents.RaiseMaterialUsed(type, GetRemaining(type));
         }
 
         public int GetRemaining(MaterialType type)

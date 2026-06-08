@@ -111,7 +111,7 @@ namespace InkMountainBridge
         {
             if (Input.GetKeyDown(KeyCode.R))
             {
-                GameEvents.OnInputRecorded?.Invoke(new InputRecord
+                GameEvents.RaiseInputRecorded(new InputRecord
                 {
                     timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     action = "Retry",
@@ -124,7 +124,7 @@ namespace InkMountainBridge
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                GameEvents.OnInputRecorded?.Invoke(new InputRecord
+                GameEvents.RaiseInputRecorded(new InputRecord
                 {
                     timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     action = "Pause",
@@ -138,7 +138,7 @@ namespace InkMountainBridge
 
         private void RecordInput(string action, Vector2 position)
         {
-            GameEvents.OnInputRecorded?.Invoke(new InputRecord
+            GameEvents.RaiseInputRecorded(new InputRecord
             {
                 timestamp = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 action = action,

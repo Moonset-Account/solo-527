@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace InkMountainBridge
 {
@@ -9,6 +10,8 @@ namespace InkMountainBridge
         public UITextConfig uiTextConfig;
         public AudioEventConfig audioEventConfig;
         public TrialStatsConfig trialStatsConfig;
+
+        private static readonly string[] LevelSceneNames = { "", "Tutorial", "Challenge", "FailTest" };
 
         private void Awake()
         {
@@ -27,7 +30,7 @@ namespace InkMountainBridge
             if (AudioManager.Instance == null)
             {
                 GameObject go = new GameObject(nameof(AudioManager));
-                var am = go.AddComponent<AudioManager>();
+                go.AddComponent<AudioManager>();
             }
 
             if (FindObjectOfType<AnalyticsRecorder>() == null)
@@ -57,15 +60,22 @@ namespace InkMountainBridge
         public void StartLevelById(int id)
         {
             if (levelConfigs == null) return;
+            if (id < 1 || id >= LevelSceneNames.Length) return;
 
-            foreach (var config in levelConfigs)
+            LevelConfig config = null;
+            foreach (var c in levelConfigs)
             {
-                if (config != null && config.levelId == id)
+                if (c != null && c.levelId == id)
                 {
-                    GameManager.Instance?.StartLevel(config);
+                    config = c;
                     break;
                 }
             }
+
+            if (config == null) return;
+
+            GameManager.Instance?.StartLevel(config);
+            SceneManager.LoadScene(LevelSceneNames[id]);
         }
 
         public void StartTutorialLevel()
@@ -81,6 +91,11 @@ namespace InkMountainBridge
         public void StartFailTestLevel()
         {
             StartLevelById(3);
+        }
+
+        public void ReturnToMenu()
+        {
+            SceneManager.LoadScene("MainMenu");
         }
     }
 }

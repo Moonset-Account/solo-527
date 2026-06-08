@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f600010000000000000006, type: 3}
+  m_Name: ChallengeLevelConfig
+  m_EditorClassIdentifier:
+  levelId: 2
+  levelName: "\u4E91\u5CAD\u9669\u6E21"
+  valleyWidth: 16
+  valleyDepth: 10
+  anchorPoints:
+  - {x: -8, y: 0}
+  - {x: 0, y: -3}
+  - {x: 8, y: 0}
+  availableMaterials:
+    beamCount: 12
+    ropeCount: 8
+    pierCount: 4
+    maxTotalWeight: 800
+  weatherType: 2
+  maxWindForce: 30
+  maxRainWeight: 0
+  timeLimit: 180
+  targetScore: 200
+  isTutorial: 0
+  forceFailOnComplete: 0
+  tutorialSteps: []
+  caravanWeight: 80
+  caravanSpeed: 2.5

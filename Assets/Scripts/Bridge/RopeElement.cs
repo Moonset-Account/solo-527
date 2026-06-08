@@ -63,7 +63,7 @@ namespace InkMountainBridge
             if (startNode != null) startNode.RemoveElement(this);
             if (endNode != null) endNode.RemoveElement(this);
 
-            GameEvents.OnBridgeCollapsed?.Invoke(snapPosition);
+            GameEvents.RaiseBridgeCollapsed(snapPosition);
         }
 
         public override void UpdateVisual()
