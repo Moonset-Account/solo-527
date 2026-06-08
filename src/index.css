@@ -1,0 +1,177 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --factory-bg: #2D1B0E;
+  --factory-accent: #C45D2C;
+  --factory-green: #4A7C59;
+  --factory-cream: #E8DCC8;
+  --factory-gold: #D4A84B;
+  --factory-red: #C44B4B;
+  --factory-dark: #1a1008;
+  --factory-panel: #3a2518;
+  --factory-border: #8B7355;
+  --factory-rivet: #6B5B3A;
+
+  font-family: "VT323", monospace;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  image-rendering: pixelated;
+}
+
+body {
+  margin: 0;
+  background-color: var(--factory-dark);
+  color: var(--factory-cream);
+  font-family: "VT323", monospace;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+@layer components {
+  .rivet-btn {
+    @apply relative font-terminal text-factory-cream px-4 py-2 border-2 border-factory-border
+           bg-gradient-to-b from-factory-panel to-factory-bg
+           shadow-[inset_0_1px_0_rgba(139,115,85,0.3),0_2px_0_#1a1008]
+           transition-all duration-100 cursor-pointer select-none;
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .rivet-btn:hover {
+    @apply shadow-[inset_0_-1px_0_rgba(139,115,85,0.3),0_1px_0_#1a1008];
+    transform: translateY(1px);
+  }
+
+  .rivet-btn:active {
+    @apply shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)];
+    transform: translateY(2px);
+  }
+
+  .rivet-btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .rivet-btn-primary {
+    @apply rivet-btn border-factory-accent;
+    background: linear-gradient(to bottom, #C45D2C, #8B3A1A);
+  }
+
+  .rivet-btn-gold {
+    @apply rivet-btn border-factory-gold;
+    background: linear-gradient(to bottom, #D4A84B, #8B6F2A);
+  }
+
+  .industrial-panel {
+    @apply bg-factory-panel border-2 border-factory-border relative;
+    box-shadow:
+      inset 0 0 20px rgba(0,0,0,0.3),
+      0 4px 8px rgba(0,0,0,0.5);
+  }
+
+  .industrial-panel::before,
+  .industrial-panel::after {
+    content: '';
+    @apply absolute w-2 h-2 rounded-full;
+    background: radial-gradient(circle, #8B7355 40%, #6B5B3A 60%);
+  }
+
+  .industrial-panel::before {
+    top: 4px;
+    left: 4px;
+  }
+
+  .industrial-panel::after {
+    top: 4px;
+    right: 4px;
+  }
+
+  .rivet-corners {
+    @apply relative;
+  }
+
+  .rivet-corner-bl,
+  .rivet-corner-br {
+    content: '';
+    @apply absolute w-2 h-2 rounded-full;
+    background: radial-gradient(circle, #8B7355 40%, #6B5B3A 60%);
+  }
+
+  .note-card {
+    @apply relative bg-[#e8dcc8] text-factory-dark p-3 border border-[#c4b89a];
+    transform: rotate(-0.5deg);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+  }
+
+  .note-card::after {
+    content: '';
+    @apply absolute top-0 right-0 w-4 h-4;
+    background: linear-gradient(135deg, transparent 50%, #c44b4b 50%);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(212, 168, 75, 0.6); }
+  50% { opacity: 0.6; box-shadow: 0 0 16px rgba(212, 168, 75, 0.9); }
+}
+
+@keyframes slideIn {
+  0% { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes stampIn {
+  0% { transform: scale(2) rotate(-10deg); opacity: 0; }
+  50% { transform: scale(0.9) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes gearSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--factory-dark);
+  border: 1px solid var(--factory-rivet);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--factory-border), var(--factory-rivet));
+  border: 1px solid var(--factory-rivet);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #a08a65, var(--factory-border));
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--factory-dark);
+}
+
+#root {
+  min-height: 100vh;
+}
