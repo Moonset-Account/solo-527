@@ -342,6 +342,65 @@ export class Renderer {
     this.ctx.closePath()
   }
 
+  getCharPosition(ch: PuzzleChar, slots: PuzzleSlot[]): { x: number; y: number } {
+    const w = this.getCanvasWidth()
+    const layout = this.slotLayout(slots, w)
+    const slotMap = new Map(layout.map((l) => [l.slot.index, l]))
+    if (ch.slotIndex !== null) {
+      const sl = slotMap.get(ch.slotIndex)
+      if (sl) return { x: sl.x, y: sl.y }
+    }
+    const row = Math.floor(ch.originIndex / 8)
+    const col = ch.originIndex % 8
+    const poolY = w * 0.55 + row * (CARD_H + SLOT_GAP)
+    const poolTotal = 8 * (CARD_W + SLOT_GAP) - SLOT_GAP
+    const poolStartX = (w - poolTotal) / 2
+    return { x: poolStartX + col * (CARD_W + SLOT_GAP), y: poolY }
+  }
+
+  getSlotAt(x: number, y: number, slots: PuzzleSlot[]): number | null {
+    const w = this.getCanvasWidth()
+    const layout = this.slotLayout(slots, w)
+    for (const { x: sx, y: sy, slot } of layout) {
+      if (x >= sx && x <= sx + CARD_W && y >= sy && y <= sy + CARD_H) {
+        return slot.index
+      }
+    }
+    return null
+  }
+
+  getCharAt(x: number, y: number, chars: PuzzleChar[], slots: PuzzleSlot[]): string | null {
+    for (const ch of chars) {
+      const pos = this.getCharPosition(ch, slots)
+      if (x >= pos.x && x <= pos.x + CARD_W && y >= pos.y && y <= pos.y + CARD_H) {
+        return ch.id
+      }
+    }
+    return null
+  }
+
+  getUnplacedCharAt(x: number, y: number, chars: PuzzleChar[], slots: PuzzleSlot[]): string | null {
+    for (const ch of chars) {
+      if (ch.slotIndex !== null) continue
+      const pos = this.getCharPosition(ch, slots)
+      if (x >= pos.x && x <= pos.x + CARD_W && y >= pos.y && y <= pos.y + CARD_H) {
+        return ch.id
+      }
+    }
+    return null
+  }
+
+  getPlacedCharAt(x: number, y: number, chars: PuzzleChar[], slots: PuzzleSlot[]): { charId: string; slotIndex: number } | null {
+    for (const ch of chars) {
+      if (ch.slotIndex === null) continue
+      const pos = this.getCharPosition(ch, slots)
+      if (x >= pos.x && x <= pos.x + CARD_W && y >= pos.y && y <= pos.y + CARD_H) {
+        return { charId: ch.id, slotIndex: ch.slotIndex }
+      }
+    }
+    return null
+  }
+
   getCanvasWidth(): number {
     return this.canvas.width / this.dpr
   }

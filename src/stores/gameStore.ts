@@ -5,6 +5,15 @@ import { PuzzleEngine } from '@/game/PuzzleEngine'
 import { ScoreCalculator } from '@/game/ScoreCalculator'
 import chaptersConfig from '@/config/chapters.json'
 
+interface UndoAction {
+  type: 'place' | 'remove' | 'swap'
+  charId: string
+  slotIndex: number
+  prevSlotIndex: number | null
+  otherCharId?: string
+  otherSlotIndex?: number
+}
+
 export const useGameStore = defineStore('game', () => {
   const currentChapterId = ref('')
   const currentLevelId = ref('')
@@ -16,6 +25,8 @@ export const useGameStore = defineStore('game', () => {
   const scoreResult = ref<ScoreResult | null>(null)
   const isPaused = ref(false)
   const sessions = ref<SessionRecord[]>([])
+  const keyChoices = ref<ChoiceRecord[]>([])
+  const undoStack = ref<UndoAction[]>([])
 
   const hintPoints = computed(() => {
     if (!puzzleEngine.value) return 0
@@ -34,6 +45,8 @@ export const useGameStore = defineStore('game', () => {
     scoreResult.value = null
     isPaused.value = false
     elapsedTime.value = 0
+    keyChoices.value = []
+    undoStack.value = []
   }
 
   function setPuzzleEngine(engine: PuzzleEngine) {
@@ -48,8 +61,12 @@ export const useGameStore = defineStore('game', () => {
 
   function placeChar(charId: string, slotIndex: number): ErrorFeedback | null {
     if (!puzzleEngine.value) return null
+    const chars = puzzleEngine.value.getChars()
+    const ch = chars.find((c) => c.id === charId)
+    const prevSlot = ch?.slotIndex ?? null
     const placed = puzzleEngine.value.placeChar(charId, slotIndex)
     if (!placed) return null
+    undoStack.value.push({ type: 'place', charId, slotIndex, prevSlotIndex: prevSlot })
     const error = puzzleEngine.value.checkPlacement(slotIndex)
     if (error) {
       errorFeedback.value = error
@@ -63,7 +80,39 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function removeChar(slotIndex: number) {
-    puzzleEngine.value?.removeChar(slotIndex)
+    if (!puzzleEngine.value) return
+    const chars = puzzleEngine.value.getChars()
+    const ch = chars.find((c) => c.slotIndex === slotIndex)
+    if (!ch) return
+    undoStack.value.push({ type: 'remove', charId: ch.id, slotIndex, prevSlotIndex: null })
+    puzzleEngine.value.removeChar(slotIndex)
+  }
+
+  function swapChars(slotA: number, slotB: number) {
+    if (!puzzleEngine.value) return
+    const chars = puzzleEngine.value.getChars()
+    const chA = chars.find((c) => c.slotIndex === slotA)
+    const chB = chars.find((c) => c.slotIndex === slotB)
+    if (!chA || !chB) return
+    undoStack.value.push({ type: 'swap', charId: chA.id, slotIndex: slotB, prevSlotIndex: slotA, otherCharId: chB.id, otherSlotIndex: slotA })
+    puzzleEngine.value.swapChars(slotA, slotB)
+  }
+
+  function undo() {
+    if (!puzzleEngine.value) return
+    const action = undoStack.value.pop()
+    if (!action) return
+    if (action.type === 'place') {
+      puzzleEngine.value.removeChar(action.slotIndex)
+      if (action.prevSlotIndex !== null) {
+        puzzleEngine.value.placeChar(action.charId, action.prevSlotIndex)
+      }
+    } else if (action.type === 'remove') {
+      puzzleEngine.value.placeChar(action.charId, action.slotIndex)
+    } else if (action.type === 'swap' && action.otherCharId) {
+      puzzleEngine.value.swapChars(action.slotIndex, action.otherSlotIndex ?? 0)
+    }
+    errorFeedback.value = null
   }
 
   function resetPuzzle() {
@@ -73,12 +122,22 @@ export const useGameStore = defineStore('game', () => {
     lastHint.value = null
     isComplete.value = false
     scoreResult.value = null
+    keyChoices.value = []
+    undoStack.value = []
   }
 
   function useHint(type: 'tone' | 'imagery' | 'position'): HintResult | null {
     if (!puzzleEngine.value) return null
     const result = puzzleEngine.value.getHint(type)
     lastHint.value = result
+    if (result.cost > 0) {
+      recordChoice({
+        timestamp: Date.now(),
+        type: 'hint',
+        detail: `使用${type === 'tone' ? '声调' : type === 'imagery' ? '意象' : '位置'}提示`,
+        correct: false,
+      })
+    }
     return result
   }
 
@@ -102,6 +161,10 @@ export const useGameStore = defineStore('game', () => {
     return result
   }
 
+  function recordChoice(choice: ChoiceRecord) {
+    keyChoices.value.push(choice)
+  }
+
   function recordSession(result: 'success' | 'quit') {
     const record: SessionRecord = {
       levelId: currentLevelId.value,
@@ -111,7 +174,7 @@ export const useGameStore = defineStore('game', () => {
       duration: elapsedTime.value,
       failureCount: errorsCount.value,
       hintsUsed: hintsUsed.value,
-      keyChoices: [],
+      keyChoices: [...keyChoices.value],
       result,
       score: scoreResult.value?.totalScore ?? 0,
       stars: scoreResult.value?.stars ?? 0,
@@ -137,14 +200,19 @@ export const useGameStore = defineStore('game', () => {
     hintPoints,
     errorsCount,
     hintsUsed,
+    keyChoices,
+    undoStack,
     initGame,
     setPuzzleEngine,
     tick,
     placeChar,
     removeChar,
+    swapChars,
+    undo,
     resetPuzzle,
     useHint,
     calculateScore,
+    recordChoice,
     recordSession,
     clearErrorFeedback,
   }
