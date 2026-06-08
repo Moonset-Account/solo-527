@@ -168,15 +168,23 @@ namespace PuppetTheater.Core
 
             _consecutiveMisses = 0;
 
-            _lightStateSystem.SwitchLight(result.ExpectedColor, result.IsHit);
+            _lightStateSystem.SwitchLight(result.ActualColor, result.IsHit);
+            _stageMechanism.CurrentStageLight = result.ActualColor;
             _audioManager.PlayJudgmentSound(result.Grade);
-            _animationFeedback.TriggerJudgmentFeedback(result.Grade, result.ExpectedColor);
+            _animationFeedback.TriggerJudgmentFeedback(result.Grade, result.ActualColor);
             _animationFeedback.TriggerComboFeedback(_currentCombo);
             _storyNodeSystem.UpdateAudienceEmotion(result.Grade);
+            _storyNodeSystem.RecordChoice(result.ActualColor, PuppetActionType.Dance);
 
             if (result.IsHit)
             {
-                _stageMechanism.TriggerPuppetAction(result.BeatIndex, PuppetActionType.Dance, result.ExpectedColor);
+                int puppetPos = result.BeatIndex % 5;
+                _stageMechanism.TriggerPuppetAction(puppetPos, PuppetActionType.Dance, result.ExpectedColor);
+            }
+            else
+            {
+                _lightStateSystem.FlashError();
+                _audioManager.PlayLightSwitchSound(result.ExpectedColor, result.ActualColor, false);
             }
         }
 

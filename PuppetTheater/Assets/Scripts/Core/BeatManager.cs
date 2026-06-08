@@ -108,6 +108,13 @@ namespace PuppetTheater.Core
 
             _judgedBeats.Add(closestBeat);
 
+            bool colorMatch = inputColor == _beatMap[closestBeat].expectedColor;
+
+            if (!colorMatch)
+            {
+                grade = DowngradeForWrongColor(grade);
+            }
+
             ApplyScoreAndCombo(grade);
 
             var result = new JudgmentResult
@@ -150,6 +157,19 @@ namespace PuppetTheater.Core
             if (adjustedDiff < 0 && adjustedDiff >= -earlyLateWindowMs) return JudgmentGrade.Early;
             if (adjustedDiff > 0 && adjustedDiff <= earlyLateWindowMs) return JudgmentGrade.Late;
             return JudgmentGrade.Miss;
+        }
+
+        private JudgmentGrade DowngradeForWrongColor(JudgmentGrade grade)
+        {
+            return grade switch
+            {
+                JudgmentGrade.Perfect => JudgmentGrade.Good,
+                JudgmentGrade.Great => JudgmentGrade.Early,
+                JudgmentGrade.Good => JudgmentGrade.Miss,
+                JudgmentGrade.Early => JudgmentGrade.Miss,
+                JudgmentGrade.Late => JudgmentGrade.Miss,
+                _ => JudgmentGrade.Miss
+            };
         }
 
         private void ApplyScoreAndCombo(JudgmentGrade grade)

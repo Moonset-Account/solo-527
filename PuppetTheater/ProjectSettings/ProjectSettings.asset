@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ProductName: PuppetTheater
+  m_CompanyName: PuppetTheater
+  m_DefaultScreenWidth: 1280
+  m_DefaultScreenHeight: 720
+  m_DefaultScreenWidthWeb: 1280
+  m_DefaultScreenHeightWeb: 720
+  m_FullscreenMode: 1
+  m_StereoRenderingPath: 0
+  m_ActiveColorSpace: 0
+  m_MTRendering: 1
+  m_StackTraceTypes: 010000000100000001000000010000000100000001000000
+  m_ScriptingBackend: 0
+  m_ScriptingDefineSymbols: 
+  m_ApiCompatibilityLevel: 3
+  m_TargetPlatform: 7

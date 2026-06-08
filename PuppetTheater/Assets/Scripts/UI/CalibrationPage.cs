@@ -89,7 +89,7 @@ namespace PuppetTheater.UI
 
             if (_beatManager != null)
             {
-                _beatManager.SetCalibrationOffset(_calibrationOffsetMs / 1000f);
+                _beatManager.SetCalibrationOffset(_calibrationOffsetMs);
             }
         }
 
