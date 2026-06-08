@@ -309,7 +309,6 @@ func _release_item(item: RigidBody2D) -> void:
 		_is_settling = true
 		_settle_item = item
 		_settle_timer = 1.5
-		AudioManager.play_sfx("place")
 	else:
 		item.release_outside()
 
@@ -414,6 +413,7 @@ func _finalize_placement(item: RigidBody2D) -> void:
 		"prev_rotation": item._original_rot
 	})
 	GameManager.add_item_to_box(item)
+	AudioManager.play_sfx("place")
 	if _feedback:
 		_feedback.spawn_place_feedback(item.global_position, Color.GREEN)
 
@@ -421,6 +421,9 @@ func _reject_placement(item: RigidBody2D, msg: String, color: Color) -> void:
 	item.set_meta("in_box", false)
 	item.is_placed = false
 	GameManager.remove_item_from_box(item)
+	if _box and is_instance_valid(_box):
+		_box.remove_item_from_tracking(item)
+	AudioManager.play_sfx("fail")
 	if _feedback:
 		_feedback.spawn_floating_text(item.global_position, msg, color)
 

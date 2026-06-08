@@ -230,3 +230,8 @@ func rebuild_internal_state() -> void:
 		if box_inner.has_point(local_pos):
 			_items_inside.append(node)
 	_update_weight()
+
+func remove_item_from_tracking(item: Node2D) -> void:
+	if _items_inside.has(item):
+		_items_inside.erase(item)
+		_update_weight()
