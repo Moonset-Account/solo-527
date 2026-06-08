@@ -1,0 +1,28 @@
+{
+  "metrics": {
+    "borrow_count": { "label": "借阅量", "unit": "次", "sql_field": "COUNT(*)" },
+    "renewal_rate": { "label": "续借率", "unit": "%", "sql_field": "SUM(is_renewed)*100/COUNT(*)" },
+    "reservation_fulfill_rate": { "label": "预约满足率", "unit": "%" },
+    "overdue_rate": { "label": "逾期率", "unit": "%", "sql_field": "SUM(is_overdue)*100/COUNT(*)" }
+  },
+  "age_groups": {
+    "child": { "label": "少儿", "aggregation_only": true, "min_group_size": 5 },
+    "youth": { "label": "青年", "aggregation_only": false },
+    "middle": { "label": "中年", "aggregation_only": false },
+    "senior": { "label": "老年", "aggregation_only": false }
+  },
+  "anomaly_threshold": {
+    "overdue_rate": 15,
+    "reservation_wait_days": 30,
+    "borrow_count_change_pct": 20
+  },
+  "themes": {
+    "文学": ["中国当代文学", "外国文学", "古典文学", "网络文学", "诗歌散文"],
+    "社科": ["历史", "哲学", "心理学", "经济学", "社会学"],
+    "科技": ["计算机", "工程", "医学", "自然科学", "数学"],
+    "少儿": ["绘本", "童话", "科普启蒙", "少儿文学", "漫画"],
+    "艺术": ["美术", "音乐", "摄影", "设计", "影视"],
+    "生活": ["健康养生", "烹饪", "旅游", "家庭教育", "手工"]
+  },
+  "collection_types": ["文学", "社科", "科技", "少儿", "艺术", "生活"]
+}
