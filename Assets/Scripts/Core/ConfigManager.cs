@@ -68,6 +68,11 @@ namespace TeaGardenDefense.Core
             OnConfigLoaded?.Invoke();
         }
 
+        public void ReloadConfig()
+        {
+            LoadConfig();
+        }
+
         private void BuildLookupDictionaries()
         {
             _towerConfigs.Clear();

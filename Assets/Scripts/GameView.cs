@@ -663,12 +663,42 @@ namespace TeaGardenDefense
             level.pathPoints.Clear();
             foreach (var p in _editPathPoints)
                 level.pathPoints.Add(new PathPoint { x = p.x, y = p.y, z = p.z });
+            string levelId = level.levelId;
+            int expectedCount = _editPathPoints.Count;
+            var expectedPts = new List<Vector3>(_editPathPoints);
             ConfigManager.Instance.UpdateLevelConfig(level);
 
             try
             {
                 ConfigManager.Instance.SaveConfigToDisk();
-                _gm.Hints?.ShowToast($"✅ 路径已保存 ({_editPathPoints.Count}个点, 重启不丢失)");
+                ConfigManager.Instance.ReloadConfig();
+                var diskLevel = ConfigManager.Instance.GetLevelConfig(levelId);
+                bool match = true;
+                string details = "";
+                if (diskLevel == null) { match = false; details = "磁盘未找到该关卡"; }
+                else if (diskLevel.pathPoints.Count != expectedCount)
+                {
+                    match = false;
+                    details = $"点数不一致(内存{expectedCount}≠磁盘{diskLevel.pathPoints.Count})";
+                }
+                else
+                {
+                    for (int i = 0; i < expectedCount; i++)
+                    {
+                        var a = expectedPts[i];
+                        var b = diskLevel.pathPoints[i];
+                        if (Vector3.Distance(a, new Vector3(b.x, b.y, b.z)) > 0.001f)
+                        {
+                            match = false;
+                            details = $"点#{i}坐标不一致 (内存{a:F2}≠磁盘({b.x:F2},{b.y:F2},{b.z:F2}))";
+                            break;
+                        }
+                    }
+                }
+                if (match)
+                    _gm.Hints?.ShowToast($"✅ 路径持久化成功 ({expectedCount}点, 磁盘验证一致, 重启不丢失)");
+                else
+                    _gm.Hints?.ShowToast($"⚠️ 路径已保存但验证失败: {details}");
             }
             catch (Exception e)
             {
@@ -849,20 +879,24 @@ namespace TeaGardenDefense
                     for (int i = logs.Count - 1; i >= 0; i--)
                     {
                         var log = logs[i];
-                        Color lc = log.actionType == "victory" ? new Color(0.45f, 0.85f, 0.45f)
-                            : log.actionType == "defeat" ? new Color(0.95f, 0.45f, 0.45f)
-                            : log.actionType.StartsWith("unlock") ? new Color(0.9f, 0.7f, 0.35f)
-                            : log.actionType.StartsWith("upgrade") ? new Color(0.55f, 0.8f, 0.95f)
+                        Color lc = log.choiceType == "victory" ? new Color(0.45f, 0.85f, 0.45f)
+                            : log.choiceType == "defeat" ? new Color(0.95f, 0.45f, 0.45f)
+                            : log.choiceType.StartsWith("unlock") ? new Color(0.9f, 0.7f, 0.35f)
+                            : log.choiceType.StartsWith("upgrade") ? new Color(0.55f, 0.8f, 0.95f)
                             : new Color(0.85f, 0.85f, 0.85f);
                         GUI.color = new Color(0.18f, 0.24f, 0.18f, 0.95f);
                         GUI.DrawTexture(new Rect(4, ry, bodyW - 28, 34), MakeTex(1, 1, GUI.color));
                         GUI.color = Color.white;
-                        GUI.Label(new Rect(10, ry + 2, 90, 18), $"[{log.timestamp?.Substring(11, 8) ?? "--:--:--"}]",
+                        int m = (int)log.gameTime / 60;
+                        int s = (int)log.gameTime % 60;
+                        int ms = (int)((log.gameTime - (int)log.gameTime) * 100);
+                        string timeStr = $"T+{m:00}:{s:00}.{ms:00}";
+                        GUI.Label(new Rect(10, ry + 2, 100, 18), $"[{timeStr}]",
                             new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = new Color(0.7f, 0.75f, 0.7f) } });
-                        GUI.Label(new Rect(95, ry + 2, bodyW - 130, 18),
-                            $"{ActionTypeIcon(log.actionType)} {log.actionType.Replace('_', ' ')}",
+                        GUI.Label(new Rect(110, ry + 2, bodyW - 145, 18),
+                            $"{ActionTypeIcon(log.choiceType)} {log.choiceType.Replace('_', ' ')}",
                             new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, normal = { textColor = lc } });
-                        GUI.Label(new Rect(10, ry + 18, bodyW - 28, 14), $"  详情: {log.details}",
+                        GUI.Label(new Rect(10, ry + 18, bodyW - 28, 14), $"  {log.choiceDetail}  [关卡:{log.levelId} 波次:{log.waveNumber} 💰{log.goldBefore}→{log.goldAfter}]",
                             new GUIStyle(GUI.skin.label) { fontSize = 10, normal = { textColor = new Color(0.85f, 0.9f, 0.85f) } });
                         ry += 38;
                     }
@@ -948,9 +982,9 @@ namespace TeaGardenDefense
                     string[] labels = { "🏹 建塔次数", "⬆️ 升级次数", "🌊 启动波次", "💥 击杀敌数", "🏃 漏网敌数", "🏆 胜利局数", "💀 失败局数" };
                     for (int i = 0; i < names.Length; i++)
                     {
-                        string val = perf.GetCounterValue(names[i]).ToString();
-                        DrawStat(ref gy, gx, labels[i], val);
-                        if (i % 2 == 1) { }
+                        perf.RegisterCounter(names[i]);
+                        long v = perf.GetCounter(names[i])?.count ?? 0;
+                        DrawStat(ref gy, i % 2 == 0 ? gx : gx + gw + 10, labels[i], v.ToString());
                     }
                     gy += 8;
                     GUI.Label(new Rect(gx, gy, bodyW - 30, 18),
@@ -965,17 +999,17 @@ namespace TeaGardenDefense
             }
         }
 
-        private string ActionTypeIcon(string actionType)
+        private string ActionTypeIcon(string choiceType)
         {
-            if (string.IsNullOrEmpty(actionType)) return "📍";
-            if (actionType.StartsWith("place")) return "🏗️";
-            if (actionType.StartsWith("upgrade")) return "⬆️";
-            if (actionType.StartsWith("sell")) return "💰";
-            if (actionType.StartsWith("unlock")) return "🔓";
-            if (actionType.StartsWith("start_wave") || actionType.StartsWith("wave")) return "🌊";
-            if (actionType == "victory") return "🏆";
-            if (actionType == "defeat") return "💔";
-            if (actionType.StartsWith("path")) return "🛤️";
+            if (string.IsNullOrEmpty(choiceType)) return "📍";
+            if (choiceType.StartsWith("place")) return "🏗️";
+            if (choiceType.StartsWith("upgrade")) return "⬆️";
+            if (choiceType.StartsWith("sell")) return "💰";
+            if (choiceType.StartsWith("unlock")) return "🔓";
+            if (choiceType.StartsWith("start_wave") || choiceType.StartsWith("wave")) return "🌊";
+            if (choiceType == "victory") return "🏆";
+            if (choiceType == "defeat") return "💔";
+            if (choiceType.StartsWith("path")) return "🛤️";
             return "📌";
         }
 

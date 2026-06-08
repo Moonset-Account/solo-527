@@ -99,7 +99,7 @@ namespace TeaGardenDefense.Core
             _minFPS = Mathf.Min(_minFPS, instantaneousFPS);
             _maxFPS = Mathf.Max(_maxFPS, instantaneousFPS);
 
-            if (_fpsHistory.Enqueue(instantaneousFPS);
+            _fpsHistory.Enqueue(instantaneousFPS);
             _fpsSum += instantaneousFPS;
 
             while (_fpsHistory.Count > _frameHistorySize)
