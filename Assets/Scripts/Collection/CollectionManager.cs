@@ -22,6 +22,7 @@ public class CollectionManager : MonoBehaviour
             return;
         }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
         LoadAllCollectionItems();
     }
 

@@ -14,10 +14,18 @@ public class GameFlowManager : MonoBehaviour
         Paused,
         Result,
         Collection,
-        Settings
+        Settings,
+        Map,
+        SupplyPanel,
+        RoutePlanner
     }
 
     public GamePhase CurrentPhase { get; private set; } = GamePhase.None;
+
+    public void SetPhase(GamePhase phase)
+    {
+        CurrentPhase = phase;
+    }
 
     private string _pendingLevelId;
 
@@ -62,6 +70,9 @@ public class GameFlowManager : MonoBehaviour
             case UIState.MissionResult: return GamePhase.Result;
             case UIState.Collection: return GamePhase.Collection;
             case UIState.Settings: return GamePhase.Settings;
+            case UIState.Map: return GamePhase.Map;
+            case UIState.SupplyPanel: return GamePhase.SupplyPanel;
+            case UIState.RoutePlanner: return GamePhase.RoutePlanner;
             default: return GamePhase.None;
         }
     }
@@ -175,22 +186,29 @@ public class GameFlowManager : MonoBehaviour
     {
         _pendingLevelId = levelId;
 
-        if (LevelManager.Instance != null && LevelManager.Instance.IsLevelUnlocked(levelId))
-        {
-            if (SceneMgr.Instance != null)
-            {
-                var config = ResLoader.Instance.LoadLevelConfig(levelId);
-                string sceneName = config != null && !string.IsNullOrEmpty(config.sceneName)
-                    ? config.sceneName
-                    : "Gameplay";
-                SceneMgr.Instance.LoadScene(sceneName);
-            }
-
-            LevelManager.Instance.StartLevel(levelId);
-        }
-        else
+        if (LevelManager.Instance == null || !LevelManager.Instance.IsLevelUnlocked(levelId))
         {
             GameEvents.TriggerAudioTriggerRequested("ui_locked", 0.5f);
+            return;
+        }
+
+        var config = ResLoader.Instance.LoadLevelConfig(levelId);
+        string sceneName = config != null && !string.IsNullOrEmpty(config.sceneName)
+            ? config.sceneName
+            : "Gameplay";
+
+        if (SceneMgr.Instance != null)
+            SceneMgr.Instance.LoadScene(sceneName);
+        else
+            SceneManager.LoadScene(sceneName);
+    }
+
+    public void OnGameplaySceneReady()
+    {
+        if (!string.IsNullOrEmpty(_pendingLevelId))
+        {
+            LevelManager.Instance?.StartLevel(_pendingLevelId);
+            _pendingLevelId = null;
         }
     }
 

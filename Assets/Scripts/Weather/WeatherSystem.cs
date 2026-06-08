@@ -71,6 +71,7 @@ public class WeatherSystem : MonoBehaviour
             return;
         }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
         InitializeTransitionMatrix();
     }
 

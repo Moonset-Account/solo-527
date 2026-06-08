@@ -64,4 +64,9 @@ public class UIStateManager : MonoBehaviour
         CurrentState = state;
         OnStateChanged?.Invoke(previous, CurrentState);
     }
+
+    public Stack<UIState> GetStateStack()
+    {
+        return new Stack<UIState>(_stateStack);
+    }
 }
