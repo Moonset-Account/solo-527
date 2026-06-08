@@ -1151,6 +1151,7 @@ func _perform_task(char_id: String, task_id: String) -> void:
 		_show_notification("🎉 任务完成: %s (满意度+%d)" % [t["name"], sat_bonus], "success")
 		DebugLog.log_success("任务完成: %s, 满意度+%d" % [t["name"], sat_bonus])
 	_refresh_all_ui()
+	_check_victory_condition()
 
 func _refresh_char_ap(inst: Dictionary) -> void:
 	if inst["node"] == null:
@@ -1175,17 +1176,19 @@ func _refresh_task_visual(t: Dictionary) -> void:
 func _update_task_node(node: Node, t: Dictionary) -> void:
 	if node == null or not is_instance_valid(node):
 		return
-	var pb = node.get_node_or_null("bar")
-	var pg = node.get_node_or_null("progress")
-	var ic = node.get_node_or_null("icon")
+	var pb = node.get_node_or_null("PanelContainer/VBoxContainer/bar")
+	var pg = node.get_node_or_null("PanelContainer/VBoxContainer/progress")
+	var ic = node.get_node_or_null("PanelContainer/VBoxContainer/icon")
 	if pb:
 		pb.value = t["progress"]
 	if pg:
 		pg.text = "%d/%d" % [t["progress"], t["max"]]
 	if t["completed"] and node is Control:
-		node.modulate = Color(0.5, 0.5, 0.5, 0.4)
+		(node as Control).modulate = Color(0.5, 0.5, 0.5, 0.4)
 		if ic:
 			ic.text = "✅"
+	elif node is Control:
+		(node as Control).modulate = Color.WHITE
 
 func _get_task_multiplier(ttype: String) -> float:
 	var mult: float = 1.0
@@ -1289,6 +1292,7 @@ func _execute_skill(char_id: String, sk_id: String, target: Vector2i) -> void:
 	_check_victory_condition()
 
 func _check_task_complete(t: Dictionary) -> void:
+	_refresh_task_visual(t)
 	if t["progress"] >= t["max"] and not t.get("completed", false):
 		t["completed"] = true
 		var sb: int = t.get("satisfaction", 0)
@@ -1299,6 +1303,9 @@ func _check_task_complete(t: Dictionary) -> void:
 		AudioManager.play_sfx("task_done")
 		_show_notification("🎉 任务完成: %s (+%d满意度)" % [t["name"], sb], "success")
 		DebugLog.log_success("任务完成: %s, +%d满意度" % [t["name"], sb])
+		_refresh_task_visual(t)
+	_refresh_all_ui()
+	_check_victory_condition()
 
 func _task_type_name(ttype: String) -> String:
 	match ttype:
