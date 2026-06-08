@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections;
 
 namespace DecorMatch3
@@ -119,9 +120,8 @@ namespace DecorMatch3
 
         private void SetupLevelController()
         {
-            GameObject lcObj = new GameObject("LevelController");
-            _levelController = lcObj.AddComponent<LevelController>();
-            _levelController.StartLevel(_currentLevelId);
+            _levelController = _board.gameObject.AddComponent<LevelController>();
+            _levelController.Initialize(_board, _comboSystem, _currentConfig);
         }
 
         private void BuildGameplayUI()
@@ -471,10 +471,6 @@ namespace DecorMatch3
             if (_board != null && _board.gameObject != null)
             {
                 Destroy(_board.gameObject);
-            }
-            if (_levelController != null && _levelController.gameObject != null)
-            {
-                Destroy(_levelController.gameObject);
             }
             _board = null;
             _boardVisual = null;

@@ -11,6 +11,14 @@ namespace DecorMatch3
         public GameState CurrentState { get; private set; }
         public int CurrentLevelId { get; private set; }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void EnsureExists()
+        {
+            if (Instance != null) return;
+            GameObject go = new GameObject("[GameManager]");
+            go.AddComponent<GameManager>();
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -32,6 +40,27 @@ namespace DecorMatch3
             AudioManager.Instance.Init();
             InputManager.Instance.Init();
             PerformanceMonitor.Instance.Init();
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name == "MainMenu")
+            {
+                var boot = FindObjectOfType<MainMenuBootstrapper>();
+                if (boot == null)
+                {
+                    GameObject bootObj = new GameObject("MainMenuBootstrapper");
+                    boot = bootObj.AddComponent<MainMenuBootstrapper>();
+                }
+                boot.Setup();
+                ChangeState(GameState.MainMenu);
+            }
+            else if (scene.name == "Gameplay")
+            {
+                ChangeState(GameState.Playing);
+            }
         }
 
         public void ChangeState(GameState newState)
@@ -52,12 +81,13 @@ namespace DecorMatch3
             CurrentLevelId = levelId;
             StartCoroutine(LoadSceneAndStart("Gameplay", () =>
             {
-                ChangeState(GameState.Playing);
-                var bootstrapper = FindObjectOfType<GameplayBootstrapper>();
-                if (bootstrapper != null)
+                var boot = FindObjectOfType<GameplayBootstrapper>();
+                if (boot == null)
                 {
-                    bootstrapper.LaunchLevel(levelId);
+                    GameObject bootObj = new GameObject("GameplayBootstrapper");
+                    boot = bootObj.AddComponent<GameplayBootstrapper>();
                 }
+                boot.LaunchLevel(levelId);
             }));
         }
 
@@ -66,12 +96,13 @@ namespace DecorMatch3
             CurrentLevelId = levelId;
             StartCoroutine(LoadSceneAndStart("Gameplay", () =>
             {
-                ChangeState(GameState.Decoration);
-                var bootstrapper = FindObjectOfType<GameplayBootstrapper>();
-                if (bootstrapper != null)
+                var boot = FindObjectOfType<GameplayBootstrapper>();
+                if (boot == null)
                 {
-                    bootstrapper.LaunchDecoration(levelId);
+                    GameObject bootObj = new GameObject("GameplayBootstrapper");
+                    boot = bootObj.AddComponent<GameplayBootstrapper>();
                 }
+                boot.LaunchDecoration(levelId);
             }));
         }
 
@@ -80,11 +111,6 @@ namespace DecorMatch3
             StartCoroutine(LoadSceneAndStart("MainMenu", () =>
             {
                 ChangeState(GameState.MainMenu);
-                var bootstrapper = FindObjectOfType<MainMenuBootstrapper>();
-                if (bootstrapper != null)
-                {
-                    bootstrapper.Setup();
-                }
             }));
         }
 
@@ -123,6 +149,11 @@ namespace DecorMatch3
                     ChangeState(GameState.Playing);
                 }
             }
+        }
+
+        private void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
         }
     }
 }

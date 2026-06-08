@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace DecorMatch3
@@ -7,7 +6,6 @@ namespace DecorMatch3
     public class LevelController : MonoBehaviour
     {
         private Board _board;
-        private SwapHandler _swapHandler;
         private ComboSystem _comboSystem;
         private LevelConfigData _config;
         private int _currentMoves;
@@ -15,39 +13,16 @@ namespace DecorMatch3
         private int _collectedMaterials;
         private bool _isLevelActive;
 
-        public void StartLevel(int levelId)
+        public void Initialize(Board board, ComboSystem comboSystem, LevelConfigData config)
         {
-            _config = ConfigManager.Instance.GetLevel(levelId);
-            if (_config == null)
-            {
-                Debug.LogError("Level config not found: " + levelId);
-                return;
-            }
+            _board = board;
+            _comboSystem = comboSystem;
+            _config = config;
 
-            _currentMoves = _config.movesLimit;
+            _currentMoves = config.movesLimit;
             _currentScore = 0;
             _collectedMaterials = 0;
             _isLevelActive = true;
-
-            _board = GetComponent<Board>();
-            if (_board == null)
-            {
-                _board = gameObject.AddComponent<Board>();
-            }
-            _board.Initialize(_config);
-
-            _swapHandler = GetComponent<SwapHandler>();
-            if (_swapHandler == null)
-            {
-                _swapHandler = gameObject.AddComponent<SwapHandler>();
-            }
-            _swapHandler.Initialize(_board);
-
-            _comboSystem = GetComponent<ComboSystem>();
-            if (_comboSystem == null)
-            {
-                _comboSystem = gameObject.AddComponent<ComboSystem>();
-            }
 
             _board.OnBoardStabilized += OnBoardStabilized;
             GameEvents.TriggerMovesChanged(_currentMoves);
@@ -84,11 +59,6 @@ namespace DecorMatch3
 
             _currentScore += matchScore;
             GameEvents.TriggerScoreChanged(_currentScore);
-        }
-
-        public void OnMovesChanged()
-        {
-            GameEvents.TriggerMovesChanged(_currentMoves);
         }
 
         public void CheckLevelEnd()
