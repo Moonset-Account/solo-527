@@ -30,9 +30,9 @@ var _stats_incomplete_penalty: int = 0
 var _battle_root: Control
 var _board_container: Control
 var _board_center: Control
-var _tiles_layer: Node2D
-var _chars_layer: Node2D
-var _overlay_layer: Node2D
+var _tiles_layer: Control
+var _chars_layer: Control
+var _overlay_layer: Control
 var _board_click_control: Control
 var _ui_top: PanelContainer
 var _ui_bottom: PanelContainer
@@ -270,15 +270,23 @@ func _build_ui() -> void:
 	board_sub.anchor_bottom = 1.0
 	board_margin.add_child(board_sub)
 
-	var tiles_root := Node2D.new()
-	tiles_root.position = Vector2(0, 0)
+	var tiles_root := Control.new()
+	tiles_root.anchor_right = 1.0
+	tiles_root.anchor_bottom = 1.0
+	tiles_root.mouse_filter = 0
 	board_sub.add_child(tiles_root)
 	_tiles_layer = tiles_root
 
-	_chars_layer = Node2D.new()
+	_chars_layer = Control.new()
+	_chars_layer.anchor_right = 1.0
+	_chars_layer.anchor_bottom = 1.0
+	_chars_layer.mouse_filter = 0
 	board_sub.add_child(_chars_layer)
 
-	_overlay_layer = Node2D.new()
+	_overlay_layer = Control.new()
+	_overlay_layer.anchor_right = 1.0
+	_overlay_layer.anchor_bottom = 1.0
+	_overlay_layer.mouse_filter = 0
 	board_sub.add_child(_overlay_layer)
 
 	var board_click := Control.new()
@@ -454,18 +462,20 @@ func _spawn_characters() -> void:
 func _render_character(inst: Dictionary) -> void:
 	var data: Dictionary = inst["data"]
 	var c: Color = data.get("color", Color.WHITE)
+	var CW: float = TILE_SIZE - 8
+	var CH: float = TILE_SIZE - 8
 	var node := Control.new()
 	node.name = "char_%s" % inst["id"]
-	node.size = Vector2(TILE_SIZE - 8, TILE_SIZE - 8)
 	var screen_pos: Vector2 = _tile_to_screen(inst["pos"]) + Vector2(4, 4)
 	node.position = screen_pos
+	node.size = Vector2(CW, CH)
+	node.visible = true
+	node.modulate = Color.WHITE
 	node.mouse_filter = 0
+	node.z_index = 5
 
-	var pc := PanelContainer.new()
-	pc.anchor_right = 1.0
-	pc.anchor_bottom = 1.0
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(c.r * 0.4, c.g * 0.4, c.b * 0.4, 0.9)
+	sb.bg_color = Color(c.r * 0.4, c.g * 0.4, c.b * 0.4, 0.92)
 	sb.border_width_left = 2
 	sb.border_width_top = 2
 	sb.border_width_right = 2
@@ -477,39 +487,59 @@ func _render_character(inst: Dictionary) -> void:
 	sb.corner_radius_bottom_right = 8
 	sb.shadow_color = Color(c.r, c.g, c.b, 0.4)
 	sb.shadow_size = 3
+	var pc := PanelContainer.new()
+	pc.name = "PanelContainer"
+	pc.size = Vector2(CW, CH)
+	pc.position = Vector2.ZERO
+	pc.visible = true
 	pc.add_theme_stylebox_override("panel", sb)
 	node.add_child(pc)
 
 	var vb := VBoxContainer.new()
-	vb.anchor_right = 1.0
-	vb.anchor_bottom = 1.0
+	vb.name = "VBoxContainer"
+	vb.size = Vector2(CW, CH)
+	vb.position = Vector2.ZERO
 	vb.alignment = 1
+	vb.add_theme_constant_override("separation", 0)
+	vb.visible = true
 	pc.add_child(vb)
 
 	var icon := Label.new()
+	icon.name = "icon"
 	icon.text = str(data.get("icon", "👤"))
 	icon.horizontal_alignment = 1
+	icon.size_flags_horizontal = 3
+	icon.custom_minimum_size = Vector2(CW - 6, 26)
 	icon.add_theme_font_size_override("font_size", 22)
+	icon.visible = true
 	vb.add_child(icon)
 
-	var name := Label.new()
-	name.text = str(data.get("name", "?"))
-	name.horizontal_alignment = 1
-	name.add_theme_font_size_override("font_size", 9)
-	name.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
-	vb.add_child(name)
+	var name_lbl := Label.new()
+	name_lbl.name = "name"
+	name_lbl.text = str(data.get("name", "?"))
+	name_lbl.horizontal_alignment = 1
+	name_lbl.size_flags_horizontal = 3
+	name_lbl.custom_minimum_size = Vector2(CW - 6, 12)
+	name_lbl.add_theme_font_size_override("font_size", 9)
+	name_lbl.add_theme_color_override("font_color", Color.WHITE)
+	name_lbl.visible = true
+	vb.add_child(name_lbl)
 
 	var ap := Label.new()
 	ap.name = "ap_label"
 	ap.text = "AP %d/%d" % [inst["ap"], inst["max_ap"]]
 	ap.horizontal_alignment = 1
+	ap.size_flags_horizontal = 3
+	ap.custom_minimum_size = Vector2(CW - 6, 12)
 	ap.add_theme_font_size_override("font_size", 9)
 	ap.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	ap.visible = true
 	vb.add_child(ap)
 
 	node.gui_input.connect(func(evt): _on_char_gui_input(evt, inst["id"]))
 	inst["node"] = node
 	_chars_layer.add_child(node)
+	print("=== RENDER CHAR: ", inst["id"], " ", data.get("name", "?"), " screen=", screen_pos, " size=", node.size)
 
 func _spawn_tasks() -> void:
 	for td in _level.get("tasks", []):
@@ -521,18 +551,21 @@ func _spawn_tasks() -> void:
 func _render_task(t: Dictionary) -> void:
 	var tinfo: Dictionary = preload("res://scripts/data/levels.gd").get_task_type_info(t["type"])
 	var screen: Vector2 = _tile_to_screen(t["pos"])
+	var color: Color = tinfo.get("color", Color.WHITE)
+	print("=== RENDER TASK: ", t["id"], " pos=", t["pos"], " screen=", screen, " tile_size=", TILE_SIZE)
+
+	var W: float = TILE_SIZE - 4
+	var H: float = TILE_SIZE - 4
 	var node := Control.new()
 	node.name = "task_%s" % t["id"]
-	node.size = Vector2(TILE_SIZE - 4, TILE_SIZE - 4)
 	node.position = screen + Vector2(2, 2)
+	node.size = Vector2(W, H)
+	node.visible = true
+	node.modulate = Color.WHITE
 	node.mouse_filter = 0
-	var color: Color = tinfo.get("color", Color.WHITE)
 
-	var pc := PanelContainer.new()
-	pc.anchor_right = 1.0
-	pc.anchor_bottom = 1.0
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(color.r * 0.2, color.g * 0.2, color.b * 0.2, 0.35)
+	sb.bg_color = Color(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.9)
 	sb.border_width_left = 2
 	sb.border_width_top = 2
 	sb.border_width_right = 2
@@ -542,43 +575,59 @@ func _render_task(t: Dictionary) -> void:
 	sb.corner_radius_top_right = 6
 	sb.corner_radius_bottom_left = 6
 	sb.corner_radius_bottom_right = 6
+	var pc := PanelContainer.new()
+	pc.name = "PanelContainer"
+	pc.size = Vector2(W, H)
+	pc.position = Vector2.ZERO
+	pc.visible = true
 	pc.add_theme_stylebox_override("panel", sb)
 	node.add_child(pc)
 
 	var vb := VBoxContainer.new()
-	vb.anchor_right = 1.0
-	vb.anchor_bottom = 1.0
+	vb.name = "VBoxContainer"
+	vb.size = Vector2(W, H)
+	vb.position = Vector2.ZERO
 	vb.alignment = 1
+	vb.add_theme_constant_override("separation", 1)
+	vb.visible = true
 	pc.add_child(vb)
 
 	var icon := Label.new()
 	icon.name = "icon"
 	icon.text = str(tinfo.get("icon", "❓"))
 	icon.horizontal_alignment = 1
-	icon.add_theme_font_size_override("font_size", 18)
+	icon.size_flags_horizontal = 3
+	icon.custom_minimum_size = Vector2(W - 8, 24)
+	icon.add_theme_font_size_override("font_size", 20)
+	icon.visible = true
 	vb.add_child(icon)
 
 	var progress_lbl := Label.new()
 	progress_lbl.name = "progress"
 	progress_lbl.text = "%d/%d" % [t["progress"], t["max"]]
 	progress_lbl.horizontal_alignment = 1
-	progress_lbl.add_theme_font_size_override("font_size", 9)
+	progress_lbl.size_flags_horizontal = 3
+	progress_lbl.custom_minimum_size = Vector2(W - 8, 14)
+	progress_lbl.add_theme_font_size_override("font_size", 11)
 	progress_lbl.add_theme_color_override("font_color", color)
+	progress_lbl.visible = true
 	vb.add_child(progress_lbl)
 
+	var fill2 := StyleBoxFlat.new()
+	fill2.bg_color = color
+	fill2.corner_radius_top_left = 3
+	fill2.corner_radius_top_right = 3
+	fill2.corner_radius_bottom_left = 3
+	fill2.corner_radius_bottom_right = 3
 	var pb := ProgressBar.new()
 	pb.name = "bar"
 	pb.min_value = 0
 	pb.max_value = t["max"]
 	pb.value = t["progress"]
-	pb.custom_minimum_size = Vector2(TILE_SIZE - 16, 6)
+	pb.size_flags_horizontal = 3
+	pb.custom_minimum_size = Vector2(W - 8, 9)
 	pb.show_percentage = false
-	var fill2 := StyleBoxFlat.new()
-	fill2.bg_color = color
-	fill2.corner_radius_top_left = 2
-	fill2.corner_radius_top_right = 2
-	fill2.corner_radius_bottom_left = 2
-	fill2.corner_radius_bottom_right = 2
+	pb.visible = true
 	pb.add_theme_stylebox_override("fill", fill2)
 	vb.add_child(pb)
 
@@ -586,16 +635,20 @@ func _render_task(t: Dictionary) -> void:
 	name_lbl.name = "task_name"
 	name_lbl.text = str(t.get("name", ""))
 	name_lbl.horizontal_alignment = 1
-	name_lbl.position = Vector2(screen.x, screen.y - 16)
-	name_lbl.custom_minimum_size = Vector2(TILE_SIZE, 14)
-	name_lbl.add_theme_font_size_override("font_size", 9)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	name_lbl.position = Vector2(screen.x, screen.y - 20)
+	name_lbl.size = Vector2(TILE_SIZE, 16)
+	name_lbl.add_theme_font_size_override("font_size", 11)
+	name_lbl.add_theme_color_override("font_color", Color.WHITE)
 	name_lbl.mouse_filter = 0
+	name_lbl.visible = true
+	name_lbl.z_index = 10
 	_overlay_layer.add_child(name_lbl)
-	node.z_index = 1
+
+	node.z_index = 3
 	_tiles_layer.add_child(node)
 	t["node"] = node
 	t["name_label"] = name_lbl
+	print("=== RENDER TASK DONE: node in tree=", is_instance_valid(node) and node.get_parent() != null, " node size=", node.size)
 
 func _connect_bus() -> void:
 	EventBus.satisfaction_changed.connect(_on_satisfaction_changed)
@@ -615,8 +668,19 @@ func _refresh_top_ui() -> void:
 	_label_turn.text = "回合 %d / %d" % [_turn, _max_turns]
 	_label_satisfaction.text = str(_satisfaction)
 	_label_satisfaction_target.text = " / %d" % _target_satisfaction
-	_bar_satisfaction.max_value = max(_target_satisfaction, _satisfaction, 100)
-	_bar_satisfaction.value = _satisfaction
+	var new_max: int = max(_target_satisfaction, _satisfaction, 100)
+	if _bar_satisfaction.max_value != new_max:
+		_bar_satisfaction.max_value = new_max
+	if abs(_bar_satisfaction.value - _satisfaction) > 0.01:
+		var tw: Tween = create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(_bar_satisfaction, "value", float(_satisfaction), 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_label_satisfaction.modulate = Color(1.0, 1.0, 0.7)
+		var tw2: Tween = create_tween()
+		tw2.set_parallel(true)
+		tw2.tween_property(_label_satisfaction, "modulate", Color.WHITE, 0.6).set_delay(0.15)
+	else:
+		_bar_satisfaction.value = _satisfaction
 
 func _refresh_char_ui() -> void:
 	for c in _side_char_info.get_children():
@@ -1115,13 +1179,16 @@ func _move_character(char_id: String, to: Vector2i, dist: int) -> void:
 		_refresh_hint()
 
 func _perform_task(char_id: String, task_id: String) -> void:
+	print("=== PERFORM TASK called: char=", char_id, " task=", task_id, " game_over=", _game_over)
 	if _game_over:
 		return
 	var inst: Dictionary = _get_character(char_id)
 	var t: Dictionary = _tasks.get(task_id, {})
 	if inst.is_empty() or t.is_empty():
+		print("!!! PERFORM TASK FAIL: empty inst or t, char_found=", not inst.is_empty(), " task_found=", not t.is_empty())
 		return
 	if t["completed"]:
+		print("!!! PERFORM TASK FAIL: already completed")
 		return
 	if inst["ap"] < 1:
 		_show_notification("行动点不足！", "warn")
@@ -1175,14 +1242,33 @@ func _refresh_task_visual(t: Dictionary) -> void:
 
 func _update_task_node(node: Node, t: Dictionary) -> void:
 	if node == null or not is_instance_valid(node):
+		print("!!! WARN _update_task_node: node is null for task ", t.get("id", "?"))
 		return
-	var pb = node.get_node_or_null("PanelContainer/VBoxContainer/bar")
-	var pg = node.get_node_or_null("PanelContainer/VBoxContainer/progress")
-	var ic = node.get_node_or_null("PanelContainer/VBoxContainer/icon")
+	var pb_path: String = "PanelContainer/VBoxContainer/bar"
+	var pg_path: String = "PanelContainer/VBoxContainer/progress"
+	var ic_path: String = "PanelContainer/VBoxContainer/icon"
+	print("DEBUG: Updating task ", t["id"], " node=", node.name, " visible=", (node as Control).visible if node is Control else "N/A", " pos=", (node as Control).position if node is Control else "N/A")
+	var pb: ProgressBar = node.get_node_or_null(pb_path)
+	var pg: Label = node.get_node_or_null(pg_path)
+	var ic: Label = node.get_node_or_null(ic_path)
+	print("DEBUG:   pb=", pb != null, " pg=", pg != null, " ic=", ic != null)
 	if pb:
-		pb.value = t["progress"]
+		pb.max_value = max(int(pb.max_value), int(t["max"]))
+		pb.value = int(t["progress"])
+		print("DEBUG:   PB value=", pb.value, " max=", pb.max_value, " visible=", pb.visible)
+	else:
+		print("!!! WARN: PROGRESS BAR not found, listing children of ", node.name, ":")
+		for c in node.get_children():
+			print("    child: ", c.name, " type=", c.get_class())
+			if c.get_child_count() > 0:
+				for cc in c.get_children():
+					print("      grandchild: ", cc.name, " type=", cc.get_class())
+					if cc.get_child_count() > 0:
+						for ccc in cc.get_children():
+							print("        great-grandchild: ", ccc.name, " type=", ccc.get_class())
 	if pg:
 		pg.text = "%d/%d" % [t["progress"], t["max"]]
+		print("DEBUG:   PG text=", pg.text, " visible=", pg.visible)
 	if t["completed"] and node is Control:
 		(node as Control).modulate = Color(0.5, 0.5, 0.5, 0.4)
 		if ic:
@@ -1480,11 +1566,14 @@ func _check_victory_condition() -> void:
 	if _game_over:
 		return
 	var all_done: bool = true
+	var tasks_left: int = 0
 	for tid in _tasks.keys():
 		if not _tasks[tid]["completed"]:
 			all_done = false
-			break
+			tasks_left += 1
+	DebugLog.log_info("VICTORY_CHECK: turn=%d/%d, tasks_left=%d, satisfaction=%d/%d" % [_turn, _max_turns, tasks_left, _satisfaction, _target_satisfaction])
 	if _turn > _max_turns or all_done:
+		DebugLog.log_success("VICTORY TRIGGERED: all_done=%s, time_up=%s" % [all_done, _turn > _max_turns])
 		_finalize_battle()
 
 func _finalize_battle() -> void:
@@ -1506,7 +1595,8 @@ func _finalize_battle() -> void:
 	GameState.battle_stats["incomplete_penalty"] = _stats_incomplete_penalty
 	var victory: bool = _satisfaction >= _target_satisfaction
 	DebugLog.log_success("战斗结束 - 满意度: %d/%d, 胜利: %s" % [_satisfaction, _target_satisfaction, victory])
-	await get_tree().create_timer(1.2).timeout
+	await get_tree().create_timer(0.5).timeout
+	DebugLog.log_info("Jumping to RESULT SCREEN now!")
 	GameState.goto_result(victory)
 
 func _show_intro_briefing() -> void:
@@ -1588,23 +1678,31 @@ func _show_notification(message: String, kind: String = "info") -> void:
 func _show_floating_text(text: String, pos: Vector2, color: Color) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_font_size_override("font_size", 26)
 	lbl.add_theme_color_override("font_color", color)
-	lbl.z_index = 300
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 4)
+	lbl.z_index = 500
 	lbl.position = pos
 	lbl.modulate = Color(color.r, color.g, color.b, 0.0)
+	lbl.pivot_offset = Vector2(lbl.size.x * 0.5, lbl.size.y * 0.5)
 	var parent: Node = _overlay_layer.get_parent() if _overlay_layer.get_parent() else _overlay_layer
 	if parent:
 		parent.add_child(lbl)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(lbl, "modulate:a", 1.0, 0.15)
+	tw.tween_property(lbl, "modulate:a", 1.0, 0.12)
+	var tw_scale: Tween = create_tween()
+	tw_scale.set_parallel(true)
+	tw_scale.tween_property(lbl, "scale", Vector2(0.5, 0.5), 0.0)
+	tw_scale.chain().tween_property(lbl, "scale", Vector2(1.25, 1.25), 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw_scale.chain().tween_property(lbl, "scale", Vector2(1.0, 1.0), 0.15).set_trans(Tween.TRANS_SINE)
 	var tw2 := create_tween()
 	tw2.set_parallel(true)
-	tw2.tween_property(lbl, "position:y", pos.y - 40.0, 0.9).set_trans(Tween.TRANS_SINE)
-	await get_tree().create_timer(0.9).timeout
+	tw2.tween_property(lbl, "position:y", pos.y - 55.0, 1.05).set_trans(Tween.TRANS_SINE)
+	await get_tree().create_timer(0.95).timeout
 	var tw3 := create_tween()
-	tw3.tween_property(lbl, "modulate:a", 0.0, 0.3)
+	tw3.tween_property(lbl, "modulate:a", 0.0, 0.25)
 	await tw3.finished
 	lbl.queue_free()
 
