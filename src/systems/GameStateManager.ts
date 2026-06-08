@@ -85,7 +85,7 @@ const useGameStore = create<GameState & GameActions>((set) => ({
     set((state) => ({
       puzzleStates: {
         ...state.puzzleStates,
-        [puzzleId]: { ...state.puzzleStates[puzzleId], ...updates } as PuzzleState,
+        [puzzleId]: { id: puzzleId, ...state.puzzleStates[puzzleId], ...updates } as PuzzleState,
       },
     })),
 

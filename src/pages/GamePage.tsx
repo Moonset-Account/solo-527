@@ -174,9 +174,6 @@ export default function GamePage() {
   const handlePuzzleSolve = useCallback(() => {
     if (activePuzzleId) {
       const puzzle = chapterManager.getPuzzle(activePuzzleId)
-      if (puzzle?.narrativeOnSolve) {
-        setNarrativeText(puzzle.narrativeOnSolve)
-      }
 
       if (puzzle?.chapter && puzzle?.room) {
         const chapter = chapterManager.getChapter(puzzle.chapter)
@@ -191,30 +188,28 @@ export default function GamePage() {
         }
       }
 
-      const chapterId = effectiveChapterId
+      const chId = effectiveChapterId
       const state = useGameStore.getState()
-      if (chapterManager.isChapterComplete(chapterId, state.puzzleStates)) {
-        analyticsTracker.completeChapter(chapterId)
+      if (chapterManager.isChapterComplete(chId, state.puzzleStates)) {
+        analyticsTracker.completeChapter(chId)
 
         const allChapters = chapterManager.getChapterList()
-        const currentIndex = allChapters.findIndex(c => c.id === chapterId)
+        const currentIndex = allChapters.findIndex(c => c.id === chId)
         const nextChapter = allChapters[currentIndex + 1]
         if (nextChapter) {
           state.unlockChapter(nextChapter.id)
         }
 
-        setTimeout(() => {
-          clearActivePuzzle()
-          clearNarrative()
-          navigate(`/settlement/${chapterId}`)
-        }, 2500)
+        clearActivePuzzle()
+        clearNarrative()
+        setTimeout(() => navigate(`/settlement/${chId}`), 600)
       } else {
         clearActivePuzzle()
       }
     } else {
       clearActivePuzzle()
     }
-  }, [activePuzzleId, effectiveChapterId, clearActivePuzzle, setNarrativeText, clearNarrative, navigate])
+  }, [activePuzzleId, effectiveChapterId, clearActivePuzzle, clearNarrative, navigate])
 
   const handlePuzzleClose = useCallback(() => {
     clearActivePuzzle()

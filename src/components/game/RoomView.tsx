@@ -74,7 +74,7 @@ export default function RoomView({ chapterId, roomId, onHotspotClick }: RoomView
           <motion.div
             key={hotspot.id}
             id={hotspot.id}
-            className="absolute cursor-pointer z-10 group"
+            className="absolute cursor-pointer z-10 group animate-pulse-glow"
             style={{
               left: `${hotspot.x}%`,
               top: `${hotspot.y}%`,
@@ -82,14 +82,14 @@ export default function RoomView({ chapterId, roomId, onHotspotClick }: RoomView
               height: `${hotspot.height}%`,
             }}
             whileHover={{
-              boxShadow: '0 0 15px 3px rgba(200, 168, 110, 0.4)',
+              boxShadow: '0 0 25px 6px rgba(251, 191, 36, 0.5)',
             }}
             onClick={() =>
               onHotspotClick(hotspot.id, hotspot.type, hotspot.targetId)
             }
           >
-            <div className="w-full h-full border border-[#c8a86e]/15 hover:border-[#c8a86e]/40 rounded transition-colors duration-300 relative">
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded text-[10px] font-serif text-amber-200/0 group-hover:text-amber-200/80 bg-black/0 group-hover:bg-black/70 whitespace-nowrap transition-all duration-200 pointer-events-none">
+            <div className="w-full h-full border-2 border-amber-400/40 hover:border-amber-300/80 rounded bg-amber-900/15 hover:bg-amber-900/30 transition-all duration-300 relative flex items-center justify-center">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1 rounded text-xs font-serif text-amber-200/90 bg-black/80 whitespace-nowrap pointer-events-none border border-amber-800/30">
                 {hotspot.label}
               </div>
             </div>

@@ -27,7 +27,7 @@ export default function NarrativeOverlay({ text, onComplete }: NarrativeOverlayP
 
   useEffect(() => {
     if (!isComplete) return
-    const timeout = setTimeout(onComplete, 3000)
+    const timeout = setTimeout(onComplete, 1500)
     return () => clearTimeout(timeout)
   }, [isComplete, onComplete])
 
