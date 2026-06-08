@@ -156,8 +156,7 @@ namespace ShadowPlatformer.Game
 
             if (layout != null && LightManager.Instance != null)
             {
-                LightManager.Instance.currentDirection = layout.startLightDirection;
-                LightManager.Instance.OnDirectionChanged?.Invoke(layout.startLightDirection);
+                LightManager.Instance.ForceSetDirection(layout.startLightDirection);
             }
 
             var levelRoot = new GameObject("LevelRoot");
@@ -415,6 +414,7 @@ namespace ShadowPlatformer.Game
                 mr.receiverId = cfg.id;
                 mr.requiredTriggerIds = cfg.requiredTriggerIds;
                 mr.requireAllTriggers = cfg.requireAllTriggers;
+                mr.isDoor = true;
                 mr.doorObject = doorChild;
                 mr.doorOpenByDefault = cfg.doorOpenByDefault;
             }

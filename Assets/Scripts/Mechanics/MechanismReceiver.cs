@@ -11,6 +11,7 @@ namespace ShadowPlatformer.Mechanics
         public bool requireAllTriggers = true;
 
         [Header("Door")]
+        public bool isDoor;
         public GameObject doorObject;
         public bool doorOpenByDefault = false;
 
@@ -34,6 +35,13 @@ namespace ShadowPlatformer.Mechanics
 
             if (doorObject != null)
                 doorObject.SetActive(!doorOpenByDefault);
+
+            if (isDoor)
+            {
+                var selfCol = GetComponent<Collider2D>();
+                if (selfCol != null)
+                    selfCol.enabled = doorOpenByDefault ? false : true;
+            }
         }
 
         private void Update()
@@ -106,7 +114,16 @@ namespace ShadowPlatformer.Mechanics
 
         private void ApplyState()
         {
-            if (doorObject != null)
+            if (isDoor)
+            {
+                bool shouldOpen = _isActivated ^ doorOpenByDefault;
+                if (doorObject != null)
+                    doorObject.SetActive(!shouldOpen);
+                var selfCol = GetComponent<Collider2D>();
+                if (selfCol != null)
+                    selfCol.enabled = !shouldOpen;
+            }
+            else if (doorObject != null)
             {
                 bool shouldOpen = _isActivated ^ doorOpenByDefault;
                 doorObject.SetActive(!shouldOpen);

@@ -70,6 +70,12 @@ namespace ShadowPlatformer.Light
             OnDirectionChanged?.Invoke(currentDirection);
         }
 
+        public void ForceSetDirection(LightDirection dir)
+        {
+            currentDirection = dir;
+            OnDirectionChanged?.Invoke(currentDirection);
+        }
+
         public void CycleDirection()
         {
             SetDirection(currentDirection.Next());
