@@ -1,0 +1,20 @@
+{
+    "name": "SpaceCourier.StarMap",
+    "rootNamespace": "SpaceCourier.StarMap",
+    "references": [
+        "SpaceCourier.Core",
+        "SpaceCourier.Data",
+        "SpaceCourier.Gameplay",
+        "SpaceCourier.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

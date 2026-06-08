@@ -1,0 +1,17 @@
+{
+    "name": "SpaceCourier.SaveSystem",
+    "rootNamespace": "SpaceCourier.SaveSystem",
+    "references": [
+        "SpaceCourier.Core",
+        "SpaceCourier.Data"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

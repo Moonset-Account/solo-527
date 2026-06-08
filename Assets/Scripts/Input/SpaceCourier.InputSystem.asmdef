@@ -1,0 +1,16 @@
+{
+    "name": "SpaceCourier.InputSystem",
+    "rootNamespace": "SpaceCourier.InputSystem",
+    "references": [
+        "SpaceCourier.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

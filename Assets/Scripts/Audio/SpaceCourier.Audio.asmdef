@@ -1,0 +1,17 @@
+{
+    "name": "SpaceCourier.Audio",
+    "rootNamespace": "SpaceCourier.Audio",
+    "references": [
+        "SpaceCourier.Core",
+        "SpaceCourier.SaveSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

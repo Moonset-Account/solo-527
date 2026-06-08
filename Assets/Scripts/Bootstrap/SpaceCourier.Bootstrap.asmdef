@@ -1,0 +1,24 @@
+{
+    "name": "SpaceCourier.Bootstrap",
+    "rootNamespace": "SpaceCourier.Bootstrap",
+    "references": [
+        "SpaceCourier.Core",
+        "SpaceCourier.Data",
+        "SpaceCourier.Gameplay",
+        "SpaceCourier.StarMap",
+        "SpaceCourier.UI",
+        "SpaceCourier.SaveSystem",
+        "SpaceCourier.Audio",
+        "SpaceCourier.Animation",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

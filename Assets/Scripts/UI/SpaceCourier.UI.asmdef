@@ -1,0 +1,21 @@
+{
+    "name": "SpaceCourier.UI",
+    "rootNamespace": "SpaceCourier.UI",
+    "references": [
+        "SpaceCourier.Core",
+        "SpaceCourier.Data",
+        "SpaceCourier.Gameplay",
+        "SpaceCourier.SaveSystem",
+        "SpaceCourier.Audio",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
