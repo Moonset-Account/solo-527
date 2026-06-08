@@ -15,13 +15,6 @@ var items_packed: int = 0
 @onready var replay_button: Button = $Panel/VBoxContainer/ButtonContainer/ReplayButton
 @onready var level_select_button: Button = $Panel/VBoxContainer/ButtonContainer/LevelSelectButton
 
-func setup(p_level_id: String, p_stars: int, p_score: int, p_time: float, p_packed: int) -> void:
-	level_id = p_level_id
-	stars = p_stars
-	score = p_score
-	time_taken = p_time
-	items_packed = p_packed
-
 func _ready() -> void:
 	level_id = GameManager.current_level_id
 	stars = GameManager.last_stars
@@ -36,12 +29,13 @@ func _ready() -> void:
 
 func _display_results() -> void:
 	title_label.text = "关卡完成"
-	score_value_label.text = str(score)
-	time_value_label.text = str(snappedf(time_taken, 0.1)) + "s"
-	packed_value_label.text = str(items_packed)
+	score_value_label.text = str(score) + "分"
+	time_value_label.text = str(snappedf(time_taken, 0.1)) + "秒"
+	packed_value_label.text = str(items_packed) + "件"
 
 func _animate_stars() -> void:
 	star_label.text = "☆☆☆"
+	star_label.add_theme_font_size_override("font_size", 48)
 	var tween := create_tween()
 	for i in range(stars):
 		tween.tween_callback(_set_star_count.bind(i + 1))

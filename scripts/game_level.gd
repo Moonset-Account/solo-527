@@ -1,8 +1,8 @@
 extends Node2D
 
 var box_node: StaticBody2D
-var undo_system: Node
-var weight_system: Node
+var undo_system: UndoSystem
+var weight_system: WeightSystem
 
 var level_timer: float = 0.0
 var level_time_limit: float = 120.0
@@ -16,16 +16,19 @@ var weight_label: Label
 var hint_label: Label
 var undo_button: Button
 var pause_button: Button
+var finish_button: Button
 var hud_layer: CanvasLayer
 
 var level_config: Dictionary = {}
 var level_id: String = ""
 var spawned_items: Array = []
+var item_staging_positions: Dictionary = {}
 var box_items_inside: Dictionary = {}
 var box_detection_area: Area2D
 var box_width: float = 300.0
 var box_height: float = 400.0
 var box_max_weight: float = 20.0
+var par_time: float = 120.0
 
 func _ready() -> void:
 	undo_system = UndoSystem.new()
@@ -62,7 +65,6 @@ func _process(delta: float) -> void:
 		_on_level_failed("时间到!")
 		return
 	_check_lose_condition()
-	_check_win_condition()
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause") and is_level_active:
@@ -76,7 +78,8 @@ func _load_level_data() -> void:
 	if level_config.is_empty():
 		DebugLogger.warn("Level data not found for id: " + level_id)
 		return
-	level_time_limit = float(level_config.get("par_time", 120))
+	level_time_limit = float(level_config.get("par_time", 120)) * 1.5
+	par_time = float(level_config.get("par_time", 120))
 	items_total_count = level_config.get("items", []).size()
 	box_width = float(level_config.get("box_width", 300))
 	box_height = float(level_config.get("box_height", 400))
@@ -209,7 +212,7 @@ func _create_hud() -> void:
 
 	undo_button = Button.new()
 	undo_button.text = "撤销"
-	undo_button.custom_minimum_size = Vector2(80, 40)
+	undo_button.custom_minimum_size = Vector2(70, 40)
 	undo_button.pressed.connect(_on_undo_pressed)
 	button_bar.add_child(undo_button)
 
@@ -219,9 +222,15 @@ func _create_hud() -> void:
 
 	pause_button = Button.new()
 	pause_button.text = "暂停"
-	pause_button.custom_minimum_size = Vector2(80, 40)
+	pause_button.custom_minimum_size = Vector2(70, 40)
 	pause_button.pressed.connect(_on_pause_pressed)
 	button_bar.add_child(pause_button)
+
+	finish_button = Button.new()
+	finish_button.text = "完成装箱"
+	finish_button.custom_minimum_size = Vector2(90, 40)
+	finish_button.pressed.connect(_on_finish_pressed)
+	button_bar.add_child(finish_button)
 
 	var hints = level_config.get("tutorial_hints", [])
 	if hints.size() > 0:
@@ -251,28 +260,37 @@ func _on_item_dropped(item: RigidBody2D) -> void:
 	if box_items_inside[item]:
 		return
 	box_items_inside[item] = true
-	ScoreManager.add_score("item_packed", 100)
-	undo_system.push_action({"type": "place", "item_id": item.get_instance_id()})
+	undo_system.push_action({"type": "place", "item": item, "prev_pos": item.global_position})
 
 func _on_item_picked_up(item: RigidBody2D) -> void:
 	if not box_items_inside.has(item):
 		return
 	if box_items_inside[item]:
 		box_items_inside[item] = false
-		ScoreManager.add_score("item_removed", -100)
-		undo_system.push_action({"type": "remove", "item_id": item.get_instance_id()})
+		undo_system.push_action({"type": "remove", "item": item, "was_packed": true})
 
-func _check_win_condition() -> bool:
+func _on_finish_pressed() -> void:
+	if not is_level_active:
+		return
 	var packed := get_packed_count()
-	if packed < items_total_count:
-		return false
+	if packed == 0:
+		_on_level_failed("没有装入任何物品!")
+		return
 	var crushed = check_fragile_under_pressure()
 	if crushed.size() > 0:
-		return false
+		var crushed_names: Array = []
+		for c in crushed:
+			if "item_data" in c and c.item_data:
+				crushed_names.append(c.item_data.item_name)
+		_on_level_failed("易碎品被压碎了: " + ", ".join(crushed_names))
+		return
 	if is_overweight():
-		return false
+		_on_level_failed("箱子超重了! 当前:" + str(snappedf(get_total_weight(), 0.1)) + "kg 上限:" + str(snappedf(box_max_weight, 0.1)) + "kg")
+		return
+	if packed < items_total_count:
+		_on_level_failed("还有 " + str(items_total_count - packed) + " 件物品未装箱!")
+		return
 	_on_level_complete()
-	return true
 
 func _check_lose_condition() -> bool:
 	if _lose_triggered:
@@ -286,18 +304,15 @@ func _check_lose_condition() -> bool:
 		_on_level_failed("易碎品被压碎了: " + ", ".join(crushed_names))
 		return true
 	if is_overweight():
-		_on_level_failed("箱子超重了!")
+		_on_level_failed("箱子超重了! 当前:" + str(snappedf(get_total_weight(), 0.1)) + "kg 上限:" + str(snappedf(box_max_weight, 0.1)) + "kg")
 		return true
 	return false
 
 func _on_level_complete() -> void:
 	is_level_active = false
-	var time_bonus := int(maxf(level_time_limit - level_timer, 0.0)) * 10
-	if time_bonus > 0:
-		ScoreManager.add_score("time_bonus", time_bonus)
 	var packed := get_packed_count()
-	var stars := _calculate_stars_from_packed(packed, items_total_count)
-	var score := ScoreManager.get_current_score()
+	var stars := _calculate_stars(packed, level_timer)
+	var score := packed * 100 + int(maxf(par_time - level_timer, 0.0)) * 10
 	LevelManager.complete_level(level_id, stars)
 	var next_level_id = str(int(level_id) + 1)
 	if LevelManager.get_level_data(next_level_id).size() > 0:
@@ -308,17 +323,14 @@ func _on_level_complete() -> void:
 	GameManager.last_packed = packed
 	GameManager.change_state(GameManager.GameState.RESULTS)
 
-func _calculate_stars_from_packed(packed: int, total: int) -> int:
-	if total <= 0:
+func _calculate_stars(packed: int, time: float) -> int:
+	if packed < items_total_count:
 		return 0
-	if packed >= total:
+	if time <= par_time:
 		return 3
-	var ratio: float = float(packed) / float(total)
-	if ratio >= 0.66:
+	if time <= par_time * 1.25:
 		return 2
-	if ratio >= 0.33:
-		return 1
-	return 0
+	return 1
 
 func _on_level_failed(reason: String) -> void:
 	if _lose_triggered:
@@ -327,6 +339,7 @@ func _on_level_failed(reason: String) -> void:
 	is_level_active = false
 	GameManager.failure_reason = reason
 	GameManager.last_packed = get_packed_count()
+	GameManager.last_time = level_timer
 	GameManager.change_state(GameManager.GameState.FAILURE)
 
 func _on_pause_pressed() -> void:
@@ -335,11 +348,25 @@ func _on_pause_pressed() -> void:
 	hud_layer.add_child(pause_menu)
 
 func _on_undo_pressed() -> void:
-	if undo_system and undo_system.can_undo():
-		var action = undo_system.undo()
-		if action.is_empty():
-			return
-		ScoreManager.undo_last_score()
+	if not undo_system or not undo_system.can_undo():
+		return
+	var action = undo_system.undo()
+	if action.is_empty():
+		return
+	var action_type = action.get("type", "")
+	var item_ref = action.get("item", null)
+	if action_type == "place" and is_instance_valid(item_ref):
+		box_items_inside[item_ref] = false
+		var staging_pos = item_staging_positions.get(item_ref.get_instance_id(), Vector2(550, 100))
+		item_ref.global_position = staging_pos
+		item_ref.linear_velocity = Vector2.ZERO
+		item_ref.angular_velocity = 0.0
+		item_ref.freeze = true
+		await get_tree().create_timer(0.05).timeout
+		if is_instance_valid(item_ref):
+			item_ref.freeze = false
+	elif action_type == "remove" and is_instance_valid(item_ref):
+		box_items_inside[item_ref] = true
 
 func spawn_items_from_config(config: Dictionary) -> void:
 	var items_data = config.get("items", [])
@@ -361,9 +388,11 @@ func spawn_items_from_config(config: Dictionary) -> void:
 		item.set_script(item_script)
 		item.collision_layer = 2
 		item.collision_mask = 1 | 2
-		item.position = Vector2(staging_x, staging_y + i * 100.0)
+		var spawn_pos = Vector2(staging_x, staging_y + i * 100.0)
+		item.position = spawn_pos
 		add_child(item)
 		item.setup_from_data(data)
+		item_staging_positions[item.get_instance_id()] = spawn_pos
 		if item.has_signal("item_dropped") and not item.item_dropped.is_connected(_on_item_dropped):
 			item.item_dropped.connect(_on_item_dropped)
 		if item.has_signal("item_picked_up") and not item.item_picked_up.is_connected(_on_item_picked_up):
