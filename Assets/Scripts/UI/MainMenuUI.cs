@@ -58,7 +58,7 @@ namespace RainAlley.UI
                 TextAnchor.UpperLeft, new Color(1f, 0.92f, 0.75f)).GetComponent<Text>();
             UIUtils.SetAnchors(_levelTitleText.rectTransform,
                 new Vector2(0, 1f), new Vector2(1f, 1f),
-                new Vector2(560, 50), new Vector2(20, -20));
+                new Vector2(20, -70), new Vector2(-20, -20), new Vector2(0.5f, 1f));
 
             _levelDescText = UIUtils.NewText("Desc", _levelInfoPanel.transform, "", 18,
                 TextAnchor.UpperLeft, new Color(0.85f, 0.9f, 1f)).GetComponent<Text>();
@@ -73,19 +73,19 @@ namespace RainAlley.UI
                 TextAnchor.MiddleLeft, new Color(0.75f, 0.95f, 0.85f)).GetComponent<Text>();
             UIUtils.SetAnchors(_levelBPMText.rectTransform,
                 new Vector2(0, 0.55f), new Vector2(1f, 0.55f),
-                new Vector2(660, 35), new Vector2(20, 0));
+                new Vector2(20, -17.5f), new Vector2(-20, 17.5f), new Vector2(0, 0.5f));
 
             _levelFeaturesText = UIUtils.NewText("Features", _levelInfoPanel.transform, "", 18,
                 TextAnchor.MiddleLeft, new Color(0.85f, 0.8f, 1f)).GetComponent<Text>();
             UIUtils.SetAnchors(_levelFeaturesText.rectTransform,
                 new Vector2(0, 0.45f), new Vector2(1f, 0.45f),
-                new Vector2(660, 30), new Vector2(20, 0));
+                new Vector2(20, -15), new Vector2(-20, 15), new Vector2(0, 0.5f));
 
             _bestScoreText = UIUtils.NewText("Best", _levelInfoPanel.transform, "", 22,
                 TextAnchor.MiddleLeft, new Color(1f, 0.92f, 0.55f)).GetComponent<Text>();
             UIUtils.SetAnchors(_bestScoreText.rectTransform,
                 new Vector2(0, 0.32f), new Vector2(1f, 0.32f),
-                new Vector2(660, 38), new Vector2(20, 0));
+                new Vector2(20, -19), new Vector2(-20, 19), new Vector2(0, 0.5f));
 
             _startLevelBtn = UIUtils.NewButton("StartBtn", _levelInfoPanel.transform, "▶ 开始关卡",
                 new Vector2(0.5f, 0), new Vector2(1f, 0),

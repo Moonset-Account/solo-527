@@ -137,18 +137,6 @@ namespace RainAlley.GameFlow
                     Judge.CheckAutoMiss);
             }
 
-            if (TrackMgr != null)
-            {
-                for (int i = TrackMgr.ActiveWindowObstacles.Count - 1; i >= 0; i--)
-                {
-                    var obs = TrackMgr.ActiveWindowObstacles[i];
-                    if (obs.Status == ObstacleStatus.Missed && obs.Result.Type == JudgeType.Miss)
-                    {
-                        HandleMissResult(obs);
-                    }
-                }
-            }
-
             if (Clock.IsFinished && CurrentState == GameState.Playing)
             {
                 CompleteLevel();
@@ -367,6 +355,7 @@ namespace RainAlley.GameFlow
             TrackMgr = new TrackObstacleManager();
             TrackMgr.LoadObstacles(level.Obstacles);
             TrackMgr.OnObstacleJudged += (o, r) => { };
+            TrackMgr.OnObstacleMissed += obs => HandleMissResult(obs);
 
             if (GameplaySceneVisuals.Instance != null)
                 GameplaySceneVisuals.Instance.Attach();
