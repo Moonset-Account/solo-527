@@ -14,57 +14,72 @@ namespace InkMountainBridge
 
         private BridgeBuilder bridgeBuilder;
         private MaterialType selectedType;
+        private bool listenersRegistered;
 
-        private void Start()
+        private void Awake()
         {
             bridgeBuilder = FindObjectOfType<BridgeBuilder>();
-            AutoWireButtons();
-            UpdatePalette();
+            DiscoverButtons();
+            RegisterListeners();
         }
 
-        private void AutoWireButtons()
+        private void OnDestroy()
         {
-            if (beamButton == null)
-                beamButton = FindChildButtonByName("BeamButton");
-            if (ropeButton == null)
-                ropeButton = FindChildButtonByName("RopeButton");
-            if (pierButton == null)
-                pierButton = FindChildButtonByName("PierButton");
-            if (testBridgeButton == null)
-                testBridgeButton = FindChildButtonByName("TestBridgeButton");
+            UnregisterListeners();
         }
 
-        private Button FindChildButtonByName(string name)
+        private void DiscoverButtons()
         {
-            var t = transform.Find(name);
+            if (beamButton == null) beamButton = FindChildButton("BeamButton");
+            if (ropeButton == null) ropeButton = FindChildButton("RopeButton");
+            if (pierButton == null) pierButton = FindChildButton("PierButton");
+            if (testBridgeButton == null) testBridgeButton = FindChildButton("TestBridgeButton");
+            if (budgetManager == null) budgetManager = FindObjectOfType<MaterialBudgetManager>();
+        }
+
+        private Button FindChildButton(string name)
+        {
+            Transform t = transform.Find(name);
             if (t != null) return t.GetComponent<Button>();
+
             for (int i = 0; i < transform.childCount; i++)
             {
-                var child = transform.GetChild(i);
-                if (child.name.Contains(name) || child.name.Contains(name.Replace("Button", "")))
+                Transform child = transform.GetChild(i);
+                if (child.name.Contains(name))
                     return child.GetComponent<Button>();
             }
             return null;
         }
 
-        private void OnEnable()
+        private void RegisterListeners()
         {
-            GameEvents.OnMaterialUsed += OnMaterialUsed;
+            if (listenersRegistered) return;
+            listenersRegistered = true;
 
             if (beamButton != null) beamButton.onClick.AddListener(SelectBeam);
             if (ropeButton != null) ropeButton.onClick.AddListener(SelectRope);
             if (pierButton != null) pierButton.onClick.AddListener(SelectPier);
             if (testBridgeButton != null) testBridgeButton.onClick.AddListener(OnTestBridgeClicked);
+
+            GameEvents.OnMaterialUsed += OnMaterialUsed;
         }
 
-        private void OnDisable()
+        private void UnregisterListeners()
         {
-            GameEvents.OnMaterialUsed -= OnMaterialUsed;
+            if (!listenersRegistered) return;
+            listenersRegistered = false;
 
             if (beamButton != null) beamButton.onClick.RemoveListener(SelectBeam);
             if (ropeButton != null) ropeButton.onClick.RemoveListener(SelectRope);
             if (pierButton != null) pierButton.onClick.RemoveListener(SelectPier);
             if (testBridgeButton != null) testBridgeButton.onClick.RemoveListener(OnTestBridgeClicked);
+
+            GameEvents.OnMaterialUsed -= OnMaterialUsed;
+        }
+
+        private void Start()
+        {
+            UpdatePalette();
         }
 
         public void SelectBeam()
@@ -90,57 +105,41 @@ namespace InkMountainBridge
 
         public void OnTestBridgeClicked()
         {
-            var levelController = FindObjectOfType<LevelController>();
-            if (levelController != null)
-            {
-                levelController.StartTestPhase();
-            }
+            var lc = FindObjectOfType<LevelController>();
+            if (lc != null) lc.StartTestPhase();
         }
 
         public void UpdatePalette()
         {
             if (budgetManager == null) return;
 
-            if (beamButton != null)
-            {
-                beamButton.interactable = budgetManager.GetRemaining(MaterialType.Beam) > 0;
-                var text = beamButton.GetComponentInChildren<Text>();
-                if (text != null)
-                    text.text = $"Beam ({budgetManager.GetRemaining(MaterialType.Beam)})";
-            }
+            UpdateButtonLabel(beamButton, "Beam", budgetManager.GetRemaining(MaterialType.Beam));
+            UpdateButtonLabel(ropeButton, "Rope", budgetManager.GetRemaining(MaterialType.Rope));
+            UpdateButtonLabel(pierButton, "Pier", budgetManager.GetRemaining(MaterialType.StonePier));
+        }
 
-            if (ropeButton != null)
-            {
-                ropeButton.interactable = budgetManager.GetRemaining(MaterialType.Rope) > 0;
-                var text = ropeButton.GetComponentInChildren<Text>();
-                if (text != null)
-                    text.text = $"Rope ({budgetManager.GetRemaining(MaterialType.Rope)})";
-            }
-
-            if (pierButton != null)
-            {
-                pierButton.interactable = budgetManager.GetRemaining(MaterialType.StonePier) > 0;
-                var text = pierButton.GetComponentInChildren<Text>();
-                if (text != null)
-                    text.text = $"Pier ({budgetManager.GetRemaining(MaterialType.StonePier)})";
-            }
+        private void UpdateButtonLabel(Button btn, string label, int remaining)
+        {
+            if (btn == null) return;
+            btn.interactable = remaining > 0;
+            var txt = btn.GetComponentInChildren<Text>();
+            if (txt != null) txt.text = $"{label} ({remaining})";
         }
 
         public void HighlightSelected(MaterialType type)
         {
             if (selectedHighlight == null) return;
-
             selectedHighlight.SetActive(true);
             switch (type)
             {
                 case MaterialType.Beam:
-                    selectedHighlight.transform.SetParent(beamButton?.transform, false);
+                    if (beamButton != null) selectedHighlight.transform.SetParent(beamButton.transform, false);
                     break;
                 case MaterialType.Rope:
-                    selectedHighlight.transform.SetParent(ropeButton?.transform, false);
+                    if (ropeButton != null) selectedHighlight.transform.SetParent(ropeButton.transform, false);
                     break;
                 case MaterialType.StonePier:
-                    selectedHighlight.transform.SetParent(pierButton?.transform, false);
+                    if (pierButton != null) selectedHighlight.transform.SetParent(pierButton.transform, false);
                     break;
             }
         }
