@@ -10,7 +10,7 @@ var _current_night: int = 0
 var _max_simultaneous_critical: int = 1
 var _max_simultaneous_events: int = 3
 var _tutorial_mode: bool = false
-var _guarantee_system: Dictionary = {}
+var _guarantee_events: Dictionary = {}
 
 func _ready() -> void:
 	_build_event_pool()
@@ -51,7 +51,7 @@ func _build_event_pool() -> void:
 	e3.sonar_drain = 15
 	e3.weight = 0.9
 	e3.cooldown_nights = 2
-	e3.min_night = 2
+	e3.min_night = 3
 	e3.requires_sonar = true
 	_event_pool.append(e3)
 
@@ -103,7 +103,7 @@ func _build_event_pool() -> void:
 	e7.sonar_drain = 40
 	e7.weight = 0.2
 	e7.cooldown_nights = 5
-	e7.min_night = 4
+	e7.min_night = 2
 	e7.requires_sonar = true
 	_event_pool.append(e7)
 
@@ -159,8 +159,8 @@ func _build_event_pool() -> void:
 	e11.is_tutorial_only = true
 	_event_pool.append(e11)
 
-	_guarantee_system = {
-		2: NightEvent.AffectedSystem.SONAR,
+	_guarantee_events = {
+		2: "sonar_blackout",
 	}
 
 func set_tutorial_mode(enabled: bool) -> void:
@@ -216,12 +216,13 @@ func select_night_events(night: int) -> Array[NightEvent]:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 
-	if _guarantee_system.has(night):
-		var required_system: int = _guarantee_system[night]
-		var guaranteed := _pick_guaranteed_event(available, required_system, rng)
+	if _guarantee_events.has(night):
+		var required_id: String = _guarantee_events[night]
+		var guaranteed := _find_event_in_pool(available, required_id)
 		if guaranteed != null:
 			selected.append(guaranteed)
-			critical_count += 1 if guaranteed.severity == NightEvent.Severity.CRITICAL else 0
+			if guaranteed.severity == NightEvent.Severity.CRITICAL:
+				critical_count += 1
 			_cooldown_tracker[guaranteed.id] = guaranteed.cooldown_nights
 			weighted_pool = weighted_pool.filter(func(e): return e != guaranteed)
 
@@ -246,42 +247,28 @@ func select_night_events(night: int) -> Array[NightEvent]:
 
 	return selected
 
-func _pick_guaranteed_event(available: Array[NightEvent], required_system: int, rng: RandomNumberGenerator) -> NightEvent:
-	var candidates: Array[NightEvent] = []
-	for evt: NightEvent in available:
-		if evt.affected_system == required_system:
-			if evt.severity != NightEvent.Severity.CRITICAL:
-				candidates.append(evt)
-	if candidates.is_empty():
-		for evt: NightEvent in available:
-			if evt.affected_system == required_system:
-				candidates.append(evt)
-	if candidates.is_empty():
-		return null
-	var weighted: Array[NightEvent] = []
-	for evt: NightEvent in candidates:
-		var count := int(evt.weight * 10)
-		for i in count:
-			weighted.append(evt)
-	if weighted.is_empty():
-		return candidates[0]
-	return weighted[rng.randi() % weighted.size()]
+func _find_event_in_pool(pool: Array[NightEvent], event_id: String) -> NightEvent:
+	for evt: NightEvent in pool:
+		if evt.id == event_id:
+			return evt
+	return null
 
 func set_difficulty(max_critical: int, max_events: int) -> void:
 	_max_simultaneous_critical = max_critical
 	_max_simultaneous_events = max_events
 
-func set_guarantee(night: int, system: int) -> void:
-	_guarantee_system[night] = system
+func set_guarantee(night: int, event_id: String) -> void:
+	_guarantee_events[night] = event_id
 
-func clear_garantee(night: int) -> void:
-	_guarantee_system.erase(night)
+func clear_guarantee(night: int) -> void:
+	_guarantee_events.erase(night)
 
 func serialize() -> Dictionary:
 	return {
 		"cooldowns": _cooldown_tracker.duplicate(),
 		"current_night": _current_night,
 		"tutorial_mode": _tutorial_mode,
+		"guarantee_events": _guarantee_events.duplicate(),
 	}
 
 func deserialize(data: Dictionary) -> void:
@@ -291,3 +278,5 @@ func deserialize(data: Dictionary) -> void:
 		_current_night = data["current_night"]
 	if data.has("tutorial_mode"):
 		_tutorial_mode = data["tutorial_mode"]
+	if data.has("guarantee_events"):
+		_guarantee_events = data["guarantee_events"]

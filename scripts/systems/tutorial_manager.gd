@@ -27,7 +27,7 @@ func get_tutorial_events_for_night(night: int) -> Array[String]:
 	if night == 1:
 		return ["tutorial_power_drain"]
 	if night == 2:
-		return ["sonar_malfunction"]
+		return ["sonar_blackout"]
 	return []
 
 func start_night_tutorial(night: int) -> void:
@@ -39,7 +39,7 @@ func start_night_tutorial(night: int) -> void:
 			_show_step("night1_intro", "欢迎来到深海灯塔。你是这里的守夜人。\n每夜需要管理灯塔的电力、氧气、声呐和维修人员。\n\n今晚先学习电力系统——注意发电机状态。")
 		2:
 			_current_phase = TutorialPhase.NIGHT2_SONAR
-			_show_step("night2_intro", "第二晚了。声呐系统启动，但已有故障苗头。\n\n今晚一定会出现声呐相关的事件——\n声呐盲区会让你无法预知危险，\n务必分配资源维持声呐运作。")
+			_show_step("night2_intro", "第二晚了。声呐系统启动，但今夜会出现「声呐盲区」！\n\n声呐盲区会让探测完全失灵，是最危险的状态。\n你必须给声呐分配足够资源，减少它的损耗。\n否则声呐耗尽=灯塔失守。")
 
 func on_resource_allocated(type: ResourceType.Type) -> void:
 	if _tutorial_done:
@@ -50,7 +50,7 @@ func on_resource_allocated(type: ResourceType.Type) -> void:
 			_steps_shown["power_allocated"] = true
 	if _current_phase == TutorialPhase.NIGHT2_SONAR and type == ResourceType.Type.SONAR:
 		if not _steps_shown.has("sonar_allocated"):
-			_show_step("sonar_allocated", "明智的选择！给声呐分配资源可以减少声呐损耗。\n声呐一旦完全失效，你将陷入盲区——那是最危险的状态。")
+			_show_step("sonar_allocated", "关键操作！给声呐分配资源可以减少声呐盲区的损耗。\n声呐一旦完全失效，你将彻底失去对周围环境的感知。")
 			_steps_shown["sonar_allocated"] = true
 
 func on_night_result(result: NightResult) -> void:
@@ -64,18 +64,18 @@ func on_night_result(result: NightResult) -> void:
 			_show_step("night1_failed", "第一夜就失败了……\n电力系统需要持续关注，别让它降到危险水平。")
 	elif _current_phase == TutorialPhase.NIGHT2_SONAR:
 		_current_phase = TutorialPhase.NIGHT2_RESULT
-		var has_sonar_event := false
+		var has_sonar_blackout := false
 		for evt: NightEvent in result.events:
-			if evt.affected_system == NightEvent.AffectedSystem.SONAR:
-				has_sonar_event = true
+			if evt.id == "sonar_blackout":
+				has_sonar_blackout = true
 				break
 		if result.survived:
-			if has_sonar_event:
-				_show_step("night2_result", "你扛住了声呐故障！\n\n结算中可以看到声呐事件的损耗。\n如果声呐完全失效就会进入盲区——那将极其危险。\n从现在起所有系统都会面临压力，合理分配资源是关键。")
+			if has_sonar_blackout:
+				_show_step("night2_result", "你扛过了声呐盲区！\n\n结算中可以看到声呐盲区造成了严重损耗。\n这就是为什么必须给声呐分配资源——\n不分配的话，40点声呐损耗足以让你陷入绝境。\n从现在起所有系统都会面临压力，合理分配资源是关键。")
 			else:
-				_show_step("night2_result", "你挺过了第二夜！\n\n后续夜晚声呐盲区的威胁会越来越大，\n务必保持声呐系统的运作。从现在起所有系统都会面临压力。")
+				_show_step("night2_result", "你挺过了第二夜！\n\n后续夜晚声呐盲区的威胁会不断出现，\n务必保持声呐系统的运作。从现在起所有系统都会面临压力。")
 		else:
-			_show_step("night2_failed", "第二夜失败了……\n声呐盲区是最危险的状态之一，要保持声呐系统运作。\n多给声呐分配资源，减少它的损耗。")
+			_show_step("night2_failed", "第二夜失败了……\n声呐盲区是最危险的状态之一，它会造成巨大的声呐损耗。\n下次多给声呐分配资源，抵消盲区带来的消耗。")
 		_tutorial_done = true
 		_current_phase = TutorialPhase.DONE
 		tutorial_completed.emit()
