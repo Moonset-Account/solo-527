@@ -32,9 +32,11 @@ export default function GamePage() {
   const setActivePuzzle = useGameStore((s) => s.setActivePuzzle)
   const clearActivePuzzle = useGameStore((s) => s.clearActivePuzzle)
   const incrementPlayTime = useGameStore((s) => s.incrementPlayTime)
+  const notebook = useGameStore((s) => s.notebook)
 
   const [notebookOpen, setNotebookOpen] = useState(false)
   const [doorLockedMessage, setDoorLockedMessage] = useState<string | null>(null)
+  const [clueMissingMessage, setClueMissingMessage] = useState<string | null>(null)
 
   const prevRoomRef = useRef<string | null>(null)
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -110,9 +112,21 @@ export default function GamePage() {
           examineItem(targetId)
           break
 
-        case 'examine':
+        case 'examine': {
+          const puzzle = chapterManager.getPuzzle(targetId)
+          if (puzzle && puzzle.requiredClues.length > 0) {
+            const collectedClueIds = new Set(notebook.map(c => c.id))
+            const missing = puzzle.requiredClues.filter(id => !collectedClueIds.has(id))
+            if (missing.length > 0) {
+              soundManager.play('sfx_lock_fail')
+              setClueMissingMessage('线索不足，无法解开此谜题。先收集更多线索吧。')
+              setTimeout(() => setClueMissingMessage(null), 3000)
+              break
+            }
+          }
           setActivePuzzle(targetId)
           break
+        }
 
         case 'door': {
           const door = chapterManager.getDoorByHotspot(effectiveChapterId, effectiveRoomId, hotspotId)
@@ -141,11 +155,13 @@ export default function GamePage() {
           break
       }
     },
-    [effectiveChapterId, effectiveRoomId, navigate, examineItem, setActivePuzzle, setNarrativeText],
+    [effectiveChapterId, effectiveRoomId, navigate, examineItem, setActivePuzzle, setNarrativeText, notebook],
   )
 
   const handleItemCollect = useCallback(() => {
     soundManager.play('sfx_item_pickup')
+    setNotebookOpen(true)
+    setTimeout(() => setNotebookOpen(false), 2000)
     stopExamining()
   }, [stopExamining])
 
@@ -252,6 +268,16 @@ export default function GamePage() {
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 px-8 py-4 rounded-lg border border-red-800/50 bg-black/80 backdrop-blur-sm">
             <p className="font-serif text-red-300/90 text-sm text-center animate-shake">
               {doorLockedMessage}
+            </p>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {clueMissingMessage && (
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 px-8 py-4 rounded-lg border border-amber-800/50 bg-black/80 backdrop-blur-sm">
+            <p className="font-serif text-amber-300/90 text-sm text-center">
+              {clueMissingMessage}
             </p>
           </div>
         )}

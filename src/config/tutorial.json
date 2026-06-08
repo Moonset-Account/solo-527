@@ -1,38 +1,17 @@
 {
   "steps": [
     {
-      "id": "tut_move",
-      "type": "move",
-      "instruction": "点击高亮区域移动到房间另一侧",
-      "highlightTarget": "hotspot_door",
-      "completed": false
-    },
-    {
       "id": "tut_examine",
       "type": "examine",
-      "instruction": "点击物品放大查看细节",
+      "instruction": "点击发光区域查看物品，收集线索推进剧情",
       "highlightTarget": "hotspot_letter",
       "completed": false
     },
     {
-      "id": "tut_pickup",
-      "type": "pickup",
-      "instruction": "点击拾取按钮将物品收入背包",
-      "highlightTarget": "pickup_btn",
-      "completed": false
-    },
-    {
-      "id": "tut_notebook",
-      "type": "notebook",
-      "instruction": "点击笔记图标查看已收集的线索",
-      "highlightTarget": "notebook_btn",
-      "completed": false
-    },
-    {
-      "id": "tut_puzzle",
-      "type": "puzzle",
-      "instruction": "当线索充足时，可以尝试解开谜题",
-      "highlightTarget": "puzzle_hint",
+      "id": "tut_move",
+      "type": "move",
+      "instruction": "点击门前往下一个房间",
+      "highlightTarget": "hotspot_door",
       "completed": false
     }
   ],
@@ -41,17 +20,6 @@
     "name": "公寓入口",
     "backgroundStyle": "linear-gradient(180deg, #1a1410 0%, #2a1f15 40%, #1a1410 100%)",
     "hotspots": [
-      {
-        "id": "hotspot_door",
-        "x": 65,
-        "y": 20,
-        "width": 15,
-        "height": 50,
-        "type": "door",
-        "targetId": "room_201",
-        "glowOnHover": true,
-        "label": "走廊门"
-      },
       {
         "id": "hotspot_letter",
         "x": 30,
@@ -62,6 +30,17 @@
         "targetId": "old_letter",
         "glowOnHover": true,
         "label": "旧信件"
+      },
+      {
+        "id": "hotspot_door",
+        "x": 65,
+        "y": 20,
+        "width": 15,
+        "height": 50,
+        "type": "door",
+        "targetId": "room_201",
+        "glowOnHover": true,
+        "label": "走廊门"
       }
     ],
     "ambientSound": "ambient_hallway",

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
 import RoomView from '@/components/game/RoomView'
+import ItemExaminer from '@/components/game/ItemExaminer'
 import TutorialOverlay from '@/components/tutorial/TutorialOverlay'
 import useGameStore from '@/systems/GameStateManager'
 import analyticsTracker from '@/systems/AnalyticsTracker'
@@ -14,6 +16,9 @@ export default function TutorialPage() {
   const setPhase = useGameStore((s) => s.setPhase)
   const setChapter = useGameStore((s) => s.setChapter)
   const enterRoom = useGameStore((s) => s.enterRoom)
+  const examineItem = useGameStore((s) => s.examineItem)
+  const stopExamining = useGameStore((s) => s.stopExamining)
+  const itemBeingExamined = useGameStore((s) => s.itemBeingExamined)
 
   const [steps] = useState<TutorialStep[]>(
     () => tutorialConfig.steps as TutorialStep[]
@@ -44,13 +49,29 @@ export default function TutorialPage() {
   }, [completeTutorial, goToChapter1])
 
   const handleHotspotClick = useCallback(
-    (hotspotId: string, _type: string, _targetId: string) => {
+    (hotspotId: string, type: string, targetId: string) => {
       if (currentStep < steps.length && steps[currentStep].highlightTarget === hotspotId) {
         handleNext()
       }
+      if (type === 'item') {
+        examineItem(targetId)
+      }
+      if (type === 'door') {
+        completeTutorial()
+        analyticsTracker.setTutorialCompleted()
+        goToChapter1()
+      }
     },
-    [currentStep, steps, handleNext],
+    [currentStep, steps, handleNext, examineItem, completeTutorial, goToChapter1],
   )
+
+  const handleItemCollect = useCallback(() => {
+    stopExamining()
+  }, [stopExamining])
+
+  const handleItemClose = useCallback(() => {
+    stopExamining()
+  }, [stopExamining])
 
   const roomConfig = tutorialConfig.room
 
@@ -61,6 +82,17 @@ export default function TutorialPage() {
         roomId={roomConfig.id}
         onHotspotClick={handleHotspotClick}
       />
+
+      <AnimatePresence>
+        {itemBeingExamined && (
+          <ItemExaminer
+            itemId={itemBeingExamined}
+            onClose={handleItemClose}
+            onCollect={handleItemCollect}
+          />
+        )}
+      </AnimatePresence>
+
       <TutorialOverlay
         steps={steps}
         currentStep={currentStep}

@@ -65,13 +65,13 @@ export default function TutorialOverlay({
     <AnimatePresence mode="wait">
       <motion.div
         key={currentStep}
-        className="fixed inset-0 z-50"
+        className="fixed inset-0 z-50 pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="absolute inset-0 bg-black/60" />
+        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
 
         {highlightRect && (
           <motion.div
@@ -99,13 +99,13 @@ export default function TutorialOverlay({
 
         <button
           onClick={onSkip}
-          className="absolute top-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-200/70 hover:text-amber-200 transition-colors"
+          className="absolute top-4 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-200/70 hover:text-amber-200 transition-colors pointer-events-auto"
         >
           <X size={14} />
           跳过教程
         </button>
 
-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 px-6">
+        <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pb-10 px-6 pointer-events-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={step?.id}
