@@ -111,6 +111,27 @@ export class SettingsScene extends BaseScene {
     if (key === 'Escape') this._onBack()
   }
 
+  handleMouseDown(pos) {
+    for (const key of ['sfxVolume', 'bgmVolume']) {
+      const r = this._getSliderRect(key)
+      if (pos.x >= r.x - 15 && pos.x <= r.x + r.w + 15 && pos.y >= r.y - 15 && pos.y <= r.y + r.h + 15) {
+        this.draggingSlider = key
+        this._updateSliderValue(key, pos.x)
+        return true
+      }
+    }
+    return false
+  }
+
+  handleMouseUp() {
+    if (this.draggingSlider) {
+      this.services.audioManager.playSfx('button_click')
+      this.draggingSlider = null
+      return true
+    }
+    return false
+  }
+
   _getSliderRect(key) {
     const baseX = this.width / 2 - 200
     const baseY = key === 'sfxVolume' ? 210 : 300

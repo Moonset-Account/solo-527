@@ -65,6 +65,14 @@ onMounted(async () => {
     sceneManager.handleClick(pos)
   })
 
+  inputMapper.on('mousedown', (pos) => {
+    sceneManager.handleMouseDown(pos)
+  })
+
+  inputMapper.on('mouseup', (pos) => {
+    sceneManager.handleMouseUp(pos)
+  })
+
   inputMapper.on('mousemove', (pos) => {
     sceneManager.handleMouseMove(pos)
   })

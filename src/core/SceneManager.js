@@ -92,18 +92,34 @@ export class SceneManager {
   }
 
   handleClick(pos) {
+    if (this.isTransitioning) return
     if (this.currentScene && this.currentScene.handleClick) {
       this.currentScene.handleClick(pos)
     }
   }
 
+  handleMouseDown(pos) {
+    if (this.isTransitioning) return
+    if (this.currentScene && this.currentScene.handleMouseDown) {
+      this.currentScene.handleMouseDown(pos)
+    }
+  }
+
+  handleMouseUp(pos) {
+    if (this.currentScene && this.currentScene.handleMouseUp) {
+      this.currentScene.handleMouseUp(pos)
+    }
+  }
+
   handleMouseMove(pos) {
+    if (this.isTransitioning) return
     if (this.currentScene && this.currentScene.handleMouseMove) {
       this.currentScene.handleMouseMove(pos)
     }
   }
 
   handleKeyDown(key) {
+    if (this.isTransitioning) return
     if (this.currentScene && this.currentScene.handleKeyDown) {
       this.currentScene.handleKeyDown(key)
     }
