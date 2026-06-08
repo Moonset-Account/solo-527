@@ -131,6 +131,17 @@ namespace Kitchen.Core
             platedRecipe = null;
         }
 
+        public void ResetForReuse()
+        {
+            isDirty = false;
+            isPlated = false;
+            platedRecipe = null;
+            ingredient = null;
+            currentState = IngredientState.Raw;
+            cookProgress = 0f;
+            chopProgress = 0f;
+        }
+
         public void Clean()
         {
             isDirty = false;
@@ -146,10 +157,17 @@ namespace Kitchen.Core
             Destroy(gameObject);
         }
 
+        private static void SetColor(Renderer r, Color c)
+        {
+            if (r == null) return;
+            if (r.sharedMaterial != null) r.sharedMaterial.color = c;
+            else if (r.material != null) r.material.color = c;
+        }
+
         private void UpdateVisual()
         {
             if (visualRenderer == null || ingredient == null) return;
-            visualRenderer.color = ingredient.color;
+            SetColor(visualRenderer, ingredient.color);
 
             switch (currentState)
             {
@@ -160,23 +178,21 @@ namespace Kitchen.Core
                     transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
                     break;
                 case IngredientState.Cooking:
-                    visualRenderer.color = Color.Lerp(ingredient.color, Color.white, 0.3f);
+                    SetColor(visualRenderer, Color.Lerp(ingredient.color, Color.white, 0.3f));
                     break;
                 case IngredientState.Cooked:
-                    visualRenderer.color = Color.Lerp(ingredient.color, new Color(0.6f, 0.3f, 0.1f), 0.4f);
+                    SetColor(visualRenderer, Color.Lerp(ingredient.color, new Color(0.6f, 0.3f, 0.1f), 0.4f));
                     break;
                 case IngredientState.Burned:
-                    visualRenderer.color = new Color(0.1f, 0.1f, 0.1f);
+                    SetColor(visualRenderer, new Color(0.1f, 0.1f, 0.1f));
                     break;
                 case IngredientState.Plated:
-                    if (platedRecipe != null && visualRenderer != null && visualRenderer.sharedMaterial != null)
-                    {
-                        Color baseColor = visualRenderer.sharedMaterial.color;
-                        visualRenderer.sharedMaterial.color = Color.Lerp(baseColor, Color.yellow, 0.5f);
-                    }
+                    Color baseC = Color.white;
+                    if (visualRenderer.sharedMaterial != null) baseC = visualRenderer.sharedMaterial.color;
+                    else if (visualRenderer.material != null) baseC = visualRenderer.material.color;
+                    SetColor(visualRenderer, Color.Lerp(baseC, Color.yellow, 0.5f));
                     transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
                     break;
-                }
             }
         }
     }

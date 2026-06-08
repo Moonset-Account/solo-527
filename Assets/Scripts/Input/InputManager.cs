@@ -239,17 +239,28 @@ namespace Kitchen.Input
         private void HandleAction(int playerIndex, InputAction action)
         {
             PlayerController pc = PlayerManager.Instance?.GetPlayer(playerIndex);
+            bool singlePlayer = GameManager.Instance?.IsSinglePlayerMode == true;
+
+            if (action == InputAction.Interact)
+            {
+                PlayerController target = pc;
+                if (singlePlayer && playerIndex == 0)
+                {
+                    PlayerController active = PlayerManager.Instance?.GetActivePlayer();
+                    if (active != null) target = active;
+                }
+                if (target != null) target.TryInteract();
+                return;
+            }
+
             if (pc == null) return;
 
             switch (action)
             {
-                case InputAction.Interact:
-                    pc.TryInteract();
-                    break;
                 case InputAction.Drop:
                     break;
                 case InputAction.SwitchCharacter:
-                    if (GameManager.Instance?.IsSinglePlayerMode == true)
+                    if (singlePlayer)
                         PlayerManager.Instance?.SwitchActivePlayer();
                     break;
                 case InputAction.Pause:
