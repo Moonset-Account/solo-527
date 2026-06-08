@@ -211,11 +211,8 @@ func _add_save_slot(slot: int) -> void:
 	load_btn.custom_minimum_size = Vector2(80, 30)
 	load_btn.disabled = not SaveManager.has_save_slot(slot)
 	load_btn.pressed.connect(func():
-		var data = SaveManager.load_game_slot(slot)
-		if not data.is_empty():
-			GameManager.current_level_id = data.get("level_id", "level_01")
-			GameManager.current_score = data.get("score", 0)
-			GameManager.level_time = data.get("time", 0.0)
+		if SaveManager.has_save_slot(slot):
+			GameManager.set_meta("load_save_slot", slot)
 			get_tree().change_scene_to_file("res://scenes/game.tscn")
 	)
 	row.add_child(load_btn)

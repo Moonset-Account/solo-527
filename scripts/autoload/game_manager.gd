@@ -68,14 +68,10 @@ func perform_undo() -> void:
 		"place":
 			var item = _find_item_by_id(action.get("item_id", ""))
 			if item and is_instance_valid(item):
+				if item.has_method("unplace"):
+					item.unplace()
 				item.global_position = action.get("prev_position", Vector2.ZERO)
 				item.global_rotation = action.get("prev_rotation", 0.0)
-				item.is_placed = false
-				item.is_held = false
-				item.freeze = true
-				item.gravity_scale = 0.0
-				item.set_meta("in_box", false)
-				item.remove_from_group("packed_items")
 				items_in_box.erase(item)
 				AudioManager.play_sfx("undo")
 		"rotate":
@@ -99,37 +95,11 @@ func add_item_to_box(item: Node2D) -> void:
 		items_in_box.append(item)
 	item.set_meta("in_box", true)
 	item.add_to_group("packed_items")
-	_check_fragile_pressure(item)
 
 func remove_item_from_box(item: Node2D) -> void:
 	items_in_box.erase(item)
 	item.set_meta("in_box", false)
 	item.remove_from_group("packed_items")
-
-func _check_fragile_pressure(placed_item: Node2D) -> void:
-	for item in items_in_box:
-		if item.has_meta("is_fragile") and item.get_meta("is_fragile"):
-			if placed_item.has_meta("weight"):
-				var pressure = placed_item.get_meta("weight", 1.0)
-				var above = _is_item_above(placed_item, item)
-				if above:
-					var fragility = item.get_meta("fragility", 1.0)
-					if pressure > fragility:
-						fragile_damaged.emit(item, pressure - fragility)
-						fragile_broken_count += 1
-						AudioManager.play_sfx("glass_break")
-
-func _is_item_above(upper: Node2D, lower: Node2D) -> bool:
-	var upper_bottom = upper.global_position.y + _get_item_half_height(upper)
-	var lower_top = lower.global_position.y - _get_item_half_height(lower)
-	return upper_bottom >= lower_top - 5.0 and upper.global_position.y < lower.global_position.y
-
-func _get_item_half_height(item: Node2D) -> float:
-	if item.has_node("CollisionShape2D"):
-		var shape = item.get_node("CollisionShape2D")
-		if shape.shape:
-			return shape.shape.get_rect().size.y / 2.0
-	return 20.0
 
 func complete_level() -> void:
 	is_level_active = false
@@ -172,10 +142,9 @@ func _calc_space_bonus() -> int:
 	var box_area = box_node.get_meta("inner_area", 100000.0)
 	var items_area = 0.0
 	for item in items_in_box:
-		if item.has_node("CollisionShape2D"):
-			var shape = item.get_node("CollisionShape2D")
-			if shape.shape:
-				items_area += shape.shape.get_rect().size.x * shape.shape.get_rect().size.y
+		if is_instance_valid(item) and item.has_method("get_bounds"):
+			var b = item.get_bounds()
+			items_area += b.size.x * b.size.y
 	var ratio = items_area / max(box_area, 1.0)
 	return int(ratio * 500)
 

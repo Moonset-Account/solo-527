@@ -17,6 +17,7 @@ var item_color: Color = Color("#4488CC")
 var item_label: String = ""
 var is_held: bool = false
 var is_placed: bool = false
+var is_settling: bool = false
 var damage_amount: float = 0.0
 var rotation_step: float = PI / 2.0
 var _drag_offset: Vector2 = Vector2.ZERO
@@ -29,13 +30,17 @@ var _glow: ColorRect = null
 var _pulse_time: float = 0.0
 var _collision_count: int = 0
 var _last_collision_sound_time: float = 0.0
+var _contacts_above: Array[RigidBody2D] = []
+var _pressure_check_timer: float = 0.0
+var _pressure_check_interval: float = 0.25
 
 func _ready() -> void:
 	add_to_group("items")
 	freeze = true
 	gravity_scale = 0.0
 	contact_monitor = true
-	max_contacts_reported = 4
+	max_contacts_reported = 8
+	mass = max(weight, 0.1)
 	collision_layer = 1
 	collision_mask = 1 | 2
 	body_entered.connect(_on_body_entered)
@@ -57,6 +62,7 @@ func setup(data: Dictionary) -> void:
 	item_label = data.get("label", "")
 	_rebuild_visual()
 	_setup_meta()
+	mass = max(weight, 0.1)
 
 func _setup_meta() -> void:
 	set_meta("item_id", item_id)
@@ -239,8 +245,11 @@ func _remove_collision_shapes() -> void:
 
 func grab(from_pos: Vector2) -> void:
 	is_held = true
+	is_settling = false
 	freeze = true
 	gravity_scale = 0.0
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
 	_drag_offset = global_position - from_pos
 	_original_pos = global_position
 	_original_rot = global_rotation
@@ -255,30 +264,50 @@ func drag_to(pos: Vector2) -> void:
 		return
 	global_position = pos + _drag_offset
 
-func release() -> void:
-	if not is_held:
-		return
+func release_in_box() -> void:
 	is_held = false
+	is_settling = true
 	z_index = 0
 	if _glow:
 		_glow.color = Color(1, 1, 0, 0)
-	var in_box = get_meta("in_box", false)
-	if in_box:
-		is_placed = true
-		freeze = true
-		gravity_scale = 0.0
-		GameManager.push_undo_action({
-			"type": "place",
-			"item_id": item_id,
-			"prev_position": _original_pos,
-			"prev_rotation": _original_rot
-		})
-		GameManager.add_item_to_box(self)
-		AudioManager.play_sfx("place")
-	else:
-		freeze = true
-		gravity_scale = 0.0
-	released.emit(self, in_box)
+	freeze = false
+	gravity_scale = 2.0
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	set_meta("in_box", true)
+	released.emit(self, true)
+
+func release_outside() -> void:
+	is_held = false
+	is_settling = false
+	z_index = 0
+	if _glow:
+		_glow.color = Color(1, 1, 0, 0)
+	freeze = true
+	gravity_scale = 0.0
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	set_meta("in_box", false)
+	released.emit(self, false)
+
+func finalize_placement() -> void:
+	is_settling = false
+	freeze = true
+	gravity_scale = 0.0
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	is_placed = true
+
+func unplace() -> void:
+	is_placed = false
+	is_settling = false
+	freeze = true
+	gravity_scale = 0.0
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	set_meta("in_box", false)
+	remove_from_group("packed_items")
+	_contacts_above.clear()
 
 func rotate_item(clockwise: bool = true) -> void:
 	var prev_rot = global_rotation
@@ -296,13 +325,16 @@ func rotate_item(clockwise: bool = true) -> void:
 
 func apply_damage(amount: float) -> void:
 	damage_amount += amount
-	if is_fragile and _crack_overlay:
-		var alpha = clampf(damage_amount / fragility, 0.0, 0.8)
-		_crack_overlay.color = Color(1, 0, 0, alpha)
-		_create_crack_particles()
+	_update_crack_visual()
+	_create_crack_particles()
 	damaged.emit(self, amount)
 	if damage_amount >= fragility:
 		_break_item()
+
+func _update_crack_visual() -> void:
+	if is_fragile and _crack_overlay:
+		var alpha = clampf(damage_amount / fragility, 0.0, 0.8)
+		_crack_overlay.color = Color(1, 0, 0, alpha)
 
 func _break_item() -> void:
 	if _visual:
@@ -335,21 +367,32 @@ func _on_body_entered(body: Node2D) -> void:
 		var impact = linear_velocity.length() if not freeze else 0.0
 		if impact > 20.0:
 			AudioManager.play_sfx("collision")
-	if is_held:
-		return
-	if is_fragile and body.has_meta("weight"):
-		var body_weight = body.get_meta("weight", 1.0)
-		if body.get_meta("in_box", false) and get_meta("in_box", false):
-			if body.global_position.y < global_position.y:
-				if body_weight > fragility:
-					apply_damage(body_weight - fragility)
+	if body is RigidBody2D and body.has_meta("weight"):
+		if body.global_position.y < global_position.y - 2.0:
+			if not _contacts_above.has(body):
+				_contacts_above.append(body)
+			if is_fragile and get_meta("in_box", false) and body.get_meta("in_box", false):
+				_check_pressure_from(body)
 	if _glow and not is_held:
 		_glow.color = Color(0, 1, 0, 0.15)
 
 func _on_body_exited(body: Node2D) -> void:
 	_collision_count = max(0, _collision_count - 1)
+	if body is RigidBody2D:
+		_contacts_above.erase(body)
 	if _collision_count == 0 and _glow and not is_held:
 		_glow.color = Color(1, 1, 0, 0)
+
+func _check_pressure_from(source: RigidBody2D) -> void:
+	var total_weight_above = source.get_meta("weight", 1.0)
+	for contact in _contacts_above:
+		if contact != source and is_instance_valid(contact):
+			total_weight_above += contact.get_meta("weight", 0.0)
+	if total_weight_above > fragility:
+		var damage_amount = total_weight_above - fragility
+		apply_damage(damage_amount)
+		GameManager.fragile_broken_count += 1
+		AudioManager.play_sfx("glass_break")
 
 func _process(delta: float) -> void:
 	if is_held:
@@ -362,6 +405,31 @@ func _process(delta: float) -> void:
 		if _glow:
 			var pulse = 0.15 + 0.1 * sin(_pulse_time)
 			_glow.color = Color(0.5, 0.8, 1.0, pulse)
+	if is_fragile and is_placed and not is_held:
+		_pressure_check_timer += delta
+		if _pressure_check_timer >= _pressure_check_interval:
+			_pressure_check_timer = 0.0
+			_recheck_pressure()
+
+func _recheck_pressure() -> void:
+	_contacts_above.clear()
+	var bodies = get_colliding_bodies()
+	for body in bodies:
+		if body is RigidBody2D and body.has_meta("weight"):
+			if body.global_position.y < global_position.y - 2.0:
+				_contacts_above.append(body)
+	if _contacts_above.is_empty():
+		return
+	var total_weight = 0.0
+	for contact in _contacts_above:
+		if is_instance_valid(contact):
+			total_weight += contact.get_meta("weight", 1.0)
+	if total_weight > fragility and get_meta("in_box", false):
+		var excess = total_weight - fragility
+		if damage_amount < fragility:
+			apply_damage(excess * 0.5)
+			GameManager.fragile_broken_count += 1
+			AudioManager.play_sfx("glass_break")
 
 func get_bounds() -> Rect2:
 	var bounds = Rect2(global_position, Vector2.ZERO)
@@ -393,5 +461,7 @@ func serialize() -> Dictionary:
 		"label": item_label,
 		"position": {"x": global_position.x, "y": global_position.y},
 		"rotation": global_rotation,
-		"damage": damage_amount
+		"damage": damage_amount,
+		"in_box": get_meta("in_box", false),
+		"is_placed": is_placed
 	}

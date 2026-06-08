@@ -1,6 +1,6 @@
 extends Node2D
 
-var _box: Node2D = null
+var _box: StaticBody2D = null
 var _hud: CanvasLayer = null
 var _feedback: Node2D = null
 var _items: Array[RigidBody2D] = []
@@ -15,6 +15,9 @@ var _two_finger_timer: float = 0.0
 var _two_finger_count: int = 0
 var _camera: Camera2D = null
 var _pause_overlay: CanvasLayer = null
+var _settle_timer: float = 0.0
+var _is_settling: bool = false
+var _settle_item: RigidBody2D = null
 
 func _ready() -> void:
 	_setup_camera()
@@ -35,7 +38,11 @@ func _ready() -> void:
 	add_child(_feedback)
 	GameManager.level_started.connect(_on_level_started)
 	GameManager.fragile_damaged.connect(_on_fragile_damaged)
-	if GameManager.current_level_id != "":
+	if GameManager.has_meta("load_save_slot"):
+		var slot = GameManager.get_meta("load_save_slot")
+		GameManager.remove_meta("load_save_slot")
+		_load_from_save(slot)
+	elif GameManager.current_level_id != "":
 		_load_level(GameManager.current_level_id)
 
 func _setup_camera() -> void:
@@ -70,6 +77,70 @@ func _load_level(level_id: String) -> void:
 		_hud.set_level_name(_level_config.get("name", level_id))
 		_hud._update_hints(InputManager.get_effective_input_method())
 
+func _load_from_save(slot: int) -> void:
+	var data = SaveManager.load_game_slot(slot)
+	if data.is_empty():
+		return
+	_clear_level()
+	var level_id = data.get("level_id", "level_01")
+	_level_config = LevelConfig.load_level(level_id)
+	if _level_config.is_empty():
+		return
+	_box = StaticBody2D.new()
+	_box.name = "BoxContainer"
+	_box.set_script(load("res://scripts/box_container.gd"))
+	_box.position = Vector2(100, 0)
+	add_child(_box)
+	_box.setup(_level_config)
+	_box.item_entered_box.connect(_on_item_entered)
+	_box.item_exited_box.connect(_on_item_exited)
+	_box.weight_warning.connect(_on_weight_warning)
+	_box.box_overflow.connect(_on_overflow)
+	GameManager.current_level_id = level_id
+	GameManager.current_score = data.get("score", 0)
+	GameManager.level_time = data.get("time", 0.0)
+	GameManager.fragile_broken_count = data.get("fragile_broken_count", 0)
+	GameManager.undo_stack = data.get("undo_stack", [])
+	GameManager.is_level_active = true
+	GameManager.is_paused = false
+	GameManager.state = GameManager.GameState.PLAYING
+	GameManager.items_in_box.clear()
+	var all_items_data = data.get("all_items", [])
+	var items_config = _level_config.get("items", [])
+	_spawned_count = items_config.size()
+	for item_state in all_items_data:
+		var config_match = _find_config_for_item(items_config, item_state.get("item_id", ""))
+		if config_match.is_empty():
+			config_match = item_state.duplicate()
+		var item = RigidBody2D.new()
+		item.set_script(load("res://scripts/item.gd"))
+		item.setup(config_match)
+		add_child(item)
+		item.global_position = Vector2(item_state.get("position", {}).get("x", 0), item_state.get("position", {}).get("y", 0))
+		item.global_rotation = item_state.get("rotation", 0.0)
+		item.damage_amount = item_state.get("damage", 0.0)
+		if item_state.get("in_box", false):
+			item.is_placed = true
+			item.freeze = true
+			item.gravity_scale = 0.0
+			item.set_meta("in_box", true)
+			item.add_to_group("packed_items")
+			GameManager.items_in_box.append(item)
+		else:
+			item.freeze = true
+			item.gravity_scale = 0.0
+		if item.damage_amount > 0 and item.is_fragile:
+			item._update_crack_visual()
+		_items.append(item)
+	if _hud:
+		_hud.set_level_name(_level_config.get("name", level_id))
+
+func _find_config_for_item(items_config: Array, item_id: String) -> Dictionary:
+	for cfg in items_config:
+		if cfg.get("id", "") == item_id:
+			return cfg
+	return {}
+
 func _spawn_items() -> void:
 	var items_data = _level_config.get("items", [])
 	var spawn_positions = _level_config.get("spawn_positions", [])
@@ -96,6 +167,8 @@ func _clear_level() -> void:
 	_box = null
 	_dragging = false
 	_dragged_item = null
+	_is_settling = false
+	_settle_item = null
 
 func _process(delta: float) -> void:
 	if not GameManager.is_level_active or GameManager.is_paused:
@@ -111,6 +184,12 @@ func _process(delta: float) -> void:
 		if _two_finger_timer <= 0 and _two_finger_count >= 2:
 			_on_undo()
 			_two_finger_count = 0
+	if _is_settling and _settle_item and is_instance_valid(_settle_item):
+		_settle_timer -= delta
+		if _settle_item.freeze or _settle_item.linear_velocity.length() < 3.0 or _settle_timer <= 0:
+			_finalize_placement(_settle_item)
+			_is_settling = false
+			_settle_item = null
 	if Input.is_action_just_pressed("rotate_cw"):
 		_handle_rotate(true)
 	if Input.is_action_just_pressed("rotate_ccw"):
@@ -138,21 +217,24 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not GameManager.is_level_active or GameManager.is_paused:
 		return
-	var world_pos = _screen_to_world(event.position) if event is InputEventMouse else event.position
 	if event is InputEventMouseButton:
+		var world_pos = _screen_to_world(event.position)
 		_handle_mouse_event(event, world_pos)
 	elif event is InputEventTouchScreenTouch:
-		_handle_touch_event(event)
+		var world_pos = _screen_to_world(event.position)
+		_handle_touch_event(event, world_pos)
 	elif event is InputEventTouchScreenDrag:
-		_handle_touch_drag(event)
+		var world_pos = _screen_to_world(event.position)
+		_handle_touch_drag(event, world_pos)
 	elif event is InputEventMouseMotion:
 		if _dragging and _dragged_item and is_instance_valid(_dragged_item):
+			var world_pos = _screen_to_world(event.position)
 			_dragged_item.drag_to(world_pos)
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
-	if _camera:
-		return _camera.get_global_mouse_position()
-	return screen_pos
+	var canvas_transform = get_canvas_transform()
+	var world_pos = canvas_transform.affine_inverse() * screen_pos
+	return world_pos
 
 func _handle_mouse_event(event: InputEventMouseButton, world_pos: Vector2) -> void:
 	if event.button_index == MOUSE_BUTTON_LEFT:
@@ -168,11 +250,11 @@ func _handle_mouse_event(event: InputEventMouseButton, world_pos: Vector2) -> vo
 		if item:
 			item.rotate_item(true)
 
-func _handle_touch_event(event: InputEventTouchScreenTouch) -> void:
+func _handle_touch_event(event: InputEventTouchScreenTouch, world_pos: Vector2) -> void:
 	if event.pressed:
 		if _touch_id == -1:
 			_touch_id = event.index
-			var item = _get_item_at(event.position)
+			var item = _get_item_at(world_pos)
 			if item:
 				if _double_tap_item == item and _double_tap_timer > 0:
 					item.rotate_item(true)
@@ -181,7 +263,7 @@ func _handle_touch_event(event: InputEventTouchScreenTouch) -> void:
 				else:
 					_double_tap_item = item
 					_double_tap_timer = 0.3
-					_start_drag(item, event.position)
+					_start_drag(item, world_pos)
 		else:
 			_two_finger_count += 1
 			_two_finger_timer = 0.3
@@ -192,11 +274,14 @@ func _handle_touch_event(event: InputEventTouchScreenTouch) -> void:
 				_end_drag()
 		_two_finger_count = max(0, _two_finger_count - 1)
 
-func _handle_touch_drag(event: InputEventTouchScreenDrag) -> void:
+func _handle_touch_drag(event: InputEventTouchScreenDrag, world_pos: Vector2) -> void:
 	if _dragging and _dragged_item and is_instance_valid(_dragged_item) and event.index == _touch_id:
-		_dragged_item.drag_to(event.position)
+		_dragged_item.drag_to(world_pos)
 
 func _start_drag(item: RigidBody2D, from_pos: Vector2) -> void:
+	if _is_settling and _settle_item == item:
+		_is_settling = false
+		_settle_item = null
 	_dragging = true
 	_dragged_item = item
 	item.grab(from_pos)
@@ -204,18 +289,61 @@ func _start_drag(item: RigidBody2D, from_pos: Vector2) -> void:
 
 func _end_drag() -> void:
 	if _dragged_item and is_instance_valid(_dragged_item):
-		_dragged_item.release()
-		if _feedback and _dragged_item.get_meta("in_box", false):
-			_feedback.spawn_place_feedback(_dragged_item.global_position, Color.GREEN)
+		_release_item(_dragged_item)
 	InputManager.deselect_item()
 	_dragging = false
 	_dragged_item = null
+
+func _release_item(item: RigidBody2D) -> void:
+	var inside_box = _is_inside_box(item)
+	if inside_box:
+		item.release_in_box()
+		_is_settling = true
+		_settle_item = item
+		_settle_timer = 1.5
+		AudioManager.play_sfx("place")
+	else:
+		item.release_outside()
+
+func _is_inside_box(item: RigidBody2D) -> bool:
+	if not _box or not is_instance_valid(_box):
+		return false
+	var box_rect = Rect2(
+		_box.global_position.x - _box.box_width / 2.0,
+		_box.global_position.y - _box.box_height / 2.0,
+		_box.box_width,
+		_box.box_height
+	)
+	return box_rect.has_point(item.global_position)
+
+func _finalize_placement(item: RigidBody2D) -> void:
+	if not is_instance_valid(item):
+		return
+	item.finalize_placement()
+	var still_inside = _is_inside_box(item)
+	if still_inside:
+		GameManager.push_undo_action({
+			"type": "place",
+			"item_id": item.item_id,
+			"prev_position": item._original_pos,
+			"prev_rotation": item._original_rot
+		})
+		GameManager.add_item_to_box(item)
+		if _feedback:
+			_feedback.spawn_place_feedback(item.global_position, Color.GREEN)
+	else:
+		item.set_meta("in_box", false)
+		item.is_placed = false
+		if _feedback:
+			_feedback.spawn_floating_text(item.global_position, "Missed!", Color.RED)
 
 func _get_item_at(pos: Vector2) -> RigidBody2D:
 	var space_state = get_world_2d().direct_space_state
 	var query = PhysicsPointQueryParameters2D.new()
 	query.position = pos
-	query.collision_mask = 1
+	query.collision_mask = 1 | 2
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
 	var results = space_state.intersect_point(query)
 	for result in results:
 		var collider = result.get("collider")
@@ -238,7 +366,8 @@ func _on_item_entered(item: Node2D) -> void:
 	AudioManager.play_sfx("place")
 
 func _on_item_exited(item: Node2D) -> void:
-	GameManager.remove_item_from_box(item)
+	if item.get_meta("in_box", false):
+		GameManager.remove_item_from_box(item)
 
 func _on_weight_warning(ratio: float) -> void:
 	if _feedback:

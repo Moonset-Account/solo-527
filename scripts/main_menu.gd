@@ -111,14 +111,8 @@ func _on_play() -> void:
 
 func _on_continue() -> void:
 	AudioManager.play_sfx("button")
-	var data = SaveManager.load_game_slot(0)
-	if not data.is_empty():
-		GameManager.current_level_id = data.get("level_id", "level_01")
-		GameManager.current_score = data.get("score", 0)
-		GameManager.level_time = data.get("time", 0.0)
-		GameManager.state = GameManager.GameState.PLAYING
-		GameManager.is_level_active = true
-		get_tree().change_scene_to_file("res://scenes/game.tscn")
+	GameManager.set_meta("load_save_slot", 0)
+	get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 func _on_settings() -> void:
 	AudioManager.play_sfx("button")

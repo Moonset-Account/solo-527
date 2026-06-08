@@ -160,23 +160,20 @@ func update_play_time(delta: float) -> void:
 	_save_data["play_time"] = _save_data.get("play_time", 0.0) + delta
 
 func serialize_game_state() -> Dictionary:
+	var tree = get_tree()
+	var all_items: Array[Dictionary] = []
+	if tree:
+		for node in tree.get_nodes_in_group("items"):
+			if is_instance_valid(node) and node.has_method("serialize"):
+				all_items.append(node.serialize())
 	var state = {
 		"level_id": GameManager.current_level_id,
 		"score": GameManager.current_score,
 		"time": GameManager.level_time,
-		"items_in_box": [],
-		"undo_stack": GameManager.undo_stack
+		"fragile_broken_count": GameManager.fragile_broken_count,
+		"undo_stack": GameManager.undo_stack,
+		"all_items": all_items
 	}
-	for item in GameManager.items_in_box:
-		if is_instance_valid(item):
-			state["items_in_box"].append({
-				"item_id": item.get_meta("item_id", ""),
-				"template": item.get_meta("template_name", ""),
-				"position": {"x": item.global_position.x, "y": item.global_position.y},
-				"rotation": item.global_rotation,
-				"weight": item.get_meta("weight", 1.0),
-				"is_fragile": item.get_meta("is_fragile", false)
-			})
 	return state
 
 func save_game_slot(slot: int) -> bool:
