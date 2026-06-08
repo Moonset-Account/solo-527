@@ -189,10 +189,10 @@ namespace PuppetTheater.UI
 
         private static string GetAudienceEmotionName(float score)
         {
-            if (score >= 0.8f) return "狂热";
-            if (score >= 0.6f) return "开心";
-            if (score >= 0.4f) return "一般";
-            if (score >= 0.2f) return "无聊";
+            if (score <= 0.2f) return "狂热";
+            if (score <= 0.4f) return "开心";
+            if (score <= 0.6f) return "一般";
+            if (score <= 0.8f) return "无聊";
             return "愤怒";
         }
     }

@@ -74,7 +74,9 @@ namespace PuppetTheater.Core
 
         public JudgmentResult JudgeInput(LightColor inputColor, double inputTimeMs)
         {
-            int closestBeat = FindClosestUnjudgedBeat(inputTimeMs);
+            double relativeInputMs = inputTimeMs - _songStartTimeDsp * 1000.0;
+
+            int closestBeat = FindClosestUnjudgedBeat(relativeInputMs);
 
             if (closestBeat < 0)
             {
@@ -88,7 +90,7 @@ namespace PuppetTheater.Core
                 };
             }
 
-            double rawDiff = inputTimeMs - _beatMap[closestBeat].timeMs;
+            double rawDiff = relativeInputMs - _beatMap[closestBeat].timeMs;
             double adjustedDiff = rawDiff - calibrationOffsetMs;
             double absAdjusted = Math.Abs(adjustedDiff);
 
