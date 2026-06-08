@@ -1,4 +1,5 @@
 import { Reagent } from '@/types/game';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { inputManager } from '@/engine/input/manager';
 import { AlertTriangle } from 'lucide-react';
 
@@ -9,7 +10,7 @@ interface ReagentPanelProps {
 }
 
 export default function ReagentPanel({ reagents, selectedId, onSelect }: ReagentPanelProps) {
-  const mode = inputManager.getMode();
+  const mode = useSettingsStore(s => s.settings.inputMode);
   return (
     <div className="flex flex-col gap-1.5 p-3 w-44 bg-[#0a2e2e]/90 rounded-xl border border-[#1a5a5a] backdrop-blur-sm h-full overflow-y-auto">
       <h3 className="text-[#F5C542] font-bold text-sm mb-1 tracking-wider">试剂</h3>

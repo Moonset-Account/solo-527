@@ -20,7 +20,7 @@ interface GameState {
   setCurrentLevel: (levelId: string) => void;
   setStepIndex: (index: number) => void;
   setTotalSteps: (total: number) => void;
-  setTemperature: (temp: number) => void;
+  setTemperature: (temp: number | ((prev: number) => number)) => void;
   addLabObject: (obj: LabObject) => void;
   removeLabObject: (id: string) => void;
   setEffects: (effects: ReactionEffect[]) => void;
@@ -57,7 +57,7 @@ export const useGameStore = create<GameState>((set) => ({
   setCurrentLevel: (levelId) => set({ currentLevelId: levelId }),
   setStepIndex: (index) => set({ currentStepIndex: index }),
   setTotalSteps: (total) => set({ totalSteps: total }),
-  setTemperature: (temp) => set({ temperature: temp }),
+  setTemperature: (temp: number | ((prev: number) => number)) => set((s) => ({ temperature: typeof temp === 'function' ? temp(s.temperature) : temp })),
   addLabObject: (obj) => set((s) => ({ labObjects: [...s.labObjects, obj] })),
   removeLabObject: (id) => set((s) => ({ labObjects: s.labObjects.filter(o => o.id !== id) })),
   setEffects: (effects) => set({ effects }),

@@ -11,12 +11,27 @@ export interface ValidationResult {
 export class StepValidator {
   validate(currentStep: ExperimentStep, action: string, target: string, value?: number): ValidationResult {
     const actionMatch = currentStep.action === action;
-    const targetMatch = currentStep.target === target;
+    let targetMatch = false;
     let valueMatch = true;
-    if (value !== undefined && currentStep.tolerance > 0) {
+
+    if (currentStep.action === 'measure' && currentStep.target.includes(':')) {
+      const [expectedReagent, expectedAmount] = currentStep.target.split(':');
+      const actualReagent = target.includes(':') ? target.split(':')[0] : target;
+      targetMatch = actionMatch && actualReagent === expectedReagent;
+      if (targetMatch && value !== undefined && currentStep.tolerance > 0) {
+        valueMatch = Math.abs(value - parseFloat(expectedAmount)) <= currentStep.tolerance;
+      } else if (targetMatch && value === undefined) {
+        valueMatch = false;
+      }
+    } else {
+      targetMatch = actionMatch && currentStep.target === target;
+    }
+
+    if (value !== undefined && currentStep.tolerance > 0 && currentStep.action !== 'measure') {
       const targetValue = parseFloat(currentStep.target.split(':')[1] || '0');
       valueMatch = Math.abs(value - targetValue) <= currentStep.tolerance;
     }
+
     const correct = actionMatch && targetMatch && valueMatch;
     const result: ValidationResult = {
       correct,

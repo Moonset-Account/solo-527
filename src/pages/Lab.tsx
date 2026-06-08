@@ -1,14 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { useSaveStore } from '@/stores/saveStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { getLevelById, getLevelsOrdered } from '@/data/levels';
 import { getExperimentById } from '@/data/experiments';
-import { getReagentById, reagents as allReagents } from '@/data/reagents';
-import { getApparatusById, apparatus as allApparatus } from '@/data/apparatus';
+import { getReagentById } from '@/data/reagents';
+import { getApparatusById } from '@/data/apparatus';
 import { experimentEngine } from '@/engine/experiment/engine';
 import { eventEmitter } from '@/engine/events/emitter';
+import { inputManager, InputAction } from '@/engine/input/manager';
 import LabCanvas from '@/components/lab/LabCanvas';
 import StepPanel from '@/components/ui/StepPanel';
 import ApparatusPanel from '@/components/ui/ApparatusPanel';
@@ -16,22 +17,30 @@ import ReagentPanel from '@/components/ui/ReagentPanel';
 import TemperatureControl from '@/components/ui/TemperatureControl';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import HintButton from '@/components/ui/HintButton';
-import { ExperimentStep, LabObject, PlayTracker } from '@/types/game';
-import { ArrowLeft, Pause, Play, RotateCcw } from 'lucide-react';
+import MeasureDialog from '@/components/ui/MeasureDialog';
+import { ExperimentStep, LabObject, PlayTracker, ReactionEffect } from '@/types/game';
+import { ArrowLeft, Pause, Play, RotateCcw, Eye } from 'lucide-react';
 
 export default function Lab() {
   const { levelId } = useParams<{ levelId: string }>();
   const navigate = useNavigate();
-  const { setPhase, setStepIndex, setTotalSteps, setError, setSafetyNote, setHint, setTracker, addLabObject, setEffects, temperature, setTemperature, selectedApparatus, selectApparatus, selectedReagent, selectReagent, resetLab, isPaused, setPaused } = useGameStore();
+  const gameStore = useGameStore();
+  const { setPhase, setStepIndex, setTotalSteps, setError, setSafetyNote, setHint, setTracker, addLabObject, setEffects, temperature, setTemperature, selectedApparatus, selectApparatus, selectedReagent, selectReagent, resetLab, isPaused, setPaused, labObjects } = gameStore;
   const completeLevel = useSaveStore(s => s.completeLevel);
   const inputMode = useSettingsStore(s => s.settings.inputMode);
   const [currentStep, setCurrentStep] = useState<ExperimentStep | null>(null);
   const [hintsLeft, setHintsLeft] = useState(3);
   const [expDone, setExpDone] = useState(false);
   const [usedApparatus, setUsedApparatus] = useState<string[]>([]);
+  const [showMeasure, setShowMeasure] = useState(false);
+  const [inputModeKey, setInputModeKey] = useState(0);
+  const [canvasEffects, setCanvasEffects] = useState<ReactionEffect[]>([]);
 
   const level = levelId ? getLevelById(levelId) : null;
   const experiment = level ? getExperimentById(level.experimentId) : null;
+
+  const apparatusList = experiment ? experiment.requiredApparatus.map(id => getApparatusById(id)!).filter(Boolean) : [];
+  const reagentList = experiment ? experiment.requiredReagents.map(id => getReagentById(id)!).filter(Boolean) : [];
 
   useEffect(() => {
     if (!level || !experiment) { navigate('/'); return; }
@@ -40,6 +49,7 @@ export default function Lab() {
     setTotalSteps(experiment.steps.length);
     setHintsLeft(level.hintCount);
     experimentEngine.startExperiment(experiment, level.id, level.hintCount);
+    setCanvasEffects([]);
 
     const onStepCurrent = (step: ExperimentStep) => { setCurrentStep(step); };
     const onStepComplete = () => { setStepIndex(Math.floor(experimentEngine.getProgress() * experiment.steps.length)); };
@@ -51,20 +61,83 @@ export default function Lab() {
         completeLevel(level.id, data.tracker);
       }
     };
+    const onReactionEffects = (effects: ReactionEffect[]) => {
+      const positioned = effects.map(e => ({
+        ...e,
+        x: 400 + (Math.random() * 60 - 30),
+        y: 280 + (Math.random() * 40 - 20),
+      }));
+      setCanvasEffects(positioned);
+      setEffects(positioned);
+      setTimeout(() => { setCanvasEffects([]); setEffects([]); }, Math.max(...effects.map(e => e.duration)) + 500);
+    };
+    const onModeChanged = () => { setInputModeKey(k => k + 1); };
 
     eventEmitter.on('step:current', onStepCurrent as (...a: unknown[]) => void);
     eventEmitter.on('step:complete', onStepComplete as (...a: unknown[]) => void);
     eventEmitter.on('step:error', onStepError as (...a: unknown[]) => void);
     eventEmitter.on('experiment:complete', onExpComplete as (...a: unknown[]) => void);
+    eventEmitter.on('reaction:effects', onReactionEffects as (...a: unknown[]) => void);
+    eventEmitter.on('input:modeChanged', onModeChanged as (...a: unknown[]) => void);
 
     return () => {
       eventEmitter.off('step:current', onStepCurrent as (...a: unknown[]) => void);
       eventEmitter.off('step:complete', onStepComplete as (...a: unknown[]) => void);
       eventEmitter.off('step:error', onStepError as (...a: unknown[]) => void);
       eventEmitter.off('experiment:complete', onExpComplete as (...a: unknown[]) => void);
+      eventEmitter.off('reaction:effects', onReactionEffects as (...a: unknown[]) => void);
+      eventEmitter.off('input:modeChanged', onModeChanged as (...a: unknown[]) => void);
       experimentEngine.reset();
     };
   }, [levelId]);
+
+  useEffect(() => {
+    if (inputMode !== 'keyboard') return;
+
+    const handleInputAction = (action: InputAction) => {
+      if (isPaused || expDone) return;
+      if (!currentStep) return;
+
+      switch (action.type) {
+        case 'select': {
+          const idx = parseInt(action.target?.split('_')[1] || '0');
+          const app = apparatusList[idx];
+          if (app) handleApparatusSelect(app.id);
+          break;
+        }
+        case 'add': {
+          const idx = parseInt(action.target?.split('_')[1] || '0');
+          const reagent = reagentList[idx];
+          if (reagent) handleReagentSelect(reagent.id);
+          break;
+        }
+        case 'temperature': {
+          const delta = action.value || 0;
+          setTemperature(prev => Math.max(0, Math.min(100, prev + delta)));
+          break;
+        }
+        case 'confirm': {
+          performCanvasAction();
+          break;
+        }
+        case 'hint': {
+          handleHint();
+          break;
+        }
+        case 'pause': {
+          setPaused(true);
+          experimentEngine.pause();
+          break;
+        }
+        case 'cancel': {
+          if (showMeasure) { setShowMeasure(false); }
+          break;
+        }
+      }
+    };
+
+    return eventEmitter.on('input:action', handleInputAction as (...a: unknown[]) => void);
+  }, [inputMode, isPaused, expDone, currentStep, showMeasure, apparatusList, reagentList]);
 
   const handleApparatusSelect = useCallback((id: string) => {
     selectApparatus(id);
@@ -74,6 +147,11 @@ export default function Lab() {
         addLabObject({ id: `placed_${id}_${Date.now()}`, type: 'apparatus', refId: id, x: 400 + Math.random() * 80 - 40, y: 300, width: 60, height: 70, placed: true });
         setUsedApparatus(prev => [...prev, id]);
         selectApparatus(null);
+      }
+    } else if (currentStep?.action === 'measure') {
+      if (id === 'graduated_cylinder') {
+        selectApparatus(null);
+        setShowMeasure(true);
       }
     }
   }, [currentStep]);
@@ -86,15 +164,50 @@ export default function Lab() {
     } else if (currentStep?.action === 'drop' && currentStep.target === id) {
       experimentEngine.performAction('drop', id);
       selectReagent(null);
+    } else {
+      selectReagent(null);
     }
   }, [currentStep]);
 
-  const handleCanvasClick = useCallback((x: number, y: number) => {
+  const handleMeasureConfirm = useCallback((ml: number) => {
+    if (!currentStep) return;
+    const target = currentStep.target;
+    const result = experimentEngine.performAction('measure', target, ml);
+    setShowMeasure(false);
+    if (!result.correct) {
+      setError(result.message);
+    }
+  }, [currentStep]);
+
+  const performCanvasAction = useCallback(() => {
     if (!currentStep || isPaused) return;
-    const actionMap: Record<string, string> = { stir: 'stir', observe: 'observe', pour: 'pour', filter: 'filter', heat: 'heat' };
+    const actionMap: Record<string, string> = {
+      stir: 'stir', observe: 'observe', pour: 'pour',
+      filter: 'filter', heat: 'heat',
+    };
     const action = actionMap[currentStep.action];
-    if (action) experimentEngine.performAction(action, currentStep.target);
+    if (action) {
+      const result = experimentEngine.performAction(action, currentStep.target);
+      if (result.correct && currentStep.action === 'observe') {
+        const effects = experimentEngine.getEffects();
+        if (effects.length > 0) {
+          const positioned = effects.map(e => ({
+            ...e,
+            x: 400 + (Math.random() * 60 - 30),
+            y: 280 + (Math.random() * 40 - 20),
+          }));
+          setCanvasEffects(positioned);
+          setEffects(positioned);
+          setTimeout(() => { setCanvasEffects([]); setEffects([]); }, Math.max(...effects.map(e => e.duration)) + 500);
+        }
+      }
+    }
   }, [currentStep, isPaused]);
+
+  const handleCanvasClick = useCallback((x: number, y: number) => {
+    if (inputMode === 'keyboard') return;
+    performCanvasAction();
+  }, [inputMode, performCanvasAction]);
 
   const handleTempChange = useCallback((temp: number) => {
     setTemperature(temp);
@@ -120,6 +233,8 @@ export default function Lab() {
     setHintsLeft(level.hintCount);
     setExpDone(false);
     setUsedApparatus([]);
+    setShowMeasure(false);
+    setCanvasEffects([]);
     experimentEngine.startExperiment(experiment, level.id, level.hintCount);
     setCurrentStep(experimentEngine.getCurrentStep());
   }, [level, experiment]);
@@ -150,6 +265,26 @@ export default function Lab() {
   }
 
   const showTempControl = currentStep?.action === 'control_temperature' || temperature > 0;
+  const isMeasureStep = currentStep?.action === 'measure';
+  const isCanvasAction = currentStep && ['stir', 'observe', 'pour', 'filter', 'heat'].includes(currentStep.action);
+  const measureTarget = currentStep?.target || '';
+  const measureReagent = measureTarget.includes(':') ? measureTarget.split(':')[0] : measureTarget;
+  const measureMl = measureTarget.includes(':') ? parseFloat(measureTarget.split(':')[1]) : 50;
+  const measureReagentName = getReagentById(measureReagent)?.name || measureReagent;
+
+  const inputHint = currentStep ? (() => {
+    const m = inputMode;
+    switch (currentStep.action) {
+      case 'select_apparatus': return m === 'keyboard' ? `按 1-${apparatusList.length} 选择器材` : '点击底部器材选择';
+      case 'measure': return m === 'keyboard' ? '按 Enter 打开量取面板' : '选择量筒后打开量取面板';
+      case 'add_reagent': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 选择试剂` : '点击右侧试剂添加';
+      case 'drop': return m === 'keyboard' ? `按 ${apparatusList.length + 1}-${apparatusList.length + reagentList.length} 滴加试剂` : '点击右侧试剂滴加';
+      case 'control_temperature': return m === 'keyboard' ? '↑↓ 调整温度' : '拖动滑块控制温度';
+      case 'stir': case 'observe': case 'pour': case 'filter': case 'heat':
+        return m === 'keyboard' ? '按 Space 确认操作' : '点击实验台执行操作';
+      default: return '';
+    }
+  })() : '';
 
   return (
     <div className="w-full h-screen bg-[#0a2e2e] flex flex-col relative">
@@ -176,18 +311,47 @@ export default function Lab() {
 
       <div className="flex-1 flex gap-2 p-2 min-h-0">
         <StepPanel steps={experiment.steps} currentStepIndex={stepIndex} />
-        <div className="flex-1 flex flex-col gap-2 min-w-0">
+
+        <div className="flex-1 flex flex-col gap-2 min-w-0 relative">
           <LabCanvas onCanvasClick={handleCanvasClick} />
+          {isCanvasAction && inputMode !== 'keyboard' && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+              <button
+                onClick={performCanvasAction}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#F5C542]/90 text-[#0a2e2e] font-bold rounded-full text-sm hover:bg-[#F5C542] transition-all shadow-lg animate-pulse"
+              >
+                <Eye className="w-4 h-4" />
+                {currentStep?.action === 'observe' ? '观察反应' :
+                 currentStep?.action === 'stir' ? '搅拌' :
+                 currentStep?.action === 'pour' ? '倒入' :
+                 currentStep?.action === 'filter' ? '过滤' :
+                 currentStep?.action === 'heat' ? '加热' : '操作'}
+              </button>
+            </div>
+          )}
+          {isMeasureStep && !showMeasure && (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+              <button
+                onClick={() => setShowMeasure(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#F5C542]/90 text-[#0a2e2e] font-bold rounded-full text-sm hover:bg-[#F5C542] transition-all shadow-lg animate-pulse"
+              >
+                量取 {measureReagentName}
+              </button>
+            </div>
+          )}
           <ApparatusPanel
-            apparatus={experiment.requiredApparatus.map(id => getApparatusById(id)!).filter(Boolean)}
+            key={`app_${inputModeKey}`}
+            apparatus={apparatusList}
             selectedId={selectedApparatus}
             onSelect={handleApparatusSelect}
             usedIds={usedApparatus}
           />
         </div>
+
         <div className="flex flex-col gap-2">
           <ReagentPanel
-            reagents={experiment.requiredReagents.map(id => getReagentById(id)!).filter(Boolean)}
+            key={`reg_${inputModeKey}`}
+            reagents={reagentList}
             selectedId={selectedReagent}
             onSelect={handleReagentSelect}
           />
@@ -207,6 +371,9 @@ export default function Lab() {
         <div className="px-4 py-2 bg-[#0D4F4F]/80 border-t border-[#1a5a5a] flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-[#F5C542] animate-pulse" />
           <span className="text-white text-sm">当前操作：{currentStep.description}</span>
+          {inputHint && (
+            <span className="text-[#F5C542]/70 text-xs ml-2 border border-[#F5C542]/30 px-2 py-0.5 rounded">{inputHint}</span>
+          )}
           {currentStep.safetyNote && (
             <span className="text-orange-400 text-xs ml-2">⚠ {currentStep.safetyNote}</span>
           )}
@@ -225,6 +392,16 @@ export default function Lab() {
             </button>
           </div>
         </div>
+      )}
+
+      {showMeasure && isMeasureStep && (
+        <MeasureDialog
+          targetMl={measureMl}
+          tolerance={currentStep?.tolerance || 5}
+          reagentName={measureReagentName}
+          onConfirm={handleMeasureConfirm}
+          onCancel={() => setShowMeasure(false)}
+        />
       )}
     </div>
   );

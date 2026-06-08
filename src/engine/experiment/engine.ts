@@ -50,25 +50,40 @@ export class ExperimentEngine {
       const choice: KeyChoice = {
         stepId: currentStep.id,
         timestamp: Date.now(),
-        choice: `${action}:${target}`,
+        choice: `${action}:${target}${value !== undefined ? '=' + value : ''}`,
         correct: true,
       };
       this.tracker?.keyChoices.push(choice);
-      if (action === 'add_reagent') {
-        this.activeReagents.push(target);
+      if (action === 'add_reagent' || action === 'drop') {
+        const reagentId = target.includes(':') ? target.split(':')[0] : target;
+        this.activeReagents.push(reagentId);
+        if (this.activeReagents.length >= 1) {
+          const reactionResult = simulateReaction(this.activeReagents, this.temperature);
+          if (reactionResult.effects.length > 0) {
+            this.effects = reactionResult.effects;
+            eventEmitter.emit('reaction:effects', this.effects);
+          }
+        }
+      }
+      if (action === 'measure') {
+        const reagentId = target.includes(':') ? target.split(':')[0] : target;
+        this.activeReagents.push(reagentId);
       }
       if (action === 'control_temperature') {
         this.temperature = value || 0;
+        if (this.temperature > 40) {
+          const reactionResult = simulateReaction(this.activeReagents, this.temperature);
+          if (reactionResult.effects.length > 0) {
+            this.effects = reactionResult.effects;
+            eventEmitter.emit('reaction:effects', this.effects);
+          }
+        }
       }
       this.currentStepIndex++;
       if (this.currentStepIndex >= this.experiment.steps.length) {
         this.completeExperiment(true);
       } else {
         eventEmitter.emit('step:current', this.getCurrentStep());
-        if (this.activeReagents.length >= 2) {
-          const reactionResult = simulateReaction(this.activeReagents, this.temperature);
-          this.effects = reactionResult.effects;
-        }
       }
     } else {
       this.tracker!.failureCount++;
@@ -76,7 +91,7 @@ export class ExperimentEngine {
       const choice: KeyChoice = {
         stepId: currentStep.id,
         timestamp: Date.now(),
-        choice: `${action}:${target}`,
+        choice: `${action}:${target}${value !== undefined ? '=' + value : ''}`,
         correct: false,
       };
       this.tracker?.keyChoices.push(choice);

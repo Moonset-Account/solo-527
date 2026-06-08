@@ -1,4 +1,5 @@
 import { Apparatus } from '@/types/game';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { inputManager } from '@/engine/input/manager';
 
 interface ApparatusPanelProps {
@@ -9,7 +10,7 @@ interface ApparatusPanelProps {
 }
 
 export default function ApparatusPanel({ apparatus, selectedId, onSelect, usedIds }: ApparatusPanelProps) {
-  const mode = inputManager.getMode();
+  const mode = useSettingsStore(s => s.settings.inputMode);
   return (
     <div className="flex items-center gap-2 p-2.5 bg-[#0a2e2e]/90 rounded-xl border border-[#1a5a5a] backdrop-blur-sm">
       <span className="text-[#F5C542] text-xs font-bold mr-1 flex-shrink-0">器材</span>
