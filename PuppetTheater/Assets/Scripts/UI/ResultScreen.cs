@@ -7,6 +7,9 @@ namespace PuppetTheater.UI
 {
     public class ResultScreen : MonoBehaviour
     {
+        [Header("Container")]
+        [SerializeField] private GameObject _resultContainer;
+
         [Header("Breakdown")]
         [SerializeField] private Text _perfectCountText;
         [SerializeField] private Text _greatCountText;
@@ -41,22 +44,42 @@ namespace PuppetTheater.UI
         public event Action OnReturnToMenu;
         public event Action OnRetry;
 
+        private bool _listenersAttached;
+
         private void Awake()
         {
-            _restartButton.onClick.AddListener(OnRestartPressed);
-            _returnToMenuButton.onClick.AddListener(OnReturnToMenuPressed);
-            _retryButton.onClick.AddListener(OnRetryPressed);
+            TryAttachListeners();
+        }
+
+        private void TryAttachListeners()
+        {
+            if (_listenersAttached) return;
+
+            if (_restartButton != null && _returnToMenuButton != null && _retryButton != null)
+            {
+                _restartButton.onClick.AddListener(OnRestartPressed);
+                _returnToMenuButton.onClick.AddListener(OnReturnToMenuPressed);
+                _retryButton.onClick.AddListener(OnRetryPressed);
+                _listenersAttached = true;
+            }
         }
 
         private void OnDestroy()
         {
-            _restartButton.onClick.RemoveListener(OnRestartPressed);
-            _returnToMenuButton.onClick.RemoveListener(OnReturnToMenuPressed);
-            _retryButton.onClick.RemoveListener(OnRetryPressed);
+            if (_restartButton != null) _restartButton.onClick.RemoveListener(OnRestartPressed);
+            if (_returnToMenuButton != null) _returnToMenuButton.onClick.RemoveListener(OnReturnToMenuPressed);
+            if (_retryButton != null) _retryButton.onClick.RemoveListener(OnRetryPressed);
         }
 
         public void DisplayResults(PerformanceStats stats)
         {
+            TryAttachListeners();
+
+            gameObject.SetActive(true);
+
+            if (_resultContainer != null)
+                _resultContainer.SetActive(true);
+
             _perfectCountText.text = stats.PerfectCount.ToString();
             _greatCountText.text = stats.GreatCount.ToString();
             _goodCountText.text = stats.GoodCount.ToString();

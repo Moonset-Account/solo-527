@@ -156,12 +156,22 @@ namespace PuppetTheater.Core
         {
             UpdatePerformanceStats(result);
 
+            PuppetActionType beatAction = GetBeatAction(result.BeatIndex);
+            _storyNodeSystem.RecordChoice(result.ActualColor, beatAction);
+
             if (result.IsMiss)
             {
                 _consecutiveMisses++;
                 _audioManager.PlayJudgmentSound(JudgmentGrade.Miss);
-                _animationFeedback.TriggerJudgmentFeedback(JudgmentGrade.Miss, LightColor.White);
+                _animationFeedback.TriggerJudgmentFeedback(JudgmentGrade.Miss, result.ActualColor);
                 _storyNodeSystem.UpdateAudienceEmotion(JudgmentGrade.Miss);
+
+                if (result.ExpectedColor != result.ActualColor)
+                {
+                    _lightStateSystem.FlashError();
+                    _audioManager.PlayLightSwitchSound(result.ExpectedColor, result.ActualColor, false);
+                }
+
                 CheckFailConditions();
                 return;
             }
@@ -174,12 +184,11 @@ namespace PuppetTheater.Core
             _animationFeedback.TriggerJudgmentFeedback(result.Grade, result.ActualColor);
             _animationFeedback.TriggerComboFeedback(_currentCombo);
             _storyNodeSystem.UpdateAudienceEmotion(result.Grade);
-            _storyNodeSystem.RecordChoice(result.ActualColor, PuppetActionType.Dance);
 
             if (result.IsHit)
             {
                 int puppetPos = result.BeatIndex % 5;
-                _stageMechanism.TriggerPuppetAction(puppetPos, PuppetActionType.Dance, result.ExpectedColor);
+                _stageMechanism.TriggerPuppetAction(puppetPos, beatAction, result.ExpectedColor);
             }
             else
             {
@@ -307,6 +316,14 @@ namespace PuppetTheater.Core
                 EndSession();
                 return;
             }
+        }
+
+        private PuppetActionType GetBeatAction(int beatIndex)
+        {
+            var map = _beatManager.BeatMap;
+            if (beatIndex >= 0 && beatIndex < map.Count && map[beatIndex].actionType.HasValue)
+                return map[beatIndex].actionType.Value;
+            return PuppetActionType.Idle;
         }
 
         private void FinalizeStats()

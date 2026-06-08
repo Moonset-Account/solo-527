@@ -36,6 +36,7 @@ namespace PuppetTheater.Core
         private Text _storyNodeText;
         private Text _lightColorText;
         private Text _promptText;
+        private Text _titleText;
         private GameObject _calibrationPanel;
         private GameObject _resultPanel;
         private Text _calibrationStatusText;
@@ -46,8 +47,9 @@ namespace PuppetTheater.Core
 
         private void Awake()
         {
-            CreateUI();
+            CreateUICanvas();
             CreateSubsystems();
+            WireAllUI();
             CreateStoryScript();
             RegisterPuppets();
         }
@@ -145,8 +147,6 @@ namespace PuppetTheater.Core
             var leaderGo = new GameObject("LeaderboardSystem");
             leaderGo.transform.SetParent(transform);
             _leaderboardSystem = leaderGo.AddComponent<LeaderboardSystem>();
-
-            WireSessionReferences();
         }
 
         private void WireSessionReferences()
@@ -185,8 +185,6 @@ namespace PuppetTheater.Core
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             if (calibBmField != null)
                 calibBmField.SetValue(_calibrationPage, _beatManager);
-
-            WireResultScreenUI();
         }
 
         private void WireResultScreenUI()
@@ -222,6 +220,8 @@ namespace PuppetTheater.Core
                     field.SetValue(_resultScreen, text);
             }
 
+            SetField(rsType, _resultScreen, "_resultContainer", _resultPanel);
+
             var completedGroup = new GameObject("RsCompletedGroup");
             completedGroup.transform.SetParent(_resultPanel.transform);
             var failedGroup = new GameObject("RsFailedGroup");
@@ -243,7 +243,7 @@ namespace PuppetTheater.Core
             _resultScreen.OnRetry += () => StartDemoSession(_currentMode);
         }
 
-        private void CreateUI()
+        private void CreateUICanvas()
         {
             var canvasGo = new GameObject("MainCanvas");
             canvasGo.transform.SetParent(transform);
@@ -285,7 +285,19 @@ namespace PuppetTheater.Core
             _calibrationStatusText = CreateChildText(_calibrationPanel, "CalibStatus", 18, TextAnchor.MiddleCenter);
             _calibrationStatusText.text = "按 C 开始校准\n听到节拍声后按空格对齐";
 
+            _titleText = CreateChildText(canvasGo, "Title", 22, TextAnchor.MiddleCenter);
+            var titleRt = _titleText.GetComponent<RectTransform>();
+            titleRt.anchorMin = new Vector2(0.1f, 0.2f);
+            titleRt.anchorMax = new Vector2(0.9f, 0.8f);
+            titleRt.offsetMin = Vector2.zero;
+            titleRt.offsetMax = Vector2.zero;
+        }
+
+        private void WireAllUI()
+        {
+            WireResultScreenUI();
             WireCalibrationPageUI();
+            WireSessionReferences();
         }
 
         private void WireCalibrationPageUI()
@@ -473,6 +485,7 @@ namespace PuppetTheater.Core
             _currentMode = mode;
             _sessionStarted = true;
 
+            _titleText.gameObject.SetActive(false);
             _calibrationPanel.SetActive(false);
             _resultPanel.SetActive(false);
             _hudPanel.SetActive(true);
@@ -511,11 +524,8 @@ namespace PuppetTheater.Core
             _resultPanel.SetActive(false);
             _calibrationPanel.SetActive(false);
 
-            if (_promptText != null)
-            {
-                _promptText.gameObject.SetActive(true);
-                _promptText.text = "🎭 木偶剧场灯光节奏 🎭\n\n按 Enter 开始正式演出\n按 P 开始练习模式\n按 C 进行延迟校准\n\n键盘: Q红 W蓝 E绿 R黄 T紫 Space白";
-            }
+            _titleText.gameObject.SetActive(true);
+            _titleText.text = "🎭 木偶剧场灯光节奏 🎭\n\n按 Enter 开始正式演出\n按 P 开始练习模式\n按 C 进行延迟校准\n\n键盘: Q红 W蓝 E绿 R黄 T紫 Space白";
         }
 
         private void ToggleCalibrationPanel()

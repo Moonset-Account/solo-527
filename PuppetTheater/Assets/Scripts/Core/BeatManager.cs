@@ -161,15 +161,7 @@ namespace PuppetTheater.Core
 
         private JudgmentGrade DowngradeForWrongColor(JudgmentGrade grade)
         {
-            return grade switch
-            {
-                JudgmentGrade.Perfect => JudgmentGrade.Good,
-                JudgmentGrade.Great => JudgmentGrade.Early,
-                JudgmentGrade.Good => JudgmentGrade.Miss,
-                JudgmentGrade.Early => JudgmentGrade.Miss,
-                JudgmentGrade.Late => JudgmentGrade.Miss,
-                _ => JudgmentGrade.Miss
-            };
+            return JudgmentGrade.Miss;
         }
 
         private void ApplyScoreAndCombo(JudgmentGrade grade)
