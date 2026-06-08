@@ -9,6 +9,10 @@ namespace YouthTrainingManagement.Utils
     {
         public bool Enabled { get; set; } = true;
         public event Action<PerformanceReport> OnStatsUpdated;
+        public Canvas PerformanceCanvas;
+
+        private GUIStyle _labelStyle;
+        private Rect _windowRect = new Rect(10, 10, 320, 140);
 
         private const int FrameSampleCount = 60;
         private readonly float[] _frameTimes = new float[FrameSampleCount];
@@ -114,6 +118,32 @@ namespace YouthTrainingManagement.Utils
                    $"Frame: {r.AverageFrameTimeMs:0.00}ms | " +
                    $"Memory: {r.TotalAllocatedMemory:0.0}MB | " +
                    $"Target: {r.TargetFrameRate}";
+        }
+
+        private void OnGUI()
+        {
+            if (!Enabled) return;
+            if (_labelStyle == null)
+            {
+                _labelStyle = new GUIStyle(GUI.skin.label);
+                _labelStyle.fontSize = 12;
+                _labelStyle.normal.textColor = new Color(0.2f, 1f, 0.4f, 0.95f);
+                _labelStyle.alignment = TextAnchor.UpperLeft;
+                _labelStyle.wordWrap = false;
+            }
+            if (CurrentReport == null) GenerateReport();
+            var r = CurrentReport;
+            _windowRect = GUILayout.Window(GetInstanceID(), _windowRect, DrawWindow, "⚡ PERFORMANCE");
+        }
+
+        private void DrawWindow(int id)
+        {
+            var r = CurrentReport;
+            GUILayout.Label($"FPS:   <b>{r.AverageFPS:0.0}</b>  (1%ile: <b>{r.Percentile1LowFPS:0.0}</b>)", _labelStyle);
+            GUILayout.Label($"Frame: {r.AverageFrameTimeMs:0.00}ms  (min: {r.MinFrameTimeMs:0.00}, max: {r.MaxFrameTimeMs:0.00})", _labelStyle);
+            GUILayout.Label($"Mem:   {r.TotalAllocatedMemory:0.0}MB  (Mono: {r.MonoUsedMemory:0.0}MB)", _labelStyle);
+            GUILayout.Label($"Target: {r.TargetFrameRate} FPS  Quality: {r.QualityLevel}", _labelStyle);
+            GUI.DragWindow(new Rect(0, 0, 10000, 20));
         }
     }
 

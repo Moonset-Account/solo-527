@@ -2129,6 +2129,12 @@ namespace YouthTrainingManagement.UI
             UpdateStep();
         }
 
+        public void SetStepData(YouthTrainingManagement.Config.TutorialStep step, int currentIndex, int totalSteps)
+        {
+            _currentStep = currentIndex;
+            UpdateStep();
+        }
+
         private void PrevStep()
         {
             _currentStep = Mathf.Max(0, _currentStep - 1);
@@ -2217,7 +2223,7 @@ namespace YouthTrainingManagement.UI
                 new Vector2(16, 96), new Vector2(-16, -16),
                 UIUtils.ColorPanel).transform;
 
-            _staging = GameManager.SaveSystem.Settings?.Clone() ?? new GameSettings();
+            _staging = GameManager.Settings?.Clone() ?? new GameSettings();
         }
 
         public override void RefreshData()

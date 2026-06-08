@@ -269,4 +269,3 @@ namespace YouthTrainingManagement.Core
         }
     }
 }
-#endif

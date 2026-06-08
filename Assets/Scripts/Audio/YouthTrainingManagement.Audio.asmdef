@@ -10,7 +10,7 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
-    "defineConstraints": [],
+    "defineConstraints": ["__ASMDEF_DISABLED__"],
     "versionDefines": [],
     "noEngineReferences": false
 }

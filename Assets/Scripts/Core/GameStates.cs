@@ -55,7 +55,7 @@ namespace YouthTrainingManagement.Core
         {
             _currentStep = 0;
             _tutorialData = GameManager.Config.GetTutorialData();
-            if (_tutorialData == null || _tutorialData.Steps == null || _tutorialData.Steps.Length == 0)
+            if (_tutorialData == null || _tutorialData.Steps == null || _tutorialData.Steps.Count == 0)
             {
                 GameManager.StateMachine.ChangeState<MainMenuState>();
                 return;
@@ -71,7 +71,7 @@ namespace YouthTrainingManagement.Core
         public void NextStep()
         {
             _currentStep++;
-            if (_currentStep >= _tutorialData.Steps.Length)
+            if (_currentStep >= _tutorialData.Steps.Count)
             {
                 GameManager.Settings.CompletedTutorial = true;
                 GameManager.Settings.ShowTutorialOnFirstLaunch = false;
@@ -94,11 +94,11 @@ namespace YouthTrainingManagement.Core
         private void ShowCurrentStep()
         {
             var step = _tutorialData.Steps[_currentStep];
-            GameManager.UIManager.ShowTutorialStep(step, _currentStep, _tutorialData.Steps.Length);
+            GameManager.UIManager.ShowTutorialStep(step, _currentStep, _tutorialData.Steps.Count);
             GameManager.UIManager.ShowScreen(UIScreen.Tutorial);
         }
 
-        public TutorialStep GetCurrentStep() => _tutorialData?.Steps != null && _currentStep < _tutorialData.Steps.Length
+        public TutorialStep GetCurrentStep() => _tutorialData?.Steps != null && _currentStep < _tutorialData.Steps.Count
             ? _tutorialData.Steps[_currentStep] : null;
 
         public void CompleteTutorial()
