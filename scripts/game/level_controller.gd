@@ -9,13 +9,13 @@ signal level_lost(reason)
 signal time_updated(time_remaining)
 signal order_progress_updated
 
-var level_config: LevelConfig = null
-var factory_grid: FactoryGrid = null
-var order_system: OrderSystem = null
-var upgrade_system: UpgradeSystem = null
-var bottleneck_detector: BottleneckDetector = null
-var achievement_system: AchievementSystem = null
-var offline_earnings: OfflineEarnings = null
+var level_config = null
+var factory_grid = null
+var order_system = null
+var upgrade_system = null
+var bottleneck_detector = null
+var achievement_system = null
+var offline_earnings = null
 
 var level_timer: float = 0.0
 var is_running: bool = false
@@ -45,33 +45,33 @@ var _spawn_delivery_map: Dictionary = {
 }
 
 func _ready() -> void:
-	factory_grid = FactoryGrid.new()
+	factory_grid = load("res://scripts/game/factory_grid.gd").new()
 	factory_grid.name = "FactoryGrid"
 	add_child(factory_grid)
 	factory_grid.product_delivered.connect(_on_product_delivered)
 	factory_grid.entity_placed.connect(_on_entity_placed)
 
-	order_system = OrderSystem.new()
+	order_system = load("res://scripts/systems/order_system.gd").new()
 	order_system.name = "OrderSystem"
 	add_child(order_system)
 	order_system.order_completed.connect(_on_order_completed)
 	order_system.order_failed.connect(_on_order_failed_signal)
 
-	upgrade_system = UpgradeSystem.new()
+	upgrade_system = load("res://scripts/systems/upgrade_system.gd").new()
 	upgrade_system.name = "UpgradeSystem"
 	add_child(upgrade_system)
 
-	bottleneck_detector = BottleneckDetector.new()
+	bottleneck_detector = load("res://scripts/systems/bottleneck_detector.gd").new()
 	bottleneck_detector.name = "BottleneckDetector"
 	add_child(bottleneck_detector)
 	bottleneck_detector.bottleneck_found.connect(_on_bottleneck_found)
 	bottleneck_detector.bottleneck_cleared.connect(_on_bottleneck_cleared)
 
-	achievement_system = AchievementSystem.new()
+	achievement_system = load("res://scripts/systems/achievement_system.gd").new()
 	achievement_system.name = "AchievementSystem"
 	add_child(achievement_system)
 
-	offline_earnings = OfflineEarnings.new()
+	offline_earnings = load("res://scripts/systems/offline_earnings.gd").new()
 	offline_earnings.name = "OfflineEarnings"
 	add_child(offline_earnings)
 
@@ -81,15 +81,15 @@ func _initialize_current_level() -> void:
 	var level_id := 1
 	if GameManager and GameManager.current_level_id != "":
 		level_id = int(GameManager.current_level_id)
-	var config := LevelConfig.get_level_by_id(level_id)
+	var config = load("res://scripts/data/level_config.gd").get_level_by_id(level_id)
 	if config == null:
-		config = LevelConfig.get_level_by_id(1)
+		config = load("res://scripts/data/level_config.gd").get_level_by_id(1)
 	if config:
 		setup_level(config)
 		if not config.tutorial_enabled:
 			start_level()
 
-func setup_level(config: LevelConfig) -> void:
+func setup_level(config) -> void:
 	level_config = config
 	level_timer = 0.0
 	orders_completed = 0
@@ -197,9 +197,9 @@ func complete_level() -> void:
 	if AnalyticsManager:
 		AnalyticsManager.record_level_complete(str(level_config.level_id), level_timer, stars)
 	if SaveManager:
-		var data: SaveData = SaveManager.load_game()
+		var data = SaveManager.load_game()
 		if data == null:
-			data = SaveData.new()
+			data = load("res://scripts/data/save_data.gd").new()
 		data.current_level = level_config.level_id
 		data.money = GameManager.money
 		data.reputation = GameManager.reputation
@@ -240,9 +240,9 @@ func fail_level(reason: String) -> void:
 	if AnalyticsManager:
 		AnalyticsManager.record_failure(str(level_config.level_id), reason)
 	if SaveManager:
-		var data: SaveData = SaveManager.load_game()
+		var data = SaveManager.load_game()
 		if data == null:
-			data = SaveData.new()
+			data = load("res://scripts/data/save_data.gd").new()
 		data.play_time_seconds += level_timer
 		data.total_failures += 1
 		data.record_key_choice("level_fail", {
@@ -557,7 +557,7 @@ func _on_next_level() -> void:
 	if level_config == null:
 		return
 	var next_id := level_config.level_id + 1
-	var next_config := LevelConfig.get_level_by_id(next_id)
+	var next_config = load("res://scripts/data/level_config.gd").get_level_by_id(next_id)
 	if next_config:
 		cleanup()
 		setup_level(next_config)

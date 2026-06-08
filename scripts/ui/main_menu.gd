@@ -9,16 +9,12 @@ var _offline_popup: Panel
 var _settings_panel: Control
 
 func _ready() -> void:
-	start_button.pressed.connect(_on_start_pressed)
-	continue_button.pressed.connect(_on_continue_pressed)
-	settings_button.pressed.connect(_on_settings_pressed)
-	quit_button.pressed.connect(_on_quit_pressed)
 	continue_button.visible = _has_save()
 	_check_offline_earnings()
 
 func _has_save() -> bool:
 	if SaveManager:
-		var data := SaveManager.load_game()
+		var data = SaveManager.load_game()
 		return data != null
 	return false
 
@@ -29,7 +25,7 @@ func _on_start_pressed() -> void:
 
 func _on_continue_pressed() -> void:
 	if SaveManager:
-		var data := SaveManager.load_game()
+		var data = SaveManager.load_game()
 		if data:
 			GameManager.current_level_id = str(data.current_level)
 			GameManager.set_money(data.money)
@@ -49,13 +45,14 @@ func _on_quit_pressed() -> void:
 func _check_offline_earnings() -> void:
 	if not SaveManager:
 		return
-	var data := SaveManager.load_game()
+	var data = SaveManager.load_game()
 	if data == null:
 		return
 	if data.last_save_timestamp <= 0:
 		return
-	var offline_calc := OfflineEarnings.new()
-	var result := offline_calc.calculate_earnings(data.last_save_timestamp, float(data.total_earnings) / maxf(data.play_time_seconds / 3600.0, 0.1))
+	var offline_calc = load("res://scripts/systems/offline_earnings.gd").new()
+	var hourly_rate := float(data.total_earnings) / maxf(data.play_time_seconds / 3600.0, 0.1)
+	var result = offline_calc.calculate_earnings(data.last_save_timestamp, hourly_rate)
 	var amount: int = result.get("amount", 0)
 	if amount > 0:
 		data.money += amount

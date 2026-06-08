@@ -1,6 +1,7 @@
 extends Node
 
 const SAVE_PATH = "user://save_game.json"
+const SaveDataScript = preload("res://scripts/data/save_data.gd")
 
 var _auto_save_timer: Timer
 
@@ -11,7 +12,7 @@ func _ready() -> void:
 	_auto_save_timer.timeout.connect(auto_save)
 	add_child(_auto_save_timer)
 
-func save_game(data: SaveData) -> bool:
+func save_game(data) -> bool:
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		return false
@@ -20,7 +21,7 @@ func save_game(data: SaveData) -> bool:
 	file.close()
 	return true
 
-func load_game() -> SaveData:
+func load_game():
 	if not FileAccess.file_exists(SAVE_PATH):
 		return null
 	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
@@ -34,7 +35,7 @@ func load_game() -> SaveData:
 		return null
 	if not json.data is Dictionary:
 		return null
-	return SaveData.from_dict(json.data)
+	return SaveDataScript.from_dict(json.data)
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -46,9 +47,9 @@ func delete_save() -> void:
 func auto_save() -> void:
 	if not GameManager or not GameManager.is_game_active:
 		return
-	var data: SaveData = load_game()
+	var data = load_game()
 	if data == null:
-		data = SaveData.new()
+		data = SaveDataScript.new()
 	data.money = GameManager.money
 	data.reputation = GameManager.reputation
 	data.current_level = int(GameManager.current_level_id)
@@ -66,9 +67,9 @@ func get_save_info() -> Dictionary:
 	}
 
 func record_level_completion(level_id: String, stars: int) -> void:
-	var data: SaveData = load_game()
+	var data = load_game()
 	if data == null:
-		data = SaveData.new()
+		data = SaveDataScript.new()
 	if not data.completed_levels.has(level_id):
 		data.completed_levels[level_id] = {"stars": stars}
 	else:
@@ -79,9 +80,9 @@ func record_level_completion(level_id: String, stars: int) -> void:
 	save_game(data)
 
 func record_level_failure(level_id: String, reason: String) -> void:
-	var data: SaveData = load_game()
+	var data = load_game()
 	if data == null:
-		data = SaveData.new()
+		data = SaveDataScript.new()
 	data.total_failures += 1
 	data.last_save_timestamp = int(Time.get_unix_time_from_system())
 	save_game(data)

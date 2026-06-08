@@ -350,18 +350,18 @@ func place_entity(entity_type: String, pos: Vector2i, direction: int = 0) -> Nod
 	var entity: Node2D = null
 	match entity_type:
 		"cutter", "assembler", "painter", "packer":
-			var machine := Machine.new()
+			var machine = load("res://scripts/game/machine.gd").new()
 			machine.machine_type = entity_type
 			machine.grid_position = pos
 			machine.facing_direction = direction
 			entity = machine
 		"conveyor":
-			var belt := ConveyorBelt.new()
+			var belt = load("res://scripts/game/conveyor_belt.gd").new()
 			belt.grid_position = pos
 			belt.direction = direction
 			entity = belt
 		"quality_check":
-			var qc := QualityCheck.new()
+			var qc = load("res://scripts/game/quality_check.gd").new()
 			qc.grid_position = pos
 			qc.facing_direction = direction
 			entity = qc
@@ -401,11 +401,11 @@ func get_cell_center(pos: Vector2i) -> Vector2:
 func world_to_grid(world_pos: Vector2) -> Vector2i:
 	return Vector2i(int(world_pos.x / CELL_SIZE), int(world_pos.y / CELL_SIZE))
 
-func spawn_product() -> Product:
+func spawn_product():
 	if spawn_points.is_empty():
 		return null
 	var sp: Vector2i = spawn_points.pick_random()
-	var product: Product = Product.new()
+	var product = load("res://scripts/game/product.gd").new()
 	product.current_cell = sp
 	product.target_cell = sp
 	product.global_position = get_cell_center(sp)

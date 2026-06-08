@@ -53,8 +53,8 @@ func to_dict() -> Dictionary:
 		"level_progress": progress,
 	}
 
-static func from_dict(data: Dictionary) -> SaveData:
-	var save := SaveData.new()
+static func from_dict(data: Dictionary):
+	var save = new()
 	if data.has("version"):
 		save.version = int(data["version"])
 	if data.has("current_level"):
