@@ -25,7 +25,7 @@ ExhibitModel.gd::GDScript::3209614058768908274::1780946236::0::1::::ExhibitModel
 EventSystem.gd::GDScript::5674871137976865460::1780946257::0::1::::<>Node<><>0<>0<><>::
 LevelRegistry.gd::GDScript::5198299716900001874::1780946202::0::1::::<>Node<><>0<>0<><>::
 ::res://scripts/ui/::1780948180
-BattleScene.gd::GDScript::6721416541826025265::1780949092::0::1::::<>Control<><>0<>0<><>::
+BattleScene.gd::GDScript::6721416541826025265::1780949716::0::1::::<>Control<><>0<>0<><>::
 CardUI.gd::GDScript::8900363594147074406::1780948371::0::1::::CardUI<>Control<><>0<>0<><>::
 ExhibitUI.gd::GDScript::5195759447578979954::1780946915::0::1::::ExhibitUI<>Control<><>0<>0<><>::
 FloatingTextManager.gd::GDScript::2702668013615040958::1780946426::0::1::::<>Node2D<><>0<>0<><>::

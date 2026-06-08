@@ -269,12 +269,13 @@ func _cancel_target_highlights() -> void:
 
 func _on_exhibit_clicked(exhibit_ui: ExhibitUI) -> void:
 	if is_target_mode:
-		GameManager.select_target(exhibit_ui.exhibit_id)
+		var anim_idx: int = selected_card_index
 		is_target_mode = false
 		_cancel_target_highlights()
-		if selected_card_index >= 0 and selected_card_index < card_uis.size():
-			_play_card_animation(card_uis[selected_card_index])
+		if anim_idx >= 0 and anim_idx < card_uis.size():
+			_play_card_animation(card_uis[anim_idx])
 		selected_card_index = -1
+		GameManager.select_target(exhibit_ui.exhibit_id)
 		return
 	EventBus.publish("exhibit_selected", [exhibit_ui.exhibit_id])
 	for id in exhibit_uis:
