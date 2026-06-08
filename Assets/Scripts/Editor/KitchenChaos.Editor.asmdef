@@ -1,0 +1,12 @@
+{
+    "name": "KitchenChaos.Editor",
+    "rootNamespace": "KitchenChaos.Editor",
+    "references": [
+        "KitchenChaos",
+        "UnityEditor.EditorOnly"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "allowAnyPlatform": false
+}

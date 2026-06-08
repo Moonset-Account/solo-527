@@ -1,0 +1,10 @@
+{
+    "name": "KitchenChaos",
+    "rootNamespace": "KitchenChaos",
+    "references": [
+        "UnityEngine.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "allowAnyPlatform": true
+}
