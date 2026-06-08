@@ -125,17 +125,33 @@ namespace RainAlley.UI
         }
 
         public static Image NewImage(string name, Transform parent, Color color,
-                                      Vector2 anchorMin, Vector2 anchorMax, Vector2 size,
-                                      Vector2? pivot = null)
+                                      Vector2 anchor, Vector2 pivot, Vector2 size, Vector2 pos)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = anchor;
+            rt.anchorMax = anchor;
+            rt.pivot = pivot;
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            var img = go.AddComponent<Image>();
+            img.color = color;
+            return img;
+        }
+
+        public static Image NewImageStretch(string name, Transform parent, Color color,
+                                             Vector2 anchorMin, Vector2 anchorMax,
+                                             Vector2 offsetMin, Vector2 offsetMax, Vector2 pivot)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
-            rt.sizeDelta = size;
-            rt.anchoredPosition = Vector2.zero;
-            if (pivot.HasValue) rt.pivot = pivot.Value;
+            rt.pivot = pivot;
+            rt.offsetMin = offsetMin;
+            rt.offsetMax = offsetMax;
             var img = go.AddComponent<Image>();
             img.color = color;
             return img;

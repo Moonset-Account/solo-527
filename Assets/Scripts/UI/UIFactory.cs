@@ -156,11 +156,12 @@ namespace RainAlley.UI
 
             var fillBg = UIUtils.NewImage("ProgressBg", root.transform,
                 new Color(0.15f, 0.18f, 0.25f),
-                new Vector2(0.5f, 0.55f), new Vector2(0.5f, 0.55f),
+                new Vector2(0.5f, 0.55f), new Vector2(0.5f, 0.5f),
                 new Vector2(400, 14), new Vector2(0, 180));
-            var fill = UIUtils.NewImage("ProgressFill", fillBg.transform,
+            var fill = UIUtils.NewImageStretch("ProgressFill", fillBg.transform,
                 new Color(0.4f, 0.9f, 0.7f),
-                Vector2.zero, new Vector2(0, 1), Vector2.zero, new Vector2(0, 0));
+                Vector2.zero, new Vector2(0, 1),
+                Vector2.zero, new Vector2(0, 0), new Vector2(0.5f, 0.5f));
             fill.rectTransform.anchorMin = Vector2.zero;
             fill.rectTransform.anchorMax = new Vector2(0, 1);
             fill.rectTransform.offsetMin = Vector2.zero;
@@ -327,8 +328,8 @@ namespace RainAlley.UI
             UIUtils.AddShadow(comp.ComboText.gameObject, new Color(1f, 0.6f, 0.2f, 0.6f), 4);
 
             comp.UmbrellaColorPreview = UIUtils.NewImage("UmbrellaPreview", root.transform,
-                UmbrellaColor.BlueColor, new Vector2(0, 0.5f), new Vector2(0, 0.5f),
-                new Vector2(80, 80), new Vector2(70, 0)).GetComponent<Image>();
+                UmbrellaColor.BlueColor, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(80, 80), new Vector2(70, 0));
 
             var colorSlots = UIUtils.NewEmpty("ColorSlots", root.transform);
             UIUtils.SetAnchors(colorSlots.GetComponent<RectTransform>(),
@@ -337,10 +338,9 @@ namespace RainAlley.UI
             comp.ColorSlotImages = new Image[4];
             for (int i = 0; i < 4; i++)
             {
-                var slot = UIUtils.NewImage($"Slot{i}", colorSlots.transform,
+                comp.ColorSlotImages[i] = UIUtils.NewImage($"Slot{i}", colorSlots.transform,
                     Color.gray, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                     new Vector2(44, 44), new Vector2(0, -i * 58 - 10));
-                comp.ColorSlotImages[i] = slot.GetComponent<Image>();
             }
 
             var dualContainer = UIUtils.NewEmpty("DualTrack", root.transform);
@@ -350,12 +350,12 @@ namespace RainAlley.UI
             comp.DualTrackContainer = dualContainer;
             comp.LeftTrackIndicator = UIUtils.NewImage("LeftInd", dualContainer.transform,
                 new Color(1f, 0.9f, 0.4f),
-                new Vector2(0.5f, 0.75f), new Vector2(0.5f, 0.75f),
-                new Vector2(50, 50), Vector2.zero).GetComponent<Image>();
+                new Vector2(0.5f, 0.75f), new Vector2(0.5f, 0.5f),
+                new Vector2(50, 50), Vector2.zero);
             comp.RightTrackIndicator = UIUtils.NewImage("RightInd", dualContainer.transform,
                 new Color(0.3f, 0.3f, 0.3f),
-                new Vector2(0.5f, 0.25f), new Vector2(0.5f, 0.25f),
-                new Vector2(50, 50), Vector2.zero).GetComponent<Image>();
+                new Vector2(0.5f, 0.25f), new Vector2(0.5f, 0.5f),
+                new Vector2(50, 50), Vector2.zero);
 
             var judgeRoot = UIUtils.NewEmpty("JudgeRoot", root.transform);
             UIUtils.SetAnchors(judgeRoot.GetComponent<RectTransform>(),
@@ -381,9 +381,10 @@ namespace RainAlley.UI
                 new Vector2(0.5f, 0), new Vector2(0.5f, 0),
                 new Vector2(300, 24), new Vector2(0, 30));
 
-            var breakFlash = UIUtils.NewImage("ComboBreakFlash", root.transform,
+            var breakFlash = UIUtils.NewImageStretch("ComboBreakFlash", root.transform,
                 new Color(1f, 0.2f, 0.25f, 0.45f),
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f));
             UIUtils.Stretch(breakFlash.rectTransform);
             breakFlash.gameObject.SetActive(false);
             comp.ComboBreakFlash = breakFlash.gameObject;
@@ -466,8 +467,8 @@ namespace RainAlley.UI
 
             comp.GradeBackground = UIUtils.NewImage("GradeBg", comp.GradeText.transform.parent,
                 new Color(1f, 0.85f, 0.3f, 0.12f),
-                new Vector2(0.18f, 0.72f), new Vector2(0.18f, 0.72f),
-                new Vector2(220, 220), Vector2.zero).GetComponent<Image>();
+                new Vector2(0.18f, 0.72f), new Vector2(0.5f, 0.5f),
+                new Vector2(220, 220), Vector2.zero);
             comp.GradeBackground.rectTransform.SetSiblingIndex(comp.GradeText.rectTransform.GetSiblingIndex());
 
             comp.AccuracyText = UIUtils.NewText("Accuracy", root.transform, "", 28,
@@ -514,20 +515,15 @@ namespace RainAlley.UI
                     new Vector2(0.55f, y), new Vector2(0.55f, y),
                     new Vector2(100, 35), new Vector2(-5, 0));
 
-                var barBg = UIUtils.NewImage($"BarBg{i}", statsPanel.transform,
+                var barBg = UIUtils.NewImageStretch($"BarBg{i}", statsPanel.transform,
                     new Color(0.2f, 0.22f, 0.3f),
                     new Vector2(0.6f, y), new Vector2(1f, y),
-                    Vector2.zero, new Vector2(-20, 16), new Vector2(0, 0.5f));
-                barBg.rectTransform.offsetMax = new Vector2(-20, 16);
-                barBg.rectTransform.offsetMin = new Vector2(0, -16);
+                    new Vector2(0, -16), new Vector2(-20, 16), new Vector2(0f, 0.5f));
 
-                var bar = UIUtils.NewImage($"BarFill{i}", barBg.transform,
-                    colors[i], Vector2.zero, new Vector2(0.3f, 1f),
-                    Vector2.zero, Vector2.zero, new Vector2(0, 0.5f));
-                bar.rectTransform.anchorMin = Vector2.zero;
-                bar.rectTransform.anchorMax = new Vector2(0.3f, 1f);
-                bar.rectTransform.offsetMin = Vector2.zero;
-                bar.rectTransform.offsetMax = new Vector2(0, 0);
+                var bar = UIUtils.NewImageStretch($"BarFill{i}", barBg.transform,
+                    colors[i],
+                    Vector2.zero, new Vector2(0.3f, 1f),
+                    Vector2.zero, Vector2.zero, new Vector2(0f, 0.5f));
                 bars[i] = bar;
             }
 

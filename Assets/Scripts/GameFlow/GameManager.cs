@@ -4,6 +4,7 @@ using UnityEngine;
 using RainAlley.BeatSystem;
 using RainAlley.Calibration;
 using RainAlley.Core;
+using RainAlley.Gameplay;
 using RainAlley.InputSystem;
 using RainAlley.Leaderboard;
 using RainAlley.Replay;
@@ -119,16 +120,21 @@ namespace RainAlley.GameFlow
             double prevBeat = Clock.CurrentBeatIndex;
             Clock.Tick();
 
-            TrackMgr.Update(Clock.ElapsedMs, Calibration.Settings.TotalLatencyMs,
-                Judge.CheckAutoMiss);
-
             if (CurrentState == GameState.Replay)
             {
+                TrackMgr.Update(Clock.ElapsedMs, Calibration.Settings.TotalLatencyMs,
+                    (_, __) => false);
+
                 var replayEvents = Replay.TickReplay(Clock.ElapsedMs - _replayStartOffsetMs);
                 foreach (var ev in replayEvents) ApplyReplayEvent(ev);
 
                 if (prevBeat != Clock.CurrentBeatIndex)
                     CheckEndReplay();
+            }
+            else
+            {
+                TrackMgr.Update(Clock.ElapsedMs, Calibration.Settings.TotalLatencyMs,
+                    Judge.CheckAutoMiss);
             }
 
             if (TrackMgr != null)
@@ -189,7 +195,7 @@ namespace RainAlley.GameFlow
                 return;
             }
 
-            if (CurrentState != GameState.Playing) return;
+            if (CurrentState != GameState.Playing && CurrentState != GameState.Replay) return;
 
             var target = TrackMgr.FindClosestActiveToJudge(
                 Clock.ElapsedMs,
@@ -262,13 +268,7 @@ namespace RainAlley.GameFlow
 
                 TrackMgr.RewindToBeat(startBeat);
 
-                if (GameplaySceneVisuals.Instance != null)
-                {
-                    for (int i = GameplaySceneVisuals.Instance.ObstacleSpawnRoot.childCount - 1; i >= 0; i--)
-                    {
-                        Destroy(GameplaySceneVisuals.Instance.ObstacleSpawnRoot.GetChild(i).gameObject);
-                    }
-                }
+                GameplaySceneVisuals.Instance?.ClearForRewind(startBeat, TrackMgr);
 
                 Clock.SeekToBeat(startBeat);
                 _replayStartOffsetMs = startBeat * Clock.MsPerBeat;
@@ -367,6 +367,9 @@ namespace RainAlley.GameFlow
             TrackMgr = new TrackObstacleManager();
             TrackMgr.LoadObstacles(level.Obstacles);
             TrackMgr.OnObstacleJudged += (o, r) => { };
+
+            if (GameplaySceneVisuals.Instance != null)
+                GameplaySceneVisuals.Instance.Attach();
 
             ChangeState(GameState.Countdown);
             StartCountdown();

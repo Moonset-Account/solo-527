@@ -223,6 +223,48 @@ namespace RainAlley.Gameplay
             obs.VisualObject = null;
         }
 
+        public void ClearForRewind(int fromBeatIndex, TrackObstacleManager trackMgr)
+        {
+            var list = trackMgr != null ? trackMgr.AllObstacles : null;
+            var toRemove = new List<int>();
+
+            foreach (var kv in _obstacleVisuals)
+            {
+                bool needRemove = true;
+                if (list != null && kv.Key >= 0 && kv.Key < list.Count)
+                {
+                    var obs = list[kv.Key];
+                    needRemove = obs.Data != null && obs.Data.BeatIndex >= fromBeatIndex;
+                }
+                if (needRemove)
+                {
+                    if (kv.Value != null) Destroy(kv.Value);
+                    toRemove.Add(kv.Key);
+                    if (list != null && kv.Key >= 0 && kv.Key < list.Count)
+                    {
+                        list[kv.Key].VisualObject = null;
+                    }
+                }
+            }
+
+            foreach (var idx in toRemove) _obstacleVisuals.Remove(idx);
+            toRemove.Clear();
+
+            if (ObstacleSpawnRoot != null)
+            {
+                for (int i = ObstacleSpawnRoot.childCount - 1; i >= 0; i--)
+                {
+                    var child = ObstacleSpawnRoot.GetChild(i).gameObject;
+                    bool isOrphan = true;
+                    foreach (var kv in _obstacleVisuals)
+                    {
+                        if (kv.Value == child) { isOrphan = false; break; }
+                    }
+                    if (isOrphan) Destroy(child);
+                }
+            }
+        }
+
         private void ClearAllObstacleVisuals()
         {
             foreach (var kv in _obstacleVisuals)
