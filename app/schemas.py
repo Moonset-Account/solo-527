@@ -124,8 +124,7 @@ class EssayFeedbackResponse(BaseModel):
     items: List[FeedbackItemResponse] = []
     evidence_refs: List[ModelEvidenceResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True, "protected_namespaces": ()}
 
 
 class FeedbackItemAudit(BaseModel):

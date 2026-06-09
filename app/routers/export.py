@@ -149,10 +149,23 @@ def export_class_report_excel(
     if not HAS_PANDAS:
         raise HTTPException(status_code=500, detail="pandas依赖未安装，请使用JSON导出")
 
-    target_class_ids = options.class_ids
+    explicitly_provided = options.class_ids is not None
+    target_class_ids = list(options.class_ids) if explicitly_provided else None
+
+    if explicitly_provided and len(target_class_ids) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="class_ids 列表不能为空；如需导出默认班级，请省略 class_ids 参数"
+        )
+
     if current_user.role != UserRole.ADMIN:
-        if target_class_ids:
+        if explicitly_provided:
             target_class_ids = [cid for cid in target_class_ids if cid == current_user.class_id]
+            if not target_class_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="您指定的班级ID均无导出权限，请确认班级归属或联系管理员。"
+                )
         else:
             target_class_ids = [current_user.class_id]
 
@@ -230,10 +243,23 @@ def export_class_report_json(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_teacher)
 ):
-    target_class_ids = options.class_ids
+    explicitly_provided = options.class_ids is not None
+    target_class_ids = list(options.class_ids) if explicitly_provided else None
+
+    if explicitly_provided and len(target_class_ids) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="class_ids 列表不能为空；如需导出默认班级，请省略 class_ids 参数"
+        )
+
     if current_user.role != UserRole.ADMIN:
-        if target_class_ids:
+        if explicitly_provided:
             target_class_ids = [cid for cid in target_class_ids if cid == current_user.class_id]
+            if not target_class_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="您指定的班级ID均无导出权限，请确认班级归属或联系管理员。"
+                )
         else:
             target_class_ids = [current_user.class_id]
 

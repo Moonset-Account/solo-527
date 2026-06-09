@@ -92,7 +92,7 @@ def submit_essay(
         db.add(feedback)
         db.flush()
 
-        for item_data in result.items():
+        for item_data in result.items:
             item_low_conf = item_data.confidence < settings.LOW_CONFIDENCE_THRESHOLD
             db_item = models.FeedbackItem(
                 feedback_id=feedback.id,
@@ -263,24 +263,57 @@ def get_essay_detail(
 
     feedbacks_resp = []
     for fb in essay.feedbacks:
-        fb_data = schemas.EssayFeedbackResponse.model_validate(fb)
-        if fb.prompt_version:
-            fb_data.prompt_version_code = fb.prompt_version.version_code
+        fb_dict = {
+            "id": fb.id,
+            "essay_id": fb.essay_id,
+            "category": fb.category,
+            "prompt_version_id": fb.prompt_version_id,
+            "prompt_version_code": fb.prompt_version.version_code if fb.prompt_version else None,
+            "generated_at": fb.generated_at,
+            "model_name": fb.model_name,
+            "overall_confidence": fb.overall_confidence,
+            "is_low_confidence": fb.is_low_confidence,
+            "evidence_refs": [],
+            "items": []
+        }
 
-        if current_user.role == models.UserRole.STUDENT:
-            fb_data.evidence_refs = []
-            filtered_items = []
-            for it in fb_data.items:
-                if it.audit_status in [AuditStatus.APPROVED, AuditStatus.NEEDS_REVISION]:
-                    if it.revised_suggestion:
-                        it.suggestion_text = it.revised_suggestion
-                    it.evidence_refs = []
-                    filtered_items.append(it)
-            fb_data.items = filtered_items
+        if current_user.role != models.UserRole.STUDENT:
+            fb_dict["evidence_refs"] = [
+                schemas.ModelEvidenceResponse.model_validate(e) for e in fb.evidence_refs
+            ]
 
-        feedbacks_resp.append(fb_data)
+        for item in fb.items:
+            display_suggestion = item.revised_suggestion or item.suggestion_text
+            is_visible_to_student = (
+                item.audit_status in [AuditStatus.APPROVED, AuditStatus.NEEDS_REVISION]
+            )
+
+            if current_user.role == models.UserRole.STUDENT and not is_visible_to_student:
+                continue
+
+            item_dict = {
+                "id": item.id,
+                "category": item.category,
+                "original_text": item.original_text,
+                "suggestion_text": display_suggestion,
+                "location_start": item.location_start,
+                "location_end": item.location_end,
+                "confidence": item.confidence,
+                "is_low_confidence": item.is_low_confidence,
+                "severity": item.severity,
+                "audit_status": item.audit_status,
+                "audit_note": item.audit_note,
+                "audited_at": item.audited_at,
+                "revised_suggestion": item.revised_suggestion,
+            }
+            fb_dict["items"].append(schemas.FeedbackItemResponse(**item_dict))
+
+        feedbacks_resp.append(schemas.EssayFeedbackResponse(**fb_dict))
     resp_data["feedbacks"] = feedbacks_resp
-    resp_data["teacher_review"] = essay.teacher_review
+    resp_data["teacher_review"] = (
+        schemas.TeacherReviewResponse.model_validate(essay.teacher_review)
+        if essay.teacher_review else None
+    )
 
     log = models.AuditLog(
         user_id=current_user.id,
