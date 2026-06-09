@@ -21,6 +21,9 @@ type RenderState = {
   profileName: string;
   profileLevel: number;
   currentLevelName: string;
+  forbiddenTowers: TowerType[];
+  towerLimit: number | null;
+  builtTowerCount: number;
 };
 
 export class UIManager {
@@ -79,20 +82,28 @@ export class UIManager {
   }
 
   private renderTowerBar(state: RenderState): void {
-    const { resources, selectedTowerType, profileLevel } = state;
+    const { resources, selectedTowerType, profileLevel, forbiddenTowers, towerLimit, builtTowerCount } = state;
 
+    const isLimitReached = towerLimit !== null && builtTowerCount >= towerLimit;
     const towers = Object.values(TOWER_CONFIGS);
     const cards = towers
       .map((t) => {
         const cfg = t.levels[0];
         const cost = cfg.stats.cost;
-        const locked = profileLevel < 2 && (t.type === 'tesla' || t.type === 'barrier');
+        const levelLocked = profileLevel < 2 && (t.type === 'tesla' || t.type === 'barrier');
+        const forbidden = forbiddenTowers.includes(t.type);
+        const limitBlocked = isLimitReached;
+        const locked = levelLocked || forbidden || limitBlocked;
         const canAfford = resources.canAfford(cost) && !locked;
         const selected = selectedTowerType === t.type;
+        let lockIcon = '';
+        if (forbidden) lockIcon = ' 🔒';
+        else if (levelLocked) lockIcon = ' 🔒';
+        else if (limitBlocked) lockIcon = ' ⛔';
         return `
-          <div class="tower-card ${selected ? 'selected' : ''} ${canAfford ? '' : 'disabled'}" data-tower="${t.type}" title="${t.description}">
+          <div class="tower-card ${selected ? 'selected' : ''} ${canAfford ? '' : 'disabled'}" data-tower="${t.type}" title="${t.description}${forbidden ? '（每日挑战禁止使用）' : ''}${limitBlocked ? '（已达塔数量上限）' : ''}">
             <div class="tower-icon" style="background:${t.color}33;border:2px solid ${t.color}66">${t.icon}</div>
-            <div class="tower-name">${t.name}${locked ? ' 🔒' : ''}</div>
+            <div class="tower-name">${t.name}${lockIcon}</div>
             <div class="tower-cost">🪙 ${cost}</div>
           </div>
         `;

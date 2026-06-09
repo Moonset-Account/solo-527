@@ -29,7 +29,7 @@ export class WaveSystem {
     this.weatherCycle = weather?.slice() ?? [];
     this.currentWaveIdx = -1;
     this.inProgress = false;
-    this.inBreak = false;
+    this.inBreak = true;
     this.queue = [];
     this.spawnedCount = 0;
     this.totalInWave = 0;
@@ -63,7 +63,8 @@ export class WaveSystem {
 
   getCurrentWeather(): string | null {
     if (this.weatherCycle.length === 0) return null;
-    return this.weatherCycle[Math.min(this.currentWaveIdx, this.weatherCycle.length - 1)] ?? null;
+    const idx = Math.max(0, this.currentWaveIdx);
+    return this.weatherCycle[Math.min(idx, this.weatherCycle.length - 1)] ?? null;
   }
 
   startNextWave(): boolean {
@@ -74,8 +75,9 @@ export class WaveSystem {
   }
 
   forceStart(): void {
-    if (this.inBreak && this.preparationTimer > 0) {
+    if ((this.inBreak || this.currentWaveIdx === -1) && this.currentWaveIdx < this.waves.length - 1) {
       this.preparationTimer = 0;
+      this.startNextWave();
     }
   }
 

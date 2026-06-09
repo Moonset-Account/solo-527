@@ -88,20 +88,29 @@ export class Game {
 
   private setupWaveCallbacks(): void {
     this.waveSystem.onSpawnRequest = (type, hpMult) => {
+      const challengeHpMult = this.challengeModifiers.includes('hp_boost') ? 1.3 : 1;
       const speedMult = this.weatherSystem.getEnemySpeedMultiplier();
-      const enemy = new Enemy(type, this.pathSystem, hpMult, speedMult);
+      const enemy = new Enemy(type, this.pathSystem, hpMult * challengeHpMult, speedMult);
       this.entities.add(enemy);
       this.enemies.push(enemy);
       this.waveSystem.registerEnemySpawned();
     };
 
     this.eventBus.on('wave:start', (wave) => {
-      const wth = this.waveSystem.getCurrentWeather();
-      if (wth) {
+      const weatherMod = this.challengeModifiers.find((m) => m.startsWith('weather_'));
+      if (weatherMod) {
+        const wth = weatherMod.split('_')[1];
         this.weatherSystem.setWeather(wth as any);
         this.achievementSystem?.registerWeatherPlayed(wth);
+        this.ui.showWaveBanner(wave.id, this.waveSystem.totalWaves, wth ?? 'sunny');
+      } else {
+        const wth = this.waveSystem.getCurrentWeather();
+        if (wth) {
+          this.weatherSystem.setWeather(wth as any);
+          this.achievementSystem?.registerWeatherPlayed(wth);
+        }
+        this.ui.showWaveBanner(wave.id, this.waveSystem.totalWaves, wth ?? 'sunny');
       }
-      this.ui.showWaveBanner(wave.id, this.waveSystem.totalWaves, wth ?? 'sunny');
     });
 
     this.eventBus.on('wave:complete', (wave) => {
@@ -161,7 +170,9 @@ export class Game {
         const idx = parseInt(e.key) - 1;
         const types = Object.keys(TOWER_CONFIGS) as TowerType[];
         if (idx < types.length) {
-          this.selectedTowerType = this.selectedTowerType === types[idx] ? null : types[idx];
+          const tType = types[idx];
+          if (this.isTowerForbidden(tType) || this.reachedTowerLimit()) return;
+          this.selectedTowerType = this.selectedTowerType === tType ? null : tType;
           this.selectedPlacedTower = null;
         }
       }
@@ -171,7 +182,7 @@ export class Game {
       }
       if (e.key === ' ' && this.screen === 'playing') {
         e.preventDefault();
-        if (this.waveSystem.isBreakPhase) {
+        if (this.waveSystem.isBreakPhase || this.waveSystem.currentWaveIndex === -1) {
           this.waveSystem.forceStart();
         }
       }
@@ -194,8 +205,9 @@ export class Game {
         const type = towerCard.dataset.tower as TowerType;
         const cfg = TOWER_CONFIGS[type].levels[0];
         const profileLvl = this.profileSystem.getProfileLevel().level;
-        const locked = profileLvl < 2 && (type === 'tesla' || type === 'barrier');
-        if (!this.resourceSystem.canAfford(cfg.stats.cost) || locked) return;
+        const levelLocked = profileLvl < 2 && (type === 'tesla' || type === 'barrier');
+        if (!this.resourceSystem.canAfford(cfg.stats.cost) || levelLocked) return;
+        if (this.isTowerForbidden(type) || this.reachedTowerLimit()) return;
         this.selectedTowerType = this.selectedTowerType === type ? null : type;
         this.selectedPlacedTower = null;
         return;
@@ -403,10 +415,19 @@ export class Game {
     this.pathSystem.setBuildableAreas(level.buildableAreas);
     this.pathSystem.setPathWidth(level.path[0]?.width ?? 50);
     this.resourceSystem.init(startGold, level.startLives);
-    this.waveSystem.init(level.waves, level.weather);
     this.waveSystem.setPreparationTime(12);
     this.weatherSystem.init(this.engine.worldSize.width, this.engine.worldSize.height);
-    this.weatherSystem.setWeather((level.weather?.[0] ?? 'sunny') as any);
+
+    const weatherMod = this.challengeModifiers.find((m) => m.startsWith('weather_'));
+    if (weatherMod) {
+      const forcedWeather = weatherMod.split('_')[1];
+      this.weatherSystem.setWeather(forcedWeather as any);
+      const weatherCycle = Array(level.waves.length).fill(forcedWeather);
+      this.waveSystem.init(level.waves, weatherCycle);
+    } else {
+      this.weatherSystem.setWeather((level.weather?.[0] ?? 'sunny') as any);
+      this.waveSystem.init(level.waves, level.weather);
+    }
 
     this.achievementSystem = new AchievementSystem(this.profileSystem.getProfile());
     this.playRecorder = new PlayRecorder(levelId, performance.now() / 1000, this.weatherSystem.current);
@@ -421,6 +442,10 @@ export class Game {
   private tryPlaceTower(wp: Vec2): void {
     if (!this.selectedTowerType) return;
     const type = this.selectedTowerType;
+
+    if (this.isTowerForbidden(type)) return;
+    if (this.reachedTowerLimit()) return;
+
     const cfg = TOWER_CONFIGS[type].levels[0];
     const positions = this.towers.map((t) => t.position);
     if (!this.pathSystem.canBuildAt(wp, 48, positions)) return;
@@ -468,6 +493,24 @@ export class Game {
     this.selectedPlacedTower = null;
     this.playRecorder?.registerTowerSold(t.type, Math.max(1, this.waveSystem.currentWaveIndex + 1));
     this.eventBus.emit('tower:sell', { towerId: t.id, refund });
+  }
+
+  isTowerForbidden(type: TowerType): boolean {
+    if (this.challengeModifiers.includes('no_tesla') && type === 'tesla') return true;
+    if (this.challengeModifiers.includes('no_frost') && type === 'frost') return true;
+    return false;
+  }
+
+  reachedTowerLimit(): boolean {
+    if (!this.challengeModifiers.includes('limited_towers')) return false;
+    return this.towers.length >= 8;
+  }
+
+  getForbiddenTowerTypes(): TowerType[] {
+    const list: TowerType[] = [];
+    if (this.challengeModifiers.includes('no_tesla')) list.push('tesla');
+    if (this.challengeModifiers.includes('no_frost')) list.push('frost');
+    return list;
   }
 
   private applyHit(enemy: Enemy, damage: number, type: DamageType, effects: EffectType[], proj: Projectile): void {
@@ -558,7 +601,9 @@ export class Game {
     if (this.screen !== 'playing') return;
     const profile = this.profileSystem.getProfile();
     const profileLvl = this.profileSystem.getProfileLevel();
-    this.ui.renderHUD({
+    const forbiddenTowers = this.getForbiddenTowerTypes();
+    const towerLimit: number | null = this.challengeModifiers.includes('limited_towers') ? 8 : null;
+    const base = {
       engine: this.engine,
       resources: this.resourceSystem,
       waves: this.waveSystem,
@@ -570,20 +615,14 @@ export class Game {
       profileName: profile.name,
       profileLevel: profileLvl.level,
       currentLevelName: this.currentLevel?.name ?? '',
-    });
+      forbiddenTowers,
+      towerLimit,
+      builtTowerCount: this.towers.length,
+    };
+    this.ui.renderHUD(base);
     if (this.showDebugPanel) {
       this.ui.renderDebugPanel({
-        engine: this.engine,
-        resources: this.resourceSystem,
-        waves: this.waveSystem,
-        weather: this.weatherSystem,
-        selectedTowerType: this.selectedTowerType,
-        selectedPlacedTower: this.selectedPlacedTower,
-        hoverWorldPos: this.hoverWorldPos,
-        canPlaceAtHover: this.canPlaceAtHover,
-        profileName: profile.name,
-        profileLevel: profileLvl.level,
-        currentLevelName: this.currentLevel?.name ?? '',
+        ...base,
         enemies: this.enemies.length,
         towers: this.towers.length,
         projectiles: this.projectiles.length,
