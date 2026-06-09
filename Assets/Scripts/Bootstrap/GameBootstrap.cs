@@ -302,6 +302,7 @@ namespace KitchenChaos.Bootstrap
             var result = GameObject.Find("ResultPanel");
             switch (e.NewState)
             {
+                case GameState.Boot:
                 case GameState.MainMenu:
                     if (main) main.SetActive(true);
                     if (hud) hud.SetActive(false);
@@ -309,6 +310,7 @@ namespace KitchenChaos.Bootstrap
                     break;
                 case GameState.LevelSelect:
                 case GameState.PreGame:
+                case GameState.Paused:
                     if (main) main.SetActive(true);
                     if (hud) hud.SetActive(false);
                     if (result) result.SetActive(false);
@@ -318,7 +320,9 @@ namespace KitchenChaos.Bootstrap
                     if (hud) hud.SetActive(true);
                     if (result) result.SetActive(false);
                     break;
-                case GameState.LevelEnd:
+                case GameState.LevelComplete:
+                case GameState.LevelFailed:
+                case GameState.GameComplete:
                     if (main) main.SetActive(false);
                     if (hud) hud.SetActive(false);
                     if (result) result.SetActive(true);
