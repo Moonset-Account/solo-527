@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能检索问答 - ContractRiskAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+            z-index: 40;
+            overflow-y: auto;
+        }
+        .sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+        .nav-item.active { background: rgba(255,255,255,0.12); color: white; border-left-color: #93c5fd; }
+        .main-content { margin-left: 200px; min-height: 100vh; }
+        .topbar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover { background: #1e3a8a; }
+        .btn-secondary {
+            background: white;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-slate { background: #f1f5f9; color: #475569; }
+        .search-tab {
+            padding: 10px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .search-tab:hover { color: #1e40af; }
+        .search-tab.active {
+            color: #1e40af;
+            border-bottom-color: #1e40af;
+        }
+        .chat-user {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        .chat-user .bubble {
+            max-width: 70%;
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 16px 16px 4px 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 2px 8px rgba(30,64,175,0.2);
+        }
+        .chat-ai {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .chat-ai .avatar {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #60a5fa, #1e40af);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+        .chat-ai .bubble-wrap {
+            max-width: 70%;
+            flex: 1;
+        }
+        .chat-ai .bubble {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 14px 16px;
+            border-radius: 4px 16px 16px 16px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #334155;
+        }
+        .search-result-card {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+        .search-result-card:hover { background: #f8fafc; }
+        .highlight { background: #fef08a; padding: 0 2px; border-radius: 2px; }
+        .confidence-high { background: #dcfce7; color: #166534; }
+        .confidence-mid { background: #fef3c7; color: #92400e; }
+        .confidence-low { background: #fee2e2; color: #991b1b; }
+        .page-btn {
+            min-width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #475569;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 10px;
+        }
+        .page-btn:hover { border-color: #1e40af; color: #1e40af; }
+        .page-btn.active {
+            background: #1e40af;
+            border-color: #1e40af;
+            color: white;
+        }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .accordion-header {
+            cursor: pointer;
+            user-select: none;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .accordion-content.open {
+            max-height: 1000px;
+        }
+        .chevron { transition: transform 0.2s; }
+        .chevron.open { transform: rotate(90deg); }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-white font-bold text-base">ContractRiskAI</div>
+                    <div class="text-blue-200 text-xs">智能合同平台</div>
+                </div>
+            </div>
+        </div>
+        <nav class="mt-4">
+            <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line w-5"></i><span>首页看板</span></a>
+            <a href="upload.html" class="nav-item"><i class="fas fa-file-contract w-5"></i><span>合同管理</span></a>
+            <div class="nav-item active"><i class="fas fa-search w-5"></i><span>智能检索</span></div>
+            <a href="review.html" class="nav-item"><i class="fas fa-clipboard-check w-5"></i><span>审核工作台</span></a>
+            <div class="nav-item"><i class="fas fa-database w-5"></i><span>数据集</span></div>
+            <a href="models.html" class="nav-item"><i class="fas fa-cube w-5"></i><span>模型管理</span></a>
+            <div class="nav-item"><i class="fas fa-bell w-5"></i><span>告警中心</span></div>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-300 flex items-center justify-center text-white font-semibold">张</div>
+                <div class="text-white text-sm">
+                    <div class="font-medium">张律师</div>
+                    <div class="text-blue-200 text-xs">zhang@company.com</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="topbar">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden btn-secondary" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <nav class="flex items-center gap-2 text-sm text-slate-500">
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                    <span class="text-slate-800 font-medium">智能检索问答</span>
+                </nav>
+            </div>
+            <button class="btn-primary" onclick="newConversation()">
+                <i class="fas fa-plus"></i> 新建对话
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div class="mb-6">
+                <div class="card p-2">
+                    <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+                        <div class="flex gap-4">
+                            <div class="search-tab active" onclick="switchMode(this, 'qa')">
+                                <i class="fas fa-comments mr-2"></i>问答模式
+                            </div>
+                            <div class="search-tab" onclick="switchMode(this, 'search')">
+                                <i class="fas fa-search mr-2"></i>检索模式
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            知识库范围：全库 <i class="fas fa-chevron-down ml-1"></i>
+                        </div>
+                    </div>
+                    <div class="relative p-3">
+                        <i class="fas fa-search absolute left-7 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                        <input id="main-search" type="text" placeholder="输入问题，例如：合同中违约金的上限一般是多少？"
+                            class="w-full pl-14 pr-40 py-3.5 border border-slate-200 rounded-xl text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-slate-50 focus:bg-white transition">
+                        <div class="absolute right-5 top-1/2 -translate-y-1/2 flex gap-2">
+                            <button class="text-slate-400 hover:text-slate-600 px-2" title="语音输入"><i class="fas fa-microphone text-lg"></i></button>
+                            <button class="btn-primary px-5 py-2" onclick="doSearch()">
+                                <i class="fas fa-paper-plane mr-1"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-5 pb-3 flex items-center gap-2 flex-wrap">
+                        <span class="text-xs text-slate-400">热门问题：</span>
+                        <button class="text-xs px-3 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 transition" onclick="quickQ(this)">竞业限制条款的有效期是多久？</button>
+                        <button class="text-xs px-3 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 transition" onclick="quickQ(this)">违约金比例过高的标准是什么？</button>
+                        <button class="text-xs px-3 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 transition" onclick="quickQ(this)">管辖法院如何约定才对我方有利？</button>
+                        <button class="text-xs px-3 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-full text-slate-600 transition" onclick="quickQ(this)">保密期限一般是几年？</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="qa-mode">
+                <div class="card p-6 min-h-[600px] flex flex-col">
+                    <div id="chat-container" class="flex-1 overflow-y-auto pr-2 space-y-1">
+                        <div class="chat-ai">
+                            <div class="avatar"><i class="fas fa-robot"></i></div>
+                            <div class="bubble-wrap">
+                                <div class="bubble">
+                                    <p class="mb-1">您好！我是 ContractRiskAI 智能助手，基于合同知识库为您提供专业问答服务。</p>
+                                    <p>您可以询问合同相关的法律风险、条款解读、案例参考等问题，我会结合知识库中的真实合同条款为您解答。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-user">
+                            <div class="bubble">合同中违约金的比例一般约定多少是合理的？如果约定过高会有什么风险？</div>
+                        </div>
+
+                        <div class="chat-ai">
+                            <div class="avatar"><i class="fas fa-robot"></i></div>
+                            <div class="bubble-wrap">
+                                <div class="bubble">
+                                    <p class="mb-3"><b>根据《民法典》第585条及司法实践，违约金约定的合理范围如下：</b></p>
+                                    <p class="mb-2">1. <b>迟延履行违约金</b>：通常建议约定为<b>日万分之三至万分之五</b>（年化约10.95%~18.25%），超过日千分之一（年化36.5%）的一般会被认定过高。</p>
+                                    <p class="mb-2">2. <b>概括性违约金</b>：建议不超过合同总金额的<b>20%~30%</b>。超过30%的，违约方可请求法院酌减。</p>
+                                    <p class="mb-2">3. <b>合同解除违约金</b>：通常不超过未履行部分合同金额的10%~20%。</p>
+                                    <p class="mb-3 text-red-600"><b>风险提示：</b>违约金约定过高，对方可在诉讼中请求法院"酌减"，法院通常会以实际损失为基础，参考LPR的4倍（当前约15.4%）作为合理上限予以调整。建议设置"违约金+损失赔偿"双轨条款，避免单纯依赖高违约金。</p>
+                                    <div class="flex items-center gap-4 mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                                        <span class="badge confidence-high px-2 py-0.5"><i class="fas fa-signal mr-1"></i>置信度：高</span>
+                                        <span><i class="far fa-clock mr-1"></i>处理耗时：1.24s</span>
+                                        <span>模型：qa-engine-v2.1</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+                                    <div class="accordion-header flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition" onclick="toggleAccordion(this)">
+                                        <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                            <i class="fas fa-bookmark text-blue-500"></i> 引用来源 <span class="badge badge-slate">3条</span>
+                                        </div>
+                                        <i class="fas fa-chevron-right chevron text-slate-400 text-xs"></i>
+                                    </div>
+                                    <div class="accordion-content open">
+                                        <div class="divide-y divide-slate-100">
+                                            <div class="p-3 hover:bg-slate-50">
+                                                <div class="flex items-center justify-between mb-1 text-xs">
+                                                    <div class="flex items-center gap-2">
+                                                        <a href="#" class="text-blue-600 hover:underline font-medium">CT-2025-1128 · 某设备采购合同</a>
+                                                        <span class="text-slate-400">第15页 · CLAUSE-48291</span>
+                                                    </div>
+                                                    <span class="text-blue-600 font-medium">相似度 94%</span>
+                                                </div>
+                                                <div class="text-sm text-slate-600 pl-2 border-l-2 border-blue-200 leading-relaxed">
+                                                    "...若卖方延迟交付，每延迟一日应按迟延交付货物价款的<span class="highlight">万分之五</span>向买方支付违约金，累计违约金不超过合同总额的<span class="highlight">20%</span>..."
+                                                </div>
+                                            </div>
+                                            <div class="p-3 hover:bg-slate-50">
+                                                <div class="flex items-center justify-between mb-1 text-xs">
+                                                    <div class="flex items-center gap-2">
+                                                        <a href="#" class="text-blue-600 hover:underline font-medium">CT-2026-0034 · 软件开发服务合同</a>
+                                                        <span class="text-slate-400">第22页 · CLAUSE-52087</span>
+                                                    </div>
+                                                    <span class="text-blue-600 font-medium">相似度 88%</span>
+                                                </div>
+                                                <div class="text-sm text-slate-600 pl-2 border-l-2 border-blue-200 leading-relaxed">
+                                                    "...任何一方违约的，应向守约方支付合同金额<span class="highlight">30%</span>作为违约金。如违约金不足以弥补损失的，还应赔偿差额部分..."
+                                                </div>
+                                            </div>
+                                            <div class="p-3 hover:bg-slate-50">
+                                                <div class="flex items-center justify-between mb-1 text-xs">
+                                                    <div class="flex items-center gap-2">
+                                                        <a href="#" class="text-blue-600 hover:underline font-medium">CT-2025-0891 · 房屋租赁合同</a>
+                                                        <span class="text-slate-400">第8页 · CLAUSE-41502</span>
+                                                    </div>
+                                                    <span class="text-blue-600 font-medium">相似度 82%</span>
+                                                </div>
+                                                <div class="text-sm text-slate-600 pl-2 border-l-2 border-blue-200 leading-relaxed">
+                                                    "...承租方逾期支付租金超过15日的，出租方有权解除合同，承租方应支付年租金<span class="highlight">25%</span>作为违约金..."
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-green-50 hover:border-green-200 hover:text-green-600" onclick="feedback(this, 'good')">
+                                            <i class="far fa-thumbs-up"></i> 有用
+                                        </button>
+                                        <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-red-50 hover:border-red-200 hover:text-red-600" onclick="feedback(this, 'bad')">
+                                            <i class="far fa-thumbs-down"></i> 不准确
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="text-xs text-slate-400 hover:text-slate-600"><i class="far fa-copy mr-1"></i>复制回答</button>
+                                        <button class="text-xs text-slate-400 hover:text-slate-600"><i class="fas fa-share-alt mr-1"></i>分享</button>
+                                    </div>
+                                </div>
+                                <div id="correct-box" style="display:none;" class="mt-3 p-3 border border-amber-200 rounded-lg bg-amber-50">
+                                    <div class="text-xs font-medium text-amber-700 mb-2"><i class="fas fa-edit mr-1"></i>纠正此答案（修改后将进入审核队列，用于模型优化）</div>
+                                    <textarea rows="3" placeholder="请输入您认为正确的答案..." class="w-full p-2 border border-amber-200 rounded text-sm"></textarea>
+                                    <div class="mt-2 flex justify-end gap-2">
+                                        <button class="text-xs text-slate-500 px-3 py-1 hover:text-slate-700" onclick="document.getElementById('correct-box').style.display='none'">取消</button>
+                                        <button class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded" onclick="submitCorrect()">提交纠正</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <div class="relative">
+                            <textarea id="chat-input" rows="2" placeholder="继续提问..."
+                                class="w-full pr-24 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"></textarea>
+                            <div class="absolute right-3 bottom-3 flex gap-2">
+                                <button class="text-slate-400 hover:text-slate-600 px-1.5" title="插入附件"><i class="fas fa-paperclip"></i></button>
+                                <button class="btn-primary px-4 py-2 text-sm" onclick="sendMessage()">
+                                    <i class="fas fa-paper-plane mr-1"></i> 发送
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="search-mode" style="display:none;">
+                <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+                    <div class="card p-4 h-fit sticky top-20">
+                        <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-filter text-blue-500"></i> 筛选条件
+                        </h3>
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">合同ID范围</label>
+                                <div class="flex gap-2">
+                                    <input type="text" placeholder="起" class="flex-1 px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-blue-500">
+                                    <span class="text-slate-400 self-center">~</span>
+                                    <input type="text" placeholder="止" class="flex-1 px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">条款类别</label>
+                                <div class="space-y-1.5">
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" checked class="accent-blue-600"> 违约责任 <span class="text-xs text-slate-400 ml-auto">1,247</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" class="accent-blue-600"> 付款条款 <span class="text-xs text-slate-400 ml-auto">986</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" class="accent-blue-600"> 交付条款 <span class="text-xs text-slate-400 ml-auto">752</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" checked class="accent-blue-600"> 保密条款 <span class="text-xs text-slate-400 ml-auto">634</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" class="accent-blue-600"> 知识产权 <span class="text-xs text-slate-400 ml-auto">518</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" class="accent-blue-600"> 争议解决 <span class="text-xs text-slate-400 ml-auto">421</span></label>
+                                    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer hover:text-blue-600"><input type="checkbox" class="accent-blue-600"> 终止解除 <span class="text-xs text-slate-400 ml-auto">389</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">风险级别</label>
+                                <div class="space-y-1.5">
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><span class="w-3 h-3 rounded-full bg-red-500"></span><input type="checkbox" class="accent-blue-600"> 高风险 <span class="text-xs text-slate-400 ml-auto">186</span></label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><span class="w-3 h-3 rounded-full bg-amber-500"></span><input type="checkbox" checked class="accent-blue-600"> 中风险 <span class="text-xs text-slate-400 ml-auto">423</span></label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><span class="w-3 h-3 rounded-full bg-green-500"></span><input type="checkbox" class="accent-blue-600"> 低风险 <span class="text-xs text-slate-400 ml-auto">891</span></label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><span class="w-3 h-3 rounded-full bg-blue-500"></span><input type="checkbox" class="accent-blue-600"> 提示 <span class="text-xs text-slate-400 ml-auto">1,205</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">日期范围</label>
+                                <input type="date" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs mb-1.5 focus:outline-none focus:border-blue-500">
+                                <input type="date" class="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button class="btn-secondary flex-1 text-xs py-2">重置</button>
+                                <button class="btn-primary flex-1 text-xs py-2" onclick="doSearch()">应用筛选</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="card overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                                <div class="text-sm text-slate-600">
+                                    找到 <span class="font-bold text-blue-600">1,247</span> 条相关条款，耗时 0.08s
+                                </div>
+                                <select class="text-xs border border-slate-200 rounded px-2 py-1">
+                                    <option>相关度排序</option>
+                                    <option>风险级别排序</option>
+                                    <option>时间倒序</option>
+                                    <option>相似度排序</option>
+                                </select>
+                            </div>
+                            <div id="search-results">
+                                <div class="search-result-card">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">第8.1条 · 延迟交付违约金条款</h4>
+                                            <span class="badge badge-red">H</span>
+                                        </div>
+                                        <span class="text-sm font-medium text-blue-600">94%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                                        "...若甲方延迟交付货物，每延迟一日应按合同总额的<span class="highlight">0.5%</span>向乙方支付<span class="highlight">违约金</span>。延迟超过15日的，乙方有权单方面解除本合同..."
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                                            <a href="#" class="text-slate-700 hover:text-blue-600"><i class="far fa-file-contract mr-1"></i>CT-2025-1128 · 某大型设备采购合同</a>
+                                            <span><i class="far fa-file mr-1"></i>第15页</span>
+                                            <span>CLAUSE-48291</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="search-result-card">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">第12.3条 · 概括性违约条款</h4>
+                                            <span class="badge badge-yellow">M</span>
+                                        </div>
+                                        <span class="text-sm font-medium text-blue-600">88%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                                        "...任何一方违反本合同约定的，应向守约方支付合同金额<span class="highlight">30%</span>作为<span class="highlight">违约金</span>。如<span class="highlight">违约金</span>不足以弥补实际损失的，还应赔偿差额..."
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                                            <a href="#" class="text-slate-700 hover:text-blue-600"><i class="far fa-file-contract mr-1"></i>CT-2026-0034 · 软件开发服务合同</a>
+                                            <span><i class="far fa-file mr-1"></i>第22页</span>
+                                            <span>CLAUSE-52087</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="search-result-card">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">第7.4条 · 逾期付款违约金</h4>
+                                            <span class="badge badge-yellow">M</span>
+                                        </div>
+                                        <span class="text-sm font-medium text-blue-600">85%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                                        "...乙方逾期付款的，每逾期一日按未付款项的<span class="highlight">万分之五</span>支付逾期<span class="highlight">违约金</span>，逾期超过30日的甲方有权暂停交付..."
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                                            <a href="#" class="text-slate-700 hover:text-blue-600"><i class="far fa-file-contract mr-1"></i>CT-2025-1567 · 原料长期供应合同</a>
+                                            <span><i class="far fa-file mr-1"></i>第9页</span>
+                                            <span>CLAUSE-44318</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="search-result-card">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">第4.2条 · 解约违约金条款</h4>
+                                            <span class="badge badge-green">L</span>
+                                        </div>
+                                        <span class="text-sm font-medium text-blue-600">82%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                                        "...租赁期内承租方擅自解除合同的，应向出租方支付剩余租期租金总额的<span class="highlight">25%</span>作为<span class="highlight">违约金</span>..."
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                                            <a href="#" class="text-slate-700 hover:text-blue-600"><i class="far fa-file-contract mr-1"></i>CT-2025-0891 · 写字楼房屋租赁合同</a>
+                                            <span><i class="far fa-file mr-1"></i>第8页</span>
+                                            <span>CLAUSE-41502</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="search-result-card">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">第10.5条 · 保密违约条款</h4>
+                                            <span class="badge badge-yellow">M</span>
+                                        </div>
+                                        <span class="text-sm font-medium text-blue-600">78%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                                        "...任何一方违反保密义务的，应一次性向对方支付<span class="highlight">人民币50万元</span>的<span class="highlight">违约金</span>，造成的损失超过前述金额的，按实际损失赔偿..."
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                                            <a href="#" class="text-slate-700 hover:text-blue-600"><i class="far fa-file-contract mr-1"></i>CT-2026-0212 · 技术咨询NDA协议</a>
+                                            <span><i class="far fa-file mr-1"></i>第6页</span>
+                                            <span>CLAUSE-50124</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 border-t border-slate-100 flex items-center justify-between">
+                                <span class="text-xs text-slate-500">共 1,247 条，当前 1-5 / 250 页</span>
+                                <div class="flex gap-1.5">
+                                    <button class="page-btn" disabled><i class="fas fa-chevron-left text-xs"></i></button>
+                                    <button class="page-btn active">1</button>
+                                    <button class="page-btn">2</button>
+                                    <button class="page-btn">3</button>
+                                    <button class="page-btn">4</button>
+                                    <button class="page-btn">5</button>
+                                    <span class="self-center text-slate-300 px-1">...</span>
+                                    <button class="page-btn">250</button>
+                                    <button class="page-btn"><i class="fas fa-chevron-right text-xs"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // POST /api/v1/qa/answer
+        // POST /api/v1/qa/feedback
+        // GET /api/v1/search/clauses?q=xxx
+        // POST /api/v1/datasets/samples/add-clause
+
+        function switchMode(el, mode) {
+            document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('qa-mode').style.display = mode === 'qa' ? 'block' : 'none';
+            document.getElementById('search-mode').style.display = mode === 'search' ? 'block' : 'none';
+        }
+
+        function quickQ(el) {
+            document.getElementById('main-search').value = el.textContent;
+            doSearch();
+        }
+
+        function doSearch() {
+            const q = document.getElementById('main-search').value.trim();
+            if (!q) return;
+            if (document.getElementById('qa-mode').style.display !== 'none') {
+                addUserMsg(q);
+                setTimeout(aiReply, 1000);
+            }
+        }
+
+        function addUserMsg(text) {
+            const box = document.getElementById('chat-container');
+            box.insertAdjacentHTML('beforeend',
+                `<div class="chat-user"><div class="bubble">${text}</div></div>`);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function aiReply() {
+            const box = document.getElementById('chat-container');
+            box.insertAdjacentHTML('beforeend', `
+                <div class="chat-ai">
+                    <div class="avatar"><i class="fas fa-robot"></i></div>
+                    <div class="bubble-wrap">
+                        <div class="bubble"><div class="animate-pulse text-slate-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>正在检索知识库并生成回答...</div></div>
+                    </div>
+                </div>
+            `);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            addUserMsg(msg);
+            input.value = '';
+            setTimeout(aiReply, 800);
+        }
+
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const chev = header.querySelector('.chevron');
+            content.classList.toggle('open');
+            chev.classList.toggle('open');
+        }
+
+        function feedback(btn, type) {
+            if (type === 'bad') {
+                document.getElementById('correct-box').style.display = 'block';
+            } else {
+                btn.innerHTML = '<i class="fas fa-thumbs-up text-green-600"></i> 已反馈';
+                btn.classList.add('bg-green-50', 'border-green-200', 'text-green-600');
+            }
+        }
+
+        function submitCorrect() {
+            alert('感谢您的反馈！纠正内容已进入审核队列，将用于模型优化。');
+            document.getElementById('correct-box').style.display = 'none';
+            // fetch('/api/v1/qa/feedback', { method: 'POST' })
+        }
+
+        function newConversation() {
+            if (confirm('确定要开始新的对话吗？当前对话历史将被清除。')) {
+                document.getElementById('chat-container').innerHTML = '';
+                location.reload();
+            }
+        }
+
+        document.getElementById('chat-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

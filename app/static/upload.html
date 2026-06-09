@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合同上传与解析 - ContractRiskAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+            z-index: 40;
+            overflow-y: auto;
+        }
+        .sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+        .nav-item.active { background: rgba(255,255,255,0.12); color: white; border-left-color: #93c5fd; }
+        .main-content { margin-left: 200px; min-height: 100vh; }
+        .topbar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover { background: #1e3a8a; }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-secondary {
+            background: white;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-slate { background: #f1f5f9; color: #475569; }
+        .dropzone {
+            border: 2.5px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            background: #fafbfc;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #1e40af;
+            background: #eff6ff;
+        }
+        .tab-btn {
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: #1e40af; }
+        .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; }
+        .upload-item {
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .upload-item:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .upload-item.selected { border-color: #1e40af; background: #eff6ff; }
+        .progress-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1e40af);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        .risk-item {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .risk-item:hover { background: #f8fafc; border-color: #cbd5e1; transform: translateX(2px); }
+        .tree-node {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.15s;
+        }
+        .tree-node:hover { background: #f1f5f9; }
+        .tree-children {
+            margin-left: 20px;
+            overflow: hidden;
+        }
+        .tree-chevron {
+            display: inline-block;
+            width: 16px;
+            transition: transform 0.2s;
+        }
+        .tree-chevron.open { transform: rotate(90deg); }
+        .key-point-item {
+            padding: 12px 14px;
+            border-left: 3px solid #3b82f6;
+            background: #f8fafc;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-white font-bold text-base">ContractRiskAI</div>
+                    <div class="text-blue-200 text-xs">智能合同平台</div>
+                </div>
+            </div>
+        </div>
+        <nav class="mt-4">
+            <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line w-5"></i><span>首页看板</span></a>
+            <div class="nav-item active"><i class="fas fa-file-contract w-5"></i><span>合同管理</span></div>
+            <a href="search.html" class="nav-item"><i class="fas fa-search w-5"></i><span>智能检索</span></a>
+            <a href="review.html" class="nav-item"><i class="fas fa-clipboard-check w-5"></i><span>审核工作台</span></a>
+            <div class="nav-item"><i class="fas fa-database w-5"></i><span>数据集</span></div>
+            <a href="models.html" class="nav-item"><i class="fas fa-cube w-5"></i><span>模型管理</span></a>
+            <div class="nav-item"><i class="fas fa-bell w-5"></i><span>告警中心</span></div>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-300 flex items-center justify-center text-white font-semibold">张</div>
+                <div class="text-white text-sm">
+                    <div class="font-medium">张律师</div>
+                    <div class="text-blue-200 text-xs">zhang@company.com</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="topbar">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden btn-secondary" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <nav class="flex items-center gap-2 text-sm text-slate-500">
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                    <span class="text-slate-800 font-medium">合同上传与解析</span>
+                </nav>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="btn-secondary"><i class="fas fa-download"></i><span>批量导出</span></button>
+                <button class="btn-primary"><i class="fas fa-plus"></i><span>新建合同</span></button>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
+                <div class="space-y-5">
+                    <div class="card p-5">
+                        <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-cloud-upload-alt text-blue-500"></i>
+                            合同文件上传
+                        </h3>
+                        <div class="dropzone mb-4" id="dropzone" onclick="document.getElementById('file-input').click()"
+                            ondragover="event.preventDefault();this.classList.add('dragover');"
+                            ondragleave="this.classList.remove('dragover');"
+                            ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event);">
+                            <input type="file" id="file-input" style="display:none" accept=".pdf,.docx,.doc,.txt" multiple onchange="handleFiles(this.files)">
+                            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+                                <i class="fas fa-upload text-2xl text-blue-500"></i>
+                            </div>
+                            <div class="text-base font-semibold text-slate-700 mb-1">点击或拖放文件到此区域</div>
+                            <div class="text-sm text-slate-500 mb-3">支持 PDF / DOCX / DOC / TXT 格式，单文件不超过 50MB</div>
+                            <button type="button" class="btn-secondary text-xs py-1.5 px-4">
+                                <i class="fas fa-folder-open mr-1"></i> 选择文件
+                            </button>
+                        </div>
+
+                        <div class="space-y-3 mb-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1.5">合同类型 <span class="text-red-500">*</span></label>
+                                    <select class="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <option>采购合同</option>
+                                        <option>销售合同</option>
+                                        <option>服务合同</option>
+                                        <option>保密协议(NDA)</option>
+                                        <option>劳动合同</option>
+                                        <option>租赁合同</option>
+                                        <option>其他</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1.5">解析模板</label>
+                                    <select class="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <option>通用模板（推荐）</option>
+                                        <option>采购专项模板</option>
+                                        <option>房地产模板</option>
+                                        <option>金融贷款模板</option>
+                                        <option>不使用模板</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5">通知邮箱 <span class="text-slate-400">（解析完成后通知）</span></label>
+                                <input type="email" placeholder="your@email.com" class="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <div class="text-xs font-medium text-slate-700 mb-2 flex items-center gap-1.5 cursor-pointer" onclick="this.querySelector('.chevron').classList.toggle('rotate-90');document.getElementById('adv-opts').classList.toggle('hidden')">
+                                    <i class="fas fa-sliders-h"></i> 高级选项
+                                    <i class="fas fa-chevron-right chevron transition-transform text-slate-400 text-xs"></i>
+                                </div>
+                                <div id="adv-opts" class="hidden space-y-2">
+                                    <label class="flex items-center justify-between text-xs text-slate-600 cursor-pointer">
+                                        <span><i class="fas fa-file-alt text-blue-400 mr-1.5"></i>自动生成合同摘要</span>
+                                        <input type="checkbox" checked class="accent-blue-600 w-4 h-4">
+                                    </label>
+                                    <label class="flex items-center justify-between text-xs text-slate-600 cursor-pointer">
+                                        <span><i class="fas fa-exclamation-triangle text-amber-400 mr-1.5"></i>自动检测风险条款</span>
+                                        <input type="checkbox" checked class="accent-blue-600 w-4 h-4">
+                                    </label>
+                                    <label class="flex items-center justify-between text-xs text-slate-600 cursor-pointer">
+                                        <span><i class="fas fa-search text-green-400 mr-1.5"></i>自动建立向量索引</span>
+                                        <input type="checkbox" checked class="accent-blue-600 w-4 h-4">
+                                    </label>
+                                    <label class="flex items-center justify-between text-xs text-slate-600 cursor-pointer">
+                                        <span><i class="fas fa-language text-purple-400 mr-1.5"></i>翻译为中英文对照</span>
+                                        <input type="checkbox" class="accent-blue-600 w-4 h-4">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary w-full justify-center py-2.5" onclick="startParse()">
+                            <i class="fas fa-play"></i>
+                            开始解析
+                        </button>
+                    </div>
+
+                    <div class="card p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-history text-blue-500"></i> 已上传文件
+                                <span class="badge badge-slate">8</span>
+                            </h3>
+                            <button class="text-xs text-blue-600 hover:text-blue-800">
+                                查看全部 <i class="fas fa-angle-right ml-0.5"></i>
+                            </button>
+                        </div>
+                        <div id="upload-list">
+                            <div class="upload-item selected" onclick="selectFile(this, 0)">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0">
+                                        <i class="fas fa-file-pdf text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="text-sm font-medium text-slate-800 truncate">某某科技公司采购合同_2026年.pdf</span>
+                                            <span class="badge badge-green">完成</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400">4.2 MB · 2026-06-10 09:32</div>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500" title="查看"><i class="fas fa-eye"></i></button>
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500" title="删除"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="progress-bar flex-1"><div class="progress-fill" style="width:100%;background:#22c55e;"></div></div>
+                                    <span class="text-xs text-green-600 font-medium">100%</span>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-1.5">
+                                    <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                    提取条款 68 条 · 发现风险 12 处（H:2 M:5 L:5）
+                                </div>
+                            </div>
+
+                            <div class="upload-item" onclick="selectFile(this, 1)">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                                        <i class="fas fa-file-word text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="text-sm font-medium text-slate-800 truncate">软件开发服务合同_v3.docx</span>
+                                            <span class="badge badge-blue">解析中</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400">2.8 MB · 2026-06-10 10:15</div>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500"><i class="fas fa-redo"></i></button>
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="progress-bar flex-1"><div class="progress-fill" style="width:45%;"></div></div>
+                                    <span class="text-xs text-blue-600 font-medium">45%</span>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-1.5">
+                                    <i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i>
+                                    正在提取结构化信息...
+                                </div>
+                            </div>
+
+                            <div class="upload-item" onclick="selectFile(this, 2)">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500 flex-shrink-0">
+                                        <i class="fas fa-file-alt text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="text-sm font-medium text-slate-800 truncate">战略合作框架协议_终稿.txt</span>
+                                            <span class="badge badge-yellow">清洗中</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400">856 KB · 2026-06-10 10:08</div>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="progress-bar flex-1"><div class="progress-fill" style="width:20%;background:#f59e0b;"></div></div>
+                                    <span class="text-xs text-amber-600 font-medium">20%</span>
+                                </div>
+                            </div>
+
+                            <div class="upload-item" onclick="selectFile(this, 3)">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-green-500 flex-shrink-0">
+                                        <i class="fas fa-file-pdf text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="text-sm font-medium text-slate-800 truncate">某某工厂租赁合同.pdf</span>
+                                            <span class="badge badge-slate">排队中</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400">6.7 MB · 2026-06-10 10:21</div>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="upload-item" onclick="selectFile(this, 4)">
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0">
+                                        <i class="fas fa-file-pdf text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-0.5">
+                                            <span class="text-sm font-medium text-slate-800 truncate">扫描版NDA协议(图片).pdf</span>
+                                            <span class="badge badge-red">失败</span>
+                                        </div>
+                                        <div class="text-xs text-slate-400">12.4 MB · 2026-06-10 08:45</div>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-500" title="重试"><i class="fas fa-redo"></i></button>
+                                        <button class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-red-600 mt-1">
+                                    <i class="fas fa-times-circle mr-1"></i>
+                                    解析失败：文件为扫描图片，请先进行OCR识别后再上传
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card overflow-hidden">
+                    <div class="p-5 border-b border-slate-100">
+                        <div class="flex items-start justify-between mb-5">
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-800 mb-1">某某科技公司采购合同_2026年.pdf</h2>
+                                <div class="text-xs text-slate-500 flex items-center gap-3">
+                                    <span><i class="far fa-id-badge mr-1"></i>合同编号: CT-2026-0847</span>
+                                    <span><i class="far fa-file-alt mr-1"></i>共 28 页 · 68 条条款</span>
+                                    <span><i class="far fa-clock mr-1"></i>解析耗时 9.4s</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn-secondary text-xs"><i class="fas fa-download"></i></button>
+                                <button class="btn-secondary text-xs"><i class="fas fa-share-alt"></i></button>
+                                <button class="btn-secondary text-xs"><i class="fas fa-edit"></i> 编辑信息</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-xs text-slate-500 mb-1">合同类型</div>
+                                <div class="text-sm font-semibold text-slate-800">采购合同</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-xs text-slate-500 mb-1">甲方</div>
+                                <div class="text-sm font-semibold text-slate-800 truncate" title="北京某某科技有限公司">北京某某科技...</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-xs text-slate-500 mb-1">乙方</div>
+                                <div class="text-sm font-semibold text-slate-800 truncate" title="上海某某贸易有限公司">上海某某贸易...</div>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-3">
+                                <div class="text-xs text-blue-600 mb-1">合同金额</div>
+                                <div class="text-sm font-bold text-blue-700">¥ 1,200,000.00</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-xs text-slate-500 mb-1">签订日期</div>
+                                <div class="text-sm font-semibold text-slate-800">2026-06-01</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-xs text-slate-500 mb-1">有效期</div>
+                                <div class="text-sm font-semibold text-slate-800">12个月</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-lg"></i>
+                            <div class="flex-1 text-sm">
+                                <span class="text-red-700 font-medium">检测到高风险条款 2 处</span>
+                                <span class="text-slate-500">，中风险 5 处，低风险 5 处</span>
+                            </div>
+                            <button class="text-xs text-red-600 hover:text-red-800 font-medium" onclick="document.getElementById('tab-risk').click()">
+                                查看详情 <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-b border-slate-100 px-5 flex gap-1">
+                        <div class="tab-btn active" onclick="switchTab(this, 'clause')">
+                            <i class="fas fa-list-ol mr-1.5"></i>条款结构
+                        </div>
+                        <div class="tab-btn" onclick="switchTab(this, 'summary')">
+                            <i class="fas fa-align-left mr-1.5"></i>智能摘要
+                        </div>
+                        <div class="tab-btn" onclick="switchTab(this, 'diff')">
+                            <i class="fas fa-exchange-alt mr-1.5"></i>差异对比
+                        </div>
+                        <div class="tab-btn" id="tab-risk" onclick="switchTab(this, 'risk')">
+                            <i class="fas fa-exclamation-triangle mr-1.5 text-red-500"></i>
+                            风险提示 <span class="badge badge-red ml-1">2</span>
+                        </div>
+                    </div>
+
+                    <div class="p-5 max-h-[calc(100vh-520px)] overflow-y-auto">
+                        <div id="panel-clause">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="text-xs text-slate-500">点击条款跳转并高亮对应内容</div>
+                                <div class="flex gap-2">
+                                    <button class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-expand-all mr-1"></i>全部展开</button>
+                                    <button class="text-xs text-slate-500 hover:text-slate-700"><i class="fas fa-compress-all mr-1"></i>全部折叠</button>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs open"></i>
+                                        <i class="fas fa-bookmark text-blue-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第一条 合同双方</span>
+                                        <span class="badge badge-slate text-[10px] ml-auto">5条</span>
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-node flex items-center gap-1.5 pl-5"><span class="text-xs text-slate-400">1.1</span><span class="text-sm text-slate-600">甲方信息</span></div>
+                                        <div class="tree-node flex items-center gap-1.5 pl-5"><span class="text-xs text-slate-400">1.2</span><span class="text-sm text-slate-600">乙方信息</span></div>
+                                        <div class="tree-node flex items-center gap-1.5 pl-5"><span class="text-xs text-slate-400">1.3</span><span class="text-sm text-slate-600">资质保证</span></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs open"></i>
+                                        <i class="fas fa-bookmark text-blue-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第二条 采购标的</span>
+                                        <span class="badge badge-slate text-[10px] ml-auto">4条</span>
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-node flex items-center gap-1.5 pl-5"><span class="text-xs text-slate-400">2.1</span><span class="text-sm text-slate-600">产品清单</span></div>
+                                        <div class="tree-node flex items-center gap-1.5 pl-5"><span class="text-xs text-slate-400">2.2</span><span class="text-sm text-slate-600">规格参数</span></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs open"></i>
+                                        <i class="fas fa-bookmark text-blue-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第三条 合同金额与付款</span>
+                                        <span class="badge badge-slate text-[10px] ml-auto">6条</span>
+                                    </div>
+                                    <div class="tree-children"></div>
+                                </div>
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs open"></i>
+                                        <i class="fas fa-bookmark text-blue-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第四条 交付与验收</span>
+                                        <span class="badge badge-slate text-[10px] ml-auto">7条</span>
+                                    </div>
+                                    <div class="tree-children"></div>
+                                </div>
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5 bg-red-50" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs open"></i>
+                                        <i class="fas fa-bookmark text-red-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第八条 违约责任</span>
+                                        <span class="badge badge-red text-[10px] ml-auto">5条 · 风险</span>
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-node flex items-center gap-1.5 pl-5 bg-red-50">
+                                            <span class="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>
+                                            <span class="text-xs text-slate-400">8.1</span>
+                                            <span class="text-sm text-slate-700 font-medium">延迟交付违约金</span>
+                                            <span class="badge badge-red text-[10px] ml-auto">H</span>
+                                        </div>
+                                        <div class="tree-node flex items-center gap-1.5 pl-5 bg-amber-50">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>
+                                            <span class="text-xs text-slate-400">8.2</span>
+                                            <span class="text-sm text-slate-600">逾期付款违约金</span>
+                                            <span class="badge badge-yellow text-[10px] ml-auto">M</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="tree-node flex items-center gap-1.5" onclick="toggleTree(this)">
+                                        <i class="fas fa-chevron-right tree-chevron text-slate-400 text-xs"></i>
+                                        <i class="fas fa-bookmark text-blue-500 text-xs"></i>
+                                        <span class="text-sm font-medium text-slate-800">第十二条 争议解决</span>
+                                        <span class="badge badge-yellow text-[10px] ml-auto">3条 · 风险</span>
+                                    </div>
+                                    <div class="tree-children" style="max-height:0;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panel-summary" style="display:none;">
+                            <div class="mb-5">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <h4 class="text-base font-semibold text-slate-800"><i class="fas fa-bullseye text-blue-500 mr-2"></i>合同目的</h4>
+                                </div>
+                                <div class="p-4 bg-slate-50 rounded-lg text-sm text-slate-600 leading-relaxed border-l-4 border-blue-400">
+                                    本合同为甲方向乙方采购一批办公IT设备（含服务器、工作站、网络设备）的买卖合同，总金额120万元，分三批交付。合同旨在明确双方权利义务，确保设备按时按质交付并完成验收。
+                                </div>
+                            </div>
+                            <div class="mb-5">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <h4 class="text-base font-semibold text-slate-800"><i class="fas fa-key text-amber-500 mr-2"></i>关键信息摘要</h4>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="key-point-item">
+                                        <div class="text-xs font-medium text-blue-600 mb-1">交易标的</div>
+                                        <div class="text-sm text-slate-700">服务器 10台、工作站 20台、网络交换机 5台、配套运维服务 1年，详见附件一《设备清单》</div>
+                                    </div>
+                                    <div class="key-point-item">
+                                        <div class="text-xs font-medium text-blue-600 mb-1">付款安排</div>
+                                        <div class="text-sm text-slate-700">合同签订后预付30%（36万元）；每批设备验收合格后10日内支付该批货款60%；质保期满后支付剩余10%质保金</div>
+                                    </div>
+                                    <div class="key-point-item">
+                                        <div class="text-xs font-medium text-blue-600 mb-1">交付节点</div>
+                                        <div class="text-sm text-slate-700">
+                                            第一批：合同生效后15日内<br>
+                                            第二批：合同生效后30日内<br>
+                                            第三批：合同生效后45日内
+                                        </div>
+                                    </div>
+                                    <div class="key-point-item" style="border-left-color:#ef4444;background:#fef2f2;">
+                                        <div class="text-xs font-medium text-red-600 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>关键风险</div>
+                                        <div class="text-sm text-slate-700">延迟交付违约金比例过高（日0.5%）、延迟15日即触发解约条款，对甲方极为不利，建议谈判降低比例并延长解约期限</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panel-diff" style="display:none;">
+                            <div class="text-center py-12">
+                                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <i class="fas fa-exchange-alt text-3xl text-slate-400"></i>
+                                </div>
+                                <h4 class="text-base font-medium text-slate-700 mb-2">选择对比合同</h4>
+                                <p class="text-sm text-slate-500 mb-5">请在左侧选择一份已解析的合同作为对比基准</p>
+                                <div class="max-w-md mx-auto">
+                                    <select class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mb-3 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                        <option>-- 请选择要对比的合同 --</option>
+                                        <option>CT-2026-0846 - 某某科技公司采购合同_2025年.pdf</option>
+                                        <option>CT-2026-0820 - IT设备采购框架协议.pdf</option>
+                                        <option>CT-2026-0789 - 标准采购合同模板_v5.pdf</option>
+                                    </select>
+                                    <button class="btn-primary w-full justify-center py-2">
+                                        <i class="fas fa-not-equal mr-1"></i> 开始差异对比
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panel-risk" style="display:none;">
+                            <div class="grid grid-cols-4 gap-3 mb-5">
+                                <div class="bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-red-600">2</div>
+                                    <div class="text-xs text-red-500 mt-0.5">高风险</div>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-amber-600">5</div>
+                                    <div class="text-xs text-amber-500 mt-0.5">中风险</div>
+                                </div>
+                                <div class="bg-green-50 border border-green-100 rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-green-600">5</div>
+                                    <div class="text-xs text-green-500 mt-0.5">低风险</div>
+                                </div>
+                                <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center">
+                                    <div class="text-2xl font-bold text-blue-600">3</div>
+                                    <div class="text-xs text-blue-500 mt-0.5">提示</div>
+                                </div>
+                            </div>
+
+                            <div class="risk-item" style="border-left:4px solid #ef4444;">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="badge badge-red px-2 py-0.5 text-xs font-bold">高风险 H</span>
+                                        <span class="text-sm font-semibold text-slate-800">违约金比例过高</span>
+                                    </div>
+                                    <span class="text-xs text-slate-400">第8.1条 · 第12页</span>
+                                </div>
+                                <div class="text-sm text-slate-600 mb-3 leading-relaxed">
+                                    延迟交付违约金按"日0.5%"计算，年化高达182.5%，远超司法实践中通常支持的年化24%上限，在诉讼中极大概率会被法院酌减。
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-eye mr-1"></i>查看原文</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3 text-blue-600 hover:bg-blue-50"><i class="fas fa-magic mr-1"></i>AI 智能修改</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-bookmark mr-1"></i>忽略</button>
+                                </div>
+                            </div>
+
+                            <div class="risk-item" style="border-left:4px solid #ef4444;">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="badge badge-red px-2 py-0.5 text-xs font-bold">高风险 H</span>
+                                        <span class="text-sm font-semibold text-slate-800">延迟解约门槛过低</span>
+                                    </div>
+                                    <span class="text-xs text-slate-400">第8.1条 · 第12页</span>
+                                </div>
+                                <div class="text-sm text-slate-600 mb-3 leading-relaxed">
+                                    约定"延迟15日即可单方面解约+30%惩罚性违约金"，属于双重处罚，解约期限过短且违约金过高，存在被法院整体撤销该条款的风险。
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-eye mr-1"></i>查看原文</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3 text-blue-600 hover:bg-blue-50"><i class="fas fa-magic mr-1"></i>AI 智能修改</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-bookmark mr-1"></i>忽略</button>
+                                </div>
+                            </div>
+
+                            <div class="risk-item" style="border-left:4px solid #f59e0b;">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="badge badge-yellow px-2 py-0.5 text-xs font-bold">中风险 M</span>
+                                        <span class="text-sm font-semibold text-slate-800">逾期付款利率偏高</span>
+                                    </div>
+                                    <span class="text-xs text-slate-400">第8.2条 · 第13页</span>
+                                </div>
+                                <div class="text-sm text-slate-600 mb-3 leading-relaxed">
+                                    逾期利息按"基准利率4倍"计算，当前一年期LPR为3.45%，4倍即13.8%，基本在合理范围内，但建议明确以LPR的4倍为基准而非"人民银行基准利率"。
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-eye mr-1"></i>查看原文</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3 text-blue-600 hover:bg-blue-50"><i class="fas fa-magic mr-1"></i>AI 智能修改</button>
+                                    <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-bookmark mr-1"></i>忽略</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // POST /api/v1/documents/upload
+        // GET /api/v1/documents/{id}/parse-result
+        // GET /api/v1/tasks/{taskId}/progress
+        // POST /api/v1/documents/{id}/reparse
+        // POST /api/v1/documents/compare?a={id}&b={id}
+
+        function handleDrop(e) {
+            handleFiles(e.dataTransfer.files);
+        }
+
+        function handleFiles(files) {
+            if (!files.length) return;
+            const names = Array.from(files).map(f => f.name).join(', ');
+            alert('已选择文件：' + names + '\n接口：POST /api/v1/documents/upload');
+        }
+
+        function startParse() {
+            alert('解析任务已提交，将异步处理！\n接口：POST /api/v1/documents/parse');
+        }
+
+        function selectFile(el) {
+            document.querySelectorAll('.upload-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function switchTab(el, name) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            ['clause','summary','diff','risk'].forEach(p => {
+                document.getElementById('panel-' + p).style.display = (p === name) ? 'block' : 'none';
+            });
+        }
+
+        function toggleTree(node) {
+            const chev = node.querySelector('.tree-chevron');
+            const children = node.nextElementSibling;
+            if (!children) return;
+            if (children.style.maxHeight) {
+                children.style.maxHeight = '';
+                chev.classList.remove('open');
+            } else {
+                children.style.maxHeight = children.scrollHeight + 'px';
+                chev.classList.add('open');
+            }
+        }
+    </script>
+</body>
+</html>

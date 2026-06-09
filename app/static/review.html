@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审核工作台 - ContractRiskAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+            z-index: 40;
+            overflow-y: auto;
+        }
+        .sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+        .nav-item.active { background: rgba(255,255,255,0.12); color: white; border-left-color: #93c5fd; }
+        .main-content { margin-left: 200px; min-height: 100vh; }
+        .topbar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover { background: #1e3a8a; }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-secondary {
+            background: white;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .btn-success {
+            background: #16a34a;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-warning:hover { background: #d97706; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-orange { background: #ffedd5; color: #9a3412; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-slate { background: #f1f5f9; color: #475569; }
+        .tab-btn {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: #1e40af; }
+        .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; }
+        .task-item {
+            padding: 14px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .task-item:hover { background: #f8fafc; }
+        .task-item.selected { background: #eff6ff; border-left: 3px solid #1e40af; }
+        .input-editable {
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            background: #fffbeb;
+        }
+        .input-locked {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        textarea {
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        }
+        textarea:focus { border-color: #1e40af !important; box-shadow: 0 0 0 3px rgba(30,64,175,0.1); }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.5);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            max-width: 720px;
+            width: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .diff-add { background: #dcfce7; color: #166534; }
+        .diff-remove { background: #fee2e2; color: #991b1b; text-decoration: line-through; }
+        .diff-line { padding: 2px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+        .risk-radio {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .risk-radio:hover { border-color: #94a3b8; }
+        .risk-radio.active-h { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .risk-radio.active-m { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+        .risk-radio.active-l { background: #dcfce7; border-color: #22c55e; color: #166534; }
+        .risk-radio.active-i { background: #dbeafe; border-color: #3b82f6; color: #1e40af; }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-white font-bold text-base">ContractRiskAI</div>
+                    <div class="text-blue-200 text-xs">智能合同平台</div>
+                </div>
+            </div>
+        </div>
+        <nav class="mt-4">
+            <a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line w-5"></i><span>首页看板</span></a>
+            <a href="upload.html" class="nav-item"><i class="fas fa-file-contract w-5"></i><span>合同管理</span></a>
+            <a href="search.html" class="nav-item"><i class="fas fa-search w-5"></i><span>智能检索</span></a>
+            <div class="nav-item active"><i class="fas fa-clipboard-check w-5"></i><span>审核工作台</span></div>
+            <div class="nav-item"><i class="fas fa-database w-5"></i><span>数据集</span></a>
+            <a href="models.html" class="nav-item"><i class="fas fa-cube w-5"></i><span>模型管理</span></a>
+            <div class="nav-item"><i class="fas fa-bell w-5"></i><span>告警中心</span></div>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-300 flex items-center justify-center text-white font-semibold">张</div>
+                <div class="text-white text-sm">
+                    <div class="font-medium">张律师</div>
+                    <div class="text-blue-200 text-xs">zhang@company.com</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="topbar">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden btn-secondary" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <nav class="flex items-center gap-2 text-sm text-slate-500">
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                    <span class="text-slate-800 font-medium">审核工作台</span>
+                </nav>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-slate-500"><i class="fas fa-circle text-green-500 text-xs mr-1"></i>在线</span>
+                <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold">张</div>
+            </div>
+        </div>
+
+        <div class="p-6 h-[calc(100vh-60px)]">
+            <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 h-full">
+                <div class="card flex flex-col h-full overflow-hidden">
+                    <div class="p-4 border-b border-slate-100">
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div class="bg-red-50 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-red-600" id="stat-pending">23</div>
+                                <div class="text-xs text-red-500 mt-0.5">待审核</div>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-blue-600" id="stat-done">47</div>
+                                <div class="text-xs text-blue-500 mt-0.5">今日完成</div>
+                            </div>
+                            <div class="bg-green-50 rounded-lg p-3 text-center">
+                                <div class="text-2xl font-bold text-green-600">96.4%</div>
+                                <div class="text-xs text-green-500 mt-0.5">本周通过率</div>
+                            </div>
+                        </div>
+                        <div class="relative mb-3">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="text" placeholder="搜索样本ID或关键词..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
+                                <option>全部类型</option>
+                                <option>摘要样本</option>
+                                <option>风险标注</option>
+                                <option>问答对</option>
+                                <option>分类样本</option>
+                            </select>
+                            <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
+                                <option>全部优先级</option>
+                                <option>紧急</option>
+                                <option>高</option>
+                                <option>中</option>
+                                <option>低</option>
+                            </select>
+                            <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
+                                <option>全部日期</option>
+                                <option>今天</option>
+                                <option>昨天</option>
+                                <option>近7天</option>
+                                <option>近30天</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex border-b border-slate-100">
+                        <div class="tab-btn active" onclick="switchTab(this, 'pending')">待我审核 <span class="ml-1 bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full">23</span></div>
+                        <div class="tab-btn" onclick="switchTab(this, 'reviewed')">我已审核</div>
+                        <div class="tab-btn" onclick="switchTab(this, 'reported')">我上报的错误</div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto" id="task-list">
+                        <div class="task-item selected" onclick="selectTask(this, 1)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500 flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#RISK-20260610-001</span>
+                                        <span class="badge badge-red">紧急</span>
+                                        <span class="badge badge-orange">风险</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        第8条 违约责任：甲方若延迟交付货物超过15日，乙方有权单方面解除合同...违约金按日0.5%计算，上限为合同总额的30%...
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 10分钟前</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded" title="跳过"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded" title="收藏"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="task-item" onclick="selectTask(this, 2)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                                    <i class="fas fa-align-left"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#SUMMARY-20260610-023</span>
+                                        <span class="badge badge-yellow">高</span>
+                                        <span class="badge badge-blue">摘要</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        本合同由甲方（北京某某科技有限公司）与乙方（上海某某贸易有限公司）于2026年6月1日签订，涉及采购办公设备共计120万元，分三批次交付...
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 32分钟前</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="task-item" onclick="selectTask(this, 3)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500 flex-shrink-0">
+                                    <i class="fas fa-question-circle"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#QA-20260610-007</span>
+                                        <span class="badge badge-green">中</span>
+                                        <span class="badge badge-slate">问答</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        合同中关于知识产权归属的条款具体是如何约定的？乙方在项目实施过程中产生的新专利归谁所有？
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 1小时前</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="task-item" onclick="selectTask(this, 4)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 flex-shrink-0">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#CLS-20260610-045</span>
+                                        <span class="badge badge-slate">低</span>
+                                        <span class="badge badge-green">分类</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        第5.2条 乙方应保证所交付的软件产品不侵犯任何第三方的知识产权，如发生侵权纠纷，乙方应承担全部法律责任...
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 2小时前</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="task-item" onclick="selectTask(this, 5)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#RISK-20260610-002</span>
+                                        <span class="badge badge-red">紧急</span>
+                                        <span class="badge badge-orange">风险</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        第12.4条 本合同适用香港特别行政区法律，因本合同引起的争议提交香港国际仲裁中心...
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 3小时前</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="task-item" onclick="selectTask(this, 6)">
+                            <div class="flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
+                                    <i class="fas fa-align-left"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs text-slate-400">#SUMMARY-20260609-118</span>
+                                        <span class="badge badge-green">中</span>
+                                        <span class="badge badge-blue">摘要</span>
+                                    </div>
+                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
+                                        本服务合同约定甲方委托乙方提供年度法律顾问服务，服务范围包括日常法律咨询、合同审查、诉讼代理等，年度服务费48万元...
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-slate-400">
+                                        <span><i class="far fa-clock mr-1"></i>指派于 昨天</span>
+                                        <div class="flex gap-1">
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
+                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card flex flex-col h-full overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h2 class="text-lg font-semibold text-slate-800">样本审核详情</h2>
+                                <span class="text-xs text-slate-400">#RISK-20260610-001</span>
+                                <span id="lock-badge" class="badge badge-slate"><i class="fas fa-unlock mr-1"></i>未锁定</span>
+                            </div>
+                            <div class="text-xs text-slate-500">
+                                样本类型：<span class="text-slate-700">风险标注</span>
+                                · 来源数据集：<span class="text-slate-700">采购合同风险集-v3</span>
+                                · 模型预测：<span class="text-red-600 font-medium">高风险</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="btn-secondary" onclick="prevTask()"><i class="fas fa-chevron-left"></i></button>
+                            <button class="btn-secondary" onclick="nextTask()"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-sm font-medium text-slate-700"><i class="far fa-file-alt mr-1 text-blue-500"></i>样本输入（合同条款原文）</label>
+                                <span class="text-xs text-slate-400">只读 · 字符数：486</span>
+                            </div>
+                            <textarea class="w-full h-36 p-3 border border-slate-200 rounded-lg text-sm text-slate-600 bg-slate-50 leading-relaxed" readonly>第8条 违约责任
+8.1 若甲方延迟交付货物，每延迟一日应按合同总额的0.5%向乙方支付违约金。延迟超过15日的，乙方有权单方面解除本合同，且甲方仍应按合同总额的30%向乙方支付惩罚性违约金。
+8.2 乙方若延迟付款超过30日，甲方有权要求乙方支付逾期利息，利率按中国人民银行同期贷款基准利率的4倍计算。
+8.3 任何一方违反保密义务的，应向对方支付违约金人民币50万元，如违约金不足以弥补损失的，还应赔偿超出部分。</textarea>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-sm font-medium text-slate-700">
+                                    <i class="far fa-edit mr-1 text-amber-500"></i>参考输出（<span class="text-amber-600">可改标</span>）
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    <button class="text-xs text-blue-600 hover:text-blue-800" onclick="openVersionsModal()">
+                                        <i class="fas fa-history mr-1"></i>查看历史版本
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="reference-output" class="w-full h-40 p-3 text-sm leading-relaxed input-editable">风险级别：高
+风险类型：违约责任 / 违约金过高
+条款类别：违约责任条款
+风险描述：
+1. 甲方延迟交付违约金按日0.5%计算，年化高达182.5%，远超法律保护的合理范围（通常年化不超过24%）
+2. 延迟15日即触发解约+30%惩罚性违约金，双重处罚可能被法院认定为过高
+3. 乙方延迟付款利率为基准4倍，需确认是否超过LPR的4倍标准
+建议修改：
+- 将日违约金调整为0.05%-0.1%，设置违约金上限为合同总额的10%-15%
+- 明确延迟解约的合理期限为30日以上</textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-tags mr-1 text-slate-400"></i>条款类别</label>
+                                <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <option value="liability" selected>违约责任条款</option>
+                                    <option value="payment">付款条款</option>
+                                    <option value="delivery">交付条款</option>
+                                    <option value="confidentiality">保密条款</option>
+                                    <option value="ip">知识产权条款</option>
+                                    <option value="termination">终止解除条款</option>
+                                    <option value="dispute">争议解决条款</option>
+                                    <option value="force">不可抗力条款</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-flag mr-1 text-slate-400"></i>风险级别</label>
+                                <div class="flex gap-3">
+                                    <div class="risk-radio active-h" onclick="selectRisk(this,'H')">H</div>
+                                    <div class="risk-radio" onclick="selectRisk(this,'M')">M</div>
+                                    <div class="risk-radio" onclick="selectRisk(this,'L')">L</div>
+                                    <div class="risk-radio" onclick="selectRisk(this,'I')">I</div>
+                                    <div class="ml-3 flex items-center">
+                                        <div class="risk-radio" style="width:auto;padding:0 14px;font-weight:500;" onclick="selectRisk(this,'N')">无风险</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-list-check mr-1 text-slate-400"></i>风险类型（多选）</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-sm cursor-pointer">
+                                    <input type="checkbox" checked class="accent-red-500"> 违约金过高
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-orange-50 text-orange-700 text-sm cursor-pointer">
+                                    <input type="checkbox" checked class="accent-orange-500"> 不对等条款
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" class="accent-blue-500"> 期限模糊
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" class="accent-blue-500"> 管辖不利
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" class="accent-blue-500"> 合规风险
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" class="accent-blue-500"> 表述歧义
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
+                                    <input type="checkbox" class="accent-blue-500"> 缺失关键条款
+                                </label>
+                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 text-sm cursor-pointer hover:bg-blue-50">
+                                    <i class="fas fa-plus"></i> 自定义
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fas fa-link text-slate-400"></i>
+                                <span class="text-sm font-medium text-slate-700">来源引用</span>
+                            </div>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex items-center gap-3 text-slate-600">
+                                    <span class="text-slate-400 w-16">合同ID</span>
+                                    <a href="#" class="text-blue-600 hover:underline">CT-2026-0847</a>
+                                    <span class="text-slate-300">|</span>
+                                    <span class="text-slate-400 w-16">页码</span>
+                                    <span class="text-slate-700">第12页</span>
+                                    <span class="text-slate-300">|</span>
+                                    <span class="text-slate-400 w-16">条款ID</span>
+                                    <a href="#" class="text-blue-600 hover:underline">CLAUSE-56218</a>
+                                </div>
+                                <div class="flex items-start gap-3 text-slate-600">
+                                    <span class="text-slate-400 w-16 flex-shrink-0">原文摘录</span>
+                                    <div class="flex-1 bg-white rounded p-2.5 border border-slate-200 text-slate-600 leading-relaxed">
+                                        "...延迟超过15日的，乙方有权单方面解除本合同，且甲方仍应按合同总额的<mark class="bg-yellow-200 px-0.5 rounded">30%向乙方支付惩罚性违约金</mark>..."
+                                        <a href="#" class="ml-2 text-blue-600 text-xs hover:underline"><i class="fas fa-external-link-alt"></i> 跳转原文</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 bg-slate-50">
+                        <div id="unlock-actions">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm text-slate-500">
+                                    <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                                    点击"锁定审核"后，其他审核员将无法编辑此样本
+                                </p>
+                                <button class="btn-primary" onclick="lockSample()">
+                                    <i class="fas fa-lock"></i> 锁定审核
+                                </button>
+                            </div>
+                        </div>
+                        <div id="locked-actions" style="display:none;">
+                            <div class="flex flex-col gap-3">
+                                <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                                    <input type="text" id="review-comment" placeholder="修改意见：可填写对参考输出的调整说明、风险分析等..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                                    <div class="flex gap-2">
+                                        <div class="relative">
+                                            <button class="btn-success" onclick="submitReview('pass')">
+                                                <i class="fas fa-check"></i> 通过
+                                            </button>
+                                        </div>
+                                        <div class="relative">
+                                            <button class="btn-warning" onclick="toggleDropdown('modify-dropdown')">
+                                                <i class="fas fa-pen"></i> 需修改 <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                                            </button>
+                                            <div id="modify-dropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[140px] z-10">
+                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-grammar')">语法错误</button>
+                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-content')">内容不完善</button>
+                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-format')">格式问题</button>
+                                            </div>
+                                        </div>
+                                        <button class="btn-danger" onclick="submitReview('reject')">
+                                            <i class="fas fa-times"></i> 驳回
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex gap-2">
+                                        <button class="btn-secondary text-xs" onclick="openVersionsModal()">
+                                            <i class="fas fa-history"></i> 版本历史
+                                        </button>
+                                        <button class="btn-secondary text-xs text-red-600 hover:bg-red-50 hover:border-red-200" onclick="openReportModal()">
+                                            <i class="fas fa-exclamation-circle"></i> 上报为错误样本
+                                        </button>
+                                    </div>
+                                    <button class="btn-secondary text-xs" onclick="unlockSample()">
+                                        <i class="fas fa-unlock"></i> 取消锁定
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="versions-modal" onclick="if(event.target===this)closeModal('versions-modal')">
+        <div class="modal">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-semibold text-slate-800"><i class="fas fa-history text-blue-500 mr-2"></i>版本历史 · #RISK-20260610-001</h3>
+                <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('versions-modal')"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div class="space-y-4">
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-blue-50 p-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="version" checked class="accent-blue-600">
+                                <span class="badge badge-blue">v5 · 当前</span>
+                                <span class="text-sm font-medium text-slate-700">（未保存改标）</span>
+                            </div>
+                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>正在编辑中 · 张律师</div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="version" class="accent-blue-600">
+                                <span class="badge badge-slate">v4</span>
+                                <span class="text-sm text-slate-600">模型预测输出</span>
+                            </div>
+                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 09:15 · risk-detect-v2.3</div>
+                        </div>
+                        <div class="p-3 bg-slate-50">
+                            <div class="mb-2 text-xs font-medium text-slate-500">与v3差异：</div>
+                            <div class="diff-line diff-remove">- 风险级别：<span>中</span></div>
+                            <div class="diff-line diff-add">+ 风险级别：<span>高</span></div>
+                            <div class="diff-line diff-add">+ 2. 延迟15日即触发解约+30%惩罚性违约金，双重处罚可能被法院认定为过高</div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="version" class="accent-blue-600">
+                                <span class="badge badge-slate">v3</span>
+                                <span class="text-sm text-slate-600">李法务审核修改</span>
+                            </div>
+                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:42 · 李法务</div>
+                        </div>
+                        <div class="p-3 bg-slate-50">
+                            <div class="mb-2 text-xs font-medium text-slate-500">与v2差异：</div>
+                            <div class="diff-line diff-remove">- 建议修改：调降违约金比例</div>
+                            <div class="diff-line diff-add">+ 建议修改：将日违约金调整为0.05%-0.1%，设置违约金上限为合同总额的10%-15%</div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="version" class="accent-blue-600">
+                                <span class="badge badge-slate">v2</span>
+                                <span class="text-sm text-slate-600">模型预测输出</span>
+                            </div>
+                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:30 · risk-detect-v2.2</div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <input type="radio" name="version" class="accent-blue-600">
+                                <span class="badge badge-green">v1</span>
+                                <span class="text-sm text-slate-600">初始版本</span>
+                            </div>
+                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:00 · 系统导入</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 flex items-center justify-between">
+                <p class="text-xs text-slate-500">选中历史版本后可回滚</p>
+                <div class="flex gap-2">
+                    <button class="btn-secondary" onclick="closeModal('versions-modal')">关闭</button>
+                    <button class="btn-warning" onclick="rollbackVersion()">
+                        <i class="fas fa-undo"></i> 回滚到选定版本
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="report-modal" onclick="if(event.target===this)closeModal('report-modal')">
+        <div class="modal" style="max-width:520px;">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-semibold text-slate-800"><i class="fas fa-exclamation-circle text-red-500 mr-2"></i>上报为错误样本</h3>
+                <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('report-modal')"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-slate-700 block mb-2">错误类型</label>
+                    <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option>风险漏检（模型未识别到风险）</option>
+                        <option>风险误判（错误标注风险级别）</option>
+                        <option>实体提取错误（主体/金额/日期识别错）</option>
+                        <option>分类错误（条款类别标错）</option>
+                        <option>摘要不完整（关键信息遗漏）</option>
+                        <option>格式/边界偏移</option>
+                        <option>其他问题</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700 block mb-2">严重程度</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
+                            <input type="radio" name="severity" class="accent-green-600"> <span class="text-green-600 font-medium">低</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm border-yellow-300 bg-yellow-50">
+                            <input type="radio" name="severity" checked class="accent-yellow-600"> <span class="text-yellow-700 font-medium">中</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
+                            <input type="radio" name="severity" class="accent-orange-600"> <span class="text-orange-600 font-medium">高</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
+                            <input type="radio" name="severity" class="accent-red-600"> <span class="text-red-600 font-medium">致命</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-slate-700 block mb-2">问题说明</label>
+                    <textarea rows="4" placeholder="请详细描述错误问题：例如哪些内容判断错误、正确的标注应该是什么..." class="w-full border border-slate-200 rounded-lg p-3 text-sm"></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button class="btn-secondary" onclick="closeModal('report-modal')">取消</button>
+                <button class="btn-danger" onclick="submitReport()">
+                    <i class="fas fa-paper-plane"></i> 提交上报
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // GET /api/v1/review/tasks?status=PENDING_REVIEW
+        // GET /api/v1/review/tasks/{id}
+        // POST /api/v1/review/tasks/{id}/lock
+        // POST /api/v1/review/tasks/{id}/unlock
+        // POST /api/v1/review/tasks/{id}/submit
+        // GET /api/v1/review/tasks/{id}/versions
+        // POST /api/v1/review/tasks/{id}/rollback
+        // POST /api/v1/review/tasks/{id}/report-error
+
+        function switchTab(el, tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+            // fetch('/api/v1/review/tasks?tab=' + tab)
+        }
+
+        function selectTask(el, id) {
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('selected'));
+            el.classList.add('selected');
+            // fetch('/api/v1/review/tasks/' + id)
+        }
+
+        function selectRisk(el, level) {
+            document.querySelectorAll('.risk-radio').forEach(r => {
+                r.classList.remove('active-h','active-m','active-l','active-i');
+            });
+            const map = { H:'active-h', M:'active-m', L:'active-l', I:'active-i' };
+            if (map[level]) el.classList.add(map[level]);
+        }
+
+        function toggleDropdown(id) {
+            event.stopPropagation();
+            document.getElementById(id).classList.toggle('hidden');
+        }
+        document.addEventListener('click', () => {
+            document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
+        });
+
+        function lockSample() {
+            document.getElementById('unlock-actions').style.display = 'none';
+            document.getElementById('locked-actions').style.display = 'block';
+            const badge = document.getElementById('lock-badge');
+            badge.className = 'badge badge-blue';
+            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
+            // fetch('/api/v1/review/tasks/1/lock', { method: 'POST' })
+        }
+
+        function unlockSample() {
+            document.getElementById('unlock-actions').style.display = 'block';
+            document.getElementById('locked-actions').style.display = 'none';
+            const badge = document.getElementById('lock-badge');
+            badge.className = 'badge badge-slate';
+            badge.innerHTML = '<i class="fas fa-unlock mr-1"></i>未锁定';
+            // fetch('/api/v1/review/tasks/1/unlock', { method: 'POST' })
+        }
+
+        function submitReview(action) {
+            const comment = document.getElementById('review-comment').value;
+            const map = {
+                'pass': '通过',
+                'modify-grammar': '需修改-语法错误',
+                'modify-content': '需修改-内容不完善',
+                'modify-format': '需修改-格式问题',
+                'reject': '驳回'
+            };
+            alert('提交审核结果：' + map[action] + '\n修改意见：' + (comment || '(无)'));
+            // fetch('/api/v1/review/tasks/1/submit', {
+            //   method: 'POST',
+            //   body: JSON.stringify({ action, comment })
+            // })
+        }
+
+        function openVersionsModal() {
+            document.getElementById('versions-modal').classList.add('open');
+            // fetch('/api/v1/review/tasks/1/versions')
+        }
+
+        function openReportModal() {
+            document.getElementById('report-modal').classList.add('open');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+
+        function rollbackVersion() {
+            const selected = document.querySelector('input[name="version"]:checked');
+            if (!selected) { alert('请选择要回滚的版本'); return; }
+            if (confirm('确定回滚到该版本？当前未保存的改标内容将丢失。')) {
+                alert('版本回滚成功');
+                closeModal('versions-modal');
+                // fetch('/api/v1/review/tasks/1/rollback', { method: 'POST', body: JSON.stringify({ version: 'v3' }) })
+            }
+        }
+
+        function submitReport() {
+            alert('错误样本已上报，将进入错误样本库供模型优化训练');
+            closeModal('report-modal');
+            // fetch('/api/v1/review/tasks/1/report-error', { method: 'POST' })
+        }
+
+        function prevTask() { alert('上一条'); }
+        function nextTask() { alert('下一条'); }
+    </script>
+</body>
+</html>

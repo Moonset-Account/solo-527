@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型效果看板 - ContractRiskAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+            z-index: 40;
+            overflow-y: auto;
+        }
+        .sidebar-logo {
+            padding: 20px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: white;
+        }
+        .nav-item.active {
+            background: rgba(255,255,255,0.12);
+            color: white;
+            border-left-color: #93c5fd;
+        }
+        .main-content {
+            margin-left: 200px;
+            min-height: 100vh;
+        }
+        .topbar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+        .stat-card:hover {
+            box-shadow: 0 4px 12px rgba(30,64,175,0.08);
+            transform: translateY(-1px);
+        }
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .chart-container {
+            width: 100%;
+            height: 320px;
+        }
+        .btn-primary {
+            background: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover {
+            background: #1e3a8a;
+        }
+        .btn-secondary {
+            background: white;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+        .trend-up { color: #16a34a; }
+        .trend-down { color: #dc2626; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-white font-bold text-base">ContractRiskAI</div>
+                    <div class="text-blue-200 text-xs">智能合同平台</div>
+                </div>
+            </div>
+        </div>
+        <nav class="mt-4">
+            <div class="nav-item active">
+                <i class="fas fa-chart-line w-5"></i>
+                <span>首页看板</span>
+            </div>
+            <a href="upload.html" class="nav-item" style="text-decoration:none;">
+                <i class="fas fa-file-contract w-5"></i>
+                <span>合同管理</span>
+            </a>
+            <a href="search.html" class="nav-item" style="text-decoration:none;">
+                <i class="fas fa-search w-5"></i>
+                <span>智能检索</span>
+            </a>
+            <a href="review.html" class="nav-item" style="text-decoration:none;">
+                <i class="fas fa-clipboard-check w-5"></i>
+                <span>审核工作台</span>
+            </a>
+            <div class="nav-item">
+                <i class="fas fa-database w-5"></i>
+                <span>数据集</span>
+            </div>
+            <a href="models.html" class="nav-item" style="text-decoration:none;">
+                <i class="fas fa-cube w-5"></i>
+                <span>模型管理</span>
+            </a>
+            <div class="nav-item">
+                <i class="fas fa-bell w-5"></i>
+                <span>告警中心</span>
+            </div>
+        </nav>
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-300 flex items-center justify-center text-white font-semibold">管</div>
+                <div class="text-white text-sm">
+                    <div class="font-medium">管理员</div>
+                    <div class="text-blue-200 text-xs">admin@company.com</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <div class="topbar">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden btn-secondary" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <nav class="flex items-center gap-2 text-sm text-slate-500">
+                    <i class="fas fa-home"></i>
+                    <span>首页</span>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                    <span class="text-slate-800 font-medium">模型效果看板</span>
+                </nav>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="btn-secondary" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>刷新</span>
+                </button>
+                <button class="btn-primary" onclick="exportPDF()">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>导出PDF</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-slate-800">模型效果看板</h1>
+                <p class="text-slate-500 text-sm mt-1">实时监控合同解析、风险识别模型的各项性能指标</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">合同总数</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-contracts">12,847</div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                            <i class="fas fa-file-alt text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-up"><i class="fas fa-arrow-up"></i> 12.5%</span>
+                        <span class="text-slate-400">较上月</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">今日解析</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-today">386</div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <i class="fas fa-check-circle text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-up"><i class="fas fa-arrow-up"></i> 8.3%</span>
+                        <span class="text-slate-400">较昨日</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">高风险数</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-highrisk">47</div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                            <i class="fas fa-exclamation-triangle text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-down"><i class="fas fa-arrow-down"></i> 5.2%</span>
+                        <span class="text-slate-400">较上周</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">平均处理时长</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-duration">8.2<span class="text-sm font-normal">s</span></div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                            <i class="fas fa-clock text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-down"><i class="fas fa-arrow-down"></i> 12.1%</span>
+                        <span class="text-slate-400">较上月</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">错误率</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-error">0.86<span class="text-sm font-normal">%</span></div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+                            <i class="fas fa-exclamation-circle text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-down"><i class="fas fa-arrow-down"></i> 0.3%</span>
+                        <span class="text-slate-400">较上周</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-slate-500 text-sm mb-1">本月AI成本</div>
+                            <div class="text-2xl font-bold text-slate-800" id="stat-cost">¥8,432</div>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <i class="fas fa-yen-sign text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1 text-xs">
+                        <span class="trend-up"><i class="fas fa-arrow-up"></i> 18.7%</span>
+                        <span class="text-slate-400">较上月</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">合同处理漏斗</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">全流程转化效果</p>
+                        </div>
+                        <span class="badge badge-blue">近30天</span>
+                    </div>
+                    <div class="chart-container" id="chart-funnel"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">风险分布</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">各风险级别占比</p>
+                        </div>
+                        <span class="badge badge-blue">本月</span>
+                    </div>
+                    <div class="chart-container" id="chart-pie"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">近30天模型性能趋势</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">F1值 / 延迟 / 成本</p>
+                        </div>
+                        <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600">
+                            <option>摘要模型</option>
+                            <option>风险识别</option>
+                            <option>问答模型</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" id="chart-metrics"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">A/B测试对比</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">AB-2026-061 风险识别v2.3 vs v2.2</p>
+                        </div>
+                        <span class="badge badge-green">显著差异 ✓</span>
+                    </div>
+                    <div class="chart-container" id="chart-ab"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">错误类型热力图</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">错误类型 × 严重程度分布</p>
+                        </div>
+                        <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600">
+                            <option>近7天</option>
+                            <option>近30天</option>
+                            <option>本月</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" id="chart-heatmap"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-800">审核员绩效榜单</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">本月审核量与准确率排名</p>
+                        </div>
+                        <span class="badge badge-blue">TOP 10</span>
+                    </div>
+                    <div class="chart-container" id="chart-ranking"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API endpoint placeholders
+        // GET /api/v1/dashboard/summary
+        // GET /api/v1/dashboard/funnel
+        // GET /api/v1/dashboard/risk-distribution
+        // GET /api/v1/dashboard/metrics-trend?days=30
+        // GET /api/v1/dashboard/ab-test/{id}/result
+        // GET /api/v1/dashboard/error-heatmap
+        // GET /api/v1/dashboard/reviewers-ranking
+
+        let funnelChart, pieChart, metricsChart, abChart, heatmapChart, rankingChart;
+
+        function initCharts() {
+            funnelChart = echarts.init(document.getElementById('chart-funnel'));
+            pieChart = echarts.init(document.getElementById('chart-pie'));
+            metricsChart = echarts.init(document.getElementById('chart-metrics'));
+            abChart = echarts.init(document.getElementById('chart-ab'));
+            heatmapChart = echarts.init(document.getElementById('chart-heatmap'));
+            rankingChart = echarts.init(document.getElementById('chart-ranking'));
+
+            renderFunnel();
+            renderPie();
+            renderMetrics();
+            renderAB();
+            renderHeatmap();
+            renderRanking();
+
+            window.addEventListener('resize', () => {
+                funnelChart.resize();
+                pieChart.resize();
+                metricsChart.resize();
+                abChart.resize();
+                heatmapChart.resize();
+                rankingChart.resize();
+            });
+        }
+
+        function renderFunnel() {
+            funnelChart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                color: ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'],
+                series: [{
+                    name: '合同处理漏斗',
+                    type: 'funnel',
+                    left: '10%',
+                    width: '80%',
+                    minSize: '20%',
+                    maxSize: '100%',
+                    sort: 'descending',
+                    gap: 2,
+                    label: {
+                        show: true,
+                        position: 'inside',
+                        color: '#fff',
+                        fontSize: 13
+                    },
+                    labelLine: { show: false },
+                    data: [
+                        { value: 100, name: '上传文件' },
+                        { value: 97, name: '解析成功' },
+                        { value: 94, name: '数据清洗' },
+                        { value: 89, name: '结构化提取' },
+                        { value: 85, name: '风险检测' },
+                        { value: 82, name: '建索引入库' }
+                    ]
+                }]
+            });
+        }
+
+        function renderPie() {
+            pieChart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: 10,
+                    top: 'center',
+                    textStyle: { fontSize: 12, color: '#64748b' }
+                },
+                series: [{
+                    name: '风险分布',
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    center: ['38%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 6,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: { show: false },
+                    labelLine: { show: false },
+                    data: [
+                        { value: 47, name: '高风险 (H)', itemStyle: { color: '#ef4444' } },
+                        { value: 186, name: '中风险 (M)', itemStyle: { color: '#f59e0b' } },
+                        { value: 423, name: '低风险 (L)', itemStyle: { color: '#22c55e' } },
+                        { value: 89, name: '提示 (I)', itemStyle: { color: '#3b82f6' } },
+                        { value: 1205, name: '无风险', itemStyle: { color: '#94a3b8' } }
+                    ]
+                }]
+            });
+        }
+
+        function renderMetrics() {
+            const days = [];
+            const f1Data = [], latencyData = [], costData = [];
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                days.push(`${d.getMonth()+1}/${d.getDate()}`);
+                f1Data.push((0.85 + Math.random() * 0.08).toFixed(3));
+                latencyData.push((6 + Math.random() * 5).toFixed(1));
+                costData.push((0.2 + Math.random() * 0.15).toFixed(3));
+            }
+
+            metricsChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                legend: {
+                    data: ['F1值', '延迟(s)', '单次成本(¥)'],
+                    bottom: 0,
+                    textStyle: { fontSize: 12 }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    top: '5%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: days,
+                    axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 }
+                },
+                yAxis: [
+                    { type: 'value', name: 'F1/成本', min: 0, max: 1.2, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+                    { type: 'value', name: '延迟(s)', min: 0, max: 15, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { show: false } }
+                ],
+                series: [
+                    {
+                        name: 'F1值', type: 'line', smooth: true,
+                        data: f1Data, yAxisIndex: 0,
+                        itemStyle: { color: '#1e40af' },
+                        lineStyle: { width: 2.5 },
+                        symbol: 'none',
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(30,64,175,0.25)' },
+                                { offset: 1, color: 'rgba(30,64,175,0)' }
+                            ])
+                        }
+                    },
+                    {
+                        name: '延迟(s)', type: 'line', smooth: true,
+                        data: latencyData, yAxisIndex: 1,
+                        itemStyle: { color: '#f59e0b' },
+                        lineStyle: { width: 2.5, type: 'dashed' },
+                        symbol: 'none'
+                    },
+                    {
+                        name: '单次成本(¥)', type: 'line', smooth: true,
+                        data: costData, yAxisIndex: 0,
+                        itemStyle: { color: '#16a34a' },
+                        lineStyle: { width: 2.5 },
+                        symbol: 'none'
+                    }
+                ]
+            });
+        }
+
+        function renderAB() {
+            abChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' }
+                },
+                legend: {
+                    data: ['模型A (v2.2)', '模型B (v2.3)'],
+                    bottom: 0,
+                    textStyle: { fontSize: 12 }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    top: '5%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['精确率', '召回率', 'F1值', '准确率', '耗时(s)'],
+                    axisLabel: { fontSize: 12, color: '#475569' }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    axisLabel: { fontSize: 10, color: '#94a3b8', formatter: '{value}%' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
+                series: [
+                    {
+                        name: '模型A (v2.2)',
+                        type: 'bar',
+                        data: [78.5, 73.2, 75.8, 82.1, 9.2],
+                        barWidth: '30%',
+                        itemStyle: {
+                            color: '#94a3b8',
+                            borderRadius: [4, 4, 0, 0]
+                        }
+                    },
+                    {
+                        name: '模型B (v2.3)',
+                        type: 'bar',
+                        data: [85.3, 81.7, 83.5, 88.6, 7.8],
+                        barWidth: '30%',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#3b82f6' },
+                                { offset: 1, color: '#1e40af' }
+                            ]),
+                            borderRadius: [4, 4, 0, 0]
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#1e40af',
+                            fontWeight: 'bold',
+                            fontSize: 11,
+                            formatter: function(p) {
+                                const diff = p.value - [78.5,73.2,75.8,82.1,9.2][p.dataIndex];
+                                if (p.dataIndex === 4) diff = -diff;
+                                return diff > 0 ? '+' + diff.toFixed(1) : diff.toFixed(1);
+                            }
+                        }
+                    }
+                ]
+            });
+        }
+
+        function renderHeatmap() {
+            const errorTypes = ['实体提取错', '分类错误', '边界偏移', '摘要缺失', '风险漏检', '风险误判', '格式异常', '重复条目'];
+            const severity = ['低', '中', '高', '致命'];
+            const data = [];
+            for (let i = 0; i < errorTypes.length; i++) {
+                for (let j = 0; j < severity.length; j++) {
+                    data.push([j, i, Math.floor(Math.random() * 40) + (j === 3 ? 1 : 0)]);
+                }
+            }
+            const maxVal = Math.max(...data.map(d => d[2]));
+
+            heatmapChart.setOption({
+                tooltip: {
+                    position: 'top',
+                    formatter: function(p) {
+                        return `${errorTypes[p.value[1]]} · ${severity[p.value[0]]}<br/>数量: <b>${p.value[2]}</b>`;
+                    }
+                },
+                grid: {
+                    left: '20%',
+                    right: '10%',
+                    top: '5%',
+                    bottom: '15%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: severity,
+                    splitArea: { show: true },
+                    axisLabel: { fontSize: 11, color: '#64748b' }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: errorTypes,
+                    splitArea: { show: true },
+                    axisLabel: { fontSize: 11, color: '#64748b' }
+                },
+                visualMap: {
+                    min: 0,
+                    max: maxVal,
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: 0,
+                    textStyle: { fontSize: 10, color: '#94a3b8' },
+                    inRange: {
+                        color: ['#dbeafe', '#93c5fd', '#3b82f6', '#1e40af', '#1e3a8a']
+                    }
+                },
+                series: [{
+                    name: '错误分布',
+                    type: 'heatmap',
+                    data: data,
+                    label: {
+                        show: true,
+                        color: '#fff',
+                        fontSize: 11,
+                        formatter: function(p) { return p.value[2] > 0 ? p.value[2] : ''; }
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(30,64,175,0.3)'
+                        }
+                    }
+                }]
+            });
+        }
+
+        function renderRanking() {
+            const reviewers = [
+                { name: '张律师', count: 286, accuracy: 98.7 },
+                { name: '李法务', count: 254, accuracy: 97.2 },
+                { name: '王审核', count: 231, accuracy: 99.1 },
+                { name: '赵合规', count: 198, accuracy: 96.5 },
+                { name: '陈专员', count: 176, accuracy: 95.8 },
+                { name: '刘主管', count: 154, accuracy: 98.2 },
+                { name: '孙助理', count: 132, accuracy: 94.3 },
+                { name: '周审核', count: 118, accuracy: 97.6 }
+            ];
+            reviewers.sort((a, b) => b.count - a.count);
+
+            rankingChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        const idx = params[0].dataIndex;
+                        const r = reviewers[idx];
+                        return `<b>${r.name}</b><br/>审核量: ${r.count} 份<br/>准确率: ${r.accuracy}%`;
+                    }
+                },
+                grid: {
+                    left: '10%',
+                    right: '15%',
+                    top: '5%',
+                    bottom: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10, color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: reviewers.map(r => r.name),
+                    axisLabel: { fontSize: 12, color: '#475569' }
+                },
+                series: [{
+                    name: '审核量',
+                    type: 'bar',
+                    data: reviewers.map(r => r.count),
+                    barWidth: 18,
+                    itemStyle: {
+                        color: function(p) {
+                            if (p.dataIndex === 0) return '#fbbf24';
+                            if (p.dataIndex === 1) return '#94a3b8';
+                            if (p.dataIndex === 2) return '#d97706';
+                            return 'rgba(59,130,246,0.7)';
+                        },
+                        borderRadius: [0, 4, 4, 0]
+                    },
+                    label: {
+                        show: true,
+                        position: 'right',
+                        color: '#64748b',
+                        fontSize: 11,
+                        formatter: function(p) {
+                            const acc = reviewers[p.dataIndex].accuracy;
+                            return `准确率 ${acc}%`;
+                        }
+                    }
+                }]
+            });
+        }
+
+        function refreshData() {
+            const btn = event.target.closest('button');
+            const icon = btn.querySelector('i');
+            icon.classList.add('fa-spin');
+            setTimeout(() => {
+                icon.classList.remove('fa-spin');
+                const vals = {
+                    'stat-contracts': (12000 + Math.floor(Math.random() * 2000)).toLocaleString(),
+                    'stat-today': 300 + Math.floor(Math.random() * 200),
+                    'stat-highrisk': 30 + Math.floor(Math.random() * 40),
+                    'stat-duration': (7 + Math.random() * 3).toFixed(1) + '<span class="text-sm font-normal">s</span>',
+                    'stat-error': (0.5 + Math.random() * 0.8).toFixed(2) + '<span class="text-sm font-normal">%</span>',
+                    'stat-cost': '¥' + (7000 + Math.floor(Math.random() * 3000)).toLocaleString()
+                };
+                Object.keys(vals).forEach(k => {
+                    document.getElementById(k).innerHTML = vals[k];
+                });
+                renderFunnel();
+                renderPie();
+                renderMetrics();
+                renderAB();
+                renderHeatmap();
+                renderRanking();
+            }, 800);
+        }
+
+        function exportPDF() {
+            alert('PDF导出功能开发中\n接口: POST /api/v1/dashboard/export/pdf');
+        }
+
+        document.addEventListener('DOMContentLoaded', initCharts);
+    </script>
+</body>
+</html>
