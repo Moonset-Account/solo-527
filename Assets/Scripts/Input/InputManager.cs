@@ -72,7 +72,7 @@ namespace YouthTrainingManagement.InputSystem
             }
         }
 
-        private void LoadBindingsFromSettings()
+        public void LoadBindingsFromSettings()
         {
             if (_gameManager.Settings?.SavedInputBindings?.Bindings == null) return;
             foreach (var savedBinding in _gameManager.Settings.SavedInputBindings.Bindings)
