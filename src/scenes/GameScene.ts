@@ -1035,7 +1035,7 @@ export class GameScene extends Phaser.Scene {
     this.inputSys.onAction('cancel', () => this.handleCancel());
 
     if (settings.showDebug) {
-      this.debugPanel = new DebugPanel(this, this.makeDebugAdapter());
+      this.debugPanel = new DebugPanel(this, this.makeDebugAdapter(), { initiallyVisible: true });
     }
   }
 

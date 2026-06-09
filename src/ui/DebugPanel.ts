@@ -78,11 +78,14 @@ export class DebugPanel {
   private panelHeight: number;
   private unbindEngine?: () => void;
 
-  constructor(scene: Phaser.Scene, engine?: GameEngineLike) {
+  constructor(scene: Phaser.Scene, engine?: GameEngineLike, options: { initiallyVisible?: boolean } = {}) {
+    const { initiallyVisible = false } = options;
     this.scene = scene;
     this.panelHeight = scene.scale.height;
 
-    this.container = scene.add.container(scene.scale.width, 0);
+    const startX = initiallyVisible ? scene.scale.width - this.panelWidth : scene.scale.width;
+    this.visible = initiallyVisible;
+    this.container = scene.add.container(startX, 0);
     this.container.setDepth(10000);
 
     this.panelBg = scene.add.graphics();
