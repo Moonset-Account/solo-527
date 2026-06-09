@@ -396,11 +396,21 @@ class AlertManager:
         feedback_note: str = "",
         relabel_from: str = None
     ) -> bool:
-        from database import FeedbackRecord, RelabelRecord, FeatureRecord
+        from database import (
+            FeedbackRecord, RelabelRecord, FeatureRecord,
+            FEATURE_SOURCE_ENGINEER_CONFIRMED, FEATURE_SOURCE_RELABELED
+        )
         import json
 
         if feedback_type not in [AlertManager.FEEDBACK_FAULT, AlertManager.FEEDBACK_DRIFT, AlertManager.FEEDBACK_FALSE]:
             raise ValueError(f"Invalid feedback type: {feedback_type}")
+
+        FEEDBACK_TO_LABEL = {
+            AlertManager.FEEDBACK_FAULT: "轴承磨损",
+            AlertManager.FEEDBACK_DRIFT: "传感器漂移",
+            AlertManager.FEEDBACK_FALSE: "正常",
+        }
+        final_label = FEEDBACK_TO_LABEL[feedback_type]
 
         session = Database.get_session()
         try:
@@ -414,17 +424,25 @@ class AlertManager:
             alert.feedback_user = feedback_user
             alert.feedback_at = datetime.now()
 
-            feature_data = None
+            feature_json_str = None
+            existing_feat = None
             try:
-                feat = session.query(FeatureRecord).filter(
+                existing_feat = session.query(FeatureRecord).filter(
                     FeatureRecord.equipment_id == alert.equipment_id,
                     FeatureRecord.window_start <= alert.feature_window_end,
                     FeatureRecord.window_end >= alert.feature_window_start
                 ).order_by(desc(FeatureRecord.created_at)).first()
-                if feat:
-                    feature_data = json.loads(feat.features) if isinstance(feat.features, str) else feat.features
+                if existing_feat:
+                    feature_json_str = existing_feat.features
             except Exception:
-                pass
+                existing_feat = None
+
+            feature_data = None
+            if feature_json_str:
+                try:
+                    feature_data = json.loads(feature_json_str) if isinstance(feature_json_str, str) else feature_json_str
+                except Exception:
+                    feature_data = None
 
             fb_record = FeedbackRecord(
                 alert_id=alert_id,
@@ -435,13 +453,80 @@ class AlertManager:
                 is_used_for_training=False
             )
             session.add(fb_record)
+            session.flush()
+
+            if existing_feat is not None:
+                existing_feat.label = final_label
+                existing_feat.feedback_id = fb_record.id
+                if relabel_from and relabel_from != feedback_type:
+                    existing_feat.source = FEATURE_SOURCE_RELABELED
+                else:
+                    existing_feat.source = FEATURE_SOURCE_ENGINEER_CONFIRMED
+                existing_feat.confidence_label = float(alert.confidence) if alert.confidence else 1.0
+                logger.info(
+                    f"[Feedback] 更新 FeatureRecord id={existing_feat.id} "
+                    f"source={existing_feat.source} label={final_label} feedback_id={fb_record.id}"
+                )
+            else:
+                if not feature_data and alert.sensor_snapshot:
+                    try:
+                        snapshot = json.loads(alert.sensor_snapshot) if isinstance(alert.sensor_snapshot, str) else alert.sensor_snapshot
+                    except Exception:
+                        snapshot = {}
+                    if snapshot:
+                        import numpy as np
+                        import pandas as pd
+                        from feature_engineer import FeatureExtractor
+                        fe = FeatureExtractor(window_size=max(len(snapshot.get("temperature", [])), 10), step_size=1)
+                        sensor_cols = ["temperature", "vibration", "current", "rpm"]
+                        data_dict = {}
+                        max_len = 0
+                        for col in sensor_cols:
+                            arr = snapshot.get(col, [])
+                            if isinstance(arr, list):
+                                data_dict[col] = arr
+                                max_len = max(max_len, len(arr))
+                            else:
+                                data_dict[col] = [float(arr)] * 60
+                                max_len = 60
+                        if max_len < 10:
+                            for col in sensor_cols:
+                                data_dict[col] = list(data_dict[col]) + [np.nanmean(data_dict[col]) if len(data_dict[col]) > 0 else 0.0] * (60 - len(data_dict[col]))
+                                max_len = 60
+                        data_dict["shift"] = [snapshot.get("shift", "早班")] * max_len
+                        data_dict["timestamp"] = pd.date_range(
+                            start=alert.feature_window_start or alert.timestamp, periods=max_len, freq="min"
+                        )
+                        tmp_df = pd.DataFrame(data_dict)
+                        try:
+                            feature_data = fe.extract_window_features(tmp_df, alert.equipment_id, {})
+                        except Exception as e:
+                            logger.warning(f"[Feedback] 从告警快照构造特征失败: {e}")
+                            feature_data = {}
+
+                if feature_data is None:
+                    feature_data = {}
+
+                feat_record = FeatureRecord(
+                    equipment_id=alert.equipment_id,
+                    window_start=alert.feature_window_start,
+                    window_end=alert.feature_window_end,
+                    features=json.dumps(feature_data),
+                    label=final_label,
+                    source=FEATURE_SOURCE_RELABELED if (relabel_from and relabel_from != feedback_type) else FEATURE_SOURCE_ENGINEER_CONFIRMED,
+                    feedback_id=fb_record.id,
+                    confidence_label=float(alert.confidence) if alert.confidence else 1.0,
+                    data_version=f"fb_dv_{alert_id}_{fb_record.id}",
+                    is_used_for_training=False
+                )
+                session.add(feat_record)
+                logger.info(
+                    f"[Feedback] 新建 FeatureRecord source={feat_record.source} "
+                    f"label={final_label} equipment_id={alert.equipment_id}"
+                )
 
             if relabel_from and relabel_from != feedback_type:
-                relabel_map = {
-                    AlertManager.FEEDBACK_FAULT: "轴承磨损",
-                    AlertManager.FEEDBACK_DRIFT: "传感器漂移",
-                    AlertManager.FEEDBACK_FALSE: "正常",
-                }
+                relabel_map = FEEDBACK_TO_LABEL
                 relabel_record = RelabelRecord(
                     alert_id=alert_id,
                     original_label=relabel_map.get(relabel_from, relabel_from),

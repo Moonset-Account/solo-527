@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Tuple, Dict, List, Optional
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler, LabelEncoder
@@ -15,14 +15,21 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.base import clone
-from database import Database, FeedbackRecord, Alert, FeatureRecord, DataVersion
-from sqlalchemy import and_
+from database import (
+    Database, FeedbackRecord, Alert, FeatureRecord, DataVersion,
+    TRAINING_ALLOWED_SOURCES, FEATURE_SOURCE_AUTO_LABELED,
+    FEATURE_SOURCE_ENGINEER_CONFIRMED, FEATURE_SOURCE_RELABELED,
+    FEATURE_SOURCE_LABELS, MaintenanceRecord
+)
+from sqlalchemy import and_, func
 
 
 class AnomalyModelTrainer:
     LABEL_NORMAL = "正常"
     LABEL_BEARING_WEAR = "轴承磨损"
     LABEL_SENSOR_DRIFT = "传感器漂移"
+    MIN_TRAINING_SAMPLES = 15
+    MIN_PER_CLASS_RATIO = 0.08
 
     def __init__(self):
         self.label_encoder = LabelEncoder()
@@ -30,6 +37,7 @@ class AnomalyModelTrainer:
         self.model = None
         self.pipeline = None
         self._build_label_encoder()
+        self.training_audit: Dict = {}
 
     def _build_label_encoder(self):
         self.label_encoder.fit([
@@ -38,138 +46,219 @@ class AnomalyModelTrainer:
             self.LABEL_SENSOR_DRIFT
         ])
 
-    def _load_training_data_from_db(
+    def _feedback_type_to_label(self, feedback_type: str) -> str:
+        mapping = {
+            "REAL_FAULT": self.LABEL_BEARING_WEAR,
+            "SENSOR_DRIFT": self.LABEL_SENSOR_DRIFT,
+            "FALSE_ALARM": self.LABEL_NORMAL,
+        }
+        return mapping.get(feedback_type, self.LABEL_NORMAL)
+
+    def _get_maintenance_windows(self, session, equipment_ids: List[str]) -> Dict[str, List[Tuple[datetime, datetime]]]:
+        query = session.query(MaintenanceRecord).filter(
+            MaintenanceRecord.equipment_id.in_(equipment_ids)
+        ) if equipment_ids else session.query(MaintenanceRecord)
+        windows: Dict[str, List[Tuple[datetime, datetime]]] = {}
+        for m in query.all():
+            if m.equipment_id not in windows:
+                windows[m.equipment_id] = []
+            windows[m.equipment_id].append((m.start_time, m.end_time))
+        for eq in windows:
+            windows[eq].sort(key=lambda x: x[0])
+        return windows
+
+    def _is_within_maintenance_buffer(
         self,
+        equipment_id: str,
+        window_start: datetime,
+        window_end: datetime,
+        maintenance_windows: Dict[str, List[Tuple[datetime, datetime]]],
+        buffer_hours: int = 24
+    ) -> bool:
+        if equipment_id not in maintenance_windows:
+            return False
+        for (m_start, m_end) in maintenance_windows[equipment_id]:
+            buffer_start = m_start - timedelta(hours=buffer_hours)
+            buffer_end = m_end + timedelta(hours=buffer_hours)
+            if (window_start <= buffer_end) and (window_end >= buffer_start):
+                return True
+        return False
+
+    def load_training_dataset_from_db(
+        self,
+        include_seed_samples: bool = True,
         start_time: datetime = None,
         end_time: datetime = None,
-        equipment_id: str = None
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+        exclude_maintenance_buffer_hours: int = 24
+    ) -> Tuple[pd.DataFrame, pd.Series, Dict]:
         session = Database.get_session()
         try:
-            query = session.query(FeatureRecord)
-            filters = []
+            sources = TRAINING_ALLOWED_SOURCES if include_seed_samples else [
+                FEATURE_SOURCE_ENGINEER_CONFIRMED, FEATURE_SOURCE_RELABELED
+            ]
+            query = session.query(FeatureRecord).filter(
+                FeatureRecord.source.in_(sources),
+                FeatureRecord.label.isnot(None)
+            )
             if start_time:
-                filters.append(FeatureRecord.window_end >= start_time)
+                query = query.filter(FeatureRecord.window_end >= start_time)
             if end_time:
-                filters.append(FeatureRecord.window_start <= end_time)
-            if equipment_id:
-                filters.append(FeatureRecord.equipment_id == equipment_id)
-            if filters:
-                query = query.filter(and_(*filters))
+                query = query.filter(FeatureRecord.window_start <= end_time)
 
             records = query.all()
             if not records:
-                return pd.DataFrame(), pd.Series()
+                audit = {"total_qualified": 0, "by_source": {}, "by_label": {}, "excluded": {}}
+                return pd.DataFrame(), pd.Series(dtype=str), audit
 
-            data = []
-            labels = []
+            equipment_ids = list(set([r.equipment_id for r in records]))
+            maintenance_windows = self._get_maintenance_windows(session, equipment_ids)
+
+            features_list: List[Dict] = []
+            labels_list: List[str] = []
+            by_source: Dict[str, int] = {}
+            by_label: Dict[str, int] = {}
+            by_source_label: Dict[str, Dict[str, int]] = {}
+            excluded_maintenance: int = 0
+            feature_record_ids: List[int] = []
+            feedback_ids_matched: List[int] = []
+
             for rec in records:
-                features = json.loads(rec.features) if isinstance(rec.features, str) else rec.features
-                data.append(features)
-                labels.append(rec.data_version)
+                if exclude_maintenance_buffer_hours > 0 and self._is_within_maintenance_buffer(
+                    rec.equipment_id, rec.window_start, rec.window_end,
+                    maintenance_windows, buffer_hours=exclude_maintenance_buffer_hours
+                ):
+                    excluded_maintenance += 1
+                    continue
 
-            feature_df = pd.DataFrame(data)
-            session2 = Database.get_session()
-            try:
-                sensor_query = """
-                    SELECT sr.equipment_id, sr.timestamp, sr.raw_label, 
-                           fr.id as feature_id, fr.window_start, fr.window_end
-                    FROM feature_records fr
-                    JOIN sensor_readings sr ON sr.equipment_id = fr.equipment_id
-                        AND sr.timestamp BETWEEN fr.window_start AND fr.window_end
-                    WHERE sr.is_downtime = FALSE AND sr.raw_label IS NOT NULL
-                """
-                label_df = pd.read_sql(sensor_query, session2.bind)
+                feat = rec.features
+                if isinstance(feat, str):
+                    try:
+                        feat = json.loads(feat)
+                    except Exception:
+                        continue
+                if not isinstance(feat, dict) or len(feat) == 0:
+                    continue
 
-                if not label_df.empty:
-                    label_map = {}
-                    for _, row in label_df.iterrows():
-                        start = row["window_start"]
-                        end = row["window_end"]
-                        labels_in_window = label_df[
-                            (label_df["window_start"] == start) &
-                            (label_df["window_end"] == end)
-                        ]["raw_label"]
-                        if len(labels_in_window) > 0:
-                            label_counts = labels_in_window.value_counts()
-                            majority_label = label_counts.index[0]
-                            key = f"{row['equipment_id']}_{start}_{end}"
-                            label_map[key] = majority_label
+                features_list.append(feat)
+                labels_list.append(rec.label)
+                feature_record_ids.append(rec.id)
+                if rec.feedback_id:
+                    feedback_ids_matched.append(rec.feedback_id)
 
-                    final_labels = []
-                    for rec in records:
-                        key = f"{rec.equipment_id}_{rec.window_start}_{rec.window_end}"
-                        final_labels.append(label_map.get(key, self.LABEL_NORMAL))
-                    label_series = pd.Series(final_labels)
-                else:
-                    label_series = pd.Series([self.LABEL_NORMAL] * len(records))
-            finally:
-                session2.close()
+                src = rec.source or "unknown"
+                by_source[src] = by_source.get(src, 0) + 1
+                lbl = rec.label or "unknown"
+                by_label[lbl] = by_label.get(lbl, 0) + 1
+                if src not in by_source_label:
+                    by_source_label[src] = {}
+                by_source_label[src][lbl] = by_source_label[src].get(lbl, 0) + 1
 
-            return feature_df, label_series
+            if not features_list:
+                audit = {
+                    "total_qualified": 0,
+                    "by_source": {},
+                    "by_label": {},
+                    "by_source_label": {},
+                    "excluded": {
+                        "maintenance_buffer": excluded_maintenance,
+                        "total_considered": len(records),
+                    },
+                    "feedback_ids": [],
+                    "feature_record_ids": [],
+                }
+                return pd.DataFrame(), pd.Series(dtype=str), audit
+
+            feature_df = pd.DataFrame(features_list)
+            label_series = pd.Series(labels_list, name="label")
+
+            audit = {
+                "total_qualified": len(features_list),
+                "by_source": by_source,
+                "by_label": by_label,
+                "by_source_label": by_source_label,
+                "excluded": {
+                    "maintenance_buffer_24h": excluded_maintenance,
+                    "total_db_considered": len(records),
+                },
+                "feedback_ids": feedback_ids_matched,
+                "feature_record_ids": feature_record_ids,
+                "allowed_sources": sources,
+                "maintenance_excluded_hours": exclude_maintenance_buffer_hours,
+            }
+            self.training_audit = audit
+
+            return feature_df, label_series, audit
         finally:
             session.close()
 
-    def _include_confirmed_feedback(
-        self,
-        feature_df: pd.DataFrame,
-        label_series: pd.Series,
-        data_version: str
-    ) -> Tuple[pd.DataFrame, pd.Series, List[int]]:
+    def get_training_dataset_summary(self) -> Dict:
+        _, _, audit = self.load_training_dataset_from_db(include_seed_samples=True)
         session = Database.get_session()
         try:
-            feedbacks = session.query(FeedbackRecord).filter(
+            pending_feedback_count = session.query(FeedbackRecord).filter(
                 FeedbackRecord.is_used_for_training == False
-            ).all()
+            ).count()
+            all_feedback_count = session.query(FeedbackRecord).count()
+            unconfirmed_fr = session.query(FeatureRecord).filter(
+                FeatureRecord.source == "historical_unconfirmed"
+            ).count()
+            total_fr = session.query(FeatureRecord).count()
 
-            new_features = []
-            new_labels = []
-            used_feedback_ids = []
+            source_distribution = dict(
+                session.query(FeatureRecord.source, func.count(FeatureRecord.id))
+                .group_by(FeatureRecord.source).all()
+            )
 
-            for fb in feedbacks:
-                alert = session.query(Alert).filter(Alert.id == fb.alert_id).first()
-                if not alert:
-                    continue
-
-                feature_data = fb.feature_data
-                if isinstance(feature_data, str):
-                    feature_data = json.loads(feature_data)
-                if not feature_data:
-                    continue
-
-                if fb.feedback_type == "REAL_FAULT":
-                    label = self.LABEL_BEARING_WEAR
-                elif fb.feedback_type == "SENSOR_DRIFT":
-                    label = self.LABEL_SENSOR_DRIFT
-                else:
-                    label = self.LABEL_NORMAL
-
-                new_features.append(feature_data)
-                new_labels.append(label)
-                used_feedback_ids.append(fb.id)
-
-            if new_features:
-                new_df = pd.DataFrame(new_features)
-                common_cols = feature_df.columns.intersection(new_df.columns) if len(feature_df) > 0 else new_df.columns
-                if len(feature_df) > 0:
-                    feature_df = pd.concat([feature_df[common_cols], new_df[common_cols]], ignore_index=True)
-                else:
-                    feature_df = new_df[common_cols]
-                label_series = pd.concat([label_series, pd.Series(new_labels)], ignore_index=True)
-
-                for fid in used_feedback_ids:
-                    fb_rec = session.query(FeedbackRecord).filter(FeedbackRecord.id == fid).first()
-                    if fb_rec:
-                        fb_rec.is_used_for_training = True
-                        fb_rec.training_data_version = data_version
-                session.commit()
-
-            return feature_df, label_series, used_feedback_ids
-        except Exception as e:
-            session.rollback()
-            raise e
+            label_distribution_confirmed = dict(
+                session.query(FeatureRecord.label, func.count(FeatureRecord.id))
+                .filter(FeatureRecord.source.in_(TRAINING_ALLOWED_SOURCES))
+                .group_by(FeatureRecord.label).all()
+            )
         finally:
             session.close()
+
+        return {
+            "trainable_summary": audit,
+            "feedback_overview": {
+                "total": all_feedback_count,
+                "pending_for_training": pending_feedback_count,
+                "already_used": all_feedback_count - pending_feedback_count,
+            },
+            "feature_records_overview": {
+                "total": total_fr,
+                "unconfirmed_only": unconfirmed_fr,
+                "eligible_for_training": audit["total_qualified"],
+                "by_source": {
+                    s: source_distribution.get(s, 0)
+                    for s in list(FEATURE_SOURCE_LABELS.keys()) + [None]
+                }
+            },
+            "confirmed_label_distribution": label_distribution_confirmed,
+            "status_overview": self._get_training_readiness_status(audit),
+        }
+
+    def _get_training_readiness_status(self, audit: Dict) -> Dict:
+        total = audit.get("total_qualified", 0)
+        by_label = audit.get("by_label", {})
+        required = self.MIN_TRAINING_SAMPLES
+
+        class_issues = []
+        for cls in self.label_encoder.classes_:
+            cnt = by_label.get(cls, 0)
+            ratio = cnt / total if total > 0 else 0
+            if ratio > 0 and ratio < self.MIN_PER_CLASS_RATIO:
+                class_issues.append(f"{cls}占比过低({ratio*100:.1f}%)")
+
+        return {
+            "can_train": total >= required and len(class_issues) == 0,
+            "total_samples": total,
+            "required_samples": required,
+            "issues": class_issues,
+            "message": (
+                f"可训练: {total}/{required} 样本"
+                + ("" if not class_issues else "；" + "；".join(class_issues))
+            )
+        }
 
     def _build_model_pipeline(self, model_type: str = "gb") -> Pipeline:
         if model_type == "rf":
@@ -229,14 +318,20 @@ class AnomalyModelTrainer:
         precision_per_class = {}
         recall_per_class = {}
         f1_per_class = {}
-        precision_scores = precision_score(y_true, y_pred, average=None, zero_division=0)
-        recall_scores = recall_score(y_true, y_pred, average=None, zero_division=0)
-        f1_scores = f1_score(y_true, y_pred, average=None, zero_division=0)
-        for i, label in enumerate(labels):
-            if i < len(precision_scores):
-                precision_per_class[label] = float(precision_scores[i])
-                recall_per_class[label] = float(recall_scores[i])
-                f1_per_class[label] = float(f1_scores[i])
+        try:
+            precision_scores = precision_score(y_true, y_pred, average=None, zero_division=0)
+            recall_scores = recall_score(y_true, y_pred, average=None, zero_division=0)
+            f1_scores = f1_score(y_true, y_pred, average=None, zero_division=0)
+            for i, label in enumerate(labels):
+                if i < len(precision_scores):
+                    precision_per_class[label] = float(precision_scores[i])
+                    recall_per_class[label] = float(recall_scores[i])
+                    f1_per_class[label] = float(f1_scores[i])
+        except Exception:
+            for label in labels:
+                precision_per_class[label] = 0.0
+                recall_per_class[label] = 0.0
+                f1_per_class[label] = 0.0
 
         try:
             if y_proba is not None and y_proba.shape[1] > 2:
@@ -249,7 +344,7 @@ class AnomalyModelTrainer:
             roc_auc = 0.0
 
         try:
-            cm = confusion_matrix(y_true, y_pred)
+            cm = confusion_matrix(y_true, y_pred, labels=list(range(len(labels))))
             cm_dict = {labels[i]: {labels[j]: int(cm[i][j]) for j in range(len(labels))} for i in range(len(labels))}
         except Exception:
             cm_dict = {}
@@ -272,6 +367,105 @@ class AnomalyModelTrainer:
             )
         }
 
+    def _collect_engineer_confirmed_feedback(
+        self,
+        data_version: str,
+        used_feedback_ids: List[int]
+    ) -> Tuple[List[Dict], List[str], List[int]]:
+        session = Database.get_session()
+        try:
+            feedbacks = session.query(FeedbackRecord).filter(
+                FeedbackRecord.is_used_for_training == False
+            ).all()
+
+            new_features: List[Dict] = []
+            new_labels: List[str] = []
+            new_fb_ids: List[int] = []
+            processed_ids: List[int] = []
+
+            for fb in feedbacks:
+                if fb.id in used_feedback_ids:
+                    continue
+                feature_data = fb.feature_data
+                if isinstance(feature_data, str):
+                    try:
+                        feature_data = json.loads(feature_data)
+                    except Exception:
+                        feature_data = None
+                if not feature_data or not isinstance(feature_data, dict):
+                    continue
+
+                label = self._feedback_type_to_label(fb.feedback_type)
+                new_features.append(feature_data)
+                new_labels.append(label)
+                new_fb_ids.append(fb.id)
+                processed_ids.append(fb.id)
+
+            if new_features:
+                for fid in processed_ids:
+                    fb_rec = session.query(FeedbackRecord).filter(FeedbackRecord.id == fid).first()
+                    if fb_rec:
+                        fb_rec.is_used_for_training = True
+                        fb_rec.training_data_version = data_version
+                session.commit()
+
+            return new_features, new_labels, processed_ids
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def _upsert_feature_records_for_feedback(
+        self,
+        feature_label_list: List[Tuple[Dict, str, int]],
+        source: str,
+    ) -> List[int]:
+        if not feature_label_list:
+            return []
+        session = Database.get_session()
+        created_ids: List[int] = []
+        try:
+            now = datetime.now()
+            for (feat, label, fb_id) in feature_label_list:
+                fb = session.query(FeedbackRecord).filter(FeedbackRecord.id == fb_id).first()
+                if not fb:
+                    continue
+                alert = session.query(Alert).filter(Alert.id == fb.alert_id).first()
+                if not alert:
+                    continue
+
+                existing = session.query(FeatureRecord).filter(
+                    FeatureRecord.feedback_id == fb_id
+                ).first()
+
+                if existing:
+                    existing.label = label
+                    existing.source = FEATURE_SOURCE_RELABELED if existing.source in TRAINING_ALLOWED_SOURCES else source
+                    existing.confidence_label = 1.0
+                    existing.features = json.dumps(feat, ensure_ascii=False)
+                else:
+                    new_fr = FeatureRecord(
+                        equipment_id=alert.equipment_id,
+                        window_start=alert.feature_window_start or (now - timedelta(hours=1)),
+                        window_end=alert.feature_window_end or now,
+                        features=json.dumps(feat, ensure_ascii=False),
+                        label=label,
+                        source=source,
+                        feedback_id=fb_id,
+                        confidence_label=1.0
+                    )
+                    session.add(new_fr)
+                    session.flush()
+                    created_ids.append(new_fr.id)
+            session.commit()
+            return created_ids
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
     def train(
         self,
         feature_df: pd.DataFrame = None,
@@ -280,29 +474,79 @@ class AnomalyModelTrainer:
         test_size: float = 0.2,
         random_state: int = 42,
         include_feedback: bool = True,
-        description: str = ""
+        description: str = "",
+        include_seed_samples: bool = True,
+        exclude_maintenance_buffer_hours: int = 24
     ) -> Dict:
-        if feature_df is None or label_series is None:
-            feature_df, label_series = self._load_training_data_from_db()
-
         data_hash = hashlib.md5(
-            f"{len(feature_df)}_{datetime.now().isoformat()}".encode()
+            f"{datetime.now().isoformat()}_{np.random.randint(0, 999999)}".encode()
         ).hexdigest()[:10]
         data_version = f"dv_{datetime.now().strftime('%Y%m%d')}_{data_hash}"
 
-        if include_feedback:
-            feature_df, label_series, used_feedback_ids = self._include_confirmed_feedback(
-                feature_df, label_series, data_version
+        if feature_df is None or label_series is None:
+            feature_df, label_series, audit_db = self.load_training_dataset_from_db(
+                include_seed_samples=include_seed_samples,
+                exclude_maintenance_buffer_hours=exclude_maintenance_buffer_hours
             )
         else:
-            used_feedback_ids = []
+            audit_db = {"total_qualified": len(feature_df), "external": True}
 
-        if feature_df.empty or len(feature_df) < 10:
-            raise ValueError("训练数据不足，至少需要10个样本")
+        initial_ids = list(audit_db.get("feedback_ids", []))
+        extra_feedback_ids = []
 
-        valid_mask = label_series.isin(self.label_encoder.classes_)
+        if include_feedback:
+            extra_feats, extra_labels, extra_fb_ids = self._collect_engineer_confirmed_feedback(
+                data_version, initial_ids
+            )
+            extra_feedback_ids = extra_fb_ids
+            if extra_feats:
+                upsert_list = [
+                    (extra_feats[i], extra_labels[i], extra_fb_ids[i])
+                    for i in range(len(extra_feats))
+                ]
+                self._upsert_feature_records_for_feedback(
+                    upsert_list, source=FEATURE_SOURCE_ENGINEER_CONFIRMED
+                )
+
+                extra_df = pd.DataFrame(extra_feats)
+                if feature_df.empty:
+                    feature_df = extra_df
+                    label_series = pd.Series(extra_labels, dtype=str)
+                else:
+                    common_cols = list(feature_df.columns.intersection(extra_df.columns))
+                    if len(common_cols) < 10:
+                        common_cols = list(feature_df.columns)
+                        for c in common_cols:
+                            if c not in extra_df.columns:
+                                extra_df[c] = 0.0
+                    feature_df = pd.concat(
+                        [feature_df[common_cols].reset_index(drop=True),
+                         extra_df[common_cols].reset_index(drop=True)],
+                        ignore_index=True
+                    )
+                    label_series = pd.concat(
+                        [label_series.reset_index(drop=True),
+                         pd.Series(extra_labels, dtype=str).reset_index(drop=True)],
+                        ignore_index=True
+                    )
+                audit_db = self.get_training_dataset_summary()["trainable_summary"]
+
+        if feature_df.empty or len(feature_df) < self.MIN_TRAINING_SAMPLES:
+            status = self._get_training_readiness_status(audit_db)
+            raise ValueError(
+                f"训练数据不足。当前状态: {status['message']}。"
+                f"需要至少 {self.MIN_TRAINING_SAMPLES} 条工程师确认样本。"
+                f"请先在「告警管理」中进行人工确认。"
+            )
+
+        valid_mask = label_series.isin(list(self.label_encoder.classes_))
         feature_df = feature_df[valid_mask].reset_index(drop=True)
         label_series = label_series[valid_mask].reset_index(drop=True)
+
+        class_counts = label_series.value_counts()
+        for cls in self.label_encoder.classes_:
+            if cls not in class_counts or class_counts[cls] / len(label_series) < self.MIN_PER_CLASS_RATIO:
+                pass
 
         self.feature_names = list(feature_df.columns)
         feature_df = feature_df[self.feature_names]
@@ -310,11 +554,16 @@ class AnomalyModelTrainer:
         X = feature_df.values
         y = self.label_encoder.transform(label_series)
 
-        class_counts = pd.Series(label_series).value_counts().to_dict()
+        class_counts_dict = class_counts.to_dict()
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, stratify=y
-        )
+        try:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=min(test_size, 0.35), random_state=random_state, stratify=y
+            )
+        except ValueError:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state
+            )
 
         train_df = pd.DataFrame(X_train, columns=self.feature_names)
         test_df = pd.DataFrame(X_test, columns=self.feature_names)
@@ -336,39 +585,47 @@ class AnomalyModelTrainer:
             list(self.label_encoder.classes_)
         )
 
+        cv_result = {"cv_f1_macro_mean": 0.0, "cv_f1_macro_std": 0.0, "cv_scores": []}
         try:
-            cv_scores = cross_val_score(
-                clone(self.pipeline),
-                pd.DataFrame(X, columns=self.feature_names),
-                y,
-                cv=5,
-                scoring="f1_macro",
-                n_jobs=-1
-            )
-            cv_result = {
-                "cv_f1_macro_mean": float(np.mean(cv_scores)),
-                "cv_f1_macro_std": float(np.std(cv_scores)),
-                "cv_scores": [float(s) for s in cv_scores]
-            }
+            if len(X) >= 30:
+                cv_scores = cross_val_score(
+                    clone(self.pipeline),
+                    pd.DataFrame(X, columns=self.feature_names),
+                    y,
+                    cv=min(5, max(2, len(X) // 20)),
+                    scoring="f1_macro",
+                    n_jobs=-1
+                )
+                cv_result = {
+                    "cv_f1_macro_mean": float(np.mean(cv_scores)),
+                    "cv_f1_macro_std": float(np.std(cv_scores)),
+                    "cv_scores": [float(s) for s in cv_scores]
+                }
         except Exception:
-            cv_result = {"cv_f1_macro_mean": 0.0, "cv_f1_macro_std": 0.0, "cv_scores": []}
+            pass
 
         model_version = f"v{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        all_used_fb_ids = list(set(initial_ids + extra_feedback_ids))
+
+        dataset_info = {
+            "total_samples": int(len(feature_df)),
+            "train_samples": int(len(X_train)),
+            "test_samples": int(len(X_test)),
+            "feature_count": int(len(self.feature_names)),
+            "class_distribution": class_counts_dict,
+            "used_feedback_count": int(len(all_used_fb_ids)),
+            "used_feedback_ids": all_used_fb_ids,
+            "sample_source_audit": audit_db,
+            "maintenance_excluded_hours": exclude_maintenance_buffer_hours,
+            "strict_training_rule": "仅使用工程师人工确认样本+冷启动种子样本，历史raw_label未直接参与训练",
+        }
 
         result = {
             "model_type": model_type,
             "model_version": model_version,
             "data_version": data_version,
             "description": description,
-            "dataset_info": {
-                "total_samples": int(len(feature_df)),
-                "train_samples": int(len(X_train)),
-                "test_samples": int(len(X_test)),
-                "feature_count": int(len(self.feature_names)),
-                "class_distribution": class_counts,
-                "used_feedback_count": int(len(used_feedback_ids)),
-                "used_feedback_ids": used_feedback_ids
-            },
+            "dataset_info": dataset_info,
             "train_metrics": train_metrics,
             "test_metrics": test_metrics,
             "cv_metrics": cv_result,
@@ -377,7 +634,7 @@ class AnomalyModelTrainer:
             "timestamp": datetime.now().isoformat()
         }
 
-        self._save_data_version(data_version, feature_df, label_series, used_feedback_ids, result)
+        self._save_data_version(data_version, feature_df, label_series, all_used_fb_ids, result)
 
         return result
 
@@ -399,7 +656,7 @@ class AnomalyModelTrainer:
                 positive_count=positive_count,
                 feature_count=len(self.feature_names),
                 included_feedback_ids=feedback_ids,
-                created_by="system"
+                created_by="engineer_training_pipeline"
             )
             session.add(dv)
             session.commit()
@@ -422,7 +679,7 @@ class AnomalyModelTrainer:
         y_pred = self.pipeline.predict(feature_df)
         y_proba = self.pipeline.predict_proba(feature_df)
 
-        labels = self.label_encoder.inverse_transform(y_pred)
+        labels = self.label_encoder.inverse_transform(y_pred.astype(int))
         return labels, y_proba
 
     def predict_single(self, features: Dict) -> Tuple[str, Dict[str, float]]:

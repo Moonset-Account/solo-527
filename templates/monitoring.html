@@ -476,35 +476,58 @@
     }
 
     async function loadPerformance() {
-      try {
-        const result = await apiRequest('/api/models');
-        const models = result.data;
-        const deployed = models.find(m => m.is_deployed) || models[0];
-        const content = document.getElementById('perf-content');
-        const versionSpan = document.getElementById('perf-version');
+      const content = document.getElementById('perf-content');
+      const versionSpan = document.getElementById('perf-version');
+      versionSpan.textContent = '加载中...';
+      versionSpan.className = 'badge badge-default';
+      content.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><h3>加载中</h3><p>正在获取部署模型性能数据...</p></div>`;
 
-        if (!deployed) {
+      try {
+        const [detailResult, summaryResult] = await Promise.all([
+          apiRequest('/api/models/deployed/detail'),
+          apiRequest('/api/training-dataset-summary').catch(() => ({ data: null }))
+        ]);
+
+        const detail = detailResult.data;
+        const summary = summaryResult && summaryResult.data;
+
+        if (!detail) {
           versionSpan.textContent = '未部署';
           versionSpan.className = 'badge badge-default';
+          content.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>暂无已部署模型</h3><p>请先到"模型版本"选项卡训练并部署模型</p></div>`;
           return;
         }
 
-        versionSpan.textContent = deployed.version + ' (已部署)';
+        versionSpan.textContent = detail.version + ' (已部署)';
         versionSpan.className = 'badge badge-deployed';
 
-        await showModelDetail(deployed.version);
-        hideModal('model-detail-modal');
+        const metrics = detail.metrics || {};
+        const datasetInfo = detail.dataset_info || {};
+        const labelDist = detail.label_distribution || {};
+        const perClass = metrics.per_class || {};
 
-        const metrics = deployed.metrics || {};
-        const testMetrics = metrics.test_metrics || {};
-        const fpc = testMetrics.precision_per_class || {};
-        const frc = testMetrics.recall_per_class || {};
-        const ffc = testMetrics.f1_per_class || {};
-        const cm = testMetrics.confusion_matrix || {};
-        const classes = ['正常', '轴承磨损', '传感器漂移'];
+        const classes = Object.keys(labelDist).length ? Object.keys(labelDist) : ['正常', '轴承磨损', '传感器漂移'];
+
+        const fpc = {};
+        const frc = {};
+        const ffc = {};
+        classes.forEach(cls => {
+          const pc = perClass[cls] || {};
+          fpc[cls] = pc.precision || 0;
+          frc[cls] = pc.recall || 0;
+          ffc[cls] = pc.f1 || 0;
+        });
 
         let cmHtml = '';
-        if (cm && Object.keys(cm).length > 0) {
+        const cm = metrics.confusion_matrix;
+        if (cm && Array.isArray(cm) && cm.length > 0) {
+          cmHtml = `<div class="alert-detail-section"><h4>混淆矩阵</h4>
+            <table><thead><tr><th>真实\预测</th>${classes.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <tbody>${classes.map((rc, ri) => `<tr><td><strong>${rc}</strong></td>${classes.map((pc, ci) => {
+              const v = cm[ri]?.[ci] ?? 0;
+              return `<td style="background:${rc === pc ? '#d1fae5' : v > 0 ? '#fee2e2' : 'transparent'};font-weight:${rc === pc ? 600 : 400};">${v}</td>`;
+            }).join('')}</tr>`).join('')}</tbody></table></div>`;
+        } else if (typeof cm === 'object' && cm && Object.keys(cm).length > 0) {
           cmHtml = `<div class="alert-detail-section"><h4>混淆矩阵</h4>
             <table><thead><tr><th>真实\预测</th>${classes.map(c => `<th>${c}</th>`).join('')}</tr></thead>
             <tbody>${classes.map(rc => `<tr><td><strong>${rc}</strong></td>${classes.map(pc => {
@@ -513,56 +536,138 @@
             }).join('')}</tr>`).join('')}</tbody></table></div>`;
         }
 
+        const datasetInfoHtml = Object.entries(datasetInfo).map(([k, v]) => {
+          const displayVal = typeof v === 'object' ? JSON.stringify(v) : (typeof v === 'number' ? v.toLocaleString() : v);
+          return `<div class="info-item"><div class="info-label">${k}</div><div class="info-value" style="font-size:14px;">${displayVal}</div></div>`;
+        }).join('');
+
+        let summaryHtml = '';
+        if (summary) {
+          const srcLabels = {
+            'historical_unconfirmed': '历史未确认 (不可训练)',
+            'engineer_confirmed': '工程师确认 (准入)',
+            'auto_labeled_seed': '冷启动种子 (准入)',
+            'engineer_relabeled': '工程师改标 (准入)'
+          };
+          const bySource = summary.by_source_count || {};
+          const sourceListHtml = Object.entries(bySource).map(([src, cnt]) => {
+            const label = srcLabels[src] || src;
+            const allowed = summary.training_allowed_sources?.includes(src);
+            const cls = allowed ? 'badge badge-deployed' : 'badge badge-default';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed #e2e8f0;">
+              <span style="font-size:13px;">${label}</span>
+              <span>${cnt.toLocaleString()} <span class="${cls}">${allowed ? '✓准入' : '✗排除'}</span></span>
+            </div>`;
+          }).join('');
+
+          const readyCls = summary.ready_for_training ? 'color: #16a34a; font-weight: 600;' : 'color: #dc2626; font-weight: 600;';
+          summaryHtml = `
+            <div class="alert-detail-section" style="border-top:3px solid #0ea5e9;">
+              <h4 style="color:#0369a1;">🔐 训练集准入状态审计 (严格工程师确认制)</h4>
+              <div class="info-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="info-item"><div class="info-label">严格准入规则</div><div class="info-value" style="color:#16a34a;font-size:14px;">${summary.strict_training_rule_enabled ? '✅ 已启用' : '❌ 未启用'}</div></div>
+                <div class="info-item"><div class="info-label">训练就绪状态</div><div class="info-value" style="${readyCls}">${summary.ready_for_training ? '✅ 已就绪' : `❌ 还需 ${(summary.min_required_samples - summary.total_allowed_samples)} 条确认样本`}</div></div>
+                <div class="info-item"><div class="info-label">准入样本数 (可训练)</div><div class="info-value" style="color:#16a34a;font-size:20px;">${summary.total_allowed_samples?.toLocaleString() || 0}</div></div>
+                <div class="info-item"><div class="info-label">未确认样本数 (排除)</div><div class="info-value" style="color:#64748b;font-size:20px;">${summary.total_unconfirmed_samples?.toLocaleString() || 0}</div></div>
+              </div>
+              <div style="margin-top:12px;">${sourceListHtml || '<div style="color:#94a3b8;font-size:13px;">暂无样本</div>'}</div>
+              <div style="margin-top:8px;font-size:11px;color:#94a3b8;">
+                说明：只有工程师人工确认来源(engineer_confirmed / engineer_relabeled)和冷启动种子样本可进入训练，原始历史传感器数据(raw_label)一律排除。
+              </div>
+            </div>`;
+        }
+
         content.innerHTML = `
           <div class="grid-2">
             <div>
               <div class="alert-detail-section">
-                <h4>总体指标</h4>
+                <h4>🧮 总体性能指标</h4>
                 <div class="info-grid">
-                  <div class="info-item"><div class="info-label">准确率</div><div class="info-value">${(testMetrics.accuracy * 100).toFixed(2)}%</div></div>
-                  <div class="info-item"><div class="info-label">F1分数</div><div class="info-value" style="color:#16a34a;font-size:20px;">${(testMetrics.f1_macro * 100).toFixed(2)}%</div></div>
-                  <div class="info-item"><div class="info-label">精确率</div><div class="info-value">${(testMetrics.precision_macro * 100).toFixed(2)}%</div></div>
-                  <div class="info-item"><div class="info-label">召回率</div><div class="info-value">${(testMetrics.recall_macro * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">准确率 Accuracy</div><div class="info-value" style="color:#2563eb;font-size:22px;">${(metrics.accuracy * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">F1分数 (宏平均)</div><div class="info-value" style="color:#16a34a;font-size:22px;">${(metrics.f1 * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">精确率 Precision</div><div class="info-value" style="font-size:18px;">${(metrics.precision * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">召回率 Recall</div><div class="info-value" style="font-size:18px;">${(metrics.recall * 100).toFixed(2)}%</div></div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#64748b;">
+                  模型版本：<strong style="color:#0f172a;">${detail.version}</strong> &nbsp;|&nbsp;
+                  部署时间：<strong style="color:#0f172a;">${detail.deployed_at ? new Date(detail.deployed_at).toLocaleString() : '未知'}</strong>
                 </div>
               </div>
               <div class="alert-detail-section">
-                <h4>分类别F1分数</h4>
+                <h4>📊 分类别 Precision / Recall / F1</h4>
                 <div id="perfClassChart" style="height:250px;"><canvas id="classF1Chart"></canvas></div>
               </div>
+              ${summaryHtml}
             </div>
             <div>
               <div class="alert-detail-section">
-                <h4>数据集信息</h4>
+                <h4>📚 训练数据集信息</h4>
                 <div class="info-grid">
-                  ${Object.entries(metrics.dataset_info || {}).map(([k, v]) => `
-                    <div class="info-item"><div class="info-label">${k}</div><div class="info-value" style="font-size:14px;">${typeof v === 'object' ? JSON.stringify(v) : v}</div></div>
-                  `).join('')}
+                  ${datasetInfoHtml || '<div style="color:#94a3b8;font-size:13px;grid-column:span 2;">暂无可展示的数据集信息</div>'}
                 </div>
               </div>
-              ${cmHtml}
+              <div class="alert-detail-section">
+                <h4>🏷️ 标签分布</h4>
+                <div id="labelDistChart" style="height:200px;"><canvas id="labelDistChartCanvas"></canvas></div>
+              </div>
+              ${cmHtml || '<div style="color:#94a3b8;font-size:13px;padding:16px;">混淆矩阵数据暂不可用</div>'}
+              <div class="alert-detail-section">
+                <h4>🌟 前10最重要特征</h4>
+                <div id="fiList">${detail.feature_importance_top?.slice(0, 10).map((fi, i) => `
+                  <div style="display:flex;align-items:center;padding:3px 0;border-bottom:1px dashed #e2e8f0;">
+                    <span style="width:24px;color:#64748b;font-size:12px;">${i + 1}.</span>
+                    <span style="flex:1;font-size:13px;font-family:monospace;">${fi.name}</span>
+                    <span style="width:80px;background:#dbeafe;border-radius:4px;padding:2px 6px;text-align:right;font-size:12px;">${(fi.importance * 100).toFixed(2)}%</span>
+                  </div>
+                `).join('') || '<div style="color:#94a3b8;font-size:13px;">暂无可展示的特征重要性</div>'}</div>
+              </div>
             </div>
           </div>
         `;
 
         setTimeout(() => {
-          new Chart(document.getElementById('classF1Chart'), {
-            type: 'bar',
-            data: {
-              labels: classes,
-              datasets: [
-                { label: '精确率', data: classes.map(c => (fpc[c] || 0) * 100), backgroundColor: '#2563eb' },
-                { label: '召回率', data: classes.map(c => (frc[c] || 0) * 100), backgroundColor: '#d97706' },
-                { label: 'F1分数', data: classes.map(c => (ffc[c] || 0) * 100), backgroundColor: '#16a34a' }
-              ]
-            },
-            options: {
-              responsive: true, maintainAspectRatio: false,
-              plugins: { legend: { position: 'bottom' } },
-              scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } }
-            }
-          });
+          const chartCtx = document.getElementById('classF1Chart');
+          if (chartCtx) {
+            new Chart(chartCtx, {
+              type: 'bar',
+              data: {
+                labels: classes,
+                datasets: [
+                  { label: 'Precision', data: classes.map(c => (fpc[c] || 0) * 100), backgroundColor: '#2563eb' },
+                  { label: 'Recall', data: classes.map(c => (frc[c] || 0) * 100), backgroundColor: '#d97706' },
+                  { label: 'F1', data: classes.map(c => (ffc[c] || 0) * 100), backgroundColor: '#16a34a' }
+                ]
+              },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } }
+              }
+            });
+          }
+          const ldCtx = document.getElementById('labelDistChartCanvas');
+          if (ldCtx && Object.keys(labelDist).length > 0) {
+            new Chart(ldCtx, {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(labelDist),
+                datasets: [{
+                  data: Object.values(labelDist),
+                  backgroundColor: ['#10b981', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6'].slice(0, Object.keys(labelDist).length)
+                }]
+              },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'right' } }
+              }
+            });
+          }
         }, 100);
-      } catch (e) {}
+      } catch (e) {
+        versionSpan.textContent = '加载失败';
+        versionSpan.className = 'badge badge-default';
+        content.innerHTML = `<div class="empty-state" style="color:#dc2626;"><div class="empty-icon">⚠️</div><h3>性能数据加载失败</h3><p>${e.message || '请确认服务是否正常'}</p></div>`;
+      }
     }
 
     function openTrainModal() {

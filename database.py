@@ -50,6 +50,30 @@ class ShiftRecord(Base):
     description = Column(Text)
 
 
+FEATURE_SOURCE_UNCONFIRMED = "historical_unconfirmed"
+FEATURE_SOURCE_ENGINEER_CONFIRMED = "engineer_confirmed"
+FEATURE_SOURCE_AUTO_LABELED = "auto_labeled_seed"
+FEATURE_SOURCE_RELABELED = "engineer_relabeled"
+FEATURE_SOURCE_VALID_SOURCES = [
+    FEATURE_SOURCE_UNCONFIRMED,
+    FEATURE_SOURCE_ENGINEER_CONFIRMED,
+    FEATURE_SOURCE_AUTO_LABELED,
+    FEATURE_SOURCE_RELABELED,
+]
+FEATURE_SOURCE_LABELS = {
+    FEATURE_SOURCE_UNCONFIRMED: "历史未确认(仅用于推理，不用于训练)",
+    FEATURE_SOURCE_ENGINEER_CONFIRMED: "工程师人工确认反馈",
+    FEATURE_SOURCE_AUTO_LABELED: "系统冷启动种子样本(仿真)",
+    FEATURE_SOURCE_RELABELED: "工程师改标后样本",
+}
+
+TRAINING_ALLOWED_SOURCES = [
+    FEATURE_SOURCE_ENGINEER_CONFIRMED,
+    FEATURE_SOURCE_AUTO_LABELED,
+    FEATURE_SOURCE_RELABELED,
+]
+
+
 class FeatureRecord(Base):
     __tablename__ = "feature_records"
 
@@ -60,7 +84,13 @@ class FeatureRecord(Base):
     features = Column(JSONB, nullable=False)
     data_version = Column(String(50), index=True)
     is_used_for_training = Column(Boolean, default=False)
+    label = Column(String(50))
+    source = Column(String(50), default=FEATURE_SOURCE_UNCONFIRMED, index=True)
+    feedback_id = Column(Integer, ForeignKey("feedback_records.id"), nullable=True, index=True)
+    confidence_label = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.now)
+
+    feedback = relationship("FeedbackRecord", backref="feature_records")
 
 
 class Alert(Base):

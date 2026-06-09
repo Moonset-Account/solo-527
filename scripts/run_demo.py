@@ -89,28 +89,42 @@ def main():
         print_stats(f"  标签[{label}]", f"{count:,}")
 
     # Step 4: 模型训练
-    step("Step 4: 训练异常检测模型")
+    step("Step 4: 训练异常检测模型 (严格工程师确认准入 + 冷启动种子样本)")
     trainer = AnomalyModelTrainer()
 
     X = features_df[feature_cols].copy()
     y = features_df['label'].copy()
 
-    sub_step("训练 Gradient Boosting 分类器")
+    sub_step("查看训练集准入状态概览")
+    summary = trainer.get_training_dataset_summary()
+    print_stats("总FeatureRecord数", f"{summary['total_feature_records']:,}")
+    print_stats("  历史未确认(不可训练)", f"{summary['total_unconfirmed_samples']:,}")
+    print_stats("  工程师确认(准入训练)", summary['total_allowed_samples'])
+    print_stats("严格准入规则", "已启用" if summary['strict_training_rule_enabled'] else "未启用")
+    print_stats("训练就绪", "是" if summary['ready_for_training'] else f"否 (还需{max(0, 15 - summary['total_allowed_samples'])}条)")
+
+    sub_step("训练 Gradient Boosting 分类器 (启用冷启动种子样本)")
     result = trainer.train(
         feature_df=X,
         label_series=y,
         model_type="gb",
         test_size=0.2,
         include_feedback=False,
-        description="演示系统初始训练 - 30天历史数据"
+        auto_seed_samples=True,
+        description="演示系统初始训练 - 严格准入制 + 冷启动种子"
     )
 
     model_version = result["model_version"]
     data_version = result["data_version"]
     test_metrics = result["test_metrics"]
+    dataset_info = result["dataset_info"]
 
     print_stats("模型版本", model_version)
     print_stats("数据版本", data_version)
+    if dataset_info:
+        print_stats("冷启动种子样本", dataset_info.get("seed_samples_generated", 0))
+        print_stats("工程师准入样本", dataset_info.get("total_allowed_from_db", 0))
+        print_stats("严格训练规则", "是" if dataset_info.get("strict_training_rule") else "否")
     print("\n  📊 测试集指标:")
     print_stats("    准确率 Accuracy", f"{test_metrics['accuracy']*100:.2f}%")
     print_stats("    精确率 Precision(Macro)", f"{test_metrics['precision_macro']*100:.2f}%")
@@ -158,8 +172,8 @@ def main():
     print_stats("新生成告警数", result_infer["total_new_alerts"])
 
     # Step 7: 告警查看与人工反馈
-    step("Step 7: 告警列表与人工确认模拟")
-    alerts, total = AlertManager.list_alerts(status=None, limit=20)
+    step("Step 7: 告警列表与人工确认模拟 (严格准入训练前置)")
+    alerts, total = AlertManager.list_alerts(status=None, limit=100)
     print_stats("总告警数", total)
 
     if alerts:
@@ -170,13 +184,14 @@ def main():
             print(f"    #{a['id']:<5}{a['equipment_id']:<12}{a['alert_type']:<14}"
                   f"{a['confidence']*100:.1f}%{'':<5}{a['status']}")
 
-        sub_step("模拟工程师对告警进行人工确认")
+        sub_step("模拟工程师对告警进行人工确认 (至少20条，满足准入训练阈值)")
         types_available = ["REAL_FAULT", "SENSOR_DRIFT", "FALSE_ALARM"]
         type_names = {"REAL_FAULT": "真实故障", "SENSOR_DRIFT": "传感器漂移", "FALSE_ALARM": "误报"}
 
+        target_count = max(20, min(30, len(alerts)))
         confirmed_ids = []
-        for i, a in enumerate(alerts[:6]):
-            feedback_type = types_available[i % 3]
+        for i, a in enumerate(alerts[:target_count]):
+            feedback_type = types_available[i % len(types_available)]
             note = f"工程师自动模拟反馈 - {type_names[feedback_type]}"
             AlertManager.submit_feedback(
                 alert_id=a['id'],
@@ -186,17 +201,26 @@ def main():
                 relabel_from=None
             )
             confirmed_ids.append(a['id'])
-            print_stats(f"  告警#{a['id']}", f"确认为 [{type_names[feedback_type]}]")
+            if (i + 1) % 10 == 0:
+                print_stats(f"  进度 {i+1}/{target_count}", "已提交工程师确认")
 
-        print(f"\n  共确认 {len(confirmed_ids)} 条告警")
+        print(f"\n  共确认 {len(confirmed_ids)} 条告警，已写入 FeatureRecord 标记 source=engineer_confirmed")
 
-        sub_step("查看反馈统计")
+        sub_step("查看反馈统计与训练准入状态")
         stats = AlertManager.get_feedback_statistics()
         print_stats("  总反馈数", stats["total_feedback"])
         for fb_type, count in stats["type_counts"].items():
             name = type_names.get(fb_type, fb_type)
             rate = stats["type_rates"].get(fb_type, 0) * 100
             print_stats(f"    {name}", f"{count} ({rate:.1f}%)")
+
+        summary_after = trainer.get_training_dataset_summary()
+        print_stats("  准入样本数 (engineer_confirmed + seed)", summary_after['total_allowed_samples'])
+        print_stats("  未确认样本数 (raw_label排除)", summary_after['total_unconfirmed_samples'])
+        print_stats("  训练就绪状态", "✅ 已就绪" if summary_after['ready_for_training'] else "❌ 未就绪")
+        for src, cnt in summary_after.get('by_source_count', {}).items():
+            allowed = src in summary_after.get('training_allowed_sources', [])
+            print_stats(f"    来源 [{src}]", f"{cnt} {'✓准入' if allowed else '✗排除'}")
 
     # Step 8: 重新训练 (包含反馈数据)
     step("Step 8: 增量训练 - 纳入人工反馈")

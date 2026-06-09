@@ -270,6 +270,183 @@ def list_models():
     return jsonify({"data": models})
 
 
+@app.route("/api/models/deployed/detail", methods=["GET"])
+def get_deployed_model_detail():
+    mm = _get_mlflow_manager()
+    trainer = _get_trainer()
+
+    deployed_version = None
+    deployed_ts = None
+    storage_path = None
+    deployed_path = os.path.join(Config.MODEL_DIR, "deployed")
+    metadata_file = os.path.join(deployed_path, "metadata.json")
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                deployed_version = meta.get("model_version")
+                deployed_ts = meta.get("deployed_at")
+                storage_path = meta.get("model_path")
+        except Exception:
+            pass
+
+    if not deployed_version:
+        versions = mm.list_model_versions()
+        if versions:
+            deployed_version = versions[0].get("version")
+            deployed_ts = versions[0].get("created_at")
+
+    if not deployed_version:
+        return jsonify({
+            "error": "No deployed model found",
+            "data": None
+        }), 404
+
+    model_detail = mm.get_model_detail(deployed_version)
+    test_metrics = {}
+    feature_importance_top = []
+    label_distribution = {}
+    dataset_info = {}
+    if model_detail:
+        test_metrics = model_detail.get("test_metrics", {}) or {}
+        feature_importance_top = model_detail.get("feature_importance_top", []) or []
+        label_distribution = model_detail.get("label_distribution", {}) or {}
+        dataset_info = model_detail.get("dataset_info", {}) or {}
+
+    required_metrics = ["accuracy", "precision", "recall", "f1"]
+    if not all(k in test_metrics for k in required_metrics):
+        metrics_file = os.path.join(Config.MODEL_DIR, f"mv_{deployed_version}", "metrics.json") if storage_path else None
+        if not metrics_file or not os.path.exists(metrics_file):
+            local_versions_dir = os.path.join(Config.MODEL_DIR)
+            import glob
+            candidates = glob.glob(os.path.join(local_versions_dir, "mv_*", "metrics.json"))
+            for cand in candidates:
+                if deployed_version in cand:
+                    metrics_file = cand
+                    break
+        if metrics_file and os.path.exists(metrics_file):
+            try:
+                with open(metrics_file, "r", encoding="utf-8") as f:
+                    saved_metrics = json.load(f)
+                    for k in required_metrics:
+                        if k in saved_metrics and k not in test_metrics:
+                            test_metrics[k] = saved_metrics[k]
+            except Exception:
+                pass
+
+    if not test_metrics.get("accuracy") and dataset_info:
+        ds = trainer.get_training_dataset_summary()
+        total = ds.get("total_allowed_samples", 0)
+        if total > 0:
+            test_metrics.setdefault("accuracy", 0.0)
+            test_metrics.setdefault("precision", 0.0)
+            test_metrics.setdefault("recall", 0.0)
+            test_metrics.setdefault("f1", 0.0)
+
+    return jsonify({
+        "data": {
+            "version": deployed_version,
+            "deployed_at": deployed_ts,
+            "model_path": storage_path,
+            "metrics": {
+                "accuracy": float(test_metrics.get("accuracy", 0.0)),
+                "precision": float(test_metrics.get("precision", 0.0)),
+                "recall": float(test_metrics.get("recall", 0.0)),
+                "f1": float(test_metrics.get("f1", 0.0)),
+                "per_class": test_metrics.get("per_class_precision_recall_f1", {}),
+                "confusion_matrix": test_metrics.get("confusion_matrix", []),
+                "classification_report": test_metrics.get("classification_report", {}),
+            },
+            "dataset_info": dataset_info,
+            "label_distribution": label_distribution,
+            "feature_importance_top": feature_importance_top,
+        }
+    })
+
+
+@app.route("/api/training-dataset-summary", methods=["GET"])
+def get_training_dataset_summary():
+    from database import (
+        Database, FeatureRecord, FeedbackRecord,
+        FEATURE_SOURCE_UNCONFIRMED, FEATURE_SOURCE_ENGINEER_CONFIRMED,
+        FEATURE_SOURCE_AUTO_LABELED, FEATURE_SOURCE_RELABELED,
+        TRAINING_ALLOWED_SOURCES
+    )
+    from sqlalchemy import func, case
+
+    session = Database.get_session()
+    try:
+        source_counts_raw = session.query(
+            FeatureRecord.source,
+            func.count(FeatureRecord.id)
+        ).group_by(FeatureRecord.source).all()
+        source_counts = {src: cnt for (src, cnt) in source_counts_raw}
+
+        label_counts_raw = session.query(
+            FeatureRecord.source,
+            FeatureRecord.label,
+            func.count(FeatureRecord.id)
+        ).filter(FeatureRecord.label != None).group_by(
+            FeatureRecord.source, FeatureRecord.label
+        ).all()
+        by_source_label = {}
+        for src, lbl, cnt in label_counts_raw:
+            by_source_label.setdefault(src, {})[lbl] = cnt
+
+        allowed_total = sum(source_counts.get(s, 0) for s in TRAINING_ALLOWED_SOURCES)
+        unconfirmed_total = source_counts.get(FEATURE_SOURCE_UNCONFIRMED, 0)
+
+        total_feedback = session.query(func.count(FeedbackRecord.id)).scalar() or 0
+
+        allowed_label_dist_raw = session.query(
+            FeatureRecord.label,
+            func.count(FeatureRecord.id)
+        ).filter(
+            FeatureRecord.source.in_(TRAINING_ALLOWED_SOURCES),
+            FeatureRecord.label != None
+        ).group_by(FeatureRecord.label).all()
+        allowed_label_dist = {lbl: cnt for (lbl, cnt) in allowed_label_dist_raw}
+
+        recent_timeline_raw = session.query(
+            func.date_trunc("day", FeatureRecord.created_at).label("day"),
+            FeatureRecord.source,
+            func.count(FeatureRecord.id)
+        ).group_by("day", FeatureRecord.source).order_by("day").limit(30).all()
+        timeline = []
+        for d, src, cnt in recent_timeline_raw:
+            timeline.append({
+                "date": d.isoformat() if hasattr(d, "isoformat") else str(d),
+                "source": src,
+                "count": cnt
+            })
+
+        return jsonify({
+            "data": {
+                "by_source_count": source_counts,
+                "by_source_label": by_source_label,
+                "training_allowed_sources": TRAINING_ALLOWED_SOURCES,
+                "training_unconfirmed_source": FEATURE_SOURCE_UNCONFIRMED,
+                "total_allowed_samples": allowed_total,
+                "total_unconfirmed_samples": unconfirmed_total,
+                "total_feature_records": sum(source_counts.values()),
+                "total_feedback_records": total_feedback,
+                "allowed_label_distribution": allowed_label_dist,
+                "strict_training_rule_enabled": True,
+                "ready_for_training": allowed_total >= 15,
+                "min_required_samples": 15,
+                "timeline_30d": timeline,
+                "source_explain": {
+                    FEATURE_SOURCE_UNCONFIRMED: "历史原始传感器数据生成，需要工程师人工确认后方可进入训练集",
+                    FEATURE_SOURCE_ENGINEER_CONFIRMED: "工程师在告警管理页确认的样本，已准入训练集",
+                    FEATURE_SOURCE_AUTO_LABELED: "冷启动阶段自动标注的种子样本，用于初始模型训练",
+                    FEATURE_SOURCE_RELABELED: "工程师对已有样本进行改标后的结果，已准入训练集"
+                }
+            }
+        })
+    finally:
+        session.close()
+
+
 @app.route("/api/models/<version>", methods=["GET"])
 def get_model_detail(version):
     mm = _get_mlflow_manager()
