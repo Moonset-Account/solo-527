@@ -32,4 +32,5 @@ class ModelVersion(Base):
     review_status = Column(String(20), default="pending")
     review_comment = Column(Text, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
+    audit_log = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

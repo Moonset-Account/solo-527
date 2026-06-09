@@ -49,11 +49,21 @@ class ModelVersionResponse(ModelVersionBase):
     is_active: bool = False
     is_rollback: bool = False
     rollback_from_version: Optional[str] = None
+    rollback_reason: Optional[str] = None
     model_file_path: Optional[str] = None
     created_by: Optional[int] = None
+    creator_name: Optional[str] = None
+    reviewed_by: Optional[int] = None
+    reviewer_name: Optional[str] = None
+    reviewer_id: Optional[int] = None
     review_status: str = "pending"
     review_comment: Optional[str] = None
     reviewed_at: Optional[datetime] = None
+    activated_at: Optional[datetime] = None
+    review_history: List[Dict[str, Any]] = []
+    audit_trail: List[Dict[str, Any]] = []
+    metrics: Optional[ModelMetrics] = None
+    feature_importance: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
 
     class Config:

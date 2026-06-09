@@ -14,11 +14,128 @@ from app.services.scoring_service import ScoringService
 from app.ml.lgb_trainer import LightGBMTrainer
 from app.ml.feature_engineer import FeatureEngineer
 from app.ml.inference_service import inference_service
+from app.models.user import User
 from app.schemas.model import ModelTrainRequest, ModelTrainResponse, RollbackRequest
 from app.schemas.business import DashboardResponse, DashboardKpiResponse
 
 
 class ModelService:
+    @staticmethod
+    def _user_id_to_name(db: Session, uid) -> str:
+        if not uid:
+            return ""
+        try:
+            u = db.query(User).filter(User.id == int(uid)).first()
+            return u.full_name or u.username if u else f"user#{uid}"
+        except Exception:
+            return str(uid)
+
+    @staticmethod
+    def _append_audit_log(mv: ModelVersion, action: str, user_id=None, comment: str = "", extra: Dict[str, Any] = None) -> None:
+        """每次审核/回滚/激活都追加一条历史，按时间顺序排列"""
+        import json
+        from sqlalchemy.orm.attributes import flag_modified
+        try:
+            existing = None
+            if isinstance(mv.audit_log, str):
+                try:
+                    existing = json.loads(mv.audit_log)
+                except Exception:
+                    existing = None
+            elif isinstance(mv.audit_log, list):
+                existing = mv.audit_log
+            if not isinstance(existing, list):
+                existing = []
+            entry = {
+                "action": action,
+                "status": action,
+                "timestamp": datetime.utcnow().isoformat(),
+                "time": datetime.utcnow().isoformat(),
+                "created_at": datetime.utcnow().isoformat(),
+                "user": f"user#{user_id}" if user_id else "",
+                "operator": f"user#{user_id}" if user_id else "",
+                "reviewer": f"user#{user_id}" if user_id else "",
+                "user_id": user_id,
+                "comment": comment or "",
+                "reason": comment or "",
+                "note": comment or "",
+            }
+            if isinstance(extra, dict):
+                for k, v in extra.items():
+                    if k not in entry or entry[k] in ("", None):
+                        entry[k] = v
+            existing.append(entry)
+            mv.audit_log = existing
+            try:
+                flag_modified(mv, "audit_log")
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[ModelService] 追加audit_log失败: {e}")
+
+    @staticmethod
+    def _serialize_mv(db: Session, mv: ModelVersion, version_map: Dict[str, Any] = None) -> Dict[str, Any]:
+        import json
+        history = []
+        if isinstance(mv.audit_log, str):
+            try:
+                history = json.loads(mv.audit_log)
+            except Exception:
+                history = []
+        elif isinstance(mv.audit_log, list):
+            history = mv.audit_log
+        for h in history:
+            uid = h.get("user_id") or h.get("reviewer") and str(h.get("reviewer")).replace("user#", "")
+            if uid and not str(uid).startswith("user#"):
+                try:
+                    name = ModelService._user_id_to_name(db, uid)
+                    for k in ("user", "operator", "reviewer"):
+                        if not h.get(k) or str(h[k]) == f"user#{uid}":
+                            h[k] = name
+                except Exception:
+                    pass
+        reviewed_name = ModelService._user_id_to_name(db, mv.reviewed_by) if mv.reviewed_by else ""
+        created_name = ModelService._user_id_to_name(db, mv.created_by) if mv.created_by else ""
+        item = {
+            "id": mv.id,
+            "version": mv.version,
+            "model_name": mv.model_name,
+            "description": mv.description,
+            "training_sample_count": mv.training_sample_count,
+            "training_date_range_start": mv.training_date_range_start.isoformat() if mv.training_date_range_start else None,
+            "training_date_range_end": mv.training_date_range_end.isoformat() if mv.training_date_range_end else None,
+            "metrics": {
+                "auc": mv.metrics_auc,
+                "accuracy": mv.metrics_accuracy,
+                "precision": mv.metrics_precision,
+                "recall": mv.metrics_recall,
+                "f1": mv.metrics_f1,
+                "ks": mv.metrics_ks,
+            },
+            "is_active": mv.is_active,
+            "is_rollback": mv.is_rollback,
+            "rollback_from_version": mv.rollback_from_version,
+            "rollback_reason": mv.review_comment if mv.is_rollback else None,
+            "review_status": mv.review_status,
+            "review_comment": mv.review_comment,
+            "reviewed_at": mv.reviewed_at.isoformat() if mv.reviewed_at else None,
+            "reviewed_by": mv.reviewed_by,
+            "reviewer_name": reviewed_name,
+            "reviewer_id": mv.reviewed_by,
+            "created_by": mv.created_by,
+            "creator_name": created_name,
+            "activated_at": mv.reviewed_at.isoformat() if (mv.is_active and mv.reviewed_at) else None,
+            "review_history": list(history),
+            "audit_trail": list(history),
+            "created_at": mv.created_at.isoformat() if mv.created_at else None,
+        }
+        if version_map and mv.version in version_map:
+            fs_info = version_map[mv.version]
+            fi = fs_info.get("metrics", {}).get("feature_importance", [])
+            if fi:
+                item["feature_importance"] = fi
+        return item
+
     @staticmethod
     def list_model_versions(db: Session) -> List[Dict[str, Any]]:
         trainer = LightGBMTrainer()
@@ -28,40 +145,15 @@ class ModelService:
         db_versions = db.query(ModelVersion).order_by(ModelVersion.created_at.desc()).all()
         result = []
         for mv in db_versions:
-            item = {
-                "id": mv.id,
-                "version": mv.version,
-                "model_name": mv.model_name,
-                "description": mv.description,
-                "training_sample_count": mv.training_sample_count,
-                "training_date_range_start": mv.training_date_range_start.isoformat() if mv.training_date_range_start else None,
-                "training_date_range_end": mv.training_date_range_end.isoformat() if mv.training_date_range_end else None,
-                "metrics": {
-                    "auc": mv.metrics_auc,
-                    "accuracy": mv.metrics_accuracy,
-                    "precision": mv.metrics_precision,
-                    "recall": mv.metrics_recall,
-                    "f1": mv.metrics_f1,
-                    "ks": mv.metrics_ks,
-                },
-                "is_active": mv.is_active,
-                "is_rollback": mv.is_rollback,
-                "rollback_from_version": mv.rollback_from_version,
-                "review_status": mv.review_status,
-                "review_comment": mv.review_comment,
-                "reviewed_at": mv.reviewed_at.isoformat() if mv.reviewed_at else None,
-                "created_by": mv.created_by,
-                "created_at": mv.created_at.isoformat() if mv.created_at else None,
-            }
-            if mv.version in version_map:
-                fs_info = version_map[mv.version]
-                item["feature_importance"] = fs_info.get("metrics", {}).get("feature_importance", [])
+            item = ModelService._serialize_mv(db, mv, version_map)
             result.append(item)
 
         for fv in fs_versions:
             if fv["version"] not in {m["version"] for m in result}:
                 fv["id"] = None
                 fv["review_status"] = "not_registered"
+                fv["review_history"] = fv.get("review_history", [])
+                fv["audit_trail"] = fv.get("audit_trail", [])
                 result.append(fv)
         return result
 
@@ -130,6 +222,11 @@ class ModelService:
             review_status="pending",
         )
         db.add(mv)
+        ModelService._append_audit_log(mv, "created", user_id=user_id,
+                                        comment=f"训练完成：{request.description or '无描述'}",
+                                        extra={"version": request.version,
+                                               "training_sample_count": metadata.get("training_sample_count", 0),
+                                               "metrics": metrics})
         db.commit()
         db.refresh(mv)
 
@@ -142,20 +239,29 @@ class ModelService:
         )
 
     @staticmethod
-    def activate_model(db: Session, version_id: int, user_id: Optional[int] = None) -> Optional[ModelVersion]:
+    def activate_model(db: Session, version_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
         if not mv:
             return None
+        previous_active = db.query(ModelVersion).filter(
+            and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
+        ).first()
         db.query(ModelVersion).filter(ModelVersion.is_active == True).update({ModelVersion.is_active: False})
+        if previous_active:
+            ModelService._append_audit_log(previous_active, "deactivated", user_id=user_id,
+                                           comment=f"被版本 {mv.version} 接替下线")
         mv.is_active = True
         mv.review_status = "approved"
         mv.reviewed_by = user_id
         mv.reviewed_at = datetime.utcnow()
+        ModelService._append_audit_log(mv, "approved", user_id=user_id,
+                                        comment="管理员手动激活上线",
+                                        extra={"is_active_change": True})
         db.commit()
         inference_service.set_active_version(mv.version)
         inference_service.clear_cache()
         db.refresh(mv)
-        return mv
+        return ModelService._serialize_mv(db, mv)
 
     @staticmethod
     def rollback_model(db: Session, request: RollbackRequest, user_id: Optional[int] = None) -> bool:
@@ -171,6 +277,9 @@ class ModelService:
 
         if current_active:
             current_active.is_active = False
+            ModelService._append_audit_log(current_active, "deactivated", user_id=user_id,
+                                            comment=f"因回滚操作下线，被版本 {target.version} 接替",
+                                            extra={"deactivate_reason": "rollback"})
         target.is_active = True
         target.is_rollback = True
         target.rollback_from_version = current_active.version if current_active else None
@@ -178,6 +287,11 @@ class ModelService:
         target.reviewed_by = user_id
         target.reviewed_at = datetime.utcnow()
         target.review_comment = f"回滚操作: {request.reason}"
+        ModelService._append_audit_log(target, "rollback", user_id=user_id,
+                                        comment=request.reason,
+                                        extra={"rollback_from": current_active.version if current_active else None,
+                                               "is_active_change": True,
+                                               "rollback_reason": request.reason})
         db.commit()
         inference_service.set_active_version(target.version)
         inference_service.clear_cache()
@@ -186,7 +300,7 @@ class ModelService:
     @staticmethod
     def review_model(
         db: Session, version_id: int, status: str, comment: str = "", user_id: Optional[int] = None
-    ) -> Optional[ModelVersion]:
+    ) -> Optional[Dict[str, Any]]:
         mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
         if not mv:
             return None
@@ -195,14 +309,35 @@ class ModelService:
         mv.reviewed_by = user_id
         mv.reviewed_at = datetime.utcnow()
         if status == "approved":
+            was_not_active = not mv.is_active
+            if was_not_active:
+                previous_active = db.query(ModelVersion).filter(
+                    and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
+                ).first()
+                db.query(ModelVersion).filter(
+                    and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
+                ).update({ModelVersion.is_active: False})
+                if previous_active:
+                    ModelService._append_audit_log(previous_active, "deactivated", user_id=user_id,
+                                                    comment=f"审核通过版本 {mv.version}，接替下线",
+                                                    extra={"deactivate_reason": "review_approved_switch"})
+                inference_service.set_active_version(mv.version)
             mv.is_active = True
-            db.query(ModelVersion).filter(
-                and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
-            ).update({ModelVersion.is_active: False})
-            inference_service.set_active_version(mv.version)
+            ModelService._append_audit_log(mv, "approved", user_id=user_id, comment=comment,
+                                            extra={"is_active_change": was_not_active})
+        elif status == "rejected":
+            was_active = mv.is_active
+            if was_active:
+                mv.is_active = False
+            ModelService._append_audit_log(mv, "rejected", user_id=user_id, comment=comment,
+                                            extra={"deactivated_by_reject": was_active})
+            if was_active:
+                inference_service.clear_cache()
+        else:
+            ModelService._append_audit_log(mv, "pending", user_id=user_id, comment=comment or "重新置为待审核")
         db.commit()
         db.refresh(mv)
-        return mv
+        return ModelService._serialize_mv(db, mv)
 
 
 class DashboardService:

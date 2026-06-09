@@ -59,7 +59,21 @@ def rollback_model(
     success = ModelService.rollback_model(db, request, current_user.id)
     if not success:
         raise HTTPException(status_code=400, detail="回滚失败，请检查目标版本是否存在")
-    return {"success": True, "message": f"已回滚到版本 {request.target_version}"}
+    target_mv = db.query(ModelVersion).filter(ModelVersion.version == request.target_version).first()
+    result = {
+        "success": True,
+        "message": f"已回滚到版本 {request.target_version}",
+        "target_version": request.target_version,
+        "reason": request.reason,
+    }
+    if target_mv:
+        from app.services.model_service import ModelService as _MS
+        detail = _MS._serialize_mv(db, target_mv) if hasattr(_MS, '_serialize_mv') else None
+        if detail:
+            result["version_detail"] = detail
+            result["review_history"] = detail.get("review_history", [])
+            result["audit_trail"] = detail.get("audit_trail", [])
+    return result
 
 
 @router.post("/versions/{version_id}/review", response_model=ModelVersionResponse)

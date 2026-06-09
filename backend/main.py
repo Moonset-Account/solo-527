@@ -12,7 +12,9 @@ from app.services.user_service import UserService
 from app.services.business_service import SmsStrategyService
 from app.services.data_import_service import DataImportService
 from app.schemas.user import UserCreate
+from app.schemas.data import DepartmentCreate
 from app.ml.lgb_trainer import LightGBMTrainer
+import traceback
 
 
 def init_database():
@@ -22,36 +24,48 @@ def init_database():
     try:
         admin = UserService.get_user_by_username(db, "admin")
         if not admin:
-            UserService.create_user(db, UserCreate(
-                username="admin",
-                email="admin@hospital.com",
-                password="admin123",
-                full_name="系统管理员",
-                role="admin",
-                is_active=True,
-            ))
+            try:
+                UserService.create_user(db, UserCreate(
+                    username="admin",
+                    email="admin@hospital.com",
+                    password="admin123",
+                    full_name="系统管理员",
+                    role="admin",
+                    is_active=True,
+                ))
+            except Exception as e:
+                print(f"[init] 创建 admin 用户失败: {e}")
         operator = UserService.get_user_by_username(db, "operator")
         if not operator:
-            UserService.create_user(db, UserCreate(
-                username="operator",
-                email="operator@hospital.com",
-                password="operator123",
-                full_name="运营人员",
-                role="operator",
-                is_active=True,
-            ))
+            try:
+                UserService.create_user(db, UserCreate(
+                    username="operator",
+                    email="operator@hospital.com",
+                    password="operator123",
+                    full_name="运营人员",
+                    role="operator",
+                    is_active=True,
+                ))
+            except Exception as e:
+                print(f"[init] 创建 operator 用户失败: {e}")
         ds = UserService.get_user_by_username(db, "datascientist")
         if not ds:
-            UserService.create_user(db, UserCreate(
-                username="datascientist",
-                email="ds@hospital.com",
-                password="ds123456",
-                full_name="数据科学家",
-                role="data_scientist",
-                is_active=True,
-            ))
+            try:
+                UserService.create_user(db, UserCreate(
+                    username="datascientist",
+                    email="ds@hospital.com",
+                    password="ds123456",
+                    full_name="数据科学家",
+                    role="data_scientist",
+                    is_active=True,
+                ))
+            except Exception as e:
+                print(f"[init] 创建 datascientist 用户失败: {e}")
 
-        SmsStrategyService.init_default_templates(db)
+        try:
+            SmsStrategyService.init_default_templates(db)
+        except Exception as e:
+            print(f"[init] 初始化短信模板失败: {e}")
 
         from app.models.department import Department
         if db.query(Department).count() == 0:
@@ -66,23 +80,42 @@ def init_database():
                 {"code": "GEN", "name": "全科", "default_no_show_rate": 14},
             ]
             for d in default_depts:
-                DataImportService.create_department(db, type('D', (), d)())
+                try:
+                    DataImportService.create_department(db, DepartmentCreate(**d))
+                except Exception as e:
+                    print(f"[init] 创建科室 {d.get('code')} 失败: {e}")
+    except Exception as e:
+        print(f"[init] 数据库初始化异常 (服务继续启动): {e}")
+        traceback.print_exc()
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            pass
 
 
 def init_model_storage():
-    os.makedirs(settings.MODEL_STORAGE_PATH, exist_ok=True)
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    db_dir = os.path.dirname(db_path)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
+    try:
+        os.makedirs(settings.MODEL_STORAGE_PATH, exist_ok=True)
+        db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+    except Exception as e:
+        print(f"[init] 存储目录初始化失败: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_model_storage()
-    init_database()
+    try:
+        init_model_storage()
+    except Exception as e:
+        print(f"[lifespan] 存储初始化异常 (忽略): {e}")
+    try:
+        init_database()
+    except Exception as e:
+        print(f"[lifespan] 数据库初始化异常 (忽略，服务继续启动): {e}")
+        traceback.print_exc()
     yield
     pass
 
