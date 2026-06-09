@@ -4,8 +4,10 @@
   "description": "社区热线诉求分拨助手模型工作台",
   "main": "src/server.js",
   "scripts": {
-    "boot": "node start.js",
-    "boot:prod": "node start.js prod",
+    "preboot": "node src/scripts/_createStartSh.js",
+    "boot": "node src/scripts/boot.js",
+    "preboot:prod": "node src/scripts/_createStartSh.js",
+    "boot:prod": "node src/scripts/boot.js prod",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "clean-data": "node src/scripts/clean-data.js",
