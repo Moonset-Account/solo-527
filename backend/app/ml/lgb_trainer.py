@@ -51,7 +51,9 @@ class LightGBMTrainer:
         self.version_info = {}
 
     def _version_dir(self, version: str) -> str:
-        return os.path.join(self.storage_path, f"v{version}")
+        version_str = str(version) if version is not None else ""
+        prefix = "" if (version_str.startswith("v") or version_str.startswith("V")) else "v"
+        return os.path.join(self.storage_path, f"{prefix}{version_str}")
 
     def train(
         self,
@@ -260,30 +262,31 @@ class LightGBMTrainer:
         return False
 
     def rollback_version(self, from_version: str, to_version: str) -> bool:
+        """严格模式：to_dir(目标版本模型目录)必须存在且可加载，才能回滚成功。
+        from_dir(源版本)不存在不阻断（因为可能是临时版本被清理）。"""
         from_dir = self._version_dir(from_version)
         to_dir = self._version_dir(to_version)
         rollback_dir = os.path.join(self.storage_path, f"rollback_from_{from_version}_to_{to_version}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
 
         if not os.path.exists(to_dir):
-            print(f"[rollback] 目标版本目录不存在 ({to_dir})，跳过文件系统快照，DB层版本切换仍可执行")
-            return True
-        if not os.path.exists(from_dir):
-            print(f"[rollback] 源版本目录不存在 ({from_dir})，仅为目标版本创建快照")
-            try:
-                shutil.copytree(to_dir, rollback_dir)
-                meta_path = os.path.join(rollback_dir, "metadata.json")
-                if os.path.exists(meta_path):
-                    with open(meta_path, "r", encoding="utf-8") as f:
-                        meta = json.load(f)
-                    meta["is_rollback"] = True
-                    meta["rollback_from_version"] = from_version
-                    meta["rollback_timestamp"] = datetime.utcnow().isoformat()
-                    with open(meta_path, "w", encoding="utf-8") as f:
-                        json.dump(meta, f, ensure_ascii=False, indent=2, default=str)
-                return True
-            except Exception as e:
-                print(f"Rollback (no-from-dir) error: {e}")
-                return True
+            print(f"[rollback][STRICT] 目标版本目录不存在 ({to_dir})，回滚失败")
+            return False
+
+        # 关键严格校验：尝试加载目标版本 Booster，确保文件可解
+        try:
+            model_file = os.path.join(to_dir, "model.lgb")
+            if not os.path.exists(model_file):
+                print(f"[rollback][STRICT] 目标版本 model.lgb 缺失 ({model_file})，回滚失败")
+                return False
+            probe = lgb.Booster(model_file=model_file)
+            if probe.num_model_per_iteration() is None:
+                pass  # 只要加载成功就行
+            del probe
+            print(f"[rollback][STRICT] 目标版本模型加载校验通过")
+        except Exception as e:
+            print(f"[rollback][STRICT] 目标版本模型文件损坏或不可加载: {e}")
+            return False
+
         try:
             shutil.copytree(to_dir, rollback_dir)
             meta_path = os.path.join(rollback_dir, "metadata.json")
@@ -297,5 +300,5 @@ class LightGBMTrainer:
                     json.dump(meta, f, ensure_ascii=False, indent=2, default=str)
             return True
         except Exception as e:
-            print(f"Rollback error: {e}")
-            return False
+            print(f"Rollback snapshot error (model is valid though): {e}")
+            return True

@@ -243,6 +243,10 @@ class ModelService:
         mv = db.query(ModelVersion).filter(ModelVersion.id == version_id).first()
         if not mv:
             return None
+        # ★ 严格前置校验：先加载模型，失败则不改 DB
+        if not inference_service.set_active_version(mv.version):
+            print(f"[activate_model] 模型 {mv.version} 加载失败，拒绝激活")
+            return None
         previous_active = db.query(ModelVersion).filter(
             and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
         ).first()
@@ -255,31 +259,42 @@ class ModelService:
         mv.reviewed_by = user_id
         mv.reviewed_at = datetime.utcnow()
         ModelService._append_audit_log(mv, "approved", user_id=user_id,
-                                        comment="管理员手动激活上线",
-                                        extra={"is_active_change": True})
+                                        comment="管理员手动激活上线（模型加载校验已通过）",
+                                        extra={"is_active_change": True, "model_loaded": True})
         db.commit()
-        inference_service.set_active_version(mv.version)
         inference_service.clear_cache()
         db.refresh(mv)
         return ModelService._serialize_mv(db, mv)
 
     @staticmethod
     def rollback_model(db: Session, request: RollbackRequest, user_id: Optional[int] = None) -> bool:
+        """★ 严格回滚：必须 ①目标版本模型文件存在且可加载 ②推理服务切版本成功，才改 DB/写留痕"""
         target = db.query(ModelVersion).filter(ModelVersion.version == request.target_version).first()
         current_active = db.query(ModelVersion).filter(ModelVersion.is_active == True).first()
 
         if not target:
+            print(f"[rollback_model] 目标版本 {request.target_version} 在 DB 中不存在")
             return False
 
+        # 前置校验 1：文件系统层 — 目标版本模型文件必须存在且可加载（lgb_trainer内已严格校验）
         trainer = LightGBMTrainer()
-        if not trainer.rollback_version(current_active.version if current_active else "unknown", request.target_version):
+        src_ver = current_active.version if current_active else "unknown"
+        if not trainer.rollback_version(src_ver, request.target_version):
+            print(f"[rollback_model] trainer.rollback_version 严格校验失败，回滚中止")
             return False
 
+        # 前置校验 2：推理服务层 — set_active_version 内部 load_model 必须返回 True
+        if not inference_service.set_active_version(request.target_version):
+            print(f"[rollback_model] 目标版本 {request.target_version} 推理服务加载失败，回滚中止")
+            return False
+
+        # ★ 以上两道前置校验全部通过，才开始写入 DB 状态变更 & 留痕
         if current_active:
             current_active.is_active = False
             ModelService._append_audit_log(current_active, "deactivated", user_id=user_id,
                                             comment=f"因回滚操作下线，被版本 {target.version} 接替",
-                                            extra={"deactivate_reason": "rollback"})
+                                            extra={"deactivate_reason": "rollback",
+                                                   "rollback_to_version": request.target_version})
         target.is_active = True
         target.is_rollback = True
         target.rollback_from_version = current_active.version if current_active else None
@@ -289,12 +304,13 @@ class ModelService:
         target.review_comment = f"回滚操作: {request.reason}"
         ModelService._append_audit_log(target, "rollback", user_id=user_id,
                                         comment=request.reason,
-                                        extra={"rollback_from": current_active.version if current_active else None,
+                                        extra={"rollback_from": src_ver,
                                                "is_active_change": True,
-                                               "rollback_reason": request.reason})
+                                               "rollback_reason": request.reason,
+                                               "model_loaded": True})
         db.commit()
-        inference_service.set_active_version(target.version)
         inference_service.clear_cache()
+        print(f"[rollback_model] ✅ 成功: {src_ver} → {request.target_version}")
         return True
 
     @staticmethod
@@ -310,7 +326,20 @@ class ModelService:
         mv.reviewed_at = datetime.utcnow()
         if status == "approved":
             was_not_active = not mv.is_active
+            # ★ 前置校验：approve 意味着要激活，必须先通过模型加载校验
             if was_not_active:
+                if not inference_service.set_active_version(mv.version):
+                    print(f"[review_model] 审核通过，但模型 {mv.version} 加载失败，保留 review_status='approved' 但不切 is_active")
+                    mv.review_status = "approved"
+                    mv.is_active = False
+                    failed_note = f" ⚠️ 审核通过但模型加载失败（文件缺失/损坏），请检查模型目录"
+                    mv.review_comment = (comment + failed_note) if comment else failed_note.strip()
+                    ModelService._append_audit_log(mv, "approved_pending_model", user_id=user_id,
+                                                    comment=(comment or "") + failed_note,
+                                                    extra={"model_load_failed": True})
+                    db.commit()
+                    db.refresh(mv)
+                    return ModelService._serialize_mv(db, mv)
                 previous_active = db.query(ModelVersion).filter(
                     and_(ModelVersion.id != version_id, ModelVersion.is_active == True)
                 ).first()
@@ -321,10 +350,9 @@ class ModelService:
                     ModelService._append_audit_log(previous_active, "deactivated", user_id=user_id,
                                                     comment=f"审核通过版本 {mv.version}，接替下线",
                                                     extra={"deactivate_reason": "review_approved_switch"})
-                inference_service.set_active_version(mv.version)
             mv.is_active = True
             ModelService._append_audit_log(mv, "approved", user_id=user_id, comment=comment,
-                                            extra={"is_active_change": was_not_active})
+                                            extra={"is_active_change": was_not_active, "model_loaded": True})
         elif status == "rejected":
             was_active = mv.is_active
             if was_active:

@@ -1,0 +1,42 @@
+{
+  "version": "v0.7.0-B",
+  "model_name": "LightGBM",
+  "created_at": "2026-06-09T22:18:05.030712",
+  "metrics": {
+    "auc": 0.85,
+    "accuracy": 0.82
+  },
+  "feature_importance": [
+    {
+      "feature": "f1",
+      "gain": 0.5
+    },
+    {
+      "feature": "f2",
+      "gain": 0.5
+    }
+  ],
+  "feature_columns": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11",
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16",
+    "f17"
+  ],
+  "is_rollback": true,
+  "rollback_from_version": "v0.9.0-A",
+  "rollback_timestamp": "2026-06-09T22:18:05.047292"
+}
