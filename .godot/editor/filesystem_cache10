@@ -48,9 +48,9 @@ SceneManager.gd::GDScript::1787007546511846708::1780976789::0::1::::<>Node<><>0<
 UIManager.gd::GDScript::8849016734201265840::1780977619::0::1::::<>Node<><>0<>0<><>::
 ::res://scripts/game/::1780977043
 DragController.gd::GDScript::6542874456372601061::1780979105::0::1::::DragController<>Node<><>0<>0<><>::
-GameController.gd::GDScript::3339453744035425209::1780979041::0::1::::GameController<>Node<><>0<>0<><>::
-GameRoot.gd::GDScript::1836938806142080239::1780979056::0::1::::<>Node2D<><>0<>0<><>::
-PackingBox.gd::GDScript::7448045783878356725::1780975323::0::1::::PackingBox<>StaticBody2D<><>0<>0<><>::
+GameController.gd::GDScript::3339453744035425209::1780979723::0::1::::GameController<>Node<><>0<>0<><>::
+GameRoot.gd::GDScript::1836938806142080239::1780979873::0::1::::<>Node2D<><>0<>0<><>::
+PackingBox.gd::GDScript::7448045783878356725::1780979804::0::1::::PackingBox<>StaticBody2D<><>0<>0<><>::
 PackingItem.gd::GDScript::1815107288253241431::1780978891::0::1::::PackingItem<>StaticBody2D<><>0<>0<><>::
 ScoreCalculator.gd::GDScript::6420928677855906098::1780976814::0::1::::ScoreCalculator<>Node<><>0<>0<><>::
 UndoSystem.gd::GDScript::5204340806769699833::1780978951::0::1::::UndoSystem<>Node<><>0<>0<><>::

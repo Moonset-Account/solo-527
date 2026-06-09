@@ -75,6 +75,7 @@ func _create_items() -> void:
     var spacing_x: float = 190.0
     var spacing_y: float = 180.0
     var per_row: int = 5
+    var created_count: int = 0
     for i in item_ids.size():
         var id: String = item_ids[i]
         var def: Dictionary = ResourceLoader_.get_item_def(id)
@@ -82,16 +83,18 @@ func _create_items() -> void:
             continue
         def["id"] = id
         var item: PackingItem = PackingItem.new()
-        var col: int = i % per_row
-        var row: int = int(i / per_row)
+        var col: int = created_count % per_row
+        var row: int = int(created_count / per_row)
         var pos: Vector2 = Vector2(start_x + col * spacing_x, start_y + row * spacing_y)
         item.setup(def, pos)
-        item.set_meta("undo_idx", i)
+        var actual_idx: int = all_items.size()
+        item.set_meta("undo_idx", actual_idx)
         if item.has_signal("item_broken"):
             item.item_broken.connect(_on_item_broken.bind(item))
         if item_layer:
             item_layer.add_child(item)
         all_items.append(item)
+        created_count += 1
 
 func _on_action(action: String, value: Variant) -> void:
     if action == "undo":

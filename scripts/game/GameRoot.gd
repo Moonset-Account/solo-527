@@ -54,8 +54,11 @@ func _show_pause_menu() -> void:
         var panel: Control = pause_panel_scene.instantiate()
         panel.name = "PauseMenu"
         add_child(panel)
-        if panel.has_method("open"):
-            panel.open()
+        call_deferred("_deferred_open_panel", panel)
+
+func _deferred_open_panel(panel: Control) -> void:
+    if is_instance_valid(panel) and panel.has_method("open"):
+        panel.open()
 
 func _hide_pause_menu() -> void:
     var existing = get_node_or_null("PauseMenu")
@@ -67,8 +70,11 @@ func _on_level_finished(result: Dictionary) -> void:
         var panel: Control = result_panel_scene.instantiate()
         panel.name = "ResultPanel"
         add_child(panel)
-        if panel.has_method("show_result"):
-            panel.show_result(result)
+        call_deferred("_deferred_show_result", panel, result)
+
+func _deferred_show_result(panel: Control, result: Dictionary) -> void:
+    if is_instance_valid(panel) and panel.has_method("show_result"):
+        panel.show_result(result)
 
 func _on_score_changed(new_score: int, stars: int) -> void:
     if hud and hud.has_method("update_score"):

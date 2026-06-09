@@ -85,14 +85,21 @@ func _build_visual() -> void:
 
 func _build_collision() -> void:
     collision_area = Area2D.new()
+    collision_area.name = "BoxDetectArea"
+    collision_area.collision_layer = 0
+    collision_area.collision_mask = 4 | 8
     var area_shape: CollisionShape2D = CollisionShape2D.new()
+    area_shape.name = "BoxAreaShape"
     var rect_shape: RectangleShape2D = RectangleShape2D.new()
     rect_shape.size = box_size
     area_shape.shape = rect_shape
     area_shape.position = Vector2.ZERO
     collision_area.add_child(area_shape)
-    collision_area.body_entered.connect(_on_body_entered)
-    collision_area.body_exited.connect(_on_body_exited)
+    if is_inside_tree():
+        collision_area.body_entered.connect(_on_area_body_entered)
+        collision_area.body_exited.connect(_on_area_body_exited)
+    else:
+        call_deferred("_connect_collision_signals")
     add_child(collision_area)
 
     var w: float = box_size.x * 0.5
@@ -124,11 +131,16 @@ func _build_collision() -> void:
     for wall in walls:
         add_child(wall)
 
-func _on_body_entered(body: Node) -> void:
+func _connect_collision_signals() -> void:
+    if collision_area and is_instance_valid(collision_area):
+        collision_area.body_entered.connect(_on_area_body_entered)
+        collision_area.body_exited.connect(_on_area_body_exited)
+
+func _on_area_body_entered(body: Node) -> void:
     if body is PackingItem:
         add_item(body)
 
-func _on_body_exited(body: Node) -> void:
+func _on_area_body_exited(body: Node) -> void:
     if body is PackingItem:
         remove_item(body)
 
