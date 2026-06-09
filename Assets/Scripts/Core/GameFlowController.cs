@@ -7,6 +7,7 @@ using DecorMatch3.Data;
 using DecorMatch3.UI;
 using DecorMatch3.Utils;
 using DecorMatch3.Progression;
+using DecorMatch3.Scenes;
 
 namespace DecorMatch3.GameFlow
 {
@@ -67,6 +68,7 @@ namespace DecorMatch3.GameFlow
         public void GoToMainMenu()
         {
             _currentState = PlayFlowState.MainMenu;
+            GameBootstrap.SwitchSceneController<MainMenuSceneController>();
             GameManager.Instance?.ChangeState(GameState.MainMenu);
             UIManager.Instance?.ChangeState(UIState.MainMenu);
             UIManager.Instance?.ShowTopBar(true);
@@ -115,6 +117,7 @@ namespace DecorMatch3.GameFlow
 
             _currentLevel = level;
             _currentState = PlayFlowState.Match3Level;
+            GameBootstrap.SwitchSceneController<Match3SceneController>();
             GameManager.Instance?.ChangeState(GameState.Match3Level);
             UIManager.Instance?.ChangeState(UIState.Match3);
         }
@@ -160,6 +163,7 @@ namespace DecorMatch3.GameFlow
             _currentOrder = order;
             _currentDecorationManager = new DecorationManager(order);
             _currentState = PlayFlowState.DecorationStudio;
+            GameBootstrap.SwitchSceneController<DecorationSceneController>();
             GameManager.Instance?.ChangeState(GameState.Decoration);
             UIManager.Instance?.ChangeState(UIState.Decoration);
         }

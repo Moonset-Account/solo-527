@@ -12,6 +12,7 @@ using DecorMatch3.UI;
 using DecorMatch3.Audio;
 using DecorMatch3.Data;
 using DecorMatch3.Progression;
+using DecorMatch3.GameFlow;
 
 namespace DecorMatch3.EditorTools
 {

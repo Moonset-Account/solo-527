@@ -408,7 +408,6 @@ namespace DecorMatch3.Scenes
                 () => {
                     _levelManager.QuitLevel();
                     GameFlowController.Instance?.GoToMainMenu();
-                    UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
                 });
         }
 
@@ -445,7 +444,7 @@ namespace DecorMatch3.Scenes
                     }
                     else
                     {
-                        UnityEngine.SceneManagement.SceneManager.LoadScene("Match3Level");
+                        GameFlowController.Instance?.StartLevel(_levelData.LevelId);
                     }
                 },
                 () => {
@@ -456,7 +455,6 @@ namespace DecorMatch3.Scenes
                     else
                     {
                         GameFlowController.Instance?.GoToMainMenu();
-                        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
                     }
                 });
         }

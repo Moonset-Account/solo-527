@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using DecorMatch3.Core;
 using DecorMatch3.UI;
 using DecorMatch3.Audio;
@@ -8,6 +9,8 @@ using DecorMatch3.Data;
 using DecorMatch3.Utils;
 using DecorMatch3.Animation;
 using DecorMatch3.VFX;
+using DecorMatch3.GameFlow;
+using DecorMatch3.Scenes;
 
 namespace DecorMatch3.Core
 {
@@ -49,6 +52,69 @@ namespace DecorMatch3.Core
             }
 
             Debug.Log("[GameBootstrap] All systems initialized successfully");
+        }
+
+        private IEnumerator Start()
+        {
+            yield return null;
+            EnsureCameraAndEventSystem();
+            EnsureFlowController();
+            yield return new WaitForSeconds(0.1f);
+            GameFlowController.Instance?.GoToMainMenu();
+        }
+
+        private void EnsureCameraAndEventSystem()
+        {
+            if (Camera.main == null)
+            {
+                GameObject camGO = new GameObject("Main Camera");
+                camGO.tag = "MainCamera";
+                Camera cam = camGO.AddComponent<Camera>();
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0.98f, 0.97f, 0.95f);
+                cam.orthographic = true;
+                AudioListener listener = camGO.GetComponent<AudioListener>();
+                if (listener == null) camGO.AddComponent<AudioListener>();
+            }
+
+            if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+            {
+                GameObject esGO = new GameObject("EventSystem");
+                esGO.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                esGO.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            }
+        }
+
+        private void EnsureFlowController()
+        {
+            if (GameFlowController.Instance == null)
+            {
+                GameObject fcGO = new GameObject("GameFlowController");
+                fcGO.transform.SetParent(transform);
+                fcGO.AddComponent<GameFlowController>();
+            }
+        }
+
+        private void EnterMainMenuScene()
+        {
+            SwitchSceneController<MainMenuSceneController>();
+            GameFlowController.Instance?.GoToMainMenu();
+        }
+
+        public static void SwitchSceneController<T>() where T : MonoBehaviour
+        {
+            GameObject root = GameObject.Find("SceneRoot");
+            if (root == null)
+            {
+                root = new GameObject("SceneRoot");
+            }
+            foreach (Transform child in root.transform)
+            {
+                Destroy(child.gameObject);
+            }
+            GameObject controllerGO = new GameObject(typeof(T).Name);
+            controllerGO.transform.SetParent(root.transform);
+            controllerGO.AddComponent<T>();
         }
 
         private void InitializeCoreSystems()
