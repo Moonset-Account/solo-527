@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "name": "校园开放日",
+    "level_id": "level_02_open_day",
+    "difficulty": "normal",
+    "description": "校园开放日：全员出动，完成多个任务点"
+  },
+  "map": {
+    "width": 10,
+    "height": 8,
+    "tile_size": 64,
+    "grid": [
+      [1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,1,0,0,0,0,1],
+      [1,0,0,0,1,0,0,0,0,1],
+      [1,0,0,0,0,0,0,1,0,1],
+      [1,0,0,1,0,0,0,1,0,1],
+      [1,0,0,1,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1]
+    ],
+    "tile_types": {
+      "0": {"name": "走廊", "walkable": true, "color": "#374151"},
+      "1": {"name": "墙壁", "walkable": false, "color": "#1f2937"}
+    }
+  },
+  "characters": [
+    {"id": "president", "start_x": 1, "start_y": 1},
+    {"id": "designer", "start_x": 2, "start_y": 1},
+    {"id": "marketer", "start_x": 1, "start_y": 6}
+  ],
+  "tasks": [
+    {
+      "id": "t_booth_1",
+      "type": "booth",
+      "name": "主展台搭建",
+      "x": 6, "y": 1,
+      "required_progress": 18,
+      "reward_satisfaction": 20,
+      "description": "搭建中心展示台"
+    },
+    {
+      "id": "t_booth_2",
+      "type": "booth",
+      "name": "装饰角",
+      "x": 2, "y": 4,
+      "required_progress": 12,
+      "reward_satisfaction": 12,
+      "description": "美化角落装饰"
+    },
+    {
+      "id": "t_promo_1",
+      "type": "promo",
+      "name": "正门宣传",
+      "x": 8, "y": 2,
+      "required_progress": 20,
+      "reward_satisfaction": 18,
+      "description": "校门口向访客宣传"
+    },
+    {
+      "id": "t_promo_2",
+      "type": "promo",
+      "name": "操场宣传",
+      "x": 5, "y": 6,
+      "required_progress": 15,
+      "reward_satisfaction": 15,
+      "description": "操场边派发传单"
+    },
+    {
+      "id": "t_reception_1",
+      "type": "reception",
+      "name": "签到处",
+      "x": 8, "y": 6,
+      "required_progress": 18,
+      "reward_satisfaction": 20,
+      "description": "嘉宾签到登记"
+    }
+  ],
+  "win_condition": {
+    "satisfaction_needed": 50,
+    "turn_limit": 12,
+    "task_completion_required": 3
+  },
+  "lose_condition": {
+    "satisfaction_min": -5,
+    "turn_exceeded": true
+  },
+  "events": [
+    {
+      "trigger": "turn_start",
+      "turn": 3,
+      "type": "event",
+      "title": "⚡ 随机事件：参观团来袭",
+      "content": "家长参观团提前到达！立刻需要接待！",
+      "choices": [
+        {
+          "text": "派专人接待（当前满意度-5，下回合接待+50%效率）",
+          "action": "temp_satisfaction",
+          "params": {"value": -5, "buff_type": "reception", "buff_value": 1.5, "buff_duration": 1}
+        },
+        {"text": "先不管，继续手头工作", "action": "close"}
+      ]
+    },
+    {
+      "trigger": "turn_start",
+      "turn": 6,
+      "type": "event",
+      "title": "🎁 随机事件：社团前辈",
+      "content": "毕业的社团前辈回来帮忙！",
+      "choices": [
+        {
+          "text": "请他帮忙宣传（所有宣传任务+8进度）",
+          "action": "boost_all_tasks",
+          "params": {"task_type": "promo", "value": 8}
+        },
+        {
+          "text": "请他帮忙布展（所有布展任务+8进度）",
+          "action": "boost_all_tasks",
+          "params": {"task_type": "booth", "value": 8}
+        }
+      ]
+    }
+  ],
+  "tutorial_hints": false
+}

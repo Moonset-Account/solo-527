@@ -1,0 +1,21 @@
+{
+  "balance": {
+    "move_ap_cost": 1,
+    "task_work_ap_cost": 1,
+    "default_satisfaction_start": 0,
+    "adjacency_bonus": 1.2,
+    "on_tile_bonus": 1.5,
+    "empty_turn_satisfaction_penalty": -2
+  },
+  "ui": {
+    "tile_size_default": 64,
+    "animation_duration_move": 0.3,
+    "animation_duration_work": 0.5,
+    "fade_duration_default": 0.3
+  },
+  "audio": {
+    "master_volume_default": 0.8,
+    "sfx_volume_default": 0.7,
+    "bgm_volume_default": 0.5
+  }
+}

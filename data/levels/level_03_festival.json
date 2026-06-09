@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "name": "文化节决战",
+    "level_id": "level_03_festival",
+    "difficulty": "hard",
+    "description": "最终挑战：全员上场，高难度文化节活动"
+  },
+  "map": {
+    "width": 12,
+    "height": 9,
+    "tile_size": 60,
+    "grid": [
+      [1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,1,1,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,1,0,0,0,0,1,0,0,1],
+      [1,0,0,1,0,0,0,0,1,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,1,1,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1]
+    ],
+    "tile_types": {
+      "0": {"name": "走廊", "walkable": true, "color": "#374151"},
+      "1": {"name": "墙壁", "walkable": false, "color": "#1f2937"}
+    }
+  },
+  "characters": [
+    {"id": "president", "start_x": 1, "start_y": 1},
+    {"id": "designer", "start_x": 2, "start_y": 1},
+    {"id": "marketer", "start_x": 1, "start_y": 7},
+    {"id": "receptionist", "start_x": 2, "start_y": 7}
+  ],
+  "tasks": [
+    {
+      "id": "t_booth_1",
+      "type": "booth",
+      "name": "文化主舞台",
+      "x": 5, "y": 2,
+      "required_progress": 25,
+      "reward_satisfaction": 25,
+      "description": "搭建文化节主舞台"
+    },
+    {
+      "id": "t_booth_2",
+      "type": "booth",
+      "name": "作品展示墙",
+      "x": 9, "y": 3,
+      "required_progress": 18,
+      "reward_satisfaction": 18,
+      "description": "布置社团作品展示"
+    },
+    {
+      "id": "t_promo_1",
+      "type": "promo",
+      "name": "东门宣传",
+      "x": 10, "y": 1,
+      "required_progress": 22,
+      "reward_satisfaction": 20,
+      "description": "东门人流宣传"
+    },
+    {
+      "id": "t_promo_2",
+      "type": "promo",
+      "name": "西门宣传",
+      "x": 1, "y": 4,
+      "required_progress": 22,
+      "reward_satisfaction": 20,
+      "description": "西门人流宣传"
+    },
+    {
+      "id": "t_promo_3",
+      "type": "promo",
+      "name": "广播宣传",
+      "x": 10, "y": 7,
+      "required_progress": 18,
+      "reward_satisfaction": 18,
+      "description": "广播站宣传活动"
+    },
+    {
+      "id": "t_reception_1",
+      "type": "reception",
+      "name": "主入口接待",
+      "x": 5, "y": 7,
+      "required_progress": 25,
+      "reward_satisfaction": 25,
+      "description": "主入口VIP嘉宾接待"
+    },
+    {
+      "id": "t_reception_2",
+      "type": "reception",
+      "name": "媒体接待",
+      "x": 9, "y": 5,
+      "required_progress": 18,
+      "reward_satisfaction": 22,
+      "description": "媒体记者专门接待"
+    }
+  ],
+  "win_condition": {
+    "satisfaction_needed": 90,
+    "turn_limit": 15,
+    "task_completion_required": 5
+  },
+  "lose_condition": {
+    "satisfaction_min": -10,
+    "turn_exceeded": true
+  },
+  "events": [
+    {
+      "trigger": "turn_start",
+      "turn": 2,
+      "type": "event",
+      "title": "🌧️ 突发事件：下雨",
+      "content": "突然下起了阵雨！户外宣传受影响...",
+      "choices": [
+        {"text": "把宣传任务转室内（满意度-3，宣传-20%效率2回合）", "action": "temp_satisfaction", "params": {"value": -3, "debuff_type": "promo", "debuff_value": 0.8, "debuff_duration": 2}},
+        {"text": "冒雨坚持（每回合-2满意度，共2回合）", "action": "delayed_satisfaction", "params": {"value": -2, "duration": 2}}
+      ]
+    },
+    {
+      "trigger": "turn_start",
+      "turn": 5,
+      "type": "event",
+      "title": "🎤 事件：校长参观",
+      "content": "校长即将率队参观社团！",
+      "choices": [
+        {"text": "集中做好接待（3回合内接待+100%效率）", "action": "buff_task_type", "params": {"task_type": "reception", "value": 2.0, "duration": 3}},
+        {"text": "集中做好宣传（3回合内宣传+100%效率）", "action": "buff_task_type", "params": {"task_type": "promo", "value": 2.0, "duration": 3}}
+      ]
+    },
+    {
+      "trigger": "turn_start",
+      "turn": 9,
+      "type": "event",
+      "title": "📸 事件：新闻采访",
+      "content": "校园电视台来采访！机会难得！",
+      "choices": [
+        {
+          "text": "直播宣传（立即+15满意度，所有宣传任务+5进度）",
+          "action": "satisfaction_and_boost",
+          "params": {"satisfaction": 15, "task_type": "promo", "boost": 5}
+        },
+        {
+          "text": "展示成果（立即+12满意度，所有布展任务+6进度）",
+          "action": "satisfaction_and_boost",
+          "params": {"satisfaction": 12, "task_type": "booth", "boost": 6}
+        }
+      ]
+    },
+    {
+      "trigger": "turn_start",
+      "turn": 12,
+      "type": "event",
+      "title": "🎉 事件：高潮时刻",
+      "content": "文化节进入最高潮！最后的冲刺！",
+      "choices": [
+        {"text": "全员冲刺（全员AP+2，立即+10满意度）", "action": "final_spurt", "params": {"ap": 2, "satisfaction": 10}}
+      ]
+    }
+  ],
+  "tutorial_hints": false
+}

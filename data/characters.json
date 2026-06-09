@@ -1,0 +1,212 @@
+{
+  "meta": {
+    "name": "角色配置",
+    "version": "1.0",
+    "description": "所有可用社团成员的能力数值"
+  },
+  "characters": [
+    {
+      "id": "president",
+      "name": "林会长",
+      "title": "社团会长",
+      "color": "#fbbf24",
+      "portrait_emoji": "👨‍💼",
+      "max_ap": 4,
+      "move_range": 3,
+      "stats": {
+        "booth": 3,
+        "promo": 4,
+        "reception": 5
+      },
+      "skills": [
+        {
+          "id": "inspire",
+          "name": "激励演讲",
+          "ap_cost": 1,
+          "cooldown": 2,
+          "range": 2,
+          "target": "ally",
+          "description": "恢复范围内友方1点行动点",
+          "effect": "restore_ap",
+          "value": 1
+        },
+        {
+          "id": "fast_arrange",
+          "name": "高效布置",
+          "ap_cost": 2,
+          "cooldown": 3,
+          "range": 0,
+          "target": "self",
+          "description": "立刻完成当前位置的布展任务",
+          "effect": "complete_booth",
+          "value": 1
+        },
+        {
+          "id": "leadership",
+          "name": "领导光环",
+          "ap_cost": 2,
+          "cooldown": 3,
+          "range": 3,
+          "target": "area_ally",
+          "description": "本回合内范围内友方全属性+2",
+          "effect": "buff_all_stats",
+          "value": 2,
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "id": "designer",
+      "name": "苏设计",
+      "title": "美术设计",
+      "color": "#f472b6",
+      "portrait_emoji": "👩‍🎨",
+      "max_ap": 3,
+      "move_range": 2,
+      "stats": {
+        "booth": 7,
+        "promo": 3,
+        "reception": 2
+      },
+      "skills": [
+        {
+          "id": "perfect_design",
+          "name": "完美设计",
+          "ap_cost": 1,
+          "cooldown": 2,
+          "range": 0,
+          "target": "self",
+          "description": "下一次布展效果翻倍",
+          "effect": "double_booth_next",
+          "value": 2,
+          "duration": 2
+        },
+        {
+          "id": "poster_blast",
+          "name": "海报攻势",
+          "ap_cost": 2,
+          "cooldown": 3,
+          "range": 3,
+          "target": "tile",
+          "description": "在目标位置放置宣传海报，每回合+3满意度",
+          "effect": "spawn_poster",
+          "value": 3,
+          "duration": 3
+        },
+        {
+          "id": "artistic_flow",
+          "name": "艺术灵感",
+          "ap_cost": 0,
+          "cooldown": 4,
+          "range": 0,
+          "target": "self",
+          "description": "回复2点行动点",
+          "effect": "restore_ap",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "marketer",
+      "name": "陈宣传",
+      "title": "宣传专员",
+      "color": "#60a5fa",
+      "portrait_emoji": "📣",
+      "max_ap": 5,
+      "move_range": 4,
+      "stats": {
+        "booth": 2,
+        "promo": 7,
+        "reception": 3
+      },
+      "skills": [
+        {
+          "id": "shout",
+          "name": "大声吆喝",
+          "ap_cost": 1,
+          "cooldown": 1,
+          "range": 2,
+          "target": "tile",
+          "description": "目标宣传任务立即+5进度",
+          "effect": "boost_promo",
+          "value": 5
+        },
+        {
+          "id": "flyer",
+          "name": "传单雨",
+          "ap_cost": 2,
+          "cooldown": 2,
+          "range": 3,
+          "target": "area",
+          "description": "3x3范围宣传任务各+3进度，+2满意度",
+          "effect": "area_promo_satisfaction",
+          "promo_value": 3,
+          "satisfaction_value": 2
+        },
+        {
+          "id": "network",
+          "name": "人脉网络",
+          "ap_cost": 2,
+          "cooldown": 4,
+          "range": 0,
+          "target": "self",
+          "description": "获得额外3点行动力（本回合）",
+          "effect": "gain_ap",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": "receptionist",
+      "name": "周接待",
+      "title": "接待员",
+      "color": "#34d399",
+      "portrait_emoji": "🤝",
+      "max_ap": 3,
+      "move_range": 3,
+      "stats": {
+        "booth": 2,
+        "promo": 3,
+        "reception": 8
+      },
+      "skills": [
+        {
+          "id": "warm_smile",
+          "name": "温暖微笑",
+          "ap_cost": 1,
+          "cooldown": 1,
+          "range": 1,
+          "target": "tile",
+          "description": "目标接待任务+6进度，+2满意度",
+          "effect": "boost_reception",
+          "value": 6,
+          "satisfaction_value": 2
+        },
+        {
+          "id": "team_morale",
+          "name": "团队士气",
+          "ap_cost": 2,
+          "cooldown": 3,
+          "range": 3,
+          "target": "area_ally",
+          "description": "范围内所有友方回复1点行动点，+3满意度",
+          "effect": "party_restore_ap_satisfaction",
+          "ap_value": 1,
+          "satisfaction_value": 3
+        },
+        {
+          "id": "vip_guest",
+          "name": "贵宾到来",
+          "ap_cost": 3,
+          "cooldown": 5,
+          "range": 0,
+          "target": "self",
+          "description": "立即+10满意度，所有接待任务+3进度",
+          "effect": "vip_boost",
+          "satisfaction_value": 10,
+          "reception_value": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "name": "教程关卡",
+    "level_id": "level_01_tutorial",
+    "difficulty": "easy",
+    "description": "新手教程：学习基本操作，完成第一个社团活动日"
+  },
+  "map": {
+    "width": 8,
+    "height": 6,
+    "tile_size": 64,
+    "grid": [
+      [1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1]
+    ],
+    "tile_types": {
+      "0": {"name": "走廊", "walkable": true, "color": "#374151"},
+      "1": {"name": "墙壁", "walkable": false, "color": "#1f2937"}
+    }
+  },
+  "characters": [
+    {"id": "president", "start_x": 1, "start_y": 1},
+    {"id": "designer", "start_x": 2, "start_y": 1}
+  ],
+  "tasks": [
+    {
+      "id": "t_booth_1",
+      "type": "booth",
+      "name": "活动展板",
+      "x": 5, "y": 2,
+      "required_progress": 10,
+      "reward_satisfaction": 15,
+      "description": "搭建漂亮的活动展板"
+    },
+    {
+      "id": "t_promo_1",
+      "type": "promo",
+      "name": "派发传单",
+      "x": 6, "y": 3,
+      "required_progress": 12,
+      "reward_satisfaction": 12,
+      "description": "向路人派发活动传单"
+    },
+    {
+      "id": "t_reception_1",
+      "type": "reception",
+      "name": "嘉宾接待处",
+      "x": 4, "y": 4,
+      "required_progress": 8,
+      "reward_satisfaction": 10,
+      "description": "迎接前来的嘉宾"
+    }
+  ],
+  "win_condition": {
+    "satisfaction_needed": 30,
+    "turn_limit": 10,
+    "task_completion_required": 2
+  },
+  "lose_condition": {
+    "satisfaction_min": -5,
+    "turn_exceeded": true
+  },
+  "events": [
+    {
+      "trigger": "turn_start",
+      "turn": 1,
+      "type": "dialog",
+      "title": "📚 教程 - 回合开始",
+      "content": "欢迎来到社团活动日！点击角色选中，再点击蓝色高亮格子移动。每个人每回合有固定行动点。",
+      "choices": [{"text": "我明白了", "action": "close"}]
+    },
+    {
+      "trigger": "turn_start",
+      "turn": 2,
+      "type": "dialog",
+      "title": "📚 教程 - 执行任务",
+      "content": "移动到任务格子旁边或站在任务上，点击任务按钮即可开始工作！不同角色擅长不同任务。",
+      "choices": [{"text": "开始工作", "action": "close"}]
+    },
+    {
+      "trigger": "task_completed",
+      "task_type": "any",
+      "type": "dialog",
+      "title": "🎉 任务完成！",
+      "content": "第一个任务完成了！满意度上升！继续完成其他任务吧。按 E 键或结束回合按钮进入下一回合。",
+      "choices": [{"text": "继续加油", "action": "close"}]
+    }
+  ],
+  "tutorial_hints": true
+}

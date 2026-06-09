@@ -1,0 +1,30 @@
+{
+  "levels": [
+    {
+      "level_id": "level_01_tutorial",
+      "name": "新手教程",
+      "description": "学习基础操作",
+      "file": "res://data/levels/level_01_tutorial.json",
+      "difficulty": 1,
+      "unlocked_by_default": true
+    },
+    {
+      "level_id": "level_02_open_day",
+      "name": "校园开放日",
+      "description": "三人小队挑战",
+      "file": "res://data/levels/level_02_open_day.json",
+      "difficulty": 2,
+      "unlocked_by_default": false,
+      "unlock_condition": "level_01_tutorial"
+    },
+    {
+      "level_id": "level_03_festival",
+      "name": "文化节决战",
+      "description": "全员高难度",
+      "file": "res://data/levels/level_03_festival.json",
+      "difficulty": 3,
+      "unlocked_by_default": false,
+      "unlock_condition": "level_02_open_day"
+    }
+  ]
+}
