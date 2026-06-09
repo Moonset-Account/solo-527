@@ -38,6 +38,8 @@ export default function SandboxScene() {
   const currentLevelId = useGameStore((s: any) => s.currentLevelId);
   const setScene = useGameStore((s: any) => s.setScene);
   const setResultPayload = useGameStore((s: any) => s.setResultPayload);
+  const setLastCircuitSnapshot = useGameStore((s: any) => s.setLastCircuitSnapshot);
+  const lastCircuitSnapshot = useGameStore((s: any) => s.lastCircuitSnapshot);
   const updateProgress = useGameStore((s: any) => s.updateProgress);
   const updateAnalytics = useGameStore((s: any) => s.updateAnalytics);
   const pushNotification = useUINotificationStore((s: any) => s.pushNotification);
@@ -131,27 +133,68 @@ export default function SandboxScene() {
     }
   }, [levelConfig]);
 
-  // === Load preplaced components (level start) ===
+  // === A. 关卡模式：加载预置元件（currentLevelId 变化时触发） ===
   useEffect(() => {
     levelStartTimeRef.current = Date.now();
-    if (levelConfig?.preplacedComponents && levelConfig.preplacedComponents.length > 0) {
-      loadCircuit({
-        components: JSON.parse(JSON.stringify(levelConfig.preplacedComponents)),
-        wires: [],
-      });
-    } else {
-      clearAll();
-    }
+
     if (currentLevelId) {
+      // 关卡模式：加载预置
+      if (levelConfig?.preplacedComponents && levelConfig.preplacedComponents.length > 0) {
+        loadCircuit({
+          components: JSON.parse(JSON.stringify(levelConfig.preplacedComponents)),
+          wires: [],
+        });
+      } else {
+        clearAll();
+      }
       dataRecorderRef.current.startLevel(currentLevelId);
       updateAnalytics((a: any) => {
         a.levelsAttempted[currentLevelId] = (a.levelsAttempted[currentLevelId] ?? 0) + 1;
       });
+      setTutorialStep(0);
+      setTutorialVisible(tutorialSteps.length > 0 && showTutorial);
     }
-    setTutorialStep(0);
-    setTutorialVisible(tutorialSteps.length > 0 && showTutorial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLevelId, levelConfig]);
+
+  // === B. 自由模式：打开已保存方案（仅当 lastCircuitSnapshot 非空且切换到场景时触发） ===
+  useEffect(() => {
+    if (!currentLevelId && lastCircuitSnapshot) {
+      levelStartTimeRef.current = Date.now();
+      const snap = JSON.parse(JSON.stringify(lastCircuitSnapshot));
+      // 端口标准化兜底
+      snap.components = snap.components.map((raw: any) => {
+        if (raw.ports && raw.ports.length) {
+          raw.ports.forEach((p: any, idx: number) => {
+            p.id = `${raw.id}:${idx}`;
+            p.componentId = raw.id;
+            if (!p.localOffset && p.localOffset === undefined) {
+              // 退化：尝试从工厂生成本地偏移
+              try {
+                const def = library.createComponentInstance(raw.type, { x: 0, y: 0 }, 0);
+                p.localOffset = def.ports[idx]?.localOffset ?? { x: 0, y: 0 };
+              } catch {
+                p.localOffset = { x: 0, y: 0 };
+              }
+            }
+          });
+        }
+        // properties 补充 type 判别
+        if (raw.properties && raw.properties.type === undefined) {
+          raw.properties.type = raw.type;
+        }
+        return raw;
+      });
+      loadCircuit(snap);
+      pushNotification('📂 已加载方案', 'info', 2000);
+      // 消费掉快照
+      setTimeout(() => useGameStore.getState().setLastCircuitSnapshot(null), 50);
+    } else if (!currentLevelId && !lastCircuitSnapshot) {
+      // 自由模式空白进入
+      clearAll();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastCircuitSnapshot]);
 
   // === Auto sync wire system ===
   useEffect(() => {
@@ -260,6 +303,12 @@ export default function SandboxScene() {
 
       const distribution: Record<string, number> = {};
       failuresByLevel.failureBreakdown && Object.entries(failuresByLevel.failureBreakdown).forEach(([k,v]) => distribution[k]=v);
+      // 保存电路快照，结算页可用于保存方案
+      setLastCircuitSnapshot({
+        components: JSON.parse(JSON.stringify(components)),
+        wires: JSON.parse(JSON.stringify(wires)),
+      });
+
       const payload: ResultPayload = {
         timeSpent,
         stars,

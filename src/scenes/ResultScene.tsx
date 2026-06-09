@@ -11,12 +11,15 @@ import {
   XCircle,
   RefreshCw,
   Home,
+  Download,
+  Copy,
 } from 'lucide-react';
 import useGameStore, { type ResultPayload } from '@/store/useGameStore';
 import useUIStore from '@/store/useUIStore';
+import { useSandboxStore } from '@/core/UIStateStore';
 import AudioTrigger from '@/core/AudioTrigger';
 import { getLevelById, getNextLevelId } from '@/data/levelData';
-import type { SavedCircuit } from '@/game/types';
+import type { SavedCircuit, CircuitData } from '@/game/types';
 
 interface SceneProps {
   onEnter?: () => void;
@@ -41,6 +44,18 @@ const errorLabels: Record<string, string> = {
   other: '其他',
 };
 
+function downloadJSON(obj: any, filename: string) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function ResultScene({ onEnter, onExit }: SceneProps) {
   const {
     currentLevelId,
@@ -48,6 +63,7 @@ export default function ResultScene({ onEnter, onExit }: SceneProps) {
     setScene,
     setCurrentLevel,
     saveCircuit,
+    lastCircuitSnapshot,
   } = useGameStore();
   const { pushNotification } = useUIStore();
   const [starsAnimated, setStarsAnimated] = useState(false);
@@ -108,8 +124,23 @@ export default function ResultScene({ onEnter, onExit }: SceneProps) {
     setScene('sandbox');
   };
 
+  const getCircuitData = (): CircuitData => {
+    if (lastCircuitSnapshot && lastCircuitSnapshot.components.length > 0) {
+      return lastCircuitSnapshot;
+    }
+    const sandboxState = useSandboxStore.getState();
+    if (sandboxState.components.length > 0 || sandboxState.wires.length > 0) {
+      return {
+        components: sandboxState.components,
+        wires: sandboxState.wires,
+      };
+    }
+    return { components: [], wires: [] };
+  };
+
   const handleSaveCircuit = () => {
     audio.playClick();
+    const circuitData = getCircuitData();
     const newCircuit: SavedCircuit = {
       id: `circuit-${Date.now()}`,
       name: level
@@ -118,14 +149,83 @@ export default function ResultScene({ onEnter, onExit }: SceneProps) {
       levelId: currentLevelId || undefined,
       createdAt: Date.now(),
       thumbnail: '',
-      circuit: { components: [], wires: [] },
+      circuit: circuitData,
     };
     saveCircuit(newCircuit);
     pushNotification({
       type: 'success',
       title: '💾 方案已保存',
-      message: '当前电路方案已存入存档',
+      message: `当前电路方案已存入存档（${circuitData.components.length}元件 · ${circuitData.wires.length}导线）`,
     });
+  };
+
+  const handleDownloadJSON = () => {
+    audio.playClick();
+    const circuitData = getCircuitData();
+    const exportData: SavedCircuit & { schema: string } = {
+      id: `circuit-${Date.now()}`,
+      name: level
+        ? `${level.name} - ${new Date().toLocaleDateString()}`
+        : `方案 ${new Date().toLocaleString()}`,
+      levelId: currentLevelId || undefined,
+      createdAt: Date.now(),
+      thumbnail: '',
+      circuit: circuitData,
+      schema: 'circuit-lab/v1',
+    };
+    const { thumbnail, ...withoutThumbnail } = exportData;
+    downloadJSON(withoutThumbnail, `circuit-${Date.now()}.json`);
+    pushNotification({
+      type: 'success',
+      title: '📥 下载成功',
+      message: '电路JSON文件已下载',
+    });
+  };
+
+  const handleCopyClipboard = async () => {
+    audio.playClick();
+    const circuitData = getCircuitData();
+    const exportData = {
+      schema: 'circuit-lab/v1',
+      id: `circuit-${Date.now()}`,
+      name: level
+        ? `${level.name} - ${new Date().toLocaleDateString()}`
+        : `方案 ${new Date().toLocaleString()}`,
+      levelId: currentLevelId || undefined,
+      createdAt: Date.now(),
+      circuit: circuitData,
+    };
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    try {
+      await navigator.clipboard.writeText(jsonStr);
+      pushNotification({
+        type: 'success',
+        title: '📋 复制成功',
+        message: '电路JSON已复制到剪贴板，可分享给朋友导入',
+      });
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = jsonStr;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        pushNotification({
+          type: 'success',
+          title: '📋 复制成功',
+          message: '电路JSON已复制到剪贴板，可分享给朋友导入',
+        });
+      } catch {
+        pushNotification({
+          type: 'error',
+          title: '❌ 复制失败',
+          message: '请手动复制或使用下载功能',
+        });
+      }
+      document.body.removeChild(textarea);
+    }
   };
 
   const handleBackToLevels = () => {
@@ -351,7 +451,7 @@ export default function ResultScene({ onEnter, onExit }: SceneProps) {
             )}
           </div>
 
-          <div className="screw-border bg-circuit-panel rounded-lg p-5">
+          <div className="screw-border bg-circuit-panel rounded-lg p-5 space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 onClick={handleRetry}
@@ -396,6 +496,28 @@ export default function ResultScene({ onEnter, onExit }: SceneProps) {
               >
                 <Home size={24} />
                 <span>返回选关</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleDownloadJSON}
+                className="flex flex-col items-center gap-2 px-3 py-4 rounded border-2 border-purple-500/50
+                  bg-circuit-board hover:bg-purple-500/10 text-purple-400
+                  transition-all active:translate-y-[2px] font-pixel text-xs"
+              >
+                <Download size={24} />
+                <span>📥 下载 JSON</span>
+              </button>
+
+              <button
+                onClick={handleCopyClipboard}
+                className="flex flex-col items-center gap-2 px-3 py-4 rounded border-2 border-amber-500/50
+                  bg-circuit-board hover:bg-amber-500/10 text-amber-400
+                  transition-all active:translate-y-[2px] font-pixel text-xs"
+              >
+                <Copy size={24} />
+                <span>📋 复制到剪贴板</span>
               </button>
             </div>
           </div>

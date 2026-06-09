@@ -11,6 +11,7 @@ import {
   Star,
   Trophy,
   X,
+  FolderArchive,
 } from 'lucide-react';
 import useGameStore from '@/store/useGameStore';
 import useUIStore from '@/store/useUIStore';
@@ -45,7 +46,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
     return () => onExit?.();
   }, []);
 
-  const handleBtnClick = (scene: 'level-select' | 'sandbox' | 'settings') => {
+  const handleBtnClick = (scene: 'level-select' | 'sandbox' | 'settings' | 'saved-circuits') => {
     audio.playClick();
     if (scene === 'sandbox') {
       setCurrentLevel(null);
@@ -151,6 +152,8 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
     });
   };
 
+  const savedCircuitsCount = saveData.savedCircuits.length;
+
   const menuButtons = [
     {
       id: 'continue',
@@ -159,6 +162,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       disabled: !hasSave,
       onClick: handleContinue,
       color: 'current',
+      badge: 0,
     },
     {
       id: 'level',
@@ -166,6 +170,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       label: '关卡模式',
       onClick: () => handleBtnClick('level-select'),
       color: 'current',
+      badge: 0,
     },
     {
       id: 'sandbox',
@@ -173,6 +178,15 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       label: '自由模式',
       onClick: () => handleBtnClick('sandbox'),
       color: 'current',
+      badge: 0,
+    },
+    {
+      id: 'saved-circuits',
+      icon: FolderArchive,
+      label: '我的电路方案',
+      onClick: () => handleBtnClick('saved-circuits'),
+      color: 'current',
+      badge: savedCircuitsCount,
     },
     {
       id: 'settings',
@@ -180,6 +194,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       label: '设置',
       onClick: () => handleBtnClick('settings'),
       color: 'current',
+      badge: 0,
     },
     {
       id: 'stats',
@@ -187,6 +202,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       label: '数据统计',
       onClick: showStats,
       color: 'current',
+      badge: 0,
     },
     {
       id: 'reset',
@@ -194,6 +210,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
       label: '重置所有进度',
       onClick: handleReset,
       color: 'error',
+      badge: 0,
     },
   ];
 
@@ -326,7 +343,7 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
                   onMouseEnter={() => !btn.disabled && setHoveredBtn(btn.id)}
                   onMouseLeave={() => setHoveredBtn(null)}
                   className={`
-                    w-full flex items-center gap-4 px-5 py-4 rounded
+                    w-full flex items-center gap-4 px-5 py-4 rounded relative
                     border-2 ${borderColor}
                     bg-circuit-board/60 hover:bg-circuit-board
                     transition-all duration-150
@@ -338,12 +355,19 @@ export default function MenuScene({ onEnter, onExit }: SceneProps) {
                   <span className="flex-1 text-left font-pixel text-sm">
                     {btn.label}
                   </span>
+                  {btn.badge > 0 && (
+                    <span className="absolute top-2 right-2 min-w-[20px] h-5 px-1.5 flex items-center justify-center
+                      bg-circuit-error text-white text-xs font-pixel rounded-full
+                      shadow-[0_0_8px_rgba(248,113,113,0.6)]">
+                      {btn.badge > 99 ? '99+' : btn.badge}
+                    </span>
+                  )}
                   {hoveredBtn === btn.id && !btn.disabled && (
                     <ChevronRight
                       size={20}
                       className={`animate-pulse ${
                         isError ? 'text-circuit-error' : 'text-circuit-bulb'
-                      }`}
+                      } ${btn.badge > 0 ? 'mr-6' : ''}`}
                     />
                   )}
                 </button>

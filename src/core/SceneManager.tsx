@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import useGameStore, { type SceneId } from '@/store/useGameStore';
-import { MenuScene, LevelSelectScene, SettingsScene, ResultScene } from '@/scenes';
+import { MenuScene, LevelSelectScene, SettingsScene, ResultScene, SavedCircuitsScene } from '@/scenes';
 import SandboxScene from '@/scenes/SandboxScene';
 
 const sceneRegistry: Record<SceneId, React.ComponentType> = {
@@ -9,6 +9,7 @@ const sceneRegistry: Record<SceneId, React.ComponentType> = {
   sandbox: SandboxScene,
   settings: SettingsScene,
   result: ResultScene,
+  'saved-circuits': SavedCircuitsScene,
 };
 
 interface SceneManagerProps {}
