@@ -1,0 +1,85 @@
+[gd_scene load_steps=2 format=3 uid="uid://bresultpanel001"]
+
+[ext_resource type="Script" path="res://scripts/ui/ResultPanel.gd" id="1_result"]
+
+[node name="ResultPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_result")
+
+[node name="DarkOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.65)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -520.0
+offset_right = 380.0
+offset_bottom = 520.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 28
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "过关！"
+horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 70)
+
+[node name="StarsContainer" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 140)
+alignment = 1
+theme_override_constants/separation = 15
+
+[node name="ScoreLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "0 分"
+horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 80)
+
+[node name="SummaryLabel" type="RichTextLabel" parent="Panel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 220)
+bbcode_enabled = true
+fit_content = true
+size_flags_horizontal = 3
+
+[node name="ButtonsContainer" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 15
+alignment = 1
+
+[node name="RetryButton" type="Button" parent="Panel/VBox/ButtonsContainer"]
+layout_mode = 2
+text = "🔄 重试"
+
+[node name="NextButton" type="Button" parent="Panel/VBox/ButtonsContainer"]
+layout_mode = 2
+text = "➡️ 下一关"
+
+[node name="SelectButton" type="Button" parent="Panel/VBox/ButtonsContainer"]
+layout_mode = 2
+text = "📋 选关"
+
+[node name="MenuButton" type="Button" parent="Panel/VBox/ButtonsContainer"]
+layout_mode = 2
+text = "🏠 主菜单"

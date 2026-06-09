@@ -1,0 +1,109 @@
+[gd_scene load_steps=2 format=3 uid="uid://btutorial00001"]
+
+[ext_resource type="Script" path="res://scripts/ui/Tutorial.gd" id="1_tutorial"]
+
+[node name="Tutorial" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tutorial")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.96, 0.92, 0.85, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 50.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="BackButton" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "← 返回"
+
+[node name="TitleLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+text = "📖 游戏教程"
+size_flags_horizontal = 3
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="ContentContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 160.0
+offset_right = -60.0
+offset_bottom = -200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="ContentContainer"]
+layout_mode = 2
+theme_override_constants/separation = 40
+alignment = 1
+
+[node name="IconLabel" type="Label" parent="ContentContainer/VBox"]
+layout_mode = 2
+text = "📦"
+custom_minimum_size = Vector2(0, 160)
+horizontal_alignment = 1
+
+[node name="ContentLabel" type="RichTextLabel" parent="ContentContainer/VBox"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+size_flags_vertical = 3
+
+[node name="Pager" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -450.0
+offset_top = -160.0
+offset_right = 450.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="PrevButton" type="Button" parent="Pager"]
+layout_mode = 2
+text = "⬅ 上一页"
+
+[node name="PageIndicator" type="Label" parent="Pager"]
+layout_mode = 2
+text = "1 / 8"
+custom_minimum_size = Vector2(180, 0)
+horizontal_alignment = 1
+
+[node name="NextButton" type="Button" parent="Pager"]
+layout_mode = 2
+text = "下一页 ➡"
+
+[node name="StartButton" type="Button" parent="Pager"]
+layout_mode = 2
+text = "🎮 开始游戏"
+visible = false

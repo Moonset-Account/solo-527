@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="LevelDatabase" load_steps=2 format=3 uid="uid://bleveldatabase01"]
+
+[ext_resource type="Script" path="res://data/LevelDatabase.gd" id="1_ldb"]
+
+[resource]
+script = ExtResource("1_ldb")

@@ -1,0 +1,112 @@
+[gd_scene load_steps=2 format=3 uid="uid://bleaderboard001"]
+
+[ext_resource type="Script" path="res://scripts/ui/Leaderboard.gd" id="1_lb"]
+
+[node name="Leaderboard" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lb")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.94, 0.9, 0.84, 1)
+
+[node name="TopBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 50.0
+offset_right = -40.0
+offset_bottom = 130.0
+grow_horizontal = 2
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="BackButton" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "← 返回"
+
+[node name="TitleLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+text = "📊 排行榜"
+size_flags_horizontal = 3
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+
+[node name="PlayerBest" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 60.0
+offset_top = 155.0
+offset_right = -60.0
+offset_bottom = 200.0
+grow_horizontal = 2
+text = "你的最高分: 0"
+horizontal_alignment = 2
+
+[node name="TabContainer" type="TabContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 220.0
+offset_right = -40.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 2
+tab_alignment = 1
+
+[node name="LevelTab" type="VBoxContainer" parent="TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="LevelSelector" type="OptionButton" parent="TabContainer/LevelTab"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+
+[node name="Scroll" type="ScrollContainer" parent="TabContainer/LevelTab"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="List" type="VBoxContainer" parent="TabContainer/LevelTab/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="DailyTab" type="VBoxContainer" parent="TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="DailyStatus" type="Label" parent="TabContainer/DailyTab"]
+layout_mode = 2
+text = "今日挑战尚未完成"
+horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 50)
+
+[node name="Scroll2" type="ScrollContainer" parent="TabContainer/DailyTab"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="List" type="VBoxContainer" parent="TabContainer/DailyTab/Scroll2"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
