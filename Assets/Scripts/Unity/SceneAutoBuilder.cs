@@ -799,10 +799,35 @@ namespace BalloonPost.Unity
                 return;
             }
             if (Game?.Planner == null) return;
-            bool ok = Game.Planner.TryRerouteAfterStep(_lockStepIndex - 1, _newRerouteTarget.Value);
+
+            int turnBefore = Game.TurnsElapsed;
+            int fuelBefore = Game.Player.Fuel;
+            int stepsBefore = Game.Planner.CurrentPlan.Steps.Count;
+
+            bool ok = Game.Planner.TryRerouteAfterStep(
+                _lockStepIndex - 1,
+                _newRerouteTarget.Value,
+                () =>
+                {
+                    Game.TurnsElapsed += RoutePlanner.RerouteTimePenalty;
+                    foreach (var c in Game.ContractManager.ActiveContracts)
+                    {
+                        if (c.TurnsRemaining != int.MaxValue)
+                            c.TurnsRemaining = Math.Max(0, c.TurnsRemaining - RoutePlanner.RerouteTimePenalty);
+                    }
+                });
+
             if (ok)
             {
-                LogMessage($"✅ 改路线成功！保留前{_lockStepIndex}步 → 新目标{_newRerouteTarget.Value}（扣1时间2燃料）");
+                int turnDelta = Game.TurnsElapsed - turnBefore;
+                int fuelDelta = fuelBefore - Game.Player.Fuel;
+                int stepDelta = Game.Planner.CurrentPlan.Steps.Count - stepsBefore;
+                LogMessage($"✅ 改路线成功！前缀锁定前{_lockStepIndex}步 → 新目标{_newRerouteTarget.Value}");
+                LogMessage($"   🔒 前缀已锁定（撤销无法回退到前{_lockStepIndex}步之前）");
+                LogMessage($"   ⏰ 回合 {turnBefore} → {Game.TurnsElapsed} (+{turnDelta})");
+                LogMessage($"   ⛽ 燃料 {fuelBefore} → {Game.Player.Fuel} (-{fuelDelta})");
+                if (stepDelta != 0) LogMessage($"   📏 步数变化：{stepsBefore} → {Game.Planner.CurrentPlan.Steps.Count} ({(stepDelta > 0 ? "+" : "")}{stepDelta})");
+
                 _showRerouteDialog = false;
                 _newRerouteTarget = null;
                 GridRenderer?.UpdateRouteVisual(Game.Planner.CurrentPlan);

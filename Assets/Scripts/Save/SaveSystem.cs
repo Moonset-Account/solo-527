@@ -188,21 +188,22 @@ namespace BalloonPost.Save
             string dir = GetSaveDirectory();
             if (!Directory.Exists(dir)) return ids;
             var files = Directory.GetFiles(dir, "*" + FileExtension);
+            var dataList = new List<SaveData>();
             foreach (var file in files)
             {
                 try
                 {
                     string json = File.ReadAllText(file, Encoding.UTF8);
                     var data = Deserialize<SaveData>(json);
-                    if (data != null)
-                    {
-                        string display = string.IsNullOrEmpty(data.SaveName)
-                            ? data.SaveId
-                            : $"{data.SaveName} [{data.SaveTime:MM-dd HH:mm}]";
-                        ids.Add(display);
-                    }
+                    if (data != null) dataList.Add(data);
                 }
                 catch { }
+            }
+            foreach (var data in dataList.OrderByDescending(d => d.SaveTime))
+            {
+                string name = string.IsNullOrEmpty(data.SaveName) ? "未命名存档" : data.SaveName;
+                string display = $"{data.SaveId} | {name} | {data.SaveTime:MM-dd HH:mm}";
+                ids.Add(display);
             }
             return ids;
         }
@@ -210,8 +211,9 @@ namespace BalloonPost.Save
         public static string ExtractSaveIdFromDisplay(string displayName)
         {
             if (string.IsNullOrEmpty(displayName)) return displayName;
-            int bracket = displayName.LastIndexOf(" [", StringComparison.Ordinal);
-            if (bracket > 0) return displayName.Substring(0, bracket);
+            int pipe = displayName.IndexOf('|');
+            if (pipe > 0) return displayName.Substring(0, pipe).Trim();
+            if (displayName.StartsWith("save_", StringComparison.Ordinal)) return displayName.Trim();
             return displayName;
         }
 

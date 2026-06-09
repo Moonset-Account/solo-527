@@ -114,7 +114,7 @@ namespace BalloonPost.Core
             return false;
         }
 
-        public bool TryRerouteAfterStep(int stepIndex, AxialCoord newTarget)
+        public bool TryRerouteAfterStep(int stepIndex, AxialCoord newTarget, Action onSuccess = null)
         {
             if (stepIndex < -1 || stepIndex >= CurrentPlan.Steps.Count) return false;
 
@@ -125,6 +125,7 @@ namespace BalloonPost.Core
 
             if (stepIndex >= 0)
             {
+                CurrentPlan.LockStepsUpTo(stepIndex + 1);
                 CurrentPlan.RemoveStepsAfter(stepIndex);
             }
             else
@@ -145,7 +146,9 @@ namespace BalloonPost.Core
             }
             Player.CurrentTurn += RerouteTimePenalty;
 
-            OnMessage?.Invoke($"改道完成！扣除时间{RerouteTimePenalty}回合，燃料{RerouteFuelPenalty}");
+            onSuccess?.Invoke();
+
+            OnMessage?.Invoke($"改道完成！前缀已锁定前{Math.Max(0, stepIndex + 1)}步，扣除时间{RerouteTimePenalty}回合，燃料{RerouteFuelPenalty}");
             OnPlanChanged?.Invoke();
             return true;
         }
