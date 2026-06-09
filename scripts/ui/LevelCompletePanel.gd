@@ -12,22 +12,35 @@ var stats_label: RichTextLabel
 var score_label: Label
 
 var _final_score: int = 0
+var _initialized: bool = false
 
 func _ready():
-	title.text = "🎉 关卡完成！"
+	if next_btn and stars_label and stats_label and not _initialized:
+		initialize()
+
+func initialize():
+	if _initialized:
+		return
+	_initialized = true
+	if title:
+		title.text = "🎉 关卡完成！"
 	_connect_buttons()
 	_show_stats()
 	AudioManager.play_sfx("level_complete", 1.0, 0.8)
 
 func _connect_buttons():
 	if next_btn:
-		next_btn.pressed.connect(_on_next_level)
+		if not next_btn.is_connected("pressed", Callable(self, "_on_next_level")):
+			next_btn.pressed.connect(_on_next_level)
 	if retry_btn:
-		retry_btn.pressed.connect(_on_retry)
+		if not retry_btn.is_connected("pressed", Callable(self, "_on_retry")):
+			retry_btn.pressed.connect(_on_retry)
 	if levels_btn:
-		levels_btn.pressed.connect(_on_level_select)
+		if not levels_btn.is_connected("pressed", Callable(self, "_on_level_select")):
+			levels_btn.pressed.connect(_on_level_select)
 	if menu_btn:
-		menu_btn.pressed.connect(_on_menu)
+		if not menu_btn.is_connected("pressed", Callable(self, "_on_menu")):
+			menu_btn.pressed.connect(_on_menu)
 
 func _get_bootstrap():
 	var b = get_tree().get_first_node_in_group("main_bootstrap")
@@ -50,7 +63,8 @@ func _show_stats():
 			stars_str += "[color=yellow]★[/color]"
 		else:
 			stars_str += "☆"
-	stars_label.text = stars_str
+	if stars_label:
+		stars_label.text = stars_str
 	var m = int(time) / 60
 	var s = int(time) % 60
 	var time_bonus = max(0, 3000 - int(time * 20))
@@ -60,12 +74,13 @@ func _show_stats():
 	var fix_bonus = progress["fixes"] * 150
 	_final_score = time_bonus - detect_penalty + energy_bonus + scan_bonus + fix_bonus + 500
 	_final_score = max(0, _final_score)
-	var leaderboard_entry = SaveManager.add_leaderboard_entry("玩家", _final_score, progress["level"])
+	SaveManager.add_leaderboard_entry("玩家", _final_score, progress["level"])
 	if level_data.get("difficulty_stars", 1) == 2:
 		SaveManager.set_daily_challenge_score(_final_score)
 		AchievementManager.check_daily_challenge(_final_score)
-	stats_label.bbcode_enabled = true
-	stats_label.text = """
+	if stats_label:
+		stats_label.bbcode_enabled = true
+		stats_label.text = """
 [b]%s[/b]
 
 用时: [b]%02d:%02d[/b]  +%d
@@ -74,12 +89,14 @@ func _show_stats():
 扫描货架: [b]%d/%d[/b]  +%d
 修复标签: [b]%d/%d[/b]  +%d
 """ % [level_data.get("name", ""), m, s, time_bonus, detections, detect_penalty, int(energy), energy_bonus, progress["scans"], progress["total_scans"], scan_bonus, progress["fixes"], progress["total_fixes"], fix_bonus]
-	score_label.text = "总分: %d" % _final_score
+	if score_label:
+		score_label.text = "总分: %d" % _final_score
 	if GameManager.current_level >= LevelConfig.get_level_count():
-		next_btn.text = "游戏通关！"
-		if next_btn.is_connected("pressed", Callable(self, "_on_next_level")):
-			next_btn.pressed.disconnect(Callable(self, "_on_next_level"))
-		next_btn.pressed.connect(_on_menu)
+		if next_btn:
+			next_btn.text = "游戏通关！"
+			if next_btn.is_connected("pressed", Callable(self, "_on_next_level")):
+				next_btn.pressed.disconnect(Callable(self, "_on_next_level"))
+			next_btn.pressed.connect(_on_menu)
 
 func _on_next_level():
 	AudioManager.play_sfx("ui_click")

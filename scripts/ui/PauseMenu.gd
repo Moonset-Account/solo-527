@@ -9,22 +9,37 @@ var retry_btn: Button
 var quit_btn: Button
 var title: Label
 
+var _initialized: bool = false
+
 func _ready():
-	title.text = "⏸ 游戏暂停"
+	if resume_btn and title and not _initialized:
+		initialize()
+
+func initialize():
+	if _initialized:
+		return
+	_initialized = true
+	if title:
+		title.text = "⏸ 游戏暂停"
 	_connect_buttons()
 	AudioManager.play_sfx("ui_click")
 
 func _connect_buttons():
 	if resume_btn:
-		resume_btn.pressed.connect(_on_resume)
+		if not resume_btn.is_connected("pressed", Callable(self, "_on_resume")):
+			resume_btn.pressed.connect(_on_resume)
 	if settings_btn:
-		settings_btn.pressed.connect(_on_settings)
+		if not settings_btn.is_connected("pressed", Callable(self, "_on_settings")):
+			settings_btn.pressed.connect(_on_settings)
 	if level_select_btn:
-		level_select_btn.pressed.connect(_on_level_select)
+		if not level_select_btn.is_connected("pressed", Callable(self, "_on_level_select")):
+			level_select_btn.pressed.connect(_on_level_select)
 	if retry_btn:
-		retry_btn.pressed.connect(_on_retry)
+		if not retry_btn.is_connected("pressed", Callable(self, "_on_retry")):
+			retry_btn.pressed.connect(_on_retry)
 	if quit_btn:
-		quit_btn.pressed.connect(_on_quit)
+		if not quit_btn.is_connected("pressed", Callable(self, "_on_quit")):
+			quit_btn.pressed.connect(_on_quit)
 
 func _get_bootstrap():
 	var b = get_tree().get_first_node_in_group("main_bootstrap")

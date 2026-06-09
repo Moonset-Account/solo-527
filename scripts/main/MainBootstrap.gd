@@ -472,13 +472,18 @@ func _show_pause_menu():
 		sb.corner_radius_bottom_right = 5
 		btn.add_theme_stylebox_override("normal", sb)
 		vbox.add_child(btn)
-		pm.set(def[0], btn)
-	pm.set("title", title)
 	pm.set_script(preload("res://scripts/ui/PauseMenu.gd"))
+	pm.resume_btn = vbox.get_node("resume_btn")
+	pm.retry_btn = vbox.get_node("retry_btn")
+	pm.settings_btn = vbox.get_node("settings_btn")
+	pm.level_select_btn = vbox.get_node("level_select_btn")
+	pm.quit_btn = vbox.get_node("quit_btn")
+	pm.title = title
 	pm.process_mode = Node.PROCESS_MODE_ALWAYS
+	pm.initialize()
 	if _current_scene_root and is_instance_valid(_current_scene_root):
 		_current_scene_root.add_child(pm)
-	AudioManager.play_sfx("ui_click")
+	DebugLog.debug("暂停菜单已打开")
 
 func _show_level_complete():
 	var pm = Control.new()
@@ -551,14 +556,20 @@ func _show_level_complete():
 		sb.corner_radius_bottom_right = 5
 		btn.add_theme_stylebox_override("normal", sb)
 		vbox.add_child(btn)
-		pm.set(def[0], btn)
-	pm.set("title", title)
-	pm.set("stars_label", stars)
-	pm.set("stats_label", stats)
-	pm.set("score_label", score)
 	pm.set_script(preload("res://scripts/ui/LevelCompletePanel.gd"))
+	pm.next_btn = vbox.get_node("next_btn")
+	pm.retry_btn = vbox.get_node("retry_btn")
+	pm.levels_btn = vbox.get_node("levels_btn")
+	pm.menu_btn = vbox.get_node("menu_btn")
+	pm.title = title
+	pm.stars_label = stars
+	pm.stats_label = stats
+	pm.score_label = score
+	pm.process_mode = Node.PROCESS_MODE_ALWAYS
 	if _current_scene_root and is_instance_valid(_current_scene_root):
 		_current_scene_root.add_child(pm)
+	pm.initialize()
+	DebugLog.debug("结算面板已显示")
 
 func _clear_scene_root():
 	if GameManager and GameManager.is_connected("state_changed", Callable(self, "_on_game_state_changed")):
