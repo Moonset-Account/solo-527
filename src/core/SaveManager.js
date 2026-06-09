@@ -40,17 +40,24 @@ export class SaveManager {
     if (stars > prev) this.data.levelStars[levelId] = stars;
     const prevScore = this.getBestScore(levelId);
     if (score > prevScore) this.data.bestScores[levelId] = score;
-    if (stars > 0) {
-      const next = levelId + 1;
-      if (!this.data.unlockedLevels.includes(next) && next <= configManager.getLevelCount()) {
+    const next = levelId + 1;
+    const maxLevel = configManager.getLevelCount();
+    const alreadyUnlocked = this.data.unlockedLevels.includes(next);
+    let isNewlyUnlocked = false;
+    if (stars > 0 && next <= maxLevel) {
+      if (!alreadyUnlocked) {
         this.data.unlockedLevels.push(next);
+        isNewlyUnlocked = true;
       }
     }
     this.save();
+    const nextUnlocked = next <= maxLevel && this.data.unlockedLevels.includes(next);
     return {
-      newlyUnlocked: stars > 0 && !this.data.unlockedLevels.includes(levelId) ? levelId : null,
+      newlyUnlocked: isNewlyUnlocked ? next : null,
+      currentLevelStars: Math.max(prev, stars),
       nextLevel: next,
-      nextUnlocked: this.data.unlockedLevels.includes(next),
+      nextUnlocked,
+      hasNext: next <= maxLevel,
     };
   }
 
