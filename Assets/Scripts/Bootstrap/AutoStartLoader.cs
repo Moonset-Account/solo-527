@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace PixelPlantLab.Bootstrap
 {
@@ -26,11 +27,11 @@ namespace PixelPlantLab.Bootstrap
                 go.AddComponent<SceneBootstrap>();
             }
 
-            if (EventSystem.EventSystem.current == null)
+            if (EventSystem.current == null)
             {
                 var es = new GameObject("EventSystem");
                 es.AddComponent<EventSystem>();
-                es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                es.AddComponent<StandaloneInputModule>();
             }
         }
     }

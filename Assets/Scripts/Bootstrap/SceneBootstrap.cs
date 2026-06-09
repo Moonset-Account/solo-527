@@ -10,12 +10,16 @@ namespace PixelPlantLab.Bootstrap
     {
         public static SceneBootstrap Instance { get; private set; }
 
+        [Tooltip("Unity运行时是否自动构建整个UI（场景直接启动用true；RuntimeInitialize兜底用true）")]
+        public bool AutoBuildOnStart = true;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void AutoBootstrap()
         {
             if (FindObjectOfType<SceneBootstrap>() != null) return;
             var go = new GameObject("[SceneBootstrap]");
-            go.AddComponent<SceneBootstrap>();
+            var bs = go.AddComponent<SceneBootstrap>();
+            bs.AutoBuildOnStart = true;
         }
 
         private void Awake()
@@ -23,10 +27,16 @@ namespace PixelPlantLab.Bootstrap
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
             DontDestroyOnLoad(gameObject);
+        }
 
-            BuildManagers();
-            BuildEventSystem();
-            BuildCanvasAndUI();
+        private void Start()
+        {
+            if (AutoBuildOnStart)
+            {
+                BuildManagers();
+                BuildEventSystem();
+                BuildCanvasAndUI();
+            }
         }
 
         // =====================================================
@@ -56,6 +66,7 @@ namespace PixelPlantLab.Bootstrap
             _resourceManager.InitializeSingleton();
             _questManager.InitializeSingleton();
             _challengeManager.InitializeSingleton();
+            _gameManager.InitializeSingleton();
         }
 
         // =====================================================

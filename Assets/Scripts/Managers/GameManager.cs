@@ -45,6 +45,11 @@ namespace PixelPlantLab
 
         private void Awake()
         {
+            InitializeSingleton();
+        }
+
+        public void InitializeSingleton()
+        {
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -67,27 +72,32 @@ namespace PixelPlantLab
             if (DexManager.Instance == null)
             {
                 var go = new GameObject("DexManager");
-                go.AddComponent<DexManager>();
+                var m = go.AddComponent<DexManager>();
+                m.InitializeSingleton();
             }
             if (ExperimentLogManager.Instance == null)
             {
                 var go = new GameObject("ExperimentLogManager");
-                go.AddComponent<ExperimentLogManager>();
+                var m = go.AddComponent<ExperimentLogManager>();
+                m.InitializeSingleton();
             }
             if (ResourceManager.Instance == null)
             {
                 var go = new GameObject("ResourceManager");
-                go.AddComponent<ResourceManager>();
+                var m = go.AddComponent<ResourceManager>();
+                m.InitializeSingleton();
             }
             if (QuestManager.Instance == null)
             {
                 var go = new GameObject("QuestManager");
-                go.AddComponent<QuestManager>();
+                var m = go.AddComponent<QuestManager>();
+                m.InitializeSingleton();
             }
             if (DailyChallengeManager.Instance == null)
             {
                 var go = new GameObject("DailyChallengeManager");
-                go.AddComponent<DailyChallengeManager>();
+                var m = go.AddComponent<DailyChallengeManager>();
+                m.InitializeSingleton();
             }
         }
 

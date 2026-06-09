@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PixelPlantLab.Tests
 {
@@ -234,7 +235,7 @@ namespace PixelPlantLab.Tests
 
             var logGo = new GameObject("TestLog");
             var lm = logGo.AddComponent<ExperimentLogManager>();
-            lm.Awake();
+            lm.InitializeSingleton();
 
             outList.Add($"初始图鉴: {dm.DiscoveredCount}/{dm.TotalPlants}");
             outList.Add(dm.DiscoveredCount == 0 ? "[PASS] 初始图鉴为空" : "[FAIL] 初始图鉴非空");
