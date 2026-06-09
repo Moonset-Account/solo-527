@@ -53,3 +53,8 @@ class AcceptanceReport(BaseModel):
     passed_checks: int
     failed_checks: int
     checks: List[AcceptanceCheck]
+    overview: str
+    dataset_versions: List[Dict[str, Any]]
+    model_versions: List[Dict[str, Any]]
+    call_logs_count: int
+    endpoints_covered: List[str]

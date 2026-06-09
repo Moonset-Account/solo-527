@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Generator, AsyncGenerator
 
@@ -11,16 +12,36 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
+def _abs(p: str) -> str:
+    return os.path.abspath(p) if p and not p.startswith(("http://", "https://", "redis://")) else p
+
+
+def _sqlite_path_from_url(url: str) -> str | None:
+    """从 sqlite URL 提取文件路径（支持 sqlite:/// 和 sqlite+aiosqlite:///），返回绝对路径。"""
+    if "sqlite" not in url:
+        return None
+    raw = url
+    for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):]
+            break
+    if raw.startswith("//"):
+        raw = raw[2:]
+    # 相对路径（如 ./storage/db/code_qa.db）转为绝对路径
+    return os.path.abspath(raw) if raw else None
+
+
+_DB_DIR = _sqlite_path_from_url(settings.DATABASE_URL)
+_DB_PARENT = os.path.dirname(_DB_DIR) if _DB_DIR else None
+
 for d in [
-    os.path.dirname(settings.DATABASE_URL.replace("sqlite:///", ""))
-    if "sqlite" in settings.DATABASE_URL
-    else None,
-    settings.CHROMA_PERSIST_DIR,
-    settings.INDEX_STORAGE_DIR,
-    settings.MODEL_REGISTRY_DIR,
-    settings.UPLOAD_DIR,
-    settings.DATASET_VERSION_DIR,
-    settings.AUDIT_LOG_DIR,
+    _DB_PARENT,
+    _abs(settings.CHROMA_PERSIST_DIR),
+    _abs(settings.INDEX_STORAGE_DIR),
+    _abs(settings.MODEL_REGISTRY_DIR),
+    _abs(settings.UPLOAD_DIR),
+    _abs(settings.DATASET_VERSION_DIR),
+    _abs(settings.AUDIT_LOG_DIR),
 ]:
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
@@ -30,7 +51,20 @@ class Base(DeclarativeBase):
     pass
 
 
-_sync_db_url = settings.DATABASE_URL
+# 关键：把 DATABASE_URL 里的相对路径替换成绝对路径，避免 cwd 歧义
+def _normalize_sqlite_url(url: str) -> str:
+    path = _sqlite_path_from_url(url)
+    if not path:
+        return url
+    # 区分同步/异步前缀
+    if url.startswith("sqlite+aiosqlite:///"):
+        return f"sqlite+aiosqlite:///{path}"
+    if url.startswith("sqlite:///"):
+        return f"sqlite:///{path}"
+    return url
+
+
+_sync_db_url = _normalize_sqlite_url(settings.DATABASE_URL)
 if "sqlite" in _sync_db_url and "+aiosqlite" not in _sync_db_url:
     _async_db_url = _sync_db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
 elif "postgresql" in _sync_db_url and "+asyncpg" not in _sync_db_url:
@@ -88,7 +122,12 @@ def bootstrap_minimum_data() -> None:
     - 至少 2 条不同端点的调用日志 + 1 条审计日志
     """
     import hashlib
-    from datetime import datetime
+    import uuid
+    import traceback
+    from datetime import datetime, timezone
+
+    def _utcnow():
+        return datetime.now(timezone.utc)
 
     db = SessionLocal()
     try:
@@ -113,8 +152,6 @@ def bootstrap_minimum_data() -> None:
                 version="v1",
                 is_active=True,
                 created_by="system-bootstrap",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
             )
             db.add(default_ds)
             db.flush()
@@ -143,8 +180,6 @@ def bootstrap_minimum_data() -> None:
                 data_version="bootstrap-v1",
                 cleaning_score=0.98,
                 cleaning_notes="系统自动植入：结构完整、信息密度高、无噪声",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
             )
             db.add(doc)
             db.flush()
@@ -163,7 +198,6 @@ def bootstrap_minimum_data() -> None:
                     checksum=checksum,
                     storage_path="datasets/bootstrap/bootstrap-v1",
                     created_by="system-bootstrap",
-                    created_at=datetime.utcnow(),
                 )
                 db.add(dv)
                 # 文档绑定数据版本标签
@@ -196,80 +230,77 @@ def bootstrap_minimum_data() -> None:
                 storage_path="models/bootstrap/default",
                 is_default=True,
                 created_by="system-bootstrap",
-                created_at=datetime.utcnow(),
-                deployed_at=datetime.utcnow(),
+                deployed_at=_utcnow(),
             )
             db.add(mv)
 
-        # 5) 调用日志：至少 2 条、覆盖 2 个端点
+        # 5) 调用日志：至少 4 条、覆盖 4 个端点（用 ORM add_all 替代裸 insert，确保事务登记）
         call_count = db.execute(select(func.count(ApiCallLog.id))).scalar() or 0
         if call_count == 0:
-            now = datetime.utcnow()
-            import uuid
-            base_calls = [
-                {
-                    "request_id": uuid.uuid4().hex,
-                    "endpoint": "/health",
-                    "method": "GET",
-                    "user_id": "system-probe",
-                    "model_version": settings.DEFAULT_MODEL_VERSION,
-                    "tokens_input": 0,
-                    "tokens_output": 0,
-                    "latency_ms": 2,
-                    "status_code": 200,
-                    "rate_limited": False,
-                    "ip_address": "127.0.0.1",
-                    "created_at": now,
-                },
-                {
-                    "request_id": uuid.uuid4().hex,
-                    "endpoint": "/docs",
-                    "method": "GET",
-                    "user_id": "system-probe",
-                    "tokens_input": 0,
-                    "tokens_output": 0,
-                    "latency_ms": 4,
-                    "status_code": 200,
-                    "rate_limited": False,
-                    "ip_address": "127.0.0.1",
-                    "created_at": now,
-                },
-                {
-                    "request_id": uuid.uuid4().hex,
-                    "endpoint": "/api/v1/documents/stats",
-                    "method": "GET",
-                    "user_id": "system-probe",
-                    "model_version": settings.DEFAULT_MODEL_VERSION,
-                    "tokens_input": 0,
-                    "tokens_output": 0,
-                    "latency_ms": 8,
-                    "status_code": 200,
-                    "rate_limited": False,
-                    "ip_address": "127.0.0.1",
-                    "created_at": now,
-                },
-                {
-                    "request_id": uuid.uuid4().hex,
-                    "endpoint": "/api/v1/model-versions/default",
-                    "method": "GET",
-                    "user_id": "system-probe",
-                    "model_version": settings.DEFAULT_MODEL_VERSION,
-                    "tokens_input": 0,
-                    "tokens_output": 0,
-                    "latency_ms": 5,
-                    "status_code": 200,
-                    "rate_limited": False,
-                    "ip_address": "127.0.0.1",
-                    "created_at": now,
-                },
+            now = _utcnow()
+            base_calls_objs = [
+                ApiCallLog(
+                    request_id=uuid.uuid4().hex,
+                    endpoint="/health",
+                    method="GET",
+                    user_id="system-probe",
+                    model_version=settings.DEFAULT_MODEL_VERSION,
+                    tokens_input=0,
+                    tokens_output=0,
+                    latency_ms=2,
+                    status_code=200,
+                    rate_limited=False,
+                    ip_address="127.0.0.1",
+                    created_at=now,
+                ),
+                ApiCallLog(
+                    request_id=uuid.uuid4().hex,
+                    endpoint="/docs",
+                    method="GET",
+                    user_id="system-probe",
+                    tokens_input=0,
+                    tokens_output=0,
+                    latency_ms=4,
+                    status_code=200,
+                    rate_limited=False,
+                    ip_address="127.0.0.1",
+                    created_at=now,
+                ),
+                ApiCallLog(
+                    request_id=uuid.uuid4().hex,
+                    endpoint="/api/v1/documents/stats",
+                    method="GET",
+                    user_id="system-probe",
+                    model_version=settings.DEFAULT_MODEL_VERSION,
+                    tokens_input=0,
+                    tokens_output=0,
+                    latency_ms=8,
+                    status_code=200,
+                    rate_limited=False,
+                    ip_address="127.0.0.1",
+                    created_at=now,
+                ),
+                ApiCallLog(
+                    request_id=uuid.uuid4().hex,
+                    endpoint="/api/v1/model-versions/default",
+                    method="GET",
+                    user_id="system-probe",
+                    model_version=settings.DEFAULT_MODEL_VERSION,
+                    tokens_input=0,
+                    tokens_output=0,
+                    latency_ms=5,
+                    status_code=200,
+                    rate_limited=False,
+                    ip_address="127.0.0.1",
+                    created_at=now,
+                ),
             ]
-            db.execute(ApiCallLog.__table__.insert(), base_calls)
+            db.add_all(base_calls_objs)
 
         # 6) 审计日志：至少 1 条
         audit_count = db.execute(select(func.count(AuditLog.id))).scalar() or 0
         if audit_count == 0:
             db.add(AuditLog(
-                timestamp=datetime.utcnow(),
                 actor="system-bootstrap",
                 action="bootstrap.minimum_data",
                 resource_type="system",
@@ -288,10 +319,21 @@ def bootstrap_minimum_data() -> None:
             ))
 
         db.commit()
-    except Exception as e:  # pragma: no cover - bootstrap 失败不致命，打印即可
+        logging.getLogger(__name__).info(
+            f"bootstrap_minimum_data 完成: "
+            f"DB_URL={_sync_db_url}, "
+            f"data_sources={db.execute(select(func.count(DataSource.id))).scalar()}, "
+            f"dataset_versions={db.execute(select(func.count(DatasetVersion.id))).scalar()}, "
+            f"model_versions={db.execute(select(func.count(ModelVersion.id))).scalar()}, "
+            f"api_call_logs={db.execute(select(func.count(ApiCallLog.id))).scalar()}"
+        )
+    except Exception as e:
+        # 不再静默吞异常：打印 traceback + DEBUG 模式下重新抛出
         db.rollback()
-        import logging
-        logging.getLogger(__name__).warning(f"bootstrap_minimum_data 失败: {e}")
+        logger = logging.getLogger(__name__)
+        logger.error(f"bootstrap_minimum_data FAILED: {e}\n{traceback.format_exc()}")
+        if settings.DEBUG:
+            raise
     finally:
         db.close()
 

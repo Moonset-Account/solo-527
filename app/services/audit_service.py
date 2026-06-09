@@ -173,130 +173,137 @@ class AcceptanceService:
     def run_acceptance_checks(self) -> AcceptanceReport:
         checks: List[AcceptanceCheck] = []
 
-        # 1. 数据版本检查
+        # === 先统一加载所有真实数据：既做检查，也直接返回（避免空字段） ===
         try:
-            dvs, total = self.dv_repo.list(page=1, page_size=100)
+            dvs, dv_total = self.dv_repo.list(page=1, page_size=100)
+        except Exception as e:
+            dvs, dv_total = [], 0
             checks.append(AcceptanceCheck(
-                check_name="数据版本存在性",
-                passed=total > 0,
-                message=f"已创建 {total} 个数据集版本" if total > 0 else "尚未创建任何数据集版本",
-                details={"total": total, "versions": [
-                    {"id": dv.id, "tag": dv.version_tag, "doc_count": dv.document_count}
-                    for dv in dvs
-                ]},
+                check_name="数据版本加载", passed=False, message=f"加载 DatasetVersion 失败: {e}",
             ))
 
+        try:
+            mvs, mv_total = self.model_repo.list(page=1, page_size=100)
+            default_mv = self.model_repo.get_default()
+        except Exception as e:
+            mvs, mv_total, default_mv = [], 0, None
+            checks.append(AcceptanceCheck(
+                check_name="模型版本加载", passed=False, message=f"加载 ModelVersion 失败: {e}",
+            ))
+
+        try:
+            calls, calls_total = self.call_repo.list(page=1, page_size=500)
+            unique_endpoints = sorted(set(c.endpoint for c in calls))
+            rate_limited_count = sum(1 for c in calls if c.rate_limited)
+        except Exception as e:
+            calls, calls_total, unique_endpoints, rate_limited_count = [], 0, [], 0
+            checks.append(AcceptanceCheck(
+                check_name="调用日志加载", passed=False, message=f"加载 ApiCallLog 失败: {e}",
+            ))
+
+        try:
+            audits, audit_total = self.audit_repo.list(page=1, page_size=5)
+        except Exception as e:
+            audits, audit_total = [], 0
+
+        # 1. 数据版本检查
+        checks.append(AcceptanceCheck(
+            check_name="数据版本存在性",
+            passed=dv_total > 0,
+            message=f"已创建 {dv_total} 个数据集版本" if dv_total > 0 else "尚未创建任何数据集版本",
+            details={"total": dv_total},
+        ))
+        if dv_total > 0:
             versioned_docs = 0
             for dv in dvs:
                 docs, _ = self.doc_repo.list(page=1, page_size=100000, data_version=dv.version_tag)
                 versioned_docs += len(docs)
             checks.append(AcceptanceCheck(
                 check_name="数据版本与文档关联",
-                passed=total == 0 or versioned_docs > 0,
+                passed=versioned_docs > 0,
                 message=f"{versioned_docs} 个文档已关联到数据版本",
                 details={"versioned_documents": versioned_docs},
             ))
-
             checksums_ok = all(dv.checksum for dv in dvs)
             checks.append(AcceptanceCheck(
                 check_name="数据版本校验和完整性",
-                passed=total == 0 or checksums_ok,
+                passed=checksums_ok,
                 message="所有数据集版本均已生成校验和" if checksums_ok else "存在未设置校验和的数据集版本",
-            ))
-        except Exception as e:
-            checks.append(AcceptanceCheck(
-                check_name="数据版本存在性", passed=False, message=f"检查失败: {e}",
             ))
 
         # 2. 模型版本检查
-        try:
-            mvs, mv_total = self.model_repo.list(page=1, page_size=100)
+        checks.append(AcceptanceCheck(
+            check_name="模型版本存在性",
+            passed=mv_total > 0,
+            message=f"已注册 {mv_total} 个模型版本" if mv_total > 0 else "尚未注册任何模型版本",
+            details={"total": mv_total},
+        ))
+        checks.append(AcceptanceCheck(
+            check_name="默认模型版本配置",
+            passed=default_mv is not None,
+            message=f"默认模型版本: {default_mv.version_tag}" if default_mv else "未配置默认模型版本",
+        ))
+        if default_mv:
+            status_val = default_mv.status.value if hasattr(default_mv.status, 'value') else str(default_mv.status)
             checks.append(AcceptanceCheck(
-                check_name="模型版本存在性",
-                passed=mv_total > 0,
-                message=f"已注册 {mv_total} 个模型版本" if mv_total > 0 else "尚未注册任何模型版本",
-                details={"total": mv_total, "versions": [
-                    {"id": mv.id, "tag": mv.version_tag, "status": mv.status.value if hasattr(mv.status, 'value') else str(mv.status)}
-                    for mv in mvs
-                ]},
-            ))
-
-            default_mv = self.model_repo.get_default()
-            checks.append(AcceptanceCheck(
-                check_name="默认模型版本配置",
-                passed=default_mv is not None,
-                message=f"默认模型版本: {default_mv.version_tag}" if default_mv else "未配置默认模型版本",
-            ))
-
-            if default_mv:
-                checks.append(AcceptanceCheck(
-                    check_name="默认模型版本就绪状态",
-                    passed=default_mv.status.value == "ready" if hasattr(default_mv.status, 'value') else str(default_mv.status) == "ready",
-                    message=f"默认模型状态: {default_mv.status.value if hasattr(default_mv.status, 'value') else str(default_mv.status)}",
-                ))
-        except Exception as e:
-            checks.append(AcceptanceCheck(
-                check_name="模型版本存在性", passed=False, message=f"检查失败: {e}",
+                check_name="默认模型版本就绪状态",
+                passed=status_val == "ready",
+                message=f"默认模型状态: {status_val}",
             ))
 
         # 3. 调用日志检查
-        try:
-            calls, calls_total = self.call_repo.list(page=1, page_size=100)
-            checks.append(AcceptanceCheck(
-                check_name="API调用日志存在",
-                passed=calls_total > 0,
-                message=f"已记录 {calls_total} 条 API 调用日志" if calls_total > 0 else "未记录任何 API 调用日志",
-                details={"total_calls": calls_total},
-            ))
-
-            unique_endpoints = set(c.endpoint for c in calls)
-            checks.append(AcceptanceCheck(
-                check_name="API调用日志端点覆盖",
-                passed=len(unique_endpoints) >= 2,
-                message=(
-                    f"已覆盖 {len(unique_endpoints)} 个 API 端点: {sorted(unique_endpoints)}"
-                    if len(unique_endpoints) >= 2
-                    else f"调用日志仅覆盖 {len(unique_endpoints)} 个端点 (< 2)，至少需产生两次有效 API 调用"
-                ),
-                details={"endpoints": sorted(unique_endpoints)},
-            ))
-
-            rate_limited_count = sum(1 for c in calls if c.rate_limited)
-            checks.append(AcceptanceCheck(
-                check_name="限流日志完整性",
-                passed=True,  # 限流云在没触发时可以为 0，但字段需完整
-                message=(
-                    f"已记录 {rate_limited_count} 条被限流的调用（总调用 {calls_total}）"
-                    if calls_total > 0
-                    else "无调用日志，限流字段可在产生调用后验证"
-                ),
-                details={"rate_limited_count": rate_limited_count},
-            ))
-        except Exception as e:
-            checks.append(AcceptanceCheck(
-                check_name="API调用日志存在", passed=False, message=f"检查失败: {e}",
-            ))
+        checks.append(AcceptanceCheck(
+            check_name="API调用日志存在",
+            passed=calls_total > 0,
+            message=f"已记录 {calls_total} 条 API 调用日志" if calls_total > 0 else "未记录任何 API 调用日志",
+            details={"total_calls": calls_total},
+        ))
+        checks.append(AcceptanceCheck(
+            check_name="API调用日志端点覆盖",
+            passed=len(unique_endpoints) >= 2,
+            message=(
+                f"已覆盖 {len(unique_endpoints)} 个 API 端点: {unique_endpoints}"
+                if len(unique_endpoints) >= 2
+                else f"调用日志仅覆盖 {len(unique_endpoints)} 个端点 (< 2)，至少需产生两次有效 API 调用"
+            ),
+            details={"endpoints": unique_endpoints},
+        ))
+        checks.append(AcceptanceCheck(
+            check_name="限流日志完整性",
+            passed=True,
+            message=(
+                f"已记录 {rate_limited_count} 条被限流的调用（总调用 {calls_total}）"
+                if calls_total > 0
+                else "无调用日志，限流字段可在产生调用后验证"
+            ),
+            details={"rate_limited_count": rate_limited_count},
+        ))
 
         # 4. 审计日志
-        try:
-            audits, audit_total = self.audit_repo.list(page=1, page_size=5)
-            checks.append(AcceptanceCheck(
-                check_name="审计日志完整性",
-                passed=audit_total > 0,
-                message=(
-                    f"已记录 {audit_total} 条审计日志"
-                    if audit_total > 0
-                    else "未记录任何审计日志（至少需一次写操作 API 调用）"
-                ),
-            ))
-        except Exception as e:
-            checks.append(AcceptanceCheck(
-                check_name="审计日志完整性", passed=False, message=f"检查失败: {e}",
-            ))
+        checks.append(AcceptanceCheck(
+            check_name="审计日志完整性",
+            passed=audit_total > 0,
+            message=(
+                f"已记录 {audit_total} 条审计日志"
+                if audit_total > 0
+                else "未记录任何审计日志（至少需一次写操作 API 调用）"
+            ),
+            details={"total_audits": audit_total},
+        ))
 
         total = len(checks)
         passed = sum(1 for c in checks if c.passed)
         failed = total - passed
+
+        # === 构造 overview + 真实记录字段（schema 已新增这 5 个字段，不再被 Pydantic 过滤） ===
+        def _s(v) -> str:
+            return v.value if hasattr(v, 'value') else str(v)
+
+        overview = (
+            f"验收完成: {passed}/{total} 通过 · "
+            f"数据版本 {dv_total} 个 · 模型版本 {mv_total} 个 (默认={default_mv.version_tag if default_mv else '无'}) · "
+            f"调用日志 {calls_total} 条 / 端点覆盖 {len(unique_endpoints)} 个 · 审计日志 {audit_total} 条"
+        )
 
         return AcceptanceReport(
             generated_at=datetime.now(),
@@ -304,4 +311,36 @@ class AcceptanceService:
             passed_checks=passed,
             failed_checks=failed,
             checks=checks,
+            overview=overview,
+            dataset_versions=[
+                {
+                    "id": dv.id,
+                    "version_tag": dv.version_tag,
+                    "data_source_id": dv.data_source_id,
+                    "document_count": dv.document_count,
+                    "checksum": dv.checksum,
+                    "storage_path": dv.storage_path,
+                    "created_by": dv.created_by,
+                    "created_at": dv.created_at.isoformat() if dv.created_at else None,
+                }
+                for dv in dvs
+            ],
+            model_versions=[
+                {
+                    "id": mv.id,
+                    "version_tag": mv.version_tag,
+                    "model_name": mv.model_name,
+                    "embedding_model": mv.embedding_model,
+                    "llm_model": mv.llm_model,
+                    "status": _s(mv.status),
+                    "is_default": bool(mv.is_default),
+                    "storage_path": mv.storage_path,
+                    "created_by": mv.created_by,
+                    "created_at": mv.created_at.isoformat() if mv.created_at else None,
+                    "deployed_at": mv.deployed_at.isoformat() if mv.deployed_at else None,
+                }
+                for mv in mvs
+            ],
+            call_logs_count=calls_total,
+            endpoints_covered=list(unique_endpoints),
         )
