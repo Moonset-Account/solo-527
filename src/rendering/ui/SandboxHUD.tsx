@@ -15,6 +15,8 @@ import {
   ToggleRight,
   X,
   ChevronRight,
+  Download,
+  Copy,
 } from 'lucide-react';
 import { ComponentLibrary } from '@/game/ComponentLibrary';
 import { COMPONENT_CATEGORIES } from '@/data/defaults';
@@ -461,6 +463,9 @@ interface ToolbarProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   title?: string;
+  isFreeMode?: boolean;
+  onExportJSON?: () => void;
+  onCopyJSON?: () => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -471,6 +476,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   soundEnabled,
   onToggleSound,
   title = '电子电路沙盒',
+  isFreeMode = false,
+  onExportJSON,
+  onCopyJSON,
 }) => {
   return (
     <div className="absolute top-4 left-4 right-4 h-12 bg-slate-900/90 backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl flex items-center px-3 gap-2">
@@ -516,6 +524,27 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <Save className="w-4 h-4" />
           保存
         </button>
+        {isFreeMode && (
+          <>
+            <div className="h-6 w-px bg-slate-700 mx-1" />
+            <button
+              onClick={onExportJSON}
+              className="px-3 py-2 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-sky-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
+              title="下载 JSON 文件分享"
+            >
+              <Download className="w-4 h-4" />
+              导出
+            </button>
+            <button
+              onClick={onCopyJSON}
+              className="px-3 py-2 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-purple-400 transition-colors flex items-center gap-1.5 text-xs font-medium"
+              title="复制 JSON 到剪贴板"
+            >
+              <Copy className="w-4 h-4" />
+              复制
+            </button>
+          </>
+        )}
       </div>
 
       <div className="h-6 w-px bg-slate-700 mx-1" />

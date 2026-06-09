@@ -84,6 +84,7 @@ export default function SandboxScene() {
   const wireSystemRef = useRef<WireSystem>(new WireSystem());
   const challengeRef = useRef<ChallengeSystem | null>(null);
   const dataRecorderRef = useRef<DataRecorder>(new DataRecorder(SaveSystem.getInstance()));
+  const didLoadFromSnapshotRef = useRef<boolean>(false);
   const panningRef = useRef<{ active: boolean; start: Vec2; origin: Vec2 }>({
     active: false,
     start: { x: 0, y: 0 },
@@ -136,6 +137,8 @@ export default function SandboxScene() {
   // === A. 关卡模式：加载预置元件（currentLevelId 变化时触发） ===
   useEffect(() => {
     levelStartTimeRef.current = Date.now();
+    // 场景/关卡切换时重置快照加载守卫，让自由模式空白进入时能正常清屏
+    didLoadFromSnapshotRef.current = false;
 
     if (currentLevelId) {
       // 关卡模式：加载预置
@@ -153,13 +156,21 @@ export default function SandboxScene() {
       });
       setTutorialStep(0);
       setTutorialVisible(tutorialSteps.length > 0 && showTutorial);
+    } else {
+      // 自由模式：若当前无快照（即不是方案库打开），则清屏；有快照时交给 useEffect B 处理
+      const storeSnap = useGameStore.getState().lastCircuitSnapshot;
+      if (!storeSnap) {
+        clearAll();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLevelId, levelConfig]);
 
-  // === B. 自由模式：打开已保存方案（仅当 lastCircuitSnapshot 非空且切换到场景时触发） ===
+  // === B. 自由模式：打开已保存方案（仅当 lastCircuitSnapshot 非空时触发） ===
   useEffect(() => {
     if (!currentLevelId && lastCircuitSnapshot) {
+      // 标记：本轮由快照加载完成，之后即使快照被清空也不要再 clearAll
+      didLoadFromSnapshotRef.current = true;
       levelStartTimeRef.current = Date.now();
       const snap = JSON.parse(JSON.stringify(lastCircuitSnapshot));
       // 端口标准化兜底
@@ -169,7 +180,6 @@ export default function SandboxScene() {
             p.id = `${raw.id}:${idx}`;
             p.componentId = raw.id;
             if (!p.localOffset && p.localOffset === undefined) {
-              // 退化：尝试从工厂生成本地偏移
               try {
                 const def = library.createComponentInstance(raw.type, { x: 0, y: 0 }, 0);
                 p.localOffset = def.ports[idx]?.localOffset ?? { x: 0, y: 0 };
@@ -179,7 +189,6 @@ export default function SandboxScene() {
             }
           });
         }
-        // properties 补充 type 判别
         if (raw.properties && raw.properties.type === undefined) {
           raw.properties.type = raw.type;
         }
@@ -187,11 +196,13 @@ export default function SandboxScene() {
       });
       loadCircuit(snap);
       pushNotification('📂 已加载方案', 'info', 2000);
-      // 消费掉快照
+      // 消费掉快照（注意：这会再次触发本 useEffect，走 null 分支，但 ref 会守卫住）
       setTimeout(() => useGameStore.getState().setLastCircuitSnapshot(null), 50);
     } else if (!currentLevelId && !lastCircuitSnapshot) {
-      // 自由模式空白进入
-      clearAll();
+      // 只有首次自由模式进入（没加载过快照）才清屏；加载后消费快照导致的 null 变化跳过
+      if (!didLoadFromSnapshotRef.current) {
+        clearAll();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastCircuitSnapshot]);
@@ -772,8 +783,73 @@ export default function SandboxScene() {
     // Use global store
     useGameStore.getState().saveCircuit(save);
     audio.playSuccess().catch(() => {});
-    pushNotification(`💾 已保存方案：${name}`, 'success', 2500);
+    pushNotification(`💾 已保存方案：${name}（${components.length}元件·${wires.length}导线）`, 'success', 2500);
   }, [components, currentLevelId, pushNotification, wires]);
+
+  const buildExportJSON = useCallback(() => {
+    return {
+      schema: 'circuit-lab/v1' as const,
+      exportedAt: new Date().toISOString(),
+      name: `电路-${new Date().toLocaleString('zh-CN')}`,
+      sourceLevelId: currentLevelId ?? undefined,
+      components: JSON.parse(JSON.stringify(components)),
+      wires: JSON.parse(JSON.stringify(wires)),
+    };
+  }, [components, currentLevelId, wires]);
+
+  const handleExportJSON = useCallback(() => {
+    if (components.length === 0 && wires.length === 0) {
+      pushNotification('⚠️ 画布上还没有电路，无法导出', 'warning', 2000);
+      return;
+    }
+    try {
+      const obj = buildExportJSON();
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `circuit-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 500);
+      audio.playSuccess().catch(() => {});
+      pushNotification(`📥 已导出 ${obj.components.length}元件·${obj.wires.length}导线`, 'success', 2200);
+    } catch (e) {
+      pushNotification('❌ 导出失败：' + (e as Error).message, 'error', 3000);
+    }
+  }, [buildExportJSON, components.length, pushNotification, wires.length]);
+
+  const handleCopyJSON = useCallback(async () => {
+    if (components.length === 0 && wires.length === 0) {
+      pushNotification('⚠️ 画布上还没有电路，无法复制', 'warning', 2000);
+      return;
+    }
+    try {
+      const obj = buildExportJSON();
+      const text = JSON.stringify(obj, null, 2);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+        } finally {
+          document.body.removeChild(ta);
+        }
+      }
+      audio.playSuccess().catch(() => {});
+      pushNotification(`📋 电路 JSON 已复制（${obj.components.length}元件），可粘贴分享`, 'success', 2800);
+    } catch (e) {
+      pushNotification('❌ 复制失败：' + (e as Error).message, 'error', 3000);
+    }
+  }, [buildExportJSON, components.length, pushNotification, wires.length]);
 
   const handleBack = useCallback(() => {
     setScene(currentLevelId ? 'level-select' : 'menu');
@@ -838,6 +914,9 @@ export default function SandboxScene() {
         onShowHint={handleShowHint}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
+        isFreeMode={!currentLevelId}
+        onExportJSON={handleExportJSON}
+        onCopyJSON={handleCopyJSON}
       />
 
       <div className="flex-1 flex overflow-hidden">
