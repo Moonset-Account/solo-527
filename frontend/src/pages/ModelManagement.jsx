@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   Card, Table, Tag, Button, Space, Select, App, Modal, Row, Col, Statistic,
   Progress, Drawer, Form, Input, Tooltip, Alert, Badge, Empty, Popconfirm,
-  Descriptions, DatePicker, InputNumber, Collapse, List,
+  Descriptions, DatePicker, InputNumber, Collapse, List, Divider, Timeline,
 } from 'antd'
 import {
   ExperimentOutlined,
@@ -93,10 +93,10 @@ const ModelManagement = () => {
 
   const review = async (id, status, comment = '') => {
     try {
-      await api.models.review(id, status, comment)
-      message.success(`已${status === 'approved' ? '通过' : '驳回'}审核`)
+      await api.models.review(id, { status, comment })
+      message.success(`已${status === 'approved' ? '通过' : '驳回'}审核，变更已记录`)
       load()
-    } catch (e) { message.error('操作失败') }
+    } catch (e) { message.error(e?.response?.data?.detail || '操作失败') }
   }
 
   const submitRollback = async () => {
@@ -477,6 +477,71 @@ const ModelManagement = () => {
                 />
               </Card>
             )}
+
+            <Card
+              title={<Space><CheckCircleOutlined /> 审核与版本变更记录</Space>}
+              size="small"
+              type="inner"
+              style={{ marginTop: 16 }}
+            >
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="当前审核状态">
+                  <Tag color={reviewColor[detail.data.review_status]}>{reviewText[detail.data.review_status] || detail.data.review_status}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="审核人">
+                  {detail.data.reviewed_by || detail.data.reviewer_name || detail.data.reviewer_id || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="审核时间" span={2}>
+                  {detail.data.reviewed_at ? detail.data.reviewed_at.slice(0, 19).replace('T', ' ') : '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="审核意见/备注" span={2}>
+                  {detail.data.review_comment || detail.data.comment || '（无）'}
+                </Descriptions.Item>
+                {detail.data.is_rollback && (
+                  <>
+                    <Descriptions.Item label="回滚来源版本">
+                      <Tag color="purple">{detail.data.rollback_from_version || '-'}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="回滚时间">
+                      {detail.data.rollback_at ? detail.data.rollback_at.slice(0, 19).replace('T', ' ') : (
+                        detail.data.activated_at ? detail.data.activated_at.slice(0, 19).replace('T', ' ') : '-'
+                      )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="回滚说明" span={2}>
+                      {detail.data.rollback_reason || detail.data.review_comment || '-'}
+                    </Descriptions.Item>
+                  </>
+                )}
+                <Descriptions.Item label="激活上线时间" span={2}>
+                  {detail.data.activated_at ? detail.data.activated_at.slice(0, 19).replace('T', ' ') : (
+                    detail.data.is_active ? '（运行中，无独立时间戳）' : '（未激活）'
+                  )}
+                </Descriptions.Item>
+              </Descriptions>
+
+              {(detail.data.review_history || detail.data.audit_trail) && (
+                <div style={{ marginTop: 12 }}>
+                  <Divider orientation="left" plain>历史变更链路</Divider>
+                  <Timeline
+                    items={(detail.data.review_history || detail.data.audit_trail).map(h => ({
+                      color: ({ approved: 'green', rejected: 'red', pending: 'blue' })[h.status] || 'gray',
+                      children: (
+                        <div>
+                          <Space>
+                            <Tag>{h.action || h.status}</Tag>
+                            <span style={{ color: '#555' }}>{h.user || h.operator || h.reviewer || '-'}</span>
+                            <span style={{ color: '#999', fontSize: 12 }}>
+                              {h.timestamp || h.created_at || h.time || ''}
+                            </span>
+                          </Space>
+                          <div style={{ color: '#666', marginTop: 4 }}>{h.comment || h.reason || h.note || ''}</div>
+                        </div>
+                      ),
+                    }))}
+                  />
+                </div>
+              )}
+            </Card>
           </>
         )}
       </Drawer>

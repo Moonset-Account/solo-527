@@ -2,7 +2,7 @@ import pandas as pd
 import uuid
 import io
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, date as ddate
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.appointment import Appointment

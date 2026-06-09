@@ -1,6 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime, date
+
+if TYPE_CHECKING:
+    from app.schemas.data import AppointmentResponse
 
 
 class ModelVersionBase(BaseModel):
@@ -105,7 +108,7 @@ class RiskScoreResponse(RiskScoreBase):
 
 
 class RiskScoreDetail(RiskScoreResponse):
-    appointment: Optional[AppointmentResponse] = None
+    appointment: Optional["AppointmentResponse"] = None
     shap_values: Optional[List[Dict[str, Any]]] = None
 
 
@@ -124,3 +127,4 @@ class ScoringResponse(BaseModel):
 
 
 from app.schemas.data import AppointmentResponse
+

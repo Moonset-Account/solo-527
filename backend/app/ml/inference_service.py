@@ -4,7 +4,7 @@ import numpy as np
 import joblib
 import os
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from app.ml.feature_engineer import FeatureEngineer
 from app.ml.lgb_trainer import LightGBMTrainer
 from app.core.config import settings

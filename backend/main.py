@@ -73,7 +73,10 @@ def init_database():
 
 def init_model_storage():
     os.makedirs(settings.MODEL_STORAGE_PATH, exist_ok=True)
-    os.makedirs(os.path.join(os.path.dirname(settings.DATABASE_URL.replace("sqlite:///", ""))), exist_ok=True)
+    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
 
 
 @asynccontextmanager

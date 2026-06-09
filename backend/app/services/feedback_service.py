@@ -114,6 +114,8 @@ class FeedbackService:
         batch_id: Optional[str] = None,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
+        appointment_id: Optional[int] = None,
+        risk_score_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         query = db.query(ManualFeedback)
         if review_status:
@@ -132,6 +134,10 @@ class FeedbackService:
             query = query.filter(ManualFeedback.created_at >= date_from)
         if date_to:
             query = query.filter(ManualFeedback.created_at <= date_to)
+        if appointment_id:
+            query = query.filter(ManualFeedback.appointment_id == appointment_id)
+        if risk_score_id:
+            query = query.filter(ManualFeedback.risk_score_id == risk_score_id)
 
         fbs = query.order_by(ManualFeedback.created_at.desc()).offset(skip).limit(limit).all()
 

@@ -4,7 +4,10 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 import os
 
-os.makedirs(os.path.dirname(settings.DATABASE_URL.replace("sqlite:///", "")), exist_ok=True)
+_db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+_db_dir = os.path.dirname(_db_path)
+if _db_dir and not os.path.exists(_db_dir):
+    os.makedirs(_db_dir, exist_ok=True)
 
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 

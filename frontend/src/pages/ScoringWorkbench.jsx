@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   Card, Table, Tag, Button, Space, Row, Col, Input, Select, Drawer, Descriptions,
-  Progress, Modal, Form, App, Tooltip, Divider, Badge, Popconfirm, Statistic,
+  Progress, Modal, Form, App, Tooltip, Divider, Badge, Popconfirm, Statistic, Empty,
 } from 'antd'
 import {
   ThunderboltOutlined,
@@ -30,7 +30,7 @@ const ScoringWorkbench = () => {
   const [loading, setLoading] = useState(false)
   const [scores, setScores] = useState([])
   const [selectedRowKeys, setSelectedRowKeys] = useState([])
-  const [detailDrawer, setDetailDrawer] = useState({ open: false, data: null, loading: false })
+  const [detailDrawer, setDetailDrawer] = useState({ open: false, data: null, loading: false, feedbackHistory: [] })
   const [overrideModal, setOverrideModal] = useState({ open: false, data: null })
   const [overrideForm] = Form.useForm()
   const [filters, setFilters] = useState({ risk_level: undefined, needs_callback: undefined })
@@ -65,12 +65,16 @@ const ScoringWorkbench = () => {
   }
 
   const openDetail = async (id) => {
-    setDetailDrawer({ open: true, data: null, loading: true })
+    setDetailDrawer({ open: true, data: null, loading: true, feedbackHistory: [] })
     try {
-      const res = await api.models.scoreDetail(id)
-      setDetailDrawer({ open: true, data: res, loading: false })
+      const [res, history] = await Promise.all([
+        api.models.scoreDetail(id),
+        api.feedback.list({ risk_score_id: id, limit: 50 }).catch(() => []),
+      ])
+      setDetailDrawer({ open: true, data: res, loading: false, feedbackHistory: history || [] })
     } catch (e) {
-      setDetailDrawer({ open: false, data: null, loading: false })
+      message.error('加载详情失败')
+      setDetailDrawer({ open: false, data: null, loading: false, feedbackHistory: [] })
     }
   }
 
@@ -87,27 +91,24 @@ const ScoringWorkbench = () => {
     const values = await overrideForm.validateFields()
     const { data } = overrideModal
     try {
-      await api.models.override(data.id, values.corrected_risk_level, values.corrected_score, values.reason)
-
-      await api.feedback.create({
-        appointment_id: data.appointment_id,
-        risk_score_id: data.id,
-        original_risk_level: data.risk_level,
+      await api.models.override(data.id, {
         corrected_risk_level: values.corrected_risk_level,
-        original_score: data.risk_score,
+        new_level: values.corrected_risk_level,
         corrected_score: values.corrected_score,
-        feedback_type: 'override',
+        new_score: values.corrected_score,
         reason: values.reason,
         remark: values.remark,
+        original_risk_level: data.risk_level,
+        original_score: data.risk_score,
+        feedback_type: 'override',
         is_error_sample: values.corrected_risk_level !== data.risk_level,
         error_type: values.corrected_risk_level !== data.risk_level ? 'manual_override' : undefined,
       })
-
-      message.success('已人工覆盖评分结果')
+      message.success('已人工覆盖评分结果，改标记录已写入反馈库')
       setOverrideModal({ open: false, data: null })
       loadScores()
     } catch (e) {
-      message.error('覆盖失败')
+      message.error(e?.response?.data?.detail || '覆盖失败')
     }
   }
 
@@ -388,12 +389,60 @@ const ScoringWorkbench = () => {
               ) : <Empty description="暂无特征解释" />}
             </Card>
 
-            <Card type="inner" title="完整特征快照">
+            <Card type="inner" title="完整特征快照" style={{ marginBottom: 16 }}>
               <Descriptions size="small" column={2} bordered>
                 {Object.entries(detailDrawer.data.features || {}).map(([k, v]) => (
                   <Descriptions.Item key={k} label={k}>{String(v)}</Descriptions.Item>
                 ))}
               </Descriptions>
+            </Card>
+
+            <Card
+              type="inner"
+              title={
+                <Space>
+                  <span>改标与审核历史记录</span>
+                  <Tag color="purple">{detailDrawer.feedbackHistory?.length || 0} 条</Tag>
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              {detailDrawer.feedbackHistory?.length > 0 ? (
+                <Table
+                  size="small"
+                  dataSource={detailDrawer.feedbackHistory}
+                  rowKey="id"
+                  pagination={false}
+                  columns={[
+                    { title: '时间', dataIndex: 'created_at', width: 160 },
+                    { title: '类型', dataIndex: 'feedback_type', width: 90,
+                      render: v => ({
+                        override: <Tag color="purple">人工改标</Tag>,
+                        review: <Tag color="blue">管理员复核</Tag>,
+                        callback: <Tag color="cyan">回访反馈</Tag>,
+                        quality: <Tag color="orange">质量标注</Tag>,
+                      })[v] || <Tag>{v}</Tag>) },
+                    { title: '原风险', dataIndex: 'original_risk_level', width: 90,
+                      render: v => v && <Tag color={levelColor[v]}>{levelEmoji[v]} {levelText[v]}</Tag> },
+                    { title: '改后风险', dataIndex: 'corrected_risk_level', width: 100,
+                      render: v => v && <Tag color={levelColor[v]}>{levelEmoji[v]} {levelText[v]}</Tag> },
+                    { title: '原因/备注', dataIndex: 'reason',
+                      render: (v, r) => v || r.remark || '-' },
+                    { title: '复核状态', dataIndex: 'review_status', width: 90,
+                      render: v => ({
+                        pending: <Tag color="gold">待复核</Tag>,
+                        approved: <Tag color="green">已通过</Tag>,
+                        rejected: <Tag color="red">已驳回</Tag>,
+                      })[v] || <Tag>{v || '-'}</Tag>) },
+                    { title: '操作人', dataIndex: 'operator_name', width: 100,
+                      render: (v, r) => v || r.reviewer_name || r.operator_id || '-' },
+                  ]}
+                />
+              ) : (
+                <div style={{ padding: 20, textAlign: 'center', color: '#999' }}>
+                  暂无改标/审核记录
+                </div>
+              )}
             </Card>
 
             <Divider />

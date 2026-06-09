@@ -98,11 +98,12 @@ export const api = {
     versions: () => request.get('/models/versions'),
     activate: (id) => request.post(`/models/versions/${id}/activate`),
     rollback: (data) => request.post('/models/versions/rollback', data),
-    review: (id, params) => request.post(`/models/versions/${id}/review`, null, { params }),
+    review: (id, params) => request.post(`/models/versions/${id}/review`, params),
     score: (data) => request.post('/models/score', data || {}),
     scores: (params) => request.get('/models/scores', { params }),
     scoreDetail: (id) => request.get(`/models/scores/${id}`),
-    override: (id, params) => request.put(`/models/scores/${id}/override`, null, { params }),
+    override: (id, params) => request.put(`/models/scores/${id}/override`, params),
+    feedbackHistory: (riskScoreId, apptId) => request.get('/feedback', { params: { risk_score_id: riskScoreId, appointment_id: apptId } }),
   },
 
   sms: {
@@ -122,7 +123,7 @@ export const api = {
   feedback: {
     create: (data) => request.post('/feedback', data),
     batchCreate: (data) => request.post('/feedback/batch', data),
-    batchConfirm: (ids, comment) => request.post('/feedback/confirm', ids, { params: { comment } }),
+    batchConfirm: (ids, comment) => request.post('/feedback/confirm', { ids, feedback_ids: ids, comment }),
     list: (params) => request.get('/feedback', { params }),
     update: (id, data) => request.put(`/feedback/${id}`, data),
     errorSamples: (params) => request.get('/feedback/error-samples', { params }),

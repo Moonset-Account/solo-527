@@ -13,7 +13,12 @@ from sklearn.metrics import (
     recall_score, f1_score, confusion_matrix
 )
 from scipy.stats import ks_2samp
-import shap
+try:
+    import shap
+    SHAP_AVAILABLE = True
+except ImportError:
+    shap = None
+    SHAP_AVAILABLE = False
 from app.core.config import settings
 from app.ml.feature_engineer import FeatureEngineer
 
@@ -101,9 +106,12 @@ class LightGBMTrainer:
 
         explainer_path = os.path.join(version_dir, "explainer.joblib")
         try:
-            background_data = shap.sample(X_train, 100) if len(X_train) > 100 else X_train
-            self.explainer = shap.TreeExplainer(self.model, background_data)
-            joblib.dump(self.explainer, explainer_path)
+            if SHAP_AVAILABLE and shap is not None:
+                background_data = shap.sample(X_train, 100) if len(X_train) > 100 else X_train
+                self.explainer = shap.TreeExplainer(self.model, background_data)
+                joblib.dump(self.explainer, explainer_path)
+            else:
+                explainer_path = None
         except Exception as e:
             print(f"Warning: Failed to create SHAP explainer: {e}")
             explainer_path = None

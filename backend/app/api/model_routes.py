@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import date
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
@@ -65,11 +65,14 @@ def rollback_model(
 @router.post("/versions/{version_id}/review", response_model=ModelVersionResponse)
 def review_model(
     version_id: int,
-    status: str = Query(..., regex="^(approved|rejected|pending)$"),
-    comment: str = "",
+    body: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
+    status = body.get("status") or body.get("review_status")
+    comment = body.get("comment", "")
+    if status not in ["approved", "rejected", "pending"]:
+        raise HTTPException(status_code=400, detail="status 必须是 approved/rejected/pending")
     mv = ModelService.review_model(db, version_id, status, comment, current_user.id)
     if not mv:
         raise HTTPException(status_code=404, detail="模型版本不存在")
@@ -126,15 +129,39 @@ def get_score_detail(
 @router.put("/scores/{score_id}/override")
 def override_score(
     score_id: int,
-    new_level: str = Query(..., regex="^(low|medium|high|critical)$"),
-    new_score: Optional[float] = None,
-    reason: str = "",
+    body: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["admin", "operator"])),
 ):
+    new_level = body.get("new_level") or body.get("corrected_risk_level")
+    new_score = body.get("new_score") or body.get("corrected_score")
+    reason = body.get("reason", "")
+    if new_level not in ["low", "medium", "high", "critical"]:
+        raise HTTPException(status_code=400, detail="new_level 必须是 low/medium/high/critical")
     result = ScoringService.override_score(
         db, score_id, new_level, new_score, reason, current_user.id
     )
     if not result:
         raise HTTPException(status_code=404, detail="评分记录不存在")
-    return {"success": True, "message": "已人工覆盖评分结果"}
+    from app.schemas.business import ManualFeedbackCreate
+    from app.services.feedback_service import FeedbackService
+    rs = result
+    try:
+        fb_data = ManualFeedbackCreate(
+            appointment_id=rs.appointment_id,
+            risk_score_id=rs.id,
+            original_risk_level=body.get("original_risk_level"),
+            corrected_risk_level=new_level,
+            original_score=body.get("original_score"),
+            corrected_score=new_score,
+            feedback_type=body.get("feedback_type", "override"),
+            reason=reason,
+            remark=body.get("remark", ""),
+            is_error_sample=True,
+            error_type=body.get("error_type", "manual_override"),
+        )
+        FeedbackService.create_feedback(db, fb_data, current_user.id)
+    except Exception as e:
+        print(f"Warning: Failed to create feedback record: {e}")
+    return {"success": True, "message": "已人工覆盖评分结果，改标记录已写入反馈库",
+            "score_id": score_id, "new_level": new_level, "new_score": new_score}

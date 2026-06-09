@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
@@ -143,11 +143,14 @@ def batch_create_feedback(
 
 @feedback_router.post("/confirm")
 def batch_confirm_feedback(
-    feedback_ids: List[int],
-    comment: str = "",
+    body: Dict[str, Any] = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["admin"])),
 ):
+    feedback_ids = body.get("feedback_ids") or body.get("ids") or []
+    comment = body.get("comment", "")
+    if not isinstance(feedback_ids, list):
+        raise HTTPException(status_code=400, detail="feedback_ids 必须是数组")
     count = FeedbackService.batch_confirm(db, feedback_ids, current_user.id, comment)
     return {"success": True, "confirmed_count": count}
 
@@ -161,13 +164,16 @@ def list_feedback(
     error_type: Optional[str] = None,
     operator_id: Optional[int] = None,
     batch_id: Optional[str] = None,
+    appointment_id: Optional[int] = None,
+    risk_score_id: Optional[int] = None,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     return FeedbackService.list_feedback(
         db, skip=skip, limit=limit, review_status=review_status,
         feedback_type=feedback_type, is_error_sample=is_error_sample,
-        error_type=error_type, operator_id=operator_id, batch_id=batch_id
+        error_type=error_type, operator_id=operator_id, batch_id=batch_id,
+        appointment_id=appointment_id, risk_score_id=risk_score_id
     )
 
 

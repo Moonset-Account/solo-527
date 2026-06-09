@@ -2,15 +2,17 @@ from pydantic_settings import BaseSettings
 from typing import List
 import os
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./app/data/app.db"
+    DATABASE_URL: str = f"sqlite:///{os.path.join(BASE_DIR, 'app', 'data', 'app.db')}"
     SECRET_KEY: str = "dev-secret-key-change-in-production-abcdef123456"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     APP_ENV: str = "development"
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
-    MODEL_STORAGE_PATH: str = os.path.join(os.path.dirname(__file__), "..", "data", "models")
+    MODEL_STORAGE_PATH: str = os.path.join(BASE_DIR, "app", "data", "models")
 
     class Config:
         env_file = ".env"
