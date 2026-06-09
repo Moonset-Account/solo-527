@@ -34,6 +34,10 @@ export class GameScene extends BaseScene {
         this.cameraInfo = { zoom: 0, gridX: 0, gridY: 0 };
         this.lastFeedbackTime = 0;
         this.hoverHighlight = null;
+        this.ended = false;
+        this.resultShown = false;
+        this.sessionId = 'sess_' + Math.random().toString(36).slice(2, 10);
+        this.scoreSubmitted = false;
     }
 
     getZoomLevel() {
@@ -336,6 +340,7 @@ export class GameScene extends BaseScene {
     }
 
     update(dt) {
+        if (this.ended) return;
         if (this.paused) return;
         super.update(dt);
         this.time += dt;
@@ -418,32 +423,63 @@ export class GameScene extends BaseScene {
     }
 
     _endLevel(timeUp) {
-        const summary = this.settlement.finalize(this.resourceSystem);
+        if (this.ended) return;
+        this.ended = true;
+        if (this.hoverHighlight && this.hoverHighlight.mesh) {
+            try { this.cityMap.group.remove(this.hoverHighlight.mesh); } catch(e){}
+            this.hoverHighlight = null;
+        }
+        if (this.resultShown) return;
+
+        let summary;
+        try {
+            summary = this.settlement.finalize(this.resourceSystem);
+        } catch (e) {
+            console.error('Settlement finalize error:', e);
+            summary = {
+                score: 0, stars: 0, grade: { letter: '?', color: '#888', desc: '结算异常' },
+                breakdown: { eventPoints: 0, failPenalty: 0, satBonus: 0, speedBonus: 0, budgetBonus: 0, efficiencyBonus: 0, delayPenalty: 0, perfectBonus: 0, total: 0 },
+                stats: this.settlement._getStats ? this.settlement._getStats() : {}
+            };
+        }
         summary.timeUp = timeUp;
         summary.satisfactionFailed = this.resourceSystem.satisfaction <= 0;
         summary.passed = this.resourceSystem.satisfaction >= (this.levelConfig.satisfactionTarget || 50);
         summary.levelId = this.levelConfig.id;
+        summary.sessionId = this.sessionId;
 
-        this.game.save.completeLevel(
-            this.levelConfig.id,
-            summary.passed ? summary.stars : 0,
-            summary.score
-        );
-        this.game.save.updateStats({
-            levelsCompleted: summary.passed ? 1 : 0,
-            totalEventsHandled: this.settlement.eventsResolved,
-            totalBudgetEarned: this.settlement.totalBudgetEarned,
-            eventStats: this.settlement.eventsByType,
-            maxEndBudget: Math.max(0, this.resourceSystem.budget),
-            maxSatisfaction: Math.max(0, this.resourceSystem.satisfaction),
-            perfectRuns: this.settlement.perfectRun ? 1 : 0,
-            totalFailures: this.satisfactionFailed ? 1 : 0
-        });
+        try {
+            this.game.save.completeLevel(
+                this.levelConfig.id,
+                summary.passed ? summary.stars : 0,
+                summary.score,
+                this.sessionId
+            );
+        } catch (e) { console.error('completeLevel error:', e); }
+
+        try {
+            this.game.save.updateStats({
+                levelsCompleted: summary.passed ? 1 : 0,
+                totalEventsHandled: this.settlement.eventsResolved,
+                totalBudgetEarned: this.settlement.totalBudgetEarned,
+                eventStats: this.settlement.eventsByType,
+                maxEndBudget: Math.max(0, this.resourceSystem.budget),
+                maxSatisfaction: Math.max(0, this.resourceSystem.satisfaction),
+                perfectRuns: this.settlement.perfectRun ? 1 : 0,
+                totalFailures: summary.satisfactionFailed ? 1 : 0
+            }, this.sessionId);
+        } catch (e) { console.error('updateStats error:', e); }
+
         if (this.settlement.fastestBatchTime) {
-            this.game.save.updateStats({ fastestBatch5: this.settlement.fastestBatchTime });
+            try {
+                this.game.save.updateStats({ fastestBatch5: this.settlement.fastestBatchTime }, this.sessionId);
+            } catch (e) {}
         }
 
         this.game.audio.playSfx(summary.passed ? 'level_complete' : 'level_fail');
+
+        this.resultShown = true;
+        this.finalSummary = summary;
         this.game.ui.showResultScreen({
             summary,
             levelConfig: this.levelConfig,
@@ -467,7 +503,11 @@ export class GameScene extends BaseScene {
     }
 
     _submitScore(name, summary) {
-        return this.game.save.addToLeaderboard(name, summary.score, this.levelConfig.id);
+        if (this.scoreSubmitted) {
+            return this.game.save.getLeaderboard();
+        }
+        this.scoreSubmitted = true;
+        return this.game.save.addToLeaderboard(name, summary.score, this.levelConfig.id, this.sessionId);
     }
 
     _checkAchievements() {

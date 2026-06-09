@@ -4,6 +4,7 @@ export class UIManager {
         this.container = document.getElementById('ui-layer');
         this.currentView = null;
         this.views = {};
+        this._resultSessionId = null;
         this._init();
     }
 
@@ -33,6 +34,7 @@ export class UIManager {
     }
 
     showView(name) {
+        if (name !== 'result') this._resultSessionId = null;
         for (const [k, v] of Object.entries(this.views)) {
             v.style.display = (k === name) ? 'flex' : 'none';
         }
@@ -486,6 +488,13 @@ export class UIManager {
     }
 
     showResultScreen({ summary, levelConfig, stats, onRetry, onNext, onMenu, onSubmitScore }) {
+        if (summary.sessionId && summary.sessionId === this._resultSessionId) {
+            this.views.result.style.display = 'flex';
+            this.currentView = 'result';
+            return;
+        }
+        this._resultSessionId = summary.sessionId || null;
+
         const v = this.views.result;
         const passed = summary.passed;
         const breakdown = summary.breakdown;

@@ -6,6 +6,7 @@ export class SaveManager {
         this.data = this._defaultData();
         this.listeners = [];
         this._loaded = false;
+        this._sessionWriteKeys = new Set();
     }
 
     _defaultData() {
@@ -97,7 +98,13 @@ export class SaveManager {
         return { ...this.data.progress };
     }
 
-    completeLevel(levelId, stars, score) {
+    completeLevel(levelId, stars, score, sessionId = null) {
+        const writeKey = `completeLevel:${sessionId || 'nosess'}:${levelId}`;
+        if (sessionId && this._sessionWriteKeys.has(writeKey)) {
+            return false;
+        }
+        if (sessionId) this._sessionWriteKeys.add(writeKey);
+
         if (!this.data.progress.levelsCompleted.includes(levelId)) {
             this.data.progress.levelsCompleted.push(levelId);
         }
@@ -107,13 +114,21 @@ export class SaveManager {
         this.data.progress.levelBestScore[levelId] = Math.max(prevScore, score);
         this.data.stats.levelsCompleted = this.data.progress.levelsCompleted.length;
         this.save();
+        return true;
     }
 
     getStats() {
         return { ...this.data.stats, eventStats: { ...this.data.stats.eventStats } };
     }
 
-    updateStats(patch) {
+    updateStats(patch, sessionId = null) {
+        const keys = Object.keys(patch).sort().join(',');
+        const writeKey = `updateStats:${sessionId || 'nosess'}:${keys}`;
+        if (sessionId && this._sessionWriteKeys.has(writeKey)) {
+            return false;
+        }
+        if (sessionId) this._sessionWriteKeys.add(writeKey);
+
         for (const [k, v] of Object.entries(patch)) {
             if (k === 'eventStats') {
                 for (const [ek, ev] of Object.entries(v)) {
@@ -132,6 +147,7 @@ export class SaveManager {
             }
         }
         this.save();
+        return true;
     }
 
     unlockAchievement(id) {
@@ -197,7 +213,13 @@ export class SaveManager {
         }
     }
 
-    addToLeaderboard(name, score, levelId) {
+    addToLeaderboard(name, score, levelId, sessionId = null) {
+        const writeKey = `leaderboard:${sessionId || 'nosess'}:${levelId}:${score}`;
+        if (sessionId && this._sessionWriteKeys.has(writeKey)) {
+            return this.getLeaderboard();
+        }
+        if (sessionId) this._sessionWriteKeys.add(writeKey);
+
         const board = this.getLeaderboard();
         board.push({
             name,
