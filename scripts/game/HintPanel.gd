@@ -117,7 +117,7 @@ func set_hints_config(hints_array: Array) -> void:
 func show_panel(revealed_hints: Array = []) -> void:
 	hints_revealed = revealed_hints.size()
 	_update_hint_indicators(hints_revealed)
-	var text_parts = []
+	var text_parts: Array = []
 	for level_idx in range(1, hints_revealed + 1):
 		var hint_text = _get_hint_text_for_level(level_idx)
 		if not hint_text.is_empty():
@@ -125,7 +125,12 @@ func show_panel(revealed_hints: Array = []) -> void:
 	if text_parts.is_empty():
 		hint_text_label.text = "尚未使用任何提示。\n\n如果遇到困难，可以点击下方按钮获取提示。\n[i]提示会按级别逐步给出线索，每次都会扣除一定分数。[/i]"
 	else:
-		hint_text_label.text = "\n".join(text_parts)
+		var full_text: String = ""
+		for ti: int in range(text_parts.size()):
+			full_text += str(text_parts[ti])
+			if ti < text_parts.size() - 1:
+				full_text += "\n"
+		hint_text_label.text = full_text
 	_update_request_button()
 	show()
 	_animate_in()

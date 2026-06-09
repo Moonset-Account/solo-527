@@ -220,14 +220,19 @@ func show_success(data: Dictionary, has_next_level: bool = false) -> void:
 					if c.name == "ScoreNumberLabel":
 						(c as Label).text = str(final_score)
 					elif c.name == "SummaryLabel":
-						var summary_parts = []
+						var summary_parts: Array = []
 						if data.get("perfect", false):
 							summary_parts.append("🏆 完美通关！")
-						if data.get("attempts", 1) == 1:
+						if int(data.get("attempts", 1)) == 1:
 							summary_parts.append("⭐ 一次成功")
 						if int(data.get("hints_used", 0)) == 0:
 							summary_parts.append("🔍 零提示")
-						(c as Label).text = "  ".join(summary_parts)
+						var summary_text: String = ""
+						for si: int in range(summary_parts.size()):
+							summary_text += str(summary_parts[si])
+							if si < summary_parts.size() - 1:
+								summary_text += "    "
+						(c as Label).text = summary_text
 	_build_score_breakdown(data)
 	failure_reasons_container.visible = false
 	next_btn.visible = has_next_level

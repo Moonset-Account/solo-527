@@ -258,6 +258,14 @@ func submit_timeline() -> Dictionary:
 			EventBus.emit_signal("audio_play", "submit_fail", -5.0)
 	return result
 
+func _join_strings(parts: Array, delimiter: String) -> String:
+	var result_str: String = ""
+	for i: int in range(parts.size()):
+		result_str += str(parts[i])
+		if i < parts.size() - 1:
+			result_str += delimiter
+	return result_str
+
 func _evaluate_solution() -> Dictionary:
 	var cards: Array = current_level_config.get("cards", [])
 	var timeline: Array = game_state_data.get("timeline", [])
@@ -277,7 +285,7 @@ func _evaluate_solution() -> Dictionary:
 		"links_correct": 0,
 		"links_total": expected_links_arr.size(),
 		"links_wrong": [],
-		"all_links_correct": false,
+		"all_links_correct": expected_links_arr.size() == 0,
 		"failure_reasons": []
 	}
 	var sorted_cards: Array = cards.duplicate()
@@ -318,7 +326,7 @@ func _evaluate_solution() -> Dictionary:
 		for pt: String in player_tags:
 			if not correct_tags.has(pt):
 				result["tags_wrong"].append({"card_id": cid, "wrong_tag": pt})
-	result["all_tags_correct"] = int(result["tags_correct"]) == int(result["tags_total"]) and Array(result["tags_wrong"]).size() == 0
+	result["all_tags_correct"] = (int(result["tags_total"]) == 0) or (int(result["tags_correct"]) == int(result["tags_total"]) and Array(result["tags_wrong"]).size() == 0)
 	if expected_links_arr.size() > 0:
 		for el: Dictionary in expected_links_arr:
 			var matched: bool = false
@@ -332,13 +340,61 @@ func _evaluate_solution() -> Dictionary:
 			if not matched:
 				result["links_wrong"].append(el)
 		result["all_links_correct"] = int(result["links_correct"]) == int(result["links_total"])
+	else:
+		result["all_links_correct"] = true
 	var failures: Array = current_level_config.get("failure_messages", [])
-	if not result["all_cards_correct"]:
-		if failures.size() > 0:
-			result["failure_reasons"].append(failures[0])
-	if not result["all_tags_correct"] and failures.size() > 1:
+	var wrong_cards_count: int = Array(result["cards_wrong"]).size()
+	if wrong_cards_count > 0:
+		var card_names: Array = []
+		for w: Dictionary in Array(result["cards_wrong"]):
+			var expected_card_data: Dictionary = get_card_data(String(w.get("expected", "")))
+			var actual_card_data: Dictionary = get_card_data(String(w.get("actual", "")))
+			var expected_name: String = expected_card_data.get("title", w.get("expected", "?"))
+			var actual_name: String = actual_card_data.get("title", w.get("actual", "?"))
+			card_names.append("第%d槽应为【%s】，当前为【%s】" % [int(w.get("slot", 0)) + 1, expected_name, actual_name])
+		result["failure_reasons"].append("❌ 时间线顺序有误（%d张卡片位置不正确）：\n%s" % [wrong_cards_count, _join_strings(card_names, "\n    ")])
+	elif failures.size() > 0 and int(result["cards_correct"]) != int(result["cards_total"]):
+		result["failure_reasons"].append(failures[0])
+	var missing_tags_count: int = 0
+	var wrong_tags_count: int = 0
+	var tag_detail_map: Dictionary = {}
+	for tw: Dictionary in Array(result["tags_wrong"]):
+		var cid: String = String(tw.get("card_id", ""))
+		var tw_card: Dictionary = get_card_data(cid)
+		var cname: String = tw_card.get("title", cid)
+		if not tag_detail_map.has(cname):
+			tag_detail_map[cname] = {"missing": [], "wrong": []}
+		if tw.has("missing_tag"):
+			missing_tags_count += 1
+			tag_detail_map[cname]["missing"].append(tw["missing_tag"])
+		if tw.has("wrong_tag"):
+			wrong_tags_count += 1
+			tag_detail_map[cname]["wrong"].append(tw["wrong_tag"])
+	if int(result["tags_total"]) > 0 and (missing_tags_count + wrong_tags_count) > 0:
+		var tag_lines: Array = []
+		for cname in tag_detail_map.keys():
+			var info: Dictionary = tag_detail_map[cname]
+			var parts: Array = []
+			if Array(info["missing"]).size() > 0:
+				parts.append("缺少标签：%s" % _join_strings(Array(info["missing"]), "、"))
+			if Array(info["wrong"]).size() > 0:
+				parts.append("错误标签：%s" % _join_strings(Array(info["wrong"]), "、"))
+			if parts.size() > 0:
+				tag_lines.append("【%s】%s" % [cname, _join_strings(parts, "；")])
+		result["failure_reasons"].append("🏷️ 标签有问题（缺失%d个、错误%d个）：\n    %s" % [missing_tags_count, wrong_tags_count, _join_strings(tag_lines, "\n    ")])
+	elif failures.size() > 1 and not result["all_tags_correct"]:
 		result["failure_reasons"].append(failures[1])
-	if not result["all_links_correct"] and failures.size() > 2:
+	var wrong_links_count: int = Array(result["links_wrong"]).size()
+	if int(result["links_total"]) > 0 and wrong_links_count > 0:
+		var link_lines: Array = []
+		for el: Dictionary in Array(result["links_wrong"]):
+			var from_data: Dictionary = get_card_data(String(el.get("from", "")))
+			var to_data: Dictionary = get_card_data(String(el.get("to", "")))
+			var from_name: String = from_data.get("title", el.get("from", "?"))
+			var to_name: String = to_data.get("title", el.get("to", "?"))
+			link_lines.append("【%s】⇔【%s】尚未建立关联" % [from_name, to_name])
+		result["failure_reasons"].append("🔗 证据关联不完整（缺少%d组关联）：\n    %s" % [wrong_links_count, _join_strings(link_lines, "\n    ")])
+	elif failures.size() > 2 and not result["all_links_correct"]:
 		result["failure_reasons"].append(failures[2])
 	var denom: float = float(int(result["cards_total"]) + int(result["tags_total"]) + max(1, int(result["links_total"])))
 	var score_ratio: float = 0.0
