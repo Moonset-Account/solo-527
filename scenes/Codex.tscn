@@ -1,0 +1,120 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l5pqr"]
+
+[ext_resource type="Script" path="res://scripts/ui/Codex.gd" id="1_cx"]
+
+[node name="Codex" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_cx")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.95, 0.92, 0.84, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 20.0
+offset_right = 940.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 48
+text = "修复图鉴"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TabBar" type="TabContainer" parent="."]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 100.0
+offset_right = 1240.0
+offset_bottom = 640.0
+
+[node name="RecordsTab" type="VBoxContainer" parent="TabBar"]
+layout_mode = 3
+theme_override_constants/separation = 10
+name = "修复记录"
+
+[node name="LevelSelectHBox" type="HBoxContainer" parent="TabBar/RecordsTab"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LevelSelectLabel" type="Label" parent="TabBar/RecordsTab/LevelSelectHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+theme_override_font_sizes/font_size = 18
+text = "选择关卡："
+
+[node name="LevelSelectOption" type="OptionButton" parent="TabBar/RecordsTab/LevelSelectHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(300, 40)
+theme_override_font_sizes/font_size = 16
+
+[node name="RecordCountLabel" type="Label" parent="TabBar/RecordsTab/LevelSelectHBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "记录数：0"
+
+[node name="RecordsScroll" type="ScrollContainer" parent="TabBar/RecordsTab"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RecordsVBox" type="VBoxContainer" parent="TabBar/RecordsTab/RecordsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="MaterialsTab" type="VBoxContainer" parent="TabBar"]
+layout_mode = 3
+name = "材料图鉴"
+
+[node name="PaperMaterialsLabel" type="Label" parent="TabBar/MaterialsTab"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "📄 补纸材料"
+
+[node name="PaperGrid" type="GridContainer" parent="TabBar/MaterialsTab"]
+layout_mode = 2
+columns = 2
+size_flags_vertical = 3
+
+[node name="GlueMaterialsLabel" type="Label" parent="TabBar/MaterialsTab"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "🩹 胶水材料"
+
+[node name="GlueGrid" type="GridContainer" parent="TabBar/MaterialsTab"]
+layout_mode = 2
+columns = 2
+
+[node name="ToolsTab" type="VBoxContainer" parent="TabBar"]
+layout_mode = 3
+name = "工具图鉴"
+
+[node name="ToolsLabel" type="Label" parent="TabBar/ToolsTab"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "🛠 修复工具"
+
+[node name="ToolsGrid" type="GridContainer" parent="TabBar/ToolsTab"]
+layout_mode = 2
+columns = 3
+size_flags_vertical = 3
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 30.0
+offset_right = 200.0
+offset_bottom = 80.0
+custom_minimum_size = Vector2(150, 50)
+theme_override_font_sizes/font_size = 18
+text = "← 返回主菜单"

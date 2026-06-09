@@ -1,0 +1,8 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="16" fill="#f5e6c8"/>
+  <rect x="20" y="16" width="88" height="96" rx="4" fill="#d4a574" stroke="#8b6914" stroke-width="2"/>
+  <line x1="64" y1="16" x2="64" y2="112" stroke="#8b6914" stroke-width="2"/>
+  <path d="M30 35 L55 40 M30 55 L55 50 M30 75 L55 70 M30 95 L55 90 M73 40 L98 35 M73 50 L98 55 M73 70 L98 75 M73 90 L98 95" stroke="#5c3d2e" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="90" cy="100" r="8" fill="#c0392b" opacity="0.6"/>
+  <text x="64" y="118" text-anchor="middle" font-family="serif" font-size="10" fill="#5c3d2e" font-weight="bold">修复工坊</text>
+</svg>

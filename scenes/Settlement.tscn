@@ -1,0 +1,202 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l3jkl"]
+
+[ext_resource type="Script" path="res://scripts/ui/Settlement.gd" id="1_set"]
+
+[node name="Settlement" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_set")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.9, 0.78, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 440.0
+offset_top = 30.0
+offset_right = 840.0
+offset_bottom = 90.0
+theme_override_font_sizes/font_size = 48
+text = "修复结算"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ResultStatus" type="Label" parent="."]
+layout_mode = 0
+offset_left = 440.0
+offset_top = 90.0
+offset_right = 840.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 36
+text = "✔ 修复成功"
+horizontal_alignment = 1
+
+[node name="MainContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 150.0
+offset_right = 1220.0
+offset_bottom = 560.0
+theme_override_constants/separation = 30
+
+[node name="LeftPanel" type="PanelContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LeftVBox" type="VBoxContainer" parent="MainContainer/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ScoreTitle" type="Label" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "综合评分"
+horizontal_alignment = 1
+
+[node name="GradeLabel" type="Label" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 96
+text = "A"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreNumber" type="Label" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "85 分"
+horizontal_alignment = 1
+
+[node name="GradeDesc" type="Label" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "优秀修复！技艺精湛。"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HSeparator1" type="HSeparator" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+
+[node name="BreakdownTitle" type="Label" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "评分明细"
+
+[node name="BreakdownVBox" type="VBoxContainer" parent="MainContainer/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RightPanel" type="PanelContainer" parent="MainContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="RightVBox" type="VBoxContainer" parent="MainContainer/RightPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RewardTitle" type="Label" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "委托奖励"
+horizontal_alignment = 1
+
+[node name="RewardAmount" type="Label" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "💰 250 金币"
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+
+[node name="StatsTitle" type="Label" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "修复统计"
+
+[node name="StatsVBox" type="VBoxContainer" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MaterialsTitle" type="Label" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "材料消耗"
+
+[node name="MaterialsVBox" type="VBoxContainer" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+size_flags_vertical = 3
+
+[node name="ZonesTitle" type="Label" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "损伤区域详情"
+
+[node name="ZonesScroll" type="ScrollContainer" parent="MainContainer/RightPanel/RightVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ZonesVBox" type="VBoxContainer" parent="MainContainer/RightPanel/RightVBox/ZonesScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ComparePanel" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 570.0
+offset_right = 1220.0
+offset_bottom = 640.0
+
+[node name="CompareHBox" type="HBoxContainer" parent="ComparePanel"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="CompareTitle" type="Label" parent="ComparePanel/CompareHBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "📖 历史方案对比："
+custom_minimum_size = Vector2(140, 0)
+
+[node name="CompareScroll" type="ScrollContainer" parent="ComparePanel/CompareHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 1
+
+[node name="CompareHBoxInner" type="HBoxContainer" parent="ComparePanel/CompareHBox/CompareScroll"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ButtonContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 380.0
+offset_top = 650.0
+offset_right = 900.0
+offset_bottom = 710.0
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="RetryButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 56)
+theme_override_font_sizes/font_size = 22
+text = "🔄 再试一次"
+
+[node name="BackToLevelsButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 56)
+theme_override_font_sizes/font_size = 22
+text = "📜 关卡列表"

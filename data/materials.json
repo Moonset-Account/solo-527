@@ -1,0 +1,113 @@
+{
+  "materials": {
+    "paper": [
+      {
+        "id": "bamboo",
+        "name": "竹纸",
+        "description": "以竹子为原料，质地细腻，适合普通古籍修复。",
+        "strength": 60,
+        "compatibility": ["竹纸"],
+        "cost": 10,
+        "color": "#e8d9b0"
+      },
+      {
+        "id": "xuan",
+        "name": "宣纸",
+        "description": "安徽泾县特产，绵韧坚密，最适合书画类古籍。",
+        "strength": 75,
+        "compatibility": ["宣纸", "棉纸"],
+        "cost": 25,
+        "color": "#f0e6d2"
+      },
+      {
+        "id": "cotton",
+        "name": "棉纸",
+        "description": "棉纤维制成，柔韧性好，适合接缝修复。",
+        "strength": 55,
+        "compatibility": ["棉纸", "竹纸", "宣纸"],
+        "cost": 15,
+        "color": "#f5efe0"
+      },
+      {
+        "id": "hide",
+        "name": "皮纸",
+        "description": "以楮皮、桑皮为原料，纤维绵长，适合宋代善本。",
+        "strength": 85,
+        "compatibility": ["皮纸", "宣纸"],
+        "cost": 40,
+        "color": "#ddd0a8"
+      }
+    ],
+    "glue": [
+      {
+        "id": "starch",
+        "name": "淀粉胶",
+        "description": "传统修复用胶，可逆性好，适合一般修复。",
+        "adhesion": 60,
+        "reversibility": 90,
+        "cost": 5,
+        "color": "#faf3e0"
+      },
+      {
+        "id": "wheat_starch",
+        "name": "小麦淀粉胶",
+        "description": "精制小麦淀粉，粘性适中，适合书画修复。",
+        "adhesion": 70,
+        "reversibility": 85,
+        "cost": 10,
+        "color": "#fdf6e3"
+      },
+      {
+        "id": "dextrin",
+        "name": "糊精胶",
+        "description": "粘性较强，适合大面积修复，不可逆性较高。",
+        "adhesion": 85,
+        "reversibility": 60,
+        "cost": 8,
+        "color": "#f5e6c8"
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "paper_knife",
+      "name": "补纸刀",
+      "description": "用于精确裁剪补纸材料，是修复师最基础的工具。",
+      "icon": "🔪",
+      "unlock_level": 1,
+      "action": "cut"
+    },
+    {
+      "id": "humidity_chamber",
+      "name": "湿度箱",
+      "description": "精确控制环境湿度，使老化纸张软化便于操作。",
+      "icon": "💧",
+      "unlock_level": 2,
+      "action": "humidify"
+    },
+    {
+      "id": "press_board",
+      "name": "压平板",
+      "description": "修复后施压固定，使粘合处平整牢固。",
+      "icon": "📚",
+      "unlock_level": 3,
+      "action": "press"
+    },
+    {
+      "id": "tweezers",
+      "name": "镊子",
+      "description": "精细操作，对齐微小的撕裂与碎片。",
+      "icon": "🗜️",
+      "unlock_level": 4,
+      "action": "align"
+    },
+    {
+      "id": "brush",
+      "name": "排笔",
+      "description": "均匀涂抹胶水，防止局部过湿。",
+      "icon": "🖌️",
+      "unlock_level": 1,
+      "action": "paste"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l1def"]
+
+[ext_resource type="Script" path="res://scripts/ui/LevelSelect.gd" id="1_ls"]
+
+[node name="LevelSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ls")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.9, 0.78, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 40.0
+offset_right = 940.0
+offset_bottom = 100.0
+theme_override_font_sizes/font_size = 48
+text = "选择委托"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LevelsContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 120.0
+offset_right = 1140.0
+offset_bottom = 620.0
+theme_override_constants/separation = 20
+
+[node name="BackButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 50.0
+offset_right = 200.0
+offset_bottom = 100.0
+custom_minimum_size = Vector2(150, 50)
+theme_override_font_sizes/font_size = 20
+text = "← 返回主菜单"
+
+[node name="GoldLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 1000.0
+offset_top = 30.0
+offset_right = 1250.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 22
+text = "金币：0"
+horizontal_alignment = 2

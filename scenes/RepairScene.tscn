@@ -1,0 +1,447 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l2ghi"]
+
+[ext_resource type="Script" path="res://scripts/ui/RepairScene.gd" id="1_rs"]
+
+[node name="RepairScene" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_rs")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.93, 0.87, 0.75, 1)
+
+[node name="TopBar" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1280.0
+offset_bottom = 70.0
+
+[node name="TopHBox" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="BackButton" type="Button" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 50)
+theme_override_font_sizes/font_size = 18
+text = "← 放弃"
+
+[node name="LevelNameLabel" type="Label" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(300, 0)
+theme_override_font_sizes/font_size = 24
+text = "关卡名称"
+
+[node name="TimerLabel" type="Label" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 0)
+theme_override_font_sizes/font_size = 22
+text = "⏱ 03:00"
+
+[node name="StrengthLabel" type="Label" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+theme_override_font_sizes/font_size = 20
+text = "💪 纸张强度：60"
+
+[node name="HumidityLabel" type="Label" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 0)
+theme_override_font_sizes/font_size = 20
+text = "💧 湿度：55%"
+
+[node name="GoldLabel" type="Label" parent="TopBar/TopHBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 0)
+theme_override_font_sizes/font_size = 20
+text = "💰 500"
+
+[node name="MainArea" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 80.0
+offset_right = 1280.0
+offset_bottom = 720.0
+theme_override_constants/separation = 0
+
+[node name="LeftPanel" type="VBoxContainer" parent="MainArea"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 0)
+theme_override_constants/separation = 10
+
+[node name="ClientPanel" type="PanelContainer" parent="MainArea/LeftPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 130)
+
+[node name="ClientVBox" type="VBoxContainer" parent="MainArea/LeftPanel/ClientPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ClientTitle" type="Label" parent="MainArea/LeftPanel/ClientPanel/ClientVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "客户委托"
+
+[node name="ClientName" type="Label" parent="MainArea/LeftPanel/ClientPanel/ClientVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "客户："
+
+[node name="ClientUrgency" type="Label" parent="MainArea/LeftPanel/ClientPanel/ClientVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "紧急度：★★☆"
+
+[node name="ClientReward" type="Label" parent="MainArea/LeftPanel/ClientPanel/ClientVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "基础酬金：100"
+
+[node name="ToolPanel" type="PanelContainer" parent="MainArea/LeftPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 220)
+
+[node name="ToolVBox" type="VBoxContainer" parent="MainArea/LeftPanel/ToolPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ToolTitle" type="Label" parent="MainArea/LeftPanel/ToolPanel/ToolVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "工具箱"
+
+[node name="ToolsHBox" type="HBoxContainer" parent="MainArea/LeftPanel/ToolPanel/ToolVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PaperPanel" type="PanelContainer" parent="MainArea/LeftPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 120)
+
+[node name="PaperVBox" type="VBoxContainer" parent="MainArea/LeftPanel/PaperPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PaperTitle" type="Label" parent="MainArea/LeftPanel/PaperPanel/PaperVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "选择补纸"
+
+[node name="PaperOption" type="OptionButton" parent="MainArea/LeftPanel/PaperPanel/PaperVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+
+[node name="PaperStock" type="Label" parent="MainArea/LeftPanel/PaperPanel/PaperVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "库存：20"
+
+[node name="GluePanel" type="PanelContainer" parent="MainArea/LeftPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 160)
+
+[node name="GlueVBox" type="VBoxContainer" parent="MainArea/LeftPanel/GluePanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="GlueTitle" type="Label" parent="MainArea/LeftPanel/GluePanel/GlueVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "选择胶水"
+
+[node name="GlueOption" type="OptionButton" parent="MainArea/LeftPanel/GluePanel/GlueVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+
+[node name="GlueRatioLabel" type="Label" parent="MainArea/LeftPanel/GluePanel/GlueVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "胶水浓度：0.50"
+
+[node name="GlueRatioSlider" type="HSlider" parent="MainArea/LeftPanel/GluePanel/GlueVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 30)
+min_value = 0.2
+max_value = 0.8
+step = 0.01
+value = 0.5
+
+[node name="HumidityPanel" type="PanelContainer" parent="MainArea/LeftPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 110)
+
+[node name="HumidityVBox" type="VBoxContainer" parent="MainArea/LeftPanel/HumidityPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HumidityTitle" type="Label" parent="MainArea/LeftPanel/HumidityPanel/HumidityVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "环境湿度"
+
+[node name="HumiditySliderLabel" type="Label" parent="MainArea/LeftPanel/HumidityPanel/HumidityVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "当前：50%  |  目标：--"
+
+[node name="HumiditySlider" type="HSlider" parent="MainArea/LeftPanel/HumidityPanel/HumidityVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 30)
+min_value = 30.0
+max_value = 80.0
+step = 1.0
+value = 50.0
+
+[node name="CenterArea" type="PanelContainer" parent="MainArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BookContainer" type="Control" parent="MainArea/CenterArea"]
+layout_mode = 2
+name = "BookContainer"
+
+[node name="BookBackground" type="ColorRect" parent="MainArea/CenterArea/BookContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.9, 0.83, 0.66, 1)
+
+[node name="BookContent" type="Control" parent="MainArea/CenterArea/BookContainer"]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 940.0
+offset_bottom = 560.0
+
+[node name="PaperTexture" type="ColorRect" parent="MainArea/CenterArea/BookContainer/BookContent"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.91, 0.79, 1)
+
+[node name="DamageZonesContainer" type="Control" parent="MainArea/CenterArea/BookContainer/BookContent"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BookTitle" type="Label" parent="MainArea/CenterArea/BookContainer/BookContent"]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 900.0
+offset_bottom = 40.0
+theme_override_font_sizes/font_size = 22
+text = "书籍名称  ——  朝代"
+horizontal_alignment = 1
+
+[node name="BookTextMock" type="Label" parent="MainArea/CenterArea/BookContainer/BookContent"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 60.0
+offset_right = 860.0
+offset_bottom = 480.0
+theme_override_font_sizes/font_size = 18
+text = "  古之学者必有师。师者，所以传道受业解惑也。人非生而知之者，孰能无惑？惑而不从师，其为惑也，终不解矣。生乎吾前，其闻道也固先乎吾，吾从而师之；生乎吾后，其闻道也亦先乎吾，吾从而师之。吾师道也，夫庸知其年之先后生于吾乎？\n\n  是故无贵无贱，无长无少，道之所存，师之所存也。嗟乎！师道之不传也久矣！欲人之无惑也难矣！古之圣人，其出人也远矣，犹且从师而问焉；今之众人，其下圣人也亦远矣，而耻学于师。\n\n  是故圣益圣，愚益愚；圣人之所以为圣，愚人之所以为愚，其皆出于此乎！爱其子，择师而教之；于其身也，则耻师焉，惑矣。彼童子之师，授之书而习其句读者，非吾所谓传其道解其惑者也。"
+autowrap_mode = 3
+horizontal_alignment = 1
+
+[node name="ZonesProgressPanel" type="PanelContainer" parent="MainArea/CenterArea"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 560.0
+offset_right = 940.0
+offset_bottom = 620.0
+
+[node name="ZonesProgressHBox" type="HBoxContainer" parent="MainArea/CenterArea/ZonesProgressPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ZonesProgressLabel" type="Label" parent="MainArea/CenterArea/ZonesProgressPanel/ZonesProgressHBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "修复进度：0/0"
+
+[node name="ZonesProgressBar" type="ProgressBar" parent="MainArea/CenterArea/ZonesProgressPanel/ZonesProgressHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightPanel" type="VBoxContainer" parent="MainArea"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 0)
+theme_override_constants/separation = 10
+
+[node name="ZoneDetailPanel" type="PanelContainer" parent="MainArea/RightPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 280)
+
+[node name="ZoneDetailVBox" type="VBoxContainer" parent="MainArea/RightPanel/ZoneDetailPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ZoneDetailTitle" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "损伤详情"
+
+[node name="ZoneName" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "（点击损伤区域查看）"
+horizontal_alignment = 1
+
+[node name="ZoneType" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="ZonePaperReq" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
+[node name="ZoneGlueReq" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
+[node name="ZoneStepsLabel" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "修复步骤："
+
+[node name="ZoneStepsText" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = ""
+autowrap_mode = 3
+
+[node name="ZoneProgressLabel" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "步骤进度：0/0"
+
+[node name="ZoneQualityLabel" type="Label" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "当前品质：--"
+
+[node name="DoStepButton" type="Button" parent="MainArea/RightPanel/ZoneDetailPanel/ZoneDetailVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 18
+text = "执行下一步"
+disabled = true
+
+[node name="ParamsPanel" type="PanelContainer" parent="MainArea/RightPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 160)
+
+[node name="ParamsVBox" type="VBoxContainer" parent="MainArea/RightPanel/ParamsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ParamsTitle" type="Label" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "当前步骤参数"
+
+[node name="Param1Label" type="Label" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "剪裁精度：0.80"
+
+[node name="Param1Slider" type="HSlider" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 26)
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="Param2Label" type="Label" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "对齐精度：0.80"
+
+[node name="Param2Slider" type="HSlider" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 26)
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="Param3Label" type="Label" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "按压力度：0.60"
+
+[node name="Param3Slider" type="HSlider" parent="MainArea/RightPanel/ParamsPanel/ParamsVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 26)
+min_value = 0.1
+max_value = 1.0
+step = 0.01
+value = 0.6
+
+[node name="LogPanel" type="PanelContainer" parent="MainArea/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LogVBox" type="VBoxContainer" parent="MainArea/RightPanel/LogPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LogTitle" type="Label" parent="MainArea/RightPanel/LogPanel/LogVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "修复日志"
+
+[node name="LogText" type="RichTextLabel" parent="MainArea/RightPanel/LogPanel/LogVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+text = "欢迎来到修复工坊。请点击书籍上的损伤区域开始修复。"
+
+[node name="FinishButton" type="Button" parent="MainArea/RightPanel/LogPanel/LogVBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+theme_override_font_sizes/font_size = 20
+text = "✔ 提交修复"
+
+[node name="TutorialHint" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 300.0
+offset_top = 640.0
+offset_right = 980.0
+offset_bottom = 710.0
+
+[node name="TutorialLabel" type="Label" parent="TutorialHint"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "提示：这是一条教程提示"
+horizontal_alignment = 1
+vertical_alignment = 1

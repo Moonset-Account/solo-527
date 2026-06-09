@@ -1,0 +1,102 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l0abc"]
+
+[ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.9, 0.78, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 80.0
+offset_right = 940.0
+offset_bottom = 180.0
+theme_override_font_sizes/font_size = 64
+text = "古籍修复工坊"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 170.0
+offset_right = 940.0
+offset_bottom = 220.0
+theme_override_font_sizes/font_size = 20
+text = "—— 传承千年文化的指尖艺术 ——"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DecorativeLine" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 340.0
+offset_top = 230.0
+offset_right = 940.0
+offset_bottom = 234.0
+color = Color(0.55, 0.35, 0.18, 1)
+
+[node name="ButtonContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 490.0
+offset_top = 280.0
+offset_right = 790.0
+offset_bottom = 560.0
+theme_override_constants/separation = 24
+
+[node name="StartButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+theme_override_font_sizes/font_size = 28
+text = "开始修复"
+
+[node name="CodexButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+theme_override_font_sizes/font_size = 28
+text = "修复图鉴"
+
+[node name="LevelSelectButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+theme_override_font_sizes/font_size = 28
+text = "关卡选择"
+
+[node name="QuitButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+theme_override_font_sizes/font_size = 28
+text = "退出游戏"
+
+[node name="GoldLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 1000.0
+offset_top = 30.0
+offset_right = 1250.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 22
+text = "金币：0"
+horizontal_alignment = 2
+
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 680.0
+offset_right = 300.0
+offset_bottom = 710.0
+theme_override_font_sizes/font_size = 14
+text = "试玩版 v0.1  |  基于 Godot 4 制作"

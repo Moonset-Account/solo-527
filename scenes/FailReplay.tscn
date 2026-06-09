@@ -1,0 +1,114 @@
+[gd_scene load_steps=2 format=3 uid="uid://bm8xq7k5l4mno"]
+
+[ext_resource type="Script" path="res://scripts/ui/FailReplay.gd" id="1_fr"]
+
+[node name="FailReplay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_fr")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.93, 0.85, 0.85, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 440.0
+offset_top = 25.0
+offset_right = 840.0
+offset_bottom = 85.0
+theme_override_font_sizes/font_size = 44
+text = "修复未通过"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 440.0
+offset_top = 85.0
+offset_right = 840.0
+offset_bottom = 130.0
+theme_override_font_sizes/font_size = 28
+text = "得分：42 / 合格：60"
+horizontal_alignment = 1
+
+[node name="FailuresPanel" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 140.0
+offset_right = 1220.0
+offset_bottom = 500.0
+
+[node name="FailuresVBox" type="VBoxContainer" parent="FailuresPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FailuresTitle" type="Label" parent="FailuresPanel/FailuresVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "🔍 失败原因分析"
+
+[node name="FailuresScroll" type="ScrollContainer" parent="FailuresPanel/FailuresVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FailuresContent" type="VBoxContainer" parent="FailuresPanel/FailuresScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ReplayPanel" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 510.0
+offset_right = 1220.0
+offset_bottom = 650.0
+
+[node name="ReplayVBox" type="VBoxContainer" parent="ReplayPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ReplayTitle" type="Label" parent="ReplayPanel/ReplayVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "📋 本次修复记录"
+
+[node name="ReplayStatsHBox" type="HBoxContainer" parent="ReplayPanel/ReplayVBox"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="ButtonContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 330.0
+offset_top = 660.0
+offset_right = 950.0
+offset_bottom = 710.0
+theme_override_constants/separation = 30
+alignment = 1
+
+[node name="ViewSettlementButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 48)
+theme_override_font_sizes/font_size = 20
+text = "📊 查看结算"
+
+[node name="RetryButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 48)
+theme_override_font_sizes/font_size = 20
+text = "🔄 再试一次"
+
+[node name="BackButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 48)
+theme_override_font_sizes/font_size = 20
+text = "📜 返回关卡"

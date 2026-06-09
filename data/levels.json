@@ -1,0 +1,211 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "name": "教程：初学补纸",
+      "description": "学习最基础的古籍补纸技巧。使用补纸刀裁剪合适的补纸，用胶水粘合虫蛀区域。",
+      "is_tutorial": true,
+      "unlocked_tools": ["补纸刀"],
+      "time_limit": 180,
+      "client": {
+        "name": "李先生",
+        "description": "当地藏书家，带来了家传的古籍残页。",
+        "reward": 100,
+        "urgency": 1
+      },
+      "book": {
+        "name": "《千家诗》残页",
+        "dynasty": "清代",
+        "base_strength": 60,
+        "damage_zones": [
+          {
+            "id": "zone_1",
+            "name": "左上角虫蛀",
+            "type": "wormhole",
+            "size": 2,
+            "x": 0.15,
+            "y": 0.2,
+            "required_paper_type": "竹纸",
+            "required_glue_ratio": 0.6,
+            "step_order": ["cut", "paste", "press"]
+          },
+          {
+            "id": "zone_2",
+            "name": "中部撕裂",
+            "type": "tear",
+            "size": 1,
+            "x": 0.5,
+            "y": 0.45,
+            "required_paper_type": "竹纸",
+            "required_glue_ratio": 0.5,
+            "step_order": ["align", "paste", "press"]
+          }
+        ],
+        "paper_type": "竹纸",
+        "humidity_target": null
+      },
+      "available_materials": {
+        "paper": ["竹纸"],
+        "glue": ["淀粉胶"],
+        "min_glue_ratio": 0.3,
+        "max_glue_ratio": 0.8
+      },
+      "tutorial_hints": [
+        "第一步：选择【补纸刀】工具，点击虫蛀区域裁剪补纸",
+        "第二步：调整胶水浓度滑块至目标范围",
+        "第三步：点击区域涂抹胶水并粘合补纸",
+        "第四步：使用压平板按压固定（本关暂未解锁，可跳过）"
+      ],
+      "passing_score": 60
+    },
+    {
+      "id": 2,
+      "name": "第二章：湿度之衡",
+      "description": "学习控制修复环境的湿度。珍贵纸张对湿度极为敏感，过高会发霉，过低会脆裂。",
+      "is_tutorial": false,
+      "unlocked_tools": ["补纸刀", "湿度箱"],
+      "time_limit": 240,
+      "client": {
+        "name": "王馆长",
+        "description": "市立博物馆馆长，带来了明代珍品画卷。",
+        "reward": 250,
+        "urgency": 2
+      },
+      "book": {
+        "name": "《山水图卷》局部",
+        "dynasty": "明代",
+        "base_strength": 45,
+        "damage_zones": [
+          {
+            "id": "zone_1",
+            "name": "画心虫蛀群",
+            "type": "wormhole",
+            "size": 3,
+            "x": 0.35,
+            "y": 0.35,
+            "required_paper_type": "宣纸",
+            "required_glue_ratio": 0.45,
+            "step_order": ["humidify", "cut", "paste", "press"]
+          },
+          {
+            "id": "zone_2",
+            "name": "边缘脆裂",
+            "type": "crack",
+            "size": 2,
+            "x": 0.8,
+            "y": 0.6,
+            "required_paper_type": "宣纸",
+            "required_glue_ratio": 0.4,
+            "step_order": ["humidify", "align", "paste", "press"]
+          },
+          {
+            "id": "zone_3",
+            "name": "接缝脱胶",
+            "type": "separation",
+            "size": 1,
+            "x": 0.5,
+            "y": 0.8,
+            "required_paper_type": "棉纸",
+            "required_glue_ratio": 0.55,
+            "step_order": ["paste", "press"]
+          }
+        ],
+        "paper_type": "宣纸",
+        "humidity_target": 55,
+        "humidity_tolerance": 5
+      },
+      "available_materials": {
+        "paper": ["竹纸", "宣纸", "棉纸"],
+        "glue": ["淀粉胶", "小麦淀粉胶"],
+        "min_glue_ratio": 0.2,
+        "max_glue_ratio": 0.7
+      },
+      "tutorial_hints": [
+        "使用【湿度箱】将环境湿度调整至 50%-60% 之间",
+        "不同损伤需要不同的纸张类型，注意匹配",
+        "先加湿软化纸张，再进行补纸操作"
+      ],
+      "passing_score": 65
+    },
+    {
+      "id": 3,
+      "name": "第三章：重压平心",
+      "description": "解锁压平板工具。修复后需要适当的压力使粘合处平整牢固。",
+      "is_tutorial": false,
+      "unlocked_tools": ["补纸刀", "湿度箱", "压平板"],
+      "time_limit": 300,
+      "client": {
+        "name": "陈教授",
+        "description": "历史系教授，带来了宋代善本的修复委托。",
+        "reward": 400,
+        "urgency": 3
+      },
+      "book": {
+        "name": "《资治通鉴》残本",
+        "dynasty": "宋代",
+        "base_strength": 30,
+        "damage_zones": [
+          {
+            "id": "zone_1",
+            "name": "书口大面积虫蛀",
+            "type": "wormhole",
+            "size": 4,
+            "x": 0.5,
+            "y": 0.15,
+            "required_paper_type": "皮纸",
+            "required_glue_ratio": 0.5,
+            "step_order": ["humidify", "cut", "paste", "press"]
+          },
+          {
+            "id": "zone_2",
+            "name": "天头水渍脆化",
+            "type": "water_damage",
+            "size": 3,
+            "x": 0.5,
+            "y": 0.85,
+            "required_paper_type": "皮纸",
+            "required_glue_ratio": 0.45,
+            "step_order": ["humidify", "align", "paste", "press"]
+          },
+          {
+            "id": "zone_3",
+            "name": "版心撕裂",
+            "type": "tear",
+            "size": 2,
+            "x": 0.5,
+            "y": 0.5,
+            "required_paper_type": "皮纸",
+            "required_glue_ratio": 0.55,
+            "step_order": ["align", "paste", "press"]
+          },
+          {
+            "id": "zone_4",
+            "name": "鱼尾处孔洞",
+            "type": "wormhole",
+            "size": 1,
+            "x": 0.3,
+            "y": 0.5,
+            "required_paper_type": "皮纸",
+            "required_glue_ratio": 0.4,
+            "step_order": ["cut", "paste", "press"]
+          }
+        ],
+        "paper_type": "皮纸",
+        "humidity_target": 58,
+        "humidity_tolerance": 4
+      },
+      "available_materials": {
+        "paper": ["竹纸", "宣纸", "棉纸", "皮纸"],
+        "glue": ["淀粉胶", "小麦淀粉胶", "糊精胶"],
+        "min_glue_ratio": 0.25,
+        "max_glue_ratio": 0.65
+      },
+      "tutorial_hints": [
+        "宋代皮纸纤维较长，需要精确匹配补纸材料",
+        "【压平板】可以增加粘合强度，但过度按压会损伤纸张",
+        "时间紧迫，请合理规划修复顺序"
+      ],
+      "passing_score": 70
+    }
+  ]
+}
