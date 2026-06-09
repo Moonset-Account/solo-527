@@ -6,12 +6,18 @@ export class SettingsScene extends BaseScene {
     this.tempSettings = this.services.saveSystem.getSettings()
     this.hoveredSlider = null
     this.draggingSlider = null
+    this._sfxPreviewTimer = 0
     this._setupUI()
   }
 
   onEnter() {
     this.tempSettings = this.services.saveSystem.getSettings()
     this.services.audioManager.applySettings(this.tempSettings)
+  }
+
+  update(deltaTime) {
+    super.update(deltaTime)
+    if (this._sfxPreviewTimer > 0) this._sfxPreviewTimer -= deltaTime
   }
 
   _setupUI() {
@@ -59,6 +65,10 @@ export class SettingsScene extends BaseScene {
     if (result) return result
     if (this.draggingSlider) {
       this._updateSliderValue(this.draggingSlider, pos.x)
+      if (this.draggingSlider === 'sfxVolume' && this._sfxPreviewTimer <= 0) {
+        this.services.audioManager.playSfx('tile_pick')
+        this._sfxPreviewTimer = 0.18
+      }
       return { type: 'slider', key: this.draggingSlider }
     }
     let hovered = null
@@ -117,6 +127,10 @@ export class SettingsScene extends BaseScene {
       if (pos.x >= r.x - 15 && pos.x <= r.x + r.w + 15 && pos.y >= r.y - 15 && pos.y <= r.y + r.h + 15) {
         this.draggingSlider = key
         this._updateSliderValue(key, pos.x)
+        if (key === 'sfxVolume') {
+          this.services.audioManager.playSfx('tile_pick')
+          this._sfxPreviewTimer = 0.2
+        }
         return true
       }
     }
