@@ -187,7 +187,50 @@ export class GameScene extends BaseScene {
         }
     }
 
+    _resetScene() {
+        while (this.threeScene.children.length > 0) {
+            this.threeScene.remove(this.threeScene.children[0]);
+        }
+        if (this.hoverHighlight && this.hoverHighlight.mesh) {
+            try { this.threeScene.remove(this.hoverHighlight.mesh); } catch(e) {}
+        }
+        if (this.game && this.game.eventBus) {
+            this.game.eventBus.clear();
+        }
+        this.cityMap = null;
+        this.eventSystem = null;
+        this.taskSystem = null;
+        this.teamSystem = null;
+        this.resourceSystem = null;
+        this.settlement = null;
+        this.selectedEvent = null;
+        this.selectedTeam = null;
+        this.time = 0;
+        this.remainingTime = 0;
+        this.paused = false;
+        this.levelConfig = null;
+        this.workingEvents = new Map();
+        this.cameraOffset = new THREE.Vector3(0, 18, 14);
+        this.cameraInfo = { zoom: 0, gridX: 0, gridY: 0 };
+        this.lastFeedbackTime = 0;
+        this.hoverHighlight = null;
+        this.ended = false;
+        this.resultShown = false;
+        this.sessionId = 'sess_' + Math.random().toString(36).slice(2, 10);
+        this.scoreSubmitted = false;
+        this.finalSummary = null;
+    }
+
     async onEnter(data = {}) {
+        if (data.levelConfig) {
+            this._resetScene();
+            this.levelConfig = data.levelConfig;
+            this._setupCamera();
+            this._buildCity();
+            this._setupSystems();
+            this._configureLevel();
+            this._spawnInitialTeams();
+        }
         this.paused = false;
         this.game.ui.showGameHUD();
         this.game.ui.renderHUD({ game: this });
