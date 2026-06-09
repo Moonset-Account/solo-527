@@ -256,3 +256,60 @@ protected:
 	UPROPERTY() TObjectPtr<UButton> Btn_Next, *Btn_Menu, *Btn_Replay;
 	UPROPERTY() TObjectPtr<UTextBlock> Txt_Title, *Txt_Time, *Txt_Items, *Txt_Notes, *Txt_Obj, *Txt_Fails, *Txt_Sub;
 };
+
+/* =====================================================================
+   ============== 内联辅助：程序化构建 Canvas Slot / 按钮 =============
+   ===================================================================== */
+
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
+#include "Misc/Paths.h"
+
+FORCEINLINE UCanvasPanelSlot* _AddToCanvas(UCanvasPanel* Canvas, UWidget* W,
+	FVector2D Off, FVector2D Size, FAnchors Anch, FMargin Padd = FMargin(0))
+{
+	UCanvasPanelSlot* S = Canvas->AddChildToCanvas(W);
+	S->SetAnchors(Anch);
+	S->SetOffsets(FMargin(Off.X, Off.Y, Off.X + Size.X, Off.Y + Size.Y));
+	S->SetAutoSize(false);
+	return S;
+}
+
+FORCEINLINE FButtonStyle _BtnStyle(FLinearColor Normal = FLinearColor(0.08f, 0.06f, 0.05f, 0.9f),
+	FLinearColor Hover = FLinearColor(0.18f, 0.12f, 0.08f, 1.f),
+	FLinearColor Pressed = FLinearColor(0.04f, 0.03f, 0.02f, 1.f))
+{
+	FButtonStyle S = FAppStyle::Get().GetWidgetStyle<FButtonStyle>(TEXT("Button"));
+	S.Normal = FSlateColorBrush(Normal);
+	S.Hovered = FSlateColorBrush(Hover);
+	S.Pressed = FSlateColorBrush(Pressed);
+	S.Disabled = FSlateColorBrush(FLinearColor(0.3f, 0.3f, 0.3f, 0.5f));
+	S.NormalPadding = FMargin(12, 6);
+	return S;
+}
+
+FORCEINLINE FTextBlockStyle _TxtStyle(int32 Size = 28, FLinearColor Col = FLinearColor(0.93f, 0.82f, 0.6f))
+{
+	FTextBlockStyle S = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>(TEXT("NormalText"));
+	S.SetFont(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Bold.ttf"), Size));
+	S.SetColorAndOpacity(FSlateColor(Col));
+	S.SetShadowOffset(FVector2D(1, 1));
+	S.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.6f));
+	return S;
+}
+
+FORCEINLINE UButton* _MakeButton(UObject* Outer, FString Label, int32 Font = 26)
+{
+	UButton* B = NewObject<UButton>(Outer);
+	B->SetStyle(_BtnStyle());
+	UTextBlock* T = NewObject<UTextBlock>(B);
+	T->SetText(FText::FromString(Label));
+	T->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.85f, 0.68f)));
+	T->SetFont(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Bold.ttf"), Font));
+	B->AddChild(T);
+	return B;
+}

@@ -28,9 +28,6 @@
 #include "Data/OAMPuzzleData.h"
 #include "Data/OAMChapterData.h"
 
-extern UCanvasPanelSlot* _AddToCanvas(UCanvasPanel*, UWidget*, FVector2D, FVector2D, FAnchors, FMargin);
-extern UButton* _MakeButton(UObject*, FString, int32);
-
 static UTextBlock* _MakeLabel2(UObject* Outer, FString Str, int32 Sz = 20, FLinearColor Col = FLinearColor(0.9f, 0.75f, 0.55f))
 {
 	UTextBlock* T = NewObject<UTextBlock>(Outer);
@@ -348,7 +345,7 @@ void UOAMRuntimeSaveLoadWidget::NativeConstruct()
 		UButton* B = _MakeButton(Row, bLoadMode ? TEXT("读  取") : TEXT("保  存"), 20);
 		Btn_Slots.Add(B);
 		const int32 Cap = Slot;
-		B->OnClicked.AddDynamic(this, &UOAMRuntimeSaveLoadWidget::HandleSlot, Cap);
+		B->OnClicked.AddUObject(this, [this, Cap]() { HandleSlot(Cap); });
 		Row->AddChildToHorizontalBox(B);
 
 		UVerticalBoxSlot* VS = SlotsBox->AddChildToVerticalBox(Row);
@@ -403,9 +400,9 @@ void UOAMRuntimeNotebookWidget::NativeConstruct()
 	_AddToCanvas(RootCanvas, Tabs, FVector2D(960 - 540, 130), FVector2D(1080, 60), FAnchors(0.5f, 0))->SetAlignment(FVector2D(0.5f, 0));
 	auto AddTab = [&](UButton* B) { UHorizontalBoxSlot* S = Tabs->AddChildToHorizontalBox(B); S->SetPadding(FMargin(6)); S->SetSize(FSlateChildSize(ESlateSizeRule::Fill)); };
 	AddTab(Btn_Tab1); AddTab(Btn_Tab2); AddTab(Btn_Tab3);
-	Btn_Tab1->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandleTab, 0);
-	Btn_Tab2->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandleTab, 1);
-	Btn_Tab3->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandleTab, 2);
+	Btn_Tab1->OnClicked.AddUObject(this, [this]() { HandleTab(0); });
+	Btn_Tab2->OnClicked.AddUObject(this, [this]() { HandleTab(1); });
+	Btn_Tab3->OnClicked.AddUObject(this, [this]() { HandleTab(2); });
 
 	// 标题 + 页码
 	Txt_Title = _MakeLabel2(this, TEXT("笔 记 本 · 物证"), 32, FLinearColor(0.35f, 0.22f, 0.12f));
@@ -428,8 +425,8 @@ void UOAMRuntimeNotebookWidget::NativeConstruct()
 	_AddToCanvas(RootCanvas, BB, FVector2D(960 - 420, 860), FVector2D(840, 60), FAnchors(0.5f, 0))->SetAlignment(FVector2D(0.5f, 0));
 	auto AddB2 = [&](UButton* B) { UHorizontalBoxSlot* S = BB->AddChildToHorizontalBox(B); S->SetPadding(FMargin(10)); S->SetSize(FSlateChildSize(ESlateSizeRule::Fill)); };
 	AddB2(Btn_Prev); AddB2(Btn_Next); AddB2(Btn_Close);
-	Btn_Prev->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandlePage, -1);
-	Btn_Next->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandlePage, 1);
+	Btn_Prev->OnClicked.AddUObject(this, [this]() { HandlePage(-1); });
+	Btn_Next->OnClicked.AddUObject(this, [this]() { HandlePage(1); });
 	Btn_Close->OnClicked.AddDynamic(this, &UOAMRuntimeNotebookWidget::HandleClose);
 }
 
@@ -531,7 +528,7 @@ void UOAMRuntimePuzzleWidget::NativeConstruct()
 			UButton* B = _MakeButton(R, FString::Printf(TEXT("%d"), Digit), 30);
 			UHorizontalBoxSlot* S = R->AddChildToHorizontalBox(B);
 			S->SetPadding(FMargin(6)); S->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			B->OnClicked.AddDynamic(this, &UOAMRuntimePuzzleWidget::HandleDigit, Digit);
+			B->OnClicked.AddUObject(this, [this, Digit]() { HandleDigit(Digit); });
 			Btn_Digits.Add(B);
 		}
 		KB->AddChildToVerticalBox(R);
@@ -544,7 +541,7 @@ void UOAMRuntimePuzzleWidget::NativeConstruct()
 	auto AddR0 = [&](UButton* B) { UHorizontalBoxSlot* S = R0->AddChildToHorizontalBox(B); S->SetPadding(FMargin(6)); S->SetSize(FSlateChildSize(ESlateSizeRule::Fill)); };
 	AddR0(BClear); AddR0(B0); AddR0(BSub);
 	KB->AddChildToVerticalBox(R0);
-	B0->OnClicked.AddDynamic(this, &UOAMRuntimePuzzleWidget::HandleDigit, 0);
+	B0->OnClicked.AddUObject(this, [this]() { HandleDigit(0); });
 	BClear->OnClicked.AddDynamic(this, &UOAMRuntimePuzzleWidget::HandleClear);
 	BSub->OnClicked.AddDynamic(this, &UOAMRuntimePuzzleWidget::HandleSubmit);
 
@@ -651,7 +648,7 @@ void UOAMRuntimeExamineWidget::NativeConstruct()
 				FVector2D(44, 44), FAnchors(0, 0));
 			Btn_Hotspots.Add(HB);
 			const int32 Cap = HI;
-			HB->OnClicked.AddDynamic(this, &UOAMRuntimeExamineWidget::HandleHotspot, Cap);
+			HB->OnClicked.AddUObject(this, [this, Cap]() { HandleHotspot(Cap); });
 		}
 	}
 

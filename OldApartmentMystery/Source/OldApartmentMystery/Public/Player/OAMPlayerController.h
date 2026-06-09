@@ -62,4 +62,14 @@ protected:
 	void OnPause(const FInputActionValue& Value);
 	void OnDigitPressed(int32 Digit);
 	void OnBack(const FInputActionValue& Value);
+	void OnDigit0() { OnDigitPressed(0); }
+	void OnDigit1() { OnDigitPressed(1); }
+	void OnDigit2() { OnDigitPressed(2); }
+	void OnDigit3() { OnDigitPressed(3); }
+	void OnDigit4() { OnDigitPressed(4); }
+	void OnDigit5() { OnDigitPressed(5); }
+	void OnDigit6() { OnDigitPressed(6); }
+	void OnDigit7() { OnDigitPressed(7); }
+	void OnDigit8() { OnDigitPressed(8); }
+	void OnDigit9() { OnDigitPressed(9); }
 };

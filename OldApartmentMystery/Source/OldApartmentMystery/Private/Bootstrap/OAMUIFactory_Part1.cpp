@@ -36,57 +36,6 @@
 #include "Styling/AppStyle.h"
 
 /* =====================================================================
-   ================ 辅助：创建 Canvas 内 Anchor 对齐的 Slot ===========
-   ===================================================================== */
-
-static UCanvasPanelSlot* _AddToCanvas(UCanvasPanel* Canvas, UWidget* W,
-	FVector2D Off, FVector2D Size, FAnchors Anch, FMargin Padd = FMargin(0))
-{
-	UCanvasPanelSlot* S = Canvas->AddChildToCanvas(W);
-	S->SetAnchors(Anch);
-	S->SetOffsets(FMargin(Off.X, Off.Y, Off.X + Size.X, Off.Y + Size.Y));
-	S->SetAutoSize(false);
-	return S;
-}
-
-static FButtonStyle _BtnStyle(FLinearColor Normal = FLinearColor(0.08f, 0.06f, 0.05f, 0.9f),
-	FLinearColor Hover = FLinearColor(0.18f, 0.12f, 0.08f, 1.f),
-	FLinearColor Pressed = FLinearColor(0.04f, 0.03f, 0.02f, 1.f))
-{
-	FButtonStyle S = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
-	S.Normal = FSlateColorBrush(Normal);
-	S.Hovered = FSlateColorBrush(Hover);
-	S.Pressed = FSlateColorBrush(Pressed);
-	S.Disabled = FSlateColorBrush(FLinearColor(0.3f, 0.3f, 0.3f, 0.5f));
-	S.NormalPadding = FMargin(12, 6);
-	return S;
-}
-
-static FTextBlockStyle _TxtStyle(int32 Size = 28, FLinearColor Col = FLinearColor(0.93f, 0.82f, 0.6f),
-	FString FontName = TEXT("Noto Sans SC"))
-{
-	FTextBlockStyle S = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
-	S.SetFont(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Bold.ttf"), Size));
-	S.SetColorAndOpacity(FSlateColor(Col));
-	S.SetShadowOffset(FVector2D(1, 1));
-	S.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.6f));
-	return S;
-}
-
-static UButton* _MakeButton(UObject* Outer, FString Label, int32 Font = 26)
-{
-	UButton* B = NewObject<UButton>(Outer);
-	B->SetStyle(_BtnStyle());
-
-	UTextBlock* T = NewObject<UTextBlock>(B);
-	T->SetText(FText::FromString(Label));
-	T->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.85f, 0.68f)));
-	T->SetFont(FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Bold.ttf"), Font));
-	B->AddChild(T);
-	return B;
-}
-
-/* =====================================================================
    =================== 主菜单 Widget ===================================
    ===================================================================== */
 
@@ -203,9 +152,8 @@ void UOAMMainMenuWidget::HandleLevels()
 	auto* GI = UOAMGameInstance::GetOAM(this);
 	if (!GI) return;
 	if (GI->AudioManager) GI->AudioManager->PlaySFX(TEXT("UI_Click"));
-	UOAMLevelSelectWidget* W = CreateWidget<UOAMLevelSelectWidget>(this,
-		LoadClass<UOAMLevelSelectWidget>(nullptr, TEXT("/Script/OldApartmentMystery.OAMLevelSelectWidget")));
-	if (W) W->AddToViewport();
+	APlayerController* PC = GetOwningPlayer();
+	if (PC) UOAMUIFactory::CreateLevelSelect(PC);
 }
 
 void UOAMMainMenuWidget::HandleSettings()
@@ -213,9 +161,8 @@ void UOAMMainMenuWidget::HandleSettings()
 	auto* GI = UOAMGameInstance::GetOAM(this);
 	if (!GI) return;
 	if (GI->AudioManager) GI->AudioManager->PlaySFX(TEXT("UI_Click"));
-	UOAMSettingsWidget* W = CreateWidget<UOAMSettingsWidget>(this,
-		LoadClass<UOAMSettingsWidget>(nullptr, TEXT("/Script/OldApartmentMystery.OAMSettingsWidget")));
-	if (W) W->AddToViewport();
+	APlayerController* PC = GetOwningPlayer();
+	if (PC) UOAMUIFactory::CreateSettings(PC);
 }
 
 void UOAMMainMenuWidget::HandleContinue()
@@ -414,8 +361,8 @@ void UOAMPauseMenuWidget::HandleSettings()
 {
 	auto* GI = UOAMGameInstance::GetOAM(this);
 	if (GI && GI->AudioManager) GI->AudioManager->PlaySFX(TEXT("UI_Click"));
-	UOAMSettingsWidget* W = CreateWidget<UOAMSettingsWidget>(this, LoadClass<UOAMSettingsWidget>(nullptr, TEXT("/Script/OldApartmentMystery.OAMSettingsWidget")));
-	if (W) W->AddToViewport();
+	APlayerController* PC = GetOwningPlayer();
+	if (PC) UOAMUIFactory::CreateSettings(PC);
 }
 
 void UOAMPauseMenuWidget::HandleSave()
@@ -424,16 +371,16 @@ void UOAMPauseMenuWidget::HandleSave()
 	if (!GI || !GI->SaveManager) return;
 	GI->SaveManager->AutoSave();
 	if (GI->AudioManager) GI->AudioManager->PlaySFX(TEXT("UI_Save"));
-	UOAMSaveLoadWidget* W = CreateWidget<UOAMSaveLoadWidget>(this, LoadClass<UOAMSaveLoadWidget>(nullptr, TEXT("/Script/OldApartmentMystery.OAMSaveLoadWidget")));
-	if (W) { W->bIsLoadMode = false; W->AddToViewport(); }
+	APlayerController* PC = GetOwningPlayer();
+	if (PC) UOAMUIFactory::CreateSaveLoad(PC, false);
 }
 
 void UOAMPauseMenuWidget::HandleLoad()
 {
 	auto* GI = UOAMGameInstance::GetOAM(this);
 	if (GI && GI->AudioManager) GI->AudioManager->PlaySFX(TEXT("UI_Click"));
-	UOAMSaveLoadWidget* W = CreateWidget<UOAMSaveLoadWidget>(this, LoadClass<UOAMSaveLoadWidget>(nullptr, TEXT("/Script/OldApartmentMystery.OAMSaveLoadWidget")));
-	if (W) { W->bIsLoadMode = true; W->AddToViewport(); }
+	APlayerController* PC = GetOwningPlayer();
+	if (PC) UOAMUIFactory::CreateSaveLoad(PC, true);
 }
 
 void UOAMPauseMenuWidget::HandleBackToMenu()

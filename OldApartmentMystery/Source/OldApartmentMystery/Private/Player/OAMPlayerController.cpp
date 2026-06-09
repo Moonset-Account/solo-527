@@ -68,8 +68,19 @@ void AOAMPlayerController::SetupInputComponent()
 		{
 			if (IA_Digits[D])
 			{
-				const int32 Capture = D;
-				EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigitPressed, Capture);
+				switch (D)
+				{
+				case 0: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit0); break;
+				case 1: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit1); break;
+				case 2: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit2); break;
+				case 3: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit3); break;
+				case 4: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit4); break;
+				case 5: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit5); break;
+				case 6: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit6); break;
+				case 7: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit7); break;
+				case 8: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit8); break;
+				case 9: EIC->BindAction(IA_Digits[D], ETriggerEvent::Started, this, &AOAMPlayerController::OnDigit9); break;
+				}
 			}
 		}
 	}

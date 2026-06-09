@@ -26,9 +26,6 @@
 #include "Data/OAMPuzzleData.h"
 #include "Puzzle/OAMLockPuzzleActor.h"
 
-extern UCanvasPanelSlot* _AddToCanvas(UCanvasPanel*, UWidget*, FVector2D, FVector2D, FAnchors, FMargin);
-extern UButton* _MakeButton(UObject*, FString, int32);
-
 /* 辅助：创建 Slider */
 static USlider* _MakeSlider(UObject* Outer, float Val)
 {
@@ -196,7 +193,7 @@ void UOAMLevelSelectWidget::NativeConstruct()
 
 		UButton* Play = _MakeButton(Card, TEXT("开 始"), 28);
 		const int32 Capture = Ch;
-		Play->OnClicked.AddDynamic(this, &UOAMLevelSelectWidget::HandleChapterSelected, Capture);
+		Play->OnClicked.AddUObject(this, [this, Capture]() { HandleChapterSelected(Capture); });
 
 		auto AddC = [&](UWidget* W, FMargin Padd = FMargin(16, 10))
 		{
@@ -272,7 +269,7 @@ void UOAMSaveLoadWidget::NativeConstruct()
 
 		UButton* B = _MakeButton(Row, bIsLoadMode ? TEXT("读  取") : TEXT("保  存"), 22);
 		const int32 Cap = Slot;
-		B->OnClicked.AddDynamic(this, &UOAMSaveLoadWidget::HandleSlotClicked, Cap);
+		B->OnClicked.AddUObject(this, [this, Cap]() { HandleSlotClicked(Cap); });
 		Row->AddChildToHorizontalBox(B);
 
 		UVerticalBoxSlot* VS = SlotsBox->AddChildToVerticalBox(Row);
