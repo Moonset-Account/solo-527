@@ -194,9 +194,9 @@ func _connect_battle_events() -> void:
 	battle.state_changed.connect(func(s: String):
 		_end_turn_btn.disabled = s != "PLAYING"
 	)
-	battle.budget_changed.connect(func(_d, c): _refresh_hud())
-	battle.turn_started.connect(func(_n): _refresh_hud(); _refresh_exhibits(); _refresh_hand())
-	battle.turn_ended.connect(func(_n): _refresh_hud())
+	GameEvents.budget_changed.connect(func(_d, c): _refresh_hud())
+	GameEvents.turn_started.connect(func(_n): _refresh_hud(); _refresh_exhibits(); _refresh_hand())
+	GameEvents.turn_ended.connect(func(_n): _refresh_hud())
 	battle.hand_changed.connect(_refresh_hand)
 	battle.deck_count_changed.connect(func(c: int): _deck_cnt.text = "🂠 %d" % c)
 	battle.discard_count_changed.connect(func(c: int): _discard_cnt.text = "🗑️ %d" % c)

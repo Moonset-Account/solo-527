@@ -201,11 +201,11 @@ func record_level_completed(level_id: String, stars: int, stats: Dictionary) -> 
 		sd.statistics.wins += 1
 	sd.statistics.cards_played += int(stats.get("cards_played", 0))
 	sd.statistics.exhibits_restored += int(stats.get("exhibits_restored", 0))
-	global_data.total_battles += 1
+	global_data.statistics.total_battles += 1
 	if stars > 0:
-		global_data.total_victories += 1
-	global_data.cards_played_total += int(stats.get("cards_played", 0))
-	global_data.exhibits_restored += int(stats.get("exhibits_restored", 0))
+		global_data.statistics.total_victories += 1
+	global_data.statistics.cards_played_total += int(stats.get("cards_played", 0))
+	global_data.statistics.exhibits_restored += int(stats.get("exhibits_restored", 0))
 	var usage: Dictionary = global_data.statistics.get("card_usage_count", {})
 	for cid in stats.get("cards_used_list", []):
 		usage[cid] = usage.get(cid, 0) + 1

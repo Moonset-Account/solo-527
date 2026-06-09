@@ -202,8 +202,11 @@ func _push_scene(scene_path: String) -> void:
 
 func _on_start_new_pressed() -> void:
 	GameEvents.sfx_requested.emit("ui_accept", -3.0)
-	SaveManager.create_slot(_first_empty_slot())
-	SaveManager.load_slot(_first_empty_slot() if _first_empty_slot() >= 0 else 0)
+	var idx: int = _first_empty_slot()
+	if idx < 0:
+		idx = 0
+	SaveManager.create_slot(idx)
+	SaveManager.load_slot(idx)
 	_push_scene("res://scenes/LevelSelect.tscn")
 
 func _first_empty_slot() -> int:
