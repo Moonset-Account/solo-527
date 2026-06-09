@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!193 &1
+ClusterInputManager:
+  m_ObjectHideFlags: 0
+  serializedVersion: 1
+  m_InputAssemblies: {}
+  m_ClusterInput:
+    inputs: []
+  m_ClusterNetwork:
+    m_ConnectionTimeout: 2000
+    m_NodeNumber: 0
+    m_DispatchPort: 50001
+    m_EventServerPort: 55555
+    m_BroadcastPort: 55556

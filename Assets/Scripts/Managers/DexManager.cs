@@ -39,6 +39,11 @@ namespace PixelPlantLab
 
         private void Awake()
         {
+            InitializeSingleton();
+        }
+
+        public void InitializeSingleton()
+        {
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);

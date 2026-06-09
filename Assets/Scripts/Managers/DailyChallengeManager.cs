@@ -22,6 +22,11 @@ namespace PixelPlantLab
 
         private void Awake()
         {
+            InitializeSingleton();
+        }
+
+        public void InitializeSingleton()
+        {
             if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
@@ -64,6 +69,7 @@ namespace PixelPlantLab
                 };
                 var challenge = new DailyChallenge(
                     id: $"daily_{_lastGeneratedDate:yyyyMMdd}_{i}",
+                    type: t.Type,
                     title: t.Title,
                     description: t.Description,
                     objective: objective,
@@ -91,15 +97,15 @@ namespace PixelPlantLab
             {
                 if (c.IsCompleted || c.IsExpired()) continue;
 
-                bool shouldCount = c.Id switch
+                bool shouldCount = c.Type switch
                 {
-                    var id when id.Contains("experiment") => true,
-                    var id when id.Contains("success") => result.Rarity != Rarity.Failure,
-                    var id when id.Contains("failure") => result.Rarity == Rarity.Failure,
-                    var id when id.Contains("rare") => result.Rarity >= Rarity.Rare,
-                    var id when id.Contains("discovery") => isFirstDiscovery,
-                    var id when id.Contains("trait_glow") => result.HasTrait(MutationTrait.Glowing),
-                    var id when id.Contains("trait_crystal") => result.HasTrait(MutationTrait.Crystalline),
+                    ChallengeType.AnyExperiment => true,
+                    ChallengeType.SuccessResult => result.Rarity != Rarity.Failure,
+                    ChallengeType.FailureResult => result.Rarity == Rarity.Failure,
+                    ChallengeType.RareOrAbove => result.Rarity >= Rarity.Rare,
+                    ChallengeType.FirstDiscovery => isFirstDiscovery,
+                    ChallengeType.TraitGlowing => result.HasTrait(MutationTrait.Glowing),
+                    ChallengeType.TraitCrystalline => result.HasTrait(MutationTrait.Crystalline),
                     _ => false
                 };
 
@@ -134,7 +140,7 @@ namespace PixelPlantLab
 
         private class ChallengeTemplate
         {
-            public string IdKeyword;
+            public ChallengeType Type;
             public string Title;
             public string Description;
             public string DescriptionFormat;
@@ -152,7 +158,7 @@ namespace PixelPlantLab
             {
                 new ChallengeTemplate
                 {
-                    IdKeyword = "experiment",
+                    Type = ChallengeType.AnyExperiment,
                     Title = "勤勉实验员",
                     Description = "进行一定次数的实验以磨练技艺",
                     DescriptionFormat = "完成 {0} 次任意实验",
@@ -161,7 +167,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "success",
+                    Type = ChallengeType.SuccessResult,
                     Title = "丰收之日",
                     Description = "获得足够多的成功样本",
                     DescriptionFormat = "获得 {0} 个非失败结果",
@@ -170,7 +176,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "failure",
+                    Type = ChallengeType.FailureResult,
                     Title = "失败乃成功之母",
                     Description = "从失败中学习，收集失败样本",
                     DescriptionFormat = "获得 {0} 个失败结果",
@@ -179,7 +185,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "rare",
+                    Type = ChallengeType.RareOrAbove,
                     Title = "稀有猎人",
                     Description = "寻找稀有突变体",
                     DescriptionFormat = "获得 {0} 个稀有或更高级的植物",
@@ -188,7 +194,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "discovery",
+                    Type = ChallengeType.FirstDiscovery,
                     Title = "探险先锋",
                     Description = "发现图鉴中未记录的新品种",
                     DescriptionFormat = "解锁 {0} 种新的植物图鉴",
@@ -197,7 +203,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "trait_glow",
+                    Type = ChallengeType.TraitGlowing,
                     Title = "暗夜之光",
                     Description = "找到能够在黑暗中发光的植物",
                     DescriptionFormat = "获得 {0} 株发光特征的植物",
@@ -206,7 +212,7 @@ namespace PixelPlantLab
                 },
                 new ChallengeTemplate
                 {
-                    IdKeyword = "trait_crystal",
+                    Type = ChallengeType.TraitCrystalline,
                     Title = "瑰丽结晶",
                     Description = "培育出结晶结构的植物",
                     DescriptionFormat = "获得 {0} 株结晶特征的植物",

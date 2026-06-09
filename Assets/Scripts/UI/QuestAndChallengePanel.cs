@@ -37,7 +37,8 @@ namespace PixelPlantLab
         private void Start()
         {
             RegisterEvents();
-            if (PanelRoot != null) PanelRoot.SetActive(false);
+            bool isPopup = OpenButton != null || CloseButton != null;
+            if (isPopup && PanelRoot != null) PanelRoot.SetActive(false);
             if (TutorialToggle != null) TutorialToggle.isOn = true;
             SwitchToTutorial();
             UpdateResourceDisplay();

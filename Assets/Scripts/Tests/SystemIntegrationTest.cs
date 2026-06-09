@@ -194,7 +194,7 @@ namespace PixelPlantLab.Tests
             rm.InitialSeeds = 10;
             rm.InitialNutrients = 10;
             rm.InitialCredits = 50;
-            rm.Awake();
+            rm.InitializeSingleton();
 
             bool canAfford = rm.CanAffordExperiment(new ExperimentParams { LightLevel = 0.5f, WaterLevel = 0.5f }, out var cost);
             outList.Add(canAfford ? "[PASS] 默认资源可负担基础实验" : "[FAIL] 默认资源不足");
@@ -230,7 +230,7 @@ namespace PixelPlantLab.Tests
 
             var dexGo = new GameObject("TestDex");
             var dm = dexGo.AddComponent<DexManager>();
-            dm.Awake();
+            dm.InitializeSingleton();
 
             var logGo = new GameObject("TestLog");
             var lm = logGo.AddComponent<ExperimentLogManager>();
@@ -281,7 +281,7 @@ namespace PixelPlantLab.Tests
 
             var qGo = new GameObject("TestQuestManager");
             var qm = qGo.AddComponent<QuestManager>();
-            qm.Awake();
+            qm.InitializeSingleton();
 
             var tutQuests = qm.GetTutorialQuests();
             outList.Add(tutQuests.Count >= 3 ? $"[PASS] 教程任务数量: {tutQuests.Count}" : $"[FAIL] 教程任务不足: {tutQuests.Count}");
@@ -293,7 +293,7 @@ namespace PixelPlantLab.Tests
             rm.InitialSeeds = 100;
             rm.InitialNutrients = 100;
             rm.InitialCredits = 1000;
-            rm.Awake();
+            rm.InitializeSingleton();
 
             var testParams = new ExperimentParams { LightLevel = 0.5f, WaterLevel = 0.5f };
             qm.NotifyExperimentCompleted(PlantDatabase.GetPlant("leafy_green"), false, testParams);
@@ -303,7 +303,7 @@ namespace PixelPlantLab.Tests
             var dGo = new GameObject("TestChallengeMgr");
             var dm = dGo.AddComponent<DailyChallengeManager>();
             dm.ChallengesPerDay = 3;
-            dm.Awake();
+            dm.InitializeSingleton();
 
             int challengeCount = dm.Challenges.Count;
             outList.Add(challengeCount == 3 ? $"[PASS] 每日挑战数量: {challengeCount}" : $"[WARN] 每日挑战数量异常: {challengeCount}");

@@ -88,10 +88,22 @@ namespace PixelPlantLab
         }
     }
 
+    public enum ChallengeType
+    {
+        AnyExperiment,
+        SuccessResult,
+        FailureResult,
+        RareOrAbove,
+        FirstDiscovery,
+        TraitGlowing,
+        TraitCrystalline
+    }
+
     [Serializable]
     public class DailyChallenge
     {
         public string Id;
+        public ChallengeType Type;
         public string Title;
         public string Description;
         public DateTime Date;
@@ -101,9 +113,10 @@ namespace PixelPlantLab
         public bool IsCompleted;
         public bool IsClaimed;
 
-        public DailyChallenge(string id, string title, string description, QuestObjective objective, string rewardKey, int rewardAmount)
+        public DailyChallenge(string id, ChallengeType type, string title, string description, QuestObjective objective, string rewardKey, int rewardAmount)
         {
             Id = id;
+            Type = type;
             Title = title;
             Description = description;
             Date = DateTime.Today;
