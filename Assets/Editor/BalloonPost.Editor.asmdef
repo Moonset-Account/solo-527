@@ -1,11 +1,16 @@
 {
-  "name": "BalloonPost.Tutorial",
-  "rootNamespace": "BalloonPost.Tutorial",
+  "name": "BalloonPost.Editor",
+  "rootNamespace": "BalloonPost.Editor",
   "references": [
     "BalloonPost.Core",
-    "BalloonPost.UI"
+    "BalloonPost.Unity",
+    "BalloonPost.Tutorial",
+    "BalloonPost.UI",
+    "BalloonPost.Save"
   ],
-  "includePlatforms": [],
+  "includePlatforms": [
+    "Editor"
+  ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,

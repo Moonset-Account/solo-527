@@ -92,15 +92,15 @@ namespace BalloonPost.Core
         public Contract CreateTutorialContract1(HexGrid grid)
         {
             ContractCounter++;
-            string id = $"TUT-0001";
+            string id = "TUT-0001";
             var fromCoord = AxialCoord.Zero;
             var toCoord = new AxialCoord(3, 0);
             string fromName = grid.GetCell(fromCoord)?.TownName ?? "邮局总站";
             string toName = grid.GetCell(toCoord)?.TownName ?? "清风镇";
 
-            var contract = Contract.CreateTimeSensitive(id, fromName, toName, fromCoord, toCoord, 100, 8);
-            contract.Description = "【教程1-准时投递】限时快递：邮局总站 → 清风镇，8回合内送达！提前送到有奖励哦～";
-            contract.PriorityWeight = 2;
+            var contract = Contract.CreateNormal(id, fromName, toName, fromCoord, toCoord, 100);
+            contract.Description = "【教程1-准时投递】普通邮件：邮局总站 → 清风镇。\n虽然是普通邮件，但我们给自己定个小目标：**5回合内送达**！准时会有额外评分～";
+            contract.PriorityWeight = 1;
 
             AllContracts.Add(contract);
             PendingContracts.Add(contract);
