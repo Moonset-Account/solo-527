@@ -566,16 +566,18 @@ function _applyThresholds(result) {
       out.deadline_pending = 0;
     }
 
-    if (out.is_milestone === true) {
+    // 里程碑：支持 boolean true / 数字 1 两种输入（兼容 mock 和 heuristic）
+    if (out.is_milestone) {
       if (!out.milestone_confidence || out.milestone_confidence < config.thresholds.milestone) {
         out.is_milestone = 0;
-        out.milestone_note = out.milestone_note || `里程碑置信度不足，已降级为普通行动项`;
+        out.milestone_note = out.milestone_note || `里程碑置信度不足（${(out.milestone_confidence||0).toFixed(2)} < ${config.thresholds.milestone}），已降级为普通行动项`;
       } else {
         out.is_milestone = 1;
+        out.milestone_note = out.milestone_note || null;
       }
     } else {
       out.is_milestone = 0;
-      if (!out.milestone_note) out.milestone_note = '未在会议中被标记为里程碑';
+      if (!out.milestone_note) out.milestone_note = '未在会议中被明确标记为里程碑';
     }
 
     const reviewReasons = [];
