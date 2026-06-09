@@ -107,7 +107,6 @@ func _setup_panel() -> void:
 	grade_panel.add_child(grade_label)
 	var score_vb = VBoxContainer.new()
 	score_vb.custom_minimum_size = Vector2(300, 90)
-	score_hbox = HBoxContainer.new()
 	grade_hbox.add_child(score_vb)
 	var final_score_label = Label.new()
 	final_score_label.text = "最终得分"

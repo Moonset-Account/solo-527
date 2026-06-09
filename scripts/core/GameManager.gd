@@ -234,13 +234,13 @@ func submit_timeline() -> Dictionary:
 	result["hints_used"] = hints_used
 	result["play_time"] = play_time
 	result["submission_count"] = submission_count
+	result["perfect"] = result.get("all_cards_correct", false) and result.get("all_tags_correct", false) and result.get("all_links_correct", false) and hints_used == 0 and attempts == 1
 	EventBus.emit_signal("timeline_submitted")
 	EventBus.emit_signal("timeline_validated", result)
 	if result.get("passed", false):
 		var final_score: int = _calculate_final_score(result)
 		result["final_score"] = final_score
 		result["grade"] = _get_grade(final_score)
-		result["perfect"] = result.get("all_cards_correct", true) and result.get("all_tags_correct", true) and result.get("all_links_correct", true) and hints_used == 0 and attempts == 1
 		SaveManager.complete_level(current_level_id, result)
 		SaveManager.delete_save("autosave")
 		change_state(GameState.LEVEL_COMPLETE)
