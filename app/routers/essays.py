@@ -277,7 +277,8 @@ def get_essay_detail(
             "items": []
         }
 
-        if current_user.role != models.UserRole.STUDENT:
+        can_see_evidence = _can_view_original(db, current_user, essay)
+        if can_see_evidence:
             fb_dict["evidence_refs"] = [
                 schemas.ModelEvidenceResponse.model_validate(e) for e in fb.evidence_refs
             ]
