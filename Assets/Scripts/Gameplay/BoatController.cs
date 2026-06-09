@@ -263,6 +263,40 @@ namespace LakeSailing.Gameplay
             EventBus.Trigger(new RoutePlannedEvent(plannedWaypoints));
         }
 
+        public void PlanRoute()
+        {
+            currentWaypointIndex = 0;
+            isFollowingRoute = true;
+            OnRoutePlanned?.Invoke(plannedWaypoints);
+            EventBus.Trigger(new RoutePlannedEvent(plannedWaypoints));
+        }
+
+        public List<Vector2> GetPlannedWaypoints()
+        {
+            return plannedWaypoints;
+        }
+
+        public void UndoWaypoint()
+        {
+            if (plannedWaypoints.Count > 0)
+            {
+                plannedWaypoints.RemoveAt(plannedWaypoints.Count - 1);
+                if (currentWaypointIndex > plannedWaypoints.Count)
+                {
+                    currentWaypointIndex = plannedWaypoints.Count;
+                }
+                OnRoutePlanned?.Invoke(plannedWaypoints);
+            }
+        }
+
+        public void ClearWaypoints()
+        {
+            plannedWaypoints.Clear();
+            currentWaypointIndex = 0;
+            isFollowingRoute = false;
+            OnRoutePlanned?.Invoke(plannedWaypoints);
+        }
+
         public void AddWaypoint(Vector2 waypoint)
         {
             plannedWaypoints.Add(waypoint);

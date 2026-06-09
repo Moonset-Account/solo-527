@@ -20,6 +20,7 @@ namespace LakeSailing.UI
         Achievements,
         Leaderboard,
         DailyChallenge,
+        Result,
         RoutePlanner,
         PhotoPreview,
         Loading

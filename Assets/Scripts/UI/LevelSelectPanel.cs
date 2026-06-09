@@ -3,241 +3,359 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using LakeSailing.Core;
 using LakeSailing.Audio;
-using LakeSailing.Data;
 
 namespace LakeSailing.UI
 {
     public class LevelSelectPanel : UIPanelBase
     {
-        [Header("关卡列表")]
-        [SerializeField] private Transform levelGridContainer;
-        [SerializeField] private GameObject levelCardPrefab;
-        [SerializeField] private List<LevelCardUI> levelCards = new List<LevelCardUI>();
+        private static readonly Color ButtonNormalColor = new Color(0.2f, 0.45f, 0.9f, 0.95f);
+        private static readonly Color ButtonHoverColor = new Color(0.2f * 1.3f, 0.45f * 1.3f, 0.9f * 1.3f, 1f);
+        private static readonly Color TabSelectedColor = new Color(0.3f, 0.6f, 1f, 0.95f);
+        private static readonly Color TabNormalColor = new Color(0.25f, 0.25f, 0.35f, 0.95f);
+        private static readonly Color CardBgColor = new Color(0.15f, 0.18f, 0.28f, 0.95f);
+        private static readonly Color LockedOverlayColor = new Color(0, 0, 0, 0.65f);
+        private static readonly Color StarOnColor = new Color(1f, 0.85f, 0.2f, 1f);
+        private static readonly Color StarOffColor = new Color(0.4f, 0.4f, 0.45f, 0.5f);
 
-        [Header("关卡详情")]
-        [SerializeField] private GameObject detailPanel;
-        [SerializeField] private Text detailLevelName;
-        [SerializeField] private Text detailDescription;
-        [SerializeField] private Text detailDifficulty;
-        [SerializeField] private Text detailTaskCount;
-        [SerializeField] private Text detailTimeLimit;
-        [SerializeField] private Text detailBestScore;
-        [SerializeField] private Image[] detailStars;
-        [SerializeField] private Button startButton;
-        [SerializeField] private Button backButton;
+        private struct MockLevelData
+        {
+            public string LevelName;
+            public string Difficulty;
+            public int Stars;
+            public bool IsLocked;
+            public int Chapter;
 
-        [Header("筛选")]
-        [SerializeField] private Toggle showAllToggle;
-        [SerializeField] private Toggle showUnlockedToggle;
-        [SerializeField] private Toggle showCompletedToggle;
+            public MockLevelData(string name, string diff, int stars, bool locked, int chapter)
+            {
+                LevelName = name;
+                Difficulty = diff;
+                Stars = stars;
+                IsLocked = locked;
+                Chapter = chapter;
+            }
+        }
 
-        private LevelConfigData selectedLevel;
-        private List<LevelConfigData> allLevels = new List<LevelConfigData>();
+        private readonly List<MockLevelData> mockLevels = new List<MockLevelData>
+        {
+            new MockLevelData("新手教程", "简单", 3, false, 1),
+            new MockLevelData("翠湖春晓", "简单", 2, false, 1),
+            new MockLevelData("迷雾仙踪", "普通", 1, false, 2),
+            new MockLevelData("风暴航线", "普通", 0, false, 2),
+            new MockLevelData("金秋秘境", "困难", 0, false, 3),
+            new MockLevelData("终极试炼", "噩梦", 0, true, 3),
+        };
+
+        private readonly string[] chapterNames = { "第一章", "第二章", "第三章" };
+        private readonly Color[] difficultyColors =
+        {
+            new Color(0.4f, 0.9f, 0.4f),
+            new Color(0.95f, 0.85f, 0.3f),
+            new Color(1f, 0.55f, 0.2f),
+            new Color(0.95f, 0.3f, 0.3f)
+        };
+
+        private int currentChapter = 1;
+        private Text builtTotalStarsText;
+        private Text builtCurrentChapterText;
+        private GameObject[] builtChapterPanels;
+        private Button[] builtChapterTabButtons;
+        private Image[] builtChapterTabImages;
+        private GameObject cardsGridRoot;
 
         private void Awake()
         {
             panelType = UIType.LevelSelect;
             UIManager.Instance?.RegisterPanel(panelType, this);
+            BuildUI();
         }
 
-        private void Start()
+        private void BuildUI()
         {
-            InitializeButtons();
-            LoadAllLevels();
-        }
+            RuntimeUIBuilder.EnsureEventSystem();
 
-        private void InitializeButtons()
-        {
-            if (startButton) startButton.onClick.AddListener(OnStartClicked);
-            if (backButton) backButton.onClick.AddListener(OnBackClicked);
-            if (showAllToggle) showAllToggle.onValueChanged.AddListener(_ => RefreshLevelList());
-            if (showUnlockedToggle) showUnlockedToggle.onValueChanged.AddListener(_ => RefreshLevelList());
-            if (showCompletedToggle) showCompletedToggle.onValueChanged.AddListener(_ => RefreshLevelList());
-        }
-
-        private void LoadAllLevels()
-        {
-            allLevels.Clear();
-
-            allLevels.Add(CreateMockLevel("tutorial_01", "新手教程：平静之湖", 1,
-                "学习基本操作，完成一次简单的拍摄任务。平静的湖面最适合新手。"));
-            allLevels.Add(CreateMockLevel("level_01", "翠湖春晓", 1,
-                "春天的翠湖生机勃勃，各种鸟类聚集于此。抓住好天气，记录下春日美景。"));
-            allLevels.Add(CreateMockLevel("level_02", "迷雾仙踪", 2,
-                "清晨的湖面弥漫着神秘的雾气，传说中的稀有生物只在此时出现。注意能见度！"));
-            allLevels.Add(CreateMockLevel("level_03", "风暴航线", 2,
-                "天气预报显示午后有暴风雨。你必须在那之前完成所有拍摄并返航。"));
-            allLevels.Add(CreateMockLevel("level_04", "金秋秘境", 3,
-                "秋天的湖区色彩斑斓，但天气多变。合理规划路线是取得高分的关键。"));
-            allLevels.Add(CreateMockLevel("level_05", "极寒挑战", 3,
-                "冰封前的最后一次航行，补给极其稀缺。每一次决策都至关重要！"));
-            allLevels.Add(CreateMockLevel("level_06", "终极试炼", 4,
-                "综合所有挑战的终极关卡，只有真正的船长才能征服这片湖泊！"));
-        }
-
-        private LevelConfigData CreateMockLevel(string id, string name, int diff, string desc)
-        {
-            var level = ScriptableObject.CreateInstance<LevelConfigData>();
-            level.levelId = id;
-            level.levelName = name;
-            level.difficulty = diff;
-            level.levelDescription = desc;
-            level.seed = id.GetHashCode();
-            level.timeLimitSeconds = 480f + diff * 60f;
-            level.minStarsScore = 500 * diff;
-            level.twoStarsScore = 1500 * diff;
-            level.threeStarsScore = 3000 * diff;
-
-            int taskCount = 2 + diff;
-            level.photoTasks = new PhotoTaskData[taskCount];
-            for (int i = 0; i < taskCount; i++)
+            if (panelContent == null)
             {
-                level.photoTasks[i] = new PhotoTaskData
-                {
-                    taskId = $"{id}_task_{i}",
-                    targetName = GetTargetName(i),
-                    description = GetTaskDescription(i),
-                    targetPosition = new Vector2(Random.Range(-50f, 50f), Random.Range(-30f, 30f)),
-                    detectionRadius = 10f,
-                    optimalDistance = 5f,
-                    basePoints = 100 * diff,
-                    targetRarity = (i % 3) + 1
-                };
+                panelContent = RuntimeUIBuilder.CreatePanel(transform, "LevelSelectPanelContent");
+                gameObject.SetActive(false);
             }
 
-            return level;
-        }
+            var contentRoot = panelContent.transform;
+            foreach (Transform child in contentRoot) Destroy(child.gameObject);
 
-        private string GetTargetName(int index)
-        {
-            string[] names = { "白鹭", "水杉倒影", "日落湖面", "睡莲", "鸳鸯", "湖心岛", "彩虹桥", "渔舟唱晚" };
-            return names[index % names.Length];
-        }
+            RuntimeUIBuilder.CreateTitle(contentRoot, "关卡选择", 52, -10f);
 
-        private string GetTaskDescription(int index)
-        {
-            string[] descs = {
-                "拍摄水边优雅的白鹭",
-                "记录水杉在水中的完美倒影",
-                "捕捉夕阳映照湖面的瞬间",
-                "拍摄盛开的睡莲",
-                "记录成双成对的鸳鸯",
-                "拍摄神秘的湖心岛",
-                "捕捉彩虹桥的全景",
-                "记录夕阳下的归舟"
-            };
-            return descs[index % descs.Length];
-        }
+            var topBar = new GameObject("TopInfoBar");
+            topBar.transform.SetParent(contentRoot, false);
+            var topBarRT = topBar.AddComponent<RectTransform>();
+            topBarRT.anchorMin = new Vector2(0.5f, 1f);
+            topBarRT.anchorMax = new Vector2(0.5f, 1f);
+            topBarRT.pivot = new Vector2(0.5f, 1f);
+            topBarRT.anchoredPosition = new Vector2(0, -150f);
+            topBarRT.sizeDelta = new Vector2(1200, 50);
 
-        protected override void OnOpened()
-        {
-            base.OnOpened();
-            GameManager.Instance?.ChangeState(GameState.LevelSelect);
-            RefreshLevelList();
-            HideDetailPanel();
-        }
+            var topHGroup = topBar.AddComponent<HorizontalLayoutGroup>();
+            topHGroup.spacing = 80f;
+            topHGroup.childAlignment = TextAnchor.MiddleCenter;
+            topHGroup.childControlHeight = true;
+            topHGroup.childForceExpandHeight = true;
 
-        private void RefreshLevelList()
-        {
-            if (levelGridContainer == null) return;
-            foreach (Transform child in levelGridContainer)
+            builtTotalStarsText = RuntimeUIBuilder.CreateLabel(topBar.transform, "总星数: 6/18 ★", 26,
+                TextAnchor.MiddleCenter, 400, 44);
+            builtCurrentChapterText = RuntimeUIBuilder.CreateLabel(topBar.transform, "当前章节: 第一章", 26,
+                TextAnchor.MiddleCenter, 400, 44);
+
+            var tabBar = new GameObject("ChapterTabBar");
+            tabBar.transform.SetParent(contentRoot, false);
+            var tabBarRT = tabBar.AddComponent<RectTransform>();
+            tabBarRT.anchorMin = new Vector2(0.5f, 1f);
+            tabBarRT.anchorMax = new Vector2(0.5f, 1f);
+            tabBarRT.pivot = new Vector2(0.5f, 1f);
+            tabBarRT.anchoredPosition = new Vector2(0, -220f);
+            tabBarRT.sizeDelta = new Vector2(900, 70);
+
+            var tabHGroup = tabBar.AddComponent<HorizontalLayoutGroup>();
+            tabHGroup.spacing = 30f;
+            tabHGroup.childAlignment = TextAnchor.MiddleCenter;
+            tabHGroup.childControlHeight = true;
+            tabHGroup.childControlWidth = true;
+            tabHGroup.childForceExpandHeight = true;
+            tabHGroup.childForceExpandWidth = true;
+
+            builtChapterTabButtons = new Button[3];
+            builtChapterTabImages = new Image[3];
+            for (int i = 0; i < 3; i++)
             {
-                Destroy(child.gameObject);
+                int chapterIdx = i;
+                var tabBtn = RuntimeUIBuilder.CreateButton(tabBar.transform, chapterNames[i],
+                    new Vector2(260, 60), () => OnChapterTabClicked(chapterIdx + 1),
+                    24, TabNormalColor, TabSelectedColor);
+                builtChapterTabButtons[i] = tabBtn;
+                builtChapterTabImages[i] = tabBtn.GetComponent<Image>();
             }
-            levelCards.Clear();
 
-            var filtered = FilterLevels(allLevels);
-            foreach (var level in filtered)
+            cardsGridRoot = new GameObject("CardsGridRoot");
+            cardsGridRoot.transform.SetParent(contentRoot, false);
+            var gridRT = cardsGridRoot.AddComponent<RectTransform>();
+            gridRT.anchorMin = new Vector2(0.5f, 0.5f);
+            gridRT.anchorMax = new Vector2(0.5f, 0.5f);
+            gridRT.pivot = new Vector2(0.5f, 0.5f);
+            gridRT.anchoredPosition = new Vector2(0, -30f);
+            gridRT.sizeDelta = new Vector2(1300, 520);
+
+            var gridGroup = cardsGridRoot.AddComponent<GridLayoutGroup>();
+            gridGroup.cellSize = new Vector2(380, 230);
+            gridGroup.spacing = new Vector2(40, 40);
+            gridGroup.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            gridGroup.startAxis = GridLayoutGroup.Axis.Horizontal;
+            gridGroup.childAlignment = TextAnchor.MiddleCenter;
+            gridGroup.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            gridGroup.constraintCount = 3;
+
+            var bottomBar = new GameObject("BottomBar");
+            bottomBar.transform.SetParent(contentRoot, false);
+            var bottomRT = bottomBar.AddComponent<RectTransform>();
+            bottomRT.anchorMin = new Vector2(0.5f, 0f);
+            bottomRT.anchorMax = new Vector2(0.5f, 0f);
+            bottomRT.pivot = new Vector2(0.5f, 0f);
+            bottomRT.anchoredPosition = new Vector2(0, 50f);
+            bottomRT.sizeDelta = new Vector2(400, 70);
+
+            RuntimeUIBuilder.CreateButton(bottomBar.transform, "返回主菜单",
+                new Vector2(360, 64), OnBackClicked, 26, ButtonNormalColor, ButtonHoverColor);
+
+            RefreshChapterTabs();
+            BuildLevelCards();
+        }
+
+        private void BuildLevelCards()
+        {
+            foreach (Transform child in cardsGridRoot.transform) Destroy(child.gameObject);
+
+            for (int i = 0; i < mockLevels.Count; i++)
             {
-                if (levelCardPrefab != null)
+                if (mockLevels[i].Chapter != currentChapter) continue;
+                CreateLevelCard(mockLevels[i], i);
+            }
+        }
+
+        private void CreateLevelCard(MockLevelData data, int levelIndex)
+        {
+            var cardGO = new GameObject($"LevelCard_{data.LevelName}");
+            cardGO.transform.SetParent(cardsGridRoot.transform, false);
+            var cardRT = cardGO.AddComponent<RectTransform>();
+            cardRT.sizeDelta = new Vector2(380, 230);
+
+            var cardImg = cardGO.AddComponent<Image>();
+            cardImg.color = CardBgColor;
+            cardImg.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f));
+            cardImg.type = Image.Type.Sliced;
+
+            var cardBtn = cardGO.AddComponent<Button>();
+            var cardColors = cardBtn.colors;
+            cardColors.normalColor = Color.white;
+            cardColors.highlightedColor = new Color(1.15f, 1.15f, 1.2f, 1f);
+            cardColors.pressedColor = new Color(0.85f, 0.85f, 0.9f, 1f);
+            cardColors.colorMultiplier = 1f;
+            cardColors.fadeDuration = 0.1f;
+            cardBtn.colors = cardColors;
+            cardBtn.transition = Selectable.Transition.ColorTint;
+            cardBtn.targetGraphic = cardImg;
+            cardBtn.interactable = !data.IsLocked;
+
+            if (!data.IsLocked)
+            {
+                int idx = levelIndex;
+                cardBtn.onClick.AddListener(() => OnLevelCardClicked(idx));
+            }
+
+            var contentRT = cardImg.rectTransform;
+
+            var nameText = RuntimeUIBuilder.CreateLabel(contentRT, data.LevelName, 28,
+                TextAnchor.MiddleCenter, 340, 44);
+            var nameRT = nameText.rectTransform;
+            nameRT.anchorMin = new Vector2(0.5f, 1f);
+            nameRT.anchorMax = new Vector2(0.5f, 1f);
+            nameRT.pivot = new Vector2(0.5f, 1f);
+            nameRT.anchoredPosition = new Vector2(0, -28f);
+
+            var diffText = RuntimeUIBuilder.CreateLabel(contentRT, data.Difficulty, 20,
+                TextAnchor.MiddleCenter, 120, 32);
+            int diffIdx = Mathf.Clamp(System.Array.IndexOf(new[] { "简单", "普通", "困难", "噩梦" }, data.Difficulty), 0, 3);
+            diffText.color = difficultyColors[diffIdx];
+            diffText.fontStyle = FontStyle.Bold;
+            var diffRT = diffText.rectTransform;
+            diffRT.anchorMin = new Vector2(0.5f, 1f);
+            diffRT.anchorMax = new Vector2(0.5f, 1f);
+            diffRT.pivot = new Vector2(0.5f, 1f);
+            diffRT.anchoredPosition = new Vector2(0, -72f);
+
+            var starsGO = new GameObject("StarsRow");
+            starsGO.transform.SetParent(contentRT, false);
+            var starsRT = starsGO.AddComponent<RectTransform>();
+            starsRT.anchorMin = new Vector2(0.5f, 0.5f);
+            starsRT.anchorMax = new Vector2(0.5f, 0.5f);
+            starsRT.pivot = new Vector2(0.5f, 0.5f);
+            starsRT.anchoredPosition = new Vector2(0, -10f);
+            starsRT.sizeDelta = new Vector2(240, 56);
+
+            var starsHG = starsGO.AddComponent<HorizontalLayoutGroup>();
+            starsHG.spacing = 16f;
+            starsHG.childAlignment = TextAnchor.MiddleCenter;
+            starsHG.childControlHeight = true;
+            starsHG.childControlWidth = true;
+            starsHG.childForceExpandHeight = true;
+            starsHG.childForceExpandWidth = true;
+
+            for (int s = 0; s < 3; s++)
+            {
+                var starGO = new GameObject($"Star_{s}");
+                starGO.transform.SetParent(starsRT, false);
+                var starRT = starGO.AddComponent<RectTransform>();
+                starRT.sizeDelta = new Vector2(56, 56);
+                var starImg = starGO.AddComponent<Image>();
+                starImg.color = s < data.Stars ? StarOnColor : StarOffColor;
+                starImg.sprite = CreateStarSprite();
+                starImg.type = Image.Type.Simple;
+                starImg.preserveAspect = true;
+            }
+
+            var statusText = RuntimeUIBuilder.CreateLabel(contentRT,
+                data.IsLocked ? "🔒 未解锁" : "点击开始", 22,
+                TextAnchor.MiddleCenter, 320, 40);
+            statusText.color = data.IsLocked ? new Color(0.7f, 0.7f, 0.75f) : new Color(0.6f, 0.9f, 1f);
+            var statusRT = statusText.rectTransform;
+            statusRT.anchorMin = new Vector2(0.5f, 0f);
+            statusRT.anchorMax = new Vector2(0.5f, 0f);
+            statusRT.pivot = new Vector2(0.5f, 0f);
+            statusRT.anchoredPosition = new Vector2(0, 24f);
+
+            if (data.IsLocked)
+            {
+                var lockGO = new GameObject("LockOverlay");
+                lockGO.transform.SetParent(contentRT, false);
+                var lockRT = lockGO.AddComponent<RectTransform>();
+                RuntimeUIBuilder.StretchFull(lockRT);
+                var lockImg = lockGO.AddComponent<Image>();
+                lockImg.color = LockedOverlayColor;
+                lockImg.raycastTarget = false;
+            }
+        }
+
+        private Sprite CreateStarSprite()
+        {
+            int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var colors = new Color[size * size];
+            Vector2 center = new Vector2(size / 2f, size / 2f);
+            float outerR = size * 0.46f;
+            float innerR = size * 0.2f;
+            int points = 5;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
                 {
-                    var go = Instantiate(levelCardPrefab, levelGridContainer);
-                    var card = go.GetComponent<LevelCardUI>();
-                    if (card != null)
-                    {
-                        card.Initialize(level, OnLevelSelected);
-                        levelCards.Add(card);
-                    }
+                    Vector2 p = new Vector2(x, y) - center;
+                    float dist = p.magnitude;
+                    float angle = Mathf.Atan2(p.y, p.x) * Mathf.Rad2Deg;
+                    if (angle < 0) angle += 360f;
+                    float seg = 360f / (points * 2);
+                    float segIdx = Mathf.Floor(angle / seg);
+                    float t = (angle - segIdx * seg) / seg;
+                    float r = (segIdx % 2 == 0) ? outerR : innerR;
+                    float nextR = ((segIdx + 1) % 2 == 0) ? outerR : innerR;
+                    float radius = Mathf.Lerp(r, nextR, t);
+                    colors[y * size + x] = dist <= radius ? Color.white : new Color(0, 0, 0, 0);
                 }
             }
+            tex.SetPixels(colors);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
         }
 
-        private List<LevelConfigData> FilterLevels(List<LevelConfigData> input)
+        private void RefreshChapterTabs()
         {
-            var result = new List<LevelConfigData>();
-            var save = SaveSystem.Instance?.CurrentSave;
-
-            foreach (var level in input)
+            for (int i = 0; i < 3; i++)
             {
-                bool isUnlocked = save != null && save.unlockedLevelIds.Contains(level.levelId);
-                bool isCompleted = save != null && save.completedLevelIds.Contains(level.levelId);
-
-                if (showUnlockedToggle != null && showUnlockedToggle.isOn && !isUnlocked) continue;
-                if (showCompletedToggle != null && showCompletedToggle.isOn && !isCompleted) continue;
-
-                result.Add(level);
-            }
-            return result;
-        }
-
-        private void OnLevelSelected(LevelConfigData level)
-        {
-            AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
-            selectedLevel = level;
-            ShowDetailPanel();
-        }
-
-        private void ShowDetailPanel()
-        {
-            if (detailPanel == null || selectedLevel == null) return;
-            detailPanel.SetActive(true);
-
-            var save = SaveSystem.Instance?.CurrentSave;
-            bool isUnlocked = save != null && save.unlockedLevelIds.Contains(selectedLevel.levelId);
-            var bestScore = SaveSystem.Instance?.GetLevelBestScore(selectedLevel.levelId) ?? new LevelScoreData();
-
-            if (detailLevelName != null) detailLevelName.text = selectedLevel.levelName;
-            if (detailDescription != null) detailDescription.text = selectedLevel.levelDescription;
-            if (detailDifficulty != null) detailDifficulty.text = $"难度: {GetDifficultyStars(selectedLevel.difficulty)}";
-            if (detailTaskCount != null) detailTaskCount.text = $"任务数: {selectedLevel.photoTasks?.Length ?? 0}";
-            int min = Mathf.FloorToInt(selectedLevel.timeLimitSeconds / 60f);
-            int sec = Mathf.FloorToInt(selectedLevel.timeLimitSeconds % 60f);
-            if (detailTimeLimit != null) detailTimeLimit.text = $"时限: {min:00}:{sec:00}";
-            if (detailBestScore != null) detailBestScore.text = $"最高分: {bestScore.score}";
-
-            if (detailStars != null)
-            {
-                for (int i = 0; i < detailStars.Length; i++)
+                if (builtChapterTabImages[i] != null)
                 {
-                    if (detailStars[i] != null)
-                    {
-                        detailStars[i].color = i < bestScore.stars ? Color.yellow : Color.gray;
-                    }
+                    builtChapterTabImages[i].color = (i + 1 == currentChapter) ? TabSelectedColor : TabNormalColor;
                 }
             }
-
-            if (startButton != null) startButton.interactable = isUnlocked;
+            if (builtCurrentChapterText != null)
+            {
+                builtCurrentChapterText.text = $"当前章节: {chapterNames[currentChapter - 1]}";
+            }
         }
 
-        private void HideDetailPanel()
+        private void UpdateTotalStars()
         {
-            if (detailPanel != null) detailPanel.SetActive(false);
-            selectedLevel = null;
+            int total = 0;
+            foreach (var l in mockLevels) total += l.Stars;
+            int max = mockLevels.Count * 3;
+            if (builtTotalStarsText != null)
+            {
+                builtTotalStarsText.text = $"总星数: {total}/{max} ★";
+            }
         }
 
-        private string GetDifficultyStars(int diff)
+        private void OnChapterTabClicked(int chapter)
         {
-            return new string('★', diff) + new string('☆', Mathf.Max(0, 4 - diff));
-        }
-
-        private void OnStartClicked()
-        {
-            if (selectedLevel == null) return;
             AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
+            currentChapter = chapter;
+            RefreshChapterTabs();
+            BuildLevelCards();
+        }
 
-            GameManager.Instance?.SetCurrentLevel(selectedLevel.levelId, selectedLevel.difficulty);
+        private void OnLevelCardClicked(int levelIndex)
+        {
+            AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
+            if (levelIndex < 0 || levelIndex >= mockLevels.Count) return;
+            var data = mockLevels[levelIndex];
+            if (data.IsLocked) return;
+
+            GameManager.Instance?.SetCurrentLevel($"Level{levelIndex + 1}", (levelIndex / 2) + 1);
             GameManager.Instance?.ChangeState(GameState.Playing);
-            EventBus.Trigger(new LoadLevelEvent(selectedLevel));
             Close();
         }
 
@@ -247,15 +365,12 @@ namespace LakeSailing.UI
             Close();
             UIManager.Instance?.OpenPanel(UIType.MainMenu, true);
         }
-    }
 
-    public struct LoadLevelEvent : IEvent
-    {
-        public readonly LevelConfigData Level;
-
-        public LoadLevelEvent(LevelConfigData level)
+        protected override void OnOpened()
         {
-            Level = level;
+            base.OnOpened();
+            GameManager.Instance?.ChangeState(GameState.LevelSelect);
+            UpdateTotalStars();
         }
     }
 }

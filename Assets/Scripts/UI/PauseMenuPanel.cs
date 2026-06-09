@@ -18,10 +18,54 @@ namespace LakeSailing.UI
         [SerializeField] private Text taskProgressText;
         [SerializeField] private Text elapsedTimeText;
 
+        private Button builtResumeButton;
+        private Button builtSettingsButton;
+        private Button builtRestartButton;
+        private Button builtQuitButton;
+
+        private Text builtCurrentScoreText;
+        private Text builtTaskProgressText;
+        private Text builtElapsedTimeText;
+
+        private static readonly Color ButtonNormalColor = new Color(0.2f, 0.45f, 0.9f, 0.95f);
+        private static readonly Color ButtonHoverColor = new Color(0.2f * 1.3f, 0.45f * 1.3f, 0.9f * 1.3f, 1f);
+        private static readonly Vector2 ButtonSize = new Vector2(360f, 56f);
+
         private void Awake()
         {
             panelType = UIType.PauseMenu;
             UIManager.Instance?.RegisterPanel(panelType, this);
+            BuildUI();
+        }
+
+        private void BuildUI()
+        {
+            RuntimeUIBuilder.EnsureEventSystem();
+            if (panelContent == null) return;
+
+            var contentRoot = panelContent.transform;
+
+            RuntimeUIBuilder.CreateTitle(contentRoot, "游戏暂停", 52, -10f);
+
+            var infoGroup = RuntimeUIBuilder.CreateVerticalGroup(contentRoot, "InfoGroup", 10f, 120f, 0f, 0f, 0f);
+
+            builtCurrentScoreText = RuntimeUIBuilder.CreateLabel(infoGroup.transform, "当前分数: 0", 22,
+                TextAnchor.MiddleCenter, 600, 36);
+            builtTaskProgressText = RuntimeUIBuilder.CreateLabel(infoGroup.transform, "任务进度: 0/0", 22,
+                TextAnchor.MiddleCenter, 600, 36);
+            builtElapsedTimeText = RuntimeUIBuilder.CreateLabel(infoGroup.transform, "用时: 00:00", 22,
+                TextAnchor.MiddleCenter, 600, 36);
+
+            var buttonsGroup = RuntimeUIBuilder.CreateVerticalGroup(contentRoot, "ButtonsGroup", 20f, 320f, 60f, 0f, 0f);
+
+            builtResumeButton = RuntimeUIBuilder.CreateButton(buttonsGroup.transform, "继续游戏", ButtonSize,
+                OnResumeClicked, 26, ButtonNormalColor, ButtonHoverColor);
+            builtSettingsButton = RuntimeUIBuilder.CreateButton(buttonsGroup.transform, "系统设置", ButtonSize,
+                OnSettingsClicked, 26, ButtonNormalColor, ButtonHoverColor);
+            builtRestartButton = RuntimeUIBuilder.CreateButton(buttonsGroup.transform, "重新开始", ButtonSize,
+                OnRestartClicked, 26, ButtonNormalColor, ButtonHoverColor);
+            builtQuitButton = RuntimeUIBuilder.CreateButton(buttonsGroup.transform, "返回主菜单", ButtonSize,
+                OnQuitClicked, 26, ButtonNormalColor, ButtonHoverColor);
         }
 
         private void Start()
@@ -45,18 +89,30 @@ namespace LakeSailing.UI
 
         private void UpdateInfo()
         {
+            string scoreText = "当前分数: 0";
+            string progressText = "任务进度: 0/0";
+            string timeText = "用时: 00:00";
+
             var ts = Gameplay.TaskSystem.Instance;
             if (ts != null)
             {
-                if (currentScoreText) currentScoreText.text = $"当前分数: {ts.TotalScore}";
+                scoreText = $"当前分数: {ts.TotalScore}";
                 int completed = ts.GetCompletedTaskCount();
                 int total = ts.GetTotalTaskCount();
-                if (taskProgressText) taskProgressText.text = $"任务进度: {completed}/{total}";
+                progressText = $"任务进度: {completed}/{total}";
                 float elapsed = (ts.CurrentLevelConfig?.timeLimitSeconds ?? 0) - ts.TimeRemaining;
                 int min = Mathf.FloorToInt(elapsed / 60f);
                 int sec = Mathf.FloorToInt(elapsed % 60f);
-                if (elapsedTimeText) elapsedTimeText.text = $"用时: {min:00}:{sec:00}";
+                timeText = $"用时: {min:00}:{sec:00}";
             }
+
+            if (builtCurrentScoreText != null) builtCurrentScoreText.text = scoreText;
+            if (builtTaskProgressText != null) builtTaskProgressText.text = progressText;
+            if (builtElapsedTimeText != null) builtElapsedTimeText.text = timeText;
+
+            if (currentScoreText) currentScoreText.text = scoreText;
+            if (taskProgressText) taskProgressText.text = progressText;
+            if (elapsedTimeText) elapsedTimeText.text = timeText;
         }
 
         private void OnResumeClicked()

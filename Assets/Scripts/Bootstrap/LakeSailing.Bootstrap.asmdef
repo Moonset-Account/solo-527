@@ -1,0 +1,20 @@
+{
+    "name": "LakeSailing.Bootstrap",
+    "rootNamespace": "LakeSailing.Bootstrap",
+    "references": [
+        "LakeSailing.Core",
+        "LakeSailing.Data",
+        "LakeSailing.Gameplay",
+        "LakeSailing.UI",
+        "LakeSailing.Meta"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -363,4 +363,21 @@ namespace LakeSailing.Core
             LeadTime = leadTime;
         }
     }
+
+    public static class VisibilityLevelExtensions
+    {
+        public static string GetName(this VisibilityLevel v)
+        {
+            return v switch
+            {
+                VisibilityLevel.Excellent => "极佳",
+                VisibilityLevel.Good => "良好",
+                VisibilityLevel.Moderate => "一般",
+                VisibilityLevel.Poor => "较差",
+                VisibilityLevel.VeryPoor => "极差",
+                VisibilityLevel.Zero => "零能见度",
+                _ => "未知"
+            };
+        }
+    }
 }

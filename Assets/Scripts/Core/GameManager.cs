@@ -1,5 +1,6 @@
 using UnityEngine;
 using System;
+using LakeSailing.Data;
 
 namespace LakeSailing.Core
 {
@@ -9,6 +10,7 @@ namespace LakeSailing.Core
         MainMenu,
         Tutorial,
         LevelSelect,
+        Loading,
         Playing,
         Paused,
         Victory,
@@ -96,6 +98,12 @@ namespace LakeSailing.Core
             ChangeState(GameState.MainMenu);
             currentLevelId = null;
         }
+
+        public void LoadLevel(int levelId)
+        {
+            EventBus.Trigger(new LoadLevelEvent(levelId));
+            ChangeState(GameState.Loading);
+        }
     }
 
     public struct GameStateChangedEvent : IEvent
@@ -117,6 +125,24 @@ namespace LakeSailing.Core
         public LevelRestartEvent(string levelId)
         {
             LevelId = levelId;
+        }
+    }
+
+    public struct LoadLevelEvent : IEvent
+    {
+        public readonly int LevelId;
+        public readonly LevelConfigData Level;
+
+        public LoadLevelEvent(int id)
+        {
+            LevelId = id;
+            Level = null;
+        }
+
+        public LoadLevelEvent(int id, LevelConfigData level)
+        {
+            LevelId = id;
+            Level = level;
         }
     }
 }

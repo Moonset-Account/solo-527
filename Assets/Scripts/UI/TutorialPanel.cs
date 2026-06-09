@@ -26,6 +26,16 @@ namespace LakeSailing.UI
         [SerializeField] private Text pageContentText;
         [SerializeField] private Image pageIllustration;
 
+        private Button builtPreviousButton;
+        private Button builtNextButton;
+        private Button builtSkipButton;
+        private Button builtStartButton;
+        private Text builtPageIndicatorText;
+        private Text builtPageTitleText;
+        private Text builtPageContentText;
+        private Image[] builtPageDots;
+        private GameObject dotsContainer;
+
         private string[] tutorialTitles = {
             "欢迎来到湖面航行",
             "了解天气系统",
@@ -48,10 +58,123 @@ namespace LakeSailing.UI
             "现在你已经了解了所有基本操作。\n记住：\n• 关注天气预报\n• 合理规划路线\n• 管理好补给\n• 追求完美拍摄\n\n准备好了吗？开始你的第一次航行吧！"
         };
 
+        private static readonly Color ButtonNormalColor = new Color(0.2f, 0.45f, 0.9f, 0.95f);
+        private static readonly Color ButtonHoverColor = new Color(0.2f * 1.3f, 0.45f * 1.3f, 0.9f * 1.3f, 1f);
+
         private void Awake()
         {
             panelType = UIType.Tutorial;
             UIManager.Instance?.RegisterPanel(panelType, this);
+            BuildUI();
+        }
+
+        private void BuildUI()
+        {
+            RuntimeUIBuilder.EnsureEventSystem();
+            if (panelContent == null) return;
+
+            var contentRoot = panelContent.transform;
+
+            RuntimeUIBuilder.CreateTitle(contentRoot, "游戏教程", 52, -10f);
+
+            var contentArea = new GameObject("ContentArea");
+            contentArea.transform.SetParent(contentRoot, false);
+            var contentRT = contentArea.AddComponent<RectTransform>();
+            contentRT.anchorMin = new Vector2(0.5f, 0.5f);
+            contentRT.anchorMax = new Vector2(0.5f, 0.5f);
+            contentRT.pivot = new Vector2(0.5f, 0.5f);
+            contentRT.sizeDelta = new Vector2(1000, 500);
+            contentRT.anchoredPosition = new Vector2(0, 20f);
+
+            builtPageTitleText = RuntimeUIBuilder.CreateTitle(contentArea.transform, tutorialTitles[0], 36, 0f);
+            var titleRT = builtPageTitleText.GetComponent<RectTransform>();
+            titleRT.anchorMin = new Vector2(0.5f, 1f);
+            titleRT.anchorMax = new Vector2(0.5f, 1f);
+            titleRT.pivot = new Vector2(0.5f, 1f);
+            titleRT.anchoredPosition = new Vector2(0, -10f);
+            titleRT.sizeDelta = new Vector2(900, 60);
+
+            builtPageContentText = RuntimeUIBuilder.CreateLabel(contentArea.transform, tutorialContents[0], 22,
+                TextAnchor.UpperCenter, 900, 380);
+            var contentTextRT = builtPageContentText.GetComponent<RectTransform>();
+            contentTextRT.anchorMin = new Vector2(0.5f, 0.5f);
+            contentTextRT.anchorMax = new Vector2(0.5f, 0.5f);
+            contentTextRT.pivot = new Vector2(0.5f, 0.5f);
+            contentTextRT.anchoredPosition = new Vector2(0, -50f);
+            contentTextRT.sizeDelta = new Vector2(900, 380);
+            builtPageContentText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            var indicatorArea = new GameObject("IndicatorArea");
+            indicatorArea.transform.SetParent(contentRoot, false);
+            var indicatorRT = indicatorArea.AddComponent<RectTransform>();
+            indicatorRT.anchorMin = new Vector2(0.5f, 0f);
+            indicatorRT.anchorMax = new Vector2(0.5f, 0f);
+            indicatorRT.pivot = new Vector2(0.5f, 0f);
+            indicatorRT.anchoredPosition = new Vector2(0, 200f);
+            indicatorRT.sizeDelta = new Vector2(600, 40);
+
+            builtPageIndicatorText = RuntimeUIBuilder.CreateLabel(indicatorArea.transform, "1/8", 22,
+                TextAnchor.MiddleCenter, 600, 36);
+
+            dotsContainer = new GameObject("DotsContainer");
+            dotsContainer.transform.SetParent(contentRoot, false);
+            var dotsRT = dotsContainer.AddComponent<RectTransform>();
+            dotsRT.anchorMin = new Vector2(0.5f, 0f);
+            dotsRT.anchorMax = new Vector2(0.5f, 0f);
+            dotsRT.pivot = new Vector2(0.5f, 0f);
+            dotsRT.anchoredPosition = new Vector2(0, 170f);
+            dotsRT.sizeDelta = new Vector2(400, 30);
+
+            var dotsHL = dotsContainer.AddComponent<HorizontalLayoutGroup>();
+            dotsHL.spacing = 16f;
+            dotsHL.childAlignment = TextAnchor.MiddleCenter;
+            dotsHL.childForceExpandHeight = true;
+            dotsHL.childForceExpandWidth = false;
+            dotsHL.childControlHeight = true;
+            dotsHL.childControlWidth = false;
+
+            builtPageDots = new Image[tutorialTitles.Length];
+            for (int i = 0; i < tutorialTitles.Length; i++)
+            {
+                var dotGO = new GameObject($"Dot_{i}");
+                dotGO.transform.SetParent(dotsContainer.transform, false);
+                var dotRT = dotGO.AddComponent<RectTransform>();
+                dotRT.sizeDelta = new Vector2(16, 16);
+                var dotImg = dotGO.AddComponent<Image>();
+                dotImg.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f));
+                dotImg.color = (i == 0) ? Color.white : new Color(1, 1, 1, 0.3f);
+                builtPageDots[i] = dotImg;
+            }
+
+            var navArea = new GameObject("NavArea");
+            navArea.transform.SetParent(contentRoot, false);
+            var navRT = navArea.AddComponent<RectTransform>();
+            navRT.anchorMin = new Vector2(0.5f, 0f);
+            navRT.anchorMax = new Vector2(0.5f, 0f);
+            navRT.pivot = new Vector2(0.5f, 0f);
+            navRT.anchoredPosition = new Vector2(0, 80f);
+            navRT.sizeDelta = new Vector2(1200, 70);
+
+            var navHL = navArea.AddComponent<HorizontalLayoutGroup>();
+            navHL.spacing = 20f;
+            navHL.childAlignment = TextAnchor.MiddleCenter;
+            navHL.childForceExpandHeight = true;
+            navHL.childForceExpandWidth = false;
+            navHL.childControlHeight = true;
+            navHL.childControlWidth = false;
+            navHL.padding = new RectOffset(20, 20, 5, 5);
+
+            builtSkipButton = RuntimeUIBuilder.CreateButton(navArea.transform, "跳过", new Vector2(140f, 56f),
+                OnSkipClicked, 24, ButtonNormalColor, ButtonHoverColor);
+
+            builtPreviousButton = RuntimeUIBuilder.CreateButton(navArea.transform, "上一页", new Vector2(160f, 56f),
+                OnPreviousClicked, 24, ButtonNormalColor, ButtonHoverColor);
+
+            builtNextButton = RuntimeUIBuilder.CreateButton(navArea.transform, "下一页", new Vector2(160f, 56f),
+                OnNextClicked, 24, ButtonNormalColor, ButtonHoverColor);
+
+            builtStartButton = RuntimeUIBuilder.CreateButton(navArea.transform, "开始游戏", new Vector2(200f, 56f),
+                OnStartClicked, 26, ButtonNormalColor, ButtonHoverColor);
         }
 
         private void Start()
@@ -119,6 +242,23 @@ namespace LakeSailing.UI
                 }
             }
 
+            if (builtPageTitleText != null) builtPageTitleText.text = tutorialTitles[currentPageIndex];
+            if (builtPageContentText != null) builtPageContentText.text = tutorialContents[currentPageIndex];
+            if (builtPageIndicatorText != null) builtPageIndicatorText.text = $"{currentPageIndex + 1}/{tutorialTitles.Length}";
+
+            for (int i = 0; i < builtPageDots?.Length; i++)
+            {
+                if (builtPageDots[i] != null)
+                {
+                    builtPageDots[i].color = (i == currentPageIndex) ? Color.white : new Color(1, 1, 1, 0.3f);
+                }
+            }
+
+            if (builtPreviousButton != null) builtPreviousButton.interactable = currentPageIndex > 0;
+            bool isLastPage = currentPageIndex >= tutorialTitles.Length - 1;
+            if (builtNextButton != null) builtNextButton.gameObject.SetActive(!isLastPage);
+            if (builtStartButton != null) builtStartButton.gameObject.SetActive(isLastPage);
+
             if (pageTitleText != null) pageTitleText.text = tutorialTitles[currentPageIndex];
             if (pageContentText != null) pageContentText.text = tutorialContents[currentPageIndex];
             if (pageIndicatorText != null) pageIndicatorText.text = $"{currentPageIndex + 1}/{tutorialTitles.Length}";
@@ -132,7 +272,6 @@ namespace LakeSailing.UI
             }
 
             if (previousButton != null) previousButton.interactable = currentPageIndex > 0;
-            bool isLastPage = currentPageIndex >= tutorialTitles.Length - 1;
             if (nextButton != null) nextButton.gameObject.SetActive(!isLastPage);
             if (startButton != null) startButton.gameObject.SetActive(isLastPage);
         }
