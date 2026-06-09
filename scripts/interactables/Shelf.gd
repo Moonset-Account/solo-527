@@ -65,6 +65,7 @@ func on_scanned() -> bool:
 
 func on_interact(player: Node):
 	if not can_interact():
+		DebugLog.warning("货架无法修复：needs_fix=%s has_error=%s scanned=%s fixed=%s" % [str(needs_fix()), str(has_error), str(scanned), str(fixed)])
 		return
 	fixed = true
 	actual_label = expected_label
@@ -74,6 +75,8 @@ func on_interact(player: Node):
 		error_marker.visible = false
 	emit_signal("fixed_success", self)
 	GameManager.increment_fix()
+	var progress = GameManager.get_progress()
+	DebugLog.success("✓ 修复成功！修复数：%d/%d（标签 %s → %s）" % [progress["fixes"], progress["total_fixes"], str(actual_label), str(expected_label)])
 	AudioManager.play_sfx("fix_complete", 1.0, 0.7)
 	DebugLog.success("修复完成 - 货架 %s 标签已更正为 %s" % [shelf_id, expected_label])
 	if highlight:

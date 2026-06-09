@@ -47,16 +47,19 @@ func _get_bootstrap():
 
 func _on_resume():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 继续游戏 → 关闭暂停菜单")
 	GameManager.resume_game()
 	queue_free()
 
 func _on_settings():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 打开设置")
 	var settings = preload("res://scenes/ui/SettingsPanel.tscn").instantiate()
 	add_child(settings)
 
 func _on_level_select():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 关卡选择 → 返回主菜单")
 	get_tree().paused = false
 	var bs = _get_bootstrap()
 	if bs:
@@ -66,6 +69,7 @@ func _on_level_select():
 
 func _on_retry():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 重玩本关 → 关卡 %d" % GameManager.current_level)
 	get_tree().paused = false
 	var level_id = GameManager.current_level
 	var bs = _get_bootstrap()
@@ -76,6 +80,7 @@ func _on_retry():
 
 func _on_quit():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 返回主菜单")
 	get_tree().paused = false
 	var bs = _get_bootstrap()
 	if bs:

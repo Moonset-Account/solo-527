@@ -139,6 +139,9 @@ func _update_vision_cone_visuals():
 		else:
 			vision_cone.color = Color(1.0, 0.9, 0.2, 0.25)
 
+var _noise_log_throttle: float = 0.0
+var _last_noise_logged: float = -1.0
+
 func _check_noise_detection():
 	if not player or not is_instance_valid(player):
 		return
@@ -150,16 +153,37 @@ func _check_noise_detection():
 		pl_sprinting = player.get("is_sprinting")
 	var dist = global_position.distance_to(player.global_position)
 	var effective_range = noise_detect_range * (1.0 + pl_noise * 0.8)
-	if dist < effective_range and (pl_noise > noise_threshold or (pl_sprinting and dist < noise_detect_range * 1.2)):
+	var triggered = dist < effective_range and (pl_noise > noise_threshold or (pl_sprinting and dist < noise_detect_range * 1.2))
+	if triggered:
 		if current_state != State.ALERT and current_state != State.INVESTIGATING:
 			current_state = State.INVESTIGATING
 			investigate_point = player.global_position + Vector2(randf_range(-40, 40), randf_range(-40, 40))
 			investigate_timer = 3.0
-			DebugLog.debug("巡逻灯听到噪音(%.1f)，前往(%.0f,%.0f)调查" % [pl_noise, investigate_point.x, investigate_point.y])
+			DebugLog.warning("🔊 巡逻灯触发调查：噪音=%.1f(阈值%.1f) 距离=%d 冲刺=%s → 前往调查" % [pl_noise, noise_threshold, int(dist), str(pl_sprinting)])
 		elif current_state == State.INVESTIGATING:
 			investigate_timer = max(investigate_timer, 1.5)
 			if dist < noise_detect_range * 0.5 and pl_noise > noise_threshold + 0.2:
 				investigate_point = player.global_position
+	else:
+		_noise_log_throttle = max(0, _noise_log_throttle - 0.1)
+
+func _trigger_alert():
+	if current_state != State.ALERT:
+		current_state = State.ALERT
+		alert_timer = alert_duration
+		AudioManager.play_sfx("alert", 1.0, 0.5)
+		var dist = 0
+		if player:
+			dist = int(global_position.distance_to(player.global_position))
+		DebugLog.error("👁 巡逻灯发现玩家！距离=%dpx，警报%.1f秒后触发检测" % [dist, alert_duration])
+
+func _trigger_detection():
+	DebugLog.error("⚠️ 玩家被发现！回退到最近检查点")
+	if player and player.has_method("on_detected"):
+		player.on_detected()
+	current_state = State.WAITING
+	wait_timer = 1.0
+	vision_cone.color = Color(1.0, 0.9, 0.2, 0.25)
 
 func _check_raycast_to_player():
 	if not player or not is_instance_valid(player):
@@ -192,20 +216,6 @@ func _is_player_in_view_cone() -> bool:
 	var forward = Vector2(cos(current_rotation), sin(current_rotation))
 	var angle_between = acos(clamp(forward.dot(to_player.normalized()), -1, 1))
 	return angle_between < deg_to_rad(view_angle / 2)
-
-func _trigger_alert():
-	if current_state != State.ALERT:
-		current_state = State.ALERT
-		alert_timer = alert_duration
-		AudioManager.play_sfx("alert", 1.0, 0.5)
-		DebugLog.warning("巡逻灯发现可疑目标！")
-
-func _trigger_detection():
-	if player and player.has_method("on_detected"):
-		player.on_detected()
-	current_state = State.WAITING
-	wait_timer = 1.0
-	vision_cone.color = Color(1.0, 0.9, 0.2, 0.25)
 
 func _on_body_entered_vision(body):
 	if body.has_method("on_detected"):

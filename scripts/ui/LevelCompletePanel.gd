@@ -102,8 +102,10 @@ func _on_next_level():
 	AudioManager.play_sfx("ui_click")
 	var next_id = GameManager.current_level + 1
 	if next_id > LevelConfig.get_level_count():
+		DebugLog.info("[按钮] 游戏通关 → 返回主菜单")
 		_on_menu()
 		return
+	DebugLog.info("[按钮] 下一关 → 关卡 %d" % next_id)
 	var bs = _get_bootstrap()
 	if bs:
 		bs.build_game_level(next_id)
@@ -112,6 +114,7 @@ func _on_next_level():
 
 func _on_retry():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 重玩本关 → 关卡 %d" % GameManager.current_level)
 	var level_id = GameManager.current_level
 	var bs = _get_bootstrap()
 	if bs:
@@ -121,6 +124,7 @@ func _on_retry():
 
 func _on_level_select():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 关卡选择 → 返回主菜单")
 	var bs = _get_bootstrap()
 	if bs:
 		bs._build_main_menu()
@@ -129,6 +133,7 @@ func _on_level_select():
 
 func _on_menu():
 	AudioManager.play_sfx("ui_click")
+	DebugLog.info("[按钮] 返回主菜单")
 	var bs = _get_bootstrap()
 	if bs:
 		bs._build_main_menu()

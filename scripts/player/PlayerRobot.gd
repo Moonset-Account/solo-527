@@ -84,7 +84,7 @@ func _handle_input(delta):
 	if direction.length() > 0:
 		facing = direction
 	is_crouching = Input.is_action_pressed("crouch")
-	is_sprinting = Input.is_action_pressed("scan") == false and Input.is_key_pressed(KEY_SHIFT) and not is_crouching
+	is_sprinting = Input.is_action_pressed("scan") == false and Input.is_action_pressed("sprint") and not is_crouching
 	if Input.is_action_just_pressed("pause"):
 		GameManager.pause_game()
 	if Input.is_action_just_pressed("interact"):
@@ -189,10 +189,19 @@ func _cancel_scan():
 
 func _complete_scan():
 	var success = false
+	var has_error = false
 	if scan_target and scan_target.has_method("on_scanned"):
 		success = scan_target.on_scanned()
 		if success:
 			GameManager.increment_scan()
+			if scan_target.has_method("needs_fix"):
+				has_error = scan_target.needs_fix()
+				if has_error:
+					DebugLog.warning("扫描完成！该货架有错误标签，需要按 E 修复")
+				else:
+					DebugLog.success("扫描完成！该货架标签正常")
+			else:
+				DebugLog.success("扫描完成！")
 	emit_signal("scan_completed", scan_target, success)
 	is_scanning = false
 	scan_target = null
@@ -216,8 +225,10 @@ func _try_interact():
 		if obj and is_instance_valid(obj):
 			var dist = global_position.distance_to(obj.global_position)
 			if dist < 60 and obj.has_method("on_interact") and obj.has_method("can_interact") and obj.can_interact():
+				DebugLog.info("按 E 触发修复交互")
 				obj.on_interact(self)
 				return
+	DebugLog.info("附近没有可修复的货架（需要先扫描有错误标签的货架）")
 
 func on_detected():
 	if alert_timer > 0:
