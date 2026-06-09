@@ -1,0 +1,17 @@
+{
+    "name": "LakeSailing.Gameplay",
+    "rootNamespace": "LakeSailing.Gameplay",
+    "references": [
+        "LakeSailing.Core",
+        "LakeSailing.Data"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
