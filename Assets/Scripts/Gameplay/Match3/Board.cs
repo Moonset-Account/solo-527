@@ -184,12 +184,6 @@ namespace DecorMatch3.Gameplay.Match3
                 case InputActionType.SwipeDown:
                     HandleSwipe(inputEvent);
                     break;
-                case InputActionType.Pause:
-                    GameStateManager.Instance.TogglePause();
-                    break;
-                case InputActionType.Back:
-                    HandleBack();
-                    break;
             }
         }
 
@@ -638,22 +632,6 @@ namespace DecorMatch3.Gameplay.Match3
             Gem temp = Gems[x1, y1];
             Gems[x1, y1] = Gems[x2, y2];
             Gems[x2, y2] = temp;
-        }
-
-        private void HandleBack()
-        {
-            switch (GameStateManager.Instance.CurrentState)
-            {
-                case GameState.PlayingMatch3:
-                    GameStateManager.Instance.TogglePause();
-                    break;
-                case GameState.PausedMatch3:
-                    GameStateManager.Instance.TogglePause();
-                    break;
-                default:
-                    SceneLoader.Instance.LoadScene(SceneType.MainMenu);
-                    break;
-            }
         }
 
         public Vector2 BoardSize => new Vector2(width * cellSize, height * cellSize);

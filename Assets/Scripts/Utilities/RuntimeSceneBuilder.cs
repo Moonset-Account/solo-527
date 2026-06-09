@@ -29,6 +29,7 @@ namespace DecorMatch3
         public void BuildScene()
         {
             EnsureEventSystem();
+            UIManager.Instance?.CleanupDestroyedViews();
             switch (sceneType)
             {
                 case SceneBuildType.Bootstrap: BuildBootstrapScene(); break;
@@ -47,7 +48,7 @@ namespace DecorMatch3
             CreateUIView<LoadingScreenView>(c.transform, "LoadingScreenView", UIBuilder.BuildLoadingScreen);
             CreateUIView<TutorialView>(c.transform, "TutorialView", (go, v) => UIBuilder.BuildTutorial(go, v, sceneType));
             CreateUIView<SettingsView>(c.transform, "SettingsView", (go, v) => UIBuilder.BuildSettings(go, v, sceneType));
-            EnsureUIManager(c.transform);
+            GameStateManager.Instance?.ChangeState(GameState.Bootstrap);
             StartCoroutine(DelayedBootstrap());
         }
 
@@ -59,7 +60,9 @@ namespace DecorMatch3
             UIManager.Instance?.OpenView(UIView.LoadingScreen);
             yield return new WaitForSeconds(0.8f);
             UIManager.Instance?.CloseAllViews();
-            SceneManager.LoadScene("MainMenu");
+            AsyncOperation ao = SceneManager.LoadSceneAsync("MainMenu");
+            while (!ao.isDone) yield return null;
+            GameStateManager.Instance?.ChangeState(GameState.MainMenu);
         }
 
         private void BuildMainMenuScene()
@@ -266,13 +269,7 @@ namespace DecorMatch3
 
         private UIManager EnsureUIManager(Transform p)
         {
-            UIManager m = UIManager.Instance;
-            if (m == null)
-            {
-                GameObject go = new GameObject("UIManager");
-                go.transform.SetParent(p, false); m = go.AddComponent<UIManager>();
-            }
-            return m;
+            return UIManager.Instance;
         }
 
         private T CreateUIView<T>(Transform p, string name, System.Action<GameObject, T> build) where T : UIViewBase

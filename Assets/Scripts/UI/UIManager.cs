@@ -66,10 +66,38 @@ namespace DecorMatch3.UI
 
         public void RegisterView(UIViewBase view)
         {
-            if (view == null || _viewMap.ContainsKey(view.ViewType)) return;
+            if (view == null) return;
+
+            if (_viewMap.TryGetValue(view.ViewType, out UIViewBase existing))
+            {
+                if (existing == view) return;
+                if (existing != null && existing.gameObject != null)
+                {
+                    Destroy(existing.gameObject);
+                }
+                _viewMap.Remove(view.ViewType);
+            }
 
             _viewMap[view.ViewType] = view;
             view.Initialize();
+        }
+
+        public void CleanupDestroyedViews()
+        {
+            List<UIView> toRemove = new List<UIView>();
+            foreach (var kvp in _viewMap)
+            {
+                if (kvp.Value == null || kvp.Value.gameObject == null)
+                {
+                    toRemove.Add(kvp.Key);
+                }
+            }
+            foreach (var key in toRemove)
+            {
+                _viewMap.Remove(key);
+            }
+            _currentView = UIView.None;
+            _viewHistory.Clear();
         }
 
         public void UnregisterView(UIView viewType)
