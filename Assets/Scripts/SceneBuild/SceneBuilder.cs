@@ -86,7 +86,10 @@ namespace BeatRunner.SceneBuild
             EnsureGameManager(levelManager, player, gameplayRoot,
                 mainMenu, tutorial, hud, pause, settings, results, gameOver, calibration);
 
+            var marker = new GameObject("[SceneBuildValidated]");
+            marker.tag = "Untagged";
             Debug.Log("[SceneBuilder] Main scene built successfully.");
+            SceneBuildValidator.RunFullValidation();
         }
 
         private static void BootstrapServices()
