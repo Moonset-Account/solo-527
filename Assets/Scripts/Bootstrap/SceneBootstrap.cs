@@ -462,6 +462,7 @@ namespace PixelPlantLab.Bootstrap
         private RectTransform _dailyListContainer;
         private GameObject _questItemPrefab;
         private GameObject _challengeItemPrefab;
+        private QuestAndChallengePanel _questPanel;
         private DexPanel _dexPanel;
         private ExperimentLogPanel _expLogPanel;
         private RectTransform _dexPanelRoot;
@@ -526,17 +527,16 @@ namespace PixelPlantLab.Bootstrap
             qcPanel.CreditsText = credRes;
             qcPanel.NewQuestNotice = _toastRoot;
             qcPanel.NoticeText = _toastText;
+            _questPanel = qcPanel;
             _gameManager.QuestAndChallengePanel = qcPanel;
 
-            // 因为右栏是常驻，强制刷新一次
+            // 因为右栏是常驻，强制刷新一次（注意：不能假造实验结果，只刷新UI显示）
             Invoke(nameof(ForceRefreshPanels), 0.1f);
         }
 
         private void ForceRefreshPanels()
         {
-            // 触发UI刷新
-            var q = QuestManager.Instance?.GetCurrentTutorialQuest();
-            if (q != null) QuestManager.Instance.NotifyExperimentCompleted(null, false, null);
+            _questPanel?.ForceFullRefresh();
         }
 
         private GameObject BuildQuestItemPrefab()
@@ -592,33 +592,44 @@ namespace PixelPlantLab.Bootstrap
         {
             _dexPanelRoot = CreatePopupPanel(parent, "DexPanel", "📖 图鉴", out var closeBtn, out var container);
 
-            // 筛选区
+            // 筛选区（扩大高度以容纳2个Dropdown）
             var filterArea = CreateUIObject("FilterArea", container);
-            SetAnchors(filterArea, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -10), new Vector2(0, -110));
+            SetAnchors(filterArea, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -10), new Vector2(0, -130));
 
-            var rareDD = CreateText(filterArea, "稀有度: 全部", 14, TextAnchor.UpperLeft);
-            SetAnchors(rareDD.rectTransform, new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(10, -10), new Vector2(-10, -40));
-            rareDD.gameObject.name = "RarityFilterText";
+            // 第1行：标签
+            var rareLabel = CreateText(filterArea, "稀有度:", 14, TextAnchor.MiddleLeft);
+            SetAnchors(rareLabel.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(10, -10), new Vector2(90, -40));
+            var traitLabel = CreateText(filterArea, "特征:", 14, TextAnchor.MiddleLeft);
+            SetAnchors(traitLabel.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(10, -10), new Vector2(85, -40));
 
-            var traitDD = CreateText(filterArea, "特征: 全部", 14, TextAnchor.UpperLeft);
-            SetAnchors(traitDD.rectTransform, new Vector2(0.5f, 1), new Vector2(1, 1), new Vector2(10, -10), new Vector2(-10, -40));
-            traitDD.gameObject.name = "TraitFilterText";
+            // 第1行：Dropdown（真正的可交互控件，DexPanel自己会Init选项，但我们也预置）
+            var rarityOpts = new List<string> { "全部稀有度", "失败", "普通", "稀有", "传说" };
+            var rarityDD = CreateDropdown(filterArea, new Vector2(80, -40), new Vector2(320, 30), rarityOpts);
+            rarityDD.name = "RarityFilterDropdown";
 
-            var dexProgress = CreateText(filterArea, "", 14, TextAnchor.LowerLeft);
+            // 特征选项
+            var traitOpts = new List<string> { "全部特征" };
+            foreach (MutationTrait t in System.Enum.GetValues(typeof(MutationTrait)))
+                if (t != MutationTrait.None) traitOpts.Add(TraitDisplayName(t));
+            var traitDD = CreateDropdown(filterArea, new Vector2(490, -40), new Vector2(360, 30), traitOpts);
+            traitDD.name = "TraitFilterDropdown";
+
+            // 第2行：进度 + 清除按钮
+            var dexProgress = CreateText(filterArea, "", 14, TextAnchor.MiddleLeft);
             dexProgress.color = new Color(0.7f, 0.85f, 1f);
-            SetAnchors(dexProgress.rectTransform, new Vector2(0, 0), new Vector2(1, 0), new Vector2(10, 5), new Vector2(-10, 30));
+            SetAnchors(dexProgress.rectTransform, new Vector2(0, 0), new Vector2(0.6f, 0), new Vector2(10, 5), new Vector2(-10, 35));
 
-            var clearFilterBtn = BuildButton(filterArea, "清除筛选", new Vector2(560, 45), new Vector2(150, 30), new Color(0.4f, 0.3f, 0.3f, 1f));
+            var clearFilterBtn = BuildButton(filterArea, "清除筛选", new Vector2(560, 5), new Vector2(180, 32), new Color(0.4f, 0.3f, 0.3f, 1f));
 
-            // 列表区
+            // 列表区（调整y偏移从-120→-140因为筛选区变大）
             var listArea = CreateUIObject("EntryList", container);
-            SetAnchors(listArea, new Vector2(0, 0), new Vector2(0.5f, 1), new Vector2(10, 10), new Vector2(-5, -120));
+            SetAnchors(listArea, new Vector2(0, 0), new Vector2(0.5f, 1), new Vector2(10, 10), new Vector2(-5, -145));
             var listImg = listArea.gameObject.AddComponent<Image>();
             listImg.color = new Color(0.05f, 0.06f, 0.08f, 1f);
 
             // 详情区
             var detailArea = CreateUIObject("DetailPanel", container);
-            SetAnchors(detailArea, new Vector2(0.5f, 0), new Vector2(1, 1), new Vector2(5, 10), new Vector2(-10, -120));
+            SetAnchors(detailArea, new Vector2(0.5f, 0), new Vector2(1, 1), new Vector2(5, 10), new Vector2(-10, -145));
             var dImg = detailArea.gameObject.AddComponent<Image>();
             dImg.color = new Color(0.05f, 0.06f, 0.08f, 1f);
 
@@ -690,8 +701,8 @@ namespace PixelPlantLab.Bootstrap
             _dexPanel.CloseButton = closeBtn;
             _dexPanel.OpenButton = null;
             _dexPanel.ProgressText = dexProgress;
-            _dexPanel.RarityFilterDropdown = null;
-            _dexPanel.TraitFilterDropdown = null;
+            _dexPanel.RarityFilterDropdown = rarityDD;   // ★ 绑定真实Dropdown
+            _dexPanel.TraitFilterDropdown = traitDD;     // ★ 绑定真实Dropdown
             _dexPanel.ClearFilterButton = clearFilterBtn;
             _dexPanel.EntryListContainer = listArea;
             _dexPanel.DexEntryItemPrefab = dexEntryPrefab;
@@ -718,22 +729,55 @@ namespace PixelPlantLab.Bootstrap
         {
             _logPanelRoot = CreatePopupPanel(parent, "LogPanel", "📝 实验日志", out var closeBtn, out var container);
 
+            // 顶部统计
             var summary = CreateText(container, "", 14, TextAnchor.UpperLeft);
             summary.color = new Color(0.7f, 0.85f, 1f);
-            SetAnchors(summary.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(10, -10), new Vector2(-10, -40));
+            SetAnchors(summary.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(10, -10), new Vector2(-10, -38));
 
             var logCount = CreateText(container, "", 14, TextAnchor.UpperLeft);
-            SetAnchors(logCount.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(10, -42), new Vector2(-10, -70));
+            SetAnchors(logCount.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(10, -40), new Vector2(-10, -68));
 
-            // 列表
+            // ★ 筛选区（新增！）
+            var logFilterArea = CreateUIObject("LogFilterArea", container);
+            SetAnchors(logFilterArea, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -70), new Vector2(0, -160));
+
+            // 标签
+            var lbl1 = CreateText(logFilterArea, "稀有度:", 13, TextAnchor.MiddleLeft);
+            SetAnchors(lbl1.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(10, -8), new Vector2(80, -34));
+            var lbl2 = CreateText(logFilterArea, "状态:", 13, TextAnchor.MiddleLeft);
+            SetAnchors(lbl2.rectTransform, new Vector2(0.22f, 1), new Vector2(0.22f, 1), new Vector2(10, -8), new Vector2(60, -34));
+            var lbl3 = CreateText(logFilterArea, "特征:", 13, TextAnchor.MiddleLeft);
+            SetAnchors(lbl3.rectTransform, new Vector2(0.44f, 1), new Vector2(0.44f, 1), new Vector2(10, -8), new Vector2(60, -34));
+
+            // 3个Dropdown
+            var logRarityOpts = new List<string> { "全部稀有度", "失败", "普通", "稀有", "传说" };
+            var logRarityDD = CreateDropdown(logFilterArea, new Vector2(75, -38), new Vector2(150, 28), logRarityOpts);
+            logRarityDD.name = "LogRarityFilter";
+
+            var logStatusOpts = new List<string> { "全部状态", "成功", "失败", "已终止" };
+            var logStatusDD = CreateDropdown(logFilterArea, new Vector2(310, -38), new Vector2(150, 28), logStatusOpts);
+            logStatusDD.name = "LogStatusFilter";
+
+            var logTraitOpts = new List<string> { "全部特征" };
+            foreach (MutationTrait t in System.Enum.GetValues(typeof(MutationTrait)))
+                if (t != MutationTrait.None) logTraitOpts.Add(TraitDisplayName(t));
+            var logTraitDD = CreateDropdown(logFilterArea, new Vector2(540, -38), new Vector2(180, 28), logTraitOpts);
+            logTraitDD.name = "LogTraitFilter";
+
+            // Toggle + ClearFilter（第2行居中
+            var firstOnlyToggle = CreateToggle(logFilterArea, new Vector2(75, -76), new Vector2(260, 28), "只看首次发现");
+            firstOnlyToggle.name = "FirstDiscoveryOnlyToggle";
+            var logClearBtn = BuildButton(logFilterArea, "清除筛选", new Vector2(660, -74), new Vector2(160, 30), new Color(0.4f, 0.3f, 0.3f, 1f));
+
+            // 列表（下移因为筛选区变大：从y=-80→y=-170）
             var listArea = CreateUIObject("LogList", container);
-            SetAnchors(listArea, new Vector2(0, 0), new Vector2(0.55f, 1), new Vector2(10, 10), new Vector2(-5, -80));
+            SetAnchors(listArea, new Vector2(0, 0), new Vector2(0.55f, 1), new Vector2(10, 10), new Vector2(-5, -170));
             var li = listArea.gameObject.AddComponent<Image>();
             li.color = new Color(0.05f, 0.06f, 0.08f, 1f);
 
-            // 详情
+            // 详情（下移）
             var detailArea = CreateUIObject("LogDetail", container);
-            SetAnchors(detailArea, new Vector2(0.55f, 0), new Vector2(1, 1), new Vector2(5, 10), new Vector2(-10, -80));
+            SetAnchors(detailArea, new Vector2(0.55f, 0), new Vector2(1, 1), new Vector2(5, 10), new Vector2(-10, -170));
             var di = detailArea.gameObject.AddComponent<Image>();
             di.color = new Color(0.05f, 0.06f, 0.08f, 1f);
 
@@ -792,7 +836,7 @@ namespace PixelPlantLab.Bootstrap
             var lBtn = logItemPrefab.AddComponent<Button>();
             lBtn.targetGraphic = lpImg;
 
-            // 绑定
+            // 绑定（★全部筛选控件都真实绑定！
             var logGO = new GameObject("ExperimentLogLogic");
             logGO.transform.SetParent(parent, false);
             _expLogPanel = logGO.AddComponent<ExperimentLogPanel>();
@@ -801,11 +845,11 @@ namespace PixelPlantLab.Bootstrap
             _expLogPanel.OpenButton = null;
             _expLogPanel.StatsSummaryText = summary;
             _expLogPanel.LogCountText = logCount;
-            _expLogPanel.RarityFilterDropdown = null;
-            _expLogPanel.TraitFilterDropdown = null;
-            _expLogPanel.StatusFilterDropdown = null;
-            _expLogPanel.FirstDiscoveryOnlyToggle = null;
-            _expLogPanel.ClearFilterButton = BuildButton(container, "清除筛选", new Vector2(760, 30), new Vector2(130, 30), new Color(0.4f, 0.3f, 0.3f, 1f));
+            _expLogPanel.RarityFilterDropdown = logRarityDD;
+            _expLogPanel.TraitFilterDropdown = logTraitDD;
+            _expLogPanel.StatusFilterDropdown = logStatusDD;
+            _expLogPanel.FirstDiscoveryOnlyToggle = firstOnlyToggle;
+            _expLogPanel.ClearFilterButton = logClearBtn;
             _expLogPanel.LogListContainer = listArea;
             _expLogPanel.LogItemPrefab = logItemPrefab;
             _expLogPanel.DetailPanel = detailArea.gameObject;
@@ -896,6 +940,82 @@ namespace PixelPlantLab.Bootstrap
             return btn;
         }
 
+        private Dropdown CreateDropdown(RectTransform parent, Vector2 pos, Vector2 size, List<string> options)
+        {
+            var go = CreateUIObject("Dropdown", parent);
+            SetAnchors(go, new Vector2(0, 0), new Vector2(0, 0), pos, pos + size);
+            var img = go.gameObject.AddComponent<Image>();
+            img.color = new Color(0.15f, 0.18f, 0.22f, 1f);
+            var dd = go.gameObject.AddComponent<Dropdown>();
+            dd.targetGraphic = img;
+
+            // 模板
+            var template = CreateUIObject("Template", go.GetComponent<RectTransform>());
+            SetAnchors(template, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, -size.y * 4), new Vector2(0, 0));
+            var tImg = template.gameObject.AddComponent<Image>();
+            tImg.color = new Color(0.2f, 0.23f, 0.28f, 1f);
+            var viewport = CreateUIObject("Viewport", template);
+            SetAnchors(viewport, new Vector2(0, 0), new Vector2(1, 1), new Vector2(4, 4), new Vector2(-18, -4));
+            var content = CreateUIObject("Content", viewport);
+            SetAnchors(content, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 0), new Vector2(0, -size.y * (options.Count + 1)));
+
+            // Item模板
+            var item = CreateUIObject("Item", content);
+            SetAnchors(item, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 0), new Vector2(0, size.y));
+            var itemImg = item.gameObject.AddComponent<Image>();
+            itemImg.color = new Color(0.2f, 0.23f, 0.28f, 1f);
+            var itemToggle = item.gameObject.AddComponent<Toggle>();
+            var itemText = CreateText(item, "", 14, TextAnchor.MiddleLeft);
+            SetAnchors(itemText.rectTransform, new Vector2(0, 0), new Vector2(1, 1), new Vector2(8, 0), new Vector2(-8, 0));
+            itemToggle.targetGraphic = itemImg;
+            itemToggle.graphic = null;
+
+            dd.template = template;
+            dd.captionText = CreateText(go.GetComponent<RectTransform>(), "", 14, TextAnchor.MiddleLeft);
+            SetAnchors(dd.captionText.rectTransform, new Vector2(0, 0), new Vector2(1, 1), new Vector2(10, 0), new Vector2(-size.y - 10, 0));
+            dd.itemText = itemText;
+
+            // 箭头
+            var arrow = CreateUIObject("Arrow", go.GetComponent<RectTransform>());
+            SetAnchors(arrow, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-size.y - 4, -size.y / 2 + 2), new Vector2(-4, size.y / 2 - 2));
+            var arrowText = CreateText(arrow, "▼", 12, TextAnchor.MiddleCenter);
+            Stretch(arrowText.rectTransform);
+            arrowText.color = new Color(0.7f, 0.75f, 0.8f);
+
+            dd.options.Clear();
+            foreach (var opt in options) dd.options.Add(new Dropdown.OptionData(opt));
+            dd.value = 0;
+            dd.RefreshShownValue();
+
+            template.gameObject.SetActive(false);
+            return dd;
+        }
+
+        private Toggle CreateToggle(RectTransform parent, Vector2 pos, Vector2 size, string label)
+        {
+            var go = CreateUIObject("Toggle", parent);
+            SetAnchors(go, new Vector2(0, 0), new Vector2(0, 0), pos, pos + size);
+            var toggle = go.gameObject.AddComponent<Toggle>();
+
+            var bg = CreateUIObject("Background", go.GetComponent<RectTransform>());
+            SetAnchors(bg, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, -size.y / 2 + 2), new Vector2(size.y - 4, size.y / 2 - 2));
+            var bgImg = bg.gameObject.AddComponent<Image>();
+            bgImg.color = new Color(0.25f, 0.3f, 0.35f, 1f);
+            toggle.targetGraphic = bgImg;
+
+            var check = CreateUIObject("Checkmark", bg);
+            Stretch(check);
+            var checkImg = check.gameObject.AddComponent<Image>();
+            checkImg.color = new Color(0.55f, 0.9f, 0.65f, 1f);
+            toggle.graphic = checkImg;
+
+            var labelT = CreateText(go.GetComponent<RectTransform>(), label, 14, TextAnchor.MiddleLeft);
+            SetAnchors(labelT.rectTransform, new Vector2(0, 0), new Vector2(1, 1), new Vector2(size.y + 4, 0), new Vector2(-4, 0));
+
+            toggle.isOn = false;
+            return toggle;
+        }
+
         private void Stretch(RectTransform rt)
         {
             rt.anchorMin = Vector2.zero;
@@ -910,6 +1030,32 @@ namespace PixelPlantLab.Bootstrap
             rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
+        }
+
+        private static string TraitDisplayName(MutationTrait trait)
+        {
+            return trait switch
+            {
+                MutationTrait.Glowing => "发光",
+                MutationTrait.Crystalline => "结晶",
+                MutationTrait.Poisonous => "有毒",
+                MutationTrait.Giant => "巨型",
+                MutationTrait.Miniature => "迷你",
+                MutationTrait.Spiky => "带刺",
+                MutationTrait.Fruity => "果味",
+                MutationTrait.Burning => "火焰",
+                MutationTrait.Frozen => "冰霜",
+                MutationTrait.Electric => "带电",
+                MutationTrait.Invisible => "隐形",
+                MutationTrait.MultiHead => "多头",
+                MutationTrait.Winged => "有翼",
+                MutationTrait.Metallic => "金属",
+                MutationTrait.Rainbow => "彩虹",
+                MutationTrait.Withered => "枯萎",
+                MutationTrait.Moldy => "发霉",
+                MutationTrait.Stunted => "发育不良",
+                _ => trait.ToString()
+            };
         }
     }
 }

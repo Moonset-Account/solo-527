@@ -81,6 +81,13 @@ namespace PixelPlantLab
             if (PanelRoot != null) PanelRoot.SetActive(false);
         }
 
+        public void ForceFullRefresh()
+        {
+            RefreshTutorialList();
+            RefreshDailyList();
+            UpdateResourceDisplay();
+        }
+
         private void SwitchToTutorial()
         {
             if (TutorialListContainer != null) TutorialListContainer.gameObject.SetActive(true);
