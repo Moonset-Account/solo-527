@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+*.pyc
+*.pyo
+
+# Env
+.env
+.venv/
+venv/
+
+# DB
+*.db
+*.sqlite
+
+# Model / Data
+models_store/*/
+!models_store/.gitkeep
+data/*
+!data/.gitkeep
+*.pth
+*.pt
+*.pkl
+*.bin
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
