@@ -559,16 +559,21 @@ namespace DecorMatch3.Gameplay.Match3
                     }
                 }
 
-                List<GemType> availableGems = GetAvailableGemTypes();
-                System.Random rng = new System.Random();
-
-                for (int y = height - emptySpaces; y < height; y++)
+                if (emptySpaces > 0)
                 {
-                    GemType type = availableGems[rng.Next(availableGems.Count)];
-                    Vector3 spawnPos = GridToWorldPosition(x, height) + new Vector2(0, cellSize * (y - (height - emptySpaces) + 1));
-                    Gem newGem = CreateGem(x, height + (y - (height - emptySpaces) + 1), type, 0f);
-                    newGem.transform.localPosition = spawnPos;
-                    newGem.MoveToGridPosition(x, y, gemFallSpeed);
+                    List<GemType> availableGems = GetAvailableGemTypes();
+                    System.Random rng = new System.Random();
+
+                    for (int i = 0; i < emptySpaces; i++)
+                    {
+                        int targetY = height - emptySpaces + i;
+                        GemType type = availableGems[rng.Next(availableGems.Count)];
+
+                        Vector3 spawnPos = GridToWorldPosition(x, height + i);
+                        Gem newGem = CreateGem(x, targetY, type, 0f);
+                        newGem.transform.localPosition = spawnPos;
+                        newGem.MoveToGridPosition(x, targetY, gemFallSpeed);
+                    }
                 }
             }
 

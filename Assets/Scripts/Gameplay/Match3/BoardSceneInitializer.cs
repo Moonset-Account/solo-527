@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using DecorMatch3.Gameplay.Match3;
 using DecorMatch3.Core;
 using DecorMatch3.Audio;
+using DecorMatch3.Data;
 
 namespace DecorMatch3
 {
