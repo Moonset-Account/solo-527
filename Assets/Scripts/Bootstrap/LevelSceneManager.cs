@@ -460,7 +460,7 @@ namespace LakeSailing.Bootstrap
                 SceneService.GetBoatHeading = () => boat.CurrentHeading;
                 SceneService.GetBoatCurrentFuel = () => boat.CurrentFuel;
                 SceneService.GetBoatMaxFuel = () => boat.MaxFuel;
-                SceneService.GetBoatSpeed = () => boat.Speed;
+                SceneService.GetBoatSpeed = () => boat.CurrentSpeed;
                 SceneService.GetBoatCanShootPhoto = () => boat.CanShootPhoto();
                 SceneService.BoatAddWaypoint = wp => boat.AddWaypoint(wp);
                 SceneService.BoatUndoWaypoint = () => boat.UndoWaypoint();

@@ -8,6 +8,7 @@ namespace LakeSailing.UI
 {
     public enum UIType
     {
+        None = 0,
         MainMenu,
         HUD,
         PauseMenu,

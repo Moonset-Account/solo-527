@@ -117,8 +117,9 @@ namespace LakeSailing.UI
                 }
             }
 
-            if (BoatController.Instance != null) cachedBoat = BoatController.Instance;
-            var boatPos = SceneService.GetBoatPosition?.Invoke();
+            var boatInstance = FindObjectOfType<BoatController>();
+            if (boatInstance != null) cachedBoat = boatInstance;
+            var boatPos = SceneService.GetBoatPosition?.Invoke() ?? Vector2.zero;
             if (boatPos != Vector2.zero || SceneService.GetBoatPosition != null)
             {
                 lastBoatPos = boatPos;
@@ -227,7 +228,7 @@ namespace LakeSailing.UI
             Vector2 worldPos = new Vector2(uiPos.x / (mapW * 0.42f) * worldSize, uiPos.y / (mapH * 0.42f) * worldSize);
             SceneService.BoatAddWaypoint?.Invoke(worldPos);
             if (cachedBoat != null) { cachedBoat.AddWaypoint(worldPos); }
-            else if (BoatController.Instance != null) { BoatController.Instance.AddWaypoint(worldPos); }
+            else if (FindObjectOfType<BoatController>() != null) { FindObjectOfType<BoatController>().AddWaypoint(worldPos); }
             AddWaypointMarker(uiPos);
             RefreshRouteUI();
         }
@@ -249,7 +250,7 @@ namespace LakeSailing.UI
 
         private void RefreshRouteUI()
         {
-            if (cachedBoat == null && BoatController.Instance != null) cachedBoat = BoatController.Instance;
+            if (cachedBoat == null && FindObjectOfType<BoatController>() != null) cachedBoat = FindObjectOfType<BoatController>();
             if (cachedBoat == null) return;
             var wps = cachedBoat.GetPlannedWaypoints();
             if (waypointCountText != null) waypointCountText.text = $"航点: {wps.Count}";
@@ -270,7 +271,7 @@ namespace LakeSailing.UI
                 else if (dist > 180f) warningText.text = "⚠ 路线较长，建议拆分多次任务";
                 else warningText.text = "";
             }
-            float speed = (cachedBoat.Speed > 0.01f) ? cachedBoat.Speed * 2.2f : 5f;
+            float speed = (cachedBoat.CurrentSpeed > 0.01f) ? cachedBoat.CurrentSpeed * 2.2f : 5f;
             float t = dist / speed;
             int m = Mathf.FloorToInt(t / 60f), s = Mathf.FloorToInt(t % 60f);
             if (timeText != null) timeText.text = $"预估时间: {m:00}:{s:00}";
