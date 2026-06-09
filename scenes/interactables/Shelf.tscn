@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://shelf_001"]
+
+[ext_resource type="Script" path="res://scripts/interactables/Shelf.gd" id="1_shelf"]
+
+[node name="Shelf" type="StaticBody2D"]
+script = ExtResource("1_shelf")
