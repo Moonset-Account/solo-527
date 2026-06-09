@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BeatRunner.Data;
 using UnityEngine;
 
 namespace BeatRunner.Core

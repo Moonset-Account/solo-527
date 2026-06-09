@@ -13,6 +13,7 @@ namespace BeatRunner.EditorTools
         public const string UIPrefabFolder = PrefabFolder + "UI/";
         public const string GameplayPrefabFolder = PrefabFolder + "Gameplay/";
 
+#if UNITY_EDITOR
         [UnityEditor.MenuItem("BeatRunner/Open Data Folder")]
         public static void OpenDataFolder()
         {
@@ -40,7 +41,8 @@ namespace BeatRunner.EditorTools
                 "Assets/Art/Models",
                 "Assets/Audio",
                 "Assets/Audio/Music",
-                "Assets/Audio/SFX"
+                "Assets/Audio/SFX",
+                "Assets/Editor"
             };
 
             foreach (var folder in folders)
@@ -54,5 +56,6 @@ namespace BeatRunner.EditorTools
 
             UnityEditor.AssetDatabase.Refresh();
         }
+#endif
     }
 }

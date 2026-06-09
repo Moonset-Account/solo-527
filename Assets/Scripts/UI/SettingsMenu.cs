@@ -296,12 +296,28 @@ namespace BeatRunner.UI
 
         private void StartCalibration()
         {
-            FindObjectOfType<AudioCalibration>()?.StartAutoCalibration();
+            var all = Resources.FindObjectsOfTypeAll<AudioCalibration>();
+            foreach (var a in all)
+            {
+                if (a != null && a.gameObject.scene.IsValid())
+                {
+                    a.StartAutoCalibration();
+                    return;
+                }
+            }
         }
 
         private void TestLatency()
         {
-            FindObjectOfType<AudioCalibration>()?.TestLatency();
+            var all = Resources.FindObjectsOfTypeAll<AudioCalibration>();
+            foreach (var a in all)
+            {
+                if (a != null && a.gameObject.scene.IsValid())
+                {
+                    a.TestLatency();
+                    return;
+                }
+            }
         }
 
         private void StartRemap(string action)

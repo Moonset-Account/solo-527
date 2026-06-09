@@ -8,6 +8,7 @@ namespace BeatRunner.Audio
     public class AudioCalibration : MonoBehaviour
     {
         [Header("UI References")]
+        [SerializeField] private GameObject _calibrationRoot;
         [SerializeField] private Button _startBtn;
         [SerializeField] private Button _tapBtn;
         [SerializeField] private Button _applyBtn;
@@ -55,6 +56,26 @@ namespace BeatRunner.Audio
             UpdateLatencyDisplay(_currentLatencyMs);
         }
 
+        public void Show()
+        {
+            if (_calibrationRoot) _calibrationRoot.SetActive(true);
+            if (_manualSlider)
+            {
+                _currentLatencyMs = AudioManager.Instance != null
+                    ? AudioManager.Instance.audioLatencyMs
+                    : 0f;
+                _manualSlider.value = _currentLatencyMs;
+                UpdateLatencyDisplay(_currentLatencyMs);
+            }
+            if (_statusText) _statusText.text = "点击「开始校准」后跟随节拍点击按钮";
+            if (_tapCountText) _tapCountText.text = $"0 / {_minTaps}";
+        }
+
+        public void Hide()
+        {
+            if (_calibrationRoot) _calibrationRoot.SetActive(false);
+        }
+
         private void OnDisable()
         {
             if (_startBtn) _startBtn.onClick.RemoveListener(StartAutoCalibration);
@@ -66,6 +87,7 @@ namespace BeatRunner.Audio
 
         public void StartAutoCalibration()
         {
+            Show();
             if (_isCalibrating) return;
             _isCalibrating = true;
             _tapOffsets.Clear();
@@ -184,6 +206,7 @@ namespace BeatRunner.Audio
                 Core.SaveSystem.CurrentSave.audioLatencyMs = _currentLatencyMs;
                 Core.SaveSystem.SaveSaveData();
             }
+            Hide();
             OnCalibrationComplete?.Invoke(_currentLatencyMs);
         }
 
@@ -195,6 +218,7 @@ namespace BeatRunner.Audio
                 _calibrationCoroutine = null;
             }
             _isCalibrating = false;
+            Hide();
             OnCalibrationCancelled?.Invoke();
         }
 

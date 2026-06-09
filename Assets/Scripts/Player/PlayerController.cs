@@ -306,8 +306,10 @@ namespace BeatRunner.Player
             _targetPosition.x = GetTrackX(_currentTrackIndex);
             var pos = transform.position;
             pos.x = _targetPosition.x;
-            pos.y = _jumpStartY;
+            pos.y = 1f;
             transform.position = pos;
+            _jumpStartY = 1f;
+            _targetPosition = new Vector3(_targetPosition.x, 1f, pos.z);
         }
     }
 }

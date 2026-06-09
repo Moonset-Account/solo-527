@@ -1,3 +1,4 @@
+using BeatRunner.Data;
 using BeatRunner.Player;
 using UnityEngine;
 
@@ -29,6 +30,19 @@ namespace BeatRunner.Gameplay
         private void Update()
         {
             _levelManager?.CheckCollisions();
+            TryCollectFragments();
+        }
+
+        private void TryCollectFragments()
+        {
+            if (_levelManager == null || _player == null) return;
+            PlayerState state = _player.State;
+            int track = _player.CurrentTrackIndex;
+            NoteType[] valid = { NoteType.Fragment };
+            HitResult r = _levelManager.TryJudgeAction(state, track, valid);
+            if (r == HitResult.Judged)
+            {
+            }
         }
 
         private void OnPlayerStateChanged(PlayerState newState)

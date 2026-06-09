@@ -224,6 +224,7 @@ namespace BeatRunner
             _settingsMenu?.Hide();
             _results?.Hide();
             _gameOver?.Hide();
+            _audioCalibration?.Hide();
         }
 
         private void HandleStartSelected(TrackData track, SkinData skin, int difficulty)

@@ -312,7 +312,7 @@ namespace BeatRunner.Gameplay
             }
         }
 
-        public HitResult TryJudgeAction(PlayerState state, int trackIndex)
+        public HitResult TryJudgeAction(PlayerState state, int trackIndex, NoteType[] overrideValidTypes = null)
         {
             if (_settings == null) return HitResult.None;
 
@@ -326,7 +326,7 @@ namespace BeatRunner.Gameplay
             {
             }
 
-            NoteType[] validTypes = GetValidNoteTypes(state);
+            NoteType[] validTypes = overrideValidTypes ?? GetValidNoteTypes(state);
             int bestIndex = -1;
             NoteData bestNote = null;
             double bestDiff = double.MaxValue;
