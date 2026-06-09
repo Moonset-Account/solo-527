@@ -16,6 +16,17 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
     except Exception:
         pass
+    try:
+        from app.core.database import SessionLocal
+        from scripts.seed_data import seed_categories, seed_tickets
+        db = SessionLocal()
+        try:
+            seed_categories(db)
+            seed_tickets(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
     yield
 
 

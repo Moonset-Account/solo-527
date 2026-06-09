@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         if self.DB_URL_OVERRIDE:
             return self.DB_URL_OVERRIDE
+        if self.POSTGRES_HOST and self.POSTGRES_HOST not in ("localhost", "127.0.0.1"):
+            return self.POSTGRES_URL
         return self.DEFAULT_SQLITE_URL
 
     @property

@@ -28,8 +28,27 @@ def execute_training_task(task_id: int):
 def execute_batch_inference(task_id: int):
     db = SessionLocal()
     try:
+        from rq.job import get_current_job as _get_current_rq_job
+        from app.services.batch_task_service import BatchTaskService
+        from app.models.ticket import TaskStatus
+
+        _job = _get_current_rq_job()
+        _real_job_id = _job.id if _job else None
+
+        task = BatchTaskService.get(db, task_id)
+        if task is None:
+            return {"error": f"batch task {task_id} not found"}
+
+        update_fields = dict(
+            status=TaskStatus.RUNNING.value,
+            started_at=datetime.utcnow(),
+        )
+        if _real_job_id and (task.job_id is None or task.job_id != _real_job_id):
+            update_fields["job_id"] = _real_job_id
+        BatchTaskService.update(db, task_id, **update_fields)
+
         result = InferenceService.execute_batch_task(db, task_id)
-        return {"task_id": task_id, "status": "success", **{
+        return {"task_id": task_id, "job_id": _real_job_id, "status": "success", **{
             k: v for k, v in result.items() if k != "results"
         }}
     except Exception as e:
