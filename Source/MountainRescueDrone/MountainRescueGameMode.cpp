@@ -455,3 +455,22 @@ void AMountainRescueGameMode::CaptureReplayFrame()
 		CachedReplaySystem->CaptureFrame(CachedDrone.Get(), WPIdx);
 	}
 }
+
+int32 AMountainRescueGameMode::GetActiveTargetCount() const
+{
+	int32 Count = 0;
+	for (const ARescueTarget* T : RescueTargets)
+	{
+		if (T && !T->bIsRescued && !T->bIsTimedOut) Count++;
+	}
+	return Count;
+}
+
+ARescueTarget* AMountainRescueGameMode::FindTargetByID(FName TargetID) const
+{
+	for (ARescueTarget* T : RescueTargets)
+	{
+		if (T && T->TargetData.TargetID == TargetID) return T;
+	}
+	return nullptr;
+}

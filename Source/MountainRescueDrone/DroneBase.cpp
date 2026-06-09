@@ -165,22 +165,24 @@ void ADroneBase::EmergencyLand()
 
 bool ADroneBase::DropSupply(ESupplyType SupplyType, FVector DropLocation)
 {
-	for (FSupplyPayload& Payload : CurrentPayload)
+	for (int32 Idx = 0; Idx < CurrentPayload.Num(); Idx++)
 	{
+		FSupplyPayload& Payload = CurrentPayload[Idx];
 		if (Payload.SupplyType == SupplyType && Payload.Count > 0)
 		{
 			Payload.Count--;
+			int32 RemainingCount = Payload.Count;
 			UpdatePayloadWeight();
 			OnSupplyDropped.Broadcast(SupplyType);
 			PlayDropVFX(SupplyType);
 
-			if (Payload.Count == 0)
+			if (RemainingCount == 0)
 			{
-				CurrentPayload.Remove(Payload);
+				CurrentPayload.RemoveAt(Idx);
 			}
 
 			UE_LOG(LogMountainRescue, Log, TEXT("无人机投放物资: %s, 剩余: %d"),
-				*UEnum::GetValueAsString(SupplyType), Payload.Count);
+				*UEnum::GetValueAsString(SupplyType), RemainingCount);
 			return true;
 		}
 	}

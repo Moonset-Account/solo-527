@@ -3,6 +3,7 @@
 #include "DroneBase.h"
 #include "SignalSystem.h"
 #include "Components/SplineComponent.h"
+#include "EngineUtils.h"
 #include "MountainRescueDrone.h"
 
 ARouteManager::ARouteManager()

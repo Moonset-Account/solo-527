@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/Canvas.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "MountainRescueDrone.h"

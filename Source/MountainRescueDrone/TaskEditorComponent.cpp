@@ -189,15 +189,16 @@ void UTaskEditorComponent::RemoveSupplyFromPayload(ESupplyType Type, int32 Count
 
 void UTaskEditorComponent::SetSupplyCount(ESupplyType Type, int32 Count, float UnitWeightKg)
 {
-	for (FSupplyPayload& P : EditableConfig.InitialPayload)
+	for (int32 Idx = 0; Idx < EditableConfig.InitialPayload.Num(); Idx++)
 	{
+		FSupplyPayload& P = EditableConfig.InitialPayload[Idx];
 		if (P.SupplyType == Type)
 		{
 			P.Count = FMath::Max(0, Count);
 			P.UnitWeightKg = UnitWeightKg;
 			if (P.Count == 0)
 			{
-				EditableConfig.InitialPayload.Remove(P);
+				EditableConfig.InitialPayload.RemoveAt(Idx);
 			}
 			OnTaskConfigChanged.Broadcast(EditableConfig);
 			return;
