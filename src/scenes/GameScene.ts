@@ -19,6 +19,8 @@ import {
 import { uuid, roundToGrid, clamp, dist, lerp } from '../utils/math';
 import { pointInRect, pointInCircle, rotatePoint, snapToGrid } from '../utils/geometry';
 
+import { generateDailyChallenge, verifyAllConstraints, type DailyChallenge } from '../game/data/dailyChallenge';
+
 const GRID_SIZE = 40;
 const COMPONENT_WIDTH = 80;
 const COMPONENT_HEIGHT = 60;
@@ -49,6 +51,7 @@ interface QuestLevel {
   name: string;
   description: string;
   components: string[];
+  componentLimits?: Partial<Record<ComponentType, number>>;
   goals: Omit<Goal, 'completed'>[];
   maxStars: number;
   timeLimit?: number;
@@ -56,28 +59,76 @@ interface QuestLevel {
 }
 
 const QUEST_LEVELS: Record<string, QuestLevel> = {
-  'l1-1': {
-    id: 'l1-1', name: '点亮第一颗灯',
-    description: '搭建最简单的电路，让灯泡亮起',
-    components: ['battery', 'bulb', 'wire_joint'],
-    goals: [
-      { id: 'g1', description: '灯泡亮度达到 80% 以上', type: 'bulb_brightness', target: 0.8, params: { minCount: 1 } },
-      { id: 'g2', description: '至少使用 1 根导线连接', type: 'wire_count', target: 1 },
-      { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
-    ],
-    maxStars: 3,
-  },
-  'l1-2': {
-    id: 'l1-2', name: '开关控制',
-    description: '添加开关，控制灯泡的亮灭',
-    components: ['battery', 'bulb', 'switch', 'wire_joint'],
-    goals: [
-      { id: 'g1', description: '灯泡亮度达到 60% 以上', type: 'bulb_brightness', target: 0.6 },
-      { id: 'g2', description: '使用至少 1 个开关', type: 'component_count', target: 1, params: { type: 'switch' } },
-      { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
-    ],
-    maxStars: 3,
-  },
+  'l1-1': { id: 'l1-1', name: '点亮第一颗灯', description: '用电池和导线点亮灯泡', components: ['battery', 'bulb', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '灯泡亮度达到 80% 以上', type: 'bulb_brightness', target: 0.8, params: { minCount: 1 } },
+    { id: 'g2', description: '至少使用 2 根导线', type: 'wire_count', target: 2 },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l1-2': { id: 'l1-2', name: '开关控制', description: '添加开关控制电路通断', components: ['battery', 'bulb', 'switch', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '开关闭合时灯泡亮度 >70%', type: 'bulb_brightness', target: 0.7 },
+    { id: 'g2', description: '至少使用 1 个开关', type: 'component_count', target: 1, params: { type: 'switch' } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l1-3': { id: 'l1-3', name: '串联之路', description: '两个灯泡串联连接', components: ['battery', 'bulb', 'wire_joint'], maxStars: 3, componentLimits: { bulb: 2 }, goals: [
+    { id: 'g1', description: '放置至少 2 个灯泡', type: 'component_count', target: 2, params: { type: 'bulb' } },
+    { id: 'g2', description: '所有灯泡亮度均 >40%', type: 'bulb_brightness', target: 0.4, params: { minCount: 2 } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l1-4': { id: 'l1-4', name: '并联分岔', description: '学习并联电路原理', components: ['battery', 'bulb', 'wire_joint'], maxStars: 3, componentLimits: { bulb: 2 }, goals: [
+    { id: 'g1', description: '放置至少 2 个灯泡', type: 'component_count', target: 2, params: { type: 'bulb' } },
+    { id: 'g2', description: '所有灯泡亮度均 >60%（并联电压相同）', type: 'bulb_brightness', target: 0.6, params: { minCount: 2 } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l2-1': { id: 'l2-1', name: '限流初探', description: '添加电阻保护灯泡', components: ['battery', 'bulb', 'resistor', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用至少 1 个电阻', type: 'component_count', target: 1, params: { type: 'resistor' } },
+    { id: 'g2', description: '灯泡亮度 30%~70%（不过暗也不过载）', type: 'bulb_brightness', target: 0.5, params: { min: 0.3, max: 0.7 } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l2-2': { id: 'l2-2', name: '欧姆定律', description: '理解V=IR关系', components: ['battery', 'bulb', 'resistor', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用至少 1 个电阻', type: 'component_count', target: 1, params: { type: 'resistor' } },
+    { id: 'g2', description: '灯泡亮度 40%~60%（合适电流）', type: 'bulb_brightness', target: 0.5, params: { min: 0.4, max: 0.6 } },
+    { id: 'g3', description: '使用 2 根以上导线', type: 'wire_count', target: 2 },
+  ]},
+  'l2-3': { id: 'l2-3', name: '分压电路', description: '构建电阻分压器', components: ['battery', 'bulb', 'resistor', 'wire_joint'], maxStars: 3, componentLimits: { resistor: 2, bulb: 1 }, goals: [
+    { id: 'g1', description: '使用至少 2 个电阻串联', type: 'component_count', target: 2, params: { type: 'resistor' } },
+    { id: 'g2', description: '灯泡亮度 20%~50%（分压后）', type: 'bulb_brightness', target: 0.35, params: { min: 0.2, max: 0.5 } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l2-4': { id: 'l2-4', name: '电流过载', description: '认识短路与过载风险', components: ['battery', 'bulb', 'resistor', 'switch', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用至少 1 个开关', type: 'component_count', target: 1, params: { type: 'switch' } },
+    { id: 'g2', description: '开关闭合时灯泡亮度 >50%', type: 'bulb_brightness', target: 0.5 },
+    { id: 'g3', description: '全程无短路警告', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l3-1': { id: 'l3-1', name: '充电与放电', description: '观察电容充放电过程', components: ['battery', 'bulb', 'capacitor', 'switch', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用至少 1 个电容', type: 'component_count', target: 1, params: { type: 'capacitor' } },
+    { id: 'g2', description: '使用至少 1 个开关', type: 'component_count', target: 1, params: { type: 'switch' } },
+    { id: 'g3', description: '电容充电后灯泡短暂点亮', type: 'bulb_brightness', target: 0.3, params: { transient: true } },
+  ]},
+  'l3-2': { id: 'l3-2', name: 'RC时间常数', description: '理解τ=RC充电速度', components: ['battery', 'resistor', 'capacitor', 'bulb', 'switch', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用电阻 + 电容 + 开关', type: 'component_count', target: 1, params: { type: 'capacitor' } },
+    { id: 'g2', description: '电阻至少 1 个（决定τ）', type: 'component_count', target: 1, params: { type: 'resistor' } },
+    { id: 'g3', description: '电容完全充电后断电', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l3-3': { id: 'l3-3', name: '延时电路', description: '用电容制作延时开关', components: ['battery', 'resistor', 'capacitor', 'bulb', 'switch', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '电容、电阻、灯泡齐全', type: 'component_count', target: 1, params: { type: 'capacitor' } },
+    { id: 'g2', description: '至少 1 个开关控制充放电路径', type: 'component_count', target: 1, params: { type: 'switch' } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l4-1': { id: 'l4-1', name: '交通信号灯', description: '设计交替点亮的多灯组', components: ['battery', 'bulb', 'resistor', 'switch', 'wire_joint'], maxStars: 3, componentLimits: { bulb: 3 }, goals: [
+    { id: 'g1', description: '放置至少 3 个灯泡', type: 'component_count', target: 3, params: { type: 'bulb' } },
+    { id: 'g2', description: '至少 2 个灯泡亮度 >50%', type: 'bulb_brightness', target: 0.5, params: { minCount: 2 } },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l4-2': { id: 'l4-2', name: '抢答器设计', description: '优先响应电路雏形', components: ['battery', 'bulb', 'switch', 'resistor', 'wire_joint'], maxStars: 3, componentLimits: { bulb: 2, switch: 2 }, goals: [
+    { id: 'g1', description: '至少 2 个开关（抢答按钮）', type: 'component_count', target: 2, params: { type: 'switch' } },
+    { id: 'g2', description: '至少 1 个灯泡正常点亮', type: 'bulb_brightness', target: 0.6 },
+    { id: 'g3', description: '电路无短路', type: 'no_short_circuit', target: 1 },
+  ]},
+  'l4-3': { id: 'l4-3', name: '终极挑战', description: '自由设计复杂电路，展示所学', components: ['battery', 'resistor', 'capacitor', 'switch', 'bulb', 'wire_joint'], maxStars: 3, goals: [
+    { id: 'g1', description: '使用 6 个以上元件（展示综合能力）', type: 'component_count', target: 6, params: { any: true } },
+    { id: 'g2', description: '至少 1 个灯泡亮度 >50%', type: 'bulb_brightness', target: 0.5 },
+    { id: 'g3', description: '使用至少 2 类元件（电阻/电容/开关混合）', type: 'custom', target: 1 },
+  ]},
 };
 
 export const DEFAULT_AVAILABLE_COMPONENTS: ComponentType[] = [
@@ -192,39 +243,96 @@ class QuestSystem {
   getAvailableComponents(): ComponentType[] {
     return this.levelData ? (this.levelData.components as ComponentType[]) : DEFAULT_AVAILABLE_COMPONENTS;
   }
+  private _dailyContext: { componentCounts: Partial<Record<ComponentType, number>>; mistakes: number } | null = null;
+
+  setDailyContext(ctx: { componentCounts: Partial<Record<ComponentType, number>>; mistakes: number }) {
+    this._dailyContext = ctx;
+  }
+
   update(graph: CircuitGraph, simState: SimState): { changed: boolean; allCompleted: boolean } {
     if (this.goals.length === 0) return { changed: false, allCompleted: true };
     let changed = false;
     for (const goal of this.goals) {
       const before = goal.completed;
-      goal.completed = this.checkGoal(goal, graph, simState);
+      if (goal.id.startsWith('constraint-')) {
+        const idx = Number(goal.id.split('-')[1] || 0);
+        goal.completed = this.checkConstraint(idx, graph, simState);
+      } else if (goal.params && (goal.params as any)._legacy !== undefined) {
+        const level = (simState as any)._dailyLevelRef as any;
+        goal.completed = this.checkGoal(goal, graph, simState);
+        if (!goal.completed) {
+          const temp: Goal = { ...goal, type: 'bulb_brightness', target: 0.5 };
+          goal.completed = this.checkGoal(temp, graph, simState);
+        }
+      } else {
+        goal.completed = this.checkGoal(goal, graph, simState);
+      }
       if (goal.completed !== before) changed = true;
     }
     return { changed, allCompleted: this.goals.every(g => g.completed) };
+  }
+  private checkConstraint(idx: number, graph: CircuitGraph, _sim: SimState): boolean {
+    const constraints = (globalThis as any).__dailyConstraints;
+    const cList: any[] = Array.isArray(constraints) ? constraints : [];
+    if (!cList[idx]) return true;
+    const c = cList[idx];
+    switch (c.type) {
+      case 'component_limit': {
+        let cnt = 0;
+        for (const comp of graph.components.values()) if (comp.type === c.componentType) cnt++;
+        return cnt <= (c.maxCount ?? 999);
+      }
+      case 'mistake_limit':
+        return (this._dailyContext?.mistakes ?? 0) <= (c.maxMistakes ?? 999);
+      case 'time_limit':
+        return true;
+      default:
+        return true;
+    }
   }
   private checkGoal(goal: Goal, graph: CircuitGraph, simState: SimState): boolean {
     switch (goal.type) {
       case 'bulb_brightness': {
         const minCount = (goal.params?.minCount as number) || 1;
+        const min = goal.params?.min as number | undefined;
+        const max = goal.params?.max as number | undefined;
         let count = 0;
         for (const comp of graph.components.values()) {
           if (comp.type === 'bulb') {
-            const state = simState.componentStates.get(comp.id);
-            if (((state?.brightness as number) || 0) >= goal.target) count++;
+            const b = ((simState.componentStates.get(comp.id)?.brightness as number) || 0);
+            let ok = b >= goal.target;
+            if (min !== undefined && max !== undefined) ok = b >= min && b <= max;
+            else if (min !== undefined) ok = b >= min;
+            else if (max !== undefined) ok = b <= max;
+            if (ok) count++;
           }
         }
         return count >= minCount;
       }
       case 'component_count': {
         const t = goal.params?.type as ComponentType;
+        const anyType = goal.params?.any as boolean;
         let count = 0;
-        for (const comp of graph.components.values()) {
-          if (!t || comp.type === t) count++;
+        if (anyType) {
+          count = graph.components.size;
+        } else {
+          for (const comp of graph.components.values()) {
+            if (!t || comp.type === t) count++;
+          }
         }
         return count >= goal.target;
       }
       case 'wire_count': return graph.wires.size >= goal.target;
       case 'no_short_circuit': return !simState.errors.some(e => e.type === 'short_circuit');
+      case 'custom': {
+        const types = new Set<ComponentType>();
+        for (const c of graph.components.values()) types.add(c.type);
+        let mixed = 0;
+        if (types.has('resistor')) mixed++;
+        if (types.has('capacitor')) mixed++;
+        if (types.has('switch')) mixed++;
+        return mixed >= goal.target;
+      }
       default: return false;
     }
   }
@@ -252,6 +360,7 @@ export class GameScene extends BaseScene {
 
   private payload: GameScenePayload = { mode: 'sandbox' };
   private questLevel: QuestLevel | null = null;
+  private dailyChallenge: DailyChallenge | null = null;
 
   private graph: CircuitGraph;
   private simulator: CircuitSimulator;
@@ -304,6 +413,7 @@ export class GameScene extends BaseScene {
     this.startTime = Date.now();
     this.elapsedMs = 0;
     this.lastGoalCompleteTime = 0;
+    this.dailyChallenge = null;
     this.graph = this.createEmptyGraph();
     this.simulator.reset();
     this.simulator.setRunning(true);
@@ -332,6 +442,40 @@ export class GameScene extends BaseScene {
           this.doAddComponent(this.componentFactory.createComponent(t, x, y, ic.rotation ?? 0), false);
         }
       }
+    } else if (this.payload.mode === 'daily') {
+      this.dailyChallenge = generateDailyChallenge(this.payload.date ? new Date(this.payload.date) : undefined);
+      const baseLevel = this.dailyChallenge.level;
+      (globalThis as any).__dailyConstraints = this.dailyChallenge.constraints;
+      const fakeQuest: QuestLevel = {
+        id: this.dailyChallenge.id,
+        name: `📅 每日挑战 · ${baseLevel.name}`,
+        description: this.dailyChallenge.bonusDescription,
+        components: baseLevel.availableComponents as string[],
+        maxStars: 3,
+        goals: baseLevel.objectives.map((o, i) => ({
+          id: `daily-goal-${i}`,
+          description: o.description,
+          type: 'custom' as const,
+          target: 1,
+          params: { _legacy: i, desc: o.description },
+        })),
+      };
+      this.questLevel = fakeQuest;
+      const constraintGoals: Omit<Goal, 'completed'>[] = this.dailyChallenge.constraints.map((c, i) => ({
+        id: `constraint-${i}`,
+        description: `约束：${c.description}`,
+        type: 'custom' as const,
+        target: 1,
+      }));
+      this.questSystem.goals = [
+        ...fakeQuest.goals.map(g => ({ ...g, completed: false })),
+        ...constraintGoals.map(g => ({ ...g, completed: false })),
+      ];
+      this.availableComponents = baseLevel.availableComponents;
+      this.telemetry.recordEvent('daily_challenge_start', {
+        id: this.dailyChallenge.id,
+        constraints: this.dailyChallenge.constraints.length,
+      });
     } else {
       this.questLevel = null;
       this.questSystem.goals = [];
@@ -359,16 +503,21 @@ export class GameScene extends BaseScene {
   }
 
   private subscribeInput(): void {
-    const bus = this.eventBus as any;
-    const wrap = (evt: string, handler: (p: any) => void) => {
-      const u = bus.on?.(evt, handler);
-      if (typeof u === 'function') this.inputUnsubscribe.push(u);
-    };
-    wrap('pointer_move', (e: PointerEvent) => this.onPointerMove(e));
-    wrap('pointer_down', (e: PointerEvent) => this.onPointerDown(e));
-    wrap('pointer_up', (e: PointerEvent) => this.onPointerUp(e));
-    wrap('key_down', (e: KeyInputEvent) => this.onKeyDown(e));
-    wrap('cancel', () => this.onCancel());
+    if (!this._inputManager) {
+      this.logger.warn('subscribeInput called but _inputManager is null');
+      return;
+    }
+    const im = this._inputManager;
+    this.inputUnsubscribe.push(
+      im.subscribe('pointer_move', (e: PointerEvent) => this.onPointerMove(e)),
+      im.subscribe('pointer_down', (e: PointerEvent) => this.onPointerDown(e)),
+      im.subscribe('pointer_up', (e: PointerEvent) => this.onPointerUp(e)),
+      im.subscribe('pointer_drag_start', (e: PointerEvent) => this.onPointerDown(e)),
+      im.subscribe('pointer_drag', (e: PointerEvent) => this.onPointerMove(e)),
+      im.subscribe('pointer_drag_end', (e: PointerEvent) => this.onPointerUp(e)),
+      im.subscribe('key_down', (e: KeyInputEvent) => this.onKeyDown(e)),
+      im.subscribe('cancel', () => this.onCancel()),
+    );
   }
 
   update(dt: number): void {
@@ -382,13 +531,18 @@ export class GameScene extends BaseScene {
       }
     }
     if (this.questSystem.goals.length > 0) {
+      const componentCounts: Partial<Record<ComponentType, number>> = {};
+      for (const comp of this.graph.components.values()) {
+        componentCounts[comp.type] = (componentCounts[comp.type] ?? 0) + 1;
+      }
+      this.questSystem.setDailyContext({ componentCounts, mistakes: this.telemetry.getStat('mistakes') || 0 });
       const r = this.questSystem.update(this.graph, this.simState);
       if (r.changed) {
         this.refreshHUD();
         if (r.allCompleted && this.lastGoalCompleteTime === 0) {
           this.lastGoalCompleteTime = this.elapsedMs;
           this.telemetry.recordEvent('goal_complete', { all: true, timeMs: this.elapsedMs });
-          if (this.payload.mode === 'level') this.handleLevelComplete();
+          if (this.payload.mode === 'level' || this.payload.mode === 'daily') this.handleLevelComplete();
         }
       }
     }
@@ -402,19 +556,55 @@ export class GameScene extends BaseScene {
   private handleLevelComplete(): void {
     if (!this.questLevel) return;
     const stars = this.questSystem.calculateStars(this.elapsedMs, this.simState, this.graph);
-    const progress = this.saveSystem.get<any>('levelProgress') || { completed: [], stars: {}, bestTime: {} };
-    if (!progress.completed.includes(this.questLevel.id)) progress.completed.push(this.questLevel.id);
-    progress.stars[this.questLevel.id] = Math.max(progress.stars[this.questLevel.id] || 0, stars);
-    progress.bestTime[this.questLevel.id] = Math.min(progress.bestTime[this.questLevel.id] || Infinity, this.elapsedMs);
-    this.saveSystem.set('levelProgress', progress);
+    const mistakes = this.telemetry.getStat('mistakes') || 0;
+    const progressKey = 'levelProgress';
+    const progress = this.saveSystem.get<any>(progressKey) || { completed: [], stars: {}, bestTime: {}, leastMistakes: {} };
+
+    if (this.payload.mode === 'level') {
+      if (!progress.completed.includes(this.questLevel.id)) progress.completed.push(this.questLevel.id);
+      progress.stars[this.questLevel.id] = Math.max(progress.stars[this.questLevel.id] || 0, stars);
+      progress.bestTime[this.questLevel.id] = Math.min(progress.bestTime[this.questLevel.id] || Infinity, this.elapsedMs);
+      progress.leastMistakes[this.questLevel.id] = Math.min(progress.leastMistakes[this.questLevel.id] ?? Infinity, mistakes);
+      this.saveSystem.set(progressKey, progress);
+    }
+
+    try {
+      const lb = this.saveSystem.get<any[]>('leaderboard') || [];
+      const baseScore = stars * 1000 + Math.max(0, 10000 - Math.floor(this.elapsedMs / 100)) - mistakes * 50;
+      const mult = this.dailyChallenge?.bonusMultiplier ?? 1;
+      const finalScore = Math.floor(baseScore * mult);
+      lb.push({
+        name: this.payload.mode === 'daily' ? '每日挑战者' : '玩家',
+        score: finalScore,
+        time: Math.floor(this.elapsedMs / 1000),
+        date: new Date().toISOString().slice(0, 10),
+        stars,
+        mode: this.payload.mode,
+      });
+      lb.sort((a, b) => b.score - a.score);
+      this.saveSystem.set('leaderboard', lb.slice(0, 50));
+    } catch {}
+
+    this.telemetry.recordEvent('level_complete', {
+      mode: this.payload.mode,
+      levelId: this.questLevel.id,
+      stars,
+      elapsedMs: this.elapsedMs,
+      mistakes,
+    });
+
     setTimeout(() => {
       this.sceneManager.replace('result', {
-        mode: 'level', levelId: this.questLevel!.id, levelName: this.questLevel!.name, stars,
+        mode: this.payload.mode,
+        levelId: this.questLevel!.id,
+        levelName: this.questLevel!.name,
+        stars,
         timeMs: this.elapsedMs,
         goalsCompleted: this.questSystem.goals.filter(g => g.completed).length,
         totalGoals: this.questSystem.goals.length,
-        mistakes: this.telemetry.getStat('mistakes'),
-        componentsUsed: this.graph.components.size, wiresUsed: this.graph.wires.size,
+        mistakes,
+        componentsUsed: this.graph.components.size,
+        wiresUsed: this.graph.wires.size,
       });
     }, 1200);
   }

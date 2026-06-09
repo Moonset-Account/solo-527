@@ -3,6 +3,7 @@ import { EventBus } from '../core/EventBus';
 import { SceneManager } from '../core/SceneManager';
 import { SaveSystem } from '../core/SaveSystem';
 import { Telemetry } from '../core/Telemetry';
+import { InputManager, PointerEvent } from '../core/InputManager';
 import { LevelProgressData } from './MainMenuScene';
 import { uuid } from '../utils/math';
 
@@ -90,6 +91,7 @@ export class LevelSelectScene extends BaseScene {
   private sceneManager: SceneManager;
   private saveSystem: SaveSystem;
   private telemetry: Telemetry | null = null;
+  private _inputManager: InputManager | null = null;
   private uiRoot: HTMLElement | null = null;
   private uiContainer: HTMLDivElement | null = null;
   private progress: LevelProgressData = { completed: [], stars: {}, bestTime: {} };
@@ -148,12 +150,22 @@ export class LevelSelectScene extends BaseScene {
   }
 
   private subscribeInput(): void {
-    const bus = this.eventBus as any;
+    if (!this._inputManager) {
+      this.logger.warn('subscribeInput called but _inputManager is null');
+      return;
+    }
+    const im = this._inputManager;
     this.inputUnsubscribe.push(
-      bus.on?.('pointer_move', (e: any) => this.handlePointerMove(e)) || (() => {}),
-      bus.on?.('pointer_up', (e: any) => this.handlePointerUp(e)) || (() => {}),
+      im.subscribe('pointer_move', (e: PointerEvent) => this.handlePointerMove(e)),
+      im.subscribe('pointer_down', (e: PointerEvent) => this.handlePointerMove(e)),
+      im.subscribe('pointer_up', (e: PointerEvent) => this.handlePointerUp(e)),
+      im.subscribe('key_down', (e: any) => {
+        if (e.key === 'escape') this.sceneManager.pop();
+      }),
     );
   }
+
+  setInputManager(im: InputManager): void { this._inputManager = im; }
 
   private handlePointerMove(e: { pos: { x: number; y: number } }): void {
     this.hoverLevelId = this.hitTestLevel(e.pos.x, e.pos.y);

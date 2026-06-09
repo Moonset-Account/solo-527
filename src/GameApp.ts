@@ -75,6 +75,7 @@ export class GameApp {
     const loadingScene = new LoadingScene(this.eventBus, this.sceneManager, this.assetLoader);
     const mainMenuScene = new MainMenuScene(this.eventBus, this.sceneManager, this.saveSystem, this.telemetry, this.uiRoot);
     const levelSelectScene = new LevelSelectScene(this.eventBus, this.sceneManager, this.saveSystem, this.telemetry, this.uiRoot);
+    levelSelectScene.setInputManager(this.inputManager);
     const gameScene = new GameScene(this.eventBus, this.sceneManager, this.saveSystem, this.telemetry);
     gameScene.setUIRoot(this.uiRoot);
     gameScene.setInputManager(this.inputManager);
