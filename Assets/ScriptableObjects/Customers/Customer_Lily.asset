@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cccccccccccccccccccccccccccccccc, type: 3}
+  m_Name: Customer_Lily
+  m_EditorClassIdentifier:
+  CustomerId: CUSTOMER_001
+  CustomerName: 莉莉
+  Avatar: {fileID: 0}
+  Age: 26
+  Occupation: 设计师
+  Bio: 追求时尚的年轻设计师，喜欢有创意的设计。
+  MinBudget: 500
+  MaxBudget: 1500
+  StylePreferences:
+  - Style: 0
+    Weight: 85
+  - Style: 2
+    Weight: 75
+  - Style: 3
+    Weight: 70
+  - Style: 1
+    Weight: 30
+  - Style: 4
+    Weight: 50
+  ColorPreferences:
+  - Color: {r: 0.95, g: 0.9, b: 0.85, a: 1.0}
+    Weight: 85
+  - Color: {r: 0.7, g: 0.85, b: 0.9, a: 1.0}
+    Weight: 80
+  - Color: {r: 0.9, g: 0.7, b: 0.7, a: 1.0}
+    Weight: 60
+  - Color: {r: 0.4, g: 0.4, b: 0.4, a: 1.0}
+    Weight: 30
+  MaterialPreferences:
+  - Category: 0
+    Weight: 80
+  - Category: 2
+    Weight: 75
+  - Category: 1
+    Weight: 65
+  - Category: 3
+    Weight: 45
+  - Category: 4
+    Weight: 55
+  FurniturePreferences:
+  - FurnitureType: 0
+    Weight: 85
+  - FurnitureType: 1
+    Weight: 70
+  - FurnitureType: 7
+    Weight: 80
+  - FurnitureType: 9
+    Weight: 90
+  SpecialRequirements:
+  - 客厅要有艺术挂画
+  - 需要充足的自然光
+  Personality: 2
+  GreetingLines:
+  - 你好呀，想让我的客厅更有艺术感！
+  - 我是莉莉，很高兴见到你~
+  HintLines:
+  - 我喜欢明亮但不刺眼的颜色。
+  - 多一些温暖的感觉会更好。
+  HappyLines:
+  - 哇，这就是我梦想中的家！
+  - 太有创意了，完全超出预期！
+  DisappointedLines:
+  - 嗯...和我想象的不太一样。
+  - 感觉还差点什么。
+  NeutralLines:
+  - 还不错，谢谢你的设计。
+  - 整体可以接受。

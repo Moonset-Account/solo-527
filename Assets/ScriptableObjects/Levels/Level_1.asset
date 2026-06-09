@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, type: 3}
+  m_Name: Level_1
+  m_EditorClassIdentifier:
+  LevelId: 1
+  LevelName: 初学者的第一步
+  Description: 收集足够的基础颜料，完成第一个装修订单！
+  LevelIcon: {fileID: 0}
+  BoardWidth: 6
+  BoardHeight: 6
+  TileSize: 100
+  TileSpacing: 5
+  MaxMoves: 25
+  TimeLimitSeconds: 120
+  LimitType: 0
+  OneStarScore: 500
+  TwoStarScore: 1200
+  ThreeStarScore: 2000
+  CollectionTargets:
+  - MaterialId: 1
+    TileType: 0
+    RequiredAmount: 8
+  - MaterialId: 2
+    TileType: 1
+    RequiredAmount: 8
+  - MaterialId: 3
+    TileType: 2
+    RequiredAmount: 5
+  AvailableTileTypes:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  ObstacleSpawnRate: 0
+  PredefinedObstacles: []
+  BaseCoinsReward: 30
+  PerStarCoinBonus: 20
+  GemReward: 0
+  ComboMultiplier2Match: 2
+  ComboMultiplier3Match: 4
+  ComboMultiplier4PlusMatch: 8

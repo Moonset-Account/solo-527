@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, type: 3}
+  m_Name: Order_1
+  m_EditorClassIdentifier:
+  OrderId: 1
+  OrderTitle: 莉莉的客厅大改造
+  OrderDescription: 为设计师莉莉打造一个充满艺术感的现代客厅，需要明亮温馨的配色方案。
+  Category: 0
+  RoomSize: 1
+  RoomPreview: {fileID: 0}
+  Customer: {fileID: 0}
+  PriorityLevel: 1
+  BudgetMin: 500
+  BudgetMax: 1500
+  BaseReward: 200
+  StarRewardMultiplier: 100
+  GemReward: 1
+  RequiredLevelIds:
+  - 1
+  RequiredSlots:
+  - SlotId: s1
+    SlotName: 墙面色彩
+    SlotType: 0
+    Description: 打造明亮舒适的墙面
+    PreferredStyles:
+    - 0
+    - 3
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 5
+    MaxMaterialCost: 15
+  - SlotId: s2
+    SlotName: 地板材质
+    SlotType: 1
+    Description: 客厅地板需要耐磨
+    PreferredStyles:
+    - 0
+    - 1
+    - 3
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 8
+    MaxMaterialCost: 15
+  - SlotId: s3
+    SlotName: 主要家具
+    SlotType: 2
+    Description: 沙发是客厅核心
+    PreferredStyles:
+    - 0
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 400
+    MaxMaterialCost: 800
+  OptionalSlots:
+  - SlotId: s4
+    SlotName: 装饰点缀
+    SlotType: 5
+    Description: 增添艺术氛围
+    PreferredStyles:
+    - 0
+    - 9
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 0
+    MinMaterialCost: 50
+    MaxMaterialCost: 200
+  TimeLimitMinutes: 0
+  UnlockOrderId: -1
+  MinLevelRequirement: 0

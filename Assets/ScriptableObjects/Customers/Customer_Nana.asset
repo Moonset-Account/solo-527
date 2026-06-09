@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cccccccccccccccccccccccccccccccc, type: 3}
+  m_Name: Customer_Nana
+  m_EditorClassIdentifier:
+  CustomerId: CUSTOMER_002
+  CustomerName: 娜娜
+  Avatar: {fileID: 0}
+  Age: 31
+  Occupation: 自由撰稿人
+  Bio: 喜欢温馨舒适，希望卧室能放松身心。
+  MinBudget: 800
+  MaxBudget: 2200
+  StylePreferences:
+  - Style: 3
+    Weight: 90
+  - Style: 8
+    Weight: 85
+  - Style: 9
+    Weight: 75
+  - Style: 10
+    Weight: 70
+  - Style: 2
+    Weight: 65
+  ColorPreferences:
+  - Color: {r: 0.95, g: 0.92, b: 0.88, a: 1.0}
+    Weight: 90
+  - Color: {r: 0.85, g: 0.78, b: 0.7, a: 1.0}
+    Weight: 80
+  - Color: {r: 0.78, g: 0.88, b: 0.78, a: 1.0}
+    Weight: 65
+  - Color: {r: 0.95, g: 0.75, b: 0.7, a: 1.0}
+    Weight: 45
+  MaterialPreferences:
+  - Category: 5
+    Weight: 85
+  - Category: 2
+    Weight: 90
+  - Category: 1
+    Weight: 70
+  - Category: 0
+    Weight: 50
+  - Category: 4
+    Weight: 55
+  FurniturePreferences:
+  - FurnitureType: 3
+    Weight: 95
+  - FurnitureType: 6
+    Weight: 80
+  - FurnitureType: 8
+    Weight: 85
+  - FurnitureType: 7
+    Weight: 75
+  SpecialRequirements:
+  - 床边要有阅读灯
+  - 储物柜要充足
+  Personality: 0
+  GreetingLines:
+  - 嗨，请帮我打造一个能放松的卧室吧。
+  - 想让卧室更温馨一些~
+  HintLines:
+  - 我喜欢柔和的灯光和面料。
+  - 木质的东西会让我很安心。
+  HappyLines:
+  - 感觉整个人都放松下来了，太谢谢你了！
+  - 这正是我想要的感觉~
+  DisappointedLines:
+  - 好像有点太严肃了？
+  - 我想要更温暖一些的氛围。
+  NeutralLines:
+  - 还行，整体挺舒服的。
+  - 我再考虑看看。

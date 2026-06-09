@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500002, guid: dddddddddddddddddddddddddddddddd, type: 3}
+  m_Name: Palette_2
+  m_EditorClassIdentifier:
+  PaletteId: 2
+  PaletteName: 北欧暖木色
+  WallPrimary: {r: 0.98, g: 0.95, b: 0.9, a: 1.0}
+  WallAccent: {r: 0.9, g: 0.82, b: 0.7, a: 1.0}
+  WallStyleTags:
+  - 3
+  - 9
+  - 10
+  WallMaterial: 0
+  FloorPrimary: {r: 0.78, g: 0.65, b: 0.5, a: 1.0}
+  FloorPattern: {r: 0.7, g: 0.55, b: 0.4, a: 1.0}
+  FloorStyleTags:
+  - 3
+  - 8
+  FloorMaterial: 1
+  OverallStyleTags:
+  - 3
+  - 8
+  - 9
+  WallMaterialId: 3
+  FloorMaterialId: 10
+  WallMaterialAmount: 12
+  FloorMaterialAmount: 10

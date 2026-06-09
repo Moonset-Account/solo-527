@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, type: 3}
+  m_Name: Order_3
+  m_EditorClassIdentifier:
+  OrderId: 3
+  OrderTitle: 马克的律师书房
+  OrderDescription: 为律师马克打造专业稳重的豪华书房，深色系配色，必须有超大书柜。
+  Category: 4
+  RoomSize: 2
+  RoomPreview: {fileID: 0}
+  Customer: {fileID: 0}
+  PriorityLevel: 3
+  BudgetMin: 1500
+  BudgetMax: 4000
+  BaseReward: 600
+  StarRewardMultiplier: 150
+  GemReward: 4
+  RequiredLevelIds:
+  - 3
+  - 5
+  RequiredSlots:
+  - SlotId: w1
+    SlotName: 书房墙面
+    SlotType: 0
+    Description: 稳重的墙面颜色
+    PreferredStyles:
+    - 7
+    - 1
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 8
+    MaxMaterialCost: 16
+  - SlotId: f1
+    SlotName: 书房地板
+    SlotType: 1
+    Description: 深色实木地板
+    PreferredStyles:
+    - 1
+    - 7
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 12
+    MaxMaterialCost: 20
+  - SlotId: bk
+    SlotName: 书柜主体
+    SlotType: 2
+    Description: 大尺寸书柜
+    PreferredStyles:
+    - 1
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 800
+    MaxMaterialCost: 2000
+  OptionalSlots:
+  - SlotId: tb
+    SlotName: 办公桌椅
+    SlotType: 3
+    Description: 桌椅组合
+    PreferredStyles:
+    - 4
+    - 0
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 500
+    MaxMaterialCost: 1200
+  - SlotId: deco
+    SlotName: 装饰
+    SlotType: 5
+    Description: 书架装饰品
+    PreferredStyles:
+    - 7
+    - 1
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 0
+    MinMaterialCost: 100
+    MaxMaterialCost: 400
+  TimeLimitMinutes: 0
+  UnlockOrderId: 2
+  MinLevelRequirement: 2

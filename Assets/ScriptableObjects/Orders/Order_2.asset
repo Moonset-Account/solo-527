@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, type: 3}
+  m_Name: Order_2
+  m_EditorClassIdentifier:
+  OrderId: 2
+  OrderTitle: 娜娜的温馨卧室
+  OrderDescription: 给自由撰稿人娜娜一个能放松身心的北欧风卧室，木质元素和柔和灯光是关键。
+  Category: 1
+  RoomSize: 1
+  RoomPreview: {fileID: 0}
+  Customer: {fileID: 0}
+  PriorityLevel: 2
+  BudgetMin: 800
+  BudgetMax: 2200
+  BaseReward: 350
+  StarRewardMultiplier: 120
+  GemReward: 2
+  RequiredLevelIds:
+  - 2
+  - 4
+  RequiredSlots:
+  - SlotId: w1
+    SlotName: 墙面壁纸
+    SlotType: 0
+    Description: 温馨墙面壁纸
+    PreferredStyles:
+    - 3
+    - 9
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 10
+    MaxMaterialCost: 20
+  - SlotId: f1
+    SlotName: 地板木材
+    SlotType: 1
+    Description: 温馨木地板
+    PreferredStyles:
+    - 3
+    - 1
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 10
+    MaxMaterialCost: 18
+  - SlotId: mf
+    SlotName: 核心床具
+    SlotType: 2
+    Description: 大尺寸舒适床
+    PreferredStyles:
+    - 3
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 1
+    MinMaterialCost: 600
+    MaxMaterialCost: 1200
+  OptionalSlots:
+  - SlotId: lg
+    SlotName: 柔和灯光
+    SlotType: 4
+    Description: 营造氛围
+    PreferredStyles:
+    - 3
+    - 8
+    AvailableFurniture: []
+    AvailableColorPalettes: []
+    AvailableMaterials: []
+    IsRequired: 0
+    MinMaterialCost: 100
+    MaxMaterialCost: 300
+  TimeLimitMinutes: 0
+  UnlockOrderId: 1
+  MinLevelRequirement: 1

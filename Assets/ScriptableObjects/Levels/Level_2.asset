@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, type: 3}
+  m_Name: Level_2
+  m_EditorClassIdentifier:
+  LevelId: 2
+  LevelName: 木材与布料
+  Description: 收集木材料和布料，给客厅准备家具！
+  LevelIcon: {fileID: 0}
+  BoardWidth: 7
+  BoardHeight: 7
+  TileSize: 100
+  TileSpacing: 5
+  MaxMoves: 30
+  TimeLimitSeconds: 120
+  LimitType: 0
+  OneStarScore: 800
+  TwoStarScore: 1800
+  ThreeStarScore: 3000
+  CollectionTargets:
+  - MaterialId: 10
+    TileType: 6
+    RequiredAmount: 12
+  - MaterialId: 12
+    TileType: 8
+    RequiredAmount: 10
+  - MaterialId: 4
+    TileType: 3
+    RequiredAmount: 6
+  AvailableTileTypes:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 8
+  ObstacleSpawnRate: 0
+  PredefinedObstacles: []
+  BaseCoinsReward: 50
+  PerStarCoinBonus: 25
+  GemReward: 0
+  ComboMultiplier2Match: 2
+  ComboMultiplier3Match: 4
+  ComboMultiplier4PlusMatch: 8

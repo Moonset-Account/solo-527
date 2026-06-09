@@ -138,9 +138,9 @@ namespace DecorMatch3.Data
             level2.BoardHeight = 7;
             level2.LimitType = LevelLimitType.Moves;
             level2.MaxMoves = 30;
-            level1.OneStarScore = 800;
-            level1.TwoStarScore = 1800;
-            level1.ThreeStarScore = 3000;
+            level2.OneStarScore = 800;
+            level2.TwoStarScore = 1800;
+            level2.ThreeStarScore = 3000;
             level2.AvailableTileTypes = new List<TileType>
             {
                 TileType.PaintRed, TileType.PaintBlue, TileType.PaintYellow,
@@ -711,7 +711,7 @@ namespace DecorMatch3.Data
             o3.GemReward = 10;
             o3.RequiredLevelIds = new[] { 3, 5 };
             o3.MinLevelRequirement = 3;
-            o2.UnlockOrderId = 2;
+            o3.UnlockOrderId = 2;
 
             DecorationSlot studyWallSlot = new DecorationSlot
             {
