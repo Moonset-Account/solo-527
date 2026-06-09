@@ -433,16 +433,12 @@ def get_training_dataset_summary():
         FEATURE_SOURCE_AUTO_LABELED, FEATURE_SOURCE_RELABELED,
         TRAINING_ALLOWED_SOURCES
     )
-    from sqlalchemy import func, case
+
+    trainer = _get_trainer()
+    trainer_summary = trainer.get_training_dataset_summary()
 
     session = Database.get_session()
     try:
-        source_counts_raw = session.query(
-            FeatureRecord.source,
-            func.count(FeatureRecord.id)
-        ).group_by(FeatureRecord.source).all()
-        source_counts = {src: cnt for (src, cnt) in source_counts_raw}
-
         label_counts_raw = session.query(
             FeatureRecord.source,
             FeatureRecord.label,
@@ -454,11 +450,6 @@ def get_training_dataset_summary():
         for src, lbl, cnt in label_counts_raw:
             by_source_label.setdefault(src, {})[lbl] = cnt
 
-        allowed_total = sum(source_counts.get(s, 0) for s in TRAINING_ALLOWED_SOURCES)
-        unconfirmed_total = source_counts.get(FEATURE_SOURCE_UNCONFIRMED, 0)
-
-        total_feedback = session.query(func.count(FeedbackRecord.id)).scalar() or 0
-
         allowed_label_dist_raw = session.query(
             FeatureRecord.label,
             func.count(FeatureRecord.id)
@@ -467,6 +458,8 @@ def get_training_dataset_summary():
             FeatureRecord.label != None
         ).group_by(FeatureRecord.label).all()
         allowed_label_dist = {lbl: cnt for (lbl, cnt) in allowed_label_dist_raw}
+
+        total_feedback = session.query(func.count(FeedbackRecord.id)).scalar() or 0
 
         timeline_raw_all = session.query(
             FeatureRecord.created_at,
@@ -484,32 +477,40 @@ def get_training_dataset_summary():
             {"date": k[0], "source": k[1], "count": v}
             for k, v in sorted(timeline_by_day.items(), key=lambda x: (x[0][0], x[0][1]))
         ][-30:]
-
-        return jsonify({
-            "data": {
-                "by_source_count": source_counts,
-                "by_source_label": by_source_label,
-                "training_allowed_sources": TRAINING_ALLOWED_SOURCES,
-                "training_unconfirmed_source": FEATURE_SOURCE_UNCONFIRMED,
-                "total_allowed_samples": allowed_total,
-                "total_unconfirmed_samples": unconfirmed_total,
-                "total_feature_records": sum(source_counts.values()),
-                "total_feedback_records": total_feedback,
-                "allowed_label_distribution": allowed_label_dist,
-                "strict_training_rule_enabled": True,
-                "ready_for_training": allowed_total >= 15,
-                "min_required_samples": 15,
-                "timeline_30d": timeline,
-                "source_explain": {
-                    FEATURE_SOURCE_UNCONFIRMED: "历史原始传感器数据生成，需要工程师人工确认后方可进入训练集",
-                    FEATURE_SOURCE_ENGINEER_CONFIRMED: "工程师在告警管理页确认的样本，已准入训练集",
-                    FEATURE_SOURCE_AUTO_LABELED: "冷启动阶段自动标注的种子样本，用于初始模型训练",
-                    FEATURE_SOURCE_RELABELED: "工程师对已有样本进行改标后的结果，已准入训练集"
-                }
-            }
-        })
     finally:
         session.close()
+
+    src_exp = {
+        FEATURE_SOURCE_UNCONFIRMED: "历史原始传感器数据生成(raw_label)，需工程师人工确认后方可准入训练集",
+        FEATURE_SOURCE_ENGINEER_CONFIRMED: "工程师在告警管理页确认的样本，已准入训练集",
+        FEATURE_SOURCE_AUTO_LABELED: "冷启动阶段自动标注的种子样本，用于初始模型训练(准入)",
+        FEATURE_SOURCE_RELABELED: "工程师对已有样本进行改标后的结果，已准入训练集"
+    }
+
+    data = {
+        "by_source_count": trainer_summary.get("by_source_count", {}),
+        "by_source_label": by_source_label,
+        "training_allowed_sources": list(TRAINING_ALLOWED_SOURCES),
+        "training_unconfirmed_source": FEATURE_SOURCE_UNCONFIRMED,
+        "total_allowed_samples": trainer_summary.get("total_allowed_samples", 0),
+        "total_unconfirmed_samples": trainer_summary.get("total_unconfirmed_samples", 0),
+        "total_feature_records": trainer_summary.get("total_feature_records", 0),
+        "total_feedback_records": total_feedback,
+        "allowed_label_distribution": allowed_label_dist,
+        "strict_training_rule_enabled": trainer_summary.get("strict_training_rule_enabled", True),
+        "ready_for_training": trainer_summary.get("ready_for_training", False),
+        "min_required_samples": trainer_summary.get("min_required_samples", 15),
+        "timeline_30d": timeline,
+        "source_explain": src_exp,
+        "feedback_overview": trainer_summary.get("feedback_overview", {}),
+        "status_overview": trainer_summary.get("status_overview", {}),
+        "confirmed_label_distribution": trainer_summary.get("confirmed_label_distribution", {}),
+        "feature_records_overview": trainer_summary.get("feature_records_overview", {}),
+        "trainable_summary": trainer_summary.get("trainable_summary", {}),
+        "maintenance_exclusion_rule": trainer_summary.get("maintenance_exclusion_rule", ""),
+        "excluded_sources_summary": trainer_summary.get("excluded_sources_summary", {}),
+    }
+    return jsonify({"data": data})
 
 
 @app.route("/api/models/<version>", methods=["GET"])

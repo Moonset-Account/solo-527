@@ -6,6 +6,7 @@
 import os
 import sys
 import time
+import json
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -226,33 +227,82 @@ def main():
             print_stats(f"    {name}", f"{count} ({rate:.1f}%)")
 
         summary_after = trainer.get_training_dataset_summary()
-        print_stats("  准入样本数 (engineer_confirmed + seed)", summary_after['total_allowed_samples'])
-        print_stats("  未确认样本数 (raw_label排除)", summary_after['total_unconfirmed_samples'])
-        print_stats("  训练就绪状态", "✅ 已就绪" if summary_after['ready_for_training'] else "❌ 未就绪")
-        for src, cnt in summary_after.get('by_source_count', {}).items():
-            allowed = src in summary_after.get('training_allowed_sources', [])
-            print_stats(f"    来源 [{src}]", f"{cnt} {'✓准入' if allowed else '✗排除'}")
+        print_stats("  准入样本数 (engineer_confirmed + seed)", summary_after.get('total_allowed_samples', 0))
+        print_stats("  未确认样本数 (raw_label排除)", summary_after.get('total_unconfirmed_samples', 0))
+        print_stats("  训练就绪状态", "✅ 已就绪" if summary_after.get('ready_for_training') else "❌ 未就绪")
+        src_cnt = 0
+        for src, cnt in (summary_after.get('by_source_count', {}) or {}).items():
+            allowed = src in (summary_after.get('training_allowed_sources') or [])
+            print_stats(f"    来源 [{src}]", f"{cnt}  {'✓准入' if allowed else '✗排除(原始raw_label)'}")
+            src_cnt += 1
+        if src_cnt == 0:
+            print("      (无已记录的来源分布)")
+
+        # 查看反馈写入后的 FeatureRecord 关联 feedback_id 情况（可观察人工反馈流转）
+        db = Database.get_session()
+        try:
+            from database import FeatureRecord
+            n_with_fb = db.query(FeatureRecord).filter(
+                FeatureRecord.feedback_id.isnot(None)
+            ).count()
+            n_eng_confirmed = db.query(FeatureRecord).filter(
+                FeatureRecord.source == "engineer_confirmed"
+            ).count()
+            n_relabeled = db.query(FeatureRecord).filter(
+                FeatureRecord.source == "engineer_relabeled"
+            ).count()
+            print_stats("  FeatureRecord 关联feedback_id (可追溯)", n_with_fb)
+            print_stats("  FeatureRecord source=engineer_confirmed", n_eng_confirmed)
+            print_stats("  FeatureRecord source=engineer_relabeled", n_relabeled)
+        finally:
+            db.close()
 
     # Step 8: 重新训练 (包含反馈数据)
-    step("Step 8: 增量训练 - 纳入人工反馈")
+    step("Step 8: 增量训练 - 纳入人工反馈 (严格仅数据库准入样本)")
     sub_step("重新训练模型，纳入工程师确认的反馈数据")
+    print("      └─ feature_df=None, label_series=None, strict_from_db_only=True")
+    print("      └─ 来源: engineer_confirmed + engineer_relabeled + auto_labeled_seed")
+    print("      └─ 历史 raw_label(historical_unconfirmed) 一律排除")
     result2 = trainer.train(
         feature_df=None,
         label_series=None,
         model_type="gb",
         include_feedback=True,
-        description="增量训练 - 包含最新人工反馈数据"
+        auto_seed_samples=False,
+        strict_from_db_only=True,
+        description="增量训练 - 包含最新工程师确认反馈数据"
     )
     new_version = result2["model_version"]
     new_metrics = result2["test_metrics"]
+    new_dataset_info = result2.get("dataset_info", {}) or {}
     print_stats("新模型版本", new_version)
-    print_stats("使用反馈数", result2["dataset_info"]["used_feedback_count"])
-    print_stats("新F1分数", f"{new_metrics['f1_macro']*100:.2f}%")
+    print_stats("使用反馈数", new_dataset_info.get("used_feedback_count", 0))
+    print_stats("严格规则已启用", "是" if str(new_dataset_info.get("strict_training_rule_enabled")) == "True" else "否")
+    print_stats("维修缓冲区排除样本", new_dataset_info.get("excluded_maintenance_buffer_count", 0))
+    print_stats("来源分布 (实际参与训练)", str(new_dataset_info.get("by_source_in_training", {})))
+    print("\n  📊 增量模型指标:")
+    print_stats("    准确率 Accuracy", f"{(new_metrics.get('accuracy') or new_metrics.get('accuracy_macro') or 0)*100:.2f}%")
+    print_stats("    精确率 Precision", f"{(new_metrics.get('precision') or new_metrics.get('precision_macro') or 0)*100:.2f}%")
+    print_stats("    召回率 Recall", f"{(new_metrics.get('recall') or new_metrics.get('recall_macro') or 0)*100:.2f}%")
+    print_stats("    F1分数 Macro", f"{(new_metrics.get('f1') or new_metrics.get('f1_macro') or 0)*100:.2f}%")
 
     sub_step("注册并部署新模型")
-    mm.register_model(trainer, result2, trained_by="demo_script_retrain")
+    reg_ver2, uri2 = mm.register_model(trainer, result2, trained_by="demo_script_retrain")
+    print_stats("注册", f"版本 {reg_ver2}, URI={uri2}")
     mm.deploy_model(new_version)
-    print_stats("已部署", f"模型 {new_version} 已自动部署")
+    from config import Config as DemoCfg
+    deployed_meta = os.path.join(DemoCfg.MODEL_DIR, "deployed", "metadata.json")
+    deployed_metrics_file = os.path.join(DemoCfg.MODEL_DIR, "deployed", "metrics.json")
+    deployed_ok = os.path.exists(deployed_meta) and os.path.exists(deployed_metrics_file)
+    if deployed_ok:
+        with open(deployed_meta, "r", encoding="utf-8") as f:
+            dmeta = json.load(f)
+        with open(deployed_metrics_file, "r", encoding="utf-8") as f:
+            dmetric = json.load(f)
+        print_stats("models/deployed/metadata.json 版本", dmeta.get("model_version", "N/A"))
+        print_stats("models/deployed/metrics.json Accuracy", f"{float(dmetric.get('accuracy') or 0)*100:.2f}%")
+        print_stats("models/deployed/metrics.json F1(Macro)", f"{float(dmetric.get('f1') or dmetric.get('f1_macro') or 0)*100:.2f}%")
+    print_stats("部署状态", f"✅ 成功  deployed={new_version}, 部署文件完整={deployed_ok}")
 
     # 显示模型版本列表
     step("Step 9: 查看模型与数据版本")
@@ -260,8 +310,10 @@ def main():
     print_stats("已注册模型数", len(models))
     print(f"\n  版本列表:")
     for m in models:
-        deployed = " 🟢 已部署" if m["is_deployed"] else ""
-        print(f"    · {m['version']:<25} F1={m['f1_score']*100:.1f}%  数据={m['training_data_version'] or '-'}{deployed}")
+        deployed = " 🟢 已部署" if m.get("is_deployed") else ""
+        f1_val = m.get("f1_score") or m.get("test_f1_macro") or m.get("f1_macro") or 0
+        data_v = m.get("training_data_version") or m.get("data_version") or "-"
+        print(f"    · {str(m.get('version','?')):<25} F1={float(f1_val)*100:.1f}%  数据={data_v}{deployed}")
 
     # 完成
     print("""

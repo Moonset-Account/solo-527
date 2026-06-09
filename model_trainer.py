@@ -217,6 +217,22 @@ class AnomalyModelTrainer:
         finally:
             session.close()
 
+        readiness = self._get_training_readiness_status(audit)
+        total_allowed = audit.get("total_qualified", 0)
+
+        by_source_flat = {}
+        try:
+            src_raw = dict(
+                session.query(FeatureRecord.source, func.count(FeatureRecord.id))
+                .group_by(FeatureRecord.source).all()
+            )
+            for s in FEATURE_SOURCE_LABELS.keys():
+                by_source_flat[s] = src_raw.get(s, 0)
+            if None in src_raw:
+                by_source_flat["unknown"] = src_raw[None]
+        except Exception:
+            by_source_flat = {}
+
         return {
             "trainable_summary": audit,
             "feedback_overview": {
@@ -227,14 +243,26 @@ class AnomalyModelTrainer:
             "feature_records_overview": {
                 "total": total_fr,
                 "unconfirmed_only": unconfirmed_fr,
-                "eligible_for_training": audit["total_qualified"],
+                "eligible_for_training": total_allowed,
                 "by_source": {
-                    s: source_distribution.get(s, 0)
-                    for s in list(FEATURE_SOURCE_LABELS.keys()) + [None]
+                    s: by_source_flat.get(s, 0)
+                    for s in list(FEATURE_SOURCE_LABELS.keys()) + ["unknown"]
                 }
             },
             "confirmed_label_distribution": label_distribution_confirmed,
-            "status_overview": self._get_training_readiness_status(audit),
+            "status_overview": readiness,
+            "total_feature_records": total_fr,
+            "total_unconfirmed_samples": unconfirmed_fr,
+            "total_allowed_samples": total_allowed,
+            "ready_for_training": readiness.get("can_train", False) if isinstance(readiness, dict) else False,
+            "by_source_count": by_source_flat,
+            "training_allowed_sources": list(TRAINING_ALLOWED_SOURCES),
+            "strict_training_rule_enabled": True,
+            "min_required_samples": self.MIN_TRAINING_SAMPLES,
+            "excluded_sources_summary": {
+                FEATURE_SOURCE_UNCONFIRMED: "历史原始传感器数据，raw_label 不直接参与训练，需工程师人工确认方可入库"
+            },
+            "maintenance_exclusion_rule": "维修前后24小时窗口自动排除",
         }
 
     def _get_training_readiness_status(self, audit: Dict) -> Dict:
