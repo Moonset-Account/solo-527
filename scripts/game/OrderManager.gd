@@ -132,6 +132,7 @@ func _complete_order(order: Dictionary) -> void:
 func _fail_order(order: Dictionary) -> void:
 	order["is_failed"] = true
 	consecutive_completed = 0
+	total_orders_failed_here += 1
 	GameState.remove_active_order(order["id"], false)
 	order_removed.emit(order["id"], false, 0)
 	AudioManager.play_sfx("warning")
