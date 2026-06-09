@@ -1,12 +1,61 @@
 import { LEVELS } from '@/data/levelData';
-import type { LevelConfig } from '@/game/types';
+import type { ComponentInstance, LevelConfig } from '@/game/types';
+import { BaseCircuitComponent } from '@/game/components/BaseComponent';
+import { deepClone } from '@/utils/serialization';
 
 export class LevelConfigLoader {
   private static _instance: LevelConfigLoader | null = null;
   private _levels: LevelConfig[];
 
   private constructor() {
-    this._levels = LEVELS;
+    this._levels = LEVELS.map((level) => this._normalizeLevel(deepClone(level)) as LevelConfig);
+  }
+
+  /**
+   * 标准化预置元件端口结构。
+   * 问题来源不一致：
+   *  - 旧JSON: port.id 为 `-p1/-p2`，包含 `position`（世界坐标）
+   *  - 标准: port.id 为 `:0/:1`，包含 `localOffset`（本地偏移 + `:index`)
+   *  - properties 也要补充 `type` 判别字段
+   */
+  private _normalizeLevel(level: LevelConfig): LevelConfig {
+    if (level.preplacedComponents && level.preplacedComponents.length > 0) {
+      level.preplacedComponents = level.preplacedComponents.map((rawComp) =>
+        this._normalizeComponent(rawComp as any)
+      );
+    }
+    return level;
+  }
+
+  private _normalizeComponent(raw: any): ComponentInstance {
+    const standard = BaseCircuitComponent.createInstance(
+      raw.type,
+      raw.position ?? { x: 0, y: 0 },
+      raw.rotation ?? 0
+    );
+    standard.id = raw.id;
+    if (raw.rotation !== undefined) standard.rotation = raw.rotation;
+    const merged: any = { ...standard.properties };
+    if (raw.properties) {
+      Object.keys(raw.properties).forEach((k) => {
+        merged[k] = raw.properties[k];
+      });
+    }
+    // 统一属性别名：powerThreshold -> thresholdPower（JSON与代码命名差异）
+    if (merged.powerThreshold !== undefined) {
+      merged.thresholdPower = merged.powerThreshold;
+      delete merged.powerThreshold;
+    }
+    if (merged.type === undefined) {
+      merged.type = raw.type;
+    }
+    standard.properties = merged;
+    // 确保 port.id 是 `${componentId}:${index}` 标准格式，port.componentId 匹配元件ID
+    standard.ports.forEach((p, idx) => {
+      p.componentId = raw.id;
+      p.id = `${raw.id}:${idx}`;
+    });
+    return standard;
   }
 
   static getInstance(): LevelConfigLoader {

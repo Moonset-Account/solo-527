@@ -281,8 +281,9 @@ export class Simulator {
           if (comp.type === 'bulb') {
             const bulbProps = comp.properties as {
               thresholdPower?: number;
+              powerThreshold?: number;
             };
-            const threshold = bulbProps.thresholdPower || 0.5;
+            const threshold = bulbProps.thresholdPower ?? bulbProps.powerThreshold ?? 0.5;
             lit = power >= threshold && !hasShortCircuit;
           }
           break;
@@ -323,9 +324,47 @@ export class Simulator {
       });
     });
 
+    // === 计算每根导线的电流（教学近似：串联电路取相邻元件电流）===
+    // 索引：portId -> componentId
+    const portToComp: Record<string, string> = {};
+    components.forEach((c) => {
+      for (let i = 0; i < 2; i++) {
+        portToComp[getPortId(c.id, i)] = c.id;
+      }
+      // 也兼容 instance.ports 中的自定义 id（若存在）
+      (c.ports || []).forEach((p: any) => {
+        portToComp[p.id] = c.id;
+      });
+    });
+
     const wireCurrents: Record<string, number> = {};
     wires.forEach((w) => {
-      wireCurrents[w.id] = 0;
+      const compAId = portToComp[w.fromPortId];
+      const compBId = portToComp[w.toPortId];
+      let I = 0;
+      if (compAId && resultComponentStates[compAId]) {
+        const st = resultComponentStates[compAId];
+        // 优先取非电池元件的电流（更准确）
+        const c = components.find((x) => x.id === compAId);
+        if (c && c.type !== 'battery' && c.type !== 'capacitor') {
+          I = Math.max(I, st.current || 0);
+        }
+      }
+      if (compBId && resultComponentStates[compBId]) {
+        const st = resultComponentStates[compBId];
+        const c = components.find((x) => x.id === compBId);
+        if (c && c.type !== 'battery' && c.type !== 'capacitor') {
+          I = Math.max(I, st.current || 0);
+        }
+      }
+      // 如果两端都没取到有效电流，退而求其次取任意一端
+      if (I === 0 && compAId && resultComponentStates[compAId]) {
+        I = Math.max(I, resultComponentStates[compAId].current || 0);
+      }
+      if (I === 0 && compBId && resultComponentStates[compBId]) {
+        I = Math.max(I, resultComponentStates[compBId].current || 0);
+      }
+      wireCurrents[w.id] = I;
     });
 
     return {
