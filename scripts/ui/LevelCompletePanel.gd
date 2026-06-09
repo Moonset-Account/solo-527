@@ -2,28 +2,36 @@ extends Control
 
 class_name LevelCompletePanel
 
-@onready var next_btn: Button = $Panel/VBoxContainer/NextLevelButton
-@onready var retry_btn: Button = $Panel/VBoxContainer/RetryButton
-@onready var levels_btn: Button = $Panel/VBoxContainer/LevelSelectButton
-@onready var menu_btn: Button = $Panel/VBoxContainer/MainMenuButton
-@onready var title: Label = $Panel/VBoxContainer/TitleLabel
-@onready var stars_label: Label = $Panel/VBoxContainer/StarsLabel
-@onready var stats_label: RichTextLabel = $Panel/VBoxContainer/StatsLabel
-@onready var score_label: Label = $Panel/VBoxContainer/ScoreLabel
+var next_btn: Button
+var retry_btn: Button
+var levels_btn: Button
+var menu_btn: Button
+var title: Label
+var stars_label: Label
+var stats_label: RichTextLabel
+var score_label: Label
 
 var _final_score: int = 0
 
 func _ready():
-	title.text = "关卡完成！"
+	title.text = "🎉 关卡完成！"
 	_connect_buttons()
 	_show_stats()
 	AudioManager.play_sfx("level_complete", 1.0, 0.8)
 
 func _connect_buttons():
-	next_btn.pressed.connect(_on_next_level)
-	retry_btn.pressed.connect(_on_retry)
-	levels_btn.pressed.connect(_on_level_select)
-	menu_btn.pressed.connect(_on_menu)
+	if next_btn:
+		next_btn.pressed.connect(_on_next_level)
+	if retry_btn:
+		retry_btn.pressed.connect(_on_retry)
+	if levels_btn:
+		levels_btn.pressed.connect(_on_level_select)
+	if menu_btn:
+		menu_btn.pressed.connect(_on_menu)
+
+func _get_bootstrap():
+	var b = get_tree().get_first_node_in_group("main_bootstrap")
+	return b
 
 func _show_stats():
 	var progress = GameManager.get_progress()
@@ -69,7 +77,8 @@ func _show_stats():
 	score_label.text = "总分: %d" % _final_score
 	if GameManager.current_level >= LevelConfig.get_level_count():
 		next_btn.text = "游戏通关！"
-		next_btn.pressed.disconnect(_on_next_level)
+		if next_btn.is_connected("pressed", Callable(self, "_on_next_level")):
+			next_btn.pressed.disconnect(Callable(self, "_on_next_level"))
 		next_btn.pressed.connect(_on_menu)
 
 func _on_next_level():
@@ -78,31 +87,33 @@ func _on_next_level():
 	if next_id > LevelConfig.get_level_count():
 		_on_menu()
 		return
-	var level_scene = preload("res://scenes/levels/GameLevel.tscn")
-	get_tree().change_scene_to_packed(level_scene)
-	await get_tree().process_frame
-	var level_mgr = get_tree().get_first_node_in_group("level_manager")
-	if level_mgr:
-		level_mgr.load_level(next_id)
+	var bs = _get_bootstrap()
+	if bs:
+		bs.build_game_level(next_id)
+	else:
+		GameManager.start_game(next_id)
 
 func _on_retry():
 	AudioManager.play_sfx("ui_click")
 	var level_id = GameManager.current_level
-	var level_scene = preload("res://scenes/levels/GameLevel.tscn")
-	get_tree().change_scene_to_packed(level_scene)
-	await get_tree().process_frame
-	var level_mgr = get_tree().get_first_node_in_group("level_manager")
-	if level_mgr:
-		level_mgr.load_level(level_id)
+	var bs = _get_bootstrap()
+	if bs:
+		bs.build_game_level(level_id)
+	else:
+		GameManager.start_game(level_id)
 
 func _on_level_select():
 	AudioManager.play_sfx("ui_click")
-	var main_scene = preload("res://scenes/main/Main.tscn")
-	get_tree().change_scene_to_packed(main_scene)
-	GameManager.return_to_menu()
+	var bs = _get_bootstrap()
+	if bs:
+		bs._build_main_menu()
+	else:
+		GameManager.return_to_menu()
 
 func _on_menu():
 	AudioManager.play_sfx("ui_click")
-	var main_scene = preload("res://scenes/main/Main.tscn")
-	get_tree().change_scene_to_packed(main_scene)
-	GameManager.return_to_menu()
+	var bs = _get_bootstrap()
+	if bs:
+		bs._build_main_menu()
+	else:
+		GameManager.return_to_menu()

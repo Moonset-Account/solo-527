@@ -82,6 +82,9 @@ func _update_state(delta):
 		State.ALERT:
 			alert_timer -= delta
 			vision_cone.color = Color(1.0, 0.2, 0.2, 0.4)
+			if player and is_instance_valid(player):
+				var to_p = player.global_position - global_position
+				target_rotation = atan2(to_p.y, to_p.x)
 			if alert_timer <= 0:
 				if is_player_detected and player:
 					_trigger_detection()
@@ -90,10 +93,19 @@ func _update_state(delta):
 					investigate_point = player.global_position if player else global_position + direction * 100
 					investigate_timer = 3.0
 		State.INVESTIGATING:
+			_do_investigate(delta)
 			investigate_timer -= delta
 			if investigate_timer <= 0:
 				current_state = State.PATROLLING
 				vision_cone.color = Color(1.0, 0.9, 0.2, 0.25)
+
+func _do_investigate(delta):
+	var to_target = investigate_point - global_position
+	var dist = to_target.length()
+	if dist > 8.0:
+		direction = to_target.normalized()
+		global_position += direction * move_speed * 0.8 * delta
+		target_rotation = atan2(direction.y, direction.x)
 
 func _do_patrol(delta):
 	if patrol_points.size() < 2:
@@ -128,18 +140,26 @@ func _update_vision_cone_visuals():
 			vision_cone.color = Color(1.0, 0.9, 0.2, 0.25)
 
 func _check_noise_detection():
-	if not player:
+	if not player or not is_instance_valid(player):
 		return
-	if not player.has_method("noise_level"):
-		return
+	var pl_noise: float = 0.0
+	if "noise_level" in player:
+		pl_noise = player.get("noise_level")
+	var pl_sprinting: bool = false
+	if "is_sprinting" in player:
+		pl_sprinting = player.get("is_sprinting")
 	var dist = global_position.distance_to(player.global_position)
-	var effective_range = noise_detect_range * (1.0 + player.noise_level * 0.5)
-	if dist < effective_range and player.noise_level > noise_threshold:
-		if current_state != State.ALERT:
+	var effective_range = noise_detect_range * (1.0 + pl_noise * 0.8)
+	if dist < effective_range and (pl_noise > noise_threshold or (pl_sprinting and dist < noise_detect_range * 1.2)):
+		if current_state != State.ALERT and current_state != State.INVESTIGATING:
 			current_state = State.INVESTIGATING
-			investigate_point = player.global_position
-			investigate_timer = 2.5
-			DebugLog.debug("巡逻灯听到了噪音，前往调查")
+			investigate_point = player.global_position + Vector2(randf_range(-40, 40), randf_range(-40, 40))
+			investigate_timer = 3.0
+			DebugLog.debug("巡逻灯听到噪音(%.1f)，前往(%.0f,%.0f)调查" % [pl_noise, investigate_point.x, investigate_point.y])
+		elif current_state == State.INVESTIGATING:
+			investigate_timer = max(investigate_timer, 1.5)
+			if dist < noise_detect_range * 0.5 and pl_noise > noise_threshold + 0.2:
+				investigate_point = player.global_position
 
 func _check_raycast_to_player():
 	if not player or not is_instance_valid(player):

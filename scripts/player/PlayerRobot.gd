@@ -193,8 +193,6 @@ func _complete_scan():
 		success = scan_target.on_scanned()
 		if success:
 			GameManager.increment_scan()
-			if scan_target.has_method("needs_fix") and scan_target.needs_fix():
-				GameManager.increment_fix()
 	emit_signal("scan_completed", scan_target, success)
 	is_scanning = false
 	scan_target = null

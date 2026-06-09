@@ -73,6 +73,7 @@ func on_interact(player: Node):
 	if error_marker:
 		error_marker.visible = false
 	emit_signal("fixed_success", self)
+	GameManager.increment_fix()
 	AudioManager.play_sfx("fix_complete", 1.0, 0.7)
 	DebugLog.success("修复完成 - 货架 %s 标签已更正为 %s" % [shelf_id, expected_label])
 	if highlight:
