@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  AdjustmentRecord,
   Direction,
   GameState,
   GameStatus,
@@ -22,6 +23,8 @@ interface GameStoreState extends GameState {
   compareReplayFrames: SimulationFrame[] | null;
   compareConfig: PhaseConfig | null;
   unlockedLevels: string[];
+  lastAdjustment: AdjustmentRecord | null;
+  adjustmentCount: number;
   initSimulator: (levelId: string) => void;
   destroySimulator: () => void;
   setStatus: (status: GameStatus) => void;
@@ -37,6 +40,7 @@ interface GameStoreState extends GameState {
   setTutorialStep: (step: number) => void;
   skipTutorial: () => void;
   loadComparisonReplay: (replayId: string) => void;
+  loadComparisonReplayForLevel: (levelId: string) => boolean;
   clearComparison: () => void;
   refreshUnlockedLevels: () => void;
   tickPlayTime: (delta: number) => void;
@@ -82,6 +86,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   compareReplayFrames: null,
   compareConfig: null,
   unlockedLevels: [],
+  lastAdjustment: null,
+  adjustmentCount: 0,
 
   initSimulator: (levelId: string) => {
     const level = getLevelById(levelId);
@@ -129,14 +135,43 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   applyPhaseConfig: () => {
-    const { simulator, phaseConfig, status } = get();
+    const {
+      simulator,
+      phaseConfig,
+      status,
+      currentLevelId,
+      timeElapsed,
+      currentMetrics,
+      adjustmentCount,
+    } = get();
     if (!simulator) return;
+
+    const adjustmentRecord: AdjustmentRecord = {
+      id: `adj_${Date.now()}_${adjustmentCount}`,
+      timestamp: Date.now(),
+      simulationTime: timeElapsed,
+      phaseConfig: { ...phaseConfig },
+      congestionIndex: currentMetrics.congestionIndex,
+      avgWaitingTime: currentMetrics.avgWaitingTime,
+      avgSpeed: currentMetrics.avgSpeed,
+      busOnTimeRate: currentMetrics.busOnTimeRate,
+      throughput: currentMetrics.throughput,
+      vehicleCount: currentMetrics.vehicleCount,
+      queueLengths: { ...currentMetrics.queueLengths },
+    };
+    if (currentLevelId) {
+      saveManager.recordAdjustment(currentLevelId, adjustmentRecord);
+    }
 
     simulator.applyPhaseConfig(phaseConfig);
     if (status !== 'simulating' && status !== 'replaying') {
       simulator.start();
       set({ status: 'simulating' });
     }
+    set({
+      lastAdjustment: adjustmentRecord,
+      adjustmentCount: adjustmentCount + 1,
+    });
     eventBus.emit('timing:apply', { config: phaseConfig });
   },
 
@@ -274,6 +309,19 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       compareConfig: replay.timingConfig,
     });
     eventBus.emit('replay:compare', { enabled: true, replayId });
+  },
+
+  loadComparisonReplayForLevel: (levelId: string): boolean => {
+    const replayId = saveManager.getLatestReplayIdByLevel(levelId);
+    if (!replayId) return false;
+    const replay = saveManager.getReplayById(replayId);
+    if (!replay) return false;
+    set({
+      compareReplayFrames: replay.frames,
+      compareConfig: replay.timingConfig,
+    });
+    eventBus.emit('replay:compare', { enabled: true, replayId });
+    return true;
   },
 
   clearComparison: () => {

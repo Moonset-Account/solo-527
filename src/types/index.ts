@@ -162,6 +162,20 @@ export interface LevelConfig {
   initialPhaseConfig: PhaseConfig;
 }
 
+export interface AdjustmentRecord {
+  id: string;
+  timestamp: number;
+  simulationTime: number;
+  phaseConfig: PhaseConfig;
+  congestionIndex: number;
+  avgWaitingTime: number;
+  avgSpeed: number;
+  busOnTimeRate: number;
+  throughput: number;
+  vehicleCount: number;
+  queueLengths: Record<string, number>;
+}
+
 export interface LevelRecord {
   completed: boolean;
   bestScore: number;
@@ -170,6 +184,7 @@ export interface LevelRecord {
   failures: number;
   lastPlayedAt: number;
   failureReasons: string[];
+  adjustmentHistory: AdjustmentRecord[];
 }
 
 export interface PlayerStatistics {

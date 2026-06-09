@@ -21,7 +21,7 @@ export default function GameScene() {
     attemptCount,
     timeElapsed,
     compareReplayFrames,
-    loadComparisonReplay,
+    loadComparisonReplayForLevel,
     clearComparison,
     startSimulation,
     pauseSimulation,
@@ -97,11 +97,14 @@ export default function GameScene() {
       setCompareEnabled(false);
     } else {
       if (levelId && !compareReplayFrames) {
-        loadComparisonReplay(levelId);
+        const loaded = loadComparisonReplayForLevel(levelId);
+        if (!loaded) {
+          return;
+        }
       }
       setCompareEnabled(true);
     }
-  }, [compareEnabled, clearComparison, compareReplayFrames, levelId, loadComparisonReplay]);
+  }, [compareEnabled, clearComparison, compareReplayFrames, levelId, loadComparisonReplayForLevel]);
 
   const handleTogglePause = useCallback(() => {
     if (status === 'simulating') {

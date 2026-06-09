@@ -1,4 +1,5 @@
 import type {
+  AdjustmentRecord,
   LevelRecord,
   MetricsSnapshot,
   PlayerStatistics,
@@ -80,6 +81,10 @@ export class SaveManager {
     if (!migrated.statistics.levels) migrated.statistics.levels = {};
     if (!migrated.replays) migrated.replays = [];
     if (!migrated.sandboxSettings) migrated.sandboxSettings = {};
+    Object.values(migrated.statistics.levels).forEach((lvl: any) => {
+      if (!lvl.adjustmentHistory) lvl.adjustmentHistory = [];
+      if (!lvl.failureReasons) lvl.failureReasons = [];
+    });
     migrated.version = CURRENT_VERSION;
     return migrated;
   }
@@ -139,6 +144,7 @@ export class SaveManager {
       failures: 0,
       lastPlayedAt: 0,
       failureReasons: [],
+      adjustmentHistory: [],
     };
 
     existing.attempts += 1;
@@ -183,6 +189,7 @@ export class SaveManager {
         failures: 0,
         lastPlayedAt: 0,
         failureReasons: [],
+        adjustmentHistory: [],
       }
     );
   }
@@ -299,6 +306,39 @@ export class SaveManager {
           : 0,
       bestScore: Math.max(0, ...levelRecords.map((r) => r.bestScore)),
     };
+  }
+
+  recordAdjustment(levelId: string, adjustment: AdjustmentRecord): void {
+    if (!this.data) this.load();
+
+    const existing = this.data!.statistics.levels[levelId] || {
+      completed: false,
+      bestScore: 0,
+      bestMetrics: null,
+      attempts: 0,
+      failures: 0,
+      lastPlayedAt: 0,
+      failureReasons: [],
+      adjustmentHistory: [],
+    };
+
+    existing.adjustmentHistory.push(adjustment);
+    if (existing.adjustmentHistory.length > 100) {
+      existing.adjustmentHistory = existing.adjustmentHistory.slice(-100);
+    }
+    this.data!.statistics.levels[levelId] = existing;
+    this.save();
+
+    eventBus.emit('timing:recorded', { levelId, adjustment });
+  }
+
+  getLatestReplayIdByLevel(levelId: string): string | null {
+    const replays = this.getReplays(levelId);
+    return replays.length > 0 ? replays[0].id : null;
+  }
+
+  getAdjustmentHistory(levelId: string): AdjustmentRecord[] {
+    return this.getLevelRecord(levelId).adjustmentHistory || [];
   }
 
   enableAutoSave(enabled: boolean): void {
