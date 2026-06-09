@@ -71,6 +71,7 @@ namespace DecorMatch3.UI
             AudioManager.Instance?.PlaySFX(SFXType.ButtonClick);
             Close();
             GameStateManager.Instance.ChangeState(GameState.PlayingMatch3);
+            if (AudioManager.Instance != null) AudioManager.Instance.MasterPitch = 1f;
             Gameplay.Match3.Match3GameManager.Instance?.ResumeGame();
         }
 
@@ -79,6 +80,7 @@ namespace DecorMatch3.UI
             AudioManager.Instance?.PlaySFX(SFXType.ButtonClick);
             Close();
             GameStateManager.Instance.ChangeState(GameState.PlayingMatch3);
+            if (AudioManager.Instance != null) AudioManager.Instance.MasterPitch = 1f;
             Gameplay.Match3.Match3GameManager.Instance?.RestartLevel();
         }
 

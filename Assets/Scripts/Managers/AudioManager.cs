@@ -344,6 +344,23 @@ namespace DecorMatch3.Audio
         public float SFXVolume => _sfxVolume;
         public bool MusicMuted => _musicMuted;
         public bool SFXMuted => _sfxMuted;
+
+        public float MasterPitch
+        {
+            get => musicSource != null ? musicSource.pitch : 1f;
+            set
+            {
+                if (musicSource != null) musicSource.pitch = Mathf.Clamp(value, 0f, 2f);
+                if (sfxSource != null) sfxSource.pitch = Mathf.Clamp(value, 0f, 2f);
+                if (_sfxPool != null)
+                {
+                    foreach (var s in _sfxPool)
+                    {
+                        if (s != null) s.pitch = Mathf.Clamp(value, 0f, 2f);
+                    }
+                }
+            }
+        }
     }
 
     public struct SFXPlayedEvent

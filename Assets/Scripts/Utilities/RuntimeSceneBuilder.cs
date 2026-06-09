@@ -43,7 +43,6 @@ namespace DecorMatch3
         {
             EnsureCamera(new Color(0.08f, 0.08f, 0.12f), 6);
             EnsureGameSystems();
-            if (GetComponent<GameBootstrap>() == null) gameObject.AddComponent<GameBootstrap>();
             Canvas c = EnsureUICanvas();
             CreateUIView<LoadingScreenView>(c.transform, "LoadingScreenView", UIBuilder.BuildLoadingScreen);
             CreateUIView<TutorialView>(c.transform, "TutorialView", (go, v) => UIBuilder.BuildTutorial(go, v, sceneType));
@@ -137,8 +136,14 @@ namespace DecorMatch3
                 if (s == GameState.PlayingMatch3 || s == GameState.Decorating)
                 {
                     UIManager.Instance?.OpenView(UIView.PauseMenu);
-                    GameStateManager.Instance?.ChangeState(GameState.Paused);
+                    GameStateManager.Instance?.ChangeState(GameState.PausedMatch3);
                     if (AudioManager.Instance != null) AudioManager.Instance.MasterPitch = 0.7f;
+                }
+                else if (s == GameState.PausedMatch3)
+                {
+                    UIManager.Instance?.CloseView(UIView.PauseMenu);
+                    GameStateManager.Instance?.ChangeState(GameState.PlayingMatch3);
+                    if (AudioManager.Instance != null) AudioManager.Instance.MasterPitch = 1f;
                 }
             }
             else if (e.ActionType == InputActionType.Back) UIManager.Instance?.GoBack();
