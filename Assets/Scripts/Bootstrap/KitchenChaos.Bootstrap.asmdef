@@ -1,0 +1,26 @@
+{
+    "name": "KitchenChaos.Bootstrap",
+    "rootNamespace": "KitchenChaos.Bootstrap",
+    "references": [
+        "KitchenChaos.Core",
+        "KitchenChaos.Input",
+        "KitchenChaos.Players",
+        "KitchenChaos.OrderSystem",
+        "KitchenChaos.Scoring",
+        "KitchenChaos.Levels",
+        "KitchenChaos.Config",
+        "KitchenChaos.Persistence",
+        "KitchenChaos.Achievements",
+        "KitchenChaos.Leaderboards",
+        "KitchenChaos.DebugTools"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

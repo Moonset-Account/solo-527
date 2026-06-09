@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Achievements",
+    "rootNamespace": "KitchenChaos.Achievements",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Persistence"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

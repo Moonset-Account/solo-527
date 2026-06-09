@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.UI",
+    "rootNamespace": "KitchenChaos.UI",
+    "references": ["KitchenChaos.Core", "KitchenChaos.OrderSystem", "KitchenChaos.Config", "KitchenChaos.Persistence", "KitchenChaos.Achievements", "KitchenChaos.Leaderboards", "Unity.TextMeshPro"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

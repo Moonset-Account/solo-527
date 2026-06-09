@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Physics",
+    "rootNamespace": "KitchenChaos.Physics",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Players", "KitchenChaos.Ingredients"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

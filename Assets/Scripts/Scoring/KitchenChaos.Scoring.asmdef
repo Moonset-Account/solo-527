@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Scoring",
+    "rootNamespace": "KitchenChaos",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.OrderSystem"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

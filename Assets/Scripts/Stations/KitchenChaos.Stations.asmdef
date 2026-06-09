@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Stations",
+    "rootNamespace": "KitchenChaos.Stations",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Ingredients", "KitchenChaos.Players", "KitchenChaos.OrderSystem"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

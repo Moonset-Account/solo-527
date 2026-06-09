@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.DebugTools",
+    "rootNamespace": "KitchenChaos.DebugTools",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Players", "KitchenChaos.Stations", "KitchenChaos.OrderSystem", "KitchenChaos.Config", "KitchenChaos.Scoring", "Unity.TextMeshPro"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.World",
+    "rootNamespace": "KitchenChaos.World",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.Stations", "KitchenChaos.Ingredients", "KitchenChaos.UI"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

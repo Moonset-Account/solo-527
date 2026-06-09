@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Levels",
+    "rootNamespace": "KitchenChaos.Levels",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.Players"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

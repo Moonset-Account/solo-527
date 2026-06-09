@@ -1,0 +1,14 @@
+{
+    "name": "KitchenChaos.Leaderboards",
+    "rootNamespace": "KitchenChaos.Leaderboards",
+    "references": ["KitchenChaos.Core", "KitchenChaos.Persistence", "KitchenChaos.Config"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

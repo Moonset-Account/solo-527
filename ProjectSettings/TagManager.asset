@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Station
+  - Player
+  - Ingredient
+  - Delivery
+  - Hazard
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - Player
+  - Station
+  - Ingredient
+  - Delivery
+  - Hazard
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 10101010
+    locked: 0
+  - name: World
+    uniqueID: 20202020
+    locked: 0
+  - name: Stations
+    uniqueID: 30303030
+    locked: 0
+  - name: Players
+    uniqueID: 40404040
+    locked: 0
+  - name: Ingredients
+    uniqueID: 50505050
+    locked: 0
+  - name: UI
+    uniqueID: 60606060
+    locked: 0
