@@ -41,19 +41,25 @@ func setup(box: PackingBox, layer: Node2D) -> void:
 func _on_pointer_down(pos: Vector2, idx: int) -> void:
     if is_dragging or active_item:
         return
-    if item_layer == null:
+    if item_layer == null or not is_instance_valid(item_layer):
+        return
+    var world_2d: World2D = item_layer.get_world_2d()
+    if world_2d == null:
         return
     var world_pos: Vector2 = _get_world_position(pos)
-    var state: PhysicsDirectSpaceState2D = item_layer.get_world_2d().direct_space_state
+    var state: PhysicsDirectSpaceState2D = world_2d.direct_space_state
+    if state == null:
+        return
     var query: PhysicsPointQueryParameters2D = PhysicsPointQueryParameters2D.new()
     query.position = world_pos
     query.collision_mask = 4 | 8
     query.collide_with_bodies = true
+    query.collide_with_areas = false
     var results: Array = state.intersect_point(query, 5)
     if results.size() > 0:
         var hit = results[0]
-        var collider = hit["collider"]
-        if collider is PackingItem and not collider.is_broken:
+        var collider = hit.get("collider", null)
+        if collider is PackingItem and is_instance_valid(collider) and not collider.is_broken:
             _start_drag(collider, world_pos, idx)
             _tap_detected = true
             _dragged_moved = false

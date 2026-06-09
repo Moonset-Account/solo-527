@@ -171,11 +171,15 @@ func _on_undo_pressed() -> void:
 
 func _on_rotate_cw_pressed() -> void:
     AudioManager.play_sfx("click")
-    Input.action_press("rotate_cw")
+    var root: Node = _get_game_root()
+    if root and root.has_method("rotate_selected"):
+        root.rotate_selected(true)
 
 func _on_rotate_ccw_pressed() -> void:
     AudioManager.play_sfx("click")
-    Input.action_press("rotate_ccw")
+    var root: Node = _get_game_root()
+    if root and root.has_method("rotate_selected"):
+        root.rotate_selected(false)
 
 func _on_submit_pressed() -> void:
     AudioManager.play_sfx("click")

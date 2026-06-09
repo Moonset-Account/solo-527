@@ -1,6 +1,6 @@
 extends Node
 class_name UndoSystem
-## 撤销系统 - 记录玩家操作历史并支持撤销
+## 撤销系统 - 使用物品在all_items中的索引作为ID（永不失效）
 
 signal history_changed(current_index: int, total: int)
 signal action_undone(action_type: String)
@@ -19,6 +19,9 @@ const ACTION_MOVE := "move"
 
 func record_action(action_data: Dictionary) -> void:
     if disabled:
+        return
+    if not action_data.has("type") or not action_data.has("item_idx"):
+        push_warning("UndoSystem: invalid action recorded: %s" % action_data)
         return
     if current_index < history.size() - 1:
         history.resize(current_index + 1)
@@ -43,7 +46,8 @@ func undo() -> Dictionary:
     current_index -= 1
     history_changed.emit(current_index, history.size())
     action_undone.emit(action.get("type", "unknown"))
-    AudioManager.play_sfx("undo")
+    if AudioManager:
+        AudioManager.play_sfx("undo")
     return action
 
 func redo() -> Dictionary:
@@ -54,34 +58,27 @@ func redo() -> Dictionary:
     history_changed.emit(current_index, history.size())
     return action
 
-func create_place_action(item: PackingItem, from_pos: Vector2, from_rot: float) -> Dictionary:
+func create_place_action(item: PackingItem, item_idx: int, from_pos: Vector2, from_rot: float) -> Dictionary:
     return {
         "type": ACTION_PLACE,
-        "item_id": item.instance_id,
-        "to_pos": item.global_position,
-        "to_rot": item.rotation,
+        "item_idx": item_idx,
         "from_pos": from_pos,
-        "from_rot": from_rot,
-        "in_box": true
+        "from_rot": from_rot
     }
 
-func create_rotate_action(item: PackingItem, before_rot: float) -> Dictionary:
+func create_rotate_action(item: PackingItem, item_idx: int, before_rot: float) -> Dictionary:
     return {
         "type": ACTION_ROTATE,
-        "item_id": item.instance_id,
-        "before_rot": before_rot,
-        "after_rot": item.rotation,
-        "position": item.global_position
+        "item_idx": item_idx,
+        "before_rot": before_rot
     }
 
-func create_move_action(item: PackingItem, from_pos: Vector2, to_box: bool) -> Dictionary:
+func create_move_action(item: PackingItem, item_idx: int, from_pos: Vector2, to_box: bool) -> Dictionary:
     return {
         "type": ACTION_MOVE,
-        "item_id": item.instance_id,
+        "item_idx": item_idx,
         "from_pos": from_pos,
-        "to_pos": item.global_position,
-        "was_in_box": not to_box,
-        "now_in_box": to_box
+        "was_in_box": not to_box
     }
 
 func clear() -> void:

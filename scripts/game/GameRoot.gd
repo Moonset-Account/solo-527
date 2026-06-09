@@ -89,6 +89,10 @@ func submit_level() -> void:
     if game_controller:
         game_controller.try_submit()
 
+func rotate_selected(clockwise: bool = true) -> void:
+    if game_controller and game_controller.drag_controller:
+        game_controller.drag_controller.rotate_active_item(clockwise)
+
 func _exit_tree() -> void:
     if game_controller:
         game_controller.cleanup()

@@ -86,7 +86,9 @@ func _create_items() -> void:
         var row: int = int(i / per_row)
         var pos: Vector2 = Vector2(start_x + col * spacing_x, start_y + row * spacing_y)
         item.setup(def, pos)
-        item.item_broken.connect(_on_item_broken.bind(item))
+        item.set_meta("undo_idx", i)
+        if item.has_signal("item_broken"):
+            item.item_broken.connect(_on_item_broken.bind(item))
         if item_layer:
             item_layer.add_child(item)
         all_items.append(item)
@@ -107,10 +109,10 @@ func try_undo() -> bool:
     if undo_system == null or not undo_system.can_undo():
         return false
     var action: Dictionary = undo_system.undo()
-    if action.is_empty():
+    if action.is_empty() or not action.has("type"):
         return false
     undo_count_this_level += 1
-    var type: String = action.get("type", "")
+    var type: String = str(action.get("type", ""))
     match type:
         "place":
             _undo_place(action)
@@ -118,45 +120,55 @@ func try_undo() -> bool:
             _undo_rotate(action)
         "move":
             _undo_move(action)
+        _:
+            print("Undo: unknown action type: %s" % type)
     _recalculate_live_score()
     return true
 
 func _undo_place(action: Dictionary) -> void:
-    var item: PackingItem = _get_item_by_id(int(action["item_id"]))
+    var item: PackingItem = _get_item_by_action(action)
     if item == null:
         return
     if box:
         box.remove_item(item)
+    var from_pos: Vector2 = action.get("from_pos", item.original_position)
+    var from_rot: float = float(action.get("from_rot", 0.0))
     var tween: Tween = create_tween()
     tween.set_parallel(true)
-    tween.tween_property(item, "global_position", action["from_pos"], 0.2)
-    tween.tween_property(item, "rotation", action["from_rot"], 0.2)
+    tween.tween_property(item, "global_position", from_pos, 0.2)
+    tween.tween_property(item, "rotation", from_rot, 0.2)
     item.reset_state()
 
 func _undo_rotate(action: Dictionary) -> void:
-    var item: PackingItem = _get_item_by_id(int(action["item_id"]))
+    var item: PackingItem = _get_item_by_action(action)
     if item == null:
         return
+    var before_rot: float = float(action.get("before_rot", item.rotation))
     var tween: Tween = create_tween()
-    tween.tween_property(item, "rotation", action["before_rot"], 0.15)
+    tween.tween_property(item, "rotation", before_rot, 0.15)
 
 func _undo_move(action: Dictionary) -> void:
-    var item: PackingItem = _get_item_by_id(int(action["item_id"]))
+    var item: PackingItem = _get_item_by_action(action)
     if item == null:
         return
-    if bool(action.get("was_in_box", false)):
-        pass
-    else:
-        if box:
-            box.remove_item(item)
+    var was_in_box: bool = bool(action.get("was_in_box", false))
+    if not was_in_box and box:
+        box.remove_item(item)
+    var from_pos: Vector2 = action.get("from_pos", item.original_position)
     var tween: Tween = create_tween()
-    tween.tween_property(item, "global_position", action["from_pos"], 0.2)
+    tween.tween_property(item, "global_position", from_pos, 0.2)
 
-func _get_item_by_id(instance_id: int) -> PackingItem:
-    for item in all_items:
-        if is_instance_valid(item) and item.get_instance_id() == instance_id:
-            return item
+func _get_item_by_action(action: Dictionary) -> PackingItem:
+    var idx: int = int(action.get("item_idx", -1))
+    if idx < 0 or idx >= all_items.size():
+        return null
+    var item = all_items[idx]
+    if is_instance_valid(item) and item is PackingItem:
+        return item
     return null
+
+func _get_item_instance_idx(item: PackingItem) -> int:
+    return all_items.find(item)
 
 func try_submit() -> void:
     if is_level_complete:
@@ -203,18 +215,24 @@ func _on_drag_started(item: PackingItem) -> void:
     pass
 
 func _on_drag_ended(item: PackingItem, placed: bool) -> void:
-    if undo_system:
-        var act: Dictionary = undo_system.create_place_action(item, item.original_position, item.original_rotation)
-        undo_system.record_action(act)
-    item.original_position = item.global_position
-    item.original_rotation = item.rotation
+    if undo_system and is_instance_valid(item):
+        var item_idx: int = _get_item_instance_idx(item)
+        if item_idx >= 0:
+            var act: Dictionary = undo_system.create_place_action(item, item_idx, item.original_position, item.original_rotation)
+            undo_system.record_action(act)
+    if is_instance_valid(item):
+        item.original_position = item.global_position
+        item.original_rotation = item.rotation
     _recalculate_live_score()
 
 func _on_item_rotated(item: PackingItem, angle: float) -> void:
-    if undo_system:
-        var act: Dictionary = undo_system.create_rotate_action(item, item.rotation - angle)
-        undo_system.record_action(act)
-    item.original_rotation = item.rotation
+    if undo_system and is_instance_valid(item):
+        var item_idx: int = _get_item_instance_idx(item)
+        if item_idx >= 0:
+            var act: Dictionary = undo_system.create_rotate_action(item, item_idx, item.rotation - angle)
+            undo_system.record_action(act)
+    if is_instance_valid(item):
+        item.original_rotation = item.rotation
 
 func _on_weight_warning(current: float, limit: float) -> void:
     UIManager.vibrate(0.3)

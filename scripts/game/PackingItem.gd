@@ -1,6 +1,6 @@
 extends StaticBody2D
 class_name PackingItem
-## 可打包物品 - 处理物理碰撞、压力检测、易碎品逻辑
+## 可打包物品 - 使用 Area2D 子节点检测碰撞接触
 
 signal pressure_warning()
 signal pressure_critical()
@@ -23,6 +23,7 @@ var size: Vector2 = Vector2(80, 80)
 var base_points: int = 10
 var visual_node: Node2D = null
 var collision_shape: CollisionShape2D = null
+var detect_area: Area2D = null
 var pressure_timer: float = 0.0
 var original_position: Vector2 = Vector2.ZERO
 var original_rotation: float = 0.0
@@ -33,9 +34,7 @@ const CRITICAL_RATIO := 0.9
 
 func _init() -> void:
     collision_layer = 4
-    collision_mask = 1 | 2 | 4
-    contact_monitor = true
-    max_contacts_reported = 32
+    collision_mask = 2
 
 func setup(item_def: Dictionary, pos: Vector2 = Vector2.ZERO) -> void:
     def = item_def
@@ -50,10 +49,11 @@ func setup(item_def: Dictionary, pos: Vector2 = Vector2.ZERO) -> void:
     original_rotation = rotation
     _build_visual()
     _build_collision()
-    _setup_signals()
+    _build_detect_area()
 
 func _build_visual() -> void:
     visual_node = Node2D.new()
+    visual_node.name = "Visual"
     add_child(visual_node)
 
     var color: Color = def.get("color", Color.WHITE)
@@ -108,22 +108,42 @@ func _build_visual() -> void:
 
 func _build_collision() -> void:
     collision_shape = CollisionShape2D.new()
+    collision_shape.name = "BodyShape"
     var shape: RectangleShape2D = RectangleShape2D.new()
     shape.size = size
     collision_shape.shape = shape
     add_child(collision_shape)
 
-func _setup_signals() -> void:
-    body_entered.connect(_on_body_entered)
-    body_exited.connect(_on_body_exited)
+func _build_detect_area() -> void:
+    detect_area = Area2D.new()
+    detect_area.name = "DetectArea"
+    detect_area.collision_layer = 0
+    detect_area.collision_mask = 4
+    var area_shape: CollisionShape2D = CollisionShape2D.new()
+    area_shape.name = "AreaShape"
+    var shape: RectangleShape2D = RectangleShape2D.new()
+    shape.size = size * 1.05
+    area_shape.shape = shape
+    detect_area.add_child(area_shape)
+    add_child(detect_area)
+    if detect_area.is_inside_tree():
+        detect_area.body_entered.connect(_on_area_body_entered)
+        detect_area.body_exited.connect(_on_area_body_exited)
+    else:
+        call_deferred("_connect_area_signals")
 
-func _on_body_entered(body: Node) -> void:
-    if body is PackingItem:
+func _connect_area_signals() -> void:
+    if detect_area and is_instance_valid(detect_area):
+        detect_area.body_entered.connect(_on_area_body_entered)
+        detect_area.body_exited.connect(_on_area_body_exited)
+
+func _on_area_body_entered(body: Node) -> void:
+    if body is PackingItem and body != self:
         overlap_count += 1
         _check_overlap_pressure(body)
 
-func _on_body_exited(body: Node) -> void:
-    if body is PackingItem:
+func _on_area_body_exited(body: Node) -> void:
+    if body is PackingItem and body != self:
         overlap_count = max(0, overlap_count - 1)
 
 func _check_overlap_pressure(other_item: PackingItem) -> void:
@@ -132,7 +152,6 @@ func _check_overlap_pressure(other_item: PackingItem) -> void:
     if not is_in_box:
         return
     var dy: float = other_item.global_position.y - global_position.y
-    var half_h: float = size.y * 0.5 + other_item.size.y * 0.5
     if dy < -size.y * 0.2 and abs(global_position.x - other_item.global_position.x) < (size.x + other_item.size.x) * 0.4:
         add_pressure(other_item.weight * 0.8)
 
@@ -147,15 +166,11 @@ func _physics_process(delta: float) -> void:
         _calculate_pressure_from_stack()
 
 func _calculate_pressure_from_stack() -> void:
+    if detect_area == null:
+        return
     var temp_pressure: float = 0.0
-    var space_state: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
-    var query: PhysicsPointQueryParameters2D = PhysicsPointQueryParameters2D.new()
-    query.position = global_position + Vector2(0, -size.y * 0.51)
-    query.collision_mask = 4
-    query.collide_with_bodies = true
-    var results: Array = space_state.intersect_point(query, 10)
-    for res in results:
-        var collider = res.get("collider", null)
+    var overlapping_bodies: Array = detect_area.get_overlapping_bodies()
+    for collider in overlapping_bodies:
         if collider is PackingItem and collider != self and not collider.is_broken:
             var dy: float = collider.global_position.y - global_position.y
             if dy < 0 and abs(global_position.x - collider.global_position.x) < (size.x + collider.size.x) * 0.45:
@@ -180,14 +195,15 @@ func break_item() -> void:
         return
     is_broken = true
     item_broken.emit()
-    AudioManager.play_sfx("break")
-    UIManager.vibrate(0.8)
+    if AudioManager:
+        AudioManager.play_sfx("break")
+    if UIManager:
+        UIManager.vibrate(0.8)
     var shake_tween: Tween = create_tween()
     shake_tween.set_loops(3)
     shake_tween.tween_property(visual_node, "position", Vector2(5, 0), 0.05)
     shake_tween.tween_property(visual_node, "position", Vector2(-5, 0), 0.05)
     await shake_tween.finished
-    visual_node.modulate = Color(1, 1, 1, 0.3)
     if visual_node and is_instance_valid(visual_node):
         visual_node.modulate = Color(0.5, 0.3, 0.3, 0.4)
         for child in visual_node.get_children():
@@ -199,10 +215,12 @@ func set_dragging(dragging: bool) -> void:
     collision_layer = 8 if dragging else 4
     if dragging:
         item_dragged.emit()
-        AudioManager.play_sfx("pickup")
+        if AudioManager:
+            AudioManager.play_sfx("pickup")
     else:
         item_dropped.emit()
-        AudioManager.play_sfx("drop")
+        if AudioManager:
+            AudioManager.play_sfx("drop")
 
 func set_in_box(in_box: bool) -> void:
     var was_in: bool = is_in_box
@@ -224,7 +242,8 @@ func get_effective_points() -> int:
 func rotate_by(angle: float) -> void:
     if is_being_dragged:
         rotation += angle
-        AudioManager.play_sfx("rotate", 0.9 + randf() * 0.2)
+        if AudioManager:
+            AudioManager.play_sfx("rotate", 0.9 + randf() * 0.2)
 
 func reset_state() -> void:
     is_broken = false
@@ -235,6 +254,9 @@ func reset_state() -> void:
     rotation = original_rotation
     if visual_node and is_instance_valid(visual_node):
         visual_node.modulate.a = 1.0
+        visual_node.modulate.r = 1.0
+        visual_node.modulate.g = 1.0
+        visual_node.modulate.b = 1.0
 
 func _draw() -> void:
     if not is_in_box:
