@@ -68,6 +68,7 @@ func start_battle() -> void:
 	state = BattleState.PLAYING_TURN
 	current_turn = 1
 	budget = budget_per_turn + permanent_budget_bonus
+	GameEvents.emit_budget_changed(budget, budget)
 	_draw_cards(start_draw)
 	GameEvents.emit_turn_started(current_turn)
 	GameEvents.battle_started.emit(level_id)
@@ -346,6 +347,7 @@ func _draw_cards(n: int) -> void:
 			GameEvents.card_drawn.emit(CardDatabase.get_card(cid))
 	deck_count_changed.emit(deck.size())
 	discard_count_changed.emit(discard.size())
+	hand_changed.emit()
 
 func _discard_random(n: int) -> void:
 	for i in n:

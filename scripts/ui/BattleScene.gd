@@ -25,6 +25,7 @@ func _ready() -> void:
 	_connect_battle_events()
 	_refresh_hint_bar()
 	InputManager.method_changed.connect(func(_m): _refresh_hint_bar())
+	battle.start_battle()
 
 func _build_ui() -> void:
 	for c in get_children(): c.queue_free()
@@ -188,7 +189,6 @@ func _init_battle() -> void:
 	_refresh_hud()
 	_refresh_exhibits()
 	_refresh_hand()
-	battle.start_battle()
 
 func _connect_battle_events() -> void:
 	battle.state_changed.connect(func(s: String):

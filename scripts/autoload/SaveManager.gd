@@ -210,6 +210,14 @@ func record_level_completed(level_id: String, stars: int, stats: Dictionary) -> 
 	for cid in stats.get("cards_used_list", []):
 		usage[cid] = usage.get(cid, 0) + 1
 	global_data.statistics.card_usage_count = usage
+	var max_cnt: int = 0
+	var best_id: String = ""
+	for key in usage.keys():
+		if int(usage[key]) > max_cnt:
+			max_cnt = int(usage[key])
+			best_id = key
+	if best_id != "":
+		global_data.statistics.most_used_card = best_id
 	var delta_stars: int = max(0, stars - prev)
 	global_data.total_stars += delta_stars
 	save_current()
