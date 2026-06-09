@@ -1,11 +1,20 @@
 using UnityEngine;
 using LakeSailing.Core;
 using LakeSailing.Gameplay;
-using LakeSailing.UI;
 using LakeSailing.Audio;
+using LakeSailing.Data;
 
 namespace LakeSailing
 {
+    public struct ShowUINotificationEvent : IEvent
+    {
+        public readonly string Message;
+        public readonly float Duration;
+        public ShowUINotificationEvent(string msg, float dur = 1.5f) { Message = msg; Duration = dur; }
+    }
+
+    public struct RequestReturnToPreviousPanelEvent : IEvent { }
+
     public class InputController : PersistentSingleton<InputController>
     {
         [Header("船控制")]
@@ -56,7 +65,8 @@ namespace LakeSailing
 
         private void HandleGameplayInput()
         {
-            cachedBoat = LevelSceneManager.Instance?.Boat;
+            cachedBoat = FindObjectOfType<BoatController>();
+            if (cachedBoat == null && SceneService.GetBoatPosition != null) cachedBoat = FindObjectOfType<BoatController>();
             if (cachedBoat == null) return;
 
             if (Input.GetKey(KeyCode.Escape))
@@ -64,7 +74,7 @@ namespace LakeSailing
                 GameManager.Instance.TogglePause();
                 if (GameManager.Instance.CurrentState == GameState.Paused)
                 {
-                    UIManager.Instance.OpenPanel(UIType.PauseMenu);
+                    EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.PauseMenu));
                 }
                 return;
             }
@@ -157,18 +167,18 @@ namespace LakeSailing
             if (Input.GetMouseButtonDown(1))
             {
                 isInRoutePlanningMode = false;
-                UIManager.Instance.ClosePanel(UIType.RoutePlanner);
+                EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.RoutePlanner, false));
             }
 
             if (Input.GetKeyDown(KeyCode.C))
             {
-                cachedBoat?.ClearRoute();
+                cachedBoat?.ClearWaypoints();
             }
 
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space))
             {
                 isInRoutePlanningMode = false;
-                UIManager.Instance.ClosePanel(UIType.RoutePlanner);
+                EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.RoutePlanner, false));
                 cachedBoat?.SetSail();
             }
         }
@@ -204,17 +214,17 @@ namespace LakeSailing
                 if (result.success)
                 {
                     AudioManager.Instance.PlaySfx(SfxType.PhotoShutter);
-                    UIManager.Instance.ShowNotification(result.message, 2f);
+                    EventBus.Trigger(new ShowUINotificationEvent(result.message, 2f));
                 }
                 else
                 {
                     AudioManager.Instance.PlaySfx(SfxType.PhotoShutter, 0.5f);
-                    UIManager.Instance.ShowNotification(result.message, 2f);
+                    EventBus.Trigger(new ShowUINotificationEvent(result.message, 2f));
                 }
             }
             else
             {
-                UIManager.Instance.ShowNotification("附近没有可拍摄的目标", 1.5f);
+                EventBus.Trigger(new ShowUINotificationEvent("附近没有可拍摄的目标", 1.5f));
             }
         }
 
@@ -232,7 +242,7 @@ namespace LakeSailing
                     cachedBoat.Refuel(cachedBoat.MaxFuel * 0.5f);
                     cachedBoat.RestockFood(cachedBoat.MaxFood * 0.5f);
                     cachedBoat.RechargeBattery(cachedBoat.MaxBattery * 0.5f);
-                    UIManager.Instance.ShowNotification("补给完成！", 1.5f);
+                    EventBus.Trigger(new ShowUINotificationEvent("补给完成！", 1.5f));
                     cachedBoat.Anchor();
                     return;
                 }
@@ -244,12 +254,12 @@ namespace LakeSailing
             isInRoutePlanningMode = !isInRoutePlanningMode;
             if (isInRoutePlanningMode)
             {
-                cachedBoat?.ClearRoute();
-                UIManager.Instance.OpenPanel(UIType.RoutePlanner);
+                cachedBoat?.ClearWaypoints();
+                EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.RoutePlanner));
             }
             else
             {
-                UIManager.Instance.ClosePanel(UIType.RoutePlanner);
+                EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.RoutePlanner, false));
             }
         }
 
@@ -299,10 +309,7 @@ namespace LakeSailing
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (UIManager.Instance != null && UIManager.Instance.OpenPanelsCount > 1)
-                {
-                    UIManager.Instance.ReturnToPreviousPanel();
-                }
+                EventBus.Trigger(new RequestReturnToPreviousPanelEvent());
             }
         }
 
@@ -310,13 +317,13 @@ namespace LakeSailing
         {
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                UIManager.Instance?.OpenPanel(UIType.Tutorial);
+                EventBus.Trigger(new RequestUIPanelEvent(UIRequestPanel.Tutorial));
             }
 
             if (Input.GetKeyDown(KeyCode.F5))
             {
                 _ = SaveSystem.Instance.SaveGame();
-                UIManager.Instance?.ShowNotification("游戏已保存", 1f);
+                EventBus.Trigger(new ShowUINotificationEvent("游戏已保存", 1f));
             }
 
             if (targetCamera == null)

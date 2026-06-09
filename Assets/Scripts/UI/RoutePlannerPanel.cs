@@ -80,6 +80,12 @@ namespace LakeSailing.UI
             RuntimeUIBuilder.StretchFull(markersRoot);
             mapArea = mapBg.rectTransform;
 
+            var supplies = SceneService.GetSupplyStationPositions?.Invoke();
+            if (supplies != null)
+            {
+                supplyStationPositions = supplies;
+            }
+
             for (int i = 0; i < supplyStationPositions.Length; i++)
             {
                 var sup = new GameObject($"Supply_{i}").AddComponent<Image>();
@@ -92,35 +98,37 @@ namespace LakeSailing.UI
                 lbl.rectTransform.anchoredPosition = new Vector2(0, 18);
             }
 
-            if (LevelSceneManager.Instance != null && TaskSystem.Instance != null)
+            var taskPositions = SceneService.GetTaskTargetPositions?.Invoke();
+            var taskNames = SceneService.GetTaskTargetNames?.Invoke();
+            var taskRarities = SceneService.GetTaskTargetRarities?.Invoke();
+            if (taskPositions != null && taskNames != null && taskRarities != null)
             {
-                int idx = 0;
-                foreach (var t in TaskSystem.Instance.ActiveTasks)
+                for (int idx = 0; idx < taskPositions.Length && idx < taskNames.Length && idx < taskRarities.Length; idx++)
                 {
-                    var td = TaskSystem.Instance.GetTaskData(t.taskId); if (td == null) continue;
                     var tgt = new GameObject($"Tgt_{idx}").AddComponent<Image>();
                     tgt.transform.SetParent(markersRoot, false);
                     tgt.rectTransform.sizeDelta = new Vector2(20, 20);
-                    tgt.rectTransform.anchoredPosition = WorldToMapUI(td.targetPosition);
-                    tgt.color = GetRarityCol(td.targetRarity);
+                    tgt.rectTransform.anchoredPosition = WorldToMapUI(taskPositions[idx]);
+                    tgt.color = GetRarityCol(taskRarities[idx]);
                     var r = tgt.gameObject.AddComponent<Outline>(); r.effectColor = Color.white; r.effectDistance = new Vector2(2, -2);
-                    var lbl = RuntimeUIBuilder.CreateLabel(tgt.transform, td.targetName, 12, TextAnchor.MiddleCenter, 80, 16);
+                    var lbl = RuntimeUIBuilder.CreateLabel(tgt.transform, taskNames[idx], 12, TextAnchor.MiddleCenter, 80, 16);
                     lbl.rectTransform.anchoredPosition = new Vector2(0, 18);
                     lbl.color = tgt.color;
-                    idx++;
                 }
-                var boat = LevelSceneManager.Instance.Boat;
-                if (boat != null)
-                {
-                    cachedBoat = boat; lastBoatPos = boat.GetPosition2D();
-                    var bp = new GameObject("BoatMarker").AddComponent<Image>();
-                    bp.transform.SetParent(markersRoot, false);
-                    bp.rectTransform.sizeDelta = new Vector2(30, 30);
-                    bp.rectTransform.anchoredPosition = WorldToMapUI(lastBoatPos);
-                    bp.color = Color.yellow;
-                    var lbl = RuntimeUIBuilder.CreateLabel(bp.transform, "⛵", 18, TextAnchor.MiddleCenter, 50, 24);
-                    lbl.rectTransform.anchoredPosition = new Vector2(0, 18);
-                }
+            }
+
+            if (BoatController.Instance != null) cachedBoat = BoatController.Instance;
+            var boatPos = SceneService.GetBoatPosition?.Invoke();
+            if (boatPos != Vector2.zero || SceneService.GetBoatPosition != null)
+            {
+                lastBoatPos = boatPos;
+                var bp = new GameObject("BoatMarker").AddComponent<Image>();
+                bp.transform.SetParent(markersRoot, false);
+                bp.rectTransform.sizeDelta = new Vector2(30, 30);
+                bp.rectTransform.anchoredPosition = WorldToMapUI(boatPos);
+                bp.color = Color.yellow;
+                var lbl = RuntimeUIBuilder.CreateLabel(bp.transform, "⛵", 18, TextAnchor.MiddleCenter, 50, 24);
+                lbl.rectTransform.anchoredPosition = new Vector2(0, 18);
             }
 
             var infoPanel = new GameObject("Info").AddComponent<Image>();
@@ -217,6 +225,7 @@ namespace LakeSailing.UI
             AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
             float mapW = 760f, mapH = 560f; float worldSize = 200f;
             Vector2 worldPos = new Vector2(uiPos.x / (mapW * 0.42f) * worldSize, uiPos.y / (mapH * 0.42f) * worldSize);
+            SceneService.BoatAddWaypoint?.Invoke(worldPos);
             if (cachedBoat != null) { cachedBoat.AddWaypoint(worldPos); }
             else if (BoatController.Instance != null) { BoatController.Instance.AddWaypoint(worldPos); }
             AddWaypointMarker(uiPos);
@@ -295,6 +304,7 @@ namespace LakeSailing.UI
         private void OnUndo()
         {
             AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
+            SceneService.BoatUndoWaypoint?.Invoke();
             if (cachedBoat != null) { cachedBoat.UndoWaypoint(); }
             if (waypointMarkers.Count > 0) { Destroy(waypointMarkers[waypointMarkers.Count - 1].gameObject); waypointMarkers.RemoveAt(waypointMarkers.Count - 1); }
             RefreshRouteUI();
@@ -303,6 +313,7 @@ namespace LakeSailing.UI
         private void OnClear()
         {
             AudioManager.Instance?.PlaySfx(SfxType.ButtonClick);
+            SceneService.BoatClearWaypoints?.Invoke();
             if (cachedBoat != null) { cachedBoat.ClearWaypoints(); }
             foreach (var m in waypointMarkers) Destroy(m.gameObject);
             waypointMarkers.Clear();
@@ -319,6 +330,7 @@ namespace LakeSailing.UI
                 float d = Vector2.Distance(cur, supplyStationPositions[i]);
                 if (d < best) { best = d; idx = i; }
             }
+            SceneService.BoatAddWaypoint?.Invoke(supplyStationPositions[idx]);
             if (cachedBoat != null) cachedBoat.AddWaypoint(supplyStationPositions[idx]);
             AddWaypointMarker(WorldToMapUI(supplyStationPositions[idx]));
             RefreshRouteUI();
@@ -331,6 +343,7 @@ namespace LakeSailing.UI
             {
                 UIManager.Instance?.ShowNotification("请至少设置1个航点", 1.6f); return;
             }
+            SceneService.BoatPlanRoute?.Invoke();
             cachedBoat.PlanRoute();
             UIManager.Instance?.ShowNotification($"已规划 {cachedBoat.GetPlannedWaypoints().Count} 个航点，开始自动航行", 2f);
             Close();

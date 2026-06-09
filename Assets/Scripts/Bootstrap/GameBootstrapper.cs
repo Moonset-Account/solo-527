@@ -138,7 +138,73 @@ namespace LakeSailing.Bootstrap
 
         private void FinishBoot()
         {
+            Debug.Log("[Bootstrap] 系统启动完成，进入主菜单");
+            GameManager.Instance?.ChangeState(GameState.MainMenu);
             UIManager.Instance.OpenPanel(UIType.MainMenu);
+            SubscribeGlobalEvents();
+        }
+
+        private void SubscribeGlobalEvents()
+        {
+            EventBus.Subscribe<RequestUIPanelEvent>(OnRequestUIPanel);
+            EventBus.Subscribe<RequestTogglePauseEvent>(OnRequestTogglePause);
+            EventBus.Subscribe<ShowUINotificationEvent>(OnShowUINotification);
+            EventBus.Subscribe<RequestReturnToPreviousPanelEvent>(OnRequestReturnPrevious);
+        }
+
+        private void OnDestroy()
+        {
+            EventBus.Unsubscribe<RequestUIPanelEvent>(OnRequestUIPanel);
+            EventBus.Unsubscribe<RequestTogglePauseEvent>(OnRequestTogglePause);
+            EventBus.Unsubscribe<ShowUINotificationEvent>(OnShowUINotification);
+            EventBus.Unsubscribe<RequestReturnToPreviousPanelEvent>(OnRequestReturnPrevious);
+        }
+
+        private static UIType MapRequestType(UIRequestPanel rp) => rp switch
+        {
+            UIRequestPanel.RoutePlanner => UIType.RoutePlanner,
+            UIRequestPanel.PauseMenu => UIType.PauseMenu,
+            UIRequestPanel.SettingsMenu => UIType.SettingsMenu,
+            UIRequestPanel.Tutorial => UIType.Tutorial,
+            UIRequestPanel.HUD => UIType.HUD,
+            UIRequestPanel.MainMenu => UIType.MainMenu,
+            UIRequestPanel.LevelSelect => UIType.LevelSelect,
+            UIRequestPanel.Gallery => UIType.Gallery,
+            UIRequestPanel.Achievements => UIType.Achievements,
+            UIRequestPanel.Leaderboard => UIType.Leaderboard,
+            UIRequestPanel.DailyChallenge => UIType.DailyChallenge,
+            _ => UIType.None
+        };
+
+        private void OnRequestUIPanel(RequestUIPanelEvent e)
+        {
+            if (UIManager.Instance == null) return;
+            var t = MapRequestType(e.Panel);
+            if (e.Panel == UIRequestPanel.None && !e.Open) { UIManager.Instance.ReturnToPreviousPanel(); return; }
+            if (t == UIType.None) return;
+            if (e.Open)
+            {
+                if (e.ClosePrevious) UIManager.Instance.ClosePanel(t);
+                UIManager.Instance.OpenPanel(t);
+            }
+            else UIManager.Instance.ClosePanel(t);
+        }
+
+        private void OnRequestTogglePause(RequestTogglePauseEvent e)
+        {
+            GameManager.Instance?.TogglePause();
+            if (GameManager.Instance != null && GameManager.Instance.CurrentState == GameState.Paused)
+                UIManager.Instance?.OpenPanel(UIType.PauseMenu);
+        }
+
+        private void OnShowUINotification(ShowUINotificationEvent e)
+        {
+            UIManager.Instance?.ShowNotification(e.Message, e.Duration);
+        }
+
+        private void OnRequestReturnPrevious(RequestReturnToPreviousPanelEvent e)
+        {
+            UIManager.Instance?.ReturnToPreviousPanel();
         }
 
         private T EnsureComponent<T>(string goName) where T : Component

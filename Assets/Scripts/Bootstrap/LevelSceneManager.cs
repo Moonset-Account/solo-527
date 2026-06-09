@@ -85,6 +85,8 @@ namespace LakeSailing.Bootstrap
                 hud.InitializeForecast();
             }
 
+            BindSceneServiceDelegates(level);
+
             UpdateWeatherVisuals(WeatherSystem.Instance.CurrentWeather);
             OnSceneInitialized?.Invoke();
             EventBus.Trigger(new SceneInitializedEvent(level));
@@ -101,6 +103,7 @@ namespace LakeSailing.Bootstrap
             foreach (var obj in sceneObjects) if (obj != null) Destroy(obj);
             sceneObjects.Clear();
             Boat = null;
+            SceneService.ResetAll();
         }
 
         private void CreateLakeBackground(LevelConfigData level)
@@ -421,6 +424,59 @@ namespace LakeSailing.Bootstrap
                 }
             };
             return level;
+        }
+
+        private void BindSceneServiceDelegates(LevelConfigData level)
+        {
+            SceneService.ResetAll();
+
+            if (level.supplyStops != null)
+            {
+                var supply = level.supplyStops;
+                SceneService.GetSupplyStationPositions = () => supply;
+            }
+
+            if (level.photoTasks != null)
+            {
+                var tasks = level.photoTasks;
+                var positions = new Vector2[tasks.Length];
+                var names = new string[tasks.Length];
+                var rarities = new int[tasks.Length];
+                for (int i = 0; i < tasks.Length; i++)
+                {
+                    positions[i] = tasks[i].targetPosition;
+                    names[i] = tasks[i].targetName;
+                    rarities[i] = tasks[i].targetRarity;
+                }
+                SceneService.GetTaskTargetPositions = () => positions;
+                SceneService.GetTaskTargetNames = () => names;
+                SceneService.GetTaskTargetRarities = () => rarities;
+            }
+
+            if (Boat != null)
+            {
+                var boat = Boat;
+                SceneService.GetBoatPosition = () => boat.GetPosition2D();
+                SceneService.GetBoatHeading = () => boat.CurrentHeading;
+                SceneService.GetBoatCurrentFuel = () => boat.CurrentFuel;
+                SceneService.GetBoatMaxFuel = () => boat.MaxFuel;
+                SceneService.GetBoatSpeed = () => boat.Speed;
+                SceneService.GetBoatCanShootPhoto = () => boat.CanShootPhoto();
+                SceneService.BoatAddWaypoint = wp => boat.AddWaypoint(wp);
+                SceneService.BoatUndoWaypoint = () => boat.UndoWaypoint();
+                SceneService.BoatClearWaypoints = () => boat.ClearWaypoints();
+                SceneService.BoatPlanRoute = () => boat.PlanRoute();
+                SceneService.BoatShootPhoto = () => boat.ShootPhoto();
+                SceneService.BoatFinishShooting = () => boat.FinishShooting();
+                SceneService.BoatAnchor = () => boat.Anchor();
+                SceneService.BoatSetSail = () => boat.SetSail();
+            }
+
+            if (TaskSystem.Instance != null)
+            {
+                SceneService.GetTaskCompletedCount = () => TaskSystem.Instance.GetCompletedTaskCount();
+                SceneService.GetTaskTotalCount = () => TaskSystem.Instance.GetTotalTaskCount();
+            }
         }
     }
 
