@@ -19,7 +19,7 @@ signal fixed_success(shelf: Node)
 @onready var label_text: Label = $Label
 @onready var status_indicator: ColorRect = $StatusIndicator
 @onready var interact_prompt: Label = $InteractPrompt
-@onready var error_marker: Sprite2D = $ErrorMarker
+@onready var error_marker: ColorRect = $ErrorMarker
 @onready var highlight: ColorRect = $Highlight
 
 func _ready():

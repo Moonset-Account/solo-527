@@ -33,7 +33,7 @@ var direction: Vector2 = Vector2.RIGHT
 
 @onready var vision_cone: Polygon2D = $VisionCone
 @onready var vision_area: Area2D = $VisionArea
-@onready var light_sprite: Sprite2D = $LightSprite
+@onready var light_sprite: ColorRect = $LightSprite
 
 func _ready():
 	_setup_vision_cone()

@@ -473,11 +473,9 @@ func _show_pause_menu():
 		btn.add_theme_stylebox_override("normal", sb)
 		vbox.add_child(btn)
 		pm.set(def[0], btn)
+	pm.set("title", title)
 	pm.set_script(preload("res://scripts/ui/PauseMenu.gd"))
 	pm.process_mode = Node.PROCESS_MODE_ALWAYS
-	for def in defs:
-		pm.set(def[0], vbox.get_node(def[0]))
-	pm.set("title", title)
 	if _current_scene_root and is_instance_valid(_current_scene_root):
 		_current_scene_root.add_child(pm)
 	AudioManager.play_sfx("ui_click")
@@ -554,12 +552,11 @@ func _show_level_complete():
 		btn.add_theme_stylebox_override("normal", sb)
 		vbox.add_child(btn)
 		pm.set(def[0], btn)
+	pm.set("title", title)
 	pm.set("stars_label", stars)
+	pm.set("stats_label", stats)
 	pm.set("score_label", score)
 	pm.set_script(preload("res://scripts/ui/LevelCompletePanel.gd"))
-	for def in btn_defs:
-		pm.set(def[0], vbox.get_node(def[0]))
-	pm.set("title", title)
 	if _current_scene_root and is_instance_valid(_current_scene_root):
 		_current_scene_root.add_child(pm)
 
