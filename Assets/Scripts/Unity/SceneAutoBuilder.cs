@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -42,12 +43,36 @@ namespace BalloonPost.Unity
         private bool _showSettlement = false;
         private int _currentTutorialLevel = 1;
 
+        private bool _showLoadDialog = false;
+        private List<string> _saveList = new List<string>();
+        private Vector2 _saveScroll = Vector2.zero;
+
+        private bool _showRerouteDialog = false;
+        private int _lockStepIndex = 0;
+        private int _rerouteFromStep = 0;
+        private AxialCoord? _newRerouteTarget = null;
+
         private static SceneAutoBuilder _instance;
         public static SceneAutoBuilder Instance => _instance;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoCreateOnPlay()
+        {
+            if (FindObjectOfType<SceneAutoBuilder>() != null) return;
+            var go = new GameObject("AutoBuilder");
+            go.AddComponent<SceneAutoBuilder>();
+            Debug.Log("[BalloonPost] ✅ Play模式下 SceneAutoBuilder 已自动创建成功！无需场景预存组件。");
+        }
+
         private void Awake()
         {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
             _instance = this;
+            DontDestroyOnLoad(gameObject);
             BuildScene();
         }
 
@@ -74,7 +99,8 @@ namespace BalloonPost.Unity
             }
             MainCamera.transform.position = new Vector3(0, CameraHeight, -CameraDistance);
             MainCamera.transform.rotation = Quaternion.Euler(40, 0, 0);
-            MainCamera.gameObject.AddComponent<AudioListener>();
+            if (MainCamera.GetComponent<AudioListener>() == null)
+                MainCamera.gameObject.AddComponent<AudioListener>();
 
             if (FindObjectOfType<Light>() == null)
             {
@@ -170,7 +196,17 @@ namespace BalloonPost.Unity
 
         private void OnCellClicked(AxialCoord coord)
         {
-            if (_showSettlement) return;
+            if (_showSettlement || _showLoadDialog) return;
+
+            if (_showRerouteDialog)
+            {
+                _newRerouteTarget = coord;
+                LogMessage($"🎯 新目标位置已选：{coord}，确认请点「确认改路线」");
+                HighlightValidNextSteps();
+                RefreshAllPanels();
+                return;
+            }
+
             if (Game.Phase != GamePhase.Planning && Game.Phase != GamePhase.Tutorial)
             {
                 LogMessage("⚠ 现在不在规划阶段，无法添加航线");
@@ -257,6 +293,19 @@ namespace BalloonPost.Unity
                     if (GridRenderer.CellViews.TryGetValue(c.ToCoord, out var toView))
                     {
                         toView.Highlight(new Color(1f, 0.4f, 0.4f, 0.35f));
+                    }
+                }
+            }
+
+            if (_showRerouteDialog && _lockStepIndex > 0 && Game?.Planner?.CurrentPlan != null)
+            {
+                int max = Math.Min(_lockStepIndex, Game.Planner.CurrentPlan.Steps.Count);
+                for (int i = 0; i < max; i++)
+                {
+                    var step = Game.Planner.CurrentPlan.Steps[i];
+                    if (GridRenderer.CellViews.TryGetValue(step.To, out var v))
+                    {
+                        v.Highlight(new Color(1f, 0.9f, 0.2f, 0.5f));
                     }
                 }
             }
@@ -350,6 +399,18 @@ namespace BalloonPost.Unity
             sb.AppendLine($"步数: {plan.Steps.Count} | 燃料: {plan.TotalFuelCost}/{Game.Player.MaxFuel}");
             if (plan.Steps.Count > 0)
                 sb.AppendLine($"终点: {plan.CurrentEndPosition}  (距邮局 {plan.CurrentEndPosition.DistanceTo(AxialCoord.Zero)}格)");
+            if (_showRerouteDialog)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"🔒 锁定前缀步数: {_lockStepIndex} / {plan.Steps.Count}");
+                if (_lockStepIndex > 0)
+                    sb.AppendLine($"   (前{_lockStepIndex}步保留为黄色)");
+                if (_newRerouteTarget.HasValue)
+                    sb.AppendLine($"🎯 改路线到: {_newRerouteTarget.Value}");
+                else
+                    sb.AppendLine("👉 请在地图上点选新的目标位置");
+                sb.AppendLine("⚠ 确认改路线会扣1时间和2燃料");
+            }
             sb.AppendLine();
             sb.AppendLine($"总分：{score.TotalScore}");
             sb.AppendLine($"  路径效率: {score.DistanceEfficiencyScore,+5}");
@@ -417,10 +478,9 @@ namespace BalloonPost.Unity
             DrawActionButtons();
             DrawLogPanel();
 
-            if (_showSettlement)
-            {
-                DrawSettlementOverlay();
-            }
+            if (_showSettlement) DrawSettlementOverlay();
+            if (_showLoadDialog) DrawLoadSaveDialog();
+            if (_showRerouteDialog) DrawRerouteDialog();
         }
 
         private void DrawStatusBar()
@@ -509,6 +569,13 @@ namespace BalloonPost.Unity
             }
             GUI.backgroundColor = Color.white;
 
+            GUI.backgroundColor = new Color(1f, 0.7f, 0.2f);
+            if (GUILayout.Button("🔒 锁定+改路线", GUILayout.Height(45), GUILayout.Width(130)))
+            {
+                OpenRerouteDialog();
+            }
+            GUI.backgroundColor = Color.white;
+
             GUI.backgroundColor = new Color(0.9f, 0.6f, 0.5f);
             if (GUILayout.Button("🗑 清空航线", GUILayout.Height(45), GUILayout.Width(120)))
             {
@@ -525,15 +592,21 @@ namespace BalloonPost.Unity
                 RefreshAllPanels();
             }
 
-            if (GUILayout.Button("💾 保存", GUILayout.Height(45), GUILayout.Width(80)))
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8);
+            GUILayout.BeginHorizontal();
+
+            GUI.backgroundColor = new Color(0.55f, 0.85f, 1f);
+            if (GUILayout.Button("💾 保存", GUILayout.Height(35), GUILayout.Width(90)))
             {
                 SaveSystem.SaveGame(Game, $"手动存档_T{Game.TurnsElapsed}");
                 LogMessage("💾 已保存游戏");
             }
-
-            GUILayout.EndHorizontal();
-            GUILayout.Space(8);
-            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("📂 载入存档", GUILayout.Height(35), GUILayout.Width(110)))
+            {
+                OpenLoadSaveDialog();
+            }
+            GUI.backgroundColor = Color.white;
 
             GUI.backgroundColor = new Color(0.7f, 0.85f, 1f);
             if (GUILayout.Button("📗 教程1 准时投递", GUILayout.Height(35))) StartTutorialLevel(1);
@@ -565,6 +638,181 @@ namespace BalloonPost.Unity
                 GUILayout.Width(Screen.width - 700 - 370), GUILayout.Height(logH));
             GUILayout.Label(_logText);
             GUILayout.EndScrollView();
+        }
+
+        private void OpenLoadSaveDialog()
+        {
+            _saveList = SaveSystem.ListSaves();
+            _showLoadDialog = true;
+            LogMessage($"📂 找到 {_saveList.Count} 个存档");
+        }
+
+        private void DrawLoadSaveDialog()
+        {
+            GUI.backgroundColor = new Color(0, 0, 0, 0.55f);
+            GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "");
+            GUI.backgroundColor = Color.white;
+
+            float w = 520, h = 440;
+            float x = (Screen.width - w) / 2, y = (Screen.height - h) / 2;
+            GUI.Box(new Rect(x, y, w, h), "📂 载入存档");
+
+            GUILayout.BeginArea(new Rect(x + 20, y + 30, w - 40, h - 100));
+            GUILayout.Label($"共找到 {_saveList.Count} 个存档：\n");
+
+            _saveScroll = GUILayout.BeginScrollView(_saveScroll, false, true, GUILayout.Height(300));
+            if (_saveList.Count == 0)
+            {
+                GUILayout.Label("（暂无存档，先去保存一个吧～）");
+            }
+            else
+            {
+                for (int i = 0; i < _saveList.Count; i++)
+                {
+                    string slotName = _saveList[i];
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label($"{i + 1,2}. {slotName}", GUILayout.Width(360));
+                    if (GUILayout.Button("载入", GUILayout.Width(80)))
+                    {
+                        TryLoadSave(slotName);
+                    }
+                    if (GUILayout.Button("删除", GUILayout.Width(60)))
+                    {
+                        string idToDel = SaveSystem.ExtractSaveIdFromDisplay(slotName);
+                        bool ok = SaveSystem.DeleteSave(idToDel);
+                        if (!ok) ok = SaveSystem.DeleteSave(slotName);
+                        if (ok)
+                        {
+                            LogMessage($"🗑 已删除存档：{slotName}");
+                            _saveList = SaveSystem.ListSaves();
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+                }
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+
+            if (GUI.Button(new Rect(x + w - 120, y + h - 55, 100, 40), "关闭"))
+            {
+                _showLoadDialog = false;
+            }
+        }
+
+        private void TryLoadSave(string slotDisplay)
+        {
+            string saveId = SaveSystem.ExtractSaveIdFromDisplay(slotDisplay);
+            var restored = SaveSystem.LoadGame(saveId);
+            if (restored == null)
+            {
+                restored = SaveSystem.LoadGame(slotDisplay);
+            }
+            if (restored == null)
+            {
+                LogMessage("❌ 载入失败：存档数据损坏或不兼容。");
+                return;
+            }
+            Bootstrap.RestoreGameManager(restored);
+            Game = restored;
+            BindGame();
+            GridRenderer?.UpdatePlayerPosition(Game.Player.Position);
+            GridRenderer?.UpdateRouteVisual(Game.Planner.CurrentPlan);
+            HighlightValidNextSteps();
+            RefreshAllPanels();
+            LogMessage($"✅ 成功载入存档：{saveId}");
+            _showLoadDialog = false;
+        }
+
+        private void OpenRerouteDialog()
+        {
+            if (Game?.Planner == null || Game.Planner.CurrentPlan.Steps.Count < 2)
+            {
+                LogMessage("⚠ 需要至少2步航线才能使用改路线功能");
+                return;
+            }
+            _showRerouteDialog = true;
+            _lockStepIndex = Game.Planner.CurrentPlan.Steps.Count / 2;
+            if (_lockStepIndex < 1) _lockStepIndex = 1;
+            _newRerouteTarget = null;
+            HighlightValidNextSteps();
+            RefreshAllPanels();
+            LogMessage("🔒 改路线模式：请调整锁定步数，然后点选新目标位置");
+        }
+
+        private void DrawRerouteDialog()
+        {
+            GUI.backgroundColor = new Color(1f, 0.9f, 0.3f, 0.25f);
+            float w = 460, h = 260;
+            float x = Screen.width - w - 30, y = 420;
+            GUI.Box(new Rect(x, y, w, h), "🔒 改路线模式（锁定前缀 + 扣时间燃料惩罚）");
+            GUI.backgroundColor = Color.white;
+
+            GUILayout.BeginArea(new Rect(x + 20, y + 35, w - 40, h - 90));
+            GUILayout.Label("⚠ 操作流程：\n" +
+                          "① 用滑块设置要保留的前缀步数（黄色高亮锁定）\n" +
+                          "② 在地图上**点击一个格子**作为从锁定位置出发的新目标\n" +
+                          "③ 点「确认改路线」——会扣 1时间 + 2燃料（模拟重新规划）\n" +
+                          "④ 前缀会被锁定，以后无法撤销到前缀之前");
+            GUILayout.Space(12);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"保留前 {_lockStepIndex} 步：", GUILayout.Width(150));
+            int maxSteps = Game?.Planner?.CurrentPlan?.Steps.Count ?? 1;
+            _lockStepIndex = (int)GUILayout.HorizontalSlider(_lockStepIndex, 0, maxSteps, GUILayout.Width(220));
+            GUILayout.Label($" / {maxSteps}", GUILayout.Width(40));
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8);
+
+            string target = _newRerouteTarget.HasValue ? _newRerouteTarget.Value.ToString() : "（还没选，请在地图上点格子）";
+            GUILayout.Label($"🎯 新目标位置：{target}");
+            GUILayout.Space(8);
+            GUILayout.Label("💰 惩罚：-1 回合 | -2 燃料 | 撤销栈保留前缀不可回退");
+            GUILayout.EndArea();
+
+            GUILayout.BeginArea(new Rect(x + 20, y + h - 55, w - 40, 45));
+            GUILayout.BeginHorizontal();
+
+            GUI.backgroundColor = new Color(0.4f, 0.9f, 0.5f);
+            if (GUILayout.Button("✅ 确认改路线", GUILayout.Height(40)))
+            {
+                ConfirmReroute();
+            }
+            GUI.backgroundColor = Color.white;
+
+            if (GUILayout.Button("取消", GUILayout.Height(40)))
+            {
+                _showRerouteDialog = false;
+                _newRerouteTarget = null;
+                HighlightValidNextSteps();
+                RefreshAllPanels();
+            }
+
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+        }
+
+        private void ConfirmReroute()
+        {
+            if (!_newRerouteTarget.HasValue)
+            {
+                LogMessage("⚠ 请先在地图上选一个新的目标位置");
+                return;
+            }
+            if (Game?.Planner == null) return;
+            bool ok = Game.Planner.TryRerouteAfterStep(_lockStepIndex - 1, _newRerouteTarget.Value);
+            if (ok)
+            {
+                LogMessage($"✅ 改路线成功！保留前{_lockStepIndex}步 → 新目标{_newRerouteTarget.Value}（扣1时间2燃料）");
+                _showRerouteDialog = false;
+                _newRerouteTarget = null;
+                GridRenderer?.UpdateRouteVisual(Game.Planner.CurrentPlan);
+                HighlightValidNextSteps();
+                RefreshAllPanels();
+            }
+            else
+            {
+                LogMessage("❌ 改路线失败：目标不相邻或燃料不足");
+            }
         }
 
         private void DrawSettlementOverlay()

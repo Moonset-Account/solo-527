@@ -161,5 +161,22 @@ namespace BalloonPost.Unity
         {
             return SaveSystem.ListAllSaves();
         }
+
+        public void RestoreGameManager(GameManager restored)
+        {
+            Game = restored;
+            if (Tutorial == null) Tutorial = new TutorialManager();
+            Tutorial.BindGame(Game);
+            Game.OnLogMessage -= OnBubbleLog;
+            Game.OnLogMessage += OnBubbleLog;
+            Game.OnPhaseChanged -= OnBubblePhase;
+            Game.OnPhaseChanged += OnBubblePhase;
+            Game.OnSettlementComplete -= OnSettlementComplete;
+            Game.OnSettlementComplete += OnSettlementComplete;
+            Debug.Log($"[Bootstrap] GameManager 已从存档恢复：T{restored.TurnsElapsed}，{restored.Grid.Count}格子");
+        }
+
+        private void OnBubbleLog(string msg) => Debug.Log($"[Game] {msg}");
+        private void OnBubblePhase(GamePhase phase) => Debug.Log($"[Phase] {phase}");
     }
 }

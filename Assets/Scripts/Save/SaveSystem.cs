@@ -182,6 +182,39 @@ namespace BalloonPost.Save
             }
         }
 
+        public static List<string> ListSaves()
+        {
+            var ids = new List<string>();
+            string dir = GetSaveDirectory();
+            if (!Directory.Exists(dir)) return ids;
+            var files = Directory.GetFiles(dir, "*" + FileExtension);
+            foreach (var file in files)
+            {
+                try
+                {
+                    string json = File.ReadAllText(file, Encoding.UTF8);
+                    var data = Deserialize<SaveData>(json);
+                    if (data != null)
+                    {
+                        string display = string.IsNullOrEmpty(data.SaveName)
+                            ? data.SaveId
+                            : $"{data.SaveName} [{data.SaveTime:MM-dd HH:mm}]";
+                        ids.Add(display);
+                    }
+                }
+                catch { }
+            }
+            return ids;
+        }
+
+        public static string ExtractSaveIdFromDisplay(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName)) return displayName;
+            int bracket = displayName.LastIndexOf(" [", StringComparison.Ordinal);
+            if (bracket > 0) return displayName.Substring(0, bracket);
+            return displayName;
+        }
+
         public static List<SaveData> ListAllSaves()
         {
             var saves = new List<SaveData>();
