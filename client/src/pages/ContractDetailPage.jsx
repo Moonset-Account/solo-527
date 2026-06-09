@@ -480,6 +480,163 @@ const ContractDetailPage = () => {
                     <div className="risk-quoted">「{risk.ai_quoted_text}」</div>
                   )}
 
+                  {risk.is_overruled && (
+                    <div className="mt-2 p-2" style={{
+                      background: '#fff8e1', borderRadius: 4,
+                      border: '1px solid #ffc107',
+                      fontSize: 13,
+                    }}>
+                      <div style={{ color: '#f57c00', fontWeight: 600, marginBottom: 4 }}>
+                        ⚖️ 人工推翻AI判断
+                      </div>
+                      {risk.human_risk_type && risk.human_risk_type !== risk.risk_type && (
+                        <div className="text-xs mb-1">
+                          风险类型：
+                          <span style={{ textDecoration: 'line-through', color: '#999', margin: '0 6px' }}>
+                            {riskTypeLabel(risk.risk_type)}
+                          </span>
+                          → <strong>{riskTypeLabel(risk.human_risk_type)}</strong>
+                        </div>
+                      )}
+                      {risk.human_risk_level && risk.human_risk_level !== risk.risk_level && (
+                        <div className="text-xs">
+                          风险等级：
+                          <span style={{ textDecoration: 'line-through', color: '#999', margin: '0 6px' }}>
+                            {riskLevelLabel(risk.risk_level)}
+                          </span>
+                          → <strong>{riskLevelLabel(risk.human_risk_level)}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {risk.ai_context_snapshot && (
+                    <div className="mt-2 p-2" style={{
+                      background: '#e3f2fd', borderRadius: 4,
+                      border: '1px solid #90caf9',
+                      fontSize: 13,
+                    }}>
+                      <div style={{ color: '#1565c0', fontWeight: 600, marginBottom: 6 }}>
+                        📚 AI分析上下文快照（检测此风险时实际使用的数据）
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 8, marginBottom: 6 }}>
+                        <div>
+                          <div className="text-xs text-muted">条款类型</div>
+                          <div className="font-medium">
+                            {risk.ai_context_snapshot?.clause?.clause_type
+                              ? {
+                                payment: '💳 付款', breach: '⚡ 违约',
+                                confidentiality: '🔒 保密', auto_renewal: '🔄 自动续约',
+                                termination: '🚪 终止', liability: '⚖️ 责任',
+                                ip: '🎯 IP', dispute: '🏛 争议',
+                                force_majeure: '🌪 不可抗力', obligation: '📋 义务',
+                                definition: '📖 定义', other: '📑 其他',
+                              }[risk.ai_context_snapshot.clause.clause_type] || risk.ai_context_snapshot.clause.clause_type
+                              : '未知'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">条款编号</div>
+                          <div className="font-medium">{risk.ai_context_snapshot?.clause?.clause_number || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">带历史意见</div>
+                          <div className="font-medium">
+                            {risk.ai_context_snapshot?.clause?.has_historical_notes
+                              ? <span style={{ color: '#2e7d32' }}>✅ 有</span>
+                              : <span style={{ color: '#999' }}>无</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">相似条款</div>
+                          <div className="font-medium">{risk.ai_context_snapshot?.similar_clauses_referenced?.length || 0} 条</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">历史复核</div>
+                          <div className="font-medium">
+                            {risk.ai_context_snapshot?.historical_reviews_referenced_count || 0} 条
+                            {(risk.ai_context_snapshot?.historical_reviews_referenced_count || 0) > 0 && (
+                              <span style={{ color: '#2e7d32', marginLeft: 4 }}>★</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">历史修改意见</div>
+                          <div className="font-medium">
+                            {risk.ai_context_snapshot?.historical_notes_referenced_count || 0} 条
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted">模型应用了历史</div>
+                          <div className="font-medium">
+                            {risk.ai_context_snapshot?.model_returned_historical_reference_applied
+                              ? <span style={{ color: '#2e7d32' }}>
+                                {
+                                  { none: '未应用', historical_reviews: '历史复核', historical_notes: '修改意见', both: '两类均有' }[risk.ai_context_snapshot.model_returned_historical_reference_applied] || '是'
+                                }
+                              </span>
+                              : <span style={{ color: '#999' }}>未声明</span>}
+                          </div>
+                        </div>
+                      </div>
+
+                      {risk.ai_context_snapshot?.historical_notes_referenced?.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-xs text-muted mb-1">参考的历史修改意见示例：</div>
+                          {risk.ai_context_snapshot.historical_notes_referenced.map((n, i) => (
+                            <div key={i} style={{
+                              background: '#fff', padding: 6, borderRadius: 4,
+                              marginBottom: 4, borderLeft: '3px solid #90caf9',
+                            }} className="text-xs">
+                              [{n.clause_type || '其他'}] {n.historical_notes_excerpt}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {risk.ai_context_snapshot?.historical_reviews_referenced?.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-xs text-muted mb-1">参考的历史复核结果示例：</div>
+                          {risk.ai_context_snapshot.historical_reviews_referenced.map((r, i) => (
+                            <div key={i} style={{
+                              background: '#fff', padding: 6, borderRadius: 4,
+                              marginBottom: 4, borderLeft: `3px solid ${r.is_overruled ? '#ffc107' : '#66bb6a'}`,
+                            }} className="text-xs">
+                              <div>
+                                <strong>{r.clause_number || '#?'} </strong>
+                                [{r.final_risk_type || r.clause_type || '?'}/
+                                <span className={
+                                  r.final_risk_level === 'critical' ? 'text-red-600 font-bold' :
+                                  r.final_risk_level === 'high' ? 'text-orange-600 font-semibold' :
+                                  r.final_risk_level === 'medium' ? 'text-yellow-700' : 'text-green-700'
+                                }>{r.final_risk_level || r.review_result}</span>]
+                                {r.is_overruled && <span style={{ color: '#f57c00' }}> ⚠️推翻原判断</span>}
+                              </div>
+                              {r.human_notes_excerpt && (
+                                <div className="mt-1" style={{ color: '#555' }}>
+                                  复核备注：{r.human_notes_excerpt}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {risk.ai_context_snapshot?.clause?.historical_notes_excerpt && (
+                        <div className="mt-1">
+                          <div className="text-xs text-muted mb-1">📝 当前条款历史修改意见：</div>
+                          <div style={{
+                            background: '#fffde7', padding: 6, borderRadius: 4,
+                            border: '1px dashed #fdd835',
+                          }} className="text-xs">
+                            {risk.ai_context_snapshot.clause.historical_notes_excerpt}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {risk.human_notes && (
                     <div className="mt-2 p-2" style={{ background: 'white', borderRadius: 4, border: '1px dashed var(--primary)' }}>
                       <div className="text-xs text-primary mb-1">💬 人工复核备注：</div>

@@ -422,6 +422,9 @@ class ContractService {
     }
 
     const parsedClauses = DocumentExtractorService.parseClauseImport(importData, format);
+    if (parsedClauses.length === 0) {
+      throw new Error('解析到 0 条有效条款，请检查导入文件格式');
+    }
 
     const transaction = await sequelize.transaction();
     try {
@@ -430,19 +433,113 @@ class ContractService {
         transaction,
       });
 
+      await models.RiskAnnotation.destroy({
+        where: { contract_id: contractId, clause_id: {
+          [require('sequelize').Op.in]:
+            (await models.Clause.findAll({
+              where: { contract_version_id: contractVersionId },
+              attributes: ['id'],
+              raw: true,
+              transaction,
+            })).map(c => c.id),
+        } },
+        transaction,
+      });
+
       const createdClauses = await this._importPreParsedClauses(
         contractId, contractVersionId, parsedClauses, transaction
       );
 
+      if (!version.vector_index_version || createdClauses.length > 0) {
+        await models.ContractVersion.update(
+          { vector_index_version: null },
+          { where: { id: contractVersionId }, transaction }
+        );
+      }
+
       await transaction.commit();
+
+      let clausesWithHistorical = 0;
+      let clausesWithManualRisk = 0;
+      for (const raw of parsedClauses) {
+        if (raw.historical_notes && raw.historical_notes.trim()) clausesWithHistorical++;
+        if (raw.manual_risk_type && VALID_RISK_TYPES.includes(raw.manual_risk_type)) clausesWithManualRisk++;
+      }
 
       await AuditService.log('contract_update', 'clause', {
         entity_id: contractVersionId,
         contract_id: contractId,
-        newValues: { count: createdClauses.length, format },
-        changeSummary: `批量导入条款（${format}）：${createdClauses.length} 条`,
+        newValues: {
+          count: createdClauses.length,
+          format,
+          with_historical_notes: clausesWithHistorical,
+          with_manual_risk: clausesWithManualRisk,
+        },
+        changeSummary: `批量导入条款（${format}）：${createdClauses.length} 条` +
+          (clausesWithHistorical > 0 ? `，其中 ${clausesWithHistorical} 条带历史意见` : '') +
+          (clausesWithManualRisk > 0 ? `，${clausesWithManualRisk} 条预填人工标注风险` : ''),
         user_id: userId,
       }, { userId, ip });
+
+      setImmediate(async () => {
+        try {
+          await AuditService.log('contract_update', 'vector_index', {
+            entity_id: contractVersionId,
+            contract_id: contractId,
+            newValues: { clauses_count: createdClauses.length },
+            changeSummary: '批量导入条款后，开始重建向量索引',
+            user_id: userId,
+          }, { userId, ip });
+
+          const vectorIndex = await VectorStoreService.buildIndexForContract(
+            contractId, contractVersionId, createdClauses, userId
+          );
+
+          await models.ContractVersion.update(
+            { vector_index_version: vectorIndex.index_version },
+            { where: { id: contractVersionId } }
+          );
+
+          await AuditService.log('contract_update', 'risk_annotation', {
+            entity_id: contractVersionId,
+            contract_id: contractId,
+            newValues: { vector_index_version: vectorIndex.index_version },
+            changeSummary: '向量索引构建完成，开始批量重跑AI风险检测（含历史意见上下文）',
+            user_id: userId,
+          }, { userId, ip });
+
+          const detectionResult = await RiskDetectionService.detectRisksForContract(
+            contractId, contractVersionId, { userId, ip }
+          );
+
+          await contract.update({ status: 'reviewing' });
+
+          await AuditService.log('contract_update', 'risk_annotation', {
+            entity_id: contractVersionId,
+            contract_id: contractId,
+            newValues: {
+              risks_count: detectionResult.total_risks,
+              clauses_analyzed: detectionResult.total,
+              summary: detectionResult.summary,
+            },
+            changeSummary: `AI风险重检测完成：${detectionResult.total_risks} 条风险标注已生成，合同状态切换为reviewing`,
+            user_id: userId,
+          }, { userId, ip });
+        } catch (e) {
+          console.error('Post-import rebuild failed:', e);
+          try {
+            await AlertService.create({
+              alert_type: 'service_failure',
+              severity: 'error',
+              title: '批量导入条款后处理失败',
+              message: e.message,
+              service_name: 'clause_import_postprocess',
+              contract_id: contractId,
+              error_stack: e.stack,
+            }, { force: true });
+          } catch (_) { /* ignore alert failures */ }
+        }
+      });
 
       return {
         imported: createdClauses.length,
@@ -451,7 +548,13 @@ class ContractService {
           clause_number: c.clause_number,
           clause_title: c.clause_title,
           clause_type: c.clause_type,
+          has_historical_notes: !!c.historical_notes,
+          historical_notes_preview: c.historical_notes ? c.historical_notes.substring(0, 60) + '...' : null,
         })),
+        with_historical_notes: clausesWithHistorical,
+        with_manual_risk: clausesWithManualRisk,
+        post_processing: 'triggered',
+        post_processing_detail: '向量索引重建 + 风险重检测已后台启动，请稍后刷新页面查看结果',
       };
     } catch (e) {
       await transaction.rollback();
@@ -477,10 +580,17 @@ class ContractService {
     });
 
     const parsedReviews = DocumentExtractorService.parseReviewImport(importData, format);
+    if (parsedReviews.length === 0) {
+      throw new Error('解析到 0 条有效复核结果，请检查导入文件格式');
+    }
 
     const transaction = await sequelize.transaction();
     try {
       let applied = 0;
+      let approved = 0;
+      let modified = 0;
+      let rejected = 0;
+      let withNotes = 0;
 
       for (const review of parsedReviews) {
         let targetRisk = null;
@@ -509,6 +619,7 @@ class ContractService {
           risk_type: targetRisk.risk_type,
           risk_level: targetRisk.risk_level,
           status: targetRisk.status,
+          human_notes: targetRisk.human_notes,
         };
 
         const updates = {
@@ -519,11 +630,14 @@ class ContractService {
         };
 
         let changed = false;
+        let actionApplied = 'noop';
         switch (review.action) {
           case 'approve':
           case 'approved':
             updates.status = 'approved';
             changed = true;
+            approved++;
+            actionApplied = 'approved';
             break;
           case 'reject':
           case 'rejected':
@@ -531,6 +645,8 @@ class ContractService {
             updates.status = 'rejected';
             updates.is_overruled = true;
             changed = true;
+            rejected++;
+            actionApplied = 'rejected';
             break;
           case 'modify':
           case 'modified':
@@ -548,31 +664,80 @@ class ContractService {
             if (changed) {
               updates.status = 'modified';
               updates.is_overruled = true;
+              modified++;
+              actionApplied = 'modified';
+            } else if (review.notes) {
+              actionApplied = 'notes_only';
             }
             break;
         }
 
         if (review.notes) {
           updates.human_notes = review.notes;
+          withNotes++;
         }
 
         if (changed || review.notes) {
           await targetRisk.update(updates, { transaction });
           applied++;
 
+          if (['approved', 'rejected', 'modified'].includes(updates.status)) {
+            const queueItem = await models.ReviewQueue.findOne({
+              where: { risk_annotation_id: targetRisk.id },
+              transaction,
+            });
+            if (queueItem && queueItem.status !== 'completed') {
+              await queueItem.update({
+                status: 'completed',
+                completed_by: userId,
+                completed_at: review.reviewed_at || new Date(),
+                review_notes: (review.notes || '').substring(0, 500),
+              }, { transaction });
+            }
+          }
+
+          const importedData = {
+            source_review_action: review.action,
+            source_review_applied_as: actionApplied,
+            source_review_reference: review.reference || review.clause_number || review.risk_id || 'unknown',
+          };
+
           await AuditService.logRiskModify(
             targetRisk, oldValues, userId, ip,
-            `导入复核结果: ${review.action}${review.notes ? ` - ${review.notes.substring(0, 50)}` : ''}`
+            `[批量导入复核 ${review.action || 'apply'} → ${actionApplied}] ` +
+            (review.notes ? `${review.notes.substring(0, 80)}` : '无备注'),
+            importedData
           );
         }
       }
 
       await transaction.commit();
 
+      try {
+        const pending = await models.RiskAnnotation.count({
+          where: { contract_id: contractId, status: ['pending_review', 'review_queue'] },
+        });
+        if (pending === 0 && contract.status === 'reviewing') {
+          await AuditService.log('system_info', 'contract', {
+            entity_id: contractId,
+            contract_id: contractId,
+            newValues: { imported_reviews: applied, pending_remaining: 0 },
+            changeSummary: `批量导入复核结果后，全部风险标注均已完成人工复核（pending=0），可以通过合同`,
+            user_id: userId,
+          }, { userId, ip });
+        }
+      } catch (_) { /* ignore */ }
+
       return {
         total_parsed: parsedReviews.length,
         applied: applied,
         skipped: parsedReviews.length - applied,
+        breakdown: { approved, modified, rejected, with_notes: withNotes },
+        detail:
+          approved > 0 ? `通过: ${approved}; ` : '' +
+          modified > 0 ? `改标: ${modified}; ` : '' +
+          rejected > 0 ? `移除: ${rejected}; ` : '' +
+          withNotes > 0 ? `含备注: ${withNotes}` : '',
       };
     } catch (e) {
       await transaction.rollback();

@@ -124,9 +124,7 @@ class RiskDetectionService {
           similarWithContext,
           userId,
           ip,
-          humanReviewContext.length > 0
-            ? humanReviewContext.map(h => h.clause_id).filter(Boolean)
-            : []
+          humanReviewContext
         );
         risks.push(risk);
       }
@@ -146,7 +144,7 @@ class RiskDetectionService {
             );
             if (subAnalysis.has_risk && subAnalysis.risk_type) {
               const subRisk = await this._createRiskAnnotation(
-                clause, contract, subAnalysis, similarWithContext, userId, ip
+                clause, contract, subAnalysis, similarWithContext, userId, ip, humanReviewContext
               );
               risks.push(subRisk);
             }
@@ -158,7 +156,7 @@ class RiskDetectionService {
     return risks;
   }
 
-  async _createRiskAnnotation(clause, contract, analysis, similarClauses, userId, ip, humanReviewClauseIds = []) {
+  async _createRiskAnnotation(clause, contract, analysis, similarClauses, userId, ip, humanReviewContext = []) {
     const confidenceScore = parseFloat(analysis.confidence_score);
     const isLowConfidence = confidenceScore < config.risk.lowConfidenceThreshold;
 
@@ -169,10 +167,47 @@ class RiskDetectionService {
       status = 'review_queue';
     }
 
-    const evidenceClauseIds = [
-      ...similarClauses.map(s => s.clause_id).filter(Boolean),
-      ...humanReviewClauseIds,
-    ];
+    const evidenceClauseIds = similarClauses.map(s => s.clause_id).filter(Boolean);
+    const historicalCtxIds = humanReviewContext.map(h => h.clause_id).filter(Boolean);
+    const uniqueHistoricalIds = [...new Set([...historicalCtxIds, ...(humanReviewContext.filter(h => !h.is_history_note).map(h => h.clause_id) || [])])];
+
+    const historicalReviewsOnly = humanReviewContext.filter(c => !c.is_history_note);
+    const historicalNotesOnly = humanReviewContext.filter(c => c.is_history_note);
+
+    const aiContextSnapshot = {
+      clause: {
+        clause_number: clause.clause_number,
+        clause_title: clause.clause_title,
+        clause_type: clause.clause_type,
+        page_number: clause.page_number,
+        is_amended: clause.is_amended,
+        has_historical_notes: !!clause.historical_notes,
+        historical_notes_excerpt: clause.historical_notes ? clause.historical_notes.substring(0, 200) : null,
+      },
+      similar_clauses_referenced: similarClauses.map(s => ({
+        clause_id: s.clause_id,
+        similarity: s.similarity,
+        clause_type: s.clause_type,
+        has_historical_notes: !!s.historical_notes,
+      })),
+      historical_reviews_referenced_count: historicalReviewsOnly.length,
+      historical_reviews_referenced: historicalReviewsOnly.slice(0, 3).map(r => ({
+        clause_number: r.clause_number,
+        clause_type: r.clause_type,
+        review_result: r.review_result,
+        is_overruled: r.is_overruled,
+        final_risk_type: r.final_risk_type,
+        final_risk_level: r.final_risk_level,
+        human_notes_excerpt: (r.human_notes || '').substring(0, 120),
+      })),
+      historical_notes_referenced_count: historicalNotesOnly.length,
+      historical_notes_referenced: historicalNotesOnly.slice(0, 3).map(n => ({
+        clause_type: n.clause_type,
+        historical_notes_excerpt: (n.historical_notes || '').substring(0, 120),
+      })),
+      total_historical_context_items: humanReviewContext.length,
+      model_returned_historical_reference_applied: analysis.historical_reference_applied || null,
+    };
 
     const risk = await models.RiskAnnotation.create({
       id: uuidv4(),
@@ -185,6 +220,8 @@ class RiskDetectionService {
       ai_summary: analysis.summary + '\n\n' + (analysis.warning || ''),
       ai_quoted_text: analysis.quoted_text,
       evidence_clause_ids: [...new Set(evidenceClauseIds)],
+      historical_context_ids: uniqueHistoricalIds,
+      ai_context_snapshot: aiContextSnapshot,
       source: 'ai',
       status: status,
       review_status: isLowConfidence ? 'not_started' : 'not_started',

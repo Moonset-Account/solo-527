@@ -61,6 +61,15 @@ RiskAnnotation.init(
       defaultValue: [],
       comment: '检索到的证据条款ID列表',
     },
+    historical_context_ids: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      defaultValue: [],
+      comment: '作为历史上下文使用的风险标注ID列表（来源：已通过/改标）',
+    },
+    ai_context_snapshot: {
+      type: DataTypes.JSONB,
+      comment: 'AI风险分析时的上下文快照：包含clause_type、historical_notes、相似条款引用、历史复核摘要',
+    },
     source: {
       type: DataTypes.ENUM('ai', 'human', 'hybrid'),
       allowNull: false,
