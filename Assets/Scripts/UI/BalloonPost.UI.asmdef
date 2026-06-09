@@ -1,0 +1,16 @@
+{
+  "name": "BalloonPost.UI",
+  "rootNamespace": "BalloonPost.UI",
+  "references": [
+    "BalloonPost.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

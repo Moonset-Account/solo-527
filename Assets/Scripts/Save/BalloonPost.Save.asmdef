@@ -1,0 +1,16 @@
+{
+  "name": "BalloonPost.Save",
+  "rootNamespace": "BalloonPost.Save",
+  "references": [
+    "BalloonPost.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
