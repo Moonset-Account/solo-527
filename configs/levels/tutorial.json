@@ -1,0 +1,96 @@
+{
+	"available_tags": [
+		"家书",
+		"公文",
+		"照片",
+		"春天",
+		"夏天",
+		"秋天",
+		"冬天",
+		"毕业",
+		"工作",
+		"节日"
+	],
+	"cards": [
+		{
+			"content": "吾儿亲启：三月春寒，家中一切安好。昨日收到你寄来的照片，见你身形消瘦，甚为挂念。",
+			"correct_day": 15,
+			"correct_month": 3,
+			"correct_tags": [
+				"家书",
+				"春天"
+			],
+			"correct_year": 1921,
+			"id": "card_t1",
+			"image_hint": "信纸泛黄，有折痕",
+			"tags": [
+				"家书",
+				"春天"
+			],
+			"title": "家书 - 三月",
+			"type": "letter"
+		},
+		{
+			"content": "照片背面写着：民国十年七月，毕业于县立高等小学。前排左三为本人。",
+			"correct_day": 10,
+			"correct_month": 7,
+			"correct_tags": [
+				"照片",
+				"毕业"
+			],
+			"correct_year": 1921,
+			"id": "card_t2",
+			"image_hint": "黑白照片，学生装",
+			"tags": [
+				"照片",
+				"毕业"
+			],
+			"title": "毕业合影",
+			"type": "photo"
+		},
+		{
+			"content": "兹委任XXX为本局书记员，月薪大洋二十元，即日起报到。民国十年十月五日。",
+			"correct_day": 5,
+			"correct_month": 10,
+			"correct_tags": [
+				"公文",
+				"工作"
+			],
+			"correct_year": 1921,
+			"id": "card_t3",
+			"image_hint": "公文纸，红色印章",
+			"tags": [
+				"公文",
+				"工作"
+			],
+			"title": "入职通知书",
+			"type": "document"
+		}
+	],
+	"description": "学习如何整理档案：阅读卡片、按时间排序、添加标签、关联证据。",
+	"difficulty": 1,
+	"evidence_links": [],
+	"failure_messages": [
+		"时间顺序不对，请再仔细查看日期。",
+		"部分卡片的标签可能不正确。"
+	],
+	"hints": [
+		{
+			"level": 1,
+			"text": "提示级别1：注意每张卡片上都有明确的日期线索。"
+		},
+		{
+			"level": 2,
+			"text": "提示级别2：信件日期最早，照片在中间，通知书最晚。"
+		},
+		{
+			"level": 3,
+			"text": "提示级别3：正确顺序是：家书(3月)→毕业照(7月)→入职通知(10月)。"
+		}
+	],
+	"id": "tutorial",
+	"success_message": "太棒了！你已经掌握了档案整理的基本方法。继续加油！",
+	"time_limit": 0,
+	"timeline_slots": 3,
+	"title": "新手教程：第一份档案"
+}

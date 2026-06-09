@@ -1,0 +1,208 @@
+{
+	"available_tags": [
+		"家书",
+		"公文",
+		"照片",
+		"新闻",
+		"藏品",
+		"威胁",
+		"预警",
+		"报警",
+		"保险",
+		"春天",
+		"夏天",
+		"秋天",
+		"冬天"
+	],
+	"cards": [
+		{
+			"content": "林先生：识时务者为俊杰。那件东西不属于你，三日内交出，否则后果自负。——知情人 十一月三日",
+			"correct_day": 3,
+			"correct_month": 11,
+			"correct_tags": [
+				"威胁",
+				"秋天"
+			],
+			"correct_year": 1935,
+			"id": "card_c1_1",
+			"image_hint": "打字机字体，无签名",
+			"linked_cards": [
+				"card_c1_4"
+			],
+			"tags": [
+				"威胁",
+				"秋天"
+			],
+			"title": "匿名威胁信",
+			"type": "letter"
+		},
+		{
+			"content": "照片背面：汉代龙纹玉璧，民国二十三年秋得于沪上。估值三千大洋。",
+			"correct_day": 20,
+			"correct_month": 9,
+			"correct_tags": [
+				"照片",
+				"藏品",
+				"秋天"
+			],
+			"correct_year": 1934,
+			"id": "card_c1_2",
+			"image_hint": "精美玉器照片",
+			"linked_cards": [
+				"card_c1_4",
+				"card_c1_5"
+			],
+			"tags": [
+				"照片",
+				"藏品",
+				"秋天"
+			],
+			"title": "藏品照片：玉璧",
+			"type": "photo"
+		},
+		{
+			"content": "被保险人：林墨轩，保险标的：汉代玉璧，保险金额：伍仟大洋，有效期民国二十四年一月至十二月。",
+			"correct_day": 15,
+			"correct_month": 1,
+			"correct_tags": [
+				"公文",
+				"保险",
+				"冬天"
+			],
+			"correct_year": 1935,
+			"id": "card_c1_3",
+			"image_hint": "保险公司正式单据",
+			"linked_cards": [
+				"card_c1_2"
+			],
+			"tags": [
+				"公文",
+				"保险",
+				"冬天"
+			],
+			"title": "保险单",
+			"type": "document"
+		},
+		{
+			"content": "伯吾兄：近日心绪不宁，有人觊觎我那件玉璧。若我出事，请务必报警，并告知舍弟处理藏品。十一月六日",
+			"correct_day": 6,
+			"correct_month": 11,
+			"correct_tags": [
+				"预警",
+				"秋天"
+			],
+			"correct_year": 1935,
+			"id": "card_c1_4",
+			"image_hint": "手写信封，墨迹潦草",
+			"linked_cards": [
+				"card_c1_1",
+				"card_c1_2"
+			],
+			"tags": [
+				"家书",
+				"预警",
+				"秋天"
+			],
+			"title": "给友人的信",
+			"type": "letter"
+		},
+		{
+			"content": "报案人：林宅管家王福，报案时间：民国二十四年十二月二日。事由：主人林墨轩于昨晚未归，家中玉璧失踪。",
+			"correct_day": 2,
+			"correct_month": 12,
+			"correct_tags": [
+				"公文",
+				"报警",
+				"冬天"
+			],
+			"correct_year": 1935,
+			"id": "card_c1_5",
+			"image_hint": "警局正式记录簿",
+			"linked_cards": [
+				"card_c1_2",
+				"card_c1_6"
+			],
+			"tags": [
+				"公文",
+				"报警",
+				"冬天"
+			],
+			"title": "警局报案记录",
+			"type": "document"
+		},
+		{
+			"content": "申报 - 民国二十四年十二月五日：本市收藏家林墨轩失踪一案，警方已介入调查，据悉家中贵重玉器同时失窃。",
+			"correct_day": 5,
+			"correct_month": 12,
+			"correct_tags": [
+				"新闻",
+				"冬天"
+			],
+			"correct_year": 1935,
+			"id": "card_c1_6",
+			"image_hint": "报纸剪报，泛黄",
+			"linked_cards": [
+				"card_c1_5"
+			],
+			"tags": [
+				"新闻",
+				"冬天"
+			],
+			"title": "新闻剪报",
+			"type": "newspaper"
+		}
+	],
+	"description": "1935年冬，著名收藏家林墨轩神秘失踪。整理他留下的档案，找出真相。",
+	"difficulty": 2,
+	"evidence_links": [
+		{
+			"from": "card_c1_1",
+			"reason": "威胁信后写信给友人预警",
+			"to": "card_c1_4"
+		},
+		{
+			"from": "card_c1_2",
+			"reason": "玉璧购买后购买保险",
+			"to": "card_c1_3"
+		},
+		{
+			"from": "card_c1_2",
+			"reason": "玉璧与主人同时失踪",
+			"to": "card_c1_5"
+		},
+		{
+			"from": "card_c1_4",
+			"reason": "友人信中提到的藏品即玉璧",
+			"to": "card_c1_2"
+		},
+		{
+			"from": "card_c1_5",
+			"reason": "报案后新闻报道",
+			"to": "card_c1_6"
+		}
+	],
+	"failure_messages": [
+		"时间线存在错误：注意民国纪年的换算方式。",
+		"证据关联不完整：威胁、预警、失踪之间有因果链。",
+		"部分标签不正确：请根据卡片内容和季节仔细判断。"
+	],
+	"hints": [
+		{
+			"level": 1,
+			"text": "提示级别1：仔细查看每张卡片上的民国年份，民国元年是1912年。"
+		},
+		{
+			"level": 2,
+			"text": "提示级别2：照片上写的是民国二十三年(1934)，其他多为民国二十四年(1935)。按月份排序。"
+		},
+		{
+			"level": 3,
+			"text": "提示级别3：正确顺序：玉璧照片(1934.9)→保险单(1935.1)→威胁信(1935.11.3)→给友人信(1935.11.6)→报案(1935.12.2)→新闻(1935.12.5)。"
+		}
+	],
+	"id": "chapter1",
+	"success_message": "推理成功！你还原了收藏家失踪的完整时间线。玉璧是案件的核心。",
+	"time_limit": 600,
+	"timeline_slots": 6,
+	"title": "第一章：失踪的收藏家"
+}

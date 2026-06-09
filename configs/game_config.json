@@ -1,0 +1,29 @@
+{
+	"audio": {
+		"master_volume": 0.0,
+		"music_volume": -5.0,
+		"sfx_volume": -3.0,
+		"ui_volume": -2.0
+	},
+	"display": {
+		"default_resolution": [
+			1280,
+			720
+		],
+		"frame_rate_limit": 60,
+		"fullscreen": false,
+		"vsync": true
+	},
+	"game": {
+		"auto_save_interval": 30,
+		"max_attempts": 3,
+		"title": "档案室时间线推理",
+		"version": "1.0.0"
+	},
+	"gameplay": {
+		"animation_speed": 1.0,
+		"confirm_submit": true,
+		"enable_drag_preview": true,
+		"show_hint_button": true
+	}
+}

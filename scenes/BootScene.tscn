@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bootscene001"]
+
+[ext_resource type="Script" path="res://scripts/core/SceneController.gd" id="1_scenectrl"]
+
+[node name="BootScene" type="Node"]
+script = ExtResource("1_scenectrl")

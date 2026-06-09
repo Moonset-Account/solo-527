@@ -1,0 +1,44 @@
+{
+	"attempt_penalty": 200,
+	"base_score": 1000,
+	"first_try_bonus": 200,
+	"grades": [
+		{
+			"color": "#FFD700",
+			"grade": "S",
+			"min_score": 1800
+		},
+		{
+			"color": "#2ECC71",
+			"grade": "A",
+			"min_score": 1400
+		},
+		{
+			"color": "#3498DB",
+			"grade": "B",
+			"min_score": 1000
+		},
+		{
+			"color": "#E67E22",
+			"grade": "C",
+			"min_score": 600
+		},
+		{
+			"color": "#E74C3C",
+			"grade": "D",
+			"min_score": 0
+		}
+	],
+	"hint_penalty": [
+		0,
+		100,
+		250,
+		500
+	],
+	"no_hint_bonus": 300,
+	"per_card_correct": 150,
+	"per_link_correct": 100,
+	"per_tag_correct": 50,
+	"perfect_bonus": 500,
+	"time_bonus_multiplier": 0.5
+}
