@@ -288,6 +288,7 @@ function closeDb() {
     if (saveTimer) { clearInterval(saveTimer); saveTimer = null; }
     try { db.close(); } catch {}
     db = null;
+    initPromise = null; // 重置缓存，下次 initDb() 可重新初始化
     logger.info('[db] Database closed & flushed to disk');
   }
 }
