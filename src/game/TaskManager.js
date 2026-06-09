@@ -42,12 +42,14 @@ export class Task {
   }
 
   progress(dt) {
+    if (this.completed || this.failed) return this.workProgress;
     this.workProgress = clamp(this.workProgress + dt, 0, 1);
     if (this.workProgress >= 1) this._complete();
     return this.workProgress;
   }
 
   fail(reason = 'timeout') {
+    if (this.completed || this.failed) return;
     this.failed = true;
     this.status = 'failed';
     this._completedAt = Date.now();
@@ -55,6 +57,7 @@ export class Task {
   }
 
   _complete() {
+    if (this.completed || this.failed) return;
     this.completed = true;
     this.status = 'completed';
     this._completedAt = Date.now();

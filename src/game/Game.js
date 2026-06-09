@@ -269,10 +269,8 @@ export class Game {
         const t = this.tasks.get(r.currentTaskId);
         if (t && !t.completed && !t.failed) {
           const progDone = r.work(dt, t.def);
-          t.workProgress = progDone;
+          t.workProgress = clamp(progDone, 0, 1);
           if (progDone >= 1) {
-            t.workProgress = 1;
-            t.progress(0);
             t._complete();
           }
         }
