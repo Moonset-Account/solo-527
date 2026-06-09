@@ -437,3 +437,79 @@ async def cost_breakdown(
             trend=[],
         )
     )
+
+
+@router.get("/distribution", response_model=BaseResponse[RiskDistributionResponse])
+async def dashboard_distribution_alias(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await risk_distribution(days=days, db=db, current_user=current_user)
+
+
+@router.get("/trend", response_model=BaseResponse[ErrorTrendResponse])
+async def dashboard_trend(
+    metric_type: Optional[str] = Query(None),
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.ml import MetricType, ModelMetric
+
+    metric_values = {m.value for m in MetricType}
+    if metric_type and metric_type in metric_values:
+        start = datetime.utcnow() - timedelta(days=days)
+
+        q = select(
+            func.date(ModelMetric.window_start).label("m_date"),
+            func.avg(ModelMetric.metric_value).label("m_value"),
+        ).select_from(ModelMetric).where(
+            and_(
+                ModelMetric.metric_type == metric_type,
+                ModelMetric.window_start >= start,
+                ModelMetric.window_start.isnot(None),
+            )
+        ).group_by(func.date(ModelMetric.window_start)).order_by("m_date")
+
+        rows = (await db.execute(q)).all()
+        trend_list = []
+        total_val = 0.0
+        for m_date, m_value in rows:
+            date_str = m_date.strftime("%Y-%m-%d") if hasattr(m_date, "strftime") else str(m_date)
+            trend_list.append({
+                "date": date_str,
+                "error_type": metric_type,
+                "count": int(round(m_value * 100)) if m_value is not None else 0,
+            })
+            if m_value is not None:
+                total_val += m_value
+
+        return BaseResponse(
+            data=ErrorTrendResponse(
+                days=days,
+                total=len(trend_list),
+                by_type={metric_type: int(round(total_val * 100))},
+                trend=trend_list,
+            )
+        )
+
+    return await error_trend(days=days, db=db, current_user=current_user)
+
+
+@router.get("/leaderboard", response_model=BaseResponse[ReviewerLeaderboardResponse])
+async def dashboard_leaderboard_alias(
+    days: int = Query(7, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await reviewer_leaderboard(days=days, db=db, current_user=current_user)
+
+
+@router.get("/cost", response_model=BaseResponse[CostBreakdownResponse])
+async def dashboard_cost_alias(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await cost_breakdown(days=days, db=db, current_user=current_user)

@@ -224,8 +224,10 @@ async def list_models(
 @router.get("/models/{model_id}/metrics", response_model=BaseResponse[ModelMetricsResponse])
 async def get_model_metrics(
     model_id: int,
-    metric: str = Query("f1"),
-    window_days: int = Query(30, ge=1, le=365),
+    metric: Optional[str] = Query(None, description="指标类型(旧参数,兼容用)"),
+    window_days: Optional[int] = Query(None, ge=1, le=365, description="时间窗口天数(旧参数,兼容用)"),
+    metric_type: Optional[str] = Query(None, description="指标类型: f1,accuracy,precision,recall 等"),
+    days: Optional[int] = Query(None, ge=1, le=365, description="统计天数"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -233,17 +235,20 @@ async def get_model_metrics(
     if not (await db.execute(m_q)).scalar_one_or_none():
         raise HTTPException(status_code=404, detail="模型不存在")
 
-    start = datetime.utcnow() - timedelta(days=window_days)
+    final_metric = metric_type or metric or "f1"
+    final_days = days or window_days or 30
+
+    start = datetime.utcnow() - timedelta(days=final_days)
     from app.models.ml import MetricType
     try:
-        metric_type = MetricType(metric.upper())
+        metric_type_enum = MetricType(final_metric.upper())
     except ValueError:
-        metric_type = MetricType.F1
+        metric_type_enum = MetricType.F1
 
     q = select(ModelMetric).where(
         and_(
             ModelMetric.model_id == model_id,
-            ModelMetric.metric_type == metric_type,
+            ModelMetric.metric_type == metric_type_enum,
             ModelMetric.created_at >= start,
         )
     ).order_by(ModelMetric.created_at.asc())
@@ -264,8 +269,8 @@ async def get_model_metrics(
     return BaseResponse(
         data=ModelMetricsResponse(
             model_id=model_id,
-            metric_type=metric_type,
-            window_days=window_days,
+            metric_type=metric_type_enum,
+            window_days=final_days,
             points=points,
             avg=avg_val,
             trend=None,
@@ -438,3 +443,87 @@ async def get_evaluation(
     if not eva:
         raise HTTPException(status_code=404, detail="评估结果不存在")
     return BaseResponse(data=EvaluationInfo.model_validate(eva))
+
+
+@router.get("/models/{model_id}/pre-release-checks", response_model=BaseResponse[PreflightResponse])
+async def pre_release_checks_get_alias(
+    model_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = select(ModelVersion).where(ModelVersion.id == model_id)
+    model = (await db.execute(q)).scalar_one_or_none()
+    if not model:
+        raise HTTPException(status_code=404, detail="模型不存在")
+
+    checks = [
+        PreflightCheckResult(
+            name="eval_metrics_present",
+            passed=bool(model.eval_metrics),
+            message="评估指标存在" if model.eval_metrics else "缺少评估指标",
+            severity="warning" if not model.eval_metrics else "info",
+        ),
+        PreflightCheckResult(
+            name="description_present",
+            passed=bool(model.description),
+            message="描述已填写" if model.description else "缺少发布说明",
+            severity="info",
+        ),
+        PreflightCheckResult(
+            name="changelog_present",
+            passed=bool(model.changelog),
+            message="变更记录已填写" if model.changelog else "缺少变更日志",
+            severity="info",
+        ),
+        PreflightCheckResult(
+            name="status_ready",
+            passed=model.status in [ModelStatus.DRAFT, ModelStatus.TESTING, ModelStatus.STAGING],
+            message="状态可发布" if model.status in [ModelStatus.DRAFT, ModelStatus.TESTING, ModelStatus.STAGING] else "当前状态不可发布",
+            severity="error" if model.status not in [ModelStatus.DRAFT, ModelStatus.TESTING, ModelStatus.STAGING] else "info",
+        ),
+    ]
+
+    test_sample_count = 0
+    if model.eval_metrics and isinstance(model.eval_metrics, dict):
+        test_sample_count = int(model.eval_metrics.get("test_samples") or model.eval_metrics.get("sample_count") or model.eval_metrics.get("n_samples") or 0)
+    eval_q = select(func.count()).select_from(EvaluationResult).where(EvaluationResult.model_id == model_id)
+    eval_result = (await db.execute(eval_q)).scalar_one() or 0
+    total_test_samples = max(test_sample_count, eval_result)
+    coverage_passed = total_test_samples >= 20
+    checks.append(PreflightCheckResult(
+        name="test_coverage_pass",
+        passed=coverage_passed,
+        message=f"测试样本数达标({total_test_samples}>=20)" if coverage_passed else f"测试样本数不足({total_test_samples}<20)",
+        severity="warning" if not coverage_passed else "info",
+    ))
+
+    improvement_passed = True
+    improvement_message = "无父版本，跳过对比"
+    if model.parent_version_id:
+        parent_q = select(ModelVersion).where(ModelVersion.id == model.parent_version_id)
+        parent = (await db.execute(parent_q)).scalar_one_or_none()
+        if parent:
+            current_f1 = 0.0
+            parent_f1 = 0.0
+            if model.eval_metrics and isinstance(model.eval_metrics, dict):
+                current_f1 = float(model.eval_metrics.get("f1") or model.eval_metrics.get("f1_score") or 0.0)
+            if parent.eval_metrics and isinstance(parent.eval_metrics, dict):
+                parent_f1 = float(parent.eval_metrics.get("f1") or parent.eval_metrics.get("f1_score") or 0.0)
+            f1_diff = current_f1 - parent_f1
+            improvement_passed = f1_diff > 0.02
+            improvement_message = f"F1提升{f1_diff:.4f}{'(>0.02，达标)' if improvement_passed else '(<=0.02，未达标)'}"
+        else:
+            improvement_passed = False
+            improvement_message = "父版本不存在"
+    checks.append(PreflightCheckResult(
+        name="significant_improvement",
+        passed=improvement_passed,
+        message=improvement_message,
+        severity="warning" if not improvement_passed and model.parent_version_id else "info",
+    ))
+
+    all_passed = all(c.passed for c in checks if c.severity != "info")
+    return BaseResponse(
+        data=PreflightResponse(model_id=model_id, all_passed=all_passed, checks=checks),
+        message="发布前检查完成",
+    )

@@ -9,7 +9,7 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.models.dataset import DatasetSample, SampleStatus
+from app.models.dataset import DatasetSample, ErrorSample, SampleStatus
 from app.models.user import User
 from app.schemas.base import BaseResponse, PageResponse
 from app.schemas.review import (
@@ -284,4 +284,146 @@ async def get_review_stats(
             reviewer_stats=reviewer_stats,
         ),
         message="统计完成",
+    )
+
+
+@router.get("/statistics", response_model=BaseResponse[dict])
+async def review_statistics(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pending_q = select(func.count()).select_from(DatasetSample).where(
+        DatasetSample.status.in_([SampleStatus.PENDING_REVIEW, SampleStatus.REVIEWING])
+    )
+    pending_r = await db.execute(pending_q)
+    total_pending = pending_r.scalar_one() or 0
+
+    approved_q = select(func.count()).select_from(DatasetSample).where(
+        DatasetSample.status == SampleStatus.APPROVED
+    )
+    approved_r = await db.execute(approved_q)
+    total_approved = approved_r.scalar_one() or 0
+
+    rejected_q = select(func.count()).select_from(DatasetSample).where(
+        DatasetSample.status == SampleStatus.REJECTED
+    )
+    rejected_r = await db.execute(rejected_q)
+    total_rejected = rejected_r.scalar_one() or 0
+
+    avg_q = select(func.avg(DatasetSample.quality_score)).select_from(DatasetSample)
+    avg_r = await db.execute(avg_q)
+    avg_quality_score = avg_r.scalar_one() or 0.0
+
+    total_err_q = select(func.count()).select_from(ErrorSample)
+    total_err_r = await db.execute(total_err_q)
+    total_error_samples = total_err_r.scalar_one() or 0
+
+    open_err_q = select(func.count()).select_from(ErrorSample).where(
+        ErrorSample.status == "open"
+    )
+    open_err_r = await db.execute(open_err_q)
+    open_error_samples = open_err_r.scalar_one() or 0
+
+    reviewer_ids_q = select(DatasetSample.reviewer_id).where(
+        DatasetSample.reviewer_id.isnot(None)
+    ).distinct()
+    reviewer_ids_r = await db.execute(reviewer_ids_q)
+    reviewer_ids = [rid for rid in reviewer_ids_r.scalars().all() if rid]
+
+    reviewers = []
+    for rid in reviewer_ids:
+        rev_pending_q = select(func.count()).select_from(DatasetSample).where(
+            and_(
+                DatasetSample.reviewer_id == rid,
+                DatasetSample.status.in_([SampleStatus.PENDING_REVIEW, SampleStatus.REVIEWING]),
+            )
+        )
+        rev_pending_r = await db.execute(rev_pending_q)
+        pending_count = rev_pending_r.scalar_one() or 0
+
+        rev_completed_q = select(func.count()).select_from(DatasetSample).where(
+            and_(
+                DatasetSample.reviewer_id == rid,
+                DatasetSample.status.in_([SampleStatus.APPROVED, SampleStatus.REJECTED]),
+            )
+        )
+        rev_completed_r = await db.execute(rev_completed_q)
+        completed_count = rev_completed_r.scalar_one() or 0
+
+        rev_avg_q = select(func.avg(DatasetSample.quality_score)).select_from(DatasetSample).where(
+            and_(
+                DatasetSample.reviewer_id == rid,
+                DatasetSample.status.in_([SampleStatus.APPROVED, SampleStatus.REJECTED]),
+            )
+        )
+        rev_avg_r = await db.execute(rev_avg_q)
+        avg_quality = rev_avg_r.scalar_one() or 0.0
+
+        user_q = select(User.username, User.nickname, User.full_name).where(User.id == rid)
+        user_r = await db.execute(user_q)
+        user_row = user_r.first()
+        reviewer_name = None
+        if user_row:
+            reviewer_name = user_row[2] or user_row[1] or user_row[0]
+
+        reviewers.append({
+            "reviewer_id": rid,
+            "reviewer_name": reviewer_name,
+            "pending_count": pending_count,
+            "completed_count": completed_count,
+            "avg_quality": float(avg_quality) if avg_quality else 0.0,
+        })
+
+    return BaseResponse(
+        data={
+            "total_pending": total_pending,
+            "total_approved": total_approved,
+            "total_rejected": total_rejected,
+            "avg_quality_score": float(avg_quality_score) if avg_quality_score else 0.0,
+            "total_error_samples": total_error_samples,
+            "open_error_samples": open_error_samples,
+            "reviewers": reviewers,
+        },
+        message="审核统计获取成功",
+    )
+
+
+@router.post("/tasks/{sample_id}/start", response_model=BaseResponse[dict])
+async def start_review_task(
+    sample_id: int,
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(DatasetSample).where(DatasetSample.id == sample_id)
+    )
+    sample = result.scalar_one_or_none()
+    if not sample:
+        raise HTTPException(status_code=404, detail="样本不存在")
+
+    if sample.status not in [SampleStatus.PENDING_REVIEW, SampleStatus.REVIEWING]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"样本状态不允许开始审核，当前状态: {sample.status.value if hasattr(sample.status, 'value') else str(sample.status)}",
+        )
+
+    reviewer_id = body.get("reviewer_id")
+    sample.status = SampleStatus.REVIEWING
+    if reviewer_id is not None:
+        sample.reviewer_id = reviewer_id
+    sample.reviewed_at = datetime.utcnow()
+
+    await db.commit()
+    await db.refresh(sample)
+
+    return BaseResponse(
+        data={
+            "sample_id": sample.id,
+            "status": sample.status.value if hasattr(sample.status, "value") else str(sample.status),
+            "reviewer_id": sample.reviewer_id,
+            "locked_at": sample.reviewed_at,
+            "locked": True,
+        },
+        message="审核任务已启动",
     )

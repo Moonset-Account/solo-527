@@ -1,10 +1,9 @@
-from app.core.database import SyncSessionLocal as SessionLocal, init_db; init_db()
-
 import hashlib
 import random
 import uuid
 from datetime import datetime, timedelta
 
+# 先导入所有模型，让SQLAlchemy Base.metadata收集到表定义
 from app.models.user import User, UserRole
 from app.models.contract import (
     ContractDocument, ContractClause, ContractSummary, RiskAlert,
@@ -22,6 +21,10 @@ from app.models.task import (
     TaskStatus, TaskPriority, TaskType as TaskTaskType,
     FeedbackType, AlertType, AlertSeverity, AuditAction
 )
+
+# 现在再建表
+from app.core.database import SyncSessionLocal as SessionLocal, init_db
+init_db()
 
 
 PASSWORD_HASH = hashlib.sha256("test123456".encode()).hexdigest()
@@ -559,7 +562,7 @@ def seed_risks(db, contracts, all_clauses, model_version):
                 risk_level=risk_level,
                 risk_score=risk_score,
                 title=title,
-                description=title,
+                description=f"{title} [匹配规则: {', '.join(matched_rules)}]",
                 suggestion=suggestion,
                 rule_id=",".join(matched_rules),
                 source_paragraph=src_para,
@@ -572,7 +575,6 @@ def seed_risks(db, contracts, all_clauses, model_version):
                 confidence=confidence,
                 status="pending",
                 false_positive=False,
-                extra_metadata={"matched_rule_ids": matched_rule_ids_json},
                 created_at=contract.created_at + timedelta(hours=3, minutes=random.randint(1, 45)),
             )
             db.add(risk)
