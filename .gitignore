@@ -1,0 +1,28 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env
+.env
+.env.test
+.env.local
+
+# Data
+data/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+uploads/
+
+# Temp
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Logs
+*.log

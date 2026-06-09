@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会议行动项提取系统 | Meeting Action Extractor</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">MA</div>
+    <div>
+      <div class="logo-text">ActionExtractor</div>
+      <div class="logo-sub">会议行动项管理</div>
+    </div>
+  </div>
+  <div class="nav" id="nav">
+    <div class="nav-section">工作台</div>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="nav-icon">*</span><span>仪表盘</span>
+    </div>
+    <div class="nav-item" data-page="meetings">
+      <span class="nav-icon">@</span><span>会议管理</span>
+    </div>
+    <div class="nav-item" data-page="actions">
+      <span class="nav-icon">+</span><span>行动项</span>
+    </div>
+    <div class="nav-item" data-page="workbench">
+      <span class="nav-icon">?</span><span>标注工作台</span>
+      <span class="badge badge-pending" id="pendingCount" style="margin-left:auto;font-size:11px;">0</span>
+    </div>
+
+    <div class="nav-section">模型管理</div>
+    <div class="nav-item" data-page="models">
+      <span class="nav-icon">#</span><span>模型注册</span>
+    </div>
+    <div class="nav-item" data-page="samples">
+      <span class="nav-icon">=</span><span>样本验证</span>
+    </div>
+    <div class="nav-item" data-page="rollback">
+      <span class="nav-icon"><</span><span>回滚审计</span>
+    </div>
+
+    <div class="nav-section">系统</div>
+    <div class="nav-item" data-page="monitor">
+      <span class="nav-icon">~</span><span>监控面板</span>
+    </div>
+    <div class="nav-item" data-page="api-docs">
+      <span class="nav-icon">&</span><span>API 接口</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="mb-2">项目经理专属工具</div>
+    <div><span class="version-tag">v1.0.0</span> <span class="text-muted">谨慎模式</span></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="header">
+    <div class="header-left">
+      <div>
+        <div class="page-title" id="pageTitle">仪表盘</div>
+        <div class="page-sub" id="pageSub">全局概览与快速入口</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-indicator" id="systemStatus">
+        <span class="status-dot"></span><span>系统运行中</span>
+      </div>
+      <button class="btn btn-primary" onclick="showImportModal()">导入转写</button>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script src="./pages.js"></script>
+<script src="./pages2.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
