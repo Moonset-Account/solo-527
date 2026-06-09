@@ -1,0 +1,122 @@
+{
+  "id": "level-008",
+  "order": 8,
+  "name": "综合挑战：三组灯",
+  "description": "恭喜你来到最终挑战！你需要设计一个包含3个灯泡、2个开关和至少1个电阻的电路。要求：开关1控制灯泡1，开关2同时控制灯泡2和灯泡3，同时整个电路必须有电阻保护。合理设计，展示你学到的所有电路知识！",
+  "difficulty": "hard",
+  "prerequisites": ["level-007"],
+  "availableComponents": ["battery", "bulb", "resistor", "switch", "capacitor", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 80, "y": 320 },
+      "rotation": 0,
+      "properties": { "voltage": 9 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 40, "y": 320 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 120, "y": 320 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-1",
+      "type": "bulb",
+      "position": { "x": 580, "y": 160 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-1-p1", "componentId": "pre-bulb-1", "position": { "x": 540, "y": 160 } },
+        { "id": "pre-bulb-1-p2", "componentId": "pre-bulb-1", "position": { "x": 620, "y": 160 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-2",
+      "type": "bulb",
+      "position": { "x": 580, "y": 320 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-2-p1", "componentId": "pre-bulb-2", "position": { "x": 540, "y": 320 } },
+        { "id": "pre-bulb-2-p2", "componentId": "pre-bulb-2", "position": { "x": 620, "y": 320 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-3",
+      "type": "bulb",
+      "position": { "x": 580, "y": 480 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-3-p1", "componentId": "pre-bulb-3", "position": { "x": 540, "y": 480 } },
+        { "id": "pre-bulb-3-p2", "componentId": "pre-bulb-3", "position": { "x": 620, "y": 480 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1", "pre-bulb-1", "pre-bulb-2", "pre-bulb-3"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "component_count",
+      "params": { "exact": 2, "componentType": "switch" },
+      "description": "使用恰好2个开关"
+    },
+    {
+      "id": "obj-2",
+      "type": "component_count",
+      "params": { "min": 1, "componentType": "resistor" },
+      "description": "电路中至少包含1个电阻"
+    },
+    {
+      "id": "obj-3",
+      "type": "specific_bulbs_lit",
+      "params": { "bulbIds": ["pre-bulb-1", "pre-bulb-2", "pre-bulb-3"] },
+      "description": "所有开关都闭合时，3个灯泡全部点亮"
+    },
+    {
+      "id": "obj-4",
+      "type": "all_switches_used",
+      "params": {},
+      "description": "所有闭合的开关都有电流通过"
+    },
+    {
+      "id": "obj-5",
+      "type": "no_short_circuit",
+      "params": {},
+      "description": "电路无短路"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "specific_bulbs_lit",
+        "params": { "bulbIds": ["pre-bulb-1", "pre-bulb-2", "pre-bulb-3"] },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 12, "componentType": "wire" },
+        "description": "使用12根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "需要两条并联的分路：分路1包含开关1和灯泡1；分路2包含开关2、灯泡2和灯泡3。", "highlightComponentIds": ["pre-bulb-1", "pre-bulb-2", "pre-bulb-3"] },
+    { "id": "hint-2", "step": 2, "text": "分路2中的灯泡2和灯泡3可以串联或并联——串联更简单，并联亮度更高。", "highlightComponentIds": ["pre-bulb-2", "pre-bulb-3"] },
+    { "id": "hint-3", "step": 3, "text": "电阻可以放在主路（两条分路共用的路径）上，这样同时保护所有灯泡。", "highlightComponentIds": ["pre-battery-1"] }
+  ]
+}

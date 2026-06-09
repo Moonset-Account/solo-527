@@ -1,0 +1,88 @@
+{
+  "id": "level-003",
+  "order": 3,
+  "name": "加入电阻",
+  "description": "电阻可以限制电流，保护灯泡不被烧毁。请将电池、电阻和灯泡串联起来。电阻能保护灯泡。从元件库拖出电阻，设计一个包含电阻的保护电路。",
+  "difficulty": "easy",
+  "prerequisites": ["level-002"],
+  "availableComponents": ["battery", "bulb", "resistor", "switch", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 140, "y": 280 },
+      "rotation": 0,
+      "properties": { "voltage": 6 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 100, "y": 280 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 180, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-1",
+      "type": "bulb",
+      "position": { "x": 600, "y": 280 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-1-p1", "componentId": "pre-bulb-1", "position": { "x": 560, "y": 280 } },
+        { "id": "pre-bulb-1-p2", "componentId": "pre-bulb-1", "position": { "x": 640, "y": 280 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1", "pre-bulb-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "bulb_lit",
+      "params": { "count": 1 },
+      "description": "让灯泡点亮"
+    },
+    {
+      "id": "obj-2",
+      "type": "component_count",
+      "params": { "min": 1, "componentType": "resistor" },
+      "description": "电路中至少包含1个电阻"
+    },
+    {
+      "id": "obj-3",
+      "type": "no_short_circuit",
+      "params": {},
+      "description": "电路无短路"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 1 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 4, "componentType": "wire" },
+        "description": "使用4根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "从左侧元件库拖出一个电阻放到画布中间。" },
+    { "id": "hint-2", "step": 2, "text": "把电池、电阻、灯泡依次串联，顺序不影响效果。", "highlightComponentIds": ["pre-battery-1", "pre-bulb-1"] },
+    { "id": "hint-3", "step": 3, "text": "最后连回电池形成闭合回路。如果灯泡太亮，可以加个开关控制通断。" }
+  ]
+}

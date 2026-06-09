@@ -1,0 +1,71 @@
+{
+  "id": "level-005",
+  "order": 5,
+  "name": "两个灯泡并联",
+  "description": "串联和并联是两种基本的电路连接方式。这次让两个灯泡并联连接——每个灯泡都有自己独立的电流路径，两端都直接连接到电池的正负极上。",
+  "difficulty": "easy",
+  "prerequisites": ["level-004"],
+  "availableComponents": ["battery", "bulb", "resistor", "switch", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 120, "y": 320 },
+      "rotation": 0,
+      "properties": { "voltage": 6 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 80, "y": 320 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 160, "y": 320 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "bulb_lit",
+      "params": { "count": 2 },
+      "description": "让2个灯泡同时点亮"
+    },
+    {
+      "id": "obj-2",
+      "type": "no_short_circuit",
+      "params": {},
+      "description": "电路无短路"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 2 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 6, "componentType": "wire" },
+        "description": "使用6根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "把两个灯泡上下放置在电池右侧。" },
+    { "id": "hint-2", "step": 2, "text": "并联的关键：两个灯泡的同一侧端点都连到电池正极，另一侧都连到电池负极。", "highlightComponentIds": ["pre-battery-1"] },
+    { "id": "hint-3", "step": 3, "text": "可以想象成两条并排的高速公路，电流各走各的路。" }
+  ]
+}

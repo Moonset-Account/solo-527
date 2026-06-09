@@ -1,0 +1,105 @@
+{
+  "id": "level-007",
+  "order": 7,
+  "name": "电容充放电",
+  "description": "电容是一种能储存电能的元件。当电容接入电路时会充电，就像一个小电池。在简化模型中，充电时可以看到灯泡先亮一下，然后暗下去。请构建一个包含电容、电阻和灯泡的充放电演示电路。",
+  "difficulty": "medium",
+  "prerequisites": ["level-006"],
+  "availableComponents": ["battery", "bulb", "resistor", "switch", "capacitor", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 100, "y": 280 },
+      "rotation": 0,
+      "properties": { "voltage": 6 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 60, "y": 280 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 140, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-switch-1",
+      "type": "switch",
+      "position": { "x": 300, "y": 280 },
+      "rotation": 0,
+      "properties": { "closed": false },
+      "ports": [
+        { "id": "pre-switch-1-p1", "componentId": "pre-switch-1", "position": { "x": 260, "y": 280 } },
+        { "id": "pre-switch-1-p2", "componentId": "pre-switch-1", "position": { "x": 340, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-1",
+      "type": "bulb",
+      "position": { "x": 620, "y": 280 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-1-p1", "componentId": "pre-bulb-1", "position": { "x": 580, "y": 280 } },
+        { "id": "pre-bulb-1-p2", "componentId": "pre-bulb-1", "position": { "x": 660, "y": 280 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1", "pre-switch-1", "pre-bulb-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "component_count",
+      "params": { "min": 1, "componentType": "capacitor" },
+      "description": "电路中至少包含1个电容"
+    },
+    {
+      "id": "obj-2",
+      "type": "component_count",
+      "params": { "min": 1, "componentType": "resistor" },
+      "description": "电路中至少包含1个电阻"
+    },
+    {
+      "id": "obj-3",
+      "type": "bulb_lit",
+      "params": { "count": 1 },
+      "description": "灯泡可以被点亮"
+    },
+    {
+      "id": "obj-4",
+      "type": "no_short_circuit",
+      "params": {},
+      "description": "电路无短路"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 1 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 7, "componentType": "wire" },
+        "description": "使用7根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "从元件库拖出电容和电阻。可以把电容与灯泡串联或并联。", "highlightComponentIds": ["pre-switch-1", "pre-bulb-1"] },
+    { "id": "hint-2", "step": 2, "text": "建议：电容与灯泡并联，整体再与电阻串联。这样充电时电流先从电容经过。", "highlightComponentIds": ["pre-battery-1"] },
+    { "id": "hint-3", "step": 3, "text": "断开开关后，电容放电时电容储存的电会通过灯泡释放——这就是电容充放电概念！" }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "id": "level-001",
+  "order": 1,
+  "name": "点亮第一个灯泡",
+  "description": "欢迎来到电路实验室！电池和灯泡已经放在画布上了。你的任务是用导线连接它们，让灯泡亮起来。点击元件两端的端点来绘制导线。",
+  "difficulty": "tutorial",
+  "prerequisites": [],
+  "availableComponents": ["battery", "bulb", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 200, "y": 280 },
+      "rotation": 0,
+      "properties": { "voltage": 3 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 160, "y": 280 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 240, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-1",
+      "type": "bulb",
+      "position": { "x": 480, "y": 280 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-1-p1", "componentId": "pre-bulb-1", "position": { "x": 440, "y": 280 } },
+        { "id": "pre-bulb-1-p2", "componentId": "pre-bulb-1", "position": { "x": 520, "y": 280 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1", "pre-bulb-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "bulb_lit",
+      "params": { "count": 1 },
+      "description": "让至少1个灯泡点亮"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 1 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 2, "componentType": "wire" },
+        "description": "只使用2根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "电池有两个端点（正极和负极），灯泡也有两个端点。", "highlightComponentIds": ["pre-battery-1", "pre-bulb-1"] },
+    { "id": "hint-2", "step": 2, "text": "用导线把电池的一个端点连到灯泡的一个端点。", "highlightComponentIds": ["pre-battery-1", "pre-bulb-1"] },
+    { "id": "hint-3", "step": 3, "text": "再用另一根导线连接剩余的两个端点，形成闭合回路。" }
+  ],
+  "tutorialSteps": [
+    {
+      "id": "tut-1",
+      "step": 1,
+      "title": "认识电池",
+      "description": "这是电池，它提供电能。注意它有两个端点，分别是正极和负极。",
+      "action": "观察电池的位置和端点",
+      "highlightComponentIds": ["pre-battery-1"]
+    },
+    {
+      "id": "tut-2",
+      "step": 2,
+      "title": "认识灯泡",
+      "description": "这是灯泡，当电流通过它时会发光。它也有两个端点。",
+      "action": "观察灯泡的位置和端点",
+      "highlightComponentIds": ["pre-bulb-1"]
+    },
+    {
+      "id": "tut-3",
+      "step": 3,
+      "title": "连接导线",
+      "description": "从左侧元件库选择导线工具，或直接点击端点开始连线。把电池和灯泡连起来，形成一个闭合的回路！",
+      "action": "用导线连接电池和灯泡"
+    }
+  ]
+}

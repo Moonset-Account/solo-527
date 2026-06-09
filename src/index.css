@@ -1,0 +1,234 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ========== Screw decoration utility classes ========== */
+.panel-frame {
+  position: relative;
+  border: 1px solid #2d3a5c;
+  background: linear-gradient(180deg, #16213e 0%, #1a1a2e 100%);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 4px 20px rgba(0,0,0,0.4);
+}
+.panel-frame::before,
+.panel-frame::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, #4a5578 0%, #1f2937 70%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+  pointer-events: none;
+}
+.panel-frame::before {
+  top: 6px; left: 6px;
+}
+.panel-frame::after {
+  bottom: 6px; right: 6px;
+}
+
+.screw-corner {
+  background:
+    radial-gradient(circle at 30% 30%, #4a5578 0%, #1f2937 70%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+/* ========== Retro pixel button styles ========== */
+.btn-retro {
+  @apply px-4 py-2.5 rounded-md font-medium transition-all duration-150 relative;
+  @apply border border-t-2 border-b-4 border-r-2 border-l-2;
+  @apply border-circuit-border border-t-circuit-bgLight border-b-circuit-board;
+  @apply bg-circuit-panel text-white/90 hover:bg-circuit-bgLight hover:text-white;
+  @apply active:translate-y-[2px] active:border-b-2;
+  @apply hover:shadow-neon transition-shadow duration-200;
+}
+.btn-retro-primary {
+  @apply btn-retro;
+  @apply bg-circuit-current/15 border-circuit-current/50 border-t-circuit-current/70;
+  @apply text-circuit-current hover:bg-circuit-current/25;
+}
+.btn-retro-warn {
+  @apply btn-retro;
+  @apply bg-circuit-error/15 border-circuit-error/50 border-t-circuit-error/70;
+  @apply text-circuit-error hover:bg-circuit-error/25;
+}
+.btn-retro-accent {
+  @apply btn-retro;
+  @apply bg-circuit-bulb/15 border-circuit-bulb/50 border-t-circuit-bulb/70;
+  @apply text-circuit-bulb hover:bg-circuit-bulb/25;
+}
+
+/* ========== Animated grid background ========== */
+.bg-dot-grid {
+  background-image: radial-gradient(#2d3a5c 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.bg-animated-dots {
+  background-image: radial-gradient(#2d3a5c 1px, transparent 1px);
+  background-size: 24px 24px;
+  animation: gridShift 24s linear infinite;
+}
+@keyframes gridShift {
+  from { background-position: 0 0; }
+  to { background-position: 240px 480px; }
+}
+
+/* ========== Glow text ========== */
+.glow-neon {
+  text-shadow:
+    0 0 8px rgba(0,212,255,0.7),
+    0 0 20px rgba(0,212,255,0.35),
+    0 0 40px rgba(0,212,255,0.18);
+}
+.glow-bulb {
+  text-shadow:
+    0 0 8px rgba(255,179,71,0.7),
+    0 0 20px rgba(255,179,71,0.35);
+}
+
+/* ========== Star styles ========== */
+.star-lit {
+  color: #ffb347;
+  filter: drop-shadow(0 0 10px rgba(255,179,71,0.7));
+}
+.star-dim {
+  color: #2d3a5c;
+}
+
+/* ========== Toggle switch ========== */
+.toggle-switch {
+  @apply relative w-11 h-6 rounded-full transition-all duration-200;
+  background: #2d3a5c;
+  border: 1px solid #3a4a72;
+}
+.toggle-switch.on {
+  background: linear-gradient(180deg, rgba(0,212,255,0.4), rgba(0,212,255,0.15));
+  border-color: rgba(0,212,255,0.6);
+  box-shadow: 0 0 10px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.toggle-switch-knob {
+  @apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-all duration-200;
+  background: linear-gradient(180deg, #e5e7eb, #9ca3af);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.toggle-switch.on .toggle-switch-knob {
+  transform: translateX(20px);
+  background: linear-gradient(180deg, #ffffff, #00d4ff);
+}
+
+/* ========== Neon range slider ========== */
+input[type='range'].neon-range {
+  @apply w-full h-2 rounded-full appearance-none cursor-pointer;
+  background: linear-gradient(90deg, #00d4ff var(--val,50%), #2d3a5c var(--val,50%));
+}
+input[type='range'].neon-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #00d4ff 70%);
+  box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  cursor: pointer;
+  border: 2px solid #1a1a2e;
+}
+input[type='range'].neon-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #00d4ff 70%);
+  box-shadow: 0 0 10px rgba(0,212,255,0.8);
+  cursor: pointer;
+  border: 2px solid #1a1a2e;
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3a5c;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4a72;
+}
+
+/* ========== Drag preview ========== */
+[draggable='true'] {
+  -webkit-user-drag: element;
+}
+
+/* ========== Circuit decorative wave ========== */
+.circuit-wave {
+  background:
+    linear-gradient(90deg, transparent 0%, #00d4ff 50%, transparent 100%);
+  height: 2px;
+  opacity: 0.4;
+  mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 20%, black 80%, transparent 100%);
+}
+
+/* ========== Flicker bulb animation ========== */
+.animate-flicker-slow {
+  animation: flickerSlow 3.5s ease-in-out infinite;
+}
+@keyframes flickerSlow {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 0.85; }
+  48% { opacity: 0.4; }
+  49% { opacity: 0.95; }
+  92% { opacity: 0.9; }
+  93% { opacity: 0.5; }
+  94% { opacity: 1; }
+}
+
+canvas {
+  display: block;
+}
+
+canvas:focus {
+  outline: none;
+}
+
+/* Vignette canvas darken edges */
+.canvas-vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%);
+}

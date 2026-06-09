@@ -1,0 +1,118 @@
+{
+  "id": "level-002",
+  "order": 2,
+  "name": "认识开关",
+  "description": "开关可以控制电路的通断。电池、开关和灯泡都已经放好了。先把它们用导线连起来，然后点击开关让它闭合，看看会发生什么！",
+  "difficulty": "tutorial",
+  "prerequisites": ["level-001"],
+  "availableComponents": ["battery", "bulb", "switch", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 160, "y": 280 },
+      "rotation": 0,
+      "properties": { "voltage": 3 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 120, "y": 280 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 200, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-switch-1",
+      "type": "switch",
+      "position": { "x": 360, "y": 280 },
+      "rotation": 0,
+      "properties": { "closed": false },
+      "ports": [
+        { "id": "pre-switch-1-p1", "componentId": "pre-switch-1", "position": { "x": 320, "y": 280 } },
+        { "id": "pre-switch-1-p2", "componentId": "pre-switch-1", "position": { "x": 400, "y": 280 } }
+      ]
+    },
+    {
+      "id": "pre-bulb-1",
+      "type": "bulb",
+      "position": { "x": 560, "y": 280 },
+      "rotation": 0,
+      "properties": { "resistance": 10, "powerThreshold": 0.1 },
+      "ports": [
+        { "id": "pre-bulb-1-p1", "componentId": "pre-bulb-1", "position": { "x": 520, "y": 280 } },
+        { "id": "pre-bulb-1-p2", "componentId": "pre-bulb-1", "position": { "x": 600, "y": 280 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1", "pre-switch-1", "pre-bulb-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "bulb_lit",
+      "params": { "count": 1 },
+      "description": "闭合开关后灯泡点亮"
+    },
+    {
+      "id": "obj-2",
+      "type": "all_switches_used",
+      "params": {},
+      "description": "所有开关都有电流通过"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 1 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 3, "componentType": "wire" },
+        "description": "只使用3根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "开关有两个端点，就像其他元件一样。", "highlightComponentIds": ["pre-switch-1"] },
+    { "id": "hint-2", "step": 2, "text": "电池→开关→灯泡→电池，形成一个串联回路。", "highlightComponentIds": ["pre-battery-1", "pre-switch-1", "pre-bulb-1"] },
+    { "id": "hint-3", "step": 3, "text": "连接好导线后，点击开关让它闭合（状态变为ON）。" }
+  ],
+  "tutorialSteps": [
+    {
+      "id": "tut-1",
+      "step": 1,
+      "title": "认识开关",
+      "description": "这是开关。点击它可以切换闭合(ON)和断开(OFF)状态。当开关断开时，电流无法通过。",
+      "action": "观察开关的状态",
+      "highlightComponentIds": ["pre-switch-1"]
+    },
+    {
+      "id": "tut-2",
+      "step": 2,
+      "title": "串联所有元件",
+      "description": "把电池、开关、灯泡依次用导线串联起来，记住最后要回到电池形成闭合回路。",
+      "action": "用导线连接所有元件",
+      "highlightComponentIds": ["pre-battery-1", "pre-switch-1", "pre-bulb-1"]
+    },
+    {
+      "id": "tut-3",
+      "step": 3,
+      "title": "闭合开关",
+      "description": "电路连接好后，点击开关。如果一切正确，灯泡就会亮起来！",
+      "action": "点击开关切换到闭合状态"
+    }
+  ]
+}

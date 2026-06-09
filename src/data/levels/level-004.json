@@ -1,0 +1,71 @@
+{
+  "id": "level-004",
+  "order": 4,
+  "name": "两个灯泡串联",
+  "description": "让两个灯泡同时亮起来！把它们连成串联的电路设计得对吗？让两个灯泡在串联电路中，两个灯泡一个接一个连接。把电池、灯泡1、灯泡2依次连接，连成一条线。",
+  "difficulty": "easy",
+  "prerequisites": ["level-003"],
+  "availableComponents": ["battery", "bulb", "resistor", "switch", "wire"],
+  "preplacedComponents": [
+    {
+      "id": "pre-battery-1",
+      "type": "battery",
+      "position": { "x": 120, "y": 280 },
+      "rotation": 0,
+      "properties": { "voltage": 6 },
+      "ports": [
+        { "id": "pre-battery-1-p1", "componentId": "pre-battery-1", "position": { "x": 80, "y": 280 } },
+        { "id": "pre-battery-1-p2", "componentId": "pre-battery-1", "position": { "x": 160, "y": 280 } }
+      ]
+    }
+  ],
+  "fixedComponents": ["pre-battery-1"],
+  "objectives": [
+    {
+      "id": "obj-1",
+      "type": "bulb_lit",
+      "params": { "count": 2 },
+      "description": "让2个灯泡同时点亮"
+    },
+    {
+      "id": "obj-2",
+      "type": "no_short_circuit",
+      "params": {},
+      "description": "电路无短路"
+    }
+  ],
+  "starConditions": [
+    {
+      "stars": 1,
+      "condition": {
+        "id": "star-1",
+        "type": "bulb_lit",
+        "params": { "count": 2 },
+        "description": "完成关卡"
+      }
+    },
+    {
+      "stars": 2,
+      "condition": {
+        "id": "star-2",
+        "type": "component_count",
+        "params": { "max": 5, "componentType": "wire" },
+        "description": "使用5根或更少的导线"
+      }
+    },
+    {
+      "stars": 3,
+      "condition": {
+        "id": "star-3",
+        "type": "no_short_circuit",
+        "params": {},
+        "description": "全程无短路错误"
+      }
+    }
+  ],
+  "hints": [
+    { "id": "hint-1", "step": 1, "text": "从元件库拖出两个灯泡，放在电池右侧。" },
+    { "id": "hint-2", "step": 2, "text": "串联：电流只有一条路径。电池→灯泡1→灯泡2→电池。", "highlightComponentIds": ["pre-battery-1"] },
+    { "id": "hint-3", "step": 3, "text": "如果想加开关控制整个电路，把开关接在主路径上。" }
+  ]
+}
