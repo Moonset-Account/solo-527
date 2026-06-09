@@ -109,17 +109,39 @@ namespace BalloonPost.Core
             Player = new PlayerState
             {
                 Position = AxialCoord.Zero,
-                Fuel = 50,
-                MaxFuel = 80,
-                Money = 200,
-                MaxCarryWeight = 20,
+                Fuel = 70,
+                MaxFuel = 100,
+                Money = 300,
+                MaxCarryWeight = 25,
                 CurrentWeight = 0,
                 CurrentTurn = 0,
                 Reputation = 100
             };
             ContractManager = new ContractManager(Grid, 5, seed);
             ContractManager.CreateTutorialContract3(Grid);
+
+            ContractManager.ContractCounter++;
+            string id2 = $"TUT-0003B";
+            var coordB = new AxialCoord(-2, 3);
+            string from2 = Grid.GetCell(AxialCoord.Zero)?.TownName ?? "邮局总站";
+            string to2 = Grid.GetCell(coordB)?.TownName ?? "暮光城";
+            var extraB = Contract.CreateNormal(id2, from2, to2, AxialCoord.Zero, coordB, 90);
+            extraB.Description = "【普通邮件】邮局总站 → 暮光城，优先级较低，顺路可送";
+            ContractManager.AllContracts.Add(extraB);
+            ContractManager.PendingContracts.Add(extraB);
+
+            ContractManager.ContractCounter++;
+            string id3 = $"TUT-0003C";
+            var coordC = new AxialCoord(0, -4);
+            string to3 = Grid.GetCell(coordC)?.TownName ?? "晨雾港";
+            var extraC = Contract.CreateFragile(id3, from2, to3, AxialCoord.Zero, coordC, 110, 2);
+            extraC.Description = "【易碎品】邮局总站 → 晨雾港，小心轻放，不要走山地和逆风";
+            ContractManager.AllContracts.Add(extraC);
+            ContractManager.PendingContracts.Add(extraC);
+
             ContractManager.AcceptContract("TUT-0003");
+            ContractManager.AcceptContract("TUT-0003B");
+            ContractManager.AcceptContract("TUT-0003C");
             ContractManager.MarkContractsInTransit();
 
             Planner = new RoutePlanner(Grid, WindManager, ContractManager, Player);

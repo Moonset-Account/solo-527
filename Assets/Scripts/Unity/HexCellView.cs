@@ -79,19 +79,19 @@ namespace BalloonPost.Unity
         {
             if (LabelMesh == null) return;
             string label = "";
-            if (cell.Terrain switch
+            switch (cell.Terrain)
             {
-                HexTerrain.PostOffice => "✉",
-                HexTerrain.Town => "🏘",
-                HexTerrain.Mountain => "⛰",
-                HexTerrain.Forest => "🌲",
-                HexTerrain.Lake => "💧",
-                HexTerrain.Storm => "🌪",
-                _ => ""
-            });
+                case HexTerrain.PostOffice: label = "✉"; break;
+                case HexTerrain.Town: label = "🏘"; break;
+                case HexTerrain.Mountain: label = "⛰"; break;
+                case HexTerrain.Forest: label = "🌲"; break;
+                case HexTerrain.Lake: label = "💧"; break;
+                case HexTerrain.Storm: label = "🌪"; break;
+                default: label = ""; break;
+            }
             if (!string.IsNullOrEmpty(cell.TownName))
             {
-                label += $"\n<size=10>{cell.TownName}</size>";
+                label += "\n" + cell.TownName;
             }
             LabelMesh.text = label;
         }

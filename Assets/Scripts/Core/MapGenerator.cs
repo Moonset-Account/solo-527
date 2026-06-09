@@ -35,12 +35,15 @@ namespace BalloonPost.Core
             grid.SetTerrain(AxialCoord.Zero, HexTerrain.PostOffice);
             grid.SetTownName(AxialCoord.Zero, "邮局总站");
 
-            var eastTown = new AxialCoord(2, 0);
+            var eastTown = new AxialCoord(3, 0);
             grid.SetTerrain(eastTown, HexTerrain.Town);
-            grid.SetTownName(eastTown, "云顶镇");
+            grid.SetTownName(eastTown, "清风镇");
 
-            var mid1 = new AxialCoord(1, 0);
-            grid.SetTerrain(mid1, HexTerrain.Plains);
+            var step1 = new AxialCoord(1, 0);
+            grid.SetTerrain(step1, HexTerrain.Plains);
+
+            var step2 = new AxialCoord(2, 0);
+            grid.SetTerrain(step2, HexTerrain.Plains);
 
             return grid;
         }

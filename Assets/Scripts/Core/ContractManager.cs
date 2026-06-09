@@ -94,12 +94,13 @@ namespace BalloonPost.Core
             ContractCounter++;
             string id = $"TUT-0001";
             var fromCoord = AxialCoord.Zero;
-            var toCoord = new AxialCoord(2, 0);
+            var toCoord = new AxialCoord(3, 0);
             string fromName = grid.GetCell(fromCoord)?.TownName ?? "邮局总站";
-            string toName = grid.GetCell(toCoord)?.TownName ?? "云顶镇";
+            string toName = grid.GetCell(toCoord)?.TownName ?? "清风镇";
 
-            var contract = Contract.CreateNormal(id, fromName, toName, fromCoord, toCoord, 80);
-            contract.Description = "【教程1】完成你的第一次准时投递！从邮局到云顶镇，任何时候到达都可以。";
+            var contract = Contract.CreateTimeSensitive(id, fromName, toName, fromCoord, toCoord, 100, 8);
+            contract.Description = "【教程1-准时投递】限时快递：邮局总站 → 清风镇，8回合内送达！提前送到有奖励哦～";
+            contract.PriorityWeight = 2;
 
             AllContracts.Add(contract);
             PendingContracts.Add(contract);
