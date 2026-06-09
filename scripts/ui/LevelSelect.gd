@@ -111,7 +111,7 @@ func _build_ui():
 	v_main.add_child(back_row)
 	var back: StyledButton = StyledButton.new("← 返回主菜单", Color(0.35, 0.25, 0.4), Color(0.5, 0.4, 0.55))
 	back.custom_minimum_size = Vector2(220, 48)
-	back.pressed.connect(func _():
+	back.pressed.connect(func ():
 		AudioManager.play_sfx("click")
 		emit_signal("back_clicked")
 	)

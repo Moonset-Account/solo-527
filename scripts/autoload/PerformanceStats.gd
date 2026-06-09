@@ -78,35 +78,11 @@ func _process(delta: float):
 		fps_label.text = "FPS: %.0f / %d (%s)" % [avg_fps, target_fps, quality]
 		fps_label.modulate = col
 		frame_time_label.text = "帧时间: %.1f ms" % [delta * 1000.0]
-		var dc_val: int = 0
-		var dc_ok: bool = false
-		var timing_data: Variant = Rendering.get_frame_timing_data()
-		if typeof(timing_data) == TYPE_DICTIONARY:
-			var td: Dictionary = timing_data
-			if td.has("draw_calls_in_frame"):
-				dc_val = int(td["draw_calls_in_frame"])
-				dc_ok = true
-		if dc_ok and dc_val > 0:
-			draw_calls_label.text = "绘制调用: %d" % dc_val
-		else:
-			var vert_count: int = 0
-			var vert_ok: bool = false
-			if Performance:
-				vert_ok = true
-				vert_count = int(Performance.get_monitor(0))
-			if vert_ok:
-				draw_calls_label.text = "顶点: %d" % vert_count
-			else:
-				draw_calls_label.text = "顶点: N/A"
-		var mem_mb: float = 0.0
-		var mem_ok: bool = false
-		if Performance:
-			mem_ok = true
-			mem_mb = float(Performance.get_monitor(1)) / (1024.0 * 1024.0)
-		if not mem_ok:
-			mem_mb = float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
+		var mem_mb: float = float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
 		mem_mb = min(mem_mb, 9999.0)
 		memory_label.text = "内存: %.1f MB" % mem_mb
+		var cpu_cores: int = int(OS.get_processor_count())
+		draw_calls_label.text = "CPU核心: " + str(cpu_cores)
 		_frame_count = 0
 		_fps_sum = 0.0
 		_update_timer = 0.0
@@ -116,3 +92,8 @@ func _on_save_changed():
 	set_process(enabled)
 	if canvas:
 		canvas.visible = enabled
+
+func get_current_fps() -> float:
+	if _frame_count > 0 and _fps_sum > 0:
+		return _fps_sum / float(_frame_count)
+	return Engine.get_frames_per_second()

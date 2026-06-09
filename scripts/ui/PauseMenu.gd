@@ -80,11 +80,11 @@ func _build_ui():
 
 func _on_resume():
 	AudioManager.play_sfx("click")
-	_close_animation(func _(): emit_signal("resumed"))
+	_close_animation(func (): emit_signal("resumed"))
 
 func _on_retry():
 	AudioManager.play_sfx("click")
-	_close_animation(func _(): emit_signal("retry_clicked"))
+	_close_animation(func (): emit_signal("retry_clicked"))
 
 func _on_settings():
 	AudioManager.play_sfx("click")
@@ -92,7 +92,7 @@ func _on_settings():
 
 func _on_back():
 	AudioManager.play_sfx("click")
-	_close_animation(func _(): emit_signal("back_to_title"))
+	_close_animation(func (): emit_signal("back_to_title"))
 
 func _close_animation(cb: Callable):
 	var tw: Tween = create_tween()

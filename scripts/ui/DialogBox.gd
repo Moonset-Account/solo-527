@@ -81,7 +81,7 @@ func _build_ui():
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var idx_copy: int = i
-		btn.pressed.connect(func _(ic=idx_copy): _select(ic))
+		btn.pressed.connect(func (ic=idx_copy): _select(ic))
 		mv.add_child(btn)
 
 func _select(idx: int):
@@ -92,7 +92,7 @@ func _select(idx: int):
 	var cur_ev: Dictionary = current_event
 	var ic: int = idx
 	tw.tween_callback(queue_free)
-	tw.tween_callback(func _(): emit_signal("choice_made", cur_ev, ic))
+	tw.tween_callback(func (): emit_signal("choice_made", cur_ev, ic))
 
 func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed and not event.echo:

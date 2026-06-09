@@ -195,13 +195,15 @@ func _show_settings_from_pause():
 	settings_screen = preload("res://scripts/ui/SettingsScreen.gd").new()
 	settings_screen.connect("closed", _on_settings_closed_from_pause)
 	add_child(settings_screen)
+	_change_state_temp = GameManager.GameState.PAUSED
 
-func _on_settings_closed():
-	GameManager.change_state(GameManager.GameState.TITLE)
-	settings_screen = null
+var _change_state_temp: int = -1
 
 func _on_settings_closed_from_pause():
 	settings_screen = null
+	if _change_state_temp >= 0:
+		GameManager.change_state(_change_state_temp)
+		_change_state_temp = -1
 	_check_work_available()
 
 func _on_skill_used(skill_idx: int):

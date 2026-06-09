@@ -150,7 +150,7 @@ func _build_ui():
 	mv.add_child(btn_h)
 	var retry: StyledButton = StyledButton.new("🔄 重试关卡", Color(0.55, 0.4, 0.15), Color(0.7, 0.55, 0.25))
 	retry.custom_minimum_size = Vector2(190, 52)
-	retry.pressed.connect(func _(): AudioManager.play_sfx("click"); _close_and(func _(): emit_signal("retry_clicked")))
+	retry.pressed.connect(func (): AudioManager.play_sfx("click"); _close_and(func (): emit_signal("retry_clicked")))
 	btn_h.add_child(retry)
 	var next_btn: StyledButton = null
 	var completed_levels: Array = SaveSystem.get_completed_levels()
@@ -166,11 +166,11 @@ func _build_ui():
 		if ConfigLoader.is_level_unlocked(next_id, completed_levels):
 			next_btn = StyledButton.new("▶️ 下一关", Color(0.2, 0.55, 0.3), Color(0.35, 0.7, 0.45))
 			next_btn.custom_minimum_size = Vector2(190, 52)
-			next_btn.pressed.connect(func _(): AudioManager.play_sfx("click"); _close_and(func _(): emit_signal("next_level")))
+			next_btn.pressed.connect(func (): AudioManager.play_sfx("click"); _close_and(func (): emit_signal("next_level")))
 			btn_h.add_child(next_btn)
 	var back: StyledButton = StyledButton.new("🏠 主菜单", Color(0.3, 0.25, 0.5), Color(0.45, 0.4, 0.65))
 	back.custom_minimum_size = Vector2(190, 52)
-	back.pressed.connect(func _(): AudioManager.play_sfx("click"); _close_and(func _(): emit_signal("back_to_title")))
+	back.pressed.connect(func (): AudioManager.play_sfx("click"); _close_and(func (): emit_signal("back_to_title")))
 	btn_h.add_child(back)
 
 func _close_and(cb: Callable):

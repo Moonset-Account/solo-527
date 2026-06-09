@@ -152,7 +152,7 @@ func _on_close():
 	var tw: Tween = create_tween()
 	tw.tween_property(overlay, "modulate:a", 0.0, 0.2)
 	tw.tween_callback(queue_free)
-	tw.tween_callback(func _(): emit_signal("closed"))
+	tw.tween_callback(func (): emit_signal("closed"))
 
 func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed and not event.echo:

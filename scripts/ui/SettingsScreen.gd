@@ -197,7 +197,7 @@ func _add_binding_row(parent: VBoxContainer, action: String, display: String):
 	var btn: StyledButton = StyledButton.new(InputManager.get_action_display(action), Color(0.2, 0.3, 0.55), Color(0.35, 0.5, 0.75))
 	btn.custom_minimum_size = Vector2(180, 36)
 	btn.name = "bind_" + action
-	btn.pressed.connect(func _b(a=action, bt=btn): _start_rebind(a, bt))
+	btn.pressed.connect(func (a=action, bt=btn): _start_rebind(a, bt))
 	row.add_child(btn)
 
 func _start_rebind(action: String, btn: StyledButton):
@@ -252,7 +252,7 @@ func _on_close():
 	var tw: Tween = create_tween()
 	tw.tween_property(overlay, "modulate:a", 0.0, 0.18)
 	tw.tween_callback(queue_free)
-	tw.tween_callback(func _(): emit_signal("closed"))
+	tw.tween_callback(func (): emit_signal("closed"))
 
 func _input(event: InputEvent):
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE and rebinding_action == "":

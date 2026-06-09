@@ -95,8 +95,8 @@ func _build_tiles():
 				gu.position = tr.position
 				gu.custom_data = {"gx": x, "gy": y}
 				gu.input_detected.connect(_on_tile_gui_input)
-				gu.mouse_enter_detector.connect(func _(gd=gu): _on_tile_mouse_enter(gd))
-				gu.mouse_exit_detector.connect(func _(gd=gu): _on_tile_mouse_exit(gd))
+			gu.mouse_enter_detector.connect(func (gd=gu): _on_tile_mouse_enter(gd))
+			gu.mouse_exit_detector.connect(func (gd=gu): _on_tile_mouse_exit(gd))
 				overlay_container.add_child(gu)
 
 func _on_tile_gui_input(event: InputEvent, gd: GuiInputDetector):
@@ -335,7 +335,7 @@ func move_character_to(ch_idx: int, path: PackedVector2Array):
 		tw.tween_property(cn, "position", target, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		tw.parallel().tween_property(cn, "scale", Vector2(1.08, 0.92), duration * 0.5)
 		tw.parallel().tween_property(cn, "scale", Vector2(1, 1), duration * 0.5).set_delay(duration * 0.5)
-	tw.tween_callback(func _():
+	tw.tween_callback(func ():
 		var final_step: Vector2 = actual_path[actual_path.size() - 1]
 		ch["grid_x"] = int(final_step.x)
 		ch["grid_y"] = int(final_step.y)

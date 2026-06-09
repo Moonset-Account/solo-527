@@ -324,18 +324,24 @@ func _on_char_selected(idx: int):
 	var skills: Array = ch.get("skills", [])
 	for i in skills.size():
 		var sk: Dictionary = skills[i]
+		var skill_name: String = str(sk.get("name", ""))
+		var skill_desc: String = str(sk.get("description", ""))
+		var skill_range: int = int(sk.get("range", 0))
+		var skill_cd: int = int(sk.get("cooldown", 0))
+		var skill_ap: int = int(sk.get("ap_cost", 1))
+		var skill_id: String = str(sk.get("id", ""))
 		var cds: Dictionary = ch.get("skill_cooldowns", {})
-		var cd: int = int(cds.get(sk.get("id", ""), 0))
-		var affordable: bool = int(ch.get("ap", 0)) >= int(sk.get("ap_cost", 1)) and cd == 0
-		var btn: StyledButton = StyledButton.new("%d:%s(AP%d)" % [i + 1, sk.get("name", ""), int(sk.get("ap_cost", 1))], Color(0.25, 0.35, 0.6) if affordable else Color(0.3, 0.3, 0.35), Color(0.4, 0.55, 0.85) if affordable else Color(0.35, 0.35, 0.4))
+		var cd: int = int(cds.get(skill_id, 0))
+		var affordable: bool = int(ch.get("ap", 0)) >= skill_ap and cd == 0
+		var btn: StyledButton = StyledButton.new("%d:%s(AP%d)" % [i + 1, skill_name, skill_ap], Color(0.25, 0.35, 0.6) if affordable else Color(0.3, 0.3, 0.35), Color(0.4, 0.55, 0.85) if affordable else Color(0.35, 0.35, 0.4))
 		btn.custom_minimum_size = Vector2(106, 40)
 		btn.disabled = not affordable
 		if cd > 0:
-			btn.set_text("%d:%s(CD%d)" % [i + 1, sk.get("name", "")[:3], cd])
-		var sk_idx: int = i
-		var sk_copy: Dictionary = sk.duplicate(true)
-		btn.pressed.connect(func _(si=sk_idx, s=sk_copy): _on_skill_clicked(si, s))
-		btn.tooltip_text = "%s\n%s\n范围:%d 冷却:%d" % [s.get("name",""), s.get("description",""), int(s.get("range",0)), int(s.get("cooldown",0))]
+			btn.set_text("%d:%s(CD%d)" % [i + 1, skill_name.substr(0, 3), cd])
+		var sk_idx_val: int = i
+		var sk_copy_d: Dictionary = sk.duplicate(true)
+		btn.pressed.connect(func (si=sk_idx_val, sd=sk_copy_d): _on_skill_clicked(si, sd))
+		btn.tooltip_text = "%s\n%s\n范围:%d 冷却:%d" % [skill_name, skill_desc, skill_range, skill_cd]
 		skill_buttons_container.add_child(btn)
 
 func _set_selected_info_empty():
@@ -394,7 +400,7 @@ func _on_toast(msg: String, col: Color):
 	tw.tween_interval(2.5)
 	tw.tween_property(t, "modulate:a", 0.0, 0.35)
 	tw.tween_callback(t.queue_free)
-	tw.tween_callback(func _():
+	tw.tween_callback(func ():
 		var idx: int = toasts.find(t)
 		if idx >= 0:
 			toasts.remove_at(idx)
