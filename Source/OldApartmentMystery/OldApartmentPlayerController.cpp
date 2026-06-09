@@ -39,20 +39,23 @@ void AOldApartmentPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	if (UEnhancedInputComponent* EIC = CastChecked<UEnhancedInputComponent>(InputComponent))
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AOldApartmentPlayerController::HandleMove);
-		EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &AOldApartmentPlayerController::HandleLook);
-		EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleInteract);
-		EIC->BindAction(ExamineAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleExamine);
-		EIC->BindAction(NotebookAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleNotebook);
-		EIC->BindAction(InventoryAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleInventory);
-		EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandlePause);
-		EIC->BindAction(CrouchAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleCrouch);
-		EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleSprintStart);
-		EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &AOldApartmentPlayerController::HandleSprintEnd);
-		EIC->BindAction(FlashlightAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleFlashlight);
-		EIC->BindAction(BackAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleBack);
+		if (MoveAction) EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AOldApartmentPlayerController::HandleMove);
+		if (LookAction) EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &AOldApartmentPlayerController::HandleLook);
+		if (InteractAction) EIC->BindAction(InteractAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleInteract);
+		if (ExamineAction) EIC->BindAction(ExamineAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleExamine);
+		if (NotebookAction) EIC->BindAction(NotebookAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleNotebook);
+		if (InventoryAction) EIC->BindAction(InventoryAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleInventory);
+		if (PauseAction) EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandlePause);
+		if (CrouchAction) EIC->BindAction(CrouchAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleCrouch);
+		if (SprintAction)
+		{
+			EIC->BindAction(SprintAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleSprintStart);
+			EIC->BindAction(SprintAction, ETriggerEvent::Completed, this, &AOldApartmentPlayerController::HandleSprintEnd);
+		}
+		if (FlashlightAction) EIC->BindAction(FlashlightAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleFlashlight);
+		if (BackAction) EIC->BindAction(BackAction, ETriggerEvent::Started, this, &AOldApartmentPlayerController::HandleBack);
 	}
 }
 
@@ -108,7 +111,14 @@ void AOldApartmentPlayerController::HandleInteract()
 	AActor* Target = GetInteractableInView();
 	if (Target)
 	{
-		Target->TakeDamage(1.0f, FDamageEvent(), this, this);
+		if (AOldApartmentInteractable* Interactable = Cast<AOldApartmentInteractable>(Target))
+		{
+			Interactable->Interact(GetPawn());
+		}
+		else
+		{
+			Target->TakeDamage(1.0f, FDamageEvent(), this, this);
+		}
 	}
 }
 

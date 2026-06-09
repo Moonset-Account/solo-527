@@ -25,6 +25,12 @@ struct FClueRecord
 	FString AssociatedTenant;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
+	FName RoomId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
+	FText TenantName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
 	bool bIsKeyItem;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
@@ -32,6 +38,9 @@ struct FClueRecord
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
 	TArray<FName> LinkedClueIds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clue")
+	bool bDiscovered;
 };
 
 USTRUCT(BlueprintType)

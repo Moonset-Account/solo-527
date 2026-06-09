@@ -37,45 +37,45 @@ void UOldApartmentGameInstance::InitDefaultAchievements()
 		AchievementDefinitions.Add(Def);
 	};
 
-	AddAch(ACH_FirstStep,
-		FText::FromString("初入公寓"),
-		FText::FromString("进入公寓大堂，开始探索"), 50);
+	AddAch(FName(TEXT("ACH_FirstStep")),
+		FText::FromString(TEXT("初入公寓")),
+		FText::FromString(TEXT("进入公寓大堂，开始探索")), 50);
 
-	AddAch(ACH_ClueHunter,
-		FText::FromString("线索猎人"),
-		FText::FromString("收集10条线索"), 100);
+	AddAch(FName(TEXT("ACH_ClueHunter")),
+		FText::FromString(TEXT("线索猎人")),
+		FText::FromString(TEXT("收集10条线索")), 100);
 
-	AddAch(ACH_PuzzleMaster,
-		FText::FromString("谜题大师"),
-		FText::FromString("解开第一个锁谜题"), 150);
+	AddAch(FName(TEXT("ACH_PuzzleMaster")),
+		FText::FromString(TEXT("谜题大师")),
+		FText::FromString(TEXT("解开第一个锁谜题")), 150);
 
-	AddAch(ACH_NoMistakes,
-		FText::FromString("完美推理"),
-		FText::FromString("无失误完成一个章节"), 300);
+	AddAch(FName(TEXT("ACH_NoMistakes")),
+		FText::FromString(TEXT("完美推理")),
+		FText::FromString(TEXT("无失误完成一个章节")), 300);
 
-	AddAch(ACH_SpeedRunner,
-		FText::FromString("疾风侦探"),
-		FText::FromString("在10分钟内完成一个章节"), 200);
+	AddAch(FName(TEXT("ACH_SpeedRunner")),
+		FText::FromString(TEXT("疾风侦探")),
+		FText::FromString(TEXT("在10分钟内完成一个章节")), 200);
 
-	AddAch(ACH_Completionist,
-		FText::FromString("探索狂人"),
-		FText::FromString("发现所有房间"), 250);
+	AddAch(FName(TEXT("ACH_Completionist")),
+		FText::FromString(TEXT("探索狂人")),
+		FText::FromString(TEXT("发现所有房间")), 250);
 
-	AddAch(ACH_FirstCase,
-		FText::FromString("首个案件"),
-		FText::FromString("完成第一章"), 100);
+	AddAch(FName(TEXT("ACH_FirstCase")),
+		FText::FromString(TEXT("首个案件")),
+		FText::FromString(TEXT("完成第一章")), 100);
 
-	AddAch(ACH_SecretRoom,
-		FText::FromString("密室发现者"),
-		FText::FromString("进入隐藏房间"), 500, true);
+	AddAch(FName(TEXT("ACH_SecretRoom")),
+		FText::FromString(TEXT("密室发现者")),
+		FText::FromString(TEXT("进入隐藏房间")), 500, true);
 
-	AddAch(ACH_AllEndings,
-		FText::FromString("真相全貌"),
-		FText::FromString("解锁所有结局"), 1000, true);
+	AddAch(FName(TEXT("ACH_AllEndings")),
+		FText::FromString(TEXT("真相全貌")),
+		FText::FromString(TEXT("解锁所有结局")), 1000, true);
 
-	AddAch(ACH_DailyPlayer,
-		FText::FromString("每日挑战"),
-		FText::FromString("完成每日挑战一次"), 150);
+	AddAch(FName(TEXT("ACH_DailyPlayer")),
+		FText::FromString(TEXT("每日挑战")),
+		FText::FromString(TEXT("完成每日挑战一次")), 150);
 }
 
 void UOldApartmentGameInstance::InitDefaultLeaderboard()

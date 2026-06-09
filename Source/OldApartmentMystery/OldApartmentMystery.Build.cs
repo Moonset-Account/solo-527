@@ -44,13 +44,4 @@ public class OldApartmentMysteryModule : ModuleRules
 		"Projects",
 		"DeveloperSettings"
 	});
-
-	// Optional ModularGameplay  (if available (e
-	{
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"ModularGameplay",
-			"ModularGameplayActors"
-		});
-	}
 }

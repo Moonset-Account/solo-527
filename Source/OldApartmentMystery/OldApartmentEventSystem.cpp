@@ -72,8 +72,15 @@ bool UOldApartmentEventSystem::InternalBroadcastEvent(const FGameEventData& Even
 		EventHistory.SetNum(1000);
 	}
 
-	int32 Count = 0;
-	EventFiredCounts.FindAndAddChecked(EventCopy.EventTag, Count)++;
+	int32* Count = EventFiredCounts.Find(EventCopy.EventTag);
+	if (Count)
+	{
+		(*Count)++;
+	}
+	else
+	{
+		EventFiredCounts.Add(EventCopy.EventTag, 1);
+	}
 
 	TArray<int32> MatchedBindings;
 	for (auto It = TagToBindingIds.CreateConstIterator(); It; ++It)

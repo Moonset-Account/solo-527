@@ -9,9 +9,7 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 class UOldApartmentSaveGame;
-class UWBP_MainHUD;
-class UWBP_PauseMenu;
-class UWBP_Tutorial;
+class UUserWidget;
 
 UENUM(BlueprintType)
 enum class EPlayerInteractionMode : uint8
@@ -72,13 +70,13 @@ public:
 	EPlayerInteractionMode CurrentMode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "UI")
-	UWBP_MainHUD* MainHUDWidget;
+	UUserWidget* MainHUDWidget;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "UI")
-	UWBP_PauseMenu* PauseMenuWidget;
+	UUserWidget* PauseMenuWidget;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "UI")
-	UWBP_Tutorial* TutorialWidget;
+	UUserWidget* TutorialWidget;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	float InteractionDistance;
