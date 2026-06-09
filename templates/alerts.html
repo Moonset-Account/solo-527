@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>告警管理 - 工业传感器异常预测系统</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="logo-icon">⚙️</span><span>传感器预测系统</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+      <a class="nav-item active" href="/alerts"><span class="nav-icon">🔔</span><span>告警管理</span></a>
+      <a class="nav-item" href="/monitoring"><span class="nav-icon">📈</span><span>模型监控</span></a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🗂️</span><span>后台管理</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0.0 · © 2024
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>告警管理</h2>
+        <div class="subtitle">查看告警详情并进行人工确认</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="runInference()">⚡ 执行推理</button>
+        <button class="btn btn-default btn-sm" onclick="loadData()">🔄 刷新</button>
+      </div>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card warning">
+        <div class="stat-label">待处理告警</div>
+        <div class="stat-value" id="count-pending">--</div>
+        <div class="stat-sub">需要工程师确认</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">今日已确认</div>
+        <div class="stat-value" id="count-confirmed">--</div>
+        <div class="stat-sub">工程师已处理</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-label">轴承磨损告警</div>
+        <div class="stat-value" id="count-bearing">--</div>
+        <div class="stat-sub">疑似机械故障</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-label">传感器漂移告警</div>
+        <div class="stat-value" id="count-drift">--</div>
+        <div class="stat-sub">疑似传感器异常</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <div class="form-group">
+        <label>状态</label>
+        <select class="form-control" id="filter-status" onchange="resetAndLoad()">
+          <option value="">全部</option>
+          <option value="pending" selected>待处理</option>
+          <option value="confirmed">已确认</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>告警类型</label>
+        <select class="form-control" id="filter-type" onchange="resetAndLoad()">
+          <option value="">全部</option>
+          <option value="轴承磨损">轴承磨损</option>
+          <option value="传感器漂移">传感器漂移</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>设备ID</label>
+        <select class="form-control" id="filter-equipment" onchange="resetAndLoad()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>最小置信度</label>
+        <input type="number" class="form-control" id="filter-confidence" min="0" max="1" step="0.05" value="" placeholder="如 0.85" onchange="resetAndLoad()">
+      </div>
+      <div class="form-group">
+        <label>开始时间</label>
+        <input type="datetime-local" class="form-control" id="filter-start" onchange="resetAndLoad()">
+      </div>
+      <div class="form-group">
+        <label>结束时间</label>
+        <input type="datetime-local" class="form-control" id="filter-end" onchange="resetAndLoad()">
+      </div>
+      <div class="form-group" style="justify-content:flex-end;">
+        <label>&nbsp;</label>
+        <button class="btn btn-default btn-sm" onclick="clearFilters()">清除筛选</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px;">ID</th>
+              <th>设备</th>
+              <th>告警类型</th>
+              <th>置信度</th>
+              <th>模型版本</th>
+              <th>状态</th>
+              <th>反馈类型</th>
+              <th>触发时间</th>
+              <th style="width:180px;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="alerts-tbody">
+            <tr><td colspan="9" style="padding:40px;text-align:center;color:#94a3b8;">
+              <div class="spinner" style="margin:0 auto;"></div>
+              <div style="margin-top:12px;">加载中...</div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="pagination"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3>告警详情</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="detail-content">
+        加载中...
+      </div>
+      <div class="modal-footer" id="detail-footer">
+        <button class="btn btn-default" onclick="hideModal('detail-modal')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="feedback-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>人工确认告警</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:20px;padding:16px;background:#f8fafc;border-radius:10px;">
+          <div style="display:flex;gap:12px;margin-bottom:10px;">
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#64748b;">告警ID</div>
+              <div style="font-weight:600;" id="fb-alert-id">-</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#64748b;">设备</div>
+              <div style="font-weight:600;" id="fb-equipment">-</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#64748b;">告警类型</div>
+              <div id="fb-alert-type">-</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:12px;color:#64748b;">模型置信度</div>
+              <div style="font-weight:600;" id="fb-confidence">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>确认结果 <span style="color:#dc2626;">*</span></label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+            <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.2s;" 
+                   class="fb-option" data-type="REAL_FAULT">
+              <span style="font-size:24px;">🔧</span>
+              <span style="font-weight:600;color:#991b1b;">真实故障</span>
+              <span style="font-size:11px;color:#64748b;text-align:center;">确认为轴承磨损等故障，将用于训练</span>
+              <input type="radio" name="feedback_type" value="REAL_FAULT" style="display:none;">
+            </label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                   class="fb-option" data-type="SENSOR_DRIFT">
+              <span style="font-size:24px;">📡</span>
+              <span style="font-weight:600;color:#854d0e;">传感器漂移</span>
+              <span style="font-size:11px;color:#64748b;text-align:center;">确认为传感器异常，将用于训练</span>
+              <input type="radio" name="feedback_type" value="SENSOR_DRIFT" style="display:none;">
+            </label>
+            <label style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                   class="fb-option" data-type="FALSE_ALARM">
+              <span style="font-size:24px;">✅</span>
+              <span style="font-weight:600;color:#3730a3;">误报</span>
+              <span style="font-size:11px;color:#64748b;text-align:center;">实际设备正常，模型误判</span>
+              <input type="radio" name="feedback_type" value="FALSE_ALARM" style="display:none;">
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>原标签 (若需改标)</label>
+          <select class="form-control" id="fb-relabel-from">
+            <option value="">无需改标</option>
+            <option value="REAL_FAULT">真实故障</option>
+            <option value="SENSOR_DRIFT">传感器漂移</option>
+            <option value="FALSE_ALARM">误报（正常）</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>确认人</label>
+          <input type="text" class="form-control" id="fb-user" placeholder="请输入您的姓名" value="工程师">
+        </div>
+
+        <div class="form-group">
+          <label>备注</label>
+          <textarea class="form-control form-control-textarea" id="fb-note" placeholder="可选：填写现场情况说明..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="hideModal('feedback-modal')">取消</button>
+        <button class="btn btn-primary" onclick="submitFeedback()" id="fb-submit-btn" disabled>提交确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    const PAGE_SIZE = 15;
+    let currentPage = 1;
+    let currentTotal = 0;
+    let currentAlerts = [];
+    let selectedFeedbackType = null;
+    let currentFeedbackAlert = null;
+
+    function clearFilters() {
+      document.getElementById('filter-status').value = 'pending';
+      document.getElementById('filter-type').value = '';
+      document.getElementById('filter-equipment').value = '';
+      document.getElementById('filter-confidence').value = '';
+      document.getElementById('filter-start').value = '';
+      document.getElementById('filter-end').value = '';
+      resetAndLoad();
+    }
+
+    function resetAndLoad() {
+      currentPage = 1;
+      loadData();
+    }
+
+    async function loadEquipmentOptions() {
+      try {
+        const result = await apiRequest('/api/equipment/list');
+        const select = document.getElementById('filter-equipment');
+        result.data.forEach(eq => {
+          const opt = document.createElement('option');
+          opt.value = eq;
+          opt.textContent = eq;
+          select.appendChild(opt);
+        });
+      } catch (e) {}
+    }
+
+    async function loadStats() {
+      try {
+        const pending = await apiRequest('/api/alerts/pending/count');
+        document.getElementById('count-pending').textContent = pending.data.total_pending;
+        document.getElementById('count-bearing').textContent = pending.data.by_type['轴承磨损'] || 0;
+        document.getElementById('count-drift').textContent = pending.data.by_type['传感器漂移'] || 0;
+      } catch (e) {}
+
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const result = await apiRequest(`/api/alerts?status=confirmed&start_time=${today.toISOString()}&limit=1`);
+        document.getElementById('count-confirmed').textContent = result.total;
+      } catch (e) {}
+    }
+
+    async function loadData() {
+      const params = new URLSearchParams();
+      params.set('limit', PAGE_SIZE);
+      params.set('offset', (currentPage - 1) * PAGE_SIZE);
+
+      const status = document.getElementById('filter-status').value;
+      const type = document.getElementById('filter-type').value;
+      const equipment = document.getElementById('filter-equipment').value;
+      const confidence = document.getElementById('filter-confidence').value;
+      const start = document.getElementById('filter-start').value;
+      const end = document.getElementById('filter-end').value;
+
+      if (status) params.set('status', status);
+      if (type) params.set('alert_type', type);
+      if (equipment) params.set('equipment_id', equipment);
+      if (start) params.set('start_time', new Date(start).toISOString());
+      if (end) params.set('end_time', new Date(end).toISOString());
+
+      try {
+        const result = await apiRequest(`/api/alerts?${params.toString()}`);
+        currentAlerts = result.data;
+        currentTotal = result.total;
+
+        const tbody = document.getElementById('alerts-tbody');
+        if (currentAlerts.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <h3>没有找到告警</h3>
+            <p>尝试调整筛选条件或执行推理生成告警</p>
+          </div></td></tr>`;
+        } else {
+          let html = '';
+          currentAlerts.forEach(a => {
+            const confidenceFilter = parseFloat(confidence);
+            if (confidence && a.confidence < confidenceFilter) return;
+
+            html += `<tr>
+              <td>#${a.id}</td>
+              <td><strong>${a.equipment_id}</strong></td>
+              <td><span class="badge ${getBadgeClassForAlertType(a.alert_type)}">${a.alert_type}</span></td>
+              <td>
+                <div style="min-width:90px;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:12px;color:#64748b;">置信度</span>
+                    <strong>${(a.confidence * 100).toFixed(1)}%</strong>
+                  </div>
+                  <div class="progress-bar"><div class="progress-bar-fill" style="width:${a.confidence * 100}%;background:${a.confidence >= 0.9 ? '#dc2626' : a.confidence >= 0.85 ? '#d97706' : '#2563eb'};"></div></div>
+                </div>
+              </td>
+              <td style="font-size:12px;font-family:monospace;color:#64748b;">${a.model_version || '-'}</td>
+              <td><span class="badge ${getBadgeClassForStatus(a.status)}">${getStatusText(a.status)}</span></td>
+              <td>${a.feedback_type ? `<span class="badge ${getBadgeClassForFeedback(a.feedback_type)}">${getFeedbackText(a.feedback_type)}</span>` : '<span style="color:#94a3b8;">-</span>'}</td>
+              <td style="font-size:12px;color:#64748b;">${formatDateTime(a.timestamp)}</td>
+              <td>
+                <div class="btn-group">
+                  <button class="btn btn-default btn-sm" onclick="showAlertDetail(${a.id})">详情</button>
+                  ${a.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="openFeedbackModal(${a.id})">确认</button>` : ''}
+                </div>
+              </td>
+            </tr>`;
+          });
+          tbody.innerHTML = html;
+        }
+
+        const totalPages = Math.ceil(currentTotal / PAGE_SIZE);
+        renderPagination(document.getElementById('pagination'), currentPage, totalPages, currentTotal, PAGE_SIZE, (p) => {
+          currentPage = p;
+          loadData();
+        });
+      } catch (e) {
+        document.getElementById('alerts-tbody').innerHTML = `<tr><td colspan="9" style="padding:40px;text-align:center;color:#dc2626;">
+          加载失败: ${e.message}
+        </td></tr>`;
+      }
+    }
+
+    async function showAlertDetail(alertId) {
+      try {
+        const result = await apiRequest(`/api/alerts/${alertId}`);
+        const a = result.data;
+        const content = document.getElementById('detail-content');
+        const footer = document.getElementById('detail-footer');
+
+        let feedbackSection = '';
+        if (a.status === 'confirmed') {
+          feedbackSection = `
+            <div class="alert-detail-section">
+              <h4>人工确认信息</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">反馈类型</div>
+                  <div class="info-value"><span class="badge ${getBadgeClassForFeedback(a.feedback_type)}">${getFeedbackText(a.feedback_type)}</span></div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">确认人</div>
+                  <div class="info-value">${a.feedback_user || '-'}</div>
+                </div>
+                <div class="info-item" style="grid-column:span 2;">
+                  <div class="info-label">备注</div>
+                  <div class="info-value" style="font-weight:400;font-size:14px;">${a.feedback_note || '无'}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">确认时间</div>
+                  <div class="info-value">${formatDateTime(a.feedback_at)}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        let sensorChartHtml = '<div style="color:#94a3b8;text-align:center;padding:20px;">无传感器数据</div>';
+        if (a.sensor_snapshot && a.sensor_snapshot.timestamps && a.sensor_snapshot.timestamps.length > 0) {
+          sensorChartHtml = `
+            <canvas id="sensorChart" height="200"></canvas>
+          `;
+        }
+
+        const summary = a.sensor_snapshot?.summary || {};
+
+        content.innerHTML = `
+          <div class="alert-detail-section">
+            <h4>基本信息</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">告警ID</div>
+                <div class="info-value">#${a.id}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">设备ID</div>
+                <div class="info-value">${a.equipment_id}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">告警类型</div>
+                <div class="info-value"><span class="badge ${getBadgeClassForAlertType(a.alert_type)}">${a.alert_type}</span></div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">模型置信度</div>
+                <div class="info-value">${(a.confidence * 100).toFixed(2)}%</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">触发时间</div>
+                <div class="info-value">${formatDateTime(a.timestamp)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">状态</div>
+                <div class="info-value"><span class="badge ${getBadgeClassForStatus(a.status)}">${getStatusText(a.status)}</span></div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">特征窗口开始</div>
+                <div class="info-value">${formatDateTime(a.feature_window_start)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">特征窗口结束</div>
+                <div class="info-value">${formatDateTime(a.feature_window_end)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">模型版本</div>
+                <div class="info-value" style="font-family:monospace;font-size:13px;">${a.model_version || '-'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-detail-section">
+            <h4>传感器数据快照 (窗口内统计)</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">🌡️ 温度均值</div>
+                <div class="info-value">${summary.temp_mean ? summary.temp_mean.toFixed(2) + ' °C' : '-'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">📳 振动均值</div>
+                <div class="info-value">${summary.vib_mean ? summary.vib_mean.toFixed(4) + ' mm/s' : '-'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">⚡ 电流均值</div>
+                <div class="info-value">${summary.curr_mean ? summary.curr_mean.toFixed(2) + ' A' : '-'}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">⚙️ 转速均值</div>
+                <div class="info-value">${summary.rpm_mean ? summary.rpm_mean.toFixed(1) + ' RPM' : '-'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-detail-section">
+            <h4>传感器时序数据</h4>
+            ${sensorChartHtml}
+          </div>
+
+          ${feedbackSection}
+        `;
+
+        if (a.sensor_snapshot && a.sensor_snapshot.timestamps && a.sensor_snapshot.timestamps.length > 0) {
+          setTimeout(() => {
+            const snap = a.sensor_snapshot;
+            const labels = snap.timestamps.map((t, i) => i % 10 === 0 ? new Date(t).toLocaleTimeString() : '');
+            new Chart(document.getElementById('sensorChart'), {
+              type: 'line',
+              data: {
+                labels,
+                datasets: [
+                  { label: '温度', data: snap.temperature, borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.1)', yAxisID: 'y1', tension: 0.3, pointRadius: 0 },
+                  { label: '振动', data: snap.vibration, borderColor: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)', yAxisID: 'y2', tension: 0.3, pointRadius: 0 },
+                  { label: '电流', data: snap.current, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', yAxisID: 'y3', tension: 0.3, pointRadius: 0 },
+                  { label: '转速', data: snap.rpm.map(v => v / 100), borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', yAxisID: 'y4', tension: 0.3, pointRadius: 0 }
+                ]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                  y1: { position: 'left', title: { display: true, text: '温度(°C)' } },
+                  y2: { position: 'right', display: false },
+                  y3: { position: 'right', display: false },
+                  y4: { position: 'right', display: false }
+                }
+              }
+            });
+          }, 100);
+        }
+
+        if (a.status === 'pending') {
+          footer.innerHTML = `
+            <button class="btn btn-default" onclick="hideModal('detail-modal')">关闭</button>
+            <button class="btn btn-primary" onclick="hideModal('detail-modal'); openFeedbackModal(${a.id})">人工确认</button>
+          `;
+        } else {
+          footer.innerHTML = `<button class="btn btn-default" onclick="hideModal('detail-modal')">关闭</button>`;
+        }
+
+        showModal('detail-modal');
+      } catch (e) {
+        showToast('error', '加载失败', e.message);
+      }
+    }
+
+    function openFeedbackModal(alertId) {
+      const alert = currentAlerts.find(a => a.id === alertId);
+      if (!alert) return;
+
+      currentFeedbackAlert = alert;
+      selectedFeedbackType = null;
+
+      document.getElementById('fb-alert-id').textContent = '#' + alert.id;
+      document.getElementById('fb-equipment').textContent = alert.equipment_id;
+      document.getElementById('fb-alert-type').innerHTML = `<span class="badge ${getBadgeClassForAlertType(alert.alert_type)}">${alert.alert_type}</span>`;
+      document.getElementById('fb-confidence').textContent = (alert.confidence * 100).toFixed(1) + '%';
+      document.getElementById('fb-relabel-from').value = '';
+      document.getElementById('fb-note').value = '';
+      document.getElementById('fb-submit-btn').disabled = true;
+
+      document.querySelectorAll('.fb-option').forEach(opt => {
+        opt.style.borderColor = '#e2e8f0';
+        opt.style.background = '#fff';
+        opt.querySelector('input').checked = false;
+      });
+
+      document.querySelectorAll('.fb-option').forEach(opt => {
+        opt.onclick = () => {
+          selectedFeedbackType = opt.dataset.type;
+          document.querySelectorAll('.fb-option').forEach(o => {
+            o.style.borderColor = '#e2e8f0';
+            o.style.background = '#fff';
+            o.querySelector('input').checked = false;
+          });
+          opt.style.borderColor = '#2563eb';
+          opt.style.background = '#eff6ff';
+          opt.querySelector('input').checked = true;
+          document.getElementById('fb-submit-btn').disabled = false;
+        };
+      });
+
+      showModal('feedback-modal');
+    }
+
+    async function submitFeedback() {
+      if (!currentFeedbackAlert || !selectedFeedbackType) return;
+
+      const body = {
+        feedback_type: selectedFeedbackType,
+        feedback_user: document.getElementById('fb-user').value || '工程师',
+        feedback_note: document.getElementById('fb-note').value,
+        relabel_from: document.getElementById('fb-relabel-from').value || null
+      };
+
+      try {
+        await apiRequest(`/api/alerts/${currentFeedbackAlert.id}/feedback`, {
+          method: 'POST',
+          body
+        });
+        showToast('success', '确认成功', `告警 #${currentFeedbackAlert.id} 已标记为 ${getFeedbackText(selectedFeedbackType)}`);
+        hideModal('feedback-modal');
+        loadData();
+        loadStats();
+      } catch (e) {
+        showToast('error', '提交失败', e.message);
+      }
+    }
+
+    async function runInference() {
+      try {
+        showToast('info', '推理中', '正在执行批量推理，请稍候...');
+        const result = await apiRequest('/api/inference/run', {
+          method: 'POST',
+          body: { lookback_minutes: 60 }
+        });
+        const data = result.data;
+        showToast('success', '推理完成', 
+          `处理 ${data.total_equipment_processed} 台设备，生成 ${data.total_new_alerts} 条新告警`);
+        loadData();
+        loadStats();
+      } catch (e) {
+        showToast('error', '推理失败', e.message);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadEquipmentOptions();
+      loadStats();
+      loadData();
+    });
+  </script>
+</body>
+</html>

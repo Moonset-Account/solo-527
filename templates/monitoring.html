@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模型监控 - 工业传感器异常预测系统</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="logo-icon">⚙️</span><span>传感器预测系统</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+      <a class="nav-item" href="/alerts"><span class="nav-icon">🔔</span><span>告警管理</span></a>
+      <a class="nav-item active" href="/monitoring"><span class="nav-icon">📈</span><span>模型监控</span></a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🗂️</span><span>后台管理</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0.0 · © 2024
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>模型监控</h2>
+        <div class="subtitle">模型性能指标与工程师反馈趋势分析</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="openTrainModal()">🧪 训练新模型</button>
+        <button class="btn btn-default btn-sm" onclick="loadAll()">🔄 刷新</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="feedback">反馈趋势</div>
+      <div class="tab" data-tab="models">模型版本对比</div>
+      <div class="tab" data-tab="performance">性能指标</div>
+    </div>
+
+    <div class="tab-content active" id="tab-feedback">
+      <div class="stat-cards">
+        <div class="stat-card primary">
+          <div class="stat-label">总反馈数量</div>
+          <div class="stat-value" id="fb-total">--</div>
+          <div class="stat-sub">工程师累计确认</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">真实故障</div>
+          <div class="stat-value" id="fb-fault">--</div>
+          <div class="stat-sub" id="fb-fault-rate">-</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">传感器漂移</div>
+          <div class="stat-value" id="fb-drift">--</div>
+          <div class="stat-sub" id="fb-drift-rate">-</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">误报</div>
+          <div class="stat-value" id="fb-false">--</div>
+          <div class="stat-sub" id="fb-false-rate">-</div>
+        </div>
+      </div>
+
+      <div class="filters-bar">
+        <div class="form-group">
+          <label>时间范围</label>
+          <select class="form-control" id="fb-range" onchange="loadFeedbackAnalysis()">
+            <option value="7">近7天</option>
+            <option value="14">近14天</option>
+            <option value="30" selected>近30天</option>
+            <option value="90">近90天</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>分组粒度</label>
+          <select class="form-control" id="fb-group" onchange="loadFeedbackAnalysis()">
+            <option value="day" selected>按天</option>
+            <option value="hour">按小时</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span>各类反馈数量趋势</span></div>
+          <div class="chart-container"><canvas id="fbTrendChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>反馈类型占比分布</span></div>
+          <div class="chart-container"><canvas id="fbPieChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span>告警确认 / 待处理 比例趋势</span></div>
+          <div class="chart-container"><canvas id="alertStatusChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>告警类型趋势</span></div>
+          <div class="chart-container"><canvas id="alertTypeChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-models">
+      <div class="card" style="padding:0;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>版本</th>
+                <th>模型类型</th>
+                <th>训练数据版本</th>
+                <th>准确率</th>
+                <th>精确率</th>
+                <th>召回率</th>
+                <th>F1分数</th>
+                <th>状态</th>
+                <th>训练者</th>
+                <th>创建时间</th>
+                <th style="width:160px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="models-tbody">
+              <tr><td colspan="11" style="padding:40px;text-align:center;">
+                <div class="spinner" style="margin:0 auto;"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-performance">
+      <div class="card" id="perf-card">
+        <div class="card-title"><span>已部署模型性能详情</span><span id="perf-version" class="badge badge-deployed">加载中...</span></div>
+        <div id="perf-content">
+          <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>暂无数据</h3>
+            <p>请先训练并部署一个模型</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="model-detail-modal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h3 id="md-title">模型详情</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="md-content">加载中...</div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="hideModal('model-detail-modal')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="train-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>训练新模型</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>模型算法</label>
+          <select class="form-control" id="train-type">
+            <option value="gb" selected>Gradient Boosting (推荐)</option>
+            <option value="rf">Random Forest</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>训练数据</label>
+          <select class="form-control" id="train-data">
+            <option value="historical" selected>历史传感器数据 (自动提取特征)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>
+            <input type="checkbox" id="train-feedback" checked style="margin-right:8px;">
+            包含工程师确认的反馈数据
+          </label>
+          <div style="font-size:12px;color:#64748b;margin-left:24px;">已确认但未使用的告警反馈会纳入训练集</div>
+        </div>
+        <div class="form-group">
+          <label>训练备注</label>
+          <textarea class="form-control form-control-textarea" id="train-desc" placeholder="本次训练的说明或变更..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="hideModal('train-modal')">取消</button>
+        <button class="btn btn-primary" onclick="startTraining()">🚀 开始训练</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    let charts = {};
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        if (tab.dataset.tab === 'models') loadModels();
+        if (tab.dataset.tab === 'performance') loadPerformance();
+      });
+    });
+
+    async function loadFeedbackAnalysis() {
+      const days = parseInt(document.getElementById('fb-range').value);
+      const groupBy = document.getElementById('fb-group').value;
+      const end = new Date();
+      const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+
+      try {
+        const [fbResult, alertResult] = await Promise.all([
+          apiRequest(`/api/monitoring/feedback-stats?start_time=${start.toISOString()}&end_time=${end.toISOString()}&group_by=${groupBy}`),
+          apiRequest(`/api/monitoring/alert-trends?start_time=${start.toISOString()}&end_time=${end.toISOString()}`)
+        ]);
+
+        const fb = fbResult.data;
+        document.getElementById('fb-total').textContent = fb.total_feedback;
+        document.getElementById('fb-fault').textContent = fb.type_counts.REAL_FAULT || 0;
+        document.getElementById('fb-drift').textContent = fb.type_counts.SENSOR_DRIFT || 0;
+        document.getElementById('fb-false').textContent = fb.type_counts.FALSE_ALARM || 0;
+        document.getElementById('fb-fault-rate').textContent = 
+          `占比 ${(fb.type_rates.REAL_FAULT * 100).toFixed(1)}%`;
+        document.getElementById('fb-drift-rate').textContent = 
+          `占比 ${(fb.type_rates.SENSOR_DRIFT * 100).toFixed(1)}%`;
+        document.getElementById('fb-false-rate').textContent = 
+          `占比 ${(fb.type_rates.FALSE_ALARM * 100).toFixed(1)}%`;
+
+        const trendLabels = Object.keys(fb.trends).sort();
+        const labelFn = groupBy === 'hour' ? (l) => l.slice(11) : (l) => l.slice(5);
+
+        if (charts.fbTrend) charts.fbTrend.destroy();
+        charts.fbTrend = new Chart(document.getElementById('fbTrendChart'), {
+          type: 'line',
+          data: {
+            labels: trendLabels.map(labelFn),
+            datasets: [
+              { label: '真实故障', data: trendLabels.map(d => fb.trends[d].REAL_FAULT || 0),
+                borderColor: CHART_COLORS.bearingWear.stroke, backgroundColor: CHART_COLORS.bearingWear.fill,
+                fill: true, tension: 0.4 },
+              { label: '传感器漂移', data: trendLabels.map(d => fb.trends[d].SENSOR_DRIFT || 0),
+                borderColor: CHART_COLORS.sensorDrift.stroke, backgroundColor: CHART_COLORS.sensorDrift.fill,
+                fill: true, tension: 0.4 },
+              { label: '误报', data: trendLabels.map(d => fb.trends[d].FALSE_ALARM || 0),
+                borderColor: CHART_COLORS.falseAlarm.stroke, backgroundColor: CHART_COLORS.falseAlarm.fill,
+                fill: true, tension: 0.4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+
+        if (charts.fbPie) charts.fbPie.destroy();
+        charts.fbPie = new Chart(document.getElementById('fbPieChart'), {
+          type: 'doughnut',
+          data: {
+            labels: ['真实故障', '传感器漂移', '误报'],
+            datasets: [{
+              data: [fb.type_counts.REAL_FAULT || 0, fb.type_counts.SENSOR_DRIFT || 0, fb.type_counts.FALSE_ALARM || 0],
+              backgroundColor: [CHART_COLORS.bearingWear.stroke, CHART_COLORS.sensorDrift.stroke, CHART_COLORS.falseAlarm.stroke]
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (c) => `${c.label}: ${c.parsed} (${fb.total_feedback > 0 ? ((c.parsed / fb.total_feedback) * 100).toFixed(1) : 0}%)`
+                }
+              }
+            }
+          }
+        });
+
+        const alertTrends = alertResult.data;
+        const alertLabels = Object.keys(alertTrends).sort();
+        if (charts.alertStatus) charts.alertStatus.destroy();
+        charts.alertStatus = new Chart(document.getElementById('alertStatusChart'), {
+          type: 'bar',
+          data: {
+            labels: alertLabels.map(l => l.slice(5)),
+            datasets: [
+              { label: '待处理', data: alertLabels.map(d => alertTrends[d].pending || 0),
+                backgroundColor: CHART_COLORS.pending.stroke },
+              { label: '已确认', data: alertLabels.map(d => alertTrends[d].confirmed || 0),
+                backgroundColor: CHART_COLORS.confirmed.stroke }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+              x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+            }
+          }
+        });
+
+        if (charts.alertType) charts.alertType.destroy();
+        charts.alertType = new Chart(document.getElementById('alertTypeChart'), {
+          type: 'bar',
+          data: {
+            labels: alertLabels.map(l => l.slice(5)),
+            datasets: [
+              { label: '轴承磨损', data: alertLabels.map(d => alertTrends[d]['轴承磨损'] || 0),
+                backgroundColor: CHART_COLORS.bearingWear.stroke },
+              { label: '传感器漂移', data: alertLabels.map(d => alertTrends[d]['传感器漂移'] || 0),
+                backgroundColor: CHART_COLORS.sensorDrift.stroke }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      } catch (e) {}
+    }
+
+    async function loadModels() {
+      try {
+        const result = await apiRequest('/api/models');
+        const models = result.data;
+        const tbody = document.getElementById('models-tbody');
+
+        if (models.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state">
+            <div class="empty-icon">🤖</div><h3>暂无模型</h3><p>点击"训练新模型"开始</p>
+          </div></td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = models.map(m => `
+          <tr>
+            <td style="font-family:monospace;font-weight:600;">${m.version}</td>
+            <td>GB/RF</td>
+            <td style="font-family:monospace;font-size:12px;">${m.training_data_version || '-'}</td>
+            <td>${(m.accuracy * 100).toFixed(1)}%</td>
+            <td>${(m.precision_score * 100).toFixed(1)}%</td>
+            <td>${(m.recall_score * 100).toFixed(1)}%</td>
+            <td><strong>${(m.f1_score * 100).toFixed(1)}%</strong></td>
+            <td>${m.is_deployed ? '<span class="badge badge-deployed">已部署</span>' : '<span class="badge badge-default">未部署</span>'}</td>
+            <td>${m.trained_by || '-'}</td>
+            <td style="font-size:12px;color:#64748b;">${formatDateTime(m.created_at)}</td>
+            <td>
+              <div class="btn-group">
+                <button class="btn btn-default btn-sm" onclick="showModelDetail('${m.version}')">详情</button>
+                ${m.is_deployed ? '' : `<button class="btn btn-success btn-sm" onclick="deployModel('${m.version}')">部署</button>`}
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        document.getElementById('models-tbody').innerHTML = `<tr><td colspan="11" style="padding:40px;text-align:center;color:#dc2626;">加载失败: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function showModelDetail(version) {
+      try {
+        const result = await apiRequest(`/api/models/${version}`);
+        const m = result.data;
+        const metrics = m.metrics || {};
+        const testMetrics = metrics.test_metrics || {};
+        const trainMetrics = metrics.train_metrics || {};
+        const cvMetrics = metrics.cv_metrics || {};
+        const fpc = testMetrics.precision_per_class || {};
+        const frc = testMetrics.recall_per_class || {};
+        const ffc = testMetrics.f1_per_class || {};
+
+        document.getElementById('md-title').textContent = `模型详情 - ${version}`;
+        document.getElementById('md-content').innerHTML = `
+          <div class="alert-detail-section">
+            <h4>基本信息</h4>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">模型版本</div><div class="info-value">${m.version}</div></div>
+              <div class="info-item"><div class="info-label">状态</div><div class="info-value">${m.is_deployed ? '<span class="badge badge-deployed">已部署</span>' : '<span class="badge badge-default">未部署</span>'}</div></div>
+              <div class="info-item"><div class="info-label">训练数据版本</div><div class="info-value" style="font-family:monospace;font-size:12px;">${m.training_data_version || '-'}</div></div>
+              <div class="info-item"><div class="info-label">MLflow Run ID</div><div class="info-value" style="font-family:monospace;font-size:12px;">${m.mlflow_run_id || '-'}</div></div>
+              <div class="info-item"><div class="info-label">特征数量</div><div class="info-value">${m.feature_names?.length || 0}</div></div>
+              <div class="info-item"><div class="info-label">训练者</div><div class="info-value">${m.trained_by || '-'}</div></div>
+            </div>
+          </div>
+
+          <div class="alert-detail-section">
+            <h4>测试集指标</h4>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">准确率 Accuracy</div><div class="info-value">${(testMetrics.accuracy * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">F1分数 (Macro)</div><div class="info-value">${(testMetrics.f1_macro * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">精确率 (Macro)</div><div class="info-value">${(testMetrics.precision_macro * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">召回率 (Macro)</div><div class="info-value">${(testMetrics.recall_macro * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">ROC AUC</div><div class="info-value">${(testMetrics.roc_auc * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">训练集F1</div><div class="info-value">${(trainMetrics.f1_macro * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">CV F1均值</div><div class="info-value">${(cvMetrics.cv_f1_macro_mean * 100).toFixed(2)}%</div></div>
+              <div class="info-item"><div class="info-label">CV F1标准差</div><div class="info-value">${(cvMetrics.cv_f1_macro_std * 100).toFixed(2)}%</div></div>
+            </div>
+          </div>
+
+          <div class="alert-detail-section">
+            <h4>分类别指标</h4>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>类别</th><th>精确率</th><th>召回率</th><th>F1分数</th></tr>
+                </thead>
+                <tbody>
+                  ${['正常', '轴承磨损', '传感器漂移'].map(c => `
+                    <tr>
+                      <td><strong>${c}</strong></td>
+                      <td>${(fpc[c] * 100).toFixed(2)}%</td>
+                      <td>${(frc[c] * 100).toFixed(2)}%</td>
+                      <td>${(ffc[c] * 100).toFixed(2)}%</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="alert-detail-section">
+            <h4>混淆矩阵</h4>
+            <div id="confusion-matrix"></div>
+          </div>
+        `;
+
+        const cm = testMetrics.confusion_matrix || {};
+        const classes = ['正常', '轴承磨损', '传感器漂移'];
+        if (cm && Object.keys(cm).length > 0) {
+          const cmHtml = `<table>
+            <thead>
+              <tr><th>真实\预测</th>${classes.map(c => `<th>${c}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${classes.map(rc => `<tr><td><strong>${rc}</strong></td>${classes.map(pc => {
+                const v = cm[rc]?.[pc] || 0;
+                const isDiag = rc === pc;
+                return `<td style="background:${isDiag ? '#d1fae5' : v > 0 ? '#fee2e2' : 'transparent'};font-weight:${isDiag ? 600 : 400};">${v}</td>`;
+              }).join('')}</tr>`).join('')}
+            </tbody>
+          </table>`;
+          document.getElementById('confusion-matrix').innerHTML = cmHtml;
+        }
+
+        showModal('model-detail-modal');
+      } catch (e) {
+        showToast('error', '加载失败', e.message);
+      }
+    }
+
+    async function deployModel(version) {
+      if (!confirm(`确定要部署模型 ${version} 吗？\n这将替换当前线上模型。`)) return;
+      try {
+        await apiRequest(`/api/models/${version}/deploy`, { method: 'POST' });
+        showToast('success', '部署成功', `模型 ${version} 已部署为线上模型`);
+        loadModels();
+      } catch (e) {
+        showToast('error', '部署失败', e.message);
+      }
+    }
+
+    async function loadPerformance() {
+      try {
+        const result = await apiRequest('/api/models');
+        const models = result.data;
+        const deployed = models.find(m => m.is_deployed) || models[0];
+        const content = document.getElementById('perf-content');
+        const versionSpan = document.getElementById('perf-version');
+
+        if (!deployed) {
+          versionSpan.textContent = '未部署';
+          versionSpan.className = 'badge badge-default';
+          return;
+        }
+
+        versionSpan.textContent = deployed.version + ' (已部署)';
+        versionSpan.className = 'badge badge-deployed';
+
+        await showModelDetail(deployed.version);
+        hideModal('model-detail-modal');
+
+        const metrics = deployed.metrics || {};
+        const testMetrics = metrics.test_metrics || {};
+        const fpc = testMetrics.precision_per_class || {};
+        const frc = testMetrics.recall_per_class || {};
+        const ffc = testMetrics.f1_per_class || {};
+        const cm = testMetrics.confusion_matrix || {};
+        const classes = ['正常', '轴承磨损', '传感器漂移'];
+
+        let cmHtml = '';
+        if (cm && Object.keys(cm).length > 0) {
+          cmHtml = `<div class="alert-detail-section"><h4>混淆矩阵</h4>
+            <table><thead><tr><th>真实\预测</th>${classes.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <tbody>${classes.map(rc => `<tr><td><strong>${rc}</strong></td>${classes.map(pc => {
+              const v = cm[rc]?.[pc] || 0;
+              return `<td style="background:${rc === pc ? '#d1fae5' : v > 0 ? '#fee2e2' : 'transparent'};font-weight:${rc === pc ? 600 : 400};">${v}</td>`;
+            }).join('')}</tr>`).join('')}</tbody></table></div>`;
+        }
+
+        content.innerHTML = `
+          <div class="grid-2">
+            <div>
+              <div class="alert-detail-section">
+                <h4>总体指标</h4>
+                <div class="info-grid">
+                  <div class="info-item"><div class="info-label">准确率</div><div class="info-value">${(testMetrics.accuracy * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">F1分数</div><div class="info-value" style="color:#16a34a;font-size:20px;">${(testMetrics.f1_macro * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">精确率</div><div class="info-value">${(testMetrics.precision_macro * 100).toFixed(2)}%</div></div>
+                  <div class="info-item"><div class="info-label">召回率</div><div class="info-value">${(testMetrics.recall_macro * 100).toFixed(2)}%</div></div>
+                </div>
+              </div>
+              <div class="alert-detail-section">
+                <h4>分类别F1分数</h4>
+                <div id="perfClassChart" style="height:250px;"><canvas id="classF1Chart"></canvas></div>
+              </div>
+            </div>
+            <div>
+              <div class="alert-detail-section">
+                <h4>数据集信息</h4>
+                <div class="info-grid">
+                  ${Object.entries(metrics.dataset_info || {}).map(([k, v]) => `
+                    <div class="info-item"><div class="info-label">${k}</div><div class="info-value" style="font-size:14px;">${typeof v === 'object' ? JSON.stringify(v) : v}</div></div>
+                  `).join('')}
+                </div>
+              </div>
+              ${cmHtml}
+            </div>
+          </div>
+        `;
+
+        setTimeout(() => {
+          new Chart(document.getElementById('classF1Chart'), {
+            type: 'bar',
+            data: {
+              labels: classes,
+              datasets: [
+                { label: '精确率', data: classes.map(c => (fpc[c] || 0) * 100), backgroundColor: '#2563eb' },
+                { label: '召回率', data: classes.map(c => (frc[c] || 0) * 100), backgroundColor: '#d97706' },
+                { label: 'F1分数', data: classes.map(c => (ffc[c] || 0) * 100), backgroundColor: '#16a34a' }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { position: 'bottom' } },
+              scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } }
+            }
+          });
+        }, 100);
+      } catch (e) {}
+    }
+
+    function openTrainModal() {
+      showModal('train-modal');
+    }
+
+    async function startTraining() {
+      const body = {
+        model_type: document.getElementById('train-type').value,
+        description: document.getElementById('train-desc').value,
+        include_feedback: document.getElementById('train-feedback').checked,
+        use_historical_data: true
+      };
+      hideModal('train-modal');
+      showToast('info', '训练开始', '模型正在训练中，请稍候...');
+
+      try {
+        const result = await apiRequest('/api/models/train', {
+          method: 'POST',
+          body,
+          timeout: 300000
+        });
+        showToast('success', '训练完成', 
+          `模型 ${result.model_version} 已训练并部署！F1=${(result.metrics.f1_macro * 100).toFixed(1)}%`);
+        loadAll();
+      } catch (e) {
+        showToast('error', '训练失败', e.message);
+      }
+    }
+
+    function loadAll() {
+      loadFeedbackAnalysis();
+      loadModels();
+      loadPerformance();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAll);
+  </script>
+</body>
+</html>

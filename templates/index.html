@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工业传感器异常预测系统 - 仪表盘</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="logo-icon">⚙️</span><span>传感器预测系统</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" href="/"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+      <a class="nav-item" href="/alerts"><span class="nav-icon">🔔</span><span>告警管理</span></a>
+      <a class="nav-item" href="/monitoring"><span class="nav-icon">📈</span><span>模型监控</span></a>
+      <a class="nav-item" href="/admin"><span class="nav-icon">🗂️</span><span>后台管理</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0.0 · © 2024
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>仪表盘</h2>
+        <div class="subtitle">工业传感器异常预测系统概览</div>
+      </div>
+      <div>
+        <button class="btn btn-default btn-sm" onclick="runQuickInference()">
+          ⚡ 快速推理
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="initSystem()">
+          🔧 初始化系统
+        </button>
+      </div>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card danger">
+        <div class="stat-label">待处理告警</div>
+        <div class="stat-value" id="stat-pending">--</div>
+        <div class="stat-sub" id="stat-pending-sub">加载中...</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-label">今日新增告警</div>
+        <div class="stat-value" id="stat-today-alerts">--</div>
+        <div class="stat-sub" id="stat-today-sub">轴承磨损 + 传感器漂移</div>
+      </div>
+      <div class="stat-card info">
+        <div class="stat-label">今日反馈确认</div>
+        <div class="stat-value" id="stat-today-feedback">--</div>
+        <div class="stat-sub">工程师人工确认</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-label">当前模型F1分数</div>
+        <div class="stat-value" id="stat-model-f1">--</div>
+        <div class="stat-sub" id="stat-model-version">加载中...</div>
+      </div>
+      <div class="stat-card primary">
+        <div class="stat-label">7天反馈-误报率</div>
+        <div class="stat-value" id="stat-false-rate">--</div>
+        <div class="stat-sub">工程师标记为误报比例</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">
+          <span>近30天告警趋势</span>
+          <select class="form-control" id="trend-range" style="min-width:120px" onchange="loadAlertTrends()">
+            <option value="7">近7天</option>
+            <option value="14">近14天</option>
+            <option value="30" selected>近30天</option>
+          </select>
+        </div>
+        <div class="chart-container">
+          <canvas id="alertTrendChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>近7天反馈类型分布趋势</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="feedbackTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">
+          <span>反馈类型占比</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="feedbackPieChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>最新告警</span>
+          <a class="btn btn-default btn-sm" href="/alerts">查看全部 →</a>
+        </div>
+        <div id="latest-alerts">
+          <div class="empty-state">
+            <div class="empty-icon">🔔</div>
+            <h3>暂无数据</h3>
+            <p>系统尚未生成告警记录</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    let alertTrendChart, feedbackTrendChart, feedbackPieChart;
+
+    async function initSystem() {
+      if (!confirm('确定要初始化系统吗？这将创建数据库表。\n选择"确定"将保留现有数据，选择"取消"则不操作。')) return;
+      try {
+        await apiRequest('/api/init-database', {
+          method: 'POST',
+          body: { drop_first: false }
+        });
+        showToast('success', '系统初始化', '数据库表已初始化');
+        if (confirm('是否生成模拟数据？\n将生成30天的传感器数据用于演示。')) {
+          await apiRequest('/api/generate-data', {
+            method: 'POST',
+            body: { days: 30 }
+          });
+          showToast('success', '数据生成', '模拟数据已生成');
+          if (confirm('是否立即训练模型？')) {
+            showToast('info', '训练中', '模型训练开始，请稍候...');
+            const result = await apiRequest('/api/models/train', {
+              method: 'POST',
+              body: { model_type: 'gb', description: '初始训练', use_historical_data: true }
+            });
+            showToast('success', '训练完成', `模型版本 ${result.model_version} 已部署！`);
+          }
+        }
+        loadDashboard();
+      } catch (e) {
+        showToast('error', '初始化失败', e.message);
+      }
+    }
+
+    async function runQuickInference() {
+      try {
+        showToast('info', '推理中', '正在执行批量推理...');
+        const result = await apiRequest('/api/inference/run', {
+          method: 'POST',
+          body: { lookback_minutes: 60 }
+        });
+        showToast('success', '推理完成', `共 ${result.data.total_new_alerts} 条新告警`);
+        loadDashboard();
+      } catch (e) {
+        showToast('error', '推理失败', e.message);
+      }
+    }
+
+    async function loadSummary() {
+      try {
+        const result = await apiRequest('/api/monitoring/daily-summary');
+        const data = result.data;
+
+        document.getElementById('stat-today-alerts').textContent = data.today.alerts;
+        document.getElementById('stat-today-feedback').textContent = data.today.feedback;
+
+        const fbCounts = data.weekly.feedback_by_type;
+        const totalWeekly = (fbCounts.REAL_FAULT || 0) + (fbCounts.SENSOR_DRIFT || 0) + (fbCounts.FALSE_ALARM || 0);
+        const falseRate = totalWeekly > 0 ? ((fbCounts.FALSE_ALARM || 0) / totalWeekly * 100).toFixed(1) + '%' : '-';
+        document.getElementById('stat-false-rate').textContent = falseRate;
+      } catch (e) {}
+
+      try {
+        const pending = await apiRequest('/api/alerts/pending/count');
+        const pd = pending.data;
+        document.getElementById('stat-pending').textContent = pd.total_pending;
+        document.getElementById('stat-pending-sub').textContent = 
+          `轴承磨损: ${pd.by_type['轴承磨损'] || 0} · 传感器漂移: ${pd.by_type['传感器漂移'] || 0}`;
+      } catch (e) {}
+
+      try {
+        const models = await apiRequest('/api/models');
+        const deployed = models.data.find(m => m.is_deployed) || models.data[0];
+        if (deployed) {
+          document.getElementById('stat-model-f1').textContent = 
+            deployed.f1_score ? (deployed.f1_score * 100).toFixed(1) + '%' : '-';
+          document.getElementById('stat-model-version').textContent = deployed.version;
+        } else {
+          document.getElementById('stat-model-version').textContent = '未部署模型';
+        }
+      } catch (e) {}
+    }
+
+    async function loadAlertTrends() {
+      const days = parseInt(document.getElementById('trend-range').value);
+      const end = new Date();
+      const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+      try {
+        const result = await apiRequest(
+          `/api/monitoring/alert-trends?start_time=${start.toISOString()}&end_time=${end.toISOString()}`
+        );
+        const data = result.data;
+        const labels = Object.keys(data).sort();
+        const bearingData = labels.map(d => data[d]['轴承磨损'] || 0);
+        const driftData = labels.map(d => data[d]['传感器漂移'] || 0);
+
+        if (alertTrendChart) alertTrendChart.destroy();
+        const ctx = document.getElementById('alertTrendChart').getContext('2d');
+        alertTrendChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels.map(l => l.slice(5)),
+            datasets: [
+              {
+                label: '轴承磨损',
+                data: bearingData,
+                borderColor: CHART_COLORS.bearingWear.stroke,
+                backgroundColor: CHART_COLORS.bearingWear.fill,
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: '传感器漂移',
+                data: driftData,
+                borderColor: CHART_COLORS.sensorDrift.stroke,
+                backgroundColor: CHART_COLORS.sensorDrift.fill,
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+          }
+        });
+      } catch (e) {}
+    }
+
+    async function loadFeedbackTrends() {
+      const end = new Date();
+      const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+      try {
+        const result = await apiRequest(
+          `/api/monitoring/feedback-stats?start_time=${start.toISOString()}&end_time=${end.toISOString()}&group_by=day`
+        );
+        const trends = result.data.trends;
+        const labels = Object.keys(trends).sort();
+        const faultData = labels.map(d => trends[d].REAL_FAULT || 0);
+        const driftData = labels.map(d => trends[d].SENSOR_DRIFT || 0);
+        const falseData = labels.map(d => trends[d].FALSE_ALARM || 0);
+
+        if (feedbackTrendChart) feedbackTrendChart.destroy();
+        const ctx = document.getElementById('feedbackTrendChart').getContext('2d');
+        feedbackTrendChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels.map(l => l.slice(5)),
+            datasets: [
+              { label: '真实故障', data: faultData, backgroundColor: CHART_COLORS.bearingWear.stroke },
+              { label: '传感器漂移', data: driftData, backgroundColor: CHART_COLORS.sensorDrift.stroke },
+              { label: '误报', data: falseData, backgroundColor: CHART_COLORS.falseAlarm.stroke }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+              x: { stacked: true },
+              y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+            }
+          }
+        });
+
+        const tc = result.data.type_counts;
+        const total = result.data.total_feedback;
+        if (feedbackPieChart) feedbackPieChart.destroy();
+        const pctx = document.getElementById('feedbackPieChart').getContext('2d');
+        feedbackPieChart = new Chart(pctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['真实故障', '传感器漂移', '误报'],
+            datasets: [{
+              data: [tc.REAL_FAULT || 0, tc.SENSOR_DRIFT || 0, tc.FALSE_ALARM || 0],
+              backgroundColor: [
+                CHART_COLORS.bearingWear.stroke,
+                CHART_COLORS.sensorDrift.stroke,
+                CHART_COLORS.falseAlarm.stroke
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: {
+                callbacks: {
+                  label: (c) => `${c.label}: ${c.parsed} (${total > 0 ? ((c.parsed / total) * 100).toFixed(1) : 0}%)`
+                }
+              }
+            }
+          }
+        });
+      } catch (e) {}
+    }
+
+    async function loadLatestAlerts() {
+      try {
+        const result = await apiRequest('/api/alerts?limit=5');
+        const alerts = result.data;
+        const container = document.getElementById('latest-alerts');
+
+        if (alerts.length === 0) {
+          renderEmptyState(container, '🔔', '暂无告警', '系统尚未生成告警记录');
+          return;
+        }
+
+        let html = '<table style="width:100%;"><thead><tr><th>设备</th><th>类型</th><th>置信度</th><th>状态</th><th>时间</th></tr></thead><tbody>';
+        alerts.forEach(a => {
+          html += `
+            <tr>
+              <td><strong>${a.equipment_id}</strong></td>
+              <td><span class="badge ${getBadgeClassForAlertType(a.alert_type)}">${a.alert_type}</span></td>
+              <td>${(a.confidence * 100).toFixed(1)}%</td>
+              <td><span class="badge ${getBadgeClassForStatus(a.status)}">${getStatusText(a.status)}</span></td>
+              <td style="font-size:12px;color:#64748b">${formatDateTime(a.timestamp)}</td>
+            </tr>
+          `;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      } catch (e) {}
+    }
+
+    function loadDashboard() {
+      loadSummary();
+      loadAlertTrends();
+      loadFeedbackTrends();
+      loadLatestAlerts();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDashboard();
+      setInterval(loadDashboard, 60000);
+    });
+  </script>
+</body>
+</html>

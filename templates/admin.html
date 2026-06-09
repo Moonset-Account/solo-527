@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>后台管理 - 工业传感器异常预测系统</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="logo-icon">⚙️</span><span>传感器预测系统</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" href="/"><span class="nav-icon">📊</span><span>仪表盘</span></a>
+      <a class="nav-item" href="/alerts"><span class="nav-icon">🔔</span><span>告警管理</span></a>
+      <a class="nav-item" href="/monitoring"><span class="nav-icon">📈</span><span>模型监控</span></a>
+      <a class="nav-item active" href="/admin"><span class="nav-icon">🗂️</span><span>后台管理</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0.0 · © 2024
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h2>后台管理</h2>
+        <div class="subtitle">模型版本、数据版本与人工改标记录管理</div>
+      </div>
+      <div>
+        <button class="btn btn-default btn-sm" onclick="checkHealth()">🩺 系统检查</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="data-versions">数据版本</div>
+      <div class="tab" data-tab="relabel">人工改标记录</div>
+      <div class="tab" data-tab="feedback">反馈训练记录</div>
+      <div class="tab" data-tab="system">系统管理</div>
+    </div>
+
+    <div class="tab-content active" id="tab-data-versions">
+      <div class="card">
+        <div class="card-title">
+          <span>训练数据版本记录</span>
+          <button class="btn btn-default btn-sm" onclick="loadDataVersions()">🔄 刷新</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>数据版本</th>
+                <th>样本总数</th>
+                <th>正样本数</th>
+                <th>特征数</th>
+                <th>关联反馈数</th>
+                <th>关联模型</th>
+                <th>说明</th>
+                <th>创建者</th>
+                <th>创建时间</th>
+                <th style="width:120px;">操作</th>
+              </tr>
+            </thead>
+            <tbody id="dv-tbody">
+              <tr><td colspan="10" style="padding:40px;text-align:center;">
+                <div class="spinner" style="margin:0 auto;"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-relabel">
+      <div class="card">
+        <div class="card-title">
+          <span>人工改标记录</span>
+          <button class="btn btn-default btn-sm" onclick="loadRelabelRecords()">🔄 刷新</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>告警ID</th>
+                <th>原标签</th>
+                <th>新标签</th>
+                <th>改标原因</th>
+                <th>操作人</th>
+                <th>数据版本</th>
+                <th>改标时间</th>
+              </tr>
+            </thead>
+            <tbody id="rl-tbody">
+              <tr><td colspan="8" style="padding:40px;text-align:center;">
+                <div class="spinner" style="margin:0 auto;"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="rl-pagination"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-feedback">
+      <div class="card">
+        <div class="card-title">
+          <span>反馈训练记录 (工程师确认后纳入训练)</span>
+          <div>
+            <select class="form-control btn-sm" id="fb-filter" onchange="loadFeedbackRecords()">
+              <option value="">全部</option>
+              <option value="true">已用于训练</option>
+              <option value="false">未使用</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>告警ID</th>
+                <th>反馈类型</th>
+                <th>备注</th>
+                <th>反馈人</th>
+                <th>状态</th>
+                <th>训练数据版本</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody id="fb-tbody">
+              <tr><td colspan="8" style="padding:40px;text-align:center;">
+                <div class="spinner" style="margin:0 auto;"></div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="fb-pagination"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-system">
+      <div class="stat-cards">
+        <div class="stat-card primary">
+          <div class="stat-label">数据库连接</div>
+          <div class="stat-value" id="sys-db">--</div>
+          <div class="stat-sub" id="sys-db-sub">点击检查系统状态</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">API服务</div>
+          <div class="stat-value" id="sys-api">--</div>
+          <div class="stat-sub">当前服务运行状态</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">已注册模型数</div>
+          <div class="stat-value" id="sys-models">--</div>
+          <div class="stat-sub">历史训练模型总数</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">待训练反馈数</div>
+          <div class="stat-value" id="sys-pending-fb">--</div>
+          <div class="stat-sub">下次训练将纳入</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><span>数据初始化</span></div>
+          <div style="padding:16px 0;">
+            <p style="color:#64748b;margin-bottom:16px;">
+              首次使用系统时，请按顺序执行以下操作来完成初始化：
+            </p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <button class="btn btn-primary btn-lg" onclick="initDatabase(false)">
+                1️⃣ 初始化数据库表结构
+              </button>
+              <button class="btn btn-success btn-lg" onclick="generateData(30)">
+                2️⃣ 生成30天模拟传感器数据
+              </button>
+              <button class="btn btn-warning btn-lg" onclick="quickTrainAndDeploy()">
+                3️⃣ 训练并部署首个模型
+              </button>
+              <button class="btn btn-info btn-lg" onclick="runFirstInference()">
+                4️⃣ 执行推理生成告警
+              </button>
+            </div>
+            <div style="margin-top:20px;padding:16px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca;">
+              <p style="color:#991b1b;font-weight:600;margin-bottom:8px;">⚠️ 危险操作</p>
+              <button class="btn btn-danger btn-sm" onclick="resetDatabase()">
+                🗑️ 重置数据库（删除所有数据）
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>系统操作指南</span></div>
+          <div style="padding:16px 0;line-height:1.8;color:#334155;">
+            <h4 style="margin-bottom:10px;color:#0f172a;">📖 快速上手</h4>
+            <ol style="padding-left:20px;margin-bottom:20px;">
+              <li>完成左侧"数据初始化"步骤</li>
+              <li>在 <strong>仪表盘</strong> 查看总体概况</li>
+              <li>在 <strong>告警管理</strong> 中对告警进行人工确认</li>
+              <li>在 <strong>模型监控</strong> 中查看反馈趋势和训练新模型</li>
+              <li>在此页面查看数据版本和改标记录</li>
+            </ol>
+            <h4 style="margin-bottom:10px;color:#0f172a;">🔑 核心规则</h4>
+            <ul style="padding-left:20px;">
+              <li>停机检修期间的数据不作为故障样本</li>
+              <li>工程师确认的反馈将在下次训练时纳入</li>
+              <li>工程师可选：真实故障 / 传感器漂移 / 误报</li>
+              <li>模型监控页展示每类反馈趋势</li>
+              <li>所有改标记录都在此页面可追溯</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="dv-detail-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="dv-title">数据版本详情</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="dv-detail-content">加载中...</div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="hideModal('dv-detail-modal')">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        const t = tab.dataset.tab;
+        if (t === 'data-versions') loadDataVersions();
+        if (t === 'relabel') loadRelabelRecords();
+        if (t === 'feedback') loadFeedbackRecords();
+        if (t === 'system') checkHealth();
+      });
+    });
+
+    async function loadDataVersions() {
+      try {
+        const result = await apiRequest('/api/data-versions');
+        const tbody = document.getElementById('dv-tbody');
+        const data = result.data;
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state">
+            <div class="empty-icon">📦</div><h3>暂无数据版本</h3><p>训练模型后将自动生成数据版本</p>
+          </div></td></tr>`;
+          return;
+        }
+        tbody.innerHTML = data.map(v => `
+          <tr>
+            <td style="font-family:monospace;font-weight:600;">${v.version}</td>
+            <td>${v.record_count?.toLocaleString() || '-'}</td>
+            <td><span class="badge badge-fault">${v.positive_count || 0}</span></td>
+            <td>${v.feature_count || '-'}</td>
+            <td>${v.feedback_count || 0}</td>
+            <td>${v.related_models?.length || '-'}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${v.description || ''}">${v.description || '-'}</td>
+            <td>${v.created_by || '-'}</td>
+            <td style="font-size:12px;color:#64748b;">${formatDateTime(v.created_at)}</td>
+            <td><button class="btn btn-default btn-sm" onclick="showDvDetail('${v.version}')">详情</button></td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        document.getElementById('dv-tbody').innerHTML = `<tr><td colspan="10" style="padding:40px;text-align:center;color:#dc2626;">加载失败: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function showDvDetail(version) {
+      try {
+        const result = await apiRequest(`/api/data-versions/${version}`);
+        const v = result.data;
+        document.getElementById('dv-title').textContent = `数据版本 - ${version}`;
+        let relatedHtml = v.related_models?.length ? v.related_models.map(m => `
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:6px;margin-bottom:6px;">
+            <span style="font-family:monospace;">${m.version}</span>
+            <span>F1: <strong>${(m.f1_score * 100).toFixed(1)}%</strong>${m.is_deployed ? ' <span class="badge badge-deployed">已部署</span>' : ''}</span>
+          </div>
+        `).join('') : '<span style="color:#94a3b8;">暂无关联模型</span>';
+
+        let fbHtml = '';
+        if (v.included_feedback_ids && v.included_feedback_ids.length > 0) {
+          fbHtml = `
+            <div style="margin-top:12px;">
+              <div style="font-size:12px;color:#64748b;margin-bottom:6px;">关联反馈ID列表 (${v.included_feedback_ids.length}条)</div>
+              <div style="max-height:120px;overflow-y:auto;background:#f8fafc;padding:8px;border-radius:6px;font-family:monospace;font-size:12px;">
+                ${v.included_feedback_ids.map(id => `#${id}`).join(', ')}
+              </div>
+            </div>
+          `;
+        }
+
+        document.getElementById('dv-detail-content').innerHTML = `
+          <div class="alert-detail-section">
+            <h4>基本信息</h4>
+            <div class="info-grid">
+              <div class="info-item"><div class="info-label">数据版本</div><div class="info-value" style="font-family:monospace;">${v.version}</div></div>
+              <div class="info-item"><div class="info-label">样本总数</div><div class="info-value">${v.record_count?.toLocaleString()}</div></div>
+              <div class="info-item"><div class="info-label">正样本(异常)数</div><div class="info-value">${v.positive_count}</div></div>
+              <div class="info-item"><div class="info-label">特征维度</div><div class="info-value">${v.feature_count}</div></div>
+              <div class="info-item"><div class="info-label">创建者</div><div class="info-value">${v.created_by || '-'}</div></div>
+              <div class="info-item"><div class="info-label">创建时间</div><div class="info-value">${formatDateTime(v.created_at)}</div></div>
+              <div class="info-item" style="grid-column:span 2;">
+                <div class="info-label">描述</div>
+                <div class="info-value" style="font-weight:400;font-size:14px;">${v.description || '无'}</div>
+              </div>
+            </div>
+          </div>
+          <div class="alert-detail-section">
+            <h4>关联模型</h4>
+            ${relatedHtml}
+          </div>
+          <div class="alert-detail-section">
+            <h4>纳入的工程师反馈</h4>
+            <div>共纳入 <strong>${v.feedback_count}</strong> 条人工确认反馈</div>
+            ${fbHtml}
+          </div>
+        `;
+        showModal('dv-detail-modal');
+      } catch (e) {
+        showToast('error', '加载失败', e.message);
+      }
+    }
+
+    let rlPage = 1, rlPageSize = 20, rlTotal = 0;
+    async function loadRelabelRecords() {
+      try {
+        const result = await apiRequest(`/api/relabel-records?limit=${rlPageSize}&offset=${(rlPage - 1) * rlPageSize}`);
+        const tbody = document.getElementById('rl-tbody');
+        rlTotal = result.total;
+        const data = result.data;
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+            <div class="empty-icon">📝</div><h3>暂无改标记录</h3><p>工程师在确认告警时若选择改标会在此显示</p>
+          </div></td></tr>`;
+        } else {
+          tbody.innerHTML = data.map(r => `
+            <tr>
+              <td>#${r.id}</td>
+              <td><a href="/alerts" style="color:#2563eb;font-weight:600;">#${r.alert_id}</a></td>
+              <td><span class="badge badge-default">${r.original_label || '-'}</span></td>
+              <td><span class="badge badge-success">${r.new_label || '-'}</span></td>
+              <td style="max-width:240px;">${r.relabel_reason || '-'}</td>
+              <td>${r.relabel_user || '-'}</td>
+              <td style="font-family:monospace;font-size:12px;">${r.data_version || '-'}</td>
+              <td style="font-size:12px;color:#64748b;">${formatDateTime(r.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+        renderPagination(document.getElementById('rl-pagination'), rlPage, Math.ceil(rlTotal / rlPageSize), rlTotal, rlPageSize, p => { rlPage = p; loadRelabelRecords(); });
+      } catch (e) {}
+    }
+
+    let fbPage = 1, fbPageSize = 20, fbTotal = 0;
+    async function loadFeedbackRecords() {
+      const filter = document.getElementById('fb-filter').value;
+      const params = new URLSearchParams({ limit: fbPageSize, offset: (fbPage - 1) * fbPageSize });
+      if (filter) params.set('is_used_for_training', filter);
+      try {
+        const result = await apiRequest(`/api/feedback-records?${params.toString()}`);
+        fbTotal = result.total;
+        const tbody = document.getElementById('fb-tbody');
+        const data = result.data;
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+            <div class="empty-icon">💬</div><h3>暂无反馈记录</h3><p>工程师确认告警后会生成记录</p>
+          </div></td></tr>`;
+        } else {
+          tbody.innerHTML = data.map(f => `
+            <tr>
+              <td>#${f.id}</td>
+              <td><strong>#${f.alert_id}</strong></td>
+              <td><span class="badge ${getBadgeClassForFeedback(f.feedback_type)}">${getFeedbackText(f.feedback_type)}</span></td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.feedback_note || ''}">${f.feedback_note || '-'}</td>
+              <td>${f.feedback_user || '-'}</td>
+              <td>${f.is_used_for_training ? '<span class="badge badge-success">已纳入训练</span>' : '<span class="badge badge-pending">待使用</span>'}</td>
+              <td style="font-family:monospace;font-size:12px;">${f.training_data_version || '-'}</td>
+              <td style="font-size:12px;color:#64748b;">${formatDateTime(f.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+        renderPagination(document.getElementById('fb-pagination'), fbPage, Math.ceil(fbTotal / fbPageSize), fbTotal, fbPageSize, p => { fbPage = p; loadFeedbackRecords(); });
+      } catch (e) {}
+    }
+
+    async function checkHealth() {
+      try {
+        const [health, models, fb] = await Promise.all([
+          apiRequest('/api/health'),
+          apiRequest('/api/models'),
+          apiRequest('/api/feedback-records?is_used_for_training=false&limit=1')
+        ]);
+        document.getElementById('sys-db').textContent = health.database ? '✓ 正常' : '✗ 异常';
+        document.getElementById('sys-db-sub').textContent = health.timestamp;
+        document.getElementById('sys-api').textContent = '✓ 运行中';
+        document.getElementById('sys-models').textContent = models.data.length;
+        document.getElementById('sys-pending-fb').textContent = fb.total;
+      } catch (e) {
+        document.getElementById('sys-db').textContent = '✗ 异常';
+        document.getElementById('sys-api').textContent = '✗ 异常';
+      }
+    }
+
+    async function initDatabase(drop) {
+      try {
+        if (drop && !confirm('⚠️ 确定要重置所有数据吗？此操作不可恢复！')) return;
+        await apiRequest('/api/init-database', {
+          method: 'POST', body: { drop_first: drop }
+        });
+        showToast('success', '数据库初始化', '数据库表结构已初始化');
+        loadDataVersions();
+      } catch (e) {
+        showToast('error', '初始化失败', e.message);
+      }
+    }
+
+    async function generateData(days) {
+      try {
+        showToast('info', '数据生成中', '正在生成模拟传感器数据，请稍候...');
+        const result = await apiRequest('/api/generate-data', {
+          method: 'POST', body: { days }
+        });
+        showToast('success', '数据生成完成', `生成 ${result.data.record_count?.toLocaleString()} 条传感器数据，涉及 ${result.data.equipment_ids?.length || 5} 台设备`);
+      } catch (e) {
+        showToast('error', '生成失败', e.message);
+      }
+    }
+
+    async function quickTrainAndDeploy() {
+      try {
+        showToast('info', '训练开始', '模型训练中，请稍候（约需1-2分钟）...');
+        const result = await apiRequest('/api/models/train', {
+          method: 'POST',
+          body: {
+            model_type: 'gb',
+            description: '初始化自动训练模型',
+            include_feedback: true,
+            use_historical_data: true
+          }
+        });
+        showToast('success', '训练完成', `模型 ${result.model_version} 已部署！F1=${(result.metrics.f1_macro * 100).toFixed(1)}%`);
+        loadDataVersions();
+        checkHealth();
+      } catch (e) {
+        showToast('error', '训练失败', e.message);
+      }
+    }
+
+    async function runFirstInference() {
+      try {
+        showToast('info', '推理中', '执行批量推理...');
+        const result = await apiRequest('/api/inference/run', {
+          method: 'POST', body: { lookback_minutes: 1440 }
+        });
+        showToast('success', '推理完成', `处理 ${result.data.total_equipment_processed} 台设备，生成 ${result.data.total_new_alerts} 条告警`);
+      } catch (e) {
+        showToast('error', '推理失败', e.message);
+      }
+    }
+
+    function resetDatabase() {
+      initDatabase(true);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDataVersions();
+    });
+  </script>
+</body>
+</html>
