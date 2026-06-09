@@ -17,12 +17,12 @@ namespace KitchenChaos.Levels
         public string Description;
     }
 
-    public class DailyChallengeManager : MonoBehaviour
+    public class LegacyDailyChallengeManager : MonoBehaviour
     {
         [SerializeField] string _todayKey;
         [SerializeField] int _todayBest;
 
-        public static DailyChallengeManager Instance { get; private set; }
+        public static LegacyDailyChallengeManager Instance { get; private set; }
 
         SaveSystem _save;
 

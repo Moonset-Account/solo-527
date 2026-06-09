@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Config;
 using KitchenChaos.Players;
 
@@ -187,7 +188,7 @@ namespace KitchenChaos.Levels
                     if (zone == null) continue;
                     if (zone.OverlapPoint(p.transform.position))
                     {
-                        p.StartProcess(_stunDuration, () => { }, PlayerAnimationState.Idle);
+                        p.StartProcessRaw(_stunDuration, () => { }, PlayerAnimHint.Idle);
                         break;
                     }
                 }

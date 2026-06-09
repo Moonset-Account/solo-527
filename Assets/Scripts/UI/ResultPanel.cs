@@ -34,6 +34,7 @@ namespace KitchenChaos.UI
 
         void OnEnable()
         {
+            AutoBuildUI();
             if (!_subscribed)
             {
                 EventBus.Subscribe<LevelEndedEvent>(OnLevelEnded);
@@ -44,6 +45,152 @@ namespace KitchenChaos.UI
             if (_menuButton != null) _menuButton.onClick.AddListener(OnMenu);
             if (_reviewButton != null) _reviewButton.onClick.AddListener(OnReview);
             HideAll();
+        }
+
+        void AutoBuildUI()
+        {
+            var root = (RectTransform)transform;
+            EnsureOverlayPanel(ref _victoryRoot, root, "Victory", out var vicContent, new Color(0.15f, 0.35f, 0.2f, 0.96f));
+            EnsureOverlayPanel(ref _failureRoot, root, "Failure", out var failContent, new Color(0.4f, 0.15f, 0.15f, 0.96f));
+
+            BuildVictory(vicContent);
+            BuildFailure(failContent);
+            BuildSharedButtons(root);
+        }
+
+        static void EnsureOverlayPanel(ref GameObject field, RectTransform parent, string name, out RectTransform content, Color bg)
+        {
+            if (field == null)
+            {
+                var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(parent, false);
+                var rt = (RectTransform)go.transform;
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+                go.GetComponent<Image>().color = bg;
+                field = go;
+            }
+            content = (RectTransform)field.transform;
+            if (content.childCount == 0)
+            {
+                var inner = new GameObject("Content", typeof(RectTransform));
+                inner.transform.SetParent(content, false);
+                var irt = (RectTransform)inner.transform;
+                irt.anchorMin = new Vector2(0.15f, 0.1f); irt.anchorMax = new Vector2(0.85f, 0.9f);
+                irt.offsetMin = Vector2.zero; irt.offsetMax = Vector2.zero;
+                content = irt;
+            }
+        }
+
+        void BuildVictory(RectTransform c)
+        {
+            _victoryTitle = MakeText(c, "VTitle", "🎉 关卡完成！", 42, 0.92f, new Color(1f, 0.95f, 0.5f));
+            _victoryScore = MakeText(c, "VScore", "总分：0", 28, 0.78f);
+            var starsGo = new GameObject("Stars", typeof(RectTransform));
+            starsGo.transform.SetParent(c, false);
+            var srt = (RectTransform)starsGo.transform;
+            srt.anchorMin = new Vector2(0.25f, 0.58f); srt.anchorMax = new Vector2(0.75f, 0.72f);
+            srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+            _victoryStars = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var sg = new GameObject($"S{i}", typeof(RectTransform), typeof(Image));
+                sg.transform.SetParent(starsGo.transform, false);
+                var s = (RectTransform)sg.transform;
+                s.anchorMin = new Vector2((float)i / 3, 0); s.anchorMax = new Vector2((float)(i + 1) / 3, 1);
+                s.offsetMin = new Vector2(10, 0); s.offsetMax = new Vector2(-10, 0);
+                var img = sg.GetComponent<Image>();
+                img.color = new Color(1, 1, 1, 0.3f);
+                var t = sg.AddComponent<TextMeshProUGUI>();
+                t.text = "⭐"; t.fontSize = 56; t.alignment = TextAlignmentOptions.Center;
+                _victoryStars[i] = img;
+            }
+            var rewardsGo = new GameObject("Rewards", typeof(RectTransform));
+            rewardsGo.transform.SetParent(c, false);
+            var rrt = (RectTransform)rewardsGo.transform;
+            rrt.anchorMin = new Vector2(0.1f, 0.35f); rrt.anchorMax = new Vector2(0.9f, 0.55f);
+            rrt.offsetMin = Vector2.zero; rrt.offsetMax = Vector2.zero;
+            var svg = rewardsGo.AddComponent<VerticalLayoutGroup>();
+            svg.childControlHeight = true; svg.childControlWidth = true;
+            svg.childForceExpandHeight = false; svg.childForceExpandWidth = true;
+            svg.spacing = 8;
+            _rewardListParent = rewardsGo.transform;
+            _rewardSummary = MakeText(c, "VSummary", "你做到了！", 18, 0.30f, new Color(0.85f, 1f, 0.9f));
+        }
+
+        void BuildFailure(RectTransform c)
+        {
+            _failureTitle = MakeText(c, "FTitle", "💥 关卡失败", 40, 0.88f, new Color(1f, 0.6f, 0.6f));
+            _failureScore = MakeText(c, "FScore", "最终得分：0", 26, 0.75f);
+            _failureReason = MakeText(c, "FReason", "原因未明", 22, 0.65f, new Color(1f, 0.85f, 0.5f));
+            var tipsGo = new GameObject("Tips", typeof(RectTransform));
+            tipsGo.transform.SetParent(c, false);
+            var trt = (RectTransform)tipsGo.transform;
+            trt.anchorMin = new Vector2(0.1f, 0.35f); trt.anchorMax = new Vector2(0.9f, 0.60f);
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            var tlg = tipsGo.AddComponent<VerticalLayoutGroup>();
+            tlg.childControlHeight = true; tlg.childControlWidth = true;
+            tlg.childForceExpandHeight = false; tlg.childForceExpandWidth = true;
+            tlg.spacing = 6;
+            _tipsParent = tipsGo.transform;
+        }
+
+        void BuildSharedButtons(RectTransform root)
+        {
+            if (_retryButton == null)
+            {
+                _retryButton = MakeOverlayBtn(root, "🔄  重 试 关 卡", new Vector2(0.5f, 0.18f), new Vector2(340, 64), new Color(0.25f, 0.6f, 0.25f));
+                _retryButton.transform.SetAsLastSibling();
+            }
+            if (_nextButton == null)
+            {
+                _nextButton = MakeOverlayBtn(root, "➡  下 一 关", new Vector2(0.8f, 0.18f), new Vector2(240, 64), new Color(0.2f, 0.45f, 0.75f));
+                _nextButton.transform.SetAsLastSibling();
+            }
+            if (_menuButton == null)
+            {
+                _menuButton = MakeOverlayBtn(root, "🏠  主 菜 单", new Vector2(0.2f, 0.18f), new Vector2(240, 64), new Color(0.5f, 0.35f, 0.6f));
+                _menuButton.transform.SetAsLastSibling();
+            }
+        }
+
+        static TMP_Text MakeText(RectTransform parent, string name, string txt, int size, float yAnchor, Color? color = null)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0, yAnchor); rt.anchorMax = new Vector2(1, yAnchor);
+            rt.pivot = new Vector2(0.5f, yAnchor > 0.5f ? 1 : 0);
+            rt.sizeDelta = new Vector2(0, size + 20);
+            var t = go.AddComponent<TextMeshProUGUI>();
+            t.text = txt; t.fontSize = size; t.alignment = TextAlignmentOptions.Center;
+            t.color = color ?? Color.white; t.enableWordWrapping = true;
+            return t;
+        }
+
+        static Button MakeOverlayBtn(RectTransform parent, string text, Vector2 anchor, Vector2 size, Color c)
+        {
+            var go = new GameObject("Btn", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(anchor.x, anchor.y); rt.anchorMax = rt.anchorMin;
+            rt.pivot = new Vector2(0.5f, 0.5f); rt.sizeDelta = size; rt.anchoredPosition = Vector2.zero;
+            go.GetComponent<Image>().color = c;
+            var btn = go.GetComponent<Button>();
+            var colors = btn.colors;
+            colors.highlightedColor = c * 1.15f;
+            colors.pressedColor = c * 0.85f;
+            btn.colors = colors;
+            var tgo = new GameObject("T", typeof(RectTransform));
+            tgo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)tgo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            var t = tgo.AddComponent<TextMeshProUGUI>();
+            t.text = text; t.fontSize = Mathf.RoundToInt(size.y * 0.38f);
+            t.alignment = TextAlignmentOptions.Center;
+            t.color = Color.white; t.fontStyle = FontStyles.Bold;
+            return btn;
         }
 
         void OnDisable()

@@ -8,7 +8,6 @@ using KitchenChaos.Config;
 using KitchenChaos.Persistence;
 using KitchenChaos.Leaderboards;
 using KitchenChaos.Achievements;
-using KitchenChaos.Levels;
 
 namespace KitchenChaos.UI
 {
@@ -75,6 +74,7 @@ namespace KitchenChaos.UI
 
         void OnEnable()
         {
+            AutoBuildUI();
             BindMain();
             BindLevelSelect();
             BindPreview();
@@ -84,6 +84,316 @@ namespace KitchenChaos.UI
             BindSettings();
             ShowMain();
             UpdateSummary();
+        }
+
+        void AutoBuildUI()
+        {
+            var root = (RectTransform)transform;
+
+            EnsurePage(ref _mainRoot, root, "MainPage", out var mainContent);
+            EnsurePage(ref _levelSelectRoot, root, "LevelSelectPage", out var levelContent);
+            EnsurePage(ref _previewRoot, root, "PreviewPage", out var previewContent);
+            EnsurePage(ref _dailyRoot, root, "DailyPage", out var dailyContent);
+            EnsurePage(ref _leaderboardRoot, root, "LeaderboardPage", out var lbContent);
+            EnsurePage(ref _achievementRoot, root, "AchievementPage", out var achContent);
+            EnsurePage(ref _settingsRoot, root, "SettingsPage", out var settingsContent);
+
+            BuildMainPage(mainContent);
+            BuildLevelSelectPage(levelContent);
+            BuildPreviewPage(previewContent);
+            BuildDailyPage(dailyContent);
+            BuildLeaderboardPage(lbContent);
+            BuildAchievementPage(achContent);
+            BuildSettingsPage(settingsContent);
+        }
+
+        static void EnsurePage(ref GameObject pageField, RectTransform parent, string name, out RectTransform content)
+        {
+            if (pageField == null)
+            {
+                var go = new GameObject(name, typeof(RectTransform));
+                go.transform.SetParent(parent, false);
+                var rt = (RectTransform)go.transform;
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+                pageField = go;
+            }
+            content = (RectTransform)pageField.transform;
+            if (content.childCount == 0)
+            {
+                var scrollGo = new GameObject("Content", typeof(RectTransform));
+                scrollGo.transform.SetParent(content, false);
+                var srt = (RectTransform)scrollGo.transform;
+                srt.anchorMin = new Vector2(0.1f, 0.05f); srt.anchorMax = new Vector2(0.9f, 0.95f);
+                srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+                content = srt;
+            }
+        }
+
+        void BuildMainPage(RectTransform content)
+        {
+            AddLabel(content, "Title", "🍳 厨房混乱 KITCHEN CHAOS", 38, new Vector2(0, 0.88f), new Color(1f, 0.9f, 0.5f));
+            AddLabel(ref _playerNameText, content, "PlayerName", "👨‍🍳 Chef", 22, new Vector2(0, 0.75f));
+            AddLabel(ref _totalStarsText, content, "StarsText", "⭐ 0", 20, new Vector2(-0.25f, 0.68f));
+            AddLabel(ref _totalCoinsText, content, "CoinsText", "💰 0", 20, new Vector2(0.25f, 0.68f));
+
+            _startButton = AddButton(content, "StartBtn", "🚀  开 始 游 戏", new Vector2(0, 0.52f), new Vector2(420, 72));
+            _dailyButton = AddButton(content, "DailyBtn", "📅  每 日 挑 战", new Vector2(0, 0.40f), new Vector2(420, 56));
+            _leaderboardButton = AddButton(content, "LbBtn", "🏆  排 行 榜", new Vector2(-0.25f, 0.28f), new Vector2(200, 56));
+            _achievementButton = AddButton(content, "AchBtn", "🎖  成 就", new Vector2(0.25f, 0.28f), new Vector2(200, 56));
+            _settingsButton = AddButton(content, "SetBtn", "⚙️  设 置", new Vector2(-0.25f, 0.16f), new Vector2(200, 56));
+            _exitButton = AddButton(content, "ExitBtn", "❌  退 出", new Vector2(0.25f, 0.16f), new Vector2(200, 56));
+
+            AddToggle(ref _singlePlayerToggle, content, "SingleToggle", "单人模式（Tab 切角色）", new Vector2(0, 0.05f));
+            _singlePlayerToggle.isOn = true;
+        }
+
+        void BuildLevelSelectPage(RectTransform content)
+        {
+            AddLabel(content, "LsTitle", "选择关卡", 32, new Vector2(0, 0.95f), new Color(0.9f, 1f, 1f));
+            _levelBackButton = AddButton(content, "BackBtn", "←  返回主菜单", new Vector2(0.5f, 0.95f), new Vector2(200, 48));
+            _levelListParent = content;
+            AddLabel(content, "Hint", "点击下方任一关卡卡片开始", 16, new Vector2(0, 0.85f), new Color(0.7f, 0.8f, 0.9f));
+        }
+
+        void BuildPreviewPage(RectTransform content)
+        {
+            AddLabel(content, "PrevTitle", "— 关卡预览 —", 26, new Vector2(0, 0.92f), new Color(1f, 0.85f, 0.6f));
+            AddLabel(ref _previewLevelName, content, "LName", "新手厨房", 30, new Vector2(0, 0.80f));
+            AddLabel(ref _previewDuration, content, "LDur", "⏱ 3 分钟   🎯 目标 100", 20, new Vector2(0, 0.70f));
+            AddLabel(ref _previewRecipes, content, "LRec", "食谱：Salad / Soup", 18, new Vector2(0, 0.60f));
+            AddLabel(ref _previewTips, content, "LTip", "挑战自己的速度与配合！", 16, new Vector2(0, 0.50f), new Color(0.8f, 0.9f, 1f));
+            AddLabel(ref _previewBest, content, "LBest", "最佳：0", 18, new Vector2(0, 0.40f));
+
+            var starsGo = new GameObject("Stars", typeof(RectTransform));
+            starsGo.transform.SetParent(content, false);
+            var srt = (RectTransform)starsGo.transform;
+            srt.anchoredPosition = new Vector2(0, -content.rect.height * 0.28f);
+            srt.sizeDelta = new Vector2(300, 60);
+            _previewStars = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var starGo = new GameObject($"Star{i}", typeof(RectTransform), typeof(Image));
+                starGo.transform.SetParent(starsGo.transform, false);
+                var srt_i = (RectTransform)starGo.transform;
+                srt_i.anchorMin = new Vector2((float)i / 3f, 0); srt_i.anchorMax = new Vector2((float)(i + 1) / 3f, 1);
+                srt_i.offsetMin = new Vector2(10, 0); srt_i.offsetMax = new Vector2(-10, 0);
+                var img = starGo.GetComponent<Image>();
+                img.color = new Color(1f, 1f, 1f, 0.3f);
+                var txt = starGo.AddComponent<TextMeshProUGUI>();
+                txt.text = "⭐"; txt.fontSize = 40; txt.alignment = TextAlignmentOptions.Center;
+                _previewStars[i] = img;
+            }
+
+            _previewStart = AddButton(content, "StartBtn", "✅  开始关卡", new Vector2(-0.25f, 0.10f), new Vector2(240, 64));
+            _previewCancel = AddButton(content, "CancelBtn", "✖  返回", new Vector2(0.25f, 0.10f), new Vector2(240, 64));
+        }
+
+        void BuildDailyPage(RectTransform content)
+        {
+            AddLabel(content, "DTitle", "📅 每日挑战", 30, new Vector2(0, 0.93f), new Color(0.9f, 1f, 0.8f));
+            AddLabel(ref _dailyTitle, content, "DDate", $"每日挑战 · {DateTime.Today:yyyy/MM/dd}", 22, new Vector2(0, 0.80f));
+            AddLabel(ref _dailyBest, content, "DBest", "今日最佳：0", 20, new Vector2(0, 0.70f));
+            AddLabel(ref _dailyStatus, content, "DStatus", "🕒 尚未完成", 18, new Vector2(0, 0.60f));
+            _dailyStart = AddButton(content, "DStartBtn", "🎯  开始每日挑战", new Vector2(0, 0.40f), new Vector2(360, 64));
+            _dailyBack = AddButton(content, "DBackBtn", "←  返回", new Vector2(0, 0.20f), new Vector2(240, 56));
+        }
+
+        void BuildLeaderboardPage(RectTransform content)
+        {
+            AddLabel(content, "LbTitle", "🏆 排行榜", 30, new Vector2(0, 0.93f), new Color(1f, 0.9f, 0.6f));
+            _lbEntries = content;
+            _lbBack = AddButton(content, "LbBack", "←  返回", new Vector2(0.5f, 0.93f), new Vector2(180, 48));
+        }
+
+        void BuildAchievementPage(RectTransform content)
+        {
+            AddLabel(content, "AchTitle", "🎖 成就一览", 30, new Vector2(0, 0.93f), new Color(0.85f, 0.75f, 1f));
+            _achEntries = content;
+            _achBack = AddButton(content, "AchBack", "←  返回", new Vector2(0.5f, 0.93f), new Vector2(180, 48));
+        }
+
+        void BuildSettingsPage(RectTransform content)
+        {
+            AddLabel(content, "STitle", "⚙️ 设置", 30, new Vector2(0, 0.93f), new Color(0.7f, 0.9f, 1f));
+            AddLabel(content, "NameLbl", "玩家名称", 18, new Vector2(-0.35f, 0.80f));
+            _nameInput = AddInputField(content, "NameInput", new Vector2(0.15f, 0.80f), new Vector2(260, 44));
+            AddLabel(content, "VolLbl", "音量", 18, new Vector2(-0.35f, 0.68f));
+            _volumeSlider = AddSlider(content, "VolSlider", new Vector2(0.15f, 0.68f), new Vector2(260, 32), 1f);
+            AddToggle(ref _fullscreenToggle, content, "FullScr", "全屏模式", new Vector2(0, 0.56f));
+            _resetSaveButton = AddButton(content, "ResetBtn", "🔄  重置存档", new Vector2(-0.25f, 0.42f), new Vector2(200, 48));
+            _settingsBack = AddButton(content, "SetBack", "←  保存并返回", new Vector2(0.25f, 0.42f), new Vector2(220, 48));
+        }
+
+        static TMP_Text AddLabel(RectTransform parent, string name, string text, int fontSize, Vector2 anchorY, Color? color = null)
+        {
+            TMP_Text tmp = null;
+            AddLabel(ref tmp, parent, name, text, fontSize, anchorY, color);
+            return tmp;
+        }
+
+        static void AddLabel(ref TMP_Text field, RectTransform parent, string name, string text, int fontSize, Vector2 anchorY, Color? color = null)
+        {
+            if (field != null) return;
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0, anchorY.y); rt.anchorMax = new Vector2(1, anchorY.y);
+            rt.pivot = new Vector2(0.5f, anchorY.y > 0.5f ? 1 : 0);
+            rt.sizeDelta = new Vector2(0, fontSize + 16);
+            rt.anchoredPosition = new Vector2(anchorY.x * parent.rect.width, 0);
+            field = go.AddComponent<TextMeshProUGUI>();
+            field.text = text;
+            field.fontSize = fontSize;
+            field.alignment = TextAlignmentOptions.Center;
+            field.color = color ?? Color.white;
+            field.enableWordWrapping = true;
+        }
+
+        static Button AddButton(RectTransform parent, string name, string text, Vector2 anchor, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0.5f + anchor.x * 0.5f, anchor.y);
+            rt.anchorMax = rt.anchorMin;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            var img = go.GetComponent<Image>();
+            img.color = new Color(0.2f, 0.55f, 0.9f, 0.95f);
+            var btn = go.GetComponent<Button>();
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(0.3f, 0.7f, 1f);
+            colors.pressedColor = new Color(0.15f, 0.4f, 0.75f);
+            btn.colors = colors;
+            var txtGo = new GameObject("Text", typeof(RectTransform));
+            txtGo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)txtGo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = Vector2.zero; trt.offsetMax = Vector2.zero;
+            var txt = txtGo.AddComponent<TextMeshProUGUI>();
+            txt.text = text;
+            txt.fontSize = Mathf.RoundToInt(size.y * 0.4f);
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.color = Color.white;
+            txt.fontStyle = FontStyles.Bold;
+            return btn;
+        }
+
+        static void AddToggle(ref Toggle field, RectTransform parent, string name, string label, Vector2 anchor)
+        {
+            if (field != null) return;
+            var go = new GameObject(name, typeof(RectTransform), typeof(Toggle));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0.5f + anchor.x * 0.5f, anchor.y);
+            rt.anchorMax = rt.anchorMin;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(360, 40);
+            rt.anchoredPosition = Vector2.zero;
+            field = go.GetComponent<Toggle>();
+
+            var bgGo = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            bgGo.transform.SetParent(go.transform, false);
+            var bgRt = (RectTransform)bgGo.transform;
+            bgRt.anchorMin = new Vector2(0, 0.15f); bgRt.anchorMax = new Vector2(0.1f, 0.85f);
+            bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
+            bgGo.GetComponent<Image>().color = new Color(0.3f, 0.35f, 0.45f);
+
+            var checkGo = new GameObject("Checkmark", typeof(RectTransform), typeof(Image));
+            checkGo.transform.SetParent(bgGo.transform, false);
+            var crt = (RectTransform)checkGo.transform;
+            crt.anchorMin = new Vector2(0.2f, 0.2f); crt.anchorMax = new Vector2(0.8f, 0.8f);
+            crt.offsetMin = Vector2.zero; crt.offsetMax = Vector2.zero;
+            checkGo.GetComponent<Image>().color = new Color(0.4f, 0.9f, 0.5f);
+            field.graphic = checkGo.GetComponent<Image>();
+
+            var lblGo = new GameObject("Label", typeof(RectTransform));
+            lblGo.transform.SetParent(go.transform, false);
+            var lblRt = (RectTransform)lblGo.transform;
+            lblRt.anchorMin = new Vector2(0.12f, 0); lblRt.anchorMax = Vector2.one;
+            lblRt.offsetMin = Vector2.zero; lblRt.offsetMax = Vector2.zero;
+            var lbl = lblGo.AddComponent<TextMeshProUGUI>();
+            lbl.text = label; lbl.fontSize = 18; lbl.alignment = TextAlignmentOptions.MidlineLeft;
+        }
+
+        static TMP_InputField AddInputField(RectTransform parent, string name, Vector2 anchor, Vector2 size)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(TMP_InputField));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0.5f + anchor.x * 0.5f, anchor.y);
+            rt.anchorMax = rt.anchorMin;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            go.GetComponent<Image>().color = new Color(0.15f, 0.18f, 0.22f);
+            var input = go.GetComponent<TMP_InputField>();
+
+            var placeGo = new GameObject("Placeholder", typeof(RectTransform));
+            placeGo.transform.SetParent(go.transform, false);
+            var prt = (RectTransform)placeGo.transform;
+            prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one;
+            prt.offsetMin = new Vector2(12, 0); prt.offsetMax = new Vector2(-12, 0);
+            var placeHolder = placeGo.AddComponent<TextMeshProUGUI>();
+            placeHolder.text = "输入名称..."; placeHolder.color = new Color(1, 1, 1, 0.5f);
+            placeHolder.fontSize = 18;
+
+            var txtGo = new GameObject("Text", typeof(RectTransform));
+            txtGo.transform.SetParent(go.transform, false);
+            var trt = (RectTransform)txtGo.transform;
+            trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(12, 0); trt.offsetMax = new Vector2(-12, 0);
+            var txt = txtGo.AddComponent<TextMeshProUGUI>();
+            txt.color = Color.white; txt.fontSize = 18; txt.enableWordWrapping = false;
+
+            input.textComponent = txt;
+            input.placeholder = placeHolder;
+            input.textViewport = trt;
+            return input;
+        }
+
+        static Slider AddSlider(RectTransform parent, string name, Vector2 anchor, Vector2 size, float defVal)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Slider));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = new Vector2(0.5f + anchor.x * 0.5f, anchor.y);
+            rt.anchorMax = rt.anchorMin;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = size;
+            rt.anchoredPosition = Vector2.zero;
+            var slider = go.GetComponent<Slider>();
+
+            var bgGo = new GameObject("BG", typeof(RectTransform), typeof(Image));
+            bgGo.transform.SetParent(go.transform, false);
+            var bgRt = (RectTransform)bgGo.transform;
+            bgRt.anchorMin = new Vector2(0, 0.35f); bgRt.anchorMax = new Vector2(1, 0.65f);
+            bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
+            bgGo.GetComponent<Image>().color = new Color(0.2f, 0.25f, 0.3f);
+
+            var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fillGo.transform.SetParent(go.transform, false);
+            var fillRt = (RectTransform)fillGo.transform;
+            fillRt.anchorMin = new Vector2(0, 0.35f); fillRt.anchorMax = new Vector2(defVal, 0.65f);
+            fillRt.offsetMin = Vector2.zero; fillRt.offsetMax = Vector2.zero;
+            fillGo.GetComponent<Image>().color = new Color(0.3f, 0.8f, 0.5f);
+            slider.fillRect = fillRt;
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleGo.transform.SetParent(go.transform, false);
+            var hRt = (RectTransform)handleGo.transform;
+            hRt.anchorMin = new Vector2(defVal, 0); hRt.anchorMax = new Vector2(defVal, 1);
+            hRt.pivot = new Vector2(0.5f, 0.5f);
+            hRt.sizeDelta = new Vector2(size.y, size.y);
+            handleGo.GetComponent<Image>().color = Color.white;
+            slider.handleRect = hRt;
+            slider.targetGraphic = handleGo.GetComponent<Image>();
+
+            slider.value = defVal;
+            slider.minValue = 0; slider.maxValue = 1;
+            return slider;
         }
 
         void OnDisable()
@@ -298,10 +608,9 @@ namespace KitchenChaos.UI
             var gm = ServiceLocator.Get<GameManager>();
             var dm = DailyChallengeManager.Instance;
             if (gm == null || dm == null) return;
-            var challenge = dm.GetTodayChallenge();
-            if (challenge == null) return;
-            if (gm.Config.Levels == null || gm.Config.Levels.Length == 0) return;
-            int idx = Mathf.Clamp(challenge.LevelIndex, 0, gm.Config.Levels.Length - 1);
+            var levelCfg = dm.GetTodayChallenge();
+            if (levelCfg == null || gm.Config == null || gm.Config.Levels == null || gm.Config.Levels.Length == 0) return;
+            int idx = Mathf.Clamp(levelCfg.LevelIndex, 0, gm.Config.Levels.Length - 1);
             HideAll();
             gm.StartLevel(idx);
         }
