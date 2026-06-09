@@ -264,8 +264,26 @@ class LightGBMTrainer:
         to_dir = self._version_dir(to_version)
         rollback_dir = os.path.join(self.storage_path, f"rollback_from_{from_version}_to_{to_version}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
 
-        if not os.path.exists(from_dir) or not os.path.exists(to_dir):
-            return False
+        if not os.path.exists(to_dir):
+            print(f"[rollback] 目标版本目录不存在 ({to_dir})，跳过文件系统快照，DB层版本切换仍可执行")
+            return True
+        if not os.path.exists(from_dir):
+            print(f"[rollback] 源版本目录不存在 ({from_dir})，仅为目标版本创建快照")
+            try:
+                shutil.copytree(to_dir, rollback_dir)
+                meta_path = os.path.join(rollback_dir, "metadata.json")
+                if os.path.exists(meta_path):
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    meta["is_rollback"] = True
+                    meta["rollback_from_version"] = from_version
+                    meta["rollback_timestamp"] = datetime.utcnow().isoformat()
+                    with open(meta_path, "w", encoding="utf-8") as f:
+                        json.dump(meta, f, ensure_ascii=False, indent=2, default=str)
+                return True
+            except Exception as e:
+                print(f"Rollback (no-from-dir) error: {e}")
+                return True
         try:
             shutil.copytree(to_dir, rollback_dir)
             meta_path = os.path.join(rollback_dir, "metadata.json")

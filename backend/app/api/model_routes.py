@@ -11,6 +11,7 @@ from app.schemas.model import (
 from app.services.scoring_service import ScoringService
 from app.services.model_service import ModelService
 from app.models.user import User
+from app.models.model_version import ModelVersion
 
 router = APIRouter(prefix="/models", tags=["模型管理与评分"])
 
@@ -58,7 +59,11 @@ def rollback_model(
 ):
     success = ModelService.rollback_model(db, request, current_user.id)
     if not success:
-        raise HTTPException(status_code=400, detail="回滚失败，请检查目标版本是否存在")
+        raise HTTPException(status_code=400, detail="回滚失败，请检查目标版本是否存在，或文件系统中该版本模型文件不完整")
+    try:
+        db.expire_all()
+    except Exception:
+        pass
     target_mv = db.query(ModelVersion).filter(ModelVersion.version == request.target_version).first()
     result = {
         "success": True,
@@ -67,12 +72,16 @@ def rollback_model(
         "reason": request.reason,
     }
     if target_mv:
-        from app.services.model_service import ModelService as _MS
-        detail = _MS._serialize_mv(db, target_mv) if hasattr(_MS, '_serialize_mv') else None
+        try:
+            db.refresh(target_mv)
+        except Exception:
+            pass
+        detail = ModelService._serialize_mv(db, target_mv)
         if detail:
             result["version_detail"] = detail
             result["review_history"] = detail.get("review_history", [])
             result["audit_trail"] = detail.get("audit_trail", [])
+            result["version_id"] = detail.get("id")
     return result
 
 
