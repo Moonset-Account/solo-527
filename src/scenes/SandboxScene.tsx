@@ -789,11 +789,16 @@ export default function SandboxScene() {
   const buildExportJSON = useCallback(() => {
     return {
       schema: 'circuit-lab/v1' as const,
-      exportedAt: new Date().toISOString(),
+      id: `circuit-${Date.now()}`,
       name: `电路-${new Date().toLocaleString('zh-CN')}`,
-      sourceLevelId: currentLevelId ?? undefined,
-      components: JSON.parse(JSON.stringify(components)),
-      wires: JSON.parse(JSON.stringify(wires)),
+      levelId: currentLevelId ?? undefined,
+      createdAt: Date.now(),
+      thumbnail: '',
+      // 与 SavedCircuit 保持一致的 circuit 包裹结构，保证能被方案库导入
+      circuit: {
+        components: JSON.parse(JSON.stringify(components)),
+        wires: JSON.parse(JSON.stringify(wires)),
+      },
     };
   }, [components, currentLevelId, wires]);
 
@@ -814,7 +819,7 @@ export default function SandboxScene() {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 500);
       audio.playSuccess().catch(() => {});
-      pushNotification(`📥 已导出 ${obj.components.length}元件·${obj.wires.length}导线`, 'success', 2200);
+      pushNotification(`📥 已导出 ${obj.circuit.components.length}元件·${obj.circuit.wires.length}导线`, 'success', 2200);
     } catch (e) {
       pushNotification('❌ 导出失败：' + (e as Error).message, 'error', 3000);
     }
@@ -845,7 +850,7 @@ export default function SandboxScene() {
         }
       }
       audio.playSuccess().catch(() => {});
-      pushNotification(`📋 电路 JSON 已复制（${obj.components.length}元件），可粘贴分享`, 'success', 2800);
+      pushNotification(`📋 电路 JSON 已复制（${obj.circuit.components.length}元件），可粘贴分享`, 'success', 2800);
     } catch (e) {
       pushNotification('❌ 复制失败：' + (e as Error).message, 'error', 3000);
     }

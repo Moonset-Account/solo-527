@@ -123,34 +123,62 @@ export default function SavedCircuitsScene({ onEnter, onExit }: SceneProps) {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string);
-        if (
-          !data.circuit ||
-          !Array.isArray(data.circuit.components) ||
-          !Array.isArray(data.circuit.wires)
-        ) {
+        const raw = JSON.parse(event.target?.result as string);
+
+        // —— 双格式兼容归一化 ——
+        // 格式 A (SavedCircuit 完整版)：{ circuit: { components, wires }, id?, name?, levelId?, createdAt?, thumbnail?, schema? }
+        // 格式 B (沙盒分享版 / 旧版)：{ components, wires, schema?, name?, sourceLevelId?, exportedAt? }
+        let normalized: {
+          circuit: { components: any[]; wires: any[] };
+          id?: string;
+          name?: string;
+          levelId?: string;
+          createdAt?: number;
+          thumbnail?: string;
+        };
+
+        const hasCircuitWrap =
+          raw.circuit &&
+          Array.isArray(raw.circuit.components) &&
+          Array.isArray(raw.circuit.wires);
+        const hasTopLevelArrays =
+          Array.isArray(raw.components) && Array.isArray(raw.wires);
+
+        if (hasCircuitWrap) {
+          normalized = raw;
+        } else if (hasTopLevelArrays) {
+          // 从顶层结构提升，补 circuit 包裹
+          normalized = {
+            circuit: { components: raw.components, wires: raw.wires },
+            id: raw.id,
+            name: raw.name,
+            levelId: raw.levelId ?? raw.sourceLevelId,
+            createdAt: raw.createdAt ?? (raw.exportedAt ? new Date(raw.exportedAt).getTime() : undefined),
+            thumbnail: raw.thumbnail ?? '',
+          };
+        } else {
           pushNotification({
             type: 'error',
             title: '❌ 导入失败',
-            message: '文件格式不正确：缺少 circuit.components 或 circuit.wires',
+            message: '文件格式不正确：缺少 components/wires（或 circuit.components/wires）字段',
           });
           return;
         }
 
         const newCircuit: SavedCircuit = {
-          id: data.id || `circuit-${Date.now()}`,
-          name: data.name || `导入方案 ${new Date().toLocaleString()}`,
-          levelId: data.levelId,
-          createdAt: data.createdAt || Date.now(),
-          thumbnail: data.thumbnail || '',
-          circuit: data.circuit,
+          id: normalized.id || `circuit-${Date.now()}`,
+          name: normalized.name || `导入方案 ${new Date().toLocaleString()}`,
+          levelId: normalized.levelId,
+          createdAt: normalized.createdAt || Date.now(),
+          thumbnail: normalized.thumbnail || '',
+          circuit: normalized.circuit,
         };
 
         saveCircuit(newCircuit);
         pushNotification({
           type: 'success',
           title: '✅ 导入成功',
-          message: `方案「${newCircuit.name}」已添加到方案库`,
+          message: `方案「${newCircuit.name}」（${newCircuit.circuit.components.length}元件·${newCircuit.circuit.wires.length}导线）已添加到方案库`,
         });
       } catch {
         pushNotification({
