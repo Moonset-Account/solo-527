@@ -265,7 +265,7 @@ class MetricsTracker:
                     window_start=window_start,
                     window_end=window_end,
                     sample_size=1,
-                    metadata=metadata,
+                    extra_metadata=metadata,
                     created_at=now,
                 )
                 self.db.add(mm)
@@ -332,7 +332,7 @@ class MetricsTracker:
                     window_start=window_start,
                     window_end=window_end,
                     sample_size=len(risk_alerts_list),
-                    metadata={
+                    extra_metadata={
                         "metric_subtype": "risk_type_distribution",
                         "risk_type": rtype,
                         "contract_id": contract_id,
@@ -351,7 +351,7 @@ class MetricsTracker:
                     window_start=window_start,
                     window_end=window_end,
                     sample_size=len(risk_alerts_list),
-                    metadata={
+                    extra_metadata={
                         "metric_subtype": "risk_level_distribution",
                         "risk_level": rlevel,
                         "contract_id": contract_id,
@@ -369,7 +369,7 @@ class MetricsTracker:
                 window_start=window_start,
                 window_end=window_end,
                 sample_size=1,
-                metadata={
+                extra_metadata={
                     "metric_subtype": "total_risks",
                     "contract_id": contract_id,
                     "model_version": model_version,
@@ -445,7 +445,7 @@ class MetricsTracker:
                 window_start=window_start,
                 window_end=window_end,
                 sample_size=1,
-                metadata={
+                extra_metadata={
                     "feedback_id": feedback.id,
                     "feedback_type": ftype.value if hasattr(ftype, "value") else str(ftype),
                     "upvote_ratio": upvote_ratio,
@@ -552,7 +552,7 @@ class MetricsTracker:
                     window_start=window_start,
                     window_end=window_end,
                     sample_size=sample_count,
-                    metadata={
+                    extra_metadata={
                         **meta,
                         "dataset_name": dataset.name,
                     },
@@ -594,7 +594,7 @@ class MetricsTracker:
             stmt = select(
                 ModelMetric.window_start,
                 agg_func(ModelMetric.metric_value).label("agg_value"),
-                ModelMetric.metadata,
+                ModelMetric.extra_metadata,
                 ModelMetric.model_id,
             ).where(ModelMetric.metric_type == cast(query.metric_name, MetricType))
 
@@ -611,7 +611,7 @@ class MetricsTracker:
                         stmt = stmt.where(ModelMetric.dataset_id == v)
                     else:
                         json_path = f"$.{k}"
-                        stmt = stmt.where(func.json_extract(ModelMetric.metadata, json_path) == v)
+                        stmt = stmt.where(func.json_extract(ModelMetric.extra_metadata, json_path) == v)
 
             group_cols = []
             if "window_start" in query.group_by or True:
@@ -619,7 +619,7 @@ class MetricsTracker:
             if "model_id" in query.group_by:
                 group_cols.append(ModelMetric.model_id)
             if "metadata" in query.group_by:
-                group_cols.append(ModelMetric.metadata)
+                group_cols.append(ModelMetric.extra_metadata)
 
             stmt = stmt.group_by(*group_cols).order_by(ModelMetric.window_start.asc())
 
@@ -833,7 +833,7 @@ class MetricsTracker:
                 title=title,
                 message=message,
                 related_ids={"metric": metric_name},
-                metadata={"detection_window": "rolling_7_points"},
+                extra_metadata={"detection_window": "rolling_7_points"},
                 metrics_snapshot={
                     "value": ap.value,
                     "expected_mean": ap.expected_mean,

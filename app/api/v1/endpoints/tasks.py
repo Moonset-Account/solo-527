@@ -239,7 +239,7 @@ async def retry_task(
         max_retries=task.max_retries,
         timeout_seconds=task.timeout_seconds,
         tags=task.tags,
-        metadata={"retry_of_task_id": task.id, **(task.metadata or {})} if task.metadata else {"retry_of_task_id": task.id},
+        extra_metadata={"retry_of_task_id": task.id, **(task.extra_metadata or {})} if task.extra_metadata else {"retry_of_task_id": task.id},
     )
     db.add(new_task)
     await db.flush()

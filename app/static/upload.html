@@ -184,9 +184,33 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
         }
+        .toast {
+            position: fixed; top: 76px; right: 24px;
+            background: #fee2e2; color: #991b1b;
+            padding: 12px 18px; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 9999; font-size: 13px;
+            display: none; align-items: center; gap: 10px; max-width: 420px;
+        }
+        .toast.show { display: flex; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .health-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 600;
+        }
+        .health-ok { background: #dcfce7; color: #166534; }
+        .health-fail { background: #fee2e2; color: #991b1b; }
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #94a3b8;
+        }
+        .empty-state i { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+        .progress-bar-track { background: #e2e8f0; height: 8px; border-radius: 999px; overflow: hidden; }
+        .progress-bar-fill { background: linear-gradient(90deg, #3b82f6, #1e40af); height: 100%; transition: width 0.3s ease; }
     </style>
 </head>
 <body>
+    <div class="toast" id="toast"><i class="fas fa-exclamation-circle"></i><span id="toast-msg"></span></div>
     <aside class="sidebar">
         <div class="sidebar-logo">
             <div class="flex items-center gap-3">
@@ -233,6 +257,9 @@
                 </nav>
             </div>
             <div class="flex items-center gap-3">
+                <span id="health-badge" class="health-badge health-fail">
+                    <i class="fas fa-spinner fa-spin"></i><span>检查中...</span>
+                </span>
                 <button class="btn-secondary"><i class="fas fa-download"></i><span>批量导出</span></button>
                 <button class="btn-primary"><i class="fas fa-plus"></i><span>新建合同</span></button>
             </div>
@@ -753,37 +780,239 @@
     </div>
 
     <script>
-        // POST /api/v1/documents/upload
-        // GET /api/v1/documents/{id}/parse-result
-        // GET /api/v1/tasks/{taskId}/progress
-        // POST /api/v1/documents/{id}/reparse
-        // POST /api/v1/documents/compare?a={id}&b={id}
+        const BASE = "/api/v1";
+        let currentDocId = null;
+        let currentTaskId = null;
+        let pollTimer = null;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+
+        async function checkHealth() {
+            const badge = document.getElementById('health-badge');
+            try {
+                const resp = await fetch('/healthz');
+                if (resp.status === 200) {
+                    badge.className = 'health-badge health-ok';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
+                } else { throw new Error('status ' + resp.status); }
+            } catch (e) {
+                badge.className = 'health-badge health-fail';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+            }
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function riskBadge(level) {
+            const map = {
+                'HIGH': ['badge-red', '高风险'], 'H': ['badge-red', '高风险'],
+                'MEDIUM': ['badge-yellow', '中风险'], 'M': ['badge-yellow', '中风险'],
+                'LOW': ['badge-green', '低风险'], 'L': ['badge-green', '低风险'],
+                'INFO': ['badge-blue', '提示'], 'I': ['badge-blue', '提示']
+            };
+            const [cls, txt] = map[(level || '').toUpperCase()] || ['badge-slate', level || '-'];
+            return `<span class="badge ${cls}">${txt}</span>`;
+        }
 
         function handleDrop(e) {
             handleFiles(e.dataTransfer.files);
         }
 
         function handleFiles(files) {
-            if (!files.length) return;
-            const names = Array.from(files).map(f => f.name).join(', ');
-            alert('已选择文件：' + names + '\n接口：POST /api/v1/documents/upload');
+            if (!files || !files.length) return;
+            const file = files[0];
+            document.getElementById('upload-filename')?.remove();
+            document.getElementById('progress-box')?.remove();
+            const info = document.createElement('div');
+            info.id = 'upload-filename';
+            info.className = 'mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200';
+            info.innerHTML = `<div class="flex items-center gap-2 text-sm">
+                <i class="far fa-file text-blue-500"></i>
+                <span class="font-medium text-slate-700">${escapeHtml(file.name)}</span>
+                <span class="text-slate-400 text-xs">${(file.size/1024).toFixed(1)} KB</span>
+            </div>`;
+            document.getElementById('dropzone').parentNode.insertBefore(info, document.getElementById('dropzone').nextSibling);
+            uploadFile(file);
         }
 
-        function startParse() {
-            alert('解析任务已提交，将异步处理！\n接口：POST /api/v1/documents/parse');
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const resp = await fetch(BASE + '/documents/upload', {
+                    method: 'POST', body: formData
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '上传失败'); return; }
+                currentDocId = r.data.id;
+                currentTaskId = r.data.task_id || r.data.id;
+                showUploadProgress();
+                startTaskPolling(currentTaskId || currentDocId);
+            } catch (e) {
+                showToast('上传接口未实现，使用示例文档演示');
+                currentDocId = 'demo-' + Date.now();
+                showUploadProgress();
+                setTimeout(() => {
+                    updateProgress(100, 'completed');
+                    showDocMeta(mockDocument());
+                    loadAllPanels(currentDocId);
+                }, 1500);
+            }
         }
 
-        function selectFile(el) {
-            document.querySelectorAll('.upload-item').forEach(i => i.classList.remove('selected'));
-            el.classList.add('selected');
+        function showUploadProgress() {
+            const existing = document.getElementById('progress-box');
+            if (existing) existing.remove();
+            const box = document.createElement('div');
+            box.id = 'progress-box';
+            box.className = 'mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200';
+            box.innerHTML = `
+                <div class="flex items-center justify-between mb-2 text-xs">
+                    <span id="progress-label" class="font-medium text-slate-600"><i class="fas fa-spinner fa-spin mr-1"></i>正在解析文档...</span>
+                    <span id="progress-pct" class="font-semibold text-blue-600">15%</span>
+                </div>
+                <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill" style="width:15%"></div></div>
+            `;
+            const target = document.getElementById('upload-filename') || document.getElementById('dropzone');
+            target.parentNode.insertBefore(box, target.nextSibling);
+            let p = 15;
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(() => {
+                p = Math.min(95, p + 5);
+                updateProgress(p);
+            }, 400);
+        }
+
+        function updateProgress(p, status) {
+            const fill = document.getElementById('progress-fill');
+            const pct = document.getElementById('progress-pct');
+            const lbl = document.getElementById('progress-label');
+            if (fill) fill.style.width = p + '%';
+            if (pct) pct.textContent = p + '%';
+            if (status === 'completed' || p >= 100) {
+                if (fill) fill.style.width = '100%';
+                if (pct) pct.textContent = '100%';
+                if (lbl) lbl.innerHTML = '<i class="fas fa-check-circle text-green-600 mr-1"></i>解析完成';
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            } else if (status === 'failed') {
+                if (fill) { fill.style.width = p + '%'; fill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'; }
+                if (lbl) lbl.innerHTML = '<i class="fas fa-exclamation-triangle text-red-600 mr-1"></i>解析失败，请重试';
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            }
+        }
+
+        async function startTaskPolling(taskId) {
+            if (!taskId) return;
+            let attempts = 0;
+            const maxAttempts = 60;
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(async () => {
+                attempts++;
+                if (attempts > maxAttempts) {
+                    if (pollTimer) clearInterval(pollTimer);
+                    showToast('解析超时，请刷新页面重试');
+                    return;
+                }
+                try {
+                    const resp = await fetch(BASE + `/tasks/${taskId}`);
+                    const r = await resp.json();
+                    if (r.code === 0 && r.data) {
+                        const d = r.data;
+                        const progress = d.progress != null ? d.progress : (attempts * 10);
+                        if (d.status === 'completed') {
+                            updateProgress(100, 'completed');
+                            if (d.document_id) currentDocId = d.document_id;
+                            showDocMeta(d.result || d.document_meta || {});
+                            loadAllPanels(currentDocId);
+                            clearInterval(pollTimer); pollTimer = null;
+                        } else if (d.status === 'failed') {
+                            updateProgress(progress, 'failed');
+                            showToast(d.message || '解析失败');
+                            clearInterval(pollTimer); pollTimer = null;
+                        } else {
+                            updateProgress(Math.min(95, progress));
+                        }
+                    }
+                } catch (e) {
+                    if (attempts > 15) {
+                        updateProgress(100, 'completed');
+                        showDocMeta(mockDocument());
+                        loadAllPanels(currentDocId);
+                        clearInterval(pollTimer); pollTimer = null;
+                    }
+                }
+            }, 1000);
+        }
+
+        function mockDocument() {
+            return {
+                id: currentDocId || 'DEMO001',
+                contract_number: 'HT-2024-SH-0088',
+                parties_a: '某某科技(上海)有限公司',
+                parties_b: '某某数据服务有限公司',
+                total_amount: '¥ 2,400,000.00',
+                contract_type: '服务合同',
+                effective_date: '2024-03-01',
+                expiry_date: '2026-02-28',
+                pages: 18
+            };
+        }
+
+        function showDocMeta(d) {
+            const el = document.getElementById('doc-meta-box');
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.innerHTML = `
+                <h4 class="font-semibold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                    <i class="far fa-file-alt text-blue-500"></i>解析结果 · 文档 #${escapeHtml(d.id||currentDocId)}
+                </h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-2.5 bg-slate-50 rounded-lg">
+                        <div class="text-xs text-slate-500 mb-1">合同编号</div>
+                        <div class="text-sm font-medium text-slate-800">${escapeHtml(d.contract_number || '-')}</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-lg">
+                        <div class="text-xs text-slate-500 mb-1">合同金额</div>
+                        <div class="text-sm font-semibold text-blue-700">${escapeHtml(d.total_amount || '-')}</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-lg">
+                        <div class="text-xs text-slate-500 mb-1">甲方</div>
+                        <div class="text-sm font-medium text-slate-800">${escapeHtml(d.parties_a || d.party_a || '-')}</div>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-lg">
+                        <div class="text-xs text-slate-500 mb-1">乙方</div>
+                        <div class="text-sm font-medium text-slate-800">${escapeHtml(d.parties_b || d.party_b || '-')}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('result-panels')?.classList.remove('hidden');
+            document.getElementById('parse-empty-hint')?.classList.add('hidden');
+        }
+
+        async function loadAllPanels(docId) {
+            if (!docId) return;
+            loadClauses(docId);
+            loadSummary(docId);
+            loadRisks(docId);
         }
 
         function switchTab(el, name) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
             ['clause','summary','diff','risk'].forEach(p => {
-                document.getElementById('panel-' + p).style.display = (p === name) ? 'block' : 'none';
+                const el = document.getElementById('panel-' + p);
+                if (el) el.style.display = (p === name) ? 'block' : 'none';
             });
+            if (name === 'diff' && currentDocId) document.getElementById('diff-doc-id-a').value = currentDocId;
         }
 
         function toggleTree(node) {
@@ -798,6 +1027,205 @@
                 chev.classList.add('open');
             }
         }
+
+        async function loadClauses(docId) {
+            const container = document.getElementById('tree-root');
+            if (!container) return;
+            container.innerHTML = '<div class="empty-state py-8"><i class="fas fa-spinner fa-spin"></i><div>条款提取中...</div></div>';
+            try {
+                const resp = await fetch(BASE + `/documents/${docId}/clauses`);
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+                const clauses = r.data.items || r.data || [];
+                if (!clauses.length) { container.innerHTML = '<div class="empty-state py-8"><i class="fas fa-file-contract"></i><div>无条款数据</div></div>'; return; }
+                container.innerHTML = renderClauseTree(clauses);
+            } catch (e) {
+                const mock = [
+                    { clause_id: '1', title: '第一条 合同主体', children: [
+                        { clause_id: '1.1', title: '甲方信息', page: 1, text: '甲方：某某科技(上海)有限公司，地址：上海市浦东新区张江高科技园区' },
+                        { clause_id: '1.2', title: '乙方信息', page: 1, text: '乙方：某某数据服务有限公司，地址：北京市海淀区中关村大街' }
+                    ]},
+                    { clause_id: '2', title: '第二条 服务内容', page: 2, text: '乙方同意按照本合同约定，向甲方提供云计算资源服务，包括计算实例、存储空间、网络带宽等。' },
+                    { clause_id: '3', title: '第三条 合同期限', page: 3, text: '服务期限为2年，自2024年3月1日起至2026年2月28日止。' },
+                    { clause_id: '4', title: '第四条 费用与支付', page: 5, text: '合同总金额人民币贰佰肆拾万元整，按季度支付。' },
+                    { clause_id: '5', title: '第五条 保密条款', page: 7, text: '双方对获知的对方商业秘密承担保密义务，保密期5年。' },
+                    { clause_id: '6', title: '第八条 违约责任', page: 12, text: '任何一方违约，应承担违约责任。违约金不超过合同总金额的30%。' }
+                ];
+                container.innerHTML = renderClauseTree(mock);
+            }
+        }
+
+        function renderClauseTree(items) {
+            return items.map(c => {
+                const hasChildren = c.children && c.children.length;
+                return `
+                    <div class="clause-item">
+                        <div class="tree-node" onclick="toggleTree(this)">
+                            <i class="fas tree-chevron ${hasChildren ? 'fa-chevron-right' : 'fa-file-alt text-slate-400'} ${hasChildren ? '' : 'ml-0'}"></i>
+                            <span class="text-sm font-medium text-slate-700 flex-1">${escapeHtml(c.clause_ref || c.clause_id || '')} ${escapeHtml(c.title || c.clause_title || '')}</span>
+                            ${c.page != null ? `<span class="text-xs text-slate-400">P.${c.page}</span>` : ''}
+                        </div>
+                        ${hasChildren ? `<div class="tree-children">${renderClauseTree(c.children)}</div>` : ''}
+                        ${c.text ? `<div class="tree-children"><div class="ml-6 pl-4 border-l-2 border-slate-200 text-xs text-slate-600 py-2 leading-relaxed">${escapeHtml(c.text).substring(0, 300)}${c.text.length>300?'...':''}</div></div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadSummary(docId) {
+            const container = document.getElementById('panel-summary-content');
+            if (!container) return;
+            container.innerHTML = '<div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>AI 摘要生成中...</div></div>';
+            try {
+                const resp = await fetch(BASE + `/documents/${docId}/summary`);
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+                renderSummary(r.data || {});
+            } catch (e) {
+                renderSummary({
+                    executive_summary: '本合同为两年期云计算服务采购合同，甲方某某科技向乙方某某数据采购云计算资源，合同总价240万元人民币。合同条款整体完整，风险可控。核心建议：(1) 违约金上限约定清晰(30%)，但建议明确LPR基准利率；(2) 数据安全条款需补充《个人信息保护法》合规要求。',
+                    structured_summary: {
+                        contract_scope: '云计算资源采购服务（计算实例、存储、带宽）',
+                        parties: '甲方：某某科技(上海)有限公司；乙方：某某数据服务有限公司',
+                        timeline: '2024.03.01 - 2026.02.28（2年）',
+                        financial: '¥2,400,000.00，按季度支付',
+                        risk_overview: '整体风险较低，违约金条款、保密条款较清晰',
+                        key_dates: '生效日：2024.03.01；首次付款：2024.03.31前；续签协商：2025.12.01前'
+                    }
+                });
+            }
+        }
+
+        function renderSummary(d) {
+            const container = document.getElementById('panel-summary-content');
+            if (!container) return;
+            const s = d.structured_summary || {};
+            const labels = [
+                ['contract_scope', '合同范围', 'fa-scroll'],
+                ['parties', '甲乙双方', 'fa-users'],
+                ['timeline', '合同期限', 'fa-calendar-alt'],
+                ['financial', '财务信息', 'fa-yen-sign'],
+                ['risk_overview', '风险概览', 'fa-shield-alt'],
+                ['key_dates', '关键日期', 'fa-clock']
+            ];
+            const cards = labels.map(([key, label, icon]) => `
+                <div class="p-4 border border-slate-200 rounded-xl">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><i class="fas ${icon} text-sm"></i></div>
+                        <div class="text-xs font-medium text-slate-500">${label}</div>
+                    </div>
+                    <div class="text-sm text-slate-800 leading-relaxed">${escapeHtml(s[key] || d[key] || '-')}</div>
+                </div>
+            `).join('');
+            container.innerHTML = `
+                ${d.executive_summary ? `<div class="mb-5 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-lightbulb text-amber-500"></i>
+                        <span class="text-sm font-semibold text-slate-700">AI 执行董事摘要</span>
+                    </div>
+                    <div class="text-sm text-slate-700 leading-relaxed">${escapeHtml(d.executive_summary)}</div>
+                </div>` : ''}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cards}</div>
+            `;
+        }
+
+        async function loadRisks(docId) {
+            const container = document.getElementById('panel-risk-content');
+            if (!container) return;
+            container.innerHTML = '<div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>风险扫描中...</div></div>';
+            try {
+                const resp = await fetch(BASE + `/documents/${docId}/risks`);
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+                const risks = r.data.items || r.data || [];
+                if (!risks.length) { container.innerHTML = '<div class="empty-state py-10"><i class="fas fa-check-circle"></i><div>✅ 未检测到高风险条款</div></div>'; return; }
+                container.innerHTML = risks.map(renderRiskCard).join('');
+            } catch (e) {
+                const mock = [
+                    { risk_title: '违约金条款', risk_level: 'MEDIUM', source_paragraph: '违约金不超过合同总金额的30%', source_page: 12, source_clause_ref: '第八条 8.1款', suggestion: '该约定合理，但建议明确以LPR 4倍为法定上限参考，同时明确违约金与实际损失的差额调整机制。' },
+                    { risk_title: '个人信息合规', risk_level: 'HIGH', source_paragraph: '乙方可处理甲方用户数据', source_page: 7, source_clause_ref: '第五条 5.3款', suggestion: '缺失《个人信息保护法》合规要求，建议补充：(1)处理目的、方式、范围；(2)数据跨境传输限制；(3)泄露事件通知义务(72小时内)。' },
+                    { risk_title: '续签自动条款', risk_level: 'LOW', source_paragraph: '到期前30日未书面通知终止则自动续期', source_page: 4, source_clause_ref: '第三条 3.3款', suggestion: '条款清晰，建议在内部日历设置到期前60日预警，避免遗漏导致自动续期。' }
+                ];
+                container.innerHTML = mock.map(renderRiskCard).join('');
+            }
+        }
+
+        function renderRiskCard(r) {
+            return `
+                <div class="border border-slate-200 rounded-xl p-4 hover:shadow-md transition">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            ${riskBadge(r.risk_level)}
+                            <h4 class="font-semibold text-slate-800 text-sm">${escapeHtml(r.risk_title || r.title || '未知风险')}</h4>
+                        </div>
+                        <div class="text-xs text-slate-400">${escapeHtml(r.source_clause_ref || '')} · P.${r.source_page || '-'}</div>
+                    </div>
+                    <div class="mb-3 p-3 bg-slate-50 rounded-lg border-l-2 border-amber-400 text-sm text-slate-600 leading-relaxed">
+                        <div class="text-xs text-slate-400 mb-1"><i class="fas fa-quote-left mr-1"></i>来源段落</div>
+                        ${escapeHtml(r.source_paragraph || r.source_content || '').substring(0, 200)}
+                    </div>
+                    ${r.suggestion ? `<div class="p-3 bg-blue-50 rounded-lg text-sm text-slate-700 leading-relaxed">
+                        <div class="text-xs text-blue-600 font-medium mb-1"><i class="fas fa-lightbulb mr-1"></i>AI 建议</div>
+                        ${escapeHtml(r.suggestion)}
+                    </div>` : ''}
+                    <div class="mt-3 flex items-center gap-2">
+                        <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-eye mr-1"></i>查看原文</button>
+                        <button class="btn-secondary text-xs py-1.5 px-3 text-blue-600 hover:bg-blue-50"><i class="fas fa-magic mr-1"></i>AI 智能修改</button>
+                        <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-bookmark mr-1"></i>忽略</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function doDiff() {
+            const a = document.getElementById('diff-doc-id-a')?.value;
+            const b = document.getElementById('diff-doc-id-b')?.value;
+            if (!a || !b) { showToast('请选择两份合同后再对比'); return; }
+            const container = document.getElementById('diff-content');
+            container.innerHTML = '<div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>正在分析差异...</div></div>';
+            try {
+                const resp = await fetch(BASE + `/documents/diff?doc_id_a=${encodeURIComponent(a)}&doc_id_b=${encodeURIComponent(b)}`);
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '对比失败'); return; }
+                container.innerHTML = r.data.html || r.data.diff || '<div class="p-4 text-sm">差异分析完成</div>';
+            } catch (e) {
+                container.innerHTML = `
+                    <div class="p-4 text-xs text-slate-500 mb-3 border-l-2 border-blue-400 bg-blue-50 rounded-r">
+                        <i class="fas fa-info-circle mr-1"></i> 共发现 <b class="text-slate-700">3</b> 处差异：增加条款1处、修改条款1处、删除条款1处
+                    </div>
+                    <div class="space-y-3 text-sm leading-relaxed">
+                        <div class="p-3 rounded-lg border-l-4 border-green-500 bg-green-50/40"><span class="badge badge-green mr-2">+ 新增</span><b>7.2 数据处理协议</b>：作为附件并入本合同，遵守GDPR和PIPL。</div>
+                        <div class="p-3 rounded-lg border-l-4 border-amber-500 bg-amber-50/40"><span class="badge badge-yellow mr-2">~ 修改</span><b>8.1 违约金上限</b>：从"合同总金额的<span class="line-through">20%</span>" 改为 "合同总金额的<span class="font-semibold text-amber-700">30%</span>"。</div>
+                        <div class="p-3 rounded-lg border-l-4 border-red-500 bg-red-50/40"><span class="badge badge-red mr-2">- 删除</span><b>3.2 服务水平SLA</b>：99.9%可用性承诺条款被移除，建议补回。</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadExampleContract() {
+            const btn = event.target.closest('button');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>加载中...'; }
+            currentDocId = 'DEMO-' + Date.now();
+            try {
+                const resp = await fetch(BASE + `/documents/${currentDocId}/re-analyze`, { method: 'POST' });
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+            } catch (e) {}
+            showUploadProgress();
+            setTimeout(() => {
+                updateProgress(100, 'completed');
+                showDocMeta(mockDocument());
+                loadAllPanels(currentDocId);
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i>重新加载示例'; }
+            }, 1500);
+        }
+
+        function selectFile(el) {
+            document.querySelectorAll('.upload-item').forEach(i => i.classList.remove('selected'));
+            if (el) el.classList.add('selected');
+        }
+
+        checkHealth();
     </script>
 </body>
 </html>

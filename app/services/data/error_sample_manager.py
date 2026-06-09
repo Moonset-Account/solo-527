@@ -77,7 +77,7 @@ class ErrorSampleManager:
             assignee_id=assignee_id,
             status="open",
             tags=tags,
-            metadata=metadata,
+            extra_metadata=metadata,
         )
         self.db.add(error)
         self.db.commit()
@@ -121,7 +121,7 @@ class ErrorSampleManager:
             source_task_result_id=task_result.id if task_result else None,
             reporter_id=feedback.user_id,
             status="open",
-            metadata={"feedback_id": feedback.id, "feedback_type": feedback.feedback_type.value},
+            extra_metadata={"feedback_id": feedback.id, "feedback_type": feedback.feedback_type.value},
         )
         self.db.add(error)
         self.db.commit()
@@ -153,7 +153,7 @@ class ErrorSampleManager:
             status="open",
             reproducible=True,
             triaged=False,
-            metadata={
+            extra_metadata={
                 "evaluation_id": evaluation.id,
                 "scores": scores,
                 "explanation": evaluation.explanation,
@@ -195,9 +195,9 @@ class ErrorSampleManager:
             error.reproducible = reproducible
 
         if note:
-            existing_meta = error.metadata or {}
+            existing_meta = error.extra_metadata or {}
             existing_meta["triage_note"] = note
-            error.metadata = existing_meta
+            error.extra_metadata = existing_meta
 
         self.db.commit()
         self.db.refresh(error)

@@ -38,8 +38,8 @@ def _send_webhook_alert(url: str, alert: AlertEvent) -> bool:
 {alert.message}
 """
 
-    if alert.metadata:
-        text += f"\n**元数据**: \n```json\n{json.dumps(alert.metadata, ensure_ascii=False, indent=2)}\n```"
+    if alert.extra_metadata:
+        text += f"\n**元数据**: \n```json\n{json.dumps(alert.extra_metadata, ensure_ascii=False, indent=2)}\n```"
 
     if alert.metrics_snapshot:
         text += f"\n**指标快照**: \n```json\n{json.dumps(alert.metrics_snapshot, ensure_ascii=False, indent=2)}\n```"
@@ -86,7 +86,7 @@ def _send_webhook_alert(url: str, alert: AlertEvent) -> bool:
             "message": alert.message,
             "severity": alert.severity.value,
             "alert_type": alert.alert_type.value,
-            "metadata": alert.metadata,
+            "metadata": alert.extra_metadata,
             "metrics": alert.metrics_snapshot,
         }
         payload_type = "generic"
@@ -136,12 +136,12 @@ def _send_email_alert(
                 </div>
         """
 
-        if alert.metadata:
+        if alert.extra_metadata:
             body_html += f"""
                 <div style="margin-top: 15px;">
                     <h4 style="color: #555;">元数据</h4>
                     <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px;">
-{json.dumps(alert.metadata, ensure_ascii=False, indent=2)}
+{json.dumps(alert.extra_metadata, ensure_ascii=False, indent=2)}
                     </pre>
                 </div>
             """

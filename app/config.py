@@ -1,7 +1,17 @@
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
+
+
+def _parse_csv_list(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(v).strip().lower() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        return [p.strip().lower() for p in value.split(",") if p.strip()]
+    if value is None:
+        return []
+    return [str(value)]
 
 
 class Settings(BaseSettings):
@@ -42,14 +52,29 @@ class Settings(BaseSettings):
 
     ALERT_WEBHOOK_URL: Optional[str] = None
     ALERT_EMAIL: Optional[str] = None
-    ALERT_EMAIL_CONFIG: Optional[dict] = None
+    ALERT_EMAIL_CONFIG_JSON: Optional[str] = None
     ALERT_THRESHOLD_ERROR_RATE: float = 0.1
     ALERT_THRESHOLD_LATENCY: float = 30.0
 
+    def get_alert_email_config(self) -> Optional[dict]:
+        import json
+        if self.ALERT_EMAIL_CONFIG_JSON:
+            try:
+                return json.loads(self.ALERT_EMAIL_CONFIG_JSON)
+            except Exception:
+                pass
+        return None
+
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024
-    SUPPORTED_EXTENSIONS: List[str] = Field(
-        default=[".pdf", ".docx", ".txt"]
-    )
+    SUPPORTED_EXTENSIONS: str = ".pdf,.docx,.txt"
+
+    @field_validator("SUPPORTED_EXTENSIONS", mode="after")
+    @classmethod
+    def _split_extensions(cls, v: Any) -> List[str]:
+        return _parse_csv_list(v)
+
+    def get_supported_extensions_list(self) -> List[str]:
+        return _parse_csv_list(self.SUPPORTED_EXTENSIONS)
 
     SUMMARY_MAX_LENGTH: int = 500
     SUMMARY_MIN_LENGTH: int = 100

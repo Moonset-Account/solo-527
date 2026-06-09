@@ -208,9 +208,31 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
         }
+        .toast {
+            position: fixed; top: 76px; right: 24px;
+            background: #fee2e2; color: #991b1b;
+            padding: 12px 18px; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 9999; font-size: 13px;
+            display: none; align-items: center; gap: 10px; max-width: 420px;
+        }
+        .toast.show { display: flex; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .health-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 600;
+        }
+        .health-ok { background: #dcfce7; color: #166534; }
+        .health-fail { background: #fee2e2; color: #991b1b; }
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: #94a3b8;
+        }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
     </style>
 </head>
 <body>
+    <div class="toast" id="toast"><i class="fas fa-exclamation-circle"></i><span id="toast-msg"></span></div>
     <aside class="sidebar">
         <div class="sidebar-logo">
             <div class="flex items-center gap-3">
@@ -256,9 +278,14 @@
                     <span class="text-slate-800 font-medium">智能检索问答</span>
                 </nav>
             </div>
-            <button class="btn-primary" onclick="newConversation()">
-                <i class="fas fa-plus"></i> 新建对话
-            </button>
+            <div class="flex items-center gap-3">
+                <span id="health-badge" class="health-badge health-fail">
+                    <i class="fas fa-spinner fa-spin"></i><span>检查中...</span>
+                </span>
+                <button class="btn-primary" onclick="newConversation()">
+                    <i class="fas fa-plus"></i> 新建对话
+                </button>
+            </div>
         </div>
 
         <div class="p-6">
@@ -626,10 +653,29 @@
     </div>
 
     <script>
-        // POST /api/v1/qa/answer
-        // POST /api/v1/qa/feedback
-        // GET /api/v1/search/clauses?q=xxx
-        // POST /api/v1/datasets/samples/add-clause
+        const BASE = "/api/v1";
+        let currentAnswerId = null;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+
+        async function checkHealth() {
+            const badge = document.getElementById('health-badge');
+            try {
+                const resp = await fetch('/healthz');
+                if (resp.status === 200) {
+                    badge.className = 'health-badge health-ok';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
+                } else { throw new Error('status ' + resp.status); }
+            } catch (e) {
+                badge.className = 'health-badge health-fail';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+            }
+        }
 
         function switchMode(el, mode) {
             document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
@@ -646,23 +692,27 @@
         function doSearch() {
             const q = document.getElementById('main-search').value.trim();
             if (!q) return;
-            if (document.getElementById('qa-mode').style.display !== 'none') {
+            const isQa = document.getElementById('qa-mode').style.display !== 'none';
+            if (isQa || document.querySelector('.search-tab.active').textContent.includes('问答')) {
                 addUserMsg(q);
-                setTimeout(aiReply, 1000);
+                submitQa(q);
+            } else {
+                submitSearch(q);
             }
         }
 
         function addUserMsg(text) {
             const box = document.getElementById('chat-container');
             box.insertAdjacentHTML('beforeend',
-                `<div class="chat-user"><div class="bubble">${text}</div></div>`);
+                `<div class="chat-user"><div class="bubble">${escapeHtml(text)}</div></div>`);
             box.scrollTop = box.scrollHeight;
         }
 
-        function aiReply() {
+        function showLoadingAi() {
             const box = document.getElementById('chat-container');
+            const id = 'ai-loading-' + Date.now();
             box.insertAdjacentHTML('beforeend', `
-                <div class="chat-ai">
+                <div class="chat-ai" id="${id}">
                     <div class="avatar"><i class="fas fa-robot"></i></div>
                     <div class="bubble-wrap">
                         <div class="bubble"><div class="animate-pulse text-slate-400"><i class="fas fa-circle-notch fa-spin mr-2"></i>正在检索知识库并生成回答...</div></div>
@@ -670,6 +720,132 @@
                 </div>
             `);
             box.scrollTop = box.scrollHeight;
+            return id;
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function renderAiAnswer(answer, citations) {
+            const citationsHtml = (citations && citations.length) ? `
+                <div class="mt-3 border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="accordion-header flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition" onclick="toggleAccordion(this)">
+                        <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <i class="fas fa-bookmark text-blue-500"></i> 引用来源 <span class="badge badge-slate">${citations.length}条</span>
+                        </div>
+                        <i class="fas fa-chevron-right chevron text-slate-400 text-xs"></i>
+                    </div>
+                    <div class="accordion-content open">
+                        <div class="divide-y divide-slate-100">
+                            ${citations.map(c => `
+                                <div class="p-3 hover:bg-slate-50">
+                                    <div class="flex items-center justify-between mb-1 text-xs">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-blue-600 hover:underline font-medium">${escapeHtml(c.clause_ref || c.contract_id || '条款')}</span>
+                                            <span class="text-slate-400">第${c.page || '?'}页</span>
+                                        </div>
+                                        <span class="text-blue-600 font-medium">相似度 ${Math.round((c.similarity||0.8)*100)}%</span>
+                                    </div>
+                                    <div class="text-sm text-slate-600 pl-2 border-l-2 border-blue-200 leading-relaxed">
+                                        ${(c.snippet || c.text || '').substring(0, 200)}...
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>` : '';
+
+            return `
+                <div class="chat-ai">
+                    <div class="avatar"><i class="fas fa-robot"></i></div>
+                    <div class="bubble-wrap">
+                        <div class="bubble">${answer.replace(/\n/g, '<br/>')}</div>
+                        ${citationsHtml}
+                        <div class="mt-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-green-50 hover:border-green-200 hover:text-green-600" onclick="qaFeedback(this, 'upvote')">
+                                    <i class="far fa-thumbs-up"></i> 有用
+                                </button>
+                                <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-red-50 hover:border-red-200 hover:text-red-600" onclick="toggleCorrection(this)">
+                                    <i class="far fa-thumbs-down"></i> 不准确
+                                </button>
+                            </div>
+                        </div>
+                        <div class="correct-box mt-3 p-3 border border-amber-200 rounded-lg bg-amber-50" style="display:none;">
+                            <div class="text-xs font-medium text-amber-700 mb-2"><i class="fas fa-edit mr-1"></i>纠正此答案</div>
+                            <textarea rows="3" placeholder="请输入您认为正确的答案..." class="w-full p-2 border border-amber-200 rounded text-sm correct-text"></textarea>
+                            <div class="mt-2 flex justify-end gap-2">
+                                <button class="text-xs text-slate-500 px-3 py-1 hover:text-slate-700" onclick="this.closest('.correct-box').style.display='none'">取消</button>
+                                <button class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded" onclick="submitCorrection(this)">提交纠正</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function submitQa(question) {
+            const loadingId = showLoadingAi();
+            try {
+                const resp = await fetch(BASE + '/qa/answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question, contract_ids: [] })
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '问答接口失败'); throw new Error(r.message); }
+                document.getElementById(loadingId).remove();
+                const box = document.getElementById('chat-container');
+                box.insertAdjacentHTML('beforeend', renderAiAnswer(r.data.answer, r.data.citations));
+                currentAnswerId = r.data.answer_id;
+                box.scrollTop = box.scrollHeight;
+            } catch (e) {
+                document.getElementById(loadingId).remove();
+                const box = document.getElementById('chat-container');
+                box.insertAdjacentHTML('beforeend', `
+                    <div class="chat-ai">
+                        <div class="avatar"><i class="fas fa-robot"></i></div>
+                        <div class="bubble-wrap">
+                            <div class="bubble text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>抱歉，服务暂时不可用，请稍后重试。<br><span class="text-xs text-slate-400">${e.message}</span></div>
+                        </div>
+                    </div>
+                `);
+            }
+        }
+
+        function qaFeedback(btn, type) {
+            fetch(BASE + '/qa/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answer_id: currentAnswerId, feedback_type: type, user_id: 1 })
+            }).then(r => r.json()).then(r => {
+                if (r.code === 0) {
+                    btn.innerHTML = '<i class="fas fa-thumbs-up text-green-600"></i> 已反馈';
+                    btn.classList.add('bg-green-50', 'border-green-200', 'text-green-600');
+                } else { showToast(r.message || '反馈失败'); }
+            }).catch(e => showToast('网络错误: ' + e.message));
+        }
+
+        function toggleCorrection(btn) {
+            btn.closest('.bubble-wrap').querySelector('.correct-box').style.display = 'block';
+        }
+
+        function submitCorrection(btn) {
+            const text = btn.closest('.correct-box').querySelector('.correct-text').value.trim();
+            if (!text) { showToast('请填写纠正内容'); return; }
+            fetch(BASE + '/qa/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answer_id: currentAnswerId, feedback_type: 'correction', corrected_text: text, content: text, user_id: 1 })
+            }).then(r => r.json()).then(r => {
+                if (r.code === 0) {
+                    showToast('感谢您的反馈！已进入审核队列');
+                    btn.closest('.correct-box').style.display = 'none';
+                } else { showToast(r.message || '提交失败'); }
+            }).catch(e => showToast('网络错误: ' + e.message));
         }
 
         function sendMessage() {
@@ -678,7 +854,7 @@
             if (!msg) return;
             addUserMsg(msg);
             input.value = '';
-            setTimeout(aiReply, 800);
+            submitQa(msg);
         }
 
         function toggleAccordion(header) {
@@ -688,26 +864,59 @@
             chev.classList.toggle('open');
         }
 
-        function feedback(btn, type) {
-            if (type === 'bad') {
-                document.getElementById('correct-box').style.display = 'block';
-            } else {
-                btn.innerHTML = '<i class="fas fa-thumbs-up text-green-600"></i> 已反馈';
-                btn.classList.add('bg-green-50', 'border-green-200', 'text-green-600');
+        async function submitSearch(q, page = 1, pageSize = 20) {
+            const container = document.getElementById('search-results');
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>正在搜索...</div></div>`;
+            try {
+                const resp = await fetch(BASE + `/search/clauses?q=${encodeURIComponent(q)}&page=${page}&page_size=${pageSize}`);
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '搜索失败'); throw new Error(r.message); }
+                const items = r.data.items || r.data || [];
+                if (!items.length) {
+                    container.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><div>未找到相关条款，尝试更换关键词</div></div>`;
+                    return;
+                }
+                container.innerHTML = items.map(item => renderSearchCard(item)).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><div>搜索出错: ${e.message}</div></div>`;
             }
         }
 
-        function submitCorrect() {
-            alert('感谢您的反馈！纠正内容已进入审核队列，将用于模型优化。');
-            document.getElementById('correct-box').style.display = 'none';
-            // fetch('/api/v1/qa/feedback', { method: 'POST' })
+        function renderSearchCard(item) {
+            const levelBadge = item.risk_level ? {
+                'H': 'badge-red', 'M': 'badge-yellow', 'L': 'badge-green', 'I': 'badge-blue'
+            }[item.risk_level] || 'badge-slate' : 'badge-slate';
+            const snippet = (item.matched_snippets && item.matched_snippets[0]) || item.clause_text || '';
+            const highlighted = snippet.replace(/<b>|<\/b>/g, m => m === '<b>' ? '<span class="highlight">' : '</span>');
+            return `
+                <div class="search-result-card">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <h4 class="font-semibold text-slate-800 hover:text-blue-600 cursor-pointer">${escapeHtml(item.clause_title || '未命名条款')}</h4>
+                            ${item.risk_level ? `<span class="badge ${levelBadge}">${item.risk_level}</span>` : ''}
+                        </div>
+                        <span class="text-sm font-medium text-blue-600">${Math.round((item.score||0.8)*100)}%</span>
+                    </div>
+                    <div class="text-sm text-slate-600 leading-relaxed mb-3 pl-2 border-l-2 border-blue-200">
+                        ${highlighted.substring(0, 250)}${highlighted.length > 250 ? '...' : ''}
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 text-xs text-slate-500">
+                            <span><i class="far fa-file-contract mr-1"></i>${escapeHtml(item.contract_title || item.contract_id || '未知合同')}</span>
+                            <span><i class="far fa-file mr-1"></i>第${item.page || '?'}页</span>
+                            <span>${item.clause_ref || ''}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn-secondary text-xs py-1.5 px-3"><i class="fas fa-crosshairs mr-1"></i>定位原文</button>
+                            <button class="btn-secondary text-xs py-1.5 px-3 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600"><i class="fas fa-plus mr-1"></i>加入数据集</button>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function newConversation() {
-            if (confirm('确定要开始新的对话吗？当前对话历史将被清除。')) {
-                document.getElementById('chat-container').innerHTML = '';
-                location.reload();
-            }
+            if (confirm('确定要开始新的对话吗？当前对话历史将被清除。')) location.reload();
         }
 
         document.getElementById('chat-input').addEventListener('keydown', e => {
@@ -716,6 +925,12 @@
                 sendMessage();
             }
         });
+
+        document.getElementById('main-search').addEventListener('keydown', e => {
+            if (e.key === 'Enter') doSearch();
+        });
+
+        checkHealth();
     </script>
 </body>
 </html>

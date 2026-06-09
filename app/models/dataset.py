@@ -79,7 +79,7 @@ class Dataset(Base):
     is_public = Column(Boolean, default=False)
 
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
     stats = Column(JSON, nullable=True)
 
     sample_count = Column(Integer, default=0)
@@ -219,7 +219,7 @@ class ErrorSample(Base):
     resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

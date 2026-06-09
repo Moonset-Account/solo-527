@@ -92,7 +92,7 @@ def _init_alert_policies() -> AlertManager:
     am = AlertManager(
         db=db,
         webhook_url=settings.ALERT_WEBHOOK_URL,
-        email_config=settings.ALERT_EMAIL_CONFIG,
+        email_config=settings.get_alert_email_config(),
     )
     for policy in DEFAULT_POLICIES:
         try:
@@ -109,7 +109,7 @@ def _run_synthetic_checks():
         am = AlertManager(
             db=db,
             webhook_url=settings.ALERT_WEBHOOK_URL,
-            email_config=settings.ALERT_EMAIL_CONFIG,
+            email_config=settings.get_alert_email_config(),
         )
         try:
             triggered = 0

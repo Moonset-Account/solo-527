@@ -118,7 +118,7 @@ class FeedbackProcessor:
             feedback_type=feedback_type,
             content=note,
             corrected_text=corrected_text,
-            metadata={
+            extra_metadata={
                 "target_type": "summary",
                 "submitted_at": datetime.utcnow().isoformat(),
             },
@@ -172,7 +172,7 @@ class FeedbackProcessor:
             feedback_type=feedback_type,
             score=score,
             content=reviewer_note,
-            metadata={
+            extra_metadata={
                 "target_type": "risk_detection",
                 "is_false_positive": is_false_positive,
                 "correct_risk_type": correct_risk_type,
@@ -212,7 +212,7 @@ class FeedbackProcessor:
             feedback_type=feedback_type,
             content=note,
             corrected_text=corrected_answer,
-            metadata={
+            extra_metadata={
                 "target_type": "qa_result",
                 "submitted_at": datetime.utcnow().isoformat(),
             },
@@ -334,7 +334,7 @@ class FeedbackProcessor:
             old_value=old_value,
             new_value=new_value,
             note=note,
-            metadata=metadata,
+            extra_metadata=metadata,
             created_at=datetime.utcnow(),
         )
         self.db.add(log)
@@ -394,7 +394,7 @@ class ReviewWorkflow:
             old_value=old_value,
             new_value=new_value,
             note=note,
-            metadata=metadata,
+            extra_metadata=metadata,
         )
         self.db.add(log)
         self.db.flush()
@@ -450,7 +450,7 @@ class ReviewWorkflow:
                 old_value=sample.status.value if hasattr(sample.status, "value") else sample.status,
                 new_value=ReviewState.PENDING_REVIEW.value,
                 note=f"分配审核: reviewers={reviewer_ids}, priority={priority.value}",
-                metadata={"deadline": deadline.isoformat() if deadline else None},
+                extra_metadata={"deadline": deadline.isoformat() if deadline else None},
             )
 
         self.db.commit()
@@ -554,7 +554,7 @@ class ReviewWorkflow:
             old_value=old_status,
             new_value=target_state.value,
             note=f"审核决策: {decision.value}, {review_comment or ''}",
-            metadata={
+            extra_metadata={
                 "corrections": json.dumps(changes, ensure_ascii=False) if changes else None,
                 "decision": decision.value,
                 "old_sample_id": old_sample_id,
@@ -771,7 +771,7 @@ class RollbackManager:
             old_value=old_value,
             new_value=new_value,
             note=note,
-            metadata=metadata,
+            extra_metadata=metadata,
         )
         self.db.add(log)
         self.db.flush()
@@ -837,7 +837,7 @@ class RollbackManager:
             old_value=str(sample_id),
             new_value=str(target_sample.id),
             note=f"样本回滚: reason={reason}",
-            metadata={
+            extra_metadata={
                 "target_version_id": target_sample.id,
                 "new_sample_id": rolled_back_sample.id,
                 "reason": reason,
@@ -893,7 +893,7 @@ class RollbackManager:
             old_value=old_version,
             new_value=version,
             note=f"数据集版本回滚: reason={reason}",
-            metadata={
+            extra_metadata={
                 "old_stats": old_stats,
                 "new_stats": target_version.stats_snapshot,
                 "old_sample_count": old_sample_count,
@@ -949,7 +949,7 @@ class RollbackManager:
             old_value=str(current_model.version),
             new_value=str(parent_model.version),
             note=f"模型版本回滚: reason={reason}",
-            metadata={
+            extra_metadata={
                 "parent_model_id": parent_model.id,
                 "old_status": old_status,
                 "was_default": old_is_default,
@@ -994,7 +994,7 @@ class RollbackManager:
                 "operator_id": log.user_id,
                 "timestamp": log.created_at.isoformat() if log.created_at else None,
                 "note": log.note,
-                "metadata": log.metadata,
+                "metadata": log.extra_metadata,
             })
 
         if resource_type == "sample":

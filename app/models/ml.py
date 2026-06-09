@@ -122,7 +122,7 @@ class ModelMetric(Base):
     window_start = Column(DateTime, nullable=True)
     window_end = Column(DateTime, nullable=True)
 
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
     computed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

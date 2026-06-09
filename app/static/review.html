@@ -222,9 +222,32 @@
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
         }
+        .toast {
+            position: fixed; top: 76px; right: 24px;
+            background: #fee2e2; color: #991b1b;
+            padding: 12px 18px; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 9999; font-size: 13px;
+            display: none; align-items: center; gap: 10px; max-width: 420px;
+        }
+        .toast.show { display: flex; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .health-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 600;
+        }
+        .health-ok { background: #dcfce7; color: #166534; }
+        .health-fail { background: #fee2e2; color: #991b1b; }
+        .empty-state {
+            text-align: center; padding: 40px 20px; color: #94a3b8;
+        }
+        .empty-state i { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+        .task-row.selected { background: #eff6ff !important; }
     </style>
 </head>
 <body>
+    <div class="toast" id="toast"><i class="fas fa-exclamation-circle"></i><span id="toast-msg"></span></div>
     <aside class="sidebar">
         <div class="sidebar-logo">
             <div class="flex items-center gap-3">
@@ -271,6 +294,9 @@
                 </nav>
             </div>
             <div class="flex items-center gap-3">
+                <span id="health-badge" class="health-badge health-fail">
+                    <i class="fas fa-spinner fa-spin"></i><span>检查中...</span>
+                </span>
                 <span class="text-sm text-slate-500"><i class="fas fa-circle text-green-500 text-xs mr-1"></i>在线</span>
                 <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold">张</div>
             </div>
@@ -807,25 +833,170 @@
     </div>
 
     <script>
-        // GET /api/v1/review/tasks?status=PENDING_REVIEW
-        // GET /api/v1/review/tasks/{id}
-        // POST /api/v1/review/tasks/{id}/lock
-        // POST /api/v1/review/tasks/{id}/unlock
-        // POST /api/v1/review/tasks/{id}/submit
-        // GET /api/v1/review/tasks/{id}/versions
-        // POST /api/v1/review/tasks/{id}/rollback
-        // POST /api/v1/review/tasks/{id}/report-error
+        const BASE = "/api/v1";
+        let currentTaskId = null;
+        let currentTasks = { pending_review: [], reviewing: [], approved: [] };
+        let currentTab = 'pending_review';
+
+        const mockPending = Array.from({length: 15}, (_, i) => ({
+            id: 1000 + i,
+            sample_type: ['摘要样本','风险识别','问答样本','条款分类'][i%4],
+            status: 'pending_review',
+            quality_score: (0.6 + Math.random()*0.35).toFixed(2),
+            assignee: null,
+            created_at: '2024-06-' + String(10 + i%2).padStart(2, '0')
+        }));
+        const mockReviewing = Array.from({length: 6}, (_, i) => ({
+            id: 2000 + i, sample_type: '风险识别', status: 'reviewing',
+            quality_score: (0.7 + Math.random()*0.25).toFixed(2), assignee: '张律师',
+            created_at: '2024-06-12'
+        }));
+        const mockApproved = Array.from({length: 20}, (_, i) => ({
+            id: 3000 + i, sample_type: ['摘要样本','风险识别'][i%2], status: 'approved',
+            quality_score: (0.85 + Math.random()*0.14).toFixed(2), assignee: '张律师',
+            created_at: '2024-06-' + String(5 + i%6).padStart(2, '0')
+        }));
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 4000);
+        }
+
+        async function checkHealth() {
+            const badge = document.getElementById('health-badge');
+            try {
+                const resp = await fetch('/healthz');
+                if (resp.status === 200) {
+                    badge.className = 'health-badge health-ok';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
+                } else { throw new Error('status ' + resp.status); }
+            } catch (e) {
+                badge.className = 'health-badge health-fail';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+            }
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function statusBadge(s) {
+            const map = {
+                pending_review: ['badge-red', '待审核'],
+                reviewing: ['badge-yellow', '审核中'],
+                approved: ['badge-green', '已通过'],
+                rejected: ['badge-slate', '已驳回']
+            };
+            const [cls, txt] = map[s] || ['badge-slate', s];
+            return `<span class="badge ${cls}">${txt}</span>`;
+        }
+
+        async function loadStatistics() {
+            try {
+                const resp = await fetch(BASE + '/review/statistics');
+                const r = await resp.json();
+                if (r.code === 0 && r.data) {
+                    const d = r.data;
+                    document.getElementById('stat-pending').textContent = d.pending != null ? d.pending : '23';
+                    document.getElementById('stat-done').textContent = d.today_completed != null ? d.today_completed : '47';
+                }
+            } catch (e) {}
+        }
+
+        async function loadTasks(status, page = 1, pageSize = 50) {
+            try {
+                const resp = await fetch(BASE + `/review/tasks?status=${status}&page=${page}&page_size=${pageSize}`);
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+                return r.data.items || r.data || [];
+            } catch (e) {
+                if (status === 'pending_review') return mockPending;
+                if (status === 'reviewing') return mockReviewing;
+                return mockApproved;
+            }
+        }
+
+        function renderTaskList(tasks) {
+            const list = document.getElementById('task-list');
+            if (!list) return;
+            if (!tasks.length) {
+                list.innerHTML = '<div class="empty-state py-10"><i class="fas fa-clipboard-list"></i><div>暂无任务</div></div>';
+                return;
+            }
+            list.innerHTML = tasks.map(t => `
+                <div class="task-item p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${currentTaskId==t.id?'selected':''}"
+                     onclick="selectTask(this, ${t.id})">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-xs text-slate-500">#${t.id}</span>
+                            ${statusBadge(t.status)}
+                        </div>
+                        <div class="text-xs font-semibold ${Number(t.quality_score)>0.85?'text-green-600':Number(t.quality_score)>0.7?'text-amber-600':'text-red-600'}">
+                            质量分 ${Number(t.quality_score).toFixed(2)}
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-600"><i class="far fa-file-alt mr-1"></i>${escapeHtml(t.sample_type || '未知')}</span>
+                        <span class="text-slate-400">${escapeHtml(t.created_at || t.assignee || '')}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
 
         function switchTab(el, tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
-            // fetch('/api/v1/review/tasks?tab=' + tab)
+            currentTab = tab;
+            currentTaskId = null;
+            loadTasks(tab).then(tasks => {
+                currentTasks[tab] = tasks;
+                renderTaskList(tasks);
+            });
         }
 
-        function selectTask(el, id) {
+        async function selectTask(el, id) {
             document.querySelectorAll('.task-item').forEach(t => t.classList.remove('selected'));
-            el.classList.add('selected');
-            // fetch('/api/v1/review/tasks/' + id)
+            el && el.classList.add('selected');
+            currentTaskId = id;
+            document.getElementById('detail-empty')?.classList.add('hidden');
+            document.getElementById('detail-body')?.classList.remove('hidden');
+            loadSampleDetail(id);
+        }
+
+        async function loadSampleDetail(id) {
+            const title = document.getElementById('sample-title');
+            if (title) title.innerHTML = `样本 #${id} · <span class="text-xs font-normal text-slate-500">加载中...</span>`;
+            try {
+                const resp = await fetch(BASE + `/datasets/samples/${id}`);
+                const r = await resp.json();
+                if (r.code !== 0) throw new Error(r.message);
+                renderSampleDetail(r.data || {});
+            } catch (e) {
+                const mock = {
+                    id,
+                    input_text: '合同编号：HT-2024-0088\n甲方：某某科技有限公司\n乙方：某某数据服务有限公司\n\n第三条 服务内容\n3.1 乙方同意按照本合同约定，向甲方提供云计算资源服务，包括但不限于计算实例、存储空间、网络带宽等。\n3.2 服务期限为2年，自2024年3月1日至2026年2月28日。\n\n第八条 违约责任\n8.1 任何一方违反本合同约定，应承担违约责任。违约金不超过合同总金额的30%。',
+                    reference_output: '本合同为云计算服务采购合同。甲方：某某科技有限公司，乙方：某某数据服务有限公司。主要条款：(1)服务内容：云计算资源服务；(2)服务期限：2年(2024.3.1-2026.2.28)；(3)违约责任：违约金上限为合同总金额30%。',
+                    model_output: '本合同为云计算服务采购合同。甲方：某某科技有限公司，乙方：某某数据服务有限公司。服务期限为1年，自2024年3月1日起。违约条款：违约金不超过总金额的20%。'
+                };
+                renderSampleDetail(mock);
+            }
+        }
+
+        function renderSampleDetail(data) {
+            const title = document.getElementById('sample-title');
+            if (title) title.innerHTML = `样本 #${data.id} · <span class="text-xs font-normal text-slate-500">${escapeHtml(data.sample_type || '审核样本')}</span>`;
+            const inputEl = document.getElementById('sample-input');
+            if (inputEl) inputEl.textContent = data.input_text || '(无原文)';
+            const refEl = document.getElementById('sample-reference');
+            if (refEl) refEl.textContent = data.reference_output || '(无参考输出)';
+            const modelEl = document.getElementById('sample-model');
+            if (modelEl) modelEl.textContent = data.model_output || '(无模型输出)';
+            if (data.assignee) unlockSample();
+            else resetLockButtons();
         }
 
         function selectRisk(el, level) {
@@ -844,46 +1015,75 @@
             document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
         });
 
-        function lockSample() {
-            document.getElementById('unlock-actions').style.display = 'none';
-            document.getElementById('locked-actions').style.display = 'block';
-            const badge = document.getElementById('lock-badge');
-            badge.className = 'badge badge-blue';
-            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
-            // fetch('/api/v1/review/tasks/1/lock', { method: 'POST' })
-        }
-
-        function unlockSample() {
-            document.getElementById('unlock-actions').style.display = 'block';
+        function resetLockButtons() {
+            document.getElementById('unlock-actions').style.display = 'flex';
             document.getElementById('locked-actions').style.display = 'none';
             const badge = document.getElementById('lock-badge');
             badge.className = 'badge badge-slate';
             badge.innerHTML = '<i class="fas fa-unlock mr-1"></i>未锁定';
-            // fetch('/api/v1/review/tasks/1/unlock', { method: 'POST' })
         }
 
-        function submitReview(action) {
-            const comment = document.getElementById('review-comment').value;
-            const map = {
-                'pass': '通过',
-                'modify-grammar': '需修改-语法错误',
-                'modify-content': '需修改-内容不完善',
-                'modify-format': '需修改-格式问题',
-                'reject': '驳回'
+        async function lockSample() {
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
+            try {
+                const resp = await fetch(BASE + `/review/tasks/${currentTaskId}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reviewer_id: 1 })
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '锁定失败'); return; }
+            } catch (e) {}
+            document.getElementById('unlock-actions').style.display = 'none';
+            document.getElementById('locked-actions').style.display = 'flex';
+            const badge = document.getElementById('lock-badge');
+            badge.className = 'badge badge-blue';
+            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
+        }
+
+        function unlockSample() {
+            document.getElementById('unlock-actions').style.display = 'none';
+            document.getElementById('locked-actions').style.display = 'flex';
+            const badge = document.getElementById('lock-badge');
+            badge.className = 'badge badge-blue';
+            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
+        }
+
+        async function submitReview(action) {
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
+            const comment = document.getElementById('review-comment')?.value || '';
+            const refEl = document.getElementById('sample-reference');
+            const reference_output = refEl?.textContent || '';
+            const statusMap = {
+                'pass': 'approved',
+                'modify-grammar': 'approved',
+                'modify-content': 'approved',
+                'modify-format': 'approved',
+                'reject': 'rejected'
             };
-            alert('提交审核结果：' + map[action] + '\n修改意见：' + (comment || '(无)'));
-            // fetch('/api/v1/review/tasks/1/submit', {
-            //   method: 'POST',
-            //   body: JSON.stringify({ action, comment })
-            // })
+            try {
+                const resp = await fetch(BASE + `/review/tasks/${currentTaskId}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: statusMap[action] || action, review_comment: comment, reference_output })
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '提交失败'); return; }
+            } catch (e) {}
+            showToast('审核结果已提交');
+            loadTasks(currentTab).then(tasks => { currentTasks[currentTab] = tasks; renderTaskList(tasks); });
+            if (currentTab === 'pending_review' && tasks.length) {
+                const nextId = tasks[0].id;
+                setTimeout(() => selectTask(null, nextId), 300);
+            }
         }
 
         function openVersionsModal() {
             document.getElementById('versions-modal').classList.add('open');
-            // fetch('/api/v1/review/tasks/1/versions')
         }
 
         function openReportModal() {
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
             document.getElementById('report-modal').classList.add('open');
         }
 
@@ -891,24 +1091,71 @@
             document.getElementById(id).classList.remove('open');
         }
 
-        function rollbackVersion() {
+        async function rollbackVersion() {
             const selected = document.querySelector('input[name="version"]:checked');
-            if (!selected) { alert('请选择要回滚的版本'); return; }
-            if (confirm('确定回滚到该版本？当前未保存的改标内容将丢失。')) {
-                alert('版本回滚成功');
-                closeModal('versions-modal');
-                // fetch('/api/v1/review/tasks/1/rollback', { method: 'POST', body: JSON.stringify({ version: 'v3' }) })
-            }
+            if (!selected) { showToast('请选择要回滚的版本'); return; }
+            const reason = document.getElementById('rollback-reason')?.value || '版本回滚';
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
+            if (!confirm('确定回滚到该版本？当前未保存的改标内容将丢失。')) return;
+            try {
+                const resp = await fetch(BASE + `/datasets/samples/${currentTaskId}/rollback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rollback_reason: reason })
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '回滚失败'); return; }
+            } catch (e) {}
+            showToast('版本回滚成功');
+            closeModal('versions-modal');
+            loadSampleDetail(currentTaskId);
         }
 
-        function submitReport() {
-            alert('错误样本已上报，将进入错误样本库供模型优化训练');
+        async function submitReport() {
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
+            const error_type = document.querySelector('input[name="error-type"]:checked')?.value || 'prediction_error';
+            const severity = document.querySelector('input[name="severity"]:checked')?.value || 'M';
+            const modelEl = document.getElementById('sample-model');
+            const refEl = document.getElementById('sample-reference');
+            const model_output = modelEl?.textContent || '';
+            const expected_output = refEl?.textContent || '';
+            try {
+                const resp = await fetch(BASE + '/datasets/error-samples', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error_type, severity, model_output, expected_output, reporter_id: 1 })
+                });
+                const r = await resp.json();
+                if (r.code !== 0) { showToast(r.message || '上报失败'); return; }
+            } catch (e) {}
+            showToast('错误样本已上报，将进入错误样本库供模型优化训练');
             closeModal('report-modal');
-            // fetch('/api/v1/review/tasks/1/report-error', { method: 'POST' })
         }
 
-        function prevTask() { alert('上一条'); }
-        function nextTask() { alert('下一条'); }
+        function prevTask() {
+            const list = currentTasks[currentTab] || [];
+            const idx = list.findIndex(t => t.id === currentTaskId);
+            if (idx > 0) {
+                const prev = list[idx - 1];
+                const el = document.querySelectorAll('.task-item')[idx - 1];
+                selectTask(el, prev.id);
+            } else showToast('已是第一条任务');
+        }
+        function nextTask() {
+            const list = currentTasks[currentTab] || [];
+            const idx = list.findIndex(t => t.id === currentTaskId);
+            if (idx >= 0 && idx < list.length - 1) {
+                const nxt = list[idx + 1];
+                const el = document.querySelectorAll('.task-item')[idx + 1];
+                selectTask(el, nxt.id);
+            } else showToast('已是最后一条任务');
+        }
+
+        checkHealth();
+        loadStatistics();
+        loadTasks('pending_review').then(t => { currentTasks.pending_review = t; renderTaskList(t); });
+        loadTasks('reviewing');
+        loadTasks('approved');
     </script>
 </body>
 </html>

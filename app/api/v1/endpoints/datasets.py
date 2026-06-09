@@ -102,7 +102,7 @@ async def create_dataset(
         dataset_type=req.dataset_type,
         version=req.version,
         tags=req.tags,
-        metadata=req.metadata,
+        extra_metadata=req.metadata,
         is_public=req.is_public,
         owner_id=current_user.id,
     )
@@ -504,7 +504,7 @@ async def clone_dataset(
         dataset_type=src.dataset_type,
         version="1.0",
         tags=src.tags,
-        metadata={"cloned_from": src.id, **(src.metadata or {})},
+        extra_metadata={"cloned_from": src.id, **(src.extra_metadata or {})},
         is_active=True,
         is_public=False,
         owner_id=current_user.id,

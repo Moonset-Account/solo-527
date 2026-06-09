@@ -493,7 +493,7 @@ class AlertManager:
             severity=severity,
             title=title,
             message=message,
-            metadata=metadata or {},
+            extra_metadata=metadata or {},
             metrics_snapshot=metrics_snapshot or {},
             channels_notified=[],
             status="active",
@@ -514,7 +514,7 @@ class AlertManager:
             message=event.message,
             severity=event.severity,
             url=None,
-            metadata=event.metadata or {},
+            metadata=event.extra_metadata or {},
         )
 
         import asyncio

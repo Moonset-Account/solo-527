@@ -99,7 +99,7 @@ async def submit_qa_feedback(
         score=req.score,
         content=req.content,
         corrected_text=req.corrected_text,
-        metadata={"answer_id": req.answer_id, **(req.metadata or {})},
+        extra_metadata={"answer_id": req.answer_id, **(req.metadata or {})},
     )
     db.add(fb)
     await db.commit()

@@ -126,7 +126,7 @@ class Task(Base):
     error_traceback = Column(Text, nullable=True)
 
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -176,7 +176,7 @@ class Feedback(Base):
     content = Column(Text, nullable=True)
     corrected_text = Column(Text, nullable=True)
 
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
     resolved = Column(Boolean, default=False)
     resolution_note = Column(Text, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
@@ -213,7 +213,7 @@ class AuditLog(Base):
     session_id = Column(String(128), nullable=True)
 
     note = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
@@ -241,7 +241,7 @@ class AlertEvent(Base):
     triggered_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     related_ids = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
     metrics_snapshot = Column(JSON, nullable=True)
 
     channels_notified = Column(JSON, nullable=True)
