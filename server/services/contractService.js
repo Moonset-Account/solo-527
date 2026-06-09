@@ -765,26 +765,30 @@ class ContractService {
 
     const reviewedRisks = await models.RiskAnnotation.findAll({
       where: {
-        status: ['approved', 'modified'],
-        source: { [Op.ne]: 'ai' },
+        status: ['approved', 'modified', 'human_reviewed'],
         clause_id: { [Op.ne]: null },
+        [Op.or]: [
+          { source: { [Op.ne]: 'ai' } },
+          { is_overruled: true },
+          { reviewed_by: { [Op.ne]: null } },
+        ],
       },
       include: [
         {
           model: models.Clause,
           where: VALID_RISK_TYPES.includes(clauseType) ? { clause_type: clauseType } : undefined,
-          attributes: ['id', 'content', 'clause_number', 'clause_title', 'clause_type'],
+          attributes: ['id', 'content', 'clause_number', 'clause_title', 'clause_type', 'historical_notes'],
           required: true,
         },
       ],
-      order: [['created_at', 'DESC']],
+      order: [['reviewed_at', 'DESC'], ['created_at', 'DESC']],
       limit: 50,
     });
 
     const historicalContext = [];
     for (const risk of reviewedRisks.slice(0, limit)) {
       if (risk.Clause) {
-        historicalContext.push({
+        const ctx = {
           clause_id: risk.Clause.id,
           clause_number: risk.Clause.clause_number,
           clause_title: risk.Clause.clause_title,
@@ -798,13 +802,41 @@ class ContractService {
           human_notes: risk.human_notes || '',
           reviewer: risk.reviewed_by,
           reviewed_at: risk.reviewed_at,
-        });
+          source: risk.source,
+        };
+
+        const snap = risk.getDataValue('ai_context_snapshot');
+        if (snap && typeof snap === 'object') {
+          const imp = snap.import_source_fields;
+          if (imp && typeof imp === 'object') {
+            ctx.imported_from = snap.imported_from || null;
+            ctx.imported_manual_risk_type = imp.raw_manual_risk_type || null;
+            ctx.imported_manual_risk_level = imp.raw_manual_risk_level || null;
+            ctx.imported_manual_review_notes = imp.raw_manual_review_notes || null;
+            ctx.imported_historical_notes_excerpt = imp.raw_historical_notes_excerpt || null;
+            if (!ctx.human_notes && imp.raw_manual_review_notes) {
+              ctx.human_notes = imp.raw_manual_review_notes;
+            }
+          }
+          if (snap.model_returned_historical_reference_applied &&
+              snap.model_returned_historical_reference_applied !== 'none') {
+            ctx.previous_model_reference_applied = snap.model_returned_historical_reference_applied;
+          }
+        }
+
+        if (risk.Clause.historical_notes) {
+          ctx.clause_has_historical_notes = true;
+          ctx.clause_historical_notes_excerpt = risk.Clause.historical_notes.substring(0, 300);
+        }
+
+        historicalContext.push(ctx);
       }
     }
 
     const withHistoricalNotes = await models.Clause.findAll({
       where: {
         historical_notes: { [Op.ne]: null },
+        ...(VALID_RISK_TYPES.includes(clauseType) ? { clause_type: clauseType } : {}),
       },
       attributes: ['id', 'content', 'historical_notes', 'clause_type', 'clause_number', 'clause_title'],
       order: [['updated_at', 'DESC']],
@@ -812,6 +844,8 @@ class ContractService {
     });
 
     for (const c of withHistoricalNotes) {
+      const alreadyAdded = historicalContext.some(h => h.clause_id === c.id && h.is_history_note);
+      if (alreadyAdded) continue;
       historicalContext.push({
         clause_id: c.id,
         clause_number: c.clause_number,
@@ -1101,7 +1135,7 @@ class ContractService {
         historical_context_ids: [],
         ai_context_snapshot: snapshot,
         source: 'human',
-        status: 'human_reviewed',
+        status: 'approved',
         review_status: 'completed',
         is_overruled: true,
         human_notes: raw.manual_review_notes || null,
