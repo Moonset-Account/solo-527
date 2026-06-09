@@ -427,24 +427,31 @@ class ContractService {
     }
 
     const transaction = await sequelize.transaction();
+    const { Op } = require('sequelize');
     try {
-      await models.Clause.destroy({
+      const existingClauseIds = (await models.Clause.findAll({
         where: { contract_version_id: contractVersionId },
+        attributes: ['id'],
+        raw: true,
         transaction,
-      });
+      })).map(c => c.id);
 
-      await models.RiskAnnotation.destroy({
-        where: { contract_id: contractId, clause_id: {
-          [require('sequelize').Op.in]:
-            (await models.Clause.findAll({
-              where: { contract_version_id: contractVersionId },
-              attributes: ['id'],
-              raw: true,
-              transaction,
-            })).map(c => c.id),
-        } },
-        transaction,
-      });
+      if (existingClauseIds.length > 0) {
+        await models.ReviewQueue.destroy({
+          where: { clause_id: { [Op.in]: existingClauseIds } },
+          transaction,
+        });
+
+        await models.RiskAnnotation.destroy({
+          where: { clause_id: { [Op.in]: existingClauseIds } },
+          transaction,
+        });
+
+        await models.Clause.destroy({
+          where: { contract_version_id: contractVersionId },
+          transaction,
+        });
+      }
 
       const createdClauses = await this._importPreParsedClauses(
         contractId, contractVersionId, parsedClauses, transaction
@@ -456,6 +463,10 @@ class ContractService {
           { where: { id: contractVersionId }, transaction }
         );
       }
+
+      const humanRiskIds = await this._createHumanRiskAnnotationsFromImport(
+        contractId, createdClauses, parsedClauses, userId, transaction
+      );
 
       await transaction.commit();
 
@@ -553,8 +564,12 @@ class ContractService {
         })),
         with_historical_notes: clausesWithHistorical,
         with_manual_risk: clausesWithManualRisk,
+        human_risk_annotations_created: humanRiskIds.length,
+        human_risk_annotation_ids: humanRiskIds,
         post_processing: 'triggered',
-        post_processing_detail: '向量索引重建 + 风险重检测已后台启动，请稍后刷新页面查看结果',
+        post_processing_detail:
+          `已创建 ${humanRiskIds.length} 条人工标注风险；` +
+          '向量索引重建 + 其余AI风险重检测已后台启动，请稍后刷新页面查看结果',
       };
     } catch (e) {
       await transaction.rollback();
@@ -1015,6 +1030,89 @@ class ContractService {
     }
 
     return clauses;
+  }
+
+  async _createHumanRiskAnnotationsFromImport(contractId, createdClauses, rawClauses, userId, transaction) {
+    const clauseLookup = new Map();
+    createdClauses.forEach(c => {
+      clauseLookup.set(c.clause_number, c);
+      if (c.clause_title) clauseLookup.set(`title:${c.clause_title}`, c);
+    });
+
+    const createdIds = [];
+
+    for (const raw of rawClauses) {
+      if (!raw.manual_risk_type || !VALID_RISK_TYPES.includes(raw.manual_risk_type)) continue;
+
+      let matchedClause = null;
+      if (raw.clause_number && clauseLookup.has(raw.clause_number)) {
+        matchedClause = clauseLookup.get(raw.clause_number);
+      } else if (raw.clause_title) {
+        for (const [key, val] of clauseLookup) {
+          if (key.startsWith('title:') && key.includes(raw.clause_title)) {
+            matchedClause = val;
+            break;
+          }
+        }
+      }
+      if (!matchedClause) continue;
+
+      const riskLevel = VALID_RISK_LEVELS.includes(raw.manual_risk_level)
+        ? raw.manual_risk_level
+        : 'medium';
+
+      const snapshot = {
+        clause: {
+          clause_number: matchedClause.clause_number,
+          clause_title: matchedClause.clause_title,
+          clause_type: matchedClause.clause_type,
+          has_historical_notes: !!matchedClause.historical_notes,
+          historical_notes_excerpt: matchedClause.historical_notes
+            ? matchedClause.historical_notes.substring(0, 200)
+            : null,
+        },
+        imported_from: 'manual_risk_import',
+        import_source_fields: {
+          raw_manual_risk_type: raw.manual_risk_type,
+          raw_manual_risk_level: raw.manual_risk_level,
+          raw_manual_review_notes: raw.manual_review_notes || null,
+          raw_historical_notes_excerpt: raw.historical_notes
+            ? raw.historical_notes.substring(0, 200)
+            : null,
+        },
+        total_historical_context_items: matchedClause.historical_notes ? 1 : 0,
+        model_returned_historical_reference_applied: 'imported_manual',
+      };
+
+      const risk = await models.RiskAnnotation.create({
+        id: uuidv4(),
+        clause_id: matchedClause.id,
+        contract_id: contractId,
+        risk_type: raw.manual_risk_type,
+        risk_level: riskLevel,
+        human_risk_type: raw.manual_risk_type,
+        human_risk_level: riskLevel,
+        confidence_score: 1.0,
+        is_low_confidence: false,
+        ai_summary: `导入的人工标注风险（${raw.manual_risk_type}/${riskLevel}）` +
+          (raw.manual_review_notes ? ` - 说明：${raw.manual_review_notes.substring(0, 200)}` : ''),
+        ai_quoted_text: matchedClause.content.substring(0, 300),
+        evidence_clause_ids: [],
+        historical_context_ids: [],
+        ai_context_snapshot: snapshot,
+        source: 'human',
+        status: 'human_reviewed',
+        review_status: 'completed',
+        is_overruled: true,
+        human_notes: raw.manual_review_notes || null,
+        reviewed_by: userId,
+        reviewed_at: raw.manual_reviewed_at || new Date(),
+      }, { transaction });
+
+      createdIds.push(risk.id);
+    }
+
+    return createdIds;
   }
 
   async _applyImportedReviewResults(contractId, clauses, reviewResults, userId, transaction) {

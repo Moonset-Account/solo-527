@@ -74,7 +74,7 @@ class OpenAIService {
     const prompt = this._buildRiskPrompt(clauseText, clauseType, context);
 
     if (this.mockMode) {
-      return this._mockRiskAnalysis(clauseText, clauseType);
+      return this._mockRiskAnalysis(clauseText, clauseType, context);
     }
 
     try {
@@ -123,7 +123,7 @@ class OpenAIService {
 
   async batchAnalyzeRisks(clauses) {
     if (this.mockMode) {
-      return Promise.all(clauses.map(c => this._mockRiskAnalysis(c.content, c.clause_type)));
+      return Promise.all(clauses.map(c => this._mockRiskAnalysis(c.content, c.clause_type, c)));
     }
 
     const results = [];
@@ -264,6 +264,8 @@ ${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNo
   _normalizeRiskResult(result, originalText) {
     const riskTypes = ['payment', 'breach', 'confidentiality', 'auto_renewal'];
     const riskLevels = ['low', 'medium', 'high', 'critical'];
+    const validHistoricalApplied = ['none', 'historical_reviews', 'historical_notes', 'both', 'imported_manual'];
+    const rawApplied = result.historical_reference_applied;
 
     return {
       has_risk: result.has_risk === true,
@@ -273,6 +275,7 @@ ${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNo
       summary: result.summary || '',
       quoted_text: result.quoted_text || originalText.substring(0, 200),
       risk_indicators: Array.isArray(result.risk_indicators) ? result.risk_indicators : [],
+      historical_reference_applied: validHistoricalApplied.includes(rawApplied) ? rawApplied : 'none',
       warning: '以上分析由AI模型提供，仅供参考，不构成法律意见。请咨询专业法律顾问。',
     };
   }
@@ -288,11 +291,41 @@ ${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNo
     return vector.map(v => v / norm);
   }
 
-  _mockRiskAnalysis(clauseText, clauseType) {
+  _mockRiskAnalysis(clauseText, clauseType, context = {}) {
     const hasPaymentRisk = clauseText.includes('付款') && (clauseText.includes('逾期') || clauseText.includes('违约金'));
     const hasBreachRisk = clauseText.includes('违约') && clauseText.includes('赔偿');
     const hasConfRisk = clauseText.includes('保密') && !clauseText.includes('期限');
     const hasRenewalRisk = clauseText.includes('自动续') && !clauseText.includes('书面通知');
+
+    const historicalReviews = Array.isArray(context.historical_reviews) ? context.historical_reviews : [];
+    const historicalNotes = Array.isArray(context.historical_notes) ? context.historical_notes : [];
+    const currentHistoricalNotes = context.current_clause_historical_notes || '';
+    const similarClauses = Array.isArray(context.similar_clauses) ? context.similar_clauses : [];
+
+    const hasHistoricalNotesContext = historicalNotes.length > 0 || !!currentHistoricalNotes;
+    const hasHistoricalReviewContext = historicalReviews.length > 0;
+
+    let historicalReferenceApplied = 'none';
+    if (hasHistoricalReviewContext && hasHistoricalNotesContext) historicalReferenceApplied = 'both';
+    else if (hasHistoricalReviewContext) historicalReferenceApplied = 'historical_reviews';
+    else if (hasHistoricalNotesContext) historicalReferenceApplied = 'historical_notes';
+
+    const overruledRiskTypes = historicalReviews
+      .filter(r => r.is_overruled)
+      .map(r => r.final_risk_type)
+      .filter(Boolean);
+
+    const preferredRiskTypes = historicalReviews
+      .filter(r => r.review_result === 'approved' || r.review_result === 'modified')
+      .map(r => r.final_risk_type)
+      .filter(Boolean);
+
+    const criticalReviews = historicalReviews.filter(r => r.final_risk_level === 'critical' || r.final_risk_level === 'high');
+    const hasCriticalHistory = criticalReviews.length > 0;
+
+    const hasHistoricalNotesForType =
+      hasHistoricalNotesContext &&
+      (currentHistoricalNotes + JSON.stringify(historicalNotes)).includes(clauseType);
 
     let hasRisk = false;
     let riskType = clauseType;
@@ -300,34 +333,92 @@ ${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNo
     let confidence = 0.6;
     let summary = '';
     let quotedText = clauseText.substring(0, 100);
+    const riskIndicators = [];
 
     if (['payment', 'breach', 'confidentiality', 'auto_renewal'].includes(clauseType)) {
       riskType = clauseType;
-      if (clauseType === 'payment' && hasPaymentRisk) {
+      if (clauseType === 'payment' && (hasPaymentRisk || hasHistoricalNotesForType)) {
         hasRisk = true;
-        riskLevel = clauseText.includes('高额') || clauseText.includes('全额') ? 'high' : 'medium';
-        confidence = hasPaymentRisk ? 0.85 : 0.55;
+        riskLevel = hasCriticalHistory || clauseText.includes('高额') || clauseText.includes('全额')
+          ? 'high'
+          : (hasHistoricalNotesForType ? 'high' : 'medium');
+        confidence = hasPaymentRisk ? 0.85 : (hasHistoricalNotesForType ? 0.78 : 0.55);
         summary = '该付款条款存在潜在风险：可能包含不利的逾期付款条件或过高的违约金比例。';
-      } else if (clauseType === 'breach' && hasBreachRisk) {
+        riskIndicators.push('付款条款风险');
+        if (hasHistoricalReviewContext) {
+          summary += ` 参考了 ${historicalReviews.length} 条历史复核${overruledRiskTypes.includes('payment') ? '（含被推翻的误判案例）' : ''}。`;
+          riskIndicators.push('参考历史复核结果');
+        }
+        if (currentHistoricalNotes) {
+          summary += ` 附当前条款历史修改意见：${currentHistoricalNotes.substring(0, 50)}。`;
+          riskIndicators.push('含历史修改意见');
+        }
+      } else if (clauseType === 'breach' && (hasBreachRisk || hasHistoricalNotesForType)) {
         hasRisk = true;
-        riskLevel = clauseText.includes('全部损失') || clauseText.includes('间接损失') ? 'high' : 'medium';
-        confidence = hasBreachRisk ? 0.82 : 0.5;
+        riskLevel = hasCriticalHistory || clauseText.includes('全部损失') || clauseText.includes('间接损失')
+          ? 'high'
+          : (hasHistoricalNotesForType ? 'high' : 'medium');
+        confidence = hasBreachRisk ? 0.82 : (hasHistoricalNotesForType ? 0.75 : 0.5);
         summary = '该违约条款存在潜在风险：赔偿范围可能过大，建议核查是否包含间接损失赔偿。';
-      } else if (clauseType === 'confidentiality') {
-        hasRisk = hasConfRisk || clauseText.length > 0;
-        riskLevel = !clauseText.includes('期限') ? 'high' : 'medium';
-        confidence = hasConfRisk ? 0.88 : 0.65;
+        riskIndicators.push('违约条款风险');
+        if (hasHistoricalReviewContext) {
+          summary += ` 参考了 ${historicalReviews.length} 条历史复核。`;
+          riskIndicators.push('参考历史复核结果');
+        }
+        if (currentHistoricalNotes) {
+          summary += ` 附当前条款历史修改意见：${currentHistoricalNotes.substring(0, 50)}。`;
+          riskIndicators.push('含历史修改意见');
+        }
+      } else if (clauseType === 'confidentiality' && (hasConfRisk || clauseText.length > 0)) {
+        hasRisk = hasConfRisk || hasHistoricalNotesForType;
+        riskLevel = (!clauseText.includes('期限') || hasCriticalHistory) ? 'high' : 'medium';
+        confidence = hasConfRisk ? 0.88 : (hasHistoricalNotesForType ? 0.8 : 0.65);
         summary = !clauseText.includes('期限')
           ? '该保密条款未约定保密期限，可能导致无限期保密义务，存在重大风险。'
           : '该保密条款约定基本合规，建议核查保密范围和例外条款。';
+        riskIndicators.push('保密条款风险');
+        if (hasHistoricalReviewContext) {
+          summary += ` 参考了 ${historicalReviews.length} 条历史复核${overruledRiskTypes.includes('confidentiality') ? '（同类AI判断曾被推翻）' : ''}。`;
+          riskIndicators.push('参考历史复核结果');
+        }
+        if (currentHistoricalNotes) {
+          summary += ` 历史意见摘要：${currentHistoricalNotes.substring(0, 50)}。`;
+          riskIndicators.push('含历史修改意见');
+        }
       } else if (clauseType === 'auto_renewal') {
         hasRisk = true;
-        riskLevel = hasRenewalRisk ? 'high' : 'medium';
-        confidence = hasRenewalRisk ? 0.9 : 0.7;
+        riskLevel = (hasRenewalRisk || hasCriticalHistory) ? 'high' : 'medium';
+        confidence = hasRenewalRisk ? 0.9 : (hasHistoricalNotesForType ? 0.82 : 0.7);
         summary = hasRenewalRisk
           ? '该自动续约条款存在重大风险：未约定提前书面通知终止的机制，可能导致被动续约。'
           : '该自动续约条款存在风险，建议评估续约周期和通知期限是否合理。';
+        riskIndicators.push('自动续约条款风险');
+        if (hasHistoricalReviewContext) {
+          summary += ` 参考了 ${historicalReviews.length} 条历史同类复核。`;
+          riskIndicators.push('参考历史复核结果');
+        }
       }
+    }
+
+    if (!hasRisk && (preferredRiskTypes.length > 0 || hasHistoricalNotesForType)) {
+      const preferred = preferredRiskTypes.find(rt =>
+        clauseText.includes({
+          payment: '付款', breach: '违约',
+          confidentiality: '保密', auto_renewal: '自动续',
+        }[rt] || '')
+      );
+      if (preferred) {
+        hasRisk = true;
+        riskType = preferred;
+        riskLevel = 'medium';
+        confidence = 0.72;
+        summary = `参考历史复核的标注偏好，检测到${preferred}类风险信号，建议人工进一步核查。`;
+        riskIndicators.push('历史复核偏好匹配');
+      }
+    }
+
+    if (hasRisk && similarClauses.length > 0 && similarClauses.some(s => s.has_historical_notes)) {
+      riskIndicators.push('相似条款含历史意见');
     }
 
     return {
@@ -337,7 +428,8 @@ ${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNo
       confidence_score: confidence,
       summary: hasRisk ? summary : '该条款未检测到明显风险，建议结合上下文进行综合判断。',
       quoted_text: quotedText,
-      risk_indicators: hasRisk ? [riskType + '_条款风险'] : [],
+      risk_indicators: riskIndicators,
+      historical_reference_applied: historicalReferenceApplied,
       warning: '以上分析由AI模型提供（当前为模拟模式），仅供参考，不构成法律意见。请咨询专业法律顾问。',
     };
   }
