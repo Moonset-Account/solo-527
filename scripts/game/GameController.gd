@@ -140,6 +140,11 @@ func _undo_place(action: Dictionary) -> void:
     tween.set_parallel(true)
     tween.tween_property(item, "global_position", from_pos, 0.2)
     tween.tween_property(item, "rotation", from_rot, 0.2)
+    tween.finished.connect(func ():
+        if is_instance_valid(item):
+            item.original_position = from_pos
+            item.original_rotation = from_rot
+    )
     item.reset_state()
 
 func _undo_rotate(action: Dictionary) -> void:
@@ -149,6 +154,10 @@ func _undo_rotate(action: Dictionary) -> void:
     var before_rot: float = float(action.get("before_rot", item.rotation))
     var tween: Tween = create_tween()
     tween.tween_property(item, "rotation", before_rot, 0.15)
+    tween.finished.connect(func ():
+        if is_instance_valid(item):
+            item.original_rotation = before_rot
+    )
 
 func _undo_move(action: Dictionary) -> void:
     var item: PackingItem = _get_item_by_action(action)
@@ -221,9 +230,11 @@ func _on_drag_ended(item: PackingItem, placed: bool) -> void:
     if undo_system and is_instance_valid(item):
         var item_idx: int = _get_item_instance_idx(item)
         if item_idx >= 0:
-            var act: Dictionary = undo_system.create_place_action(item, item_idx, item.original_position, item.original_rotation)
+            var from_pos: Vector2 = item.get_meta("drag_from_pos", item.original_position)
+            var from_rot: float = float(item.get_meta("drag_from_rot", item.original_rotation))
+            var act: Dictionary = undo_system.create_place_action(item, item_idx, from_pos, from_rot)
             undo_system.record_action(act)
-    if is_instance_valid(item):
+    if is_instance_valid(item) and not placed:
         item.original_position = item.global_position
         item.original_rotation = item.rotation
     _recalculate_live_score()
@@ -232,7 +243,8 @@ func _on_item_rotated(item: PackingItem, angle: float) -> void:
     if undo_system and is_instance_valid(item):
         var item_idx: int = _get_item_instance_idx(item)
         if item_idx >= 0:
-            var act: Dictionary = undo_system.create_rotate_action(item, item_idx, item.rotation - angle)
+            var before_rot: float = item.rotation - angle
+            var act: Dictionary = undo_system.create_rotate_action(item, item_idx, before_rot)
             undo_system.record_action(act)
     if is_instance_valid(item):
         item.original_rotation = item.rotation

@@ -5,6 +5,7 @@ class_name DragController
 signal item_drag_started(item: PackingItem)
 signal item_drag_ended(item: PackingItem, placed: bool)
 signal item_rotated(item: PackingItem, angle: float)
+signal item_snap_finished(item: PackingItem)
 
 var active_item: PackingItem = null
 var is_dragging: bool = false
@@ -109,6 +110,8 @@ func _start_drag(item: PackingItem, world_pos: Vector2, idx: int) -> void:
     is_dragging = true
     pointer_index = idx
     drag_offset = world_pos - item.global_position
+    item.set_meta("drag_from_pos", item.global_position)
+    item.set_meta("drag_from_rot", item.rotation)
     item.set_dragging(true)
     item.z_index = 100
     if box_ref:
@@ -147,8 +150,16 @@ func _snap_to_box() -> void:
     box_local.y = clamp(box_local.y, -h + ih, h - ih)
     if snap_enabled:
         box_local = Vector2(round(box_local.x / 10.0) * 10.0, round(box_local.y / 10.0) * 10.0)
+    var snapped_pos: Vector2 = box_ref.global_position + box_local
     var tween: Tween = create_tween()
-    tween.tween_property(active_item, "global_position", box_ref.global_position + box_local, 0.08).set_ease(Tween.EASE_OUT)
+    tween.tween_property(active_item, "global_position", snapped_pos, 0.08).set_ease(Tween.EASE_OUT)
+    var snapped_item: PackingItem = active_item
+    tween.finished.connect(func ():
+        if is_instance_valid(snapped_item):
+            snapped_item.original_position = snapped_pos
+            snapped_item.original_rotation = snapped_item.rotation
+        item_snap_finished.emit(snapped_item)
+    )
 
 func _get_world_position(pos: Vector2) -> Vector2:
     if item_layer and item_layer.get_viewport():
