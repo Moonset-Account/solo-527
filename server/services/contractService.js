@@ -9,6 +9,16 @@ const VectorStoreService = require('./vectorStoreService');
 const AuditService = require('./auditService');
 const AlertService = require('./alertService');
 const RiskDetectionService = require('./riskDetectionService');
+const DocumentExtractorService = require('./documentExtractorService');
+
+const VALID_CLAUSE_TYPES = [
+  'payment', 'breach', 'confidentiality', 'auto_renewal',
+  'definition', 'obligation', 'termination', 'liability',
+  'ip', 'dispute', 'force_majeure', 'other'
+];
+
+const VALID_RISK_TYPES = ['payment', 'breach', 'confidentiality', 'auto_renewal'];
+const VALID_RISK_LEVELS = ['low', 'medium', 'high', 'critical'];
 
 class ContractService {
   constructor() {
@@ -22,18 +32,16 @@ class ContractService {
     }
   }
 
-  async uploadContract(fileData, metadata, userId, ip) {
-    const { originalname, buffer, size, mimetype } = fileData;
-    const { title, contract_number, contract_type, party_a, party_b, effective_date, expiry_date, description } = metadata;
+  async uploadContract(fileData, metadata, userId, ip, options = {}) {
+    const { originalname, buffer, size } = fileData;
+    const {
+      title, contract_number, contract_type, party_a, party_b,
+      effective_date, expiry_date, description,
+      pre_parsed_clauses, import_review_results,
+    } = metadata;
 
     const ext = path.extname(originalname).toLowerCase();
-    if (!config.server.allowedFileTypes.includes(ext)) {
-      throw new Error(`不支持的文件类型: ${ext}。支持类型: ${config.server.allowedFileTypes.join(', ')}`);
-    }
-
-    if (size > config.server.maxFileSize) {
-      throw new Error(`文件过大，最大允许: ${config.server.maxFileSize / 1024 / 1024}MB`);
-    }
+    this._validateFileType(ext, size);
 
     const transaction = await sequelize.transaction();
 
@@ -59,7 +67,10 @@ class ContractService {
       const storagePath = path.join(config.server.uploadDir, storageName);
       fs.writeFileSync(storagePath, buffer);
 
-      const contentText = await this._extractText(buffer, ext);
+      const extractResult = await DocumentExtractorService.extractFromBuffer(
+        buffer, ext, originalname, contract.id
+      );
+      const contentText = extractResult.text;
 
       const contractVersion = await models.ContractVersion.create({
         id: uuidv4(),
@@ -70,43 +81,62 @@ class ContractService {
         file_size: size,
         file_hash: fileHash,
         content_text: contentText,
-        change_summary: '初始版本上传',
+        change_summary: options.change_summary || '初始版本上传',
         created_by: userId,
         is_active: true,
       }, { transaction });
 
-      const clauses = await this._parseAndCreateClauses(
-        contract.id,
-        contractVersion.id,
-        contentText,
-        transaction
-      );
+      let clauses;
+      if (pre_parsed_clauses && pre_parsed_clauses.length > 0) {
+        clauses = await this._importPreParsedClauses(
+          contract.id, contractVersion.id, pre_parsed_clauses, transaction
+        );
+      } else {
+        clauses = await this._parseAndCreateClauses(
+          contract.id, contractVersion.id, contentText,
+          extractResult.metadata, transaction
+        );
+      }
+
+      if (import_review_results && import_review_results.length > 0) {
+        await this._applyImportedReviewResults(
+          contract.id, clauses, import_review_results, userId, transaction
+        );
+      }
 
       await transaction.commit();
 
       await AuditService.logContractUpload(contract, userId, ip);
 
+      if (pre_parsed_clauses && pre_parsed_clauses.length > 0) {
+        await AuditService.log('contract_update', 'clause', {
+          entity_id: contractVersion.id,
+          contract_id: contract.id,
+          newValues: { imported_clauses_count: clauses.length },
+          changeSummary: `批量导入 ${clauses.length} 条预解析条款`,
+          user_id: userId,
+        }, { userId, ip });
+      }
+
       await AlertService.checkDataMissing(
-        'contract',
-        contract,
+        'contract', contract,
         ['party_a', 'party_b', 'effective_date'],
-        contract.id,
-        contract.id
+        contract.id, contract.id
       );
 
       setImmediate(async () => {
         try {
-          await VectorStoreService.buildIndexForContract(
-            contract.id,
-            contractVersion.id,
-            clauses,
-            userId
+          const vectorIndex = await VectorStoreService.buildIndexForContract(
+            contract.id, contractVersion.id, clauses, userId
+          );
+
+          await models.ContractVersion.update(
+            { vector_index_version: vectorIndex.index_version },
+            { where: { id: contractVersion.id } }
           );
 
           await RiskDetectionService.detectRisksForContract(
-            contract.id,
-            contractVersion.id,
-            { userId, ip }
+            contract.id, contractVersion.id, { userId, ip }
           );
 
           await contract.update({ status: 'reviewing' });
@@ -120,6 +150,13 @@ class ContractService {
         contract,
         version: contractVersion,
         clauses_count: clauses.length,
+        extraction_metadata: {
+          parser: extractResult.metadata.parser_used,
+          warnings: extractResult.metadata.warnings,
+          page_count: extractResult.metadata.page_count,
+        },
+        imported_clauses: pre_parsed_clauses?.length || 0,
+        imported_reviews: import_review_results?.length || 0,
       };
     } catch (error) {
       await transaction.rollback();
@@ -129,17 +166,17 @@ class ContractService {
 
   async createNewVersion(contractId, fileData, metadata, userId, ip) {
     const { originalname, buffer, size } = fileData;
-    const { change_summary } = metadata;
+    const { change_summary, pre_parsed_clauses, import_review_results } = metadata;
 
     const contract = await models.Contract.findByPk(contractId);
-    if (!contract) {
-      throw new Error('合同不存在');
-    }
+    if (!contract) throw new Error('合同不存在');
+
+    const ext = path.extname(originalname).toLowerCase();
+    this._validateFileType(ext, size);
 
     const transaction = await sequelize.transaction();
 
     try {
-      const ext = path.extname(originalname).toLowerCase();
       const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
       const existingHash = await models.ContractVersion.findOne({
@@ -160,7 +197,10 @@ class ContractService {
       const storagePath = path.join(config.server.uploadDir, storageName);
       fs.writeFileSync(storagePath, buffer);
 
-      const contentText = await this._extractText(buffer, ext);
+      const extractResult = await DocumentExtractorService.extractFromBuffer(
+        buffer, ext, originalname, contractId
+      );
+      const contentText = extractResult.text;
 
       const newVersion = await models.ContractVersion.create({
         id: uuidv4(),
@@ -176,18 +216,26 @@ class ContractService {
         is_active: true,
       }, { transaction });
 
-      const clauses = await this._parseAndCreateClauses(
-        contractId,
-        newVersion.id,
-        contentText,
-        transaction
-      );
+      let clauses;
+      if (pre_parsed_clauses && pre_parsed_clauses.length > 0) {
+        clauses = await this._importPreParsedClauses(
+          contractId, newVersion.id, pre_parsed_clauses, transaction
+        );
+      } else {
+        clauses = await this._parseAndCreateClauses(
+          contractId, newVersion.id, contentText,
+          extractResult.metadata, transaction
+        );
+      }
+
+      if (import_review_results && import_review_results.length > 0) {
+        await this._applyImportedReviewResults(
+          contractId, clauses, import_review_results, userId, transaction
+        );
+      }
 
       await contract.update(
-        {
-          current_version: newVersionNum,
-          status: 'processing',
-        },
+        { current_version: newVersionNum, status: 'processing' },
         { transaction }
       );
 
@@ -203,8 +251,13 @@ class ContractService {
 
       setImmediate(async () => {
         try {
-          await VectorStoreService.buildIndexForContract(
+          const vectorIndex = await VectorStoreService.buildIndexForContract(
             contractId, newVersion.id, clauses, userId
+          );
+
+          await models.ContractVersion.update(
+            { vector_index_version: vectorIndex.index_version },
+            { where: { id: newVersion.id } }
           );
 
           await RiskDetectionService.detectRisksForContract(
@@ -230,9 +283,7 @@ class ContractService {
 
   async rollbackToVersion(contractId, targetVersion, userId, ip) {
     const contract = await models.Contract.findByPk(contractId);
-    if (!contract) {
-      throw new Error('合同不存在');
-    }
+    if (!contract) throw new Error('合同不存在');
 
     const targetVersionRecord = await models.ContractVersion.findOne({
       where: { contract_id: contractId, version_number: targetVersion },
@@ -240,6 +291,24 @@ class ContractService {
 
     if (!targetVersionRecord) {
       throw new Error(`目标版本 ${targetVersion} 不存在`);
+    }
+
+    if (!targetVersionRecord.vector_index_version) {
+      throw new Error(`目标版本 ${targetVersion} 无对应的向量索引版本，无法回滚`);
+    }
+
+    const targetVectorIndex = await models.VectorIndexVersion.findOne({
+      where: {
+        contract_id: contractId,
+        index_version: targetVersionRecord.vector_index_version,
+      },
+    });
+
+    if (!targetVectorIndex) {
+      throw new Error(`目标版本对应的向量索引 (v${targetVersionRecord.vector_index_version}) 不存在，无法完成回滚`);
+    }
+    if (targetVectorIndex.status !== 'ready') {
+      throw new Error(`目标版本的向量索引状态为 ${targetVectorIndex.status}，非就绪状态不可回滚`);
     }
 
     const fromVersion = contract.current_version;
@@ -253,6 +322,7 @@ class ContractService {
       );
 
       const newVersionNum = contract.current_version + 1;
+
       const rollbackVersion = await models.ContractVersion.create({
         id: uuidv4(),
         contract_id: contractId,
@@ -274,6 +344,10 @@ class ContractService {
         raw: true,
       });
 
+      if (sourceClauses.length === 0) {
+        throw new Error(`目标版本 ${targetVersion} 无可回滚的条款数据`);
+      }
+
       for (const clause of sourceClauses) {
         await models.Clause.create({
           ...clause,
@@ -281,6 +355,24 @@ class ContractService {
           contract_version_id: rollbackVersion.id,
           embedding_id: null,
         }, { transaction });
+      }
+
+      const vectorRollbackSuccess = await VectorStoreService.rollbackIndex(
+        contractId, targetVersionRecord.vector_index_version, userId
+      );
+      if (!vectorRollbackSuccess) {
+        throw new Error('向量索引切换失败，已中止回滚');
+      }
+
+      const activeAfterRollback = await models.VectorIndexVersion.findOne({
+        where: { contract_id: contractId, is_active: true },
+        attributes: ['index_version'],
+        raw: true,
+        transaction,
+      });
+
+      if (!activeAfterRollback || activeAfterRollback.index_version !== targetVersionRecord.vector_index_version) {
+        throw new Error(`向量索引版本同步失败，预期v${targetVersionRecord.vector_index_version}，实际${activeAfterRollback?.index_version}`);
       }
 
       await contract.update(
@@ -291,27 +383,267 @@ class ContractService {
         { transaction }
       );
 
-      if (targetVersionRecord.vector_index_version) {
-        await VectorStoreService.rollbackIndex(
-          contractId,
-          targetVersionRecord.vector_index_version,
-          userId
-        );
-      }
-
       await transaction.commit();
 
       await AuditService.logContractRollback(contractId, fromVersion, targetVersion, userId, ip);
+      await AuditService.log('vector_index_rollback', 'vector_index', {
+        entity_id: targetVectorIndex.id,
+        contract_id: contractId,
+        newValues: { active_index_version: targetVersionRecord.vector_index_version },
+        changeSummary: `同步切换向量索引到 v${targetVersionRecord.vector_index_version}`,
+        user_id: userId,
+      }, { userId, ip });
 
       return {
         new_version: newVersionNum,
         rolled_back_from: fromVersion,
         rolled_back_to: targetVersion,
+        vector_index_version: targetVersionRecord.vector_index_version,
+        clauses_restored: sourceClauses.length,
       };
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  async importClauses(contractId, contractVersionId, importData, format, userId, ip) {
+    const version = await models.ContractVersion.findOne({
+      where: { id: contractVersionId, contract_id: contractId, is_active: true },
+      include: [{ model: models.Contract, as: 'contract' }],
+    });
+    if (!version) throw new Error('合同版本不存在或非当前活跃版本');
+
+    const contract = await models.Contract.findByPk(contractId);
+    if (!contract) throw new Error('合同不存在');
+
+    if (['approved', 'archived'].includes(contract.status)) {
+      throw new Error('合同已通过或归档，不可再导入条款');
+    }
+
+    const parsedClauses = DocumentExtractorService.parseClauseImport(importData, format);
+
+    const transaction = await sequelize.transaction();
+    try {
+      await models.Clause.destroy({
+        where: { contract_version_id: contractVersionId },
+        transaction,
+      });
+
+      const createdClauses = await this._importPreParsedClauses(
+        contractId, contractVersionId, parsedClauses, transaction
+      );
+
+      await transaction.commit();
+
+      await AuditService.log('contract_update', 'clause', {
+        entity_id: contractVersionId,
+        contract_id: contractId,
+        newValues: { count: createdClauses.length, format },
+        changeSummary: `批量导入条款（${format}）：${createdClauses.length} 条`,
+        user_id: userId,
+      }, { userId, ip });
+
+      return {
+        imported: createdClauses.length,
+        clauses: createdClauses.map(c => ({
+          id: c.id,
+          clause_number: c.clause_number,
+          clause_title: c.clause_title,
+          clause_type: c.clause_type,
+        })),
+      };
+    } catch (e) {
+      await transaction.rollback();
+      throw e;
+    }
+  }
+
+  async importReviewResults(contractId, importData, format, userId, ip) {
+    const contract = await models.Contract.findByPk(contractId);
+    if (!contract) throw new Error('合同不存在');
+
+    if (contract.status === 'approved') {
+      throw new Error('合同已通过，不可导入复核结果');
+    }
+
+    const activeVersion = await models.ContractVersion.findOne({
+      where: { contract_id: contractId, is_active: true },
+    });
+    if (!activeVersion) throw new Error('合同无活跃版本');
+
+    const clauses = await models.Clause.findAll({
+      where: { contract_version_id: activeVersion.id },
+    });
+
+    const parsedReviews = DocumentExtractorService.parseReviewImport(importData, format);
+
+    const transaction = await sequelize.transaction();
+    try {
+      let applied = 0;
+
+      for (const review of parsedReviews) {
+        let targetRisk = null;
+
+        if (review.risk_id) {
+          targetRisk = await models.RiskAnnotation.findByPk(review.risk_id, { transaction });
+        }
+
+        if (!targetRisk && (review.clause_number || review.clause_title)) {
+          const matchedClause = clauses.find(c =>
+            (review.clause_number && c.clause_number === review.clause_number) ||
+            (review.clause_title && c.clause_title?.includes(review.clause_title))
+          );
+          if (matchedClause) {
+            targetRisk = await models.RiskAnnotation.findOne({
+              where: { clause_id: matchedClause.id, contract_id: contractId },
+              order: [['created_at', 'DESC']],
+              transaction,
+            });
+          }
+        }
+
+        if (!targetRisk) continue;
+
+        const oldValues = {
+          risk_type: targetRisk.risk_type,
+          risk_level: targetRisk.risk_level,
+          status: targetRisk.status,
+        };
+
+        const updates = {
+          reviewed_by: userId,
+          reviewed_at: review.reviewed_at || new Date(),
+          review_status: 'completed',
+          source: 'hybrid',
+        };
+
+        let changed = false;
+        switch (review.action) {
+          case 'approve':
+          case 'approved':
+            updates.status = 'approved';
+            changed = true;
+            break;
+          case 'reject':
+          case 'rejected':
+          case 'remove':
+            updates.status = 'rejected';
+            updates.is_overruled = true;
+            changed = true;
+            break;
+          case 'modify':
+          case 'modified':
+          default:
+            if (review.final_risk_type && VALID_RISK_TYPES.includes(review.final_risk_type)) {
+              updates.risk_type = review.final_risk_type;
+              updates.human_risk_type = review.final_risk_type;
+              changed = true;
+            }
+            if (review.final_risk_level && VALID_RISK_LEVELS.includes(review.final_risk_level)) {
+              updates.risk_level = review.final_risk_level;
+              updates.human_risk_level = review.final_risk_level;
+              changed = true;
+            }
+            if (changed) {
+              updates.status = 'modified';
+              updates.is_overruled = true;
+            }
+            break;
+        }
+
+        if (review.notes) {
+          updates.human_notes = review.notes;
+        }
+
+        if (changed || review.notes) {
+          await targetRisk.update(updates, { transaction });
+          applied++;
+
+          await AuditService.logRiskModify(
+            targetRisk, oldValues, userId, ip,
+            `导入复核结果: ${review.action}${review.notes ? ` - ${review.notes.substring(0, 50)}` : ''}`
+          );
+        }
+      }
+
+      await transaction.commit();
+
+      return {
+        total_parsed: parsedReviews.length,
+        applied: applied,
+        skipped: parsedReviews.length - applied,
+      };
+    } catch (e) {
+      await transaction.rollback();
+      throw e;
+    }
+  }
+
+  async getHistoricalContextForClause(clauseContent, clauseType, limit = 5) {
+    const { Op } = require('sequelize');
+
+    const reviewedRisks = await models.RiskAnnotation.findAll({
+      where: {
+        status: ['approved', 'modified'],
+        source: { [Op.ne]: 'ai' },
+        clause_id: { [Op.ne]: null },
+      },
+      include: [
+        {
+          model: models.Clause,
+          where: VALID_RISK_TYPES.includes(clauseType) ? { clause_type: clauseType } : undefined,
+          attributes: ['id', 'content', 'clause_number', 'clause_title', 'clause_type'],
+          required: true,
+        },
+      ],
+      order: [['created_at', 'DESC']],
+      limit: 50,
+    });
+
+    const historicalContext = [];
+    for (const risk of reviewedRisks.slice(0, limit)) {
+      if (risk.Clause) {
+        historicalContext.push({
+          clause_id: risk.Clause.id,
+          clause_number: risk.Clause.clause_number,
+          clause_title: risk.Clause.clause_title,
+          clause_type: risk.Clause.clause_type,
+          clause_content: risk.Clause.content.substring(0, 500),
+          original_risk_type: risk.getDataValue('risk_type'),
+          final_risk_type: risk.human_risk_type || risk.getDataValue('risk_type'),
+          final_risk_level: risk.human_risk_level || risk.getDataValue('risk_level'),
+          review_result: risk.status,
+          is_overruled: risk.is_overruled,
+          human_notes: risk.human_notes || '',
+          reviewer: risk.reviewed_by,
+          reviewed_at: risk.reviewed_at,
+        });
+      }
+    }
+
+    const withHistoricalNotes = await models.Clause.findAll({
+      where: {
+        historical_notes: { [Op.ne]: null },
+      },
+      attributes: ['id', 'content', 'historical_notes', 'clause_type', 'clause_number', 'clause_title'],
+      order: [['updated_at', 'DESC']],
+      limit,
+    });
+
+    for (const c of withHistoricalNotes) {
+      historicalContext.push({
+        clause_id: c.id,
+        clause_number: c.clause_number,
+        clause_title: c.clause_title,
+        clause_type: c.clause_type,
+        clause_content: c.content.substring(0, 500),
+        historical_notes: c.historical_notes,
+        is_history_note: true,
+      });
+    }
+
+    return historicalContext;
   }
 
   async getContractVersions(contractId) {
@@ -352,7 +684,10 @@ class ContractService {
 
     return {
       ...contract.toJSON(),
-      active_version: activeVersion,
+      active_version: activeVersion ? {
+        ...activeVersion.toJSON(),
+        storage_path: undefined,
+      } : null,
       clauses,
       risks,
       risk_summary: RiskDetectionService._summarizeRisks(risks),
@@ -360,15 +695,10 @@ class ContractService {
   }
 
   async listContracts(options = {}) {
+    const { Op } = require('sequelize');
     const {
-      status,
-      contract_type,
-      uploader_id,
-      reviewer_id,
-      has_risks,
-      search,
-      limit = 20,
-      offset = 0,
+      status, contract_type, uploader_id, reviewer_id,
+      search, limit = 20, offset = 0,
     } = options;
 
     const where = {};
@@ -377,19 +707,18 @@ class ContractService {
     if (uploader_id) where.uploader_id = uploader_id;
     if (reviewer_id) where.reviewer_id = reviewer_id;
     if (search) {
-      where[require('sequelize').Op.or] = [
-        { title: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { contract_number: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { party_a: { [require('sequelize').Op.iLike]: `%${search}%` } },
-        { party_b: { [require('sequelize').Op.iLike]: `%${search}%` } },
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { contract_number: { [Op.iLike]: `%${search}%` } },
+        { party_a: { [Op.iLike]: `%${search}%` } },
+        { party_b: { [Op.iLike]: `%${search}%` } },
       ];
     }
 
     const result = await models.Contract.findAndCountAll({
       where,
       order: [['updated_at', 'DESC']],
-      limit,
-      offset,
+      limit, offset,
       include: [
         { model: models.User, as: 'uploader', attributes: ['id', 'full_name'] },
         { model: models.User, as: 'reviewer', attributes: ['id', 'full_name'] },
@@ -404,9 +733,7 @@ class ContractService {
 
   async approveContract(contractId, userId, ip) {
     const contract = await models.Contract.findByPk(contractId);
-    if (!contract) {
-      throw new Error('合同不存在');
-    }
+    if (!contract) throw new Error('合同不存在');
 
     const pendingRisks = await models.RiskAnnotation.count({
       where: {
@@ -416,7 +743,32 @@ class ContractService {
     });
 
     if (pendingRisks > 0) {
-      throw new Error(`还有 ${pendingRisks} 条风险标注等待复核，无法通过合同`);
+      throw new Error(`还有 ${pendingRisks} 条风险标注等待复核，无法通过合同。请先完成全部风险的人工复核。`);
+    }
+
+    const activeVersion = await models.ContractVersion.findOne({
+      where: { contract_id: contractId, is_active: true },
+    });
+    if (!activeVersion) {
+      throw new Error('合同无活跃版本');
+    }
+
+    const clauseCount = await models.Clause.count({
+      where: { contract_version_id: activeVersion.id },
+    });
+    if (clauseCount === 0) {
+      throw new Error('当前版本无条款数据，不可通过复核');
+    }
+
+    if (!activeVersion.vector_index_version) {
+      await AlertService.create({
+        alert_type: 'system_warning',
+        severity: 'warning',
+        title: '合同通过时无关联向量索引版本',
+        message: `合同 ${contract.title} 通过时，活跃版本未绑定 vector_index_version`,
+        service_name: 'contract_approve',
+        contract_id: contractId,
+      }, { force: false });
     }
 
     await contract.update({
@@ -428,7 +780,7 @@ class ContractService {
       entity_id: contract.id,
       contract_id: contract.id,
       newValues: { status: 'approved', reviewer_id: userId },
-      changeSummary: '合同复核通过',
+      changeSummary: '合同复核通过，所有风险标注已完成人工确认',
       user_id: userId,
     }, { userId, ip });
 
@@ -437,9 +789,7 @@ class ContractService {
 
   async rejectContract(contractId, userId, ip, reason) {
     const contract = await models.Contract.findByPk(contractId);
-    if (!contract) {
-      throw new Error('合同不存在');
-    }
+    if (!contract) throw new Error('合同不存在');
 
     await contract.update({
       status: 'rejected',
@@ -450,47 +800,135 @@ class ContractService {
       entity_id: contract.id,
       contract_id: contract.id,
       newValues: { status: 'rejected', reason },
-      changeSummary: `合同被拒绝: ${reason || ''}`,
+      changeSummary: `合同被拒绝: ${reason || '未说明原因'}`,
       user_id: userId,
     }, { userId, ip });
 
     return contract;
   }
 
-  async _extractText(buffer, ext) {
-    if (ext === '.txt') {
-      return buffer.toString('utf-8');
+  _validateFileType(ext, size) {
+    if (!config.server.allowedFileTypes.includes(ext)) {
+      throw new Error(`不支持的文件类型: ${ext}。支持: ${config.server.allowedFileTypes.join(', ')}`);
     }
-
-    if (ext === '.md') {
-      return buffer.toString('utf-8');
+    if (size > config.server.maxFileSize) {
+      throw new Error(`文件过大，最大允许 ${config.server.maxFileSize / 1024 / 1024}MB`);
     }
-
-    return buffer.toString('utf-8');
   }
 
-  async _parseAndCreateClauses(contractId, contractVersionId, contentText, transaction) {
-    const clausePatterns = this._getClausePatterns();
-    const rawClauses = this._splitIntoClauses(contentText, clausePatterns);
-
+  async _importPreParsedClauses(contractId, contractVersionId, rawClauses, transaction) {
     const clauses = [];
     let position = 0;
 
-    for (const raw of rawClauses) {
-      const clauseType = this._classifyClauseType(raw.title + ' ' + raw.content);
-      const startPos = contentText.indexOf(raw.content, position);
-      position = startPos >= 0 ? startPos + raw.content.length : position;
+    for (let i = 0; i < rawClauses.length; i++) {
+      const raw = rawClauses[i];
+      if (!raw.content || !raw.content.trim()) continue;
+
+      const clauseType = VALID_CLAUSE_TYPES.includes(raw.clause_type)
+        ? raw.clause_type
+        : (raw.clause_type ? this._classifyClauseType(raw.clause_type) : this._classifyClauseType(raw.content));
+
+      const startPos = position;
+      position += raw.content.length;
 
       const clause = await models.Clause.create({
         id: uuidv4(),
         contract_id: contractId,
         contract_version_id: contractVersionId,
-        clause_number: raw.number,
-        clause_title: raw.title,
+        clause_number: raw.clause_number || `第${i + 1}条`,
+        clause_title: (raw.clause_title || raw.content.substring(0, 60)).trim(),
+        clause_type: clauseType,
+        content: raw.content.trim(),
+        start_position: startPos,
+        end_position: position,
+        page_number: raw.page_number || null,
+        is_amended: !!raw.is_amended || raw.content.includes('修改') || raw.content.includes('变更'),
+        historical_notes: raw.historical_notes || null,
+      }, { transaction });
+
+      clauses.push(clause);
+    }
+
+    return clauses;
+  }
+
+  async _applyImportedReviewResults(contractId, clauses, reviewResults, userId, transaction) {
+    const clauseMap = new Map();
+    clauses.forEach(c => {
+      clauseMap.set(c.clause_number, c);
+      if (c.clause_title) clauseMap.set(`title:${c.clause_title}`, c);
+    });
+
+    for (const review of reviewResults) {
+      let matchedClause = null;
+      if (review.clause_number && clauseMap.has(review.clause_number)) {
+        matchedClause = clauseMap.get(review.clause_number);
+      } else if (review.clause_title) {
+        for (const [key, val] of clauseMap) {
+          if (key.startsWith('title:') && key.includes(review.clause_title)) {
+            matchedClause = val;
+            break;
+          }
+        }
+      }
+      if (!matchedClause) continue;
+
+      if (review.manual_risk_type && VALID_RISK_TYPES.includes(review.manual_risk_type)) {
+        await models.RiskAnnotation.create({
+          id: uuidv4(),
+          clause_id: matchedClause.id,
+          contract_id: contractId,
+          risk_type: review.manual_risk_type,
+          risk_level: VALID_RISK_LEVELS.includes(review.manual_risk_level) ? review.manual_risk_level : 'medium',
+          confidence_score: 1.0,
+          is_low_confidence: false,
+          ai_summary: '根据导入的人工标注生成',
+          ai_quoted_text: matchedClause.content.substring(0, 200),
+          source: 'human',
+          status: 'human_reviewed',
+          review_status: 'completed',
+          reviewed_by: userId,
+          reviewed_at: review.reviewed_at || new Date(),
+          human_notes: review.manual_review_notes || null,
+        }, { transaction });
+      }
+    }
+  }
+
+  async _parseAndCreateClauses(contractId, contractVersionId, contentText, metadata, transaction) {
+    const rawClauses = this._splitIntoClauses(contentText);
+
+    const pages = metadata?.pages || [];
+    const clauses = [];
+    let position = 0;
+
+    for (let i = 0; i < rawClauses.length; i++) {
+      const raw = rawClauses[i];
+      const clauseType = this._classifyClauseType((raw.title || '') + ' ' + raw.content);
+      const startPos = contentText.indexOf(raw.content, position);
+      position = startPos >= 0 ? startPos + raw.content.length : position;
+
+      let pageNumber = null;
+      if (pages.length > 0) {
+        for (let p = 0; p < pages.length; p++) {
+          if (startPos >= 0 && startPos < (p + 1) * 2000) {
+            pageNumber = p + 1;
+            break;
+          }
+        }
+      }
+
+      const clause = await models.Clause.create({
+        id: uuidv4(),
+        contract_id: contractId,
+        contract_version_id: contractVersionId,
+        clause_number: raw.number || `第${i + 1}条`,
+        clause_title: raw.title?.substring(0, 100) || raw.content.substring(0, 60),
         clause_type: clauseType,
         content: raw.content,
         start_position: startPos >= 0 ? startPos : null,
         end_position: startPos >= 0 ? startPos + raw.content.length : null,
+        page_number: pageNumber,
         is_amended: raw.content.includes('修改') || raw.content.includes('变更'),
         historical_notes: null,
       }, { transaction });
@@ -501,16 +939,14 @@ class ContractService {
     return clauses;
   }
 
-  _getClausePatterns() {
-    return [
-      /^第([一二三四五六七八九十百千零\d]+)[条章节编篇部]/,
+  _splitIntoClauses(text) {
+    const lines = text.split(/\n+/);
+    const patterns = [
+      /^第([一二三四五六七八九十百千零\d]+)[条章节编篇部]\s*/,
       /^(\d+(?:\.\d+)*)[\.\)、]\s*/,
       /^([（(][一二三四五六七八九十\d]+[）)])\s*/,
+      /^([一二三四五六七八九十]+)[、.．\s]/,
     ];
-  }
-
-  _splitIntoClauses(text, patterns) {
-    const lines = text.split(/\n+/);
     const clauses = [];
     let current = null;
 
@@ -525,7 +961,7 @@ class ContractService {
           if (current) clauses.push(current);
           current = {
             number: match[1],
-            title: line.replace(pattern, '').split(/[。：；]/)[0].trim().substring(0, 100),
+            title: line.replace(pattern, '').split(/[。：；\.]/)[0].trim().substring(0, 100),
             content: line,
           };
           matched = true;
@@ -554,17 +990,17 @@ class ContractService {
 
   _classifyClauseType(text) {
     const typeRules = {
-      payment: ['付款', '支付', '金额', '价款', '报酬', '费用', '违约金', '逾期利息'],
-      breach: ['违约', '赔偿', '损失', '罚则', '责任', '补救'],
-      confidentiality: ['保密', '秘密', '披露', '泄露', '信息', '专有'],
-      auto_renewal: ['自动续', '续约', '延期', '续期', '顺延'],
-      termination: ['终止', '解除', '结束', '提前结束'],
-      liability: ['责任', '承担', '连带', '限额', '豁免'],
-      ip: ['知识产权', '专利', '商标', '著作权', '版权', '许可'],
-      dispute: ['争议', '管辖', '诉讼', '仲裁', '法院'],
-      force_majeure: ['不可抗力', '意外事件', '免责'],
-      obligation: ['义务', '履行', '承诺', '保证'],
-      definition: ['定义', '解释', '本合同所称', '系指'],
+      payment: ['付款', '支付', '价款', '报酬', '费用', '违约金', '逾期利息', '账款', '结算'],
+      breach: ['违约', '赔偿', '损失', '罚则', '责任', '补救', '追偿'],
+      confidentiality: ['保密', '秘密', '披露', '泄露', '信息', '专有', '商业秘密'],
+      auto_renewal: ['自动续', '续约', '延期', '续期', '顺延', '自动延长'],
+      termination: ['终止', '解除', '结束', '提前结束', '提前终止'],
+      liability: ['责任', '承担', '连带', '限额', '豁免', '免责'],
+      ip: ['知识产权', '专利', '商标', '著作权', '版权', '许可', '技术秘密'],
+      dispute: ['争议', '管辖', '诉讼', '仲裁', '法院', '起诉'],
+      force_majeure: ['不可抗力', '意外事件', '免责事由'],
+      obligation: ['义务', '履行', '承诺', '保证', '应当'],
+      definition: ['定义', '解释', '本合同所称', '系指', '是指'],
     };
 
     let bestType = 'other';

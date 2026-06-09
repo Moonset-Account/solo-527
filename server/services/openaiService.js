@@ -190,20 +190,63 @@ class OpenAIService {
   }
 
   _buildRiskPrompt(clauseText, clauseType, context) {
-    return `请分析以下合同条款的风险：
+    const similarClauses = context.similar_clauses || [];
+    const historicalReviews = context.historical_reviews || [];
+    const historicalNotes = context.historical_notes || [];
+    const currentHistoricalNotes = context.current_clause_historical_notes || '';
 
+    const formatReview = (r) => {
+      const lines = [];
+      if (r.clause_number) lines.push(`  条款编号: ${r.clause_number}`);
+      if (r.clause_type) lines.push(`  条款类型: ${r.clause_type}`);
+      if (r.final_risk_type) lines.push(`  最终风险类型: ${r.final_risk_type}`);
+      if (r.final_risk_level) lines.push(`  最终风险等级: ${r.final_risk_level}`);
+      if (r.review_result) lines.push(`  复核结果: ${r.review_result}${r.is_overruled ? '（推翻AI原判断）' : ''}`);
+      if (r.human_notes) lines.push(`  复核人备注: ${r.human_notes.substring(0, 200)}`);
+      if (r.clause_content) lines.push(`  条款摘要: ${r.clause_content.substring(0, 150)}`);
+      return lines.join('\n');
+    };
+
+    const formatNote = (n) => {
+      const lines = [];
+      if (n.clause_type) lines.push(`  条款类型: ${n.clause_type}`);
+      if (n.historical_notes) lines.push(`  历史修改意见: ${n.historical_notes.substring(0, 300)}`);
+      if (n.clause_content) lines.push(`  条款摘要: ${n.clause_content.substring(0, 150)}`);
+      return lines.join('\n');
+    };
+
+    return `请分析以下合同条款的风险（重点参考历史人工复核结果和历史修改意见）：
+
+【当前条款信息】
+条款编号: ${context.current_clause_number || '未知'}
+条款标题: ${context.current_clause_title || '未知'}
 条款类型: ${clauseType}
+当前条款历史修改意见: ${currentHistoricalNotes || '（无）'}
 条款原文:
 ${clauseText}
 
-上下文信息:
+【合同上下文】
 - 合同类型: ${context.contract_type || '未知'}
 - 甲方: ${context.party_a || '未知'}
 - 乙方: ${context.party_b || '未知'}
-- 历史相似条款数: ${(context.similar_clauses || []).length}
 
-历史修改意见参考:
-${(context.similar_clauses || []).map(sc => `[相似度${sc.similarity.toFixed(2)}] ${sc.historical_notes || '无备注'}`).join('\n') || '无历史参考'}
+【参考：历史相似条款语义检索（Top ${similarClauses.length}）】
+${similarClauses.length === 0 ? '（无相似条款）' : similarClauses.map((sc, i) => {
+  return `#${i + 1} 相似度${sc.similarity?.toFixed(2) || 'N/A'} | 类型:${sc.clause_type || 'N/A'}\n  内容摘要: ${(sc.content || '').substring(0, 150)}\n  备注: ${sc.historical_notes || '（无修改意见）'}`;
+}).join('\n\n')}
+
+【参考：历史人工复核结果（已过审或已改标，共 ${historicalReviews.length} 条）】
+请重点参考历史复核人的判断逻辑，尤其是被推翻的AI判断（is_overruled = true）：
+${historicalReviews.length === 0 ? '（暂无历史复核数据）' : historicalReviews.map((r, i) => `--- 历史复核 #${i + 1} ---\n${formatReview(r)}`).join('\n\n')}
+
+【参考：同类条款的历史修改意见备注（共 ${historicalNotes.length} 条）】
+${historicalNotes.length === 0 ? '（暂无历史修改意见）' : historicalNotes.map((n, i) => `--- 修改意见 #${i + 1} ---\n${formatNote(n)}`).join('\n\n')}
+
+【分析原则】
+1. 如果当前条款存在历史修改意见（${currentHistoricalNotes ? '有' : '无'}），请重点结合该意见分析风险趋势。
+2. 如果历史人工复核多次推翻同类条款的AI原判断（is_overruled=true），请显著降低对相似模式的置信度。
+3. 严格区分AI提示风险 vs 替代法律意见：仅识别风险信号，不给出"应如何修改"的专业法律咨询。
+4. 如果历史复核显示同类条款通常被标注为某种风险类型，请在同等文本条件下优先匹配该类型。
 
 请严格以JSON格式返回：
 {
@@ -211,9 +254,10 @@ ${(context.similar_clauses || []).map(sc => `[相似度${sc.similarity.toFixed(2
   "risk_type": "payment" | "breach" | "confidentiality" | "auto_renewal" | null,
   "risk_level": "low" | "medium" | "high" | "critical" | null,
   "confidence_score": number (0-1),
-  "summary": "风险提示说明（仅提示风险，不提供法律意见）",
+  "summary": "风险提示说明（仅提示风险，不提供法律意见。若引用了历史数据，请明确说明参考了哪类历史数据）",
   "quoted_text": "引用的原文片段",
-  "risk_indicators": ["风险点1", "风险点2"]
+  "risk_indicators": ["风险点1", "风险点2"],
+  "historical_reference_applied": "none" | "historical_reviews" | "historical_notes" | "both"
 }`;
   }
 

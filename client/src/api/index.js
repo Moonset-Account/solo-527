@@ -57,6 +57,12 @@ export const contractAPI = {
   rollbackIndex: (id, targetVersion) => apiClient.post(`/contracts/${id}/rollback-index`, { target_version: targetVersion }).then(r => r.data),
   semanticSearch: (data) => apiClient.post('/contracts/semantic-search', data).then(r => r.data),
   crossSearch: (data) => apiClient.post('/contracts/cross-search', data).then(r => r.data),
+  importClauses: (id, formData) => apiClient.post(`/contracts/${id}/import-clauses`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data),
+  importReviews: (id, formData) => apiClient.post(`/contracts/${id}/import-reviews`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data),
 };
 
 export const riskAPI = {

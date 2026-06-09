@@ -26,6 +26,14 @@ ClauseList.init(
         key: 'id',
       },
     },
+    vector_index_version: {
+      type: DataTypes.INTEGER,
+      comment: '生成清单时对应的向量索引版本号，与ContractVersion.vector_index_version绑定',
+    },
+    generation_basis: {
+      type: DataTypes.JSONB,
+      comment: '生成清单时的合规快照（合同状态、版本、风险复核情况等）',
+    },
     version_number: {
       type: DataTypes.INTEGER,
       allowNull: false,

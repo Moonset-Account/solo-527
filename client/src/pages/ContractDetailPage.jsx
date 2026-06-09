@@ -33,6 +33,12 @@ const ContractDetailPage = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  const [showImportClausesModal, setShowImportClausesModal] = useState(false);
+  const [showImportReviewsModal, setShowImportReviewsModal] = useState(false);
+  const [importClausesFile, setImportClausesFile] = useState(null);
+  const [importReviewsFile, setImportReviewsFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+
   const [overrideRisk, setOverrideRisk] = useState(null);
   const [overrideForm, setOverrideForm] = useState({
     risk_type: '', risk_level: '', notes: '', action: 'modify'
@@ -164,6 +170,48 @@ const ContractDetailPage = () => {
     }
   };
 
+  const handleImportClauses = async () => {
+    if (!importClausesFile) {
+      showToast('请选择条款导入文件', 'warning');
+      return;
+    }
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importClausesFile);
+      const res = await contractAPI.importClauses(id, formData);
+      showToast(res.message || '条款导入成功', 'success');
+      setShowImportClausesModal(false);
+      setImportClausesFile(null);
+      loadData();
+    } catch (err) {
+      showToast(err.response?.data?.error || err.message, 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportReviews = async () => {
+    if (!importReviewsFile) {
+      showToast('请选择复核结果导入文件', 'warning');
+      return;
+    }
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importReviewsFile);
+      const res = await contractAPI.importReviews(id, formData);
+      showToast(res.message || '复核结果导入成功', 'success');
+      setShowImportReviewsModal(false);
+      setImportReviewsFile(null);
+      loadData();
+    } catch (err) {
+      showToast(err.response?.data?.error || err.message, 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleGenerateClauseList = async () => {
     if (validateStatus && !validateStatus.can_generate) {
       showToast(`还有 ${validateStatus.pending} 条风险待复核`, 'warning');
@@ -218,6 +266,18 @@ const ContractDetailPage = () => {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {hasRole('admin', 'assistant') && !['approved', 'archived'].includes(contract.status) && (
+              <>
+                <button className="btn btn-secondary" onClick={() => setShowImportClausesModal(true)}>
+                  📋 批量导入条款
+                </button>
+              </>
+            )}
+            {hasRole('admin', 'reviewer') && !['approved', 'archived'].includes(contract.status) && (
+              <button className="btn btn-secondary" onClick={() => setShowImportReviewsModal(true)}>
+                ✅ 导入人工复核结果
+              </button>
+            )}
             {hasRole('admin', 'assistant') && (
               <button className="btn btn-secondary" onClick={() => setShowVersionModal(true)}>
                 📤 上传新版本
@@ -717,6 +777,116 @@ const ContractDetailPage = () => {
             value={rejectReason}
             onChange={e => setRejectReason(e.target.value)}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        open={showImportClausesModal}
+        onClose={() => !importing && setShowImportClausesModal(false)}
+        title="📋 批量导入条款与历史意见"
+        footer={
+          <>
+            <button className="btn btn-secondary" disabled={importing} onClick={() => setShowImportClausesModal(false)}>取消</button>
+            <button className="btn btn-primary" disabled={importing || !importClausesFile} onClick={handleImportClauses}>
+              {importing ? '导入中...' : '开始导入'}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-4">
+          <div className="text-sm text-secondary mb-3">
+            支持字段：<code>clause_number</code>, <code>clause_title</code>, <code>clause_type</code>,
+            <code>content</code>, <strong><code>historical_notes</code>（历史修改意见）</strong>,
+            <strong><code>manual_risk_type</code></strong>, <strong><code>manual_risk_level</code></strong> 等
+          </div>
+          <div
+            className="upload-zone"
+            onClick={() => document.getElementById('importClausesFile')?.click()}
+          >
+            <input
+              id="importClausesFile"
+              type="file"
+              style={{ display: 'none' }}
+              accept=".json,.csv,.xlsx,.xls"
+              onChange={e => setImportClausesFile(e.target.files?.[0])}
+            />
+            <span className="upload-icon">{importClausesFile ? '📑' : '⬆️'}</span>
+            {importClausesFile ? (
+              <div>
+                <div className="font-medium">{importClausesFile.name}</div>
+                <div className="text-sm text-muted">
+                  {(importClausesFile.size / 1024 / 1024).toFixed(2)} MB · 点击更换
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="font-medium mb-1">选择或拖拽导入文件</div>
+                <div className="text-sm text-muted">支持 JSON / CSV / XLSX 格式</div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="alert-card alert-info">
+          <div className="alert-title">📌 导入说明</div>
+          <div className="alert-message text-sm">
+            导入后将覆盖当前版本已有条款，<strong>historical_notes（历史修改意见）</strong>将直接作为 AI 风险检测的上下文输入。
+            已通过（approved）或归档（archived）的合同不可再导入条款。
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showImportReviewsModal}
+        onClose={() => !importing && setShowImportReviewsModal(false)}
+        title="✅ 批量导入人工复核结果"
+        footer={
+          <>
+            <button className="btn btn-secondary" disabled={importing} onClick={() => setShowImportReviewsModal(false)}>取消</button>
+            <button className="btn btn-primary" disabled={importing || !importReviewsFile} onClick={handleImportReviews}>
+              {importing ? '导入中...' : '开始导入'}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-4">
+          <div className="text-sm text-secondary mb-3">
+            支持字段：<code>clause_number / clause_title</code>（匹配条款），<code>risk_id</code>（直接指定），
+            <code>action</code>（approve/reject/modify），<code>final_risk_type</code>,
+            <code>final_risk_level</code>, <strong><code>notes</code>（复核备注）</strong>
+          </div>
+          <div
+            className="upload-zone"
+            onClick={() => document.getElementById('importReviewsFile')?.click()}
+          >
+            <input
+              id="importReviewsFile"
+              type="file"
+              style={{ display: 'none' }}
+              accept=".json,.csv,.xlsx,.xls"
+              onChange={e => setImportReviewsFile(e.target.files?.[0])}
+            />
+            <span className="upload-icon">{importReviewsFile ? '✅' : '⬆️'}</span>
+            {importReviewsFile ? (
+              <div>
+                <div className="font-medium">{importReviewsFile.name}</div>
+                <div className="text-sm text-muted">
+                  {(importReviewsFile.size / 1024 / 1024).toFixed(2)} MB · 点击更换
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="font-medium mb-1">选择或拖拽复核结果文件</div>
+                <div className="text-sm text-muted">支持 JSON / CSV / XLSX 格式</div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="alert-card alert-info">
+          <div className="alert-title">📌 导入说明</div>
+          <div className="alert-message text-sm">
+            导入的复核结果将覆盖已有风险标注的状态和备注（人工改标），
+            所有操作将记录到审计日志。已通过（approved）的合同不可再导入复核结果。
+          </div>
         </div>
       </Modal>
 

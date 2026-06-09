@@ -12,22 +12,59 @@ class ClauseListService {
     }
 
     if (contract.status !== 'approved') {
-      const pendingRisks = await models.RiskAnnotation.count({
-        where: {
-          contract_id: contractId,
-          status: ['pending_review', 'review_queue'],
-        },
-      });
-      if (pendingRisks > 0) {
-        throw new Error(`还有 ${pendingRisks} 条风险标注待复核，需法务复核通过后才能生成条款清单`);
+      const reviewValidation = await this.validateAllRisksReviewed(contractId);
+      const detailParts = [];
+      if (contract.status === 'draft') detailParts.push('合同为草稿状态');
+      if (contract.status === 'processing') detailParts.push('合同仍在处理中（条款切分/AI风险检测未完成）');
+      if (contract.status === 'reviewing') detailParts.push('合同等待复核中');
+      if (contract.status === 'rejected') detailParts.push('合同已被拒绝');
+      if (contract.status === 'archived') detailParts.push('合同已归档');
+      detailParts.push(`当前状态: ${contract.status}`);
+      if (reviewValidation.pending > 0) {
+        detailParts.push(`仍有 ${reviewValidation.pending} 条风险标注未完成人工复核`);
       }
+      if (!contract.reviewer_id) {
+        detailParts.push('未记录复核人（reviewer_id为空）');
+      }
+      throw new Error(
+        `根据业务规则，只有复核通过（status='approved'）的合同才能生成条款清单。` +
+        `当前问题：${detailParts.join('；')}。` +
+        `请先完成合同复核流程。`
+      );
+    }
+
+    if (!contract.reviewer_id) {
+      throw new Error('合同通过状态异常（无reviewer_id），禁止生成清单');
     }
 
     const activeVersion = await models.ContractVersion.findOne({
       where: { contract_id: contractId, is_active: true },
     });
     if (!activeVersion) {
-      throw new Error('合同无有效版本');
+      throw new Error('合同无有效活跃版本');
+    }
+
+    if (!activeVersion.vector_index_version) {
+      throw new Error(
+        `活跃版本(v${activeVersion.version_number})未绑定向量索引版本(vector_index_version为空)，` +
+        `根据业务规则不允许生成条款清单，以保证后续向量检索一致性。` +
+        `请重新触发向量化构建或联系系统管理员。`
+      );
+    }
+
+    const clauseCount = await models.Clause.count({
+      where: { contract_version_id: activeVersion.id },
+    });
+    if (clauseCount === 0) {
+      throw new Error(`活跃版本(v${activeVersion.version_number})无条款数据，不可生成清单`);
+    }
+
+    const allRisksStatus = await this.validateAllRisksReviewed(contractId);
+    if (allRisksStatus.pending > 0) {
+      throw new Error(
+        `合同已标记approved，但检测到仍有${allRisksStatus.pending}条风险未完成人工复核（状态异常）。` +
+        `请修复数据后再生成清单。`
+      );
     }
 
     const clauses = await models.Clause.findAll({
@@ -80,15 +117,26 @@ class ClauseListService {
       id: uuidv4(),
       contract_id: contractId,
       contract_version_id: activeVersion.id,
+      vector_index_version: activeVersion.vector_index_version,
       version_number: nextVersion,
       title: `${contract.title} - 条款清单 v${nextVersion}`,
       status: 'finalized',
       clause_items: clauseItems,
       risk_summary: riskSummary,
       generated_by: userId,
-      approved_by: userId,
+      approved_by: contract.reviewer_id || userId,
       approved_at: new Date(),
       notes: options.notes || '',
+      generation_basis: {
+        contract_status: contract.status,
+        contract_version: activeVersion.version_number,
+        vector_index_version: activeVersion.vector_index_version,
+        total_risks: allRisksStatus.total,
+        risks_pending: allRisksStatus.pending,
+        risks_approved: allRisksStatus.approved,
+        risks_rejected: allRisksStatus.rejected,
+        reviewer_id: contract.reviewer_id,
+      },
     });
 
     await AuditService.logClauseListExport(clauseList, userId, ip);

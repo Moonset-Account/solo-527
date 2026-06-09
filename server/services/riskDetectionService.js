@@ -70,6 +70,8 @@ class RiskDetectionService {
     const risks = [];
     const riskTypesToCheck = ['payment', 'breach', 'confidentiality', 'auto_renewal'];
 
+    const ContractService = require('./contractService');
+
     const similar = await VectorStoreService.searchAcrossContracts(
       clause.content,
       {
@@ -84,6 +86,10 @@ class RiskDetectionService {
       historical_notes: s.historical_notes || '',
     }));
 
+    const humanReviewContext = await ContractService.getHistoricalContextForClause(
+      clause.content, clause.clause_type, 5
+    );
+
     const primaryRiskType = riskTypesToCheck.includes(clause.clause_type)
       ? clause.clause_type
       : this._inferRiskType(clause.content, clause.clause_type);
@@ -97,6 +103,16 @@ class RiskDetectionService {
           party_a: contract.party_a,
           party_b: contract.party_b,
           similar_clauses: similarWithContext,
+          historical_reviews: humanReviewContext.filter(c => !c.is_history_note),
+          historical_notes: humanReviewContext.filter(c => c.is_history_note).map(c => ({
+            clause_type: c.clause_type,
+            clause_content: c.clause_content,
+            historical_notes: c.historical_notes,
+          })),
+          current_clause_type: clause.clause_type,
+          current_clause_title: clause.clause_title,
+          current_clause_number: clause.clause_number,
+          current_clause_historical_notes: clause.historical_notes || '',
         }
       );
 
@@ -107,7 +123,10 @@ class RiskDetectionService {
           analysis,
           similarWithContext,
           userId,
-          ip
+          ip,
+          humanReviewContext.length > 0
+            ? humanReviewContext.map(h => h.clause_id).filter(Boolean)
+            : []
         );
         risks.push(risk);
       }
@@ -117,7 +136,13 @@ class RiskDetectionService {
           if (this._hasKeywordsForType(clause.content, rt)) {
             const subAnalysis = await OpenAIService.analyzeRisk(
               clause.content, rt,
-              { contract_type: contract.contract_type, similar_clauses: similarWithContext }
+              {
+                contract_type: contract.contract_type,
+                similar_clauses: similarWithContext,
+                historical_reviews: humanReviewContext.filter(c => !c.is_history_note),
+                historical_notes: humanReviewContext.filter(c => c.is_history_note),
+                current_clause_historical_notes: clause.historical_notes || '',
+              }
             );
             if (subAnalysis.has_risk && subAnalysis.risk_type) {
               const subRisk = await this._createRiskAnnotation(
@@ -133,7 +158,7 @@ class RiskDetectionService {
     return risks;
   }
 
-  async _createRiskAnnotation(clause, contract, analysis, similarClauses, userId, ip) {
+  async _createRiskAnnotation(clause, contract, analysis, similarClauses, userId, ip, humanReviewClauseIds = []) {
     const confidenceScore = parseFloat(analysis.confidence_score);
     const isLowConfidence = confidenceScore < config.risk.lowConfidenceThreshold;
 
@@ -143,6 +168,11 @@ class RiskDetectionService {
     } else if (analysis.risk_level === 'critical') {
       status = 'review_queue';
     }
+
+    const evidenceClauseIds = [
+      ...similarClauses.map(s => s.clause_id).filter(Boolean),
+      ...humanReviewClauseIds,
+    ];
 
     const risk = await models.RiskAnnotation.create({
       id: uuidv4(),
@@ -154,7 +184,7 @@ class RiskDetectionService {
       is_low_confidence: isLowConfidence,
       ai_summary: analysis.summary + '\n\n' + (analysis.warning || ''),
       ai_quoted_text: analysis.quoted_text,
-      evidence_clause_ids: similarClauses.map(s => s.clause_id).filter(Boolean),
+      evidence_clause_ids: [...new Set(evidenceClauseIds)],
       source: 'ai',
       status: status,
       review_status: isLowConfidence ? 'not_started' : 'not_started',
