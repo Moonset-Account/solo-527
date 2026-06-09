@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -15,7 +15,7 @@ except ImportError:
 
 from app.database import get_db
 from app import models, schemas
-from app.security import require_teacher, get_current_user
+from app.security import require_teacher, get_current_user, require_admin
 from app.masking import mask_for_export, extract_evidence_summary
 from app.models import (
     UserRole, FeedbackCategory, AuditStatus,
@@ -23,6 +23,19 @@ from app.models import (
 )
 
 router = APIRouter()
+
+
+def _can_export(db: Session, user: models.User, class_ids: Optional[List[int]]) -> bool:
+    if user.role == UserRole.ADMIN:
+        return True
+    if user.role != UserRole.TEACHER:
+        return False
+    check_ids = class_ids or [user.class_id]
+    for cid in check_ids:
+        cls = db.query(Class).filter(Class.id == cid).first()
+        if not cls or cls.head_teacher_id != user.id:
+            return False
+    return True
 
 
 def _build_aggregated_class_data(
@@ -73,7 +86,6 @@ def _build_aggregated_class_data(
 
         category_stats = {fc.value: 0 for fc in FeedbackCategory}
         severity_stats = {"high": 0, "normal": 0, "low": 0}
-        evidence_items_data = []
         for item in approved_items:
             category_stats[item.category.value] = category_stats.get(item.category.value, 0) + 1
             severity_stats[item.severity] = severity_stats.get(item.severity, 0) + 1
@@ -140,10 +152,15 @@ def export_class_report_excel(
     target_class_ids = options.class_ids
     if current_user.role != UserRole.ADMIN:
         if target_class_ids:
-            if not all(cid == current_user.class_id for cid in target_class_ids):
-                raise HTTPException(status_code=403, detail="只能导出自己班级的数据")
+            target_class_ids = [cid for cid in target_class_ids if cid == current_user.class_id]
         else:
             target_class_ids = [current_user.class_id]
+
+    if not _can_export(db, current_user, target_class_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅班主任或管理员可导出班级统计聚合数据。请联系管理员获取授权。"
+        )
 
     aggregated = _build_aggregated_class_data(
         db,
@@ -172,10 +189,33 @@ def export_class_report_excel(
             pd.DataFrame(audit_counts).to_excel(writer, sheet_name="审核通过计数", index=False)
 
     output.seek(0)
+
+    log = models.AuditLog(
+        user_id=current_user.id,
+        action="export_excel",
+        target_type="class_report",
+        target_id=target_class_ids[0] if len(target_class_ids) == 1 else 0,
+        detail={
+            "format": "xlsx",
+            "class_ids": target_class_ids,
+            "row_count": len(aggregated),
+            "include_low_confidence": options.include_low_confidence,
+            "filters": {
+                "date_from": options.date_from.isoformat() if options.date_from else None,
+                "date_to": options.date_to.isoformat() if options.date_to else None
+            },
+            "exported_at": datetime.utcnow().isoformat()
+        }
+    )
+    db.add(log)
+    db.commit()
+
     filename = f"班级作文统计聚合_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
     headers = {
         "Content-Disposition": f'attachment; filename="{filename}"',
-        "X-Content-Security-Note": "本文件仅包含聚合统计结果和脱敏证据摘要，不含个人敏感信息"
+        "X-Content-Security-Note": "本文件仅包含聚合统计结果和脱敏证据摘要，不含个人敏感信息",
+        "X-Exported-By": f"user_{current_user.id}",
+        "X-Exported-At": datetime.utcnow().isoformat(timespec="seconds") + "Z"
     }
     return StreamingResponse(
         output,
@@ -193,10 +233,15 @@ def export_class_report_json(
     target_class_ids = options.class_ids
     if current_user.role != UserRole.ADMIN:
         if target_class_ids:
-            if not all(cid == current_user.class_id for cid in target_class_ids):
-                raise HTTPException(status_code=403, detail="只能导出自己班级的数据")
+            target_class_ids = [cid for cid in target_class_ids if cid == current_user.class_id]
         else:
             target_class_ids = [current_user.class_id]
+
+    if not _can_export(db, current_user, target_class_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅班主任或管理员可导出班级统计聚合数据。请联系管理员获取授权。"
+        )
 
     aggregated = _build_aggregated_class_data(
         db,
@@ -211,6 +256,7 @@ def export_class_report_json(
             "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             "exported_by_user_id": current_user.id,
             "exported_by_role": current_user.role.value,
+            "is_authorized_exporter": _can_export(db, current_user, target_class_ids),
             "data_policy": "仅聚合统计数据 + 脱敏证据摘要。无个人身份信息，无原始作文全文，无教师评价全文。",
             "filters": {
                 "class_ids": target_class_ids,
@@ -223,13 +269,28 @@ def export_class_report_json(
         "aggregated_class_statistics": aggregated
     }
 
+    log = models.AuditLog(
+        user_id=current_user.id,
+        action="export_json",
+        target_type="class_report",
+        target_id=target_class_ids[0] if len(target_class_ids) == 1 else 0,
+        detail={
+            "format": "json",
+            "class_ids": target_class_ids,
+            "row_count": len(aggregated),
+            "include_low_confidence": options.include_low_confidence
+        }
+    )
+    db.add(log)
+    db.commit()
+
     return export_payload
 
 
-@router.get("/audit-trail-summary")
+@router.get("/audit-trail-summary", dependencies=[Depends(require_admin)])
 def export_audit_trail_summary(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_teacher)
+    current_user: models.User = Depends(get_current_user)
 ):
     target_class_id = current_user.class_id if current_user.role != UserRole.ADMIN else None
 
@@ -243,13 +304,19 @@ def export_audit_trail_summary(
     items = query.all()
 
     summary = {
+        "meta": {
+            "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "requested_by": current_user.id,
+            "requested_role": current_user.role.value,
+            "permission_level_required": "admin",
+            "note": "所有统计均为聚合数据，不含个人可识别信息"
+        },
         "total_items": len(items),
         "by_audit_status": {},
         "by_category": {},
         "audit_rate_pct": 0.0,
         "low_confidence_items": 0,
-        "teacher_revised_count": 0,
-        "note": "所有统计均为聚合数据，不含个人可识别信息"
+        "teacher_revised_count": 0
     }
 
     status_counts = {}

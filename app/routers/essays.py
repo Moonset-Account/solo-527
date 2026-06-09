@@ -5,11 +5,11 @@ from datetime import datetime
 
 from app.database import get_db
 from app import models, schemas
-from app.security import get_current_user, require_teacher, can_access_essay
+from app.security import get_current_user, require_teacher, require_admin, can_access_essay
 from app.masking import mask_sensitive_data, encrypt_sensitive, decrypt_sensitive
 from app.analyzer import analyzer
 from app.config import settings
-from app.models import FeedbackCategory, AuditStatus
+from app.models import FeedbackCategory, AuditStatus, Class
 
 router = APIRouter()
 
@@ -30,6 +30,17 @@ def _get_active_prompt_version(db: Session, category: FeedbackCategory):
     ).first()
 
 
+def _can_view_original(db: Session, user: models.User, essay: models.Essay) -> bool:
+    if user.role == models.UserRole.ADMIN:
+        return True
+    if user.role != models.UserRole.TEACHER:
+        return False
+    cls = db.query(Class).filter(Class.id == essay.class_id).first()
+    if cls and cls.head_teacher_id == user.id:
+        return True
+    return False
+
+
 @router.post("/submit", response_model=schemas.EssayResponse)
 def submit_essay(
     essay_in: schemas.EssaySubmit,
@@ -41,7 +52,7 @@ def submit_essay(
             raise HTTPException(status_code=403, detail="只能提交到自己班级")
         student_id = current_user.id
     else:
-        student_id = current_user.id
+        raise HTTPException(status_code=403, detail="只有学生可以提交作文")
 
     masked_content, mask_actions = mask_sensitive_data(essay_in.content)
     encrypted_original = encrypt_sensitive(essay_in.content)
@@ -81,7 +92,7 @@ def submit_essay(
         db.add(feedback)
         db.flush()
 
-        for item_data in result.items:
+        for item_data in result.items():
             item_low_conf = item_data.confidence < settings.LOW_CONFIDENCE_THRESHOLD
             db_item = models.FeedbackItem(
                 feedback_id=feedback.id,
@@ -157,60 +168,8 @@ def list_essays(
     return result
 
 
-@router.get("/{essay_id}", response_model=schemas.EssayDetailResponse)
-def get_essay_detail(
-    essay_id: int,
-    include_original: bool = False,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    essay = db.query(models.Essay).filter(models.Essay.id == essay_id).first()
-    if not essay:
-        raise HTTPException(status_code=404, detail="作文不存在")
-    if not can_access_essay(current_user, essay):
-        raise HTTPException(status_code=403, detail="无权限查看该作文")
-
-    resp_data = {
-        "id": essay.id,
-        "title": essay.title,
-        "content_masked": essay.content_masked,
-        "word_count": essay.word_count,
-        "topic_tag": essay.topic_tag,
-        "submitted_at": essay.submitted_at,
-        "has_feedback": len(essay.feedbacks) > 0,
-        "has_teacher_review": essay.teacher_review is not None,
-        "is_low_confidence": any(fb.is_low_confidence for fb in essay.feedbacks),
-    }
-
-    if include_original and current_user.role in [models.UserRole.TEACHER, models.UserRole.ADMIN]:
-        original = decrypt_sensitive(essay.content_original_encrypted)
-        if original:
-            resp_data["content_masked"] = original
-
-    feedbacks_resp = []
-    for fb in essay.feedbacks:
-        fb_data = schemas.EssayFeedbackResponse.model_validate(fb)
-        if fb.prompt_version:
-            fb_data.prompt_version_code = fb.prompt_version.version_code
-        feedbacks_resp.append(fb_data)
-    resp_data["feedbacks"] = feedbacks_resp
-    resp_data["teacher_review"] = essay.teacher_review
-
-    log = models.AuditLog(
-        user_id=current_user.id,
-        action="view_essay",
-        target_type="essay",
-        target_id=essay_id,
-        detail={"include_original": include_original}
-    )
-    db.add(log)
-    db.commit()
-
-    return schemas.EssayDetailResponse(**resp_data)
-
-
 @router.post("/prompt-versions", response_model=schemas.PromptVersionResponse,
-             dependencies=[Depends(require_teacher)])
+             dependencies=[Depends(require_admin)])
 def create_prompt_version(
     pv_in: schemas.PromptVersionCreate,
     db: Session = Depends(get_db),
@@ -239,6 +198,14 @@ def create_prompt_version(
     db.add(pv)
     db.commit()
     db.refresh(pv)
+    db.add(models.AuditLog(
+        user_id=current_user.id,
+        action="create_prompt_version",
+        target_type="prompt_version",
+        target_id=pv.id,
+        detail={"version": pv.version_code, "category": pv_in.category.value}
+    ))
+    db.commit()
     return pv
 
 
@@ -255,3 +222,77 @@ def list_prompt_versions(
     if only_active:
         query = query.filter(models.PromptVersion.is_active == True)
     return query.order_by(models.PromptVersion.created_at.desc()).all()
+
+
+@router.get("/{essay_id}", response_model=schemas.EssayDetailResponse)
+def get_essay_detail(
+    essay_id: int,
+    include_original: bool = False,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    essay = db.query(models.Essay).filter(models.Essay.id == essay_id).first()
+    if not essay:
+        raise HTTPException(status_code=404, detail="作文不存在")
+    if not can_access_essay(current_user, essay):
+        raise HTTPException(status_code=403, detail="无权限查看该作文")
+
+    original_decrypted = False
+    resp_data = {
+        "id": essay.id,
+        "title": essay.title,
+        "content_masked": essay.content_masked,
+        "word_count": essay.word_count,
+        "topic_tag": essay.topic_tag,
+        "submitted_at": essay.submitted_at,
+        "has_feedback": len(essay.feedbacks) > 0,
+        "has_teacher_review": essay.teacher_review is not None,
+        "is_low_confidence": any(fb.is_low_confidence for fb in essay.feedbacks),
+    }
+
+    if include_original:
+        if not _can_view_original(db, current_user, essay):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="仅班主任或管理员可查看原文。如需查看，请联系班主任解密"
+            )
+        original = decrypt_sensitive(essay.content_original_encrypted)
+        if original:
+            resp_data["content_masked"] = original
+            original_decrypted = True
+
+    feedbacks_resp = []
+    for fb in essay.feedbacks:
+        fb_data = schemas.EssayFeedbackResponse.model_validate(fb)
+        if fb.prompt_version:
+            fb_data.prompt_version_code = fb.prompt_version.version_code
+
+        if current_user.role == models.UserRole.STUDENT:
+            fb_data.evidence_refs = []
+            filtered_items = []
+            for it in fb_data.items:
+                if it.audit_status in [AuditStatus.APPROVED, AuditStatus.NEEDS_REVISION]:
+                    if it.revised_suggestion:
+                        it.suggestion_text = it.revised_suggestion
+                    it.evidence_refs = []
+                    filtered_items.append(it)
+            fb_data.items = filtered_items
+
+        feedbacks_resp.append(fb_data)
+    resp_data["feedbacks"] = feedbacks_resp
+    resp_data["teacher_review"] = essay.teacher_review
+
+    log = models.AuditLog(
+        user_id=current_user.id,
+        action="view_essay",
+        target_type="essay",
+        target_id=essay_id,
+        detail={
+            "include_original_requested": include_original,
+            "original_decrypted": original_decrypted
+        }
+    )
+    db.add(log)
+    db.commit()
+
+    return schemas.EssayDetailResponse(**resp_data)

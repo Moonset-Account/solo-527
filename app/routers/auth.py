@@ -16,7 +16,74 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=schemas.UserResponse)
-def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+def register_user(
+    user_in: schemas.UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if user_in.role in [models.UserRole.TEACHER, models.UserRole.ADMIN]:
+        if current_user.role != models.UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="仅管理员可创建教师或管理员账号"
+            )
+
+    existing = db.query(models.User).filter(models.User.username == user_in.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="用户名已存在")
+
+    if user_in.role == models.UserRole.TEACHER and user_in.class_id:
+        target_class = db.query(models.Class).filter(models.Class.id == user_in.class_id).first()
+        if target_class and target_class.head_teacher_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"班级 {target_class.class_name} 已配置班主任，不可重复绑定"
+            )
+
+    real_name_enc = encrypt_sensitive(user_in.real_name) if user_in.real_name else None
+
+    user = models.User(
+        username=user_in.username,
+        hashed_password=hash_password(user_in.password),
+        real_name_encrypted=real_name_enc,
+        role=user_in.role,
+        class_id=user_in.class_id
+    )
+    db.add(user)
+    db.flush()
+
+    if user_in.role == models.UserRole.TEACHER and user_in.class_id:
+        db.query(models.Class).filter(models.Class.id == user_in.class_id).update(
+            {"head_teacher_id": user.id}
+        )
+
+    log = models.AuditLog(
+        user_id=current_user.id,
+        action="create_user",
+        target_type="user",
+        target_id=user.id,
+        detail={
+            "created_role": user_in.role.value,
+            "class_id": user_in.class_id,
+            "self_registered": current_user.id == user.id
+        }
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/register/student/public", response_model=schemas.UserResponse)
+def public_register_student(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    if user_in.role != models.UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="公开注册仅允许学生身份，教师/管理员请联系管理员创建"
+        )
+    if not user_in.class_id:
+        raise HTTPException(status_code=400, detail="学生注册必须绑定班级ID")
+
     existing = db.query(models.User).filter(models.User.username == user_in.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="用户名已存在")
@@ -27,7 +94,7 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user_in.username,
         hashed_password=hash_password(user_in.password),
         real_name_encrypted=real_name_enc,
-        role=user_in.role,
+        role=models.UserRole.STUDENT,
         class_id=user_in.class_id
     )
     db.add(user)

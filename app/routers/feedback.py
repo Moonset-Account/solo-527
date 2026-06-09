@@ -1,15 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
 from app.database import get_db
 from app import models, schemas
-from app.security import get_current_user, require_teacher, can_access_essay
-from app.masking import mask_sensitive_data, encrypt_sensitive
-from app.models import AuditStatus, FeedbackCategory
+from app.security import get_current_user, require_teacher, require_admin, can_access_essay
+from app.masking import mask_sensitive_data, encrypt_sensitive, mask_for_export
+from app.models import AuditStatus, FeedbackCategory, UserRole, Class
 
 router = APIRouter()
+
+
+def _is_class_head(db: Session, user: models.User, class_id: int) -> bool:
+    if user.role == UserRole.ADMIN:
+        return True
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    return cls is not None and cls.head_teacher_id == user.id
 
 
 @router.post("/audit", response_model=List[schemas.FeedbackItemResponse])
@@ -25,8 +32,11 @@ def audit_feedback_items(
         raise HTTPException(status_code=404, detail="反馈不存在")
 
     essay = feedback.essay
-    if essay.class_id != current_user.class_id and current_user.role != models.UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="只能审核自己班级的反馈")
+    if not _is_class_head(db, current_user, essay.class_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅班主任或管理员可以审核反馈"
+        )
 
     updated_items = []
     item_map = {audit.item_id: audit for audit in audit_in.items}
@@ -44,6 +54,7 @@ def audit_feedback_items(
 
     log_detail = {
         "feedback_id": audit_in.feedback_id,
+        "essay_id": essay.id,
         "approved_count": sum(1 for a in audit_in.items if a.audit_status == AuditStatus.APPROVED),
         "needs_revision_count": sum(1 for a in audit_in.items if a.audit_status == AuditStatus.NEEDS_REVISION),
         "rejected_count": sum(1 for a in audit_in.items if a.audit_status == AuditStatus.REJECTED)
@@ -72,8 +83,11 @@ def create_teacher_review(
     essay = db.query(models.Essay).filter(models.Essay.id == review_in.essay_id).first()
     if not essay:
         raise HTTPException(status_code=404, detail="作文不存在")
-    if essay.class_id != current_user.class_id and current_user.role != models.UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="只能评价自己班级的作文")
+    if not _is_class_head(db, current_user, essay.class_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="仅班主任可以录入最终评价与分数"
+        )
 
     existing_review = db.query(models.TeacherReview).filter(
         models.TeacherReview.essay_id == review_in.essay_id
@@ -109,7 +123,11 @@ def create_teacher_review(
         action="teacher_review",
         target_type="essay",
         target_id=review_in.essay_id,
-        detail={"has_final_score": review_in.final_score is not None}
+        detail={
+            "has_final_score": review_in.final_score is not None,
+            "score_value": review_in.final_score,
+            "is_update": existing_review is not None
+        }
     )
     db.add(log)
     db.commit()
@@ -126,12 +144,11 @@ def list_pending_audit_essays(
     current_user: models.User = Depends(require_teacher)
 ):
     target_class_id = class_id or current_user.class_id
-    if current_user.role != models.UserRole.ADMIN and target_class_id != current_user.class_id:
-        raise HTTPException(status_code=403, detail="只能查看自己班级的待审核内容")
+    if not _is_class_head(db, current_user, target_class_id):
+        raise HTTPException(status_code=403, detail="仅班主任或管理员可查看待审核清单")
 
     essays = db.query(models.Essay).filter(
-        models.Essay.class_id == target_class_id,
-        models.Essay.teacher_review == None
+        models.Essay.class_id == target_class_id
     ).order_by(models.Essay.submitted_at.desc()).offset(skip).limit(limit).all()
 
     result = []
@@ -175,19 +192,26 @@ def get_essay_feedbacks(
     if not can_access_essay(current_user, essay):
         raise HTTPException(status_code=403, detail="无权限查看")
 
+    is_authorized_viewer = _is_class_head(db, current_user, essay.class_id)
+
     feedbacks = []
     for fb in essay.feedbacks:
         items = []
         for it in fb.items:
             display_suggestion = it.revised_suggestion or it.suggestion_text
-            if current_user.role == models.UserRole.STUDENT:
+
+            if current_user.role == UserRole.STUDENT:
                 if it.audit_status not in [AuditStatus.APPROVED, AuditStatus.NEEDS_REVISION]:
                     continue
                 display_suggestion = it.revised_suggestion or it.suggestion_text
+                safe_original = mask_for_export(it.original_text) if it.original_text else None
+            else:
+                safe_original = it.original_text
+
             items.append({
                 "id": it.id,
                 "category": it.category.value,
-                "original_text": it.original_text,
+                "original_text": safe_original,
                 "suggestion_text": display_suggestion,
                 "location_start": it.location_start,
                 "location_end": it.location_end,
@@ -199,7 +223,7 @@ def get_essay_feedbacks(
             })
 
         evidence_refs = []
-        if current_user.role in [models.UserRole.TEACHER, models.UserRole.ADMIN]:
+        if is_authorized_viewer:
             evidence_refs = [{
                 "id": e.id,
                 "evidence_type": e.evidence_type,
@@ -217,6 +241,7 @@ def get_essay_feedbacks(
             "overall_confidence": fb.overall_confidence,
             "is_low_confidence": fb.is_low_confidence,
             "items": items,
-            "evidence_refs": evidence_refs
+            "evidence_refs": evidence_refs,
+            "viewer_is_authorized": is_authorized_viewer
         })
     return feedbacks
