@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -24,6 +25,7 @@ from app.models.dataset import (
     Dataset,
     DatasetSample,
     DatasetVersion,
+    ErrorSample,
     SampleStatus,
     SampleType,
 )
@@ -39,6 +41,9 @@ from app.schemas.dataset import (
     DatasetUpdate,
     DatasetVersionCreate,
     DatasetVersionInfo,
+    ErrorSampleCreate,
+    ErrorSampleInfo,
+    ErrorSampleUpdate,
     SampleCreate,
     SampleInfo,
     SampleRollbackRequest,
@@ -533,3 +538,188 @@ async def clone_dataset(
     await db.commit()
     await db.refresh(new_ds)
     return BaseResponse(data=DatasetInfo.model_validate(new_ds), message="数据集克隆成功")
+
+
+@router.get("/samples/{sample_id}", response_model=BaseResponse[SampleInfo])
+async def get_sample(
+    sample_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(DatasetSample).where(DatasetSample.id == sample_id))
+    sample = result.scalar_one_or_none()
+    if not sample:
+        raise HTTPException(status_code=404, detail="样本不存在")
+    return BaseResponse(data=SampleInfo.model_validate(sample))
+
+
+@router.post("/error-samples", response_model=BaseResponse[ErrorSampleInfo])
+async def create_error_sample(
+    req: ErrorSampleCreate = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    error = ErrorSample(
+        sample_id=req.sample_id,
+        source_task_result_id=req.source_task_result_id,
+        error_type=req.error_type,
+        severity=req.severity,
+        model_output=req.model_output,
+        expected_output=req.expected_output,
+        input_context=req.input_context,
+        error_description=req.error_description,
+        reproduction_steps=req.reproduction_steps,
+        model_version=req.model_version,
+        prompt_version=req.prompt_version,
+        run_id=req.run_id,
+        reporter_id=req.reporter_id or current_user.id,
+        assignee_id=req.assignee_id,
+        reproducible=req.reproducible,
+        tags=req.tags,
+        extra_metadata=req.extra_metadata,
+    )
+    db.add(error)
+    await db.commit()
+    await db.refresh(error)
+    return BaseResponse(data=ErrorSampleInfo.model_validate(error), message="错误样本已上报")
+
+
+# ========== 错误样本管理 ==========
+
+@router.post(
+    "/error-samples",
+    response_model=BaseResponse[ErrorSampleInfo],
+    summary="上报错误样本（人工/自动分流",
+)
+async def create_error_sample(
+    req: ErrorSampleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BaseResponse[ErrorSampleInfo]:
+    """新建错误样本记录，分流进入Bad Case库"""
+    from app.models.dataset import ErrorSample as ErrorSampleORM
+    from datetime import datetime
+
+    db_obj = ErrorSampleORM(
+        sample_id=req.sample_id,
+        source_task_result_id=req.source_task_result_id,
+        error_type=req.error_type,
+        severity=req.severity,
+        model_output=req.model_output,
+        expected_output=req.expected_output,
+        input_context=req.input_context,
+        error_description=req.error_description,
+        reproduction_steps=req.reproduction_steps,
+        model_version=req.model_version,
+        prompt_version=req.prompt_version,
+        run_id=req.run_id,
+        reporter_id=getattr(current_user, "id", None) or req.reporter_id,
+        assignee_id=req.assignee_id,
+        status="open",
+        reproducible=req.reproducible,
+        extra_metadata=req.extra_metadata or {},
+        tags=req.tags or [],
+    )
+    db.add(db_obj)
+    await db.flush()
+    await db.refresh(db_obj)
+    await db.commit()
+
+    info = ErrorSampleInfo(
+        id=db_obj.id,
+        sample_id=db_obj.sample_id,
+        source_task_result_id=db_obj.source_task_result_id,
+        error_type=db_obj.error_type,
+        severity=db_obj.severity,
+        model_output=db_obj.model_output,
+        expected_output=db_obj.expected_output,
+        input_context=db_obj.input_context,
+        error_description=db_obj.error_description,
+        reproduction_steps=db_obj.reproduction_steps,
+        model_version=db_obj.model_version,
+        prompt_version=db_obj.prompt_version,
+        run_id=db_obj.run_id,
+        reporter_id=db_obj.reporter_id,
+        assignee_id=db_obj.assignee_id,
+        status=db_obj.status,
+        triaged=db_obj.triaged,
+        reproducible=db_obj.reproducible,
+        false_alarm=db_obj.false_alarm,
+        fix_suggestion=db_obj.fix_suggestion,
+        resolution_note=db_obj.resolution_note,
+        resolved_at=db_obj.resolved_at,
+        resolved_by_id=db_obj.resolved_by_id,
+        tags=db_obj.tags,
+        extra_metadata=db_obj.extra_metadata,
+        created_at=db_obj.created_at,
+        updated_at=db_obj.updated_at,
+    )
+    return BaseResponse(data=info, request_id=str(uuid.uuid4()))
+
+
+@router.get(
+    "/error-samples",
+    response_model=BaseResponse[PageResponse[ErrorSampleInfo]],
+    summary="错误样本分页列表",
+)
+async def list_error_samples(
+    status: Optional[str] = Query(None, description="open/triaged/resolved"),
+    severity: Optional[str] = Query(None, description="minor/major/critical/blocker"),
+    error_type: Optional[str] = Query(None, description="错误类型过滤"),
+    assignee_id: Optional[int] = Query(None, description="处理人ID"),
+    reporter_id: Optional[int] = Query(None, description="上报人ID"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BaseResponse[PageResponse[ErrorSampleInfo]]:
+    from app.models.dataset import ErrorSample as ErrorSampleORM
+
+    query = select(ErrorSampleORM)
+    conds = []
+    if status: conds.append(ErrorSampleORM.status == status)
+    if severity: conds.append(ErrorSampleORM.severity == severity)
+    if error_type: conds.append(ErrorSampleORM.error_type == error_type)
+    if assignee_id: conds.append(ErrorSampleORM.assignee_id == assignee_id)
+    if reporter_id: conds.append(ErrorSampleORM.reporter_id == reporter_id)
+    if conds: query = query.where(and_(*conds))
+
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+    query = query.order_by(ErrorSampleORM.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.execute(query)).scalars().all()
+
+    items = [ErrorSampleInfo.model_validate(r, from_attributes=True) for r in rows]
+    page_resp = PageResponse(items=items, total=total or 0, page=page, page_size=page_size,
+                             total_pages=max(1, (total or 0) + page_size - 1) // page_size)
+    return BaseResponse(data=page_resp, request_id=str(uuid.uuid4()))
+
+
+@router.patch(
+    "/error-samples/{error_id}",
+    response_model=BaseResponse[ErrorSampleInfo],
+    summary="更新错误样本状态/分派",
+)
+async def update_error_sample(
+    error_id: int,
+    req: ErrorSampleUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BaseResponse[ErrorSampleInfo]:
+    from app.models.dataset import ErrorSample as ErrorSampleORM
+    from datetime import datetime
+
+    obj = (await db.execute(select(ErrorSampleORM).where(ErrorSampleORM.id == error_id))).scalar_one_or_none()
+    if not obj:
+        raise HTTPException(status_code=404, detail="错误样本不存在")
+    update_data = req.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        if v is not None and hasattr(obj, k):
+            setattr(obj, k, v)
+    if "status" in update_data and update_data["status"] == "resolved" and not obj.resolved_at:
+        obj.resolved_at = datetime.utcnow()
+        obj.resolved_by_id = getattr(current_user, "id", None)
+    await db.flush()
+    await db.refresh(obj)
+    await db.commit()
+    info = ErrorSampleInfo.model_validate(obj, from_attributes=True)
+    return BaseResponse(data=info, request_id=str(uuid.uuid4()))

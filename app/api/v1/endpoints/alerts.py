@@ -38,7 +38,7 @@ def _get_sync_alert_manager() -> AlertManager:
     return AlertManager(
         db=session,
         webhook_url=settings.ALERT_WEBHOOK_URL,
-        email_config=settings.ALERT_EMAIL_CONFIG,
+        email_config=settings.get_alert_email_config(),
     )
 
 
@@ -230,7 +230,7 @@ async def alert_stats(
 
 
 @router.post("/synthetic-checks/run", response_model=BaseResponse[SyntheticCheckResponse])
-@require_role([UserRole.ADMIN, UserRole.LEGAL_ASSISTANT])
+@require_role(UserRole.ADMIN, UserRole.LEGAL_ASSISTANT)
 async def run_synthetic_checks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

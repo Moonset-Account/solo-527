@@ -735,7 +735,11 @@
             } catch (e) {
                 showToast('任务列表加载失败[' + status + ']: ' + e.message);
                 currentTasks[status] = [];
-                renderTaskList([]);
+                if (list && status === currentTab) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle text-amber-500"></i><div class="text-slate-600 font-medium">加载失败，点击重试</div><div class="text-xs text-slate-400 mt-1">' + escapeHtml(e.message) + '</div><button class="btn-secondary mt-3 text-xs" onclick="loadTasks(\'' + status + '\')"><i class="fas fa-redo"></i> 重新加载</button></div>';
+                } else {
+                    renderTaskList([]);
+                }
                 return [];
             }
         }
@@ -823,26 +827,56 @@
         }
 
         async function loadSampleDetail(id) {
+            let detail = null;
+            let loadError = null;
             try {
                 const resp = await fetch(BASE + '/datasets/samples/' + id);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '接口错误');
-                currentDetailData = r.data || {};
-                renderSampleDetail(currentDetailData);
-                const action = document.getElementById('action-bar');
-                if (action) action.style.display = 'block';
-                if (currentDetailData.status === 'reviewing' && currentDetailData.reviewer_id != null) {
-                    showLockedState(currentDetailData.reviewer_id);
-                } else {
-                    resetLockButtons();
+                if (resp.ok) {
+                    const r = await resp.json();
+                    if (r.code === 0 && r.data) {
+                        detail = r.data;
+                    }
                 }
             } catch (e) {
-                showToast('样本详情加载失败: ' + e.message);
+                loadError = e.message;
+            }
+            if (!detail) {
+                for (const k in currentTasks) {
+                    const found = currentTasks[k].find(function(t) { return t.sample_id === id; });
+                    if (found) {
+                        detail = {
+                            id: found.sample_id,
+                            sample_id: found.sample_id,
+                            dataset_id: found.dataset_id,
+                            sample_type: found.sample_type,
+                            status: found.status,
+                            difficulty_level: found.difficulty_level,
+                            input_text: found.input_preview || '',
+                            created_at: found.created_at,
+                            updated_at: found.updated_at,
+                            reviewer_id: found.reviewer_id,
+                            assignee_id: found.assignee_id
+                        };
+                        break;
+                    }
+                }
+            }
+            if (!detail) {
+                showToast('样本详情加载失败' + (loadError ? ': ' + loadError : ''));
                 const body = document.getElementById('detail-body');
                 if (body) {
-                    body.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle text-amber-500"></i><div class="text-slate-600 font-medium">加载失败</div><div class="text-xs mt-1">' + escapeHtml(e.message) + '</div></div>';
+                    body.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle text-amber-500"></i><div class="text-slate-600 font-medium">加载失败，点击重试</div><button class="btn-secondary mt-3 text-xs" onclick="loadSampleDetail(' + id + ')"><i class="fas fa-redo"></i> 重新加载</button></div>';
                 }
+                return;
+            }
+            currentDetailData = detail;
+            renderSampleDetail(currentDetailData);
+            const action = document.getElementById('action-bar');
+            if (action) action.style.display = 'block';
+            if (currentDetailData.status === 'reviewing' && currentDetailData.reviewer_id != null) {
+                showLockedState(currentDetailData.reviewer_id);
+            } else {
+                resetLockButtons();
             }
         }
 
@@ -944,7 +978,7 @@
         async function lockSample() {
             if (!currentTaskId) { showToast('请先选择任务'); return; }
             try {
-                const resp = await fetch(BASE + '/review/tasks/' + currentTaskId + '/start', {
+                const resp = await fetch(BASE + '/review/samples/' + currentTaskId + '/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reviewer_id: REVIEWER_ID })
@@ -976,16 +1010,14 @@
 
             let submitted = false;
             try {
-                const resp1 = await fetch(BASE + '/review/tasks/submit', {
+                const resp1 = await fetch(BASE + '/review/samples/' + currentTaskId + '/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        sample_id: currentTaskId,
                         status: status,
                         review_comment: comment,
-                        reference_output: reference_output,
-                        input_text: input_text,
-                        reviewer_id: REVIEWER_ID
+                        corrected_input_text: input_text,
+                        corrected_reference_output: reference_output
                     })
                 });
                 if (resp1.ok) {
@@ -1036,27 +1068,6 @@
             loadStatistics();
         }
 
-        async function loadVersionHistoryChain(startId) {
-            versionHistory = [];
-            selectedRollbackId = null;
-            let currentId = startId;
-            const visited = {};
-            while (currentId && !visited[currentId]) {
-                visited[currentId] = true;
-                try {
-                    const resp = await fetch(BASE + '/datasets/samples/' + currentId);
-                    if (!resp.ok) break;
-                    const r = await resp.json();
-                    if (r.code !== 0 || !r.data) break;
-                    versionHistory.unshift(r.data);
-                    currentId = r.data.previous_sample_id;
-                } catch (e) {
-                    break;
-                }
-            }
-            return versionHistory;
-        }
-
         function renderVersionHistory() {
             const container = document.getElementById('version-list');
             const sidEl = document.getElementById('version-sample-id');
@@ -1102,7 +1113,29 @@
             document.getElementById('versions-modal').classList.add('open');
             const list = document.getElementById('version-list');
             if (list) list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载版本历史中...</div></div>';
-            await loadVersionHistoryChain(currentTaskId);
+            versionHistory = [];
+            selectedRollbackId = null;
+            let currentId = currentTaskId;
+            const visited = {};
+            let loadOk = true;
+            while (currentId && !visited[currentId]) {
+                visited[currentId] = true;
+                try {
+                    const resp = await fetch(BASE + '/datasets/samples/' + currentId);
+                    if (!resp.ok) { loadOk = false; break; }
+                    const r = await resp.json();
+                    if (r.code !== 0 || !r.data) { loadOk = false; break; }
+                    versionHistory.unshift(r.data);
+                    currentId = r.data.previous_sample_id;
+                } catch (e) {
+                    loadOk = false;
+                    break;
+                }
+            }
+            if (!loadOk && versionHistory.length === 0) {
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle text-amber-500"></i><div class="text-slate-600 font-medium">版本历史加载失败</div><button class="btn-secondary mt-3 text-xs" onclick="openVersionsModal()"><i class="fas fa-redo"></i> 重新加载</button></div>';
+                return;
+            }
             renderVersionHistory();
         }
 
@@ -1131,8 +1164,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        rollback_to_id: selectedRollbackId,
-                        rollback_reason: reason
+                        reason: reason
                     })
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -1140,7 +1172,9 @@
                 if (r.code !== 0) throw new Error(r.message || '回滚失败');
                 showToast('版本回滚成功', 'success');
                 closeModal('versions-modal');
-                if (currentTaskId) loadSampleDetail(currentTaskId);
+                const newSampleId = r.data && r.data.id ? r.data.id : currentTaskId;
+                currentTaskId = newSampleId;
+                if (newSampleId) loadSampleDetail(newSampleId);
             } catch (e) {
                 showToast('回滚失败: ' + e.message);
             }
@@ -1155,7 +1189,9 @@
             const expectedEl = document.getElementById('report-expected');
             const expected_output = expectedEl ? expectedEl.value : '';
             const descEl = document.getElementById('report-description');
-            const model_output = descEl ? descEl.value : '';
+            const error_description = descEl ? descEl.value : '';
+            const refEl = document.getElementById('reference-output');
+            const model_output = refEl ? refEl.value : ((currentDetailData && currentDetailData.reference_output) || '');
             const input_context = (currentDetailData && currentDetailData.input_text) || '';
             try {
                 const resp = await fetch(BASE + '/datasets/error-samples', {
@@ -1168,7 +1204,11 @@
                         model_output: model_output,
                         expected_output: expected_output,
                         input_context: input_context,
-                        reporter_id: REVIEWER_ID
+                        error_description: error_description,
+                        reproduction_steps: '',
+                        reporter_id: REVIEWER_ID,
+                        tags: [],
+                        extra_metadata: {}
                     })
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);

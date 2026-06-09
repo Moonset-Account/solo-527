@@ -178,19 +178,70 @@ class ErrorSampleInfo(BaseSchema):
     expected_output: Optional[str] = None
     input_context: Optional[str] = None
     error_description: Optional[str] = None
+    reproduction_steps: Optional[str] = None
 
     model_version: Optional[str] = None
     prompt_version: Optional[str] = None
+    run_id: Optional[str] = None
     status: str = "open"
     triaged: bool = False
+    reproducible: bool = True
     false_alarm: bool = False
 
+    reporter_id: Optional[int] = None
     assignee_id: Optional[int] = None
     fix_suggestion: Optional[str] = None
     resolution_note: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    resolved_by_id: Optional[int] = None
 
     tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
 
     created_at: datetime
     updated_at: datetime
+
+
+class ErrorSampleCreate(BaseSchema):
+    sample_id: Optional[int] = None
+    source_task_result_id: Optional[int] = None
+    error_type: ErrorType = ErrorType.OTHER
+    severity: ErrorSeverity = ErrorSeverity.MINOR
+
+    model_output: str
+    expected_output: Optional[str] = None
+    input_context: Optional[str] = None
+    error_description: Optional[str] = None
+    reproduction_steps: Optional[str] = None
+
+    model_version: Optional[str] = None
+    prompt_version: Optional[str] = None
+    run_id: Optional[str] = None
+
+    reporter_id: Optional[int] = None
+    assignee_id: Optional[int] = None
+    reproducible: bool = True
+
+    tags: Optional[List[str]] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
+
+
+class ErrorSampleUpdate(BaseSchema):
+    status: Optional[str] = None
+    severity: Optional[ErrorSeverity] = None
+    error_type: Optional[ErrorType] = None
+    assignee_id: Optional[int] = None
+    triaged: Optional[bool] = None
+    reproducible: Optional[bool] = None
+    false_alarm: Optional[bool] = None
+    fix_suggestion: Optional[str] = None
+    resolution_note: Optional[str] = None
+    tags: Optional[List[str]] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
+    model_output: Optional[str] = None
+    expected_output: Optional[str] = None
+    input_context: Optional[str] = None
+    error_description: Optional[str] = None
+    reproduction_steps: Optional[str] = None
+    model_version: Optional[str] = None
+    prompt_version: Optional[str] = None

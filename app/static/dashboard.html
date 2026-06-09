@@ -159,18 +159,6 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
-        .mock-banner {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            background: linear-gradient(90deg, #fef3c7, #fff7ed);
-            color: #92400e;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .mock-banner.show { display: inline-flex; }
         .health-badge {
             display: inline-flex;
             align-items: center;
@@ -277,10 +265,6 @@
                 </nav>
             </div>
             <div class="flex items-center gap-3">
-                <span id="mock-banner" class="mock-banner">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>⚠️ 部分数据为示例数据</span>
-                </span>
                 <button class="btn-secondary" onclick="refreshData(event)">
                     <i class="fas fa-sync-alt"></i>
                     <span>刷新</span>
@@ -471,8 +455,8 @@
                         <div>
                             <h3 class="font-semibold text-slate-800">成本拆解</h3>
                             <p class="text-xs text-slate-500 mt-0.5">
-                                累计 <span id="cost-total" class="font-semibold text-slate-700">$0.00</span>
-                                / Token <span id="cost-tokens" class="font-semibold text-slate-700">0</span>
+                                累计 <span id="cost-total" class="font-semibold text-slate-700">-</span>
+                                / Token <span id="cost-tokens" class="font-semibold text-slate-700">-</span>
                             </p>
                         </div>
                         <span class="badge badge-blue">近30天</span>
@@ -485,7 +469,6 @@
 
     <script>
         const BASE = "/api/v1";
-        let hasMockData = false;
         let funnelChart, pieChart, barChart, metricsChart, latencyChart, rankingChart, costChart;
 
         const STEP_CN = {
@@ -543,13 +526,27 @@
             setTimeout(() => t.classList.remove('show'), 5000);
         }
 
-        function showMockBanner() {
-            hasMockData = true;
-            document.getElementById('mock-banner').classList.add('show');
-        }
-
-        function hideMockBanner() {
-            document.getElementById('mock-banner').classList.remove('show');
+        function safeChart(chartInstance, option, hasData) {
+            if (!chartInstance) return;
+            if (!hasData) {
+                chartInstance.clear();
+                chartInstance.setOption({
+                    graphic: [{
+                        type: "text",
+                        left: "center",
+                        top: "middle",
+                        z: 100,
+                        style: {
+                            text: "暂无数据",
+                            fontSize: 18,
+                            fill: "#9ca3af"
+                        }
+                    }]
+                });
+            } else {
+                chartInstance.clear();
+                chartInstance.setOption(option, true);
+            }
         }
 
         async function checkHealth() {
@@ -580,76 +577,6 @@
             }
         }
 
-        const mockSummary = {
-            total_contracts: 12847,
-            total_clauses: 86543,
-            total_risks: 1940,
-            pending_reviews: 23,
-            approval_rate: 0.867,
-            production_models: 6,
-            contracts_error: 12,
-            failed_tasks: 35,
-            total_cost_usd: 843.2
-        };
-
-        const mockFunnel = [
-            { step: "uploaded", count: 100 },
-            { step: "parsed", count: 97 },
-            { step: "analyzed", count: 94 },
-            { step: "reviewed", count: 85 },
-            { step: "approved", count: 82 }
-        ];
-
-        const mockByLevel = [
-            { risk_level: "high", count: 47, percentage: 5 },
-            { risk_level: "medium", count: 186, percentage: 20 },
-            { risk_level: "low", count: 423, percentage: 45 },
-            { risk_level: "info", count: 289, percentage: 30 }
-        ];
-
-        const mockByType = [
-            { risk_type: "liability", count: 1247 },
-            { risk_type: "payment_terms", count: 986 },
-            { risk_type: "delivery_terms", count: 752 },
-            { risk_type: "confidentiality", count: 634 },
-            { risk_type: "intellectual_property", count: 518 },
-            { risk_type: "dispute_resolution", count: 421 }
-        ];
-
-        function generateMockTrend(days, base, variance, isPercent) {
-            const arr = [];
-            for (let i = days - 1; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const val = base + (Math.random() - 0.5) * variance;
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                arr.push({
-                    date: `${y}-${m}-${dd}`,
-                    count: isPercent ? Math.round(val * 100) : Math.round(val)
-                });
-            }
-            return arr;
-        }
-
-        const mockLeaderboard = [
-            { reviewer_id: 1, reviewer_name: "张律师", completed_count: 286, approval_rate: 0.987, score: 286 },
-            { reviewer_id: 2, reviewer_name: "李法务", completed_count: 254, approval_rate: 0.972, score: 254 },
-            { reviewer_id: 3, reviewer_name: null, completed_count: 231, approval_rate: 0.991, score: 231 },
-            { reviewer_id: 4, reviewer_name: "赵合规", completed_count: 198, approval_rate: 0.965, score: 198 },
-            { reviewer_id: 5, reviewer_name: null, completed_count: 176, approval_rate: 0.958, score: 176 },
-            { reviewer_id: 6, reviewer_name: "刘主管", completed_count: 154, approval_rate: 0.982, score: 154 }
-        ];
-
-        const mockCostByModel = [
-            { name: "风险识别模型", cost_usd: 3240.5, tokens: 1200000 },
-            { name: "摘要生成模型", cost_usd: 2180.3, tokens: 860000 },
-            { name: "问答引擎", cost_usd: 1890.1, tokens: 720000 },
-            { name: "条款分类", cost_usd: 720.8, tokens: 310000 },
-            { name: "向量索引", cost_usd: 402.2, tokens: 150000 }
-        ];
-
         function validateResp(r, apiName) {
             if (!r || typeof r !== 'object') {
                 throw new Error(apiName + ': 返回格式错误');
@@ -677,75 +604,74 @@
                 const d = await safeFetch(BASE + '/dashboard/summary', '概览数据');
                 updateSummary(d);
             } catch (e) {
-                showToast('概览数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                updateSummary(mockSummary);
+                showToast('概览数据加载失败: ' + (e.message || '未知错误'));
+                updateSummary({});
             }
         }
 
         function updateSummary(d) {
+            const cards = d || {};
             document.getElementById('stat-contracts').textContent =
-                d.total_contracts != null ? Number(d.total_contracts).toLocaleString() : '暂无';
+                cards.total_contracts != null ? Number(cards.total_contracts).toLocaleString() : '-';
             document.getElementById('stat-clauses').textContent =
-                d.total_clauses != null ? Number(d.total_clauses).toLocaleString() : '暂无';
+                cards.total_clauses != null ? Number(cards.total_clauses).toLocaleString() : '-';
             document.getElementById('stat-risks').textContent =
-                d.total_risks != null ? Number(d.total_risks).toLocaleString() : '暂无';
+                cards.total_risks != null ? Number(cards.total_risks).toLocaleString() : '-';
             document.getElementById('stat-pending').textContent =
-                d.pending_reviews != null ? Number(d.pending_reviews).toLocaleString() : '暂无';
+                cards.pending_reviews != null ? Number(cards.pending_reviews).toLocaleString() : '-';
 
-            if (d.approval_rate != null) {
-                const val = Number(d.approval_rate);
+            if (cards.approval_rate != null) {
+                const val = Number(cards.approval_rate);
                 document.getElementById('stat-f1').textContent =
                     (val > 0 && val < 1.5 ? (val * 100).toFixed(1) + '%' : val.toFixed(3));
             } else {
-                document.getElementById('stat-f1').textContent = '暂无';
+                document.getElementById('stat-f1').textContent = '-';
             }
 
             document.getElementById('stat-models').textContent =
-                d.production_models != null ? d.production_models :
-                (d.total_models != null ? d.total_models : '暂无');
+                cards.production_models != null ? cards.production_models :
+                (cards.total_models != null ? cards.total_models : '-');
 
-            const errContracts = d.contracts_error || 0;
-            const errTasks = d.failed_tasks || 0;
-            const totalErrors = errContracts + errTasks;
-            document.getElementById('stat-errors').textContent =
-                (d.contracts_error != null || d.failed_tasks != null) ?
-                    Number(totalErrors).toLocaleString() : '暂无';
+            if (cards.contracts_error != null || cards.failed_tasks != null) {
+                const errContracts = Number(cards.contracts_error || 0);
+                const errTasks = Number(cards.failed_tasks || 0);
+                const totalErrors = errContracts + errTasks;
+                document.getElementById('stat-errors').textContent = Number(totalErrors).toLocaleString();
+            } else {
+                document.getElementById('stat-errors').textContent = '-';
+            }
 
             document.getElementById('stat-cost').textContent =
-                d.total_cost_usd != null ?
-                    '$' + Number(d.total_cost_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
-                    '暂无';
+                cards.total_cost_usd != null ?
+                    '$' + Number(cards.total_cost_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+                    '-';
         }
 
         async function loadFunnel() {
-            let steps;
+            let steps = null;
             try {
                 const d = await safeFetch(BASE + '/dashboard/funnel', '漏斗数据');
-                if (!Array.isArray(d.steps) || d.steps.length === 0) {
-                    throw new Error('漏斗数据 steps 为空');
-                }
-                steps = d.steps;
+                steps = Array.isArray(d.steps) ? d.steps : null;
             } catch (e) {
-                showToast('漏斗数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                steps = mockFunnel;
+                showToast('漏斗数据加载失败: ' + (e.message || '未知错误'));
             }
             renderFunnel(steps);
         }
 
         function renderFunnel(steps) {
-            const data = steps.map(s => ({
-                value: Number(s.count || 0),
-                name: STEP_CN[s.step] || s.step || '阶段'
-            })).filter(s => s.value > 0 || true);
-
-            if (data.length === 0) {
-                funnelChart.clear();
+            const hasData = Array.isArray(steps) && steps.length > 0 &&
+                steps.some(s => Number(s.count || 0) > 0);
+            if (!hasData) {
+                safeChart(funnelChart, null, false);
                 return;
             }
 
-            funnelChart.setOption({
+            const data = steps.map(s => ({
+                value: Number(s.count || 0),
+                name: STEP_CN[s.step] || s.step || '阶段'
+            }));
+
+            const option = {
                 tooltip: {
                     trigger: 'item',
                     formatter: function(params) {
@@ -763,30 +689,26 @@
                     labelLine: { show: false },
                     data: data
                 }]
-            }, true);
+            };
+            safeChart(funnelChart, option, true);
         }
 
         async function loadDistribution() {
-            let byLevel, byType;
+            let byLevel = null, byType = null;
             try {
                 const d = await safeFetch(BASE + '/dashboard/distribution', '风险分布数据');
-                byLevel = Array.isArray(d.by_level) ? d.by_level : [];
-                byType = Array.isArray(d.by_type) ? d.by_type : [];
-                if (byLevel.length === 0 && byType.length === 0) {
-                    throw new Error('风险分布数据为空');
-                }
+                byLevel = Array.isArray(d.by_level) ? d.by_level : null;
+                byType = Array.isArray(d.by_type) ? d.by_type : null;
             } catch (e) {
-                showToast('风险分布数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                byLevel = mockByLevel;
-                byType = mockByType;
+                showToast('风险分布数据加载失败: ' + (e.message || '未知错误'));
             }
             renderPie(byLevel);
             renderBar(byType);
         }
 
         function renderPie(byLevel) {
-            const data = byLevel.map(item => {
+            const rawData = Array.isArray(byLevel) ? byLevel : [];
+            const data = rawData.map(item => {
                 const lvl = item.risk_level;
                 return {
                     value: Number(item.count || 0),
@@ -796,16 +718,11 @@
             }).filter(d => d.value > 0);
 
             if (data.length === 0) {
-                pieChart.clear();
-                pieChart.getDom().querySelector('.empty-chart') ||
-                    (pieChart.getDom().innerHTML = '<div class="empty-chart" style="height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;">暂无风险数据</div>');
+                safeChart(pieChart, null, false);
                 return;
             }
 
-            pieChart.getDom().innerHTML = '';
-            pieChart = echarts.init(pieChart.getDom());
-
-            pieChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'item',
                     formatter: '{b}: {c} ({d}%)'
@@ -825,28 +742,27 @@
                     labelLine: { length: 6, length2: 4 },
                     data: data
                 }]
-            }, true);
+            };
+            safeChart(pieChart, option, true);
         }
 
         function renderBar(byType) {
-            const categories = byType.map(item => {
+            const rawData = Array.isArray(byType) ? byType : [];
+            const categories = rawData.map(item => {
                 const t = item.risk_type || '';
                 return RISK_TYPE_CN[t] || t;
             });
-            const values = byType.map(item => Number(item.count || 0));
+            const values = rawData.map(item => Number(item.count || 0));
+            const hasData = values.some(v => v > 0);
 
-            if (categories.length === 0) {
-                barChart.clear();
-                barChart.getDom().innerHTML = '';
+            if (!hasData || categories.length === 0) {
+                safeChart(barChart, null, false);
                 return;
             }
 
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16'];
 
-            barChart.getDom().innerHTML = '';
-            barChart = echarts.init(barChart.getDom());
-
-            barChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
@@ -884,46 +800,48 @@
                         }
                     }
                 }]
-            }, true);
+            };
+            safeChart(barChart, option, true);
         }
 
         async function loadMetrics() {
             const sel = document.querySelector('select');
             const metricType = sel ? sel.value : 'f1';
-            let trend;
-            let avgF1FromTrend = null;
+            let trend = null;
 
             try {
                 const d = await safeFetch(BASE + `/dashboard/trend?metric_type=${metricType}&days=30`, 'F1趋势数据');
-                trend = Array.isArray(d.trend) ? d.trend : [];
-                if (trend.length === 0) {
-                    throw new Error('趋势数据 trend 为空');
-                }
-                const vals = trend.map(t => Number(t.count || 0) / 100);
-                avgF1FromTrend = vals.reduce((a, b) => a + b, 0) / vals.length;
-                if (avgF1FromTrend > 0) {
-                    document.getElementById('stat-f1').textContent =
-                        (avgF1FromTrend * 100).toFixed(1) + '%';
+                trend = Array.isArray(d.trend) ? d.trend : null;
+                if (trend && trend.length > 0) {
+                    const vals = trend.map(t => Number(t.count || 0) / 100);
+                    const avgF1FromTrend = vals.reduce((a, b) => a + b, 0) / vals.length;
+                    if (avgF1FromTrend > 0) {
+                        document.getElementById('stat-f1').textContent =
+                            (avgF1FromTrend * 100).toFixed(1) + '%';
+                    }
                 }
             } catch (e) {
-                showToast(`${metricType.toUpperCase()}趋势数据加载失败: ${e.message || '未知错误'}，已切换到示例数据`);
-                showMockBanner();
-                trend = generateMockTrend(30, 0.87, 0.06, true);
+                showToast(`${metricType.toUpperCase()}趋势数据加载失败: ${e.message || '未知错误'}`);
             }
             renderMetrics(trend, metricType);
         }
 
         function renderMetrics(trend, metricType) {
-            if (!trend || trend.length === 0) {
-                metricsChart.clear();
+            const rawTrend = Array.isArray(trend) ? trend : [];
+            const hasData = rawTrend.length > 0 &&
+                rawTrend.some(t => Number(t.count || 0) > 0);
+
+            if (!hasData) {
+                safeChart(metricsChart, null, false);
                 return;
             }
-            const days = trend.map(t => {
+
+            const days = rawTrend.map(t => {
                 const ds = t.date || '';
                 const parts = ds.split('-');
                 return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : ds;
             });
-            const values = trend.map(t => {
+            const values = rawTrend.map(t => {
                 const raw = Number(t.count || 0);
                 return (raw / 100).toFixed(3);
             });
@@ -935,7 +853,7 @@
                 recall: '召回率'
             }[metricType] || metricType;
 
-            metricsChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'cross' },
@@ -967,38 +885,39 @@
                         ])
                     }
                 }]
-            }, true);
+            };
+            safeChart(metricsChart, option, true);
         }
 
         async function loadLatency() {
-            let trend;
+            let trend = null;
             try {
                 const d = await safeFetch(BASE + '/dashboard/trend?metric_type=latency&days=30', '延迟趋势数据');
-                trend = Array.isArray(d.trend) ? d.trend : [];
-                if (trend.length === 0) {
-                    throw new Error('延迟趋势数据 trend 为空');
-                }
+                trend = Array.isArray(d.trend) ? d.trend : null;
             } catch (e) {
-                showToast('延迟趋势数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                trend = generateMockTrend(30, 900, 200, false);
+                showToast('延迟趋势数据加载失败: ' + (e.message || '未知错误'));
             }
             renderLatency(trend);
         }
 
         function renderLatency(trend) {
-            if (!trend || trend.length === 0) {
-                latencyChart.clear();
+            const rawTrend = Array.isArray(trend) ? trend : [];
+            const hasData = rawTrend.length > 0 &&
+                rawTrend.some(t => Number(t.count || 0) > 0);
+
+            if (!hasData) {
+                safeChart(latencyChart, null, false);
                 document.getElementById('latency-badge').textContent = '暂无数据';
                 document.getElementById('latency-badge').className = 'badge badge-yellow';
                 return;
             }
-            const days = trend.map(t => {
+
+            const days = rawTrend.map(t => {
                 const ds = t.date || '';
                 const parts = ds.split('-');
                 return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : ds;
             });
-            const rawValues = trend.map(t => Number(t.count || 0));
+            const rawValues = rawTrend.map(t => Number(t.count || 0));
             const values = rawValues.map(v => {
                 if (v > 100000) return Math.round(v / 100);
                 if (v > 10000) return Math.round(v / 10);
@@ -1018,7 +937,7 @@
                 badge.className = 'badge badge-green';
             }
 
-            latencyChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
@@ -1051,31 +970,32 @@
                         borderRadius: [4, 4, 0, 0]
                     }
                 }]
-            }, true);
+            };
+            safeChart(latencyChart, option, true);
         }
 
         async function loadLeaderboard() {
-            let items;
+            let items = null;
             try {
                 const d = await safeFetch(BASE + '/dashboard/leaderboard', '审核榜单数据');
-                items = Array.isArray(d.items) ? d.items : [];
-                if (items.length === 0) {
-                    throw new Error('审核榜单数据 items 为空');
-                }
+                items = Array.isArray(d.items) ? d.items : null;
             } catch (e) {
-                showToast('审核榜单数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                items = mockLeaderboard;
+                showToast('审核榜单数据加载失败: ' + (e.message || '未知错误'));
             }
             renderRanking(items);
         }
 
         function renderRanking(items) {
-            if (!items || items.length === 0) {
-                rankingChart.clear();
+            const rawItems = Array.isArray(items) ? items : [];
+            const hasData = rawItems.length > 0 &&
+                rawItems.some(r => Number(r.completed_count || r.count || 0) > 0);
+
+            if (!hasData) {
+                safeChart(rankingChart, null, false);
                 return;
             }
-            const reviewers = [...items].sort((a, b) =>
+
+            const reviewers = [...rawItems].sort((a, b) =>
                 (b.completed_count || b.count || 0) - (a.completed_count || a.count || 0)
             );
 
@@ -1091,7 +1011,7 @@
                 return num.toFixed(1) + '%';
             });
 
-            rankingChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'axis', axisPointer: { type: 'shadow' },
                     formatter: function(params) {
@@ -1139,43 +1059,42 @@
                         }
                     }
                 }]
-            }, true);
+            };
+            safeChart(rankingChart, option, true);
         }
 
         async function loadCost() {
-            let data;
+            let data = null;
             try {
                 data = await safeFetch(BASE + '/dashboard/cost', '成本数据');
             } catch (e) {
-                showToast('成本数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
-                showMockBanner();
-                data = {
-                    total_cost_usd: mockCostByModel.reduce((s, m) => s + m.cost_usd, 0),
-                    total_tokens: mockCostByModel.reduce((s, m) => s + m.tokens, 0),
-                    by_model: mockCostByModel.map(m => ({ name: m.name, cost_usd: m.cost_usd, tokens: m.tokens })),
-                    by_task_type: []
-                };
+                showToast('成本数据加载失败: ' + (e.message || '未知错误'));
             }
             renderCost(data);
         }
 
         function renderCost(data) {
-            const total = Number(data.total_cost_usd || 0);
-            const tokens = Number(data.total_tokens || 0);
+            const raw = data || {};
+            const total = Number(raw.total_cost_usd || 0);
+            const tokens = Number(raw.total_tokens || 0);
+            const hasCostData = total > 0 || tokens > 0;
 
             document.getElementById('cost-total').textContent =
-                '$' + total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('cost-tokens').textContent = tokens.toLocaleString();
+                raw.total_cost_usd != null ?
+                    '$' + total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+                    '-';
+            document.getElementById('cost-tokens').textContent =
+                raw.total_tokens != null ? tokens.toLocaleString() : '-';
 
             let items = [];
-            if (Array.isArray(data.by_model) && data.by_model.length > 0) {
-                items = data.by_model.map(m => ({
+            if (Array.isArray(raw.by_model) && raw.by_model.length > 0) {
+                items = raw.by_model.map(m => ({
                     name: m.name || m.dimension || '模型',
                     value: Number(m.cost_usd || m.value || 0)
                 })).filter(x => x.value > 0);
             }
-            if (items.length === 0 && Array.isArray(data.by_task_type) && data.by_task_type.length > 0) {
-                items = data.by_task_type.map(t => ({
+            if (items.length === 0 && Array.isArray(raw.by_task_type) && raw.by_task_type.length > 0) {
+                items = raw.by_task_type.map(t => ({
                     name: t.name || t.dimension || '任务',
                     value: Number(t.cost_usd || t.value || 0)
                 })).filter(x => x.value > 0);
@@ -1185,13 +1104,13 @@
             }
 
             if (items.length === 0) {
-                costChart.clear();
+                safeChart(costChart, null, false);
                 return;
             }
 
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1'];
 
-            costChart.setOption({
+            const option = {
                 tooltip: {
                     trigger: 'item',
                     formatter: function(params) {
@@ -1221,7 +1140,8 @@
                         itemStyle: { color: colors[i % colors.length] }
                     }))
                 }]
-            }, true);
+            };
+            safeChart(costChart, option, true);
         }
 
         function initCharts() {
@@ -1232,6 +1152,14 @@
             latencyChart = echarts.init(document.getElementById('chart-latency'));
             rankingChart = echarts.init(document.getElementById('chart-ranking'));
             costChart = echarts.init(document.getElementById('chart-cost'));
+
+            safeChart(funnelChart, null, false);
+            safeChart(pieChart, null, false);
+            safeChart(barChart, null, false);
+            safeChart(metricsChart, null, false);
+            safeChart(latencyChart, null, false);
+            safeChart(rankingChart, null, false);
+            safeChart(costChart, null, false);
 
             window.addEventListener('resize', () => {
                 funnelChart && funnelChart.resize();
@@ -1248,10 +1176,7 @@
             const btn = event && event.target ? event.target.closest('button') : null;
             const icon = btn ? btn.querySelector('i') : null;
             if (icon) icon.classList.add('fa-spin');
-            hasMockData = false;
-            hideMockBanner();
 
-            let hasError = false;
             try {
                 await Promise.all([
                     loadSummary(),
@@ -1264,7 +1189,6 @@
                     checkHealth()
                 ]);
             } catch (e) {
-                hasError = true;
                 showToast('刷新数据时出现错误: ' + (e.message || '未知错误'));
             }
 

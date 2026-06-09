@@ -12,6 +12,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.dataset import DatasetSample, ErrorSample, SampleStatus
 from app.models.user import User
 from app.schemas.base import BaseResponse, PageResponse
+from app.schemas.dataset import SampleInfo
 from app.schemas.review import (
     AssignRequest,
     EscalateRequest,
@@ -159,7 +160,11 @@ async def start_review(
     )
 
 
-@router.post("/samples/{sample_id}/submit", response_model=BaseResponse[dict])
+@router.post(
+    "/samples/{sample_id}/submit",
+    response_model=BaseResponse[SampleInfo],
+    summary="提交样本审核结论",
+)
 async def submit_review(
     sample_id: int,
     req: SubmitReviewRequest = Body(...),
@@ -178,7 +183,7 @@ async def submit_review(
     sample.review_comment = req.review_comment
     sample.reviewed_at = datetime.utcnow()
 
-    if req.corrected_input_text:
+    if req.corrected_input_text is not None:
         sample.input_text = req.corrected_input_text
     if req.corrected_reference_output is not None:
         sample.reference_output = req.corrected_reference_output
@@ -190,14 +195,8 @@ async def submit_review(
 
     await db.commit()
     await db.refresh(sample)
-    return BaseResponse(
-        data={
-            "sample_id": sample.id,
-            "status": req.status.value if hasattr(req.status, "value") else str(req.status),
-            "reviewer_id": current_user.id,
-        },
-        message="审核已提交",
-    )
+    info = SampleInfo.model_validate(sample, from_attributes=True)
+    return BaseResponse(data=info, message="审核已提交")
 
 
 @router.post("/samples/{sample_id}/escalate", response_model=BaseResponse[dict])
