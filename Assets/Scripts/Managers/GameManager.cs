@@ -155,11 +155,8 @@ namespace PixelPlantLab
 
             ResourceManager.Instance.DeductExperimentCost(parameters, out _, out _);
 
-            if (QuestManager.Instance != null)
-            {
-                var stats = MutationEngine.GetOrCreateStats(parameters);
-                QuestManager.Instance.NotifySameRecipeExperimentRun(parameters, stats.TotalRuns + 1);
-            }
+            // ★ NotifySameRecipeExperimentRun 不再在这里调用！
+            // 必须等实验产生真实结果后才算"完成一次同配方实验"（提前终止不算数，实验开始也不算数）
 
             SampleDisplay?.StartExperiment(parameters, ExperimentRealSeconds);
             OnExperimentStarted?.Invoke();
@@ -213,6 +210,9 @@ namespace PixelPlantLab
             if (QuestManager.Instance != null)
             {
                 QuestManager.Instance.NotifyExperimentCompleted(resultPlant, isFirstDiscovery, _activeParams);
+                // ★ 同配方重复实验必须在真实结果产生后才算（开始/终止都不算！）
+                var stats = MutationEngine.GetOrCreateStats(_activeParams);
+                QuestManager.Instance.NotifySameRecipeExperimentRun(_activeParams, stats.TotalRuns);
                 if (isFirstDiscovery) QuestManager.Instance.NotifyDexViewed(resultPlant.Id);
             }
 

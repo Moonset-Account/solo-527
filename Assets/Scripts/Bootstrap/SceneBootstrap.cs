@@ -251,49 +251,49 @@ namespace PixelPlantLab.Bootstrap
 
         private ParameterSlider BuildSlider(RectTransform parent, string label, float defaultValue, float yOffset)
         {
-            var go = CreateUIObject($"Slider_{label}", parent);
-            SetAnchors(go, new Vector2(0, 1), new Vector2(1, 1), new Vector2(16, -yOffset), new Vector2(-16, -(yOffset + 80)));
+            var sliderRootGO = CreateUIObject($"Slider_{label.Replace(' ', '_').Replace('/', '_')}", parent);
+            SetAnchors(sliderRootGO, new Vector2(0, 1), new Vector2(1, 1), new Vector2(16, -yOffset), new Vector2(-16, -(yOffset + 80)));
 
-            var labelText = CreateText(go, label, 16, TextAnchor.UpperLeft);
+            var labelText = CreateText(sliderRootGO, label, 16, TextAnchor.UpperLeft);
             SetAnchors(labelText.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 0), new Vector2(0, -24));
 
-            var sliderGO = CreateUIObject("Slider", go);
-            SetAnchors(sliderGO, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -6), new Vector2(0, 14));
-            var slider = sliderGO.gameObject.AddComponent<Slider>();
+            var sliderComponentRT = CreateUIObject("Slider", sliderRootGO);
+            SetAnchors(sliderComponentRT, new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -6), new Vector2(0, 14));
+            var slider = sliderComponentRT.gameObject.AddComponent<Slider>();
             slider.minValue = 0f;
             slider.maxValue = 1f;
             slider.value = defaultValue;
 
-            var bg = CreateUIObject("Background", sliderGO.transform as RectTransform);
-            Stretch(bg);
-            var bgImg = bg.gameObject.AddComponent<Image>();
+            var bgRT = CreateUIObject("Background", sliderComponentRT);
+            Stretch(bgRT);
+            var bgImg = bgRT.gameObject.AddComponent<Image>();
             bgImg.color = new Color(0.2f, 0.2f, 0.25f, 1f);
             bgImg.rectTransform.sizeDelta = new Vector2(0, 8);
 
-            var fillArea = CreateUIObject("Fill Area", sliderGO.transform as RectTransform);
-            Stretch(fillArea);
-            var fill = CreateUIObject("Fill", fillArea);
-            Stretch(fill);
-            var fillImg = fill.gameObject.AddComponent<Image>();
+            var fillAreaRT = CreateUIObject("Fill Area", sliderComponentRT);
+            Stretch(fillAreaRT);
+            var fillRT = CreateUIObject("Fill", fillAreaRT);
+            Stretch(fillRT);
+            var fillImg = fillRT.gameObject.AddComponent<Image>();
             fillImg.color = new Color(0.4f, 0.7f, 0.5f, 1f);
             fillImg.rectTransform.sizeDelta = new Vector2(0, 8);
 
-            var handleArea = CreateUIObject("Handle Slide Area", sliderGO.transform as RectTransform);
-            Stretch(handleArea);
-            var handle = CreateUIObject("Handle", handleArea);
-            SetAnchors(handle, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-10, -12), new Vector2(10, 12));
-            var handleImg = handle.gameObject.AddComponent<Image>();
+            var handleAreaRT = CreateUIObject("Handle Slide Area", sliderComponentRT);
+            Stretch(handleAreaRT);
+            var handleRT = CreateUIObject("Handle", handleAreaRT);
+            SetAnchors(handleRT, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-10, -12), new Vector2(10, 12));
+            var handleImg = handleRT.gameObject.AddComponent<Image>();
             handleImg.color = new Color(0.85f, 0.9f, 0.95f, 1f);
 
-            slider.fillRect = fill;
-            slider.handleRect = handle;
+            slider.fillRect = fillRT;
+            slider.handleRect = handleRT;
             slider.targetGraphic = handleImg;
 
-            var valueText = CreateText(go, defaultValue.ToString("F2"), 14, TextAnchor.UpperRight);
+            var valueText = CreateText(sliderRootGO, defaultValue.ToString("F2"), 14, TextAnchor.UpperRight);
             valueText.color = new Color(0.8f, 0.9f, 1f);
             SetAnchors(valueText.rectTransform, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -24), new Vector2(0, -44));
 
-            var paramSlider = go.gameObject.AddComponent<ParameterSlider>();
+            var paramSlider = sliderRootGO.gameObject.AddComponent<ParameterSlider>();
             paramSlider.SliderComponent = slider;
             paramSlider.LabelText = labelText;
             paramSlider.ValueText = valueText;
