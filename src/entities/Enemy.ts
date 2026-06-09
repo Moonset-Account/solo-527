@@ -29,11 +29,13 @@ export class Enemy implements IGameEntity {
   private _activeEffects: Map<string, { effect: EffectType; timeLeft: number; tickTimer: number }> = new Map();
   private _hitFlash: number = 0;
   private _rotation: number = 0;
+  private _challengeFlags: { hpBoost?: boolean; doubleSpeed?: boolean } = {};
 
-  constructor(type: EnemyType, pathSystem: PathSystem, hpMultiplier: number = 1, weatherSpeedMult: number = 1) {
+  constructor(type: EnemyType, pathSystem: PathSystem, hpMultiplier: number = 1, weatherSpeedMult: number = 1, challengeFlags?: { hpBoost?: boolean; doubleSpeed?: boolean }) {
     this._type = type;
     this._pathSystem = pathSystem;
     this._weatherSpeedMult = weatherSpeedMult;
+    if (challengeFlags) this._challengeFlags = challengeFlags;
 
     const cfg = getEnemyConfig(type);
     this._maxHp = Math.floor(cfg.hp * hpMultiplier);
@@ -159,6 +161,19 @@ export class Enemy implements IGameEntity {
   }
 
   render(ctx: CanvasRenderingContext2D): void {
+    if (this._challengeFlags.doubleSpeed && this._status === 'alive' && this._pathDist > 20) {
+      const prev = this._pathSystem.getPositionAt(Math.max(0, this._pathDist - 18));
+      ctx.save();
+      ctx.strokeStyle = 'rgba(206, 147, 216, 0.55)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(this.position.x, this.position.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.translate(this.position.x, this.position.y);
     ctx.rotate(this._rotation);
@@ -259,13 +274,28 @@ export class Enemy implements IGameEntity {
     const x = this.position.x - w / 2;
     const y = this.position.y - this._size - 10;
     const pct = Math.max(0, this._hp / this._maxHp);
+    const hasHpBoost = this._challengeFlags.hpBoost;
+
+    if (hasHpBoost) {
+      ctx.fillStyle = 'rgba(239, 154, 154, 0.25)';
+      ctx.fillRect(x - 3, y - 3, w + 6, h + 6);
+      ctx.strokeStyle = '#ef9a9a';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x - 3, y - 3, w + 6, h + 6);
+    }
 
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
     ctx.fillStyle = '#333';
     ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = pct > 0.5 ? '#8bc34a' : pct > 0.25 ? '#ffa726' : '#ff6b6b';
+    ctx.fillStyle = pct > 0.5 ? (hasHpBoost ? '#ef5350' : '#8bc34a') : pct > 0.25 ? '#ffa726' : '#ff6b6b';
     ctx.fillRect(x, y, w * pct, h);
+
+    if (hasHpBoost) {
+      ctx.fillStyle = '#ef9a9a';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('🛡', x + w + 1, y + 4);
+    }
   }
 
   private renderEffects(ctx: CanvasRenderingContext2D): void {

@@ -90,7 +90,11 @@ export class Game {
     this.waveSystem.onSpawnRequest = (type, hpMult) => {
       const challengeHpMult = this.challengeModifiers.includes('hp_boost') ? 1.3 : 1;
       const speedMult = this.weatherSystem.getEnemySpeedMultiplier();
-      const enemy = new Enemy(type, this.pathSystem, hpMult * challengeHpMult, speedMult);
+      const challengeFlags = {
+        hpBoost: this.challengeModifiers.includes('hp_boost'),
+        doubleSpeed: this.challengeModifiers.includes('double_speed'),
+      };
+      const enemy = new Enemy(type, this.pathSystem, hpMult * challengeHpMult, speedMult, challengeFlags);
       this.entities.add(enemy);
       this.enemies.push(enemy);
       this.waveSystem.registerEnemySpawned();
@@ -618,6 +622,7 @@ export class Game {
       forbiddenTowers,
       towerLimit,
       builtTowerCount: this.towers.length,
+      challengeModifiers: this.challengeModifiers,
     };
     this.ui.renderHUD(base);
     if (this.showDebugPanel) {

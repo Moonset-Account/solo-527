@@ -24,6 +24,22 @@ type RenderState = {
   forbiddenTowers: TowerType[];
   towerLimit: number | null;
   builtTowerCount: number;
+  challengeModifiers: string[];
+};
+
+const MODIFIER_INFO: Record<string, { icon: string; label: string; desc: string; color: string }> = {
+  limited_gold: { icon: '💰', label: '资金紧张', desc: '起始金币 × 0.7', color: '#ffb74d' },
+  reduced_range: { icon: '📏', label: '视野受限', desc: '塔射程 × 0.85', color: '#90caf9' },
+  double_speed: { icon: '💨', label: '疾风迅行', desc: '敌人速度 × 1.25', color: '#ce93d8' },
+  hp_boost: { icon: '🛡️', label: '钢铁军团', desc: '敌人 HP × 1.3', color: '#ef9a9a' },
+  no_tesla: { icon: '⚡', label: '闪电禁令', desc: '禁止闪电塔', color: '#fff176' },
+  no_frost: { icon: '❄️', label: '冰霜禁令', desc: '禁止冰霜塔', color: '#b3e5fc' },
+  limited_towers: { icon: '🏗️', label: '精简编制', desc: '塔上限 8 座', color: '#a5d6a7' },
+  weather_rain: { icon: '🌧️', label: '连续降雨', desc: '全天雨天', color: '#64b5f6' },
+  weather_snow: { icon: '❄️', label: '飘雪天气', desc: '全天雪天', color: '#e1f5fe' },
+  weather_fog: { icon: '🌫️', label: '浓雾弥漫', desc: '全天雾天', color: '#bdbdbd' },
+  weather_typhoon: { icon: '🌀', label: '台风袭击', desc: '全天台风', color: '#ff8a65' },
+  weather_sunny: { icon: '☀️', label: '晴朗锁定', desc: '全天天晴', color: '#fff59d' },
 };
 
 export class UIManager {
@@ -38,7 +54,7 @@ export class UIManager {
   }
 
   renderHUD(state: RenderState): void {
-    const { engine, resources, waves, weather, currentLevelName } = state;
+    const { engine, resources, waves, weather, currentLevelName, challengeModifiers } = state;
 
     const weatherDef = getWeatherConfig(weather.current);
     const waveIdx = Math.max(0, waves.currentWaveIndex + 1);
@@ -48,6 +64,16 @@ export class UIManager {
       : waves.isBreakPhase
         ? `准备期 (${Math.ceil(prepR)}s)`
         : `准备开始`;
+
+    const modifierBanner = challengeModifiers.length > 0
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;padding:6px 10px;background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:10px;">
+           <span style="font-size:12px;color:#ffb74d;font-weight:700;align-self:center;">🔥 每日挑战：</span>
+           ${challengeModifiers.map((m) => {
+             const info = MODIFIER_INFO[m] ?? { icon: '❓', label: m, desc: '', color: '#999' };
+             return `<div title="${info.desc}" style="padding:3px 8px;background:${info.color}22;border:1px solid ${info.color}66;border-radius:6px;font-size:11px;color:${info.color};font-weight:600;">${info.icon} ${info.label}</div>`;
+           }).join('')}
+         </div>`
+      : '';
 
     this.hudEl.innerHTML = `
       <div class="hud-top">
@@ -72,8 +98,10 @@ export class UIManager {
           <button class="btn btn-danger" id="btn-quit">✖ 退出</button>
         </div>
       </div>
-      <div style="text-align:center;margin-top:8px;font-size:13px;color:rgba(255,255,255,0.6);pointer-events:none;">
+      ${modifierBanner}
+      <div style="text-align:center;margin-top:${challengeModifiers.length > 0 ? '4px' : '8px'};font-size:13px;color:rgba(255,255,255,0.6);pointer-events:none;">
         关卡：<b style="color:#8bc34a">${currentLevelName}</b> · 玩家：<b style="color:#ffd700">${state.profileName}</b> Lv.${state.profileLevel}
+        ${state.towerLimit !== null ? ` · 塔数：<b style="color:${state.builtTowerCount >= state.towerLimit ? '#ef5350' : '#8bc34a'}">${state.builtTowerCount}/${state.towerLimit}</b>` : ''}
       </div>
     `;
 
