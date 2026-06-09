@@ -62,6 +62,8 @@ namespace BeatRunner.UI
                 InputManager.Instance.OnSlide += OnSlideInput;
                 InputManager.Instance.OnLeft += OnLaneInput;
                 InputManager.Instance.OnRight += OnLaneInput;
+                InputManager.Instance.OnBindingsChanged -= RefreshStepHints;
+                InputManager.Instance.OnBindingsChanged += RefreshStepHints;
             }
 
             ServiceLocator.TryGet(out RuntimeGameData data);
@@ -87,9 +89,23 @@ namespace BeatRunner.UI
                 InputManager.Instance.OnSlide -= OnSlideInput;
                 InputManager.Instance.OnLeft -= OnLaneInput;
                 InputManager.Instance.OnRight -= OnLaneInput;
+                InputManager.Instance.OnBindingsChanged -= RefreshStepHints;
             }
 
             if (_autoAdvanceCoroutine != null) StopCoroutine(_autoAdvanceCoroutine);
+        }
+
+        private void RefreshStepHints()
+        {
+            if (_currentStep < 0 || _currentStep >= _steps.Count) return;
+            var step = _steps[_currentStep];
+            string keyStr = "";
+            if (!string.IsNullOrEmpty(step.actionKey) && InputManager.Instance != null)
+            {
+                var keys = InputManager.Instance.GetKeyHintsForAction(step.actionKey);
+                keyStr = string.Join(" / ", keys);
+            }
+            if (_keyHintText) _keyHintText.text = keyStr;
         }
 
         public void StartTutorial()

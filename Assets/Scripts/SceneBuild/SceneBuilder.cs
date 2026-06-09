@@ -20,6 +20,46 @@ namespace BeatRunner.SceneBuild
     public static class SceneBuilder
     {
         private static bool _built;
+        private static Mesh _cachedOctahedronMesh;
+
+        private static void DestroyImmediateSafe(Object obj)
+        {
+            if (obj != null) Object.DestroyImmediate(obj);
+        }
+
+        private static Mesh GetOctahedronMesh()
+        {
+            if (_cachedOctahedronMesh != null) return _cachedOctahedronMesh;
+            var mesh = new Mesh();
+            mesh.name = "Octahedron";
+            float s = 1f;
+            Vector3[] vertices =
+            {
+                new Vector3(0, s, 0),
+                new Vector3(s, 0, 0),
+                new Vector3(0, 0, s),
+                new Vector3(-s, 0, 0),
+                new Vector3(0, 0, -s),
+                new Vector3(0, -s, 0)
+            };
+            int[] triangles =
+            {
+                0, 1, 2,
+                0, 2, 3,
+                0, 3, 4,
+                0, 4, 1,
+                5, 2, 1,
+                5, 3, 2,
+                5, 4, 3,
+                5, 1, 4
+            };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            _cachedOctahedronMesh = mesh;
+            return mesh;
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         public static void AutoBuildMainScene()
@@ -84,9 +124,14 @@ namespace BeatRunner.SceneBuild
                 cam.tag = "MainCamera";
             }
 
-            if (GameObject.FindObjectOfType<DirectionalLight>() == null)
+            bool hasDirLight = false;
+            foreach (var l in GameObject.FindObjectsOfType<Light>())
             {
-                var lightGo = new GameObject("Directional Light", typeof(DirectionalLight));
+                if (l.type == LightType.Directional) { hasDirLight = true; break; }
+            }
+            if (!hasDirLight)
+            {
+                var lightGo = new GameObject("Directional Light", typeof(Light));
                 var light = lightGo.GetComponent<Light>();
                 light.type = LightType.Directional;
                 light.color = Color.white;
@@ -160,7 +205,7 @@ namespace BeatRunner.SceneBuild
                 float x = (i - mid) * 2f;
                 lane.transform.localPosition = new Vector3(x, 0.02f, 0);
                 lane.transform.localScale = new Vector3(1.8f, 0.04f, 1000f);
-                DestroyImmediate(lane.GetComponent<BoxCollider>());
+                DestroyImmediateSafe(lane.GetComponent<BoxCollider>());
                 var laneMat = new Material(Shader.Find("Standard"));
                 laneMat.color = i == 1
                     ? new Color(0.2f, 0.3f, 0.5f)
@@ -254,7 +299,7 @@ namespace BeatRunner.SceneBuild
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = height == ObstacleHeight.High ? "ObstacleHigh" : "ObstacleLow";
-            DestroyImmediate(go.GetComponent<BoxCollider>());
+            DestroyImmediateSafe(go.GetComponent<BoxCollider>());
             go.AddComponent<BoxCollider>().isTrigger = true;
             go.AddComponent<Gameplay.Obstacle>();
             var mat = new Material(Shader.Find("Standard"));
@@ -271,9 +316,8 @@ namespace BeatRunner.SceneBuild
 
         private static GameObject MakeFragmentPrefab()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Octahedron);
-            go.name = "Fragment";
-            DestroyImmediate(go.GetComponent<Collider>());
+            var go = new GameObject("Fragment", typeof(MeshFilter), typeof(MeshRenderer));
+            go.GetComponent<MeshFilter>().mesh = GetOctahedronMesh();
             var c = go.AddComponent<SphereCollider>();
             c.isTrigger = true;
             c.radius = 0.5f;
@@ -291,7 +335,7 @@ namespace BeatRunner.SceneBuild
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "LaneIndicator";
-            DestroyImmediate(go.GetComponent<Collider>());
+            DestroyImmediateSafe(go.GetComponent<Collider>());
             var mat = new Material(Shader.Find("Standard"));
             mat.color = new Color(1f, 1f, 1f, 0.15f);
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;
@@ -350,7 +394,7 @@ namespace BeatRunner.SceneBuild
             set?.SetValue(gm, gameplayRoot);
             set = typeof(GameManager).GetField("_gameplayController", BindingFlags.Instance | BindingFlags.NonPublic);
             set?.SetValue(gm, player.GetComponent<GameplayController>() ??
-                FindObjectOfType<GameplayController>());
+                GameObject.FindObjectOfType<GameplayController>());
 
             set = typeof(GameManager).GetField("_mainMenu", BindingFlags.Instance | BindingFlags.NonPublic);
             set?.SetValue(gm, mainMenu);

@@ -97,6 +97,12 @@ namespace BeatRunner.UI
             if (_remapLeftBtn) _remapLeftBtn.onClick.AddListener(() => StartRemap("left"));
             if (_remapRightBtn) _remapRightBtn.onClick.AddListener(() => StartRemap("right"));
 
+            if (InputManager.Instance != null)
+            {
+                InputManager.Instance.OnBindingsChanged -= RefreshRemapDisplay;
+                InputManager.Instance.OnBindingsChanged += RefreshRemapDisplay;
+            }
+
             LoadSettings();
         }
 
@@ -121,6 +127,11 @@ namespace BeatRunner.UI
 
             if (_calibrateBtn) _calibrateBtn.onClick.RemoveAllListeners();
             if (_testLatencyBtn) _testLatencyBtn.onClick.RemoveAllListeners();
+
+            if (InputManager.Instance != null)
+            {
+                InputManager.Instance.OnBindingsChanged -= RefreshRemapDisplay;
+            }
         }
 
         private void Update()
@@ -360,7 +371,6 @@ namespace BeatRunner.UI
                 case "left": bindings.leftKey = key; break;
                 case "right": bindings.rightKey = key; break;
             }
-            InputManager.Instance.LoadBindingsFromSaveData();
             InputManager.Instance.SetInputBindings(bindings);
         }
 

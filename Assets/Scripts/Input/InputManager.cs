@@ -23,6 +23,7 @@ namespace BeatRunner.Input
         }
 
         public event Action<InputType> OnInputTypeChanged;
+        public event Action OnBindingsChanged;
         public event Action OnLeft;
         public event Action OnRight;
         public event Action OnJump;
@@ -316,6 +317,7 @@ namespace BeatRunner.Input
         {
             _bindings = newBindings;
             SaveBindingsToSaveData();
+            OnBindingsChanged?.Invoke();
         }
 
         private void SaveBindingsToSaveData()
