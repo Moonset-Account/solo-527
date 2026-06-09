@@ -4,6 +4,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "DrawDebugHelpers.h"
+#include "OldApartmentInteractable.h"
 
 AOldApartmentPlayerController::AOldApartmentPlayerController()
 {
@@ -26,7 +27,14 @@ void AOldApartmentPlayerController::BeginPlay()
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
-		Subsystem->AddMappingContext(DefaultMappingContext, 0);
+		if (DefaultMappingContext)
+		{
+			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PlayerController] DefaultMappingContext is null — falling back to legacy input bindings."));
+		}
 	}
 
 	SetShowMouseCursor(false);

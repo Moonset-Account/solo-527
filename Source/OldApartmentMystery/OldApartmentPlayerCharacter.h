@@ -142,6 +142,18 @@ protected:
 
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode) override;
 
+	UFUNCTION()
+	void Legacy_MoveForward(float Value);
+
+	UFUNCTION()
+	void Legacy_MoveRight(float Value);
+
+	UFUNCTION()
+	void Legacy_Turn(float Value);
+
+	UFUNCTION()
+	void Legacy_LookUp(float Value);
+
 private:
 	float TimeSinceLastFootstep;
 	float HeadbobTime;

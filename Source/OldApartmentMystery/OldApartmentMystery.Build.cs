@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class OldApartmentMysteryModule : ModuleRules
+public class OldApartmentMystery : ModuleRules
 {
-	public OldApartmentMysteryModule(ReadOnlyTargetRules Target) : base(Target)
+	public OldApartmentMystery(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_3;

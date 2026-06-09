@@ -100,4 +100,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bootstrap")
+	TSubclassOf<class AActor> BootstrapActorClass;
 };

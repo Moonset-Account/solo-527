@@ -1,5 +1,7 @@
 #include "OldApartmentMysteryGameMode.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Kismet/GameplayStatics.h"
+#include "OldApartmentBootstrapActor.h"
 
 AOldApartmentMysteryGameMode::AOldApartmentMysteryGameMode()
 {
@@ -7,12 +9,25 @@ AOldApartmentMysteryGameMode::AOldApartmentMysteryGameMode()
 	BaseTimeBonus = 500;
 	PerfectSolveBonus = 200;
 	PenaltyPerMistake = 50;
+
+	BootstrapActorClass = AOldApartmentBootstrapActor::StaticClass();
 }
 
 void AOldApartmentMysteryGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	UE_LOG(LogTemp, Log, TEXT("[GameMode] OldApartmentMystery GameMode initialized"));
+
+	if (BootstrapActorClass && GetWorld())
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		AActor* Bootstrap = GetWorld()->SpawnActor<AActor>(BootstrapActorClass, FVector::ZeroVector, FRotator::ZeroRotator, Params);
+		if (Bootstrap)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[GameMode] Bootstrap actor spawned successfully: %s"), *Bootstrap->GetName());
+		}
+	}
 }
 
 int32 AOldApartmentMysteryGameMode::CalculateChapterScore(const FChapterProgress& Progress) const

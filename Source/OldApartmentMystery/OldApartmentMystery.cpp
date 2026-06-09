@@ -1,8 +1,15 @@
 #include "OldApartmentMystery.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IPluginManager.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY(LogOldApartmentMystery);
+
+static TAutoConsoleVariable<int32> CVarOldApartmentStartMode(
+	TEXT("OldApartment.StartMode"),
+	-1,
+	TEXT("-1 = Auto (default)\n0 = Force Main Menu\n1 = Force Chapter Level"),
+	ECVF_Default);
 
 IMPLEMENT_PRIMARY_GAME_MODULE(FOldApartmentMysteryModule, OldApartmentMystery, "OldApartmentMystery");
 

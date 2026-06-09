@@ -117,6 +117,48 @@ void AOldApartmentPlayerCharacter::Tick(float DeltaSeconds)
 void AOldApartmentPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	check(PlayerInputComponent);
+
+	// === Legacy Axis Bindings (no IMC/IA assets required) ===
+	// These work with the AddAxisMapping() calls done in BootstrapActor::BindFallbackKeys()
+	PlayerInputComponent->BindAxis(FName(TEXT("MoveForward")), this, &AOldApartmentPlayerCharacter::Legacy_MoveForward);
+	PlayerInputComponent->BindAxis(FName(TEXT("MoveRight")),   this, &AOldApartmentPlayerCharacter::Legacy_MoveRight);
+	PlayerInputComponent->BindAxis(FName(TEXT("Turn")),        this, &AOldApartmentPlayerCharacter::Legacy_Turn);
+	PlayerInputComponent->BindAxis(FName(TEXT("LookUp")),      this, &AOldApartmentPlayerCharacter::Legacy_LookUp);
+
+	// Also bind some commonly used actions via legacy system (fallback)
+	PlayerInputComponent->BindAction(FName(TEXT("FlashlightToggle")), IE_Pressed, this, &AOldApartmentPlayerCharacter::ToggleFlashlight);
+}
+
+void AOldApartmentPlayerCharacter::Legacy_MoveForward(float Value)
+{
+	if (Value == 0.0f) return;
+	if (Controller == nullptr) return;
+
+	const FRotator YawRotation(0, Controller->GetControlRotation().Yaw, 0);
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	AddMovementInput(ForwardDirection, Value);
+}
+
+void AOldApartmentPlayerCharacter::Legacy_MoveRight(float Value)
+{
+	if (Value == 0.0f) return;
+	if (Controller == nullptr) return;
+
+	const FRotator YawRotation(0, Controller->GetControlRotation().Yaw, 0);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+	AddMovementInput(RightDirection, Value);
+}
+
+void AOldApartmentPlayerCharacter::Legacy_Turn(float Value)
+{
+	AddControllerYawInput(Value);
+}
+
+void AOldApartmentPlayerCharacter::Legacy_LookUp(float Value)
+{
+	AddControllerPitchInput(Value);
 }
 
 void AOldApartmentPlayerCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
