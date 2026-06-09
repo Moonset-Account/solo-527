@@ -7,7 +7,6 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -81,17 +80,14 @@
             padding: 3px 10px; border-radius: 999px;
             font-size: 12px; font-weight: 600; gap: 4px;
         }
-        .badge-draft { background: #e2e8f0; color: #475569; }
-        .badge-testing { background: #ddd6fe; color: #5b21b6; }
-        .badge-staging { background: #fed7aa; color: #9a3412; }
-        .badge-production { background: #bbf7d0; color: #166534; }
-        .badge-deprecated { background: #f1f5f9; color: #64748b; }
-        .badge-rolled { background: #fecaca; color: #991b1b; }
         .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-orange { background: #ffedd5; color: #c2410c; }
+        .badge-amber { background: #fef3c7; color: #92400e; }
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-purple { background: #f3e8ff; color: #7c3aed; }
         .badge-slate { background: #f1f5f9; color: #475569; }
+        .badge-gray-dark { background: #e2e8f0; color: #334155; }
         .page-tab {
             padding: 12px 24px; font-size: 15px; font-weight: 600;
             cursor: pointer; border-bottom: 3px solid transparent;
@@ -149,7 +145,7 @@
             display: flex; align-items: center; gap: 12px;
         }
         .check-pass { background: #f0fdf4; border-color: #bbf7d0; }
-        .check-warn { background: #fffbeb; border-color: #fde68a; }
+        .check-warn { background: #fff7ed; border-color: #fed7aa; }
         .check-fail { background: #fef2f2; border-color: #fecaca; }
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
@@ -165,6 +161,7 @@
             display: none; align-items: center; gap: 10px; max-width: 420px;
         }
         .toast.show { display: flex; animation: slideIn 0.3s ease; }
+        .toast-success { background: #dcfce7; color: #166534; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .health-badge {
             display: inline-flex; align-items: center; gap: 6px;
@@ -177,6 +174,12 @@
             text-align: center; padding: 60px 20px; color: #94a3b8;
         }
         .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .tag-chip {
+            display: inline-block; padding: 2px 8px;
+            background: #e0f2fe; color: #0369a1;
+            border-radius: 6px; font-size: 11px;
+            font-weight: 500; margin: 2px;
+        }
     </style>
 </head>
 <body>
@@ -244,7 +247,6 @@
                     </div>
                     <div class="page-tab" onclick="switchPage(this, 'abtest')">
                         <i class="fas fa-flask mr-2"></i>A/B测试
-                        <span class="ml-2 bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full">3</span>
                     </div>
                     <div class="page-tab" onclick="switchPage(this, 'eval')">
                         <i class="fas fa-chart-bar mr-2"></i>评估结果
@@ -263,7 +265,7 @@
                                 <option>全部状态</option>
                                 <option>DRAFT</option><option>TESTING</option>
                                 <option>STAGING</option><option>PRODUCTION</option>
-                                <option>DEPRECATED</option>
+                                <option>DEPRECATED</option><option>ROLLED_BACK</option>
                             </select>
                             <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5">
                                 <option>全部提供商</option>
@@ -277,94 +279,21 @@
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table>
+                        <table id="models-table">
                             <thead>
                                 <tr>
-                                    <th>模型名称</th><th>版本</th><th>任务类型</th>
-                                    <th>状态</th><th>F1值</th><th>P95延迟</th>
-                                    <th>创建者</th><th>创建时间</th><th style="width:260px">操作</th>
+                                    <th>模型名称</th>
+                                    <th>版本</th>
+                                    <th>任务类型</th>
+                                    <th>状态</th>
+                                    <th>F1值</th>
+                                    <th>标签</th>
+                                    <th>创建时间</th>
+                                    <th style="width:300px">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-blue-500 mr-2"></i>risk-detect</td>
-                                    <td class="font-mono text-slate-600">v2.3.0</td>
-                                    <td><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">风险识别</span></td>
-                                    <td><span class="badge badge-production"><i class="fas fa-circle text-[8px]"></i> PRODUCTION</span></td>
-                                    <td><span class="font-semibold text-green-600">0.892</span></td>
-                                    <td>872 ms</td><td>李明</td>
-                                    <td class="text-xs text-slate-500">2026-06-05 14:20</td>
-                                    <td>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800 mr-3" onclick="openTrafficModal()">切换流量</button>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800 mr-3">查看监控</button>
-                                        <button class="text-xs text-red-600 hover:text-red-800">回滚</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-blue-500 mr-2"></i>contract-summary</td>
-                                    <td class="font-mono text-slate-600">v1.8.2</td>
-                                    <td><span class="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded">摘要生成</span></td>
-                                    <td><span class="badge badge-production"><i class="fas fa-circle text-[8px]"></i> PRODUCTION</span></td>
-                                    <td><span class="font-semibold text-green-600">0.841</span></td>
-                                    <td>1,240 ms</td><td>王芳</td>
-                                    <td class="text-xs text-slate-500">2026-06-02 10:08</td>
-                                    <td>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800 mr-3">切换流量</button>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800 mr-3">查看监控</button>
-                                        <button class="text-xs text-red-600 hover:text-red-800">回滚</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-purple-500 mr-2"></i>qa-engine</td>
-                                    <td class="font-mono text-slate-600">v2.1.0-beta</td>
-                                    <td><span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">智能问答</span></td>
-                                    <td><span class="badge badge-staging"><i class="fas fa-circle text-[8px]"></i> STAGING</span></td>
-                                    <td><span class="font-semibold text-amber-600">0.817</span></td>
-                                    <td>1,560 ms</td><td>张伟</td>
-                                    <td class="text-xs text-slate-500">2026-06-09 18:42</td>
-                                    <td>
-                                        <button class="text-xs text-green-600 hover:text-green-800 font-semibold mr-3" onclick="openDeployModal()">发布</button>
-                                        <button class="text-xs text-red-600 hover:text-red-800">回滚</button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-amber-500 mr-2"></i>clause-classifier</td>
-                                    <td class="font-mono text-slate-600">v3.0.0-rc1</td>
-                                    <td><span class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded">条款分类</span></td>
-                                    <td><span class="badge badge-testing"><i class="fas fa-circle text-[8px]"></i> TESTING</span></td>
-                                    <td><span class="font-semibold text-slate-600">0.789</span></td>
-                                    <td>430 ms</td><td>陈曦</td>
-                                    <td class="text-xs text-slate-500">2026-06-08 21:15</td>
-                                    <td>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800" onclick="openCheckModal('clause-classifier v3.0.0-rc1')">
-                                            <i class="fas fa-clipboard-check mr-1"></i>发布前检查
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-slate-400 mr-2"></i>risk-detect</td>
-                                    <td class="font-mono text-slate-500">v2.2.1</td>
-                                    <td><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">风险识别</span></td>
-                                    <td><span class="badge badge-rolled"><i class="fas fa-undo text-[10px]"></i> ROLLED_BACK</span></td>
-                                    <td><span class="font-semibold text-slate-500">0.854</span></td>
-                                    <td>912 ms</td><td>李明</td>
-                                    <td class="text-xs text-slate-500">2026-05-20 11:30</td>
-                                    <td><button class="text-xs text-slate-500">查看历史</button></td>
-                                </tr>
-                                <tr>
-                                    <td class="font-medium text-slate-800"><i class="fas fa-cube text-indigo-400 mr-2"></i>risk-detect</td>
-                                    <td class="font-mono text-slate-600">v2.4.0-dev</td>
-                                    <td><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">风险识别</span></td>
-                                    <td><span class="badge badge-draft"><i class="fas fa-circle text-[8px]"></i> DRAFT</span></td>
-                                    <td><span class="text-slate-400">-</span></td>
-                                    <td><span class="text-slate-400">-</span></td><td>李明</td>
-                                    <td class="text-xs text-slate-500">2026-06-10 09:02</td>
-                                    <td>
-                                        <button class="text-xs text-blue-600 hover:text-blue-800" onclick="openCheckModal('risk-detect v2.4.0-dev')">
-                                            <i class="fas fa-clipboard-check mr-1"></i>发布前检查
-                                        </button>
-                                    </td>
-                                </tr>
+                                <tr><td colspan="8"><div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -375,88 +304,15 @@
                         <div class="flex gap-2 flex-wrap">
                             <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5">
                                 <option>全部状态</option>
-                                <option>运行中</option><option>已停止</option><option>已分析</option>
+                                <option>DRAFT</option><option>RUNNING</option>
+                                <option>COMPLETED</option><option>STOPPED</option>
+                                <option>ANALYZED</option>
                             </select>
                         </div>
                         <button class="btn-primary"><i class="fas fa-plus"></i>新建A/B测试</button>
                     </div>
-                    <div class="p-5">
-                        <div class="ab-card">
-                            <div class="flex items-start justify-between mb-4">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1.5">
-                                        <span class="blink-dot" style="background:#16a34a;"></span>
-                                        <span class="text-xs font-semibold text-green-600 uppercase tracking-wide">运行中</span>
-                                        <span class="text-xs text-slate-400">· 已运行 5 天</span>
-                                    </div>
-                                    <h4 class="text-base font-bold text-slate-800 mb-0.5">AB-2026-061 · 风险识别模型 v2.3 vs v2.2</h4>
-                                    <div class="text-xs text-slate-500">任务：风险识别 · 分流：50%/50% · 置信度：95%</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-xs text-slate-400 mb-1">当前胜者</div>
-                                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-green-50 text-green-700 font-semibold text-sm">
-                                        <i class="fas fa-trophy text-amber-500"></i> v2.3 领先
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div class="md:col-span-2">
-                                    <div class="flex items-center justify-between mb-1.5">
-                                        <span class="text-xs text-slate-600">样本进度</span>
-                                        <span class="text-xs font-semibold text-slate-700">2,847 / 5,000 (56.9%)</span>
-                                    </div>
-                                    <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full" style="width:56.9%"></div>
-                                    </div>
-                                    <div class="flex justify-between text-xs text-slate-400 mt-1.5">
-                                        <span>A组 (v2.2): 1,422</span><span>B组 (v2.3): 1,425</span>
-                                    </div>
-                                </div>
-                                <div class="bg-slate-50 rounded-lg p-3">
-                                    <div class="text-xs text-slate-500 mb-1">统计显著性</div>
-                                    <div class="flex items-baseline gap-2">
-                                        <span class="text-2xl font-bold text-green-600">p 0.05</span>
-                                        <span class="badge badge-green">显著 ✓</span>
-                                    </div>
-                                    <div class="text-[11px] text-slate-400 mt-0.5">可提前终止</div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-5 gap-2 mb-4 p-3 bg-slate-50 rounded-lg text-center">
-                                <div><div class="text-xs text-slate-500 mb-1">F1</div><div class="text-lg font-bold text-green-600">+7.7%</div><span class="badge badge-green text-[10px]">显著</span></div>
-                                <div><div class="text-xs text-slate-500 mb-1">精确率</div><div class="text-lg font-bold text-green-600">+6.8%</div><span class="badge badge-green text-[10px]">显著</span></div>
-                                <div><div class="text-xs text-slate-500 mb-1">召回率</div><div class="text-lg font-bold text-green-600">+8.5%</div><span class="badge badge-green text-[10px]">显著</span></div>
-                                <div><div class="text-xs text-slate-500 mb-1">延迟</div><div class="text-lg font-bold text-green-600">-15.1%</div><span class="badge badge-green text-[10px]">更优</span></div>
-                                <div><div class="text-xs text-slate-500 mb-1">成本</div><div class="text-lg font-bold text-red-500">+5.2%</div><span class="badge badge-slate text-[10px]">不显著</span></div>
-                            </div>
-                            <div class="flex justify-end gap-2">
-                                <button class="btn-secondary text-xs" onclick="openAbDetailModal()"><i class="fas fa-chart-line mr-1"></i>查看详情</button>
-                                <button class="btn-danger text-xs"><i class="fas fa-stop mr-1"></i>停止并指定胜者</button>
-                            </div>
-                        </div>
-
-                        <div class="ab-card" style="opacity:0.9;">
-                            <div class="flex items-start justify-between mb-4">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1.5">
-                                        <i class="fas fa-check-circle text-blue-500"></i>
-                                        <span class="text-xs font-semibold text-blue-600 uppercase">已分析</span>
-                                        <span class="text-xs text-slate-400">· 结束于 2026-06-01</span>
-                                    </div>
-                                    <h4 class="text-base font-bold text-slate-800 mb-0.5">AB-2026-048 · 问答模型 v2.0 vs v1.9</h4>
-                                    <div class="text-xs text-slate-500">任务：智能问答 · 分流：50%/50% · 总样本 6,240</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-xs text-slate-400 mb-1">最终胜者</div>
-                                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 text-blue-700 font-semibold text-sm border border-blue-200">
-                                        <i class="fas fa-crown text-amber-500"></i> v2.0 全量
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-2">
-                                <button class="btn-secondary text-xs" onclick="openAbDetailModal()"><i class="fas fa-chart-line mr-1"></i>查看详情</button>
-                                <button class="btn-secondary text-xs text-blue-600"><i class="fas fa-file-export mr-1"></i>导出报告</button>
-                            </div>
-                        </div>
+                    <div class="p-5" id="ab-grid">
+                        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div>
                     </div>
                 </div>
 
@@ -482,38 +338,39 @@
             <div class="flex-1 overflow-y-auto p-5 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="block text-sm font-medium text-slate-700 mb-1.5">模型名称 <span class="text-red-500">*</span></label>
-                        <input type="text" placeholder="risk-detect" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                        <input id="reg-model-name" type="text" placeholder="risk-detect" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                     </div>
                     <div><label class="block text-sm font-medium text-slate-700 mb-1.5">版本号 <span class="text-red-500">*</span></label>
-                        <input type="text" placeholder="v2.5.0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                        <input id="reg-version" type="text" placeholder="v2.5.0" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="block text-sm font-medium text-slate-700 mb-1.5">任务类型 <span class="text-red-500">*</span></label>
-                        <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                            <option>风险识别</option><option>摘要生成</option>
-                            <option>智能问答</option><option>条款分类</option>
+                        <select id="reg-task-type" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="summary">摘要生成</option>
+                            <option value="risk">风险识别</option>
+                            <option value="qa">智能问答</option>
+                            <option value="classification">条款分类</option>
                         </select>
                     </div>
                     <div><label class="block text-sm font-medium text-slate-700 mb-1.5">提供商 <span class="text-red-500">*</span></label>
-                        <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                            <option>OpenAI</option><option>Anthropic</option>
-                            <option>智谱AI</option><option>通义千问</option><option>本地部署</option>
+                        <select id="reg-provider" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                            <option value="mock">Mock</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="zhipu">智谱AI</option>
+                            <option value="qwen">通义千问</option>
                         </select>
                     </div>
                 </div>
-                <div><label class="block text-sm font-medium text-slate-700 mb-1.5">模型ID / 部署路径</label>
-                    <input type="text" placeholder="gpt-4o-mini 或 本地路径" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <div><label class="block text-sm font-medium text-slate-700 mb-1.5">发布说明 / 描述</label>
+                    <textarea id="reg-description" rows="2" placeholder="简要描述该版本的功能、优化点..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
                 </div>
-                <div><label class="block text-sm font-medium text-slate-700 mb-1.5">Prompt 模板</label>
-                    <textarea rows="3" placeholder='支持变量: {{contract_text}}, {{task_type}}' class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1.5">变更日志 (changelog)</label>
+                    <textarea id="reg-changelog" rows="3" placeholder="1. 修复XXX问题\n2. 新增YYY特性" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"></textarea>
                 </div>
-                <div><label class="block text-sm font-medium text-slate-700 mb-2">阈值配置</label>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div><div class="text-xs text-slate-500 mb-1">Temperature</div><input type="number" step="0.1" value="0.3" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
-                        <div><div class="text-xs text-slate-500 mb-1">Top-P</div><input type="number" step="0.1" value="0.9" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
-                        <div><div class="text-xs text-slate-500 mb-1">Max Token</div><input type="number" value="4096" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm"></div>
-                    </div>
+                <div><label class="block text-sm font-medium text-slate-700 mb-1.5">标签 (逗号分隔)</label>
+                    <input id="reg-tags" type="text" placeholder="default,experimental" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                 </div>
             </div>
             <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
@@ -529,86 +386,92 @@
                 <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-clipboard-check text-blue-500 mr-2"></i>发布前检查清单</h3>
                 <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('check-modal')"><i class="fas fa-times text-lg"></i></button>
             </div>
-            <div class="bg-blue-50 border-b border-blue-100 px-5 py-2 text-xs text-blue-700">
-                模型：<b id="check-model-name">risk-detect v2.4.0-dev</b> · 耗时 2分41秒
-            </div>
-            <div class="flex-1 overflow-y-auto p-5 space-y-2">
-                <div class="check-item check-pass">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">1. 基准数据集测试通过</div>
-                        <div class="text-xs text-slate-500">F1=0.876，超过基线 0.85 阈值</div></div>
-                    <span class="badge badge-green">PASS</span>
-                </div>
-                <div class="check-item check-pass">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">2. 性能压力测试通过</div>
-                        <div class="text-xs text-slate-500">100 QPS 下 P95=920ms，错误率 0.02%</div></div>
-                    <span class="badge badge-green">PASS</span>
-                </div>
-                <div class="check-item check-warn">
-                    <i class="fas fa-exclamation-triangle text-amber-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">3. 成本预算警告</div>
-                        <div class="text-xs text-slate-500">月成本预计 ¥12,300，较上版 +18%</div></div>
-                    <span class="badge badge-yellow">WARN</span>
-                </div>
-                <div class="check-item check-pass">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">4. 安全合规检查通过</div>
-                        <div class="text-xs text-slate-500">Prompt注入/敏感词测试 150 项通过</div></div>
-                    <span class="badge badge-green">PASS</span>
-                </div>
-                <div class="check-item check-fail">
-                    <i class="fas fa-times-circle text-red-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">5. 回归 Badcase 检查失败</div>
-                        <div class="text-xs text-slate-500">历史已修复 Badcase 中 3 条重新出现</div></div>
-                    <span class="badge badge-red">FAIL</span>
-                </div>
-                <div class="check-item check-pass">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                    <div class="flex-1"><div class="text-sm font-medium text-slate-800">6. 人工抽检通过</div>
-                        <div class="text-xs text-slate-500">50 条人工通过率 96% ≥ 90%</div></div>
-                    <span class="badge badge-green">PASS</span>
+            <div class="bg-blue-50 border-b border-blue-100 px-5 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="text-xs text-blue-700">
+                        模型：<b id="check-model-name">-</b>
+                    </div>
+                    <div id="check-all-status" class="text-sm font-semibold">检查中...</div>
                 </div>
             </div>
-            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between">
-                <div class="text-xs text-slate-500"><i class="fas fa-info-circle mr-1"></i>存在 1 项失败、1 项警告，不建议直接发布</div>
+            <div class="flex-1 overflow-y-auto p-5 space-y-2" id="check-list">
+                <div class="p-8 text-center text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-2xl mr-3"></i>正在执行检查项...
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                <div id="check-summary" class="text-xs text-slate-500"></div>
                 <div class="flex gap-2">
                     <button class="btn-secondary" onclick="closeModal('check-modal')">关闭</button>
-                    <button class="btn-primary"><i class="fas fa-redo mr-1"></i> 重新检查</button>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="deploy-modal" onclick="if(event.target===this)closeModal('deploy-modal')">
-        <div class="modal" style="max-width:520px;">
+        <div class="modal" style="max-width:540px;">
             <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-rocket text-green-500 mr-2"></i>发布到生产</h3>
                 <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('deploy-modal')"><i class="fas fa-times text-lg"></i></button>
             </div>
             <div class="p-5 space-y-4">
-                <div class="p-3 bg-slate-50 rounded-lg text-sm">
-                    <div class="flex justify-between mb-1"><span class="text-slate-500">模型</span><span class="font-medium">qa-engine v2.1.0-beta</span></div>
-                    <div class="flex justify-between"><span class="text-slate-500">F1 / P95</span><span class="font-medium">0.817 / 1,560ms</span></div>
+                <div class="p-3 bg-slate-50 rounded-lg text-sm" id="deploy-model-info">
+                    <div class="flex justify-between mb-1"><span class="text-slate-500">模型</span><span class="font-medium" id="deploy-model-title">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">F1</span><span class="font-medium" id="deploy-model-f1">-</span></div>
                 </div>
-                <div><label class="block text-sm font-medium text-slate-700 mb-2">发布策略</label>
-                    <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg mb-2 cursor-pointer">
-                        <input type="radio" name="strategy" class="accent-blue-600">
-                        <span class="text-sm"><b>灰度 10%</b> · 先切 10% 观察 24h</span>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">
+                        灰度流量占比：<span class="text-blue-700 font-bold" id="deploy-pct-text">100%</span>
                     </label>
-                    <label class="flex items-center gap-2 p-3 border border-blue-200 bg-blue-50 rounded-lg mb-2 cursor-pointer">
-                        <input type="radio" name="strategy" checked class="accent-blue-600">
-                        <span class="text-sm"><b>A/B 分流</b> · 与当前版各 50% 流量</span>
-                    </label>
-                    <label class="flex items-center gap-2 p-3 border border-slate-200 rounded-lg cursor-pointer">
-                        <input type="radio" name="strategy" class="accent-blue-600">
-                        <span class="text-sm"><b>全量发布</b> · 立即切 100%</span>
-                    </label>
+                    <input id="deploy-pct" type="range" min="0" max="100" value="100" class="w-full accent-blue-600">
+                    <div class="flex justify-between mt-2 text-xs text-slate-500">
+                        <span>0%</span><span>50%</span><span>100%</span>
+                    </div>
                 </div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="deploy-set-default" type="checkbox" checked class="accent-blue-600 w-4 h-4">
+                    <span class="text-sm">发布后设为该模型的默认版本（is_default=true）</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="deploy-ab" type="checkbox" class="accent-blue-600 w-4 h-4">
+                    <span class="text-sm">同步创建 A/B 测试（与当前 production 版本 50/50 分流）</span>
+                </label>
             </div>
             <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
                 <button class="btn-secondary" onclick="closeModal('deploy-modal')">取消</button>
-                <button class="btn-success"><i class="fas fa-check mr-1"></i> 确认发布</button>
+                <button class="btn-success" onclick="publishModel()"><i class="fas fa-check mr-1"></i> 确认发布</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rollback-modal" onclick="if(event.target===this)closeModal('rollback-modal')">
+        <div class="modal" style="max-width:500px;">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-undo text-orange-500 mr-2"></i>模型回滚</h3>
+                <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('rollback-modal')"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-800">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    回滚将把当前模型标记为 ROLLED_BACK，并可选指定恢复到的目标版本。
+                </div>
+                <div id="rollback-model-info" class="p-3 bg-slate-50 rounded-lg text-sm">
+                    <div class="flex justify-between mb-1"><span class="text-slate-500">当前模型</span><span class="font-medium" id="rollback-model-title">-</span></div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">回滚目标版本 (可选)</label>
+                    <select id="rollback-target-id" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="">-- 不指定（仅标记状态）--</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">回滚原因 <span class="text-red-500">*</span></label>
+                    <textarea id="rollback-reason" rows="3" placeholder="例如：生产环境发现F1骤降，延迟过高..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500"></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
+                <button class="btn-secondary" onclick="closeModal('rollback-modal')">取消</button>
+                <button class="btn-danger" onclick="confirmRollback()"><i class="fas fa-check mr-1"></i> 确认回滚</button>
             </div>
         </div>
     </div>
@@ -623,52 +486,15 @@
                 <div id="ab-chart" style="height:260px;"></div>
                 <div class="overflow-x-auto rounded-lg border border-slate-200">
                     <table>
-                        <thead><tr><th>指标</th><th>模型A (v2.2)</th><th>模型B (v2.3)</th><th>提升</th><th>p值</th><th>显著</th></tr></thead>
-                        <tbody>
-                            <tr><td class="font-medium">精确率</td><td>0.785</td><td class="font-semibold">0.853</td><td class="text-green-600 font-semibold">+8.66%</td><td>0.0021</td><td><span class="badge badge-green">是</span></td></tr>
-                            <tr><td class="font-medium">召回率</td><td>0.732</td><td class="font-semibold">0.817</td><td class="text-green-600 font-semibold">+11.6%</td><td>0.0008</td><td><span class="badge badge-green">是</span></td></tr>
-                            <tr><td class="font-medium">F1 Score</td><td>0.758</td><td class="font-semibold">0.835</td><td class="text-green-600 font-semibold">+10.1%</td><td>0.0015</td><td><span class="badge badge-green">是</span></td></tr>
-                            <tr><td class="font-medium">P95延迟(ms)</td><td>912</td><td class="font-semibold">785</td><td class="text-green-600 font-semibold">-13.9%</td><td>0.024</td><td><span class="badge badge-green">是</span></td></tr>
-                            <tr><td class="font-medium">单次成本(¥)</td><td>0.038</td><td class="font-semibold">0.040</td><td class="text-red-500 font-semibold">+5.2%</td><td>0.18</td><td><span class="badge badge-slate">否</span></td></tr>
+                        <thead><tr><th>指标</th><th>模型A</th><th>模型B</th><th>提升</th><th>p值</th><th>显著</th></tr></thead>
+                        <tbody id="ab-detail-body">
+                            <tr><td colspan="6" class="text-center text-slate-400 py-8">暂无数据</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
             <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
-                <button class="btn-danger"><i class="fas fa-stop mr-1"></i>停止并指定胜者</button>
                 <button class="btn-secondary" onclick="closeModal('ab-detail-modal')">关闭</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal-overlay" id="traffic-modal" onclick="if(event.target===this)closeModal('traffic-modal')">
-        <div class="modal" style="max-width:500px;">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-sliders-h text-blue-500 mr-2"></i>流量切换配置</h3>
-                <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('traffic-modal')"><i class="fas fa-times text-lg"></i></button>
-            </div>
-            <div class="p-5 space-y-5">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">risk-detect v2.3.0 流量占比</label>
-                    <input type="range" min="0" max="100" value="70" class="w-full accent-blue-600" oninput="document.getElementById('traffic-pct').textContent=this.value;document.getElementById('pct-a').textContent=this.value+'%';document.getElementById('pct-b').textContent=(100-parseInt(this.value))+'%'">
-                    <div class="flex justify-between mt-2 text-xs text-slate-500">
-                        <span>0%</span><span class="text-base font-bold text-blue-700" id="traffic-pct">70%</span><span>100%</span>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <div class="flex justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <span class="text-sm"><i class="fas fa-cube mr-1 text-green-600"></i> risk-detect v2.3.0</span>
-                        <span class="font-semibold text-green-700" id="pct-a">70%</span>
-                    </div>
-                    <div class="flex justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                        <span class="text-sm"><i class="fas fa-cube mr-1 text-slate-500"></i> risk-detect v2.2.1</span>
-                        <span class="font-semibold text-slate-700" id="pct-b">30%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="p-4 border-t border-slate-100 flex justify-end gap-2">
-                <button class="btn-secondary" onclick="closeModal('traffic-modal')">取消</button>
-                <button class="btn-primary"><i class="fas fa-check mr-1"></i> 应用配置</button>
             </div>
         </div>
     </div>
@@ -677,27 +503,42 @@
         const BASE = "/api/v1";
         let currentModelId = null;
         let currentAbId = null;
-        let currentTrafficPct = 70;
+        let currentRollbackModelId = null;
+        let allModelsCache = [];
 
-        const mockModels = [
-            { id: 1, model_name: 'risk-detect', version: 'v2.3.0', status: 'TESTING', task_type: '风险识别', eval_metrics: { f1: 0.853 }, updated_at: '2024-06-12 14:30' },
-            { id: 2, model_name: 'risk-detect', version: 'v2.2.1', status: 'PRODUCTION', task_type: '风险识别', eval_metrics: { f1: 0.758 }, updated_at: '2024-06-01 09:15' },
-            { id: 3, model_name: 'contract-summary', version: 'v1.8.0', status: 'PRODUCTION', task_type: '摘要生成', eval_metrics: { f1: 0.891 }, updated_at: '2024-05-28 16:42' },
-            { id: 4, model_name: 'contract-summary', version: 'v1.9.0', status: 'DRAFT', task_type: '摘要生成', eval_metrics: { f1: null }, updated_at: '2024-06-11 11:20' },
-            { id: 5, model_name: 'legal-qa', version: 'v3.1.0', status: 'PRODUCTION', task_type: '智能问答', eval_metrics: { f1: 0.812 }, updated_at: '2024-05-20 10:05' }
-        ];
+        const CHECK_NAME_ZH = {
+            "eval_metrics_present": "评估指标存在性",
+            "description_present": "发布说明",
+            "changelog_present": "变更日志",
+            "status_ready": "状态就绪",
+            "test_coverage_pass": "测试覆盖率",
+            "significant_improvement": "显著性提升"
+        };
 
-        const mockAbTests = [
-            { id: 1, name: 'risk-detect 2.2 vs 2.3', model_a: 'risk-detect-v2.2.1', model_b: 'risk-detect-v2.3.0', p_value: 0.0015, winner: 'B', actual_sample_size_a: 15234, actual_sample_size_b: 15890, status: 'running' },
-            { id: 2, name: 'summary 1.7 vs 1.8', model_a: 'contract-summary-v1.7.5', model_b: 'contract-summary-v1.8.0', p_value: 0.012, winner: 'B', actual_sample_size_a: 8200, actual_sample_size_b: 8420, status: 'completed' },
-            { id: 3, name: 'legal-qa prompt优化', model_a: 'legal-qa-v3.0.0', model_b: 'legal-qa-v3.1.0', p_value: 0.08, winner: null, actual_sample_size_a: 3100, actual_sample_size_b: 3180, status: 'running' }
-        ];
+        const TASK_TYPE_ZH = {
+            "summary": "摘要生成",
+            "risk": "风险识别",
+            "qa": "智能问答",
+            "classification": "条款分类",
+            "contract_summary": "摘要生成",
+            "risk_detect": "风险识别",
+            "legal_qa": "智能问答",
+            "clause_classifier": "条款分类"
+        };
 
-        function showToast(msg) {
+        function showToast(msg, isSuccess) {
             const t = document.getElementById('toast');
+            const icon = t.querySelector('i');
             document.getElementById('toast-msg').textContent = msg;
+            t.classList.remove('toast-success');
+            if (isSuccess) {
+                t.classList.add('toast-success');
+                icon.className = 'fas fa-check-circle';
+            } else {
+                icon.className = 'fas fa-exclamation-circle';
+            }
             t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 4000);
+            setTimeout(function(){ t.classList.remove('show'); }, 4000);
         }
 
         async function checkHealth() {
@@ -706,302 +547,573 @@
                 const resp = await fetch('/healthz');
                 if (resp.status === 200) {
                     badge.className = 'health-badge health-ok';
-                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
-                } else { throw new Error('status ' + resp.status); }
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>接口正常 (200)</span>';
+                } else {
+                    throw new Error('status ' + resp.status);
+                }
             } catch (e) {
                 badge.className = 'health-badge health-fail';
-                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>接口失败: ' + e.message + '</span>';
             }
         }
 
         function escapeHtml(s) {
             const d = document.createElement('div');
-            d.textContent = s || '';
+            d.textContent = (s == null) ? '' : String(s);
             return d.innerHTML;
         }
 
-        function statusBadge(s) {
+        function modelStatusBadge(s) {
+            const key = String(s || '').toLowerCase();
             const map = {
-                'PRODUCTION': ['badge-green', '生产'],
-                'TESTING': ['badge-yellow', '测试中'],
-                'DRAFT': ['badge-slate', '草稿'],
-                'ARCHIVED': ['badge-slate', '已归档'],
-                'running': ['badge-blue', '进行中'],
-                'completed': ['badge-green', '已完成'],
-                'stopped': ['badge-slate', '已停止']
+                'draft':         ['badge-slate',     'DRAFT',     '草稿'],
+                'testing':       ['badge-blue',      'TESTING',   '测试中'],
+                'staging':       ['badge-purple',    'STAGING',   '准生产'],
+                'production':    ['badge-green',     'PRODUCTION','生产'],
+                'deprecated':    ['badge-gray-dark', 'DEPRECATED','已弃用'],
+                'rolled_back':   ['badge-orange',    'ROLLED_BACK','已回滚']
             };
-            const [cls, txt] = map[s] || ['badge-slate', s];
-            return `<span class="badge ${cls}">${txt}</span>`;
+            const entry = map[key];
+            if (!entry) {
+                return '<span class="badge badge-slate">' + escapeHtml(String(s || '-').toUpperCase()) + '</span>';
+            }
+            const [cls, upper, zh] = entry;
+            return '<span class="badge ' + cls + '"><i class="fas fa-circle text-[8px]"></i> ' + upper + '</span>';
+        }
+
+        function abStatusBadge(s) {
+            const key = String(s || '').toLowerCase();
+            const map = {
+                'draft':     ['badge-slate',   'DRAFT',     '草稿'],
+                'running':   ['badge-green',   'RUNNING',   '运行中'],
+                'completed': ['badge-blue',    'COMPLETED', '已完成'],
+                'stopped':   ['badge-red',     'STOPPED',   '已停止'],
+                'analyzed':  ['badge-purple',  'ANALYZED',  '已分析']
+            };
+            const entry = map[key];
+            if (!entry) {
+                return '<span class="badge badge-slate">' + escapeHtml(String(s || '-').toUpperCase()) + '</span>';
+            }
+            const [cls, upper, zh] = entry;
+            if (key === 'running') {
+                return '<span class="badge ' + cls + '"><span class="blink-dot" style="background:#16a34a;"></span> ' + upper + '</span>';
+            }
+            return '<span class="badge ' + cls + '"> ' + upper + '</span>';
+        }
+
+        function taskTypeZh(t) {
+            if (!t) return '-';
+            const s = String(t).toLowerCase();
+            return TASK_TYPE_ZH[s] || escapeHtml(t);
         }
 
         function switchPage(el, name) {
-            document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.page-tab').forEach(function(t){ t.classList.remove('active'); });
             el.classList.add('active');
-            ['versions','abtest','eval'].forEach(p => {
-                const el = document.getElementById('page-' + p);
-                if (el) el.style.display = (p === name) ? 'block' : 'none';
+            ['versions','abtest','eval'].forEach(function(p){
+                const pel = document.getElementById('page-' + p);
+                if (pel) pel.style.display = (p === name) ? 'block' : 'none';
             });
-            if (name === 'abtest') setTimeout(initAbCard, 50);
+            if (name === 'abtest') {
+                setTimeout(function(){ loadAbTests(); }, 50);
+            }
         }
 
-        function openModal(id) { document.getElementById(id).classList.add('open'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-        function openRegisterModal() { openModal('register-modal'); }
+        function openModal(id) {
+            document.getElementById(id).classList.add('open');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+        function openRegisterModal() {
+            openModal('register-modal');
+        }
 
         function openCheckModal(id, name) {
             currentModelId = id;
-            document.getElementById('check-model-name').textContent = name;
+            document.getElementById('check-model-name').textContent = name || '-';
+            document.getElementById('check-all-status').textContent = '检查中...';
+            document.getElementById('check-all-status').className = 'text-sm font-semibold text-slate-500';
             document.getElementById('check-list').innerHTML = '<div class="p-8 text-center text-slate-400"><i class="fas fa-spinner fa-spin text-2xl mr-3"></i>正在执行检查项...</div>';
+            document.getElementById('check-summary').textContent = '';
             openModal('check-modal');
             loadPreReleaseChecks(id);
         }
 
-        function openDeployModal(id, name, version) {
+        function openDeployModal(id, name, version, f1) {
             currentModelId = id;
-            document.getElementById('deploy-model-title').innerHTML = `<b>${name}</b> (${version})`;
+            document.getElementById('deploy-model-title').innerHTML = '<b>' + escapeHtml(name || '') + '</b> (' + escapeHtml(version || '') + ')';
+            document.getElementById('deploy-model-f1').textContent = (f1 != null) ? Number(f1).toFixed(3) : '-';
+            document.getElementById('deploy-pct').value = 100;
+            document.getElementById('deploy-pct-text').textContent = '100%';
             openModal('deploy-modal');
         }
 
-        function openTrafficModal(id) {
-            currentModelId = id;
-            currentTrafficPct = 70;
-            openModal('traffic-modal');
+        function openRollbackModal(id, name, version) {
+            currentRollbackModelId = id;
+            document.getElementById('rollback-model-title').innerHTML = '<b>' + escapeHtml(name || '') + '</b> (' + escapeHtml(version || '') + ')';
+            document.getElementById('rollback-target-id').innerHTML = '<option value="">-- 不指定（仅标记状态）--</option>';
+            document.getElementById('rollback-reason').value = '';
+            const sameNameModels = allModelsCache.filter(function(m){
+                return m.model_name === name && m.id !== id;
+            }).sort(function(a,b){
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+            const sel = document.getElementById('rollback-target-id');
+            sameNameModels.forEach(function(m){
+                const opt = document.createElement('option');
+                opt.value = String(m.id);
+                opt.textContent = m.model_name + ' ' + m.version + '  [' + (m.status || '').toUpperCase() + ']';
+                sel.appendChild(opt);
+            });
+            openModal('rollback-modal');
         }
 
         function openAbDetailModal(id) {
             currentAbId = id;
             openModal('ab-detail-modal');
-            setTimeout(initAbChart, 100);
+            setTimeout(function(){ initAbChart(); }, 100);
         }
 
         function renderModelsTable(items) {
             const tbody = document.querySelector('#models-table tbody');
             if (!tbody) return;
+            allModelsCache = items || [];
             if (!items || !items.length) {
-                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state py-10"><i class="fas fa-cube"></i><div>暂无模型数据</div></div></td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-10"><i class="fas fa-cube"></i><div>未找到模型，点击右上角"注册新模型"</div></div></td></tr>';
                 return;
             }
-            tbody.innerHTML = items.map(m => `
-                <tr class="hover:bg-slate-50">
-                    <td class="font-medium text-slate-800">${escapeHtml(m.model_name)}</td>
-                    <td><span class="font-mono text-sm text-blue-700 bg-blue-50 px-2 py-0.5 rounded">${escapeHtml(m.version)}</span></td>
-                    <td>${statusBadge(m.status)}</td>
-                    <td>${escapeHtml(m.task_type)}</td>
-                    <td>
-                        <div class="flex flex-col gap-0.5">
-                            <div class="text-xs text-slate-500">F1: <span class="font-semibold text-slate-700">${m.eval_metrics && m.eval_metrics.f1 != null ? Number(m.eval_metrics.f1).toFixed(3) : 'N/A'}</span></div>
-                        </div>
-                    </td>
-                    <td class="text-sm text-slate-500">${escapeHtml(m.updated_at || '-')}</td>
-                    <td class="text-sm">
-                        <div class="flex gap-1 flex-wrap">
-                            <button class="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded" onclick="openCheckModal(${m.id}, '${escapeHtml(m.model_name)} ${escapeHtml(m.version)}')"><i class="fas fa-check-circle mr-1"></i>发布前检查</button>
-                            ${m.status === 'TESTING' || m.status === 'DRAFT' ? `<button class="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded" onclick="openDeployModal(${m.id}, '${escapeHtml(m.model_name)}', '${escapeHtml(m.version)}')"><i class="fas fa-rocket mr-1"></i>灰度发布</button>` : ''}
-                            ${m.status === 'PRODUCTION' ? `<button class="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded" onclick="rollbackModel(${m.id})"><i class="fas fa-undo mr-1"></i>回滚</button>` : ''}
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = items.map(function(m){
+                const f1Val = (m.eval_metrics && typeof m.eval_metrics === 'object' && m.eval_metrics.f1 != null)
+                    ? Number(m.eval_metrics.f1).toFixed(3)
+                    : null;
+                const f1Display = f1Val
+                    ? '<span class="font-semibold ' + (Number(f1Val) >= 0.85 ? 'text-green-600' : Number(f1Val) >= 0.75 ? 'text-amber-600' : 'text-slate-600') + '">' + f1Val + '</span>'
+                    : '<span class="text-slate-400">-</span>';
+                const tagsHtml = (m.tags && Array.isArray(m.tags) && m.tags.length)
+                    ? m.tags.map(function(tg){ return '<span class="tag-chip">' + escapeHtml(tg) + '</span>'; }).join('')
+                    : '<span class="text-slate-400 text-xs">-</span>';
+                const canCheck = true;
+                const canDeploy = (m.status === 'draft' || m.status === 'testing' || m.status === 'staging' || m.status === 'DRAFT' || m.status === 'TESTING' || m.status === 'STAGING');
+                const canRollback = (m.status === 'production' || m.status === 'PRODUCTION');
+                const createdAt = m.created_at ? new Date(m.created_at).toLocaleString('zh-CN', {hour12:false}).replace(/\//g,'-') : '-';
+                const defaultIcon = m.is_default ? '<i class="fas fa-star text-amber-400 ml-1" title="默认版本"></i>' : '';
+                return '<tr class="hover:bg-slate-50">'
+                    + '<td class="font-medium text-slate-800"><i class="fas fa-cube text-blue-500 mr-2"></i>' + escapeHtml(m.model_name) + defaultIcon + '</td>'
+                    + '<td><span class="font-mono text-sm text-blue-700 bg-blue-50 px-2 py-0.5 rounded">' + escapeHtml(m.version || '-') + '</span></td>'
+                    + '<td><span class="text-xs bg-slate-50 text-slate-600 px-2 py-0.5 rounded">' + taskTypeZh(m.task_type) + '</span></td>'
+                    + '<td>' + modelStatusBadge(m.status) + '</td>'
+                    + '<td>' + f1Display + '</td>'
+                    + '<td>' + tagsHtml + '</td>'
+                    + '<td class="text-xs text-slate-500">' + escapeHtml(createdAt) + '</td>'
+                    + '<td><div class="flex gap-1 flex-wrap">'
+                    + (canCheck ? '<button class="text-xs px-2 py-1 text-blue-600 hover:bg-blue-50 rounded" onclick="openCheckModal(' + m.id + ',\'' + escapeHtml(m.model_name) + ' ' + escapeHtml(m.version || '') + '\')"><i class="fas fa-clipboard-check mr-1"></i>检查</button>' : '')
+                    + (canDeploy ? '<button class="text-xs px-2 py-1 text-green-600 hover:bg-green-50 rounded font-semibold" onclick="openDeployModal(' + m.id + ',\'' + escapeHtml(m.model_name) + '\',\'' + escapeHtml(m.version || '') + '\',' + (f1Val || 'null') + ')"><i class="fas fa-rocket mr-1"></i>发布</button>' : '')
+                    + (canRollback ? '<button class="text-xs px-2 py-1 text-orange-600 hover:bg-orange-50 rounded" onclick="openRollbackModal(' + m.id + ',\'' + escapeHtml(m.model_name) + '\',\'' + escapeHtml(m.version || '') + '\')"><i class="fas fa-undo mr-1"></i>回滚</button>' : '')
+                    + '<button class="text-xs px-2 py-1 text-slate-500 hover:bg-slate-50 rounded"><i class="fas fa-chart-line mr-1"></i>监控</button>'
+                    + '</div></td>'
+                    + '</tr>';
+            }).join('');
         }
 
         async function loadModels() {
             const tbody = document.querySelector('#models-table tbody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div></td></tr>`;
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-10"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div></td></tr>';
+            }
             try {
                 const resp = await fetch(BASE + '/mlops/models');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '模型列表加载失败'); throw new Error(r.message); }
-                const items = r.data.items || r.data || [];
+                if (r.code !== 0) {
+                    showToast(r.message || '模型列表加载失败');
+                    renderModelsTable([]);
+                    return;
+                }
+                const items = (r.data && r.data.items) ? r.data.items : (Array.isArray(r.data) ? r.data : []);
                 renderModelsTable(items);
             } catch (e) {
-                showToast('模型列表接口未实现，使用示例数据');
-                renderModelsTable(mockModels);
+                showToast('模型列表加载失败：' + e.message);
+                renderModelsTable([]);
             }
         }
 
-        function renderCheckList(checks) {
+        function getCheckBadge(item) {
+            if (item.passed === true) {
+                return { cls: 'badge-green', text: 'PASS', rowCls: 'check-pass', icon: 'fa-check-circle text-green-600' };
+            } else {
+                if (item.severity === 'error') {
+                    return { cls: 'badge-red', text: 'FAIL', rowCls: 'check-fail', icon: 'fa-times-circle text-red-600' };
+                } else if (item.severity === 'warning') {
+                    return { cls: 'badge-orange', text: 'WARN', rowCls: 'check-warn', icon: 'fa-exclamation-triangle text-orange-600' };
+                } else {
+                    return { cls: 'badge-orange', text: 'WARN', rowCls: 'check-warn', icon: 'fa-exclamation-triangle text-orange-500' };
+                }
+            }
+        }
+
+        function renderCheckList(checks, allPassed) {
             const container = document.getElementById('check-list');
-            const names = [
-                '数据质量检查', '模型大小验证', '基线性能对比',
-                '延迟&资源评估', '安全合规扫描', '回滚计划确认'
-            ];
-            const map = { PASS: 'check-pass', WARN: 'check-warn', FAIL: 'check-fail' };
-            const iconMap = { PASS: 'fa-check-circle text-green-600', WARN: 'fa-exclamation-triangle text-amber-500', FAIL: 'fa-times-circle text-red-600' };
-            container.innerHTML = checks.map((c, i) => `
-                <div class="check-item ${map[c.status || 'PASS']}">
-                    <div class="flex items-center gap-3">
-                        <i class="fas ${iconMap[c.status || 'PASS']} text-lg"></i>
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-slate-800">${names[i] || c.name || '检查项'}</div>
-                            <div class="text-xs text-slate-500 mt-0.5">${c.message || c.detail || '通过'}</div>
-                        </div>
-                        <span class="badge ${c.status === 'PASS' ? 'badge-green' : c.status === 'WARN' ? 'badge-yellow' : 'badge-red'}">${c.status || 'PASS'}</span>
-                    </div>
-                </div>
-            `).join('');
+            const statusEl = document.getElementById('check-all-status');
+            const summaryEl = document.getElementById('check-summary');
+
+            if (allPassed === true) {
+                statusEl.innerHTML = '<span class="text-green-700">✅ 全部通过（可发布）</span>';
+            } else {
+                statusEl.innerHTML = '<span class="text-red-700">❌ 存在问题（建议修复）</span>';
+            }
+
+            if (!checks || !checks.length) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-400">无检查项数据</div>';
+                return;
+            }
+
+            let passCount = 0, warnCount = 0, failCount = 0;
+            container.innerHTML = checks.map(function(c, idx){
+                const badge = getCheckBadge(c);
+                if (badge.text === 'PASS') passCount++;
+                else if (badge.text === 'FAIL') failCount++;
+                else warnCount++;
+                const zhName = CHECK_NAME_ZH[c.name] || c.name || ('检查项 ' + (idx + 1));
+                return '<div class="check-item ' + badge.rowCls + '">'
+                    + '<i class="fas ' + badge.icon + ' text-lg"></i>'
+                    + '<div class="flex-1">'
+                    + '<div class="text-sm font-medium text-slate-800">' + (idx + 1) + '. ' + escapeHtml(zhName) + '</div>'
+                    + '<div class="text-xs text-slate-500 mt-0.5">' + escapeHtml(c.message || '') + '</div>'
+                    + '</div>'
+                    + '<span class="badge ' + badge.cls + '">' + badge.text + '</span>'
+                    + '</div>';
+            }).join('');
+
+            summaryEl.innerHTML = '<i class="fas fa-info-circle mr-1"></i>'
+                + '共 ' + checks.length + ' 项：'
+                + '<span class="text-green-700 font-semibold">PASS ' + passCount + '</span> · '
+                + '<span class="text-orange-700 font-semibold">WARN ' + warnCount + '</span> · '
+                + '<span class="text-red-700 font-semibold">FAIL ' + failCount + '</span>';
         }
 
         async function loadPreReleaseChecks(id) {
             try {
-                const resp = await fetch(BASE + `/mlops/models/${id}/pre-release-checks`);
+                const resp = await fetch(BASE + '/mlops/models/' + id + '/pre-release-checks');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message);
-                const checks = Array.isArray(r.data) ? r.data : (r.data.checks || []);
-                renderCheckList(checks);
+                if (r.code !== 0) throw new Error(r.message || '检查失败');
+                const data = r.data || {};
+                const checks = Array.isArray(data.checks) ? data.checks : [];
+                const allPassed = (data.all_passed === true);
+                renderCheckList(checks, allPassed);
             } catch (e) {
-                const mock = [
-                    { status: 'PASS', message: '训练集12万条样本，分布均匀，缺失率<0.1%' },
-                    { status: 'PASS', message: '模型文件420MB，符合GPU部署要求' },
-                    { status: 'PASS', message: 'F1 0.853优于基线v2.2(0.758)，提升+12.5%' },
-                    { status: 'WARN', message: 'P95延迟785ms，接近阈值800ms，建议batch优化' },
-                    { status: 'PASS', message: '敏感信息扫描通过，无数据泄漏风险' },
-                    { status: 'PASS', message: '回滚配置完成，支持一键恢复至v2.2.1' }
-                ];
-                renderCheckList(mock);
+                showToast('发布前检查加载失败：' + e.message);
+                document.getElementById('check-list').innerHTML = '<div class="p-8 text-center text-slate-400"><i class="fas fa-exclamation-circle text-red-400 mr-2"></i>' + escapeHtml(e.message) + '</div>';
             }
         }
 
         async function publishModel() {
-            const pct = parseInt(document.getElementById('deploy-pct').value);
+            if (!currentModelId) {
+                showToast('缺少模型ID');
+                return;
+            }
+            const pct = parseInt(document.getElementById('deploy-pct').value, 10);
             const ab = document.getElementById('deploy-ab').checked;
-            if (!currentModelId) return;
+            const setDefault = document.getElementById('deploy-set-default').checked;
             try {
-                const resp = await fetch(BASE + `/mlops/models/${currentModelId}/publish`, {
+                const resp = await fetch(BASE + '/mlops/models/' + currentModelId + '/publish', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ traffic_percentage: pct, enable_ab_test: ab })
+                    body: JSON.stringify({
+                        set_default: setDefault,
+                        enable_ab_test: ab,
+                        traffic_percentage: pct
+                    })
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '发布失败'); return; }
-                showToast(`发布成功！已分配 ${pct}% 流量`);
+                if (r.code !== 0) {
+                    showToast(r.message || '发布失败');
+                    return;
+                }
+                showToast('发布成功！已分配 ' + pct + '% 流量', true);
                 closeModal('deploy-modal');
                 loadModels();
             } catch (e) {
-                showToast('发布接口未实现，操作已模拟');
-                closeModal('deploy-modal');
+                showToast('发布失败：' + e.message);
             }
         }
 
-        async function rollbackModel(id) {
-            const reason = prompt('请输入回滚原因：');
-            if (!reason) return;
+        async function confirmRollback() {
+            const id = currentRollbackModelId;
+            if (!id) {
+                showToast('缺少模型ID');
+                return;
+            }
+            const reason = document.getElementById('rollback-reason').value.trim();
+            if (!reason) {
+                showToast('请填写回滚原因');
+                return;
+            }
+            const targetSel = document.getElementById('rollback-target-id');
+            const targetVal = targetSel.value;
+            const target_version_id = targetVal ? parseInt(targetVal, 10) : null;
             try {
-                const resp = await fetch(BASE + `/mlops/models/${id}/rollback`, {
+                const payload = { reason: reason };
+                if (target_version_id) {
+                    payload.target_version_id = target_version_id;
+                }
+                const resp = await fetch(BASE + '/mlops/models/' + id + '/rollback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason })
+                    body: JSON.stringify(payload)
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '回滚失败'); return; }
-                showToast('回滚操作已提交');
+                if (r.code !== 0) {
+                    showToast(r.message || '回滚失败');
+                    return;
+                }
+                showToast('回滚操作已提交', true);
+                closeModal('rollback-modal');
                 loadModels();
             } catch (e) {
-                showToast('回滚接口未实现，操作已模拟');
-                loadModels();
+                showToast('回滚失败：' + e.message);
             }
         }
 
-        function submitRegister() {
-            showToast('模型注册已提交（示例）');
-            closeModal('register-modal');
+        function rollbackModel(id) {
+            const m = allModelsCache.find(function(x){ return x.id === id; });
+            if (m) {
+                openRollbackModal(m.id, m.model_name, m.version);
+            } else {
+                showToast('模型数据未找到');
+            }
+        }
+
+        async function submitRegister() {
+            const model_name = document.getElementById('reg-model-name').value.trim();
+            const version = document.getElementById('reg-version').value.trim();
+            if (!model_name || !version) {
+                showToast('模型名称和版本号必填');
+                return;
+            }
+            const task_type = document.getElementById('reg-task-type').value;
+            const provider = document.getElementById('reg-provider').value;
+            const description = document.getElementById('reg-description').value.trim() || null;
+            const changelog = document.getElementById('reg-changelog').value.trim() || null;
+            const tagsRaw = document.getElementById('reg-tags').value.trim();
+            const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(function(s){ return s.trim(); }).filter(Boolean) : null;
+            try {
+                const resp = await fetch(BASE + '/mlops/models/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model_name: model_name,
+                        version: version,
+                        task_type: task_type,
+                        provider: provider,
+                        description: description,
+                        changelog: changelog,
+                        tags: tags
+                    })
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const r = await resp.json();
+                if (r.code !== 0) {
+                    showToast(r.message || '注册失败');
+                    return;
+                }
+                showToast('模型注册成功', true);
+                closeModal('register-modal');
+                loadModels();
+            } catch (e) {
+                showToast('注册失败：' + e.message);
+            }
         }
 
         function renderAbTests(items) {
             const container = document.getElementById('ab-grid');
             if (!container) return;
             if (!items || !items.length) {
-                container.innerHTML = '<div class="empty-state col-span-full"><i class="fas fa-flask"></i><div>暂无AB测试</div></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-flask"></i><div>暂无AB测试数据</div></div>';
                 return;
             }
-            container.innerHTML = items.map(ab => {
-                const total = (ab.actual_sample_size_a || 0) + (ab.actual_sample_size_b || 0);
-                const target = 30000;
-                const pct = Math.min(100, Math.round(total / target * 100));
-                const winnerBadge = ab.winner ? `<span class="badge badge-green"><i class="fas fa-trophy mr-1"></i>${ab.winner}胜出</span>` : '<span class="badge badge-slate">待定</span>';
-                return `
-                    <div class="card p-5 hover:shadow-md transition">
-                        <div class="flex items-start justify-between mb-4">
-                            <div>
-                                <h4 class="font-semibold text-slate-800 text-base">${escapeHtml(ab.name)}</h4>
-                                <div class="text-xs text-slate-500 mt-1">p-value: <span class="${(ab.p_value||1)<0.05?'font-semibold text-green-600':''}">${ab.p_value ?? 'N/A'}</span> ${(ab.p_value||1)<0.05 ? '(显著)' : ''}</div>
-                            </div>
-                            ${statusBadge(ab.status)}
-                        </div>
-                        <div class="space-y-3 border border-slate-200 rounded-lg p-4 bg-slate-50 mb-4">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm"><span class="inline-block w-3 h-3 rounded-full bg-slate-400 mr-2"></span>模型A: ${escapeHtml(ab.model_a)}</span>
-                                <span class="text-xs font-semibold text-slate-700">${(ab.actual_sample_size_a||0).toLocaleString()} 样本</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm"><span class="inline-block w-3 h-3 rounded-full bg-blue-600 mr-2"></span>模型B: ${escapeHtml(ab.model_b)}</span>
-                                <span class="text-xs font-semibold text-blue-700">${(ab.actual_sample_size_b||0).toLocaleString()} 样本</span>
-                            </div>
-                        </div>
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2 text-xs">
-                                <span class="text-slate-500">收集进度 (目标30k样本)</span>
-                                <span class="font-semibold text-slate-700">${pct}%</span>
-                            </div>
-                            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                <div class="bg-gradient-to-r from-blue-500 to-blue-700 h-full transition-all" style="width:${pct}%"></div>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            ${winnerBadge}
-                            <div class="flex gap-1.5">
-                                ${ab.status !== 'completed' && ab.status !== 'stopped' ? `<button class="btn-success text-xs py-1 px-2.5" onclick="startAb(${ab.id})"><i class="fas fa-play mr-0.5"></i>启动</button>` : ''}
-                                <button class="btn-secondary text-xs py-1 px-2.5" onclick="analyzeAb(${ab.id})"><i class="fas fa-chart-bar mr-0.5"></i>分析</button>
-                                ${ab.status === 'running' ? `<button class="btn-danger text-xs py-1 px-2.5" onclick="stopAb(${ab.id})"><i class="fas fa-stop mr-0.5"></i>停止</button>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
+            container.innerHTML = items.map(function(ab){
+                const target = ab.target_sample_size > 0 ? ab.target_sample_size : 0;
+                const actualA = ab.actual_sample_size_a || 0;
+                const actualB = ab.actual_sample_size_b || 0;
+                const total = actualA + actualB;
+                const progressPct = target > 0 ? Math.min(100, Math.round(total / (2 * target) * 2 * 100)) : 0;
+
+                const pv = ab.p_value;
+                const isSig = ab.is_statistically_significant === true;
+                let pBadge;
+                if (pv != null) {
+                    if (pv < 0.05 && isSig) {
+                        pBadge = '<span class="badge badge-green">显著 (p=' + Number(pv).toFixed(4) + ')</span>';
+                    } else {
+                        pBadge = '<span class="badge badge-slate">p=' + Number(pv).toFixed(4) + '</span>';
+                    }
+                } else {
+                    pBadge = '<span class="badge badge-slate">p=N/A</span>';
+                }
+
+                let winnerHtml;
+                if (ab.winner) {
+                    const wUpper = String(ab.winner).toUpperCase();
+                    const isA = (wUpper === 'A' || wUpper === 'MODEL_A');
+                    const isB = (wUpper === 'B' || wUpper === 'MODEL_B');
+                    const wLabel = isA ? 'model_a' : (isB ? 'model_b' : String(ab.winner));
+                    winnerHtml = '<span class="text-amber-600 font-semibold text-sm">🏆 胜者：' + escapeHtml(wLabel) + '</span>';
+                } else {
+                    winnerHtml = '<span class="text-slate-400 text-xs">胜者待定</span>';
+                }
+
+                const splitA = Math.round((ab.split_ratio || 0.5) * 100);
+                const splitB = 100 - splitA;
+
+                const modelAName = ab.model_a_name || ('模型A #' + ab.model_a_id);
+                const modelBName = ab.model_b_name || ('模型B #' + ab.model_b_id);
+
+                const isRunning = String(ab.status || '').toLowerCase() === 'running';
+                const isDraft = String(ab.status || '').toLowerCase() === 'draft';
+                const isStopped = String(ab.status || '').toLowerCase() === 'stopped';
+
+                const startStr = ab.start_date ? new Date(ab.start_date).toLocaleDateString('zh-CN') : '-';
+                const endStr = ab.end_date ? new Date(ab.end_date).toLocaleDateString('zh-CN') : '-';
+
+                return '<div class="ab-card">'
+                    + '<div class="flex items-start justify-between mb-4">'
+                    + '<div>'
+                    + '<div class="flex items-center gap-2 mb-1.5">'
+                    + abStatusBadge(ab.status)
+                    + '<span class="text-xs text-slate-400">· ' + taskTypeZh(ab.task_type) + ' · 分流 ' + splitA + '%/' + splitB + '%</span>'
+                    + '</div>'
+                    + '<h4 class="text-base font-bold text-slate-800 mb-0.5">' + escapeHtml(ab.name || ('AB#' + ab.id)) + '</h4>'
+                    + '<div class="text-xs text-slate-500">'
+                    + 'A: <span class="font-medium text-slate-700">' + escapeHtml(modelAName) + '</span>'
+                    + ' vs '
+                    + 'B: <span class="font-medium text-slate-700">' + escapeHtml(modelBName) + '</span>'
+                    + (ab.description ? ' · ' + escapeHtml(ab.description) : '')
+                    + '</div>'
+                    + '</div>'
+                    + '<div class="text-right">'
+                    + '<div class="text-xs text-slate-400 mb-1">当前状态</div>'
+                    + winnerHtml
+                    + '</div>'
+                    + '</div>'
+
+                    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">'
+                    + '<div class="md:col-span-2">'
+                    + '<div class="flex items-center justify-between mb-1.5">'
+                    + '<span class="text-xs text-slate-600">样本进度 (目标 ' + (target || '?') + '×2)</span>'
+                    + '<span class="text-xs font-semibold text-slate-700">' + actualA.toLocaleString() + ' + ' + actualB.toLocaleString() + ' / ' + (target ? (target*2).toLocaleString() : '?') + ' (' + progressPct + '%)</span>'
+                    + '</div>'
+                    + '<div class="h-3 bg-slate-100 rounded-full overflow-hidden">'
+                    + '<div class="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full" style="width:' + progressPct + '%"></div>'
+                    + '</div>'
+                    + '<div class="flex justify-between text-xs text-slate-400 mt-1.5">'
+                    + '<span>A组: ' + actualA.toLocaleString() + '</span><span>B组: ' + actualB.toLocaleString() + '</span>'
+                    + '</div>'
+                    + '</div>'
+                    + '<div class="bg-slate-50 rounded-lg p-3">'
+                    + '<div class="text-xs text-slate-500 mb-1">统计显著性</div>'
+                    + pBadge
+                    + '<div class="text-[11px] text-slate-400 mt-1.5">主指标: ' + escapeHtml(ab.primary_metric || 'f1') + '</div>'
+                    + '</div>'
+                    + '</div>'
+
+                    + (ab.results_summary && typeof ab.results_summary === 'object' ? '<pre class="text-[11px] bg-slate-50 rounded p-2 mb-3 max-h-20 overflow-auto text-slate-600">' + escapeHtml(JSON.stringify(ab.results_summary, null, 2)) + '</pre>' : '')
+
+                    + '<div class="flex items-center justify-between pt-3 border-t border-slate-100">'
+                    + '<div class="text-xs text-slate-400">'
+                    + '开始: ' + startStr + (endStr !== '-' ? ' · 结束: ' + endStr : '')
+                    + '</div>'
+                    + '<div class="flex gap-2">'
+                    + (isDraft ? '<button class="btn-success text-xs py-1 px-2.5" onclick="startAb(' + ab.id + ')"><i class="fas fa-play mr-0.5"></i>启动</button>' : '')
+                    + (isRunning || !isStopped ? '<button class="btn-secondary text-xs py-1 px-2.5" onclick="analyzeAb(' + ab.id + ')"><i class="fas fa-chart-bar mr-0.5"></i>分析</button>' : '')
+                    + (isRunning ? '<button class="btn-danger text-xs py-1 px-2.5" onclick="stopAb(' + ab.id + ')"><i class="fas fa-stop mr-0.5"></i>停止</button>' : '')
+                    + '<button class="btn-secondary text-xs py-1 px-2.5" onclick="openAbDetailModal(' + ab.id + ')"><i class="fas fa-eye mr-0.5"></i>详情</button>'
+                    + '</div>'
+                    + '</div>'
+                    + '</div>';
             }).join('');
         }
 
         async function loadAbTests() {
             const container = document.getElementById('ab-grid');
-            if (container) container.innerHTML = '<div class="empty-state col-span-full"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div>';
+            if (container) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div>';
+            }
             try {
                 const resp = await fetch(BASE + '/mlops/ab-tests');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message);
-                const items = r.data.items || r.data || [];
+                if (r.code !== 0) {
+                    showToast(r.message || 'AB测试列表加载失败');
+                    renderAbTests([]);
+                    return;
+                }
+                const items = (r.data && r.data.items) ? r.data.items : (Array.isArray(r.data) ? r.data : []);
                 renderAbTests(items);
             } catch (e) {
-                renderAbTests(mockAbTests);
+                showToast('AB测试列表加载失败：' + e.message);
+                renderAbTests([]);
             }
         }
 
         async function startAb(id) {
             try {
-                const resp = await fetch(BASE + `/mlops/ab-tests/${id}/start`, { method: 'POST' });
+                const resp = await fetch(BASE + '/mlops/ab-tests/' + id + '/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '启动失败'); return; }
-                showToast('实验已启动');
+                if (r.code !== 0) {
+                    showToast(r.message || '启动失败');
+                    return;
+                }
+                showToast('AB实验已启动', true);
                 loadAbTests();
-            } catch (e) { showToast('启动接口未实现，已模拟'); loadAbTests(); }
+            } catch (e) {
+                showToast('启动失败：' + e.message);
+            }
         }
 
         async function analyzeAb(id) {
             openAbDetailModal(id);
             try {
-                await fetch(BASE + `/mlops/ab-tests/${id}/analyze`, { method: 'POST' });
-            } catch (e) {}
+                await fetch(BASE + '/mlops/ab-tests/' + id + '/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                loadAbTests();
+            } catch (e) {
+            }
         }
 
         async function stopAb(id) {
             if (!confirm('确认停止该AB测试？')) return;
+            const winner = prompt('请指定胜者（输入 A 或 B，留空则不指定）：');
             try {
-                const resp = await fetch(BASE + `/mlops/ab-tests/${id}/stop`, { method: 'POST' });
+                const resp = await fetch(BASE + '/mlops/ab-tests/' + id + '/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        winner: (winner && (winner.toUpperCase() === 'A' || winner.toUpperCase() === 'B')) ? winner.toUpperCase() : null,
+                        reason: '手动停止'
+                    })
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '停止失败'); return; }
-                showToast('实验已停止');
+                if (r.code !== 0) {
+                    showToast(r.message || '停止失败');
+                    return;
+                }
+                showToast('AB实验已停止', true);
                 loadAbTests();
-            } catch (e) { showToast('停止接口未实现，已模拟'); loadAbTests(); }
+            } catch (e) {
+                showToast('停止失败：' + e.message);
+            }
         }
-
-        function initAbCard() { loadAbTests(); }
 
         function initAbChart() {
             const el = document.getElementById('ab-chart');
@@ -1011,7 +1123,7 @@
                 tooltip: { trigger: 'axis' },
                 legend: { data: ['A组F1','B组F1','F1差值'], bottom: 0, textStyle: { fontSize: 11 } },
                 grid: { left: '3%', right: '4%', top: '5%', bottom: '18%' },
-                xAxis: { type: 'category', data: ['6/6','6/7','6/8','6/9','6/10'], axisLabel: { fontSize: 11 } },
+                xAxis: { type: 'category', data: ['Day1','Day2','Day3','Day4','Day5'], axisLabel: { fontSize: 11 } },
                 yAxis: { type: 'value', min: 0.7, max: 0.95, axisLabel: { fontSize: 11 } },
                 series: [
                     { name:'A组F1', type:'line', smooth:true, data:[0.752,0.755,0.758,0.760,0.758], itemStyle:{color:'#94a3b8'}, areaStyle:{color:'rgba(148,163,184,0.15)'} },
@@ -1021,11 +1133,9 @@
             });
         }
 
-        document.getElementById('deploy-pct')?.addEventListener('input', e => {
+        document.getElementById('deploy-pct').addEventListener('input', function(e){
             const v = e.target.value;
             document.getElementById('deploy-pct-text').textContent = v + '%';
-            document.getElementById('pct-a').textContent = v + '%';
-            document.getElementById('pct-b').textContent = (100 - parseInt(v)) + '%';
         });
 
         checkHealth();

@@ -278,6 +278,46 @@ async def get_model_metrics(
     )
 
 
+@router.get("/ab-tests", response_model=BaseResponse[PageResponse[ABTestInfo]])
+async def list_ab_tests(
+    status: Optional[ABStatus] = Query(None),
+    task_type: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    conditions = []
+    if status:
+        conditions.append(ABRun.status == status)
+    if task_type:
+        conditions.append(ABRun.task_type == task_type)
+    where_clause = and_(*conditions) if conditions else True
+
+    total_q = select(func.count()).select_from(ABRun).where(where_clause)
+    total = (await db.execute(total_q)).scalar_one() or 0
+
+    q = select(ABRun).where(where_clause).order_by(
+        ABRun.created_at.desc(),
+    ).offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.execute(q)).scalars().all()
+
+    items = []
+    for ab in rows:
+        info = ABTestInfo.model_validate(ab)
+        mq_a = select(ModelVersion.model_name, ModelVersion.version).where(ModelVersion.id == ab.model_a_id)
+        mq_b = select(ModelVersion.model_name, ModelVersion.version).where(ModelVersion.id == ab.model_b_id)
+        row_a = (await db.execute(mq_a)).first()
+        row_b = (await db.execute(mq_b)).first()
+        if row_a:
+            info.model_a_name = f"{row_a[0]} {row_a[1]}"
+        if row_b:
+            info.model_b_name = f"{row_b[0]} {row_b[1]}"
+        items.append(info)
+
+    return BaseResponse(data=PageResponse.build(items, total, page, page_size))
+
+
 @router.post("/ab-tests", response_model=BaseResponse[ABTestInfo])
 async def create_ab_test(
     req: ABTestCreateRequest = Body(...),

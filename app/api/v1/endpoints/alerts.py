@@ -230,7 +230,7 @@ async def alert_stats(
 
 
 @router.post("/synthetic-checks/run", response_model=BaseResponse[SyntheticCheckResponse])
-@require_role([UserRole.ADMIN, UserRole.LEGAL_MANAGER])
+@require_role([UserRole.ADMIN, UserRole.LEGAL_ASSISTANT])
 async def run_synthetic_checks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

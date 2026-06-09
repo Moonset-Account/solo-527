@@ -87,6 +87,10 @@
             width: 100%;
             height: 320px;
         }
+        .chart-container-sm {
+            width: 100%;
+            height: 260px;
+        }
         .btn-primary {
             background: #1e40af;
             color: white;
@@ -178,6 +182,7 @@
         }
         .health-ok { background: #dcfce7; color: #166534; }
         .health-fail { background: #fee2e2; color: #991b1b; }
+        .health-checking { background: #dbeafe; color: #1e40af; }
         .empty-chart {
             display: flex;
             align-items: center;
@@ -186,10 +191,16 @@
             color: #94a3b8;
             font-size: 14px;
         }
+        .risk-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
             .sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; }
+            .risk-split { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -268,9 +279,9 @@
             <div class="flex items-center gap-3">
                 <span id="mock-banner" class="mock-banner">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <span>部分数据为示例</span>
+                    <span>⚠️ 部分数据为示例数据</span>
                 </span>
-                <button class="btn-secondary" onclick="refreshData()">
+                <button class="btn-secondary" onclick="refreshData(event)">
                     <i class="fas fa-sync-alt"></i>
                     <span>刷新</span>
                 </button>
@@ -287,7 +298,7 @@
                     <h1 class="text-2xl font-bold text-slate-800">模型效果看板</h1>
                     <p class="text-slate-500 text-sm mt-1">实时监控合同解析、风险识别模型的各项性能指标</p>
                 </div>
-                <span id="health-badge" class="health-badge health-fail">
+                <span id="health-badge" class="health-badge health-checking">
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>检查接口状态中...</span>
                 </span>
@@ -341,7 +352,7 @@
                 <div class="stat-card">
                     <div class="flex items-start justify-between">
                         <div>
-                            <div class="text-slate-500 text-sm mb-1">平均F1值</div>
+                            <div class="text-slate-500 text-sm mb-1">审核通过率</div>
                             <div class="text-2xl font-bold text-slate-800" id="stat-f1">-</div>
                         </div>
                         <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
@@ -352,7 +363,7 @@
                 <div class="stat-card">
                     <div class="flex items-start justify-between">
                         <div>
-                            <div class="text-slate-500 text-sm mb-1">活跃模型</div>
+                            <div class="text-slate-500 text-sm mb-1">生产模型</div>
                             <div class="text-2xl font-bold text-slate-800" id="stat-models">-</div>
                         </div>
                         <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
@@ -363,7 +374,7 @@
                 <div class="stat-card">
                     <div class="flex items-start justify-between">
                         <div>
-                            <div class="text-slate-500 text-sm mb-1">错误样本</div>
+                            <div class="text-slate-500 text-sm mb-1">异常总数</div>
                             <div class="text-2xl font-bold text-slate-800" id="stat-errors">-</div>
                         </div>
                         <div class="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
@@ -374,11 +385,11 @@
                 <div class="stat-card">
                     <div class="flex items-start justify-between">
                         <div>
-                            <div class="text-slate-500 text-sm mb-1">今日成本</div>
+                            <div class="text-slate-500 text-sm mb-1">累计成本 (USD)</div>
                             <div class="text-2xl font-bold text-slate-800" id="stat-cost">-</div>
                         </div>
                         <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
-                            <i class="fas fa-yen-sign text-lg"></i>
+                            <i class="fas fa-dollar-sign text-lg"></i>
                         </div>
                     </div>
                 </div>
@@ -399,11 +410,20 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h3 class="font-semibold text-slate-800">风险分布</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">各风险级别占比</p>
+                            <p class="text-xs text-slate-500 mt-0.5">等级占比 / 类型统计</p>
                         </div>
                         <span class="badge badge-blue">本月</span>
                     </div>
-                    <div class="chart-container" id="chart-pie"></div>
+                    <div class="risk-split">
+                        <div>
+                            <div class="text-xs text-slate-500 mb-1 text-center">风险等级占比</div>
+                            <div class="chart-container-sm" id="chart-pie"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500 mb-1 text-center">风险类型分布</div>
+                            <div class="chart-container-sm" id="chart-bar"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -414,10 +434,11 @@
                             <h3 class="font-semibold text-slate-800">近30天F1值趋势</h3>
                             <p class="text-xs text-slate-500 mt-0.5">模型性能变化</p>
                         </div>
-                        <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600">
-                            <option>摘要模型</option>
-                            <option>风险识别</option>
-                            <option>问答模型</option>
+                        <select class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-slate-600" onchange="loadMetrics()">
+                            <option value="f1">F1分数</option>
+                            <option value="accuracy">准确率</option>
+                            <option value="precision">精确率</option>
+                            <option value="recall">召回率</option>
                         </select>
                     </div>
                     <div class="chart-container" id="chart-metrics"></div>
@@ -426,9 +447,9 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h3 class="font-semibold text-slate-800">延迟趋势对比</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">P95延迟 (ms)</p>
+                            <p class="text-xs text-slate-500 mt-0.5">任务平均延迟 (ms)</p>
                         </div>
-                        <span class="badge badge-green">正常</span>
+                        <span class="badge badge-green" id="latency-badge">监控中</span>
                     </div>
                     <div class="chart-container" id="chart-latency"></div>
                 </div>
@@ -439,7 +460,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h3 class="font-semibold text-slate-800">审核员绩效榜单</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">本月审核量与准确率排名</p>
+                            <p class="text-xs text-slate-500 mt-0.5">近7天审核量与通过率排名</p>
                         </div>
                         <span class="badge badge-blue">TOP 10</span>
                     </div>
@@ -449,9 +470,12 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h3 class="font-semibold text-slate-800">成本拆解</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">各模块成本占比</p>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                累计 <span id="cost-total" class="font-semibold text-slate-700">$0.00</span>
+                                / Token <span id="cost-tokens" class="font-semibold text-slate-700">0</span>
+                            </p>
                         </div>
-                        <span class="badge badge-blue">本月</span>
+                        <span class="badge badge-blue">近30天</span>
                     </div>
                     <div class="chart-container" id="chart-cost"></div>
                 </div>
@@ -462,13 +486,61 @@
     <script>
         const BASE = "/api/v1";
         let hasMockData = false;
-        let funnelChart, pieChart, metricsChart, latencyChart, rankingChart, costChart;
+        let funnelChart, pieChart, barChart, metricsChart, latencyChart, rankingChart, costChart;
+
+        const STEP_CN = {
+            uploaded: "上传文件",
+            parsed: "解析成功",
+            analyzed: "分析完成",
+            reviewed: "审核处理",
+            approved: "审核通过"
+        };
+
+        const LEVEL_CN = {
+            high: "高风险",
+            medium: "中风险",
+            low: "低风险",
+            info: "信息提示",
+            HIGH: "高风险",
+            MEDIUM: "中风险",
+            LOW: "低风险",
+            INFO: "信息提示"
+        };
+
+        const LEVEL_COLOR = {
+            high: "#ef4444",
+            medium: "#f59e0b",
+            low: "#22c55e",
+            info: "#3b82f6",
+            HIGH: "#ef4444",
+            MEDIUM: "#f59e0b",
+            LOW: "#22c55e",
+            INFO: "#3b82f6"
+        };
+
+        const RISK_TYPE_CN = {
+            excessive_penalty: "违约金过高",
+            ambiguous_termination: "终止条款模糊",
+            missing_warranty: "缺少保证条款",
+            ip_ownership_risk: "IP归属风险",
+            data_privacy_risk: "数据隐私风险",
+            liability_unlimited: "无限责任",
+            payment_terms: "付款条款",
+            delivery_terms: "交付条款",
+            confidentiality: "保密条款",
+            intellectual_property: "知识产权",
+            dispute_resolution: "争议解决",
+            termination: "终止解除",
+            liability: "违约责任",
+            warranty: "保证条款",
+            penalty: "违约惩罚"
+        };
 
         function showToast(msg) {
             const t = document.getElementById('toast');
             document.getElementById('toast-msg').textContent = msg;
             t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 4000);
+            setTimeout(() => t.classList.remove('show'), 5000);
         }
 
         function showMockBanner() {
@@ -476,19 +548,35 @@
             document.getElementById('mock-banner').classList.add('show');
         }
 
+        function hideMockBanner() {
+            document.getElementById('mock-banner').classList.remove('show');
+        }
+
         async function checkHealth() {
             const badge = document.getElementById('health-badge');
+            badge.className = 'health-badge health-checking';
+            badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>检查接口状态中...</span>';
             try {
                 const resp = await fetch('/healthz');
                 if (resp.status === 200) {
+                    let detail = '';
+                    try {
+                        const json = await resp.json();
+                        if (json && json.data) {
+                            if (json.data.db_ok === true || json.data.db === 'ok') detail += ' DB:✓';
+                            if (json.data.model_ok === true || json.data.model === 'ok') detail += ' Model:✓';
+                        }
+                    } catch (e) {}
                     badge.className = 'health-badge health-ok';
-                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (' + resp.status + ')' + detail + '</span>';
+                    return true;
                 } else {
-                    throw new Error('status ' + resp.status);
+                    throw new Error('HTTP ' + resp.status);
                 }
             } catch (e) {
                 badge.className = 'health-badge health-fail';
-                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + (e.message || '未知错误') + '</span>';
+                return false;
             }
         }
 
@@ -497,189 +585,381 @@
             total_clauses: 86543,
             total_risks: 1940,
             pending_reviews: 23,
-            avg_f1: 0.867,
-            active_models: 6,
-            error_samples: 47,
-            today_cost: 843.2
+            approval_rate: 0.867,
+            production_models: 6,
+            contracts_error: 12,
+            failed_tasks: 35,
+            total_cost_usd: 843.2
         };
 
         const mockFunnel = [
-            { value: 100, name: '上传文件' },
-            { value: 97, name: '解析成功' },
-            { value: 94, name: '数据清洗' },
-            { value: 89, name: '结构化提取' },
-            { value: 85, name: '风险检测' },
-            { value: 82, name: '建索引入库' }
+            { step: "uploaded", count: 100 },
+            { step: "parsed", count: 97 },
+            { step: "analyzed", count: 94 },
+            { step: "reviewed", count: 85 },
+            { step: "approved", count: 82 }
         ];
 
-        const mockDistribution = {
-            risk_by_level: [
-                { value: 47, name: '高风险 (H)', color: '#ef4444' },
-                { value: 186, name: '中风险 (M)', color: '#f59e0b' },
-                { value: 423, name: '低风险 (L)', color: '#22c55e' },
-                { value: 89, name: '提示 (I)', color: '#3b82f6' },
-                { value: 1205, name: '无风险', color: '#94a3b8' }
-            ],
-            risk_by_category: [
-                { name: '违约责任', value: 1247 },
-                { name: '付款条款', value: 986 },
-                { name: '交付条款', value: 752 },
-                { name: '保密条款', value: 634 },
-                { name: '知识产权', value: 518 },
-                { name: '争议解决', value: 421 },
-                { name: '终止解除', value: 389 }
-            ]
-        };
+        const mockByLevel = [
+            { risk_level: "high", count: 47, percentage: 5 },
+            { risk_level: "medium", count: 186, percentage: 20 },
+            { risk_level: "low", count: 423, percentage: 45 },
+            { risk_level: "info", count: 289, percentage: 30 }
+        ];
 
-        function generateMockTrend(days, base, variance) {
+        const mockByType = [
+            { risk_type: "liability", count: 1247 },
+            { risk_type: "payment_terms", count: 986 },
+            { risk_type: "delivery_terms", count: 752 },
+            { risk_type: "confidentiality", count: 634 },
+            { risk_type: "intellectual_property", count: 518 },
+            { risk_type: "dispute_resolution", count: 421 }
+        ];
+
+        function generateMockTrend(days, base, variance, isPercent) {
             const arr = [];
             for (let i = days - 1; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
+                const val = base + (Math.random() - 0.5) * variance;
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
                 arr.push({
-                    timestamp: d.toISOString(),
-                    value: base + (Math.random() - 0.5) * variance
+                    date: `${y}-${m}-${dd}`,
+                    count: isPercent ? Math.round(val * 100) : Math.round(val)
                 });
             }
             return arr;
         }
 
         const mockLeaderboard = [
-            { name: '张律师', count: 286, accuracy: 98.7 },
-            { name: '李法务', count: 254, accuracy: 97.2 },
-            { name: '王审核', count: 231, accuracy: 99.1 },
-            { name: '赵合规', count: 198, accuracy: 96.5 },
-            { name: '陈专员', count: 176, accuracy: 95.8 },
-            { name: '刘主管', count: 154, accuracy: 98.2 },
-            { name: '孙助理', count: 132, accuracy: 94.3 },
-            { name: '周审核', count: 118, accuracy: 97.6 }
+            { reviewer_id: 1, reviewer_name: "张律师", completed_count: 286, approval_rate: 0.987, score: 286 },
+            { reviewer_id: 2, reviewer_name: "李法务", completed_count: 254, approval_rate: 0.972, score: 254 },
+            { reviewer_id: 3, reviewer_name: null, completed_count: 231, approval_rate: 0.991, score: 231 },
+            { reviewer_id: 4, reviewer_name: "赵合规", completed_count: 198, approval_rate: 0.965, score: 198 },
+            { reviewer_id: 5, reviewer_name: null, completed_count: 176, approval_rate: 0.958, score: 176 },
+            { reviewer_id: 6, reviewer_name: "刘主管", completed_count: 154, approval_rate: 0.982, score: 154 }
         ];
 
-        const mockCost = [
-            { name: '风险识别模型', value: 3240, color: '#3b82f6' },
-            { name: '摘要生成模型', value: 2180, color: '#10b981' },
-            { name: '问答引擎', value: 1890, color: '#f59e0b' },
-            { name: '条款分类', value: 720, color: '#8b5cf6' },
-            { name: '向量索引', value: 402, color: '#ec4899' }
+        const mockCostByModel = [
+            { name: "风险识别模型", cost_usd: 3240.5, tokens: 1200000 },
+            { name: "摘要生成模型", cost_usd: 2180.3, tokens: 860000 },
+            { name: "问答引擎", cost_usd: 1890.1, tokens: 720000 },
+            { name: "条款分类", cost_usd: 720.8, tokens: 310000 },
+            { name: "向量索引", cost_usd: 402.2, tokens: 150000 }
         ];
+
+        function validateResp(r, apiName) {
+            if (!r || typeof r !== 'object') {
+                throw new Error(apiName + ': 返回格式错误');
+            }
+            if (r.code !== 0) {
+                throw new Error(apiName + ': ' + (r.message || ('错误码 ' + r.code)));
+            }
+            if (!r.data || typeof r.data !== 'object') {
+                throw new Error(apiName + ': data字段为空或无效');
+            }
+            return r.data;
+        }
+
+        async function safeFetch(url, apiName) {
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                throw new Error(apiName + ': HTTP ' + resp.status);
+            }
+            const r = await resp.json();
+            return validateResp(r, apiName);
+        }
 
         async function loadSummary() {
             try {
-                const resp = await fetch(BASE + '/dashboard/summary');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取概览数据失败');
-                const d = r.data || {};
+                const d = await safeFetch(BASE + '/dashboard/summary', '概览数据');
                 updateSummary(d);
             } catch (e) {
-                showToast('概览数据加载失败，使用示例数据');
+                showToast('概览数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
                 updateSummary(mockSummary);
             }
         }
 
         function updateSummary(d) {
-            document.getElementById('stat-contracts').textContent = d.total_contracts != null ? Number(d.total_contracts).toLocaleString() : '暂无';
-            document.getElementById('stat-clauses').textContent = d.total_clauses != null ? Number(d.total_clauses).toLocaleString() : '暂无';
-            document.getElementById('stat-risks').textContent = d.total_risks != null ? Number(d.total_risks).toLocaleString() : '暂无';
-            document.getElementById('stat-pending').textContent = d.pending_reviews != null ? Number(d.pending_reviews).toLocaleString() : '暂无';
-            document.getElementById('stat-f1').textContent = d.avg_f1 != null ? Number(d.avg_f1).toFixed(3) : '暂无';
-            document.getElementById('stat-models').textContent = d.active_models != null ? d.active_models : '暂无';
-            document.getElementById('stat-errors').textContent = d.error_samples != null ? d.error_samples : '暂无';
-            document.getElementById('stat-cost').textContent = d.today_cost != null ? '¥' + Number(d.today_cost).toLocaleString() : '暂无';
+            document.getElementById('stat-contracts').textContent =
+                d.total_contracts != null ? Number(d.total_contracts).toLocaleString() : '暂无';
+            document.getElementById('stat-clauses').textContent =
+                d.total_clauses != null ? Number(d.total_clauses).toLocaleString() : '暂无';
+            document.getElementById('stat-risks').textContent =
+                d.total_risks != null ? Number(d.total_risks).toLocaleString() : '暂无';
+            document.getElementById('stat-pending').textContent =
+                d.pending_reviews != null ? Number(d.pending_reviews).toLocaleString() : '暂无';
+
+            if (d.approval_rate != null) {
+                const val = Number(d.approval_rate);
+                document.getElementById('stat-f1').textContent =
+                    (val > 0 && val < 1.5 ? (val * 100).toFixed(1) + '%' : val.toFixed(3));
+            } else {
+                document.getElementById('stat-f1').textContent = '暂无';
+            }
+
+            document.getElementById('stat-models').textContent =
+                d.production_models != null ? d.production_models :
+                (d.total_models != null ? d.total_models : '暂无');
+
+            const errContracts = d.contracts_error || 0;
+            const errTasks = d.failed_tasks || 0;
+            const totalErrors = errContracts + errTasks;
+            document.getElementById('stat-errors').textContent =
+                (d.contracts_error != null || d.failed_tasks != null) ?
+                    Number(totalErrors).toLocaleString() : '暂无';
+
+            document.getElementById('stat-cost').textContent =
+                d.total_cost_usd != null ?
+                    '$' + Number(d.total_cost_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+                    '暂无';
         }
 
         async function loadFunnel() {
+            let steps;
             try {
-                const resp = await fetch(BASE + '/dashboard/funnel');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取漏斗数据失败');
-                renderFunnel(r.data.stages || mockFunnel);
+                const d = await safeFetch(BASE + '/dashboard/funnel', '漏斗数据');
+                if (!Array.isArray(d.steps) || d.steps.length === 0) {
+                    throw new Error('漏斗数据 steps 为空');
+                }
+                steps = d.steps;
             } catch (e) {
+                showToast('漏斗数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
-                renderFunnel(mockFunnel);
+                steps = mockFunnel;
             }
+            renderFunnel(steps);
         }
 
-        function renderFunnel(stages) {
-            if (!stages || !stages.length) return;
+        function renderFunnel(steps) {
+            const data = steps.map(s => ({
+                value: Number(s.count || 0),
+                name: STEP_CN[s.step] || s.step || '阶段'
+            })).filter(s => s.value > 0 || true);
+
+            if (data.length === 0) {
+                funnelChart.clear();
+                return;
+            }
+
             funnelChart.setOption({
-                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-                color: ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'],
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        return `<b>${params.name}</b><br/>数量: ${params.value}<br/>占比: ${params.percent}%`;
+                    }
+                },
+                color: ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
                 series: [{
                     name: '合同处理漏斗',
                     type: 'funnel',
-                    left: '10%', width: '80%',
+                    left: '10%', width: '80%', top: 20, bottom: 20,
                     minSize: '20%', maxSize: '100%',
-                    sort: 'descending', gap: 2,
-                    label: { show: true, position: 'inside', color: '#fff', fontSize: 13 },
+                    sort: 'descending', gap: 3,
+                    label: { show: true, position: 'inside', color: '#fff', fontSize: 13, fontWeight: 500 },
                     labelLine: { show: false },
-                    data: stages.map(s => typeof s === 'object' ? s : { value: s, name: '阶段' })
+                    data: data
                 }]
-            });
+            }, true);
         }
 
         async function loadDistribution() {
+            let byLevel, byType;
             try {
-                const resp = await fetch(BASE + '/dashboard/distribution');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取分布数据失败');
-                const d = r.data || mockDistribution;
-                renderPie(d.risk_by_level || mockDistribution.risk_by_level);
+                const d = await safeFetch(BASE + '/dashboard/distribution', '风险分布数据');
+                byLevel = Array.isArray(d.by_level) ? d.by_level : [];
+                byType = Array.isArray(d.by_type) ? d.by_type : [];
+                if (byLevel.length === 0 && byType.length === 0) {
+                    throw new Error('风险分布数据为空');
+                }
             } catch (e) {
+                showToast('风险分布数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
-                renderPie(mockDistribution.risk_by_level);
+                byLevel = mockByLevel;
+                byType = mockByType;
             }
+            renderPie(byLevel);
+            renderBar(byType);
         }
 
-        function renderPie(data) {
-            if (!data || !data.length) return;
+        function renderPie(byLevel) {
+            const data = byLevel.map(item => {
+                const lvl = item.risk_level;
+                return {
+                    value: Number(item.count || 0),
+                    name: LEVEL_CN[lvl] || (lvl || '未知'),
+                    itemStyle: { color: LEVEL_COLOR[lvl] }
+                };
+            }).filter(d => d.value > 0);
+
+            if (data.length === 0) {
+                pieChart.clear();
+                pieChart.getDom().querySelector('.empty-chart') ||
+                    (pieChart.getDom().innerHTML = '<div class="empty-chart" style="height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;">暂无风险数据</div>');
+                return;
+            }
+
+            pieChart.getDom().innerHTML = '';
+            pieChart = echarts.init(pieChart.getDom());
+
             pieChart.setOption({
-                tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-                legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 12, color: '#64748b' } },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                legend: { show: false },
                 series: [{
-                    name: '风险分布', type: 'pie',
-                    radius: ['45%', '70%'], center: ['38%', '50%'],
+                    name: '风险等级分布', type: 'pie',
+                    radius: ['40%', '70%'], center: ['50%', '50%'],
                     avoidLabelOverlap: true,
                     itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-                    label: { show: false },
-                    labelLine: { show: false },
-                    data: data.map(d => ({
-                        value: d.value,
-                        name: d.name,
-                        itemStyle: d.color ? { color: d.color } : undefined
-                    }))
+                    label: {
+                        show: true,
+                        formatter: '{b}\n{d}%',
+                        fontSize: 11,
+                        color: '#475569'
+                    },
+                    labelLine: { length: 6, length2: 4 },
+                    data: data
                 }]
+            }, true);
+        }
+
+        function renderBar(byType) {
+            const categories = byType.map(item => {
+                const t = item.risk_type || '';
+                return RISK_TYPE_CN[t] || t;
             });
+            const values = byType.map(item => Number(item.count || 0));
+
+            if (categories.length === 0) {
+                barChart.clear();
+                barChart.getDom().innerHTML = '';
+                return;
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16'];
+
+            barChart.getDom().innerHTML = '';
+            barChart = echarts.init(barChart.getDom());
+
+            barChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        const p = params[0];
+                        return `<b>${p.name}</b><br/>数量: ${p.value}`;
+                    }
+                },
+                grid: { left: '3%', right: '5%', top: '5%', bottom: '15%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: categories,
+                    axisLabel: {
+                        fontSize: 10,
+                        color: '#64748b',
+                        rotate: 30,
+                        interval: 0
+                    },
+                    axisLine: { lineStyle: { color: '#e2e8f0' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10, color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
+                series: [{
+                    name: '风险数量',
+                    type: 'bar',
+                    data: values,
+                    barWidth: '60%',
+                    itemStyle: {
+                        borderRadius: [4, 4, 0, 0],
+                        color: function(params) {
+                            return colors[params.dataIndex % colors.length];
+                        }
+                    }
+                }]
+            }, true);
         }
 
         async function loadMetrics() {
+            const sel = document.querySelector('select');
+            const metricType = sel ? sel.value : 'f1';
+            let trend;
+            let avgF1FromTrend = null;
+
             try {
-                const resp = await fetch(BASE + '/mlops/metrics?metric_type=f1&days=30');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取F1数据失败');
-                const trend = r.data.trend || r.data;
-                renderMetrics(trend);
+                const d = await safeFetch(BASE + `/dashboard/trend?metric_type=${metricType}&days=30`, 'F1趋势数据');
+                trend = Array.isArray(d.trend) ? d.trend : [];
+                if (trend.length === 0) {
+                    throw new Error('趋势数据 trend 为空');
+                }
+                const vals = trend.map(t => Number(t.count || 0) / 100);
+                avgF1FromTrend = vals.reduce((a, b) => a + b, 0) / vals.length;
+                if (avgF1FromTrend > 0) {
+                    document.getElementById('stat-f1').textContent =
+                        (avgF1FromTrend * 100).toFixed(1) + '%';
+                }
             } catch (e) {
+                showToast(`${metricType.toUpperCase()}趋势数据加载失败: ${e.message || '未知错误'}，已切换到示例数据`);
                 showMockBanner();
-                renderMetrics(generateMockTrend(30, 0.87, 0.06));
+                trend = generateMockTrend(30, 0.87, 0.06, true);
             }
+            renderMetrics(trend, metricType);
         }
 
-        function renderMetrics(trend) {
-            if (!trend || !trend.length) return;
+        function renderMetrics(trend, metricType) {
+            if (!trend || trend.length === 0) {
+                metricsChart.clear();
+                return;
+            }
             const days = trend.map(t => {
-                const d = new Date(t.timestamp);
-                return `${d.getMonth()+1}/${d.getDate()}`;
+                const ds = t.date || '';
+                const parts = ds.split('-');
+                return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : ds;
             });
-            const values = trend.map(t => Number(t.value).toFixed(3));
+            const values = trend.map(t => {
+                const raw = Number(t.count || 0);
+                return (raw / 100).toFixed(3);
+            });
+
+            const metricName = {
+                f1: 'F1值',
+                accuracy: '准确率',
+                precision: '精确率',
+                recall: '召回率'
+            }[metricType] || metricType;
+
             metricsChart.setOption({
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    formatter: function(params) {
+                        const p = params[0];
+                        return `<b>${p.name}</b><br/>${metricName}: ${Number(p.value).toFixed(3)}`;
+                    }
+                },
                 grid: { left: '3%', right: '4%', top: '5%', bottom: '10%', containLabel: true },
-                xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 } },
-                yAxis: { type: 'value', min: 0.7, max: 1.0, axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+                xAxis: {
+                    type: 'category',
+                    data: days,
+                    axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0.5, max: 1.0,
+                    axisLabel: { fontSize: 10, color: '#94a3b8', formatter: '{value}' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
                 series: [{
-                    name: 'F1值', type: 'line', smooth: true, data: values,
-                    itemStyle: { color: '#1e40af' }, lineStyle: { width: 2.5 }, symbol: 'none',
+                    name: metricName, type: 'line', smooth: true, data: values,
+                    itemStyle: { color: '#1e40af' },
+                    lineStyle: { width: 2.5 }, symbol: 'circle', symbolSize: 5,
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                             { offset: 0, color: 'rgba(30,64,175,0.25)' },
@@ -687,42 +967,82 @@
                         ])
                     }
                 }]
-            });
+            }, true);
         }
 
         async function loadLatency() {
+            let trend;
             try {
-                const resp = await fetch(BASE + '/dashboard/trend?metric_type=latency&days=30');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取延迟数据失败');
-                const trend = r.data.trend || r.data;
-                renderLatency(trend);
+                const d = await safeFetch(BASE + '/dashboard/trend?metric_type=latency&days=30', '延迟趋势数据');
+                trend = Array.isArray(d.trend) ? d.trend : [];
+                if (trend.length === 0) {
+                    throw new Error('延迟趋势数据 trend 为空');
+                }
             } catch (e) {
+                showToast('延迟趋势数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
-                const a = generateMockTrend(30, 900, 200);
-                const b = generateMockTrend(30, 750, 150);
-                renderLatencyDual(a, b);
-                return;
+                trend = generateMockTrend(30, 900, 200, false);
             }
             renderLatency(trend);
         }
 
         function renderLatency(trend) {
-            if (!trend || !trend.length) return;
+            if (!trend || trend.length === 0) {
+                latencyChart.clear();
+                document.getElementById('latency-badge').textContent = '暂无数据';
+                document.getElementById('latency-badge').className = 'badge badge-yellow';
+                return;
+            }
             const days = trend.map(t => {
-                const d = new Date(t.timestamp);
-                return `${d.getMonth()+1}/${d.getDate()}`;
+                const ds = t.date || '';
+                const parts = ds.split('-');
+                return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : ds;
             });
-            const values = trend.map(t => Number(t.value).toFixed(0));
+            const rawValues = trend.map(t => Number(t.count || 0));
+            const values = rawValues.map(v => {
+                if (v > 100000) return Math.round(v / 100);
+                if (v > 10000) return Math.round(v / 10);
+                return v;
+            });
+
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            const badge = document.getElementById('latency-badge');
+            if (avg > 2000) {
+                badge.textContent = '偏高 (平均 ' + Math.round(avg) + 'ms)';
+                badge.className = 'badge badge-red';
+            } else if (avg > 1000) {
+                badge.textContent = '正常 (平均 ' + Math.round(avg) + 'ms)';
+                badge.className = 'badge badge-yellow';
+            } else {
+                badge.textContent = '良好 (平均 ' + Math.round(avg) + 'ms)';
+                badge.className = 'badge badge-green';
+            }
+
             latencyChart.setOption({
-                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                legend: { data: ['P95延迟'], bottom: 0, textStyle: { fontSize: 12 } },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: function(params) {
+                        const p = params[0];
+                        return `<b>${p.name}</b><br/>平均延迟: ${p.value}ms`;
+                    }
+                },
+                legend: { data: ['平均延迟'], bottom: 0, textStyle: { fontSize: 12 } },
                 grid: { left: '3%', right: '4%', top: '5%', bottom: '15%', containLabel: true },
-                xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 } },
-                yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#94a3b8', formatter: '{value}ms' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
+                xAxis: {
+                    type: 'category',
+                    data: days,
+                    axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10, color: '#94a3b8', formatter: '{value}ms' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
                 series: [{
-                    name: 'P95延迟', type: 'bar',
+                    name: '平均延迟', type: 'bar',
                     data: values,
+                    barWidth: '60%',
                     itemStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                             { offset: 0, color: '#f59e0b' },
@@ -731,71 +1051,78 @@
                         borderRadius: [4, 4, 0, 0]
                     }
                 }]
-            });
-        }
-
-        function renderLatencyDual(a, b) {
-            const days = a.map(t => {
-                const d = new Date(t.timestamp);
-                return `${d.getMonth()+1}/${d.getDate()}`;
-            });
-            latencyChart.setOption({
-                tooltip: { trigger: 'axis' },
-                legend: { data: ['P95延迟', '平均延迟'], bottom: 0, textStyle: { fontSize: 12 } },
-                grid: { left: '3%', right: '4%', top: '5%', bottom: '15%', containLabel: true },
-                xAxis: { type: 'category', data: days, axisLabel: { fontSize: 10, color: '#94a3b8', interval: 3 } },
-                yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#94a3b8', formatter: '{value}ms' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
-                series: [
-                    {
-                        name: 'P95延迟', type: 'line', smooth: true,
-                        data: a.map(t => Number(t.value).toFixed(0)),
-                        itemStyle: { color: '#f59e0b' }, lineStyle: { width: 2.5 }, symbol: 'none',
-                        areaStyle: {
-                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(245,158,11,0.2)' },
-                                { offset: 1, color: 'rgba(245,158,11,0)' }
-                            ])
-                        }
-                    },
-                    {
-                        name: '平均延迟', type: 'line', smooth: true,
-                        data: b.map(t => Number(t.value).toFixed(0)),
-                        itemStyle: { color: '#10b981' }, lineStyle: { width: 2, type: 'dashed' }, symbol: 'none'
-                    }
-                ]
-            });
+            }, true);
         }
 
         async function loadLeaderboard() {
+            let items;
             try {
-                const resp = await fetch(BASE + '/dashboard/leaderboard');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取榜单数据失败');
-                renderRanking(r.data.items || r.data || mockLeaderboard);
+                const d = await safeFetch(BASE + '/dashboard/leaderboard', '审核榜单数据');
+                items = Array.isArray(d.items) ? d.items : [];
+                if (items.length === 0) {
+                    throw new Error('审核榜单数据 items 为空');
+                }
             } catch (e) {
+                showToast('审核榜单数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
-                renderRanking(mockLeaderboard);
+                items = mockLeaderboard;
             }
+            renderRanking(items);
         }
 
-        function renderRanking(data) {
-            if (!data || !data.length) return;
-            const reviewers = [...data].sort((a, b) => b.count - a.count);
+        function renderRanking(items) {
+            if (!items || items.length === 0) {
+                rankingChart.clear();
+                return;
+            }
+            const reviewers = [...items].sort((a, b) =>
+                (b.completed_count || b.count || 0) - (a.completed_count || a.count || 0)
+            );
+
+            const names = reviewers.map(r =>
+                r.reviewer_name || `审核员#${r.reviewer_id}`
+            );
+            const counts = reviewers.map(r => Number(r.completed_count || r.count || 0));
+            const rates = reviewers.map(r => {
+                const ar = r.approval_rate;
+                if (ar == null) return 'N/A';
+                const num = Number(ar);
+                if (num > 0 && num < 1.5) return (num * 100).toFixed(1) + '%';
+                return num.toFixed(1) + '%';
+            });
+
             rankingChart.setOption({
                 tooltip: {
                     trigger: 'axis', axisPointer: { type: 'shadow' },
                     formatter: function(params) {
                         const idx = params[0].dataIndex;
                         const r = reviewers[idx];
-                        return `<b>${r.name}</b><br/>审核量: ${r.count} 份<br/>准确率: ${r.accuracy}%`;
+                        const name = r.reviewer_name || `审核员#${r.reviewer_id}`;
+                        const cnt = r.completed_count || r.count || 0;
+                        const ar = r.approval_rate;
+                        const rateStr = (ar != null) ?
+                            ((Number(ar) > 0 && Number(ar) < 1.5) ? (Number(ar) * 100).toFixed(1) + '%' : Number(ar).toFixed(1) + '%') :
+                            '暂无';
+                        const rej = r.rejected_count || 0;
+                        const appr = r.approved_count || 0;
+                        return `<b>${name}</b><br/>完成审核: ${cnt} 份<br/>通过: ${appr} / 驳回: ${rej}<br/>通过率: ${rateStr}`;
                     }
                 },
-                grid: { left: '10%', right: '18%', top: '5%', bottom: '10%', containLabel: true },
-                xAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#94a3b8' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
-                yAxis: { type: 'category', data: reviewers.map(r => r.name), axisLabel: { fontSize: 12, color: '#475569' } },
+                grid: { left: '12%', right: '20%', top: '5%', bottom: '10%', containLabel: true },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10, color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: '#f1f5f9' } }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: names,
+                    axisLabel: { fontSize: 12, color: '#475569' },
+                    inverse: true
+                },
                 series: [{
-                    name: '审核量', type: 'bar', data: reviewers.map(r => r.count),
-                    barWidth: 18,
+                    name: '审核量', type: 'bar', data: counts,
+                    barWidth: 16,
                     itemStyle: {
                         color: function(p) {
                             if (p.dataIndex === 0) return '#fbbf24';
@@ -808,72 +1135,123 @@
                     label: {
                         show: true, position: 'right', color: '#64748b', fontSize: 11,
                         formatter: function(p) {
-                            const acc = reviewers[p.dataIndex].accuracy;
-                            return `准确率 ${acc}%`;
+                            return `${rates[p.dataIndex]}`;
                         }
                     }
                 }]
-            });
+            }, true);
         }
 
         async function loadCost() {
+            let data;
             try {
-                const resp = await fetch(BASE + '/dashboard/cost');
-                const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message || '获取成本数据失败');
-                renderCost(r.data.items || r.data || mockCost);
+                data = await safeFetch(BASE + '/dashboard/cost', '成本数据');
             } catch (e) {
+                showToast('成本数据加载失败: ' + (e.message || '未知错误') + '，已切换到示例数据');
                 showMockBanner();
-                renderCost(mockCost);
+                data = {
+                    total_cost_usd: mockCostByModel.reduce((s, m) => s + m.cost_usd, 0),
+                    total_tokens: mockCostByModel.reduce((s, m) => s + m.tokens, 0),
+                    by_model: mockCostByModel.map(m => ({ name: m.name, cost_usd: m.cost_usd, tokens: m.tokens })),
+                    by_task_type: []
+                };
             }
+            renderCost(data);
         }
 
         function renderCost(data) {
-            if (!data || !data.length) return;
+            const total = Number(data.total_cost_usd || 0);
+            const tokens = Number(data.total_tokens || 0);
+
+            document.getElementById('cost-total').textContent =
+                '$' + total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('cost-tokens').textContent = tokens.toLocaleString();
+
+            let items = [];
+            if (Array.isArray(data.by_model) && data.by_model.length > 0) {
+                items = data.by_model.map(m => ({
+                    name: m.name || m.dimension || '模型',
+                    value: Number(m.cost_usd || m.value || 0)
+                })).filter(x => x.value > 0);
+            }
+            if (items.length === 0 && Array.isArray(data.by_task_type) && data.by_task_type.length > 0) {
+                items = data.by_task_type.map(t => ({
+                    name: t.name || t.dimension || '任务',
+                    value: Number(t.cost_usd || t.value || 0)
+                })).filter(x => x.value > 0);
+            }
+            if (items.length === 0 && total > 0) {
+                items = [{ name: '累计成本', value: total }];
+            }
+
+            if (items.length === 0) {
+                costChart.clear();
+                return;
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1'];
+
             costChart.setOption({
-                tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
-                legend: { orient: 'vertical', left: 10, top: 'center', textStyle: { fontSize: 12, color: '#64748b' } },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        const val = params.value;
+                        return `<b>${params.name}</b><br/>成本: $${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${params.percent}%)`;
+                    }
+                },
+                legend: {
+                    orient: 'vertical', left: 10, top: 'center',
+                    textStyle: { fontSize: 11, color: '#64748b' }
+                },
                 series: [{
                     name: '成本拆解', type: 'pie',
-                    radius: ['40%', '65%'], center: ['65%', '50%'],
+                    radius: ['40%', '65%'], center: ['68%', '50%'],
                     avoidLabelOverlap: true,
                     itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-                    label: { show: true, formatter: '¥{c}', fontSize: 11, color: '#475569' },
+                    label: {
+                        show: true,
+                        formatter: function(p) {
+                            return '$' + Number(p.value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                        },
+                        fontSize: 11, color: '#475569'
+                    },
                     labelLine: { length: 8, length2: 6 },
-                    data: data.map(d => ({
-                        value: d.value,
-                        name: d.name,
-                        itemStyle: d.color ? { color: d.color } : undefined
+                    data: items.map((d, i) => ({
+                        ...d,
+                        itemStyle: { color: colors[i % colors.length] }
                     }))
                 }]
-            });
+            }, true);
         }
 
         function initCharts() {
             funnelChart = echarts.init(document.getElementById('chart-funnel'));
             pieChart = echarts.init(document.getElementById('chart-pie'));
+            barChart = echarts.init(document.getElementById('chart-bar'));
             metricsChart = echarts.init(document.getElementById('chart-metrics'));
             latencyChart = echarts.init(document.getElementById('chart-latency'));
             rankingChart = echarts.init(document.getElementById('chart-ranking'));
             costChart = echarts.init(document.getElementById('chart-cost'));
 
             window.addEventListener('resize', () => {
-                funnelChart.resize();
-                pieChart.resize();
-                metricsChart.resize();
-                latencyChart.resize();
-                rankingChart.resize();
-                costChart.resize();
+                funnelChart && funnelChart.resize();
+                pieChart && pieChart.resize();
+                barChart && barChart.resize();
+                metricsChart && metricsChart.resize();
+                latencyChart && latencyChart.resize();
+                rankingChart && rankingChart.resize();
+                costChart && costChart.resize();
             });
         }
 
-        async function refreshData() {
-            const btn = event.target.closest('button');
-            const icon = btn.querySelector('i');
-            icon.classList.add('fa-spin');
+        async function refreshData(event) {
+            const btn = event && event.target ? event.target.closest('button') : null;
+            const icon = btn ? btn.querySelector('i') : null;
+            if (icon) icon.classList.add('fa-spin');
             hasMockData = false;
-            document.getElementById('mock-banner').classList.remove('show');
+            hideMockBanner();
 
+            let hasError = false;
             try {
                 await Promise.all([
                     loadSummary(),
@@ -882,13 +1260,17 @@
                     loadMetrics(),
                     loadLatency(),
                     loadLeaderboard(),
-                    loadCost()
+                    loadCost(),
+                    checkHealth()
                 ]);
             } catch (e) {
-                showToast('刷新数据时出现错误');
+                hasError = true;
+                showToast('刷新数据时出现错误: ' + (e.message || '未知错误'));
             }
 
-            setTimeout(() => icon.classList.remove('fa-spin'), 600);
+            setTimeout(() => {
+                if (icon) icon.classList.remove('fa-spin');
+            }, 600);
         }
 
         function exportPDF() {
@@ -906,7 +1288,9 @@
                 loadLatency(),
                 loadLeaderboard(),
                 loadCost()
-            ]);
+            ]).catch(err => {
+                showToast('部分数据加载失败，请点击刷新重试');
+            });
         });
     </script>
 </body>

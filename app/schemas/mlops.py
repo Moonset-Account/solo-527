@@ -88,6 +88,8 @@ class ApproveRequest(BaseSchema):
 class PublishRequest(BaseSchema):
     set_default: bool = True
     note: Optional[str] = None
+    enable_ab_test: bool = False
+    traffic_percentage: int = Field(100, ge=0, le=100)
 
 
 class RollbackRequest(BaseSchema):

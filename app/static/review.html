@@ -6,8 +6,6 @@
     <title>审核工作台 - ContractRiskAI</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.5/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -152,7 +150,7 @@
         .tab-btn:hover { color: #1e40af; }
         .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; }
         .task-item {
-            padding: 14px;
+            padding: 12px 14px;
             border-bottom: 1px solid #f1f5f9;
             cursor: pointer;
             transition: background 0.15s;
@@ -231,6 +229,8 @@
             display: none; align-items: center; gap: 10px; max-width: 420px;
         }
         .toast.show { display: flex; animation: slideIn 0.3s ease; }
+        .toast-success { background: #dcfce7; color: #166534; }
+        .toast-info { background: #dbeafe; color: #1e40af; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .health-badge {
             display: inline-flex; align-items: center; gap: 6px;
@@ -243,7 +243,8 @@
             text-align: center; padding: 40px 20px; color: #94a3b8;
         }
         .empty-state i { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
-        .task-row.selected { background: #eff6ff !important; }
+        .star { color: #e2e8f0; }
+        .star.filled { color: #f59e0b; }
     </style>
 </head>
 <body>
@@ -265,7 +266,7 @@
             <a href="upload.html" class="nav-item"><i class="fas fa-file-contract w-5"></i><span>合同管理</span></a>
             <a href="search.html" class="nav-item"><i class="fas fa-search w-5"></i><span>智能检索</span></a>
             <div class="nav-item active"><i class="fas fa-clipboard-check w-5"></i><span>审核工作台</span></div>
-            <div class="nav-item"><i class="fas fa-database w-5"></i><span>数据集</span></a>
+            <div class="nav-item"><i class="fas fa-database w-5"></i><span>数据集</span></div>
             <a href="models.html" class="nav-item"><i class="fas fa-cube w-5"></i><span>模型管理</span></a>
             <div class="nav-item"><i class="fas fa-bell w-5"></i><span>告警中心</span></div>
         </nav>
@@ -303,21 +304,29 @@
         </div>
 
         <div class="p-6 h-[calc(100vh-60px)]">
-            <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 h-full">
+            <div class="grid grid-cols-1 lg:grid-cols-[440px_1fr] gap-6 h-full">
                 <div class="card flex flex-col h-full overflow-hidden">
                     <div class="p-4 border-b border-slate-100">
-                        <div class="grid grid-cols-3 gap-3 mb-4">
-                            <div class="bg-red-50 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-red-600" id="stat-pending">23</div>
-                                <div class="text-xs text-red-500 mt-0.5">待审核</div>
+                        <div class="grid grid-cols-5 gap-2 mb-4">
+                            <div class="bg-red-50 rounded-lg p-2 text-center">
+                                <div class="text-xl font-bold text-red-600" id="stat-pending">--</div>
+                                <div class="text-[11px] text-red-500 mt-0.5">待审核</div>
                             </div>
-                            <div class="bg-blue-50 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-blue-600" id="stat-done">47</div>
-                                <div class="text-xs text-blue-500 mt-0.5">今日完成</div>
+                            <div class="bg-green-50 rounded-lg p-2 text-center">
+                                <div class="text-xl font-bold text-green-600" id="stat-approved">--</div>
+                                <div class="text-[11px] text-green-500 mt-0.5">已通过</div>
                             </div>
-                            <div class="bg-green-50 rounded-lg p-3 text-center">
-                                <div class="text-2xl font-bold text-green-600">96.4%</div>
-                                <div class="text-xs text-green-500 mt-0.5">本周通过率</div>
+                            <div class="bg-slate-100 rounded-lg p-2 text-center">
+                                <div class="text-xl font-bold text-slate-600" id="stat-rejected">--</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">已驳回</div>
+                            </div>
+                            <div class="bg-orange-50 rounded-lg p-2 text-center">
+                                <div class="text-xl font-bold text-orange-600" id="stat-error-total">--</div>
+                                <div class="text-[11px] text-orange-500 mt-0.5">错误总数</div>
+                            </div>
+                            <div class="bg-amber-50 rounded-lg p-2 text-center">
+                                <div class="text-xl font-bold text-amber-600" id="stat-error-open">--</div>
+                                <div class="text-[11px] text-amber-500 mt-0.5">开放错误</div>
                             </div>
                         </div>
                         <div class="relative mb-3">
@@ -327,192 +336,47 @@
                         <div class="flex gap-2 flex-wrap">
                             <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
                                 <option>全部类型</option>
-                                <option>摘要样本</option>
-                                <option>风险标注</option>
+                                <option>条款摘要</option>
+                                <option>风险检测</option>
                                 <option>问答对</option>
-                                <option>分类样本</option>
+                                <option>条款分类</option>
                             </select>
                             <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
-                                <option>全部优先级</option>
-                                <option>紧急</option>
-                                <option>高</option>
-                                <option>中</option>
-                                <option>低</option>
-                            </select>
-                            <select class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white">
-                                <option>全部日期</option>
-                                <option>今天</option>
-                                <option>昨天</option>
-                                <option>近7天</option>
-                                <option>近30天</option>
+                                <option>全部难度</option>
+                                <option>1星</option>
+                                <option>2星</option>
+                                <option>3星</option>
+                                <option>4星</option>
+                                <option>5星</option>
                             </select>
                         </div>
                     </div>
                     <div class="flex border-b border-slate-100">
-                        <div class="tab-btn active" onclick="switchTab(this, 'pending')">待我审核 <span class="ml-1 bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full">23</span></div>
-                        <div class="tab-btn" onclick="switchTab(this, 'reviewed')">我已审核</div>
-                        <div class="tab-btn" onclick="switchTab(this, 'reported')">我上报的错误</div>
+                        <div class="tab-btn active" data-status="pending_review" onclick="switchTab(this, 'pending_review')">
+                            待审核 <span class="ml-1 bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full" id="tabcount-pending_review">0</span>
+                        </div>
+                        <div class="tab-btn" data-status="reviewing" onclick="switchTab(this, 'reviewing')">
+                            审核中 <span class="ml-1 bg-yellow-100 text-yellow-700 text-xs px-1.5 py-0.5 rounded-full" id="tabcount-reviewing">0</span>
+                        </div>
+                        <div class="tab-btn" data-status="approved" onclick="switchTab(this, 'approved')">
+                            已通过 <span class="ml-1 bg-green-100 text-green-600 text-xs px-1.5 py-0.5 rounded-full" id="tabcount-approved">0</span>
+                        </div>
                     </div>
                     <div class="flex-1 overflow-y-auto" id="task-list">
-                        <div class="task-item selected" onclick="selectTask(this, 1)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500 flex-shrink-0">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#RISK-20260610-001</span>
-                                        <span class="badge badge-red">紧急</span>
-                                        <span class="badge badge-orange">风险</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        第8条 违约责任：甲方若延迟交付货物超过15日，乙方有权单方面解除合同...违约金按日0.5%计算，上限为合同总额的30%...
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 10分钟前</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded" title="跳过"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded" title="收藏"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="task-item" onclick="selectTask(this, 2)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
-                                    <i class="fas fa-align-left"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#SUMMARY-20260610-023</span>
-                                        <span class="badge badge-yellow">高</span>
-                                        <span class="badge badge-blue">摘要</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        本合同由甲方（北京某某科技有限公司）与乙方（上海某某贸易有限公司）于2026年6月1日签订，涉及采购办公设备共计120万元，分三批次交付...
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 32分钟前</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="task-item" onclick="selectTask(this, 3)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500 flex-shrink-0">
-                                    <i class="fas fa-question-circle"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#QA-20260610-007</span>
-                                        <span class="badge badge-green">中</span>
-                                        <span class="badge badge-slate">问答</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        合同中关于知识产权归属的条款具体是如何约定的？乙方在项目实施过程中产生的新专利归谁所有？
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 1小时前</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="task-item" onclick="selectTask(this, 4)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 flex-shrink-0">
-                                    <i class="fas fa-tags"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#CLS-20260610-045</span>
-                                        <span class="badge badge-slate">低</span>
-                                        <span class="badge badge-green">分类</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        第5.2条 乙方应保证所交付的软件产品不侵犯任何第三方的知识产权，如发生侵权纠纷，乙方应承担全部法律责任...
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 2小时前</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="task-item" onclick="selectTask(this, 5)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#RISK-20260610-002</span>
-                                        <span class="badge badge-red">紧急</span>
-                                        <span class="badge badge-orange">风险</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        第12.4条 本合同适用香港特别行政区法律，因本合同引起的争议提交香港国际仲裁中心...
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 3小时前</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="task-item" onclick="selectTask(this, 6)">
-                            <div class="flex items-start gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 flex-shrink-0">
-                                    <i class="fas fa-align-left"></i>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs text-slate-400">#SUMMARY-20260609-118</span>
-                                        <span class="badge badge-green">中</span>
-                                        <span class="badge badge-blue">摘要</span>
-                                    </div>
-                                    <div class="text-sm text-slate-700 line-clamp-3 mb-2 leading-relaxed">
-                                        本服务合同约定甲方委托乙方提供年度法律顾问服务，服务范围包括日常法律咨询、合同审查、诉讼代理等，年度服务费48万元...
-                                    </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-400">
-                                        <span><i class="far fa-clock mr-1"></i>指派于 昨天</span>
-                                        <div class="flex gap-1">
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="fas fa-forward"></i></button>
-                                            <button class="p-1 hover:bg-slate-100 rounded"><i class="far fa-star"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div>
                     </div>
                 </div>
 
                 <div class="card flex flex-col h-full overflow-hidden">
                     <div class="p-4 border-b border-slate-100 flex items-center justify-between">
                         <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <h2 class="text-lg font-semibold text-slate-800">样本审核详情</h2>
-                                <span class="text-xs text-slate-400">#RISK-20260610-001</span>
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                <h2 class="text-lg font-semibold text-slate-800" id="detail-title">样本审核详情</h2>
+                                <span id="detail-id" class="text-xs text-slate-400"></span>
                                 <span id="lock-badge" class="badge badge-slate"><i class="fas fa-unlock mr-1"></i>未锁定</span>
                             </div>
-                            <div class="text-xs text-slate-500">
-                                样本类型：<span class="text-slate-700">风险标注</span>
-                                · 来源数据集：<span class="text-slate-700">采购合同风险集-v3</span>
-                                · 模型预测：<span class="text-red-600 font-medium">高风险</span>
+                            <div class="text-xs text-slate-500 flex items-center gap-3 flex-wrap" id="detail-meta">
+                                <span class="text-slate-400">请从左侧选择一个样本</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -520,22 +384,39 @@
                             <button class="btn-secondary" onclick="nextTask()"><i class="fas fa-chevron-right"></i></button>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                    <div class="flex-1 overflow-y-auto p-4 space-y-4" id="detail-body" style="display:none;">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[11px] text-slate-500 mb-1">质量分</div>
+                                <div class="text-lg font-bold" id="meta-quality">--</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[11px] text-slate-500 mb-1">难度等级</div>
+                                <div class="text-sm" id="meta-difficulty">--</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[11px] text-slate-500 mb-1">样本类型</div>
+                                <div class="text-sm font-medium text-slate-700" id="meta-type">--</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-lg p-3">
+                                <div class="text-[11px] text-slate-500 mb-1">状态</div>
+                                <div id="meta-status">--</div>
+                            </div>
+                        </div>
+
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-medium text-slate-700"><i class="far fa-file-alt mr-1 text-blue-500"></i>样本输入（合同条款原文）</label>
-                                <span class="text-xs text-slate-400">只读 · 字符数：486</span>
+                                <span class="text-xs text-amber-600"><i class="fas fa-edit"></i> 可编辑</span>
                             </div>
-                            <textarea class="w-full h-36 p-3 border border-slate-200 rounded-lg text-sm text-slate-600 bg-slate-50 leading-relaxed" readonly>第8条 违约责任
-8.1 若甲方延迟交付货物，每延迟一日应按合同总额的0.5%向乙方支付违约金。延迟超过15日的，乙方有权单方面解除本合同，且甲方仍应按合同总额的30%向乙方支付惩罚性违约金。
-8.2 乙方若延迟付款超过30日，甲方有权要求乙方支付逾期利息，利率按中国人民银行同期贷款基准利率的4倍计算。
-8.3 任何一方违反保密义务的，应向对方支付违约金人民币50万元，如违约金不足以弥补损失的，还应赔偿超出部分。</textarea>
+                            <textarea id="input-text" class="w-full h-36 p-3 text-sm text-slate-700 leading-relaxed input-editable"></textarea>
                         </div>
 
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-medium text-slate-700">
-                                    <i class="far fa-edit mr-1 text-amber-500"></i>参考输出（<span class="text-amber-600">可改标</span>）
+                                    <i class="far fa-edit mr-1 text-amber-500"></i>参考输出（<span class="text-amber-600">人工改标</span>）
                                 </label>
                                 <div class="flex items-center gap-2">
                                     <button class="text-xs text-blue-600 hover:text-blue-800" onclick="openVersionsModal()">
@@ -543,105 +424,31 @@
                                     </button>
                                 </div>
                             </div>
-                            <textarea id="reference-output" class="w-full h-40 p-3 text-sm leading-relaxed input-editable">风险级别：高
-风险类型：违约责任 / 违约金过高
-条款类别：违约责任条款
-风险描述：
-1. 甲方延迟交付违约金按日0.5%计算，年化高达182.5%，远超法律保护的合理范围（通常年化不超过24%）
-2. 延迟15日即触发解约+30%惩罚性违约金，双重处罚可能被法院认定为过高
-3. 乙方延迟付款利率为基准4倍，需确认是否超过LPR的4倍标准
-建议修改：
-- 将日违约金调整为0.05%-0.1%，设置违约金上限为合同总额的10%-15%
-- 明确延迟解约的合理期限为30日以上</textarea>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-tags mr-1 text-slate-400"></i>条款类别</label>
-                                <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                    <option value="liability" selected>违约责任条款</option>
-                                    <option value="payment">付款条款</option>
-                                    <option value="delivery">交付条款</option>
-                                    <option value="confidentiality">保密条款</option>
-                                    <option value="ip">知识产权条款</option>
-                                    <option value="termination">终止解除条款</option>
-                                    <option value="dispute">争议解决条款</option>
-                                    <option value="force">不可抗力条款</option>
-                                    <option value="other">其他</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-flag mr-1 text-slate-400"></i>风险级别</label>
-                                <div class="flex gap-3">
-                                    <div class="risk-radio active-h" onclick="selectRisk(this,'H')">H</div>
-                                    <div class="risk-radio" onclick="selectRisk(this,'M')">M</div>
-                                    <div class="risk-radio" onclick="selectRisk(this,'L')">L</div>
-                                    <div class="risk-radio" onclick="selectRisk(this,'I')">I</div>
-                                    <div class="ml-3 flex items-center">
-                                        <div class="risk-radio" style="width:auto;padding:0 14px;font-weight:500;" onclick="selectRisk(this,'N')">无风险</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-sm font-medium text-slate-700 block mb-2"><i class="fas fa-list-check mr-1 text-slate-400"></i>风险类型（多选）</label>
-                            <div class="flex flex-wrap gap-2">
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-sm cursor-pointer">
-                                    <input type="checkbox" checked class="accent-red-500"> 违约金过高
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-200 bg-orange-50 text-orange-700 text-sm cursor-pointer">
-                                    <input type="checkbox" checked class="accent-orange-500"> 不对等条款
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
-                                    <input type="checkbox" class="accent-blue-500"> 期限模糊
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
-                                    <input type="checkbox" class="accent-blue-500"> 管辖不利
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
-                                    <input type="checkbox" class="accent-blue-500"> 合规风险
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
-                                    <input type="checkbox" class="accent-blue-500"> 表述歧义
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 text-sm cursor-pointer hover:bg-slate-50">
-                                    <input type="checkbox" class="accent-blue-500"> 缺失关键条款
-                                </label>
-                                <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 text-sm cursor-pointer hover:bg-blue-50">
-                                    <i class="fas fa-plus"></i> 自定义
-                                </label>
-                            </div>
+                            <textarea id="reference-output" class="w-full h-48 p-3 text-sm leading-relaxed input-editable"></textarea>
                         </div>
 
                         <div class="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                            <div class="flex items-center gap-2 mb-3">
-                                <i class="fas fa-link text-slate-400"></i>
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-link text-slate-400 text-sm"></i>
                                 <span class="text-sm font-medium text-slate-700">来源引用</span>
                             </div>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex items-center gap-3 text-slate-600">
-                                    <span class="text-slate-400 w-16">合同ID</span>
-                                    <a href="#" class="text-blue-600 hover:underline">CT-2026-0847</a>
-                                    <span class="text-slate-300">|</span>
-                                    <span class="text-slate-400 w-16">页码</span>
-                                    <span class="text-slate-700">第12页</span>
-                                    <span class="text-slate-300">|</span>
-                                    <span class="text-slate-400 w-16">条款ID</span>
-                                    <a href="#" class="text-blue-600 hover:underline">CLAUSE-56218</a>
-                                </div>
-                                <div class="flex items-start gap-3 text-slate-600">
-                                    <span class="text-slate-400 w-16 flex-shrink-0">原文摘录</span>
-                                    <div class="flex-1 bg-white rounded p-2.5 border border-slate-200 text-slate-600 leading-relaxed">
-                                        "...延迟超过15日的，乙方有权单方面解除本合同，且甲方仍应按合同总额的<mark class="bg-yellow-200 px-0.5 rounded">30%向乙方支付惩罚性违约金</mark>..."
-                                        <a href="#" class="ml-2 text-blue-600 text-xs hover:underline"><i class="fas fa-external-link-alt"></i> 跳转原文</a>
-                                    </div>
-                                </div>
+                            <div class="grid grid-cols-3 gap-3 text-xs">
+                                <div class="text-slate-500">合同ID: <span class="text-slate-700" id="meta-contract">--</span></div>
+                                <div class="text-slate-500">条款ID: <span class="text-slate-700" id="meta-clause">--</span></div>
+                                <div class="text-slate-500">风险ID: <span class="text-slate-700" id="meta-risk">--</span></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="p-4 border-t border-slate-100 bg-slate-50">
+                    <div id="detail-empty" class="flex-1 flex items-center justify-center">
+                        <div class="empty-state">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <div class="text-slate-500 font-medium">从左侧选择一个样本开始审核</div>
+                            <div class="text-xs text-slate-400 mt-1">点击列表中的任意条目查看详情</div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 bg-slate-50" id="action-bar" style="display:none;">
                         <div id="unlock-actions">
                             <div class="flex items-center justify-between">
                                 <p class="text-sm text-slate-500">
@@ -657,29 +464,17 @@
                             <div class="flex flex-col gap-3">
                                 <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
                                     <input type="text" id="review-comment" placeholder="修改意见：可填写对参考输出的调整说明、风险分析等..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                                    <div class="flex gap-2">
-                                        <div class="relative">
-                                            <button class="btn-success" onclick="submitReview('pass')">
-                                                <i class="fas fa-check"></i> 通过
-                                            </button>
-                                        </div>
-                                        <div class="relative">
-                                            <button class="btn-warning" onclick="toggleDropdown('modify-dropdown')">
-                                                <i class="fas fa-pen"></i> 需修改 <i class="fas fa-chevron-down ml-1 text-xs"></i>
-                                            </button>
-                                            <div id="modify-dropdown" class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[140px] z-10">
-                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-grammar')">语法错误</button>
-                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-content')">内容不完善</button>
-                                                <button class="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" onclick="submitReview('modify-format')">格式问题</button>
-                                            </div>
-                                        </div>
-                                        <button class="btn-danger" onclick="submitReview('reject')">
+                                    <div class="flex gap-2 flex-wrap">
+                                        <button class="btn-success" onclick="submitReview('approved')">
+                                            <i class="fas fa-check"></i> 通过
+                                        </button>
+                                        <button class="btn-danger" onclick="submitReview('rejected')">
                                             <i class="fas fa-times"></i> 驳回
                                         </button>
                                     </div>
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    <div class="flex gap-2">
+                                <div class="flex items-center justify-between flex-wrap gap-2">
+                                    <div class="flex gap-2 flex-wrap">
                                         <button class="btn-secondary text-xs" onclick="openVersionsModal()">
                                             <i class="fas fa-history"></i> 版本历史
                                         </button>
@@ -702,88 +497,32 @@
     <div class="modal-overlay" id="versions-modal" onclick="if(event.target===this)closeModal('versions-modal')">
         <div class="modal">
             <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 class="font-semibold text-slate-800"><i class="fas fa-history text-blue-500 mr-2"></i>版本历史 · #RISK-20260610-001</h3>
+                <h3 class="font-semibold text-slate-800"><i class="fas fa-history text-blue-500 mr-2"></i>版本历史 <span id="version-sample-id" class="text-sm text-slate-500 font-normal"></span></h3>
                 <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('versions-modal')"><i class="fas fa-times text-lg"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto p-4">
-                <div class="space-y-4">
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="bg-blue-50 p-3 border-b border-slate-200 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" name="version" checked class="accent-blue-600">
-                                <span class="badge badge-blue">v5 · 当前</span>
-                                <span class="text-sm font-medium text-slate-700">（未保存改标）</span>
-                            </div>
-                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>正在编辑中 · 张律师</div>
-                        </div>
-                    </div>
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" name="version" class="accent-blue-600">
-                                <span class="badge badge-slate">v4</span>
-                                <span class="text-sm text-slate-600">模型预测输出</span>
-                            </div>
-                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 09:15 · risk-detect-v2.3</div>
-                        </div>
-                        <div class="p-3 bg-slate-50">
-                            <div class="mb-2 text-xs font-medium text-slate-500">与v3差异：</div>
-                            <div class="diff-line diff-remove">- 风险级别：<span>中</span></div>
-                            <div class="diff-line diff-add">+ 风险级别：<span>高</span></div>
-                            <div class="diff-line diff-add">+ 2. 延迟15日即触发解约+30%惩罚性违约金，双重处罚可能被法院认定为过高</div>
-                        </div>
-                    </div>
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" name="version" class="accent-blue-600">
-                                <span class="badge badge-slate">v3</span>
-                                <span class="text-sm text-slate-600">李法务审核修改</span>
-                            </div>
-                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:42 · 李法务</div>
-                        </div>
-                        <div class="p-3 bg-slate-50">
-                            <div class="mb-2 text-xs font-medium text-slate-500">与v2差异：</div>
-                            <div class="diff-line diff-remove">- 建议修改：调降违约金比例</div>
-                            <div class="diff-line diff-add">+ 建议修改：将日违约金调整为0.05%-0.1%，设置违约金上限为合同总额的10%-15%</div>
-                        </div>
-                    </div>
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" name="version" class="accent-blue-600">
-                                <span class="badge badge-slate">v2</span>
-                                <span class="text-sm text-slate-600">模型预测输出</span>
-                            </div>
-                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:30 · risk-detect-v2.2</div>
-                        </div>
-                    </div>
-                    <div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <input type="radio" name="version" class="accent-blue-600">
-                                <span class="badge badge-green">v1</span>
-                                <span class="text-sm text-slate-600">初始版本</span>
-                            </div>
-                            <div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>2026-06-10 08:00 · 系统导入</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="flex-1 overflow-y-auto p-4" id="version-list">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载版本历史中...</div></div>
             </div>
-            <div class="p-4 border-t border-slate-100 flex items-center justify-between">
-                <p class="text-xs text-slate-500">选中历史版本后可回滚</p>
-                <div class="flex gap-2">
-                    <button class="btn-secondary" onclick="closeModal('versions-modal')">关闭</button>
-                    <button class="btn-warning" onclick="rollbackVersion()">
-                        <i class="fas fa-undo"></i> 回滚到选定版本
-                    </button>
+            <div class="p-4 border-t border-slate-100 space-y-3">
+                <div>
+                    <label class="text-xs font-medium text-slate-600 block mb-1">回滚原因（可选）</label>
+                    <input type="text" id="rollback-reason" placeholder="例如：改标错误，需要恢复上一版本" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                </div>
+                <div class="flex items-center justify-between">
+                    <p class="text-xs text-slate-500">选中历史版本后可回滚</p>
+                    <div class="flex gap-2">
+                        <button class="btn-secondary" onclick="closeModal('versions-modal')">关闭</button>
+                        <button class="btn-warning" onclick="rollbackVersion()">
+                            <i class="fas fa-undo"></i> 回滚到选定版本
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="report-modal" onclick="if(event.target===this)closeModal('report-modal')">
-        <div class="modal" style="max-width:520px;">
+        <div class="modal" style="max-width:560px;">
             <div class="p-4 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="font-semibold text-slate-800"><i class="fas fa-exclamation-circle text-red-500 mr-2"></i>上报为错误样本</h3>
                 <button class="text-slate-400 hover:text-slate-600" onclick="closeModal('report-modal')"><i class="fas fa-times text-lg"></i></button>
@@ -791,36 +530,39 @@
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
                 <div>
                     <label class="text-sm font-medium text-slate-700 block mb-2">错误类型</label>
-                    <select class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                        <option>风险漏检（模型未识别到风险）</option>
-                        <option>风险误判（错误标注风险级别）</option>
-                        <option>实体提取错误（主体/金额/日期识别错）</option>
-                        <option>分类错误（条款类别标错）</option>
-                        <option>摘要不完整（关键信息遗漏）</option>
-                        <option>格式/边界偏移</option>
-                        <option>其他问题</option>
+                    <select id="report-error-type" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                        <option value="risk_missed">风险漏检（模型未识别到风险）</option>
+                        <option value="risk_misjudged">风险误判（错误标注风险级别）</option>
+                        <option value="entity_error">实体提取错误（主体/金额/日期识别错）</option>
+                        <option value="format_offset">格式/边界偏移</option>
+                        <option value="summary_wrong">摘要错误/遗漏</option>
+                        <option value="other">其他问题</option>
                     </select>
                 </div>
                 <div>
                     <label class="text-sm font-medium text-slate-700 block mb-2">严重程度</label>
                     <div class="flex gap-2">
                         <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
-                            <input type="radio" name="severity" class="accent-green-600"> <span class="text-green-600 font-medium">低</span>
+                            <input type="radio" name="report-severity" value="low" class="accent-green-600"> <span class="text-green-600 font-medium">低</span>
                         </label>
                         <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm border-yellow-300 bg-yellow-50">
-                            <input type="radio" name="severity" checked class="accent-yellow-600"> <span class="text-yellow-700 font-medium">中</span>
+                            <input type="radio" name="report-severity" value="medium" checked class="accent-yellow-600"> <span class="text-yellow-700 font-medium">中</span>
                         </label>
                         <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
-                            <input type="radio" name="severity" class="accent-orange-600"> <span class="text-orange-600 font-medium">高</span>
+                            <input type="radio" name="report-severity" value="high" class="accent-orange-600"> <span class="text-orange-600 font-medium">高</span>
                         </label>
                         <label class="flex-1 flex items-center justify-center gap-2 border rounded-lg py-2 cursor-pointer hover:bg-slate-50 text-sm">
-                            <input type="radio" name="severity" class="accent-red-600"> <span class="text-red-600 font-medium">致命</span>
+                            <input type="radio" name="report-severity" value="critical" class="accent-red-600"> <span class="text-red-600 font-medium">致命</span>
                         </label>
                     </div>
                 </div>
                 <div>
+                    <label class="text-sm font-medium text-slate-700 block mb-2">期望输出（正确标注）</label>
+                    <textarea id="report-expected" rows="3" placeholder="请填写正确的参考输出应该是什么..." class="w-full border border-slate-200 rounded-lg p-3 text-sm"></textarea>
+                </div>
+                <div>
                     <label class="text-sm font-medium text-slate-700 block mb-2">问题说明</label>
-                    <textarea rows="4" placeholder="请详细描述错误问题：例如哪些内容判断错误、正确的标注应该是什么..." class="w-full border border-slate-200 rounded-lg p-3 text-sm"></textarea>
+                    <textarea id="report-description" rows="4" placeholder="请详细描述错误问题：例如哪些内容判断错误、上下文背景等..." class="w-full border border-slate-200 rounded-lg p-3 text-sm"></textarea>
                 </div>
             </div>
             <div class="p-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -834,34 +576,66 @@
 
     <script>
         const BASE = "/api/v1";
+        const REVIEWER_ID = 1;
         let currentTaskId = null;
         let currentTasks = { pending_review: [], reviewing: [], approved: [] };
         let currentTab = 'pending_review';
+        let currentDetailData = null;
+        let versionHistory = [];
+        let selectedRollbackId = null;
 
-        const mockPending = Array.from({length: 15}, (_, i) => ({
-            id: 1000 + i,
-            sample_type: ['摘要样本','风险识别','问答样本','条款分类'][i%4],
-            status: 'pending_review',
-            quality_score: (0.6 + Math.random()*0.35).toFixed(2),
-            assignee: null,
-            created_at: '2024-06-' + String(10 + i%2).padStart(2, '0')
-        }));
-        const mockReviewing = Array.from({length: 6}, (_, i) => ({
-            id: 2000 + i, sample_type: '风险识别', status: 'reviewing',
-            quality_score: (0.7 + Math.random()*0.25).toFixed(2), assignee: '张律师',
-            created_at: '2024-06-12'
-        }));
-        const mockApproved = Array.from({length: 20}, (_, i) => ({
-            id: 3000 + i, sample_type: ['摘要样本','风险识别'][i%2], status: 'approved',
-            quality_score: (0.85 + Math.random()*0.14).toFixed(2), assignee: '张律师',
-            created_at: '2024-06-' + String(5 + i%6).padStart(2, '0')
-        }));
+        const SAMPLE_TYPE_MAP = {
+            'clause_summary': '条款摘要',
+            'risk_detection': '风险检测',
+            'qa_pair': '问答对',
+            'clause_classification': '条款分类',
+            'contract_summary': '合同摘要',
+            'risk_tagging': '风险标注'
+        };
 
-        function showToast(msg) {
+        function translateSampleType(t) {
+            return SAMPLE_TYPE_MAP[t] || t || '未知';
+        }
+
+        function getSampleTypeIcon(t) {
+            const icons = {
+                'clause_summary': 'fa-align-left',
+                'risk_detection': 'fa-exclamation-triangle',
+                'qa_pair': 'fa-question-circle',
+                'clause_classification': 'fa-tags',
+                'contract_summary': 'fa-file-alt',
+                'risk_tagging': 'fa-flag'
+            };
+            return icons[t] || 'fa-file';
+        }
+
+        function getSampleTypeColor(t) {
+            const colors = {
+                'clause_summary': ['bg-blue-50', 'text-blue-500'],
+                'risk_detection': ['bg-orange-50', 'text-orange-500'],
+                'qa_pair': ['bg-purple-50', 'text-purple-500'],
+                'clause_classification': ['bg-emerald-50', 'text-emerald-500'],
+                'contract_summary': ['bg-indigo-50', 'text-indigo-500'],
+                'risk_tagging': ['bg-red-50', 'text-red-500']
+            };
+            return colors[t] || ['bg-slate-50', 'text-slate-500'];
+        }
+
+        function showToast(msg, type) {
             const t = document.getElementById('toast');
+            t.classList.remove('toast-success', 'toast-info');
+            if (type === 'success') {
+                t.classList.add('toast-success');
+                t.querySelector('i').className = 'fas fa-check-circle';
+            } else if (type === 'info') {
+                t.classList.add('toast-info');
+                t.querySelector('i').className = 'fas fa-info-circle';
+            } else {
+                t.querySelector('i').className = 'fas fa-exclamation-circle';
+            }
             document.getElementById('toast-msg').textContent = msg;
             t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 4000);
+            setTimeout(function() { t.classList.remove('show'); }, 4000);
         }
 
         async function checkHealth() {
@@ -870,11 +644,13 @@
                 const resp = await fetch('/healthz');
                 if (resp.status === 200) {
                     badge.className = 'health-badge health-ok';
-                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>✅ 接口正常 (200)</span>';
-                } else { throw new Error('status ' + resp.status); }
+                    badge.innerHTML = '<i class="fas fa-check-circle"></i><span>接口正常</span>';
+                } else {
+                    throw new Error('status ' + resp.status);
+                }
             } catch (e) {
                 badge.className = 'health-badge health-fail';
-                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>❌ 接口失败: ' + e.message + '</span>';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i><span>接口失败</span>';
             }
         }
 
@@ -886,205 +662,457 @@
 
         function statusBadge(s) {
             const map = {
-                pending_review: ['badge-red', '待审核'],
-                reviewing: ['badge-yellow', '审核中'],
-                approved: ['badge-green', '已通过'],
-                rejected: ['badge-slate', '已驳回']
+                'pending_review': ['badge-red', '待审核'],
+                'reviewing': ['badge-yellow', '审核中'],
+                'approved': ['badge-green', '已通过'],
+                'rejected': ['badge-slate', '已驳回']
             };
-            const [cls, txt] = map[s] || ['badge-slate', s];
-            return `<span class="badge ${cls}">${txt}</span>`;
+            const v = map[s] || ['badge-slate', s || '未知'];
+            return '<span class="badge ' + v[0] + '">' + v[1] + '</span>';
+        }
+
+        function renderStars(level) {
+            const n = Math.max(1, Math.min(5, parseInt(level) || 1));
+            let html = '';
+            for (let i = 0; i < 5; i++) {
+                html += '<i class="fas fa-star star ' + (i < n ? 'filled' : '') + '"></i>';
+            }
+            return html;
+        }
+
+        function renderQualityScore(score) {
+            if (score == null || isNaN(score)) {
+                return '<span class="text-slate-400">--</span>';
+            }
+            const n = Number(score);
+            const cls = n >= 0.85 ? 'text-green-600' : n >= 0.7 ? 'text-amber-600' : 'text-red-600';
+            return '<span class="' + cls + '">' + (n * 100).toFixed(0) + '分</span>';
         }
 
         async function loadStatistics() {
             try {
                 const resp = await fetch(BASE + '/review/statistics');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code === 0 && r.data) {
-                    const d = r.data;
-                    document.getElementById('stat-pending').textContent = d.pending != null ? d.pending : '23';
-                    document.getElementById('stat-done').textContent = d.today_completed != null ? d.today_completed : '47';
-                }
-            } catch (e) {}
+                if (r.code !== 0) throw new Error(r.message || '接口错误');
+                const d = r.data || {};
+                document.getElementById('stat-pending').textContent = d.total_pending != null ? d.total_pending : 0;
+                document.getElementById('stat-approved').textContent = d.total_approved != null ? d.total_approved : 0;
+                document.getElementById('stat-rejected').textContent = d.total_rejected != null ? d.total_rejected : 0;
+                document.getElementById('stat-error-total').textContent = d.total_error_samples != null ? d.total_error_samples : 0;
+                document.getElementById('stat-error-open').textContent = d.open_error_samples != null ? d.open_error_samples : 0;
+                const tcPending = document.getElementById('tabcount-pending_review');
+                const tcReviewing = document.getElementById('tabcount-reviewing');
+                const tcApproved = document.getElementById('tabcount-approved');
+                if (tcPending) tcPending.textContent = d.total_pending != null ? d.total_pending : 0;
+                if (tcReviewing) tcReviewing.textContent = (d.reviewers && d.reviewers[0]) ? d.reviewers[0].pending_count : 0;
+                if (tcApproved) tcApproved.textContent = d.total_approved != null ? d.total_approved : 0;
+            } catch (e) {
+                showToast('统计加载失败: ' + e.message);
+                ['stat-pending', 'stat-approved', 'stat-rejected', 'stat-error-total', 'stat-error-open'].forEach(function(id) {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '-';
+                });
+            }
         }
 
-        async function loadTasks(status, page = 1, pageSize = 50) {
+        async function loadTasks(status, page, pageSize) {
+            if (page == null) page = 1;
+            if (pageSize == null) pageSize = 50;
+            const list = document.getElementById('task-list');
+            if (list && status === currentTab) {
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载中...</div></div>';
+            }
             try {
-                const resp = await fetch(BASE + `/review/tasks?status=${status}&page=${page}&page_size=${pageSize}`);
+                const resp = await fetch(BASE + '/review/tasks?status=' + encodeURIComponent(status) + '&page=' + page + '&page_size=' + pageSize);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message);
-                return r.data.items || r.data || [];
+                if (r.code !== 0) throw new Error(r.message || '接口错误');
+                const items = (r.data && r.data.items) || r.data || [];
+                currentTasks[status] = items;
+                renderTaskList(items);
+                return items;
             } catch (e) {
-                if (status === 'pending_review') return mockPending;
-                if (status === 'reviewing') return mockReviewing;
-                return mockApproved;
+                showToast('任务列表加载失败[' + status + ']: ' + e.message);
+                currentTasks[status] = [];
+                renderTaskList([]);
+                return [];
             }
         }
 
         function renderTaskList(tasks) {
             const list = document.getElementById('task-list');
             if (!list) return;
-            if (!tasks.length) {
-                list.innerHTML = '<div class="empty-state py-10"><i class="fas fa-clipboard-list"></i><div>暂无任务</div></div>';
+            if (!tasks || tasks.length === 0) {
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><div class="font-medium">暂无任务</div><div class="text-xs mt-1">当前状态下没有可审核的样本</div></div>';
                 return;
             }
-            list.innerHTML = tasks.map(t => `
-                <div class="task-item p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer ${currentTaskId==t.id?'selected':''}"
-                     onclick="selectTask(this, ${t.id})">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs text-slate-500">#${t.id}</span>
-                            ${statusBadge(t.status)}
-                        </div>
-                        <div class="text-xs font-semibold ${Number(t.quality_score)>0.85?'text-green-600':Number(t.quality_score)>0.7?'text-amber-600':'text-red-600'}">
-                            质量分 ${Number(t.quality_score).toFixed(2)}
-                        </div>
-                    </div>
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-slate-600"><i class="far fa-file-alt mr-1"></i>${escapeHtml(t.sample_type || '未知')}</span>
-                        <span class="text-slate-400">${escapeHtml(t.created_at || t.assignee || '')}</span>
-                    </div>
-                </div>
-            `).join('');
+            list.innerHTML = tasks.map(function(t) {
+                const sid = t.sample_id;
+                const isSelected = currentTaskId === sid;
+                const typeColor = getSampleTypeColor(t.sample_type);
+                const icon = getSampleTypeIcon(t.sample_type);
+                return '<div class="task-item ' + (isSelected ? 'selected' : '') + '" onclick="selectTask(this, ' + sid + ')">' +
+                    '<div class="flex items-start gap-3">' +
+                        '<div class="w-9 h-9 rounded-lg ' + typeColor[0] + ' ' + typeColor[1] + ' flex items-center justify-center flex-shrink-0">' +
+                            '<i class="fas ' + icon + '"></i>' +
+                        '</div>' +
+                        '<div class="flex-1 min-w-0">' +
+                            '<div class="flex items-center gap-2 mb-1 flex-wrap">' +
+                                '<span class="text-xs font-mono text-slate-500">#样' + sid + '</span>' +
+                                statusBadge(t.status) +
+                                '<span class="text-[11px]">' + renderStars(t.difficulty_level) + '</span>' +
+                            '</div>' +
+                            '<div class="flex items-center gap-2 mb-1.5">' +
+                                '<span class="text-xs text-slate-700 font-medium">' + escapeHtml(translateSampleType(t.sample_type)) + '</span>' +
+                                (t.assignee_id ? '<span class="text-[11px] text-slate-400">指派人ID:' + t.assignee_id + '</span>' : '') +
+                            '</div>' +
+                            '<div class="text-xs text-slate-600 leading-relaxed line-clamp-3" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' +
+                                escapeHtml(t.input_preview || '(无预览)') +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
         }
 
         function switchTab(el, tab) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            el.classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            if (el) el.classList.add('active');
             currentTab = tab;
             currentTaskId = null;
-            loadTasks(tab).then(tasks => {
-                currentTasks[tab] = tasks;
-                renderTaskList(tasks);
-            });
+            currentDetailData = null;
+            showDetailEmpty();
+            loadTasks(tab);
+        }
+
+        function showDetailEmpty() {
+            const empty = document.getElementById('detail-empty');
+            const body = document.getElementById('detail-body');
+            const action = document.getElementById('action-bar');
+            const title = document.getElementById('detail-title');
+            const idEl = document.getElementById('detail-id');
+            const meta = document.getElementById('detail-meta');
+            if (empty) empty.style.display = 'flex';
+            if (body) body.style.display = 'none';
+            if (action) action.style.display = 'none';
+            if (title) title.textContent = '样本审核详情';
+            if (idEl) idEl.textContent = '';
+            if (meta) meta.innerHTML = '<span class="text-slate-400">请从左侧选择一个样本</span>';
+            resetLockButtons();
         }
 
         async function selectTask(el, id) {
-            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('selected'));
-            el && el.classList.add('selected');
+            document.querySelectorAll('.task-item').forEach(function(t) { t.classList.remove('selected'); });
+            if (el) el.classList.add('selected');
             currentTaskId = id;
-            document.getElementById('detail-empty')?.classList.add('hidden');
-            document.getElementById('detail-body')?.classList.remove('hidden');
-            loadSampleDetail(id);
+            const empty = document.getElementById('detail-empty');
+            const body = document.getElementById('detail-body');
+            const action = document.getElementById('action-bar');
+            if (empty) empty.style.display = 'none';
+            if (body) {
+                body.style.display = 'block';
+                body.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载样本详情中...</div></div>';
+            }
+            if (action) action.style.display = 'none';
+            const idEl = document.getElementById('detail-id');
+            if (idEl) idEl.textContent = '#样' + id;
+            const meta = document.getElementById('detail-meta');
+            if (meta) meta.innerHTML = '<span class="text-slate-500">加载中...</span>';
+            await loadSampleDetail(id);
         }
 
         async function loadSampleDetail(id) {
-            const title = document.getElementById('sample-title');
-            if (title) title.innerHTML = `样本 #${id} · <span class="text-xs font-normal text-slate-500">加载中...</span>`;
             try {
-                const resp = await fetch(BASE + `/datasets/samples/${id}`);
+                const resp = await fetch(BASE + '/datasets/samples/' + id);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) throw new Error(r.message);
-                renderSampleDetail(r.data || {});
+                if (r.code !== 0) throw new Error(r.message || '接口错误');
+                currentDetailData = r.data || {};
+                renderSampleDetail(currentDetailData);
+                const action = document.getElementById('action-bar');
+                if (action) action.style.display = 'block';
+                if (currentDetailData.status === 'reviewing' && currentDetailData.reviewer_id != null) {
+                    showLockedState(currentDetailData.reviewer_id);
+                } else {
+                    resetLockButtons();
+                }
             } catch (e) {
-                const mock = {
-                    id,
-                    input_text: '合同编号：HT-2024-0088\n甲方：某某科技有限公司\n乙方：某某数据服务有限公司\n\n第三条 服务内容\n3.1 乙方同意按照本合同约定，向甲方提供云计算资源服务，包括但不限于计算实例、存储空间、网络带宽等。\n3.2 服务期限为2年，自2024年3月1日至2026年2月28日。\n\n第八条 违约责任\n8.1 任何一方违反本合同约定，应承担违约责任。违约金不超过合同总金额的30%。',
-                    reference_output: '本合同为云计算服务采购合同。甲方：某某科技有限公司，乙方：某某数据服务有限公司。主要条款：(1)服务内容：云计算资源服务；(2)服务期限：2年(2024.3.1-2026.2.28)；(3)违约责任：违约金上限为合同总金额30%。',
-                    model_output: '本合同为云计算服务采购合同。甲方：某某科技有限公司，乙方：某某数据服务有限公司。服务期限为1年，自2024年3月1日起。违约条款：违约金不超过总金额的20%。'
-                };
-                renderSampleDetail(mock);
+                showToast('样本详情加载失败: ' + e.message);
+                const body = document.getElementById('detail-body');
+                if (body) {
+                    body.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle text-amber-500"></i><div class="text-slate-600 font-medium">加载失败</div><div class="text-xs mt-1">' + escapeHtml(e.message) + '</div></div>';
+                }
             }
         }
 
         function renderSampleDetail(data) {
-            const title = document.getElementById('sample-title');
-            if (title) title.innerHTML = `样本 #${data.id} · <span class="text-xs font-normal text-slate-500">${escapeHtml(data.sample_type || '审核样本')}</span>`;
-            const inputEl = document.getElementById('sample-input');
-            if (inputEl) inputEl.textContent = data.input_text || '(无原文)';
-            const refEl = document.getElementById('sample-reference');
-            if (refEl) refEl.textContent = data.reference_output || '(无参考输出)';
-            const modelEl = document.getElementById('sample-model');
-            if (modelEl) modelEl.textContent = data.model_output || '(无模型输出)';
-            if (data.assignee) unlockSample();
-            else resetLockButtons();
-        }
+            const title = document.getElementById('detail-title');
+            const idEl = document.getElementById('detail-id');
+            const metaBar = document.getElementById('detail-meta');
+            const body = document.getElementById('detail-body');
 
-        function selectRisk(el, level) {
-            document.querySelectorAll('.risk-radio').forEach(r => {
-                r.classList.remove('active-h','active-m','active-l','active-i');
-            });
-            const map = { H:'active-h', M:'active-m', L:'active-l', I:'active-i' };
-            if (map[level]) el.classList.add(map[level]);
-        }
+            if (idEl) idEl.textContent = '#样' + (data.id || data.sample_id || '');
+            if (metaBar) {
+                metaBar.innerHTML =
+                    '<span>样本类型：<span class="text-slate-700 font-medium">' + escapeHtml(translateSampleType(data.sample_type)) + '</span></span>' +
+                    '<span class="text-slate-300">·</span>' +
+                    '<span>数据集ID：<span class="text-slate-700">' + (data.dataset_id != null ? data.dataset_id : '--') + '</span></span>' +
+                    '<span class="text-slate-300">·</span>' +
+                    '<span>创建：<span class="text-slate-500">' + escapeHtml((data.created_at || '').substring(0, 16)) + '</span></span>';
+            }
 
-        function toggleDropdown(id) {
-            event.stopPropagation();
-            document.getElementById(id).classList.toggle('hidden');
+            if (body) {
+                body.innerHTML =
+                    '<div class="grid grid-cols-2 md:grid-cols-4 gap-3">' +
+                        '<div class="bg-slate-50 rounded-lg p-3">' +
+                            '<div class="text-[11px] text-slate-500 mb-1">质量分</div>' +
+                            '<div class="text-lg font-bold">' + renderQualityScore(data.quality_score) + '</div>' +
+                        '</div>' +
+                        '<div class="bg-slate-50 rounded-lg p-3">' +
+                            '<div class="text-[11px] text-slate-500 mb-1">难度等级</div>' +
+                            '<div class="text-sm">' + renderStars(data.difficulty_level) + '</div>' +
+                        '</div>' +
+                        '<div class="bg-slate-50 rounded-lg p-3">' +
+                            '<div class="text-[11px] text-slate-500 mb-1">样本类型</div>' +
+                            '<div class="text-sm font-medium text-slate-700">' + escapeHtml(translateSampleType(data.sample_type)) + '</div>' +
+                        '</div>' +
+                        '<div class="bg-slate-50 rounded-lg p-3">' +
+                            '<div class="text-[11px] text-slate-500 mb-1">状态</div>' +
+                            '<div>' + statusBadge(data.status) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div>' +
+                        '<div class="flex items-center justify-between mb-2">' +
+                            '<label class="text-sm font-medium text-slate-700"><i class="far fa-file-alt mr-1 text-blue-500"></i>样本输入（合同条款原文）</label>' +
+                            '<span class="text-xs text-amber-600"><i class="fas fa-edit"></i> 可编辑</span>' +
+                        '</div>' +
+                        '<textarea id="input-text" class="w-full h-36 p-3 text-sm text-slate-700 leading-relaxed input-editable"></textarea>' +
+                    '</div>' +
+                    '<div>' +
+                        '<div class="flex items-center justify-between mb-2">' +
+                            '<label class="text-sm font-medium text-slate-700">' +
+                                '<i class="far fa-edit mr-1 text-amber-500"></i>参考输出（<span class="text-amber-600">人工改标</span>）' +
+                            '</label>' +
+                            '<div class="flex items-center gap-2">' +
+                                '<button class="text-xs text-blue-600 hover:text-blue-800" onclick="openVersionsModal()">' +
+                                    '<i class="fas fa-history mr-1"></i>查看历史版本' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<textarea id="reference-output" class="w-full h-48 p-3 text-sm leading-relaxed input-editable"></textarea>' +
+                    '</div>' +
+                    '<div class="bg-slate-50 rounded-lg p-4 border border-slate-100">' +
+                        '<div class="flex items-center gap-2 mb-2">' +
+                            '<i class="fas fa-link text-slate-400 text-sm"></i>' +
+                            '<span class="text-sm font-medium text-slate-700">来源引用</span>' +
+                        '</div>' +
+                        '<div class="grid grid-cols-3 gap-3 text-xs">' +
+                            '<div class="text-slate-500">合同ID: <span class="text-slate-700">' + (data.source_contract_id != null ? data.source_contract_id : '--') + '</span></div>' +
+                            '<div class="text-slate-500">条款ID: <span class="text-slate-700">' + (data.source_clause_id != null ? data.source_clause_id : '--') + '</span></div>' +
+                            '<div class="text-slate-500">风险ID: <span class="text-slate-700">' + (data.source_risk_id != null ? data.source_risk_id : '--') + '</span></div>' +
+                        '</div>' +
+                    '</div>';
+            }
+
+            setTimeout(function() {
+                const inputEl = document.getElementById('input-text');
+                if (inputEl) inputEl.value = data.input_text || '';
+                const refEl = document.getElementById('reference-output');
+                if (refEl) refEl.value = data.reference_output || '';
+                const commentEl = document.getElementById('review-comment');
+                if (commentEl && data.review_comment) commentEl.value = data.review_comment;
+            }, 0);
         }
-        document.addEventListener('click', () => {
-            document.querySelectorAll('[id$="-dropdown"]').forEach(d => d.classList.add('hidden'));
-        });
 
         function resetLockButtons() {
-            document.getElementById('unlock-actions').style.display = 'flex';
+            document.getElementById('unlock-actions').style.display = 'block';
             document.getElementById('locked-actions').style.display = 'none';
             const badge = document.getElementById('lock-badge');
             badge.className = 'badge badge-slate';
             badge.innerHTML = '<i class="fas fa-unlock mr-1"></i>未锁定';
         }
 
+        function showLockedState(reviewerId) {
+            document.getElementById('unlock-actions').style.display = 'none';
+            document.getElementById('locked-actions').style.display = 'flex';
+            const badge = document.getElementById('lock-badge');
+            badge.className = 'badge badge-blue';
+            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定，审核人ID=' + reviewerId;
+        }
+
         async function lockSample() {
             if (!currentTaskId) { showToast('请先选择任务'); return; }
             try {
-                const resp = await fetch(BASE + `/review/tasks/${currentTaskId}/start`, {
+                const resp = await fetch(BASE + '/review/tasks/' + currentTaskId + '/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reviewer_id: 1 })
+                    body: JSON.stringify({ reviewer_id: REVIEWER_ID })
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '锁定失败'); return; }
-            } catch (e) {}
-            document.getElementById('unlock-actions').style.display = 'none';
-            document.getElementById('locked-actions').style.display = 'flex';
-            const badge = document.getElementById('lock-badge');
-            badge.className = 'badge badge-blue';
-            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
+                if (r.code !== 0) throw new Error(r.message || '锁定失败');
+                const rid = (r.data && r.data.reviewer_id) || REVIEWER_ID;
+                showLockedState(rid);
+                showToast('审核已锁定', 'success');
+            } catch (e) {
+                showToast('锁定失败: ' + e.message);
+            }
         }
 
         function unlockSample() {
-            document.getElementById('unlock-actions').style.display = 'none';
-            document.getElementById('locked-actions').style.display = 'flex';
-            const badge = document.getElementById('lock-badge');
-            badge.className = 'badge badge-blue';
-            badge.innerHTML = '<i class="fas fa-lock mr-1"></i>已锁定 · 张律师';
+            resetLockButtons();
+            showToast('已取消锁定', 'info');
         }
 
         async function submitReview(action) {
             if (!currentTaskId) { showToast('请先选择任务'); return; }
-            const comment = document.getElementById('review-comment')?.value || '';
-            const refEl = document.getElementById('sample-reference');
-            const reference_output = refEl?.textContent || '';
-            const statusMap = {
-                'pass': 'approved',
-                'modify-grammar': 'approved',
-                'modify-content': 'approved',
-                'modify-format': 'approved',
-                'reject': 'rejected'
-            };
+            const comment = document.getElementById('review-comment') ? document.getElementById('review-comment').value : '';
+            const refEl = document.getElementById('reference-output');
+            const reference_output = refEl ? refEl.value : '';
+            const inputEl = document.getElementById('input-text');
+            const input_text = inputEl ? inputEl.value : '';
+            const status = action === 'approved' ? 'approved' : action === 'rejected' ? 'rejected' : action;
+
+            let submitted = false;
             try {
-                const resp = await fetch(BASE + `/review/tasks/${currentTaskId}/submit`, {
+                const resp1 = await fetch(BASE + '/review/tasks/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: statusMap[action] || action, review_comment: comment, reference_output })
+                    body: JSON.stringify({
+                        sample_id: currentTaskId,
+                        status: status,
+                        review_comment: comment,
+                        reference_output: reference_output,
+                        input_text: input_text,
+                        reviewer_id: REVIEWER_ID
+                    })
                 });
-                const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '提交失败'); return; }
+                if (resp1.ok) {
+                    const r1 = await resp1.json();
+                    if (r1.code === 0) submitted = true;
+                }
             } catch (e) {}
-            showToast('审核结果已提交');
-            loadTasks(currentTab).then(tasks => { currentTasks[currentTab] = tasks; renderTaskList(tasks); });
-            if (currentTab === 'pending_review' && tasks.length) {
-                const nextId = tasks[0].id;
-                setTimeout(() => selectTask(null, nextId), 300);
+
+            if (!submitted) {
+                try {
+                    const resp2 = await fetch(BASE + '/datasets/samples/' + currentTaskId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            status: status,
+                            review_comment: comment,
+                            reference_output: reference_output,
+                            input_text: input_text
+                        })
+                    });
+                    if (!resp2.ok) throw new Error('HTTP ' + resp2.status);
+                    const r2 = await resp2.json();
+                    if (r2.code !== 0) throw new Error(r2.message || '提交失败');
+                    submitted = true;
+                } catch (e2) {
+                    showToast('提交失败: ' + e2.message);
+                    return;
+                }
             }
+
+            if (!submitted) {
+                showToast('提交失败');
+                return;
+            }
+
+            showToast('审核结果已提交', 'success');
+            resetLockButtons();
+
+            try {
+                const tasks = await loadTasks(currentTab);
+                if (currentTab === 'pending_review' && tasks && tasks.length > 0) {
+                    const nextId = tasks[0].sample_id;
+                    setTimeout(function() { selectTask(null, nextId); }, 400);
+                } else {
+                    showDetailEmpty();
+                }
+            } catch (e) {}
+            loadStatistics();
         }
 
-        function openVersionsModal() {
+        async function loadVersionHistoryChain(startId) {
+            versionHistory = [];
+            selectedRollbackId = null;
+            let currentId = startId;
+            const visited = {};
+            while (currentId && !visited[currentId]) {
+                visited[currentId] = true;
+                try {
+                    const resp = await fetch(BASE + '/datasets/samples/' + currentId);
+                    if (!resp.ok) break;
+                    const r = await resp.json();
+                    if (r.code !== 0 || !r.data) break;
+                    versionHistory.unshift(r.data);
+                    currentId = r.data.previous_sample_id;
+                } catch (e) {
+                    break;
+                }
+            }
+            return versionHistory;
+        }
+
+        function renderVersionHistory() {
+            const container = document.getElementById('version-list');
+            const sidEl = document.getElementById('version-sample-id');
+            if (sidEl) sidEl.textContent = '· #样' + currentTaskId;
+            if (!versionHistory || versionHistory.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><div>暂无版本历史</div></div>';
+                return;
+            }
+            container.innerHTML = '<div class="space-y-3">' + versionHistory.map(function(v, idx) {
+                const isLatest = idx === versionHistory.length - 1;
+                const isCurrent = v.id === currentTaskId;
+                return '<div class="border border-slate-200 rounded-lg overflow-hidden">' +
+                    '<div class="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">' +
+                        '<div class="flex items-center gap-2">' +
+                            '<input type="radio" name="version" value="' + v.id + '" ' +
+                                (isLatest ? 'checked' : '') +
+                                ' onchange="selectedRollbackId=' + v.id + '" class="accent-blue-600">' +
+                            (isCurrent ? '<span class="badge badge-blue">v' + (idx + 1) + ' · 当前</span>' : '<span class="badge badge-slate">v' + (idx + 1) + '</span>') +
+                            '<span class="text-sm text-slate-600">' + (v.reviewer_id ? '审核人ID:' + v.reviewer_id : '系统生成') + '</span>' +
+                        '</div>' +
+                        '<div class="text-xs text-slate-500"><i class="far fa-clock mr-1"></i>' + escapeHtml((v.updated_at || v.created_at || '').substring(0, 16)) + '</div>' +
+                    '</div>' +
+                    '<div class="p-3 bg-white">' +
+                        '<div class="mb-1 text-[11px] font-medium text-slate-500">状态 / 质量分</div>' +
+                        '<div class="mb-2 text-xs flex items-center gap-2">' +
+                            statusBadge(v.status) +
+                            '<span class="text-slate-600">' + renderQualityScore(v.quality_score) + '</span>' +
+                        '</div>' +
+                        '<div class="mb-1 text-[11px] font-medium text-slate-500">参考输出</div>' +
+                        '<div class="text-xs text-slate-600 bg-slate-50 rounded p-2 max-h-24 overflow-y-auto whitespace-pre-wrap leading-relaxed">' +
+                            escapeHtml(v.reference_output || '(空)') +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('') + '</div>';
+
+            const latest = versionHistory[versionHistory.length - 1];
+            if (latest) selectedRollbackId = latest.id;
+        }
+
+        async function openVersionsModal() {
+            if (!currentTaskId) { showToast('请先选择任务'); return; }
             document.getElementById('versions-modal').classList.add('open');
+            const list = document.getElementById('version-list');
+            if (list) list.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><div>加载版本历史中...</div></div>';
+            await loadVersionHistoryChain(currentTaskId);
+            renderVersionHistory();
         }
 
         function openReportModal() {
             if (!currentTaskId) { showToast('请先选择任务'); return; }
             document.getElementById('report-modal').classList.add('open');
+            const expectedEl = document.getElementById('report-expected');
+            if (expectedEl && currentDetailData && currentDetailData.reference_output) {
+                expectedEl.value = currentDetailData.reference_output;
+            }
         }
 
         function closeModal(id) {
@@ -1092,68 +1120,95 @@
         }
 
         async function rollbackVersion() {
-            const selected = document.querySelector('input[name="version"]:checked');
-            if (!selected) { showToast('请选择要回滚的版本'); return; }
-            const reason = document.getElementById('rollback-reason')?.value || '版本回滚';
+            if (!selectedRollbackId) { showToast('请选择要回滚的版本'); return; }
             if (!currentTaskId) { showToast('请先选择任务'); return; }
-            if (!confirm('确定回滚到该版本？当前未保存的改标内容将丢失。')) return;
+            if (selectedRollbackId === currentTaskId) { showToast('不能回滚到当前版本'); return; }
+            const reasonEl = document.getElementById('rollback-reason');
+            const reason = (reasonEl ? reasonEl.value : '') || '版本回滚';
+            if (!confirm('确定回滚到选定版本？当前未保存的改标内容将丢失。')) return;
             try {
-                const resp = await fetch(BASE + `/datasets/samples/${currentTaskId}/rollback`, {
+                const resp = await fetch(BASE + '/datasets/samples/' + currentTaskId + '/rollback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rollback_reason: reason })
+                    body: JSON.stringify({
+                        rollback_to_id: selectedRollbackId,
+                        rollback_reason: reason
+                    })
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '回滚失败'); return; }
-            } catch (e) {}
-            showToast('版本回滚成功');
-            closeModal('versions-modal');
-            loadSampleDetail(currentTaskId);
+                if (r.code !== 0) throw new Error(r.message || '回滚失败');
+                showToast('版本回滚成功', 'success');
+                closeModal('versions-modal');
+                if (currentTaskId) loadSampleDetail(currentTaskId);
+            } catch (e) {
+                showToast('回滚失败: ' + e.message);
+            }
         }
 
         async function submitReport() {
             if (!currentTaskId) { showToast('请先选择任务'); return; }
-            const error_type = document.querySelector('input[name="error-type"]:checked')?.value || 'prediction_error';
-            const severity = document.querySelector('input[name="severity"]:checked')?.value || 'M';
-            const modelEl = document.getElementById('sample-model');
-            const refEl = document.getElementById('sample-reference');
-            const model_output = modelEl?.textContent || '';
-            const expected_output = refEl?.textContent || '';
+            const errorTypeEl = document.getElementById('report-error-type');
+            const error_type = errorTypeEl ? errorTypeEl.value : 'other';
+            const severityEl = document.querySelector('input[name="report-severity"]:checked');
+            const severity = severityEl ? severityEl.value : 'medium';
+            const expectedEl = document.getElementById('report-expected');
+            const expected_output = expectedEl ? expectedEl.value : '';
+            const descEl = document.getElementById('report-description');
+            const model_output = descEl ? descEl.value : '';
+            const input_context = (currentDetailData && currentDetailData.input_text) || '';
             try {
                 const resp = await fetch(BASE + '/datasets/error-samples', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ error_type, severity, model_output, expected_output, reporter_id: 1 })
+                    body: JSON.stringify({
+                        sample_id: currentTaskId,
+                        error_type: error_type,
+                        severity: severity,
+                        model_output: model_output,
+                        expected_output: expected_output,
+                        input_context: input_context,
+                        reporter_id: REVIEWER_ID
+                    })
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const r = await resp.json();
-                if (r.code !== 0) { showToast(r.message || '上报失败'); return; }
-            } catch (e) {}
-            showToast('错误样本已上报，将进入错误样本库供模型优化训练');
-            closeModal('report-modal');
+                if (r.code !== 0) throw new Error(r.message || '上报失败');
+                showToast('错误样本已上报，将进入错误样本库供模型优化训练', 'success');
+                closeModal('report-modal');
+                loadStatistics();
+            } catch (e) {
+                showToast('上报失败: ' + e.message);
+            }
         }
 
         function prevTask() {
             const list = currentTasks[currentTab] || [];
-            const idx = list.findIndex(t => t.id === currentTaskId);
+            const idx = list.findIndex(function(t) { return t.sample_id === currentTaskId; });
             if (idx > 0) {
                 const prev = list[idx - 1];
                 const el = document.querySelectorAll('.task-item')[idx - 1];
-                selectTask(el, prev.id);
-            } else showToast('已是第一条任务');
+                selectTask(el, prev.sample_id);
+            } else {
+                showToast('已是第一条任务');
+            }
         }
+
         function nextTask() {
             const list = currentTasks[currentTab] || [];
-            const idx = list.findIndex(t => t.id === currentTaskId);
+            const idx = list.findIndex(function(t) { return t.sample_id === currentTaskId; });
             if (idx >= 0 && idx < list.length - 1) {
                 const nxt = list[idx + 1];
                 const el = document.querySelectorAll('.task-item')[idx + 1];
-                selectTask(el, nxt.id);
-            } else showToast('已是最后一条任务');
+                selectTask(el, nxt.sample_id);
+            } else {
+                showToast('已是最后一条任务');
+            }
         }
 
         checkHealth();
         loadStatistics();
-        loadTasks('pending_review').then(t => { currentTasks.pending_review = t; renderTaskList(t); });
+        loadTasks('pending_review');
         loadTasks('reviewing');
         loadTasks('approved');
     </script>
