@@ -355,7 +355,7 @@ namespace LakeSailing.UI
             if (data.IsLocked) return;
 
             GameManager.Instance?.SetCurrentLevel($"Level{levelIndex + 1}", (levelIndex / 2) + 1);
-            GameManager.Instance?.ChangeState(GameState.Playing);
+            GameManager.Instance?.LoadLevel(levelIndex + 1);
             Close();
         }
 

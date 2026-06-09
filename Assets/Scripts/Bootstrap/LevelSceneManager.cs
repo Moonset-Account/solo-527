@@ -40,7 +40,11 @@ namespace LakeSailing.Bootstrap
             EventBus.Subscribe<WeatherChangedEvent>(OnWeatherChanged);
         }
 
-        private void OnLoadLevel(LoadLevelEvent e) { StartCoroutine(LoadLevelRoutine(e.Level)); }
+        private void OnLoadLevel(LoadLevelEvent e)
+        {
+            var level = CreateMockLevelConfig(e.LevelId);
+            StartCoroutine(LoadLevelRoutine(level));
+        }
         private void OnLevelRestart(LevelRestartEvent e) { if (currentLevel != null) StartCoroutine(LoadLevelRoutine(currentLevel)); }
 
         private void OnGameStateChanged(GameStateChangedEvent e)
@@ -84,6 +88,7 @@ namespace LakeSailing.Bootstrap
             UpdateWeatherVisuals(WeatherSystem.Instance.CurrentWeather);
             OnSceneInitialized?.Invoke();
             EventBus.Trigger(new SceneInitializedEvent(level));
+            GameManager.Instance.ChangeState(GameState.Playing);
         }
 
         private void CreateWorldRoot()
@@ -304,6 +309,118 @@ namespace LakeSailing.Bootstrap
                 case 5: return new Color(1f, 0.78f, 0.15f);
                 default: return Color.white;
             }
+        }
+        private static LevelConfigData CreateMockLevelConfig(int id)
+        {
+            var level = ScriptableObject.CreateInstance<LevelConfigData>();
+            level.levelId = $"L{id:000}";
+            level.levelName = id switch
+            {
+                1 => "新手湖：微风启航",
+                2 => "翠鸟湾：多样天气",
+                3 => "金鳞岛：长距离航行",
+                4 => "迷雾峡：低能见度挑战",
+                5 => "风暴角：暴风雨拍摄",
+                6 => "无尽湖：全难度综合",
+                _ => $"自定义关卡 {id}"
+            };
+            level.description = "自动生成的关卡配置";
+            level.difficulty = Mathf.Clamp(id, 1, 5);
+            level.timeLimit = 600f + id * 60f;
+            level.lakeSize = new Vector2(180 + id * 10, 140 + id * 8);
+            level.seed = 10000 + id * 37;
+            level.startDockPosition = new Vector2(-80f, 0f);
+            level.baseMaxFuel = 100f;
+            level.baseMaxFood = 50f;
+            level.baseMaxBattery = 100f;
+            level.baseMaxHealth = 100f;
+            level.supplyStops = new Vector2[]
+            {
+                new Vector2(-30f, -25f),
+                new Vector2(40f, 30f),
+                new Vector2(0f, 55f),
+                new Vector2(60f, -20f)
+            };
+            level.weatherWeights = new float[]
+            {
+                0.30f, 0.25f, 0.15f, 0.12f, 0.10f, 0.08f
+            };
+            level.initialWeather = WeatherType.Sunny;
+            level.weatherChangeInterval = 45f - Mathf.Clamp(id * 3f, 0, 20f);
+            level.weatherForecastPeriods = 6;
+            level.warningLeadTime = 15f;
+            level.baseSpeed = 10f;
+            level.fuelConsumptionRate = 0.18f;
+            level.photoTasks = new PhotoTaskData[]
+            {
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T1",
+                    targetName = "白鹭群",
+                    description = "拍摄水面飞翔的白鹭",
+                    targetPosition = new Vector2(10f, 35f),
+                    targetRarity = 1,
+                    basePoints = 300,
+                    optimalDistance = 8f,
+                    detectionRadius = 14f
+                },
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T2",
+                    targetName = "朝阳古塔",
+                    description = "拍摄湖中小岛古塔远景",
+                    targetPosition = new Vector2(50f, 10f),
+                    targetRarity = 2,
+                    basePoints = 600,
+                    optimalDistance = 12f,
+                    detectionRadius = 18f
+                },
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T3",
+                    targetName = "渔舟唱晚",
+                    description = "拍摄扬帆的传统渔船",
+                    targetPosition = new Vector2(-10f, -40f),
+                    targetRarity = 2,
+                    basePoints = 550,
+                    optimalDistance = 10f,
+                    detectionRadius = 16f
+                },
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T4",
+                    targetName = "彩虹拱桥",
+                    description = "拍摄雨后湖面上的彩虹桥",
+                    targetPosition = new Vector2(70f, 50f),
+                    targetRarity = 3,
+                    basePoints = 900,
+                    optimalDistance = 18f,
+                    detectionRadius = 22f
+                },
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T5",
+                    targetName = "湖心水怪",
+                    description = "传说中的巨大生物浮出水面",
+                    targetPosition = new Vector2(25f, -60f),
+                    targetRarity = 4,
+                    basePoints = 1400,
+                    optimalDistance = 20f,
+                    detectionRadius = 26f
+                },
+                new PhotoTaskData
+                {
+                    taskId = $"L{id}_T6",
+                    targetName = "金鲤跃波",
+                    description = "金色锦鲤跃出水面瞬间",
+                    targetPosition = new Vector2(40f, -5f),
+                    targetRarity = 5,
+                    basePoints = 2200,
+                    optimalDistance = 7f,
+                    detectionRadius = 12f
+                }
+            };
+            return level;
         }
     }
 

@@ -1,6 +1,5 @@
 using UnityEngine;
 using System;
-using LakeSailing.Data;
 
 namespace LakeSailing.Core
 {
@@ -131,18 +130,10 @@ namespace LakeSailing.Core
     public struct LoadLevelEvent : IEvent
     {
         public readonly int LevelId;
-        public readonly LevelConfigData Level;
 
         public LoadLevelEvent(int id)
         {
             LevelId = id;
-            Level = null;
-        }
-
-        public LoadLevelEvent(int id, LevelConfigData level)
-        {
-            LevelId = id;
-            Level = level;
         }
     }
 }

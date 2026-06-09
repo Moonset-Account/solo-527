@@ -1,73 +1,16 @@
 using UnityEngine;
 
-namespace LakeSailing
+namespace LakeSailing.Core.Legacy
 {
-    [DefaultExecutionOrder(-1000)]
+    [System.Obsolete("已迁移到 LakeSailing.Bootstrap.SceneInitializer，请勿使用")]
     public class SceneInitializer : MonoBehaviour
     {
-        [SerializeField] private bool autoBoot = true;
-
-        private static bool hasBooted;
+        [SerializeField] public bool autoBoot = true;
 
         private void Awake()
         {
-            if (hasBooted)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            if (autoBoot)
-            {
-                EnsureBootstrapper();
-            }
-        }
-
-        private void EnsureBootstrapper()
-        {
-            if (FindObjectOfType<GameBootstrapper>() == null)
-            {
-                var go = new GameObject("[GameBootstrapper]");
-                go.AddComponent<GameBootstrapper>();
-                hasBooted = true;
-            }
-
-            if (FindObjectOfType<LevelSceneManager>() == null)
-            {
-                var go = new GameObject("[LevelSceneManager]");
-                go.AddComponent<LevelSceneManager>();
-            }
-
-            if (FindObjectOfType<InputController>() == null)
-            {
-                var go = new GameObject("[InputController]");
-                go.AddComponent<InputController>();
-            }
-
-            if (Camera.main == null)
-            {
-                var camGO = new GameObject("Main Camera");
-                camGO.tag = "MainCamera";
-                var cam = camGO.AddComponent<Camera>();
-                cam.orthographic = true;
-                cam.orthographicSize = 30f;
-                cam.backgroundColor = new Color(0.53f, 0.81f, 0.92f);
-                camGO.AddComponent<AudioListener>();
-            }
-        }
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        private static void OnGameStart()
-        {
-            Application.logMessageReceived += HandleLog;
-        }
-
-        private static void HandleLog(string condition, string stackTrace, LogType type)
-        {
-            if (type == LogType.Exception)
-            {
-                Debug.LogError($"[GameBootstrap] Caught Exception: {condition}\n{stackTrace}");
-            }
+            Debug.LogWarning("[Core/Legacy/SceneInitializer] 检测到已废弃版本，请使用 Bootstrap 目录下的 SceneInitializer。此对象将自毁。");
+            Destroy(gameObject);
         }
     }
 }
