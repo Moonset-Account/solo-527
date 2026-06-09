@@ -18,6 +18,28 @@ interface BookState {
   sorted: boolean;
 }
 
+interface ClueStateLike {
+  pos: Vec2;
+  id: string;
+  text?: string;
+  collected: boolean;
+}
+
+interface CardStateLike {
+  pos: Vec2;
+  id: string;
+  category: string;
+  repaired: boolean;
+}
+
+interface WinProgress {
+  shelvesReady: boolean;
+  cluesReady: boolean;
+  cardsReady: boolean;
+  booksReady: boolean;
+  atExit: boolean;
+}
+
 export interface GameEngineLike {
   levelData: LevelData;
   currentLevelId: number;
@@ -32,6 +54,13 @@ export interface GameEngineLike {
   addSteps?: (n: number) => void;
   teleportPlayer?: (pos: Vec2) => void;
   exportState?: () => any;
+  getWinProgress?: () => WinProgress;
+  getClues?: () => ClueStateLike[];
+  getCards?: () => CardStateLike[];
+  getCluesCollected?: () => number;
+  getTotalClues?: () => number;
+  getCardsRepaired?: () => number;
+  getTotalCards?: () => number;
 }
 
 export class DebugPanel {
@@ -40,10 +69,10 @@ export class DebugPanel {
   private visible: boolean = false;
   private container: Phaser.GameObjects.Container;
   private panelBg: Phaser.GameObjects.Graphics;
-  private panelWidth: number = 340;
+  private panelWidth: number = 360;
   private toggleBtn: Phaser.GameObjects.Text;
   private logs: string[] = [];
-  private maxLogs: number = 20;
+  private maxLogs: number = 12;
   private texts: Map<string, Phaser.GameObjects.Text> = new Map();
   private logsText: Phaser.GameObjects.Text;
   private panelHeight: number;
@@ -109,34 +138,54 @@ export class DebugPanel {
     let y = 40;
     addText('title', 10, 12, 'DEBUG PANEL', { fontSize: '16px', color: '#8b7cff', fontStyle: 'bold' });
 
-    addText('level_label', 10, y, '关卡 ID:', { color: '#8a85a0' });
-    addText('level_val', 100, y, '-');
+    addText('level_label', 10, y, '关卡:', { color: '#8a85a0' });
+    addText('level_val', 64, y, '-');
     y += 20;
     addText('steps_label', 10, y, '步数:', { color: '#8a85a0' });
-    addText('steps_val', 100, y, '-');
+    addText('steps_val', 64, y, '-');
     y += 20;
-    addText('player_label', 10, y, '玩家坐标:', { color: '#8a85a0' });
-    addText('player_val', 100, y, '-');
+    addText('player_label', 10, y, '玩家:', { color: '#8a85a0' });
+    addText('player_val', 64, y, '-');
     y += 20;
     addText('dir_label', 10, y, '方向:', { color: '#8a85a0' });
-    addText('dir_val', 100, y, '-');
+    addText('dir_val', 64, y, '-');
     y += 28;
 
     addText('shelves_title', 10, y, '书架状态:', { color: '#ffb347', fontStyle: 'bold' });
     y += 20;
     addText('shelves_list', 10, y, '-');
-    y += 60;
+    y += 44;
 
     addText('books_title', 10, y, '书籍状态:', { color: '#d4a855', fontStyle: 'bold' });
     y += 20;
     addText('books_list', 10, y, '-');
-    y += 80;
+    y += 68;
+
+    addText('cc_title', 10, y, '线索 / 索引卡:', { color: '#9ff0a0', fontStyle: 'bold' });
+    y += 20;
+    addText('clues_val', 10, y, '-', { fontSize: '11px' });
+    y += 16;
+    addText('cards_val', 10, y, '-', { fontSize: '11px' });
+    y += 32;
+
+    addText('win_title', 10, y, '胜利进度（全部✓后到达出口）:', { color: '#6bff9a', fontStyle: 'bold' });
+    y += 20;
+    addText('win_shelves', 10, y, '  书架在目标区: -', { fontFamily: 'monospace' });
+    y += 16;
+    addText('win_clues', 10, y, '  线索全收集: -', { fontFamily: 'monospace' });
+    y += 16;
+    addText('win_cards', 10, y, '  索引卡全修复: -', { fontFamily: 'monospace' });
+    y += 16;
+    addText('win_books', 10, y, '  错放书全归位: -', { fontFamily: 'monospace' });
+    y += 16;
+    addText('win_exit', 10, y, '  玩家到达出口: -', { fontFamily: 'monospace' });
+    y += 32;
 
     addText('logs_title', 10, y, '事件日志:', { color: '#6bb7ff', fontStyle: 'bold' });
     y += 20;
     this.logsText.setPosition(10, y);
 
-    this.createCommands(y + 200);
+    this.createCommands(y + 180);
   }
 
   private createCommands(startY: number): void {
@@ -287,11 +336,18 @@ export class DebugPanel {
       this.setText('dir_val', '-');
       this.setText('shelves_list', '无引擎数据');
       this.setText('books_list', '无引擎数据');
+      this.setText('clues_val', '线索：- / -');
+      this.setText('cards_val', '索引卡：- / -');
+      this.setWinRow('shelves', '-', false);
+      this.setWinRow('clues', '-', false);
+      this.setWinRow('cards', '-', false);
+      this.setWinRow('books', '-', false);
+      this.setWinRow('exit', '-', false);
       return;
     }
 
     const e = this.engine;
-    this.setText('level_val', String(e.currentLevelId));
+    this.setText('level_val', `#${e.currentLevelId}  ${e.levelData.name.slice(0, 12)}`);
     this.setText('steps_val', String(e.steps));
     this.setText('player_val', `(${e.playerPos.x},${e.playerPos.y})`);
     this.setText('dir_val', this.dirToArrow(e.playerDir));
@@ -302,14 +358,50 @@ export class DebugPanel {
     }).join('\n') || '  (无)';
     this.setText('shelves_list', shelvesStr);
 
-    const booksStr = e.books.slice(0, 4).map(b => {
+    const booksStr = e.books.slice(0, 3).map(b => {
       const flags: string[] = [];
       if (b.collected) flags.push('收');
       if (b.sorted) flags.push('整');
       if (b.isWrongPlace) flags.push('错');
-      return `  ${b.id} [${b.category}] ${flags.join('/')}`;
-    }).join('\n') + (e.books.length > 4 ? `\n  ...还有${e.books.length - 4}本` : '') || '  (无)';
+      return `  ${b.id} [${b.category}] ${flags.join('/') || '•'}`;
+    }).join('\n') + (e.books.length > 3 ? `\n  ...+${e.books.length - 3}本` : '') || '  (无)';
     this.setText('books_list', booksStr);
+
+    const totalClues = e.getTotalClues ? e.getTotalClues() : (e as any).clues?.length ?? '-';
+    const gotClues = e.getCluesCollected ? e.getCluesCollected() : (e as any).clues?.filter((c: any) => c.collected).length ?? 0;
+    const totalCards = e.getTotalCards ? e.getTotalCards() : (e as any).cards?.length ?? '-';
+    const gotCards = e.getCardsRepaired ? e.getCardsRepaired() : (e as any).cards?.filter((c: any) => c.repaired).length ?? 0;
+    this.setText('clues_val', `  ✉ 线索:  ${gotClues} / ${totalClues}    (按 E / Space 拾取)`);
+    this.setText('cards_val', `  📇 索引卡:  ${gotCards} / ${totalCards}    (需站在卡槽 tile 上触发)`);
+
+    const wp = e.getWinProgress ? e.getWinProgress() : null;
+    if (wp) {
+      this.setWinRow('shelves', wp.shelvesReady ? '✓' : '✗', wp.shelvesReady);
+      this.setWinRow('clues', wp.cluesReady ? '✓' : '✗', wp.cluesReady);
+      this.setWinRow('cards', wp.cardsReady ? '✓' : '✗', wp.cardsReady);
+      this.setWinRow('books', wp.booksReady ? '✓' : '✗', wp.booksReady);
+      this.setWinRow('exit', wp.atExit ? '✓' : '✗', wp.atExit);
+    } else {
+      this.setWinRow('shelves', '?', false);
+      this.setWinRow('clues', '?', false);
+      this.setWinRow('cards', '?', false);
+      this.setWinRow('books', '?', false);
+      this.setWinRow('exit', '?', false);
+    }
+  }
+
+  private setWinRow(key: 'shelves' | 'clues' | 'cards' | 'books' | 'exit', mark: string, ok: boolean): void {
+    const labelMap: Record<string, string> = {
+      shelves: '书架在目标区',
+      clues: '线索全收集',
+      cards: '索引卡全修复',
+      books: '错放书全归位',
+      exit: '玩家到达出口',
+    };
+    const t = this.texts.get(`win_${key}`);
+    if (!t) return;
+    t.setText(`  ${mark} ${labelMap[key]}`);
+    t.setColor(ok ? '#6bff9a' : '#ff6b6b');
   }
 
   private dirToArrow(d: Direction): string {

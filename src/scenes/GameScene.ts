@@ -7,6 +7,7 @@ import { SaveSystem } from '@/systems/SaveSystem';
 import { AchievementSystem } from '@/systems/AchievementSystem';
 import { DailySystem } from '@/systems/DailySystem';
 import { HUD } from '@/ui/HUD';
+import { DebugPanel, GameEngineLike } from '@/ui/DebugPanel';
 
 interface ShelfState {
   id: string;
@@ -55,6 +56,8 @@ interface GameStateSnapshot {
 }
 
 class GameEngine {
+  public levelId: number;
+  public levelData: LevelData;
   private level: LevelData;
   private player: { x: number; y: number };
   private shelves: ShelfState[] = [];
@@ -67,9 +70,13 @@ class GameEngine {
   private grid: number[][];
   private cols: number;
   private rows: number;
+  private playerDir: Direction = 'down';
+  private eventHandlers: Array<(ev: string, data?: any) => void> = [];
 
   constructor(level: LevelData) {
     this.level = level;
+    this.levelData = level;
+    this.levelId = level.id;
     this.player = { ...level.playerStart };
     this.grid = level.grid.map((r) => [...r]);
     this.rows = this.grid.length;
@@ -182,11 +189,15 @@ class GameEngine {
       left: { dx: -1, dy: 0 },
       right: { dx: 1, dy: 0 },
     }[dir];
+    this.playerDir = dir;
 
     const nx = this.player.x + vec.dx;
     const ny = this.player.y + vec.dy;
 
-    if (this.isWall(nx, ny)) return { result: 'blocked' };
+    if (this.isWall(nx, ny)) {
+      this.emitEvent('blocked', `墙 (${nx},${ny})`);
+      return { result: 'blocked' };
+    }
 
     const snap = this.snapshot();
 
@@ -197,6 +208,7 @@ class GameEngine {
       const sx = nx + vec.dx;
       const sy = ny + vec.dy;
       if (this.isWall(sx, sy) || this.shelfAt(sx, sy) || this.bookAt(sx, sy) || this.cardAt(sx, sy)) {
+        this.emitEvent('blocked', `书架受阻 (${sx},${sy})`);
         return { result: 'blocked' };
       }
       this.history.push(snap);
@@ -207,6 +219,7 @@ class GameEngine {
       this.player.y = ny;
       this.steps++;
       this.updateTargets();
+      this.emitEvent('push', `书架 ${shelf.id} → (${sx},${sy})${shelf.onTarget ? ' ✓' : ''}`);
       return { result: 'pushed', shelfId: shelf.id };
     }
 
@@ -214,6 +227,7 @@ class GameEngine {
       const bx = nx + vec.dx;
       const by = ny + vec.dy;
       if (this.isWall(bx, by) || this.shelfAt(bx, by) || this.bookAt(bx, by) || this.cardAt(bx, by)) {
+        this.emitEvent('blocked', `书受阻 (${bx},${by})`);
         return { result: 'blocked' };
       }
       this.history.push(snap);
@@ -222,6 +236,7 @@ class GameEngine {
       this.player.x = nx;
       this.player.y = ny;
       this.steps++;
+      this.emitEvent('push', `书 ${book.id} → (${bx},${by})`);
       return { result: 'pushed', bookId: book.id };
     }
 
@@ -229,14 +244,19 @@ class GameEngine {
     this.player.x = nx;
     this.player.y = ny;
     this.steps++;
+    this.emitEvent('move', `(${nx},${ny})`);
     return { result: 'moved' };
   }
 
   undo(): boolean {
     const snap = this.history.pop();
-    if (!snap) return false;
+    if (!snap) {
+      this.emitEvent('warn', '无可撤销步骤');
+      return false;
+    }
     this.restore(snap);
     this.updateTargets();
+    this.emitEvent('undo', `步数: ${this.steps}`);
     return true;
   }
 
@@ -259,6 +279,7 @@ class GameEngine {
       const clue = this.clueAt(x, y);
       if (clue && !clue.collected) {
         clue.collected = true;
+        this.emitEvent('clue', `[${clue.id}] ${clue.text.slice(0, 22)}…`);
         return { clue };
       }
     }
@@ -268,6 +289,7 @@ class GameEngine {
       const card = this.cardAt(x, y);
       if (card && !card.repaired && this.isCardSlot(x, y)) {
         card.repaired = true;
+        this.emitEvent('card', `修复 ${card.id}（${card.category}）`);
         return { card };
       }
     }
@@ -277,6 +299,7 @@ class GameEngine {
       const book = this.bookAt(x, y);
       if (book && book.isWrongPlace && !book.sorted) {
         book.sorted = true;
+        this.emitEvent('book', `归位 ${book.id}《${book.title}》`);
         return { book };
       }
     }
@@ -402,6 +425,90 @@ class GameEngine {
 
   getSortedBooks(): number {
     return this.books.filter((b) => b.sorted).length;
+  }
+
+  onEvent(handler: (ev: string, data?: any) => void): () => void {
+    this.eventHandlers.push(handler);
+    return () => {
+      const idx = this.eventHandlers.indexOf(handler);
+      if (idx >= 0) this.eventHandlers.splice(idx, 1);
+    };
+  }
+
+  emitEvent(ev: string, data?: any): void {
+    for (const h of this.eventHandlers) {
+      try { h(ev, data); } catch (e) { console.error(e); }
+    }
+  }
+
+  getPlayerDir(): Direction {
+    return this.playerDir;
+  }
+
+  getDirection(): Direction {
+    return this.playerDir;
+  }
+
+  getPlayerPos(): { x: number; y: number } {
+    return { ...this.player };
+  }
+
+  forceWin(): void {
+    for (const s of this.shelves) {
+      if (s.targetZoneId) {
+        const t = this.targetZones.find((tz) => tz.id === s.targetZoneId);
+        if (t) { s.pos.x = t.pos.x; s.pos.y = t.pos.y; s.onTarget = true; }
+      }
+    }
+    for (const c of this.clues) c.collected = true;
+    for (const c of this.cards) c.repaired = true;
+    for (const b of this.books) { if (b.isWrongPlace) b.sorted = true; }
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.grid[r][c] === 5 && !this.shelfAt(c, r) && !this.bookAt(c, r)) {
+          this.player.x = c; this.player.y = r;
+          this.emitEvent('forceWin', '强制触发胜利');
+          return;
+        }
+      }
+    }
+    this.emitEvent('forceWin', '强制触发胜利（出口不可用）');
+  }
+
+  forceFail(): void {
+    this.steps = this.level.maxSteps;
+    this.emitEvent('forceFail', '强制触发失败');
+  }
+
+  addSteps(n: number): void {
+    this.steps = Math.max(0, this.steps + n);
+    this.emitEvent('addSteps', `+${n} 步，共 ${this.steps}`);
+  }
+
+  teleportPlayer(pos: { x: number; y: number }): void {
+    if (!this.inBounds(pos.x, pos.y) || this.isWall(pos.x, pos.y) || this.shelfAt(pos.x, pos.y)) {
+      this.emitEvent('warn', `传送目标 (${pos.x},${pos.y}) 不可达`);
+      return;
+    }
+    this.player.x = pos.x;
+    this.player.y = pos.y;
+    this.emitEvent('teleport', `玩家 → (${pos.x},${pos.y})`);
+  }
+
+  exportState(): any {
+    return {
+      level: this.level.id,
+      steps: this.steps,
+      player: { ...this.player },
+      dir: this.playerDir,
+      shelves: this.shelves.map(s => ({ id: s.id, pos: s.pos, onTarget: s.onTarget, targetZoneId: s.targetZoneId })),
+      books: this.books.map(b => ({ id: b.id, pos: b.pos, category: b.category, title: b.title, isWrongPlace: b.isWrongPlace, collected: (b as any).collected || false, sorted: b.sorted })),
+      clues: this.clues.map(c => ({ id: c.id, pos: c.pos, collected: c.collected })),
+      cards: this.cards.map(c => ({ id: c.id, pos: c.pos, category: c.category, repaired: c.repaired })),
+      winProgress: this.getWinProgress(),
+      isWin: this.isWin(),
+      isFail: this.isStepsExhausted(),
+    };
   }
 }
 
@@ -870,6 +977,7 @@ export class GameScene extends Phaser.Scene {
   private isAnimating: boolean = false;
   private failPopup: Phaser.GameObjects.Container | null = null;
   private cluePopup: Phaser.GameObjects.Container | null = null;
+  private debugPanel: DebugPanel | null = null;
 
   constructor() {
     super({ key: 'game' });
@@ -927,8 +1035,64 @@ export class GameScene extends Phaser.Scene {
     this.inputSys.onAction('cancel', () => this.handleCancel());
 
     if (settings.showDebug) {
-      console.log('[GameScene] debug enabled');
+      this.debugPanel = new DebugPanel(this, this.makeDebugAdapter());
     }
+  }
+
+  update(time: number): void {
+    this.inputSys.update(time);
+    this.debugPanel?.update();
+  }
+
+  private cleanup(): void {
+    this.inputSys?.destroy();
+    this.audioSys?.destroy();
+    this.gameRenderer?.destroy();
+    this.hud?.destroy();
+  }
+
+  shutdown(): void {
+    this.cleanup();
+    this.debugPanel?.destroy();
+    this.debugPanel = null;
+  }
+
+  destroy(): void {
+    this.cleanup();
+    this.debugPanel?.destroy();
+    this.debugPanel = null;
+  }
+
+  private makeDebugAdapter(): GameEngineLike {
+    const e = this.engine;
+    return {
+      levelData: this.levelData,
+      currentLevelId: this.levelId,
+      get steps() { return (e as any).steps as number; },
+      get playerPos() { return e.getPlayerPos(); },
+      get playerDir() { return e.getDirection(); },
+      get shelves() { return e.getShelves() as any; },
+      get books() { return e.getBooks() as any; },
+      onEvent: (h: (ev: string, data?: any) => void) => e.onEvent(h),
+      forceWin: () => {
+        e.forceWin();
+        this.gameRenderer.renderInitial(e);
+      },
+      forceFail: () => { e.forceFail(); this.checkEndConditions(); },
+      addSteps: (n: number) => { e.addSteps(n); this.updateHUD(); this.checkEndConditions(); },
+      teleportPlayer: (pos: { x: number; y: number }) => {
+        e.teleportPlayer(pos);
+        this.gameRenderer.drawPlayer(e.getPlayer());
+      },
+      exportState: () => e.exportState(),
+      getWinProgress: () => e.getWinProgress(),
+      getClues: () => (e as any).clues.map((c: any) => ({ ...c, pos: { ...c.pos } })),
+      getCards: () => (e as any).cards.map((c: any) => ({ ...c, pos: { ...c.pos } })),
+      getTotalClues: () => e.getTotalClues(),
+      getCluesCollected: () => e.getCluesCollected(),
+      getTotalCards: () => e.getTotalCards(),
+      getCardsRepaired: () => e.getCardsRepaired(),
+    } as GameEngineLike;
   }
 
   private handleMove(dir: Direction): void {
@@ -1237,25 +1401,6 @@ export class GameScene extends Phaser.Scene {
       onClick();
     });
     return cont;
-  }
-
-  update(time: number): void {
-    this.inputSys.update(time);
-  }
-
-  private cleanup(): void {
-    this.inputSys?.destroy();
-    this.audioSys?.destroy();
-    this.gameRenderer?.destroy();
-    this.hud?.destroy();
-  }
-
-  shutdown(): void {
-    this.cleanup();
-  }
-
-  destroy(): void {
-    this.cleanup();
   }
 }
 
