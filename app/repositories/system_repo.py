@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, func, update, delete, and_, or_
+from sqlalchemy import select, func, update, delete, and_, or_, case, Integer
 from sqlalchemy.orm import Session
 
 from app.data.models import (
@@ -11,6 +11,7 @@ from app.data.models import (
     QAFeedback, ErrorSample, AuditLog, ApiCallLog
 )
 from app.data.models import ModelStatus, FeedbackType, ConfidenceLevel
+from app.repositories.data_repo import BaseRepository
 
 
 class ModelVersionRepository(BaseRepository):
@@ -161,29 +162,28 @@ class QAConversationRepository(BaseRepository):
     def get_metrics(self, model_version: Optional[str] = None,
                     days: int = 30) -> Dict[str, Any]:
         since = datetime.utcnow() - timedelta(days=days)
+        base_cond = QAConversation.created_at >= since
+        if model_version:
+            base_cond = and_(base_cond, QAConversation.model_version == model_version)
+
+        low_cond = and_(base_cond, QAConversation.confidence_level == ConfidenceLevel.LOW)
+
         stmt = select(
             func.count(QAConversation.id),
             func.avg(QAConversation.confidence_score),
-            func.sum(and_(QAConversation.confidence_score < 0.4, True, False).cast(Integer) if False else func.count()),
+            func.sum(case((low_cond, 1), else_=0).cast(Integer)),
             func.avg(QAConversation.latency_ms),
-        ).where(QAConversation.created_at >= since)
-        if model_version:
-            stmt = stmt.where(QAConversation.model_version == model_version)
+        ).where(base_cond)
 
-        total_calls, avg_conf, low_conf_total, avg_latency = self.db.execute(stmt).one() or (0, None, 0, None)
+        row = self.db.execute(stmt).one_or_none()
+        total_calls, avg_conf, low_conf_count, avg_latency = row or (0, None, 0, None)
 
-        low_conf_stmt = select(func.count(QAConversation.id)).where(
-            and_(QAConversation.created_at >= since,
-                 QAConversation.confidence_level == ConfidenceLevel.LOW)
-        )
-        if model_version:
-            low_conf_stmt = low_conf_stmt.where(QAConversation.model_version == model_version)
-        low_conf_count = self.db.execute(low_conf_stmt).scalar() or 0
-
+        low_conf_count = int(low_conf_count or 0)
+        total_calls = int(total_calls or 0)
         low_conf_rate = low_conf_count / total_calls if total_calls > 0 else 0.0
 
         return {
-            "total_qa_calls": total_calls or 0,
+            "total_qa_calls": total_calls,
             "avg_confidence": float(avg_conf) if avg_conf is not None else None,
             "low_confidence_count": low_conf_count,
             "low_confidence_rate": low_conf_rate,
@@ -191,9 +191,6 @@ class QAConversationRepository(BaseRepository):
             "period_start": since,
             "period_end": datetime.utcnow(),
         }
-
-
-from sqlalchemy import Integer
 
 
 class FeedbackRepository(BaseRepository):

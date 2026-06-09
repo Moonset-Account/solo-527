@@ -74,4 +74,5 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 def init_db() -> None:
+    from app.data import models as _orm_models  # noqa: F401 - 注册所有 ORM 模型到 Base.metadata
     Base.metadata.create_all(bind=engine)

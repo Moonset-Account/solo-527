@@ -6,20 +6,53 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Tuple
 from datetime import datetime
 
-from llama_index.core import (
-    Document as LIDocument,
-    VectorStoreIndex,
-    StorageContext,
-    load_index_from_storage,
-)
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core import Settings
-from llama_index.vector_stores.chroma import ChromaVectorStore
-import chromadb
-
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+_LLAMA_IMPORTED = False
+_LLAMA_IMPORT_ERROR: Optional[str] = None
+
+
+def _ensure_llama_index():
+    """延迟加载 LlamaIndex 依赖，避免在依赖未安装时阻塞 FastAPI 启动。"""
+    global _LLAMA_IMPORTED, _LLAMA_IMPORT_ERROR
+    if _LLAMA_IMPORTED:
+        return
+    if _LLAMA_IMPORT_ERROR:
+        raise RuntimeError(
+            f"LlamaIndex 依赖加载失败: {_LLAMA_IMPORT_ERROR}。"
+            f"请运行: pip install llama-index llama-index-embeddings-huggingface "
+            f"llama-index-llms-huggingface llama-index-vector-stores-chroma chromadb"
+        )
+    try:
+        global LIDocument, VectorStoreIndex, StorageContext, load_index_from_storage
+        global SentenceSplitter, Settings, ChromaVectorStore, chromadb
+        global HuggingFaceEmbedding, MockEmbedding, HuggingFaceLLM, PromptTemplate, MockLLM
+        from llama_index.core import (
+            Document as LIDocument,
+            VectorStoreIndex,
+            StorageContext,
+            load_index_from_storage,
+        )
+        from llama_index.core.node_parser import SentenceSplitter
+        from llama_index.core import Settings
+        from llama_index.vector_stores.chroma import ChromaVectorStore
+        import chromadb as _chromadb
+        chromadb = _chromadb
+        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+        from llama_index.core.embeddings import MockEmbedding
+        try:
+            from llama_index.llms.huggingface import HuggingFaceLLM
+            from llama_index.core import PromptTemplate
+        except Exception:
+            HuggingFaceLLM = None
+            PromptTemplate = None
+        from llama_index.core.llms import MockLLM
+        _LLAMA_IMPORTED = True
+    except Exception as e:
+        _LLAMA_IMPORT_ERROR = str(e)
+        raise
 
 
 @dataclass
@@ -53,11 +86,11 @@ class EmbedModelFactory:
 
     @classmethod
     def get_model(cls):
+        _ensure_llama_index()
         if cls._cached_model is not None:
             return cls._cached_model
         settings = get_settings()
         try:
-            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
             cls._cached_model = HuggingFaceEmbedding(
                 model_name=settings.EMBEDDING_MODEL_NAME,
                 token=settings.HUGGINGFACE_TOKEN,
@@ -65,7 +98,6 @@ class EmbedModelFactory:
             )
         except Exception as e:
             logger.warning(f"Failed to load HuggingFace embedding model: {e}, falling back to dummy")
-            from llama_index.core.embeddings import MockEmbedding
             cls._cached_model = MockEmbedding(embed_dim=settings.EMBEDDING_DIMENSION)
         Settings.embed_model = cls._cached_model
         return cls._cached_model
@@ -76,36 +108,37 @@ class LLMModelFactory:
 
     @classmethod
     def get_model(cls):
+        _ensure_llama_index()
         if cls._cached_model is not None:
             return cls._cached_model
         settings = get_settings()
-        try:
-            from llama_index.llms.huggingface import HuggingFaceLLM
-            from llama_index.core import PromptTemplate
-            system_prompt = (
-                "你是面向开发团队的内部代码知识库助手。"
-                "请严格基于提供的上下文回答问题，不要编造不存在的API、函数或文档。"
-                "如果上下文不足以回答问题，请明确说明。"
-                "回答应简洁、准确，并附带来源引用。"
-            )
-            query_wrapper_prompt = PromptTemplate(
-                "<|system|>\n" + system_prompt + "</s>\n<|user|>\n{query_str}</s>\n<|assistant|>\n"
-            )
-            cls._cached_model = HuggingFaceLLM(
-                context_window=4096,
-                max_new_tokens=512,
-                generate_kwargs={"temperature": 0.2, "do_sample": False},
-                system_prompt=system_prompt,
-                query_wrapper_prompt=query_wrapper_prompt,
-                tokenizer_name=settings.LLM_MODEL_NAME,
-                model_name=settings.LLM_MODEL_NAME,
-                device_map="auto",
-                tokenizer_kwargs={"max_length": 4096},
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load HuggingFace LLM: {e}, falling back to dummy")
-            from llama_index.core.llms import MockLLM
+        if HuggingFaceLLM is None:
+            logger.warning("HuggingFaceLLM not available, using MockLLM")
             cls._cached_model = MockLLM()
+        else:
+            try:
+                system_prompt = (
+                    "你是面向开发团队的内部代码知识库助手。"
+                    "请严格基于提供的上下文回答问题，不要编造不存在的API、函数或文档。"
+                    "如果上下文不足以回答问题，请明确说明。"
+                )
+                query_wrapper_prompt = PromptTemplate(
+                    "<|system|>\n" + system_prompt + "</s>\n<|user|>\n{query_str}</s>\n<|assistant|>\n"
+                )
+                cls._cached_model = HuggingFaceLLM(
+                    context_window=4096,
+                    max_new_tokens=512,
+                    generate_kwargs={"temperature": 0.2, "do_sample": False},
+                    system_prompt=system_prompt,
+                    query_wrapper_prompt=query_wrapper_prompt,
+                    tokenizer_name=settings.LLM_MODEL_NAME,
+                    model_name=settings.LLM_MODEL_NAME,
+                    device_map="auto",
+                    tokenizer_kwargs={"max_length": 4096},
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load HuggingFace LLM: {e}, falling back to dummy")
+                cls._cached_model = MockLLM()
         Settings.llm = cls._cached_model
         return cls._cached_model
 
@@ -115,16 +148,22 @@ class IndexBuilder:
 
     def __init__(self):
         self.settings = get_settings()
-        self.embed_model = EmbedModelFactory.get_model()
-        self._node_parser = SentenceSplitter(
-            chunk_size=512,
-            chunk_overlap=64,
-            separator="\n",
-        )
-        Settings.chunk_size = 512
-        Settings.chunk_overlap = 64
+        self._node_parser = None
 
-    def _convert_documents(self, docs: List[IndexedDocument]) -> List[LIDocument]:
+    def _get_node_parser(self):
+        if self._node_parser is None:
+            _ensure_llama_index()
+            Settings.chunk_size = 512
+            Settings.chunk_overlap = 64
+            self._node_parser = SentenceSplitter(
+                chunk_size=512,
+                chunk_overlap=64,
+                separator="\n",
+            )
+        return self._node_parser
+
+    def _convert_documents(self, docs: List[IndexedDocument]) -> List:
+        _ensure_llama_index()
         li_docs = []
         for d in docs:
             meta = dict(d.metadata)
@@ -142,6 +181,7 @@ class IndexBuilder:
         return li_docs
 
     def _get_vector_store(self, model_version: str):
+        _ensure_llama_index()
         os.makedirs(self.settings.CHROMA_PERSIST_DIR, exist_ok=True)
         db = chromadb.PersistentClient(path=self.settings.CHROMA_PERSIST_DIR)
         collection = db.get_or_create_collection(
@@ -155,7 +195,6 @@ class IndexBuilder:
                     model_version: str,
                     progress_callback: Optional[Callable[[int, int], None]] = None,
                     ) -> Tuple[IndexBuildResult, List[Tuple[str, int, int]]]:
-        """训练阶段：构建向量索引。返回构建结果和(node_id, doc_id, chunk_index)列表。"""
         started_at = datetime.utcnow()
         result = IndexBuildResult(
             model_version=model_version,
@@ -171,8 +210,12 @@ class IndexBuilder:
             return result, node_records
 
         try:
+            _ensure_llama_index()
+            EmbedModelFactory.get_model()
+
             li_docs = self._convert_documents(documents)
-            nodes = self._node_parser(li_docs)
+            parser = self._get_node_parser()
+            nodes = parser(li_docs)
             result.node_count = len(nodes)
 
             vector_store = self._get_vector_store(model_version)
@@ -208,19 +251,21 @@ class IndexBuilder:
 class QueryEngine:
     """推理侧：查询引擎。加载已构建的索引执行语义搜索和问答。"""
 
-    _cached_engines: Dict[str, Tuple[VectorStoreIndex, Any]] = {}
+    _cached_engines: Dict[str, Tuple[Any, Any]] = {}
 
     def __init__(self, model_version: Optional[str] = None):
         self.settings = get_settings()
         self.model_version = model_version or self.settings.DEFAULT_MODEL_VERSION
-        self.embed_model = EmbedModelFactory.get_model()
-        self.llm_model = LLMModelFactory.get_model()
-        Settings.embed_model = self.embed_model
-        Settings.llm = self.llm_model
 
-    def _load_index(self) -> VectorStoreIndex:
+    def _ensure_deps(self):
+        _ensure_llama_index()
+        EmbedModelFactory.get_model()
+        LLMModelFactory.get_model()
+
+    def _load_index(self):
         if self.model_version in self._cached_engines:
             return self._cached_engines[self.model_version][0]
+        _ensure_llama_index()
         index_dir = os.path.join(self.settings.INDEX_STORAGE_DIR, self.model_version)
         if os.path.exists(index_dir):
             storage_context = StorageContext.from_defaults(persist_dir=index_dir)
@@ -228,11 +273,14 @@ class QueryEngine:
         else:
             vector_store = self._get_vector_store(self.model_version)
             storage_context = StorageContext.from_defaults(vector_store=vector_store)
-            index = VectorStoreIndex.from_vector_store(vector_store=vector_store, storage_context=storage_context)
+            index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store, storage_context=storage_context
+            )
         self._cached_engines[self.model_version] = (index, None)
         return index
 
     def _get_vector_store(self, model_version: str):
+        _ensure_llama_index()
         os.makedirs(self.settings.CHROMA_PERSIST_DIR, exist_ok=True)
         db = chromadb.PersistentClient(path=self.settings.CHROMA_PERSIST_DIR)
         collection_name = f"code_qa_{model_version.replace('.', '_')}"
@@ -247,17 +295,14 @@ class QueryEngine:
 
     def semantic_search(self, query: str, top_k: int = 8,
                         similarity_threshold: Optional[float] = None):
-        """语义搜索：返回最相关的文本块及其引用。"""
         threshold = similarity_threshold or self.settings.SIMILARITY_THRESHOLD
-        index = self._load_index()
-        retriever = index.as_retriever(
-            similarity_top_k=top_k,
-            vector_store_kwargs={"similarity_top_k": top_k},
-        )
         try:
+            self._ensure_deps()
+            index = self._load_index()
+            retriever = index.as_retriever(similarity_top_k=top_k)
             nodes = retriever.retrieve(query)
         except Exception as e:
-            logger.error(f"Retrieval failed: {e}")
+            logger.error(f"Semantic search failed: {e}")
             return []
         results = []
         for node in nodes:
@@ -292,65 +337,67 @@ class QueryEngine:
         return results
 
     def answer_question(self, question: str, top_k_context: int = 8):
-        """RAG问答：基于检索上下文生成回答。"""
-        index = self._load_index()
-        query_engine = index.as_query_engine(
-            similarity_top_k=top_k_context,
-            response_mode="compact",
-        )
+        sources: List[Dict[str, Any]] = []
         try:
+            self._ensure_deps()
+            index = self._load_index()
+            query_engine = index.as_query_engine(
+                similarity_top_k=top_k_context,
+                response_mode="compact",
+            )
             response = query_engine.query(question)
+            answer_text = str(response)
+
+            seen_nodes = set()
+            source_nodes = getattr(response, 'source_nodes', []) or []
+            for node_with_score in source_nodes:
+                node = node_with_score.node
+                if node.node_id in seen_nodes:
+                    continue
+                seen_nodes.add(node.node_id)
+                score = float(getattr(node_with_score, 'score', 0.0))
+                meta = node.metadata or {}
+                sources.append({
+                    "document_id": meta.get("doc_id"),
+                    "node_id": node.node_id,
+                    "source_title": meta.get("title", "Unknown"),
+                    "file_path": meta.get("file_path") or None,
+                    "source_url": meta.get("source_url") or None,
+                    "line_start": (
+                        int(meta["line_start"])
+                        if meta.get("line_start") not in (None, "", -1)
+                        else None
+                    ),
+                    "line_end": (
+                        int(meta["line_end"])
+                        if meta.get("line_end") not in (None, "", -1)
+                        else None
+                    ),
+                    "snippet": node.get_text()[:300],
+                    "relevance_score": score,
+                })
+            if sources:
+                avg_score = sum(s["relevance_score"] for s in sources) / len(sources)
+            else:
+                avg_score = 0.0
+            confidence = self._estimate_confidence(answer_text, avg_score, len(sources))
+            reasoning = self._build_reasoning(sources, avg_score)
+            return {
+                "answer": answer_text,
+                "sources": sources,
+                "confidence": confidence,
+                "avg_similarity": avg_score,
+                "reasoning": reasoning,
+            }
         except Exception as e:
             logger.exception("Query failed")
             return {
                 "answer": f"问答引擎执行出错：{str(e)}。请稍后重试或使用语义搜索。",
                 "sources": [],
                 "confidence": 0.0,
+                "avg_similarity": 0.0,
                 "reasoning": "查询引擎执行失败，无法生成可靠回答。",
             }
-        answer_text = str(response)
-        sources = []
-        seen_nodes = set()
-        source_nodes = getattr(response, 'source_nodes', []) or []
-        for node_with_score in source_nodes:
-            node = node_with_score.node
-            if node.node_id in seen_nodes:
-                continue
-            seen_nodes.add(node.node_id)
-            score = float(getattr(node_with_score, 'score', 0.0))
-            meta = node.metadata or {}
-            sources.append({
-                "document_id": meta.get("doc_id"),
-                "node_id": node.node_id,
-                "source_title": meta.get("title", "Unknown"),
-                "file_path": meta.get("file_path") or None,
-                "source_url": meta.get("source_url") or None,
-                "line_start": (
-                    int(meta["line_start"])
-                    if meta.get("line_start") not in (None, "", -1)
-                    else None
-                ),
-                "line_end": (
-                    int(meta["line_end"])
-                    if meta.get("line_end") not in (None, "", -1)
-                    else None
-                ),
-                "snippet": node.get_text()[:300],
-                "relevance_score": score,
-            })
-        if sources:
-            avg_score = sum(s["relevance_score"] for s in sources) / len(sources)
-        else:
-            avg_score = 0.0
-        confidence = self._estimate_confidence(answer_text, avg_score, len(sources))
-        reasoning = self._build_reasoning(sources, avg_score)
-        return {
-            "answer": answer_text,
-            "sources": sources,
-            "confidence": confidence,
-            "avg_similarity": avg_score,
-            "reasoning": reasoning,
-        }
 
     def _estimate_confidence(self, answer: str, avg_similarity: float, source_count: int) -> float:
         base = avg_similarity
@@ -365,8 +412,7 @@ class QueryEngine:
                 penalty = max(penalty, 0.3)
         if source_count == 0:
             penalty = max(penalty, 0.5)
-        score = max(0.0, min(1.0, base * (1.0 - penalty)))
-        return score
+        return max(0.0, min(1.0, base * (1.0 - penalty)))
 
     def _build_reasoning(self, sources, avg_similarity) -> str:
         parts = []

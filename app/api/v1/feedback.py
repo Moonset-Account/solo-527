@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
@@ -159,9 +160,7 @@ def export_error_samples(
     return JSONResponse(
         content={
             "count": len(data),
-            "exported_at": svc.err_repo.db.execute(
-                "SELECT datetime('now')" if True else "SELECT NOW()"
-            ).scalar() if False else None,
+            "exported_at": datetime.utcnow().isoformat() + "Z",
             "samples": data,
         }
     )
