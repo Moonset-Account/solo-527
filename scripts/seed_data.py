@@ -5,9 +5,16 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, Base, engine
+from app.core.config import settings
 from app.services.ticket_service import CategoryService, TicketService
 from app.schemas.ticket import CategoryCreate, TicketCreate
+
+
+def _ensure_dirs():
+    for p in (settings.DATA_DIR, settings.MODEL_STORE_DIR):
+        if p and not os.path.exists(p):
+            os.makedirs(p, exist_ok=True)
 
 
 def seed_categories(db):
@@ -82,6 +89,8 @@ def seed_tickets(db):
 
 
 if __name__ == "__main__":
+    _ensure_dirs()
+    Base.metadata.create_all(engine)
     db = SessionLocal()
     try:
         seed_categories(db)

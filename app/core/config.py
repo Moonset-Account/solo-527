@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = True
 
+    DB_URL_OVERRIDE: Optional[str] = None
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_HOST: str = "localhost"
@@ -40,11 +42,22 @@ class Settings(BaseSettings):
         case_sensitive = True
 
     @property
-    def DATABASE_URL(self) -> str:
+    def DEFAULT_SQLITE_URL(self) -> str:
+        db_path = os.path.abspath(os.path.join(self.DATA_DIR, "app.db"))
+        return f"sqlite:///{db_path}"
+
+    @property
+    def POSTGRES_URL(self) -> str:
         return (
             f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @property
+    def DATABASE_URL(self) -> str:
+        if self.DB_URL_OVERRIDE:
+            return self.DB_URL_OVERRIDE
+        return self.DEFAULT_SQLITE_URL
 
     @property
     def REDIS_URL(self) -> str:
