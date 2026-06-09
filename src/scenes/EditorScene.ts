@@ -775,7 +775,12 @@ export class EditorScene extends Phaser.Scene {
   private validateLevel(): void {
     const result = validateLevelData(this.state.level);
     if (result.valid) {
-      this.showToast('✓ 验证通过! 关卡有效');
+      if (result.warnings && result.warnings.length > 0) {
+        alert('✓ 验证通过，存在 ' + result.warnings.length + ' 个警告:\n\n'
+          + result.warnings.map((w: string, i: number) => `${i + 1}. ${w}`).join('\n'));
+      } else {
+        this.showToast('✓ 验证通过! 关卡有效');
+      }
     } else {
       alert('关卡验证失败:\n\n' + result.errors.map((e: string, i: number) => `${i + 1}. ${e}`).join('\n'));
     }

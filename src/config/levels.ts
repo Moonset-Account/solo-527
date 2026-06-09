@@ -29,8 +29,8 @@ export const LEVELS: LevelData[] = [
     id: 1,
     name: '第一夜：入门篇',
     description: '欢迎来到夜间书店！推动书架到目标区域，找到并收集散落的线索。',
-    maxSteps: 30,
-    starThresholds: [25, 18, 14],
+    maxSteps: 35,
+    starThresholds: [30, 22, 16],
     grid: makeGrid(GameConfig.GRID_ROWS, GameConfig.GRID_COLS, (r, c) => {
       if (r === 4 && c >= 3 && c <= 4) return W;
       if (r === 5 && c === 8) return T;
@@ -38,7 +38,7 @@ export const LEVELS: LevelData[] = [
       if (r === 7 && c === 10) return E;
       return F;
     }),
-    playerStart: { x: 2, y: 2 },
+    playerStart: { x: 1, y: 1 },
     shelves: [
       { pos: { x: 4, y: 2 }, id: 's1', targetZoneId: 't1' },
       { pos: { x: 6, y: 6 }, id: 's2' },
@@ -62,14 +62,15 @@ export const LEVELS: LevelData[] = [
     id: 2,
     name: '第二夜：分类学',
     description: '学会整理不同类别的书。将书架推到对应分类的目标区。',
-    maxSteps: 45,
-    starThresholds: [40, 30, 24],
+    maxSteps: 55,
+    starThresholds: [50, 38, 28],
     grid: makeGrid(GameConfig.GRID_ROWS, GameConfig.GRID_COLS, (r, c) => {
       if (r === 3 && c >= 5 && c <= 7) return W;
       if (r === 6 && c >= 3 && c <= 5) return W;
       if (r === 2 && c === 9) return T;
       if (r === 7 && c === 9) return T;
       if (r === 5 && c === 2) return C;
+      if (r === 7 && c === 8) return C;
       if (r === 8 && c === 1) return E;
       return F;
     }),
@@ -80,7 +81,7 @@ export const LEVELS: LevelData[] = [
       { pos: { x: 6, y: 7 }, id: 's3' },
     ],
     books: [
-      { pos: { x: 2, y: 5 }, id: 'b1', category: '科幻', title: '星际编年史' },
+      { pos: { x: 2, y: 6 }, id: 'b1', category: '科幻', title: '星际编年史' },
       { pos: { x: 9, y: 4 }, id: 'b2', category: '哲学', title: '深夜沉思录' },
       { pos: { x: 5, y: 8 }, id: 'b3', category: '科幻', title: '三体问题', isWrongPlace: true },
     ],
@@ -89,7 +90,7 @@ export const LEVELS: LevelData[] = [
       { pos: { x: 2, y: 8 }, id: 'cl2', text: '线索：哲学类书籍在下层区域寻找。' },
     ],
     indexCards: [
-      { pos: { x: 5, y: 2 }, id: 'ic1', category: '科幻' },
+      { pos: { x: 2, y: 5 }, id: 'ic1', category: '科幻' },
       { pos: { x: 8, y: 7 }, id: 'ic2', category: '哲学' },
     ],
     targetZones: [
@@ -172,7 +173,7 @@ export const LEVELS: LevelData[] = [
       { pos: { x: 9, y: 7 }, id: 's5' },
     ],
     books: [
-      { pos: { x: 6, y: 1 }, id: 'b1', category: '文学', title: '月光诗集' },
+      { pos: { x: 5, y: 1 }, id: 'b1', category: '文学', title: '月光诗集' },
       { pos: { x: 1, y: 5 }, id: 'b2', category: '历史', title: '中世纪史', isWrongPlace: true },
       { pos: { x: 10, y: 5 }, id: 'b3', category: '科技', title: '代码之美' },
       { pos: { x: 5, y: 8 }, id: 'b4', category: '文学', title: '寂静之声', isWrongPlace: true },
@@ -226,7 +227,7 @@ export const LEVELS: LevelData[] = [
     ],
     books: [
       { pos: { x: 6, y: 1 }, id: 'b1', category: '奇幻', title: '龙之传说' },
-      { pos: { x: 10, y: 3 }, id: 'b2', category: '传记', title: '书店老板回忆录' },
+      { pos: { x: 10, y: 2 }, id: 'b2', category: '传记', title: '书店老板回忆录' },
       { pos: { x: 4, y: 5 }, id: 'b3', category: '数学', title: '质数的秘密', isWrongPlace: true },
       { pos: { x: 9, y: 6 }, id: 'b4', category: '烹饪', title: '深夜食谱' },
       { pos: { x: 2, y: 7 }, id: 'b5', category: '奇幻', title: '魔戒指南', isWrongPlace: true },
@@ -257,27 +258,61 @@ export function getLevelById(id: number): LevelData | undefined {
   return LEVELS.find((l) => l.id === id);
 }
 
-export function validateLevelData(level: LevelData): { valid: boolean; errors: string[] } {
+export function validateLevelData(level: LevelData): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const rows = level.grid.length;
   const cols = level.grid[0]?.length || 0;
   if (rows !== GameConfig.GRID_ROWS || cols !== GameConfig.GRID_COLS) {
     errors.push(`网格尺寸不符：期望 ${GameConfig.GRID_ROWS}x${GameConfig.GRID_COLS}，实际 ${rows}x${cols}`);
   }
+  let hasExit = false;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (level.grid[r][c] === TileType.EXIT) hasExit = true;
+    }
+  }
+  if (!hasExit) errors.push('关卡缺少出口 tile（EXIT = 5），无法完成胜利判定');
+
   const posKey = (p: { x: number; y: number }) => `${p.x},${p.y}`;
   const occ = new Set<string>();
-  const addOcc = (p: { x: number; y: number }, type: string) => {
+  const addOcc = (p: { x: number; y: number }, type: string, expectedTile?: TileType, expectedLabel?: string) => {
     const k = posKey(p);
     if (occ.has(k)) errors.push(`${type} 与其他物体位置重叠：(${p.x},${p.y})`);
     occ.add(k);
-    if (p.x < 0 || p.x >= cols || p.y < 0 || p.y >= rows) errors.push(`${type} 超出边界：(${p.x},${p.y})`);
-    else if (level.grid[p.y][p.x] === TileType.WALL) errors.push(`${type} 放在墙上：(${p.x},${p.y})`);
+    if (p.x < 0 || p.x >= cols || p.y < 0 || p.y >= rows) {
+      errors.push(`${type} 超出边界：(${p.x},${p.y})`);
+      return;
+    }
+    if (level.grid[p.y][p.x] === TileType.WALL) {
+      errors.push(`${type} 放在墙上：(${p.x},${p.y})`);
+      return;
+    }
+    if (expectedTile && level.grid[p.y][p.x] !== expectedTile) {
+      const label = expectedLabel || '要求的 tile';
+      errors.push(`${type} 必须在${label}上：实际位置 (${p.x},${p.y}) 格子类型=${level.grid[p.y][p.x]}，期望=${expectedTile}`);
+    }
   };
   addOcc(level.playerStart, '玩家');
   level.shelves.forEach((s, i) => addOcc(s.pos, `书架${i}`));
   level.books.forEach((b, i) => addOcc(b.pos, `书籍${i}`));
   level.clues.forEach((c, i) => addOcc(c.pos, `线索${i}`));
-  level.indexCards.forEach((c, i) => addOcc(c.pos, `索引卡${i}`));
-  level.targetZones.forEach((t, i) => addOcc(t.pos, `目标区${i}`));
-  return { valid: errors.length === 0, errors };
+  level.indexCards.forEach((c, i) => addOcc(c.pos, `索引卡${i}`, TileType.CARD_SLOT, '卡槽 tile（CARD_SLOT = 4）'));
+  level.targetZones.forEach((t, i) => addOcc(t.pos, `目标区${i}`, TileType.TARGET_ZONE, '目标区 tile（TARGET_ZONE = 3）'));
+
+  const linkedTargetIds = new Set(level.shelves.filter((s) => s.targetZoneId).map((s) => s.targetZoneId));
+  const definedTargetIds = new Set(level.targetZones.map((t) => t.id));
+  for (const id of linkedTargetIds) {
+    if (!definedTargetIds.has(id!)) errors.push(`书架引用了不存在的 targetZoneId: ${id}`);
+  }
+  for (const id of definedTargetIds) {
+    if (!linkedTargetIds.has(id)) warnings.push(`目标区 "${id}" 没有书架引用`);
+  }
+  if (level.indexCards.length > 0) {
+    const cardSlotCount = level.grid.flat().filter((t) => t === TileType.CARD_SLOT).length;
+    if (cardSlotCount < level.indexCards.length) {
+      errors.push(`卡槽 tile 数量(${cardSlotCount}) 少于索引卡数量(${level.indexCards.length})`);
+    }
+  }
+  return { valid: errors.length === 0, errors, warnings };
 }

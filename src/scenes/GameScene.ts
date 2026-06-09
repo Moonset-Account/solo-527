@@ -158,6 +158,11 @@ class GameEngine {
     return this.grid[y][x] === 4;
   }
 
+  private isExit(x: number, y: number): boolean {
+    if (!this.inBounds(x, y)) return false;
+    return this.grid[y][x] === 5;
+  }
+
   private updateTargets(): void {
     for (const s of this.shelves) {
       s.onTarget = this.targetZones.some((t) =>
@@ -213,6 +218,7 @@ class GameEngine {
       }
       this.history.push(snap);
       book.pos.x = bx;
+      book.pos.y = by;
       this.player.x = nx;
       this.player.y = ny;
       this.steps++;
@@ -310,12 +316,47 @@ class GameEngine {
   }
 
   isWin(): boolean {
-    const allShelvesOnTarget = this.shelves
-      .filter((s) => s.targetZoneId)
-      .every((s) => s.onTarget);
-    return allShelvesOnTarget && this.shelves.filter((s) => s.targetZoneId).length > 0
-      ? allShelvesOnTarget
-      : false;
+    const shelvesWithTarget = this.shelves.filter((s) => s.targetZoneId);
+    if (shelvesWithTarget.length > 0) {
+      const allShelvesOnTarget = shelvesWithTarget.every((s) => s.onTarget);
+      if (!allShelvesOnTarget) return false;
+    }
+
+    if (this.clues.length > 0) {
+      const allCluesCollected = this.clues.every((c) => c.collected);
+      if (!allCluesCollected) return false;
+    }
+
+    if (this.cards.length > 0) {
+      const allCardsRepaired = this.cards.every((c) => c.repaired);
+      if (!allCardsRepaired) return false;
+    }
+
+    const wrongBooks = this.books.filter((b) => b.isWrongPlace);
+    if (wrongBooks.length > 0) {
+      const allWrongSorted = wrongBooks.every((b) => b.sorted);
+      if (!allWrongSorted) return false;
+    }
+
+    const playerOnExit = this.isExit(this.player.x, this.player.y);
+    return playerOnExit;
+  }
+
+  getWinProgress(): {
+    shelvesReady: boolean;
+    cluesReady: boolean;
+    cardsReady: boolean;
+    booksReady: boolean;
+    atExit: boolean;
+  } {
+    const shelvesWithTarget = this.shelves.filter((s) => s.targetZoneId);
+    return {
+      shelvesReady: shelvesWithTarget.length === 0 || shelvesWithTarget.every((s) => s.onTarget),
+      cluesReady: this.clues.length === 0 || this.clues.every((c) => c.collected),
+      cardsReady: this.cards.length === 0 || this.cards.every((c) => c.repaired),
+      booksReady: this.books.filter((b) => b.isWrongPlace).every((b) => b.sorted),
+      atExit: this.isExit(this.player.x, this.player.y),
+    };
   }
 
   isStepsExhausted(): boolean {
