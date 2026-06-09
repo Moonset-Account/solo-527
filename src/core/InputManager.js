@@ -5,7 +5,7 @@ export class InputManager {
         this.state = {};
         this.justPressed = {};
         this.justReleased = {};
-        this.pointer = { x: 0, y: 0, ndcX: 0, ndcY: 0, down: false, clicked: false };
+        this.pointer = { x: 0, y: 0, ndcX: 0, ndcY: 0, down: false, clicked: false, wheel: 0 };
         this.listeners = {};
         this.enabled = true;
         this._init();
@@ -105,6 +105,7 @@ export class InputManager {
     _onWheel(e) {
         if (!this.enabled) return;
         e.preventDefault();
+        this.pointer.wheel = e.deltaY;
         this.emit('pointer:wheel', { delta: e.deltaY, ...this.pointer });
     }
 
@@ -124,6 +125,7 @@ export class InputManager {
         for (const k in this.justPressed) this.justPressed[k] = false;
         for (const k in this.justReleased) this.justReleased[k] = false;
         this.pointer.clicked = false;
+        this.pointer.wheel = 0;
     }
 
     setEnabled(v) {

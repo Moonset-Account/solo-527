@@ -31,6 +31,15 @@ export class GameScene extends BaseScene {
         this.workingEvents = new Map();
         this.cameraTarget = new THREE.Vector3();
         this.cameraOffset = new THREE.Vector3(0, 18, 14);
+        this.cameraInfo = { zoom: 0, gridX: 0, gridY: 0 };
+        this.lastFeedbackTime = 0;
+        this.hoverHighlight = null;
+    }
+
+    getZoomLevel() {
+        const y = this.cameraOffset.y;
+        const z = (y - 8) / (30 - 8);
+        return Math.round((1 - z) * 100);
     }
 
     async init(data = {}) {
@@ -191,16 +200,25 @@ export class GameScene extends BaseScene {
         const speed = 0.15;
         const mult = input.isDown('speed_up') ? 2 : 1;
         let moved = false;
+        const camSpeed = input.wasPressed('speed_up') ? 1 : 0;
         if (input.isDown('forward')) { this.cameraTarget.z -= speed * mult; moved = true; }
         if (input.isDown('backward')) { this.cameraTarget.z += speed * mult; moved = true; }
         if (input.isDown('left')) { this.cameraTarget.x -= speed * mult; moved = true; }
         if (input.isDown('right')) { this.cameraTarget.x += speed * mult; moved = true; }
+        if (camSpeed) {
+            this._showToast(`🏃 加速模式 ${mult}x`, 'info');
+        }
 
         const size = this.levelConfig.cityLayout.size * GAME_CONFIG.TILE_SIZE;
         this.cameraTarget.x = Math.max(2, Math.min(size - 2, this.cameraTarget.x));
         this.cameraTarget.z = Math.max(2, Math.min(size - 2, this.cameraTarget.z));
 
+        const gridCenter = this.cityMap ? this.cityMap.worldToGrid(this.cameraTarget) : { x: 0, y: 0 };
+        this.cameraInfo.gridX = gridCenter.x;
+        this.cameraInfo.gridY = gridCenter.y;
+
         if (input.wasPressed('cancel')) {
+            this._showToast('⏸ 游戏已暂停', 'info');
             this.pause();
         }
 
@@ -209,8 +227,27 @@ export class GameScene extends BaseScene {
         this.mouse.y = pointer.ndcY;
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
+        const intersects = this.raycaster.intersectObjects(this.cityMap.group.children, true);
+        if (intersects.length > 0) {
+            let obj = intersects[0].object;
+            while (obj && obj.userData && obj.userData.gridX === undefined && obj.parent) obj = obj.parent;
+            if (obj && obj.userData && obj.userData.gridX !== undefined) {
+                if (!this.hoverHighlight || this.hoverHighlight.gx !== obj.userData.gridX || this.hoverHighlight.gy !== obj.userData.gridY) {
+                    if (this.hoverHighlight && this.hoverHighlight.mesh) {
+                        this.cityMap.group.remove(this.hoverHighlight.mesh);
+                    }
+                    const hl = this.cityMap.highlightTile(obj.userData.gridX, obj.userData.gridY, 0x00ffff, 0);
+                    if (hl) {
+                        this.hoverHighlight = { mesh: hl, gx: obj.userData.gridX, gy: obj.userData.gridY };
+                    }
+                }
+            }
+        } else if (this.hoverHighlight) {
+            this.cityMap.group.remove(this.hoverHighlight.mesh);
+            this.hoverHighlight = null;
+        }
+
         if (pointer.clicked) {
-            const intersects = this.raycaster.intersectObjects(this.cityMap.group.children, true);
             if (intersects.length > 0) {
                 this._handleClick(intersects[0]);
             } else {
@@ -221,9 +258,18 @@ export class GameScene extends BaseScene {
         }
 
         if (pointer.wheel) {
+            const oldZoom = this.getZoomLevel();
             this.cameraOffset.y = Math.max(8, Math.min(30, this.cameraOffset.y - pointer.wheel * 0.01));
             this.cameraOffset.z = this.cameraOffset.y * 0.78;
+            const newZoom = this.getZoomLevel();
+            const now = Date.now();
+            if (now - this.lastFeedbackTime > 800 && Math.abs(newZoom - oldZoom) > 3) {
+                this.cameraInfo.zoom = newZoom;
+                this._showToast(`🔍 缩放级别：${newZoom}%`, 'info');
+                this.lastFeedbackTime = now;
+            }
         }
+        this.cameraInfo.zoom = this.getZoomLevel();
 
         this._updateCamera();
     }

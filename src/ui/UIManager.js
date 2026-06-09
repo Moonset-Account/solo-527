@@ -298,11 +298,25 @@ export class UIManager {
                 </div>
             </div>
             <div class="hud-bottom">
+                <div class="hud-input-feedback">
+                    <div class="feedback-pill">
+                        <span class="fp-label">🔍 缩放</span>
+                        <span class="fp-value">${gameScene.cameraInfo.zoom}%</span>
+                    </div>
+                    <div class="feedback-pill">
+                        <span class="fp-label">📍 视角</span>
+                        <span class="fp-value">(${gameScene.cameraInfo.gridX}, ${gameScene.cameraInfo.gridY})</span>
+                    </div>
+                    <div class="feedback-pill">
+                        <span class="fp-label">⏱️ 帧</span>
+                        <span class="fp-value">${gameScene.time.toFixed(1)}s</span>
+                    </div>
+                </div>
                 <div class="hud-tips">
                     <span class="tip-item"><kbd>WASD</kbd> 移动视角</span>
                     <span class="tip-item"><kbd>滚轮</kbd> 缩放</span>
                     <span class="tip-item"><kbd>点击</kbd> 建筑/事件 派遣队伍</span>
-                    <span class="tip-item"><kbd>ESC</kbd> 暂停</span>
+                    <span class="tip-item"><kbd>Shift</kbd> 加速 <kbd>ESC</kbd> 暂停</span>
                 </div>
             </div>
         `;

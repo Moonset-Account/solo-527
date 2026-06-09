@@ -90,6 +90,7 @@ export class SettlementReport {
         this.duration = (this.endTime - this.startTime) / 1000;
         this.satisfactionEnd = resources.satisfaction;
         this.delays = resources.delays;
+        this.finalBudget = resources.budget;
         this.costEfficiency = this.totalBudgetSpent > 0 ? this.eventsResolved / this.totalBudgetSpent * 1000 : 0;
         return this._calculateScore();
     }
@@ -100,7 +101,7 @@ export class SettlementReport {
         S.failPenalty = this.eventsFailed * 200;
         S.satBonus = Math.floor(this.satisfactionEnd * 10);
         S.speedBonus = this.avgResponseTime > 0 ? Math.floor(Math.max(0, 60 - this.avgResponseTime) * 50) : 0;
-        S.budgetBonus = Math.max(0, Math.floor((resources.budget - 500) / 10));
+        S.budgetBonus = Math.max(0, Math.floor((this.finalBudget - 500) / 10));
         S.efficiencyBonus = Math.floor(this.costEfficiency * 10);
         S.delayPenalty = this.delays * 50;
         S.perfectBonus = this.perfectRun ? 1000 : 0;
