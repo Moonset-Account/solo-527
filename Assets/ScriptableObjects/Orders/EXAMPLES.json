@@ -1,0 +1,7 @@
+{
+  "示例订单": [
+    {"OrderId": 1, "OrderName": "莉莉的北欧客厅", "CustomerId":1,
+      "RequiredSlots": ["WallColor","FloorColor","MainFurniture"], "BaseReward": 1000}
+  ],
+  "自动生成": "Unity编译后菜单 Generate All Data Assets 会在此创建 Order_*.asset 共 3 个"
+}

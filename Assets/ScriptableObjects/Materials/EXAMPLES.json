@@ -1,0 +1,7 @@
+{
+  "示例材料": [
+    {"MaterialId": 1, "MaterialName": "红色颜料", "MaterialType": "Paint", "BaseColor": [1.0,0.3,0.3]},
+    {"MaterialId": 2, "MaterialName": "原木木材", "MaterialType": "Wood",  "BaseColor": [0.75,0.55,0.35]}
+  ],
+  "自动生成": "Unity编译后菜单 Generate All Data Assets 会在此目录创建 Material_1.asset ~ Material_12.asset"
+}

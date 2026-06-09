@@ -1,0 +1,7 @@
+{
+  "示例客户": [
+    {"CustomerId": 1, "CustomerName": "莉莉", "Personality": "Gentle",
+      "PreferredStyles": ["Minimalist","Nordic"], "BudgetRange": [5000,15000]}
+  ],
+  "自动生成": "Unity编译后菜单 Generate All Data Assets 会在此创建 3 个客户 .asset"
+}

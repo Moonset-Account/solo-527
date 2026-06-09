@@ -1,0 +1,14 @@
+{
+  "目录说明": "此文件夹保存所有游戏配置 ScriptableObject (.asset) 资产",
+  "自动生成": "Unity编译通过后，菜单 DecorMatch3 -> Generate All Data Assets 或 AutoAssetBuilder 自动生成",
+  "后备方案": "若目录为空也不影响运行，DataManager.Instance 内置代码版默认数据（5关/12材料/3客户/4家具/3配色/3订单/7成就/4挑战）",
+  "资产类型": [
+    "Levels/ - LevelData（三消关卡配置，含材料收集目标）",
+    "Materials/ - MaterialData（12种颜料/木材/布料/金属/瓷砖/壁纸）",
+    "Customers/ - CustomerProfile（客户偏好5维权重+性格+台词）",
+    "Furniture/ - FurnitureItem + ColorPalette（家具/配色方案）",
+    "Orders/ - DecorationOrder（装修订单：槽位/预算/解锁条件）",
+    "Achievements/ - AchievementData（12种成就+里程碑）",
+    "DailyChallenges/ - DailyChallengeData（每日挑战配置）"
+  ]
+}

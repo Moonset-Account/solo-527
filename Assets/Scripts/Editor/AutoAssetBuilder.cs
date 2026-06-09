@@ -58,6 +58,9 @@ namespace DecorMatch3.EditorTools
             EnsureDirectory(PREFABS_DIR);
             EnsureDirectory(SO_DIR);
 
+            try { ScriptableObjectGenerator.GenerateAllDataAssets(); } catch (Exception e) { Debug.LogWarning($"SO生成: {e.Message}"); }
+            try { PrefabFactory.CreateAllPrefabs(); } catch (Exception e) { Debug.LogWarning($"Prefab生成: {e.Message}"); }
+
             BuildBootstrapScene();
             BuildMainMenuScene();
             BuildMatch3Scene();

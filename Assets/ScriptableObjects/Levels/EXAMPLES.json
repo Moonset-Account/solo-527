@@ -1,0 +1,7 @@
+{
+  "示例关卡": [
+    {"LevelId": 1, "LevelName": "莉莉的客厅-入门", "GridSize": [7,7], "MovesLimit": 30, "TargetScore": 5000,
+      "RequiredMaterials": [{"MaterialId":1,"Amount":5},{"MaterialId":2,"Amount":3}] }
+  ],
+  "自动生成": "Unity编译后菜单 Generate All Data Assets 会在此目录创建 Level_1.asset ~ Level_5.asset"
+}
