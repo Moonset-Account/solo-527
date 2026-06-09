@@ -55,6 +55,14 @@ void AOldApartmentBootstrapActor::BeginPlay()
 	FString LevelName = GetWorld()->GetMapName();
 	LevelName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
 
+	// Normalize level name: strip common prefixes (e.g. "Levels_" from /Game/Maps/Levels/...)
+	// so /Game/Maps/Levels/MainMenu and /Game/Maps/MainMenu both match "MainMenu".
+	FString NormalizedName = LevelName;
+	if (NormalizedName.StartsWith(TEXT("Levels_")))
+	{
+		NormalizedName.RightChopInline(7);
+	}
+
 	if (LevelType == EBootstrapLevelType::AutoDetect)
 	{
 		// Check CVar first (from main menu -> chapter flow, etc.)
@@ -68,34 +76,40 @@ void AOldApartmentBootstrapActor::BeginPlay()
 		{
 			LevelType = EBootstrapLevelType::ChapterLevel;
 		}
-		// --- Explicit logical level names (正式关卡名优先匹配) ---
-		else if (LevelName.Equals(TEXT("MainMenu"), ESearchCase::IgnoreCase))
+		// --- Explicit logical level names (正式关卡名优先匹配，支持 Levels_ 前缀) ---
+		else if (NormalizedName.Equals(TEXT("MainMenu"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.StartsWith(TEXT("MainMenu_"), ESearchCase::IgnoreCase))
 		{
 			LevelType = EBootstrapLevelType::MainMenu;
 		}
-		else if (LevelName.Equals(TEXT("Chapter01"), ESearchCase::IgnoreCase) ||
-				 LevelName.Contains(TEXT("Chapter01_Apt101"), ESearchCase::IgnoreCase) ||
-				 LevelName.Equals(TEXT("Apt101"), ESearchCase::IgnoreCase))
+		else if (NormalizedName.Equals(TEXT("Chapter01"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Contains(TEXT("Chapter01_Apt101"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Equals(TEXT("Apt101"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Equals(TEXT("Chapter00_Tutorial"), ESearchCase::IgnoreCase))
 		{
 			LevelType = EBootstrapLevelType::ChapterLevel;
 		}
 		// --- Fuzzy matching for menu ---
-		else if (LevelName.Contains(TEXT("Menu"), ESearchCase::IgnoreCase))
+		else if (NormalizedName.Contains(TEXT("Menu"), ESearchCase::IgnoreCase))
 		{
 			LevelType = EBootstrapLevelType::MainMenu;
 		}
 		// --- Fuzzy matching for chapter / generic gameplay levels ---
-		else if (LevelName.Contains(TEXT("Chapter"), ESearchCase::IgnoreCase) ||
-				 LevelName.Contains(TEXT("Apt"), ESearchCase::IgnoreCase) ||
-				 LevelName.Contains(TEXT("Level"), ESearchCase::IgnoreCase) ||
-				 LevelName.Contains(TEXT("Default"), ESearchCase::IgnoreCase) ||
-				 LevelName.Contains(TEXT("Template"), ESearchCase::IgnoreCase))
+		else if (NormalizedName.Contains(TEXT("Chapter"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Contains(TEXT("Apt"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Contains(TEXT("Level"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Contains(TEXT("Default"), ESearchCase::IgnoreCase) ||
+				 NormalizedName.Contains(TEXT("Template"), ESearchCase::IgnoreCase))
 		{
-			static bool bFirstLaunch = true;
-			if (bFirstLaunch)
+			// Fallback: when DefaultEngine.ini points to a non-existent level
+			// (e.g. /Game/Maps/Levels/MainMenu before Python script runs),
+			// UE falls back to loading Template_Default with a different map name.
+			// Process-lifetime static flag: first load = MainMenu, second load = Chapter.
+			static bool bFirstLoadThisProcess = true;
+			if (bFirstLoadThisProcess)
 			{
 				LevelType = EBootstrapLevelType::MainMenu;
-				bFirstLaunch = false;
+				bFirstLoadThisProcess = false;
 			}
 			else
 			{
@@ -108,7 +122,8 @@ void AOldApartmentBootstrapActor::BeginPlay()
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[Bootstrap] Level: %s, Type: %d"), *LevelName, (int32)LevelType);
+	UE_LOG(LogTemp, Log, TEXT("[Bootstrap] Level: %s (normalized: %s), Type: %d"),
+		*LevelName, *NormalizedName, (int32)LevelType);
 
 	if (bAutoSetupInput)
 	{
@@ -284,7 +299,7 @@ void AOldApartmentBootstrapActor::OnMainMenuStartGame()
 {
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OldApartment.StartMode"));
 	if (CVar) CVar->Set(1);  // Next load = Chapter Level
-	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Chapter01")));
+	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Levels/Chapter01_Apt101")));
 }
 
 void AOldApartmentBootstrapActor::OnMainMenuSettings()
@@ -1120,7 +1135,7 @@ void AOldApartmentBootstrapActor::OnPauseToMenu()
 	// Use a CVar to tell next load we want MainMenu
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OldApartment.StartMode"));
 	if (CVar) CVar->Set(0);  // 0 = MainMenu next
-	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/MainMenu")));
+	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Levels/MainMenu")));
 }
 
 void AOldApartmentBootstrapActor::OnPuzzleSubmit(int32 Code0, int32 Code1, int32 Code2, int32 Code3)
@@ -1134,7 +1149,7 @@ void AOldApartmentBootstrapActor::OnChapterResultReplay()
 	UE_LOG(LogTemp, Log, TEXT("[Bootstrap] Replay Chapter 01"));
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OldApartment.StartMode"));
 	if (CVar) CVar->Set(1);  // 1 = Chapter next
-	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Chapter01")));
+	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Levels/Chapter01_Apt101")));
 }
 
 void AOldApartmentBootstrapActor::OnChapterResultToMenu()
@@ -1142,7 +1157,7 @@ void AOldApartmentBootstrapActor::OnChapterResultToMenu()
 	UE_LOG(LogTemp, Log, TEXT("[Bootstrap] Chapter Result -> Main Menu"));
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OldApartment.StartMode"));
 	if (CVar) CVar->Set(0);
-	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/MainMenu")));
+	UGameplayStatics::OpenLevel(this, FName(TEXT("/Game/Maps/Levels/MainMenu")));
 }
 
 void AOldApartmentBootstrapActor::HandleEndLevelOverlap()
