@@ -3,9 +3,9 @@ extends Control
 var settlement_data: Dictionary = {}
 
 @onready var result_status_label: Label = $ResultStatus
-@onready var grade_label: Label = $GradeLabel
-@onready var score_number_label: Label = $ScoreNumber
-@onready var grade_desc_label: Label = $GradeDesc
+@onready var grade_label: Label = $MainContainer/LeftPanel/LeftVBox/GradeLabel
+@onready var score_number_label: Label = $MainContainer/LeftPanel/LeftVBox/ScoreNumber
+@onready var grade_desc_label: Label = $MainContainer/LeftPanel/LeftVBox/GradeDesc
 
 @onready var breakdown_vbox: VBoxContainer = $MainContainer/LeftPanel/LeftVBox/BreakdownVBox
 @onready var reward_amount_label: Label = $MainContainer/RightPanel/RightVBox/RewardAmount

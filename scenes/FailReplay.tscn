@@ -61,7 +61,7 @@ text = "🔍 失败原因分析"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="FailuresContent" type="VBoxContainer" parent="FailuresPanel/FailuresScroll"]
+[node name="FailuresContent" type="VBoxContainer" parent="FailuresPanel/FailuresVBox/FailuresScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
