@@ -1,10 +1,91 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Index, JSON, TypeDecorator
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from datetime import datetime
 from config import Config
+import json
 
 Base = declarative_base()
+
+try:
+    from sqlalchemy.dialects.postgresql import JSONB as PGJSONB, ARRAY as PGARRAY
+    _HAS_PG_TYPES = True
+except Exception:
+    _HAS_PG_TYPES = False
+
+
+class SmartJSON(TypeDecorator):
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql" and _HAS_PG_TYPES:
+            return dialect.type_descriptor(PGJSONB())
+        elif hasattr(dialect, "name") and dialect.name == "sqlite":
+            try:
+                return dialect.type_descriptor(JSON())
+            except Exception:
+                return dialect.type_descriptor(Text())
+        else:
+            try:
+                return dialect.type_descriptor(JSON())
+            except Exception:
+                return dialect.type_descriptor(Text())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return value
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return value
+        return value
+
+
+JSON_TYPE = SmartJSON
+
+
+class SmartIntArray(TypeDecorator):
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql" and _HAS_PG_TYPES:
+            return dialect.type_descriptor(PGARRAY(Integer()))
+        return dialect.type_descriptor(Text())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return list(value) if value is not None else None
+        if isinstance(value, (list, tuple)):
+            return ",".join(str(int(x)) for x in value if x is not None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [int(x) for x in value if x is not None]
+        if isinstance(value, str) and value:
+            try:
+                return [int(x.strip()) for x in value.split(",") if x.strip()]
+            except Exception:
+                return []
+        return []
+
+
+INT_ARRAY_TYPE = SmartIntArray
 
 
 class SensorReading(Base):
@@ -81,7 +162,7 @@ class FeatureRecord(Base):
     equipment_id = Column(String(50), nullable=False, index=True)
     window_start = Column(DateTime, nullable=False)
     window_end = Column(DateTime, nullable=False)
-    features = Column(JSONB, nullable=False)
+    features = Column(JSON_TYPE, nullable=False)
     data_version = Column(String(50), index=True)
     is_used_for_training = Column(Boolean, default=False)
     label = Column(String(50))
@@ -104,7 +185,7 @@ class Alert(Base):
     model_version = Column(String(50))
     feature_window_start = Column(DateTime)
     feature_window_end = Column(DateTime)
-    sensor_snapshot = Column(JSONB)
+    sensor_snapshot = Column(JSON_TYPE)
     status = Column(String(20), default="pending", index=True)
     feedback_type = Column(String(50))
     feedback_note = Column(Text)
@@ -121,7 +202,7 @@ class FeedbackRecord(Base):
     feedback_type = Column(String(50), nullable=False)
     feedback_note = Column(Text)
     feedback_user = Column(String(100))
-    feature_data = Column(JSONB)
+    feature_data = Column(JSON_TYPE)
     is_used_for_training = Column(Boolean, default=False, index=True)
     training_data_version = Column(String(50))
     created_at = Column(DateTime, default=datetime.now)
@@ -142,8 +223,8 @@ class ModelVersion(Base):
     precision_score = Column(Float)
     recall_score = Column(Float)
     f1_score = Column(Float)
-    metrics = Column(JSONB)
-    feature_names = Column(JSONB)
+    metrics = Column(JSON_TYPE)
+    feature_names = Column(JSON_TYPE)
     is_deployed = Column(Boolean, default=False)
     description = Column(Text)
     trained_by = Column(String(100))
@@ -159,7 +240,7 @@ class DataVersion(Base):
     record_count = Column(Integer)
     positive_count = Column(Integer)
     feature_count = Column(Integer)
-    included_feedback_ids = Column(JSONB)
+    included_feedback_ids = Column(JSON_TYPE)
     created_by = Column(String(100))
     created_at = Column(DateTime, default=datetime.now)
 
@@ -185,12 +266,33 @@ class Database:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._engine = create_engine(
-                Config.get_db_url(),
-                pool_size=20,
-                max_overflow=30,
-                pool_pre_ping=True
-            )
+            db_url = Config.get_db_url()
+            is_sqlite = db_url.startswith("sqlite")
+            if is_sqlite:
+                from sqlalchemy import event as _sa_event
+                cls._engine = create_engine(
+                    db_url,
+                    pool_pre_ping=True,
+                    connect_args={"check_same_thread": False}
+                )
+
+                @_sa_event.listens_for(cls._engine, "connect")
+                def _set_sqlite_pragma(dbapi_connection, connection_record):
+                    try:
+                        cursor = dbapi_connection.cursor()
+                        cursor.execute("PRAGMA journal_mode=WAL;")
+                        cursor.execute("PRAGMA foreign_keys=ON;")
+                        cursor.execute("PRAGMA synchronous=NORMAL;")
+                        cursor.close()
+                    except Exception:
+                        pass
+            else:
+                cls._engine = create_engine(
+                    db_url,
+                    pool_size=20,
+                    max_overflow=30,
+                    pool_pre_ping=True
+                )
             cls._SessionLocal = sessionmaker(
                 autocommit=False,
                 autoflush=False,

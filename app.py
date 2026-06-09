@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import numpy as np
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
@@ -278,6 +279,11 @@ def get_deployed_model_detail():
     deployed_version = None
     deployed_ts = None
     storage_path = None
+    full_test_metrics = {}
+    label_distribution = {}
+    dataset_info = {}
+    feature_importance_top = []
+
     deployed_path = os.path.join(Config.MODEL_DIR, "deployed")
     metadata_file = os.path.join(deployed_path, "metadata.json")
     if os.path.exists(metadata_file):
@@ -293,8 +299,82 @@ def get_deployed_model_detail():
     if not deployed_version:
         versions = mm.list_model_versions()
         if versions:
-            deployed_version = versions[0].get("version")
-            deployed_ts = versions[0].get("created_at")
+            for mv in versions:
+                if mv.get("is_deployed"):
+                    deployed_version = mv.get("version")
+                    deployed_ts = mv.get("created_at")
+                    break
+            if not deployed_version and versions:
+                deployed_version = versions[0].get("version")
+                deployed_ts = versions[0].get("created_at")
+
+    if deployed_version:
+        version_model_dir = os.path.join(Config.MODEL_DIR, deployed_version)
+        if not os.path.isdir(version_model_dir):
+            import glob
+            candidates = glob.glob(os.path.join(Config.MODEL_DIR, f"*{deployed_version}*"))
+            for cand in candidates:
+                if os.path.isdir(cand):
+                    version_model_dir = cand
+                    break
+
+        if os.path.isdir(version_model_dir):
+            for fname in ["metadata.json", "metrics.json", "training_result.json"]:
+                fpath = os.path.join(version_model_dir, fname)
+                if not os.path.exists(fpath):
+                    continue
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if fname == "metadata.json":
+                        meta_metrics = data.get("metrics", {})
+                        if isinstance(meta_metrics, dict) and meta_metrics:
+                            full_test_metrics.update(meta_metrics)
+                        label_distribution = data.get("label_distribution", label_distribution) or label_distribution
+                        dataset_info = data.get("dataset_info", dataset_info) or dataset_info
+                        feature_importance_top = data.get("feature_importance_top", feature_importance_top) or feature_importance_top
+                        if not deployed_version:
+                            deployed_version = data.get("model_version", deployed_version)
+                    elif fname == "metrics.json":
+                        if isinstance(data, dict) and data:
+                            full_test_metrics.update(data)
+                    elif fname == "training_result.json":
+                        tm = data.get("test_metrics", {})
+                        if isinstance(tm, dict) and tm:
+                            full_test_metrics.update(tm)
+                        di = data.get("dataset_info", {})
+                        if di:
+                            dataset_info.update(di)
+                            label_distribution = di.get("class_distribution", label_distribution) or label_distribution
+                        fi_raw = {}
+                        if data.get("feature_names"):
+                            try:
+                                if hasattr(trainer, 'get_feature_importance'):
+                                    pass
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logger.warning(f"Read {fname} failed: {e}")
+
+        detail_from_db = mm.get_model_detail(deployed_version)
+        if detail_from_db:
+            db_metrics = detail_from_db.get("test_metrics", {}) or {}
+            for k, v in db_metrics.items():
+                if k not in full_test_metrics and v is not None:
+                    full_test_metrics[k] = v
+            if not label_distribution:
+                label_distribution = detail_from_db.get("label_distribution", {}) or {}
+            if not dataset_info:
+                dataset_info = detail_from_db.get("dataset_info", {}) or {}
+            if not feature_importance_top:
+                feature_importance_top = detail_from_db.get("feature_importance_top", []) or []
+
+    required_metrics = ["accuracy", "precision", "recall", "f1"]
+    for rm in required_metrics:
+        if rm not in full_test_metrics or full_test_metrics[rm] is None:
+            macro_key = f"{rm}_macro"
+            if macro_key in full_test_metrics and full_test_metrics[macro_key] is not None:
+                full_test_metrics[rm] = full_test_metrics[macro_key]
 
     if not deployed_version:
         return jsonify({
@@ -302,64 +382,45 @@ def get_deployed_model_detail():
             "data": None
         }), 404
 
-    model_detail = mm.get_model_detail(deployed_version)
-    test_metrics = {}
-    feature_importance_top = []
-    label_distribution = {}
-    dataset_info = {}
-    if model_detail:
-        test_metrics = model_detail.get("test_metrics", {}) or {}
-        feature_importance_top = model_detail.get("feature_importance_top", []) or []
-        label_distribution = model_detail.get("label_distribution", {}) or {}
-        dataset_info = model_detail.get("dataset_info", {}) or {}
-
-    required_metrics = ["accuracy", "precision", "recall", "f1"]
-    if not all(k in test_metrics for k in required_metrics):
-        metrics_file = os.path.join(Config.MODEL_DIR, f"mv_{deployed_version}", "metrics.json") if storage_path else None
-        if not metrics_file or not os.path.exists(metrics_file):
-            local_versions_dir = os.path.join(Config.MODEL_DIR)
-            import glob
-            candidates = glob.glob(os.path.join(local_versions_dir, "mv_*", "metrics.json"))
-            for cand in candidates:
-                if deployed_version in cand:
-                    metrics_file = cand
-                    break
-        if metrics_file and os.path.exists(metrics_file):
-            try:
-                with open(metrics_file, "r", encoding="utf-8") as f:
-                    saved_metrics = json.load(f)
-                    for k in required_metrics:
-                        if k in saved_metrics and k not in test_metrics:
-                            test_metrics[k] = saved_metrics[k]
-            except Exception:
-                pass
-
-    if not test_metrics.get("accuracy") and dataset_info:
-        ds = trainer.get_training_dataset_summary()
-        total = ds.get("total_allowed_samples", 0)
-        if total > 0:
-            test_metrics.setdefault("accuracy", 0.0)
-            test_metrics.setdefault("precision", 0.0)
-            test_metrics.setdefault("recall", 0.0)
-            test_metrics.setdefault("f1", 0.0)
+    def _safe_float(v, default=0.0):
+        try:
+            if v is None: return default
+            fv = float(v)
+            if np.isnan(fv) or np.isinf(fv): return default
+            return fv
+        except Exception:
+            return default
 
     return jsonify({
         "data": {
             "version": deployed_version,
             "deployed_at": deployed_ts,
             "model_path": storage_path,
+            "metrics_source_file": "metadata.json / metrics.json / training_result.json",
             "metrics": {
-                "accuracy": float(test_metrics.get("accuracy", 0.0)),
-                "precision": float(test_metrics.get("precision", 0.0)),
-                "recall": float(test_metrics.get("recall", 0.0)),
-                "f1": float(test_metrics.get("f1", 0.0)),
-                "per_class": test_metrics.get("per_class_precision_recall_f1", {}),
-                "confusion_matrix": test_metrics.get("confusion_matrix", []),
-                "classification_report": test_metrics.get("classification_report", {}),
+                "accuracy": _safe_float(full_test_metrics.get("accuracy")),
+                "precision": _safe_float(full_test_metrics.get("precision")),
+                "recall": _safe_float(full_test_metrics.get("recall")),
+                "f1": _safe_float(full_test_metrics.get("f1")),
+                "accuracy_macro": _safe_float(full_test_metrics.get("accuracy_macro", full_test_metrics.get("accuracy"))),
+                "precision_macro": _safe_float(full_test_metrics.get("precision_macro", full_test_metrics.get("precision"))),
+                "recall_macro": _safe_float(full_test_metrics.get("recall_macro", full_test_metrics.get("recall"))),
+                "f1_macro": _safe_float(full_test_metrics.get("f1_macro", full_test_metrics.get("f1"))),
+                "roc_auc": _safe_float(full_test_metrics.get("roc_auc")),
+                "per_class": full_test_metrics.get("per_class_precision_recall_f1") or {
+                    cls: {
+                        "precision": _safe_float((full_test_metrics.get("precision_per_class") or {}).get(cls)),
+                        "recall": _safe_float((full_test_metrics.get("recall_per_class") or {}).get(cls)),
+                        "f1": _safe_float((full_test_metrics.get("f1_per_class") or {}).get(cls))
+                    } for cls in (list(label_distribution.keys()) if label_distribution else ["正常", "轴承磨损", "传感器漂移"])
+                },
+                "confusion_matrix": full_test_metrics.get("confusion_matrix", []),
+                "classification_report": full_test_metrics.get("classification_report", {}),
             },
             "dataset_info": dataset_info,
             "label_distribution": label_distribution,
             "feature_importance_top": feature_importance_top,
+            "all_metrics_keys_found": sorted(list(full_test_metrics.keys())),
         }
     })
 
@@ -407,18 +468,22 @@ def get_training_dataset_summary():
         ).group_by(FeatureRecord.label).all()
         allowed_label_dist = {lbl: cnt for (lbl, cnt) in allowed_label_dist_raw}
 
-        recent_timeline_raw = session.query(
-            func.date_trunc("day", FeatureRecord.created_at).label("day"),
-            FeatureRecord.source,
-            func.count(FeatureRecord.id)
-        ).group_by("day", FeatureRecord.source).order_by("day").limit(30).all()
-        timeline = []
-        for d, src, cnt in recent_timeline_raw:
-            timeline.append({
-                "date": d.isoformat() if hasattr(d, "isoformat") else str(d),
-                "source": src,
-                "count": cnt
-            })
+        timeline_raw_all = session.query(
+            FeatureRecord.created_at,
+            FeatureRecord.source
+        ).order_by(FeatureRecord.created_at).limit(10000).all()
+        timeline_by_day = {}
+        for (dt, src) in timeline_raw_all:
+            if dt is None:
+                day_key = "unknown"
+            else:
+                day_key = dt.date().isoformat() if hasattr(dt, 'date') else str(dt)[:10]
+            key = (day_key, src)
+            timeline_by_day[key] = timeline_by_day.get(key, 0) + 1
+        timeline = [
+            {"date": k[0], "source": k[1], "count": v}
+            for k, v in sorted(timeline_by_day.items(), key=lambda x: (x[0][0], x[0][1]))
+        ][-30:]
 
         return jsonify({
             "data": {
@@ -478,36 +543,29 @@ def train_model():
     description = data.get("description", "")
     include_feedback = data.get("include_feedback", True)
     use_historical_data = data.get("use_historical_data", True)
+    auto_seed_samples = data.get("auto_seed_samples", True)
 
     try:
         trainer = _get_trainer()
         fe = _get_feature_extractor()
         mm = _get_mlflow_manager()
 
-        if use_historical_data:
+        pre_summary = trainer.get_training_dataset_summary()
+
+        if use_historical_data and pre_summary.get("total_feature_records", 0) < 100:
             loader = _get_data_loader()
             raw_df = loader.load_sensor_data(exclude_downtime=True)
-            if raw_df.empty:
-                return jsonify({
-                    "error": "No historical data available. Generate sample data first."
-                }), 400
-            feature_df = fe.extract_and_save_features(raw_df, exclude_downtime=True)
-            if feature_df.empty:
-                return jsonify({"error": "No features extracted from data"}), 400
-            label_series = feature_df["label"]
-            feature_cols = [c for c in feature_df.columns if c not in [
-                "label", "equipment_id", "window_start", "window_end", "data_version"
-            ]]
-            feature_df = feature_df[feature_cols]
-        else:
-            feature_df, label_series = None, None
+            if not raw_df.empty:
+                fe.extract_and_save_features(raw_df, exclude_downtime=True)
 
         result = trainer.train(
-            feature_df=feature_df,
-            label_series=label_series,
+            feature_df=None,
+            label_series=None,
             model_type=model_type,
             include_feedback=include_feedback,
-            description=description
+            auto_seed_samples=auto_seed_samples,
+            strict_from_db_only=True,
+            description=description or "API触发训练 - 严格准入模式 (raw_label已排除, 仅工程师确认+种子样本)"
         )
 
         model_version, model_uri = mm.register_model(
@@ -520,13 +578,18 @@ def train_model():
         except Exception as e:
             deploy_msg = f"Training successful but auto-deploy failed: {e}"
 
+        post_summary = trainer.get_training_dataset_summary()
+
         return jsonify({
             "success": True,
             "model_version": model_version,
             "model_uri": model_uri,
             "metrics": result["test_metrics"],
             "deploy_status": deploy_msg,
-            "training_result": result
+            "training_result": result,
+            "strict_training_note": "本次训练严格仅使用 source=engineer_confirmed/engineer_relabeled/auto_labeled_seed 样本，历史传感器 raw_label (historical_unconfirmed) 已全部排除",
+            "dataset_summary_before": pre_summary,
+            "dataset_summary_after": post_summary
         })
     except Exception as e:
         logger.exception(f"Training error")

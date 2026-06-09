@@ -351,6 +351,9 @@ class AnomalyModelTrainer:
 
         return {
             "accuracy": float(accuracy),
+            "precision": float(precision_macro),
+            "recall": float(recall_macro),
+            "f1": float(f1_macro),
             "precision_macro": float(precision_macro),
             "recall_macro": float(recall_macro),
             "f1_macro": float(f1_macro),
@@ -361,6 +364,13 @@ class AnomalyModelTrainer:
             "precision_per_class": precision_per_class,
             "recall_per_class": recall_per_class,
             "f1_per_class": f1_per_class,
+            "per_class_precision_recall_f1": {
+                label: {
+                    "precision": precision_per_class.get(label, 0.0),
+                    "recall": recall_per_class.get(label, 0.0),
+                    "f1": f1_per_class.get(label, 0.0)
+                } for label in labels
+            },
             "confusion_matrix": cm_dict,
             "classification_report": classification_report(
                 y_true, y_pred, target_names=labels, zero_division=0
@@ -476,14 +486,19 @@ class AnomalyModelTrainer:
         include_feedback: bool = True,
         description: str = "",
         include_seed_samples: bool = True,
-        exclude_maintenance_buffer_hours: int = 24
+        auto_seed_samples: bool = None,
+        exclude_maintenance_buffer_hours: int = 24,
+        strict_from_db_only: bool = True
     ) -> Dict:
         data_hash = hashlib.md5(
             f"{datetime.now().isoformat()}_{np.random.randint(0, 999999)}".encode()
         ).hexdigest()[:10]
         data_version = f"dv_{datetime.now().strftime('%Y%m%d')}_{data_hash}"
 
-        if feature_df is None or label_series is None:
+        if auto_seed_samples is not None:
+            include_seed_samples = bool(auto_seed_samples)
+
+        if strict_from_db_only or feature_df is None or label_series is None:
             feature_df, label_series, audit_db = self.load_training_dataset_from_db(
                 include_seed_samples=include_seed_samples,
                 exclude_maintenance_buffer_hours=exclude_maintenance_buffer_hours

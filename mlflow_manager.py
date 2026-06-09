@@ -203,6 +203,8 @@ class MLflowModelManager:
         pipeline_path = os.path.join(model_dir, "pipeline.joblib")
         joblib.dump(trainer.pipeline, pipeline_path)
 
+        test_metrics = training_result.get("test_metrics", {})
+
         meta_path = os.path.join(model_dir, "metadata.json")
         metadata = {
             "feature_names": trainer.feature_names,
@@ -210,11 +212,24 @@ class MLflowModelManager:
             "model_version": version,
             "data_version": training_result["data_version"],
             "model_type": training_result["model_type"],
-            "metrics": training_result["test_metrics"],
+            "metrics": test_metrics,
+            "dataset_info": training_result.get("dataset_info", {}),
+            "label_distribution": training_result.get("dataset_info", {}).get("class_distribution", {}),
+            "feature_importance_top": [
+                {"name": n, "importance": imp}
+                for n, imp in sorted(
+                    trainer.get_feature_importance().items(),
+                    key=lambda x: x[1], reverse=True
+                )[:20]
+            ],
             "created_at": datetime.now().isoformat()
         }
         with open(meta_path, "w") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+        metrics_path = os.path.join(model_dir, "metrics.json")
+        with open(metrics_path, "w") as f:
+            json.dump(test_metrics, f, indent=2, ensure_ascii=False)
 
         result_path = os.path.join(model_dir, "training_result.json")
         with open(result_path, "w") as f:
