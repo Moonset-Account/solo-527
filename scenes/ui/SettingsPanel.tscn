@@ -1,0 +1,196 @@
+[gd_scene load_steps=2 format=3 uid="uid://settingspanel001"]
+
+[ext_resource type="Script" path="res://scripts/ui/SettingsPanel.gd" id="1_sp"]
+
+[node name="SettingsPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sp")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.07, 0.04, 0.12, 1)
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -380.0
+offset_right = 300.0
+offset_bottom = 380.0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "⚙ 游戏设置"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+
+[node name="HSep1" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="VolumeSection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="VTitle" type="Label" parent="Panel/VBox/VolumeSection"]
+layout_mode = 2
+text = "🔊 音量"
+theme_override_font_sizes/font_size = 18
+
+[node name="MasterRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/VolumeSection/MasterRow"]
+layout_mode = 2
+text = "主音量"
+custom_minimum_size = Vector2(90, 0)
+theme_override_font_sizes/font_size = 14
+
+[node name="MasterSlider" type="HSlider" parent="Panel/VBox/VolumeSection/MasterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.8
+
+[node name="MasterVal" type="Label" parent="Panel/VBox/VolumeSection/MasterRow"]
+layout_mode = 2
+text = "80%"
+custom_minimum_size = Vector2(50, 0)
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="MusicRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/VolumeSection/MusicRow"]
+layout_mode = 2
+text = "音乐"
+custom_minimum_size = Vector2(90, 0)
+theme_override_font_sizes/font_size = 14
+
+[node name="MusicSlider" type="HSlider" parent="Panel/VBox/VolumeSection/MusicRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.6
+
+[node name="MusicVal" type="Label" parent="Panel/VBox/VolumeSection/MusicRow"]
+layout_mode = 2
+text = "60%"
+custom_minimum_size = Vector2(50, 0)
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="SfxRow" type="HBoxContainer" parent="Panel/VBox/VolumeSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/VolumeSection/SfxRow"]
+layout_mode = 2
+text = "音效"
+custom_minimum_size = Vector2(90, 0)
+theme_override_font_sizes/font_size = 14
+
+[node name="SfxSlider" type="HSlider" parent="Panel/VBox/VolumeSection/SfxRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.9
+
+[node name="SfxVal" type="Label" parent="Panel/VBox/VolumeSection/SfxRow"]
+layout_mode = 2
+text = "90%"
+custom_minimum_size = Vector2(50, 0)
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 13
+
+[node name="HSep2" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="DisplaySection" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="DTitle" type="Label" parent="Panel/VBox/DisplaySection"]
+layout_mode = 2
+text = "🖥 显示"
+theme_override_font_sizes/font_size = 18
+
+[node name="FullscreenCheck" type="CheckBox" parent="Panel/VBox/DisplaySection"]
+layout_mode = 2
+text = "全屏模式"
+theme_override_font_sizes/font_size = 14
+
+[node name="FpsCheck" type="CheckBox" parent="Panel/VBox/DisplaySection"]
+layout_mode = 2
+text = "显示 FPS"
+theme_override_font_sizes/font_size = 14
+
+[node name="PixelCheck" type="CheckBox" parent="Panel/VBox/DisplaySection"]
+layout_mode = 2
+text = "像素对齐（复古模式）"
+theme_override_font_sizes/font_size = 14
+button_pressed = true
+
+[node name="HSep3" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="PlaytestTitle" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "📊 试玩数据 (自动记录)"
+theme_override_font_sizes/font_size = 16
+
+[node name="PlaytestButtonRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlaytestInfo" type="Button" parent="Panel/VBox/PlaytestButtonRow"]
+layout_mode = 2
+text = "刷新统计"
+theme_override_font_sizes/font_size = 13
+
+[node name="Spacer" type="Control" parent="Panel/VBox/PlaytestButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ResetButton" type="Button" parent="Panel/VBox/PlaytestButtonRow"]
+layout_mode = 2
+text = "重置音量"
+theme_override_font_sizes/font_size = 13
+
+[node name="PlaytestLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = ""
+autowrap_mode = 3
+custom_minimum_size = Vector2(0, 120)
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 12
+
+[node name="BackButton" type="Button" parent="Panel/VBox"]
+layout_mode = 2
+text = "← 返回"
+custom_minimum_size = Vector2(0, 50)
+theme_override_font_sizes/font_size = 18

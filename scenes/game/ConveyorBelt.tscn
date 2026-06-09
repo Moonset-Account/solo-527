@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://conveyor001"]
+
+[ext_resource type="Script" path="res://scripts/game/ConveyorBelt.gd" id="1_c"]
+
+[node name="ConveyorBelt" type="Node2D"]
+script = ExtResource("1_c")

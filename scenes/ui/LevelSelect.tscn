@@ -1,0 +1,110 @@
+[gd_scene load_steps=2 format=3 uid="uid://levelselect001"]
+
+[ext_resource type="Script" path="res://scripts/ui/LevelSelect.gd" id="1_ls"]
+
+[node name="LevelSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ls")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.08, 0.05, 0.14, 1)
+
+[node name="Top" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = -20.0
+offset_bottom = 70.0
+theme_override_constants/separation = 20
+
+[node name="BackButton" type="Button" parent="Top"]
+layout_mode = 2
+text = "← 返回主菜单"
+custom_minimum_size = Vector2(180, 44)
+theme_override_font_sizes/font_size = 16
+
+[node name="PlayerInfo" type="Label" parent="Top"]
+layout_mode = 2
+text = "等级: 1  |  金币: 500"
+size_flags_horizontal = 3
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="RightPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -340.0
+offset_top = 90.0
+offset_right = -20.0
+offset_bottom = -20.0
+
+[node name="InnerVBox" type="VBoxContainer" parent="RightPanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="DailyPanel" type="VBoxContainer" parent="RightPanel/InnerVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DailyTitle" type="Label" parent="RightPanel/InnerVBox/DailyPanel"]
+layout_mode = 2
+text = "🎯 每日挑战"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 18
+
+[node name="Challenges" type="VBoxContainer" parent="RightPanel/InnerVBox/DailyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HSep" type="HSeparator" parent="RightPanel/InnerVBox"]
+layout_mode = 2
+
+[node name="Buttons" type="VBoxContainer" parent="RightPanel/InnerVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="RightPanel/InnerVBox/Buttons"]
+layout_mode = 2
+text = "试玩数据"
+theme_override_font_sizes/font_size = 14
+
+[node name="ExportPlaytest" type="Button" parent="RightPanel/InnerVBox/Buttons"]
+layout_mode = 2
+text = "📊 导出试玩数据"
+theme_override_font_sizes/font_size = 13
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 90.0
+offset_right = -360.0
+offset_bottom = -20.0
+horizontal_scroll_mode = 0
+
+[node name="LevelList" type="GridContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+columns = 2
+theme_override_constants/h_separation = 20
+theme_override_constants/v_separation = 20

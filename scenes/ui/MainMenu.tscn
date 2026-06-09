@@ -1,0 +1,101 @@
+[gd_scene load_steps=3 format=3 uid="uid://mainmenu001"]
+
+[ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.09, 0.06, 0.16, 1)
+
+[node name="Scanlines" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.03)
+
+[node name="PreviewMachines" type="Node2D" parent="."]
+position = Vector2(0, 520)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "🏭 复古工厂流水线"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+
+[node name="Subtitle" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "Retro Factory Pipeline Idle Game"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 18
+
+[node name="Spacer1" type="Control" parent="CenterContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+
+[node name="ButtonNew" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "🎮 新游戏"
+
+[node name="ButtonContinue" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "📂 继续游戏"
+
+[node name="ButtonLevels" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "🗺 关卡选择"
+
+[node name="ButtonAchieve" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "🏆 成就 & 每日挑战"
+
+[node name="ButtonSettings" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "⚙ 设置"
+
+[node name="ButtonQuit" type="Button" parent="CenterContainer/VBox"]
+layout_mode = 2
+text = "🚪 退出游戏"
+
+[node name="Bottom" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -50.0
+offset_right = -20.0
+
+[node name="HintLabel" type="Label" parent="Bottom"]
+layout_mode = 2
+text = "💡 提示：完成越多订单越快升级，升级后解锁更难关卡！"
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 14
+
+[node name="VersionLabel" type="Label" parent="Bottom"]
+layout_mode = 2
+text = "v1.0.0-prototype"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 13
