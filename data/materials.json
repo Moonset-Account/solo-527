@@ -98,7 +98,7 @@
       "name": "镊子",
       "description": "精细操作，对齐微小的撕裂与碎片。",
       "icon": "🗜️",
-      "unlock_level": 4,
+      "unlock_level": 1,
       "action": "align"
     },
     {

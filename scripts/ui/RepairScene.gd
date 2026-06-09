@@ -1,5 +1,13 @@
 extends Control
 
+const STEP_CN: Dictionary = {
+	"humidify": "加湿",
+	"cut": "裁纸",
+	"align": "对齐",
+	"paste": "粘胶",
+	"press": "按压"
+}
+
 var level_data: Dictionary = {}
 var book_data: Dictionary = {}
 var zone_states: Array = []
@@ -16,13 +24,7 @@ var materials_used: Dictionary = {"paper": {}, "glue": {}}
 var action_log: Array[Dictionary] = []
 var tutorial_hints: Array = []
 var tutorial_hint_index: int = 0
-var _step_cn_map: Dictionary = {
-	"humidify": "加湿",
-	"cut": "裁纸",
-	"align": "对齐",
-	"paste": "粘胶",
-	"press": "按压"
-}
+var level_id_current: int = 0
 
 @onready var back_button: Button = $TopBar/TopHBox/BackButton
 @onready var level_name_label: Label = $TopBar/TopHBox/LevelNameLabel
@@ -79,10 +81,10 @@ var _step_cn_map: Dictionary = {
 
 func _ready() -> void:
 	LevelLoader.initialize()
-	var level_id: int = GameManager.current_level_id
-	level_data = LevelLoader.get_level(level_id)
+	level_id_current = GameManager.current_level_id
+	level_data = LevelLoader.get_level(level_id_current)
 	if level_data.is_empty():
-		push_error("Level %d not found" % level_id)
+		push_error("Level %d not found" % level_id_current)
 		GameManager.change_scene("LevelSelect")
 		return
 	book_data = level_data.get("book", {})
@@ -105,8 +107,8 @@ func _ready() -> void:
 		_show_tutorial_hint()
 	else:
 		tutorial_hint_panel.visible = false
-	_append_log("[系统] 修复工作开始！请仔细处理每一处损伤。")
-	$TopBar/TopHBox/BackButton.pressed.connect(_on_back_pressed)
+	_append_log("[系统] 修复工作开始！请仔细处理每一处损伤。", "#333333")
+	back_button.pressed.connect(_on_back_pressed)
 
 func _process(delta: float) -> void:
 	current_time += delta
@@ -166,7 +168,8 @@ func _init_material_options() -> void:
 func _init_humidity() -> void:
 	var htarget = book_data.get("humidity_target", null)
 	target_humidity = htarget
-	if htarget == null:
+	var humidity_enabled: bool = ToolSystem.is_action_available("humidify")
+	if not humidity_enabled or htarget == null:
 		humidity_panel.visible = false
 		return
 	humidity_tolerance = float(book_data.get("humidity_tolerance", 5))
@@ -182,8 +185,9 @@ func _init_book_view() -> void:
 	if not paper_info.is_empty():
 		var color_str: String = paper_info.get("color", "#f0e6d2")
 		var c: Color = Color(color_str)
-		var tex: ColorRect = book_content.get_node("PaperTexture")
-		tex.color = c
+		var tex_node = book_content.get_node_or_null("PaperTexture")
+		if tex_node != null:
+			tex_node.color = c
 	for child in damage_zones_container.get_children():
 		child.queue_free()
 	damage_zones_nodes.clear()
@@ -234,7 +238,7 @@ func _init_zone_states() -> void:
 	zone_states.clear()
 	var zones: Array = book_data.get("damage_zones", [])
 	for z in zones:
-		var zs = RepairSystem.ZoneState.new(z)
+		var zs = RepairZoneState.new(z)
 		zone_states.append(zs)
 
 func _init_params() -> void:
@@ -243,6 +247,23 @@ func _init_params() -> void:
 	param3_slider.value_changed.connect(func(v: float): param3_label.text = "按压力度：%.2f" % v)
 	do_step_button.pressed.connect(_on_do_step_pressed)
 	finish_button.pressed.connect(_on_finish_pressed)
+	_apply_tool_visibility()
+
+func _apply_tool_visibility() -> void:
+	var cut_avail: bool = ToolSystem.is_action_available("cut")
+	param1_label.visible = cut_avail
+	param1_slider.visible = cut_avail
+	var align_avail: bool = ToolSystem.is_action_available("align")
+	param2_label.visible = align_avail
+	param2_slider.visible = align_avail
+	var press_avail: bool = ToolSystem.is_action_available("press")
+	param3_label.visible = press_avail
+	param3_slider.visible = press_avail
+	var humid_avail: bool = ToolSystem.is_action_available("humidify")
+	if not humid_avail:
+		humidity_label.visible = false
+	else:
+		humidity_label.visible = true
 
 func _init_signals() -> void:
 	RepairSystem.step_completed.connect(_on_step_completed)
@@ -270,10 +291,12 @@ func _update_strength() -> void:
 
 func _update_humidity_display() -> void:
 	humidity_label.text = "💧 湿度：%.0f%%" % current_humidity
-	if target_humidity != null:
+	if target_humidity != null and ToolSystem.is_action_available("humidify"):
 		humidity_slider_label.text = "当前：%.0f%%  |  目标：%.0f±%.0f%%" % [
 			current_humidity, float(target_humidity), humidity_tolerance
 		]
+	else:
+		humidity_label.text = "💧 湿度：--"
 
 func _update_zones_progress() -> void:
 	var total: int = zone_states.size()
@@ -313,8 +336,13 @@ func _update_zone_detail() -> void:
 	for idx in range(order.size()):
 		var s: String = order[idx]
 		var completed: bool = idx < zs.completed_steps.size()
-		var mark: String = "✅" if completed else ("➡️" if idx == zs.completed_steps.size() else "⬜")
-		names.append("%s %s" % [mark, _step_cn(s)])
+		var is_next: bool = idx == zs.completed_steps.size()
+		var mark: String = "✅" if completed else ("➡️" if is_next else "⬜")
+		var locked: bool = is_next and not ToolSystem.is_action_available(s)
+		var step_name: String = STEP_CN.get(s, s)
+		if locked:
+			step_name += "（🔒 工具未解锁）"
+		names.append("%s %s" % [mark, step_name])
 	zone_steps_text_label.text = "\n".join(names)
 	zone_progress_label.text = "步骤进度：%d/%d" % [zs.completed_steps.size(), order.size()]
 	if zs.repaired:
@@ -330,8 +358,15 @@ func _update_zone_detail() -> void:
 		var expected_idx: int = zs.completed_steps.size()
 		if expected_idx < order.size():
 			var expected_step: String = order[expected_idx]
-			do_step_button.text = "执行：%s" % _step_cn(expected_step)
-			do_step_button.disabled = false
+			var step_available: bool = ToolSystem.is_action_available(expected_step)
+			if step_available:
+				do_step_button.text = "执行：%s" % STEP_CN.get(expected_step, expected_step)
+				do_step_button.disabled = false
+			else:
+				var needed_tool: Dictionary = ToolSystem.get_tool_for_action(expected_step)
+				var tool_name: String = needed_tool.get("name", "对应工具")
+				do_step_button.text = "🔒 需解锁：%s" % tool_name
+				do_step_button.disabled = true
 		else:
 			do_step_button.disabled = true
 
@@ -350,8 +385,8 @@ func _type_cn(t: String) -> String:
 		"water_damage": return "水渍"
 		_: return t
 
-func _step_cn(s: String) -> String:
-	return _step_cn_map.get(s, s)
+func _step_name(s: String) -> String:
+	return STEP_CN.get(s, s)
 
 func _append_log(msg: String, color_hex: String = "#333333") -> void:
 	log_text.append_text("[color=%s]%s[/color]\n" % [color_hex, msg])
@@ -368,6 +403,8 @@ func _advance_tutorial() -> void:
 	_show_tutorial_hint()
 
 func _on_paper_selected(idx: int) -> void:
+	if idx < 0 or idx >= paper_option.item_count:
+		return
 	var pname: String = paper_option.get_item_text(idx)
 	var pinfo: Dictionary = LevelLoader.get_paper_by_name(pname)
 	if pinfo.is_empty():
@@ -400,15 +437,30 @@ func _on_zone_pressed(zid: String) -> void:
 
 func _on_do_step_pressed() -> void:
 	if selected_zone_id.is_empty():
+		_append_log("⚠ 请先点击书籍上的损伤区域", "#aa7700")
 		return
 	var zs = _get_zone_state(selected_zone_id)
-	if zs == null or zs.repaired:
+	if zs == null:
+		return
+	if zs.repaired:
+		_append_log("⚠ 此区域已完成修复", "#aa7700")
 		return
 	var order: Array = zs.zone_data.get("step_order", [])
-	var idx: int = zs.completed_steps.size()
-	if idx >= order.size():
+	var idx_step: int = zs.completed_steps.size()
+	if idx_step >= order.size():
 		return
-	var step: String = order[idx]
+	var step: String = order[idx_step]
+
+	if not ToolSystem.is_action_available(step):
+		var needed_tool: Dictionary = ToolSystem.get_tool_for_action(step)
+		var tool_name: String = needed_tool.get("name", "对应工具")
+		var unlock_lv: int = needed_tool.get("unlock_level", 99)
+		_append_log(
+			"🔒 操作【%s】暂不可用：需在第%d章解锁【%s】。" % [_step_name(step), unlock_lv, tool_name],
+			"#aa4400"
+		)
+		return
+
 	var params: Dictionary = {}
 	match step:
 		"humidify":
@@ -418,14 +470,17 @@ func _on_do_step_pressed() -> void:
 				"tolerance": humidity_tolerance
 			}
 		"cut":
-			var pname: String = paper_option.get_item_text(paper_option.selected)
-			var pinfo: Dictionary = LevelLoader.get_paper_by_name(pname)
-			var pid: String = pinfo.get("id", "")
-			if not InventorySystem.can_consume_paper(pid):
-				_append_log("❌ 补纸【%s】库存不足！" % pname, "#cc2222")
+			if paper_option.selected < 0 or paper_option.item_count == 0:
+				_append_log("❌ 请先选择补纸材料！", "#cc2222")
+				return
+			var pname_cut: String = paper_option.get_item_text(paper_option.selected)
+			var pinfo_cut: Dictionary = LevelLoader.get_paper_by_name(pname_cut)
+			var pid_cut: String = pinfo_cut.get("id", "")
+			if not InventorySystem.can_consume_paper(pid_cut):
+				_append_log("❌ 补纸【%s】库存不足！" % pname_cut, "#cc2222")
 				return
 			params = {
-				"paper_name": pname,
+				"paper_name": pname_cut,
 				"cut_precision": param1_slider.value
 			}
 		"align":
@@ -433,14 +488,17 @@ func _on_do_step_pressed() -> void:
 				"alignment_quality": param2_slider.value
 			}
 		"paste":
-			var gname: String = glue_option.get_item_text(glue_option.selected)
-			var ginfo: Dictionary = LevelLoader.get_glue_by_name(gname)
-			var gid: String = ginfo.get("id", "")
-			if not InventorySystem.can_consume_glue(gid):
-				_append_log("❌ 胶水【%s】库存不足！" % gname, "#cc2222")
+			if glue_option.selected < 0 or glue_option.item_count == 0:
+				_append_log("❌ 请先选择胶水类型！", "#cc2222")
+				return
+			var gname_paste: String = glue_option.get_item_text(glue_option.selected)
+			var ginfo_paste: Dictionary = LevelLoader.get_glue_by_name(gname_paste)
+			var gid_paste: String = ginfo_paste.get("id", "")
+			if not InventorySystem.can_consume_glue(gid_paste):
+				_append_log("❌ 胶水【%s】库存不足！" % gname_paste, "#cc2222")
 				return
 			params = {
-				"glue_name": gname,
+				"glue_name": gname_paste,
 				"glue_ratio": glue_ratio_slider.value
 			}
 		"press":
@@ -448,41 +506,43 @@ func _on_do_step_pressed() -> void:
 				"press_strength": param3_slider.value,
 				"press_duration": 2.0
 			}
+
 	action_log.append({
 		"timestamp": current_time,
 		"zone_id": selected_zone_id,
 		"step": step,
 		"params": params
 	})
+
 	var result = RepairSystem.execute_step(zs, step, params)
 	if result.success:
 		if step == "cut":
-			var pname: String = paper_option.get_item_text(paper_option.selected)
-			var pinfo: Dictionary = LevelLoader.get_paper_by_name(pname)
-			var pid: String = pinfo.get("id", "")
-			InventorySystem.consume_paper(pid)
+			var pname2: String = paper_option.get_item_text(paper_option.selected)
+			var pinfo2: Dictionary = LevelLoader.get_paper_by_name(pname2)
+			var pid2: String = pinfo2.get("id", "")
+			InventorySystem.consume_paper(pid2)
 			var papers_dict: Dictionary = materials_used["paper"]
-			papers_dict[pname] = papers_dict.get(pname, 0) + 1
+			papers_dict[pname2] = papers_dict.get(pname2, 0) + 1
 			_on_paper_selected(paper_option.selected)
 		elif step == "paste":
-			var gname: String = glue_option.get_item_text(glue_option.selected)
-			var ginfo: Dictionary = LevelLoader.get_glue_by_name(gname)
-			var gid: String = ginfo.get("id", "")
-			InventorySystem.consume_glue(gid)
+			var gname2: String = glue_option.get_item_text(glue_option.selected)
+			var ginfo2: Dictionary = LevelLoader.get_glue_by_name(gname2)
+			var gid2: String = ginfo2.get("id", "")
+			InventorySystem.consume_glue(gid2)
 			var glues_dict: Dictionary = materials_used["glue"]
-			glues_dict[gname] = glues_dict.get(gname, 0) + 1
-		var penalty = result.penalty
-		if penalty > 0:
-			remaining_strength = max(0.0, remaining_strength - penalty * 0.3)
+			glues_dict[gname2] = glues_dict.get(gname2, 0) + 1
+		var penalty_ok: float = result.penalty
+		if penalty_ok > 0:
+			remaining_strength = max(0.0, remaining_strength - penalty_ok * 0.3)
 			_update_strength()
-		_append_log("✅ [%s] %s - %s" % [zs.zone_data.get("name",""), _step_cn(step), result.reason], "#228822")
+		_append_log("✅ [%s] %s - %s" % [zs.zone_data.get("name", ""), _step_name(step), result.reason], "#228822")
 		_update_zone_node(selected_zone_id)
 	else:
-		var penalty = result.penalty
-		if penalty > 0:
-			remaining_strength = max(0.0, remaining_strength - penalty * 0.5)
+		var penalty_fail: float = result.penalty
+		if penalty_fail > 0:
+			remaining_strength = max(0.0, remaining_strength - penalty_fail * 0.5)
 			_update_strength()
-		_append_log("❌ [%s] %s - %s" % [zs.zone_data.get("name",""), _step_cn(step), result.reason], "#cc2222")
+		_append_log("❌ [%s] %s - %s" % [zs.zone_data.get("name", ""), _step_name(step), result.reason], "#cc2222")
 	_update_zone_detail()
 	_advance_tutorial()
 
@@ -504,9 +564,9 @@ func _update_zone_node(zid: String) -> void:
 	if zs.repaired:
 		node.modulate = Color(0.5, 1.0, 0.5, 0.8)
 		var original_text: String = node.text
-		node.text = "✔" + original_text.left(1)
+		node.text = "✔" + (original_text.left(1) if original_text.length() > 0 else "")
 	elif zs.completed_steps.size() > 0:
-		node.modulate = Color(0.9, 0.9, 0.5, 1.0)
+		node.modulate = Color(0.95, 0.9, 0.4, 1.0)
 
 func _on_back_pressed() -> void:
 	GameManager.change_scene("LevelSelect")
@@ -515,7 +575,7 @@ func _on_finish_pressed() -> void:
 	var all_errors: Array[String] = []
 	for zs in zone_states:
 		all_errors.append_array(zs.errors)
-	var book_d = level_data.get("book", {})
+
 	var score_breakdown = ScoringSystem.calculate_score(
 		level_data,
 		zone_states,
@@ -531,12 +591,13 @@ func _on_finish_pressed() -> void:
 	var reward: int = ClientSystem.calculate_reward(
 		level_data, final_score, grade, current_time, time_limit
 	)
-	var repaired: int = 0
+
+	var repaired_count: int = 0
 	var total_zones: int = zone_states.size()
 	var zones_detail: Array = []
 	for zs in zone_states:
 		if zs.repaired:
-			repaired += 1
+			repaired_count += 1
 		zones_detail.append({
 			"zone_id": zs.zone_id,
 			"zone_name": zs.zone_data.get("name", ""),
@@ -546,6 +607,7 @@ func _on_finish_pressed() -> void:
 			"total_steps": zs.zone_data.get("step_order", []).size(),
 			"errors": zs.errors.duplicate()
 		})
+
 	var failures = FailureAnalyzer.analyze_failure(
 		zone_states,
 		current_time,
@@ -555,6 +617,7 @@ func _on_finish_pressed() -> void:
 		final_score,
 		passing_score
 	)
+
 	var data_for_settlement: Dictionary = {
 		"level_id": level_data.get("id", 0),
 		"score": final_score,
@@ -565,66 +628,52 @@ func _on_finish_pressed() -> void:
 		"time_limit": time_limit,
 		"strength_result": remaining_strength,
 		"strength_base": base_strength,
-		"damage_repaired": repaired,
+		"damage_repaired": repaired_count,
 		"damage_total": total_zones,
 		"materials_used": materials_used,
 		"zones_detail": zones_detail,
-		"breakdown": ScoringSystem.breakdown_to_dict(score_breakdown, repaired, total_zones),
+		"breakdown": ScoringSystem.breakdown_to_dict(score_breakdown, repaired_count, total_zones),
 		"failures": [],
 		"passed": final_score >= passing_score
 	}
-	if final_score >= passing_score and failures.is_empty():
+
+	var failure_list: Array = []
+	for f in failures:
+		failure_list.append({
+			"type": FailureAnalyzer.failure_type_to_string(f.type),
+			"zone_id": f.zone_id,
+			"zone_name": f.zone_name,
+			"description": f.description,
+			"suggestion": f.suggestion,
+			"severity": f.severity
+		})
+	data_for_settlement["failures"] = failure_list
+
+	var replay_data: Dictionary = FailureAnalyzer.generate_replay_data(
+		level_data.get("id", 0),
+		zone_states,
+		current_time,
+		materials_used,
+		remaining_strength,
+		current_humidity,
+		action_log
+	)
+
+	if final_score >= passing_score:
 		GameManager.complete_level(level_data.get("id", 0), final_score, data_for_settlement)
-		StoreSettlementData(data_for_settlement)
+		GameData.store_settlement(data_for_settlement)
 		GameManager.change_scene("Settlement")
 	else:
-		var failure_list: Array = []
-		for f in failures:
-			failure_list.append({
-				"type": FailureAnalyzer.failure_type_to_string(f.type),
-				"zone_id": f.zone_id,
-				"zone_name": f.zone_name,
-				"description": f.description,
-				"suggestion": f.suggestion,
-				"severity": f.severity
-			})
-		data_for_settlement["failures"] = failure_list
-		data_for_settlement["passed"] = false
-		var replay_data: Dictionary = FailureAnalyzer.generate_replay_data(
-			level_data.get("id", 0),
-			zone_states,
-			current_time,
-			materials_used,
-			remaining_strength,
-			current_humidity,
-			action_log
-		)
 		GameManager.fail_level(level_data.get("id", 0), {
 			"failures": failure_list,
 			"final_score": final_score,
 			"passing_score": passing_score
 		}, replay_data)
-		StoreSettlementData(data_for_settlement)
+
+		GameData.store_settlement(data_for_settlement)
+
 		if failure_list.size() > 0:
-			StoreFailReplayData(data_for_settlement, replay_data)
+			GameData.store_fail_replay(data_for_settlement, replay_data)
 			GameManager.change_scene("FailReplay")
 		else:
 			GameManager.change_scene("Settlement")
-
-var _settlement_cache: Dictionary = {}
-var _fail_replay_cache: Dictionary = {}
-
-static func StoreSettlementData(data: Dictionary) -> void:
-	_settlement_cache = data.duplicate(true)
-
-static func GetSettlementData() -> Dictionary:
-	return _settlement_cache
-
-static func StoreFailReplayData(settlement_data: Dictionary, replay: Dictionary) -> void:
-	_fail_replay_cache = {
-		"settlement": settlement_data.duplicate(true),
-		"replay": replay.duplicate(true)
-	}
-
-static func GetFailReplayData() -> Dictionary:
-	return _fail_replay_cache

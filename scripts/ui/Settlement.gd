@@ -19,7 +19,8 @@ var settlement_data: Dictionary = {}
 @onready var back_levels_button: Button = $ButtonContainer/BackToLevelsButton
 
 func _ready() -> void:
-	settlement_data = RepairScene.GetSettlementData()
+	LevelLoader.initialize()
+	settlement_data = GameData.get_settlement()
 	if settlement_data.is_empty():
 		GameManager.change_scene("MainMenu")
 		return

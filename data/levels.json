@@ -3,9 +3,9 @@
     {
       "id": 1,
       "name": "教程：初学补纸",
-      "description": "学习最基础的古籍补纸技巧。使用补纸刀裁剪合适的补纸，用胶水粘合虫蛀区域。",
+      "description": "学习最基础的古籍补纸技巧。使用补纸刀裁剪补纸、排笔涂抹胶水粘合虫蛀区域。",
       "is_tutorial": true,
-      "unlocked_tools": ["补纸刀"],
+      "unlocked_tools": ["paper_knife", "brush"],
       "time_limit": 180,
       "client": {
         "name": "李先生",
@@ -27,18 +27,18 @@
             "y": 0.2,
             "required_paper_type": "竹纸",
             "required_glue_ratio": 0.6,
-            "step_order": ["cut", "paste", "press"]
+            "step_order": ["cut", "paste"]
           },
           {
             "id": "zone_2",
-            "name": "中部撕裂",
-            "type": "tear",
+            "name": "中部破洞",
+            "type": "wormhole",
             "size": 1,
             "x": 0.5,
             "y": 0.45,
             "required_paper_type": "竹纸",
             "required_glue_ratio": 0.5,
-            "step_order": ["align", "paste", "press"]
+            "step_order": ["cut", "paste"]
           }
         ],
         "paper_type": "竹纸",
@@ -52,18 +52,17 @@
       },
       "tutorial_hints": [
         "第一步：选择【补纸刀】工具，点击虫蛀区域裁剪补纸",
-        "第二步：调整胶水浓度滑块至目标范围",
-        "第三步：点击区域涂抹胶水并粘合补纸",
-        "第四步：使用压平板按压固定（本关暂未解锁，可跳过）"
+        "第二步：调整胶水浓度滑块至目标范围（约0.5-0.6）",
+        "第三步：点击【排笔】工具并执行粘胶步骤"
       ],
-      "passing_score": 60
+      "passing_score": 55
     },
     {
       "id": 2,
       "name": "第二章：湿度之衡",
       "description": "学习控制修复环境的湿度。珍贵纸张对湿度极为敏感，过高会发霉，过低会脆裂。",
       "is_tutorial": false,
-      "unlocked_tools": ["补纸刀", "湿度箱"],
+      "unlocked_tools": ["paper_knife", "brush", "humidity_chamber"],
       "time_limit": 240,
       "client": {
         "name": "王馆长",
@@ -85,7 +84,7 @@
             "y": 0.35,
             "required_paper_type": "宣纸",
             "required_glue_ratio": 0.45,
-            "step_order": ["humidify", "cut", "paste", "press"]
+            "step_order": ["humidify", "cut", "paste"]
           },
           {
             "id": "zone_2",
@@ -96,7 +95,7 @@
             "y": 0.6,
             "required_paper_type": "宣纸",
             "required_glue_ratio": 0.4,
-            "step_order": ["humidify", "align", "paste", "press"]
+            "step_order": ["humidify", "cut", "paste"]
           },
           {
             "id": "zone_3",
@@ -107,7 +106,7 @@
             "y": 0.8,
             "required_paper_type": "棉纸",
             "required_glue_ratio": 0.55,
-            "step_order": ["paste", "press"]
+            "step_order": ["humidify", "paste"]
           }
         ],
         "paper_type": "宣纸",
@@ -121,18 +120,18 @@
         "max_glue_ratio": 0.7
       },
       "tutorial_hints": [
-        "使用【湿度箱】将环境湿度调整至 50%-60% 之间",
-        "不同损伤需要不同的纸张类型，注意匹配",
-        "先加湿软化纸张，再进行补纸操作"
+        "先用【湿度箱】将环境湿度调整至 50%-60% 之间",
+        "进行裁纸和粘胶步骤",
+        "不同损伤需要不同的纸张类型，注意匹配"
       ],
-      "passing_score": 65
+      "passing_score": 60
     },
     {
       "id": 3,
       "name": "第三章：重压平心",
       "description": "解锁压平板工具。修复后需要适当的压力使粘合处平整牢固。",
       "is_tutorial": false,
-      "unlocked_tools": ["补纸刀", "湿度箱", "压平板"],
+      "unlocked_tools": ["paper_knife", "brush", "humidity_chamber", "press_board"],
       "time_limit": 300,
       "client": {
         "name": "陈教授",
@@ -165,18 +164,18 @@
             "y": 0.85,
             "required_paper_type": "皮纸",
             "required_glue_ratio": 0.45,
-            "step_order": ["humidify", "align", "paste", "press"]
+            "step_order": ["humidify", "cut", "paste", "press"]
           },
           {
             "id": "zone_3",
-            "name": "版心撕裂",
-            "type": "tear",
+            "name": "版心破洞",
+            "type": "wormhole",
             "size": 2,
             "x": 0.5,
             "y": 0.5,
             "required_paper_type": "皮纸",
             "required_glue_ratio": 0.55,
-            "step_order": ["align", "paste", "press"]
+            "step_order": ["cut", "paste", "press"]
           },
           {
             "id": "zone_4",
@@ -205,7 +204,7 @@
         "【压平板】可以增加粘合强度，但过度按压会损伤纸张",
         "时间紧迫，请合理规划修复顺序"
       ],
-      "passing_score": 70
+      "passing_score": 65
     }
   ]
 }

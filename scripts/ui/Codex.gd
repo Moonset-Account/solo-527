@@ -13,6 +13,7 @@ var selected_level_id: int = 0
 @onready var tools_grid: GridContainer = $TabBar/ToolsTab/ToolsGrid
 
 func _ready() -> void:
+	LevelLoader.initialize()
 	back_button.pressed.connect(_on_back_pressed)
 	_build_level_select()
 	_build_materials()

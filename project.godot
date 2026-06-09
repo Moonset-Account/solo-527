@@ -33,11 +33,12 @@ ui_cancel={
 [autoload]
 
 LevelLoader="*res://scripts/core/LevelLoader.gd"
+GameData="*res://scripts/core/GameData.gd"
 GameManager="*res://scripts/core/GameManager.gd"
 SaveManager="*res://scripts/core/SaveManager.gd"
-RepairSystem="*res://scripts/systems/RepairSystem.gd"
+ToolSystem="*res://scripts/systems/ToolSystem.gd"
 InventorySystem="*res://scripts/systems/InventorySystem.gd"
+ClientSystem="*res://scripts/systems/ClientSystem.gd"
 ScoringSystem="*res://scripts/systems/ScoringSystem.gd"
 FailureAnalyzer="*res://scripts/systems/FailureAnalyzer.gd"
-ClientSystem="*res://scripts/systems/ClientSystem.gd"
-ToolSystem="*res://scripts/systems/ToolSystem.gd"
+RepairSystem="*res://scripts/systems/RepairSystem.gd"

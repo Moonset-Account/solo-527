@@ -4,29 +4,7 @@ signal zone_repaired(zone_id: String, quality: float)
 signal step_completed(zone_id: String, step: String)
 signal step_failed(zone_id: String, step: String, reason: String)
 
-class RepairStepResult:
-	var success: bool = false
-	var quality: float = 0.0
-	var reason: String = ""
-	var penalty: float = 0.0
-
-class ZoneState:
-	var zone_id: String
-	var completed_steps: Array[String] = []
-	var repaired: bool = false
-	var quality: float = 0.0
-	var current_paper: String = ""
-	var current_glue: String = ""
-	var current_glue_ratio: float = 0.5
-	var errors: Array[String] = []
-
-	var zone_data: Dictionary = {}
-
-	func _init(data: Dictionary) -> void:
-		zone_id = data.get("id", "")
-		zone_data = data
-
-func check_step_order(zone_state: ZoneState, next_step: String) -> RepairStepResult:
+func check_step_order(zone_state: RepairZoneState, next_step: String) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var required_order: Array = zone_state.zone_data.get("step_order", [])
 	var expected_index: int = zone_state.completed_steps.size()
@@ -60,7 +38,7 @@ func _step_name(step: String) -> String:
 		_:
 			return step
 
-func execute_step(zone_state: ZoneState, step: String, params: Dictionary) -> RepairStepResult:
+func execute_step(zone_state: RepairZoneState, step: String, params: Dictionary) -> RepairStepResult:
 	var order_check: RepairStepResult = check_step_order(zone_state, step)
 	if not order_check.success:
 		emit_signal("step_failed", zone_state.zone_id, step, order_check.reason)
@@ -92,7 +70,7 @@ func execute_step(zone_state: ZoneState, step: String, params: Dictionary) -> Re
 		emit_signal("step_failed", zone_state.zone_id, step, result.reason)
 	return result
 
-func _step_humidify(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
+func _step_humidify(zone_state: RepairZoneState, params: Dictionary) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var current_humidity: float = params.get("humidity", 50.0)
 	var target_humidity: float = params.get("target_humidity", 55.0)
@@ -114,7 +92,7 @@ func _step_humidify(zone_state: ZoneState, params: Dictionary) -> RepairStepResu
 		result.reason = "湿度控制完美，纸张充分软化。"
 	return result
 
-func _step_cut(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
+func _step_cut(zone_state: RepairZoneState, params: Dictionary) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var selected_paper: String = params.get("paper_name", "")
 	var required_paper: String = zone_state.zone_data.get("required_paper_type", "")
@@ -153,7 +131,7 @@ func _step_cut(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
 		result.reason += " 剪裁精度极佳！"
 	return result
 
-func _step_align(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
+func _step_align(zone_state: RepairZoneState, params: Dictionary) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var alignment_quality: float = params.get("alignment_quality", 0.7)
 	if alignment_quality < 0.3:
@@ -172,7 +150,7 @@ func _step_align(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
 		result.reason = "对齐一般，存在可见缝隙。"
 	return result
 
-func _step_paste(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
+func _step_paste(zone_state: RepairZoneState, params: Dictionary) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var selected_glue: String = params.get("glue_name", "")
 	var glue_ratio: float = params.get("glue_ratio", 0.5)
@@ -205,7 +183,7 @@ func _step_paste(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
 		result.reason = "胶水浓度略有偏差（%.2f），粘合效果一般。" % glue_ratio
 	return result
 
-func _step_press(zone_state: ZoneState, params: Dictionary) -> RepairStepResult:
+func _step_press(zone_state: RepairZoneState, params: Dictionary) -> RepairStepResult:
 	var result: RepairStepResult = RepairStepResult.new()
 	var press_strength: float = params.get("press_strength", 0.6)
 	var press_duration: float = params.get("press_duration", 2.0)

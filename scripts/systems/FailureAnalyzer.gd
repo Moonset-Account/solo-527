@@ -1,23 +1,5 @@
 extends Node
 
-enum FailureType {
-	MATERIAL_MISMATCH,
-	TIME_EXCEEDED,
-	STEP_ORDER_ERROR,
-	HUMIDITY_DAMAGE,
-	STRENGTH_COLLAPSE,
-	PRESS_DAMAGE,
-	LOW_SCORE
-}
-
-class FailureRecord:
-	var type: FailureType
-	var zone_id: String = ""
-	var zone_name: String = ""
-	var description: String = ""
-	var suggestion: String = ""
-	var severity: int = 1
-
 func analyze_failure(
 	zone_states: Array,
 	time_taken: float,
@@ -30,21 +12,21 @@ func analyze_failure(
 	var failures: Array[FailureRecord] = []
 	if time_taken > time_limit:
 		var rec: FailureRecord = FailureRecord.new()
-		rec.type = FailureType.TIME_EXCEEDED
+		rec.type = FailureTypes.TIME_EXCEEDED
 		rec.description = "超出客户期限 %.0f 秒（时限：%.0f 秒）。" % [time_taken - time_limit, time_limit]
 		rec.suggestion = "合理规划修复顺序，优先处理关键损伤。下次尝试可以先从大面积损伤开始。"
 		rec.severity = 3
 		failures.append(rec)
 	if final_strength < base_strength * 0.3:
 		var rec: FailureRecord = FailureRecord.new()
-		rec.type = FailureType.STRENGTH_COLLAPSE
+		rec.type = FailureTypes.STRENGTH_COLLAPSE
 		rec.description = "纸张强度严重下降（剩余 %.0f / 原 %.0f），纸张濒临破碎。" % [final_strength, base_strength]
 		rec.suggestion = "注意控制胶水浓度，过高的浓度会损伤纸张纤维。按压时力度要适中。"
 		rec.severity = 5
 		failures.append(rec)
 	elif final_strength < base_strength * 0.5:
 		var rec: FailureRecord = FailureRecord.new()
-		rec.type = FailureType.STRENGTH_COLLAPSE
+		rec.type = FailureTypes.STRENGTH_COLLAPSE
 		rec.description = "纸张强度下降较多（剩余 %.0f / 原 %.0f）。" % [final_strength, base_strength]
 		rec.suggestion = "尝试降低胶水浓度，或使用可逆性更好的淀粉胶。"
 		rec.severity = 2
@@ -53,7 +35,7 @@ func analyze_failure(
 		for err in zs.errors:
 			if err.find("材料不匹配") != -1:
 				var rec: FailureRecord = FailureRecord.new()
-				rec.type = FailureType.MATERIAL_MISMATCH
+				rec.type = FailureTypes.MATERIAL_MISMATCH
 				rec.zone_id = zs.zone_id
 				rec.zone_name = zs.zone_data.get("name", "")
 				rec.description = "[%s] %s" % [rec.zone_name, err]
@@ -63,7 +45,7 @@ func analyze_failure(
 				failures.append(rec)
 			elif err.find("操作顺序错误") != -1:
 				var rec: FailureRecord = FailureRecord.new()
-				rec.type = FailureType.STEP_ORDER_ERROR
+				rec.type = FailureTypes.STEP_ORDER_ERROR
 				rec.zone_id = zs.zone_id
 				rec.zone_name = zs.zone_data.get("name", "")
 				rec.description = "[%s] %s" % [rec.zone_name, err]
@@ -76,7 +58,7 @@ func analyze_failure(
 				failures.append(rec)
 			elif err.find("湿度过高") != -1 or err.find("湿度过低") != -1:
 				var rec: FailureRecord = FailureRecord.new()
-				rec.type = FailureType.HUMIDITY_DAMAGE
+				rec.type = FailureTypes.HUMIDITY_DAMAGE
 				rec.zone_id = zs.zone_id
 				rec.zone_name = zs.zone_data.get("name", "")
 				rec.description = "[%s] %s" % [rec.zone_name, err]
@@ -85,7 +67,7 @@ func analyze_failure(
 				failures.append(rec)
 			elif err.find("按压力度过大") != -1:
 				var rec: FailureRecord = FailureRecord.new()
-				rec.type = FailureType.PRESS_DAMAGE
+				rec.type = FailureTypes.PRESS_DAMAGE
 				rec.zone_id = zs.zone_id
 				rec.zone_name = zs.zone_data.get("name", "")
 				rec.description = "[%s] %s" % [rec.zone_name, err]
@@ -94,7 +76,7 @@ func analyze_failure(
 				failures.append(rec)
 			elif err.find("浓度过高") != -1 or err.find("浓度过低") != -1:
 				var rec: FailureRecord = FailureRecord.new()
-				rec.type = FailureType.MATERIAL_MISMATCH
+				rec.type = FailureTypes.MATERIAL_MISMATCH
 				rec.zone_id = zs.zone_id
 				rec.zone_name = zs.zone_data.get("name", "")
 				rec.description = "[%s] %s" % [rec.zone_name, err]
@@ -104,7 +86,7 @@ func analyze_failure(
 				failures.append(rec)
 	if score < passing_score and failures.is_empty():
 		var rec: FailureRecord = FailureRecord.new()
-		rec.type = FailureType.LOW_SCORE
+		rec.type = FailureTypes.LOW_SCORE
 		rec.description = "综合评分未达到合格线（得分：%d / 合格：%d）。" % [score, passing_score]
 		rec.suggestion = "仔细完成所有损伤区域，提高每一步的操作质量。"
 		rec.severity = 1
@@ -126,24 +108,8 @@ func _step_cn(step: String) -> String:
 		_:
 			return step
 
-func failure_type_to_string(t: FailureType) -> String:
-	match t:
-		FailureType.MATERIAL_MISMATCH:
-			return "材料不匹配"
-		FailureType.TIME_EXCEEDED:
-			return "时间超限"
-		FailureType.STEP_ORDER_ERROR:
-			return "操作顺序错误"
-		FailureType.HUMIDITY_DAMAGE:
-			return "湿度失控"
-		FailureType.STRENGTH_COLLAPSE:
-			return "纸张强度崩溃"
-		FailureType.PRESS_DAMAGE:
-			return "按压损伤"
-		FailureType.LOW_SCORE:
-			return "综合评分不足"
-		_:
-			return "未知错误"
+func failure_type_to_string(t: int) -> String:
+	return FailureTypes.type_to_string(t)
 
 func generate_replay_data(
 	level_id: int,

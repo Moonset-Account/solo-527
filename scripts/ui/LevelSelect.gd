@@ -5,6 +5,7 @@ extends Control
 @onready var gold_label: Label = $GoldLabel
 
 func _ready() -> void:
+	LevelLoader.initialize()
 	back_button.pressed.connect(_on_back_pressed)
 	_build_level_list()
 	_update_gold()
@@ -64,8 +65,13 @@ func _build_level_list() -> void:
 		time_label.add_theme_font_size_override("font_size", 14)
 		info_hbox.add_child(time_label)
 		var tools: Array = level.get("unlocked_tools", [])
+		var tool_names: Array = []
+		for tid in tools:
+			var tinfo: Dictionary = LevelLoader.get_tool_by_id(tid)
+			if not tinfo.is_empty():
+				tool_names.append(tinfo.get("name", tid))
 		var tools_label: Label = Label.new()
-		tools_label.text = "🛠 可用工具：%s" % "、".join(tools)
+		tools_label.text = "🛠 可用工具：%s" % ("、".join(tool_names) if tool_names.size() > 0 else "无")
 		tools_label.add_theme_font_size_override("font_size", 14)
 		info_hbox.add_child(tools_label)
 		var right_vbox: VBoxContainer = VBoxContainer.new()

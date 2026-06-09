@@ -11,12 +11,15 @@ var settlement_data: Dictionary = {}
 @onready var back_button: Button = $ButtonContainer/BackButton
 
 func _ready() -> void:
-	var combined: Dictionary = RepairScene.GetFailReplayData()
+	LevelLoader.initialize()
+	var combined: Dictionary = GameData.get_fail_replay()
 	settlement_data = combined.get("settlement", {})
 	replay_data = combined.get("replay", {})
 	if settlement_data.is_empty() and replay_data.is_empty():
-		GameManager.change_scene("MainMenu")
-		return
+		settlement_data = GameData.get_settlement()
+		if settlement_data.is_empty():
+			GameManager.change_scene("MainMenu")
+			return
 	_build_ui()
 	view_settlement_button.pressed.connect(_on_view_settlement)
 	retry_button.pressed.connect(_on_retry_pressed)
@@ -135,7 +138,7 @@ func _add_stat(label: String, value: String) -> void:
 	vbox.add_child(v)
 
 func _on_view_settlement() -> void:
-	RepairScene.StoreSettlementData(settlement_data)
+	GameData.store_settlement(settlement_data)
 	GameManager.change_scene("Settlement")
 
 func _on_retry_pressed() -> void:
