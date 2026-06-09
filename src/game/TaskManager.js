@@ -1,4 +1,4 @@
-import { uid, rand, pick, shuffle, priorityCompare, clamp } from '../core/Utils.js';
+import { uid, rand, randInt, pick, shuffle, priorityCompare, clamp } from '../core/Utils.js';
 import { globalEventBus, EVENTS } from '../core/EventBus.js';
 import {
   PRIORITY, TASK_TYPE, DISASTER_TYPE, BUILDING_TYPE, configManager,

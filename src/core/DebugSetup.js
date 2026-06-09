@@ -83,9 +83,6 @@ function triggerDebugDisaster(type, game, tasks) {
   const region = game.map.regions[Math.floor(Math.random() * game.map.regions.length)];
   const x = region.cx + (Math.random() - 0.5) * region.radius;
   const y = region.cy + (Math.random() - 0.5) * region.radius;
-  const DisasterClass = Object.getPrototypeOf(tasks).constructor;
-  const dis = new (Function.prototype.constructor)();
-  // Use direct API
   const { DisasterEvent } = window.__debug_refs || {};
   if (DisasterEvent) {
     const d = new DisasterEvent(type, x, y);
