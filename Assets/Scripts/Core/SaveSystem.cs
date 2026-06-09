@@ -32,7 +32,7 @@ namespace DecorMatch3.Core
         public List<int> CompletedOrderIds = new List<int>();
         public List<int> ActiveOrderIds = new List<int>();
         public Dictionary<int, int> OrderScores = new Dictionary<int, int>();
-        public Dictionary<int, string> OrderDecorationChoices = new Dictionary<int, string>();
+        public Dictionary<string, string> OrderDecorationChoices = new Dictionary<string, string>();
 
         public List<string> UnlockedAchievementIds = new List<string>();
         public Dictionary<string, int> AchievementProgress = new Dictionary<string, int>();

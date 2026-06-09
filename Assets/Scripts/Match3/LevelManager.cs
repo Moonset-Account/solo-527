@@ -35,6 +35,21 @@ namespace DecorMatch3.Match3
         public event Action<int, int> OnMaterialCollected;
         public event Action<int, bool, int, int, Dictionary<int, int>> OnLevelEnded;
 
+        public void SetupBoardManager(BoardManager boardManager)
+        {
+            if (_boardManager != null)
+            {
+                _boardManager.OnMatchesFound -= HandleMatchesFound;
+                _boardManager.OnBoardStabilized -= HandleBoardStabilized;
+            }
+            _boardManager = boardManager;
+            if (_boardManager != null)
+            {
+                _boardManager.OnMatchesFound += HandleMatchesFound;
+                _boardManager.OnBoardStabilized += HandleBoardStabilized;
+            }
+        }
+
         private void OnEnable()
         {
             if (_boardManager != null)

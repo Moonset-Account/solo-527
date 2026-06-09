@@ -66,6 +66,16 @@ namespace DecorMatch3.Animation
         private readonly Dictionary<int, Coroutine> _activeAnimations = new Dictionary<int, Coroutine>();
         private int _nextAnimationId = 1;
 
+        private void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            _instance = this;
+        }
+
         public int Play(AnimationRequest request)
         {
             int id = _nextAnimationId++;

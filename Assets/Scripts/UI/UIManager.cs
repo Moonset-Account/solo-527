@@ -56,6 +56,11 @@ namespace DecorMatch3.UI
 
         public event Action<UIState> OnStateChanged;
 
+        public void SetMainCanvas(Canvas canvas)
+        {
+            _mainCanvas = canvas;
+        }
+
         protected override void Awake()
         {
             base.Awake();

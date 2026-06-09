@@ -33,6 +33,13 @@ namespace DecorMatch3.Match3
         public Tile[,] Tiles => _tiles;
         public LevelData CurrentLevelData => _currentLevelData;
 
+        public void SetupReferences(RectTransform boardContainer, Tile tilePrefab, RectTransform tileParent)
+        {
+            _boardContainer = boardContainer;
+            _tilePrefab = tilePrefab;
+            _tileParent = tileParent;
+        }
+
         public void Initialize(LevelData levelData)
         {
             _currentLevelData = levelData;

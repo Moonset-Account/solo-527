@@ -6,6 +6,8 @@ using DecorMatch3.Progression;
 using DecorMatch3.Decoration;
 using DecorMatch3.Data;
 using DecorMatch3.Utils;
+using DecorMatch3.Animation;
+using DecorMatch3.VFX;
 
 namespace DecorMatch3.Core
 {
@@ -144,16 +146,18 @@ namespace DecorMatch3.Core
                 audioGO.AddComponent<AudioManager>();
             }
 
-            if (global::DecorMatch3.Animation.AnimationManager.Instance == null)
+            if (AnimationManager.Instance == null)
             {
                 GameObject animGO = new GameObject("AnimationManager");
                 animGO.transform.SetParent(feedbackParent.transform);
+                animGO.AddComponent<AnimationManager>();
             }
 
-            if (global::DecorMatch3.VFX.VFXManager.Instance == null)
+            if (VFXManager.Instance == null)
             {
                 GameObject vfxGO = new GameObject("VFXManager");
                 vfxGO.transform.SetParent(feedbackParent.transform);
+                vfxGO.AddComponent<VFXManager>();
             }
 
             Debug.Log("[GameBootstrap] Feedback systems initialized");

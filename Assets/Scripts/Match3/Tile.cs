@@ -43,6 +43,13 @@ namespace DecorMatch3.Match3
         }
         private RectTransform _rectTransform;
 
+        public void SetupReferences(Image tileImage, Image highlightImage, CanvasGroup canvasGroup)
+        {
+            _tileImage = tileImage;
+            _highlightImage = highlightImage;
+            _canvasGroup = canvasGroup;
+        }
+
         public void Initialize(TileType type, int x, int y)
         {
             _tileType = type;
