@@ -272,9 +272,9 @@ func _on_level_selected(lid: String) -> void:
 	for e in lv.get("exhibits", []):
 		var st_text: String = ""
 		for s in e.get("statuses", []):
-			st_text += "%s x%d  " % [_status_cn(s.type), int(s.value)]
+			st_text += "%s x%d  " % [_status_cn(String(s.get("type", ""))), int(s.get("value", 0))]
 		exh_info += ("\n  %d. 🖼️ 『%s』 完整度 0/%d\n     初始病害: %s\n     修复奖励: +%d 预算" % [
-			i, e.name, int(e.max_integrity),
+			i, e.get("name", ""), int(e.get("max_integrity", 0)),
 			st_text if st_text != "" else "（无）",
 			int(e.get("reward_budget", 0))])
 		i += 1

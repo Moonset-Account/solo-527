@@ -164,14 +164,14 @@ func card_exists(card_id: String) -> bool:
 func get_cards_by_type(t: int) -> Array:
 	var arr: Array = []
 	for id in CARDS:
-		if CARDS[id].type == t:
+		if int(CARDS[id].get("type", 0)) == t:
 			arr.append(id)
 	return arr
 
 func get_cards_by_rarity(r: int) -> Array:
 	var arr: Array = []
 	for id in CARDS:
-		if CARDS[id].rarity == r:
+		if int(CARDS[id].get("rarity", 0)) == r:
 			arr.append(id)
 	return arr
 
@@ -202,7 +202,7 @@ func get_unlock_rewards_for(trigger_id: String) -> Array:
 func get_random_unlockable(count: int, exclude: Array = []) -> Array:
 	var pool: Array = []
 	for id in CARDS:
-		if not id in exclude and CARDS[id].rarity >= Rarity.RARE:
+		if not id in exclude and int(CARDS[id].get("rarity", 0)) >= Rarity.RARE:
 			pool.append(id)
 	pool.shuffle()
 	return pool.slice(0, min(count, pool.size()))

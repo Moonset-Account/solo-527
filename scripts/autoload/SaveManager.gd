@@ -33,7 +33,7 @@ var current_slot: int = -1
 func _ready() -> void:
 	_init_slots()
 	_load_global()
-	global_data.play_start_time = Time.get_unix_time_from_system()
+	global_data["play_start_time"] = Time.get_unix_time_from_system()
 
 func _init_slots() -> void:
 	slot_data.clear()
@@ -85,14 +85,14 @@ func _load_global() -> void:
 func has_slot(idx: int) -> bool:
 	if idx < 0 or idx >= SLOT_COUNT:
 		return false
-	if slot_data[idx].exists:
+	if slot_data[idx].get("exists", false):
 		return true
 	return FileAccess.file_exists(_slot_path(idx))
 
 func get_slot_info(idx: int) -> Dictionary:
 	if idx < 0 or idx >= SLOT_COUNT:
 		return {}
-	if not slot_data[idx].exists and FileAccess.file_exists(_slot_path(idx)):
+	if not slot_data[idx].get("exists", false) and FileAccess.file_exists(_slot_path(idx)):
 		_load_slot(idx)
 	return slot_data[idx]
 
@@ -100,10 +100,10 @@ func create_slot(idx: int) -> void:
 	if idx < 0 or idx >= SLOT_COUNT:
 		return
 	slot_data[idx] = _empty_slot()
-	slot_data[idx].exists = true
-	slot_data[idx].timestamp = Time.get_unix_time_from_system()
-	slot_data[idx].player_deck = CardDatabase.get_default_deck()
-	slot_data[idx].player_collection = CardDatabase.get_default_collection()
+	slot_data[idx]["exists"] = true
+	slot_data[idx]["timestamp"] = Time.get_unix_time_from_system()
+	slot_data[idx]["player_deck"] = CardDatabase.get_default_deck()
+	slot_data[idx]["player_collection"] = CardDatabase.get_default_collection()
 	_save_slot(idx)
 	save_global()
 	save_created.emit(idx)
@@ -111,7 +111,7 @@ func create_slot(idx: int) -> void:
 func _save_slot(idx: int) -> void:
 	if idx < 0 or idx >= SLOT_COUNT:
 		return
-	slot_data[idx].timestamp = Time.get_unix_time_from_system()
+	slot_data[idx]["timestamp"] = Time.get_unix_time_from_system()
 	var f: FileAccess = FileAccess.open(_slot_path(idx), FileAccess.WRITE)
 	if f:
 		f.store_string(MAGIC)
@@ -129,7 +129,7 @@ func _load_slot(idx: int) -> void:
 		var m: String = f.get_string(MAGIC.length())
 		if m == MAGIC:
 			slot_data[idx] = f.get_var(true)
-			slot_data[idx].exists = true
+			slot_data[idx]["exists"] = true
 		f.close()
 
 func load_slot(idx: int) -> void:
@@ -157,28 +157,32 @@ func delete_slot(idx: int) -> void:
 func get_current_deck() -> Array:
 	if current_slot < 0:
 		return []
-	return slot_data[current_slot].player_deck.duplicate()
+	return slot_data[current_slot].get("player_deck", []).duplicate()
 
 func set_current_deck(deck: Array) -> void:
 	if current_slot < 0:
 		return
-	slot_data[current_slot].player_deck = deck.duplicate()
+	slot_data[current_slot]["player_deck"] = deck.duplicate()
 	save_current()
 
 func get_current_collection() -> Array:
 	if current_slot < 0:
 		return []
-	return slot_data[current_slot].player_collection.duplicate()
+	return slot_data[current_slot].get("player_collection", []).duplicate()
 
 func add_to_collection(card_id: String) -> bool:
 	if current_slot < 0:
 		return false
-	var coll: Array = slot_data[current_slot].player_collection
+	var coll: Array = slot_data[current_slot].get("player_collection", [])
 	if not card_id in coll:
 		coll.append(card_id)
-		global_data.unlocked_cards = global_data.get("unlocked_cards", [])
-		if not card_id in global_data.unlocked_cards:
-			global_data.unlocked_cards.append(card_id)
+		slot_data[current_slot]["player_collection"] = coll
+		if not global_data.has("unlocked_cards"):
+			global_data["unlocked_cards"] = []
+		var gl: Array = global_data["unlocked_cards"]
+		if not card_id in gl:
+			gl.append(card_id)
+			global_data["unlocked_cards"] = gl
 		save_current()
 		GameEvents.card_unlocked.emit(card_id)
 		return true
@@ -189,27 +193,39 @@ func record_level_completed(level_id: String, stars: int, stats: Dictionary) -> 
 		return
 	var sd: Dictionary = slot_data[current_slot]
 	var ch_id: String = _chapter_from_level(level_id)
-	if not ch_id in sd.chapter_progress:
-		sd.chapter_progress[ch_id] = {
+	if not sd.has("chapter_progress"):
+		sd["chapter_progress"] = {}
+	if not ch_id in sd["chapter_progress"]:
+		sd["chapter_progress"][ch_id] = {
 			"unlocked": true, "completed_levels": {}, "current_level": level_id
 		}
-	var prev: int = sd.chapter_progress[ch_id].completed_levels.get(level_id, 0)
+	var ch_prog: Dictionary = sd["chapter_progress"][ch_id]
+	if not ch_prog.has("completed_levels"):
+		ch_prog["completed_levels"] = {}
+	var prev: int = int(ch_prog["completed_levels"].get(level_id, 0))
 	if stars > prev:
-		sd.chapter_progress[ch_id].completed_levels[level_id] = stars
-	sd.statistics.battles += 1
+		ch_prog["completed_levels"][level_id] = stars
+	if not sd.has("statistics"):
+		sd["statistics"] = {"battles": 0, "wins": 0, "cards_played": 0, "exhibits_restored": 0}
+	var sst: Dictionary = sd["statistics"]
+	sst["battles"] = int(sst.get("battles", 0)) + 1
 	if stars > 0:
-		sd.statistics.wins += 1
-	sd.statistics.cards_played += int(stats.get("cards_played", 0))
-	sd.statistics.exhibits_restored += int(stats.get("exhibits_restored", 0))
-	global_data.statistics.total_battles += 1
+		sst["wins"] = int(sst.get("wins", 0)) + 1
+	sst["cards_played"] = int(sst.get("cards_played", 0)) + int(stats.get("cards_played", 0))
+	sst["exhibits_restored"] = int(sst.get("exhibits_restored", 0)) + int(stats.get("exhibits_restored", 0))
+	sd["statistics"] = sst
+	if not global_data.has("statistics"):
+		global_data["statistics"] = {}
+	var gst: Dictionary = global_data["statistics"]
+	gst["total_battles"] = int(gst.get("total_battles", 0)) + 1
 	if stars > 0:
-		global_data.statistics.total_victories += 1
-	global_data.statistics.cards_played_total += int(stats.get("cards_played", 0))
-	global_data.statistics.exhibits_restored += int(stats.get("exhibits_restored", 0))
-	var usage: Dictionary = global_data.statistics.get("card_usage_count", {})
+		gst["total_victories"] = int(gst.get("total_victories", 0)) + 1
+	gst["cards_played_total"] = int(gst.get("cards_played_total", 0)) + int(stats.get("cards_played", 0))
+	gst["exhibits_restored"] = int(gst.get("exhibits_restored", 0)) + int(stats.get("exhibits_restored", 0))
+	var usage: Dictionary = gst.get("card_usage_count", {})
 	for cid in stats.get("cards_used_list", []):
-		usage[cid] = usage.get(cid, 0) + 1
-	global_data.statistics.card_usage_count = usage
+		usage[cid] = int(usage.get(cid, 0)) + 1
+	gst["card_usage_count"] = usage
 	var max_cnt: int = 0
 	var best_id: String = ""
 	for key in usage.keys():
@@ -217,9 +233,10 @@ func record_level_completed(level_id: String, stars: int, stats: Dictionary) -> 
 			max_cnt = int(usage[key])
 			best_id = key
 	if best_id != "":
-		global_data.statistics.most_used_card = best_id
+		gst["most_used_card"] = best_id
+	global_data["statistics"] = gst
 	var delta_stars: int = max(0, stars - prev)
-	global_data.total_stars += delta_stars
+	global_data["total_stars"] = int(global_data.get("total_stars", 0)) + delta_stars
 	save_current()
 	GameEvents.level_completed.emit(level_id, stars, stats)
 
@@ -228,18 +245,26 @@ func get_level_stars(level_id: String) -> int:
 		return 0
 	var ch_id: String = _chapter_from_level(level_id)
 	var sd: Dictionary = slot_data[current_slot]
-	if ch_id in sd.chapter_progress:
-		return sd.chapter_progress[ch_id].completed_levels.get(level_id, 0)
+	if sd.has("chapter_progress") and ch_id in sd["chapter_progress"]:
+		var ch_prog: Dictionary = sd["chapter_progress"][ch_id]
+		if ch_prog.has("completed_levels"):
+			return int(ch_prog["completed_levels"].get(level_id, 0))
 	return 0
 
 func unlock_chapter(chapter_id: String) -> void:
-	if not chapter_id in global_data.unlocked_chapters:
-		global_data.unlocked_chapters.append(chapter_id)
+	if not global_data.has("unlocked_chapters"):
+		global_data["unlocked_chapters"] = ["chapter_1"]
+	if not chapter_id in global_data["unlocked_chapters"]:
+		var chs: Array = global_data["unlocked_chapters"]
+		chs.append(chapter_id)
+		global_data["unlocked_chapters"] = chs
 		save_global()
 		GameEvents.chapter_unlocked.emit(chapter_id)
 	if current_slot >= 0:
-		if not chapter_id in slot_data[current_slot].chapter_progress:
-			slot_data[current_slot].chapter_progress[chapter_id] = {
+		if not slot_data[current_slot].has("chapter_progress"):
+			slot_data[current_slot]["chapter_progress"] = {}
+		if not chapter_id in slot_data[current_slot]["chapter_progress"]:
+			slot_data[current_slot]["chapter_progress"][chapter_id] = {
 				"unlocked": true, "completed_levels": {}, "current_level": ""
 			}
 		save_current()
@@ -252,14 +277,19 @@ func _chapter_from_level(level_id: String) -> String:
 
 func _update_playtime() -> void:
 	var now: int = Time.get_unix_time_from_system()
-	if global_data.play_start_time > 0:
-		global_data.statistics.play_time_seconds += (now - global_data.play_start_time)
-	global_data.play_start_time = now
+	var pst: int = int(global_data.get("play_start_time", 0))
+	if pst > 0:
+		if not global_data.has("statistics"):
+			global_data["statistics"] = {}
+		var gst: Dictionary = global_data["statistics"]
+		gst["play_time_seconds"] = int(gst.get("play_time_seconds", 0)) + (now - pst)
+		global_data["statistics"] = gst
+	global_data["play_start_time"] = now
 
 ## ============== 统计视图公共 API ==============
 func get_global_stats() -> Dictionary:
 	_update_playtime()
-	return global_data.statistics.duplicate(true)
+	return global_data.get("statistics", {}).duplicate(true)
 
 func get_unlocked_cards() -> Array:
 	return global_data.get("unlocked_cards", []).duplicate()

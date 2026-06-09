@@ -81,9 +81,9 @@ func _init_exhibits() -> void:
 	var exh_defs: Array = level_data.get("exhibits", [])
 	for d in exh_defs:
 		var e: Dictionary = {
-			"id": d.id,
-			"name": d.name,
-			"max_integrity": int(d.max_integrity),
+			"id": d.get("id", ""),
+			"name": d.get("name", ""),
+			"max_integrity": int(d.get("max_integrity", 0)),
 			"integrity": int(d.get("start_integrity", 0)),
 			"statuses": [],
 			"reward_budget": int(d.get("reward_budget", 0)),
@@ -91,7 +91,7 @@ func _init_exhibits() -> void:
 			"anim_state": "idle",
 		}
 		for st in d.get("statuses", []):
-			e.statuses.append(st.duplicate(true))
+			e["statuses"].append(st.duplicate(true))
 		exhibits.append(e)
 
 func _init_deck(deck_cards: Array[String]) -> void:
@@ -169,8 +169,10 @@ func play_selected_card(target_exhibit_id: String = "") -> bool:
 	GameEvents.emit_budget_changed(-cost, budget)
 	hand.remove_at(hand_idx)
 	discard.append(cid)
-	battle_stats.cards_played += 1
-	battle_stats.cards_used_list.append(cid)
+	battle_stats["cards_played"] = int(battle_stats.get("cards_played", 0)) + 1
+	var used_list: Array = battle_stats.get("cards_used_list", [])
+	used_list.append(cid)
+	battle_stats["cards_used_list"] = used_list
 	GameEvents.emit_card_played(card, self)
 	_resolve_effect(card, target_exhibit_id)
 	selected_card_index = -1
@@ -204,7 +206,9 @@ func _resolve_effect(card: Dictionary, target_id: String) -> void:
 	if target == "single" and target_id != "":
 		var exh: Dictionary = _get_exhibit(target_id)
 		if exh != null:
-			if threshold > 0 and exh.integrity * 100 / max(exh.max_integrity, 1) >= threshold:
+			var exh_int: int = int(exh.get("integrity", 0))
+			var exh_max: int = int(exh.get("max_integrity", 1))
+			if threshold > 0 and exh_int * 100 / max(exh_max, 1) >= threshold:
 				restore_amt += threshold_bonus
 			var vuln: int = _exhibit_status_value(exh, "vulnerable")
 			if vuln > 0:
@@ -212,11 +216,11 @@ func _resolve_effect(card: Dictionary, target_id: String) -> void:
 				_remove_exhibit_status(exh, "vulnerable", 1)
 			_restore_exhibit(exh, restore_amt)
 			if eff.has("remove_status"):
-				_remove_exhibit_status(exh, eff.remove_status, int(eff.get("remove_count", 1)))
+				_remove_exhibit_status(exh, eff.get("remove_status", ""), int(eff.get("remove_count", 1)))
 			if eff.get("remove_all_status", false):
-				exh.statuses.clear()
+				exh["statuses"].clear()
 			if eff.has("status_on_target"):
-				_apply_exhibit_status(exh, eff.status_on_target, int(eff.get("status_value", 1)))
+				_apply_exhibit_status(exh, eff.get("status_on_target", ""), int(eff.get("status_value", 1)))
 	elif target == "all" and restore_amt > 0:
 		for e in exhibits:
 			_restore_exhibit(e, restore_amt)
@@ -225,20 +229,20 @@ func _resolve_effect(card: Dictionary, target_id: String) -> void:
 		for e in exhibits:
 			_restore_exhibit(e, restore_all_v)
 	if eff.has("remove_status_all"):
-		var st: String = eff.remove_status_all
+		var st: String = eff.get("remove_status_all", "")
 		var cnt: int = int(eff.get("remove_count", 1))
 		for e in exhibits:
 			_remove_exhibit_status(e, st, cnt)
 	if eff.has("gain_budget"):
-		var g: int = int(eff.gain_budget)
+		var g: int = int(eff.get("gain_budget", 0))
 		budget += g
 		GameEvents.emit_budget_changed(g, budget)
 	if eff.has("next_turn_budget"):
-		budget_next_turn_extra += int(eff.next_turn_budget)
+		budget_next_turn_extra += int(eff.get("next_turn_budget", 0))
 	if eff.has("permanent_budget"):
-		permanent_budget_bonus += int(eff.permanent_budget)
+		permanent_budget_bonus += int(eff.get("permanent_budget", 0))
 	if eff.has("budget_per_card_type"):
-		var t: int = int(eff.budget_per_card_type)
+		var t: int = int(eff.get("budget_per_card_type", 0))
 		var extra: int = int(eff.get("extra_budget", 1))
 		var src: String = eff.get("count_from", "deck")
 		var count: int = 0
@@ -250,11 +254,11 @@ func _resolve_effect(card: Dictionary, target_id: String) -> void:
 		budget += count * extra
 		GameEvents.emit_budget_changed(count * extra, budget)
 	if eff.has("draw"):
-		_draw_cards(int(eff.draw))
+		_draw_cards(int(eff.get("draw", 0)))
 	if eff.has("discard"):
-		_discard_random(int(eff.discard))
+		_discard_random(int(eff.get("discard", 0)))
 	if eff.has("status"):
-		var key: String = eff.status
+		var key: String = eff.get("status", "")
 		var val: int = int(eff.get("status_value", 1))
 		var dur: int = int(eff.get("duration", 1))
 		player_statuses[key] = int(player_statuses.get(key, 0)) + val
@@ -263,71 +267,80 @@ func _resolve_effect(card: Dictionary, target_id: String) -> void:
 		else:
 			player_statuses[key + "_dur"] = max(int(player_statuses[key + "_dur"]), dur)
 		if eff.has("bonus_restore"):
-			player_statuses["tool_discount_bonus_restore"] = int(player_statuses.get("tool_discount_bonus_restore", 0)) + int(eff.bonus_restore)
+			player_statuses["tool_discount_bonus_restore"] = int(player_statuses.get("tool_discount_bonus_restore", 0)) + int(eff.get("bonus_restore", 0))
 	if ctype == CardDatabase.CardType.TOOL and int(player_statuses.get("tool_discount", 0)) > 0:
-		player_statuses.tool_discount = int(player_statuses.tool_discount) - 1
-		if player_statuses.tool_discount <= 0:
+		player_statuses["tool_discount"] = int(player_statuses.get("tool_discount", 0)) - 1
+		if int(player_statuses.get("tool_discount", 0)) <= 0:
 			player_statuses.erase("tool_discount")
 			player_statuses.erase("tool_discount_dur")
 			if "tool_discount_bonus_restore" in player_statuses:
 				player_statuses.erase("tool_discount_bonus_restore")
 	if ctype == CardDatabase.CardType.TOOL and int(player_statuses.get("tool_draw", 0)) > 0:
-		player_statuses.tool_draw = int(player_statuses.tool_draw) - 1
+		player_statuses["tool_draw"] = int(player_statuses.get("tool_draw", 0)) - 1
 		_draw_cards(1)
-		if player_statuses.tool_draw <= 0:
+		if int(player_statuses.get("tool_draw", 0)) <= 0:
 			player_statuses.erase("tool_draw")
 			player_statuses.erase("tool_draw_dur")
 
 # ============== 展品操作 ==============
 func _get_exhibit(id: String) -> Dictionary:
 	for e in exhibits:
-		if e.id == id:
+		if e.get("id", "") == id:
 			return e
 	return null
 
 func _restore_exhibit(exh: Dictionary, amount: int) -> void:
-	if exh.restored:
+	if bool(exh.get("restored", false)):
 		return
-	var before: int = exh.integrity
-	exh.integrity = min(exh.max_integrity, exh.integrity + amount)
-	var delta: int = exh.integrity - before
-	GameEvents.emit_exhibit_progress(exh.id, delta, exh.integrity, exh.max_integrity)
-	GameEvents.vfx_requested.emit("restore_sparks", Vector2.ZERO, {"target_id": exh.id, "amount": delta})
-	if exh.integrity >= exh.max_integrity and not exh.restored:
-		exh.restored = true
-		battle_stats.exhibits_restored += 1
-		if exh.reward_budget > 0:
-			budget += exh.reward_budget
-			GameEvents.emit_budget_changed(exh.reward_budget, budget)
+	var before: int = int(exh.get("integrity", 0))
+	var exh_max: int = int(exh.get("max_integrity", 0))
+	exh["integrity"] = min(exh_max, before + amount)
+	var delta: int = int(exh["integrity"]) - before
+	var exh_id: String = exh.get("id", "")
+	var exh_int_now: int = int(exh["integrity"])
+	GameEvents.emit_exhibit_progress(exh_id, delta, exh_int_now, exh_max)
+	GameEvents.vfx_requested.emit("restore_sparks", Vector2.ZERO, {"target_id": exh_id, "amount": delta})
+	if exh_int_now >= exh_max and not bool(exh.get("restored", false)):
+		exh["restored"] = true
+		battle_stats["exhibits_restored"] = int(battle_stats.get("exhibits_restored", 0)) + 1
+		var rb: int = int(exh.get("reward_budget", 0))
+		if rb > 0:
+			budget += rb
+			GameEvents.emit_budget_changed(rb, budget)
 
 func _damage_exhibit(exh: Dictionary, amount: int) -> void:
-	if exh.restored or amount <= 0:
+	if bool(exh.get("restored", false)) or amount <= 0:
 		return
-	var before: int = exh.integrity
-	exh.integrity = max(0, exh.integrity - amount)
-	var delta: int = exh.integrity - before
-	GameEvents.exhibit_damaged.emit(exh.id, amount)
-	GameEvents.emit_exhibit_progress(exh.id, delta, exh.integrity, exh.max_integrity)
+	var before: int = int(exh.get("integrity", 0))
+	exh["integrity"] = max(0, before - amount)
+	var delta: int = int(exh["integrity"]) - before
+	var exh_id: String = exh.get("id", "")
+	GameEvents.exhibit_damaged.emit(exh_id, amount)
+	GameEvents.emit_exhibit_progress(exh_id, delta, int(exh["integrity"]), int(exh.get("max_integrity", 0)))
 
 func _apply_exhibit_status(exh: Dictionary, stype: String, value: int) -> void:
-	for s in exh.statuses:
-		if s.type == stype:
-			s.value += value
+	var statuses: Array = exh.get("statuses", [])
+	for s in statuses:
+		if s.get("type", "") == stype:
+			s["value"] = int(s.get("value", 0)) + value
 			return
-	exh.statuses.append({"type": stype, "value": value, "damage_per_turn": 0})
+	statuses.append({"type": stype, "value": value, "damage_per_turn": 0})
+	exh["statuses"] = statuses
 
 func _remove_exhibit_status(exh: Dictionary, stype: String, count: int) -> void:
-	for i in range(exh.statuses.size() - 1, -1, -1):
-		var s: Dictionary = exh.statuses[i]
-		if s.type == stype:
-			s.value -= count
-			if s.value <= 0:
-				exh.statuses.remove_at(i)
+	var statuses: Array = exh.get("statuses", [])
+	for i in range(statuses.size() - 1, -1, -1):
+		var s: Dictionary = statuses[i]
+		if s.get("type", "") == stype:
+			s["value"] = int(s.get("value", 0)) - count
+			if int(s.get("value", 0)) <= 0:
+				statuses.remove_at(i)
+	exh["statuses"] = statuses
 
 func _exhibit_status_value(exh: Dictionary, stype: String) -> int:
-	for s in exh.statuses:
-		if s.type == stype:
-			return int(s.value)
+	for s in exh.get("statuses", []):
+		if s.get("type", "") == stype:
+			return int(s.get("value", 0))
 	return 0
 
 # ============== 卡组操作 ==============
@@ -343,7 +356,7 @@ func _draw_cards(n: int) -> void:
 		if deck.size() > 0:
 			var cid: String = deck.pop_back()
 			hand.append(cid)
-			battle_stats.cards_drawn += 1
+			battle_stats["cards_drawn"] = int(battle_stats.get("cards_drawn", 0)) + 1
 			GameEvents.card_drawn.emit(CardDatabase.get_card(cid))
 	deck_count_changed.emit(deck.size())
 	discard_count_changed.emit(discard.size())
@@ -357,7 +370,7 @@ func _discard_random(n: int) -> void:
 		var cid: String = hand[idx]
 		hand.remove_at(idx)
 		discard.append(cid)
-		battle_stats.cards_discarded += 1
+		battle_stats["cards_discarded"] = int(battle_stats.get("cards_discarded", 0)) + 1
 		GameEvents.card_discarded.emit(CardDatabase.get_card(cid))
 	hand_changed.emit()
 	deck_count_changed.emit(deck.size())
@@ -368,7 +381,7 @@ func end_turn() -> void:
 	if state != BattleState.PLAYING_TURN:
 		return
 	state = BattleState.TURN_ENDING
-	battle_stats.turns_used += 1
+	battle_stats["turns_used"] = int(battle_stats.get("turns_used", 0)) + 1
 	_state_apply_turn_end_statuses()
 	_state_process_exhibit_damage()
 	_decrement_player_status_durations()
@@ -396,10 +409,10 @@ func _state_apply_turn_end_statuses() -> void:
 
 func _state_process_exhibit_damage() -> void:
 	for e in exhibits:
-		for s in e.statuses:
+		for s in e.get("statuses", []):
 			var dmg: int = int(s.get("damage_per_turn", 0))
 			if dmg > 0:
-				_damage_exhibit(e, dmg * int(s.value))
+				_damage_exhibit(e, dmg * int(s.get("value", 0)))
 
 func _decrement_player_status_durations() -> void:
 	var to_erase: Array = []
@@ -427,7 +440,7 @@ func _maybe_trigger_random_event() -> void:
 			_apply_event(ev)
 
 func _apply_event(ev: Dictionary) -> void:
-	GameEvents.event_triggered.emit(ev.id, ev)
+	GameEvents.event_triggered.emit(ev.get("id", ""), ev)
 	GameEvents.sfx_requested.emit("event_pop", -3.0)
 	var t: String = ev.get("effect_type", "")
 	match t:
@@ -443,7 +456,7 @@ func _apply_event(ev: Dictionary) -> void:
 		"reduce_progress_unfinished":
 			var v: int = int(ev.get("value", 0))
 			for e in exhibits:
-				if not e.restored:
+				if not bool(e.get("restored", false)):
 					_damage_exhibit(e, v)
 		"gain_budget":
 			var v: int = int(ev.get("value", 0))
@@ -453,9 +466,9 @@ func _apply_event(ev: Dictionary) -> void:
 			var best: Dictionary = null
 			var best_ratio: float = -1.0
 			for e in exhibits:
-				if e.restored:
+				if bool(e.get("restored", false)):
 					continue
-				var r: float = float(e.integrity) / float(max(e.max_integrity, 1))
+				var r: float = float(e.get("integrity", 0)) / float(max(int(e.get("max_integrity", 0)), 1))
 				if r > best_ratio:
 					best_ratio = r
 					best = e
@@ -485,13 +498,13 @@ func _apply_event(ev: Dictionary) -> void:
 # ============== 胜负判定 ==============
 func _all_exhibits_restored() -> bool:
 	for e in exhibits:
-		if not e.restored:
+		if not bool(e.get("restored", false)):
 			return false
 	return true
 
 func _any_exhibit_destroyed() -> bool:
 	for e in exhibits:
-		if e.integrity < 0:
+		if int(e.get("integrity", 0)) < 0:
 			return true
 	return false
 
@@ -513,7 +526,7 @@ func _check_battle_end() -> bool:
 		state = BattleState.BATTLE_END
 		state_changed.emit(_state_name(state))
 		GameEvents.emit_battle_ended(victory, level_id)
-		battle_stats.victory = victory
+		battle_stats["victory"] = victory
 		var stars: int = 0
 		if victory:
 			stars = 1
@@ -522,7 +535,7 @@ func _check_battle_end() -> bool:
 				stars = 3
 			elif ratio <= 0.8:
 				stars = 2
-		battle_stats.stars = stars
+		battle_stats["stars"] = stars
 		battle_ended.emit(victory, battle_stats)
 		return true
 	return false
@@ -533,6 +546,6 @@ func calculate_stars_from_stats(stats: Dictionary) -> int:
 func abandon_battle() -> void:
 	state = BattleState.BATTLE_END
 	state_changed.emit(_state_name(state))
-	battle_stats.victory = false
-	battle_stats.stars = 0
+	battle_stats["victory"] = false
+	battle_stats["stars"] = 0
 	battle_ended.emit(false, battle_stats)

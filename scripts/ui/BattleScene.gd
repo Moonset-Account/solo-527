@@ -220,9 +220,11 @@ func _refresh_exhibits() -> void:
 func _make_exhibit_panel(e: Dictionary) -> Control:
 	var pc: PanelContainer = PanelContainer.new()
 	pc.custom_minimum_size = Vector2(240, 280)
-	pc.name = "exh_" + e.id
+	var eid: String = e.get("id", "")
+	pc.name = "exh_" + eid
+	var er: bool = bool(e.get("restored", false))
 	var sb: StyleBoxFlat = StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.14, 0.16, 1) if not e.restored else Color(0.15, 0.28, 0.2, 1)
+	sb.bg_color = Color(0.12, 0.14, 0.16, 1) if not er else Color(0.15, 0.28, 0.2, 1)
 	sb.corner_radius_top_left = 12
 	sb.corner_radius_top_right = 12
 	sb.corner_radius_bottom_right = 12
@@ -231,7 +233,7 @@ func _make_exhibit_panel(e: Dictionary) -> Control:
 	sb.border_width_right = 3
 	sb.border_width_top = 3
 	sb.border_width_bottom = 3
-	sb.border_color = Color(0.55, 0.4, 0.25, 1) if not e.restored else Color(0.5, 0.9, 0.5, 1)
+	sb.border_color = Color(0.55, 0.4, 0.25, 1) if not er else Color(0.5, 0.9, 0.5, 1)
 	sb.content_margin_left = 14
 	sb.content_margin_right = 14
 	sb.content_margin_top = 14
@@ -242,38 +244,41 @@ func _make_exhibit_panel(e: Dictionary) -> Control:
 	pc.add_child(vb)
 
 	var name_lbl: Label = Label.new()
-	name_lbl.text = e.name
+	name_lbl.text = e.get("name", "")
 	name_lbl.add_theme_font_size_override("font_size", 17)
 	name_lbl.add_theme_color_override("font_color", Color.WHITE)
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(name_lbl)
 
 	var icon_lbl: Label = Label.new()
-	icon_lbl.text = "🖼️" if not e.restored else "✅"
+	icon_lbl.text = "🖼️" if not er else "✅"
 	icon_lbl.add_theme_font_size_override("font_size", 56)
 	icon_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(icon_lbl)
 
-	var ratio: float = float(e.integrity) / float(max(1, e.max_integrity))
+	var e_int: int = int(e.get("integrity", 0))
+	var e_max: int = int(e.get("max_integrity", 0))
+	var ratio: float = float(e_int) / float(max(1, e_max))
 	var progress: ProgressBar = ProgressBar.new()
-	progress.max_value = float(e.max_integrity)
-	progress.value = float(e.integrity)
+	progress.max_value = float(e_max)
+	progress.value = float(e_int)
 	progress.custom_minimum_size = Vector2(0, 20)
 	progress.add_theme_font_size_override("font_size", 13)
 	progress.show_percentage = false
 	var pct_lbl: Label = Label.new()
-	pct_lbl.text = ("完整度: %d / %d  (%.0f%%)" % [e.integrity, e.max_integrity, ratio * 100])
+	pct_lbl.text = ("完整度: %d / %d  (%.0f%%)" % [e_int, e_max, ratio * 100])
 	pct_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pct_lbl.add_theme_font_size_override("font_size", 13)
 	pct_lbl.add_theme_color_override("font_color", Color(0.8, 0.9, 0.8, 1))
 	vb.add_child(progress)
 	vb.add_child(pct_lbl)
 
-	if e.statuses.size() > 0 and not e.restored:
+	var statuses: Array = e.get("statuses", [])
+	if statuses.size() > 0 and not er:
 		var st_hb: HBoxContainer = HBoxContainer.new()
 		st_hb.alignment = BoxContainer.ALIGNMENT_CENTER
 		st_hb.add_theme_constant_override("separation", 8)
-		for s in e.statuses:
+		for s in statuses:
 			var bp: PanelContainer = PanelContainer.new()
 			var bsb: StyleBoxFlat = StyleBoxFlat.new()
 			bsb.bg_color = Color(0.55, 0.25, 0.25, 0.85)
@@ -287,14 +292,15 @@ func _make_exhibit_panel(e: Dictionary) -> Control:
 			bsb.content_margin_bottom = 2
 			bp.add_theme_stylebox_override("panel", bsb)
 			var bl: Label = Label.new()
-			bl.text = "%s×%d" % [_status_icon(s.type), int(s.value)]
+			bl.text = "%s×%d" % [_status_icon(s.get("type", "")), int(s.get("value", 0))]
 			bl.add_theme_font_size_override("font_size", 12)
 			bl.add_theme_color_override("font_color", Color.WHITE)
 			bp.add_child(bl)
 			st_hb.add_child(bp)
 		vb.add_child(st_hb)
 	var rb: Label = Label.new()
-	rb.text = ("修复奖励: +%d 🪙" % int(e.reward_budget)) if not e.restored else "✨ 已完成"
+	var rb_val: int = int(e.get("reward_budget", 0))
+	rb.text = ("修复奖励: +%d 🪙" % rb_val) if not er else "✨ 已完成"
 	rb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rb.add_theme_font_size_override("font_size", 12)
 	rb.add_theme_color_override("font_color", Color(0.95, 0.85, 0.5, 1))
@@ -303,14 +309,14 @@ func _make_exhibit_panel(e: Dictionary) -> Control:
 	var tbtn: Button = Button.new()
 	tbtn.custom_minimum_size = Vector2(0, 36)
 	tbtn.add_theme_font_size_override("font_size", 14)
-	tbtn.text = ("🎯 指定为修复目标" if not e.restored else "已修复")
-	tbtn.disabled = e.restored or _selected_card_idx < 0 or not battle.awaiting_target
-	tbtn.pressed.connect(func(): _on_target_exhibit(e.id))
+	tbtn.text = ("🎯 指定为修复目标" if not er else "已修复")
+	tbtn.disabled = er or _selected_card_idx < 0 or not battle.awaiting_target
+	tbtn.pressed.connect(func(): _on_target_exhibit(eid))
 	vb.add_child(tbtn)
 	pc.gui_input.connect(func(ev):
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
-			if battle.awaiting_target and _selected_card_idx >= 0 and not e.restored:
-				_on_target_exhibit(e.id)
+			if battle.awaiting_target and _selected_card_idx >= 0 and not er:
+				_on_target_exhibit(eid)
 	)
 	return pc
 
@@ -626,10 +632,10 @@ func _process_chapter_rewards(level_id: String) -> void:
 	var ch: Dictionary = LevelDatabase.get_chapter(ch_id)
 	var reward: Dictionary = ch.get("completion_reward", {})
 	if reward.has("unlock_cards"):
-		for cid in reward.unlock_cards:
+		for cid in reward.get("unlock_cards", []):
 			SaveManager.add_to_collection(cid)
 	if reward.has("unlock_chapter"):
-		SaveManager.unlock_chapter(reward.unlock_chapter)
+		SaveManager.unlock_chapter(reward.get("unlock_chapter", ""))
 	SaveManager.save_current()
 
 func _unhandled_input(event: InputEvent) -> void:

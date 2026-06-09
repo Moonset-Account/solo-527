@@ -121,7 +121,7 @@ func _make_slot_card(idx: int) -> Control:
 
 	var has: bool = SaveManager.has_slot(idx)
 	var data: Dictionary = SaveManager.get_slot_info(idx)
-	if has and data.exists:
+	if has and bool(data.get("exists", false)):
 		var ch: int = 0
 		var total_stars: int = 0
 		var prog: Dictionary = data.get("chapter_progress", {})
