@@ -3,9 +3,9 @@ extends Control
 
 @onready var back_button: Button = $TopBar/BackButton
 @onready var title_label: Label = $TopBar/TitleLabel
-@onready var date_label: Label = $ChallengeInfo/DateLabel
-@onready var seed_label: Label = $ChallengeInfo/SeedLabel
-@onready var description_label: Label = $ChallengeInfo/DescriptionLabel
+@onready var date_label: Label = $ChallengeInfo/VBox/DateLabel
+@onready var seed_label: Label = $ChallengeInfo/VBox/SeedLabel
+@onready var description_label: Label = $ChallengeInfo/VBox/DescriptionLabel
 @onready var best_label: Label = $StatsPanel/BestLabel
 @onready var status_label: Label = $StatsPanel/StatusLabel
 @onready var items_preview: GridContainer = $ItemsPreviewGrid
@@ -114,7 +114,7 @@ func _load_challenge() -> void:
 func _build_items_preview() -> void:
     if not items_preview:
         return
-    items_preview.clear_children()
+    UIManager.clear_container(items_preview)
     var item_ids: Array = challenge_data.get("items", [])
     for id in item_ids:
         var def: Dictionary = ResourceLoader_.get_item_def(id)

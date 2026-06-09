@@ -21,20 +21,22 @@ var _long_press_threshold: float = 0.4
 var _tap_detected: bool = false
 var _tap_position: Vector2 = Vector2.ZERO
 var _dragged_moved: bool = false
+var _is_setup: bool = false
 
 func setup(box: PackingBox, layer: Node2D) -> void:
     box_ref = box
     item_layer = layer
-    _long_press_timer = Timer.new()
-    _long_press_timer.one_shot = true
-    _long_press_timer.wait_time = _long_press_threshold
-    _long_press_timer.timeout.connect(_on_long_press)
-    add_child(_long_press_timer)
-
-    InputManager.pointer_down.connect(_on_pointer_down)
-    InputManager.pointer_move.connect(_on_pointer_move)
-    InputManager.pointer_up.connect(_on_pointer_up)
-    InputManager.action_emit.connect(_on_action)
+    if not _is_setup:
+        _is_setup = true
+        _long_press_timer = Timer.new()
+        _long_press_timer.one_shot = true
+        _long_press_timer.wait_time = _long_press_threshold
+        _long_press_timer.timeout.connect(_on_long_press)
+        add_child(_long_press_timer)
+        InputManager.pointer_down.connect(_on_pointer_down)
+        InputManager.pointer_move.connect(_on_pointer_move)
+        InputManager.pointer_up.connect(_on_pointer_up)
+        InputManager.action_emit.connect(_on_action)
 
 func _on_pointer_down(pos: Vector2, idx: int) -> void:
     if is_dragging or active_item:

@@ -10,6 +10,13 @@ var _is_toast_showing: bool = false
 var _toast_overlay: CanvasLayer = null
 var _toast_label: Label = null
 
+static func clear_container(container: Node) -> void:
+    if container == null:
+        return
+    for child in container.get_children():
+        container.remove_child(child)
+        child.queue_free()
+
 func _ready() -> void:
     _setup_toast_system()
 

@@ -27,7 +27,7 @@ func _ready() -> void:
 func _setup_stars() -> void:
     if not stars_container:
         return
-    stars_container.clear_children()
+    UIManager.clear_container(stars_container)
     for i in 3:
         var lbl: Label = Label.new()
         lbl.text = "☆"

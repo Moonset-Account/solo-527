@@ -34,6 +34,8 @@ const CRITICAL_RATIO := 0.9
 func _init() -> void:
     collision_layer = 4
     collision_mask = 1 | 2 | 4
+    contact_monitor = true
+    max_contacts_reported = 32
 
 func setup(item_def: Dictionary, pos: Vector2 = Vector2.ZERO) -> void:
     def = item_def

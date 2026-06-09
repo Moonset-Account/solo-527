@@ -53,7 +53,7 @@ func _update_stats() -> void:
 func _populate_achievements() -> void:
     if not list_container:
         return
-    list_container.clear_children()
+    UIManager.clear_container(list_container)
     var achievements: Dictionary = AchievementSystem.get_all_achievements()
     var ach_ids: Array = achievements.keys()
     for id in ach_ids:

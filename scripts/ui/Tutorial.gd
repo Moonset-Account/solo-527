@@ -7,8 +7,8 @@ extends Control
 @onready var prev_button: Button = $Pager/PrevButton
 @onready var next_button: Button = $Pager/NextButton
 @onready var start_button: Button = $Pager/StartButton
-@onready var content_label: RichTextLabel = $ContentContainer/ContentLabel
-@onready var icon_label: Label = $ContentContainer/IconLabel
+@onready var content_label: RichTextLabel = $ContentContainer/VBox/ContentLabel
+@onready var icon_label: Label = $ContentContainer/VBox/IconLabel
 
 const TUTORIAL_PAGES := [
     {"icon": "📦", "title": "欢迎来到搬家装箱！",

@@ -6,7 +6,7 @@ extends Control
 @onready var settings_button: Button = $Panel/VBoxContainer/SettingsButton
 @onready var level_select_button: Button = $Panel/VBoxContainer/LevelSelectButton
 @onready var main_menu_button: Button = $Panel/VBoxContainer/MainMenuButton
-@onready var title_label: Label = $Panel/TitleLabel
+@onready var title_label: Label = $Panel/VBoxContainer/TitleLabel
 
 func _ready() -> void:
     _setup_buttons()

@@ -72,7 +72,7 @@ func _connect_signals() -> void:
 func _refresh_level_leaderboard() -> void:
     if not level_list_container:
         return
-    level_list_container.clear_children()
+    UIManager.clear_container(level_list_container)
     var level_id: int = 1
     if level_selector:
         level_id = level_selector.get_item_id(level_selector.selected)
@@ -97,7 +97,7 @@ func _refresh_level_leaderboard() -> void:
 func _refresh_daily_leaderboard() -> void:
     if not daily_list_container:
         return
-    daily_list_container.clear_children()
+    UIManager.clear_container(daily_list_container)
     var status: Dictionary = LeaderboardSystem.get_daily_completion_status()
     if daily_status:
         if status.get("completed", false):
