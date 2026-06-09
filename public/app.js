@@ -20,6 +20,8 @@ const API = {
   },
   get(p, q) { const qs = q ? '?' + new URLSearchParams(q).toString() : ''; return this.request(p + qs, 'GET'); },
   post(p, b, o) { return this.request(p, 'POST', b, o); },
+  put(p, b) { return this.request(p, 'PUT', b); },
+  _delete(p) { return this.request(p, 'DELETE'); },
 };
 
 const MENU = [
@@ -1134,12 +1136,21 @@ async function rebuildVectorIndex() {
 async function renderEvaluation() {
   const c = $('#content');
   c.innerHTML = '';
-  c.appendChild(el('div', { class: 'stats-grid', style: 'grid-template-columns:repeat(4,1fr);' }, [
-    statCard('验收样本总数', 0, 'blue', '覆盖全部验收场景'),
-    statCard('✅ 正确判断', 0, 'green', '模型判断正确的样本'),
-    statCard('⚠️ 低置信度', 0, 'warning', '低于阈值需人工复核'),
-    statCard('🚫 模型无法回答', 0, 'danger', '无法处理的疑难样本'),
-  ]));
+  const typeCards = [
+    { label: '✅ 正确判断', sub: '模型判断正确', color: '#10b981', key: 'correct' },
+    { label: '⚠️ 低置信度', sub: '低于阈值需人工复核', color: '#f59e0b', key: 'low_confidence' },
+    { label: '✏️ 人工改标', sub: '模型易误分的边界案例', color: '#8b5cf6', key: 'manual_correction' },
+    { label: '🚫 模型无法回答', sub: '高风险必须人工介入', color: '#ef4444', key: 'unanswerable' },
+  ];
+  const cardsGrid = el('div', { class: 'stats-grid', style: 'grid-template-columns:repeat(4,1fr);' },
+    typeCards.map(tc => el('div', { class: 'eval-type-card stat-card stat-card-green', style: `border-left:4px solid ${tc.color};` }, [
+      el('div', { class: 'stat-label' }, tc.label),
+      el('div', { class: 'stat-value', style: `color:${tc.color};` }, '0 / 0'),
+      el('div', { class: 'stat-pct', style: 'font-size:22px;font-weight:700;margin-top:2px;' }, '未测'),
+      el('div', { class: 'stat-sub', style: 'margin-top:4px;' }, tc.sub),
+    ]))
+  );
+  c.appendChild(cardsGrid);
   setTimeout(loadEvalSummary, 100);
   c.appendChild(el('div', { class: 'card' }, [
     el('div', { class: 'card-header' }, [
@@ -1173,26 +1184,55 @@ async function loadEvalSummary() {
   try {
     const r = await API.get('/data/evaluation/summary');
     const by = r.data.by_type || [];
-    const cards = document.querySelectorAll('.stat-card .stat-value');
-    if (cards.length >= 4) {
-      cards[0].textContent = r.data.overall?.total || 0;
-      const correct = by.find(b => b.sample_type === 'correct')?.total || 0;
-      const low = by.find(b => b.sample_type === 'low_confidence')?.total || 0;
-      const unans = by.find(b => b.sample_type === 'unanswerable')?.total || 0;
-      cards[1].textContent = correct;
-      cards[2].textContent = low;
-      cards[3].textContent = unans;
-    }
+    const cards = document.querySelectorAll('.eval-type-card .stat-value');
+    const pctEls = document.querySelectorAll('.eval-type-card .stat-pct');
+    const typeNames = ['correct', 'low_confidence', 'manual_correction', 'unanswerable'];
+    typeNames.forEach((tn, idx) => {
+      const row = by.find(b => b.sample_type === tn) || { total: 0, passed: 0, tested: 0 };
+      if (cards[idx]) cards[idx].textContent = `${row.passed || 0} / ${row.total}`;
+      if (pctEls[idx]) {
+        const pct = row.tested ? ((row.passed || 0) / row.tested * 100).toFixed(0) + '%' : '未测';
+        const color = !row.tested ? '#94a3b8' : (row.passed === row.tested ? '#10b981' : parseFloat(pct) >= 70 ? '#f59e0b' : '#ef4444');
+        pctEls[idx].textContent = pct;
+        pctEls[idx].style.color = color;
+        pctEls[idx].dataset.color = color;
+      }
+    });
     const sumEl = $('#eval-summary');
-    if (sumEl) sumEl.innerHTML = '';
+    if (!sumEl) return;
     const o = r.data.overall;
-    if (o?.tested) {
-      sumEl.innerHTML = `<div class="alert ${o.pass_rate >= 0.9 ? 'alert-success' : o.pass_rate >= 0.7 ? 'alert-warning' : 'alert-danger'}" style="margin-bottom:0;">
-        <span class="alert-icon">🎯</span>
-        <div><b>验收测试结果：</b>已测 ${o.tested}/${o.total} 个样本 · 通过 ${o.passed} 个 · 通过率 <b>${(o.pass_rate*100).toFixed(1)}%</b></div>
-      </div>`;
-    }
-  } catch (e) {}
+    const overallBar = o && o.tested ? `
+      <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div><b>总体通过率</b> · 已测 ${o.tested}/${o.total} · 通过 ${o.passed}</div>
+          <div style="font-size:18px;font-weight:700;color:${o.pass_rate>=0.9?'#10b981':o.pass_rate>=0.7?'#f59e0b':'#ef4444'}">${(o.pass_rate*100).toFixed(1)}%</div>
+        </div>
+        <div style="height:8px;background:#e5e7eb;border-radius:6px;overflow:hidden;">
+          <div style="height:100%;width:${(o.pass_rate*100).toFixed(1)}%;background:linear-gradient(90deg,#10b981,#22c55e);"></div>
+        </div>
+      </div>` : `<div style="padding:8px 4px;color:var(--text-muted);font-size:12px;">尚未运行验收测试，请点击「运行验收测试」开始</div>`;
+    const failedRows = r.data.failed && r.data.failed.length ? `
+      <div class="card" style="box-shadow:none;margin-top:0;padding:0;background:#fff5f5;border:1px solid #fecaca;">
+        <div class="card-title" style="padding:10px 14px;color:#b91c1c;font-size:13px;">❌ 失败明细（${r.data.failed.length} 条）</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#fee2e2;">
+            <th style="text-align:left;padding:6px 10px;">类型</th>
+            <th style="text-align:left;padding:6px 10px;">内容</th>
+            <th style="text-align:left;padding:6px 10px;">失败原因</th>
+          </tr></thead>
+          <tbody>${r.data.failed.map(f => {
+            const fr = f.test_result ? (typeof f.test_result === 'string' ? JSON.parse(f.test_result).fail_reasons : f.test_result.fail_reasons) : [];
+            const tc = { correct: '#10b981', low_confidence: '#f59e0b', manual_correction: '#8b5cf6', unanswerable: '#ef4444' }[f.sample_type] || '#94a3b8';
+            return `<tr style="border-top:1px solid #fecaca;">
+              <td style="padding:6px 10px;"><span class="tag" style="background:${tc};color:#fff;">${f.sample_type}</span></td>
+              <td style="padding:6px 10px;max-width:260px;" class="wrap">${f.content.slice(0, 60)}${f.content.length>60?'…':''}</td>
+              <td style="padding:6px 10px;color:#991b1b;">${fr.length ? fr.join('；') : '-'}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>` : '';
+    sumEl.innerHTML = overallBar + failedRows;
+  } catch (e) { console.error(e); }
 }
 
 async function loadEvalSamples() {
@@ -1213,23 +1253,73 @@ function renderEvalSamplesList(list) {
     return;
   }
   const typeMap = { correct: ['✅ 正确判断', 'success'], low_confidence: ['⚠️ 低置信度', 'warning'], manual_correction: ['✏️ 人工改标', 'purple'], unanswerable: ['🚫 无法回答', 'danger'] };
-  const t = el('table');
-  t.innerHTML = `<thead><tr><th>样本类型</th><th>内容</th><th>期望类别</th><th>期望紧急</th><th>高风险</th><th>测试结果</th><th>通过</th><th>操作</th></tr></thead>
-    <tbody>${list.map(s => {
-      const [tt, tc] = typeMap[s.sample_type] || ['其他', 'gray'];
-      const rr = s.test_passed === 1 ? '<span class="tag tag-success">PASS</span>' : s.test_passed === 0 ? '<span class="tag tag-danger">FAIL</span>' : '<span class="tag tag-gray">未测</span>';
-      return `<tr>
-        <td><span class="tag tag-${tc}">${s.sample_type}</span> ${[tt]}</td>
-        <td style="max-width:320px;" class="wrap" title="${s.content}">${s.content.length > 80 ? s.content.slice(0,80)+'…' : s.content}</td>
-        <td>${s.expected_category || '-'}</td>
-        <td>${s.expected_urgency || '-'}</td>
-        <td>${s.expected_high_risk ? '<span class="tag tag-danger">是</span>' : '<span class="tag tag-gray">否</span>'}</td>
-        <td>${rr}<br/><span style="font-size:11px;color:var(--text-muted);">${s.tested_at ? fmtDate(s.tested_at, false) : ''}${s.remarks ? '<br/>' + s.remarks : ''}</span></td>
-        <td style="white-space:nowrap;">${s.test_passed === 0 && s.test_result ? `<a href="#" onclick="event.preventDefault();alert('测试详情: ${JSON.stringify(s.test_result)}'">详情</a>` : '-'}</td>
-        <td><button class="btn btn-outline btn-xs" onclick="deleteEvalSample('${s.id}')">删除</button></td>
-      </tr>`;
-    }).join('')}</tbody>`;
-  box.innerHTML = ''; box.appendChild(t);
+  const rows = list.map(s => {
+    const [tt, tc] = typeMap[s.sample_type] || ['其他', 'gray'];
+    const rr = s.test_passed === 1 ? '<span class="tag tag-success" style="padding:2px 8px;">✅ PASS</span>' : s.test_passed === 0 ? '<span class="tag tag-danger" style="padding:2px 8px;">❌ FAIL</span>' : '<span class="tag tag-gray" style="padding:2px 8px;">未测</span>';
+    let tr = typeof s.test_result === 'string' ? s.test_result : (s.test_result ? JSON.stringify(s.test_result) : null);
+    let parsed = null;
+    try { if (tr) parsed = JSON.parse(tr); } catch (e) {}
+    const failReasons = parsed?.fail_reasons || [];
+    const latency = parsed?.latency_ms;
+    const conf = parsed?.min_confidence;
+    const expRow = `期望: ${[
+      s.expected_category ? `分类=${s.expected_category}` : '',
+      s.expected_urgency ? `紧急=${s.expected_urgency}` : '',
+      s.expected_department ? `科室=${s.expected_department}` : '',
+      s.expected_high_risk ? '高风险=1' : '',
+      s.expected_needs_review ? '需复核=1' : '',
+    ].filter(Boolean).join(' / ')}`;
+    const infRow = parsed?.inference ? `实际: 分类=${parsed.inference.category || '-'} / 紧急=${parsed.inference.urgency || '-'} / 科室=${parsed.inference.department_code || '-'} / 风险=${parsed.inference.is_high_risk ? 1 : 0} / 复核=${parsed.inference.needs_review ? 1 : 0}` : '';
+    return `<tr>
+      <td><span class="tag tag-${tc}">${s.sample_type}</span><div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${tt}</div></td>
+      <td style="max-width:300px;" class="wrap" title="${s.content.replace(/"/g,'&quot;')}">${s.content.length > 60 ? s.content.slice(0,60)+'…' : s.content}</td>
+      <td style="font-size:11px;max-width:160px;" class="wrap">
+        ${s.expected_category || '-'}<br/>
+        ${s.expected_urgency ? `<span class="tag tag-gray tag-sm">${s.expected_urgency}</span>` : ''}
+        ${s.expected_high_risk ? '<span class="tag tag-danger tag-sm">高风险</span>' : ''}
+        ${s.expected_needs_review ? '<span class="tag tag-warning tag-sm">需复核</span>' : ''}
+      </td>
+      <td style="font-size:11px;">
+        <div>${rr}</div>
+        <div style="margin-top:4px;color:var(--text-muted);">${s.tested_at ? fmtDate(s.tested_at, false) : '未测试'}${latency ? ` · ${latency}ms` : ''}${conf!=null ? ` · 置信${(conf*100).toFixed(0)}%` : ''}</div>
+        ${failReasons.length ? `<div style="margin-top:4px;color:#b91c1c;max-width:180px;white-space:normal;line-height:1.5;">${failReasons.join('；').slice(0, 80)}</div>` : ''}
+      </td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-outline btn-xs" onclick="runOneEvalSample('${s.id}')">测试</button>
+        <button class="btn btn-outline btn-xs" onclick="showEvalSampleDetail(${JSON.stringify(s.id).replace(/"/g,'&quot;')})" ${parsed ? '' : 'disabled'}>详情</button>
+        <button class="btn btn-outline btn-xs" onclick="editEvalSample('${s.id}')">编辑</button>
+        <button class="btn btn-outline btn-xs btn-danger" onclick="deleteEvalSample('${s.id}')">删除</button>
+      </td>
+    </tr>
+    <tr id="detail-${s.id}" style="display:none;background:#fafbff;">
+      <td colspan="5" style="padding:0 10px 10px;">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.7;">
+          <div style="color:#475569;"><b>【样本设计说明】</b>${s.remarks || '(无)'}</div>
+          <div style="color:#475569;margin-top:4px;"><b>【期望值】</b>${expRow}</div>
+          ${infRow ? `<div style="color:#0f766e;margin-top:4px;"><b>【模型输出】</b>${infRow}</div>` : ''}
+          ${failReasons.length ? `<div style="color:#b91c1c;margin-top:4px;"><b>【失败原因】</b>${failReasons.join('；')}</div>` : ''}
+          ${parsed?.inference?.reasoning ? `<div style="color:#64748b;margin-top:4px;"><b>【推理依据】</b>${parsed.inference.reasoning}</div>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  box.innerHTML = `<div style="overflow:auto;"><table style="width:100%;">
+    <thead style="background:#f1f5f9;position:sticky;top:0;">
+      <tr>
+        <th style="text-align:left;padding:8px 10px;">类型</th>
+        <th style="text-align:left;padding:8px 10px;">内容</th>
+        <th style="text-align:left;padding:8px 10px;">期望输出</th>
+        <th style="text-align:left;padding:8px 10px;">测试结果</th>
+        <th style="text-align:left;padding:8px 10px;width:200px;">操作</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function showEvalSampleDetail(id) {
+  const tr = document.getElementById('detail-' + id);
+  if (tr) tr.style.display = (tr.style.display === 'none' || !tr.style.display) ? 'table-row' : 'none';
 }
 
 async function seedEvalSamples() {
@@ -1270,35 +1360,137 @@ async function seedEvalSamples() {
 }
 
 async function runEvalTests() {
-  if (!confirm('确认对所有未通过的验收样本运行模型测试（调用LLM推理，消耗API额度)？')) return;
+  const msg = `确认运行验收测试？
+
+选项：
+  · 仅测试「未通过 + 未测」的样本（推荐，省API额度）
+  · 全部重新测试
+
+会调用LLM推理（消耗API额度），测试结果自动写回样本表。`;
+  if (!confirm(msg)) return;
+  const mode = confirm('点击【确定】= 仅测未通过+未测\n点击【取消】= 全部重测');
   try {
-    toast('开始验收测试中...', 'info');
-    const samplesRes = await API.get('/data/evaluation/samples');
-    const samples = samplesRes.data.filter(s => s.test_passed !== 1 || !s.tested_at);
-    if (!samples.length) { toast('没有待测试样本', 'warning'); return; }
-    let pass = 0;
-    const updateUI = setInterval(() => toast(`测试中... ${pass}/${samples.length}`, 'info'), 2000);
-    for (let i = 0; i < samples.length; i++) {
-      try {
-        const s = samples[i];
-        const inf = await API.post('/tickets/infer?dry=1', { content: s.content, original_category: '', district: '', block: '' });
-        if (inf.code !== 0) continue;
-        const d = inf.data.inference || inf.data;
-        const catOk = !s.expected_category || d.category === s.expected_category;
-        const urgOk = !s.expected_urgency || d.urgency === s.expected_urgency;
-        const riskOk = (s.expected_high_risk ? 1 : 0) === (d.is_high_risk ? 1 : 0);
-        const needReviewOk = s.expected_needs_review ? d.needs_review : true;
-        const passed = catOk && urgOk && riskOk && needReviewOk;
-        const remarks = [];
-        if (!catOk) remarks.push(`分类:期望${s.expected_category}/实际${d.category}`);
-        if (!urgOk) remarks.push(`紧急:期望${s.expected_urgency}/实际${d.urgency}`);
-        if (!riskOk === 0) remarks.push('高风险识别不符');
-        if (!needReviewOk) remarks.push('复核判断不符');
-        pass++;
-      } catch (ee) {}
-    }
-    clearInterval(updateUI);
-    toast('验收测试完成，刷新查看结果', 'success');
+    const box = $('#eval-summary');
+    const loading = setInterval(() => { if (box) box.style.opacity = box.style.opacity === '0.5' ? '1' : '0.5'; }, 400);
+    toast('运行中...（批量推理，完成后自动刷新）', 'info');
+    const r = await API.post('/data/evaluation/run-tests', { only_failed: mode, only_untested: false });
+    clearInterval(loading);
+    if (box) box.style.opacity = '1';
+    if (r.code !== 0) throw new Error(r.message);
+    const d = r.data;
+    if (!d.total) { toast('没有符合条件的待测试样本', 'warning'); return; }
+    toast(`✅ 测试完成：${d.passed}/${d.total} 通过，通过率 ${(d.pass_rate*100).toFixed(1)}%`, d.pass_rate >= 0.7 ? 'success' : 'error');
+    loadEvalSamples();
+    loadEvalSummary();
+  } catch (e) { toast('测试失败：' + e.message, 'error'); }
+}
+
+async function runOneEvalSample(id) {
+  try {
+    toast('单个样本推理中...', 'info');
+    const r = await API.post(`/data/evaluation/samples/${id}/test`);
+    if (r.code !== 0) throw new Error(r.message);
+    toast(r.data.passed ? '✅ 测试通过' : '❌ 测试未通过', r.data.passed ? 'success' : 'warning');
+    loadEvalSamples();
+    loadEvalSummary();
+    setTimeout(() => showEvalSampleDetail(id), 150);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteEvalSample(id) {
+  if (!confirm('确认删除该验收样本？此操作不可撤销。')) return;
+  try {
+    const r = await API._delete(`/data/evaluation/samples/${id}`);
+    if (r.code !== 0) throw new Error(r.message);
+    toast('已删除', 'success');
+    loadEvalSamples();
+    loadEvalSummary();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function editEvalSample(id) {
+  const meta = window.__metaCache || (await (await fetch('/api/data/meta', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })).json()).data;
+  window.__metaCache = meta;
+  const r = await API.get('/data/evaluation/samples');
+  const s = (r.data || []).find(x => x.id === id);
+  if (!s) { toast('样本未找到', 'error'); return; }
+  const d = el('div', { class: 'modal-backdrop', onclick: e => e.target === e.currentTarget && closeModal() }, [
+    el('div', { class: 'modal' }, [
+      el('div', { class: 'modal-header' }, [
+        el('div', { class: 'modal-title' }, '编辑验收样本'),
+        el('button', { class: 'modal-close', onclick: closeModal }, '×'),
+      ]),
+      el('div', { class: 'modal-body' }, [
+        el('div', { class: 'form-group' }, [
+          el('label', { class: 'form-label' }, '样本类型'),
+          el('select', { id: 'es-type', class: 'form-control' }, [
+            el('option', { value: 'correct' }, 'correct - 正确判断'),
+            el('option', { value: 'low_confidence' }, 'low_confidence - 低置信度'),
+            el('option', { value: 'manual_correction' }, 'manual_correction - 人工改标'),
+            el('option', { value: 'unanswerable' }, 'unanswerable - 无法回答/高风险'),
+          ]),
+        ]),
+        el('div', { class: 'form-group' }, [
+          el('label', { class: 'form-label' }, '样本内容'),
+          el('textarea', { id: 'es-content', class: 'form-control', rows: 4 }),
+        ]),
+        el('div', { class: 'form-row' }, [
+          el('div', { class: 'form-group' }, [
+            el('label', { class: 'form-label' }, '期望类别'),
+            el('select', { id: 'es-cat', class: 'form-control' }, [el('option', { value: '' }, '不校验'), ...meta.categories.map(x => el('option', { value: x }, x))]),
+          ]),
+          el('div', { class: 'form-group' }, [
+            el('label', { class: 'form-label' }, '期望紧急度'),
+            el('select', { id: 'es-urg', class: 'form-control' }, [el('option', { value: '' }, '不校验'), ...meta.urgency_levels.map(x => el('option', { value: x.level }, `${x.level} - ${x.description}`))]),
+          ]),
+        ]),
+        el('div', { class: 'form-row' }, [
+          el('div', { class: 'form-group' }, [
+            el('label', { class: 'form-label' }, '期望高风险'),
+            el('select', { id: 'es-risk', class: 'form-control' }, [el('option', { value: '0' }, '否'), el('option', { value: '1' }, '是')]),
+          ]),
+          el('div', { class: 'form-group' }, [
+            el('label', { class: 'form-label' }, '期望需复核'),
+            el('select', { id: 'es-review', class: 'form-control' }, [el('option', { value: '0' }, '否'), el('option', { value: '1' }, '是')]),
+          ]),
+        ]),
+        el('div', { class: 'form-group' }, [
+          el('label', { class: 'form-label' }, '备注说明'),
+          el('input', { id: 'es-remark', class: 'form-control', placeholder: '样本设计说明...' }),
+        ]),
+      ]),
+      el('div', { class: 'modal-footer' }, [
+        el('button', { class: 'btn btn-outline', onclick: closeModal }, '取消'),
+        el('button', { class: 'btn btn-primary', onclick: () => submitEditSample(id) }, '保存（会重置测试结果）'),
+      ]),
+    ]),
+  ]);
+  document.getElementById('es-type').value = s.sample_type;
+  document.getElementById('es-content').value = s.content || '';
+  document.getElementById('es-cat').value = s.expected_category || '';
+  document.getElementById('es-urg').value = s.expected_urgency || '';
+  document.getElementById('es-risk').value = String(s.expected_high_risk || 0);
+  document.getElementById('es-review').value = String(s.expected_needs_review || 0);
+  document.getElementById('es-remark').value = s.remarks || '';
+  document.body.appendChild(d);
+}
+
+async function submitEditSample(id) {
+  const body = {
+    sample_type: document.getElementById('es-type').value,
+    content: document.getElementById('es-content').value.trim(),
+    expected_category: document.getElementById('es-cat').value || undefined,
+    expected_urgency: document.getElementById('es-urg').value || undefined,
+    expected_high_risk: parseInt(document.getElementById('es-risk').value),
+    expected_needs_review: parseInt(document.getElementById('es-review').value),
+    remarks: document.getElementById('es-remark').value || undefined,
+  };
+  if (!body.content) { toast('请输入内容', 'warning'); return; }
+  try {
+    const r = await API.put(`/data/evaluation/samples/${id}`, body);
+    if (r.code !== 0) throw new Error(r.message);
+    toast('已更新（测试结果已重置）', 'success');
+    closeModal();
     loadEvalSamples();
     loadEvalSummary();
   } catch (e) { toast(e.message, 'error'); }
