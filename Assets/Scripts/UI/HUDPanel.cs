@@ -25,12 +25,154 @@ namespace KitchenChaos.UI
 
         void OnEnable()
         {
+            AutoBuildUI();
             EventBus.Subscribe<ScoreUpdatedEvent>(OnScore);
             EventBus.Subscribe<TimerUpdatedEvent>(OnTimer);
             EventBus.Subscribe<OrderCreatedEvent>(OnOrderCreated);
             EventBus.Subscribe<OrderDeliveredEvent>(OnOrderDelivered);
             EventBus.Subscribe<OrderFailedEvent>(OnOrderFailed);
             EventBus.Subscribe<LevelStartedEvent>(OnLevelStarted);
+        }
+
+        void AutoBuildUI()
+        {
+            var root = (RectTransform)transform;
+            root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one;
+            root.offsetMin = Vector2.zero; root.offsetMax = Vector2.zero;
+
+            BuildTopBar(root);
+            BuildStarProgress(root);
+            BuildOrderTray(root);
+        }
+
+        void BuildTopBar(RectTransform root)
+        {
+            var topGo = new GameObject("TopBar", typeof(RectTransform), typeof(Image));
+            topGo.transform.SetParent(root, false);
+            var trt = (RectTransform)topGo.transform;
+            trt.anchorMin = new Vector2(0, 1); trt.anchorMax = new Vector2(1, 1);
+            trt.pivot = new Vector2(0.5f, 1);
+            trt.sizeDelta = new Vector2(0, 80);
+            var bg = topGo.GetComponent<Image>();
+            bg.color = new Color(0, 0, 0, 0.55f);
+
+            _levelNameText = HUDBuildText(topGo.transform, "LevelName", "—", 24,
+                new Vector2(0, 0.5f), new Vector2(0.35f, 0.5f), TextAlignmentOptions.MidlineLeft,
+                new Color(0.85f, 0.95f, 1f), new Vector2(20, 0, -10, 0));
+
+            var timerGo = new GameObject("TimerArea", typeof(RectTransform));
+            timerGo.transform.SetParent(topGo.transform, false);
+            var tirt = (RectTransform)timerGo.transform;
+            tirt.anchorMin = new Vector2(0.35f, 0); tirt.anchorMax = new Vector2(0.65f, 1);
+            tirt.offsetMin = Vector2.zero; tirt.offsetMax = Vector2.zero;
+
+            _timerText = HUDBuildText(timerGo.transform, "TimerText", "3:00", 34,
+                new Vector2(0, 0), new Vector2(1, 1), TextAlignmentOptions.Center, Color.white);
+            _timerText.fontStyle = FontStyles.Bold;
+
+            var fillGo = new GameObject("TimerFill", typeof(RectTransform), typeof(Image));
+            fillGo.transform.SetParent(timerGo.transform, false);
+            fillGo.transform.SetAsFirstSibling();
+            var frt = (RectTransform)fillGo.transform;
+            frt.anchorMin = new Vector2(0, 0.9f); frt.anchorMax = new Vector2(1, 1);
+            frt.offsetMin = Vector2.zero; frt.offsetMax = Vector2.zero;
+            var fimg = fillGo.GetComponent<Image>();
+            fimg.color = new Color(0.3f, 0.9f, 0.5f, 0.6f);
+            fimg.type = Image.Type.Filled;
+            fimg.fillMethod = Image.FillMethod.Horizontal;
+            _timerFill = fimg;
+
+            _scoreText = HUDBuildText(topGo.transform, "Score", "$ 0", 26,
+                new Vector2(0.65f, 0.5f), new Vector2(0.88f, 0.5f), TextAlignmentOptions.MidlineRight,
+                new Color(1f, 0.95f, 0.4f), Vector2.zero);
+            _scoreText.fontStyle = FontStyles.Bold;
+
+            _comboText = HUDBuildText(topGo.transform, "Combo", "连击 x1", 16,
+                new Vector2(0.88f, 0.5f), new Vector2(1, 0.5f), TextAlignmentOptions.MidlineRight,
+                new Color(1f, 0.6f, 0.3f), new Vector2(0, 0, -10, 0));
+            _comboText.enabled = false;
+        }
+
+        void BuildStarProgress(RectTransform root)
+        {
+            var starsGo = new GameObject("Stars", typeof(RectTransform));
+            starsGo.transform.SetParent(root, false);
+            var srt = (RectTransform)starsGo.transform;
+            srt.anchorMin = new Vector2(0.5f, 1); srt.anchorMax = new Vector2(0.5f, 1);
+            srt.pivot = new Vector2(0.5f, 1);
+            srt.sizeDelta = new Vector2(260, 40);
+            srt.anchoredPosition = new Vector2(0, -70);
+            _starImages = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var sg = new GameObject($"Star{i}", typeof(RectTransform), typeof(Image));
+                sg.transform.SetParent(starsGo.transform, false);
+                var s = (RectTransform)sg.transform;
+                s.anchorMin = new Vector2((float)i / 3, 0); s.anchorMax = new Vector2((float)(i + 1) / 3, 1);
+                s.offsetMin = new Vector2(5, 0); s.offsetMax = new Vector2(-5, 0);
+                var img = sg.GetComponent<Image>();
+                img.color = new Color(1, 1, 1, 0.25f);
+                var txt = sg.AddComponent<TextMeshProUGUI>();
+                txt.text = "⭐"; txt.fontSize = 28; txt.alignment = TextAlignmentOptions.Center;
+                _starImages[i] = img;
+            }
+        }
+
+        void BuildOrderTray(RectTransform root)
+        {
+            var trayGo = new GameObject("OrdersTray", typeof(RectTransform), typeof(Image));
+            trayGo.transform.SetParent(root, false);
+            var tart = (RectTransform)trayGo.transform;
+            tart.anchorMin = new Vector2(0, 0); tart.anchorMax = new Vector2(1, 0);
+            tart.pivot = new Vector2(0.5f, 0);
+            tart.sizeDelta = new Vector2(0, 140);
+            trayGo.GetComponent<Image>().color = new Color(0, 0, 0, 0.45f);
+
+            var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(ScrollRect));
+            scrollGo.transform.SetParent(trayGo.transform, false);
+            var srt = (RectTransform)scrollGo.transform;
+            srt.anchorMin = new Vector2(0.03f, 0.1f); srt.anchorMax = new Vector2(0.97f, 0.9f);
+            srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+
+            var view = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+            view.transform.SetParent(scrollGo.transform, false);
+            var vrt = (RectTransform)view.transform;
+            vrt.anchorMin = Vector2.zero; vrt.anchorMax = Vector2.one;
+            vrt.offsetMin = Vector2.zero; vrt.offsetMax = Vector2.zero;
+
+            var ordersGo = new GameObject("Orders", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
+            ordersGo.transform.SetParent(view.transform, false);
+            var ort = (RectTransform)ordersGo.transform;
+            ort.anchorMin = new Vector2(0, 0.5f); ort.anchorMax = new Vector2(0, 0.5f);
+            ort.pivot = new Vector2(0, 0.5f); ort.sizeDelta = new Vector2(0, 110);
+            var hg = ordersGo.GetComponent<HorizontalLayoutGroup>();
+            hg.childAlignment = TextAnchor.MiddleLeft;
+            hg.childControlHeight = true; hg.childControlWidth = true;
+            hg.childForceExpandHeight = true; hg.childForceExpandWidth = false;
+            hg.spacing = 12; hg.padding = new RectOffset(10, 10, 0, 0);
+            var csf = ordersGo.GetComponent<ContentSizeFitter>();
+            csf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            csf.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+            var sr = scrollGo.GetComponent<ScrollRect>();
+            sr.viewport = vrt; sr.content = ort;
+            sr.horizontal = true; sr.vertical = false; sr.scrollSensitivity = 20;
+
+            _ordersParent = ort;
+        }
+
+        static TMP_Text HUDBuildText(Transform parent, string name, string txt, int size,
+            Vector2 aMin, Vector2 aMax, TextAlignmentOptions align, Color? c = null, Vector2? ofs = null)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = aMin; rt.anchorMax = aMax;
+            var o = ofs ?? Vector2.zero;
+            rt.offsetMin = new Vector2(o.x, o.y); rt.offsetMax = new Vector2(o.z, o.w);
+            var t = go.AddComponent<TextMeshProUGUI>();
+            t.text = txt; t.fontSize = size; t.alignment = align; t.color = c ?? Color.white;
+            t.enableWordWrapping = false; t.overflowMode = TextOverflowModes.Overflow;
+            return t;
         }
 
         void OnDisable()
@@ -206,6 +348,23 @@ namespace KitchenChaos.UI
                 t.color = new Color(1f, 0.85f, 0.2f);
                 t.text = $"${e.BaseScore}";
             }
+
+            if (_timerBar == null)
+            {
+                var go = new GameObject("TimerBar", typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(transform, false);
+                var rt = (RectTransform)go.transform;
+                rt.anchorMin = new Vector2(0, 0); rt.anchorMax = new Vector2(1, 0);
+                rt.pivot = new Vector2(0.5f, 0);
+                rt.sizeDelta = new Vector2(0, 6);
+                var img = go.GetComponent<Image>();
+                img.color = new Color(0.4f, 0.8f, 0.4f);
+                img.type = Image.Type.Filled;
+                img.fillMethod = Image.FillMethod.Horizontal;
+                img.fillAmount = 1f;
+                _timerBar = img;
+            }
+            else { _timerBar.fillAmount = 1f; }
         }
 
         TMP_Text GetOrAddText(string goName, int size, TextAlignmentOptions align)

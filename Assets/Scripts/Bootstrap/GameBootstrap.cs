@@ -297,6 +297,33 @@ namespace KitchenChaos.Bootstrap
 
         void OnGameStateChanged(GameStateChangedEvent e)
         {
+            var main = GameObject.Find("MainMenuPanel");
+            var hud = GameObject.Find("HUDPanel");
+            var result = GameObject.Find("ResultPanel");
+            switch (e.NewState)
+            {
+                case GameState.MainMenu:
+                    if (main) main.SetActive(true);
+                    if (hud) hud.SetActive(false);
+                    if (result) result.SetActive(false);
+                    break;
+                case GameState.LevelSelect:
+                case GameState.PreGame:
+                    if (main) main.SetActive(true);
+                    if (hud) hud.SetActive(false);
+                    if (result) result.SetActive(false);
+                    break;
+                case GameState.Playing:
+                    if (main) main.SetActive(false);
+                    if (hud) hud.SetActive(true);
+                    if (result) result.SetActive(false);
+                    break;
+                case GameState.LevelEnd:
+                    if (main) main.SetActive(false);
+                    if (hud) hud.SetActive(false);
+                    if (result) result.SetActive(true);
+                    break;
+            }
         }
 
         void OnOrderFailed(OrderFailedEvent e)

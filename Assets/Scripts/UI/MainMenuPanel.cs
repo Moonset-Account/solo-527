@@ -152,8 +152,46 @@ namespace KitchenChaos.UI
         {
             AddLabel(content, "LsTitle", "选择关卡", 32, new Vector2(0, 0.95f), new Color(0.9f, 1f, 1f));
             _levelBackButton = AddButton(content, "BackBtn", "←  返回主菜单", new Vector2(0.5f, 0.95f), new Vector2(200, 48));
-            _levelListParent = content;
             AddLabel(content, "Hint", "点击下方任一关卡卡片开始", 16, new Vector2(0, 0.85f), new Color(0.7f, 0.8f, 0.9f));
+
+            var scrollGo = new GameObject("LevelCards", typeof(RectTransform), typeof(ScrollRect));
+            scrollGo.transform.SetParent(content, false);
+            var srt = (RectTransform)scrollGo.transform;
+            srt.anchorMin = new Vector2(0.05f, 0.05f); srt.anchorMax = new Vector2(0.95f, 0.80f);
+            srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
+            viewport.transform.SetParent(scrollGo.transform, false);
+            var vrt = (RectTransform)viewport.transform;
+            vrt.anchorMin = Vector2.zero; vrt.anchorMax = Vector2.one;
+            vrt.offsetMin = Vector2.zero; vrt.offsetMax = Vector2.zero;
+
+            var cardsGo = new GameObject("Cards", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
+            cardsGo.transform.SetParent(viewport.transform, false);
+            var crt = (RectTransform)cardsGo.transform;
+            crt.anchorMin = new Vector2(0, 1); crt.anchorMax = new Vector2(1, 1);
+            crt.pivot = new Vector2(0.5f, 1); crt.sizeDelta = new Vector2(0, 600);
+
+            var grid = cardsGo.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(280, 110);
+            grid.spacing = new Vector2(20, 18);
+            grid.childAlignment = TextAnchor.UpperCenter;
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            grid.constraint = GridLayoutGroup.Constraint.Flexible;
+
+            var fitter = cardsGo.GetComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var sr = scrollGo.GetComponent<ScrollRect>();
+            sr.viewport = vrt;
+            sr.content = crt;
+            sr.horizontal = false;
+            sr.vertical = true;
+            sr.scrollSensitivity = 30f;
+
+            _levelListParent = crt;
         }
 
         void BuildPreviewPage(RectTransform content)

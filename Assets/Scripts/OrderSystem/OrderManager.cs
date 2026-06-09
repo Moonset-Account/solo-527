@@ -4,6 +4,8 @@ using UnityEngine;
 using KitchenChaos.Core;
 using KitchenChaos.Ingredients;
 using KitchenChaos.Config;
+using RecipeStep = KitchenChaos.Ingredients.RecipeStep;
+using Recipe = KitchenChaos.Ingredients.Recipe;
 
 namespace KitchenChaos.OrderSystem
 {
