@@ -241,9 +241,10 @@ export class CityMap {
     return pick(names[type] || ['未知建筑']);
   }
 
-  _isNearRoad(x, y, dist) {
-    return this.roadGraph.nearestNode(x, y) &&
-      dist(this.roadGraph.nearestNode(x, y).x, this.roadGraph.nearestNode(x, y).y, x, y) < dist;
+  _isNearRoad(x, y, threshold) {
+    const node = this.roadGraph.nearestNode(x, y);
+    if (!node) return false;
+    return dist(node.x, node.y, x, y) < threshold;
   }
 
   _generateRegions() {
@@ -335,8 +336,14 @@ export class CityMap {
 
   getRandomBuilding(types = null, excludeIds = null) {
     let pool = this.buildings;
-    if (types) pool = pool.filter(b => types.includes(b.type));
-    if (excludeIds) pool = pool.filter(b => !excludeIds.includes(b.id));
+    if (types) {
+      const typeSet = types instanceof Set ? types : new Set(types);
+      pool = pool.filter(b => typeSet.has(b.type));
+    }
+    if (excludeIds) {
+      const excludeSet = excludeIds instanceof Set ? excludeIds : new Set(excludeIds);
+      pool = pool.filter(b => !excludeSet.has(b.id));
+    }
     return pool.length ? pick(pool) : null;
   }
 
