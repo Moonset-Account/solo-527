@@ -1,7 +1,8 @@
 from app.core.database import Base
 from app.models.ticket import (
     Category, Ticket, AnnotationVersion, SimilarCase, ErrorSample,
-    ModelVersion, TrainingTask, TrainingMetric, BatchConfirmLog, RollbackLog
+    ModelVersion, TrainingTask, TrainingMetric, BatchConfirmLog, RollbackLog,
+    InferenceBatchTask,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "TrainingMetric",
     "BatchConfirmLog",
     "RollbackLog",
+    "InferenceBatchTask",
 ]

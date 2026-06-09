@@ -261,3 +261,23 @@ class RollbackLog(Base):
 
     from_version = relationship("ModelVersion", foreign_keys=[from_version_id])
     to_version = relationship("ModelVersion", foreign_keys=[to_version_id])
+
+
+class InferenceBatchTask(Base):
+    __tablename__ = "inference_batch_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String(100), nullable=True, unique=True, index=True)
+    status = Column(String(30), default=TaskStatus.PENDING.value)
+    total_count = Column(Integer, default=0)
+    success_count = Column(Integer, default=0)
+    low_confidence_count = Column(Integer, default=0)
+    error_count = Column(Integer, default=0)
+    ticket_ids = Column(JSON, nullable=False)
+    store_predictions = Column(Boolean, default=True)
+    error_message = Column(Text, nullable=True)
+    result_summary = Column(JSON, nullable=True)
+    created_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)

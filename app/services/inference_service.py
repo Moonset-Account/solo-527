@@ -7,6 +7,7 @@ from sqlalchemy import func, case, and_, extract
 from app.models import (
     Ticket, ModelVersion, TrainingTask, ErrorSample, AnnotationVersion,
 )
+from app.services.batch_task_service import BatchTaskService
 from app.models.ticket import TicketStatus, ModelStatus, TaskStatus
 from app.services.ticket_service import (
     TicketService, CategoryService, ErrorSampleService,
@@ -195,6 +196,46 @@ class InferenceService:
 
         ids = [t.id for t in tickets]
         return cls.predict_batch(db, ids, store=True)
+
+    @classmethod
+    def execute_batch_task(
+        cls,
+        db: Session,
+        task_id: int,
+    ) -> Dict[str, Any]:
+        task = BatchTaskService.get(db, task_id)
+        if not task:
+            return {"error": f"批量任务#{task_id}不存在"}
+        BatchTaskService.update(
+            db, task_id,
+            status=TaskStatus.RUNNING.value,
+            started_at=datetime.utcnow(),
+        )
+        try:
+            result = cls.predict_batch(
+                db, task.ticket_ids, store=task.store_predictions,
+            )
+            summary = {
+                k: v for k, v in result.items() if k != "results"
+            }
+            BatchTaskService.update(
+                db, task_id,
+                status=TaskStatus.COMPLETED.value,
+                success_count=result["success"],
+                low_confidence_count=result["low_confidence_count"],
+                error_count=result["total"] - result["success"],
+                result_summary=summary,
+                finished_at=datetime.utcnow(),
+            )
+            return result
+        except Exception as e:
+            BatchTaskService.update(
+                db, task_id,
+                status=TaskStatus.FAILED.value,
+                error_message=str(e),
+                finished_at=datetime.utcnow(),
+            )
+            raise
 
 
 class StatsService:

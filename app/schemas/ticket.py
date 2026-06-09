@@ -122,6 +122,9 @@ class BatchPredictResponse(_BaseSchema):
     success: int
     low_confidence_count: int
     results: List[TicketPredictResponse]
+    task_id: Optional[int] = None
+    job_id: Optional[str] = None
+    status: Optional[str] = None
 
 
 class AnnotationBase(_BaseSchema):
@@ -219,3 +222,28 @@ class ErrorSampleListResponse(_BaseSchema):
     page: int
     page_size: int
     by_source: Dict[str, int] = {}
+
+
+class InferenceBatchTaskResponse(_BaseSchema):
+    id: int
+    job_id: Optional[str] = None
+    status: str
+    total_count: int
+    success_count: int
+    low_confidence_count: int
+    error_count: int
+    ticket_ids: List[int]
+    store_predictions: bool
+    error_message: Optional[str] = None
+    result_summary: Optional[Dict[str, Any]] = None
+    created_by: Optional[str] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+
+
+class InferenceBatchTaskListResponse(_BaseSchema):
+    items: List[InferenceBatchTaskResponse]
+    total: int
+    page: int
+    page_size: int

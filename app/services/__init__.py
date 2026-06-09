@@ -1,5 +1,6 @@
 __all__ = [
     "CategoryService", "TicketService", "AnnotationService", "ErrorSampleService",
+    "BatchTaskService",
     "TrainingService", "ModelVersionService",
     "InferenceService", "StatsService",
 ]
@@ -9,6 +10,9 @@ def __getattr__(name):
     if name in ("CategoryService", "TicketService", "AnnotationService", "ErrorSampleService"):
         from app.services import ticket_service as _ts
         return getattr(_ts, name)
+    if name == "BatchTaskService":
+        from app.services import batch_task_service as _bts
+        return getattr(_bts, name)
     if name in ("TrainingService", "ModelVersionService"):
         from app.services import ml_service as _mls
         return getattr(_mls, name)

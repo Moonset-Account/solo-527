@@ -25,11 +25,13 @@ def execute_training_task(task_id: int):
         db.close()
 
 
-def execute_batch_inference(ticket_ids: list, store: bool = True):
+def execute_batch_inference(task_id: int):
     db = SessionLocal()
     try:
-        result = InferenceService.predict_batch(db, ticket_ids, store=store)
-        return result
+        result = InferenceService.execute_batch_task(db, task_id)
+        return {"task_id": task_id, "status": "success", **{
+            k: v for k, v in result.items() if k != "results"
+        }}
     except Exception as e:
         traceback.print_exc()
         raise
