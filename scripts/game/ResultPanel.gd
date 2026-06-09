@@ -31,6 +31,7 @@ func _ready() -> void:
 	hide()
 
 func _setup_panel() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 50
@@ -130,11 +131,10 @@ func _setup_panel() -> void:
 	sep.custom_minimum_size.y = 6
 	vb.add_child(sep)
 	var breakdown_title = Label.new()
-	breakdown_title.text = "得分明细"
+	breakdown_title.text = "【得分明细】"
 	breakdown_title.add_theme_font_size_override("font_size", 14)
 	breakdown_title.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85, 1))
-	breakdown_title.bbcode_enabled = true
-	breakdown_title.text = "[b]得分明细[/b]"
+	breakdown_title.custom_minimum_size.y = 28
 	vb.add_child(breakdown_title)
 	var breakdown_scroll = ScrollContainer.new()
 	breakdown_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -318,10 +318,10 @@ func _build_failure_reasons(data: Dictionary) -> void:
 		return
 	failure_reasons_container.visible = true
 	var title = Label.new()
-	title.text = "[b]失败原因分析：[/b]"
+	title.text = "【失败原因分析】"
 	title.add_theme_font_size_override("font_size", 13)
 	title.add_theme_color_override("font_color", Color(0.95, 0.65, 0.65, 1))
-	title.bbcode_enabled = true
+	title.custom_minimum_size.y = 28
 	failure_reasons_container.add_child(title)
 	for reason in reasons:
 		var row = HBoxContainer.new()

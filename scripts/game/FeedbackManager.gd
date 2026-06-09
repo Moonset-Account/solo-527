@@ -6,6 +6,7 @@ var container: VBoxContainer
 var active_feedbacks: Array = []
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 100
 	container = VBoxContainer.new()
 	container.name = "FeedbackContainer"

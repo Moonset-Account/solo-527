@@ -20,6 +20,7 @@ func _ready() -> void:
 	hide()
 
 func _setup_panel() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	custom_minimum_size = Vector2(500, 280)
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER

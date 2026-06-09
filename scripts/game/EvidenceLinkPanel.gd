@@ -24,6 +24,7 @@ func _ready() -> void:
 	hide()
 
 func _setup_panel() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	custom_minimum_size = Vector2(520, 400)
 	size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -76,10 +77,9 @@ func _setup_panel() -> void:
 	sep.custom_minimum_size.y = 8
 	bg_panel.add_child(sep)
 	var create_title = Label.new()
-	create_title.text = "[b]创建新关联[/b]"
+	create_title.text = "【创建新关联】"
 	create_title.add_theme_font_size_override("font_size", 14)
 	create_title.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95, 1))
-	create_title.bbcode_enabled = true
 	create_title.custom_minimum_size.y = 28
 	bg_panel.add_child(create_title)
 	var from_row = HBoxContainer.new()
@@ -135,10 +135,9 @@ func _setup_panel() -> void:
 	sep2.custom_minimum_size.y = 8
 	bg_panel.add_child(sep2)
 	var list_title = Label.new()
-	list_title.text = "[b]已建立的关联[/b]"
+	list_title.text = "【已建立的关联】"
 	list_title.add_theme_font_size_override("font_size", 14)
 	list_title.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95, 1))
-	list_title.bbcode_enabled = true
 	list_title.custom_minimum_size.y = 28
 	bg_panel.add_child(list_title)
 	var list_scroll = ScrollContainer.new()

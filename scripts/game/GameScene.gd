@@ -243,6 +243,7 @@ func _create_sidebar_button(text: String, base: Color, hover: Color) -> Button:
 func _build_modals() -> void:
 	var modal_layer = CanvasLayer.new()
 	modal_layer.layer = 20
+	modal_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(modal_layer)
 	tag_panel = TAG_PANEL_SCRIPT.new()
 	tag_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -395,6 +396,7 @@ func _show_submit_confirm_dialog() -> bool:
 	confirm_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	confirm_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	confirm_overlay.z_index = 100
+	confirm_overlay.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	add_child(confirm_overlay)
 	var center = CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
