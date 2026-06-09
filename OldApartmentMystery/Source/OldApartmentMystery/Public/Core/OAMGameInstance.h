@@ -11,7 +11,14 @@ class UOAMSaveManager;
 class UOAMAudioManager;
 class UOAMTelemetryManager;
 class UOAMChapterManager;
+class UOAMBootstrapData;
+class UOAMItemData;
+class UOAMNoteData;
+class UOAMPuzzleData;
+class UOAMChapterData;
+class UOAMLevelDataAsset;
 class UInputMappingContext;
+class UInputAction;
 
 UCLASS()
 class OLDAPARTMENTMYSTERY_API UOAMGameInstance : public UGameInstance
@@ -21,6 +28,21 @@ public:
 	UOAMGameInstance();
 	virtual void Init() override;
 	virtual void Shutdown() override;
+
+	/* ================= Bootstrap 数据查询（当 Content 下 .uasset 缺失时使用内存数据） ================= */
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMBootstrapData* GetBootstrap() const { return Bootstrap; }
+
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMItemData* ResolveItem(FName ItemID) const;
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMNoteData* ResolveNote(FName NoteID) const;
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMPuzzleData* ResolvePuzzle(FName PuzzleID) const;
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMChapterData* ResolveChapter(int32 ChapterID) const;
+	UFUNCTION(BlueprintPure, Category = "OAM|Bootstrap")
+	UOAMLevelDataAsset* ResolveLevel(FName LevelName) const;
 
 	UPROPERTY(BlueprintReadOnly, Category = "OAM|Managers")
 	TObjectPtr<UOAMSaveManager> SaveManager;
@@ -52,6 +74,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "OAM|Flow")
 	void TransitionToLevel(FName LevelName, FVector2D SpawnLocation = FVector2D(-1, -1));
 
+	UFUNCTION(BlueprintPure, Category = "OAM|Flow")
+	FName GetCurrentLevelName() const { return CurrentLogicalLevel; }
+
+	UFUNCTION(BlueprintPure, Category = "OAM|Flow")
+	bool IsInMainMenu() const { return bMainMenuMode; }
+
+	UFUNCTION(BlueprintCallable, Category = "OAM|Flow")
+	void RebuildCurrentLevelUI();
+
 	UPROPERTY(BlueprintAssignable)
 	FOAM_OnInputModeChanged OnInputModeChanged;
 
@@ -66,5 +97,25 @@ public:
 
 private:
 	EOAMInputMode CurrentInputMode = EOAMInputMode::UI;
+
+	UPROPERTY() FName CurrentLogicalLevel = NAME_None;
+	UPROPERTY() bool bMainMenuMode = true;
+	UPROPERTY() FVector2D PendingSpawnTile = FVector2D(-1, -1);
+
+	UPROPERTY() TObjectPtr<UOAMBootstrapData> Bootstrap;
+
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Move;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Look;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Interact;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Notebook;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Inventory;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Pause;
+	UPROPERTY() TObjectPtr<UInputAction> InputCache_IA_Back;
+	UPROPERTY() TArray<TObjectPtr<UInputAction>> InputCache_IA_Digits;
+
 	void CreateManagers();
+	void BuildRuntimeInputAssets();
+	void BuildInputContextAndMappings();
+
+	friend class AOAMPlayerController;
 };

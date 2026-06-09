@@ -3,6 +3,7 @@
 #include "Player/OAMPlayerController.h"
 #include "Player/OAMInteractionComponent.h"
 #include "Core/OAMGameInstance.h"
+#include "Bootstrap/OAMUIFactory.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -25,6 +26,19 @@ void AOAMPlayerController::BeginPlay()
 	if (const auto* GI = UOAMGameInstance::GetOAM(this))
 	{
 		if (GI->DefaultInputContext) InputContext = GI->DefaultInputContext;
+
+		// 从 GI 程序化创建的 Input 缓存中读取（无需 Content/Input/*.uasset）
+		if (!IA_Move)      IA_Move      = GI->InputCache_IA_Move;
+		if (!IA_Look)      IA_Look      = GI->InputCache_IA_Look;
+		if (!IA_Interact)  IA_Interact  = GI->InputCache_IA_Interact;
+		if (!IA_Notebook)  IA_Notebook  = GI->InputCache_IA_Notebook;
+		if (!IA_Inventory) IA_Inventory = GI->InputCache_IA_Inventory;
+		if (!IA_Pause)     IA_Pause     = GI->InputCache_IA_Pause;
+		if (!IA_Back)      IA_Back      = GI->InputCache_IA_Back;
+		if (IA_Digits.Num() == 0)
+		{
+			IA_Digits = GI->InputCache_IA_Digits;
+		}
 	}
 
 	if (auto* EIS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
@@ -33,6 +47,8 @@ void AOAMPlayerController::BeginPlay()
 	}
 
 	InteractionComp->Initialize(this);
+	UE_LOG(LogTemp, Log, TEXT("[OAM][Input] PlayerController 初始化完成：%d 个数字键绑定"),
+		IA_Digits.Num());
 }
 
 void AOAMPlayerController::SetupInputComponent()
@@ -90,10 +106,13 @@ void AOAMPlayerController::OnToggleNotebook(const FInputActionValue& Value)
 		EOAMInputMode M = GI->GetCurrentInputMode();
 		if (M == EOAMInputMode::Exploration)
 		{
+			// 打开笔记本 UI
+			UOAMUIFactory::CreateNotebook(this);
 			GI->SetInputMode(EOAMInputMode::UI);
 		}
 		else if (M == EOAMInputMode::UI)
 		{
+			// 关闭：移除最上层非暂停/非HUD的 Widget（简单处理：切回 Exploration）
 			GI->SetInputMode(EOAMInputMode::Exploration);
 		}
 	}
@@ -109,8 +128,19 @@ void AOAMPlayerController::OnPause(const FInputActionValue& Value)
 	if (auto* GI = UOAMGameInstance::GetOAM(this))
 	{
 		EOAMInputMode M = GI->GetCurrentInputMode();
-		if (M == EOAMInputMode::UI) GI->SetInputMode(EOAMInputMode::Exploration);
-		else if (M == EOAMInputMode::Exploration) GI->SetInputMode(EOAMInputMode::UI);
+		if (M == EOAMInputMode::Exploration)
+		{
+			if (!GI->IsInMainMenu())
+			{
+				UOAMUIFactory::CreatePauseMenu(this);
+				GI->SetInputMode(EOAMInputMode::UI);
+			}
+		}
+		else if (M == EOAMInputMode::UI)
+		{
+			if (!GI->IsInMainMenu())
+				GI->SetInputMode(EOAMInputMode::Exploration);
+		}
 	}
 }
 
