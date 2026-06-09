@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>迷你城市应急调度 · 测试版</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-root"></div>
+
+    <div id="debug-panel" class="debug-panel hidden">
+      <div class="debug-header">
+        <span>调试面板</span>
+        <button id="debug-close">×</button>
+      </div>
+      <div class="debug-content"></div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <audio id="audio-bgm" loop></audio>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
