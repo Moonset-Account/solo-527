@@ -1,7 +1,10 @@
 import type {
   AdjustmentRecord,
+  FailureSource,
+  FailureStepRecord,
   LevelRecord,
   MetricsSnapshot,
+  PhaseConfig,
   PlayerStatistics,
   ReplayData,
   SaveData,
@@ -9,7 +12,7 @@ import type {
 import { eventBus } from './EventBus';
 
 const STORAGE_KEY = 'traffic_sim_save_v1';
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 export class SaveManager {
   private data: SaveData | null = null;
@@ -24,16 +27,19 @@ export class SaveManager {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
         this.data = this.createDefault();
+        this.save();
         return this.data;
       }
 
       const parsed = JSON.parse(raw) as SaveData;
       this.data = this.migrate(parsed);
+      this.save();
       eventBus.emit('save:loaded', this.data);
       return this.data;
     } catch (e) {
       console.error('Failed to load save:', e);
       this.data = this.createDefault();
+      this.save();
       return this.data;
     }
   }
@@ -56,6 +62,63 @@ export class SaveManager {
     }
   }
 
+  private createEmptyLevelRecord(): LevelRecord {
+    return {
+      completed: false,
+      bestScore: 0,
+      bestMetrics: null,
+      attempts: 0,
+      failures: 0,
+      lastPlayedAt: 0,
+      firstAttemptedAt: null,
+      lastAttemptedAt: null,
+      failureReasons: [],
+      failureSteps: [],
+      adjustmentHistory: [],
+      tutorialSkippedAt: null,
+      tutorialCompletedAt: null,
+      attemptStartTimes: [],
+    };
+  }
+
+  private ensureLevelRecord(levelId: string): LevelRecord {
+    if (!this.data) this.load();
+    if (!this.data!.statistics.levels[levelId]) {
+      this.data!.statistics.levels[levelId] = this.createEmptyLevelRecord();
+    }
+    const rec = this.data!.statistics.levels[levelId] as any;
+    const defaults: LevelRecord = this.createEmptyLevelRecord();
+    let changed = false;
+    for (const k of Object.keys(defaults) as (keyof LevelRecord)[]) {
+      if (rec[k] === undefined || rec[k] === null) {
+        if (Array.isArray((defaults as any)[k])) {
+          (rec as any)[k] = [];
+        } else {
+          (rec as any)[k] = (defaults as any)[k];
+        }
+        changed = true;
+      }
+    }
+    if (!Array.isArray(rec.adjustmentHistory)) {
+      rec.adjustmentHistory = [];
+      changed = true;
+    }
+    if (!Array.isArray(rec.failureReasons)) {
+      rec.failureReasons = [];
+      changed = true;
+    }
+    if (!Array.isArray(rec.failureSteps)) {
+      rec.failureSteps = [];
+      changed = true;
+    }
+    if (!Array.isArray(rec.attemptStartTimes)) {
+      rec.attemptStartTimes = [];
+      changed = true;
+    }
+    if (changed) this.save();
+    return rec as LevelRecord;
+  }
+
   private createDefault(): SaveData {
     return {
       version: CURRENT_VERSION,
@@ -63,6 +126,8 @@ export class SaveManager {
       statistics: {
         tutorialCompleted: false,
         tutorialSkipped: false,
+        tutorialCompletedAt: null,
+        tutorialSkippedAt: null,
         totalPlayTime: 0,
         levels: {},
       },
@@ -75,18 +140,54 @@ export class SaveManager {
   }
 
   private migrate(data: SaveData): SaveData {
-    if (data.version === CURRENT_VERSION) return data;
+    try {
+      const migrated: any = { ...data };
 
-    const migrated = { ...data };
-    if (!migrated.statistics.levels) migrated.statistics.levels = {};
-    if (!migrated.replays) migrated.replays = [];
-    if (!migrated.sandboxSettings) migrated.sandboxSettings = {};
-    Object.values(migrated.statistics.levels).forEach((lvl: any) => {
-      if (!lvl.adjustmentHistory) lvl.adjustmentHistory = [];
-      if (!lvl.failureReasons) lvl.failureReasons = [];
-    });
-    migrated.version = CURRENT_VERSION;
-    return migrated;
+      if (!migrated.version) migrated.version = 0;
+      if (!migrated.statistics) {
+        migrated.statistics = {
+          tutorialCompleted: false,
+          tutorialSkipped: false,
+          tutorialCompletedAt: null,
+          tutorialSkippedAt: null,
+          totalPlayTime: 0,
+          levels: {},
+        };
+      }
+      if (!migrated.replays) migrated.replays = [];
+      if (!migrated.sandboxSettings) migrated.sandboxSettings = {};
+
+      const stats = migrated.statistics as any;
+      if (stats.tutorialCompletedAt === undefined) stats.tutorialCompletedAt = null;
+      if (stats.tutorialSkippedAt === undefined) stats.tutorialSkippedAt = null;
+      if (stats.tutorialSkipped === undefined) stats.tutorialSkipped = false;
+      if (stats.tutorialCompleted === undefined) stats.tutorialCompleted = false;
+      if (!stats.levels) stats.levels = {};
+
+      for (const [levelId, lvl] of Object.entries<any>(stats.levels)) {
+        const empty = this.createEmptyLevelRecord() as any;
+        for (const k of Object.keys(empty)) {
+          if ((lvl as any)[k] === undefined || (lvl as any)[k] === null) {
+            if (Array.isArray(empty[k])) {
+              (lvl as any)[k] = [];
+            } else {
+              (lvl as any)[k] = empty[k];
+            }
+          }
+        }
+        if (!Array.isArray((lvl as any).adjustmentHistory)) (lvl as any).adjustmentHistory = [];
+        if (!Array.isArray((lvl as any).failureReasons)) (lvl as any).failureReasons = [];
+        if (!Array.isArray((lvl as any).failureSteps)) (lvl as any).failureSteps = [];
+        if (!Array.isArray((lvl as any).attemptStartTimes)) (lvl as any).attemptStartTimes = [];
+        stats.levels[levelId] = lvl;
+      }
+
+      migrated.version = CURRENT_VERSION;
+      return migrated as SaveData;
+    } catch (e) {
+      console.error('migrate failed, fallback to default', e);
+      return this.createDefault();
+    }
   }
 
   getData(): SaveData | null {
@@ -111,8 +212,25 @@ export class SaveManager {
 
   recordTutorial(skipped: boolean): void {
     if (!this.data) this.load();
+    const now = Date.now();
     this.data!.statistics.tutorialCompleted = true;
     this.data!.statistics.tutorialSkipped = skipped;
+    if (skipped) {
+      this.data!.statistics.tutorialSkippedAt = now;
+    } else {
+      this.data!.statistics.tutorialCompletedAt = now;
+    }
+
+    const curLvl = this.data!.currentLevel;
+    if (curLvl) {
+      const rec = this.ensureLevelRecord(curLvl);
+      if (skipped) {
+        rec.tutorialSkippedAt = now;
+      } else {
+        rec.tutorialCompletedAt = now;
+      }
+      this.data!.statistics.levels[curLvl] = rec;
+    }
     this.save();
     eventBus.emit('tutorial:complete', { skipped });
   }
@@ -127,27 +245,72 @@ export class SaveManager {
     return this.data!.statistics.tutorialSkipped;
   }
 
+  recordAttemptStart(levelId: string): LevelRecord {
+    if (!this.data) this.load();
+    const now = Date.now();
+    const existing = this.ensureLevelRecord(levelId);
+    existing.attempts += 1;
+    existing.lastAttemptedAt = now;
+    if (!existing.firstAttemptedAt) existing.firstAttemptedAt = now;
+    existing.attemptStartTimes.push(now);
+    if (existing.attemptStartTimes.length > 100) {
+      existing.attemptStartTimes = existing.attemptStartTimes.slice(-100);
+    }
+    if (this.data!.statistics.tutorialSkipped) {
+      existing.tutorialSkippedAt = this.data!.statistics.tutorialSkippedAt;
+    }
+    if (this.data!.statistics.tutorialCompleted) {
+      existing.tutorialCompletedAt = this.data!.statistics.tutorialCompletedAt;
+    }
+    this.data!.statistics.levels[levelId] = existing;
+    this.save();
+    eventBus.emit('level:attempt', { levelId, attempt: existing.attempts });
+    return existing;
+  }
+
+  appendFailureStep(
+    levelId: string,
+    step: Omit<FailureStepRecord, 'id' | 'timestamp'>
+  ): FailureStepRecord | null {
+    if (!this.data) this.load();
+    if (!levelId) return null;
+
+    const existing = this.ensureLevelRecord(levelId);
+    const fullStep: FailureStepRecord = {
+      ...step,
+      id: `fail_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: Date.now(),
+    };
+    existing.failureSteps.push(fullStep);
+    if (existing.failureSteps.length > 100) {
+      existing.failureSteps = existing.failureSteps.slice(-100);
+    }
+    const simpleReason = `[${fullStep.source}] ${fullStep.reason}`;
+    if (
+      existing.failureReasons[existing.failureReasons.length - 1] !== simpleReason
+    ) {
+      existing.failureReasons.push(simpleReason);
+      if (existing.failureReasons.length > 20) {
+        existing.failureReasons = existing.failureReasons.slice(-20);
+      }
+    }
+    this.data!.statistics.levels[levelId] = existing;
+    this.save();
+    eventBus.emit('level:failure_step', { levelId, step: fullStep });
+    return fullStep;
+  }
+
   recordLevelAttempt(
     levelId: string,
     success: boolean,
     score: number,
     metrics: MetricsSnapshot,
-    reason?: string
+    reason?: string,
+    timingAtEnd?: PhaseConfig
   ): LevelRecord {
     if (!this.data) this.load();
 
-    const existing = this.data!.statistics.levels[levelId] || {
-      completed: false,
-      bestScore: 0,
-      bestMetrics: null,
-      attempts: 0,
-      failures: 0,
-      lastPlayedAt: 0,
-      failureReasons: [],
-      adjustmentHistory: [],
-    };
-
-    existing.attempts += 1;
+    const existing = this.ensureLevelRecord(levelId);
     existing.lastPlayedAt = Date.now();
 
     if (success) {
@@ -160,9 +323,28 @@ export class SaveManager {
     } else {
       existing.failures += 1;
       if (reason) {
-        existing.failureReasons.push(reason);
+        const finalReason = `[结算] ${reason}`;
+        existing.failureReasons.push(finalReason);
         if (existing.failureReasons.length > 20) {
           existing.failureReasons = existing.failureReasons.slice(-20);
+        }
+        existing.failureSteps.push({
+          id: `fail_end_${Date.now()}`,
+          timestamp: Date.now(),
+          simulationTime: 0,
+          source: 'timeout',
+          reason,
+          metricsSnapshot: {
+            congestionIndex: metrics.congestionIndex,
+            avgWaitingTime: metrics.avgWaitingTime,
+            throughput: metrics.throughput,
+            busOnTimeRate: metrics.busOnTimeRate,
+            vehicleCount: metrics.vehicleCount,
+          },
+          timingAtFailure: timingAtEnd,
+        });
+        if (existing.failureSteps.length > 100) {
+          existing.failureSteps = existing.failureSteps.slice(-100);
         }
       }
       eventBus.emit('level:fail', {
@@ -180,18 +362,7 @@ export class SaveManager {
 
   getLevelRecord(levelId: string): LevelRecord {
     if (!this.data) this.load();
-    return (
-      this.data!.statistics.levels[levelId] || {
-        completed: false,
-        bestScore: 0,
-        bestMetrics: null,
-        attempts: 0,
-        failures: 0,
-        lastPlayedAt: 0,
-        failureReasons: [],
-        adjustmentHistory: [],
-      }
-    );
+    return this.ensureLevelRecord(levelId);
   }
 
   isLevelUnlocked(levelId: string, unlockRequirement: string | null): boolean {
@@ -260,6 +431,7 @@ export class SaveManager {
   clear(): void {
     localStorage.removeItem(STORAGE_KEY);
     this.data = this.createDefault();
+    this.save();
     eventBus.emit('save:update', this.data);
   }
 
@@ -296,40 +468,34 @@ export class SaveManager {
       totalPlayTime: stats.totalPlayTime,
       tutorialCompleted: stats.tutorialCompleted,
       tutorialSkipped: stats.tutorialSkipped,
+      tutorialCompletedAt: stats.tutorialCompletedAt,
+      tutorialSkippedAt: stats.tutorialSkippedAt,
       completedLevels: levelRecords.filter((r) => r.completed).length,
       totalAttempts: levelRecords.reduce((s, r) => s + r.attempts, 0),
       totalFailures: levelRecords.reduce((s, r) => s + r.failures, 0),
       avgAttemptsPerLevel:
         levelRecords.length > 0
-          ? levelRecords.reduce((s, r) => s + r.attempts, 0) /
-            levelRecords.length
+          ? levelRecords.reduce((s, r) => s + r.attempts, 0) / levelRecords.length
           : 0,
       bestScore: Math.max(0, ...levelRecords.map((r) => r.bestScore)),
     };
   }
 
   recordAdjustment(levelId: string, adjustment: AdjustmentRecord): void {
-    if (!this.data) this.load();
-
-    const existing = this.data!.statistics.levels[levelId] || {
-      completed: false,
-      bestScore: 0,
-      bestMetrics: null,
-      attempts: 0,
-      failures: 0,
-      lastPlayedAt: 0,
-      failureReasons: [],
-      adjustmentHistory: [],
-    };
-
-    existing.adjustmentHistory.push(adjustment);
-    if (existing.adjustmentHistory.length > 100) {
-      existing.adjustmentHistory = existing.adjustmentHistory.slice(-100);
+    if (!levelId) return;
+    try {
+      if (!this.data) this.load();
+      const existing = this.ensureLevelRecord(levelId);
+      existing.adjustmentHistory.push(adjustment);
+      if (existing.adjustmentHistory.length > 100) {
+        existing.adjustmentHistory = existing.adjustmentHistory.slice(-100);
+      }
+      this.data!.statistics.levels[levelId] = existing;
+      this.save();
+      eventBus.emit('timing:recorded', { levelId, adjustment });
+    } catch (e) {
+      console.error('[recordAdjustment] failed for level:', levelId, e);
     }
-    this.data!.statistics.levels[levelId] = existing;
-    this.save();
-
-    eventBus.emit('timing:recorded', { levelId, adjustment });
   }
 
   getLatestReplayIdByLevel(levelId: string): string | null {
@@ -339,6 +505,10 @@ export class SaveManager {
 
   getAdjustmentHistory(levelId: string): AdjustmentRecord[] {
     return this.getLevelRecord(levelId).adjustmentHistory || [];
+  }
+
+  getFailureSteps(levelId: string): FailureStepRecord[] {
+    return this.getLevelRecord(levelId).failureSteps || [];
   }
 
   enableAutoSave(enabled: boolean): void {

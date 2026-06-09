@@ -94,6 +94,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (!level) return;
 
     const simulator = new TrafficSimulator(level);
+    const rec = saveManager.recordAttemptStart(levelId);
 
     set({
       simulator,
@@ -103,10 +104,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       timeElapsed: 0,
       status: saveManager.isTutorialCompleted() ? 'playing' : 'tutorial',
       tutorialStep: 0,
-      attemptCount: 1,
+      attemptCount: rec.attempts,
       failureReason: null,
       currentMetrics: emptyMetrics,
       scoreResult: null,
+      lastAdjustment: null,
+      adjustmentCount: 0,
     });
 
     saveManager.setCurrentLevel(levelId);
@@ -192,8 +195,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   resetSimulation: () => {
-    const { simulator, currentLevel, attemptCount } = get();
-    if (!simulator || !currentLevel) return;
+    const { simulator, currentLevel, currentLevelId } = get();
+    if (!simulator || !currentLevel || !currentLevelId) return;
+
+    const rec = saveManager.recordAttemptStart(currentLevelId);
 
     simulator.reset();
     simulator.applyPhaseConfig(get().phaseConfig);
@@ -203,7 +208,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentMetrics: emptyMetrics,
       scoreResult: null,
       failureReason: null,
-      attemptCount: attemptCount + 1,
+      attemptCount: rec.attempts,
+      lastAdjustment: null,
+      adjustmentCount: 0,
     });
     eventBus.emit('game:reset');
   },
@@ -214,7 +221,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   tick: (delta) => {
-    const { simulator, status, timeElapsed, currentLevel } = get();
+    const { simulator, status, timeElapsed, currentLevel, currentLevelId, phaseConfig } = get();
     if (!simulator || status === 'success' || status === 'failed') return;
 
     const metrics = simulator.update(delta);
@@ -224,6 +231,70 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       currentMetrics: metrics,
       timeElapsed: newTimeElapsed,
     });
+
+    if (currentLevelId && status === 'simulating' && newTimeElapsed > 10) {
+      if (metrics.congestionIndex >= 90) {
+        saveManager.appendFailureStep(currentLevelId, {
+          simulationTime: newTimeElapsed,
+          source: 'congestion',
+          reason: `拥堵指数达到 ${metrics.congestionIndex.toFixed(0)}，路网严重阻塞`,
+          metricsSnapshot: {
+            congestionIndex: metrics.congestionIndex,
+            avgWaitingTime: metrics.avgWaitingTime,
+            throughput: metrics.throughput,
+            busOnTimeRate: metrics.busOnTimeRate,
+            vehicleCount: metrics.vehicleCount,
+          },
+          timingAtFailure: { ...phaseConfig },
+        });
+      }
+      if (metrics.avgWaitingTime >= 50) {
+        saveManager.appendFailureStep(currentLevelId, {
+          simulationTime: newTimeElapsed,
+          source: 'wait_time',
+          reason: `平均等待时间 ${metrics.avgWaitingTime.toFixed(1)}s，车辆滞留严重`,
+          metricsSnapshot: {
+            congestionIndex: metrics.congestionIndex,
+            avgWaitingTime: metrics.avgWaitingTime,
+            throughput: metrics.throughput,
+            busOnTimeRate: metrics.busOnTimeRate,
+            vehicleCount: metrics.vehicleCount,
+          },
+          timingAtFailure: { ...phaseConfig },
+        });
+      }
+      if (metrics.busOnTimeRate <= 55 && metrics.vehicleCount >= 8) {
+        saveManager.appendFailureStep(currentLevelId, {
+          simulationTime: newTimeElapsed,
+          source: 'bus_on_time',
+          reason: `公交准点率仅 ${metrics.busOnTimeRate.toFixed(0)}%，严重延误`,
+          metricsSnapshot: {
+            congestionIndex: metrics.congestionIndex,
+            avgWaitingTime: metrics.avgWaitingTime,
+            throughput: metrics.throughput,
+            busOnTimeRate: metrics.busOnTimeRate,
+            vehicleCount: metrics.vehicleCount,
+          },
+          timingAtFailure: { ...phaseConfig },
+        });
+      }
+      const maxQueue = Math.max(0, ...Object.values(metrics.queueLengths || {}));
+      if (maxQueue >= 12) {
+        saveManager.appendFailureStep(currentLevelId, {
+          simulationTime: newTimeElapsed,
+          source: 'queue',
+          reason: `排队长度达 ${maxQueue} 辆，方向 ${Object.keys(metrics.queueLengths || {}).reduce((a, b) => (metrics.queueLengths || {})[a] > (metrics.queueLengths || {})[b] ? a : b, 'N')}`,
+          metricsSnapshot: {
+            congestionIndex: metrics.congestionIndex,
+            avgWaitingTime: metrics.avgWaitingTime,
+            throughput: metrics.throughput,
+            busOnTimeRate: metrics.busOnTimeRate,
+            vehicleCount: metrics.vehicleCount,
+          },
+          timingAtFailure: { ...phaseConfig },
+        });
+      }
+    }
 
     if (currentLevel && newTimeElapsed >= currentLevel.duration && status === 'simulating') {
       get().endGame();
@@ -235,7 +306,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   endGame: () => {
-    const { simulator, currentLevel, currentLevelId, currentMetrics, phaseConfig, attemptCount } =
+    const { simulator, currentLevel, currentLevelId, phaseConfig, attemptCount } =
       get();
     if (!simulator || !currentLevel || !currentLevelId) return;
 
@@ -243,12 +314,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const result: ScoreResult = simulator.calculateFinalScore();
 
     const finalMetrics = simulator.getMetrics();
-    const levelRecord = saveManager.recordLevelAttempt(
+    saveManager.recordLevelAttempt(
       currentLevelId,
       result.passed,
       result.total,
       finalMetrics,
-      result.failureReason || undefined
+      result.failureReason || undefined,
+      { ...phaseConfig }
     );
 
     const frames = simulator.getFrames();

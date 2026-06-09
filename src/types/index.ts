@@ -176,6 +176,31 @@ export interface AdjustmentRecord {
   queueLengths: Record<string, number>;
 }
 
+export type FailureSource =
+  | 'congestion'
+  | 'queue'
+  | 'wait_time'
+  | 'throughput'
+  | 'bus_on_time'
+  | 'timeout'
+  | 'unknown';
+
+export interface FailureStepRecord {
+  id: string;
+  timestamp: number;
+  simulationTime: number;
+  source: FailureSource;
+  reason: string;
+  metricsSnapshot: {
+    congestionIndex: number;
+    avgWaitingTime: number;
+    throughput: number;
+    busOnTimeRate: number;
+    vehicleCount: number;
+  };
+  timingAtFailure?: PhaseConfig;
+}
+
 export interface LevelRecord {
   completed: boolean;
   bestScore: number;
@@ -183,13 +208,21 @@ export interface LevelRecord {
   attempts: number;
   failures: number;
   lastPlayedAt: number;
+  firstAttemptedAt: number | null;
+  lastAttemptedAt: number | null;
   failureReasons: string[];
+  failureSteps: FailureStepRecord[];
   adjustmentHistory: AdjustmentRecord[];
+  tutorialSkippedAt: number | null;
+  tutorialCompletedAt: number | null;
+  attemptStartTimes: number[];
 }
 
 export interface PlayerStatistics {
   tutorialCompleted: boolean;
   tutorialSkipped: boolean;
+  tutorialCompletedAt: number | null;
+  tutorialSkippedAt: number | null;
   totalPlayTime: number;
   levels: Record<string, LevelRecord>;
 }
