@@ -27,7 +27,7 @@ function getWorkbenchStats() {
       WHERE DATE(created_at) = DATE('now')
     `).get().c,
     today_confirmed: db.prepare(`
-      SELECT COUNT(DISTINCT action_item_id) AS c FROM audit_logs 
+      SELECT COUNT(DISTINCT entity_id) AS c FROM audit_logs 
       WHERE entity_type = 'action_item' AND action = 'confirm' AND DATE(created_at) = DATE('now')
     `).get().c,
   };

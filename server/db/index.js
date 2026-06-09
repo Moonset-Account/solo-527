@@ -68,67 +68,95 @@ function _rowToObject(row, columns) {
 
 /**
  * 包装 Statement，提供 run / get / all 接口 (与 better-sqlite3 对齐)
+ * 注意：Statement 对象可以重复 run/get/all，支持在循环中批量插入
+ * 调用完后手动调用 .free() 或 GC 时会自动释放
  */
 function prepare(sql) {
-  const stmt = db.prepare(sql);
+  let stmt = null;
+  try { stmt = db.prepare(sql); } catch (e) {
+    logger.error(`[db] prepare error: ${e.message} sql=${sql.slice(0, 200)}`);
+    throw e;
+  }
+  function normalizeParams(params) {
+    if (params.length === 0) return [];
+    if (params.length === 1) {
+      const p = params[0];
+      if (Array.isArray(p)) return p;
+      if (p && typeof p === 'object') return p; // named params object
+      return params;
+    }
+    return params;
+  }
   return {
     run(...params) {
-      const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] :
-        params.length === 1 && typeof params[0] === 'object' ? params[0] : params;
-      stmt.bind(flat);
+      try {
+        const flat = normalizeParams(params);
+        if (Array.isArray(flat)) stmt.bind(flat);
+        else stmt.bindAsObject(flat);
+      } catch (e) {
+        logger.error(`[db] bind error: ${e.message} sql=${sql.slice(0, 100)} params=${JSON.stringify(params).slice(0, 200)}`);
+        throw e;
+      }
       let changes = 0, lastInsertRowid = null;
       try {
+        // sql.js step() 每次推进一步，INSERT/UPDATE 会修改数据库
         while (stmt.step()) {
-          const info = db.exec('SELECT last_insert_rowid() AS id, changes() AS ch', {
-            column_names: true,
-          });
-          if (info && info[0] && info[0].values && info[0].values[0]) {
-            lastInsertRowid = info[0].values[0][0];
-            changes = info[0].values[0][1];
-          }
+          try {
+            const info = db.exec('SELECT last_insert_rowid() AS id, changes() AS ch');
+            if (info && info[0] && info[0].values && info[0].values[0]) {
+              lastInsertRowid = info[0].values[0][0];
+              changes = info[0].values[0][1];
+            }
+          } catch {}
           break;
         }
-      } catch {}
+      } catch (e) {
+        // 非 SELECT 语句在 step() 后就已经执行完毕，无需再处理
+      }
       stmt.reset();
-      stmt.free();
       return { changes: changes || 0, lastInsertRowid };
     },
 
     get(...params) {
-      const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] :
-        params.length === 1 && typeof params[0] === 'object' ? params[0] : params;
-      stmt.bind(flat);
+      try {
+        const flat = normalizeParams(params);
+        if (Array.isArray(flat)) stmt.bind(flat);
+        else stmt.bindAsObject(flat);
+      } catch (e) {
+        logger.error(`[db] bind error (get): ${e.message}`);
+        throw e;
+      }
       try {
         if (stmt.step()) {
-          const row = stmt.get();
-          const cols = stmt.getColumnNames();
+          const row = stmt.getAsObject();
           stmt.reset();
-          stmt.free();
-          return _rowToObject(row, cols);
+          return row;
         }
       } catch {}
       stmt.reset();
-      stmt.free();
       return undefined;
     },
 
     all(...params) {
-      const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] :
-        params.length === 1 && typeof params[0] === 'object' ? params[0] : params;
-      stmt.bind(flat);
+      try {
+        const flat = normalizeParams(params);
+        if (Array.isArray(flat)) stmt.bind(flat);
+        else stmt.bindAsObject(flat);
+      } catch (e) {
+        logger.error(`[db] bind error (all): ${e.message}`);
+        throw e;
+      }
       const results = [];
       try {
-        const cols = stmt.getColumnNames();
         while (stmt.step()) {
-          results.push(_rowToObject(stmt.get(), cols));
+          results.push(stmt.getAsObject());
         }
       } catch {}
       stmt.reset();
-      stmt.free();
       return results;
     },
 
-    free() { try { stmt.free(); } catch {} },
+    free() { try { stmt.free(); stmt = null; } catch {} },
   };
 }
 

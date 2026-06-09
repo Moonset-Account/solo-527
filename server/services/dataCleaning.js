@@ -43,39 +43,192 @@ function cleanText(raw) {
   return text;
 }
 
-function normalizeSpeakerName(raw) {
-  if (!raw) return '';
-  let name = String(raw).trim();
-  name = name.replace(/^发言人[_\s-]*#?\d*/i, '');
-  name = name.replace(/^Speaker[_\s-]*#?\d*/i, '');
-  name = name.replace(/^说话人[_\s-]*#?\d*/i, '');
-  name = name.replace(/[【\(\[（].*?[】\)\]）]/g, '');
-  name = name.trim();
-  if (!name) return raw.trim();
-  return name;
+/**
+ * 正则：匹配行首的发言人标签前缀（多种格式）
+ * 支持：
+ *   [项目经理 李明] xxx
+ *   【项目经理-李明】xxx
+ *   （李明）xxx
+ *   (Speaker 1) xxx
+ *   发言人A：xxx
+ *   李明：xxx
+ *   Speaker 1: xxx
+ *   说话人1: xxx
+ */
+const SPEAKER_PREFIX_REGEX = new RegExp(
+  '^\\s*' +
+  // 括号类: [xxx] 【xxx】 (xxx) （xxx） 后面可有空格+冒号
+  '(?:' +
+    '[\\[【\\(（][^\\]】\\)）]{1,50}[\\]】\\)）]\\s*[:：]?\\s+' +
+    '|' +
+    // 冒号类: xxx： 或 xxx: (前面只能是2-20字，含中英文数字，且不能全是纯数字)
+    '((?![0-9]+[：:])(?![0-9.]+\\s+[：:])[\\u4e00-\\u9fa5A-Za-z0-9·._\\-\\s]{2,20})[:：]\\s+' +
+    '|' +
+    // 标准发言人前缀：发言人/说话人/Speaker + 数字/字母 + 冒号
+    '(?:发言人|说话人|Speaker)\\s*[_\\-#]?\\s*[0-9A-Za-z一二三四五六七八九十甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]?\\s*[:：]\\s*' +
+  ')',
+  'im'
+);
+
+const BRACKET_SPEAKER_REGEX = /^[\[【\(（]([^\]】\)）]{1,50})[\]】\)）]/;
+const COLON_SPEAKER_REGEX = /^([\u4e00-\u9fa5A-Za-z0-9·._\-\s]{2,20})[:：]/;
+const STANDARD_SPEAKER_REGEX = /^(?:发言人|说话人|Speaker)\s*[_\-#]?\s*([0-9A-Za-z一二三四五六七八九十甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]?)\s*[:：]/i;
+
+/**
+ * 从发言人标签字符串提取角色和姓名
+ * 例如："项目经理 李明" → { role: "项目经理", name: "李明" }
+ *       "李明" → { role: null, name: "李明" }
+ *       "产品-张三" → { role: "产品", name: "张三" }
+ */
+function parseSpeakerLabel(label) {
+  if (!label) return { role: null, name: '', raw: label };
+  const raw = String(label).trim();
+
+  // 分隔符类: 空格、"的"、"-"、"_"
+  const parts = raw.split(/[\s\-_的、，,]+/).filter(p => p && p.trim());
+  if (parts.length === 0) return { role: null, name: raw, raw };
+
+  // 已知角色关键词
+  const ROLE_KEYWORDS = [
+    '项目经理', '产品经理', '产品', '技术总监', '技术负责人', '架构师',
+    '后端工程师', '前端工程师', '全栈工程师', '测试工程师', 'QA', '运维工程师',
+    '设计师', 'UI设计师', 'UX设计师', '市场总监', '销售经理', '运营经理',
+    'CEO', 'CTO', 'COO', 'CFO', '总监', '经理', '主管', '组长', '负责人',
+    '工程师', '开发', '开发工程师', '助理', '客户', '用户', '老板', '总',
+    '专家', '顾问', '实习生', 'HR', '人事', '财务', '法务',
+  ];
+
+  // 找出角色词
+  let role = null;
+  let name = raw;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (ROLE_KEYWORDS.some(r => part.includes(r) || r.includes(part))) {
+      role = part;
+      // 其余部分拼接为姓名
+      const remaining = parts.slice(0, i).concat(parts.slice(i + 1));
+      if (remaining.length > 0) name = remaining.join('');
+      else name = parts.slice(1).join('') || raw;
+      break;
+    }
+  }
+
+  // 如果全是中文 2-4 字且没识别出角色，视为纯姓名
+  if (!role && /^[\u4e00-\u9fa5]{2,4}$/.test(raw)) {
+    name = raw;
+  }
+
+  return {
+    role,
+    name: name ? name.trim() : raw,
+    raw,
+  };
 }
 
-function splitBySpeaker(text, speakerPrefixPattern = /^(?:发言人|Speaker|说话人)\s*#?\d*[:：]/im) {
+function normalizeSpeakerName(raw) {
+  if (!raw) return '';
+  // 如果是括号里的标签
+  let label = String(raw).trim();
+  const bracketMatch = label.match(BRACKET_SPEAKER_REGEX);
+  if (bracketMatch) label = bracketMatch[1].trim();
+
+  // 去除「发言人/Speaker/说话人」前缀
+  label = label.replace(/^(?:发言人|Speaker|说话人)\s*[_\-#]?\s*[0-9A-Za-z一二三四五六七八九十甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]?\s*[:：]?\s*/i, '');
+  label = label.replace(/[:：]+$/, '').trim();
+
+  // 解析并取姓名部分
+  const parsed = parseSpeakerLabel(label);
+  if (parsed.name) return parsed.name;
+  return label;
+}
+
+/**
+ * 识别发言人角色（可选），供后续 metadata 使用
+ */
+function extractSpeakerRole(raw) {
+  if (!raw) return null;
+  const label = String(raw).trim();
+  const bracketMatch = label.match(BRACKET_SPEAKER_REGEX);
+  const content = bracketMatch ? bracketMatch[1] : label.replace(/[:：]+$/, '');
+  const parsed = parseSpeakerLabel(content);
+  return parsed.role;
+}
+
+function splitBySpeaker(text) {
   const segments = [];
-  const lines = text.split('\n');
+  const lines = String(text || '').split('\n');
   let current = null;
 
   for (const rawLine of lines) {
-    const line = rawLine.trim();
+    let line = rawLine.trim();
     if (!line) continue;
-    const match = line.match(speakerPrefixPattern);
-    if (match) {
+
+    // 尝试多种发言人前缀匹配
+    let speakerLabel = '';
+    let content = '';
+    let matched = false;
+
+    // 1) 括号类: [...] 【...】 (...) （...）
+    let m = line.match(/^[\[【\(（]([^\]】\)）]{1,50})[\]】\)）]\s*[:：]?\s*(.*)$/);
+    if (m) {
+      speakerLabel = m[1];
+      content = m[2].trim();
+      matched = true;
+    }
+
+    // 2) 标准发言人前缀
+    if (!matched) {
+      m = line.match(/^((?:发言人|说话人|Speaker)\s*[_\-#]?\s*[0-9A-Za-z一二三四五六七八九十甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]?)\s*[:：]\s*(.*)$/i);
+      if (m) {
+        speakerLabel = m[1];
+        content = m[2].trim();
+        matched = true;
+      }
+    }
+
+    // 3) 普通冒号类：「李明：xxx」——但要避免误匹配时间(9:30)、纯数字编号和句子内部的冒号
+    if (!matched) {
+      m = line.match(/^([\u4e00-\u9fa5A-Za-z·._\-]{2,15}(?:\s+[\u4e00-\u9fa5A-Za-z·._\-]{1,10})?)\s*[:：]\s*(.*)$/);
+      if (m) {
+        const candidate = m[1];
+        // 跳过显然不是发言人的情况：纯数字、含日期时间、太长
+        if (!/^[0-9.:：]+$/.test(candidate) &&
+            !/\d{1,2}[:：]\d{1,2}/.test(candidate) &&
+            candidate.length <= 20) {
+          speakerLabel = candidate;
+          content = m[2].trim();
+          matched = true;
+        }
+      }
+    }
+
+    if (matched) {
       if (current) segments.push(current);
-      const speakerTag = match[0];
-      const content = line.slice(speakerTag.length).trim();
       current = {
-        speaker: normalizeSpeakerName(speakerTag),
+        speaker: normalizeSpeakerName(speakerLabel),
+        speaker_role: extractSpeakerRole(speakerLabel),
+        speaker_raw: speakerLabel,
         content: cleanText(content),
         raw: rawLine,
+        start_time: null,
+        end_time: null,
       };
     } else if (current) {
-      current.content += ' ' + cleanText(line);
+      // 没有发言人前缀，拼接到上一条
+      current.content = (current.content + ' ' + cleanText(line)).trim();
       current.raw += '\n' + rawLine;
+    } else {
+      // 第一条就没有发言人，保留无发言人段落
+      current = {
+        speaker: '',
+        speaker_role: null,
+        speaker_raw: '',
+        content: cleanText(line),
+        raw: rawLine,
+        start_time: null,
+        end_time: null,
+      };
     }
   }
   if (current) segments.push(current);
@@ -222,7 +375,17 @@ function parseTranscript(raw, format = 'auto') {
 function _detectFormat(raw) {
   if (/^WEBVTT/i.test(raw)) return 'vtt';
   if (/^\d+\s*\n\d{2}:\d{2}:\d{2}[,.]/m.test(raw)) return 'srt';
+  // 括号类发言人: [xxx] 【xxx】 占行首
+  if (/^\s*[\[【\(（][^\]】\)）]{1,50}[\]】\)）]\s*[:：]?\s+/m.test(raw)) return 'speaker-tagged';
+  // 标准发言人前缀: 发言人/说话人/Speaker + 冒号
   if (/^(?:发言人|Speaker|说话人)\s*#?\d*[:：]/im.test(raw)) return 'speaker-tagged';
+  // 行首冒号模式: 3+ 行符合 "2-15字 + 冒号" 的模式
+  const lines = String(raw).split('\n').filter(l => l.trim());
+  let colonCount = 0;
+  for (const l of lines) {
+    if (/^[\u4e00-\u9fa5A-Za-z·._\-]{2,15}(?:\s+[\u4e00-\u9fa5A-Za-z·._\-]{1,10})?\s*[:：]\s+\S/.test(l.trim())) colonCount++;
+  }
+  if (colonCount >= 2) return 'speaker-tagged';
   return 'plain';
 }
 

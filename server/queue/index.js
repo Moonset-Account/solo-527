@@ -17,29 +17,44 @@ async function _checkRedis() {
   if (redisChecked) return redisAvailable;
   redisChecked = true;
   if (!Bull) {
-    logger.warn('[queue] bull not installed, falling back to in-memory queue');
+    logger.warn('[queue] bull package missing, using in-memory queue');
     redisAvailable = false;
     return false;
+  }
+  if (!config.redis || !config.redis.enabled === false) {
+    // 配置显式禁用
+    if (config.redis && config.redis.enabled === false) {
+      logger.warn('[queue] Redis disabled in config, using in-memory');
+      redisAvailable = false;
+      return false;
+    }
   }
   try {
     const Redis = require('ioredis');
     const client = new Redis({
       host: config.redis.host,
       port: config.redis.port,
-      connectTimeout: 2000,
-      maxRetriesPerRequest: 1,
+      connectTimeout: 1500,
+      commandTimeout: 1500,
+      maxRetriesPerRequest: 0,
       lazyConnect: true,
+      retryStrategy: () => null, // 不重试
     });
-    await new Promise((resolve) => {
-      const t = setTimeout(() => { try { client.disconnect(); } catch {}; resolve(false); }, 2000);
-      client.connect().then(() => { clearTimeout(t); try { client.disconnect(); } catch {}; resolve(true); })
-        .catch(() => { clearTimeout(t); try { client.disconnect(); } catch {}; resolve(false); });
-    });
-    redisAvailable = true;
+    let resolved = false;
+    const result = await Promise.race([
+      new Promise((resolve) => {
+        client.once('error', () => { if (!resolved) { resolved = true; resolve(false); } });
+        client.once('connect', () => { if (!resolved) { resolved = true; try { client.disconnect(); } catch {} resolve(true); } });
+        client.connect().catch(() => { if (!resolved) { resolved = true; resolve(false); } });
+      }),
+      new Promise(resolve => setTimeout(() => { if (!resolved) { resolved = true; try { client.disconnect(); } catch {} resolve(false); } }, 1500))
+    ]);
+    redisAvailable = !!result;
   } catch {
-    logger.warn('[queue] Redis unavailable, falling back to in-memory queue');
+    logger.warn('[queue] Redis check exception, using in-memory');
     redisAvailable = false;
   }
+  if (!redisAvailable) logger.warn('[queue] Using IN-MEMORY queues (no redis)');
   return redisAvailable;
 }
 
