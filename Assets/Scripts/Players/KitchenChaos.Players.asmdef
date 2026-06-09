@@ -1,7 +1,7 @@
 {
     "name": "KitchenChaos.Players",
     "rootNamespace": "KitchenChaos.Players",
-    "references": ["KitchenChaos.Core", "KitchenChaos.Input", "KitchenChaos.Ingredients", "KitchenChaos.Stations"],
+    "references": ["KitchenChaos.Core", "KitchenChaos.Input", "KitchenChaos.Ingredients"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

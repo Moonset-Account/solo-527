@@ -1,18 +1,9 @@
 using System;
 using System.Collections.Generic;
+using KitchenChaos.Core;
 
 namespace KitchenChaos.Ingredients
 {
-    public enum IngredientState
-    {
-        Raw = 0,
-        Chopped = 1,
-        Cooked = 2,
-        Burned = 3,
-        Plated = 4,
-        Dirty = 5
-    }
-
     public enum IngredientCategory
     {
         Vegetable,

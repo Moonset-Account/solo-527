@@ -1,17 +1,10 @@
-using System.Collections.Generic;
 using UnityEngine;
-using KitchenChaos.Levels;
 using KitchenChaos.Config;
-using KitchenChaos.Input;
-using KitchenChaos.Players;
-using KitchenChaos.OrderSystem;
-using KitchenChaos.Scoring;
-using KitchenChaos.Persistence;
-using KitchenChaos.Achievements;
+using KitchenChaos.Core.Abstractions;
 
 namespace KitchenChaos.Core
 {
-    public class GameManager : Singleton<GameManager>
+    public class GameManager : Singleton<GameManager>, IGameManager
     {
         [SerializeField] GameConfig _gameConfig;
 
@@ -22,6 +15,7 @@ namespace KitchenChaos.Core
         bool _isSinglePlayerMode = true;
         FailReason _lastFailReason = FailReason.None;
         int _starsEarned = 0;
+        int _failedOrderCount = 0;
 
         public GameState State => _state;
         public int CurrentLevelIndex => _currentLevelIndex;
@@ -31,6 +25,17 @@ namespace KitchenChaos.Core
         public GameConfig Config => _gameConfig;
         public FailReason LastFailReason => _lastFailReason;
         public int StarsEarned => _starsEarned;
+
+        public LevelConfig CurrentLevelConfig
+        {
+            get
+            {
+                if (_gameConfig == null || _gameConfig.Levels == null || _gameConfig.Levels.Length == 0)
+                    return LevelConfig.Default;
+                int idx = Mathf.Clamp(_currentLevelIndex, 0, _gameConfig.Levels.Length - 1);
+                return _gameConfig.Levels[idx];
+            }
+        }
 
         protected override void OnAwake()
         {
@@ -57,7 +62,8 @@ namespace KitchenChaos.Core
         void RegisterServices()
         {
             if (_gameConfig == null) _gameConfig = Resources.Load<GameConfig>("Config/GameConfig");
-            ServiceLocator.Register(_gameConfig);
+            if (_gameConfig != null) ServiceLocator.Register(_gameConfig);
+            ServiceLocator.Register<IGameManager>(this);
             ServiceLocator.Register(this);
         }
 
@@ -98,18 +104,13 @@ namespace KitchenChaos.Core
             _timer = CurrentLevelConfig.Duration;
             _starsEarned = 0;
             _lastFailReason = FailReason.None;
+            _failedOrderCount = 0;
 
             ChangeState(GameState.PreGame);
             EventBus.Raise(new LevelStartedEvent { LevelIndex = levelIndex, Duration = _timer });
-
-            var players = ServiceLocator.Get<PlayerManager>();
-            players.SpawnPlayersForLevel(CurrentLevelConfig, _isSinglePlayerMode);
-
-            var orders = ServiceLocator.Get<OrderManager>();
-            orders.InitializeForLevel(CurrentLevelConfig);
-
-            ServiceLocator.Get<ScoreManager>().ResetCombo();
-            ServiceLocator.Get<LevelMechanicManager>().ApplyLevelMechanics(CurrentLevelConfig);
+            EventBus.Raise(new RequestInitializeLevelEvent { LevelIndex = levelIndex, IsSinglePlayer = _isSinglePlayerMode });
+            EventBus.Raise(new RequestResetComboEvent());
+            EventBus.Raise(new RequestApplyLevelMechanicsEvent { LevelIndex = levelIndex });
 
             ChangeState(GameState.Playing);
         }
@@ -165,15 +166,13 @@ namespace KitchenChaos.Core
             if (victory)
             {
                 ChangeState(GameState.LevelComplete);
-                SaveLevelResult(true);
-                var ach = ServiceLocator.Get<AchievementManager>();
-                ach?.CheckScoreAchievements(_currentScore, _starsEarned);
-                ach?.CheckLevelAchievements(_currentLevelIndex, true);
+                EventBus.Raise(new RequestSaveLevelResultEvent { LevelIndex = _currentLevelIndex, Score = _currentScore, Stars = _starsEarned, Victory = true });
+                EventBus.Raise(new RequestCheckAchievementsEvent { Score = _currentScore, Stars = _starsEarned, LevelIndex = _currentLevelIndex, Victory = true });
             }
             else
             {
                 ChangeState(GameState.LevelFailed);
-                SaveLevelResult(false);
+                EventBus.Raise(new RequestSaveLevelResultEvent { LevelIndex = _currentLevelIndex, Score = _currentScore, Stars = _starsEarned, Victory = false });
             }
 
             EventBus.Raise(new LevelEndedEvent
@@ -199,7 +198,6 @@ namespace KitchenChaos.Core
             _currentScore = e.CurrentScore;
         }
 
-        int _failedOrderCount = 0;
         void OnOrderFailed(OrderFailedEvent e)
         {
             _failedOrderCount++;
@@ -211,23 +209,14 @@ namespace KitchenChaos.Core
             }
         }
 
-        public LevelConfig CurrentLevelConfig
+        public void SetGameConfig(GameConfig cfg)
         {
-            get
+            _gameConfig = cfg;
+            if (_gameConfig != null)
             {
-                if (_gameConfig == null || _gameConfig.Levels == null || _gameConfig.Levels.Length == 0)
-                    return LevelConfig.Default;
-                int idx = Mathf.Clamp(_currentLevelIndex, 0, _gameConfig.Levels.Length - 1);
-                return _gameConfig.Levels[idx];
+                ServiceLocator.Unregister<GameConfig>();
+                ServiceLocator.Register(_gameConfig);
             }
         }
-
-        void SaveLevelResult(bool victory)
-        {
-            var save = ServiceLocator.Get<SaveSystem>();
-            save?.SaveLevelResult(_currentLevelIndex, _currentScore, _starsEarned, victory);
-        }
-
-        public void SetGameConfig(GameConfig cfg) => _gameConfig = cfg;
     }
 }

@@ -8,6 +8,7 @@ using KitchenChaos.Config;
 using KitchenChaos.Persistence;
 using KitchenChaos.Leaderboards;
 using KitchenChaos.Achievements;
+using KitchenChaos.Levels;
 
 namespace KitchenChaos.UI
 {

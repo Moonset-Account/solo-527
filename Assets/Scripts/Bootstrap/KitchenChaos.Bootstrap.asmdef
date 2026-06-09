@@ -12,7 +12,12 @@
         "KitchenChaos.Persistence",
         "KitchenChaos.Achievements",
         "KitchenChaos.Leaderboards",
-        "KitchenChaos.DebugTools"
+        "KitchenChaos.DebugTools",
+        "KitchenChaos.Ingredients",
+        "KitchenChaos.Stations",
+        "KitchenChaos.UI",
+        "KitchenChaos.World",
+        "KitchenChaos.Physics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

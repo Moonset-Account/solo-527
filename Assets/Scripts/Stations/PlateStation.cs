@@ -1,15 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
 
 namespace KitchenChaos.Stations
 {
     public class PlateStation : BaseStation
     {
         [SerializeField] int _plateCapacity = 6;
-        [SerializeField] GameObject _platePrefab;
         readonly Queue<IngredientItem> _cleanPlates = new();
         readonly List<IngredientItem> _combinedOnPlate = new();
 
@@ -17,25 +16,26 @@ namespace KitchenChaos.Stations
 
         protected override void Awake()
         {
-            base.Awake();
             for (int i = 0; i < _plateCapacity; i++)
                 _cleanPlates.Enqueue(MakePlate());
         }
 
         IngredientItem MakePlate()
         {
-            GameObject go = _platePrefab != null
-                ? Instantiate(_platePrefab)
-                : new GameObject("Plate");
-            var sr = go.GetComponent<SpriteRenderer>() ?? go.AddComponent<SpriteRenderer>();
+            var go = new GameObject("Plate");
+            go.transform.localScale = Vector3.one * 0.6f;
+            var sr = go.AddComponent<SpriteRenderer>();
             sr.sortingOrder = 5;
-            sr.color = new Color(0.95f, 0.9f, 0.85f);
-            go.AddComponent<CircleCollider2D>().isTrigger = true;
+            sr.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64);
+            sr.color = new Color(0.95f, 0.92f, 0.85f);
+            var col = go.AddComponent<CircleCollider2D>();
+            col.isTrigger = true;
+            col.radius = 0.35f;
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Kinematic;
             rb.gravityScale = 0;
 
-            var item = go.GetComponent<IngredientItem>() ?? go.AddComponent<IngredientItem>();
+            var item = go.AddComponent<IngredientItem>();
             item.SetDefinition(new IngredientDefinition
             {
                 Name = "Plate",
@@ -47,32 +47,33 @@ namespace KitchenChaos.Stations
             return item;
         }
 
-        protected override bool HandleInteract(PlayerController player)
+        protected override bool HandleInteract(IPlayer player)
         {
-            if (!player.HasItem)
+            if (!PlayerHasIngredient(player))
             {
                 if (HasItem)
                 {
-                    player.PickUp(TakeStored());
+                    player.PickUpRaw(TakeStored());
                     _combinedOnPlate.Clear();
                     return true;
                 }
                 if (_cleanPlates.Count > 0)
                 {
                     var plate = _cleanPlates.Dequeue();
-                    plate.transform.position = _anchor.position;
-                    player.PickUp(plate);
+                    plate.transform.position = Anchor.position;
+                    player.PickUpRaw(plate);
                     return true;
                 }
                 return false;
             }
 
-            var carried = player.Carrying;
+            var carried = PlayerCarryAsIngredient(player);
 
             if (carried.Definition.Name == "Plate" && carried.State == IngredientState.Dirty)
             {
                 _cleanPlates.Enqueue(MakePlate());
-                Destroy(player.ReleaseCarrying().gameObject);
+                var released = (IngredientItem)player.ReleaseCarryingRaw();
+                if (released != null) Destroy(released.gameObject);
                 return true;
             }
 
@@ -80,7 +81,7 @@ namespace KitchenChaos.Stations
             {
                 if (!HasItem)
                 {
-                    Store(player.ReleaseCarrying());
+                    Store((IngredientItem)player.ReleaseCarryingRaw());
                     return true;
                 }
                 return false;
@@ -90,7 +91,8 @@ namespace KitchenChaos.Stations
             {
                 if (_combinedOnPlate.Exists(i => i.IsSame(carried))) return false;
                 _combinedOnPlate.Add(carried.Clone());
-                Destroy(player.ReleaseCarrying().gameObject);
+                var released = (IngredientItem)player.ReleaseCarryingRaw();
+                if (released != null) Destroy(released.gameObject);
                 CombinePlateVisual();
                 return true;
             }
@@ -101,13 +103,14 @@ namespace KitchenChaos.Stations
         {
             if (_storedItem == null) return;
             _storedItem.name = $"Plate_With({_combinedOnPlate.Count})";
+            if (_storedItem.TryGetComponent<SpriteRenderer>(out var sr))
+            {
+                sr.color = Color.Lerp(sr.color, new Color(1, 0.9f, 0.8f), 0.2f);
+                sr.transform.localScale = Vector3.one * (0.6f + _combinedOnPlate.Count * 0.05f);
+            }
         }
 
-        public IngredientItem PeekCombined()
-        {
-            if (!HasItem) return null;
-            return _storedItem;
-        }
+        public IngredientItem PeekCombined() => HasItem ? _storedItem : null;
 
         public IReadOnlyList<IngredientItem> CombinedItems => _combinedOnPlate;
 

@@ -50,6 +50,13 @@ namespace KitchenChaos.Core
             return false;
         }
 
+        public static void Unregister<T>() where T : class
+        {
+            var type = typeof(T);
+            if (_services.ContainsKey(type)) _services.Remove(type);
+            if (_factories.ContainsKey(type)) _factories.Remove(type);
+        }
+
         public static void Clear()
         {
             _services.Clear();

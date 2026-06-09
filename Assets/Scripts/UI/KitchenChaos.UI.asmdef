@@ -1,7 +1,16 @@
 {
     "name": "KitchenChaos.UI",
     "rootNamespace": "KitchenChaos.UI",
-    "references": ["KitchenChaos.Core", "KitchenChaos.OrderSystem", "KitchenChaos.Config", "KitchenChaos.Persistence", "KitchenChaos.Achievements", "KitchenChaos.Leaderboards", "Unity.TextMeshPro"],
+    "references": [
+        "KitchenChaos.Core",
+        "KitchenChaos.OrderSystem",
+        "KitchenChaos.Config",
+        "KitchenChaos.Persistence",
+        "KitchenChaos.Achievements",
+        "KitchenChaos.Leaderboards",
+        "KitchenChaos.Ingredients",
+        "KitchenChaos.Levels"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

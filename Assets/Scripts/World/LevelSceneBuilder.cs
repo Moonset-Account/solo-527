@@ -28,6 +28,7 @@ namespace KitchenChaos.World
 
         void Start()
         {
+            if (_worldRoot == null) _worldRoot = transform;
             if (_stationSpawner == null)
                 _stationSpawner = gameObject.AddComponent<StationSpawner>();
         }

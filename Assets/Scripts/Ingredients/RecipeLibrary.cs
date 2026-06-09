@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KitchenChaos.Core;
 
 namespace KitchenChaos.Ingredients
 {
@@ -34,17 +35,18 @@ namespace KitchenChaos.Ingredients
             return r;
         }
 
-        public static IReadOnlyDictionary<string, Recipe> All => BuildAll();
-
-        static Dictionary<string, Recipe> BuildAll()
+        public static IReadOnlyDictionary<string, Recipe> All
         {
-            if (_cache.Count == 0)
+            get
             {
-                _ = Get("Salad"); _ = Get("Soup"); _ = Get("Burger");
-                _ = Get("Pasta"); _ = Get("Steak"); _ = Get("Sushi");
-                _ = Get("Pizza"); _ = Get("FishFry");
+                if (_cache.Count == 0)
+                {
+                    _ = Get("Salad"); _ = Get("Soup"); _ = Get("Burger");
+                    _ = Get("Pasta"); _ = Get("Steak"); _ = Get("Sushi");
+                    _ = Get("Pizza"); _ = Get("FishFry");
+                }
+                return _cache;
             }
-            return _cache;
         }
 
         static Recipe BuildByName(string name) => name.ToLower() switch

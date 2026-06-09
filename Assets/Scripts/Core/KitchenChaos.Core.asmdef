@@ -1,7 +1,7 @@
 {
     "name": "KitchenChaos.Core",
     "rootNamespace": "KitchenChaos.Core",
-    "references": [],
+    "references": ["KitchenChaos.Config"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

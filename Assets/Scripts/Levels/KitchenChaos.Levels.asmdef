@@ -1,7 +1,7 @@
 {
     "name": "KitchenChaos.Levels",
     "rootNamespace": "KitchenChaos.Levels",
-    "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.Players"],
+    "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.Players", "KitchenChaos.Persistence", "KitchenChaos.Achievements"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

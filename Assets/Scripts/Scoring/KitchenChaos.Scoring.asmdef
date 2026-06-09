@@ -1,6 +1,6 @@
 {
     "name": "KitchenChaos.Scoring",
-    "rootNamespace": "KitchenChaos",
+    "rootNamespace": "KitchenChaos.Scoring",
     "references": ["KitchenChaos.Core", "KitchenChaos.Config", "KitchenChaos.OrderSystem"],
     "includePlatforms": [],
     "excludePlatforms": [],

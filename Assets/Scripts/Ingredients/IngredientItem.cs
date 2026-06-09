@@ -38,8 +38,12 @@ namespace KitchenChaos.Ingredients
 
         void UpdateVisual()
         {
-            if (_renderer == null) return;
-            int idx = Mathf.Clamp((int)_state, 0, _stateSprites.Length - 1);
+            if (_renderer == null)
+            {
+                _renderer = GetComponent<SpriteRenderer>();
+                if (_renderer == null) _renderer = gameObject.AddComponent<SpriteRenderer>();
+            }
+            int idx = Mathf.Clamp((int)_state, 0, _stateSprites != null ? _stateSprites.Length - 1 : 0);
             if (_stateSprites != null && _stateSprites.Length > idx && _stateSprites[idx] != null)
                 _renderer.sprite = _stateSprites[idx];
             else
@@ -54,6 +58,9 @@ namespace KitchenChaos.Ingredients
                     IngredientState.Dirty => new Color(0.3f, 0.2f, 0.1f),
                     _ => Color.white
                 };
+                _renderer.drawMode = SpriteDrawMode.Simple;
+                if (_renderer.sprite == null)
+                    _renderer.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64);
             }
             gameObject.name = $"Ingredient_{Definition?.Name ?? "NULL"}[{State}]";
         }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
 
 namespace KitchenChaos.Stations
 {
@@ -12,7 +12,7 @@ namespace KitchenChaos.Stations
 
         public override float ProcessProgress => _washing ? _progress / _processDuration : 0f;
 
-        protected override bool HandleInteract(PlayerController player)
+        protected override bool HandleInteract(IPlayer player)
         {
             if (HasItem && _storedItem.State == IngredientState.Dirty)
             {
@@ -20,7 +20,7 @@ namespace KitchenChaos.Stations
                 _washing = true;
                 _progress = 0f;
                 var def = _storedItem.Definition;
-                StartProcess(player, def.WashTime > 0 ? def.WashTime : _processDuration, () =>
+                StartProcessOn(player, def.WashTime > 0 ? def.WashTime : _processDuration, () =>
                 {
                     _storedItem.State = IngredientState.Plated;
                     _washing = false;
@@ -31,24 +31,26 @@ namespace KitchenChaos.Stations
                         FromState = IngredientState.Dirty,
                         ToState = IngredientState.Plated
                     });
-                }, PlayerAnimationState.Wash);
+                }, PlayerAnimHint.Wash);
                 return true;
             }
-
             if (HasItem)
             {
-                if (!player.HasItem)
+                if (!PlayerHasIngredient(player))
                 {
-                    player.PickUp(TakeStored());
+                    player.PickUpRaw(TakeStored());
                     return true;
                 }
                 return false;
             }
-
-            if (player.HasItem && player.Carrying.State == IngredientState.Dirty)
+            if (PlayerHasIngredient(player))
             {
-                Store(player.ReleaseCarrying());
-                return true;
+                var c = PlayerCarryAsIngredient(player);
+                if (c.State == IngredientState.Dirty)
+                {
+                    Store((IngredientItem)player.ReleaseCarryingRaw());
+                    return true;
+                }
             }
             return false;
         }

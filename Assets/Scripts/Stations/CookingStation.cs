@@ -1,7 +1,7 @@
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
 
 namespace KitchenChaos.Stations
 {
@@ -26,14 +26,14 @@ namespace KitchenChaos.Stations
             }
         }
 
-        protected override bool HandleInteract(PlayerController player)
+        protected override bool HandleInteract(IPlayer player)
         {
             if (HasItem)
             {
                 if (_phase == CookPhase.Cooking) return false;
-                if (!player.HasItem)
+                if (!PlayerHasIngredient(player))
                 {
-                    player.PickUp(TakeStored());
+                    player.PickUpRaw(TakeStored());
                     _phase = CookPhase.Idle;
                     _timer = 0f;
                     UpdateVisuals();
@@ -41,20 +41,18 @@ namespace KitchenChaos.Stations
                 }
                 return false;
             }
-
-            if (player.HasItem)
+            if (PlayerHasIngredient(player))
             {
-                var pc = player.Carrying;
+                var pc = PlayerCarryAsIngredient(player);
                 if (!pc.Definition.CanBeCooked) return false;
-                if (pc.State >= IngredientState.Cooked && pc.Definition.CanBeBurned == false) return false;
+                if ((int)pc.State >= (int)IngredientState.Cooked && pc.Definition.CanBeBurned == false) return false;
                 if (pc.State == IngredientState.Burned) return false;
 
-                Store(player.ReleaseCarrying());
+                Store((IngredientItem)player.ReleaseCarryingRaw());
                 _phase = CookPhase.Cooking;
                 _timer = 0f;
                 UpdateVisuals();
-
-                StartProcess(player, 0.4f, () => { }, PlayerAnimationState.Cook);
+                StartProcessOn(player, 0.4f, () => { }, PlayerAnimHint.Cook);
                 return true;
             }
             return false;
@@ -112,7 +110,21 @@ namespace KitchenChaos.Stations
 
         void UpdateVisuals()
         {
-            if (_fireRenderer == null) return;
+            if (_fireRenderer == null)
+            {
+                var t = transform.Find("Fire");
+                if (t == null)
+                {
+                    var go = new GameObject("Fire");
+                    go.transform.SetParent(transform, false);
+                    go.transform.localPosition = new Vector3(0, 0.3f, 0);
+                    go.transform.localScale = new Vector3(0.5f, 0.5f, 1);
+                    _fireRenderer = go.AddComponent<SpriteRenderer>();
+                    _fireRenderer.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f), 32);
+                    _fireRenderer.sortingOrder = 3;
+                }
+                else _fireRenderer = t.GetComponent<SpriteRenderer>();
+            }
             _fireRenderer.enabled = _phase == CookPhase.Cooking || _phase == CookPhase.Burning;
             _fireRenderer.color = _phase == CookPhase.Burning ? new Color(1f, 0.2f, 0.1f) : new Color(1f, 0.6f, 0.1f);
         }

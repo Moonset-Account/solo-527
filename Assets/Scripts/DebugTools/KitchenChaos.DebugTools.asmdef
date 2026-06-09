@@ -1,7 +1,7 @@
 {
     "name": "KitchenChaos.DebugTools",
     "rootNamespace": "KitchenChaos.DebugTools",
-    "references": ["KitchenChaos.Core", "KitchenChaos.Players", "KitchenChaos.Stations", "KitchenChaos.OrderSystem", "KitchenChaos.Config", "KitchenChaos.Scoring", "Unity.TextMeshPro"],
+    "references": ["KitchenChaos.Core", "KitchenChaos.Players", "KitchenChaos.Stations", "KitchenChaos.OrderSystem", "KitchenChaos.Config", "KitchenChaos.Scoring", "KitchenChaos.Ingredients", "Unity.TextMeshPro"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

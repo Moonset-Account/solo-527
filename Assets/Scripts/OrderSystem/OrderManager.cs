@@ -222,7 +222,6 @@ namespace KitchenChaos.OrderSystem
                 RecipeName = order.Recipe.Name,
                 PenaltyScore = penalty
             });
-            ServiceLocator.Get<ScoreManager>()?.OnOrderFailed(penalty);
         }
 
         public void ClearAll()

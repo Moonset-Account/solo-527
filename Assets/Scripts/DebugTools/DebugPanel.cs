@@ -9,6 +9,7 @@ using KitchenChaos.Players;
 using KitchenChaos.Stations;
 using KitchenChaos.OrderSystem;
 using KitchenChaos.Config;
+using KitchenChaos.Scoring;
 
 namespace KitchenChaos.DebugTools
 {

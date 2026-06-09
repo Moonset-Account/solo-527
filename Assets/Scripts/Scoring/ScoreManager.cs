@@ -3,7 +3,7 @@ using KitchenChaos.Core;
 using KitchenChaos.Config;
 using KitchenChaos.OrderSystem;
 
-namespace KitchenChaos
+namespace KitchenChaos.Scoring
 {
     public class ScoreManager : MonoBehaviour
     {

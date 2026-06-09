@@ -24,13 +24,69 @@ namespace KitchenChaos.Core
         public int StarsEarned;
     }
 
-    public enum FailReason
+    public struct RequestInitializeLevelEvent : IEvent
     {
-        None,
-        TimeUp,
-        TooManyFailedOrders,
-        AllPlayersDown,
-        ObjectiveNotMet
+        public int LevelIndex;
+        public bool IsSinglePlayer;
+    }
+
+    public struct RequestResetComboEvent : IEvent { }
+
+    public struct RequestApplyLevelMechanicsEvent : IEvent
+    {
+        public int LevelIndex;
+    }
+
+    public struct RequestSaveLevelResultEvent : IEvent
+    {
+        public int LevelIndex;
+        public int Score;
+        public int Stars;
+        public bool Victory;
+    }
+
+    public struct RequestCheckAchievementsEvent : IEvent
+    {
+        public int Score;
+        public int Stars;
+        public int LevelIndex;
+        public bool Victory;
+    }
+
+    public struct RequestMaxFailedOrdersEvent : IEvent
+    {
+        public int LevelIndex;
+        public int ReplyToken;
+    }
+
+    public struct ReplyMaxFailedOrdersEvent : IEvent
+    {
+        public int ReplyToken;
+        public int MaxFailedOrders;
+    }
+
+    public struct RequestLevelDurationEvent : IEvent
+    {
+        public int LevelIndex;
+        public int ReplyToken;
+    }
+
+    public struct ReplyLevelDurationEvent : IEvent
+    {
+        public int ReplyToken;
+        public float Duration;
+    }
+
+    public struct RequestStarThresholdsEvent : IEvent
+    {
+        public int LevelIndex;
+        public int ReplyToken;
+    }
+
+    public struct ReplyStarThresholdsEvent : IEvent
+    {
+        public int ReplyToken;
+        public int[] Thresholds;
     }
 
     public struct OrderCreatedEvent : IEvent

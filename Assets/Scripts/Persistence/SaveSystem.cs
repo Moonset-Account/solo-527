@@ -17,6 +17,13 @@ namespace KitchenChaos.Persistence
     }
 
     [Serializable]
+    public class DailyScoreEntry
+    {
+        public string DateKey;
+        public int Score;
+    }
+
+    [Serializable]
     public class GameSaveData
     {
         public string PlayerName = "Chef";
@@ -26,7 +33,8 @@ namespace KitchenChaos.Persistence
         public List<string> UnlockedAchievements = new();
         public long LastDailyChallengeDate;
         public int DailyChallengeBestScore;
-        public Dictionary<string, int> LeaderboardScores = new();
+        public List<DailyScoreEntry> DailyBestScoresList = new();
+        public List<DailyScoreEntry> LeaderboardScoresList = new();
         public int TutorialProgress;
         public bool FirstTimeLaunch = true;
         public string SettingsJson;

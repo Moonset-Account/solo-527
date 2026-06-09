@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
 
 namespace KitchenChaos.Stations
 {
@@ -11,26 +11,25 @@ namespace KitchenChaos.Stations
     {
         [SerializeField] IngredientDefinition[] _providedIngredients;
         [SerializeField] int _maxConcurrentSpawns = 5;
-        [SerializeField] GameObject _ingredientPrefab;
         readonly List<IngredientItem> _spawned = new();
-
-        public IReadOnlyList<IngredientDefinition> Provided => _providedIngredients;
         int _cycleIndex;
 
-        protected override bool HandleInteract(PlayerController player)
+        public IReadOnlyList<IngredientDefinition> Provided => _providedIngredients;
+
+        protected override bool HandleInteract(IPlayer player)
         {
-            if (player.HasItem) return false;
+            if (PlayerHasIngredient(player)) return false;
             if (_providedIngredients == null || _providedIngredients.Length == 0) return false;
             var def = _providedIngredients[_cycleIndex % _providedIngredients.Length];
             _cycleIndex++;
-
             var item = Spawn(def);
             if (item == null) return false;
-            player.PickUp(item);
+            player.PickUpRaw(item);
+            EventBus.Raise(new IngredientPickedUpEvent { PlayerId = player.PlayerId, IngredientName = def.Name, State = def.InitialState });
             return true;
         }
 
-        public override bool SecondaryInteract(PlayerController player)
+        public override bool SecondaryInteract(IPlayer player)
         {
             if (_providedIngredients == null || _providedIngredients.Length == 0) return false;
             _cycleIndex = (_cycleIndex + 1) % Mathf.Max(1, _providedIngredients.Length);
@@ -46,23 +45,21 @@ namespace KitchenChaos.Stations
                 if (old) Destroy(old.gameObject);
             }
 
-            GameObject go;
-            if (_ingredientPrefab != null)
-                go = Instantiate(_ingredientPrefab, _anchor.position, Quaternion.identity);
-            else
-            {
-                go = new GameObject($"Ingredient_{def.Name}");
-                go.transform.position = _anchor.position;
-                go.AddComponent<CircleCollider2D>().isTrigger = true;
-                var rb = go.AddComponent<Rigidbody2D>();
-                rb.gravityScale = 0;
-                rb.bodyType = RigidbodyType2D.Kinematic;
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sortingOrder = 5;
-                go.layer = LayerMask.NameToLayer("Default");
-            }
+            var go = new GameObject($"Ingredient_{def.Name}");
+            go.transform.position = Anchor.position;
+            go.layer = 0;
+            var col = go.AddComponent<CircleCollider2D>();
+            col.isTrigger = true;
+            col.radius = 0.28f;
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.gravityScale = 0;
+            rb.bodyType = RigidbodyType2D.Kinematic;
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = 5;
+            sr.sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f), 32);
+            go.transform.localScale = new Vector3(0.5f, 0.5f, 1);
 
-            var item = go.GetComponent<IngredientItem>() ?? go.AddComponent<IngredientItem>();
+            var item = go.AddComponent<IngredientItem>();
             item.SetDefinition(def);
             _spawned.Add(item);
             return item;

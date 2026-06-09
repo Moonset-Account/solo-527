@@ -1,7 +1,7 @@
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
 
 namespace KitchenChaos.Stations
 {
@@ -12,26 +12,25 @@ namespace KitchenChaos.Stations
 
         public override float ProcessProgress => _processing ? _progress / _processDuration : 0f;
 
-        protected override bool HandleInteract(PlayerController player)
+        protected override bool HandleInteract(IPlayer player)
         {
             if (HasItem)
             {
                 if (!_storedItem.Definition.CanBeChopped || _storedItem.State == IngredientState.Chopped)
                 {
-                    if (!player.HasItem)
+                    if (!PlayerHasIngredient(player))
                     {
-                        player.PickUp(TakeStored());
+                        player.PickUpRaw(TakeStored());
                         return true;
                     }
                     return false;
                 }
-
                 if (_processing) return false;
 
                 var def = _storedItem.Definition;
                 _processing = true;
                 _progress = 0f;
-                StartProcess(player, def.ChopTime > 0 ? def.ChopTime : _processDuration, () =>
+                StartProcessOn(player, def.ChopTime > 0 ? def.ChopTime : _processDuration, () =>
                 {
                     var prev = _storedItem.State;
                     _storedItem.State = IngredientState.Chopped;
@@ -43,16 +42,16 @@ namespace KitchenChaos.Stations
                         FromState = prev,
                         ToState = IngredientState.Chopped
                     });
-                }, PlayerAnimationState.Chop);
+                }, PlayerAnimHint.Chop);
                 return true;
             }
 
-            if (player.HasItem)
+            if (PlayerHasIngredient(player))
             {
-                var pc = player.Carrying;
-                if (pc.Definition.CanBeChopped && pc.State < IngredientState.Chopped)
+                var pc = PlayerCarryAsIngredient(player);
+                if (pc.Definition.CanBeChopped && (int)pc.State < (int)IngredientState.Chopped)
                 {
-                    Store(player.ReleaseCarrying());
+                    Store((IngredientItem)player.ReleaseCarryingRaw());
                     _progress = 0f;
                     return true;
                 }

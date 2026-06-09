@@ -2,48 +2,46 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using KitchenChaos.Core;
+using KitchenChaos.Core.Abstractions;
 using KitchenChaos.Ingredients;
-using KitchenChaos.Players;
-using KitchenChaos.OrderSystem;
 
 namespace KitchenChaos.Stations
 {
     public class DeliveryStation : BaseStation
     {
-        protected override bool HandleInteract(PlayerController player)
+        protected override bool HandleInteract(IPlayer player)
         {
-            if (!player.HasItem) return false;
-            return TryDeliver(player, player.Carrying);
+            if (!PlayerHasIngredient(player)) return false;
+            return TryDeliver(player, PlayerCarryAsIngredient(player));
         }
 
-        public bool TryDeliver(PlayerController player, IngredientItem item)
+        public bool TryDeliver(IPlayer player, IngredientItem item)
         {
             if (item == null) return false;
-            var orderMgr = ServiceLocator.Get<OrderManager>();
-            var scoreMgr = ServiceLocator.Get<ScoreManager>();
-            if (orderMgr == null || scoreMgr == null) return false;
+            var om = FindObjectOfType<OrderSystem.OrderManager>();
+            var sm = FindObjectOfType<Scoring.ScoreManager>();
+            if (om == null || sm == null) return false;
 
-            var combined = CollectCombinedItems(player, item);
+            var combined = CollectCombinedItems(item);
+            var result = om.TryMatchAndComplete(combined, out var order, out var matched);
 
-            var result = orderMgr.TryMatchAndComplete(combined, out var order, out var matched);
-
-            if (result == DeliveryMatchResult.Success)
+            if (result == OrderSystem.DeliveryMatchResult.Success)
             {
-                var scoreGained = scoreMgr.OnOrderDelivered(order, matched, player.PlayerId);
+                var delta = sm.OnOrderDelivered(order, matched, player.PlayerId);
                 DestroyConsumed(combined, item, player);
                 EventBus.Raise(new OrderDeliveredEvent
                 {
                     OrderId = order.Id,
-                    ScoreGained = scoreGained,
-                    ComboCount = scoreMgr.CurrentCombo,
+                    ScoreGained = delta,
+                    ComboCount = sm.CurrentCombo,
                     Perfect = matched.PerfectTiming
                 });
                 return true;
             }
 
-            if (result == DeliveryMatchResult.Wrong)
+            if (result == OrderSystem.DeliveryMatchResult.Wrong)
             {
-                scoreMgr.OnWrongDelivery();
+                sm.OnWrongDelivery();
                 DestroyConsumed(combined, item, player);
                 return true;
             }
@@ -51,21 +49,19 @@ namespace KitchenChaos.Stations
             return false;
         }
 
-        List<IngredientItem> CollectCombinedItems(PlayerController player, IngredientItem carried)
+        List<IngredientItem> CollectCombinedItems(IngredientItem carried)
         {
-            var list = new List<IngredientItem>();
-            var plateStation = FindObjectsOfType<PlateStation>();
-            foreach (var ps in plateStation)
+            var list = new List<IngredientItem> { carried };
+            foreach (var ps in FindObjectsOfType<PlateStation>())
             {
-                if (ps.PeekCombined() == carried || ps.CombinedItems.Count == 0) continue;
+                foreach (var c in ps.CombinedItems) list.Add(c);
             }
-            list.Add(carried);
             return list;
         }
 
-        void DestroyConsumed(List<IngredientItem> combined, IngredientItem carried, PlayerController player)
+        static void DestroyConsumed(List<IngredientItem> combined, IngredientItem carried, IPlayer player)
         {
-            player.ReleaseCarrying();
+            player.ReleaseCarryingRaw();
             if (carried != null) Destroy(carried.gameObject);
             foreach (var ps in FindObjectsOfType<PlateStation>())
                 if (ps.HasItem) { ps.ConsumePlate(); break; }
