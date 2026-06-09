@@ -66,7 +66,7 @@ def main():
         print_stats(f"  {label}", f"{count:,} ({count/len(df)*100:.1f}%)")
 
     # Step 3: 特征工程
-    step("Step 3: 特征工程 (滑动窗口提取)")
+    step("Step 3: 特征工程 (滑动窗口提取 + 维修记录特征 + 维修窗口过滤)")
     extractor = FeatureExtractor(window_size=60, step_size=10)
     loader = DataLoader()
 
@@ -74,7 +74,8 @@ def main():
     sensor_df = loader.load_sensor_data(exclude_downtime=True)
     print_stats("有效样本数", f"{len(sensor_df):,}")
 
-    sub_step("提取时域/频域/趋势/交叉特征")
+    sub_step("加载维修记录并生成距离上次维修时长等维修特征")
+    sub_step("自动排除维修前后24小时缓冲区内的窗口")
     features_df = extractor.extract_and_save_features(
         sensor_df,
         exclude_downtime=True
@@ -82,18 +83,21 @@ def main():
     feature_cols = [c for c in features_df.columns if c not in 
                     ['label', 'equipment_id', 'window_start', 'window_end', 'data_version']]
     print_stats("特征维度", len(feature_cols))
+    print_stats("  含时域特征(4传感器)", "4 x 15 = 60维")
+    print_stats("  含频域特征(4传感器)", "4 x 7 = 28维")
+    print_stats("  含趋势特征(4传感器)", "4 x 3 = 12维")
+    print_stats("  含交叉相关特征", "12维")
+    print_stats("  含班次特征", "4维")
+    print_stats("  含维修相关特征", "11维 (距上次维修/维修类型/频次等)")
     print_stats("窗口数量", f"{len(features_df):,}")
     print_stats("数据版本", features_df['data_version'].iloc[0])
     label_counts = features_df['label'].value_counts()
     for label, count in label_counts.items():
-        print_stats(f"  标签[{label}]", f"{count:,}")
+        print_stats(f"  原始raw_label[{label}] (仅记录, 不直接参与训练)", f"{count:,}")
 
     # Step 4: 模型训练
     step("Step 4: 训练异常检测模型 (严格工程师确认准入 + 冷启动种子样本)")
     trainer = AnomalyModelTrainer()
-
-    X = features_df[feature_cols].copy()
-    y = features_df['label'].copy()
 
     sub_step("查看训练集准入状态概览")
     summary = trainer.get_training_dataset_summary()
@@ -102,15 +106,22 @@ def main():
     print_stats("  工程师确认(准入训练)", summary['total_allowed_samples'])
     print_stats("严格准入规则", "已启用" if summary['strict_training_rule_enabled'] else "未启用")
     print_stats("训练就绪", "是" if summary['ready_for_training'] else f"否 (还需{max(0, 15 - summary['total_allowed_samples'])}条)")
+    for src, cnt in summary.get('by_source_count', {}).items():
+        allowed = src in summary.get('training_allowed_sources', [])
+        print_stats(f"    来源 [{src}]", f"{cnt}  {'✓准入' if allowed else '✗排除(原始raw_label)'}")
 
-    sub_step("训练 Gradient Boosting 分类器 (启用冷启动种子样本)")
+    sub_step("训练 Gradient Boosting 分类器 (strict_from_db_only=True, 启用冷启动种子)")
+    print("      └─ 严格只从数据库加载 engineer_confirmed / engineer_relabeled / auto_labeled_seed")
+    print("      └─ 历史 raw_label (historical_unconfirmed) 完全绕过，不参与训练")
+    print("      └─ 维修窗口±24小时缓冲区样本自动排除")
     result = trainer.train(
-        feature_df=X,
-        label_series=y,
+        feature_df=None,
+        label_series=None,
         model_type="gb",
         test_size=0.2,
         include_feedback=False,
         auto_seed_samples=True,
+        strict_from_db_only=True,
         description="演示系统初始训练 - 严格准入制 + 冷启动种子"
     )
 

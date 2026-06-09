@@ -260,6 +260,180 @@ class AnomalyModelTrainer:
             )
         }
 
+    def _generate_and_persist_cold_start_seed_samples(
+        self,
+        target_count: int,
+        data_version: str,
+        random_seed: int = None
+    ) -> int:
+        import numpy as np
+        import pandas as pd
+        from feature_engineer import FeatureExtractor
+        from database import FEATURE_SOURCE_AUTO_LABELED
+
+        seed = random_seed or (int(datetime.now().timestamp()) % 99999)
+        rng = np.random.RandomState(seed)
+        fe = FeatureExtractor(window_size=60, step_size=10)
+
+        label_weights = {
+            "正常": 0.70,
+            "轴承磨损": 0.18,
+            "传感器漂移": 0.12,
+        }
+        target_labels = list(label_weights.keys())
+
+        num_per_label = {
+            lbl: max(5, int(target_count * label_weights[lbl]))
+            for lbl in target_labels
+        }
+        while sum(num_per_label.values()) < target_count:
+            num_per_label["正常"] += 1
+
+        session = Database.get_session()
+        try:
+            from database import FeatureRecord
+            import json as _json
+
+            eq_ids = [f"EQ_{i:02d}" for i in range(1, 6)]
+            base_time = datetime.now() - timedelta(days=15)
+
+            feature_blueprint = None
+            for attempt in range(3):
+                try:
+                    snapshot = self._generate_labeled_sensor_snapshot("正常", rng)
+                    df_window = self._snapshot_to_window_df(snapshot, base_time, rng)
+                    feat_dict = fe.extract_window_features(df_window, "EQ_SEED", {})
+                    if feat_dict and isinstance(feat_dict, dict) and len(feat_dict) > 50:
+                        feature_blueprint = feat_dict
+                        break
+                except Exception:
+                    continue
+
+            if feature_blueprint is None:
+                return 0
+
+            feat_keys = list(feature_blueprint.keys())
+            records_to_insert = []
+            feat_count = 0
+
+            for lbl in target_labels:
+                n_needed = num_per_label[lbl]
+                for _ in range(n_needed):
+                    try:
+                        snapshot = self._generate_labeled_sensor_snapshot(lbl, rng)
+                        df_window = self._snapshot_to_window_df(
+                            snapshot,
+                            base_time + timedelta(hours=feat_count * 2),
+                            rng
+                        )
+                        try:
+                            feat_dict = fe.extract_window_features(
+                                df_window,
+                                rng.choice(eq_ids),
+                                {}
+                            )
+                            if not feat_dict or len(feat_dict) < len(feat_keys) // 2:
+                                raise ValueError("feat dict broken")
+                        except Exception:
+                            feat_dict = {}
+                            for k in feat_keys:
+                                base_val = float(feature_blueprint[k] or 0.0)
+                                noise = base_val * (0.85 + rng.rand() * 0.3)
+                                if lbl != "正常":
+                                    noise *= (1.05 + rng.rand() * 0.4)
+                                feat_dict[k] = float(noise)
+
+                        start_time = base_time + timedelta(
+                            hours=feat_count * 2, minutes=int(rng.randint(0, 59))
+                        )
+                        end_time = start_time + timedelta(minutes=60)
+
+                        fr = FeatureRecord(
+                            equipment_id=rng.choice(eq_ids),
+                            window_start=start_time,
+                            window_end=end_time,
+                            features=_json.dumps(feat_dict, ensure_ascii=False),
+                            label=lbl,
+                            source=FEATURE_SOURCE_AUTO_LABELED,
+                            feedback_id=None,
+                            confidence_label=float(0.6 + rng.rand() * 0.3),
+                            data_version=data_version,
+                            is_used_for_training=False
+                        )
+                        records_to_insert.append(fr)
+                        feat_count += 1
+                    except Exception:
+                        continue
+
+            for i in range(0, len(records_to_insert), 500):
+                batch = records_to_insert[i:i + 500]
+                session.add_all(batch)
+                session.commit()
+
+            print(
+                f"[ColdStartSeed] 生成并入库 {len(records_to_insert)} 条冷启动种子样本 "
+                f"(source={FEATURE_SOURCE_AUTO_LABELED}, 分布={num_per_label})"
+            )
+            return len(records_to_insert)
+        except Exception as e:
+            session.rollback()
+            print(f"[ColdStartSeed] 冷启动种子样本生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return 0
+        finally:
+            session.close()
+
+    @staticmethod
+    def _generate_labeled_sensor_snapshot(
+        label: str,
+        rng: np.random.RandomState
+    ) -> Dict[str, np.ndarray]:
+        n = 60
+        snapshot = {
+            "temperature": rng.normal(55, 5, n),
+            "vibration": rng.normal(2.0, 0.5, n),
+            "current": rng.normal(20, 2, n),
+            "rpm": rng.normal(1500, 60, n),
+            "shift": ["早班"] * n,
+        }
+        if label == "轴承磨损":
+            snapshot["vibration"] = np.clip(
+                np.linspace(3.0, 7.0, n) + rng.normal(0, 0.8, n), 0.5, None
+            )
+            snapshot["temperature"] = np.clip(
+                rng.normal(55, 5, n) + np.linspace(0, 18, n), 40, 95
+            )
+            snapshot["current"] = rng.normal(22, 3, n)
+        elif label == "传感器漂移":
+            drift_direction = rng.choice([-1.0, 1.0])
+            drift_magnitude = rng.uniform(8, 22)
+            drift_series = np.linspace(0, drift_direction * drift_magnitude, n)
+            drift_col = rng.choice(["temperature", "current", "rpm"])
+            snapshot[drift_col] = snapshot[drift_col] + drift_series
+            snapshot["vibration"] = np.clip(
+                snapshot["vibration"] + rng.normal(0, 0.6, n), 0.1, None
+            )
+        return snapshot
+
+    @staticmethod
+    def _snapshot_to_window_df(
+        snapshot: Dict[str, np.ndarray],
+        start_ts: datetime,
+        rng: np.random.RandomState
+    ) -> pd.DataFrame:
+        import pandas as _pd
+        n = len(snapshot["temperature"])
+        timestamps = _pd.date_range(start=start_ts, periods=n, freq="min")
+        return _pd.DataFrame({
+            "timestamp": timestamps,
+            "temperature": snapshot["temperature"],
+            "vibration": snapshot["vibration"],
+            "current": snapshot["current"],
+            "rpm": snapshot["rpm"],
+            "shift": snapshot["shift"],
+        })
+
     def _build_model_pipeline(self, model_type: str = "gb") -> Pipeline:
         if model_type == "rf":
             classifier = RandomForestClassifier(
@@ -506,6 +680,19 @@ class AnomalyModelTrainer:
         else:
             audit_db = {"total_qualified": len(feature_df), "external": True}
 
+        seed_samples_generated = 0
+        if include_seed_samples and audit_db.get("total_qualified", 0) < self.MIN_TRAINING_SAMPLES:
+            existing_count = audit_db.get("total_qualified", 0)
+            seed_target = max(self.MIN_TRAINING_SAMPLES - existing_count, 30)
+            seed_samples_generated = self._generate_and_persist_cold_start_seed_samples(
+                seed_target, data_version
+            )
+            if seed_samples_generated > 0:
+                feature_df, label_series, audit_db = self.load_training_dataset_from_db(
+                    include_seed_samples=True,
+                    exclude_maintenance_buffer_hours=exclude_maintenance_buffer_hours
+                )
+
         initial_ids = list(audit_db.get("feedback_ids", []))
         extra_feedback_ids = []
 
@@ -633,6 +820,16 @@ class AnomalyModelTrainer:
             "sample_source_audit": audit_db,
             "maintenance_excluded_hours": exclude_maintenance_buffer_hours,
             "strict_training_rule": "仅使用工程师人工确认样本+冷启动种子样本，历史raw_label未直接参与训练",
+            "strict_training_rule_enabled": True,
+            "seed_samples_generated": int(seed_samples_generated),
+            "total_allowed_from_db": int(audit_db.get("total_qualified", 0)),
+            "by_source_in_training": audit_db.get("by_source", {}),
+            "by_label_in_training": audit_db.get("by_label", {}),
+            "excluded_maintenance_buffer_count": int(
+                (audit_db.get("excluded") or {}).get("maintenance_buffer_24h", 0)
+            ),
+            "training_allowed_sources": list(TRAINING_ALLOWED_SOURCES),
+            "excluded_sources_note": "historical_unconfirmed 来源(原始传感器raw_label)一律排除"
         }
 
         result = {

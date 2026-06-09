@@ -324,7 +324,38 @@ class MLflowModelManager:
             for v, info in registry["models"].items():
                 info["is_deployed"] = (v == model_version)
             registry["deployed_version"] = model_version
+            registry["deployed_at"] = datetime.now().isoformat()
             self._write_local_registry(registry)
+
+            deployed_dir = os.path.join(self.LOCAL_MODEL_DIR, "deployed")
+            os.makedirs(deployed_dir, exist_ok=True)
+            src_model_dir = os.path.join(self.LOCAL_MODEL_DIR, model_version)
+            if os.path.isdir(src_model_dir):
+                import shutil as _shutil
+                for fname in ["pipeline.joblib", "metadata.json", "metrics.json", "training_result.json"]:
+                    src = os.path.join(src_model_dir, fname)
+                    dst = os.path.join(deployed_dir, fname)
+                    if os.path.exists(src):
+                        try:
+                            _shutil.copy2(src, dst)
+                        except Exception as e:
+                            logger.warning(f"Copy {fname} to deployed failed: {e}")
+
+                src_meta_path = os.path.join(src_model_dir, "metadata.json")
+                if os.path.exists(src_meta_path):
+                    try:
+                        with open(src_meta_path, "r", encoding="utf-8") as f:
+                            src_meta = json.load(f)
+                        deployed_meta = dict(src_meta)
+                        deployed_meta["deployed_at"] = datetime.now().isoformat()
+                        deployed_meta["model_path"] = os.path.abspath(src_model_dir)
+                        deployed_meta["is_deployed"] = True
+                        with open(os.path.join(deployed_dir, "metadata.json"), "w", encoding="utf-8") as f:
+                            json.dump(deployed_meta, f, indent=2, ensure_ascii=False)
+                    except Exception as e:
+                        logger.warning(f"Update deployed metadata.json failed: {e}")
+
+                logger.info(f"Model artifacts copied to {deployed_dir}")
 
             logger.info(f"Model {model_version} deployed successfully")
             return True
