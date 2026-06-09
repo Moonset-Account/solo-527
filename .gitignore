@@ -1,0 +1,101 @@
+# Unreal Engine generated files
+*.VC.db
+*.opensdf
+*.opendb
+*.sdf
+*.suo
+*.sln
+*.suo
+*.xcodeproj
+*.xcworkspace
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxproj
+*.xcuserstate
+*.xcbkptlib
+*.xcsettings
+*.xccheckout
+*.xcscmblueprint
+*.xcscheme
+*.xcschememanagement.plist
+*.xccolortheme
+*.xcworkspace
+xcuserdata/
+xcshareddata/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Pp]ackages/
+
+# Visual Studio cache/VS
+.vs/
+.vscode/
+.idea/
+*.user
+*.cache
+*.ilk
+*.pdb
+*.VC.opendb
+*.VC.db
+*.opensdf
+*.opendb
+*.VC.opendb
+*.sdf
+*.opensdf
+*.opendb
+
+# Unreal Engine project intermediate & saved
+Intermediate/
+Saved/
+DerivedData/
+Build/*_BuiltData/
+*_BuiltData/
+*_BuiltData/
+Content/_BuiltData/
+Content/
+
+# Build outputs
+Binaries/
+DerivedDataCache/
+*DerivedDataCache/
+*_DDC/
+*_DDC.udd/
+*_DDC.uexp
+*_DDC.uexp
+*_DDC.udd
+*_DDC.tps
+*_DDC.bulk.uexp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large asset registry files
+*.apk
+*.aab
+*.ipa
+
+# CrashReport
+crashinfo/
+crashreport/
+CRASHUPLOADS/
+
+# Visual Studio Code
+.vscode/
+.vs/
+*.code-workspace
+*.sln
+*.sdf
+*.opensdf
+*.opendb
+*.VC.opendb
+*.VC.db
+*.VC.opendb
