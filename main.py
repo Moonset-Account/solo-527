@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.middleware import RequestLoggingMiddleware
-from app.data.database import init_db
+from app.data.database import init_db, bootstrap_minimum_data
 from app.api.v1.router import api_router
 
 settings = get_settings()
@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     init_db()
     logger.info(f"{settings.APP_NAME} started. DB initialized.")
+    bootstrap_minimum_data()
+    logger.info(f"{settings.APP_NAME} bootstrap minimum data finished.")
     yield
     logger.info(f"{settings.APP_NAME} shutting down.")
 

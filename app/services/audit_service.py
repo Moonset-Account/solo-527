@@ -244,24 +244,32 @@ class AcceptanceService:
             calls, calls_total = self.call_repo.list(page=1, page_size=100)
             checks.append(AcceptanceCheck(
                 check_name="API调用日志存在",
-                passed=True,
-                message=f"已记录 {calls_total} 条 API 调用日志",
+                passed=calls_total > 0,
+                message=f"已记录 {calls_total} 条 API 调用日志" if calls_total > 0 else "未记录任何 API 调用日志",
                 details={"total_calls": calls_total},
             ))
 
             unique_endpoints = set(c.endpoint for c in calls)
             checks.append(AcceptanceCheck(
                 check_name="API调用日志端点覆盖",
-                passed=len(unique_endpoints) >= 0,
-                message=f"已覆盖 {len(unique_endpoints)} 个 API 端点",
+                passed=len(unique_endpoints) >= 2,
+                message=(
+                    f"已覆盖 {len(unique_endpoints)} 个 API 端点: {sorted(unique_endpoints)}"
+                    if len(unique_endpoints) >= 2
+                    else f"调用日志仅覆盖 {len(unique_endpoints)} 个端点 (< 2)，至少需产生两次有效 API 调用"
+                ),
                 details={"endpoints": sorted(unique_endpoints)},
             ))
 
             rate_limited_count = sum(1 for c in calls if c.rate_limited)
             checks.append(AcceptanceCheck(
                 check_name="限流日志完整性",
-                passed=True,
-                message=f"已记录 {rate_limited_count} 条被限流的调用",
+                passed=True,  # 限流云在没触发时可以为 0，但字段需完整
+                message=(
+                    f"已记录 {rate_limited_count} 条被限流的调用（总调用 {calls_total}）"
+                    if calls_total > 0
+                    else "无调用日志，限流字段可在产生调用后验证"
+                ),
                 details={"rate_limited_count": rate_limited_count},
             ))
         except Exception as e:
@@ -274,8 +282,12 @@ class AcceptanceService:
             audits, audit_total = self.audit_repo.list(page=1, page_size=5)
             checks.append(AcceptanceCheck(
                 check_name="审计日志完整性",
-                passed=True,
-                message=f"已记录 {audit_total} 条审计日志",
+                passed=audit_total > 0,
+                message=(
+                    f"已记录 {audit_total} 条审计日志"
+                    if audit_total > 0
+                    else "未记录任何审计日志（至少需一次写操作 API 调用）"
+                ),
             ))
         except Exception as e:
             checks.append(AcceptanceCheck(
