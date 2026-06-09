@@ -191,6 +191,7 @@ func _add_stats_section(parent: HBoxContainer) -> void:
 	o_lbl.add_theme_font_size_override("font_size", 15)
 	vb.add_child(o_lbl)
 	var hb := HBoxContainer.new()
+	hb.name = "HBox"
 	hb.add_theme_constant_override("separation", 8)
 	vb.add_child(hb)
 	var h_bg := ColorRect.new()
@@ -232,6 +233,7 @@ func _add_speed_section(parent: HBoxContainer) -> void:
 	s_lbl.modulate = Color(0.9, 0.95, 1.0)
 	vb.add_child(s_lbl)
 	var hb := HBoxContainer.new()
+	hb.name = "HBox"
 	hb.add_theme_constant_override("separation", 4)
 	vb.add_child(hb)
 	var b1 := Button.new()
@@ -300,6 +302,7 @@ func _build_sidepanel_ui(cl: CanvasLayer) -> void:
 	mlist.name = "MachineList"
 	mlist.add_theme_constant_override("separation", 6)
 	var sc := ScrollContainer.new()
+	sc.name = "Scroll"
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = 0
 	var mt := Label.new()
@@ -351,7 +354,7 @@ func _build_sidepanel_ui(cl: CanvasLayer) -> void:
 	bs.text = "💸 出售"
 	bs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bs.custom_minimum_size = Vector2(0, 38)
-	dp.add_child(bs)
+	btns.add_child(bs)
 	cl.add_child(root)
 
 func _build_pause_ui(cl: CanvasLayer) -> void:
@@ -453,6 +456,7 @@ func _build_orderlist_ui(cl: CanvasLayer) -> void:
 	orders_vb.name = "Orders"
 	orders_vb.add_theme_constant_override("separation", 8)
 	var sc := ScrollContainer.new()
+	sc.name = "Scroll"
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = 0
 	sc.add_child(orders_vb)
@@ -602,9 +606,7 @@ func _load_level(lvl_id: String) -> void:
 	_connect_placement_machine_selection()
 
 func _connect_placement_machine_selection() -> void:
-	placement_system.mouse_entered.connect(func(): pass)
-	for mid in pipeline.machine_nodes.keys():
-		pass
+	pass
 
 func _connect_signals() -> void:
 	placement_system.item_placed.connect(_on_item_placed)

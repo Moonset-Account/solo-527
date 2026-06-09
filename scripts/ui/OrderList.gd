@@ -3,7 +3,7 @@ extends CanvasLayer
 
 const DP := preload("res://scripts/data/DataProvider.gd")
 
-@onready var order_container: VBoxContainer = $Panel/VBox/Orders
+@onready var order_container: VBoxContainer = $Panel/VBox/Scroll/Orders
 
 var _order_widgets: Dictionary = {}
 

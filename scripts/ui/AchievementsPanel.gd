@@ -2,10 +2,10 @@ extends Control
 ## AchievementsPanel - 成就与每日挑战页面
 
 @onready var achievement_grid: GridContainer = $Panel/Scroll/Grid
-@onready var btn_back: Button = $Panel/BackButton
+@onready var btn_back: Button = $Panel/TopRow/BackButton
 @onready var lbl_progress: Label = $Panel/ProgressLabel
 @onready var daily_container: VBoxContainer = $Panel/DailySection/List
-@onready var lbl_session: Label = $Panel/DailySection/SessionLabel
+@onready var lbl_session: Label = $Panel/DailySection/DailyHeader/SessionLabel
 
 var _achievement_ids: Array = []
 

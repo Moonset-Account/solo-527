@@ -1,18 +1,18 @@
 extends Control
 ## SettingsPanel - 设置页面
 
-@onready var sld_master: HSlider = $Panel/VBox/VolumeSection/MasterSlider
-@onready var sld_music: HSlider = $Panel/VBox/VolumeSection/MusicSlider
-@onready var sld_sfx: HSlider = $Panel/VBox/VolumeSection/SfxSlider
-@onready var lbl_master_val: Label = $Panel/VBox/VolumeSection/MasterVal
-@onready var lbl_music_val: Label = $Panel/VBox/VolumeSection/MusicVal
-@onready var lbl_sfx_val: Label = $Panel/VBox/VolumeSection/SfxVal
+@onready var sld_master: HSlider = $Panel/VBox/VolumeSection/MasterRow/MasterSlider
+@onready var sld_music: HSlider = $Panel/VBox/VolumeSection/MusicRow/MusicSlider
+@onready var sld_sfx: HSlider = $Panel/VBox/VolumeSection/SfxRow/SfxSlider
+@onready var lbl_master_val: Label = $Panel/VBox/VolumeSection/MasterRow/MasterVal
+@onready var lbl_music_val: Label = $Panel/VBox/VolumeSection/MusicRow/MusicVal
+@onready var lbl_sfx_val: Label = $Panel/VBox/VolumeSection/SfxRow/SfxVal
 @onready var chk_fullscreen: CheckBox = $Panel/VBox/DisplaySection/FullscreenCheck
 @onready var chk_showfps: CheckBox = $Panel/VBox/DisplaySection/FpsCheck
 @onready var chk_pixel: CheckBox = $Panel/VBox/DisplaySection/PixelCheck
 @onready var btn_back: Button = $Panel/VBox/BackButton
-@onready var btn_reset: Button = $Panel/VBox/ResetButton
-@onready var btn_playtest_info: Button = $Panel/VBox/PlaytestInfo
+@onready var btn_reset: Button = $Panel/VBox/PlaytestButtonRow/ResetButton
+@onready var btn_playtest_info: Button = $Panel/VBox/PlaytestButtonRow/PlaytestInfo
 @onready var lbl_playtest: Label = $Panel/VBox/PlaytestLabel
 
 var _last_scene: String = "MainMenu"

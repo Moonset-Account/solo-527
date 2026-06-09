@@ -9,13 +9,13 @@ extends CanvasLayer
 @onready var lbl_orders: Label = $TopBar/HBox/Stats/OrdersLabel
 @onready var lbl_time: Label = $TopBar/HBox/Stats/TimeLabel
 @onready var lbl_speed: Label = $TopBar/HBox/SpeedControl/SpeedLabel
-@onready var btn_speed_down: Button = $TopBar/HBox/SpeedControl/SpeedDown
-@onready var btn_speed_up: Button = $TopBar/HBox/SpeedControl/SpeedUp
+@onready var btn_speed_down: Button = $TopBar/HBox/SpeedControl/HBox/SpeedDown
+@onready var btn_speed_up: Button = $TopBar/HBox/SpeedControl/HBox/SpeedUp
 @onready var btn_pause: Button = $TopBar/HBox/PauseButton
 @onready var btn_menu: Button = $TopBar/HBox/MenuButton
-@onready var lbl_health: Label = $TopBar/HBox/Stats/HealthLabel
-@onready var bar_health: ColorRect = $TopBar/HBox/Stats/HealthBar/Fill
-@onready var bar_health_bg: ColorRect = $TopBar/HBox/Stats/HealthBar
+@onready var lbl_health: Label = $TopBar/HBox/Stats/HBox/HealthLabel
+@onready var bar_health: ColorRect = $TopBar/HBox/Stats/HBox/HealthBar/Fill
+@onready var bar_health_bg: ColorRect = $TopBar/HBox/Stats/HBox/HealthBar
 
 var level_cfg: Dictionary = {}
 var time_limit: float = 0.0

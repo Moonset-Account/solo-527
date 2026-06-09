@@ -4,7 +4,7 @@ extends CanvasLayer
 const DP := preload("res://scripts/data/DataProvider.gd")
 
 @onready var hint_container: VBoxContainer = $Panel/List
-@onready var lbl_title: Label = $Panel/Title
+@onready var lbl_title: Label = $Panel/List/ListTitle
 
 var _active_hints: Dictionary = {}
 var _decay_timer: float = 0.0

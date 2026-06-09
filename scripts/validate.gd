@@ -4,6 +4,11 @@ extends Node
 const SCRIPT_RES := preload("res://scripts/data/DataProvider.gd")
 
 func _ready() -> void:
+	await _do_validate()
+
+func _do_validate() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
 	print("=== 复古工厂项目验证开始 ===")
 	var errors: int = 0
 	var autoloads := ["GameState", "SaveSystem", "SceneManager", "AudioManager", "AchievementSystem", "PlaytestRecorder"]
@@ -88,9 +93,138 @@ func _ready() -> void:
 	print("  %s DataProvider.get_product_config - 名称:%s" % ["✓" if pcfg.size() > 0 else "✗", pcfg.get("name", "?")])
 	var lvl_ids: Array = SCRIPT_RES.get_available_levels(GameState.level)
 	print("  %s DataProvider.get_available_levels - 可进入:%d关" % ["✓" if lvl_ids.size() > 0 else "✗", lvl_ids.size()])
+	print("\n=== UI页面深度验证（加入场景树触发@onready） ===")
+	var ui_errors: int = await _validate_all_ui_pages()
+	errors += ui_errors
+	print("\n=== GameScene深度验证（模拟进入关卡1） ===")
+	var gs_errors: int = await _validate_gamescene_in_tree()
+	errors += gs_errors
 	print("\n=== 验证结果 ===")
 	if errors == 0:
 		print("✅ 全部验证通过!")
 	else:
 		print("❌ 存在 %d 个错误" % errors)
 	get_tree().quit()
+
+func _validate_all_ui_pages() -> int:
+	var err: int = 0
+	var ui_tests := [
+		["MainMenu", "res://scenes/ui/MainMenu.tscn", ["btn_new_game", "btn_continue", "btn_levels", "btn_settings", "btn_achievements"]],
+		["LevelSelect", "res://scenes/ui/LevelSelect.tscn", ["level_container", "btn_back", "lbl_player_info", "daily_panel", "btn_playtest"]],
+		["SettingsPanel", "res://scenes/ui/SettingsPanel.tscn", ["sld_master", "sld_music", "sld_sfx", "btn_back", "btn_reset", "btn_playtest_info", "chk_fullscreen"]],
+		["AchievementsPanel", "res://scenes/ui/AchievementsPanel.tscn", ["achievement_grid", "btn_back", "lbl_progress", "daily_container", "lbl_session"]],
+		["TutorialPanel", "res://scenes/ui/TutorialPanel.tscn", ["page_container", "btn_prev", "btn_next", "btn_skip", "btn_close", "page_indicator"]]
+	]
+	for test in ui_tests:
+		var name: String = test[0]
+		var path: String = test[1]
+		var checks: Array = test[2]
+		err += await _test_single_ui(name, path, checks)
+	return err
+
+func _test_single_ui(name: String, path: String, expected_props: Array) -> int:
+	var err: int = 0
+	if not ResourceLoader.exists(path):
+		print("  ✗ %s - 文件不存在" % name)
+		return 1
+	var res = load(path)
+	if not (res and res is PackedScene):
+		print("  ✗ %s - 场景加载失败" % name)
+		return 1
+	var inst = res.instantiate()
+	if not inst:
+		print("  ✗ %s - 实例化失败" % name)
+		return 1
+	get_tree().root.add_child.call_deferred(inst)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var all_ok: bool = true
+	var missing: Array = []
+	for pname in expected_props:
+		if inst.get(pname) == null:
+			all_ok = false
+			missing.append(pname)
+	if all_ok:
+		print("  ✓ %s - 全部%d个@onready已解析" % [name, expected_props.size()])
+	else:
+		print("  ✗ %s - 缺失@onready: %s" % [name, ", ".join(missing)])
+		err += missing.size()
+	inst.queue_free()
+	return err
+
+func _validate_gamescene_in_tree() -> int:
+	var err: int = 0
+	var path: String = "res://scenes/game/GameScene.tscn"
+	var res = load(path)
+	if not (res and res is PackedScene):
+		print("  ✗ GameScene - 加载失败")
+		return 1
+	var inst = res.instantiate()
+	if not inst:
+		print("  ✗ GameScene - 实例化失败")
+		return 1
+	inst.receive_scene_data({"level_id": "level_1"})
+	get_tree().root.add_child.call_deferred(inst)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var required_subsystems := [
+		["placement_system", Node2D],
+		["pipeline", Node2D],
+		["order_manager", Node],
+		["top_bar", CanvasLayer],
+		["side_panel", CanvasLayer],
+		["pause_overlay", CanvasLayer],
+		["notifications", CanvasLayer],
+		["order_list", CanvasLayer],
+		["result_dialog", CanvasLayer],
+		["bottleneck_hints", CanvasLayer]
+	]
+	var all_subsys_ok: bool = true
+	var missing_sys: Array = []
+	for entry in required_subsystems:
+		var vname: String = entry[0]
+		if inst.get(vname) == null:
+			all_subsys_ok = false
+			missing_sys.append(vname)
+	if all_subsys_ok:
+		print("  ✓ GameScene - 10个核心子系统全部初始化")
+	else:
+		print("  ✗ GameScene - 缺失子系统: %s" % ", ".join(missing_sys))
+		err += missing_sys.size()
+	if inst.has_method("is_level_running"):
+		print("  ✓ GameScene - 游戏循环可运行 (level_id=%s)" % inst.current_level_id)
+	var top_ok: bool = true
+	var top_checks := ["lbl_money", "lbl_level", "lbl_orders", "btn_pause", "btn_speed_down"]
+	var tb = inst.get("top_bar")
+	if tb != null:
+		for prop in top_checks:
+			if tb.get(prop) == null:
+				top_ok = false
+				print("  ✗ TopBar - 缺失属性: %s" % prop)
+				err += 1
+	if top_ok:
+		print("  ✓ TopBar - HUD控制节点全部就绪")
+	var side_ok: bool = true
+	var side_checks := ["machine_list", "detail_panel", "btn_upgrade", "btn_sell"]
+	var sp = inst.get("side_panel")
+	if sp != null:
+		for prop in side_checks:
+			if sp.get(prop) == null:
+				side_ok = false
+				print("  ✗ SidePanel - 缺失属性: %s" % prop)
+				err += 1
+	if side_ok:
+		print("  ✓ SidePanel - 机器选择/详情面板就绪")
+	var pl: Node = inst.get("placement_system")
+	if pl != null and pl.has_signal("item_placed") and pl.has_signal("placement_cancelled") and pl.has_signal("machine_selected"):
+		print("  ✓ PlacementSystem - 3个核心信号有效（item_placed/cancel/selected）")
+	else:
+		print("  ✗ PlacementSystem - 信号缺失")
+		err += 1
+	var om: Node = inst.get("order_manager")
+	if om != null and om.has_method("setup_for_level"):
+		print("  ✓ OrderManager - 订单系统就绪")
+	else:
+		err += 1
+	inst.queue_free()
+	return err

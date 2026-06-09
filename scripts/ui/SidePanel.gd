@@ -3,7 +3,7 @@ extends CanvasLayer
 
 const DP := preload("res://scripts/data/DataProvider.gd")
 
-@onready var machine_list: VBoxContainer = $Panel/VBox/MachineList
+@onready var machine_list: VBoxContainer = $Panel/VBox/Scroll/MachineList
 @onready var detail_panel: VBoxContainer = $Panel/VBox/DetailPanel
 @onready var lbl_panel_title: Label = $Panel/VBox/TitleLabel
 @onready var btn_sell: Button = $Panel/VBox/DetailPanel/Buttons/SellButton

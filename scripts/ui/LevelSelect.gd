@@ -6,8 +6,8 @@ const DP := preload("res://scripts/data/DataProvider.gd")
 @onready var level_container: GridContainer = $Scroll/LevelList
 @onready var btn_back: Button = $Top/BackButton
 @onready var lbl_player_info: Label = $Top/PlayerInfo
-@onready var daily_panel: VBoxContainer = $RightPanel/DailyPanel/Challenges
-@onready var btn_playtest: Button = $RightPanel/Buttons/ExportPlaytest
+@onready var daily_panel: VBoxContainer = $RightPanel/InnerVBox/DailyPanel/Challenges
+@onready var btn_playtest: Button = $RightPanel/InnerVBox/Buttons/ExportPlaytest
 
 var _level_buttons: Dictionary = {}
 
