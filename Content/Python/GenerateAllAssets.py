@@ -238,33 +238,56 @@ def step_3_create_umg():
 
     unreal.log("  🖼️  核心UMG创建完成（蓝图内部需手动添加控件，参考BLUEPRINT_IMPLEMENTATION_GUIDE.md第4章）")
 
-# ========== Step 4: 创建关卡 L_MountainBase（含自动布置Actor） ==========
+# ========== Step 4: 创建关卡 L_MountainBase（含自动布置Actor + 真正保存到磁盘） ==========
 def step_4_create_level():
     unreal.log("\n" + "="*60)
-    unreal.log("STEP 4: 创建关卡 L_MountainBase + 自动布置Actor")
+    unreal.log("STEP 4: 创建关卡 L_MountainBase + 自动布置Actor + 保存")
     unreal.log("="*60)
     find_or_create_folder("Maps")
 
-    # 创建新关卡（保存到Maps目录）
-    level_path = CONTENT_ROOT + "Maps/L_MountainBase"
-    # 先创建一个最小关卡（空的）
+    # 计算关卡文件系统实际路径（用于验证磁盘文件）
+    level_relpath = "Maps/L_MountainBase"
+    level_pkgpath = CONTENT_ROOT + level_relpath
+    level_disk_dir  = os.path.join(PROJECT_CONTENT, "Maps")
+    level_disk_file = os.path.join(level_disk_dir, "L_MountainBase.umap")
+
+    # 确保磁盘目录存在
     try:
-        unreal.EditorLevelLibrary.new_level(level_path + ".umap")
+        os.makedirs(level_disk_dir, exist_ok=True)
+        unreal.log(f"  📁 磁盘目录就绪: {level_disk_dir}")
+    except Exception as e:
+        unreal.log(f"  ⚠️  创建磁盘目录跳过: {e}")
+
+    # 方法A：new_level（带保存路径）
+    saved_ok = False
+    try:
+        # new_level会在Content相对路径创建并立即激活，不会自动保存
+        created_level = unreal.EditorLevelLibrary.new_level(level_pkgpath)
+        unreal.log(f"  🏔️  关卡已在内存创建: {level_pkgpath}")
+
+        # 如果关卡已存在同名，new_level可能返回None，我们先删除已存在的
+        if unreal.EditorAssetLibrary.does_asset_exist(level_pkgpath):
+            unreal.EditorAssetLibrary.delete_asset(level_pkgpath)
+            unreal.log(f"  🗑️  已删除旧关卡")
+            created_level = unreal.EditorLevelLibrary.new_level(level_pkgpath)
     except Exception as e:
         unreal.log(f"  ℹ️  new_level尝试失败，用替代方案: {e}")
-        # 用 asset tools 创建level asset
+        created_level = None
+
+    # 方法B：LevelFactory
+    if created_level is None:
         try:
             lvl_factory = unreal.LevelFactoryNew()
             tools = unreal.AssetToolsHelpers.get_asset_tools()
-            lvl = tools.create_asset("L_MountainBase", CONTENT_ROOT + "Maps", None, lvl_factory)
+            created_level = tools.create_asset("L_MountainBase", CONTENT_ROOT + "Maps", None, lvl_factory)
+            unreal.log(f"  🏔️  用Factory创建关卡资产")
         except Exception as e2:
             unreal.log_warning(f"  ⚠️  无法自动创建Level资产，请手动新建: {e2}")
-            return None
 
-    # 尝试在当前关卡放置Actor（如果成功new_level的话）
+    # 加载关卡并布置Actor
     level_lib = unreal.EditorLevelLibrary
     try:
-        level_lib.load_level(level_path)
+        level_lib.load_level(level_pkgpath)
     except Exception as e:
         unreal.log(f"  ℹ️  load_level跳过: {e}")
 
@@ -274,34 +297,56 @@ def step_4_create_level():
         world = None
 
     if world:
-        unreal.log("  🏔️  在关卡中自动布置必要Actor...")
+        unreal.log("  �️  在关卡中自动布置Actor...")
 
-        # Home基地坐标
-        HOME = unreal.Vector(0, 0, 3000)  # cm为单位，Z=30m
+        # Home基地坐标（Z=30m = 3000cm）
+        HOME = unreal.Vector(0, 0, 3000)
 
         # 放置 PlayerStart
         try:
             ps = level_lib.spawn_actor_from_class(unreal.PlayerStart, HOME, unreal.Rotator(0,0,0))
+            ps.set_actor_label("PlayerStart")
             unreal.log(f"    🎯 PlayerStart @ {HOME}")
-        except: pass
+        except Exception as e: unreal.log(f"    ⚠️  PlayerStart跳过: {e}")
 
-        # 放置 BP_Drone（如果已创建）
+        # 放置 BP_Drone / 系统Actor
         def spawn_from_bp(bp_asset_name, folder, loc, label):
             try:
-                bp_path = f"{CONTENT_ROOT}{folder}/{bp_asset_name}.{bp_asset_name}_C"
-                bp_cls = unreal.EditorAssetLibrary.load_asset(bp_path)
+                # 两种路径尝试
+                for bp_path in [
+                    f"{CONTENT_ROOT}{folder}/{bp_asset_name}.{bp_asset_name}_C",
+                    f"{CONTENT_ROOT}{folder}/{bp_asset_name}"
+                ]:
+                    bp_cls = unreal.EditorAssetLibrary.load_asset(bp_path)
+                    if bp_cls: break
                 if not bp_cls:
-                    bp_path2 = f"{CONTENT_ROOT}{folder}/{bp_asset_name}"
-                    bp_cls = unreal.EditorAssetLibrary.load_asset(bp_path2)
-                if bp_cls:
-                    actor = level_lib.spawn_actor_from_class(bp_cls.generated_class() if hasattr(bp_cls, 'generated_class') else bp_cls,
-                                                               loc, unreal.Rotator(0,0,0))
-                    if actor:
-                        actor.set_actor_label(label)
-                        unreal.log(f"    ✅ {label} @ {loc}")
-                        return actor
+                    # 尝试用 C++ 类直接放（这样至少有默认功能）
+                    fallback_cpp = {
+                        "BP_Drone": "DroneBase", "BP_RouteManager": "RouteManager",
+                        "BP_WeatherSystem": "WeatherSystem", "BP_SignalSystem": "SignalSystem",
+                        "BP_ReplaySystem": "ReplaySystem"
+                    }
+                    if bp_asset_name in fallback_cpp:
+                        try:
+                            cppcls = getattr(unreal, fallback_cpp[bp_asset_name])
+                            actor = level_lib.spawn_actor_from_class(cppcls, loc, unreal.Rotator(0,0,0))
+                            if actor:
+                                actor.set_actor_label(label)
+                                unreal.log(f"    ✅ (C++) {label} @ {loc}")
+                                return actor
+                        except: pass
+                    unreal.log(f"    ⚠️  {label}: 蓝图未找到")
+                    return None
+                # Blueprint对象要取generated_class
+                actual_cls = bp_cls.generated_class() if hasattr(bp_cls, 'generated_class') else bp_cls
+                actor = level_lib.spawn_actor_from_class(actual_cls, loc, unreal.Rotator(0,0,0))
+                if actor:
+                    actor.set_actor_label(label)
+                    unreal.log(f"    ✅ (BP) {label} @ {loc}")
+                    return actor
             except Exception as e:
                 unreal.log(f"    ⚠️  {label} spawn failed: {e}")
+                import traceback; traceback.print_exc()
             return None
 
         spawn_from_bp("BP_Drone",         "Blueprints/Drones",   HOME, "Drone")
@@ -310,7 +355,7 @@ def step_4_create_level():
         spawn_from_bp("BP_SignalSystem",  "Blueprints/Systems", unreal.Vector(0, -5000, 3000), "SignalSystem")
         spawn_from_bp("BP_ReplaySystem",  "Blueprints/Systems", unreal.Vector(-5000, 0, 3000), "ReplaySystem")
 
-        # 放置灯光
+        # 放置灯光+天空+雾气
         try:
             sun = level_lib.spawn_actor_from_class(unreal.DirectionalLight,
                                                     unreal.Vector(0,0,50000),
@@ -324,18 +369,71 @@ def step_4_create_level():
                                                     unreal.Vector(0,0,0),
                                                     unreal.Rotator(0,0,0))
             fog.set_actor_label("HeightFog")
-            unreal.log("    💡 灯光+天空+雾气已放置")
+            try:
+                skyatmos = level_lib.spawn_actor_from_class(unreal.SkyAtmosphere,
+                                                            unreal.Vector(0,0,0),
+                                                            unreal.Rotator(0,0,0))
+                skyatmos.set_actor_label("SkyAtmosphere")
+            except: pass
+            unreal.log("    💡 灯光+天空+雾气+大气已放置")
         except Exception as e:
             unreal.log(f"    ⚠️  灯光放置失败: {e}")
 
-        # 尝试保存关卡
+        # ============= 关键！！保存关卡到磁盘为 .umap 文件 =============
+        unreal.log("  💾 正在把关卡保存为 .umap 到磁盘...")
         try:
-            unreal.EditorLevelLibrary.save_current_level()
-            unreal.log(f"  💾 Level 已保存: {level_path}")
-        except: pass
+            # 方法1：EditorLoadingAndSavingUtils.save_map（推荐，真正落盘）
+            try:
+                # 获取关卡的package或world的package名字
+                saved_ok = unreal.EditorLoadingAndSavingUtils.save_map(world, level_pkgpath)
+                unreal.log(f"  💾 save_map 结果: {saved_ok} → {level_pkgpath}")
+            except Exception as e:
+                unreal.log(f"  ℹ️  save_map 第一方案失败: {e}")
+                saved_ok = False
 
-    unreal.log("  🗺️  关卡创建完成（建议后续用Landscape雕刻3座山峰）")
-    return level_path
+            # 方法2：save_current_level
+            if not saved_ok:
+                try:
+                    level_lib.save_current_level()
+                    unreal.log(f"  💾 save_current_level 已执行")
+                    saved_ok = True
+                except Exception as e2:
+                    unreal.log(f"  ℹ️  save_current_level 失败: {e2}")
+                    saved_ok = False
+
+            # 方法3：save_package（终极方案）
+            if not saved_ok:
+                try:
+                    # 获取world对应的package
+                    # world 的 outer 是 package，保存那个
+                    try:
+                        pkg = world.get_outer() if hasattr(world, "get_outer") else None
+                        if pkg and hasattr(unreal, "EditorLoadingAndSavingUtils"):
+                            unreal.EditorLoadingAndSavingUtils.save_packages([pkg], True)
+                            unreal.log(f"  💾 save_packages 已执行")
+                            saved_ok = True
+                    except Exception as e3:
+                        unreal.log(f"  ℹ️  save_packages 失败: {e3}")
+                except: pass
+
+            # 验证磁盘文件
+            import time; time.sleep(0.3)
+            if os.path.exists(level_disk_file):
+                unreal.log(f"  ✅✅✅ 关卡磁盘文件已生成: {level_disk_file} ({os.path.getsize(level_disk_file)} bytes)")
+                saved_ok = True
+            else:
+                unreal.log_warning(f"  ⚠️  关卡文件可能在磁盘上未创建（检查是否有保存权限）: {level_disk_file}")
+                # 列出目录看看实际产生了什么
+                try:
+                    files = os.listdir(level_disk_dir)
+                    unreal.log(f"    当前Content/Maps下文件: {files}")
+                except: pass
+        except Exception as e:
+            unreal.log_error(f"  ❌ 关卡保存异常: {e}")
+            import traceback; traceback.print_exc()
+
+    unreal.log("  🗺️  关卡创建完成（建议后续用Landscape雕刻3座山峰提升视觉效果）")
+    return level_pkgpath, saved_ok
 
 # ========== Step 5: 配置GameMode到WorldSettings、HUD引用Widget ==========
 def step_5_configure_game():
@@ -625,57 +723,243 @@ def step_6_create_datatable():
     except Exception as e:
         unreal.log_warning(f"  ⚠️  DataTable创建失败: {e}")
 
-# ========== Step 7: 修改DefaultEngine.ini（绑定GameMode/HUD/PC蓝图） ==========
-def step_7_write_ini_overrides():
+# ========== Step 7: 直接修改 DefaultEngine.ini（指向生成的L_MountainBase关卡 + 蓝图GameMode）==========
+def step_7_write_ini_overrides(level_saved_ok):
     unreal.log("\n" + "="*60)
-    unreal.log("STEP 7: 打印GameMode绑定命令（用户在DefaultEngine.ini手动设置）")
+    unreal.log("STEP 7: 写入 DefaultEngine.ini → 自动绑定关卡+GameMode蓝图")
     unreal.log("="*60)
-    msg = """
-    📝 请手动修改 Config/DefaultEngine.ini，确认下列配置正确:
 
-    [/Script/EngineSettings.GameMapsSettings]
-    GameDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase
-    ServerDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase
-    GlobalDefaultGameMode=/Game/Blueprints/GameModes/BP_GameMode.BP_GameMode_C
-    DefaultPlayerControllerClass=/Game/Blueprints/PlayerController/BP_PlayerController.BP_PlayerController_C
-    DefaultHUDClass=/Game/Blueprints/HUD/BP_HUD.BP_HUD_C
+    # 找到项目的Config目录（在Content/../Config）
+    project_root = os.path.dirname(PROJECT_CONTENT)
+    ini_path = os.path.join(project_root, "Config", "DefaultEngine.ini")
 
-    或: 在关卡的 WorldSettings → GameMode Override 选择 BP_GameMode
-    """
-    unreal.log(msg)
+    unreal.log(f"  📂 项目根目录: {project_root}")
+    unreal.log(f"  📝 目标ini文件: {ini_path}")
+
+    if not os.path.exists(ini_path):
+        unreal.log_warning(f"  ⚠️  ini文件不存在，尝试查找: {os.listdir(project_root) if os.path.exists(project_root) else 'project_root也不存在'}")
+        return False
+
+    try:
+        with open(ini_path, "r", encoding="utf-8") as f:
+            ini_content = f.read()
+
+        # ===== 要写入的配置 =====
+        new_map_line = None
+        if level_saved_ok:
+            # 指向生成的 L_MountainBase
+            new_map_line = "GameDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase"
+        else:
+            # 回退到引擎自带的OpenWorld（防止首次打开崩溃）
+            unreal.log_warning("  ⚠️  关卡未成功保存，启动图仍使用引擎OpenWorld模板")
+            new_map_line = "GameDefaultMap=/Engine/Maps/Templates/OpenWorld.OpenWorld"
+
+        # ===== 配置替换规则: (正则模式, 替换后的行) =====
+        replacements = [
+            # --- GameDefaultMap ---
+            (r"^\s*GameDefaultMap\s*=.*$",
+             new_map_line),
+            # --- ServerDefaultMap ---
+            (r"^\s*ServerDefaultMap\s*=.*$",
+             "ServerDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase" if level_saved_ok
+             else "ServerDefaultMap=/Engine/Maps/Templates/OpenWorld.OpenWorld"),
+            # --- GlobalDefaultGameMode 指向 BP_GameMode ---
+            (r"^\s*GlobalDefaultGameMode\s*=.*$",
+             "GlobalDefaultGameMode=/Game/Blueprints/GameModes/BP_GameMode.BP_GameMode_C"),
+            # --- DefaultPlayerControllerClass ---
+            (r"^\s*DefaultPlayerControllerClass\s*=.*$",
+             "DefaultPlayerControllerClass=/Game/Blueprints/PlayerController/BP_PlayerController.BP_PlayerController_C"),
+            # --- DefaultHUDClass ---
+            (r"^\s*DefaultHUDClass\s*=.*$",
+             "DefaultHUDClass=/Game/Blueprints/HUD/BP_HUD.BP_HUD_C"),
+        ]
+
+        import re
+        changed_any = False
+        new_lines = []
+        for line in ini_content.splitlines():
+            replaced = False
+            for pattern, repl in replacements:
+                if re.match(pattern, line, re.IGNORECASE):
+                    if line.strip() != repl.strip():
+                        new_lines.append(repl)
+                        unreal.log(f"  🔧 替换: {line.strip()}  →  {repl}")
+                        changed_any = True
+                        replaced = True
+                        break
+                    else:
+                        new_lines.append(line)
+                        replaced = True
+                        break
+            if not replaced:
+                new_lines.append(line)
+
+        # 如果关键配置缺失（比如第一次没写过GlobalDefaultGameMode），追加到EngineSettings段
+        ini_out = "\n".join(new_lines)
+
+        def ensure_section_setting(section_name, setting_key, setting_value, content):
+            """在ini的指定section中确保某一行存在；不存在则在section末尾追加"""
+            if re.search(rf"^\s*{re.escape(setting_key)}\s*=", content, re.MULTILINE):
+                return content, False  # 已经有了（上面已替换过）
+            # 找到section
+            section_pattern = rf"^\[{re.escape(section_name)}\]\s*$"
+            match = re.search(section_pattern, content, re.MULTILINE)
+            if not match:
+                # section也没有，追加整个section
+                return content + f"\n\n[{section_name}]\n{setting_key}={setting_value}\n", True
+            # 找到这个section到下一个section之间的内容，在末尾插入
+            section_start = match.end()
+            next_section = re.search(r"^\[", content[section_start:], re.MULTILINE)
+            if next_section:
+                insert_pos = section_start + next_section.start()
+            else:
+                insert_pos = len(content)
+            # 插入
+            return (content[:insert_pos] + f"\n{setting_key}={setting_value}" + content[insert_pos:]), True
+
+        # 逐个确保关键值
+        needed = [
+            ("/Script/EngineSettings.GameMapsSettings", "GameDefaultMap",
+             "GameDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase" if level_saved_ok
+             else "GameDefaultMap=/Engine/Maps/Templates/OpenWorld.OpenWorld"),
+            ("/Script/EngineSettings.GameMapsSettings", "ServerDefaultMap",
+             "ServerDefaultMap=/Game/Maps/L_MountainBase.L_MountainBase" if level_saved_ok
+             else "ServerDefaultMap=/Engine/Maps/Templates/OpenWorld.OpenWorld"),
+            ("/Script/EngineSettings.GameMapsSettings", "GlobalDefaultGameMode",
+             "GlobalDefaultGameMode=/Game/Blueprints/GameModes/BP_GameMode.BP_GameMode_C"),
+            ("/Script/Engine.GameMapsSettings", "DefaultPlayerControllerClass",
+             "DefaultPlayerControllerClass=/Game/Blueprints/PlayerController/BP_PlayerController.BP_PlayerController_C"),
+            ("/Script/Engine.GameMapsSettings", "DefaultHUDClass",
+             "DefaultHUDClass=/Game/Blueprints/HUD/BP_HUD.BP_HUD_C"),
+        ]
+        for sec, key, val in needed:
+            ini_out, added = ensure_section_setting(sec, key, val, ini_out)
+            if added:
+                unreal.log(f"  ➕ 追加 [{sec}]  {val}")
+                changed_any = True
+
+        if changed_any:
+            # 备份
+            bak = ini_path + ".bak_before_asset_gen"
+            try:
+                import shutil
+                shutil.copy2(ini_path, bak)
+                unreal.log(f"  📦 原ini已备份: {bak}")
+            except: pass
+
+            with open(ini_path, "w", encoding="utf-8") as f:
+                f.write(ini_out.rstrip() + "\n")
+            unreal.log("  ✅✅✅ DefaultEngine.ini 已自动更新为指向生成的蓝图关卡！")
+        else:
+            unreal.log("  ℹ️  ini配置已是最新，无需修改")
+
+        # 打印验证
+        unreal.log("\n  📋 最终ini中的关键配置:")
+        with open(ini_path, "r", encoding="utf-8") as f:
+            for ln in f.readlines():
+                k = ln.strip()
+                if any(x in k for x in ["GameDefaultMap", "ServerDefaultMap",
+                                          "GlobalDefaultGameMode", "DefaultPlayerControllerClass",
+                                          "DefaultHUDClass"]):
+                    unreal.log(f"    → {k}")
+
+        return True
+    except Exception as e:
+        unreal.log_error(f"  ❌ 写入ini失败: {e}")
+        import traceback; traceback.print_exc()
+        return False
 
 # ========== 主流程 ==========
 def main():
     unreal.log("\n" + "🎮"*30)
-    unreal.log("🚁 山地救援无人机模拟 - 一键生成所有可玩资产")
+    unreal.log("🚁 山地救援无人机模拟 - 一键生成所有可玩资产 (v2 自动落盘版)")
     unreal.log("🎮"*30 + "\n")
 
     total_steps = 7
+    level_saved_ok = False
     try:
         step_1_create_input()           # InputAction + IMC
         step_2_create_blueprints()      # 11个蓝图子类
         step_3_create_umg()             # 6个UMG Widget
-        level_path = step_4_create_level()  # 关卡 + Actor布置
+        level_path, level_saved_ok = step_4_create_level()  # 关卡 + Actor布置 + 磁盘保存
         step_5_configure_game()         # GameMode/HUD参数绑定
         step_6_create_datatable()       # DataTable
-        step_7_write_ini_overrides()    # Ini提示
+
+        # ============ 终极：递归保存 /Game 下所有资产到磁盘 ============
+        unreal.log("\n" + "="*60)
+        unreal.log("💾 终极保存：保存所有已加载的资产到磁盘...")
+        unreal.log("="*60)
+        try:
+            # 方式1：save_directory递归（最稳妥）
+            unreal.EditorAssetLibrary.save_directory(CONTENT_ROOT, True, True)
+            unreal.log("  ✅ save_directory(/Game) 已执行")
+        except Exception as e:
+            unreal.log(f"  ⚠️  save_directory 失败，用单资产保存: {e}")
+            try:
+                all_assets = unreal.EditorAssetLibrary.list_assets(CONTENT_ROOT, True, False)
+                count = 0
+                for a in all_assets:
+                    try:
+                        unreal.EditorAssetLibrary.save_asset(a)
+                        count += 1
+                    except: pass
+                unreal.log(f"  ✅ 单独保存 {count} 个资产")
+            except Exception as e2:
+                unreal.log_warning(f"  ⚠️  单资产保存也失败: {e2}")
+
+        step_7_write_ini_overrides(level_saved_ok)  # 真正写ini绑定
 
         unreal.log("\n" + "="*60)
-        unreal.log("✅ 资产全部生成完毕！下一步:")
+        unreal.log("✅ 全部生成完成！磁盘文件验证中...")
         unreal.log("="*60)
-        unreal.log("""
-  1. 保存所有打开的资产（Ctrl+Shift+S）
-  2. 修改 Config/DefaultEngine.ini 参考 STEP 7 输出
-     或直接在关卡 WorldSettings 设置 GameMode Override = BP_GameMode
-  3. 在 BP_GameMode → CurrentTaskConfig → RescueTargets 添加3个目标（参考蓝图指南6.1节）:
-        T1 轻伤-普通 急救包  (200m, 80m, 1200m)
-        T2 失温-高  保暖毯+急救包 (-150m, 250m, 1800m)
-        T3 迷路-低  定位信标 (350m, -200m, 900m)
-  4. Play ▶ 开始游戏！
-        按键: 1=添加航点  2=移动航点  3=删除航点
-              鼠标左键=操作  空格/Enter=开始飞行
-              R=强制返航  Tab=任务难度编辑器
-  """)
+
+        # ============ 列出Content目录下已生成的.uasset/.umap ============
+        unreal.log("📂 Content目录下文件统计:")
+        generated_count = 0
+        required_files = [
+            ("L_MountainBase.umap",     "Content/Maps/"),
+            ("BP_Drone.uasset",         "Content/Blueprints/Drones/"),
+            ("BP_RouteManager.uasset",  "Content/Blueprints/Route/"),
+            ("BP_GameMode.uasset",      "Content/Blueprints/GameModes/"),
+            ("BP_PlayerController.uasset","Content/Blueprints/PlayerController/"),
+            ("BP_HUD.uasset",           "Content/Blueprints/HUD/"),
+            ("WBP_MainHUD.uasset",      "Content/UI/MainHUD/"),
+            ("WBP_TaskEditor.uasset",   "Content/UI/TaskEditor/"),
+            ("WBP_ResultScreen.uasset", "Content/UI/ResultScreen/"),
+            ("IMC_MountainRescue.uasset","Content/Input/"),
+            ("IA_StartFlight.uasset",   "Content/Input/"),
+        ]
+        all_ok = True
+        for fname, fdir in required_files:
+            fp = os.path.join(PROJECT_CONTENT, *fdir.split("/"), fname)
+            exists = os.path.exists(fp)
+            sz = os.path.getsize(fp) if exists else 0
+            mark = "✅" if exists else "❌"
+            if not exists: all_ok = False
+            unreal.log(f"  {mark} {fdir}{fname}  {sz} bytes" if exists
+                       else f"  {mark} {fdir}{fname}  ← 缺失！")
+            generated_count += 1 if exists else 0
+
+        unreal.log(f"\n📊 验收: {generated_count}/{len(required_files)} 关键文件生成成功")
+        if all_ok:
+            unreal.log("""
+╔══════════════════════════════════════════════════════════════╗
+║  🎉 全部文件落盘成功！关闭编辑器重新打开项目即可试玩          ║
+╠══════════════════════════════════════════════════════════════╣
+║  ▶ 打开项目会直接进入 L_MountainBase 关卡                     ║
+║  ▶ GameMode已自动设置为 BP_GameMode (含3救援目标)             ║
+║  ▶ 默认操作:                                                 ║
+║    1键 = 添加航点 | 2键 = 移动航点 | 3键 = 删除航点          ║
+║    空格/Enter = 开始飞行 | R = 返航 | Tab = 难度调参面板     ║
+╚══════════════════════════════════════════════════════════════╝
+""")
+        else:
+            unreal.log("""
+  ⚠️  部分关键文件未生成（原因多为UE版本Python API差异），请执行:
+  1. 在UE编辑器中 Ctrl+Shift+S 手动保存所有
+  2. 查看Output Log中报错的具体信息
+  3. 再次运行本脚本覆盖生成
+""")
 
     except Exception as e:
         unreal.log_error(f"❌ 执行过程中出错: {e}")
