@@ -3,11 +3,10 @@ import sys
 import os
 from datetime import datetime, timedelta
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.database import SessionLocal
-from app.services import CategoryService
-from app.services.ticket_service import TicketService
+from app.services.ticket_service import CategoryService, TicketService
 from app.schemas.ticket import CategoryCreate, TicketCreate
 
 

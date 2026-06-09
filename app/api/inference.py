@@ -3,13 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.queue import get_inference_queue
 from app.schemas.ticket import (
-    PredictResponse, TicketPredictResponse,
+    TicketPredictResponse,
     BatchPredictRequest, BatchPredictResponse,
 )
-from app.services.inference_service import InferenceService
-from app.services.ticket_service import TicketService
 
 router = APIRouter(prefix="/inference", tags=["推理API"])
 
@@ -20,6 +17,7 @@ def predict_single_ticket(
     store: bool = True,
     db: Session = Depends(get_db),
 ):
+    from app.services.inference_service import InferenceService
     result, err = InferenceService.predict_ticket(db, ticket_id, store=store)
     if err:
         raise HTTPException(status_code=400, detail=err)
@@ -32,6 +30,7 @@ def predict_batch(
     use_queue: bool = Query(False, description="是否使用异步队列"),
     db: Session = Depends(get_db),
 ):
+    from app.services.inference_service import InferenceService
     if len(data.ticket_ids) == 0:
         raise HTTPException(status_code=400, detail="工单ID列表不能为空")
     if len(data.ticket_ids) > 1000 and not use_queue:
@@ -41,6 +40,7 @@ def predict_batch(
         )
 
     if use_queue:
+        from app.core.queue import get_inference_queue
         queue = get_inference_queue()
         job = queue.enqueue(
             "app.workers.tasks.execute_batch_inference",
@@ -49,13 +49,6 @@ def predict_batch(
             job_timeout="2h",
         )
         return BatchPredictResponse(
-            total=len(data.ticket_ids),
-            success=0,
-            low_confidence_count=0,
-            results=[],
-            job_id=job.id,
-            _message="任务已提交到推理队列",
-        ) if False else BatchPredictResponse(
             total=len(data.ticket_ids),
             success=0,
             low_confidence_count=0,
@@ -74,7 +67,9 @@ def process_pending_queue(
     use_queue: bool = Query(False),
     db: Session = Depends(get_db),
 ):
+    from app.services.inference_service import InferenceService
     if use_queue:
+        from app.core.queue import get_inference_queue
         queue = get_inference_queue()
         job = queue.enqueue(
             "app.workers.tasks.execute_process_pending_queue",
@@ -93,7 +88,9 @@ def build_similar_case_index(
     use_queue: bool = Query(False),
     db: Session = Depends(get_db),
 ):
+    from app.services.inference_service import InferenceService
     if use_queue:
+        from app.core.queue import get_inference_queue
         queue = get_inference_queue()
         job = queue.enqueue(
             "app.workers.tasks.execute_build_retriever",

@@ -4,6 +4,10 @@ from datetime import datetime
 from enum import Enum
 
 
+class _BaseSchema(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), from_attributes=True)
+
+
 class TicketChannel(str, Enum):
     WEB = "web"
     APP = "app"
@@ -38,7 +42,7 @@ class TicketStatus(str, Enum):
     ERROR_CASE = "error_case"
 
 
-class CategoryBase(BaseModel):
+class CategoryBase(_BaseSchema):
     name: str = Field(..., max_length=100)
     parent_id: Optional[int] = None
     code: str = Field(..., max_length=50)
@@ -50,7 +54,7 @@ class CategoryCreate(CategoryBase):
     pass
 
 
-class CategoryUpdate(BaseModel):
+class CategoryUpdate(_BaseSchema):
     name: Optional[str] = None
     parent_id: Optional[int] = None
     description: Optional[str] = None
@@ -63,13 +67,11 @@ class CategoryResponse(CategoryBase):
     updated_at: datetime
     children: List["CategoryResponse"] = []
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 CategoryResponse.model_rebuild()
 
 
-class TicketBase(BaseModel):
+class TicketBase(_BaseSchema):
     title: str = Field(..., max_length=500)
     content: str
     channel: TicketChannel = TicketChannel.OTHER
@@ -82,11 +84,11 @@ class TicketCreate(TicketBase):
     ticket_no: str = Field(..., max_length=50)
 
 
-class TicketImport(BaseModel):
+class TicketImport(_BaseSchema):
     tickets: List[TicketCreate]
 
 
-class TicketUpdate(BaseModel):
+class TicketUpdate(_BaseSchema):
     title: Optional[str] = None
     content: Optional[str] = None
     process_result: Optional[ProcessResult] = None
@@ -94,7 +96,7 @@ class TicketUpdate(BaseModel):
     refund_amount: Optional[float] = None
 
 
-class PredictResponse(BaseModel):
+class PredictResponse(_BaseSchema):
     category_id: int
     category_name: str
     category_code: str
@@ -105,24 +107,24 @@ class PredictResponse(BaseModel):
     model_version: str
 
 
-class TicketPredictResponse(BaseModel):
+class TicketPredictResponse(_BaseSchema):
     ticket_id: int
     predictions: PredictResponse
 
 
-class BatchPredictRequest(BaseModel):
+class BatchPredictRequest(_BaseSchema):
     ticket_ids: List[int]
     store_predictions: bool = True
 
 
-class BatchPredictResponse(BaseModel):
+class BatchPredictResponse(_BaseSchema):
     total: int
     success: int
     low_confidence_count: int
     results: List[TicketPredictResponse]
 
 
-class AnnotationBase(BaseModel):
+class AnnotationBase(_BaseSchema):
     ticket_id: int
     category_id: int
     reason: str = Field(..., min_length=5)
@@ -142,10 +144,8 @@ class AnnotationResponse(AnnotationBase):
     created_at: datetime
     category: CategoryResponse
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class TicketResponse(BaseModel):
+class TicketResponse(_BaseSchema):
     id: int
     ticket_no: str
     title: str
@@ -170,17 +170,15 @@ class TicketResponse(BaseModel):
     annotations: List[AnnotationResponse] = []
     similar_cases: List[Dict[str, Any]] = []
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class TicketListResponse(BaseModel):
+class TicketListResponse(_BaseSchema):
     items: List[TicketResponse]
     total: int
     page: int
     page_size: int
 
 
-class BatchConfirmRequest(BaseModel):
+class BatchConfirmRequest(_BaseSchema):
     ticket_ids: List[int]
     operator_id: int
     operator_name: str = Field(..., max_length=100)
@@ -188,7 +186,7 @@ class BatchConfirmRequest(BaseModel):
     reason: Optional[str] = "批量确认分类结果"
 
 
-class BatchConfirmResponse(BaseModel):
+class BatchConfirmResponse(_BaseSchema):
     batch_id: int
     total_count: int
     confirmed_count: int
@@ -197,7 +195,7 @@ class BatchConfirmResponse(BaseModel):
     created_at: datetime
 
 
-class ErrorSampleBase(BaseModel):
+class ErrorSampleBase(_BaseSchema):
     ticket_id: int
     original_predicted_id: int
     correct_category_id: int
@@ -214,10 +212,8 @@ class ErrorSampleResponse(ErrorSampleBase):
     created_at: datetime
     ticket_title: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class ErrorSampleListResponse(BaseModel):
+class ErrorSampleListResponse(_BaseSchema):
     items: List[ErrorSampleResponse]
     total: int
     page: int

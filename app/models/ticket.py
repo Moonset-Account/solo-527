@@ -3,7 +3,7 @@ from enum import Enum as PyEnum
 
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, ForeignKey, Float,
-    Boolean, JSON, BigInteger, Index
+    Boolean, JSON, Index
 )
 from sqlalchemy.orm import relationship
 
@@ -81,7 +81,7 @@ class Category(Base):
 class Ticket(Base):
     __tablename__ = "tickets"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     ticket_no = Column(String(50), unique=True, nullable=False, index=True)
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable=False)
@@ -118,8 +118,8 @@ class Ticket(Base):
 class AnnotationVersion(Base):
     __tablename__ = "annotation_versions"
 
-    id = Column(BigInteger, primary_key=True, index=True)
-    ticket_id = Column(BigInteger, ForeignKey("tickets.id"), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     version = Column(Integer, default=1, nullable=False)
     reason = Column(Text, nullable=False)
@@ -139,9 +139,9 @@ class AnnotationVersion(Base):
 class SimilarCase(Base):
     __tablename__ = "similar_cases"
 
-    id = Column(BigInteger, primary_key=True, index=True)
-    ticket_id = Column(BigInteger, ForeignKey("tickets.id"), nullable=False)
-    similar_ticket_id = Column(BigInteger, ForeignKey("tickets.id"), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
+    similar_ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
     similarity_score = Column(Float, nullable=False)
     category_match = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -152,8 +152,8 @@ class SimilarCase(Base):
 class ErrorSample(Base):
     __tablename__ = "error_samples"
 
-    id = Column(BigInteger, primary_key=True, index=True)
-    ticket_id = Column(BigInteger, ForeignKey("tickets.id"), nullable=False, unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False, unique=True)
     original_predicted_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     correct_category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     source = Column(String(50), default="human_review")
@@ -218,7 +218,7 @@ class TrainingTask(Base):
 class TrainingMetric(Base):
     __tablename__ = "training_metrics"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("training_tasks.id"), nullable=False)
     epoch = Column(Integer, nullable=False)
     split = Column(String(20), default="train")
@@ -235,7 +235,7 @@ class TrainingMetric(Base):
 class BatchConfirmLog(Base):
     __tablename__ = "batch_confirm_logs"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     operator_id = Column(Integer, nullable=False)
     operator_name = Column(String(100), nullable=False)
     ticket_ids = Column(JSON, nullable=False)

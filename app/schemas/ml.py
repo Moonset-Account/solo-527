@@ -4,6 +4,10 @@ from datetime import datetime
 from enum import Enum
 
 
+class _BaseSchema(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), from_attributes=True)
+
+
 class ModelStatus(str, Enum):
     DRAFT = "draft"
     TRAINING = "training"
@@ -21,7 +25,7 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class TrainingTaskBase(BaseModel):
+class TrainingTaskBase(_BaseSchema):
     name: str = Field(..., max_length=200)
     config: Optional[Dict[str, Any]] = None
     include_error_samples: bool = True
@@ -34,7 +38,7 @@ class TrainingTaskCreate(TrainingTaskBase):
     pass
 
 
-class TrainingMetricResponse(BaseModel):
+class TrainingMetricResponse(_BaseSchema):
     id: int
     epoch: int
     split: str
@@ -46,8 +50,6 @@ class TrainingMetricResponse(BaseModel):
     confusion_matrix: Optional[Dict[str, Any]] = None
     per_class_metrics: Optional[Dict[str, Any]] = None
     created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TrainingTaskResponse(TrainingTaskBase):
@@ -62,17 +64,15 @@ class TrainingTaskResponse(TrainingTaskBase):
     finished_at: Optional[datetime] = None
     metrics: List[TrainingMetricResponse] = []
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class TrainingTaskListResponse(BaseModel):
+class TrainingTaskListResponse(_BaseSchema):
     items: List[TrainingTaskResponse]
     total: int
     page: int
     page_size: int
 
 
-class ModelVersionBase(BaseModel):
+class ModelVersionBase(_BaseSchema):
     version_tag: str = Field(..., max_length=50)
     description: Optional[str] = None
     created_by: Optional[str] = None
@@ -99,16 +99,14 @@ class ModelVersionResponse(ModelVersionBase):
     deployed_at: Optional[datetime] = None
     rolled_back_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class DeployModelRequest(BaseModel):
+class DeployModelRequest(_BaseSchema):
     model_version_id: int
     operator_id: int
     operator_name: str = Field(..., max_length=100)
 
 
-class RollbackRequest(BaseModel):
+class RollbackRequest(_BaseSchema):
     target_version_id: int
     reason: str = Field(..., min_length=10)
     operator_id: int
@@ -116,7 +114,7 @@ class RollbackRequest(BaseModel):
     rollback_tickets: bool = False
 
 
-class RollbackResponse(BaseModel):
+class RollbackResponse(_BaseSchema):
     log_id: int
     from_version_id: int
     from_version_tag: str
@@ -127,7 +125,7 @@ class RollbackResponse(BaseModel):
     created_at: datetime
 
 
-class RollbackLogResponse(BaseModel):
+class RollbackLogResponse(_BaseSchema):
     id: int
     from_version_id: int
     from_version_tag: str
@@ -140,10 +138,8 @@ class RollbackLogResponse(BaseModel):
     affected_ticket_count: int
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class EvaluationSummaryResponse(BaseModel):
+class EvaluationSummaryResponse(_BaseSchema):
     model_version_id: int
     model_version_tag: str
     total_samples: int
@@ -157,7 +153,7 @@ class EvaluationSummaryResponse(BaseModel):
     generated_at: datetime
 
 
-class DashboardStatsResponse(BaseModel):
+class DashboardStatsResponse(_BaseSchema):
     total_tickets: int = 0
     auto_classified: int = 0
     human_review_pending: int = 0

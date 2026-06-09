@@ -13,7 +13,6 @@ from app.schemas.ticket import (
 from app.services.ticket_service import (
     CategoryService, TicketService, AnnotationService, ErrorSampleService,
 )
-from app.services.inference_service import StatsService
 from app.models.ticket import TicketStatus
 
 router = APIRouter(prefix="/categories", tags=["分类管理"])
@@ -165,6 +164,7 @@ def create_annotation(data: AnnotationCreate, db: Session = Depends(get_db)):
 
 @annotations_router.post("/batch-confirm", response_model=BatchConfirmResponse)
 def batch_confirm(data: BatchConfirmRequest, db: Session = Depends(get_db)):
+    from app.services.inference_service import StatsService
     result, err = AnnotationService.batch_confirm(db, data)
     if err:
         raise HTTPException(status_code=400, detail=err)
