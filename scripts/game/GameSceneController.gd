@@ -64,7 +64,7 @@ func _ready() -> void:
 func _build_all_nodes() -> void:
 	placement_system = Node2D.new()
 	placement_system.name = "PlacementSystem"
-	placement_system.position = Vector2(40, 90)
+	placement_system.position = Vector2.ZERO
 	placement_system.set_script(SCRIPTS["placement"])
 	add_child(placement_system)
 	pipeline = Node2D.new()
@@ -644,10 +644,16 @@ func _on_order_added(order: Dictionary) -> void:
 	order_list.add_order(order)
 	notifications.show_notification("新订单: %s" % order.get("name", "订单"), "info")
 
-func _on_order_removed(order_id: String, completed: bool) -> void:
+func _on_order_removed(order_id: String, completed: bool, reward: int = 0) -> void:
 	order_list.remove_order(order_id)
-	var text: String = "订单完成!" if completed else "订单失败..."
-	var ntype: String = "success" if completed else "error"
+	var text: String = ""
+	var ntype: String = ""
+	if completed:
+		text = "✅ 订单完成! 💰+%d" % reward
+		ntype = "success"
+	else:
+		text = "❌ 订单失败..."
+		ntype = "error"
 	notifications.show_notification(text, ntype)
 	if completed:
 		_check_level_objectives()

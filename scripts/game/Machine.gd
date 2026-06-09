@@ -263,9 +263,17 @@ func get_upgrade_cost() -> int:
 func do_upgrade() -> bool:
 	var success: bool = GameState.upgrade_machine(machine_id)
 	if success:
-		apply_level_visual(level + 1)
-		upgrade_applied.emit(level)
+		var m_dict: Dictionary = GameState.get_machine(machine_id)
+		var new_lvl: int = m_dict.get("level", level + 1)
+		var new_rate: float = m_dict.get("production_rate", production_rate)
+		production_rate = new_rate
+		apply_level_visual(new_lvl)
+		upgrade_applied.emit(new_lvl)
 		AudioManager.play_sfx("upgrade")
+		if visual_accent:
+			var t := create_tween()
+			t.tween_property(visual_accent, "color", Color(1, 1, 0.7), 0.15)
+			t.tween_property(visual_accent, "color", config.get("accent_color", Color.WHITE), 0.4)
 	return success
 
 func to_dict() -> Dictionary:

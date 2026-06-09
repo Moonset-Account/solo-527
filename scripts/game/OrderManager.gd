@@ -5,7 +5,7 @@ extends Node
 const DP := preload("res://scripts/data/DataProvider.gd")
 
 signal order_added(order: Dictionary)
-signal order_removed(order_id: String, completed: bool)
+signal order_removed(order_id: String, completed: bool, reward: int)
 signal order_progress_updated(order_id: String, progress: float)
 signal order_time_warning(order_id: String)
 
@@ -120,7 +120,7 @@ func _complete_order(order: Dictionary) -> void:
 	consecutive_completed += 1
 	total_orders_completed_here += 1
 	GameState.remove_active_order(order["id"], true)
-	order_removed.emit(order["id"], true)
+	order_removed.emit(order["id"], true, reward)
 	AudioManager.play_sfx("coin")
 	PlaytestRecorder.record_event("order_complete", {
 		"order_id": order["id"],
@@ -132,10 +132,9 @@ func _complete_order(order: Dictionary) -> void:
 func _fail_order(order: Dictionary) -> void:
 	order["is_failed"] = true
 	consecutive_completed = 0
-	total_orders_failed_here += 1
 	GameState.remove_active_order(order["id"], false)
-	order_removed.emit(order["id"], false)
-	AudioManager.play_sfx("fail")
+	order_removed.emit(order["id"], false, 0)
+	AudioManager.play_sfx("warning")
 	PlaytestRecorder.record_event("order_fail", {
 		"order_id": order["id"],
 		"template": order.get("template_id")

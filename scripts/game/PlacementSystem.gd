@@ -9,7 +9,7 @@ signal placement_cancelled()
 signal machine_selected(machine_id: String)
 signal cell_hovered(grid_pos: Vector2i)
 
-@export var grid_offset: Vector2 = Vector2(64, 64)
+@export var grid_offset: Vector2 = Vector2(104, 154)
 @export var level_size: Vector2i = Vector2i(12, 7)
 
 var selected_machine_type: String = ""
