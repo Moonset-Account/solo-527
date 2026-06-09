@@ -359,14 +359,24 @@ func _update_zone_detail() -> void:
 		if expected_idx < order.size():
 			var expected_step: String = order[expected_idx]
 			var step_available: bool = ToolSystem.is_action_available(expected_step)
-			if step_available:
-				do_step_button.text = "执行：%s" % STEP_CN.get(expected_step, expected_step)
-				do_step_button.disabled = false
-			else:
+			var current_action: String = ToolSystem.get_action_for_current_tool()
+			var current_tool_name: String = ""
+			var current_tool_detail: Dictionary = ToolSystem.get_tool_for_action(current_action)
+			if not current_tool_detail.is_empty():
+				current_tool_name = current_tool_detail.get("name", "")
+			if not step_available:
 				var needed_tool: Dictionary = ToolSystem.get_tool_for_action(expected_step)
 				var tool_name: String = needed_tool.get("name", "对应工具")
 				do_step_button.text = "🔒 需解锁：%s" % tool_name
 				do_step_button.disabled = true
+			elif current_action == expected_step and not current_action.is_empty():
+				do_step_button.text = "✔ 用【%s】执行：%s" % [current_tool_name, STEP_CN.get(expected_step, expected_step)]
+				do_step_button.disabled = false
+			else:
+				var expected_name: String = STEP_CN.get(expected_step, expected_step)
+				var cur_name: String = STEP_CN.get(current_action, current_action) if not current_action.is_empty() else "（未选工具）"
+				do_step_button.text = "⚠ 当前工具对应【%s】，本步应执行【%s】" % [cur_name, expected_name]
+				do_step_button.disabled = false
 		else:
 			do_step_button.disabled = true
 
@@ -426,7 +436,11 @@ func _on_humidity_changed(v: float) -> void:
 
 func _on_tool_pressed(tool_id: String) -> void:
 	ToolSystem.select_tool(tool_id)
-	_append_log("已切换工具：%s" % tool_id, "#4466aa")
+	var tool_detail: Dictionary = ToolSystem.get_tool_by_id(tool_id)
+	var tool_name: String = tool_detail.get("name", tool_id)
+	_append_log("已切换工具：%s（对应步骤【%s】）" % [tool_name, _step_name(ToolSystem.get_action_for_current_tool())], "#4466aa")
+	if not selected_zone_id.is_empty():
+		_update_zone_detail()
 
 func _on_zone_pressed(zid: String) -> void:
 	selected_zone_id = zid
@@ -445,12 +459,11 @@ func _on_do_step_pressed() -> void:
 	if zs.repaired:
 		_append_log("⚠ 此区域已完成修复", "#aa7700")
 		return
-	var order: Array = zs.zone_data.get("step_order", [])
-	var idx_step: int = zs.completed_steps.size()
-	if idx_step >= order.size():
-		return
-	var step: String = order[idx_step]
 
+	var step: String = ToolSystem.get_action_for_current_tool()
+	if step.is_empty():
+		_append_log("⚠ 请先在左侧工具箱选择一个工具", "#aa7700")
+		return
 	if not ToolSystem.is_action_available(step):
 		var needed_tool: Dictionary = ToolSystem.get_tool_for_action(step)
 		var tool_name: String = needed_tool.get("name", "对应工具")
@@ -459,6 +472,30 @@ func _on_do_step_pressed() -> void:
 			"🔒 操作【%s】暂不可用：需在第%d章解锁【%s】。" % [_step_name(step), unlock_lv, tool_name],
 			"#aa4400"
 		)
+		return
+
+	var order: Array = zs.zone_data.get("step_order", [])
+	var idx_expected: int = zs.completed_steps.size()
+	var expected_step: String = order[idx_expected] if idx_expected < order.size() else ""
+	if idx_expected >= order.size():
+		return
+
+	if step != expected_step:
+		var err_msg: String = "操作顺序错误！当前应执行【%s】，你选择了【%s】。" % [_step_name(expected_step), _step_name(step)]
+		zs.errors.append(err_msg)
+		remaining_strength = max(0.0, remaining_strength - 5.0)
+		_update_strength()
+		_append_log("❌ [%s] %s" % [zs.zone_data.get("name", ""), err_msg], "#cc2222")
+		action_log.append({
+			"timestamp": current_time,
+			"zone_id": selected_zone_id,
+			"step": step,
+			"params": {},
+			"error": err_msg
+		})
+		_update_zone_detail()
+		_update_zone_node(selected_zone_id)
+		_advance_tutorial()
 		return
 
 	var params: Dictionary = {}
