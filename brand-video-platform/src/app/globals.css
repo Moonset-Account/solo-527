@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F7F8FA;
+  --foreground: #1B2A4A;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer base {
+  * {
+    @apply border-surface-300;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer components {
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-surface-200 shadow-sm;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-md hover:border-surface-300 transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-accent-500 text-white rounded-lg font-medium text-sm hover:bg-accent-600 active:bg-accent-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 border border-surface-300 bg-white text-brand-500 rounded-lg font-medium text-sm hover:bg-surface-100 active:bg-surface-200 transition-colors duration-150;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-brand-500 rounded-lg text-sm hover:bg-surface-100 transition-colors duration-150;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-surface-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 focus:border-accent-500 bg-white transition-colors;
+  }
+
+  .select-field {
+    @apply w-full px-3 py-2 border border-surface-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-300 focus:border-accent-500 bg-white appearance-none bg-no-repeat bg-right pr-8 transition-colors;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-position: right 10px center;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-brand-500;
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #E2E5EB, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-surface-400;
+}
