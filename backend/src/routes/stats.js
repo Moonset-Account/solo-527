@@ -44,18 +44,22 @@ router.get('/return-visit', async (req, res, next) => {
   try {
     const { clinicId, doctorId, period = 'month', startDate, endDate, refresh } = req.query
 
+    const filterClinicId = clinicId ? parseInt(clinicId) : undefined
+    const filterDoctorId = doctorId ? parseInt(doctorId) : undefined
+    const hasFilter = filterClinicId !== undefined || filterDoctorId !== undefined
+
     if (refresh === '1') {
       const today = new Date()
       await refreshReturnVisitStatsForDate(
         today,
-        clinicId ? parseInt(clinicId) : undefined,
-        doctorId ? parseInt(doctorId) : undefined
+        filterClinicId,
+        filterDoctorId
       )
     }
 
     const where = { periodType: period }
-    if (clinicId) where.clinicId = parseInt(clinicId)
-    if (doctorId) where.doctorId = parseInt(doctorId)
+    if (filterClinicId !== undefined) where.clinicId = filterClinicId
+    if (filterDoctorId !== undefined) where.doctorId = filterDoctorId
     if (startDate) where.periodStart = { ...where.periodStart, gte: dayjs(startDate).startOf(period).toDate() }
     if (endDate) where.periodStart = { ...where.periodStart, lte: dayjs(endDate).endOf(period).toDate() }
 
@@ -66,8 +70,8 @@ router.get('/return-visit', async (req, res, next) => {
 
     if (statsRecords.length === 0) {
       const fallbackWhere = { status: 'completed' }
-      if (clinicId) fallbackWhere.clinicId = parseInt(clinicId)
-      if (doctorId) fallbackWhere.doctorId = parseInt(doctorId)
+      if (filterClinicId !== undefined) fallbackWhere.clinicId = filterClinicId
+      if (filterDoctorId !== undefined) fallbackWhere.doctorId = filterDoctorId
       if (startDate) fallbackWhere.appointDate = { ...fallbackWhere.appointDate, gte: new Date(startDate) }
       if (endDate) fallbackWhere.appointDate = { ...fallbackWhere.appointDate, lte: new Date(endDate) }
 
@@ -114,8 +118,8 @@ router.get('/return-visit', async (req, res, next) => {
           await upsertReturnVisitStats({
             periodType: period,
             periodStart: rec.periodStart,
-            clinicId: clinicId ? parseInt(clinicId) : undefined,
-            doctorId: doctorId ? parseInt(doctorId) : undefined,
+            clinicId: filterClinicId,
+            doctorId: filterDoctorId,
           })
         } catch (e) {
         }
@@ -125,16 +129,48 @@ router.get('/return-visit', async (req, res, next) => {
         where,
         orderBy: { periodStart: 'asc' },
       })
+
+      if (statsRecords.length === 0) {
+        res.json(records.map(({ periodStart, ...rest }) => rest))
+        return
+      }
     }
 
-    const chartData = statsRecords.map((r) => ({
-      date: dayjs(r.periodStart).format(period === 'day' ? 'YYYY-MM-DD' : period === 'week' ? 'YYYY-MM-DD' : 'YYYY-MM'),
-      total: r.totalVisits,
-      return: r.returnVisits,
-      rate: r.returnRate,
-    }))
+    let aggregated
+    if (hasFilter) {
+      const byDate = new Map()
+      for (const r of statsRecords) {
+        const key = dayjs(r.periodStart).format(period === 'day' ? 'YYYY-MM-DD' : period === 'week' ? 'YYYY-MM-DD' : 'YYYY-MM')
+        byDate.set(key, {
+          date: key,
+          total: r.totalVisits,
+          return: r.returnVisits,
+          rate: r.returnRate,
+        })
+      }
+      aggregated = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date))
+    } else {
+      const byDate = new Map()
+      for (const r of statsRecords) {
+        const key = dayjs(r.periodStart).format(period === 'day' ? 'YYYY-MM-DD' : period === 'week' ? 'YYYY-MM-DD' : 'YYYY-MM')
+        if (!byDate.has(key)) {
+          byDate.set(key, { date: key, total: 0, return: 0 })
+        }
+        const agg = byDate.get(key)
+        agg.total += r.totalVisits
+        agg.return += r.returnVisits
+      }
+      aggregated = Array.from(byDate.values())
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((r) => ({
+          date: r.date,
+          total: r.total,
+          return: r.return,
+          rate: r.total > 0 ? parseFloat(((r.return / r.total) * 100).toFixed(1)) : 0,
+        }))
+    }
 
-    res.json(chartData)
+    res.json(aggregated)
   } catch (err) {
     next(err)
   }

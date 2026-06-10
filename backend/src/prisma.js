@@ -23,48 +23,59 @@ async function upsertReturnVisitStats({ periodType = 'day', periodStart, clinicI
     end = base.endOf('month').toDate()
   }
 
-  const where = {
-    periodType_periodStart_clinicId_doctorId: {
-      periodType,
-      periodStart: start,
-      clinicId: clinicId || null,
-      doctorId: doctorId || null,
-    },
-  }
+  const filterClinicId = clinicId ? parseInt(clinicId) : null
+  const filterDoctorId = doctorId ? parseInt(doctorId) : null
 
   const statsWhere = {
     status: 'completed',
     appointDate: { gte: start, lte: end },
   }
-  if (clinicId) statsWhere.clinicId = clinicId
-  if (doctorId) statsWhere.doctorId = doctorId
+  if (filterClinicId) statsWhere.clinicId = filterClinicId
+  if (filterDoctorId) statsWhere.doctorId = filterDoctorId
 
   const totalVisits = await client.appointment.count({ where: statsWhere })
-
   const returnVisits = await client.appointment.count({
     where: { ...statsWhere, isReturnVisit: true },
   })
-
   const returnRate = totalVisits > 0 ? parseFloat(((returnVisits / totalVisits) * 100).toFixed(2)) : 0
 
-  return await client.returnVisitStats.upsert({
-    where,
-    create: {
-      periodType,
-      periodStart: start,
-      periodEnd: end,
-      clinicId: clinicId || null,
-      doctorId: doctorId || null,
-      totalVisits,
-      returnVisits,
-      returnRate,
-    },
-    update: {
-      totalVisits,
-      returnVisits,
-      returnRate,
-    },
-  })
+  let existing
+  try {
+    existing = await client.returnVisitStats.findFirst({
+      where: {
+        periodType,
+        periodStart: start,
+        clinicId: filterClinicId,
+        doctorId: filterDoctorId,
+      },
+    })
+  } catch (e) {
+    existing = null
+  }
+
+  if (existing) {
+    return await client.returnVisitStats.update({
+      where: { id: existing.id },
+      data: {
+        totalVisits,
+        returnVisits,
+        returnRate,
+      },
+    })
+  } else {
+    return await client.returnVisitStats.create({
+      data: {
+        periodType,
+        periodStart: start,
+        periodEnd: end,
+        clinicId: filterClinicId,
+        doctorId: filterDoctorId,
+        totalVisits,
+        returnVisits,
+        returnRate,
+      },
+    })
+  }
 }
 
 async function refreshReturnVisitStatsForDate(date, clinicId, doctorId, tx) {
@@ -80,6 +91,18 @@ async function refreshReturnVisitStatsForDate(date, clinicId, doctorId, tx) {
       tx,
     })
     results.push(r)
+  }
+  if (!clinicId && !doctorId) {
+    for (const pt of periods) {
+      const r = await upsertReturnVisitStats({
+        periodType: pt,
+        periodStart: base.toDate(),
+        clinicId: null,
+        doctorId: null,
+        tx,
+      })
+      results.push(r)
+    }
   }
   return results
 }
